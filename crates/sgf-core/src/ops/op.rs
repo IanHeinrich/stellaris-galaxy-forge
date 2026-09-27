@@ -411,16 +411,22 @@ pub enum Op {
         radius: f64,
         angle: f64,
     },
-    /// A save body made a moon of `parent`, or a planet when `None`, then put at `radius`
-    /// and `angle` about its new parent as [`Op::MoveSaveBody`] puts it. `moon_of`, both
-    /// parents' `moons` and the moon bit of `binary_flags` are written. A parent outside
-    /// the system, a moon, the body itself or one of its moons, and the primary body are
-    /// refused, and so is a body with moons made a moon. The inverse puts the old parent
-    /// back. Stellaris 4.x save documents only.
+    /// A save body made a moon of `parent`, a planet of it when `star`, or a planet of the
+    /// system's centre when `None`, then put at `radius` and `angle` about its new parent as
+    /// [`Op::MoveSaveBody`] puts it. `moon_of` and both parents' `moons` are written, and
+    /// the moon bit of `binary_flags` is set for a moon and cleared otherwise. A parent
+    /// outside the system, a moon, the body itself or one of its moons, and a parent at the
+    /// system's centre are refused, and so are the primary body and a body with moons made
+    /// a moon of a planet. The inverse puts the old parent back. Stellaris 4.x save
+    /// documents only.
     SetSaveBodyParent {
         system: u32,
         body: u32,
         parent: Option<u32>,
+        /// `parent` is a star: the body orbits it as a planet, with its moons, and takes no
+        /// moon bit. The core cannot tell a star from the bytes, so the caller says. Ignored
+        /// with no parent.
+        star: bool,
         radius: f64,
         angle: f64,
     },

@@ -217,6 +217,12 @@ a moon away from its planet to make it a planet again. A planet that
 has moons of its own can't become a moon. A moon keeps its name after
 it moves to another planet, so Sol IIIa can end up orbiting Sol IV.
 
+In a binary or trinary system, drop a planet on another star to make it
+orbit that star. Its moons come with it. It lands at the distance you
+dropped it from the star, or on another of that star's orbits when you
+drop it close to one. To bring it back, drop it on the star at the
+centre or drag it well away from its star.
+
 Shift+Arrow moves the body whose page is open. Left and Right move it
 along its orbit, and Up and Down move it out and in. Each press moves it
 1° or 1 unit. Ctrl+Shift+Arrow moves it 10. The arrows on their own
@@ -224,8 +230,10 @@ still pan the view.
 
 You can make the same edits in the Orbit block on the body's page.
 
-- Orbits picks the star or a planet. A new moon goes on the next free
-  moon orbit of its planet. A moon made a planet stays where it is.
+- Orbits picks the star at the centre, another star or a planet. A new
+  moon goes on the next free moon orbit of its planet. A planet moved to
+  another star goes just past that star's outermost planet. A body moved
+  to the star at the centre stays where it is.
 - Orbit radius is its distance from what it orbits.
 - Angle is where it stands on that orbit, in degrees. A moon's radius
   and angle are measured from its planet.
@@ -242,9 +250,9 @@ leaves its asteroids where they are. Changing a belt's radius moves its
 asteroids with it. The kinds come from your install, so you need the
 game data loaded to change one.
 
-In the system view, each belt and the inner radius has four small ring
-handles, at the top, right, bottom and left of its circle. Drag any of
-them to change the radius. Right-click a belt's handle and choose Remove
+In the system view, each belt and the inner radius has six small ring
+handles. They show when you point at the belt or the circle. Drag any
+of them to change the radius. Right-click a belt's handle and choose Remove
 belt to remove it. Its asteroids stay where they are. Right-click empty
 space and choose Add belt here to add a belt at that distance from the
 star.

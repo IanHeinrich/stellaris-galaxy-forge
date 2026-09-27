@@ -169,6 +169,13 @@ for planets or deposits.
   stores a negative `orbit`. No angle is stored. A moon keeps its
   `moon_of` after the game deletes the planet, so the key can name a
   `none` slot (4.5 sample, system 40).
+- A planet orbiting a star is written like a moon of it: `moon_of=<star>`
+  and its id in the star's `moons`, but with no 512 in `binary_flags`.
+  In Alpha Centauri (4.4 sample, system 278) the companion star 327 has
+  `moons={ 328 329 }`, with `binary_flags=73` and `321`. None of the 200
+  bodies of the 4.4 sample whose `moon_of` is a star has 512. A few name
+  the star at the centre (4.5 sample, system 76's asteroids name 1270);
+  they orbit the centre.
 - Planets, deposits and construction queues are slot tables. An id is
   `slot | generation<<24`, and the table is sorted by slot. A dead slot
   keeps its old id as `<id>=none`. When the game reuses a dead slot, it

@@ -5,6 +5,7 @@ import {
   fieldIntent,
   GEOMETRY_REASONS,
   NO_GEOMETRY,
+  orbitParent,
 } from "../../../lib/details/orbitEdits";
 import { wrapDegrees, type BodyPlacement, type Point } from "../../../lib/details/orbits";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -39,17 +40,16 @@ function about(body: Point, centre: Point): { radius: number; angle: number } {
 type Build = (geometry: SystemGeometry) => GeometryIntent | null;
 
 /**
- * The reparent picking `key` makes of `body`: onto the next moon ring of a host at its angle about
- * it, or about `home` (the star) where it stands.
+ * The reparent picking `key` makes of `body`: onto the next moon ring of a host, or the next orbit
+ * of a star off the centre, at its angle about it; or about the centre where it stands.
  */
-function reparentTo(key: string, system: number, body: number, home: number | null): Build {
+function reparentTo(key: string, system: number, body: number): Build {
   return ({ layout, editing }) => {
     const placed = new Map(layout.bodies.map((b) => [b.id, b]));
     const self = placed.get(body);
     if (!self) return null;
     if (key === THE_STAR) {
-      const centre = home === null ? ORIGIN : (placed.get(home) ?? ORIGIN);
-      return { kind: "reparent", system, body, parent: home, ...about(self, centre) };
+      return { kind: "reparent", system, body, parent: null, ...about(self, ORIGIN) };
     }
     const host = Number(key);
     const { angle } = about(self, placed.get(host) ?? ORIGIN);
@@ -58,7 +58,11 @@ function reparentTo(key: string, system: number, body: number, home: number | nu
   };
 }
 
-/** What a body orbits, as a field: the star, or one of the system's planets that can have moons. */
+/**
+ * What a body orbits, as a field: the star at the centre, a star off it, or, for a body with no
+ * moons of its own, one of the system's planets that can have moons. Nothing when the star it
+ * orbits is all there is to pick.
+ */
 function OrbitsField({
   system,
   body,
@@ -73,32 +77,38 @@ function OrbitsField({
   const names = useGameDataStore((s) => s.names);
   const { layout, editing, frame } = geometry;
   const own = editing.bodies.get(body.id);
-  const home = body.moon ? (own?.detachTo ?? null) : body.parent;
   const nameOf = (id: number) => {
     const planet = frame.details?.planets.find((p) => p.id === id);
     return planet ? bodyName(planet, names) : `#${id}`;
   };
   const hosts = own?.detachOnly
     ? []
-    : layout.bodies.filter((b) => b.id !== body.id && editing.bodies.get(b.id)?.host);
+    : layout.bodies.filter(
+        (b) => b.id !== body.id && editing.bodies.get(b.id)?.host && (b.star || own?.asMoon),
+      );
+  const byKind = [...hosts.filter((b) => b.star), ...hosts.filter((b) => !b.star)];
   const star: IconPickerItem = { key: THE_STAR, label: "The star" };
-  const items = [star, ...hosts.map((b) => ({ key: String(b.id), label: nameOf(b.id) }))];
+  const items = [star, ...byKind.map((b) => ({ key: String(b.id), label: nameOf(b.id) }))];
   // A moon whose planet is missing is drawn with no parent, but the details still name its planet.
-  const parent = body.moon
-    ? (body.parent ?? frame.details?.planets.find((p) => p.id === body.id)?.parent ?? null)
-    : null;
+  const parent =
+    body.moon && body.parent === null
+      ? (frame.details?.planets.find((p) => p.id === body.id)?.parent ?? null)
+      : orbitParent(layout, body);
   const current = parent !== null ? { key: String(parent), label: nameOf(parent) } : star;
   const pick = (key: string) => {
-    if (key !== current.key) send(reparentTo(key, system, body.id, home));
+    if (key !== current.key) send(reparentTo(key, system, body.id));
   };
+  if (items.length === 1 && current === star) return null;
   return (
-    <PickerField
-      label="Orbits"
-      title="Make it a moon of another planet, or a planet of the star"
-      current={current}
-      items={items}
-      onPick={pick}
-    />
+    <EditRow label="Orbits">
+      <PickerField
+        label="Orbits"
+        title="Make it a planet of a star, or a moon of another planet"
+        current={current}
+        items={items}
+        onPick={pick}
+      />
+    </EditRow>
   );
 }
 
@@ -131,16 +141,13 @@ export function OrbitBlock({ system, body }: { system: number; body: number }) {
       const to = from && fieldIntent(from, field, typed);
       return to && { kind: "move", system, body, radius: to.radius, angle: to.angle };
     });
+  const measuredFrom = orbit !== null ? orbitParent(layout, placed) : null;
   const hostPlanet =
-    placed.moon && orbit !== null
-      ? frame.details.planets.find((p) => p.id === orbit.parent)
-      : undefined;
+    measuredFrom !== null ? frame.details.planets.find((p) => p.id === measuredFrom) : undefined;
   return (
     <EditBlock title="Orbit">
       {own.reparent && (
-        <EditRow label="Orbits">
-          <OrbitsField system={system} body={placed} geometry={geometry} send={send} />
-        </EditRow>
+        <OrbitsField system={system} body={placed} geometry={geometry} send={send} />
       )}
       {moves && (
         <>

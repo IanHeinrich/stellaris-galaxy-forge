@@ -11,7 +11,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../../test/drawn"));
 import { bindStores } from "../../../../store/bindStores";
 import { editResult } from "../../../../store/fixture";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { gameDataSummary } from "../../../../test/builders";
+import { beltKind, gameDataSummary } from "../../../../test/builders";
 import { drawnBy, drawnButton, drawnField } from "../../../../test/drawn";
 import { mockedIpc } from "../../../../test/ipc";
 import { PickerField, TextField } from "../../../EditField";
@@ -39,9 +39,9 @@ const BELTED = details({
 });
 
 const KINDS = [
-  { key: "rocky_asteroid_belt", name: "Rocky Asteroid Belt" },
-  { key: "icy_asteroid_belt", name: "Icy Asteroid Belt" },
-  { key: "crystal_asteroid_belt", name: "Crystal Asteroid Belt" },
+  beltKind("rocky_asteroid_belt", "Rocky Asteroid Belt"),
+  beltKind("icy_asteroid_belt", "Icy Asteroid Belt", { look: "icy", emissive: true }),
+  beltKind("crystal_asteroid_belt", "Crystal Asteroid Belt", { look: "crystal" }),
 ];
 
 afterEach(() => {

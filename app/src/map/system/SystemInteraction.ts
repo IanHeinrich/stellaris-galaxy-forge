@@ -14,7 +14,7 @@ import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
 import { beltLabel, sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
 import type { SystemContext } from "./context";
-import { pickBody, pickExit, pickHandle } from "./picking";
+import { handleOwnerAt, pickBody, pickExit, pickHandle } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
@@ -28,6 +28,8 @@ export interface SceneTarget {
   /** The body whose shown name plate covers the screen point, or null. */
   plateAt(sx: number, sy: number): number | null;
   hover(body: number | null, exit: number | null, handle: HandleRef | null): void;
+  /** Shows the handles of one band, the one the pointer is over or the one dragged, or none. */
+  revealHandles(owner: HandleRef | null): void;
   selectLane(neighbour: number | null): void;
   /** Shows where a drag would put things, or drops what was shown. */
   preview(step: DragStep | null): void;
@@ -145,7 +147,9 @@ export class SystemInteraction {
       },
       {
         left: () => {
-          if (!this.model.busy()) this.hover(null, null, null, 0, 0);
+          if (this.model.busy()) return;
+          this.hover(null, null, null, 0, 0);
+          this.scene.revealHandles(null);
         },
       },
     );
@@ -162,6 +166,7 @@ export class SystemInteraction {
     this.model.cancel(this.intent);
     this.model.reset();
     this.hover(null, null, null, 0, 0);
+    this.scene.revealHandles(null);
     this.canvas.style.cursor = "";
   }
 
@@ -276,7 +281,9 @@ export class SystemInteraction {
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
     // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
     const body = pickBody(ctx.bodies, this.cam, w) ?? this.scene.plateAt(e.offsetX, e.offsetY);
-    const handle = body === null ? pickHandle(ctx.handles, this.cam, w) : null;
+    const shown = ctx.drag?.handle ?? handleOwnerAt(ctx, this.cam, w);
+    this.scene.revealHandles(shown);
+    const handle = body === null ? pickHandle(ctx.handles, this.cam, w, shown) : null;
     const own = body === null ? undefined : ctx.editing.bodies.get(body);
     const movable = own?.move === true || own?.detachOnly === true;
     const input: SystemInput = {

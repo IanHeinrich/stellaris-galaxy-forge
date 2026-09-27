@@ -162,16 +162,21 @@ pub fn movable(bodies: &[Body], system: u32, id: u32) -> Result<&Body, OpError> 
 }
 
 /// Refuse `parent` as body `id`'s new one: a body outside the frame, the body itself or one
-/// of its moons, a moon, the primary, or the parent it has. A body with moons may not
-/// become a moon.
+/// of its moons, a body `is_moon` says holds the moon bit, a body at the system's centre,
+/// or the parent it has. The primary orbits nothing, a body with moons may become a
+/// planet of a `star` but not a moon, and only a star parent may be the primary. A body
+/// whose parent stands at the centre already orbits the centre.
 pub fn check_parent(
     bodies: &[Body],
     system: u32,
     id: u32,
     parent: Option<u32>,
+    star: bool,
+    is_moon: impl Fn(u32) -> bool,
 ) -> Result<(), OpError> {
     let body = movable(bodies, system, id)?;
-    if bodies.first().is_some_and(|primary| primary.id == id) {
+    let is_primary = |id| bodies.first().is_some_and(|primary| primary.id == id);
+    if is_primary(id) {
         return Err(OpError::InvalidParent {
             reason: format!("planet {id} is the system's primary body, which orbits no other body"),
         });
@@ -187,13 +192,17 @@ pub fn check_parent(
             Some(format!(
                 "planet {parent} is one of planet {id}'s moons, so it cannot be its parent"
             ))
-        } else if host.parent.is_some() {
+        } else if host.parent.is_some() && is_moon(parent) {
             Some(format!(
                 "planet {parent} is a moon, and a moon cannot have moons"
             ))
-        } else if bodies.first().is_some_and(|primary| primary.id == parent) {
+        } else if !star && is_primary(parent) {
             Some(format!(
                 "planet {parent} is the system's primary body: to make planet {id} a planet, give it no parent"
+            ))
+        } else if stands_at_centre(host) {
+            Some(format!(
+                "planet {parent} stands at the system's centre: to make planet {id} orbit it, give it no parent"
             ))
         } else {
             None
@@ -201,14 +210,20 @@ pub fn check_parent(
         if let Some(reason) = reason {
             return Err(OpError::InvalidParent { reason });
         }
-        if bodies.iter().any(|b| b.parent == Some(id)) {
+        if !star && bodies.iter().any(|b| b.parent == Some(id)) {
             return Err(OpError::HasMoons(id));
         }
     }
-    if body.parent == parent {
+    let orbits_centre =
+        |parent: Option<u32>| parent.is_none_or(|p| find(bodies, p).is_some_and(stands_at_centre));
+    if body.parent == parent || (orbits_centre(body.parent) && orbits_centre(parent)) {
         return Err(OpError::ParentUnchanged(id));
     }
     Ok(())
+}
+
+fn stands_at_centre(body: &Body) -> bool {
+    body.at.0.hypot(body.at.1) <= STORED_ORBIT_SLACK
 }
 
 /// The frame with body `id` a moon of `parent`, or a planet, `radius` from its new centre

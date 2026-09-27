@@ -5,6 +5,7 @@ import {
   NO_GEOMETRY,
   SAVE_GEOMETRY,
   toMoonHint,
+  toStarHint,
 } from "../../lib/details/orbitEdits";
 import { polar } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
@@ -356,7 +357,7 @@ describe("a body dragged in the system scene", () => {
   it.each([
     ["a moon", MOON, GEOMETRY_REASONS.moonHost, "P3 is a moon"],
     ["an asteroid", ASTEROID, GEOMETRY_REASONS.asteroidHost, "P6 is an asteroid"],
-    ["a star", STAR, GEOMETRY_REASONS.starHost, "P1 is a star"],
+    ["the star it orbits", STAR, GEOMETRY_REASONS.orbitsCentre, "P1 is the star it orbits"],
   ])(
     "refuses %s as a parent, held on its orbit, and says why on release",
     (_, id, reason, text) => {
@@ -568,6 +569,90 @@ describe("a body dragged in the system scene", () => {
     expect(model.handle(on("move", { x: from.x + 10, y: from.y }), intent)).toBe("pan");
     model.handle(on("up", { x: from.x + 10, y: from.y }, { button: 1 }), intent);
     expect(without(intent.calls, "hover")).toEqual([]);
+  });
+});
+
+describe("a body dragged onto a companion star", () => {
+  const COMPANION = 8;
+  const ITS_PLANET = 9;
+  const star = { x: -240, y: 0 };
+
+  /** `orbitFrame` with star 8 at 240 out on the left, and planet 9 orbiting it at 16. */
+  function binaryFrame(): SystemContext {
+    const details = orbitSystem();
+    const companion = saveBody(COMPANION, "pc_g_star", [-240, 0], 240, 20);
+    const itsPlanet = saveBody(ITS_PLANET, "pc_arid", [-224, 0], 16, 10, COMPANION);
+    const planets = [...details.planets, companion, itsPlanet].map((p) => ({
+      ...p,
+      name_key: `NAME_P${p.id}`,
+    }));
+    return systemContext({
+      ...NO_SOURCES,
+      id: ORBITS,
+      kind: "save",
+      details: { ...details, planets },
+      planetClasses: orbitClasses(),
+      geometry: SAVE_GEOMETRY,
+    });
+  }
+
+  it("makes a planet with moons orbit it at the pointer's distance, or on another of its orbits", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(binaryFrame());
+    grab(model, intent, PLANET, around(30));
+    model.handle(on("move", polarAt(8, 90, star)), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toEqual({
+      kind: "reparent",
+      system: ORBITS,
+      body: PLANET,
+      parent: COMPANION,
+      radius: 8,
+      angle: 90,
+    });
+    expect(step?.marks.host).toBe(COMPANION);
+    expect(step?.readout).toEqual({ text: "orbits P8 · orbit 8 · 90°" });
+    expect(step?.hint).toBe(toStarHint("P8"));
+    expect(step?.refused).toBeUndefined();
+    model.handle(on("move", polarAt(13, 180, star)), intent);
+    const shared = lastStep(intent);
+    expect(shared?.intent).toMatchObject({ parent: COMPANION, radius: 16, angle: 180 });
+    expect(shared?.marks).toMatchObject({ tone: "shared", other: ITS_PLANET, host: COMPANION });
+    expect(shared?.readout.text).toBe("orbits P8 · orbit 16 · shared with P9");
+    model.handle(on("up", polarAt(13, 180, star)), intent);
+    expect(named(intent.calls, "commit")).toEqual([["commit", shared?.intent]]);
+  });
+
+  it("makes its planet a planet of the centre past twice its outermost orbit", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(binaryFrame());
+    grab(model, intent, ITS_PLANET, outward(0));
+    model.handle(on("move", { x: -224, y: 30 }), intent);
+    expect(lastStep(intent)?.intent).toMatchObject({ kind: "move", body: ITS_PLANET });
+    model.handle(on("move", { x: -200, y: 60 }), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ kind: "reparent", body: ITS_PLANET, parent: null });
+    expect(step?.hint).toBe(DRAG_HINTS.toPlanet);
+    expect(step?.readout.text).toMatch(/^planet · orbit \d+ · \d+°$/);
+  });
+
+  it("makes its planet a planet of the centre where it stands when dropped on the centre's star", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(binaryFrame());
+    grab(model, intent, ITS_PLANET, outward(0));
+    model.handle(on("move", { x: 0, y: 3 }), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toEqual({
+      kind: "reparent",
+      system: ORBITS,
+      body: ITS_PLANET,
+      parent: null,
+      radius: 224,
+      angle: 180,
+    });
+    expect(step?.marks.host).toBe(STAR);
+    expect(step?.readout.text).toBe("orbits P1 · orbit 224 · 180°");
+    expect(step?.hint).toBe(DRAG_HINTS.toPlanet);
   });
 });
 

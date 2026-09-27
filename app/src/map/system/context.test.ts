@@ -9,6 +9,7 @@ import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { SAVE_GEOMETRY, type GeometryIntent } from "../../lib/details/orbitEdits";
 import {
+  beltKind,
   bodyLayout,
   byId,
   orbitClasses,
@@ -22,7 +23,7 @@ import {
 import { systemRoll } from "../../test/rolls";
 import { Camera } from "../Camera";
 import { systemContext } from "./context";
-import { pickHandle } from "./picking";
+import { handleOwnerAt, pickHandle } from "./picking";
 import {
   blankSceneTextures,
   context as fixtureContext,
@@ -364,7 +365,7 @@ describe("a system shown under a preview", () => {
     expect(base.layout.bodies.find((b) => b.id === 2)?.ring?.radius).toBe(60);
   });
 
-  it("puts four handles on each belt and on the inner radius, where the save lets them move", () => {
+  it("puts six handles on each belt and on the inner radius, where the save lets them move", () => {
     const { base, shown } = previewed({
       kind: "setBeltRadius",
       system: 140,
@@ -372,40 +373,61 @@ describe("a system shown under a preview", () => {
       radius: 180,
     });
     const first = { kind: "belt", index: 0 };
-    expect(base.handles.slice(0, 4).map((h) => [h.ref, h.x + 0, h.y + 0])).toEqual([
-      [first, 0, -120],
-      [first, -120, 0],
-      [first, 0, 120],
-      [first, 120, 0],
-    ]);
+    const [c, s] = [120 * Math.cos(Math.PI / 3), 120 * Math.sin(Math.PI / 3)];
+    const spots = base.handles.slice(0, 6).map((h) => [h.x, h.y]);
+    const expected = [
+      [0, -120],
+      [-s, -c],
+      [-s, c],
+      [0, 120],
+      [s, c],
+      [s, -c],
+    ];
+    spots.forEach(([x, y], i) => {
+      expect(x).toBeCloseTo(expected[i][0]);
+      expect(y).toBeCloseTo(expected[i][1]);
+    });
     expect(base.handles.map((h) => h.ref)).toEqual([
-      ...Array(4).fill(first),
-      ...Array(4).fill({ kind: "belt", index: 1 }),
-      ...Array(4).fill({ kind: "innerRadius" }),
+      ...Array(6).fill(first),
+      ...Array(6).fill({ kind: "belt", index: 1 }),
+      ...Array(6).fill({ kind: "innerRadius" }),
     ]);
     expect(shown.handles.map((h) => h.radius)).toEqual([
-      ...Array(4).fill(120),
-      ...Array(4).fill(180),
-      ...Array(4).fill(200),
+      ...Array(6).fill(120),
+      ...Array(6).fill(180),
+      ...Array(6).fill(200),
     ]);
   });
 
-  it("picks a belt from any of its four handles, at the top, right, bottom and left on screen", () => {
+  describe("the handles shown", () => {
     const { base } = previewed({ kind: "setBeltRadius", system: 140, index: 1, radius: 180 });
     const cam = new Camera();
     cam.setViewport(800, 800);
-    const spots = [
-      [400, 400 - 120],
-      [400 + 120, 400],
-      [400, 400 + 120],
-      [400 - 120, 400],
-    ];
-    for (const [sx, sy] of spots) {
-      const at = cam.screenToWorld(sx + 2, sy - 1);
-      expect(pickHandle(base.handles, cam, at), `${sx},${sy}`).toEqual({ kind: "belt", index: 0 });
-    }
-    const between = cam.screenToWorld(400 + 85, 400 - 85);
-    expect(pickHandle(base.handles, cam, between)).toBeNull();
+    const first = { kind: "belt", index: 0 } as const;
+    /** The world point `px` screen pixels out from the centre, straight up the screen. */
+    const up = (px: number) => cam.screenToWorld(400, 400 - px);
+
+    it("are the band's the pointer is over, or the inner radius's it is near, and none elsewhere", () => {
+      const half = (base.belts[0].outer - base.belts[0].inner) / 2;
+      expect(handleOwnerAt(base, cam, up(120))).toEqual(first);
+      expect(handleOwnerAt(base, cam, up(120 + half + 4))).toEqual(first);
+      expect(handleOwnerAt(base, cam, up(170 - half))).toEqual({ kind: "belt", index: 1 });
+      expect(handleOwnerAt(base, cam, up(203))).toEqual({ kind: "innerRadius" });
+      expect(handleOwnerAt(base, cam, up(60))).toBeNull();
+      expect(handleOwnerAt(base, cam, up(260))).toBeNull();
+    });
+
+    it("pick a belt from any of its six handles, and a hidden handle never", () => {
+      for (const { x, y } of base.handles.slice(0, 6)) {
+        const s = cam.worldToScreen(x, y);
+        const at = cam.screenToWorld(s.x + 2, s.y - 1);
+        expect(pickHandle(base.handles, cam, at, first), `${x},${y}`).toEqual(first);
+        expect(pickHandle(base.handles, cam, at, null)).toBeNull();
+        expect(pickHandle(base.handles, cam, at, { kind: "innerRadius" })).toBeNull();
+      }
+      const between = cam.screenToWorld(400 + 120, 400);
+      expect(pickHandle(base.handles, cam, between, first)).toBeNull();
+    });
   });
 
   it("lets nothing of a scenario system be edited, with no handles", () => {
@@ -414,6 +436,49 @@ describe("a system shown under a preview", () => {
     expect(ctx.editing.bodies.size).toBe(0);
     expect([ctx.editing.belts, ctx.editing.innerRadius]).toEqual([false, false]);
     expect(ctx.handles).toEqual([]);
+  });
+});
+
+describe("the belts of a system", () => {
+  const belted = (beltKinds: SystemSources["beltKinds"]) =>
+    systemContext({
+      ...fixtureContext({
+        belts: [
+          { kind: "icy_asteroid_belt", inner_radius: 60 },
+          { kind: "space_fauna_belt", inner_radius: 120 },
+          { kind: "fx_unknown_belt", inner_radius: 180 },
+        ],
+      }),
+      beltKinds,
+    });
+
+  it("draws each belt with its kind's look, widened and thinned as the kind says", () => {
+    const kinds = new Map(
+      [
+        beltKind("icy_asteroid_belt", "Icy", { look: "icy", emissive: true }),
+        beltKind("space_fauna_belt", "Fauna", { look: "fauna", width: 2, density: 0.2 }),
+      ].map((k) => [k.key, k]),
+    );
+    const [icy, fauna, unknown] = belted(kinds).belts;
+    expect([icy.look, icy.emissive, fauna.look, unknown.look]).toEqual([
+      "icy",
+      true,
+      "fauna",
+      "rocky",
+    ]);
+    const width = (b: typeof icy) => b.outer - b.inner;
+    expect(width(fauna)).toBeCloseTo(2 * width(icy));
+    expect(fauna.density).toBeCloseTo(0.4);
+    expect(icy.radius - icy.inner).toBeCloseTo(icy.outer - icy.radius);
+  });
+
+  it("draws every belt as a plain rocky belt before the game data is in", () => {
+    const belts = belted(new Map()).belts;
+    expect(belts.map((b) => [b.look, b.emissive, b.density])).toEqual([
+      ["rocky", false, 1],
+      ["rocky", false, 1],
+      ["rocky", false, 1],
+    ]);
   });
 });
 

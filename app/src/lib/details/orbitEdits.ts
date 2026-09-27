@@ -57,18 +57,23 @@ export type GeometryIntent =
 export interface BodyEditing {
   /** It can be dragged, nudged or typed along and across its orbit. */
   move: boolean;
-  /** Another body may be made its moon. */
+  /** Another body may be made its moon, or for a star off the centre, its planet. */
   host: boolean;
-  /** It may be given another parent. */
+  /** It may be given another parent: a star at least. */
   reparent: boolean;
-  /** For a moon, the parent it gets when dragged away from its planet: null for the centre. */
+  /** It may become a moon of a planet: it has no moons of its own. */
+  asMoon: boolean;
+  /**
+   * For a moon, or a planet of a star off the centre, the parent it gets when dragged away from
+   * what it orbits: null for the centre.
+   */
   detachTo?: number | null;
   /**
    * It has no orbit to move along, as a moon whose planet is missing: a drag or its Orbits field
    * makes it a planet of the star where it ends up.
    */
   detachOnly?: boolean;
-  /** For a body that may host, the orbit a new moon of it takes. */
+  /** For a body that may host, the orbit a new moon of it takes, or a new planet of a star. */
   moonRing?: number;
   /** Why it may not move, host or be given another parent, where one of those is false. */
   reason?: string;
@@ -104,7 +109,7 @@ export interface GeometryAdapter {
 /** Why a body may not do what is asked of it, as the status bar and the pages say it. */
 export const GEOMETRY_REASONS = {
   star: "The star at the system's centre stays where it is",
-  starHost: "A star can't have moons",
+  orbitsCentre: "It already orbits the star at the system's centre",
   starMoon: "A star can't become a moon",
   hasMoons: "A planet with moons can't become a moon",
   moonHost: "A moon can't have moons of its own",
@@ -137,6 +142,11 @@ export const DRAG_HINTS = {
 /** What the status bar says while a body is held over `host`, which it would orbit. */
 export function toMoonHint(host: string): string {
   return `release to make it a moon of ${host}`;
+}
+
+/** What the status bar says while a body is held over `star`, which it would orbit as a planet. */
+export function toStarHint(star: string): string {
+  return `release to make it orbit ${star}`;
 }
 
 /** The belt kind a new belt gets: the system's first belt's, else rocky. */
@@ -205,6 +215,39 @@ export function nextMoonRing(
   const moons = frame.layout.bodies.filter((b) => b.parent === host && b.ring);
   if (moons.length === 0) return MOON_RING_FIRST;
   return Math.max(...moons.map((b) => storedRadius(frame, b))) + MOON_RING_STEP;
+}
+
+/** The orbit a new planet of a star off the centre takes when none orbits it yet. */
+const STAR_RING_FIRST = 30;
+
+/** How much further out than a star's outermost planet a new one of it goes. */
+const STAR_RING_STEP = 25;
+
+/** The orbit a new planet of `star` takes: the first star ring, or one step past its outermost planet. */
+function nextStarRing(frame: Pick<GeometryFrame, "layout" | "details">, star: number): number {
+  const planets = frame.layout.bodies.filter((b) => b.parent === star && b.ring);
+  if (planets.length === 0) return STAR_RING_FIRST;
+  return Math.max(...planets.map((b) => storedRadius(frame, b))) + STAR_RING_STEP;
+}
+
+/** Whether `body` is the star at the system's centre: a body that orbits it orbits the centre. */
+export function isCentreStar(body: BodyPlacement): boolean {
+  return body.star && atCentre(body);
+}
+
+/**
+ * What `body` orbits, as an edit names it: its parent, or null for the centre, which a body whose
+ * save names the star at the centre as its parent orbits too.
+ */
+export function orbitParent(layout: SystemLayout, body: BodyPlacement): number | null {
+  return asOrbitParent(layout, body.parent);
+}
+
+/** `parent` as an edit names it: null for the star at the centre. */
+function asOrbitParent(layout: SystemLayout, parent: number | null): number | null {
+  if (parent === null) return null;
+  const body = layout.bodies.find((b) => b.id === parent);
+  return body && isCentreStar(body) ? null : parent;
 }
 
 /** How far apart two angles are, in degrees, the short way round. */
@@ -385,6 +428,7 @@ const FIXED_RING_SEGMENT: BodyEditing = {
   move: false,
   host: false,
   reparent: false,
+  asMoon: false,
   reason: GEOMETRY_REASONS.ringworld,
 };
 
@@ -395,9 +439,14 @@ function saveBodyEditing(
   classOf: ReadonlyMap<number, string>,
   parents: ReadonlySet<number>,
 ): BodyEditing {
+  if (isCentreStar(body)) {
+    const reason = GEOMETRY_REASONS.star;
+    return { move: false, host: false, reparent: false, asMoon: false, reason };
+  }
   if (body.star) {
-    const reason = atCentre(body) ? GEOMETRY_REASONS.star : GEOMETRY_REASONS.starHost;
-    return { move: !atCentre(body), host: false, reparent: false, reason };
+    const moonRing = nextStarRing(frame, body.id);
+    const reason = GEOMETRY_REASONS.starMoon;
+    return { move: true, host: true, reparent: false, asMoon: false, moonRing, reason };
   }
   if (isRingSegment(classOf.get(body.id), frame.planetClasses)) return { ...FIXED_RING_SEGMENT };
   const asteroid = isAsteroid(classOf.get(body.id), frame.planetClasses);
@@ -405,11 +454,15 @@ function saveBodyEditing(
   const editing: BodyEditing = {
     move: body.ring !== null,
     host: !body.moon && !asteroid,
-    reparent: !hasMoons,
+    reparent: true,
+    asMoon: !hasMoons,
   };
   if (editing.host) editing.moonRing = nextMoonRing(frame, body.id);
-  if (body.moon)
-    editing.detachTo = body.parent === null ? null : (byId.get(body.parent)?.parent ?? null);
+  const parent = orbitParent(frame.layout, body);
+  if (parent !== null) {
+    const above = byId.get(parent);
+    editing.detachTo = above ? orbitParent(frame.layout, above) : null;
+  } else if (body.moon) editing.detachTo = null;
   if (isOrphan(body)) {
     editing.detachOnly = true;
     editing.reason = GEOMETRY_REASONS.noOrbit;
@@ -432,7 +485,7 @@ function isOrphan(body: BodyPlacement): boolean {
 
 /** Why `body` cannot have moons, or undefined when it can. */
 function hostRefusal(body: BodyPlacement, asteroid: boolean): string | undefined {
-  if (body.star) return GEOMETRY_REASONS.starHost;
+  if (body.star) return undefined;
   if (body.moon) return GEOMETRY_REASONS.moonHost;
   if (asteroid) return GEOMETRY_REASONS.asteroidHost;
   return undefined;
@@ -554,30 +607,35 @@ function reparentOp(
   intent: Extract<GeometryIntent, { kind: "reparent" }>,
   frame: GeometryFrame,
 ): GeometryOp {
-  const { system, parent, radius, angle } = intent;
+  const { system, radius, angle } = intent;
   const { layout } = frame;
   const body = layout.bodies.find((b) => b.id === intent.body);
   if (!body) return { refused: GEOMETRY_REASONS.elsewhere };
-  if (body.star && atCentre(body)) return { refused: GEOMETRY_REASONS.star };
-  if (body.star && parent !== body.parent) return { refused: GEOMETRY_REASONS.starMoon };
+  const parent = asOrbitParent(layout, intent.parent);
+  const current = orbitParent(layout, body);
+  if (isCentreStar(body)) return { refused: GEOMETRY_REASONS.star };
+  if (body.star && parent !== current) return { refused: GEOMETRY_REASONS.starMoon };
   if (isRingSegment(classOfBody(frame, body.id), frame.planetClasses)) {
     return { refused: GEOMETRY_REASONS.ringworld };
   }
-  if (!isOrphan(body) && parent === body.parent) return moveOp(system, body, radius, angle);
+  if (!isOrphan(body) && parent === current) return moveOp(system, body, radius, angle);
   const editing = saveEditing(frame).bodies;
   const own = editing.get(body.id);
-  if (!own?.reparent) return { refused: GEOMETRY_REASONS.hasMoons };
+  if (!own?.reparent) return { refused: own?.reason ?? GEOMETRY_REASONS.hasMoons };
+  let star = false;
   if (parent !== null) {
     if (under(layout, parent, body.id)) return { refused: GEOMETRY_REASONS.itself };
     const host = layout.bodies.find((b) => b.id === parent);
     if (!host) return { refused: GEOMETRY_REASONS.elsewhere };
     const hostEditing = editing.get(parent);
-    if (!hostEditing?.host && parent !== own.detachTo) {
+    if (!hostEditing?.host) {
       const asteroid = isAsteroid(classOfBody(frame, parent), frame.planetClasses);
       return {
-        refused: hostRefusal(host, asteroid) ?? hostEditing?.reason ?? GEOMETRY_REASONS.starHost,
+        refused: hostRefusal(host, asteroid) ?? hostEditing?.reason ?? GEOMETRY_REASONS.moonHost,
       };
     }
+    if (!host.star && !own.asMoon) return { refused: GEOMETRY_REASONS.hasMoons };
+    star = host.star;
   }
   return {
     op: {
@@ -585,6 +643,7 @@ function reparentOp(
       system,
       body: body.id,
       parent,
+      star,
       radius,
       angle: wrapDegrees(angle),
     },

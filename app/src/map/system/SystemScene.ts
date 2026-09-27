@@ -39,6 +39,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   private readonly layers: SystemLayer[];
   private readonly labels = new LabelsLayer();
   private readonly highlights = new HighlightLayer();
+  private readonly handles = new HandlesLayer();
   private readonly interaction: SystemInteraction;
   private readonly textures: SceneTextures;
   /** What the stores give, with no preview: what a drag starts from. */
@@ -72,11 +73,11 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       new NebulaLayer(textures.nebula),
       new OrbitsLayer(),
       new RolledLayer(),
-      new BeltsLayer(textures.rock),
+      new BeltsLayer(textures.belt),
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
-      new HandlesLayer(),
+      this.handles,
       this.labels,
       this.highlights,
     ];
@@ -229,6 +230,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   hover(body: number | null, exit: number | null, handle: HandleRef | null): void {
     this.setHighlight({ hoverBody: body, hoverExit: exit });
     this.highlights.hoverHandle(handle);
+  }
+
+  revealHandles(owner: HandleRef | null): void {
+    this.handles.reveal(owner);
   }
 
   linkBody(id: number | null): void {

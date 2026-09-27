@@ -19,6 +19,9 @@ use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
 pub(crate) struct Stored {
     pub(crate) body: Body,
+    /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
+    /// `moon_of` without the bit.
+    moon: bool,
     orbit: String,
     x: String,
     y: String,
@@ -49,11 +52,7 @@ pub(crate) fn plan_move(
     }
     write_points(plan, s, system, &stored, &after, body)?;
     let (from, inverse) = where_it_was(&before, &old);
-    let kind = if old.parent.is_some() {
-        "moon"
-    } else {
-        "planet"
-    };
+    let kind = kind_of(&stored, body);
     let description = format!(
         "Moved {kind} #{body} from {from} to orbit {} at {}°{}",
         number(radius),
@@ -69,24 +68,27 @@ pub(crate) fn plan_move(
     grow(plan, s, system, &before, &after, body, description, inverse)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn plan_parent(
     plan: &mut Plan,
     s: &Session,
     system: u32,
     body: u32,
     parent: Option<u32>,
+    star: bool,
     radius: f64,
     angle: f64,
 ) -> Result<Planned, OpError> {
     let stored = frame_of(s, system, body, radius, angle)?;
     let before: Vec<Body> = stored.iter().map(|b| b.body).collect();
-    check_parent(&before, system, body, parent)?;
+    let is_moon = |id| stored.iter().any(|b| b.body.id == id && b.moon);
+    check_parent(&before, system, body, parent, star, is_moon)?;
     let old = *find(&before, body);
     let after = placed(&before, body, parent, radius, angle)?;
 
     let edit = plan.edit_planet(&s.doc, body, system)?;
     set_moon_of(edit, parent)?;
-    set_moon_flag(edit, parent.is_some())?;
+    set_moon_flag(edit, parent.is_some() && !star)?;
     if let Some(old_parent) = old.parent.filter(|&p| before.iter().any(|b| b.id == p)) {
         unlist_moon(plan.edit_planet(&s.doc, old_parent, system)?, body)?;
     }
@@ -95,23 +97,22 @@ pub(crate) fn plan_parent(
     }
     write_points(plan, s, system, &stored, &after, body)?;
 
-    let kind = if old.parent.is_some() {
-        "moon"
-    } else {
-        "planet"
-    };
+    let kind = kind_of(&stored, body);
     let becomes = match parent {
+        Some(parent) if star => format!("a planet of star #{parent}"),
         Some(parent) => format!("a moon of planet #{parent}"),
-        None => "a planet".to_owned(),
+        None if kind == "moon" => "a planet".to_owned(),
+        None => "a planet of the system's centre".to_owned(),
     };
     let description = format!("Made {kind} #{body} {becomes}{}", with_moons(&before, body));
     let (_, (radius, angle)) = where_it_was(&before, &old);
-    // A moon of a missing planet gets that planet back as its parent: undo replays bytes,
-    // and this inverse is not one to apply.
+    // A moon of a missing planet, or a planet of the star at the centre, gets that body back
+    // as its parent: undo replays bytes, and this inverse is not one to apply.
     let inverse = Op::SetSaveBodyParent {
         system,
         body,
         parent: old.parent,
+        star: old.parent.is_some() && kind == "planet",
         radius,
         angle,
     };
@@ -174,10 +175,20 @@ fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
             at,
             orbit,
         },
+        moon: read::scalar_u32(node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0),
         orbit: read::text(node, keys::ORBIT, src),
         x: axis(keys::X),
         y: axis(keys::Y),
     })
+}
+
+/// "moon" for a body holding the moon bit, else "planet".
+fn kind_of(stored: &[Stored], id: u32) -> &'static str {
+    if stored.iter().any(|b| b.body.id == id && b.moon) {
+        "moon"
+    } else {
+        "planet"
+    }
 }
 
 fn find(bodies: &[Body], id: u32) -> &Body {

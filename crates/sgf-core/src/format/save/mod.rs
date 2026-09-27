@@ -204,9 +204,10 @@ impl Format for Save {
                 system,
                 body,
                 parent,
+                star,
                 radius,
                 angle,
-            } => bodies::plan_parent(plan, s, *system, *body, *parent, *radius, *angle),
+            } => bodies::plan_parent(plan, s, *system, *body, *parent, *star, *radius, *angle),
             Op::AddSaveBelt {
                 system,
                 kind,

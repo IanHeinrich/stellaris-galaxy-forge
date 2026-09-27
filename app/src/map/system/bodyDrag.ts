@@ -2,8 +2,11 @@ import { MOON_RING_FIRST } from "../../generated/constants";
 import {
   DRAG_HINTS,
   GEOMETRY_REASONS,
+  isCentreStar,
+  orbitParent,
   overlapOf,
   toMoonHint,
+  toStarHint,
   type BodyEditing,
   type GeometryIntent,
 } from "../../lib/details/orbitEdits";
@@ -158,7 +161,9 @@ function subtree(bodies: readonly BodyPlacement[], id: number): Set<number> {
 
 /** Why `target` cannot take a moon, and what the readout calls it. */
 function hostRefusal(target: BodyPlacement, editing: BodyEditing | undefined) {
-  if (target.star) return { reason: GEOMETRY_REASONS.starHost, what: "a star" };
+  if (isCentreStar(target)) {
+    return { reason: GEOMETRY_REASONS.orbitsCentre, what: "the star it orbits" };
+  }
   if (target.moon) return { reason: GEOMETRY_REASONS.moonHost, what: "a moon" };
   if (editing?.reason === GEOMETRY_REASONS.ringworld) {
     return { reason: GEOMETRY_REASONS.ringworld, what: "a ring world segment" };
@@ -179,7 +184,8 @@ interface Landing {
 /**
  * A planet, moon or star off the centre dragged: freely, its orbit and angle both following the pointer; with Ctrl, along
  * its orbit or across orbits, as the first few pixels of the drag chose; onto another body to become
- * its moon; or, for a moon, far enough from its planet to become a planet.
+ * its moon, or onto a star to orbit it; or, for a moon or a planet of a star off the centre, far
+ * enough from what it orbits, or onto the star at the centre, to orbit what that orbits.
  */
 export class BodyDrag implements Drag {
   private constructor(
@@ -239,8 +245,12 @@ export class BodyDrag implements Drag {
     if (target && !this.own.reparent) return this.unmoored(pointer);
     if (target) {
       const editing = this.frame.editing.bodies.get(target.id);
-      if (editing?.host) return this.hosted(target, pointer);
-      return this.refused(target, editing, pointer);
+      const orbitsCentre = orbitParent(this.frame.layout, this.body) === null;
+      if (isCentreStar(target) && !orbitsCentre) return this.toCentre(target);
+      if (!editing?.host) return this.refused(target, editing, pointer);
+      if (target.star) return this.aboutStar(target, pointer);
+      if (!this.own.asMoon) return this.unmoored(pointer, GEOMETRY_REASONS.hasMoons);
+      return this.hosted(target, pointer);
     }
     const free = !pointer.ctrl || this.axis === "across";
     if (free && this.detaches(pointer)) return this.detached(pointer);
@@ -248,15 +258,15 @@ export class BodyDrag implements Drag {
   }
 
   /**
-   * Over a body while it may not be given another parent: it says why, and moves on its axis. Landing
-   * on top of that body is said instead.
+   * Over a body while it may not be given that body as a parent: it says why, and moves on its axis.
+   * Landing on top of that body is said instead.
    */
-  private unmoored(pointer: DragPointer): DragStep {
+  private unmoored(pointer: DragPointer, why?: string): DragStep {
     const step = this.onOrbit(pointer);
     if (step.marks.tone === "overlap") return step;
-    const text = this.body.star
-      ? GEOMETRY_REASONS.starMoon
-      : (this.own.reason ?? GEOMETRY_REASONS.hasMoons);
+    const text =
+      why ??
+      (this.body.star ? GEOMETRY_REASONS.starMoon : (this.own.reason ?? GEOMETRY_REASONS.hasMoons));
     return { ...step, readout: { text, tone: "warn" } };
   }
 
@@ -298,20 +308,29 @@ export class BodyDrag implements Drag {
     return { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
   }
 
-  /** The pointer's distance from `centre` in whole units, or another ring's there within reach. */
+  /** Where the body is held from `centre` in whole units, or another ring's there within reach. */
   private radiusAbout(
     parent: number | null,
     centre: Pt,
     pointer: DragPointer,
   ): { radius: number; shared: number | null } {
-    const point = this.held(pointer);
+    return this.radiusAt(parent, centre, this.held(pointer), pointer.scale);
+  }
+
+  /** `point`'s distance from `centre` in whole units, or another ring's there within reach. */
+  private radiusAt(
+    parent: number | null,
+    centre: Pt,
+    point: Pt,
+    scale: number,
+  ): { radius: number; shared: number | null } {
     const distance = Math.hypot(point.x - centre.x, point.y - centre.y);
     const rings = this.frame.layout.bodies.flatMap((b) =>
       b.id !== this.body.id && b.parent === parent && b.ring
         ? [{ id: b.id, radius: b.ring.radius }]
         : [],
     );
-    const shared = nearestRing(rings, distance, SHARED_SNAP_PX / pointer.scale);
+    const shared = nearestRing(rings, distance, SHARED_SNAP_PX / scale);
     if (shared) return { radius: shared.radius, shared: shared.id };
     return { radius: Math.max(1, Math.round(distance)), shared: null };
   }
@@ -377,18 +396,24 @@ export class BodyDrag implements Drag {
   }
 
   /** `landing` marked as overlapping another body before sharing its ring. */
-  private marked(landing: Landing, hint: string, lead = ""): DragStep {
+  private marked(
+    landing: Landing,
+    hint: string,
+    lead = "",
+    marks: Partial<DragMarks> = {},
+  ): DragStep {
     const { parent, radius, angle, shared } = landing;
     const over = overlapOf(this.frame.layout, this.body.id, parent, radius, angle);
     if (over !== null) {
       const text = `overlaps ${this.name(over)}`;
-      return this.step(landing, { tone: "overlap", other: over }, { text, tone: "warn" }, hint);
+      const overlap = { ...marks, tone: "overlap" as const, other: over };
+      return this.step(landing, overlap, { text, tone: "warn" }, hint);
     }
     if (shared !== null) {
       const text = `${lead}orbit ${whole(radius)} · shared with ${this.name(shared)}`;
-      return this.step(landing, { tone: "shared", other: shared }, { text }, hint);
+      return this.step(landing, { ...marks, tone: "shared", other: shared }, { text }, hint);
     }
-    return this.step(landing, {}, { text: lead + this.orbitText(landing) }, hint);
+    return this.step(landing, marks, { text: lead + this.orbitText(landing) }, hint);
   }
 
   private orbitText({ parent, radius, angle }: Landing): string {
@@ -406,6 +431,30 @@ export class BodyDrag implements Drag {
     const name = this.name(host.id);
     const text = `moon of ${name} · orbit ${whole(radius)} · ${degrees(angle)}`;
     return this.step(landing, { host: host.id }, { text }, toMoonHint(name));
+  }
+
+  /**
+   * Dropped on a star off the centre, it would orbit it at the pointer's distance and angle from it,
+   * or on another of its planets' orbits within reach.
+   */
+  private aboutStar(star: BodyPlacement, pointer: DragPointer): DragStep {
+    const point = { x: pointer.wx, y: pointer.wy };
+    const angle = snapAngle(angleAbout(star, point), pointer.shift);
+    const landing = {
+      parent: star.id,
+      angle,
+      ...this.radiusAt(star.id, star, point, pointer.scale),
+    };
+    const name = this.name(star.id);
+    return this.marked(landing, toStarHint(name), `orbits ${name} · `, { host: star.id });
+  }
+
+  /** Dropped on the star at the centre, it would orbit the centre where it stands now. */
+  private toCentre(star: BodyPlacement): DragStep {
+    const radius = Math.hypot(this.body.x, this.body.y);
+    const landing = { parent: null, radius, angle: angleAbout(ORIGIN, this.body), shared: null };
+    const lead = `orbits ${this.name(star.id)} · `;
+    return this.marked(landing, DRAG_HINTS.toPlanet, lead, { host: star.id });
   }
 
   /** Over a body that cannot take it: held about its own parent, and releasing does nothing. */

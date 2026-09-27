@@ -1,3 +1,5 @@
+import type { BeltKindView } from "../../generated/BeltKindView";
+import type { BeltLook } from "../../generated/BeltLook";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
@@ -25,7 +27,7 @@ import { clusterOffsets } from "../../lib/visual/starCluster";
 import { effectiveStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
 import type { DragMarks, HandleRef } from "./bodyDrag";
-import { beltTint, bodyLook, type BodyLook } from "./look";
+import { bodyLook, type BodyLook } from "./look";
 import { NO_SOURCES, type SystemSources } from "./sources";
 
 /**
@@ -92,9 +94,41 @@ const NO_CHANCE: Chance = Object.freeze({
   ring: false,
 });
 
-/** An asteroid belt as the scene draws it. */
+/**
+ * An asteroid belt as the scene draws it: its band widened by its kind's width, and how its
+ * pieces look.
+ */
 export interface SceneBelt extends BeltBand {
-  readonly tint: number;
+  readonly look: BeltLook;
+  /** Its pieces glow. */
+  readonly emissive: boolean;
+  /** How many pieces it has against a plain belt of the same radius, its wider band included. */
+  readonly density: number;
+}
+
+/** The widest a kind's band is drawn, against a plain belt's, so a wide kind leaves its planets clear. */
+const MAX_BELT_WIDTH = 3;
+
+/** How a belt of a kind the game data has not given looks. */
+const PLAIN_BELT: Pick<BeltKindView, "look" | "emissive" | "width" | "density"> = Object.freeze({
+  look: "rocky",
+  emissive: false,
+  width: 1,
+  density: 1,
+});
+
+function sceneBelt(belt: BeltBand, kinds: SystemSources["beltKinds"]): SceneBelt {
+  const { look, emissive, width, density } = kinds.get(belt.kind) ?? PLAIN_BELT;
+  const widening = Math.min(Math.max(width, 0), MAX_BELT_WIDTH);
+  const half = ((belt.outer - belt.inner) / 2) * widening;
+  return {
+    ...belt,
+    inner: belt.radius - half,
+    outer: belt.radius + half,
+    look,
+    emissive,
+    density: Math.max(density, 0) * widening,
+  };
 }
 
 /** A planet class's atmosphere, as its definition gives it. */
@@ -119,8 +153,8 @@ export interface Exit {
 }
 
 /**
- * One of the four handles drawn at the top, right, bottom and left of a belt's circle or the inner
- * radius's, any of which a drag moves.
+ * One of the handles spaced evenly round a belt's circle or the inner radius's, from the top on
+ * screen, any of which a drag moves. They show while the pointer is over the band they move.
  */
 export interface SceneHandle {
   readonly ref: HandleRef;
@@ -441,15 +475,19 @@ const lastRolled = lastOf<readonly RolledPlanet[]>();
 const lastEditing = lastOf<SceneEditing>();
 const lastHandles = lastOf<readonly SceneHandle[]>();
 
-/** The screen top, right, bottom and left of a circle about the centre, as unit steps in world units. */
-const HANDLE_SPOTS: readonly (readonly [number, number])[] = [
-  [0, -SAVE_Y_SIGN],
-  [SAVE_X_SIGN, 0],
-  [0, SAVE_Y_SIGN],
-  [-SAVE_X_SIGN, 0],
-];
+/** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
+export const HANDLES_PER_CIRCLE = 6;
 
-/** The four handles on the circle of `radius` about the centre, as the camera draws them. */
+/** Where each handle stands on a circle about the centre, as unit steps in world units. */
+const HANDLE_SPOTS: readonly (readonly [number, number])[] = Array.from(
+  { length: HANDLES_PER_CIRCLE },
+  (_, i) => {
+    const turn = (i / HANDLES_PER_CIRCLE) * 2 * Math.PI;
+    return [SAVE_X_SIGN * Math.sin(turn), -SAVE_Y_SIGN * Math.cos(turn)];
+  },
+);
+
+/** The handles on the circle of `radius` about the centre, as the camera draws them. */
 function handlesAt(ref: HandleRef, radius: number, beltKind: string | null): SceneHandle[] {
   return HANDLE_SPOTS.map(([x, y]) => ({ ref, radius, beltKind, x: x * radius, y: y * radius }));
 }
@@ -502,8 +540,8 @@ export function systemContext(
     layout,
     bodies,
     bodyById: lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b]))),
-    belts: lastBelts([layout.belts], () =>
-      layout.belts.map((belt) => ({ ...belt, tint: beltTint(belt.kind) })),
+    belts: lastBelts([layout.belts, src.beltKinds], () =>
+      layout.belts.map((belt) => sceneBelt(belt, src.beltKinds)),
     ),
     exits: lastExits([node, src.systems, src.names, layout.innerRadius], () =>
       sceneExits(src, node, layout.innerRadius),

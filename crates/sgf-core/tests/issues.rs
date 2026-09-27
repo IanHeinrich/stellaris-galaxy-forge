@@ -271,6 +271,7 @@ fn moons_stacked_near_a_belts_radius_overlap() {
             system: 1,
             body: 588,
             parent: Some(589),
+            star: false,
             radius: 20.0,
             angle: 90.0,
         },

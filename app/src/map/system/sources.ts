@@ -1,3 +1,4 @@
+import type { BeltKindView } from "../../generated/BeltKindView";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -35,6 +36,8 @@ export interface SystemSources {
   /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
   readonly moonScale: number;
   readonly starClasses: ReadonlyMap<string, StarClassView>;
+  /** Each asteroid belt kind the game data defines, by key. */
+  readonly beltKinds: ReadonlyMap<string, BeltKindView>;
   /** The star class each initializer gives its system, for a scenario system with none of its own. */
   readonly initializerClasses: ReadonlyMap<string, string>;
   readonly kind: DocumentKind | null;
@@ -61,6 +64,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   planetClasses: new Map<string, PlanetClassView>(),
   moonScale: VANILLA_MOON_SCALE,
   starClasses: new Map<string, StarClassView>(),
+  beltKinds: new Map<string, BeltKindView>(),
   initializerClasses: new Map<string, string>(),
   kind: null,
   gameDataReady: false,
@@ -83,6 +87,7 @@ export const sameSources = sameFields<SystemSources>({
   planetClasses: true,
   moonScale: true,
   starClasses: true,
+  beltKinds: true,
   initializerClasses: true,
   kind: true,
   gameDataReady: true,
@@ -92,6 +97,19 @@ export const sameSources = sameFields<SystemSources>({
   ownership: true,
   geometry: true,
 });
+
+const NO_BELT_KINDS: readonly BeltKindView[] = [];
+const beltKindMaps = new WeakMap<readonly BeltKindView[], ReadonlyMap<string, BeltKindView>>();
+
+/** The summary's belt kinds by key, the same map while the summary's list stands. */
+function beltKindsBy(kinds: readonly BeltKindView[]): ReadonlyMap<string, BeltKindView> {
+  let map = beltKindMaps.get(kinds);
+  if (!map) {
+    map = new Map(kinds.map((kind) => [kind.key, kind]));
+    beltKindMaps.set(kinds, map);
+  }
+  return map;
+}
 
 /** The stores' state for system `id`, as the scene reads it, asking for the roll it draws. */
 export function readSystemSources(id: number | null): SystemSources {
@@ -116,6 +134,7 @@ export function readSystemSources(id: number | null): SystemSources {
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
     starClasses: data.starClasses,
+    beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),
     initializerClasses: data.initializerClasses,
     kind: session.kind,
     gameDataReady: ready,

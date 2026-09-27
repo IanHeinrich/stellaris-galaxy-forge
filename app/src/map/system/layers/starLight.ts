@@ -187,7 +187,7 @@ export interface FlareShape {
  */
 export interface FlarePart {
   readonly label: string;
-  readonly texture: keyof SceneTextures;
+  readonly texture: Exclude<keyof SceneTextures, "belt">;
   readonly shape: FlareShape;
   readonly alpha: number;
   readonly tint: number | null;

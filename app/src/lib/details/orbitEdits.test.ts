@@ -64,7 +64,13 @@ describe("what a save lets the system view edit", () => {
   const flags = (id: number) => editing.bodies.get(id);
 
   it("moves a planet, which can host moons on its first moon ring and become one", () => {
-    expect(flags(LONE)).toEqual({ move: true, host: true, reparent: true, moonRing: 15 });
+    expect(flags(LONE)).toEqual({
+      move: true,
+      host: true,
+      reparent: true,
+      asMoon: true,
+      moonRing: 15,
+    });
   });
 
   it("moves a moon, which detaches to its planet's parent and cannot host", () => {
@@ -72,6 +78,7 @@ describe("what a save lets the system view edit", () => {
       move: true,
       host: false,
       reparent: true,
+      asMoon: true,
       detachTo: null,
       reason: GEOMETRY_REASONS.moonHost,
     });
@@ -87,15 +94,17 @@ describe("what a save lets the system view edit", () => {
       move: false,
       host: false,
       reparent: false,
+      asMoon: false,
       reason: GEOMETRY_REASONS.star,
     });
   });
 
-  it("does not make a planet with moons a moon", () => {
+  it("lets a planet with moons be given a star, but not become a moon", () => {
     expect(flags(PLANET)).toEqual({
       move: true,
       host: true,
-      reparent: false,
+      reparent: true,
+      asMoon: false,
       moonRing: 25,
       reason: GEOMETRY_REASONS.hasMoons,
     });
@@ -133,6 +142,7 @@ describe("what a save lets the system view edit", () => {
       move: false,
       host: false,
       reparent: true,
+      asMoon: true,
       detachTo: null,
       detachOnly: true,
       reason: GEOMETRY_REASONS.noOrbit,
@@ -177,6 +187,7 @@ describe("the op each intent makes", () => {
         system: SYSTEM,
         body: LONE,
         parent: PLANET,
+        star: false,
         radius: 25,
         angle: 0,
       },
@@ -187,6 +198,7 @@ describe("the op each intent makes", () => {
         system: SYSTEM,
         body: MOON,
         parent: null,
+        star: false,
         radius: 140,
         angle: 10,
       },
@@ -195,6 +207,13 @@ describe("the op each intent makes", () => {
 
   it("moves a body given the parent it has", () => {
     expect(op(reparent(MOON, PLANET, 18, 90))).toEqual(op(move(MOON, 18, 90)));
+  });
+
+  it("takes the star at the centre for the centre", () => {
+    expect(op(reparent(LONE, STAR, 110, 90))).toEqual(op(move(LONE, 110, 90)));
+    expect(op(reparent(MOON, STAR, 140, 10))).toMatchObject({
+      op: { type: "SetSaveBodyParent", body: MOON, parent: null, star: false },
+    });
   });
 
   it("adds, retypes and removes a belt, and sets the inner radius", () => {
@@ -262,7 +281,6 @@ describe("the op each intent makes", () => {
     expect(op(reparent(PLANET, LONE))).toEqual({ refused: GEOMETRY_REASONS.hasMoons });
     expect(op(reparent(LONE, MOON))).toEqual({ refused: GEOMETRY_REASONS.moonHost });
     expect(op(reparent(LONE, ASTEROID))).toEqual({ refused: GEOMETRY_REASONS.asteroidHost });
-    expect(op(reparent(LONE, STAR))).toEqual({ refused: GEOMETRY_REASONS.starHost });
     expect(op(reparent(STAR, null, 10, 0))).toEqual({ refused: GEOMETRY_REASONS.star });
     expect(op(reparent(LONE, LONE))).toEqual({ refused: GEOMETRY_REASONS.itself });
     expect(op(reparent(LONE, 99))).toEqual({ refused: GEOMETRY_REASONS.elsewhere });
@@ -299,20 +317,22 @@ describe("an asteroid with a moon of its own", () => {
 
 describe("the stars of a binary system", () => {
   const COMPANION = 8;
+  const ITS_PLANET = 9;
   const details = orbitSystem();
   details.planets[0] = saveBody(STAR, "pc_g_star", [15, 0], 15, 30);
   details.planets.push(saveBody(COMPANION, "pc_g_star", [-240, 0], 240, 20));
-  details.planets.push(saveBody(9, "pc_arid", [-200, 0], 40, 10, COMPANION));
+  details.planets.push(saveBody(ITS_PLANET, "pc_arid", [-200, 0], 40, 10, COMPANION));
   const frame = frameOf(details);
   const editing = SAVE_GEOMETRY.editing(frame).bodies;
 
-  it("move, but take no moons and keep their parent", () => {
-    const star = { move: true, host: false, reparent: false, reason: GEOMETRY_REASONS.starHost };
-    expect(editing.get(STAR)).toEqual(star);
-    expect(editing.get(COMPANION)).toEqual(star);
+  it("move and take planets past their outermost, but keep their parent", () => {
+    const star = { move: true, host: true, reparent: false, asMoon: false };
+    const reason = GEOMETRY_REASONS.starMoon;
+    expect(editing.get(STAR)).toEqual({ ...star, moonRing: 30, reason });
+    expect(editing.get(COMPANION)).toEqual({ ...star, moonRing: 65, reason });
   });
 
-  it("are moved by the save's move, and refused a parent or a moon", () => {
+  it("are moved by the save's move, and refused a parent", () => {
     expect(op(move(COMPANION, 250, 90), frame)).toEqual({
       op: { type: "MoveSaveBody", system: SYSTEM, body: COMPANION, radius: 250, angle: 90 },
     });
@@ -320,7 +340,71 @@ describe("the stars of a binary system", () => {
       op: { type: "MoveSaveBody", body: STAR, radius: 20 },
     });
     expect(op(reparent(COMPANION, LONE), frame)).toEqual({ refused: GEOMETRY_REASONS.starMoon });
-    expect(op(reparent(LONE, COMPANION), frame)).toEqual({ refused: GEOMETRY_REASONS.starHost });
+  });
+
+  it("take a planet, with its moons, as a star's planet", () => {
+    const toStar = (body: number) => ({
+      op: {
+        type: "SetSaveBodyParent",
+        system: SYSTEM,
+        body,
+        parent: COMPANION,
+        star: true,
+        radius: 70,
+        angle: 10,
+      },
+    });
+    expect(op(reparent(LONE, COMPANION, 70, 10), frame)).toEqual(toStar(LONE));
+    expect(op(reparent(PLANET, COMPANION, 70, 10), frame)).toEqual(toStar(PLANET));
+    expect(op(reparent(MOON, COMPANION, 70, 10), frame)).toEqual(toStar(MOON));
+  });
+
+  it("have planets, which host moons and detach to the centre", () => {
+    expect(editing.get(ITS_PLANET)).toEqual({
+      move: true,
+      host: true,
+      reparent: true,
+      asMoon: true,
+      moonRing: 15,
+      detachTo: null,
+    });
+    expect(op(reparent(LONE, ITS_PLANET, 15, 0), frame)).toMatchObject({
+      op: { type: "SetSaveBodyParent", parent: ITS_PLANET, star: false },
+    });
+    expect(op(reparent(PLANET, ITS_PLANET, 15, 0), frame)).toEqual({
+      refused: GEOMETRY_REASONS.hasMoons,
+    });
+    expect(op(reparent(ITS_PLANET, null, 200, 0), frame)).toMatchObject({
+      op: { type: "SetSaveBodyParent", parent: null, star: false },
+    });
+  });
+
+  it("detach a moon of a star's planet to that star", () => {
+    const moon = saveBody(10, "pc_barren", [-200, 15], 15, 5, ITS_PLANET);
+    const withMoon = frameOf({ ...details, planets: [...details.planets, moon] });
+    expect(SAVE_GEOMETRY.editing(withMoon).bodies.get(10)?.detachTo).toBe(COMPANION);
+    expect(op(reparent(10, COMPANION, 70, 10), withMoon)).toMatchObject({
+      op: { type: "SetSaveBodyParent", parent: COMPANION, star: true },
+    });
+  });
+});
+
+describe("a planet whose save names the star at the centre as its parent", () => {
+  const NAMED = 7;
+  const details = orbitSystem();
+  details.planets.push(saveBody(NAMED, "pc_arid", [0, 140], 140, 10, STAR));
+  const frame = frameOf(details);
+
+  it("orbits the centre, with nothing to detach from", () => {
+    expect(SAVE_GEOMETRY.editing(frame).bodies.get(NAMED)).toEqual({
+      move: true,
+      host: true,
+      reparent: true,
+      asMoon: true,
+      moonRing: 15,
+    });
+    expect(op(reparent(NAMED, null, 150, 90), frame)).toEqual(op(move(NAMED, 150, 90), frame));
+    expect(op(move(NAMED, 150, 90), frame)).toMatchObject({ op: { type: "MoveSaveBody" } });
   });
 });
 
@@ -339,6 +423,7 @@ describe("a ring world segment", () => {
       move: false,
       host: false,
       reparent: false,
+      asMoon: false,
       reason: GEOMETRY_REASONS.ringworld,
     });
   });

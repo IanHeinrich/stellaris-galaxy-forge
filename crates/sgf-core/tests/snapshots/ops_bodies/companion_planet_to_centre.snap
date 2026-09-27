@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Made planet #328 a planet of the system's centre
+inverse: SetSaveBodyParent { system: 278, body: 328, parent: Some(327), star: true, radius: 35.056412952839295, angle: 77.81319183378028 }
+
+--- gamestate
++++ gamestate
+@@ -107968,7 +107968,7 @@
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				328 329 
++				329 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -107993,13 +107993,12 @@
+ 			binary_flags=73
+ 			coordinate=
+ 			{
+-				x=161.8788
+-				y=-149.4344
++				x=150
++				y=0
+ 				origin=278
+ 			}
+-			orbit=35
++			orbit=150
+ 			last_bombardment=			"0.01.01"
+-			moon_of=327
+ 			planet_orbitals=
+ 			{
+ 			}

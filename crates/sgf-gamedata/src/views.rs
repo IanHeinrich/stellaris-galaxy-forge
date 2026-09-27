@@ -11,6 +11,7 @@ use crate::install::mods::{
     RESERVED_SPAWNS_WORKSHOP_ID,
 };
 use crate::install::scenarios::scenarios_dir;
+use crate::registries::asteroid_belts::{AsteroidBeltDef, BeltLook};
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
@@ -22,7 +23,6 @@ use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
 use crate::scripts::identity;
-use crate::summary::Named;
 use crate::textures::TextureKey;
 use crate::{Diagnostic, GameData, Localisation};
 
@@ -167,7 +167,7 @@ pub struct GameDataSummary {
     pub planet_classes: u32,
     pub starbase_levels: u32,
     pub border: BorderDefines,
-    pub belt_kinds: Vec<Named>,
+    pub belt_kinds: Vec<BeltKindView>,
     pub localisation_keys: u32,
     pub diagnostics: Vec<DiagnosticView>,
     /// The galaxy size with the most stars across the install and the enabled mods;
@@ -178,6 +178,32 @@ pub struct GameDataSummary {
     #[ts(type = "number")]
     pub generation: u64,
     pub watch: WatchView,
+}
+
+/// An asteroid belt kind the install defines, with its localised name and how it looks.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BeltKindView {
+    pub key: String,
+    pub name: String,
+    pub look: BeltLook,
+    pub emissive: bool,
+    /// The band's width and how many pieces it has, against a plain belt's.
+    pub width: f64,
+    pub density: f64,
+}
+
+impl BeltKindView {
+    fn new(belt: &AsteroidBeltDef, gd: &GameData) -> Self {
+        Self {
+            key: belt.key.clone(),
+            name: gd.loc.name_or_readable(&belt.key),
+            look: belt.look,
+            emissive: belt.emissive,
+            width: belt.width,
+            density: belt.density,
+        }
+    }
 }
 
 /// A registry was reread, or the watcher paused or resumed.
@@ -216,10 +242,7 @@ impl From<&GameData> for GameDataSummary {
             belt_kinds: gd
                 .asteroid_belts
                 .iter()
-                .map(|belt| Named {
-                    key: belt.key.clone(),
-                    name: gd.loc.name_or_readable(&belt.key),
-                })
+                .map(|belt| BeltKindView::new(belt, gd))
                 .collect(),
             localisation_keys: count(gd.loc.len()),
             largest_galaxy: gd

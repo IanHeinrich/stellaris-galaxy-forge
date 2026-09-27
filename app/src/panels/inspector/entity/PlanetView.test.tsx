@@ -684,6 +684,36 @@ describe("a body's orbit", () => {
     expect(planet).not.toContain('aria-label="Orbits:');
   });
 
+  it("offers a planet with moons the companion star, and a planet named to the centre's star the star", async () => {
+    await open("save");
+    const read = orbitSystem({ id: SYSTEM, with_game_data: true });
+    const companion = saveBody(8, "pc_g_star", [-240, 0], 240, 20);
+    read.planets.push({ ...companion, name: name("Sol_B"), name_key: "Sol_B" });
+    read.planets.push(saveBody(9, "pc_arid", [0, -140], 140, 10, 1));
+    useGameDataStore.setState({ planetClasses: orbitClasses() });
+    await land(read);
+    await bodyPage(9, { parent: 1 });
+    expect(render(9)).toContain('aria-label="Orbits: The star"');
+
+    await bodyPage(PLANET);
+    render(PLANET);
+    const orbits = drawnField(PickerField, "Orbits");
+    expect(orbits.items.map((item) => item.label)).toEqual(["The star", "Sol B"]);
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    orbits.onPick("8");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "SetSaveBodyParent",
+          body: PLANET,
+          parent: 8,
+          star: true,
+          radius: 30,
+        }),
+      ),
+    );
+  });
+
   it("offers a moon whose planet is missing only the star, detaching it where it stands", async () => {
     await open("save");
     const read = orbitSystem({ id: SYSTEM, with_game_data: true });

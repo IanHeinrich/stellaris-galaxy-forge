@@ -1,3 +1,4 @@
+import type { BeltKindView } from "../generated/BeltKindView";
 import type { BodyLayout } from "../generated/BodyLayout";
 import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
@@ -348,6 +349,15 @@ export function initPlanetView(over: Partial<InitPlanetView> & { class: string }
     moons: [],
     ...over,
   };
+}
+
+/** A belt kind as the game data lists it: a plain rocky belt unless `over` says otherwise. */
+export function beltKind(
+  key: string,
+  name: string,
+  over: Partial<BeltKindView> = {},
+): BeltKindView {
+  return { key, name, look: "rocky", emissive: false, width: 1, density: 1, ...over };
 }
 
 /** What a finished load reports: one install, one mod, and a registry count for every kind. */

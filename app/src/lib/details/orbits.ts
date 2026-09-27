@@ -285,13 +285,15 @@ function layOut(
     const ring = !missing && radius > 0 ? { cx: centre.x, cy: centre.y, radius } : null;
     const size = layout?.size ? mid(layout.size) : null;
     const view = planetClasses.get(planet.class);
+    // A planet orbiting a star names it as its parent, as a moon names its planet.
+    const aboutStar = parent?.placement.star ?? false;
     const placement: BodyPlacement = {
       id: planet.id,
       x: point.x,
       y: point.y,
-      disc: discRadius(size, { moon: planet.moon, star, view, moonScale }),
+      disc: discRadius(size, { moon: planet.moon && !aboutStar, star, view, moonScale }),
       star,
-      moon: moved ? moved.parent !== null && !(parent?.placement.star ?? false) : planet.moon,
+      moon: moved ? moved.parent !== null && !aboutStar : planet.moon && !aboutStar,
       parent: parent ? parent.placement.id : null,
       ring,
       angle,

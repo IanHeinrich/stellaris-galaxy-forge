@@ -25,6 +25,18 @@ fn set_parent(system: u32, body: u32, parent: Option<u32>, radius: f64, angle: f
         system,
         body,
         parent,
+        star: false,
+        radius,
+        angle,
+    }
+}
+
+fn orbit_star(system: u32, body: u32, star: u32, radius: f64, angle: f64) -> Op {
+    Op::SetSaveBodyParent {
+        system,
+        body,
+        parent: Some(star),
+        star: true,
         radius,
         angle,
     }
@@ -422,6 +434,10 @@ fn body_edits_are_refused() {
             set_parent(1, 588, None, 20.0, 0.0),
             "planet 588 already has that parent",
         ),
+        (
+            orbit_star(1, 588, 584, 20.0, 0.0),
+            "planet 584 stands at the system's centre: to make planet 588 orbit it, give it no parent",
+        ),
     ];
     for (op, message) in refusals {
         let error = session.apply(op).expect_err(message);
@@ -545,4 +561,142 @@ fn a_moved_planets_layout_is_what_was_sent() {
         (70.0 * angle.cos(), 70.0 * angle.sin()),
         "585's point",
     );
+}
+
+/// Alpha Centauri: planet 330 and its moon 331 orbit the centre. Made a planet of the
+/// companion star 327, 330 joins 327's `moons` after 328 and 329, takes `moon_of=327`
+/// and no moon bit, and 331 moves with it, out past the system's inner radius.
+#[test]
+fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
+    let mut session = open();
+    let moon = offset(&session, 278, 331, 330);
+    let result = snapshot_step(
+        &mut session,
+        "planet_to_companion_star",
+        orbit_star(278, 330, 327, 90.0, 30.0),
+    );
+    assert_eq!(
+        result.entry.description,
+        "Made planet #330 a planet of star #327, with its moon #331; set the inner radius of \
+         system #278 from 330 to 360.02"
+    );
+    let Op::Batch { ops, .. } = &result.inverse else {
+        panic!("a batch, not {:?}", result.inverse);
+    };
+    let Op::SetSaveBodyParent {
+        body: 330,
+        parent: None,
+        star: false,
+        radius,
+        angle,
+        ..
+    } = ops[0]
+    else {
+        panic!("the centre put back, not {:?}", ops[0]);
+    };
+    let planet_330 = entity(&session, 330);
+    assert!(planet_330.contains("\t\t\tmoon_of=327\n"), "{planet_330}");
+    assert!(!planet_330.contains("\t\t\tbinary_flags="), "{planet_330}");
+    let star = entity(&session, 327);
+    assert!(
+        star.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t328 329 330 \n"),
+        "{star}"
+    );
+    assert_near(offset(&session, 278, 331, 330), moon, "the moon's step");
+    let (x, y) = (30f64.to_radians().cos(), 30f64.to_radians().sin());
+    assert_near(
+        offset(&session, 278, 330, 327),
+        (90.0 * x, 90.0 * y),
+        "the planet about its star",
+    );
+
+    let original = open();
+    session
+        .apply(set_parent(278, 330, None, radius, angle))
+        .expect("back to the centre");
+    assert_eq!(entity(&session, 327), entity(&original, 327));
+    assert!(!entity(&session, 330).contains("moon_of"));
+    assert_near(at(&session, 278, 330), at(&original, 278, 330), "330 back");
+}
+
+/// 328 orbits the companion star 327 with `binary_flags=73`: made a planet of the centre,
+/// it leaves 327's `moons` and keeps its flags. A planet of a star has no moon bit, so it
+/// can take a moon.
+#[test]
+fn a_companion_stars_planet_made_a_planet_of_the_centre() {
+    let mut session = open();
+    let result = snapshot_step(
+        &mut session,
+        "companion_planet_to_centre",
+        set_parent(278, 328, None, 150.0, 0.0),
+    );
+    assert_eq!(
+        result.entry.description,
+        "Made planet #328 a planet of the system's centre"
+    );
+    assert!(
+        matches!(
+            result.inverse,
+            Op::SetSaveBodyParent {
+                parent: Some(327),
+                star: true,
+                ..
+            }
+        ),
+        "{:?}",
+        result.inverse
+    );
+    let freed = entity(&session, 328);
+    assert!(!freed.contains("moon_of"), "{freed}");
+    assert!(freed.contains("\t\t\tbinary_flags=73\n"), "{freed}");
+    let star = entity(&session, 327);
+    assert!(
+        star.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t329 \n"),
+        "{star}"
+    );
+
+    let mut session = open();
+    session
+        .apply(set_parent(278, 331, Some(329), 15.0, 0.0))
+        .expect("a planet of a star takes a moon");
+    assert_eq!(planet(&session, 278, 331).parent, Some(329));
+}
+
+/// A planet with moons may orbit a star but not a planet, and the asteroids of the 4.5
+/// sample's system 76 that name the star at its centre as `moon_of` already orbit the
+/// centre.
+#[test]
+fn what_a_star_parent_refuses() {
+    let mut session = open();
+    for (op, message) in [
+        (
+            set_parent(278, 330, Some(328), 15.0, 0.0),
+            "planet 330 has moons, so it cannot become a moon",
+        ),
+        (
+            set_parent(278, 330, Some(327), 90.0, 0.0),
+            "planet 330 has moons, so it cannot become a moon",
+        ),
+        (
+            orbit_star(278, 328, 327, 90.0, 0.0),
+            "planet 328 already has that parent",
+        ),
+    ] {
+        let error = session.apply(op).expect_err(message);
+        assert_eq!(error.to_string(), message);
+    }
+    let mut session = open_4_5();
+    for (op, message) in [
+        (
+            set_parent(76, 1271, None, 40.0, 0.0),
+            "planet 1271 already has that parent",
+        ),
+        (
+            orbit_star(76, 1271, 1270, 40.0, 0.0),
+            "planet 1270 stands at the system's centre: to make planet 1271 orbit it, give it no parent",
+        ),
+    ] {
+        let error = session.apply(op).expect_err(message);
+        assert_eq!(error.to_string(), message);
+    }
 }

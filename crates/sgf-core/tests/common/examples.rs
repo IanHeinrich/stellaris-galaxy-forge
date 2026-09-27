@@ -413,6 +413,7 @@ pub fn one_of_each() -> Vec<Example> {
             system: 1,
             body: 588,
             parent: Some(589),
+            star: false,
             radius: 20.0,
             angle: 90.0,
         }),
