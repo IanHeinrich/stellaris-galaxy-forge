@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MIN_INNER_RADIUS } from "../../generated/constants";
+import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { ORBIT_SYSTEM_AT, orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../capabilities";
@@ -37,6 +38,11 @@ function frameOf(details: SystemDetails = orbitSystem()): GeometryFrame {
 }
 
 const op = (intent: GeometryIntent, frame = frameOf()) => SAVE_GEOMETRY.op(intent, frame);
+
+/** `body` as the core sends one the game placed a little off its stored orbit: drawn at `drawn`. */
+function drawnOff(body: PlanetSummary, drawn: number): PlanetSummary {
+  return { ...body, layout: { ...body.layout!, orbit: { min: drawn, max: drawn } } };
+}
 const move = (body: number, radius: number, angle: number): GeometryIntent => ({
   kind: "move",
   system: SYSTEM,
@@ -395,6 +401,29 @@ describe("helpers", () => {
   it("puts a new moon on the first moon ring, or one step past the outermost", () => {
     expect(nextMoonRing(layout, LONE)).toBe(15);
     expect(nextMoonRing(layout, PLANET)).toBe(25);
+  });
+
+  it("puts a new moon on a whole orbit when the moon before it is drawn a hair off its own", () => {
+    const [x, y] = ORBIT_SYSTEM_AT.lonePlanet;
+    const planets = [
+      ...orbitSystem().planets,
+      drawnOff(saveBody(7, "pc_barren", [x + 15.06, y], 15, 5, LONE), 15.06),
+    ];
+    expect(nextMoonRing(frameOf(orbitSystem({ planets })).layout, LONE)).toBe(20);
+  });
+
+  it("carries a belt's asteroid onto a whole orbit when it is drawn a hair off its own", () => {
+    const [x, y] = ORBIT_SYSTEM_AT.asteroid;
+    const off = 124.3 / 124;
+    const planets = orbitSystem().planets.map((p) =>
+      p.id === 6 ? drawnOff(saveBody(6, "pc_asteroid", [x * off, y * off], 124, 3), 124.3) : p,
+    );
+    const made = op(
+      { kind: "setBeltRadius", system: SYSTEM, index: 0, radius: 130 },
+      frameOf(orbitSystem({ planets })),
+    );
+    const moved = made && "op" in made && made.op.type === "Batch" ? made.op.ops[1] : null;
+    expect(moved).toMatchObject({ type: "MoveSaveBody", body: 6, radius: 134 });
   });
 
   it("reads a body's orbit about its parent, and none for a star", () => {

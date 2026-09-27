@@ -180,7 +180,8 @@ export function fieldIntent(
 /** The orbit a new moon of `host` takes: the first moon ring, or one step past its outermost moon. */
 export function nextMoonRing(layout: SystemLayout, host: number): number {
   const rings = layout.bodies.flatMap((b) => (b.parent === host && b.ring ? [b.ring.radius] : []));
-  return rings.length === 0 ? MOON_RING_FIRST : Math.max(...rings) + MOON_RING_STEP;
+  // The drawn ring sits a hair off the stored orbit; the game writes moon orbits whole.
+  return rings.length === 0 ? MOON_RING_FIRST : Math.round(Math.max(...rings)) + MOON_RING_STEP;
 }
 
 /** How far apart two angles are, in degrees, the short way round. */
@@ -405,7 +406,7 @@ function carriedAsteroids(frame: GeometryFrame, from: number, to: number): Map<n
   return new Map(
     beltAsteroids(frame, from).map((b) => [
       b.id,
-      { parent: null, radius: b.ring!.radius + to - from, angle: b.angle },
+      { parent: null, radius: Math.round(b.ring!.radius) + to - from, angle: b.angle },
     ]),
   );
 }
