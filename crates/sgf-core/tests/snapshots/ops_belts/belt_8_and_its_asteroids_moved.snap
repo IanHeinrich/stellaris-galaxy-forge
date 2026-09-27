@@ -1,0 +1,183 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved the belt at radius 270 in system #8 to 280
+inverse: Batch { description: "Moved the belt at radius 270 in system #8 to 280", ops: [MoveSaveBody { system: 8, body: 654, radius: 269.9329996069491, angle: 20.87241981548002 }, MoveSaveBody { system: 8, body: 653, radius: 270.2385789465533, angle: 100.87798749770819 }, MoveSaveBody { system: 8, body: 652, radius: 270.88697095164713, angle: 180.9037933816374 }, MoveSaveBody { system: 8, body: 651, radius: 270.3249638032955, angle: 260.9367776010012 }, MoveSaveBody { system: 8, body: 650, radius: 269.9724820694326, angle: 340.9440857183092 }, MoveSaveBody { system: 8, body: 649, radius: 269.8212603578221, angle: 60.94678726206453 }, MoveSaveBody { system: 8, body: 648, radius: 269.7728753975703, angle: 140.95160626302152 }, MoveSaveBody { system: 8, body: 647, radius: 269.766201359118, angle: 220.95761988942706 }, MoveSaveBody { system: 8, body: 646, radius: 269.80865709483714, angle: 300.9625780151958 }, MoveSaveBody { system: 8, body: 645, radius: 269.9297747802346, angle: 20.965242511409205 }, MoveSaveBody { system: 8, body: 644, radius: 270.2351053496294, angle: 100.97074362483069 }, SetSaveBeltRadius { system: 8, index: 0, radius: 270.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -29456,7 +29456,7 @@
+ 			
+ 			{
+ 				type="rocky_asteroid_belt"
+-				inner_radius=270
++				inner_radius=280
+ 			}
+  
+ 		}
+@@ -113343,11 +113343,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-51.42783
+-				y=265.29642
++				x=-53.33091
++				y=275.11366
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=280.23511
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113395,11 +113395,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=252.05979
+-				y=96.58129
++				x=261.39777
++				y=100.15931
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.92977
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113443,11 +113443,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=138.81065
+-				y=-231.36187
++				x=143.95543
++				y=-239.93691
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.80866
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113487,11 +113487,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-203.72599
+-				y=-176.83191
++				x=-211.27794
++				y=-183.38692
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.7662
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113535,11 +113535,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-209.50943
+-				y=169.95059
++				x=-217.27557
++				y=176.25036
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.77288
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113583,11 +113583,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=131.03106
+-				y=235.8694
++				x=135.88728
++				y=244.61109
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.82126
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113627,11 +113627,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=255.1781
+-				y=-88.14351
++				x=264.6301
++				y=-91.40842
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.97248
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113675,11 +113675,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-42.58273
+-				y=-266.94999
++				x=-44.15797
++				y=-276.82514
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=280.32496
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113723,11 +113723,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-270.85327
+-				y=-4.27284
++				x=-280.85203
++				y=-4.43058
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=280.88697
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113771,11 +113771,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-50.99893
+-				y=265.38274
++				x=-52.88611
++				y=275.20305
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=280.23858
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -113815,11 +113815,11 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=252.21894
+-				y=96.17396
++				x=261.5627
++				y=99.73684
+ 				origin=8
+ 			}
+-			orbit=269.75
++			orbit=279.933
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{

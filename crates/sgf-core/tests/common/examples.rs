@@ -476,19 +476,7 @@ pub fn one_of_each() -> Vec<Example> {
         "one example of each variant, in declaration order"
     );
     examples
-        .into_iter()
-        .filter(|example| !PENDING.contains(&example.name()))
-        .collect()
 }
-
-/// The variants whose writer has not landed yet, which refuse every document.
-const PENDING: &[&str] = &[
-    "AddSaveBelt",
-    "RemoveSaveBelt",
-    "SetSaveBeltRadius",
-    "SetSaveBeltKind",
-    "SetSaveInnerRadius",
-];
 
 /// Every variant `Op` declares, as its derived deserialiser lists them when refusing an
 /// unknown tag.

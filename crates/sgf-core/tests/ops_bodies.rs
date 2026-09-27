@@ -448,11 +448,12 @@ fn a_3_4_save_refuses_body_edits() {
     }
 }
 
-/// The systems of the 4.5 sample, 531 of its 601, whose `inner_radius` sits inside
-/// max(150, outermost reach + 30) with reach measured from where each body is drawn. A move
-/// there grows the radius only once a body passes the old reach, and setting the radius
-/// takes the system's own value as its floor, so these systems can be edited without their
-/// radius jumping out.
+/// The systems of the 4.5 sample, 522 of its 601, whose `inner_radius` sits inside
+/// max(150, outermost reach + 30) with reach measured from where each body is drawn, an
+/// event-placed body at `orbit` zero or less set aside (`ops::rules::bodies::system_reach`).
+/// A move there grows the radius only once a body passes the old reach, and setting the
+/// radius takes the system's own value as its floor, so these systems can be edited without
+/// their radius jumping out.
 #[test]
 fn the_4_5_samples_systems_below_the_inner_radius_rule() {
     let session = open_4_5();
@@ -479,7 +480,7 @@ fn the_4_5_samples_systems_below_the_inner_radius_rule() {
                 .is_some_and(|radius| radius < least_inner_radius(&bodies))
         })
         .count();
-    assert_eq!(below, 531);
+    assert_eq!(below, 522);
 }
 
 /// 585's drawn radius and point, read back through the details after the move.

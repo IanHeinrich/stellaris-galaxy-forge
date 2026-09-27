@@ -885,6 +885,14 @@ pub enum OpError {
     HasMoons(u32),
     #[error("planet {0} already has that parent")]
     ParentUnchanged(u32),
+    #[error("system {system} has no belt {index}")]
+    UnknownBelt { system: u32, index: usize },
+    #[error("belt {index} of system {system} is already that way")]
+    BeltUnchanged { system: u32, index: usize },
+    #[error("the inner radius cannot go below {least:.2}, which the system's bodies reach")]
+    InnerRadiusTooSmall { least: f64 },
+    #[error("system {0} already has that inner radius")]
+    InnerRadiusUnchanged(u32),
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -913,7 +921,8 @@ impl OpError {
             | Self::UnknownNebula { .. }
             | Self::UnknownPlanet { .. }
             | Self::UnknownCountry { .. }
-            | Self::UnknownDeposit { .. } => ErrorKind::NotFound,
+            | Self::UnknownDeposit { .. }
+            | Self::UnknownBelt { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
             | Self::HeaderParse { .. }
@@ -1002,6 +1011,9 @@ impl OpError {
             | Self::InvalidParent { .. }
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }
+            | Self::BeltUnchanged { .. }
+            | Self::InnerRadiusTooSmall { .. }
+            | Self::InnerRadiusUnchanged { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }
