@@ -12,6 +12,7 @@ import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
+import type { PrecursorView } from "../generated/PrecursorView";
 import type { Progress } from "../generated/Progress";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
@@ -64,6 +65,8 @@ export interface GameDataState {
   /** The mod whose `flags/colors.txt` `mapColors` comes from; null for the game's own. */
   mapColorSource: string | null;
   planetClasses: Map<string, PlanetClassView>;
+  /** Every precursor definition of the loaded game data, in definition order. */
+  precursors: PrecursorView[];
   /** Modifier → what terraforming a planet that has it needs. */
   terraformCandidates: Map<string, TerraformCandidateView>;
   deposits: Map<string, DepositView>;
@@ -148,6 +151,7 @@ const UNLOADED = {
   mapColors: new Map<string, MapColor>(),
   mapColorSource: null as string | null,
   planetClasses: new Map<string, PlanetClassView>(),
+  precursors: [] as PrecursorView[],
   terraformCandidates: new Map<string, TerraformCandidateView>(),
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
@@ -438,6 +442,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     mapColors,
     mapColorSource,
     planetClasses,
+    precursors,
     terraformCandidates,
     deposits,
     bypasses,
@@ -450,6 +455,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     ipc.getMapColors(),
     ipc.getMapColorSource(),
     ipc.getPlanetClasses(),
+    ipc.getPrecursors(),
     ipc.getTerraformCandidates(),
     ipc.getDeposits(),
     ipc.getBypasses(),
@@ -464,6 +470,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     mapColors: new Map(mapColors.map((c) => [c.name, c])),
     mapColorSource,
     planetClasses: new Map(planetClasses.map((c) => [c.key, c])),
+    precursors,
     terraformCandidates: new Map(terraformCandidates.map((c) => [c.modifier, c])),
     deposits: new Map(deposits.map((d) => [d.key, d])),
     bypasses: new Map(bypasses.map((b) => [b.key, b])),

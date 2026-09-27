@@ -349,6 +349,18 @@ Each top-level `nebula` block lists its member systems explicitly, as
 `galactic_object=<id>` entries. The game never works membership out
 again from positions. `radius` is typically 30.
 
+## Precursors
+
+`common/precursor_civilizations/*.txt` holds one block per precursor.
+Its key, such as `precursor_1`, is the star flag galaxy generation sets
+on every system of that precursor's region (`flags={ precursor_1=… }`),
+and the localisation key of its name. The flags are there on day one
+and are never removed, and a system can be in more than one region.
+Vanilla has nine. Its `possible` block puts Baol and Zroni behind
+Ancient Relics, and Inetian and adAkkaria behind Cosmic Storms. The `precursor_system` flag is unrelated: a cosmic storms
+anomaly sets it. Scenarios carry no system flags, so the Precursors
+layer is for saves only.
+
 ## Copies of 4.5 the core keeps
 
 Two things the save ops need are copied from Stellaris 4.5 into

@@ -330,6 +330,10 @@ button.master.init[aria-pressed="true"] {
   color: var(--fg-muted);
 }
 
+.menu-item .count + .swatch {
+  margin-left: 0;
+}
+
 /* The initializers legend: hundreds of keys scroll inside the menu rather than past it. */
 .menu-list {
   max-height: 260px;

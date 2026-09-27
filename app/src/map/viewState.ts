@@ -128,6 +128,7 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     "layers",
   ),
   follows(useMapChromeStore, [(s) => s.hiddenInitializers], (_s, view) => view.refreshContext()),
+  follows(useMapChromeStore, [(s) => s.hiddenPrecursors], (_s, view) => view.refreshContext()),
   follows(
     useMapChromeStore,
     [(s) => s.highlightInitializer],

@@ -8,6 +8,17 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- The Precursors layer shows where each precursor's anomalies can turn
+  up in a save. Each precursor has its own ring colour. A system two
+  precursors share shows a split ring. A system no precursor reaches
+  shows a grey ring.
+  - The Layers menu lists each precursor with its number of systems.
+    Click the eye beside one to hide it.
+- Search finds systems by their precursor, such as "Vultaum" or "First
+  League".
+
 ## [0.16.0] - 2026-09-27
 
 ### Added
