@@ -46,6 +46,7 @@ use registries::{colors, gfx, planet_lists, registry, star_names, starbase_level
 pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
+pub use registries::asteroid_belts::AsteroidBelts;
 pub use registries::bypasses::Bypasses;
 pub use registries::colony_types::ColonyTypes;
 pub use registries::colors::Colors;
@@ -98,6 +99,7 @@ pub struct GameData {
     pub static_modifiers: Arc<StaticModifiers>,
     pub planet_modifiers: Arc<PlanetModifiers>,
     pub colony_types: Arc<ColonyTypes>,
+    pub asteroid_belts: Arc<AsteroidBelts>,
     pub bypasses: Arc<Bypasses>,
     pub planet_classes: Arc<PlanetClasses>,
     /// `common/planet_classes`' `rl_` lists an initializer's body draws its class from.
@@ -282,6 +284,7 @@ impl GameData {
         );
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
+        let asteroid_belts = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
         let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
         let planet_lists = planet_lists::read(&planet_dir);
@@ -325,6 +328,7 @@ impl GameData {
             static_modifiers: Arc::new(static_modifiers),
             planet_modifiers: Arc::new(planet_modifiers),
             colony_types: Arc::new(colony_types),
+            asteroid_belts: Arc::new(asteroid_belts),
             bypasses: Arc::new(bypasses),
             planet_classes: Arc::new(planet_classes),
             planet_lists: Arc::new(planet_lists),

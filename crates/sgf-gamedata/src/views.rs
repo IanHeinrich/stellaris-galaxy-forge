@@ -22,6 +22,7 @@ use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
 use crate::scripts::identity;
+use crate::summary::Named;
 use crate::textures::TextureKey;
 use crate::{Diagnostic, GameData, Localisation};
 
@@ -166,6 +167,7 @@ pub struct GameDataSummary {
     pub planet_classes: u32,
     pub starbase_levels: u32,
     pub border: BorderDefines,
+    pub belt_kinds: Vec<Named>,
     pub localisation_keys: u32,
     pub diagnostics: Vec<DiagnosticView>,
     /// The galaxy size with the most stars across the install and the enabled mods;
@@ -211,6 +213,14 @@ impl From<&GameData> for GameDataSummary {
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
             border: BorderDefines::from(&*gd.border),
+            belt_kinds: gd
+                .asteroid_belts
+                .iter()
+                .map(|belt| Named {
+                    key: belt.key.clone(),
+                    name: gd.loc.name_or_readable(&belt.key),
+                })
+                .collect(),
             localisation_keys: count(gd.loc.len()),
             largest_galaxy: gd
                 .galaxy_sizes
