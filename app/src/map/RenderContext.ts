@@ -22,6 +22,7 @@ import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
+import { NO_PRECURSORS, type PrecursorRegions } from "../lib/precursors";
 import { bypassLinks } from "../lib/scenarioBypasses";
 import {
   displayNameIn,
@@ -37,6 +38,7 @@ import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { currentOwnership } from "../store/ownership";
+import { currentPrecursors } from "../store/precursors";
 import { SpatialGrid } from "../lib/spatialGrid";
 import { sameFields } from "./follows";
 
@@ -101,6 +103,10 @@ export interface RenderContext {
   readonly initializerClasses: ReadonlyMap<string, string>;
   /** Initializer keys filtered out in the legend: their systems are dimmed and left unlabelled. */
   readonly hiddenInitializers: ReadonlySet<string>;
+  /** Each system's precursor regions, and the legend of the precursors the galaxy has. */
+  readonly precursors: PrecursorRegions;
+  /** Precursor keys the Layers menu hides; `NO_PRECURSOR` hides the systems with none. */
+  readonly hiddenPrecursors: ReadonlySet<string>;
   /** Whether a scenario system with no name of its own is labelled with its initializer. */
   readonly initializerLabels: boolean;
   /** The empires layer is on with territories to draw, so labels give way to them as on a save. */
@@ -154,6 +160,8 @@ export const sameContext = sameFields<RenderContext>({
   special: true,
   initializerClasses: true,
   hiddenInitializers: true,
+  precursors: true,
+  hiddenPrecursors: true,
   initializerLabels: true,
   territoriesShown: true,
   starTints: true,
@@ -279,6 +287,8 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   special: new Map<number, SpecialSystem>(),
   initializerClasses: new Map<string, string>(),
   hiddenInitializers: new Set<string>(),
+  precursors: NO_PRECURSORS,
+  hiddenPrecursors: NO_KEYS,
   initializerLabels: false,
   territoriesShown: false,
   starTints: true,
@@ -345,6 +355,8 @@ export function renderContext(): RenderContext {
     special: data.special,
     initializerClasses: data.initializerClasses,
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
+    precursors: chrome.layers.precursors ? currentPrecursors() : NO_PRECURSORS,
+    hiddenPrecursors: chrome.hiddenPrecursors,
     initializerLabels: kind === "scenario" && chrome.layers.initializers,
     territoriesShown: chrome.layers.owners && ownership.table.size > 0,
     starTints: chrome.layers.classes,

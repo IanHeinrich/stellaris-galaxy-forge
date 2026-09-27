@@ -15,6 +15,7 @@ pub mod gfx;
 pub mod planet_classes;
 pub mod planet_lists;
 pub mod planet_modifiers;
+pub mod precursors;
 pub mod registry;
 pub mod resources;
 pub mod scripted_triggers;

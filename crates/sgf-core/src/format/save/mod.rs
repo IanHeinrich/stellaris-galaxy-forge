@@ -306,6 +306,7 @@ impl Format for Save {
             nebulae: true,
             bypasses: true,
             special: true,
+            precursors: true,
             create_systems: false,
             lane_bridges: true,
             waylines: true,

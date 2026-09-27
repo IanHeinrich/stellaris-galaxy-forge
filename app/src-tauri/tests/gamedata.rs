@@ -14,7 +14,7 @@ use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
     CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor, PaintModView,
-    ResourceIcon, StarClassView, TerraformCandidateView,
+    PrecursorView, ResourceIcon, StarClassView, TerraformCandidateView,
 };
 use tauri::Manager;
 
@@ -162,6 +162,9 @@ fn game_data_commands_degrade_without_an_install() {
     let initializers: Vec<InitializerView> =
         invoke(&w, "get_initializers", json!({})).expect("initializers");
     assert!(initializers.is_empty());
+    let precursors: Vec<PrecursorView> =
+        invoke(&w, "get_precursors", json!({})).expect("precursors");
+    assert!(precursors.is_empty());
     let colors: Vec<MapColor> = invoke(&w, "get_map_colors", json!({})).expect("map colors");
     assert!(colors.is_empty());
     let country_types: Vec<CountryTypeView> =
@@ -592,6 +595,46 @@ fn a_root_that_cannot_be_watched_is_named_in_the_summary() {
     assert_eq!(watched.watching, 1, "the install is watched as before");
     let reason = watched.reason.expect("the root that could not be watched");
     assert!(reason.contains("no-such-mod"), "{reason}");
+}
+
+#[test]
+fn precursors_come_from_the_install_and_search_finds_their_regions() {
+    let Some((w, _)) = common::with_game_data(common::SAMPLE_45) else {
+        return;
+    };
+    let precursors: Vec<PrecursorView> =
+        invoke(&w, "get_precursors", json!({})).expect("precursors");
+    let names: Vec<&str> = precursors.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "Vultaum",
+            "Yuht",
+            "First League",
+            "Irassian",
+            "Cybrex",
+            "Baol",
+            "Zroni",
+            "Inetian Traders",
+            "adAkkaria",
+        ]
+    );
+
+    for (query, count) in [
+        ("vultaum", 82),
+        ("yuht", 88),
+        ("first league", 82),
+        ("irassian", 85),
+        ("cybrex", 90),
+        ("zroni", 85),
+        ("adakkaria", 73),
+    ] {
+        let hits = invoke::<SearchResult>(&w, "search", json!({ "query": query, "limit": 1000 }))
+            .expect("search")
+            .hits;
+        let systems = hits.iter().filter(|h| h.kind == SearchKind::System).count();
+        assert_eq!(systems, count, "{query}");
+    }
 }
 
 /// An install whose defines put a system's inner radius 50 past its outermost belt: a belt

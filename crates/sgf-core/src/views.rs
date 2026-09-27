@@ -93,6 +93,8 @@ pub struct Capabilities {
     pub bypasses: bool,
     /// Points of interest: initializers, flags and the countries standing in a system.
     pub special: bool,
+    /// Systems carry the precursor flags galaxy generation sets: the precursors layer.
+    pub precursors: bool,
     /// The scenario's system statements: any system added, removed, named and given an
     /// initializer, so the paint and erase brushes, spawn points, marauder clans and the
     /// day-one layers.

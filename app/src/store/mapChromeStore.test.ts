@@ -438,6 +438,29 @@ describe("hidden initializers", () => {
   });
 });
 
+describe("hidden precursors", () => {
+  it("hides one key and shows it again", () => {
+    chrome().togglePrecursor("precursor_1");
+    expect([...chrome().hiddenPrecursors]).toEqual(["precursor_1"]);
+
+    chrome().togglePrecursor("precursor_1");
+    expect(chrome().hiddenPrecursors.size).toBe(0);
+  });
+
+  it("hides and shows the systems with no precursor", () => {
+    chrome().togglePrecursor("");
+    expect(chrome().hiddenPrecursors.has("")).toBe(true);
+    chrome().togglePrecursor("");
+    expect(chrome().hiddenPrecursors.has("")).toBe(false);
+  });
+
+  it("reset drops the filter", () => {
+    chrome().togglePrecursor("precursor_1");
+    chrome().resetLayers();
+    expect(chrome().hiddenPrecursors.size).toBe(0);
+  });
+});
+
 describe("overlays", () => {
   it("the context menu and the tooltip open and close", () => {
     chrome().openContextMenu({ target: { kind: "system", id: 0 }, x: 10, y: 20 });

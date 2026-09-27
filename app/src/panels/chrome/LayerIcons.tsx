@@ -107,6 +107,15 @@ function glyphOf(id: LayerId): ReactNode {
           <StarMark scale={0.62} />
         </LayerGlyph>
       );
+    case "precursors":
+      return (
+        <LayerGlyph>
+          <path d="M9 2.3A5.8 5.8 0 0 1 13.45 10" />
+          <path d="M12.44 11.73A5.8 5.8 0 0 1 3.56 11.73" />
+          <path d="M2.55 10A5.8 5.8 0 0 1 7 2.3" />
+          <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none" />
+        </LayerGlyph>
+      );
     case "initializers":
       return (
         <LayerGlyph>

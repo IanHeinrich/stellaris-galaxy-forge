@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import { stubPrefs } from "../test/prefs";
 import type { GameDataChanged } from "../generated/GameDataChanged";
 import type { GameDataSummary } from "../generated/GameDataSummary";
+import type { PrecursorView } from "../generated/PrecursorView";
 import type { Progress } from "../generated/Progress";
 import type { SpecialSystems } from "../generated/SpecialSystems";
 
@@ -36,6 +37,12 @@ export const SPECIAL: SpecialSystems = {
   counts: [{ kind: "landmark", count: 1, primary_count: 1 }],
   with_game_data: true,
 };
+
+/** The install's precursor definitions, in definition order. */
+export const PRECURSORS: PrecursorView[] = [
+  { key: "precursor_1", name: "Vultaum" },
+  { key: "precursor_2", name: "Yuht" },
+];
 
 /** The galaxy fixture's system and nebula name keys; it has no countries. */
 export const GALAXY_KEYS = [
@@ -131,6 +138,7 @@ function armGameDataCommands(): void {
   ]);
   mockedIpc.getMapColorSource.mockResolvedValue(null);
   mockedIpc.getPlanetClasses.mockResolvedValue([planetClassView("pc_continental", false)]);
+  mockedIpc.getPrecursors.mockResolvedValue(PRECURSORS);
   mockedIpc.getTerraformCandidates.mockResolvedValue([]);
   mockedIpc.getDeposits.mockResolvedValue([
     {
