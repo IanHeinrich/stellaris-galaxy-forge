@@ -19,7 +19,7 @@ import { armSession, resetStores } from "../../../store/storeFixture";
 import { openWith } from "../../../test/session";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { SwatchField, ToggleField } from "../../EditField";
-import { GridPicker } from "../../GridPicker";
+import { TilePicker } from "../../TilePicker";
 import {
   CountryView,
   FLAG_NEEDS_GAME_DATA,
@@ -65,6 +65,7 @@ const FLAG_PARTS = {
       ],
     },
     { name: "extra_shapes", files: [{ file: "star.dds", source: "More Flags" }] },
+    { name: "blocky", files: [{ file: "flag_blocky_1.dds", source: null }] },
   ],
   backgrounds: [
     { file: "flag_bg_plain.dds", source: null },
@@ -219,10 +220,14 @@ describe("an empire's flag fields", () => {
     expect(html).toContain("background:#d090a0");
     expect(html).not.toContain("The save needs More Flags");
 
-    const emblem = drawnField(GridPicker, "Emblem");
+    const emblem = drawnField(TilePicker, "Emblem");
     expect(emblem.current.textures).toEqual(["flag:pointy/flag_pointy_2.dds"]);
-    expect(emblem.groups.map((g) => g.label)).toEqual(["pointy", "extra shapes"]);
-    const background = drawnField(GridPicker, "Background");
+    expect(emblem.groups.map((g) => [g.label, g.section])).toEqual([
+      ["blocky 1", undefined],
+      ["pointy 2", undefined],
+      ["extra shapes 1 · More Flags", "From mods"],
+    ]);
+    const background = drawnField(TilePicker, "Background");
     expect(background.groups).toHaveLength(1);
     expect(background.groups[0].items[1].textures).toEqual([
       "empire_flag:flag_bg_stripes.dds:pointy/flag_pointy_2.dds:intense_red,light_pink,intense_red,light_pink",
@@ -254,14 +259,14 @@ describe("an empire's flag fields", () => {
     await openSaveWith(FLAGGED);
     drawnBy(() => page("overview"));
 
-    drawnField(GridPicker, "Emblem").onPick("pointy/flag_pointy_3.dds");
+    drawnField(TilePicker, "Emblem").onPick("pointy/flag_pointy_3.dds");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
         flagWith({ icon_file: "flag_pointy_3.dds" }),
       ),
     );
 
-    drawnField(GridPicker, "Background").onPick("flag_bg_stripes.dds");
+    drawnField(TilePicker, "Background").onPick("flag_bg_stripes.dds");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
         flagWith({ background: "flag_bg_stripes.dds" }),
@@ -279,7 +284,7 @@ describe("an empire's flag fields", () => {
     drawnBy(() => page("overview"));
     mockedIpc.applyOp.mockClear();
 
-    drawnField(GridPicker, "Emblem").onPick("pointy/flag_pointy_2.dds");
+    drawnField(TilePicker, "Emblem").onPick("pointy/flag_pointy_2.dds");
     drawnField(SwatchField, "Primary").onPick("intense_red");
     drawnField(SwatchField, "Primary").onPick("light_pink");
     await vi.waitFor(() =>

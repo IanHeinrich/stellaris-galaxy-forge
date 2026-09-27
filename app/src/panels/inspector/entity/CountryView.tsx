@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { CountryNode } from "../../../generated/CountryNode";
 import type { EmpireFlag } from "../../../generated/EmpireFlag";
 import type { EntityView as EntityViewData } from "../../../generated/EntityView";
@@ -23,7 +23,7 @@ import {
   ToggleField,
   type Swatch,
 } from "../../EditField";
-import { GridPicker, type GridPickerGroup, type GridPickerItem } from "../../GridPicker";
+import { TilePicker, type TileGroup, type TileItem } from "../../TilePicker";
 import { useApplyOp } from "../../useApplyOp";
 import { useNamed } from "../../useNamed";
 import { useOwnerCss } from "../ownerCss";
@@ -74,12 +74,34 @@ function fileLabel(file: string): string {
   return file.replace(/\.dds$/i, "");
 }
 
-function emblemItem(category: string, file: string): GridPickerItem {
+function emblemItem(category: string, file: string): TileItem {
   return {
     key: `${category}/${file}`,
     label: fileLabel(file),
     textures: [`flag:${category}/${file}`],
   };
+}
+
+/**
+ * The emblem categories as the dropdown lists them, each with its count: the game's first, in
+ * alphabetical order, then those only mods add, under a heading and named with their mods.
+ */
+function emblemGroups(parts: FlagParts): TileGroup[] {
+  const groups = parts.emblems.map((category): TileGroup => {
+    const name = `${category.name.replace(/_/g, " ")} ${category.files.length}`;
+    const mods = [...new Set(category.files.map((f) => f.source))];
+    const modded = mods.every((mod) => mod !== null);
+    return {
+      key: category.name,
+      label: modded ? `${name} · ${mods.join(", ")}` : name,
+      section: modded ? "From mods" : undefined,
+      items: category.files.map((f) => emblemItem(category.name, f.file)),
+    };
+  });
+  const game = groups.filter((g) => g.section === undefined);
+  const mods = groups.filter((g) => g.section !== undefined);
+  const byLabel = (a: TileGroup, b: TileGroup) => a.label.localeCompare(b.label);
+  return [...game.sort(byLabel), ...mods.sort(byLabel)];
 }
 
 /** A background as the whole flag it makes with the empire's emblem and colours. */
@@ -88,7 +110,7 @@ function backgroundItem(
   icon: FlagRef,
   background: FlagRef,
   colors: readonly string[],
-): GridPickerItem {
+): TileItem {
   return {
     key: file,
     label: fileLabel(file),
@@ -117,20 +139,21 @@ function flagMods(flag: EmpireFlag, parts: FlagParts): string[] {
 
 /** The flag fields, disabled, and why. */
 function FlagUnavailable({ reason }: { reason: string }) {
-  const none: GridPickerItem = { key: "", label: "none", textures: [] };
+  const none: TileItem = { key: "", label: "none", textures: [] };
   const noColor: Swatch = { key: "", label: "none" };
   return (
     <EditBlock title="Flag">
       {["Emblem", "Background"].map((label) => (
-        <EditRow key={label} label={label}>
-          <GridPicker
-            label={label}
-            disabledReason={reason}
-            current={none}
-            groups={[]}
-            onPick={() => undefined}
-          />
-        </EditRow>
+        <TilePicker
+          key={label}
+          label={label}
+          disabledReason={reason}
+          current={none}
+          groups={[]}
+          open={false}
+          onOpenChange={() => undefined}
+          onPick={() => undefined}
+        />
       ))}
       {["Primary", "Secondary"].map((label) => (
         <EditRow key={label} label={label}>
@@ -148,9 +171,13 @@ function FlagUnavailable({ reason }: { reason: string }) {
   );
 }
 
+/** Which of the flag's tile panels is open; one at a time. */
+type FlagPanel = "emblem" | "background" | null;
+
 /** A save empire's flag: its emblem, its background and its two colours. */
 function FlagFields({ country }: { country: CountryNode }) {
   const applyOp = useApplyOp();
+  const [panel, setPanel] = useState<FlagPanel>(null);
   const parts = useGameDataStore((s) => s.flagParts);
   const palette = useGameDataStore((s) => s.mapColors);
   const source = useGameDataStore((s) => s.mapColorSource);
@@ -168,12 +195,8 @@ function FlagFields({ country }: { country: CountryNode }) {
       applyOp({ type: "SetEmpireFlag", country: country.id, flag: next });
     }
   };
-  const emblems: GridPickerGroup[] = parts.emblems.map((category) => ({
-    key: category.name,
-    label: category.name.replace(/_/g, " "),
-    items: category.files.map((f) => emblemItem(category.name, f.file)),
-  }));
-  const backgrounds: GridPickerGroup[] = [
+  const openPanel = (which: FlagPanel) => (open: boolean) => setPanel(open ? which : null);
+  const backgrounds: TileGroup[] = [
     {
       key: "backgrounds",
       label: "Backgrounds",
@@ -183,33 +206,34 @@ function FlagFields({ country }: { country: CountryNode }) {
   const swatches = [...palette.keys()].map((name) => flagSwatch(name, palette));
   return (
     <EditBlock title="Flag">
-      <EditRow label="Emblem">
-        <GridPicker
-          label="Emblem"
-          title="The emblem in the middle of the flag"
-          current={emblemItem(flag.icon_category, flag.icon_file)}
-          groups={emblems}
-          onPick={(key) => {
-            const [icon_category, icon_file] = key.split("/");
-            set({ icon_category, icon_file });
-          }}
-        />
-      </EditRow>
-      <EditRow label="Background">
-        <GridPicker
-          label="Background"
-          title="The pattern behind the emblem"
-          current={backgroundItem(flag.background, icon, background, country.colors)}
-          groups={backgrounds}
-          onPick={(file) => set({ background: file })}
-        />
-      </EditRow>
+      <TilePicker
+        label="Emblem"
+        title="The emblem in the middle of the flag"
+        current={emblemItem(flag.icon_category, flag.icon_file)}
+        groups={emblemGroups(parts)}
+        open={panel === "emblem"}
+        onOpenChange={openPanel("emblem")}
+        onPick={(key) => {
+          const [icon_category, icon_file] = key.split("/");
+          set({ icon_category, icon_file });
+        }}
+      />
+      <TilePicker
+        label="Background"
+        title="The pattern behind the emblem"
+        current={backgroundItem(flag.background, icon, background, country.colors)}
+        groups={backgrounds}
+        open={panel === "background"}
+        onOpenChange={openPanel("background")}
+        onPick={(file) => set({ background: file })}
+      />
       <EditRow label="Primary">
         <SwatchField
           label="Primary"
           title="The flag's main colour"
           current={flagSwatch(flag.primary, palette)}
           swatches={swatches}
+          onOpen={() => setPanel(null)}
           onPick={(primary) => set({ primary })}
         />
       </EditRow>
@@ -219,6 +243,7 @@ function FlagFields({ country }: { country: CountryNode }) {
           title="The flag's second colour"
           current={flagSwatch(flag.secondary, palette)}
           swatches={swatches}
+          onOpen={() => setPanel(null)}
           onPick={(secondary) => set({ secondary })}
         />
       </EditRow>
