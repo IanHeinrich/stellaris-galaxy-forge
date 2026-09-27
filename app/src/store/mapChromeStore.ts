@@ -95,6 +95,8 @@ export interface MapTooltip {
   y: number;
   title: string;
   lines: MapTooltipLine[];
+  /** Drawn as a warning, for a readout that says something is wrong. */
+  tone?: "warn";
 }
 
 export interface MapChromeState {
