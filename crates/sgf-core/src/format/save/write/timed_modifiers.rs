@@ -1,6 +1,7 @@
-//! An entity's permanent modifiers: the items of its
-//! `timed_modifier={ items={ { modifier="…" days=-1 } } }`, laid out like the `hyperlane`
-//! entries. A system's nebula modifiers and a planet's terraforming candidate live there.
+//! An entity's timed modifiers: the items of its
+//! `timed_modifier={ items={ { modifier="…" days=N } } }`, laid out like the `hyperlane`
+//! entries, `days=-1` for one that never expires. A system's nebula modifiers and a
+//! planet's modifiers live there.
 
 use crate::emit::inline;
 use crate::emit::system::{timed_modifier_item, timed_modifiers};
@@ -16,13 +17,28 @@ pub(crate) enum Place {
     Last,
 }
 
-/// Give the entity each modifier of `modifiers` placed `Some`, where it lacks one, and take
-/// out every item of one placed `None`. The block goes after `after=` when it is new, else
-/// last in the entity, and with the last item it held. Returns whether anything changed.
+/// Give the entity each permanent modifier of `modifiers` placed `Some`, where it lacks one,
+/// and take out every item of one placed `None`: see [`set_items`].
 pub(crate) fn set(
     edit: &mut Edit,
     after: &str,
     modifiers: &[(&str, Option<Place>)],
+) -> Result<bool, OpError> {
+    let items: Vec<(&str, Option<(Place, i32)>)> = modifiers
+        .iter()
+        .map(|&(m, place)| (m, place.map(|p| (p, -1))))
+        .collect();
+    set_items(edit, after, &items)
+}
+
+/// Give the entity each modifier of `modifiers` placed `Some`, lasting the days given, where
+/// it lacks one, and take out every item of one placed `None`. The block goes after `after=`
+/// when it is new, else last in the entity, and with the last item it held. Returns whether
+/// anything changed.
+pub(crate) fn set_items(
+    edit: &mut Edit,
+    after: &str,
+    modifiers: &[(&str, Option<(Place, i32)>)],
 ) -> Result<bool, OpError> {
     let entity = edit.entity()?;
     let block = entity.find(keys::TIMED_MODIFIER, &edit.buf);
@@ -42,17 +58,17 @@ pub(crate) fn set(
         .filter(|(_, name)| modifiers.contains(&(name.as_str(), None)))
         .map(|&(span, _)| span)
         .collect();
-    let adding: Vec<(&str, Place)> = modifiers
+    let adding: Vec<(&str, Place, i32)> = modifiers
         .iter()
-        .filter_map(|&(m, place)| Some((m, place?)))
-        .filter(|&(m, _)| !has(m))
+        .filter_map(|&(m, add)| add.map(|(place, days)| (m, place, days)))
+        .filter(|&(m, _, _)| !has(m))
         .collect();
     if removing.is_empty() && adding.is_empty() {
         return Ok(false);
     }
     let (Some(block), Some(items)) = (block, items.filter(|i| !i.children().is_empty())) else {
-        let names: Vec<&str> = adding.iter().map(|&(m, _)| m).collect();
-        let text = |indent: &[u8]| timed_modifiers(indent, &names);
+        let items: Vec<(&str, i32)> = adding.iter().map(|&(m, _, days)| (m, days)).collect();
+        let text = |indent: &[u8]| timed_modifiers(indent, &items);
         match block {
             Some(block) => {
                 let span = block.span();
@@ -83,12 +99,12 @@ pub(crate) fn set(
     for span in removing {
         edit.remove_lines(span);
     }
-    for (modifier, place) in adding {
+    for (modifier, place, days) in adding {
         let at = match place {
             Place::First => edit.line_start(first),
             Place::Last => at_close,
         };
-        edit.insert(at, timed_modifier_item(&indent, modifier));
+        edit.insert(at, timed_modifier_item(&indent, modifier, days));
     }
     Ok(true)
 }

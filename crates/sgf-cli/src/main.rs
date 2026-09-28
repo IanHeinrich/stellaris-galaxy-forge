@@ -252,20 +252,29 @@ fn run(cli: Cli) -> commands::Run {
                 custom_name: None,
             },
         ),
-        Some(Command::TerraformCandidate {
+        Some(Command::Modifier {
             sav,
             planet,
             modifier,
-            off,
+            days,
+            feature,
+            remove,
             out,
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::SetTerraformCandidate {
-                id: planet,
-                modifier,
-                on: !off,
-                copies: None,
+            match remove {
+                true => Op::RemovePlanetModifier {
+                    planet,
+                    modifier,
+                    feature,
+                },
+                false => Op::AddPlanetModifier {
+                    planet,
+                    modifier,
+                    days: vec![days.unwrap_or(-1)],
+                    feature,
+                },
             },
         ),
         Some(Command::Deposit { command }) => match command {

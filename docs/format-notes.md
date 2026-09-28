@@ -338,6 +338,17 @@ for planets or deposits.
   the last item of `items`. A planet without a `timed_modifier` gets
   one after `bombardment_damage`. Removing the last item removes the
   block.
+- A `timed_modifier` item's `days` counts down to its end. `days=-1`
+  never runs out. Saves also hold other negative counts, such as
+  `modifier="living_sea" days=-360` in the 4.4 sample, so an edit writes
+  back whatever count it read.
+- A rolled planet feature is written twice: a `planet_modifier="pm_X"`
+  line just before `entity`, and a permanent `timed_modifier` item
+  naming the static modifier `common/planet_modifiers` gives it
+  (`pm_mineral_poor` applies `mineral_poor`). Some features in the 4.5
+  day-one sample, such as `pm_extensive_moon_system`, have only the
+  line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
+  and `planet_modifier` after `entity`.
 - A star-class body other than the star, such as the Great Wound's
   black holes, has `carrier_binary_flags=3`, as the star does. A star
   off centre writes its `orbit` and position like a planet, and the

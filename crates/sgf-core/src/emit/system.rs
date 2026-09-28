@@ -6,7 +6,6 @@
 use super::{Lines, coord, hyperlane_block, lane_entry, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
-use crate::projections::read::PERMANENT;
 
 /// What a spawned system's coordinate carries besides its position; a new entry copies
 /// the value from a spawned system the game accepted rather than inventing one.
@@ -192,7 +191,8 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
     if !p.modifiers.is_empty() {
-        w.timed_modifiers(1, p.modifiers);
+        let items: Vec<(&str, i32)> = p.modifiers.iter().map(|m| (m.as_str(), -1)).collect();
+        w.timed_modifiers(1, &items);
     }
     w.pair(1, keys::ENTITY, &p.entity.to_string());
     if let Some(name) = p.entity_name {
@@ -286,18 +286,19 @@ pub fn ambient_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
     w.into_bytes()
 }
 
-/// A `timed_modifier` block of permanent `modifiers`, for an entity that has none.
-pub fn timed_modifiers(indent: &[u8], modifiers: &[&str]) -> Vec<u8> {
+/// A `timed_modifier` block of `items`, each a modifier and its days (`-1` for one that
+/// never expires), for an entity that has none.
+pub fn timed_modifiers(indent: &[u8], items: &[(&str, i32)]) -> Vec<u8> {
     let mut w = Lines::new(indent);
-    w.timed_modifiers(0, modifiers);
+    w.timed_modifiers(0, items);
     w.into_bytes()
 }
 
-/// One permanent modifier as an entry of `timed_modifier.items`, with the separator line
-/// after it.
-pub fn timed_modifier_item(indent: &[u8], modifier: &str) -> Vec<u8> {
+/// One modifier lasting `days` as an entry of `timed_modifier.items`, with the separator
+/// line after it.
+pub fn timed_modifier_item(indent: &[u8], modifier: &str, days: i32) -> Vec<u8> {
     let mut w = Lines::new(indent);
-    w.timed_modifier(0, modifier);
+    w.timed_modifier(0, modifier, days);
     w.into_bytes()
 }
 
@@ -362,21 +363,21 @@ impl Lines {
         self.close(depth);
     }
 
-    fn timed_modifiers<S: AsRef<str>>(&mut self, depth: usize, modifiers: &[S]) {
+    fn timed_modifiers(&mut self, depth: usize, items: &[(&str, i32)]) {
         self.open(depth, keys::TIMED_MODIFIER);
         self.open(depth + 1, keys::ITEMS);
         self.line(depth + 2, "");
-        for modifier in modifiers {
-            self.timed_modifier(depth + 2, modifier.as_ref());
+        for &(modifier, days) in items {
+            self.timed_modifier(depth + 2, modifier, days);
         }
         self.close(depth + 1);
         self.close(depth);
     }
 
-    fn timed_modifier(&mut self, depth: usize, modifier: &str) {
+    fn timed_modifier(&mut self, depth: usize, modifier: &str, days: i32) {
         self.line(depth, "{");
         self.pair(depth + 1, keys::MODIFIER, &quoted(modifier));
-        self.pair(depth + 1, keys::DAYS, PERMANENT);
+        self.pair(depth + 1, keys::DAYS, &days.to_string());
         self.line(depth, "}");
         self.separator();
     }

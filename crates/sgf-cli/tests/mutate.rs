@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `terraform-candidate`,
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`,
 //! `rename-planet` and `rename-empire`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
@@ -368,45 +368,63 @@ fn deposit_refusals_write_nothing() {
 }
 
 #[test]
-fn terraform_candidate_writes_the_modifier_a_later_run_takes_away() {
+fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
     let dir = tempfile::tempdir().unwrap();
-    let out_path = dir.path().join("candidate.sav");
+    let out_path = dir.path().join("feature.sav");
     let out_str = out_path.to_str().unwrap();
 
     let out = sgf(&[
-        "terraform-candidate",
+        "modifier",
         SAMPLE_4_5,
         "585",
-        "--modifier",
-        "frozen_terraforming_candidate",
+        "mineral_poor",
+        "--feature",
+        "pm_mineral_poor",
         "-o",
         out_str,
     ]);
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Make planet #585 a terraforming candidate (frozen_terraforming_candidate)"),
+        text.contains("Add planet feature pm_mineral_poor (mineral_poor) to planet #585"),
         "{text}"
     );
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 
-    let off = sgf(&[
-        "terraform-candidate",
+    let removed = sgf(&[
+        "modifier",
         out_str,
         "585",
-        "--modifier",
-        "frozen_terraforming_candidate",
-        "--off",
+        "mineral_poor",
+        "--feature",
+        "pm_mineral_poor",
+        "--remove",
         "-o",
         dir.path().join("cleared.sav").to_str().unwrap(),
     ]);
-    ok(&off);
+    ok(&removed);
     assert!(
-        stdout(&off).contains(
-            "Stop planet #585 being a terraforming candidate (frozen_terraforming_candidate)"
-        ),
+        stdout(&removed)
+            .contains("Remove planet feature pm_mineral_poor (mineral_poor) from planet #585"),
         "{}",
-        stdout(&off)
+        stdout(&removed)
+    );
+
+    let timed = sgf(&[
+        "modifier",
+        SAMPLE_4_5,
+        "585",
+        "terraforming_candidate",
+        "--days",
+        "360",
+        "-o",
+        dir.path().join("timed.sav").to_str().unwrap(),
+    ]);
+    ok(&timed);
+    assert!(
+        stdout(&timed).contains("Add modifier terraforming_candidate to planet #585 for 360 days"),
+        "{}",
+        stdout(&timed)
     );
 }
 

@@ -34,7 +34,8 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A deposit added to or removed from a colonised planet shows in game; districts over a lowered cap are demolished within a month, and a building or zone that needed a removed deposit goes
 - [ ] A planet given a new size loads drawn at that size and a month passes cleanly
 - [ ] A planet renamed shows the new name in game, its moons show it in theirs, and both hold after a save and reload
-- [ ] A planet marked as a terraforming candidate shows the modifier in game and offers terraforming once Climate Restoration is researched; an unmarked one no longer does
+- [ ] A modifier added to a planet shows in the planet view with its effect, a timed one expires, a removed one is gone; a planet feature added both ways shows as a feature
+- [ ] A planet given its terraforming candidate modifier from the modifier picker offers terraforming once Climate Restoration is researched; with the modifier removed it no longer does
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
 - [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons
 - [ ] A special layout placed in a save loads with its fixed bodies, flags and name

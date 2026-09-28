@@ -1,0 +1,28 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Add modifier terraforming_candidate to planet #585
+inverse: RemovePlanetModifier { planet: 585, modifier: "terraforming_candidate", feature: None }
+
+--- gamestate
++++ gamestate
+@@ -110114,6 +110114,18 @@
+ 			{
+ 			}
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="terraforming_candidate"
++						days=-1
++					}
++ 
++				}
++			}
+ 			entity=2
+ 		}
+ 		586=

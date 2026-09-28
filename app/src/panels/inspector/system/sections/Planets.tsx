@@ -4,7 +4,7 @@ import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { bodyClassName, bodyName } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
-import { bodyEditHint } from "../../../../lib/details/terraform";
+import { bodyEditHint } from "../../../../lib/details/planetEdits";
 import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
@@ -128,7 +128,6 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
   const enterable = useFileSessionStore(canEnterSystem);
   const inView = useSceneSystem() === details.id;
@@ -181,14 +180,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
               key={p.id}
               planet={p}
               details={details}
-              editHint={bodyEditHint(
-                p.class,
-                bodies,
-                p.permanent_modifiers,
-                classes,
-                starClasses,
-                candidates,
-              )}
+              editHint={bodyEditHint(p.class, bodies, classes, starClasses)}
             />
           ))}
           {!all && planets.length > LIST_LIMIT && (

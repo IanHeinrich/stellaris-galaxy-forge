@@ -363,11 +363,16 @@ pub fn one_of_each() -> Vec<Example> {
             }],
         }),
         Example::save(Op::SetPlanetSize { id: 748, size: 30 }),
-        Example::save(Op::SetTerraformCandidate {
-            id: 749,
+        Example::save(Op::AddPlanetModifier {
+            planet: 749,
             modifier: "terraforming_candidate".to_owned(),
-            on: true,
-            copies: None,
+            days: vec![-1],
+            feature: None,
+        }),
+        Example::save_4_5(Op::RemovePlanetModifier {
+            planet: 151,
+            modifier: "mineral_poor".to_owned(),
+            feature: Some("pm_mineral_poor".to_owned()),
         }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,
