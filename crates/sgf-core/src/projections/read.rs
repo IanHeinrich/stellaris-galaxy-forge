@@ -170,6 +170,8 @@ pub(crate) struct RawCountry {
     pub has_map_colors: bool,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
+    /// `preftl_age`, set on a primitive.
+    pub preftl_age: Option<String>,
     /// The keys of the `flags` map.
     pub flags: Vec<String>,
     /// The fleets of `fleets_manager.owned_fleets`.
@@ -287,6 +289,7 @@ pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         use_map_color,
         flag_icon: layer(keys::ICON),
         flag_background: layer(keys::BACKGROUND),
+        preftl_age: scalar(node, keys::PREFTL_AGE, src).map(str::to_owned),
         flags,
         owned_fleets,
     }

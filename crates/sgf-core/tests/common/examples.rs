@@ -386,6 +386,12 @@ pub fn one_of_each() -> Vec<Example> {
                 secondary: "dark_blue".to_owned(),
             },
         }),
+        Example::save(Op::RenameEmpire {
+            country: 0,
+            name: "Sgf Dominion".to_owned(),
+            value: None,
+            custom_name: None,
+        }),
         Example::save(Op::AddSaveSystem {
             spec: super::spec::dorellion(),
         }),

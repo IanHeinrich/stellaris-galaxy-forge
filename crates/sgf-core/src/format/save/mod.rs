@@ -18,9 +18,9 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, belts, bodies, bulk, deposits, flag, lanes, lgate, map_colors, move_planet,
-    move_system, nebula, planet_ring, planet_size, remove_system, rename_planet, rename_system,
-    replace_system, star_class, terraform_candidate,
+    add_system, belts, bodies, bulk, deposits, empire_name, flag, lanes, lgate, map_colors,
+    move_planet, move_system, nebula, planet_ring, planet_size, remove_system, rename_planet,
+    rename_system, replace_system, star_class, terraform_candidate,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -178,6 +178,19 @@ impl Format for Save {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
             Op::SetEmpireFlag { country, flag } => flag::plan_set(plan, s, *country, flag),
+            Op::RenameEmpire {
+                country,
+                name,
+                value,
+                custom_name,
+            } => empire_name::plan_rename(
+                plan,
+                s,
+                *country,
+                name,
+                value.as_deref(),
+                custom_name.unwrap_or(true),
+            ),
             Op::AddSaveSystem { spec } => {
                 check_adds_system(&s.doc)?;
                 add_system::plan_add(plan, s, spec)

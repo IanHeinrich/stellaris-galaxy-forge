@@ -13,6 +13,7 @@ pub(crate) mod belts;
 pub(crate) mod bodies;
 pub(crate) mod bulk;
 pub(crate) mod deposits;
+pub(crate) mod empire_name;
 pub(crate) mod flag;
 pub(crate) mod footprint;
 pub(crate) mod game_tables;

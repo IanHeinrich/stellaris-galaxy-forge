@@ -131,6 +131,10 @@ this session, select it and press Delete, or right-click it and pick
   the star's type and size.
 - With several systems selected, the Star class action applies one
   class to all of them.
+- An empire's page has a Name field at the top. Type a new name to
+  rename the empire. Renaming your own empire also renames the save on
+  the load game screen.
+- A pre-FTL civilisation's page shows its age, such as Stone Age.
 - An empire's page sets its flag: the emblem, the background, and the
   primary and secondary colours. For the player's empire, the load game
   screen shows the new flag too.

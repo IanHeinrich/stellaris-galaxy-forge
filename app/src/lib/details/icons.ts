@@ -65,6 +65,13 @@ export interface Icon {
   frame: IconFrame;
 }
 
+export const PRE_FTL_ICON: Icon = {
+  keys: [PRE_FTL_ICON_KEY],
+  glyph: "☗",
+  label: "Pre-FTL civilisation",
+  frame: "poi",
+};
+
 /** Bypass kind → what `common/bypass` says about it. */
 export type BypassKinds = ReadonlyMap<string, BypassView>;
 

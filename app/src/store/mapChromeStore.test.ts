@@ -71,7 +71,7 @@ describe("layers", () => {
     ]);
   });
 
-  it("a save opens on the galaxy map the game itself draws, with star classes and colonies", async () => {
+  it("a save opens on the galaxy map the game itself draws, with star classes, colonies and the two guides", async () => {
     await session().openSave(OPEN_RESULT.path);
     expect(onLayers()).toEqual([
       "nebulae",
@@ -79,6 +79,8 @@ describe("layers", () => {
       "owners",
       "systems",
       "classes",
+      "mapBorder",
+      "lCluster",
       "labels",
       "details",
       "colonies",

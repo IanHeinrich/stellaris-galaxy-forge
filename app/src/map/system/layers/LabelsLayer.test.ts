@@ -1,17 +1,45 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
+/** The texture fetch, which answers only once a test lets it. */
+const fetch = vi.hoisted(() => ({ answers: false }));
 
-import { BitmapText, Container, Graphics } from "pixi.js";
+vi.mock("../../../api/textures", () => ({
+  getTextures: (keys: string[]) =>
+    fetch.answers
+      ? Promise.resolve(
+          keys.map((key) => ({ key, width: 1, height: 1, png_base64: "", error: null })),
+        )
+      : new Promise(() => {}),
+}));
+
+import { BitmapText, Container, Graphics, NineSliceSprite, Sprite, Texture } from "pixi.js";
+import { empireFlagKey } from "../../../lib/details/fleets";
+import { CAPITAL_PLATE_KEY, PRE_FTL_ICON_KEY } from "../../../lib/details/icons";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
-import { clearTextures } from "../../../lib/visual/textures";
+import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
+import { countryNode } from "../../../test/builders";
 import { systemContext } from "../context";
-import { EARTH, SUN, context, drawOps, strokes, stubTextMeasurement, viewport } from "../fixture";
+import {
+  EARTH,
+  MARS,
+  SUN,
+  context,
+  drawOps,
+  strokes,
+  stubTextMeasurement,
+  viewport,
+} from "../fixture";
 import { NO_SOURCES } from "../sources";
 import { LabelsLayer } from "./LabelsLayer";
 import { NO_HIGHLIGHT } from "./SystemLayer";
 
 stubTextMeasurement();
+
+afterEach(() => {
+  fetch.answers = false;
+  setTextureDecoder(null);
+  clearTextures();
+});
 
 describe("the system scene's labels layer", () => {
   const MINED = {
@@ -167,6 +195,87 @@ describe("the system scene's labels layer", () => {
     layer.setHighlighted(NO_HIGHLIGHT);
     expect(edgeOf(MINED.id)).not.toBe(ACCENT_COLOR);
     clearTextures();
+    layer.destroy();
+  });
+
+  it("shows a colony's flag on the game's plate and a pre-FTL world's icon with Details on only", async () => {
+    clearTextures();
+    const decoded = new Map<string, Texture>();
+    const textureFor = (key: string) => {
+      if (!decoded.has(key)) decoded.set(key, new Texture());
+      return decoded.get(key)!;
+    };
+    setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
+    fetch.answers = true;
+    const empire = countryNode({
+      id: 9,
+      colors: ["red", "black"],
+      flag_icon: { category: "human", file: "flag_human_9.dds" },
+      flag_background: { category: "backgrounds", file: "00_solid.dds" },
+    });
+    const capital = { ...EARTH, colonised: true, capital: true, owner: empire.id };
+    const natives = { ...MARS, colonised: true, owner: 10, pre_ftl: true };
+    const withDetails = (details: boolean) =>
+      systemContext({
+        ...context({ planets: [SUN, capital, natives] }),
+        sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details },
+        countries: new Map([[empire.id, empire]]),
+      });
+    const width = (layer: LabelsLayer, id: number) =>
+      layer.plates().find((p) => p.id === id)?.w ?? 0;
+    /** Where each shown name stands, in world units. */
+    const names = (layer: LabelsLayer) =>
+      shown(layer).flatMap((holder) =>
+        holder.children.flatMap((c) =>
+          c instanceof BitmapText && c.label === "name"
+            ? [
+                {
+                  text: c.text,
+                  x: holder.position.x + c.x * holder.scale.x,
+                  y: holder.position.y + c.y * holder.scale.y,
+                },
+              ]
+            : [],
+        ),
+      );
+    const sprites = (layer: LabelsLayer) =>
+      parts(layer, "marks").flatMap(function all(c): Sprite[] {
+        const own = c instanceof Sprite && c.visible ? [c] : [];
+        return [...own, ...(c instanceof Container ? c.children.flatMap(all) : [])];
+      });
+
+    const layer = new LabelsLayer();
+    layer.rebuild(withDetails(false));
+    viewport(layer, 2);
+    const plain = { capital: width(layer, capital.id), natives: width(layer, natives.id) };
+    const plainNames = names(layer);
+    expect(parts(layer, "gamePlate")).toHaveLength(0);
+    expect(parts(layer, "marks")).toHaveLength(0);
+
+    layer.rebuild(withDetails(true));
+    expect(width(layer, capital.id)).toBeGreaterThan(plain.capital);
+    expect(width(layer, natives.id)).toBeGreaterThan(plain.natives);
+    const marked = names(layer);
+    expect(marked.map((n) => n.text)).toEqual(plainNames.map((n) => n.text));
+    marked.forEach((n, i) => {
+      expect(n.x).toBeCloseTo(plainNames[i].x);
+      expect(n.y).toBeCloseTo(plainNames[i].y);
+    });
+    const flag = empireFlagKey(empire) ?? "";
+    await vi.waitFor(() => {
+      const shown = sprites(layer).map((s) => s.texture);
+      expect(shown).toContain(textureFor(flag));
+      expect(shown).toContain(textureFor(PRE_FTL_ICON_KEY));
+    });
+    const [plate, ...others] = parts(layer, "gamePlate");
+    expect(others).toHaveLength(0);
+    if (!(plate instanceof NineSliceSprite)) throw new Error("no game plate");
+    expect(plate.visible).toBe(true);
+    expect(plate.texture).toBe(textureFor(CAPITAL_PLATE_KEY));
+
+    layer.rebuild(withDetails(false));
+    expect(parts(layer, "marks")).toHaveLength(0);
+    expect(width(layer, capital.id)).toBe(plain.capital);
     layer.destroy();
   });
 

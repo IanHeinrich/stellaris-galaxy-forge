@@ -5,6 +5,7 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
 import { discRadius } from "../../lib/details/discs";
 import { boundsText, isColony } from "../../lib/details/labels";
+import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
   type LayoutOverride,
@@ -63,6 +64,8 @@ export interface SceneBody {
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
+  /** A colony's plate and owner's flag, or the pre-FTL icon, as the Details layer shows a system's. */
+  readonly marks: BodyMarks;
   /** Its orbit's radius as the readouts show it; null for a body with no ring. */
   readonly readout: RadiusReadout | null;
 }
@@ -355,6 +358,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       ring: false,
       chance: NO_CHANCE,
       resources: NOTHING,
+      marks: NO_MARKS,
       readout: null,
       ...artOf({ planetClass: star.class, starClass, drawn: false }, src, null),
     };
@@ -424,6 +428,7 @@ function sceneBodies(
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
         chance: chanceOf(placement, planet, drawn),
         resources: rowsOf(planet, src.resourceIcons),
+        marks: bodyMarks(planet, src.countries),
         readout: readoutOf(placement, discs),
         ...artOf({ planetClass: planet.class, starClass, drawn }, src, planet),
       },
@@ -535,6 +540,7 @@ export function systemContext(
       src.names,
       src.gameDataReady,
       src.ownership,
+      src.countries,
       src.resourceIcons,
     ],
     () => sceneBodies(src, node, layout),

@@ -48,4 +48,9 @@ painted_fill?: string,
  * Whether `flag.colors` holds the six entries Stellaris 4.5 writes, the last two the
  * map border and fill, so the map colours can be set. Always set.
  */
-has_map_colors?: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | null, };
+has_map_colors?: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | null, 
+/**
+ * `preftl_age`, the age a primitive stands in (`stone_age`); `None` for any other
+ * country.
+ */
+preftl_age?: string, };

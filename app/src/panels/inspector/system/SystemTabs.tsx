@@ -101,7 +101,7 @@ function ScenarioOverview({
       )}
       <BypassSection system={system.id} />
       {details && details.sites.length > 0 && <SiteSection sites={details.sites} />}
-      {system.flags.length > 0 && <FlagsSection flags={system.flags} />}
+      {system.flags.length > 0 && <FlagsSection system={system} />}
       <HyperlaneSection detail={detail} limit={OVERVIEW_LANES} startClosed />
       {ready && <ScriptsRow system={system.id} />}
     </>
@@ -144,7 +144,7 @@ export function Overview({
         system={system.id}
       />
       <FleetSection id="system.utility" title="Utility ships" fleets={utility} system={system.id} />
-      <FlagsSection flags={system.flags} />
+      <FlagsSection system={system} />
       <InitializerSection system={system} spawn={false} />
     </>
   );

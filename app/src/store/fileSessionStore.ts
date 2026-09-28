@@ -201,7 +201,7 @@ export interface FileSessionState {
   /** Drops the paused save, writing nothing and agreeing to nothing. */
   dismissPausedSave(): void;
   /** What an edit reported about the file it belongs to. */
-  noteEdit(patch: { issues: Issue[]; dirty: boolean }): void;
+  noteEdit(patch: { issues: Issue[]; dirty: boolean; title?: string }): void;
   setError(message: string | null): void;
   setNotice(message: string | null): void;
 }
@@ -346,8 +346,8 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     });
   },
 
-  noteEdit({ issues, dirty }) {
-    set({ dirty, error: null, errorKind: null });
+  noteEdit({ issues, dirty, title }) {
+    set({ dirty, error: null, errorKind: null, ...(title === undefined ? {} : { title }) });
     useIssuesStore.getState().setFindings(issues);
   },
 

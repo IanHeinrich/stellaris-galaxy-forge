@@ -116,6 +116,27 @@ pub fn member_line(indent: &[u8], id: u32) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// `{ key="<name>" literal=yes }` in the game's multi-line shape, as the whole value of a
+/// `name` key indented by `indent`: it opens with the brace, where the old value began, and
+/// ends with the closing one.
+pub fn literal_name_value(indent: &[u8], name: &str) -> Vec<u8> {
+    let indent = String::from_utf8_lossy(indent);
+    format!(
+        "{{\n{indent}\t{}={}\n{indent}\t{}=yes\n{indent}}}",
+        keys::KEY,
+        quoted(name),
+        keys::LITERAL
+    )
+    .into_bytes()
+}
+
+/// `custom_name=yes`, the line that keeps the game from generating a new name for an empire.
+pub fn custom_name_line(indent: &[u8]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.pair(0, keys::CUSTOM_NAME, "yes");
+    w.into_bytes()
+}
+
 /// `literal=yes`, the line that has a name shown as written rather than looked up.
 pub fn literal_line(indent: &[u8]) -> Vec<u8> {
     let mut w = Lines::new(indent);

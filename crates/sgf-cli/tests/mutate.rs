@@ -1,4 +1,5 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit` and `rename-planet`.
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `terraform-candidate`,
+//! `rename-planet` and `rename-empire`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
 #[test]
@@ -441,4 +442,37 @@ fn rename_planet_writes_the_new_name_and_refuses_an_empty_one() {
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("a name may not be empty"), "{err}");
     assert!(!refused.exists());
+}
+
+#[test]
+fn rename_empire_renames_the_player_in_the_save_and_on_the_load_screen() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("renamed.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "rename-empire",
+        SAMPLE_4_5,
+        "0",
+        "Sgf Dominion",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains("Renamed empire 0 to Sgf Dominion"), "{text}");
+    let inspect = stdout(&sgf(&["inspect", out_str]));
+    assert!(inspect.contains("Sgf Dominion"), "{inspect}");
+
+    let same = sgf(&[
+        "rename-empire",
+        out_str,
+        "0",
+        "Sgf Dominion",
+        "-o",
+        dir.path().join("same.sav").to_str().unwrap(),
+    ]);
+    assert_eq!(same.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&same.stderr);
+    assert!(err.contains("country 0 already has that name"), "{err}");
 }

@@ -66,7 +66,9 @@ export function editPipeline(
   function applyEdit(result: EditResult): void {
     landed += 1;
     useGalaxyStore.getState().applyDelta(result.delta);
-    useFileSessionStore.getState().noteEdit({ issues: result.issues, dirty: result.dirty });
+    useFileSessionStore
+      .getState()
+      .noteEdit({ issues: result.issues, dirty: result.dirty, title: result.title });
     set({ history: result.history });
     const touched = touchedSystems(result);
     useScriptsStore.getState().invalidate([...touched]);

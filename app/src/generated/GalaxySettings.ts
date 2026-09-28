@@ -8,4 +8,8 @@ export type GalaxySettings = { template: string | null, shape: string | null, nu
 /**
  * `crises`, the crisis strength multiplier.
  */
-crises: number | null, mid_game_start: number | null, end_game_start: number | null, ironman: boolean | null, core_radius: number | null, };
+crises: number | null, mid_game_start: number | null, end_game_start: number | null, 
+/**
+ * Years after 2200, as are `mid_game_start` and `end_game_start`.
+ */
+victory_year: number | null, cosmic_storm_early_game_spawn_chance_scale: number | null, cosmic_storm_mid_game_spawn_chance_scale: number | null, cosmic_storm_late_game_spawn_chance_scale: number | null, cosmic_storm_early_game_spawn_max_cap: number | null, cosmic_storm_mid_game_spawn_max_cap: number | null, cosmic_storm_late_game_spawn_max_cap: number | null, cosmic_storm_spawn_cooldown_scale: number | null, cosmic_storm_devastation: number | null, voidworms_scaling: number | null, cutholoids_scaling: number | null, fallen_empire_strength_scale: number | null, ironman: boolean | null, core_radius: number | null, };

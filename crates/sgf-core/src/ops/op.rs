@@ -335,6 +335,31 @@ pub enum Op {
         country: u32,
         flag: EmpireFlag,
     },
+    /// An empire's name, `country.<id>.name`, written as `{ key="…" literal=yes }` so the
+    /// game shows it as typed: a name that is already literal has only its key rewritten,
+    /// and any other name is replaced whole. The player's empire also has the gamestate
+    /// header's `name` and the `name` in the save's `meta` rewritten, which the load screen
+    /// lists the save under. A country without `custom_name=yes` gets it where the game
+    /// writes it, so the game keeps the name rather than generating a new one. The
+    /// adjective, species names and homeworld name stay. Empty is refused, and so is a
+    /// name that changes nothing. The inverse carries the player's old header name, or the
+    /// old name, the old `name` value whole when it was not a literal, and `custom_name`
+    /// off when the rename added it. Save documents only.
+    RenameEmpire {
+        country: u32,
+        name: String,
+        /// The country's whole `name` value, written as it stands in place of the literal
+        /// block `name` makes: what the inverse carries for a name the game generated. The
+        /// header and `meta` still take `name`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        value: Option<String>,
+        /// `Some(false)` takes the country's `custom_name=yes` away: what the inverse
+        /// carries when the rename added it. Otherwise the mark is added when missing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        custom_name: Option<bool>,
+    },
     /// A new save system with its bodies, their deposits and its lanes, written as the
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
     /// must be the number of systems the save holds; planets and deposits take the lowest
@@ -913,6 +938,8 @@ pub enum OpError {
     MapColorsUnchanged(u32),
     #[error("country {0}'s flag is already set that way")]
     FlagUnchanged(u32),
+    #[error("country {0} already has that name")]
+    EmpireNameUnchanged(u32),
     #[error("save meta: {reason} at byte {offset}")]
     MetaParse { offset: usize, reason: String },
     #[error("save statement: {reason} at byte {offset}")]
@@ -1109,6 +1136,7 @@ impl OpError {
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::FlagUnchanged { .. }
+            | Self::EmpireNameUnchanged { .. }
             | Self::SaveTooOld { .. }
             | Self::UnknownSaveVersion { .. }
             | Self::Ironman { .. }

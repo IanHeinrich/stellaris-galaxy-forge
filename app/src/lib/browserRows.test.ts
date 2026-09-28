@@ -206,14 +206,23 @@ describe("the Points of interest tab", () => {
         source_file: "10_distant_stars_initializers.txt",
       }),
       special(9, { primary: "marauder", kinds: ["marauder"] }),
+      special(4, {
+        primary: "contingency",
+        kinds: ["contingency"],
+        initializer: "ai_system_01",
+        label: "Some Present Empire",
+      }),
     ].map((s) => [s.id, s]),
   );
 
   const groups = pointGroups(SPECIAL, true, new Map(), LOOKUPS.systemName);
 
   it("lists only the kinds the tab owns, in kind order, counting each", () => {
-    expect(groups.map((g) => g.kind)).toEqual(["leviathan", "landmark", "unique"]);
-    expect(groups.map((g) => g.count)).toEqual([1, 1, 2]);
+    expect(groups.map((g) => g.kind)).toEqual(["leviathan", "landmark", "contingency", "unique"]);
+    expect(groups.map((g) => g.count)).toEqual([1, 1, 1, 2]);
+    expect(groups.find((g) => g.kind === "contingency")!.rows).toEqual([
+      { id: 4, label: LOOKUPS.systemName(4), subline: null },
+    ]);
   });
 
   it("names the system first for the kinds that read that way, and what stands there after", () => {
