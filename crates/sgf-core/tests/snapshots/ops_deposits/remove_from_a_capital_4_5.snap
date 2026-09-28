@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed d_decrepit_dwellings (#440) from planet #2
+touched: [169]
+inverse: AddSaveDeposit { planet: 2, kind: "d_decrepit_dwellings" }
+… and 3 other issues
+
+--- gamestate
++++ gamestate
+@@ -80125,7 +80125,7 @@
+ 			entity=1
+ 			deposits=
+ 			{
+-				440 441 442 443 444 445 446 447 448 449 450 451 452 
++				441 442 443 444 445 446 447 448 449 450 451 452 
+ 			}
+ 		}
+ 		3=
+@@ -1078660,15 +1078660,7 @@
+ 			id=308
+ 		}
+ 	}
+-	440=
+-	{
+-		type="d_decrepit_dwellings"
+-		deposit_holder=
+-		{
+-			type=0
+-			id=2
+-		}
+-	}
++	440=none
+ 	441=
+ 	{
+ 		type="d_failing_infrastructure"

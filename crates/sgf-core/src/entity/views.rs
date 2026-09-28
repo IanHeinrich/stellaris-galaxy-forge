@@ -235,6 +235,19 @@ pub struct PlanetPage {
     /// Entries in `flags`.
     pub flags: u32,
     pub anomaly: Option<PlanetPageAnomaly>,
+    /// It has a `terraform_process`: when that finishes, the game retypes its deposits.
+    pub terraforming: bool,
+    /// Its blockers a construction item is clearing, in the order its list has them.
+    pub clearing: Vec<PlanetPageClearing>,
+}
+
+/// A blocker being cleared, and what the clearing costs: the item's `resources`, paid when
+/// it was queued.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageClearing {
+    pub deposit: u32,
+    pub cost: Vec<(String, f64)>,
 }
 
 /// The anomaly a planet holds, `anomaly="<category>"`, waiting to be found by survey.
@@ -289,6 +302,22 @@ pub struct PlanetPageColony {
     pub pops: u32,
     /// `species_information`, in save order.
     pub species: Vec<PlanetPageSpecies>,
+    /// Its districts' levels, summed by type, in the order the types first appear.
+    pub districts: Vec<PlanetPageDistrict>,
+    /// The type of each zone its districts hold, in save order.
+    pub zones: Vec<String>,
+    /// The type of each building in those zones, in save order.
+    pub buildings: Vec<String>,
+}
+
+/// How many districts of one type a colony has built.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageDistrict {
+    /// The district's `type`: `district_generator`.
+    pub kind: String,
+    /// The sum of its districts' `level`.
+    pub level: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

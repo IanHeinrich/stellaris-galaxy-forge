@@ -416,7 +416,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const unowned = uncolonised(page);
   const planetBody = bodies && !starBody;
   const resizable = planetBody && unowned;
-  const depositsEditable = useCanEdit("deposits") && unowned;
+  const depositsEditable = useCanEdit("deposits");
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable ? { value: page.size } : null,

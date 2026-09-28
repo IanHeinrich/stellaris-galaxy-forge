@@ -228,7 +228,7 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Add or remove deposits on uncolonised planets of a Stellaris 4.x save.
+    /// Add or remove deposits on the planets of a Stellaris 4.x save.
     Deposit {
         #[command(subcommand)]
         command: DepositCommand,

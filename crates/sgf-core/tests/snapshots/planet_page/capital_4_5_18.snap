@@ -106,8 +106,40 @@ expression: value
         },
         "pops": 5382
       }
+    ],
+    "districts": [
+      {
+        "kind": "district_city",
+        "level": 3
+      },
+      {
+        "kind": "district_generator",
+        "level": 3
+      },
+      {
+        "kind": "district_mining",
+        "level": 2
+      },
+      {
+        "kind": "district_farming",
+        "level": 4
+      }
+    ],
+    "zones": [
+      "zone_default",
+      "zone_research_unity",
+      "zone_industrial"
+    ],
+    "buildings": [
+      "building_capital",
+      "building_medical_1",
+      "building_research_lab_1",
+      "building_galactic_memorial_1",
+      "building_factory_1"
     ]
   },
   "flags": 1,
-  "anomaly": null
+  "anomaly": null,
+  "terraforming": false,
+  "clearing": []
 }
