@@ -15,6 +15,10 @@ a release is made.
 - A pre-FTL civilisation's page shows its age, such as Stone Age or
   Atomic Age.
 
+### Changed
+
+- A save opens with the map border and the L-Cluster guide on.
+
 ## [0.17.0] - 2026-09-28
 
 ### Added
