@@ -12,6 +12,7 @@ import {
   beltKind,
   bodyLayout,
   byId,
+  countryNode,
   orbitClasses,
   orbitSystem,
   placedNode,
@@ -128,6 +129,32 @@ describe("the bodies of a system", () => {
     };
     const ctx = save([sun, owned(2, false), owned(3, true)], { ownership });
     expect(ctx.bodies.map((b) => b.colony)).toEqual([null, 0x123456, null]);
+  });
+
+  it("marks a colony with its owner's plate and flag and a pre-FTL world with its icon", () => {
+    const owned = (id: number, preFtl: boolean) =>
+      planetSummary({
+        id,
+        class: "pc_continental",
+        owner: 9,
+        colonised: true,
+        pre_ftl: preFtl,
+        layout: bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(16) }),
+      });
+    const country = countryNode({
+      id: 9,
+      colors: ["red", "black"],
+      flag_icon: { category: "human", file: "flag_human_9.dds" },
+      flag_background: { category: "backgrounds", file: "00_solid.dds" },
+    });
+    const ctx = save([sun, owned(2, false), owned(3, true)], {
+      countries: new Map([[9, country]]),
+    });
+    expect(ctx.bodies.map((b) => [b.marks.plate, b.marks.flag !== null, b.marks.preFtl])).toEqual([
+      [null, false, false],
+      ["sprite:GFX_map_icon_bg", true, false],
+      [null, false, true],
+    ]);
   });
 
   it("draws and sizes a body whose parent is missing as the moon the core says it is", () => {

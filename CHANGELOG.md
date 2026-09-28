@@ -10,6 +10,10 @@ a release is made.
 
 ### Added
 
+- With Details on, the system view shows which planets are colonised.
+  A colony's name has its owner's flag on the game's name plate, as
+  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
+  icon beside its name.
 - The Points of interest layer marks four more kinds of system. They are
   off until you switch them on in the Layers menu.
   - Contingency hubs: the four systems every galaxy gets. They are only
@@ -24,6 +28,10 @@ a release is made.
   voidworm and Cutholoid scaling, and fallen empire strength.
 - The galaxy page of a save has a Kaleidoscope row when the Kaleidoscope
   will appear in that game.
+
+### Changed
+
+- A save opens with the map border and the L-Cluster guide on.
 
 ### Fixed
 

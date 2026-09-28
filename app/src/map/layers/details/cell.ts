@@ -1,6 +1,7 @@
 import type { Texture } from "pixi.js";
 import { NAME_ROW, PLANET_STACK, nameRowY, plateBottom } from "../../../lib/details/layout";
 import { MAP_FONT } from "../../../lib/visual/style";
+import { getTexture } from "../../../lib/visual/textures";
 
 export const ICON_PX = NAME_ROW.iconPx;
 /** The dark disc under each row icon, ringed by its category. */
@@ -20,7 +21,11 @@ export interface RowY {
 
 /** The row's vertical offsets for this layout pass, following the star's on-screen size. */
 export function rowY(camScale: number): RowY {
-  const row = nameRowY(camScale);
+  return rowAt(nameRowY(camScale));
+}
+
+/** The offsets of a name row whose top is `row`. */
+export function rowAt(row: number): RowY {
   const icon = row + (NAME_ROW.height - ICON_PX) / 2;
   return {
     row,
@@ -36,4 +41,25 @@ export interface Textures {
   texture(key: string): Texture | null | undefined;
   /** The first of `keys` that rendered; `undefined` while any is still loading, `null` when none can. */
   resolve(keys: string[]): Texture | null | undefined;
+}
+
+/** Textures as they have landed, adding each key still to load to `queued` for the caller to ask for. */
+export function queuedTextures(queued: Set<string>): Textures {
+  const texture = (key: string): Texture | null | undefined => {
+    const landed = getTexture(key);
+    if (landed === undefined) queued.add(key);
+    return landed;
+  };
+  return {
+    texture,
+    resolve(keys) {
+      let pending = false;
+      for (const key of keys) {
+        const landed = texture(key);
+        if (landed) return landed;
+        if (landed === undefined) pending = true;
+      }
+      return pending ? undefined : null;
+    },
+  };
 }

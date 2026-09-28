@@ -1,4 +1,5 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
+import type { CountryNode } from "../../generated/CountryNode";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -53,6 +54,8 @@ export interface SystemSources {
   readonly roll: SystemRoll | null;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
+  /** Each country, for the flag a colonised body's name shows with details on. */
+  readonly countries: ReadonlyMap<number, CountryNode>;
   readonly nodeName: (name: NameTemplate) => string;
   readonly templateName: (named: { name: NameTemplate; name_key: string }) => string;
   readonly countryName: (id: number) => string;
@@ -79,6 +82,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   sceneLayers: Object.freeze({ labels: true, details: false, nebulae: false, orbitRadii: false }),
   roll: null,
   ownership: NO_OWNERSHIP,
+  countries: new Map<number, CountryNode>(),
   nodeName: (name: NameTemplate) => (name.literal ? name.key : stripped(name.key)),
   templateName: (named: { name_key: string }) => stripped(named.name_key),
   countryName: (id: number) => `#${id}`,
@@ -104,6 +108,7 @@ export const sameSources = sameFields<SystemSources>({
   sceneLayers: true,
   roll: true,
   ownership: true,
+  countries: true,
   geometry: true,
   lockedBodies: true,
 });
@@ -153,6 +158,7 @@ export function readSystemSources(id: number | null): SystemSources {
     sceneLayers: useMapChromeStore.getState().sceneLayers,
     roll: shownRoll(details.rolls, id),
     ownership: currentOwnership(),
+    countries: galaxy.countries,
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
