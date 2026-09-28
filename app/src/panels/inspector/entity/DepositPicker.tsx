@@ -6,6 +6,7 @@ import {
   depositRows,
   depositSections,
   type DepositRow,
+  type PickerMode,
 } from "../../../lib/details/depositPicker";
 import { resourceAbbrev } from "../../../lib/details/resources";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
@@ -18,7 +19,18 @@ import { useOutsidePress } from "../../useOutsidePress";
 export const PICKER_NEEDS_GAME_DATA = "Adding a deposit needs the game data";
 export const READING_CHOICES = "Reading the deposit types…";
 export const NONE_MATCH = "No deposit type matches";
-const OPEN_TITLE = "Add deposits of any type. The ones the game places on this planet come first.";
+
+/** What each picker's button says, and its hover text. */
+const OPENERS: Record<PickerMode, { label: string; title: string }> = {
+  deposits: {
+    label: "+ Add deposit…",
+    title: "Add deposits of any type. The ones the game places on this planet come first.",
+  },
+  blockers: {
+    label: "+ Add blocker…",
+    title: "Add blockers of any type. The ones the game places on this planet come first.",
+  },
+};
 
 /** Where the keyboard stands in the list: a row, and one of its amounts. */
 interface Cursor {
@@ -43,6 +55,7 @@ function PickerRow({
     <div
       id={id}
       className={`dp-row${row.amounts.length > 1 ? " family" : ""}${cursor === null ? "" : " active"}`}
+      title={row.description ?? undefined}
     >
       <span className="dp-art">
         {view !== undefined && <Icon className="pl-art" keys={[view.texture_key]} glyph="" />}
@@ -58,7 +71,7 @@ function PickerRow({
               glyph={resourceAbbrev(y.resource)}
             />
           ))}
-          {row.gives}
+          {row.gives === "" ? <span className="muted">No effect</span> : row.gives}
         </span>
       </span>
       <span className="dp-amounts">
@@ -79,12 +92,20 @@ function PickerRow({
 }
 
 /**
- * The open picker: a search, the category chips, a line saying what was added, and one row per
- * deposit family with a button per amount. It stays open after an add; Escape, Done or a press
+ * The open picker: a search, the category chips for deposits, a line saying what was added, and
+ * one row per deposit family with a button per amount. The blocker picker has no chips. It stays open after an add; Escape, Done or a press
  * outside closes it. Typing goes to the search, the arrows move between rows and amounts, and
  * Enter adds the amount they stand on.
  */
-function DepositPopover({ page, moon }: { page: PlanetPage; moon: boolean }) {
+function DepositPopover({
+  page,
+  moon,
+  mode,
+}: {
+  page: PlanetPage;
+  moon: boolean;
+  mode: PickerMode;
+}) {
   const store = useDepositPickerStore.getState();
   const query = useDepositPickerStore((s) => s.query);
   const chip = useDepositPickerStore((s) => s.chip);
@@ -96,16 +117,16 @@ function DepositPopover({ page, moon }: { page: PlanetPage; moon: boolean }) {
   const [cursor, setCursor] = useState<Cursor>({ row: 0, amount: 0 });
   useOutsidePress(true, () => useDepositPickerStore.getState().close(), root);
   useEffect(() => search.current?.focus(), []);
-  useEffect(() => useDepositPickerStore.getState().open(page, moon), [page, moon]);
+  useEffect(() => useDepositPickerStore.getState().open(page, moon, mode), [page, moon, mode]);
 
   const rows = useMemo(
-    () => (choices === null ? null : depositRows(choices.list, views)),
-    [choices, views],
+    () => (choices === null ? null : depositRows(choices.list, views, mode)),
+    [choices, views, mode],
   );
   const sections = rows === null ? [] : depositSections(rows, chip, query);
   const flat = sections.flatMap((s) => s.rows);
   const at = Math.min(cursor.row, flat.length - 1);
-  const rowId = (i: number) => `dp-row-${page.id}-${i}`;
+  const rowId = (i: number) => `dp-row-${page.id}-${mode}-${i}`;
   useEffect(() => {
     document.getElementById(rowId(at))?.scrollIntoView?.({ block: "nearest" });
   });
@@ -141,13 +162,21 @@ function DepositPopover({ page, moon }: { page: PlanetPage; moon: boolean }) {
 
   let index = 0;
   return (
-    <div className="dp" ref={root} role="group" aria-label="Add deposits" onKeyDown={onKey}>
+    <div
+      className="dp"
+      ref={root}
+      role="group"
+      aria-label={mode === "blockers" ? "Add blockers" : "Add deposits"}
+      onKeyDown={onKey}
+    >
       <div className="dp-head">
         <input
           ref={search}
           type="search"
-          aria-label="Search deposits"
-          placeholder="Search name, resource or category"
+          aria-label={mode === "blockers" ? "Search blockers" : "Search deposits"}
+          placeholder={
+            mode === "blockers" ? "Search name or effect" : "Search name, resource or category"
+          }
           value={query}
           onChange={(e) => {
             store.setQuery(e.target.value);
@@ -158,22 +187,24 @@ function DepositPopover({ page, moon }: { page: PlanetPage; moon: boolean }) {
           Done
         </button>
       </div>
-      <div className="dp-chips" role="group" aria-label="Deposit categories">
-        {DEPOSIT_CHIPS.map(({ chip: each, label }) => (
-          <button
-            key={each}
-            type="button"
-            className="dp-chip"
-            aria-pressed={chip === each}
-            onClick={() => {
-              store.setChip(each);
-              setCursor({ row: 0, amount: 0 });
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {mode === "deposits" && (
+        <div className="dp-chips" role="group" aria-label="Deposit categories">
+          {DEPOSIT_CHIPS.map(({ chip: each, label }) => (
+            <button
+              key={each}
+              type="button"
+              className="dp-chip"
+              aria-pressed={chip === each}
+              onClick={() => {
+                store.setChip(each);
+                setCursor({ row: 0, amount: 0 });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {added !== null && (
         <div className="dp-added" role="status">
           ✓ {added}
@@ -211,21 +242,33 @@ function DepositPopover({ page, moon }: { page: PlanetPage; moon: boolean }) {
   );
 }
 
-/** The deposit picker's button, and the picker below it while open. */
-export function DepositPicker({ page, moon }: { page: PlanetPage; moon: boolean }) {
-  const open = useDepositPickerStore((s) => s.planet === page.id);
+/**
+ * A picker's button, and the picker below it while open: `deposits` adds any deposit but a
+ * blocker, `blockers` adds a blocker.
+ */
+export function DepositPicker({
+  page,
+  moon,
+  mode,
+}: {
+  page: PlanetPage;
+  moon: boolean;
+  mode: PickerMode;
+}) {
+  const open = useDepositPickerStore((s) => s.planet === page.id && s.mode === mode);
   const ready = useGameDataStore((s) => s.status === "ready");
-  if (open) return <DepositPopover page={page} moon={moon} />;
+  if (open) return <DepositPopover page={page} moon={moon} mode={mode} />;
+  const opener = OPENERS[mode];
   return (
     <div className="pl-dep-add">
       <button
         type="button"
         className="edit-field dp-open"
         disabled={!ready}
-        title={ready ? OPEN_TITLE : PICKER_NEEDS_GAME_DATA}
-        onClick={() => useDepositPickerStore.getState().open(page, moon)}
+        title={ready ? opener.title : PICKER_NEEDS_GAME_DATA}
+        onClick={() => useDepositPickerStore.getState().open(page, moon, mode)}
       >
-        + Add deposit…
+        {opener.label}
       </button>
     </div>
   );

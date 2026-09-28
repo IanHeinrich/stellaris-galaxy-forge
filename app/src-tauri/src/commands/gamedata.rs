@@ -198,7 +198,7 @@ pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
     })
 }
 
-/// Every deposit type but the null one, in the install's order, with its family, its
+/// Every deposit type but the null one, by key, with its family, its
 /// category and whether the game's roll could place it on a body of planet class `class`
 /// and `size`, a moon when `moon`, that holds the deposit types `deposits`; empty without
 /// game data.

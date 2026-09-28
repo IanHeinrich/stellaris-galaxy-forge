@@ -8,10 +8,16 @@ import type { DepositTypeView } from "../../generated/DepositTypeView";
 import { formatAmount } from "./resources";
 import { effectText } from "./planetEdits";
 
+/** What a picker adds: any deposit but a blocker, or a blocker. */
+export type PickerMode = "deposits" | "blockers";
+
 /** A chip above the rows: every row, the rows the roll could place here, or one category. */
 export type DepositChip = "All" | "Usual" | DepositCategory;
 
-/** The chips in the order they show, each with its label. */
+/**
+ * The chips the deposit picker shows, in order, each with its label. The blocker picker shows
+ * none: its rows are all one category, and the usual ones already lead the list.
+ */
 export const DEPOSIT_CHIPS: readonly { chip: DepositChip; label: string }[] = [
   { chip: "All", label: "All" },
   { chip: "Usual", label: "Usual here" },
@@ -22,7 +28,6 @@ export const DEPOSIT_CHIPS: readonly { chip: DepositChip; label: string }[] = [
   { chip: "Strategic", label: "Strategic" },
   { chip: "Features", label: "Features" },
   { chip: "Special", label: "Special" },
-  { chip: "Blockers", label: "Blockers" },
 ];
 
 /** One deposit type a row adds: its key, and the amount its button shows in a family. */
@@ -37,8 +42,13 @@ export interface DepositRow {
   /** The type the row's art, name and effects are read from: its first. */
   view: DepositTypeView | undefined;
   label: string;
-  /** What it gives, spelled out: "Energy per month", or "+2 Minerals, Blocks 1 district". */
+  /**
+   * What it gives, spelled out: "Energy per month", or "+2 Minerals, Blocks 1 district"; empty
+   * for a type that gives nothing.
+   */
   gives: string;
+  /** Its first type's localised description, for the row's hover text. */
+  description: string | null;
   /** Its first type's category that is not Special, else Special. */
   category: DepositCategory;
   /** The roll could place one of its types here. */
@@ -84,13 +94,15 @@ function familyGives(view: DepositTypeView | undefined): string {
   return `${view.yields.map((y) => y.name).join(" and ")} per month`;
 }
 
-/** The offered types as rows, one per family, by name; a family's types by amount. */
+/** The offered types `mode` adds as rows, one per family, by name; a family's types by amount. */
 export function depositRows(
   choices: readonly DepositChoice[],
   views: ReadonlyMap<string, DepositTypeView>,
+  mode: PickerMode,
 ): DepositRow[] {
   const families = new Map<string, DepositChoice[]>();
-  for (const choice of choices) {
+  const wanted = choices.filter((c) => (c.category === "Blockers") === (mode === "blockers"));
+  for (const choice of wanted) {
     const members = families.get(choice.family);
     if (members === undefined) families.set(choice.family, [choice]);
     else members.push(choice);
@@ -107,6 +119,7 @@ export function depositRows(
       view,
       label,
       gives,
+      description: first.description,
       category,
       usual: sorted.some((m) => m.usual),
       amounts: sorted.map((m) => ({ key: m.key, amount: sorted.length > 1 ? m.amount : null })),

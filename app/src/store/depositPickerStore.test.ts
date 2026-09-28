@@ -16,8 +16,22 @@ import { useGameDataStore } from "./gameDataStore";
 bindStores();
 
 const CHOICES: DepositChoice[] = [
-  { key: "d_energy_1", family: "d_energy", amount: 1, category: "Energy", usual: true },
-  { key: "d_energy_3", family: "d_energy", amount: 3, category: "Energy", usual: false },
+  {
+    key: "d_energy_1",
+    family: "d_energy",
+    amount: 1,
+    category: "Energy",
+    usual: true,
+    description: null,
+  },
+  {
+    key: "d_energy_3",
+    family: "d_energy",
+    amount: 3,
+    category: "Energy",
+    usual: false,
+    description: null,
+  },
 ];
 
 const PAGE = planetPage({ id: 40, class: "pc_barren" });
@@ -31,21 +45,21 @@ beforeEach(() => {
 
 describe("the deposit picker", () => {
   it("reads the types offered for the planet once, when it opens", async () => {
-    useDepositPickerStore.getState().open(PAGE, true);
+    useDepositPickerStore.getState().open(PAGE, true, "deposits");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices?.list).toEqual(CHOICES));
     expect(mockedIpc.getDepositChoices).toHaveBeenCalledWith("pc_barren", 16, true, []);
-    useDepositPickerStore.getState().open(PAGE, true);
+    useDepositPickerStore.getState().open(PAGE, true, "deposits");
     expect(mockedIpc.getDepositChoices).toHaveBeenCalledTimes(1);
     expect(useDepositPickerStore.getState().planet).toBe(40);
   });
 
   it("stays open with its search after an add, and says what it added", async () => {
     const store = useDepositPickerStore.getState();
-    store.open(PAGE, false);
+    store.open(PAGE, false, "deposits");
     store.setQuery("energy");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
     mockedIpc.applyOp.mockResolvedValue(editResult());
-    const [row] = depositRows(CHOICES, new Map());
+    const [row] = depositRows(CHOICES, new Map(), "deposits");
     await store.add(row, row.amounts[1]);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
@@ -59,7 +73,11 @@ describe("the deposit picker", () => {
     expect(state.added).toBe("Added +3 d_energy_1");
 
     // The planet read again holds the new deposit, so the types are read again for it.
-    store.open({ ...PAGE, deposits: [{ id: 9, kind: "d_energy_3", swap_type: null }] }, false);
+    store.open(
+      { ...PAGE, deposits: [{ id: 9, kind: "d_energy_3", swap_type: null }] },
+      false,
+      "deposits",
+    );
     expect(mockedIpc.getDepositChoices).toHaveBeenLastCalledWith("pc_barren", 16, false, [
       "d_energy_3",
     ]);

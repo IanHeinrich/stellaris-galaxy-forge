@@ -8,6 +8,7 @@ import {
   type DepositAmount,
   type DepositChip,
   type DepositRow,
+  type PickerMode,
 } from "../lib/details/depositPicker";
 import { addDepositOp } from "../lib/details/planetEdits";
 import { useEditorStore } from "./editorStore";
@@ -26,13 +27,15 @@ function bodyKey(page: PlanetPage, moon: boolean): string {
 export interface DepositPickerState {
   /** The planet whose picker is open; `null` when none is. */
   planet: number | null;
+  /** Which of its two pickers is open. */
+  mode: PickerMode;
   query: string;
   chip: DepositChip;
   /** What the last add added, until the next. */
   added: string | null;
   /** The types offered, read for the body `body` names; `null` until read. */
   choices: { body: string; list: DepositChoice[] } | null;
-  open(page: PlanetPage, moon: boolean): void;
+  open(page: PlanetPage, moon: boolean, mode: PickerMode): void;
   close(): void;
   setQuery(query: string): void;
   setChip(chip: DepositChip): void;
@@ -42,13 +45,16 @@ export interface DepositPickerState {
 
 export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
   planet: null,
+  mode: "deposits",
   query: "",
   chip: "All",
   added: null,
   choices: null,
 
-  open(page, moon) {
-    if (get().planet !== page.id) set({ planet: page.id, query: "", chip: "All", added: null });
+  open(page, moon, mode) {
+    if (get().planet !== page.id || get().mode !== mode) {
+      set({ planet: page.id, mode, query: "", chip: "All", added: null });
+    }
     const body = bodyKey(page, moon);
     if (get().choices?.body === body) return;
     const held = page.deposits.map((d) => d.kind);

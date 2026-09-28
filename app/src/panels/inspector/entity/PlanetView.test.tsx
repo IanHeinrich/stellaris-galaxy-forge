@@ -373,8 +373,22 @@ describe("an unowned world's page", () => {
       choices: {
         body: "",
         list: [
-          { key: "d_energy_1", family: "d_energy", amount: 1, category: "Energy", usual: true },
-          { key: "d_energy_3", family: "d_energy", amount: 3, category: "Energy", usual: true },
+          {
+            key: "d_energy_1",
+            family: "d_energy",
+            amount: 1,
+            category: "Energy",
+            usual: true,
+            description: null,
+          },
+          {
+            key: "d_energy_3",
+            family: "d_energy",
+            amount: 3,
+            category: "Energy",
+            usual: true,
+            description: null,
+          },
         ],
       },
     });
@@ -397,6 +411,28 @@ describe("an unowned world's page", () => {
         kind: "d_energy_3",
       }),
     );
+  });
+
+  it("puts Add deposit under the deposits and Add blocker under the blockers, even with none", async () => {
+    await open("save");
+    await landPage(
+      planetPage({ id: WORLD, deposits: [{ id: 1, kind: "d_open_plains", swap_type: null }] }),
+    );
+
+    const html = render(WORLD);
+    expect(html.indexOf("d_open_plains")).toBeLessThan(html.indexOf("+ Add deposit…"));
+    expect(html.indexOf("+ Add deposit…")).toBeLessThan(html.indexOf("Blockers · 0"));
+    expect(html.indexOf("Blockers · 0")).toBeLessThan(html.indexOf("+ Add blocker…"));
+
+    useDepositPickerStore.setState({
+      planet: WORLD,
+      mode: "blockers",
+      choices: { body: "", list: [] },
+    });
+    const open_ = render(WORLD);
+    expect(open_).toContain('aria-label="Search blockers"');
+    expect(open_).not.toContain("Deposit categories");
+    expect(open_).toContain("+ Add deposit…");
   });
 
   it("names the anomaly waiting on it and who found it", async () => {

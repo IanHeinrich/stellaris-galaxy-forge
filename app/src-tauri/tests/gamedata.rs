@@ -377,11 +377,33 @@ fn game_data_commands_with_the_install() {
     );
     assert_eq!(
         (energy_3.family.as_str(), energy_3.amount, energy_3.category),
-        ("d_energy", Some(3.0), DepositCategory::Energy)
+        ("yields:energy", Some(3.0), DepositCategory::Energy)
     );
     assert!(find(&arctic, "d_null_deposit").is_none());
     let dark_matter = find(&arctic, "d_dark_matter_deposit_10").expect("+10 dark matter");
-    assert_eq!(dark_matter.family, "d_dark_matter_deposit");
+    assert_eq!(dark_matter.family, "yields:sr_dark_matter");
+    // Every orbital or habitat deposit of one resource is one row with one button per amount,
+    // whatever its key: the three Minor Artifacts stems, and Nanites of seven stems.
+    let amounts = |family: &str| -> Vec<f64> {
+        let mut amounts: Vec<f64> = arctic
+            .iter()
+            .filter(|c| c.family == family)
+            .filter_map(|c| c.amount)
+            .collect();
+        amounts.sort_by(f64::total_cmp);
+        amounts
+    };
+    assert_eq!(amounts("yields:minor_artifacts"), [1.0, 2.0, 3.0]);
+    let nanites = amounts("yields:nanites");
+    assert!(nanites.len() >= 5, "{nanites:?}");
+    assert!(
+        nanites.windows(2).all(|w| w[0] < w[1]),
+        "one button per amount: {nanites:?}"
+    );
+    assert!(
+        find(&arctic, "d_exotic_mountain").is_some_and(|c| c.family == "d_exotic_mountain"),
+        "a named feature keeps its own row"
+    );
     assert_eq!(
         dark_matter.category,
         DepositCategory::Special,

@@ -44,8 +44,13 @@ export interface EntityState {
   /** Sources by `addrKey`; an entity has one whole text, not one per level. */
   sources: Map<string, EntitySource>;
   schemas: Map<EntityKind, EntitySchema>;
-  /** Save bodies' pages by planet id. */
+  /**
+   * Save bodies' pages by planet id. A page an edit made stale stays until its fresh read lands,
+   * so the inspector keeps showing it rather than a loading line.
+   */
   pages: Map<number, PlanetPage>;
+  /** The pages an edit made stale, read again on their next request. */
+  stalePages: Set<number>;
   /** Reads asked for and not yet answered, by the key of what was asked for. */
   pending: Set<string>;
   /** What a refused read said, by the same key; a refused read is not asked for again. */
@@ -78,6 +83,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   sources: new Map(),
   schemas: new Map(),
   pages: new Map(),
+  stalePages: new Set(),
   pending: new Set(),
   errors: new Map(),
   version: 0,
@@ -107,10 +113,12 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
   requestPlanetPage(id) {
     const key = planetPageKey(id);
-    if (!begin(key, get().pages.has(id))) return;
-    void land(key, generation, ipc.getPlanetPage(id), (page) => ({
-      pages: new Map(useEntityStore.getState().pages).set(id, page),
-    }));
+    if (!begin(key, get().pages.has(id) && !get().stalePages.has(id))) return;
+    void land(key, generation, ipc.getPlanetPage(id), (page) => {
+      const stalePages = new Set(useEntityStore.getState().stalePages);
+      stalePages.delete(id);
+      return { pages: new Map(useEntityStore.getState().pages).set(id, page), stalePages };
+    });
   },
 
   noteEdit(result) {
@@ -132,7 +140,8 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const stale = (key: string) => owners.has(ownerOf(key));
     const views = new Map([...get().views].filter(([key]) => !stale(key)));
     const sources = new Map([...get().sources].filter(([key]) => !stale(key)));
-    const pages = new Map([...get().pages].filter(([id]) => !stale(planetPageKey(id))));
+    const stalePages = new Set(get().stalePages);
+    for (const id of get().pages.keys()) if (stale(planetPageKey(id))) stalePages.add(id);
     const errors = new Map([...get().errors].filter(([key]) => !stale(key)));
     // A read already out would land on the pre-edit bytes: it is dropped, not cached.
     const pending = new Set(get().pending);
@@ -141,7 +150,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       pending.delete(key);
       dropped.add(key);
     }
-    set({ views, sources, pages, errors, pending, version: get().version + 1 });
+    set({ views, sources, stalePages, errors, pending, version: get().version + 1 });
   },
 
   clear() {
@@ -152,6 +161,7 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       sources: new Map(),
       schemas: new Map(),
       pages: new Map(),
+      stalePages: new Set(),
       pending: new Set(),
       errors: new Map(),
       version: get().version + 1,

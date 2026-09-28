@@ -246,7 +246,8 @@ export function PlanetDeposits({
           removal={removal(g)}
         />
       ))}
-      {blockers.length > 0 && (
+      {editable && <DepositPicker page={page} moon={moon} mode="deposits" />}
+      {(blockers.length > 0 || editable) && (
         <>
           <div className="pl-sub-head">
             <Icon className="gi" keys={[BLOCKER_ICON]} glyph="" />
@@ -262,7 +263,7 @@ export function PlanetDeposits({
           ))}
         </>
       )}
-      {editable && <DepositPicker page={page} moon={moon} />}
+      {editable && <DepositPicker page={page} moon={moon} mode="blockers" />}
     </Section>
   );
 }

@@ -3,17 +3,19 @@ import type { DepositCategory } from "./DepositCategory";
 
 export type DepositChoice = { key: string, 
 /**
- * The key without its trailing `_<number>` when two or more types share that stem and
- * yield the same resources, as `d_energy_1` to `d_energy_10` do; the key itself
- * otherwise.
+ * Types that yield the same resources share it, as `d_energy_1` to `d_energy_10` do and
+ * every "Minor Artifacts" deposit does; a type that yields nothing has its own key.
  */
 family: string, 
 /**
- * A family member's amount: its one yield, or else its key's number. `None` for a type
- * that is a family of its own.
+ * What it yields of its first resource; `None` for a type that yields nothing.
  */
 amount: number | null, category: DepositCategory, 
 /**
  * The game's roll could place it on the planet asked about.
  */
-usual: boolean, };
+usual: boolean, 
+/**
+ * Its localised `<key>_desc`, when the install has one.
+ */
+description: string | null, };

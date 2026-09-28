@@ -32,20 +32,21 @@ pub enum DepositCategory {
 #[ts(export)]
 pub struct DepositChoice {
     pub key: String,
-    /// The key without its trailing `_<number>` when two or more types share that stem and
-    /// yield the same resources, as `d_energy_1` to `d_energy_10` do; the key itself
-    /// otherwise.
+    /// Types that yield the same resources share it, as `d_energy_1` to `d_energy_10` do and
+    /// every "Minor Artifacts" deposit does; a type that yields nothing has its own key.
     pub family: String,
-    /// A family member's amount: its one yield, or else its key's number. `None` for a type
-    /// that is a family of its own.
+    /// What it yields of its first resource; `None` for a type that yields nothing.
     pub amount: Option<f64>,
     pub category: DepositCategory,
     /// The game's roll could place it on the planet asked about.
     pub usual: bool,
+    /// Its localised `<key>_desc`, when the install has one.
+    pub description: Option<String>,
 }
 
-/// Every deposit type but the null one, in the install's order, for a planet `body` that
-/// holds `deposits`.
+/// Every deposit type but the null one, by key, for a planet `body` that holds `deposits`.
+/// Of two types in one family with the same yields and the same planet modifiers, only one
+/// is offered: the one the roll could place here, else the first by key.
 pub fn deposit_choices(
     gd: &GameData,
     body: &RollBody<'_>,
@@ -56,58 +57,78 @@ pub fn deposit_choices(
         .map(|d| d.key.as_str())
         .collect();
     let offered: Vec<&DepositDef> = gd.deposits.iter().filter(|d| !d.roll.is_null).collect();
-    let families = families(&offered);
-    offered
+    let mut kept: HashMap<(String, String), &DepositDef> = HashMap::new();
+    for d in &offered {
+        let slot = kept.entry((family(d), sameness(d))).or_insert(d);
+        if !usual.contains(slot.key.as_str()) && usual.contains(d.key.as_str()) {
+            *slot = d;
+        }
+    }
+    let kept: HashSet<&str> = kept.values().map(|d| d.key.as_str()).collect();
+    let mut choices: Vec<DepositChoice> = offered
         .into_iter()
-        .map(|d| {
-            let family = families.get(d.key.as_str()).copied();
-            DepositChoice {
-                key: d.key.clone(),
-                family: family.map_or_else(|| d.key.clone(), str::to_owned),
-                amount: family.and_then(|_| amount(d)),
-                category: category(gd, d),
-                usual: usual.contains(d.key.as_str()),
-            }
+        .filter(|d| kept.contains(d.key.as_str()))
+        .map(|d| DepositChoice {
+            key: d.key.clone(),
+            family: family(d),
+            amount: d.produces.first().map(|&(_, amount)| amount),
+            category: category(gd, d),
+            usual: usual.contains(d.key.as_str()),
+            description: gd.loc.name(&format!("{}_desc", d.key)),
         })
-        .collect()
+        .collect();
+    split_differing(&mut choices, gd);
+    choices
 }
 
-/// `d_energy_3` as its stem `d_energy` and its number 3.
-fn numbered(key: &str) -> Option<(&str, &str)> {
-    let (stem, number) = key.rsplit_once('_')?;
-    (!number.is_empty() && number.bytes().all(|b| b.is_ascii_digit())).then_some((stem, number))
+/// Orbital and habitat deposits yielding the same resources share a family, which the
+/// picker shows as one row with a button per amount, as the game names them by what they
+/// yield: "Energy", "Minor Artifacts". Any other type, a named planetary feature or a
+/// blocker even when it yields, is a family of its own.
+fn family(d: &DepositDef) -> String {
+    let by_amount = d
+        .resource_category
+        .as_deref()
+        .is_some_and(|c| c.starts_with("orbital_") || c.starts_with("hab_"));
+    if d.produces.is_empty() || !by_amount {
+        return d.key.clone();
+    }
+    let joined: Vec<&str> = resources(d).into_iter().collect();
+    format!("yields:{}", joined.join("+"))
+}
+
+/// What makes two types of a family the same deposit to a player: their yields and the planet
+/// modifiers they bring.
+fn sameness(d: &DepositDef) -> String {
+    let mut parts: Vec<String> = d.produces.iter().map(|(r, n)| format!("{r}={n}")).collect();
+    parts.sort();
+    let mut modifiers: Vec<String> = d
+        .planet_modifier
+        .iter()
+        .map(|(m, n)| format!("{m}={n}"))
+        .collect();
+    modifiers.sort();
+    format!("{}|{}", parts.join(" "), modifiers.join(" "))
+}
+
+/// A family member left with the same amount as another but different planet modifiers takes
+/// a family of its own, so each keeps a button.
+fn split_differing(choices: &mut [DepositChoice], gd: &GameData) {
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    for choice in choices.iter_mut() {
+        let Some(amount) = choice.amount else {
+            continue;
+        };
+        if !seen.insert((choice.family.clone(), amount.to_string())) {
+            let differs = gd.deposits.get(&choice.key).map_or(String::new(), sameness);
+            choice.family = format!("{}|{differs}", choice.family);
+        }
+    }
 }
 
 /// The resources a type yields, by name.
 fn resources(d: &DepositDef) -> BTreeSet<&str> {
     d.produces.iter().map(|(r, _)| r.as_str()).collect()
-}
-
-/// Each key that belongs to a family, with the family's stem: two or more numbered keys
-/// sharing a stem and the resources they yield.
-fn families<'a>(offered: &[&'a DepositDef]) -> HashMap<&'a str, &'a str> {
-    let mut by_stem: HashMap<(&str, BTreeSet<&str>), Vec<&str>> = HashMap::new();
-    for d in offered {
-        if let Some((stem, _)) = numbered(&d.key) {
-            by_stem
-                .entry((stem, resources(d)))
-                .or_default()
-                .push(&d.key);
-        }
-    }
-    by_stem
-        .into_iter()
-        .filter(|(_, keys)| keys.len() > 1)
-        .flat_map(|((stem, _), keys)| keys.into_iter().map(move |key| (key, stem)))
-        .collect()
-}
-
-/// A family member's amount: its one yield, or else its key's number.
-fn amount(d: &DepositDef) -> Option<f64> {
-    match d.produces.as_slice() {
-        [(_, amount)] => Some(*amount),
-        _ => numbered(&d.key).and_then(|(_, n)| n.parse().ok()),
-    }
 }
 
 /// Blockers first, then a type no roll places, then a type by the resources it yields, and
