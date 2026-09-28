@@ -242,7 +242,7 @@ describe("a colony's page", () => {
     expect(render(WORLD)).toContain(TERRAFORMING_NOTE);
   });
 
-  it("offers its name to edit, and shows its class and size as text, then the owner, designation, date and pops", async () => {
+  it("offers its name and size to edit, and shows its class as text, then the owner, designation, date and pops", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage(COLONY);
@@ -250,8 +250,11 @@ describe("a colony's page", () => {
 
     const html = render(WORLD);
     expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
-    expect(html).toMatch(/<span class="k">Size<\/span><span>16<\/span>/);
+    expect(html).not.toMatch(/<span class="k">Size<\/span>/);
+    expect(html).toMatch(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/);
+    expect(html).toContain("Within a month the game demolishes districts over a lowered cap.");
     expect(html.match(/class="edit-field [^"]*"/g)).toEqual([
+      'class="edit-field edit-text"',
       'class="edit-field edit-text"',
       'class="edit-field edit-text combo-box disabled"',
       'class="edit-field dp-open"',

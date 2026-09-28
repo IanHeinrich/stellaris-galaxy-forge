@@ -154,8 +154,8 @@ too.
   empires](#stars-and-empires) describes.
 - Rename a planet or moon in its Name field. Moons named after a
   planet take its new name too.
-- An uncolonised planet or moon has a Size field. A colonised planet
-  shows its size as text.
+- Change a planet's or moon's size in its Size field. On a colony, the
+  game demolishes districts over a lowered cap within a month.
 - In a Stellaris 4.x save, the Modifiers section lists a planet's
   features and timed modifiers. Remove one with the ✕ on its row. Add
   modifier, under the list, lists the modifiers that act on a planet,

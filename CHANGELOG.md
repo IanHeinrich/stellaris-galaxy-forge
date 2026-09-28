@@ -12,11 +12,10 @@ a release is made.
 
 ### Added
 
-- Edit a save's planets on their page: rename them, change an
-  uncolonised planet's size, and add or remove deposits, blockers and
-  modifiers. Colonies can be edited too. The page warns when the game
-  will take something away as a result, such as districts over a lowered
-  cap.
+- Edit a save's planets on their page: rename them, change their size,
+  and add or remove deposits, blockers and modifiers. Colonies can be
+  edited too. The page warns when the game will take something away as
+  a result, such as districts over a lowered cap.
 - Rename an empire from its page.
 - A planet's page shows any anomaly waiting on it. A pre-FTL
   civilisation's page shows its age.

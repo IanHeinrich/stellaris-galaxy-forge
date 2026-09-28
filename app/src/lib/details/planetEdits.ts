@@ -19,10 +19,9 @@ export const PERMANENT = -1;
 export const STATION_STAYS =
   "Remove one. The station working it stays in game and still costs about 1 energy a month.";
 
-/** Whether nobody owns the body: only such a body's size changes here. */
-export function uncolonised(page: PlanetPage): boolean {
-  return page.owner === null && page.colony === null;
-}
+/** The Size field's hover text on a colony. */
+export const COLONY_SIZE =
+  "Change the planet's size. Within a month the game demolishes districts over a lowered cap.";
 
 /** The edit that renames planet `id` to `text`, trimmed; `null` for an empty or unchanged name. */
 export function renamePlanetOp(id: number, current: string, text: string): Op | null {

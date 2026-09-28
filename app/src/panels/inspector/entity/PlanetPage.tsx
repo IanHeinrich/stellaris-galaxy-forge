@@ -12,7 +12,7 @@ import {
 } from "../../../lib/details/planetPage";
 import type { PickerTarget } from "../../../lib/details/picker";
 import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
-import { bodyEditHint, renamePlanetOp, uncolonised } from "../../../lib/details/planetEdits";
+import { bodyEditHint, COLONY_SIZE, renamePlanetOp } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -88,8 +88,8 @@ function Head({ page }: { page: PlanetPage }) {
 interface PlanetFields {
   /** The body's name as the page heads it. */
   name: string | null;
-  /** The body's size, offered for an uncolonised planet. */
-  size: { value: number | null } | null;
+  /** The body's size, and the Size field's hover text on a colony. */
+  size: { value: number | null; title?: string } | null;
   /** Whether it has a ring. */
   ring: boolean | null;
   /** The system it moves from. */
@@ -128,7 +128,7 @@ function PlanetBlock({
       )}
       {size !== null && (
         <EditRow label="Size">
-          <SizeField id={id} size={size.value} />
+          <SizeField id={id} size={size.value} title={size.title} />
         </EditRow>
       )}
       {ring !== null && (
@@ -415,9 +415,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       : null;
   const movable = useFileSessionStore((s) => documentCapabilities(s).details);
   const moveFrom = movable ? page.system : null;
-  const unowned = uncolonised(page);
   const planetBody = bodies && !starBody;
-  const resizable = planetBody && unowned;
+  const resizable = planetBody;
   // A 4.x save: the deposit and modifier ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
@@ -425,7 +424,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
-    size: resizable ? { value: page.size } : null,
+    size: resizable
+      ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
+      : null,
     ring,
     system: moveFrom,
   };
