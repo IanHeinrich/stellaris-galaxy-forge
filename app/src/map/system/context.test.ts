@@ -158,6 +158,28 @@ describe("the bodies of a system", () => {
     ]);
   });
 
+  it("draws a class the install has no surface for from its icon alone, unshaded, and a world as its baked disc", () => {
+    const planet = (id: number, planetClass: string) =>
+      planetSummary({
+        id,
+        class: planetClass,
+        layout: bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(10) }),
+      });
+    const habitat = { ...planetClassView("pc_habitat", false), flat_art: true };
+    const planetClasses = new Map(sources.planetClasses).set(habitat.key, habitat);
+    const ctx = save([sun, planet(2, "pc_habitat"), planet(3, "pc_continental")], {
+      planetClasses,
+    });
+    const looks = [2, 3].map((id) => {
+      const { flat, irregular, surfaceKey } = ctx.bodyById.get(id)!.look;
+      return { flat, irregular, surfaceKey };
+    });
+    expect(looks).toEqual([
+      { flat: true, irregular: true, surfaceKey: null },
+      { flat: false, irregular: false, surfaceKey: "planet_disc:pc_continental" },
+    ]);
+  });
+
   it("draws both stars of a binary scenario system still loading", () => {
     const ctx = scenario(null, null, {
       initializerClasses: new Map([[INITIALIZER, "sc_binary_ab"]]),

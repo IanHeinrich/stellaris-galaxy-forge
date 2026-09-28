@@ -196,6 +196,8 @@ fn the_class_view_passes_its_atmosphere_and_big_icon() {
     assert_eq!(bare.atmosphere_color, None);
     assert_eq!(bare.atmosphere_intensity, None);
     assert_eq!(bare.atmosphere_width, None);
+    assert_eq!(bare.flat_art, None, "its model is in no .gfx file");
+    assert_eq!(painted.flat_art, None);
     assert_eq!(painted.asteroid, None);
     assert_eq!(painted.draws_as_planet, None);
     let rock = views
@@ -205,6 +207,7 @@ fn the_class_view_passes_its_atmosphere_and_big_icon() {
     assert_eq!(rock.asteroid, Some(true));
     assert_eq!(rock.draws_as_planet, None);
     assert_eq!(rock.ringworld, None);
+    assert_eq!(rock.flat_art, None);
     let ring = views
         .iter()
         .find(|v| v.key == "pc_painted_ring")
@@ -292,4 +295,96 @@ fn the_installs_ring_world_segments_are_marked() {
         let class = views.iter().find(|v| v.key == key).expect(key);
         assert_eq!(class.ringworld, Some(true), "{key}");
     }
+}
+
+/// A tomb world's entity names no surface map; its `.mesh` stores the material that does. A
+/// model whose surface a star's shader draws has no planet surface, so its class is flat.
+#[test]
+fn an_entity_with_no_surface_settings_bakes_the_map_its_mesh_names() {
+    let mut mesh = b"@@b@[object\0[[atmosphere_geosphereShape\0[[[mesh\0".to_vec();
+    mesh.extend_from_slice(b"[[[[material\0!\x04diffs\x01\0\0\0\x09\0\0\0haze.dds\0");
+    mesh.extend_from_slice(b"[[planet_geosphereShape\0[[[mesh\0!\x01pf\x00\0\0\0");
+    mesh.extend_from_slice(b"[[[[material\0!\x06shaders\x01\0\0\0\x0e\0\0\0PdxMeshPlanet\0");
+    mesh.extend_from_slice(b"!\x04diffs\x01\0\0\0\x0e\0\0\0tomb_surf.dds\0");
+    let (_dir, gd) = common::hand_written_bytes(&[
+        (
+            "common/planet_classes/00_tomb.txt",
+            b"pc_tomb = {\n\tentity = \"tomb_planet\"\n}\npc_hollow = {\n\tentity = \"hollow_planet\"\n}\n"
+                .to_vec(),
+        ),
+        (
+            "gfx/models/planets/_tomb.asset",
+            b"entity = {\n\tname = \"tomb_planet_01_entity\"\n\tpdxmesh = \"tomb_mesh\"\n}\nentity = {\n\tname = \"hollow_planet_01_entity\"\n\tpdxmesh = \"hollow_mesh\"\n}\n"
+                .to_vec(),
+        ),
+        (
+            "gfx/models/planets/_tomb.gfx",
+            b"objectTypes = {\n\tpdxmesh = {\n\t\tname = \"tomb_mesh\"\n\t\tfile = \"gfx/models/planets/tomb.mesh\"\n\t}\n\tpdxmesh = {\n\t\tname = \"hollow_mesh\"\n\t\tfile = \"gfx/models/planets/hollow.mesh\"\n\t}\n}\n"
+                .to_vec(),
+        ),
+        ("gfx/models/planets/tomb.mesh", mesh),
+        (
+            "gfx/models/planets/hollow.mesh",
+            [
+                b"@@b@[object\0[[planet_geosphereShape\0[[[mesh\0".as_slice(),
+                b"[[[[material\0!\x06shaders\x01\0\0\0\x0c\0\0\0PdxMeshStar\0",
+                b"!\x04diffs\x01\0\0\0\x0e\0\0\0tomb_surf.dds\0",
+            ]
+            .concat(),
+        ),
+        (
+            "gfx/models/planets/tomb_surf.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+    ]);
+    assert_disc(&common::bake_disc(&gd, "planet_disc:pc_tomb"), 50.0);
+    let views = gd.planet_class_views();
+    let flat = |key: &str| views.iter().find(|v| v.key == key).expect(key).flat_art;
+    assert_eq!(flat("pc_tomb"), None);
+    assert_eq!(flat("pc_hollow"), Some(true));
+}
+
+#[test]
+fn the_installs_habitats_and_ring_worlds_are_flat_and_its_tomb_world_a_disc() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let views = gd.planet_class_views();
+    let flat: Vec<&str> = views
+        .iter()
+        .filter(|v| v.flat_art == Some(true))
+        .map(|v| v.key.as_str())
+        .collect();
+    for key in [
+        "pc_habitat",
+        "pc_habitat_shielded",
+        "pc_crystal_habitat",
+        "pc_warden_guardian",
+        "pc_cosmogenesis_world",
+        "pc_ringworld_habitable",
+        "pc_ringworld_habitable_damaged",
+        "pc_ringworld_tech",
+        "pc_ringworld_tech_damaged",
+        "pc_ringworld_seam",
+        "pc_ringworld_seam_damaged",
+        "pc_shattered_ring_habitable",
+        "pc_ringworld_shielded",
+        "pc_cybrex",
+        "pc_broken",
+        "pc_shattered",
+        "pc_shattered_2",
+        "pc_egg_cracked",
+    ] {
+        assert!(flat.contains(&key), "{key}");
+    }
+    for key in [
+        "pc_continental",
+        "pc_gas_giant",
+        "pc_nuked",
+        "pc_asteroid",
+        "pc_a_star",
+    ] {
+        assert!(!flat.contains(&key), "{key}");
+    }
+    assert_disc(&common::bake_disc(gd, "planet_disc:pc_nuked"), 15.0);
 }

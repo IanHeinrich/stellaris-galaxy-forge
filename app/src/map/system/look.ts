@@ -41,6 +41,12 @@ export interface BodyLook {
   readonly flare: StarFlare | null;
   /** Its icon is its own outline, an asteroid's rock or an astral scar's glow: no round shading. */
   readonly irregular: boolean;
+  /**
+   * Drawn from its icon alone, as the install has no surface to bake into a disc: a habitat, a
+   * ring world segment or a broken world. Its icon is never blown up far past its own pixels,
+   * and a glow behind it keeps it reading as a body when small.
+   */
+  readonly flat: boolean;
   /** Light on a black ground, added as a star's art is: an astral scar. */
   readonly luminous: boolean;
   /** A hard surface that catches a highlight; a gas giant has none. */
@@ -58,13 +64,19 @@ function classTint(planetClass: string, starClass: string | null): number {
 }
 
 /**
- * How a body of `planetClass` is drawn: a star as `starClass`, and a body whose class is left to
- * a draw with no surface of its own.
+ * How a body of `planetClass` is drawn: a star as `starClass`, a body whose class is left to a
+ * draw with no surface of its own, and a `flat` class from its icon alone.
  */
-export function bodyLook(planetClass: string, starClass: string | null, drawn: boolean): BodyLook {
+export function bodyLook(
+  planetClass: string,
+  starClass: string | null,
+  drawn: boolean,
+  flat = false,
+): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
-  const irregular = /asteroid/.test(planetClass) || luminous;
+  const flatArt = flat && starClass === null && !drawn && !luminous;
+  const irregular = /asteroid/.test(planetClass) || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";
   return {
@@ -73,6 +85,7 @@ export function bodyLook(planetClass: string, starClass: string | null, drawn: b
     blackHole,
     flare: starClass !== null ? starFlare(starClass) : null,
     irregular,
+    flat: flatArt,
     luminous,
     gloss: !/gas_giant/.test(planetClass),
     glaze: ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null,

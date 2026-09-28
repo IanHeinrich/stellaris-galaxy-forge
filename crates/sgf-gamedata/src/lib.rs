@@ -30,7 +30,7 @@ pub mod textures;
 pub mod views;
 pub mod weight;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
@@ -130,6 +130,10 @@ pub struct GameData {
     discovery: Vec<Diagnostic>,
     /// What the generator makes of each layout, worked out once for these registries.
     eligibility: Arc<OnceLock<HashMap<String, Eligibility>>>,
+    /// What `gfx/models/planets` says about each entity's surface, read once for this layout.
+    surface_maps: Arc<OnceLock<textures::planet_disc::SurfaceMaps>>,
+    /// The planet classes drawn from their icons alone, worked out once for this layout.
+    flat_art: Arc<OnceLock<BTreeSet<String>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -359,6 +363,8 @@ impl GameData {
             diagnostics,
             discovery,
             eligibility: Arc::default(),
+            surface_maps: Arc::default(),
+            flat_art: Arc::default(),
         }
     }
 }

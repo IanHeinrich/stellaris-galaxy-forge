@@ -3,9 +3,15 @@ import type { BodyPlacement, Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import { markerScale } from "../layers/MapLayer";
 import type { Exit, SceneBody } from "./context";
+import type { BodyLook } from "./look";
 
 /** The smallest a body's disc radius is drawn, in screen pixels, before the marker factor. */
 const BODY_FLOOR_PX = 3;
+/**
+ * The widest a flat body is drawn, in screen pixels: its 76 pixel icon at about 1.25 times, past
+ * which it would only blur.
+ */
+export const FLAT_BODY_MAX_PX = 96;
 /** The selected body's ring: how far past the drawn disc it stands, and its width, in screen pixels. */
 export const SELECTED_GAP_PX = 7;
 export const SELECTED_WIDTH_PX = 2;
@@ -73,9 +79,13 @@ export function bodyTier(body: SceneBody): number {
   return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
-/** A body's drawn disc radius in world units at `scale`: its own, or the screen-pixel floor. */
-export function drawnDisc(disc: number, scale: number): number {
-  return Math.max(disc, (BODY_FLOOR_PX * markerScale(scale)) / scale);
+/**
+ * A body's drawn disc radius in world units at `scale`: its own, or the screen-pixel floor, and
+ * for a body of a flat `look` no more than half `FLAT_BODY_MAX_PX` on screen.
+ */
+export function drawnDisc(disc: number, scale: number, look?: Pick<BodyLook, "flat">): number {
+  const r = Math.max(disc, (BODY_FLOOR_PX * markerScale(scale)) / scale);
+  return look?.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
 }
 
 /** The point `px` screen pixels past the inner radius along `exit`, in world units. */

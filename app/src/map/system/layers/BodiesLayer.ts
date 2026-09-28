@@ -26,6 +26,9 @@ const GLAZE_ALPHA = 0.6;
 const HOLE_ART_SCALE = 2.6;
 /** A planet's class icon, in disc diameters. */
 const PLANET_ART_SCALE = 1;
+/** The glow behind a flat body's icon, in icon widths, and how strongly. */
+const FLAT_GLOW_SCALE = 1.5;
+const FLAT_GLOW_ALPHA = 0.35;
 /** The on-screen disc diameter, in pixels, past which a planet shows its class's large icon. */
 const LARGE_ICON_PX = 48;
 /** A ring left to chance. */
@@ -130,7 +133,9 @@ function sized(sprite: Sprite, diameter: number): void {
  * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
  * behind the disc. A random class shows a question mark in place of the icon, and a ring left to
- * chance is faded. A body cut to move elsewhere is dimmed, and so are its moons.
+ * chance is faded. A class with no surface to bake shows its icon unshaded, never wider than
+ * `FLAT_BODY_MAX_PX`, in a faint glow of its tint. A body cut to move elsewhere is dimmed, and
+ * so are its moons.
  */
 export class BodiesLayer implements SystemLayer {
   readonly container = new Container();
@@ -216,10 +221,10 @@ export class BodiesLayer implements SystemLayer {
     const hole = look.blackHole;
     const shines = placement.star && !hole;
     let glow: Sprite | null = null;
-    if (shines) {
+    if (shines || look.flat) {
       glow = sprite("glow", this.textures.corona);
       glow.tint = tint;
-      glow.alpha = GLOW_ALPHA;
+      glow.alpha = shines ? GLOW_ALPHA : FLAT_GLOW_ALPHA;
       glow.blendMode = "add";
     }
     const ringed = body.ring;
@@ -284,7 +289,7 @@ export class BodiesLayer implements SystemLayer {
       shade.blendMode = "multiply";
       shade.rotation = placement.light ?? 0;
     }
-    const rim = !placement.star && body.atmosphere ? graphics("rim") : null;
+    const rim = !placement.star && !look.flat && body.atmosphere ? graphics("rim") : null;
     if (rim) rim.blendMode = "add";
     let ring: RingParts | null = null;
     if (back && backStrip) {
@@ -320,7 +325,7 @@ export class BodiesLayer implements SystemLayer {
 
   private isLarge({ body }: Drawn): boolean {
     if (this.scale <= 0 || body.placement.star) return false;
-    return 2 * drawnDisc(body.placement.disc, this.scale) * this.scale > LARGE_ICON_PX;
+    return 2 * drawnDisc(body.placement.disc, this.scale, body.look) * this.scale > LARGE_ICON_PX;
   }
 
   /**
@@ -387,8 +392,9 @@ export class BodiesLayer implements SystemLayer {
         this.dress(drawn);
       }
       const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
-      const d = 2 * drawnDisc(body.placement.disc, this.scale);
-      if (glow) sized(glow, d * GLOW_SCALE);
+      const d = 2 * drawnDisc(body.placement.disc, this.scale, body.look);
+      const artWidth = d * artScale(body);
+      if (glow) sized(glow, d * (body.look.flat ? FLAT_GLOW_SCALE : GLOW_SCALE));
       sized(disc, d);
       if (lit) {
         sized(lit, d);
@@ -404,8 +410,8 @@ export class BodiesLayer implements SystemLayer {
         const along = d * (shape.offset ?? 0);
         sprite.position.set(along * Math.cos(shape.rotation), along * Math.sin(shape.rotation));
       }
-      sized(art, d * artScale(body));
-      if (glaze) sized(glaze, d * artScale(body));
+      sized(art, artWidth);
+      if (glaze) sized(glaze, artWidth);
       if (shade) sized(shade, d);
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
       if (ring) sizeRing(ring, d / 2);

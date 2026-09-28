@@ -11,6 +11,10 @@ a release is made.
 ### Changed
 
 - A save opens with the map border and the L-Cluster guide on.
+- Habitats, ring world segments and broken planets look sharper in the
+  system view. They show their planet icon without sphere shading, in a
+  faint glow of their colour.
+- Tomb worlds show their surface in the system view, like other planets.
 
 ## [0.17.0] - 2026-09-28
 

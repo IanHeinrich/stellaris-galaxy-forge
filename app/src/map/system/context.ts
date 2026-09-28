@@ -274,8 +274,8 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
 function freshArt({ planetClass, starClass, drawn }: DrawnClass, src: SystemSources): BodyArt {
-  const look = bodyLook(planetClass, starClass, drawn);
   if (starClass !== null) {
+    const look = bodyLook(planetClass, starClass, drawn);
     const view = src.starClasses.get(starClass);
     const iconKeys = view?.texture_key ? [view.texture_key] : [];
     return {
@@ -288,6 +288,7 @@ function freshArt({ planetClass, starClass, drawn }: DrawnClass, src: SystemSour
     };
   }
   const view = drawn ? undefined : src.planetClasses.get(planetClass);
+  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true);
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {

@@ -39,9 +39,11 @@ export class LocksLayer implements SystemLayer {
     const px = 1 / cam.scale;
     const size = LOCK_PX * markerScale(cam.scale) * px;
     for (const id of this.ctx.lockedBodies) {
-      const body = this.ctx.bodyById.get(id)?.placement;
-      if (!body) continue;
-      const out = (drawnDisc(body.disc, cam.scale) + LOCK_GAP_PX * px + size / 2) * Math.SQRT1_2;
+      const found = this.ctx.bodyById.get(id);
+      if (!found) continue;
+      const body = found.placement;
+      const out =
+        (drawnDisc(body.disc, cam.scale, found.look) + LOCK_GAP_PX * px + size / 2) * Math.SQRT1_2;
       // Laid out right and up on screen, whichever way the save's axes run.
       const at = (right: number, up: number) => ({
         x: body.x + SAVE_X_SIGN * (out + right * size),
