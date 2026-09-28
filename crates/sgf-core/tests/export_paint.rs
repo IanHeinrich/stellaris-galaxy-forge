@@ -221,6 +221,17 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
     let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, report);
     assert_eq!(typed.keys().copied().collect::<Vec<_>>(), ANCHORS);
     let missing = left_out(&save.graph, galaxy);
+    let hubs: Vec<u32> = save
+        .graph
+        .systems
+        .values()
+        .filter(|s| s.initializer.starts_with("ai_system_"))
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(hubs.len(), 4, "the Contingency hubs");
+    for hub in hubs {
+        assert!(!missing.contains(&hub), "Contingency hub {hub} is left out");
+    }
     for (country, capital, _) in &fallen {
         assert!(missing.contains(capital), "{country}: {capital} is written");
         for system in save.graph.systems.values() {

@@ -130,6 +130,55 @@ describe("a save system's overview", () => {
     expect(html).toContain('aria-label="Filter 21 flags"');
   });
 
+  it("opens the flags on what galaxy generation hid here, one readable line each", async () => {
+    const flags = ["AI_hub", "AI_system_2", "hidden_cutholoid"];
+    mockedIpc.getSystem.mockImplementation(async (id) => {
+      const detail = detailOf(id);
+      return { ...detail, system: { ...detail.system, flags } };
+    });
+    useGameDataStore.setState({
+      special: new Map([
+        [
+          SYSTEM,
+          {
+            id: SYSTEM,
+            primary: "contingency",
+            kinds: ["contingency", "cutholoid"],
+            initializer: "ai_system_02",
+            initializer_known: true,
+            source_file: null,
+            flags,
+            countries: [],
+            label: "",
+            label_is_generated_name: false,
+          },
+        ],
+      ]),
+    });
+    await open("save");
+    await land(details());
+
+    const html = overview();
+    expect(html).toContain(
+      `<div class="ins-line">${kindTitle("contingency")}</div><div class="ins-line">${kindTitle("cutholoid")}</div>`,
+    );
+    expect(html).toContain("<div>AI_system_2</div>");
+  });
+
+  it("keeps the flags closed on a system that hides nothing", async () => {
+    const flags = ["story_flag"];
+    mockedIpc.getSystem.mockImplementation(async (id) => {
+      const detail = detailOf(id);
+      return { ...detail, system: { ...detail.system, flags } };
+    });
+    await open("save");
+    await land(details());
+
+    const html = overview();
+    expect(html).not.toContain("<div>story_flag</div>");
+    expect(html).not.toContain("Contingency hub");
+  });
+
   it("says it is still reading until the record arrives", async () => {
     await open("save");
     expect(overview()).toContain("Reading the system");

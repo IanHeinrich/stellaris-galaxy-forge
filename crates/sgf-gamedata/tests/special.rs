@@ -26,6 +26,10 @@ fn assert_sample_counts(result: &SpecialSystems) {
         (SpecialKind::Enclave, 14),
         (SpecialKind::Marauder, 6),
         (SpecialKind::Landmark, 11),
+        (SpecialKind::HolyWorld, 4),
+        (SpecialKind::Contingency, 4),
+        (SpecialKind::HorizonSignal, 1),
+        (SpecialKind::Cutholoid, 20),
     ];
     for (kind, n) in expected {
         assert_eq!(count(result, kind), n, "{kind:?}");
@@ -38,7 +42,7 @@ fn flags_only_counts_match_the_shipped_classifier() {
     assert!(!result.with_game_data);
     assert_sample_counts(&result);
     assert_eq!(result.counts.len(), KIND_ORDER.len());
-    assert_eq!(result.systems.len(), 100);
+    assert_eq!(result.systems.len(), 120);
     let landmark = result
         .counts
         .iter()
@@ -65,19 +69,67 @@ fn a_guardian_is_a_leviathan_and_labels_fall_back_to_the_name_key() {
     assert!(!dragon.label.starts_with("NAME_"), "{}", dragon.label);
 }
 
+/// Kinds galaxy generation places that wait for something to trigger them.
+const HIDDEN: [SpecialKind; 3] = [
+    SpecialKind::Contingency,
+    SpecialKind::HorizonSignal,
+    SpecialKind::Cutholoid,
+];
+
 #[test]
-fn unique_applies_only_when_nothing_else_matched() {
+fn unique_applies_only_when_nothing_but_hidden_content_matched() {
     let result = classify(&GRAPH, None);
     for s in &result.systems {
         let unique = s.kinds.contains(&SpecialKind::Unique);
-        assert_eq!(
-            unique,
-            s.kinds == [SpecialKind::Unique],
-            "#{} {:?}",
-            s.id,
-            s.kinds
-        );
+        let others: Vec<_> = s
+            .kinds
+            .iter()
+            .filter(|&&k| k != SpecialKind::Unique)
+            .collect();
+        if unique {
+            assert!(
+                others.iter().all(|k| HIDDEN.contains(k)),
+                "#{} {:?}",
+                s.id,
+                s.kinds
+            );
+            assert_eq!(s.primary, SpecialKind::Unique, "#{}", s.id);
+        }
         assert_eq!(s.primary, s.kinds[0]);
+    }
+}
+
+/// A scripted system that also hides a Cutholoid or the Horizon Signal stays a scripted
+/// system first; a Contingency hub's own initializer does not make it one.
+#[test]
+fn hidden_content_leaves_a_scripted_system_unique() {
+    let mut graph = GRAPH.clone();
+    let scripted = classify(&graph, None)
+        .systems
+        .into_iter()
+        .find(|s| s.kinds == [SpecialKind::Unique])
+        .expect("a scripted system")
+        .id;
+    let flags = &mut graph.systems.get_mut(&scripted).unwrap().flags;
+    flags.push("hidden_cutholoid".to_owned());
+    flags.push("horizonsignal_spawn".to_owned());
+    let result = classify(&graph, None);
+    let system = result.systems.iter().find(|s| s.id == scripted).unwrap();
+    assert_eq!(
+        system.kinds,
+        [
+            SpecialKind::Unique,
+            SpecialKind::HorizonSignal,
+            SpecialKind::Cutholoid
+        ]
+    );
+    assert_eq!(system.primary, SpecialKind::Unique);
+    for hub in result
+        .systems
+        .iter()
+        .filter(|s| s.initializer.starts_with("ai_system_"))
+    {
+        assert_eq!(hub.kinds, [SpecialKind::Contingency], "#{}", hub.id);
     }
 }
 
@@ -196,6 +248,65 @@ fn a_salvager_enclaves_templated_country_name_resolves_and_is_flagged_generated(
         assert!(
             !system.label_is_generated_name,
             "{kind} names its country from game data, not the save's own template"
+        );
+    }
+}
+
+/// What each sample's galaxy generation hid: four Contingency hubs whichever crisis comes, the
+/// Holy Guardians' holy worlds inside their territory, hidden Cutholoids, and in the 4.4 save
+/// the Horizon Signal's black hole.
+#[test]
+fn hidden_content_is_marked_by_the_flags_generation_set() {
+    let primaries = |result: &SpecialSystems, kind: SpecialKind| -> Vec<u32> {
+        result
+            .systems
+            .iter()
+            .filter(|s| s.primary == kind)
+            .map(|s| s.id)
+            .collect()
+    };
+    for (label, session, horizon, cutholoids, shared) in [
+        ("4.4", common::open_4_4(), 1, 20, 1),
+        ("4.5", common::open_4_5(), 0, 15, 3),
+    ] {
+        let result = classify(&session.graph, None);
+        let hubs: Vec<_> = result
+            .systems
+            .iter()
+            .filter(|s| s.kinds.contains(&SpecialKind::Contingency))
+            .collect();
+        assert_eq!(hubs.len(), 4, "{label}");
+        for hub in hubs {
+            assert_eq!(hub.primary, SpecialKind::Contingency, "{label}");
+            assert!(hub.initializer.starts_with("ai_system_"), "{label}");
+        }
+        let holy: Vec<_> = result
+            .systems
+            .iter()
+            .filter(|s| s.kinds.contains(&SpecialKind::HolyWorld))
+            .collect();
+        assert_eq!(holy.len(), 4, "{label}");
+        for world in holy {
+            assert_eq!(
+                world.kinds[..2],
+                [SpecialKind::HolyWorld, SpecialKind::FallenEmpire],
+                "{label}"
+            );
+        }
+        assert_eq!(
+            count(&result, SpecialKind::HorizonSignal),
+            horizon,
+            "{label}"
+        );
+        assert_eq!(
+            count(&result, SpecialKind::Cutholoid),
+            cutholoids,
+            "{label}"
+        );
+        assert_eq!(
+            primaries(&result, SpecialKind::Cutholoid).len(),
+            cutholoids as usize - shared,
+            "{label}: a system that is something else first keeps that badge"
         );
     }
 }

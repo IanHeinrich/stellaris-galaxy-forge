@@ -23,19 +23,36 @@ pub enum SpecialKind {
     Leviathan,
     Enclave,
     Marauder,
+    HolyWorld,
     FallenEmpire,
     Landmark,
     Unique,
+    Contingency,
+    HorizonSignal,
+    Cutholoid,
 }
 
-/// Precedence: a system's primary kind is the first of these it matches.
-pub const KIND_ORDER: [SpecialKind; 6] = [
+/// Precedence: a system's primary kind is the first of these it matches. A holy world comes
+/// before its fallen empire, whose systems the map shows as territory rather than badges, and a
+/// scripted system stays `Unique` whatever hidden content it holds.
+pub const KIND_ORDER: [SpecialKind; 10] = [
     SpecialKind::Leviathan,
     SpecialKind::Enclave,
     SpecialKind::Marauder,
+    SpecialKind::HolyWorld,
     SpecialKind::FallenEmpire,
     SpecialKind::Landmark,
     SpecialKind::Unique,
+    SpecialKind::Contingency,
+    SpecialKind::HorizonSignal,
+    SpecialKind::Cutholoid,
+];
+
+/// Content galaxy generation places that waits for something to trigger it.
+const HIDDEN_CONTENT: [SpecialKind; 3] = [
+    SpecialKind::Contingency,
+    SpecialKind::HorizonSignal,
+    SpecialKind::Cutholoid,
 ];
 
 impl SpecialKind {
@@ -44,8 +61,12 @@ impl SpecialKind {
             Self::Leviathan => "leviathan",
             Self::Enclave => "enclave",
             Self::Marauder => "marauder",
+            Self::HolyWorld => "holy_world",
             Self::FallenEmpire => "fallen_empire",
             Self::Landmark => "landmark",
+            Self::Contingency => "contingency",
+            Self::HorizonSignal => "horizon_signal",
+            Self::Cutholoid => "cutholoid",
             Self::Unique => "unique",
         }
     }
@@ -56,8 +77,12 @@ impl SpecialKind {
             Self::Leviathan => "Leviathan",
             Self::Enclave => "Enclave",
             Self::Marauder => "Marauder",
+            Self::HolyWorld => "Holy world",
             Self::FallenEmpire => "Fallen empire",
             Self::Landmark => "Landmark",
+            Self::Contingency => "Contingency hub",
+            Self::HorizonSignal => "Horizon Signal",
+            Self::Cutholoid => "Cutholoid",
             Self::Unique => "Unique",
         }
     }
@@ -365,28 +390,29 @@ fn fits_kind(gd: Option<&GameData>, country: &PresentCountry, kind: SpecialKind)
     match kind {
         SpecialKind::Leviathan => country_type.is_leviathan(),
         SpecialKind::Enclave => country_type.is_enclave,
-        SpecialKind::FallenEmpire => country_type.fallen_empire,
+        SpecialKind::HolyWorld | SpecialKind::FallenEmpire => country_type.fallen_empire,
         _ => false,
     }
 }
 
-/// Every kind the system matches, in [`KIND_ORDER`]; `Unique` only when
-/// nothing above it matched.
+/// Every kind the system matches, in [`KIND_ORDER`]; `Unique` only when nothing but hidden
+/// content matched. A Contingency hub is never `Unique`: its initializer is what places the hub.
 fn kinds_of(node: &SystemNode, extra: &Enrichment<'_>, drawn: &HashSet<&str>) -> Vec<SpecialKind> {
-    let mut kinds = Vec::new();
-    for kind in KIND_ORDER {
-        if kind == SpecialKind::Unique {
-            if kinds.is_empty() && is_unique_initializer(&node.initializer, drawn) {
-                kinds.push(kind);
-            }
-            continue;
-        }
-        if matches(node, extra, kind) {
-            kinds.push(kind);
-        }
-    }
-    kinds
+    let matched: Vec<SpecialKind> = KIND_ORDER
+        .into_iter()
+        .filter(|&kind| kind != SpecialKind::Unique && matches(node, extra, kind))
+        .collect();
+    let unique = matched.iter().all(|kind| HIDDEN_CONTENT.contains(kind))
+        && !matched.contains(&SpecialKind::Contingency)
+        && is_unique_initializer(&node.initializer, drawn);
+    KIND_ORDER
+        .into_iter()
+        .filter(|kind| matched.contains(kind) || (unique && *kind == SpecialKind::Unique))
+        .collect()
 }
+
+/// `holy_system_1` to `_4`, which the Holy Guardians' `fallen_holy_0N` initializers set.
+const HOLY_SYSTEM_PREFIX: &str = "holy_system_";
 
 fn matches(node: &SystemNode, extra: &Enrichment<'_>, kind: SpecialKind) -> bool {
     let has = |flag: &str| node.flags.iter().any(|f| f == flag);
@@ -396,6 +422,10 @@ fn matches(node: &SystemNode, extra: &Enrichment<'_>, kind: SpecialKind) -> bool
         SpecialKind::Marauder => has("marauder_system"),
         SpecialKind::FallenEmpire => node.initializer.starts_with("fallen_") || extra.fallen_empire,
         SpecialKind::Landmark => has("galactic_landmark_system"),
+        SpecialKind::HolyWorld => node.flags.iter().any(|f| f.starts_with(HOLY_SYSTEM_PREFIX)),
+        SpecialKind::Contingency => has("AI_hub"),
+        SpecialKind::HorizonSignal => has("horizonsignal_spawn"),
+        SpecialKind::Cutholoid => has("hidden_cutholoid"),
         SpecialKind::Unique => false,
     }
 }
