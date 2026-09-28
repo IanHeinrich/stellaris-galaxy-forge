@@ -190,7 +190,8 @@ export const DEFAULT_LAYERS: GalaxyLayers = {
   highlights: true,
 };
 
-/** What a save opens with: the galaxy map the game itself draws, with star classes and colonies. */
+/** What a save opens with: the galaxy map the game itself draws, with star classes, colonies and
+ * the two guides. */
 const SAVE_LAYERS: GalaxyLayers = {
   nebulae: true,
   lanes: true,
@@ -205,8 +206,8 @@ const SAVE_LAYERS: GalaxyLayers = {
   spawns: false,
   feZones: false,
   marauders: false,
-  mapBorder: false,
-  lCluster: false,
+  mapBorder: true,
+  lCluster: true,
   issues: false,
   labels: true,
   details: true,
