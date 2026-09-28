@@ -12,64 +12,34 @@ a release is made.
 
 ### Added
 
-- Edit a save's planets on their page.
-  - Rename a planet. Moons named after it follow the new name.
-  - Change an uncolonised planet's size.
-  - Add or remove deposits and blockers on any planet, colonies
-    included. Add deposit and Add blocker list every type, with the
-    ones the game places on that planet first. Search by name or
-    resource, or pick a category such as Energy or Strategic. Deposits
-    of one resource share a row, with a button per amount. The list
-    stays open, so you can add several in one go.
-  - On a colony, the page says what the game will take away within a
-    month before you confirm. That can be districts over a lowered cap,
-    a building or zone that needed the deposit, or a blocker's clearing.
-    What was spent on the clearing isn't refunded.
-  - A mining or research station over a removed deposit stays in game
-    and still costs about 1 energy a month.
-  - In a Stellaris 4.x save, add or remove modifiers and planet
-    features. Search by name or effect, or pick a category. A modifier
-    can be permanent or last a number of days.
-- A planet's page shows the anomaly waiting on it, and which empires
-  have found it.
-- Rename an empire from the Name field at the top of its page. Renaming
-  your own empire also renames the save on the game's load screen.
-- A pre-FTL civilisation's page shows its age, such as Stone Age or
-  Atomic Age.
-- With Details on, the system view shows which planets are colonised.
-  A colony's name has its owner's flag on the game's name plate, as
-  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
-  icon beside its name.
-- The Points of interest layer marks four more kinds of system. They are
-  off until you switch them on in the Layers menu.
-  - Contingency hubs: the four systems every galaxy gets. They are only
-    used if the Contingency is the crisis.
-  - Horizon Signal: the black hole its event chain starts from.
-  - Holy worlds: the Holy Guardians' holy worlds.
-  - Cutholoids: systems with a Cutholoid hiding in an asteroid.
-  - The Points of interest tab has a group for each kind.
-  - The system page names them at the top of its Flags section.
-- The galaxy page of a save shows its game setup: the crisis, the
-  mid-game, end-game and victory years, the cosmic storm settings,
-  voidworm and Cutholoid scaling, and fallen empire strength. It has a
-  Kaleidoscope row when the Kaleidoscope will appear in that game.
+- Edit a save's planets on their page: rename them, change an
+  uncolonised planet's size, and add or remove deposits, blockers and
+  modifiers. Colonies can be edited too. The page warns when the game
+  will take something away as a result, such as districts over a lowered
+  cap.
+- Rename an empire from its page.
+- A planet's page shows any anomaly waiting on it. A pre-FTL
+  civilisation's page shows its age.
+- With Details on, the system view shows which planets are colonised,
+  with the owner's flag.
+- The Points of interest layer can mark Contingency hubs, the Horizon
+  Signal, holy worlds and Cutholoids. They are off until you switch them
+  on in the Layers menu.
+- The galaxy page of a save shows its game setup, such as the crisis and
+  the end-game year, and whether the Kaleidoscope will appear.
 
 ### Changed
 
-- The Terraforming candidate checkbox is gone. Add or remove the
-  candidate modifier from the Modifiers section instead. A planet's own
-  candidate modifier is at the top of Add modifier.
+- The Terraforming candidate checkbox is gone. Add the candidate
+  modifier from the Modifiers section instead.
 - A save opens with the map border and the L-Cluster guide on.
-- Habitats, ring world segments and broken planets look sharper in the
-  system view. They show their planet icon without sphere shading, in a
-  faint glow of their colour.
-- Tomb worlds show their surface in the system view, like other planets.
+- Habitats, ring worlds and broken planets look sharper in the system
+  view. Tomb worlds show their surface.
 
 ### Fixed
 
-- Exporting a save for Paint a Galaxy keeps a Contingency hub that lies
-  near a fallen empire. It was left out with the fallen empire's
-  systems before. The export report counts the hubs as special systems.
+- Exporting a save for Paint a Galaxy keeps Contingency hubs near a
+  fallen empire.
 
 ## [0.17.0] - 2026-09-28
 
