@@ -37,10 +37,19 @@ back.
 - Hold the middle mouse button and drag to pan, or hold W A S D. The
   wheel zooms. Home fits the whole galaxy.
 - F opens search. It finds systems, empires, planets, fleets and nebulae,
-  and systems by what is in them, such as "gaia". Pin a search to keep
-  its systems ringed on every save.
+  and systems by what is in them, such as "gaia", or by their precursor,
+  such as "Vultaum". Pin a search to keep its systems ringed on every
+  save.
 - The number keys 1 to 9 switch the main map layers. The Layers menu in
   the top bar holds every layer.
+- Turn on Precursors in the Layers menu to see where each precursor's
+  anomalies can turn up in a save. Anomalies appear when a science ship
+  surveys a planet, so the layer shows the systems that can have them,
+  not the planets that will. Each precursor has its own ring colour.
+  A system in two precursors' regions shows a split ring, and a system
+  in none has a thin grey ring. The menu lists every precursor with its
+  number of systems. Click the eye beside one to hide its rings. The
+  layer needs game data from your Stellaris install.
 - The dock on the right has the Inspector, Empires, Points of interest,
   Issues and Changes tabs. With nothing selected, the Inspector shows the
   whole galaxy.

@@ -13,6 +13,7 @@ import { LanesLayer } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
 import { NebulaeLayer } from "./NebulaeLayer";
 import { OwnersLayer } from "./OwnersLayer";
+import { PrecursorsLayer } from "./PrecursorsLayer";
 import { SpawnsLayer } from "./SpawnsLayer";
 import { SpecialLayer } from "./SpecialLayer";
 import { SystemsLayer } from "./SystemsLayer";
@@ -26,6 +27,8 @@ export interface LayerEntry {
   create?(renderer: Renderer): MapLayer;
   /** A layer without one draws for every document. */
   readonly requires?: keyof Capabilities;
+  /** The menus leave the layer out until the install has been read. */
+  readonly requiresGameData?: true;
 }
 
 /** An entry the map instantiates, as opposed to a menu-only toggle. */
@@ -55,6 +58,12 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "bypasses", create: () => new BypassesLayer() },
   { id: "systems", create: (renderer) => new SystemsLayer(renderer) },
   { id: "classes" },
+  {
+    id: "precursors",
+    requires: "precursors",
+    requiresGameData: true,
+    create: () => new PrecursorsLayer(),
+  },
   { id: "issues", create: () => new IssuesLayer() },
   { id: "watchlist", create: () => new WatchlistLayer() },
   { id: "labels", create: () => new LabelsLayer() },
@@ -78,7 +87,14 @@ export function layersFor(capabilities: Capabilities): DrawnLayerEntry[] {
   );
 }
 
-/** The same, by id, for the menus that list what the map can show. */
-export function layerIdsFor(capabilities: Capabilities): ReadonlySet<LayerId> {
-  return new Set(supportedBy(capabilities).map((entry) => entry.id));
+/** The same, by id, for the menus that list what the map can show with the install as read. */
+export function layerIdsFor(
+  capabilities: Capabilities,
+  gameDataReady = false,
+): ReadonlySet<LayerId> {
+  return new Set(
+    supportedBy(capabilities)
+      .filter((entry) => gameDataReady || !entry.requiresGameData)
+      .map((entry) => entry.id),
+  );
 }

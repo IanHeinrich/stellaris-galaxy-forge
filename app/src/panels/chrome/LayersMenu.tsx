@@ -12,11 +12,14 @@ import {
   type Group,
   type Source,
 } from "../../lib/visual/layerGroups";
+import { NO_PRECURSOR } from "../../lib/precursors";
 import { toCss } from "../../lib/visual/ownerColors";
+import { NO_PRECURSOR_COLOR, precursorColor } from "../../lib/visual/precursorColors";
 import { KIND_STYLE } from "../../lib/visual/specialStyle";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { usePrecursors } from "../../store/precursors";
 import { useBarMode } from "../../store/sceneStore";
 import "./chrome.css";
 import { InitializerLegend, LEGEND_LABEL } from "./InitializerLegend";
@@ -36,6 +39,9 @@ import {
   type Pressed,
 } from "./layerState";
 import { EyeRow, Menu } from "./Menu";
+
+/** The precursors legend's last row: the systems in no precursor's region. */
+const NO_PRECURSOR_LABEL = "No precursor";
 
 /** How much of the points of interest is drawn: every kind, none, or some. */
 function useKindsPressed(): Pressed {
@@ -137,6 +143,54 @@ function KindRows({ source, dead }: { source?: Source; dead?: string }) {
   );
 }
 
+function PrecursorRow({
+  id,
+  label,
+  color,
+  count,
+}: {
+  id: string;
+  label: string;
+  color: number;
+  count: number;
+}) {
+  const on = useMapChromeStore((s) => !s.hiddenPrecursors.has(id));
+  const togglePrecursor = useMapChromeStore((s) => s.togglePrecursor);
+  return (
+    <EyeRow className="menu-item sub" pressed={on} onClick={() => togglePrecursor(id)}>
+      <span className="muted">{label}</span>
+      <span className="count">{count}</span>
+      <span className="swatch" style={{ background: toCss(color) }} />
+    </EyeRow>
+  );
+}
+
+/** Every precursor the galaxy has, in the install's order, then the systems in none. */
+function PrecursorRows() {
+  const { legend, none } = usePrecursors();
+  return (
+    <>
+      {legend.map((region) => (
+        <PrecursorRow
+          key={region.key}
+          id={region.key}
+          label={region.name}
+          color={precursorColor(region.index)}
+          count={region.count}
+        />
+      ))}
+      {none > 0 && (
+        <PrecursorRow
+          id={NO_PRECURSOR}
+          label={NO_PRECURSOR_LABEL}
+          color={NO_PRECURSOR_COLOR}
+          count={none}
+        />
+      )}
+    </>
+  );
+}
+
 /** The keys the open document carries, with their counts; the row and the legend share them. */
 function useInitializerCounts(): InitializerCount[] {
   const systems = useGalaxyStore((s) => s.systems);
@@ -205,6 +259,7 @@ function menuGroups(registered: ReadonlySet<LayerId>, kind: DocumentKind | null)
 export function LayersMenuBody() {
   const resetLayers = useMapChromeStore((s) => s.resetLayers);
   const keysOn = useMapChromeStore((s) => s.layers.initializers);
+  const precursorsOn = useMapChromeStore((s) => s.layers.precursors);
   const registered = useShownLayers();
   const mode = useBarMode();
   const kind = useKind();
@@ -252,6 +307,7 @@ export function LayersMenuBody() {
                     <LayerRow id={id} source={source} dead={off} />
                   )}
                   {id === "special" && <KindRows source={source} dead={off} />}
+                  {id === "precursors" && precursorsOn && <PrecursorRows />}
                 </div>
               ))}
             </div>

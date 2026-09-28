@@ -39,8 +39,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - The game's concepts, one module each and named for it: `feZone`, `feLinks`,
   `feSpawnGhosts`, `marauder`, `ownership`, `countryKinds`, `spawn`,
   `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
-  `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them) and
-  `addSystem` (where a system may be added, and the Special menu's marks).
+  `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
+  `addSystem` (where a system may be added, and the Special menu's marks) and
+  `precursors` (each system's precursor flags, matched against the install's
+  definitions and grouped into the legend the map draws).
 - The app's words: `issueCopy`, `paintCopy` and `sessionCopy` hold the
   sentences each screen uses for one subject, and `names`, `text` and
   `version` turn keys, counts and version strings into English.

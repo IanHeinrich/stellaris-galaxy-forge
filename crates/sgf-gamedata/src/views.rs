@@ -21,6 +21,7 @@ use crate::registries::deposits::DepositDef;
 use crate::registries::flags::{EmblemCategory, FlagFile, Flags};
 use crate::registries::galaxy_shapes::GalaxyShape;
 use crate::registries::galaxy_sizes::GalaxySize;
+use crate::registries::precursors::PrecursorDef;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::starbase_levels::StarbaseLevelDef;
@@ -700,12 +701,38 @@ impl From<&GalaxyShape> for GalaxyShapeView {
     }
 }
 
+/// A precursor the install defines: the star flag that marks its region, and its localised
+/// name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PrecursorView {
+    pub key: String,
+    pub name: String,
+}
+
+impl PrecursorView {
+    fn new(def: &PrecursorDef, gd: &GameData) -> Self {
+        Self {
+            key: def.key.clone(),
+            name: gd.loc.name_or_readable(&def.key),
+        }
+    }
+}
+
 impl GameData {
     /// Every galaxy shape, in file order.
     pub fn galaxy_shape_views(&self) -> Vec<GalaxyShapeView> {
         self.galaxy_shapes
             .iter()
             .map(GalaxyShapeView::from)
+            .collect()
+    }
+
+    /// Every precursor, in definition order.
+    pub fn precursor_views(&self) -> Vec<PrecursorView> {
+        self.precursors
+            .iter()
+            .map(|def| PrecursorView::new(def, self))
             .collect()
     }
 

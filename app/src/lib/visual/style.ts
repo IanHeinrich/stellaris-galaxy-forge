@@ -65,9 +65,11 @@ export const RING_RADIUS = {
   /** A nebula drag's joining and leaving systems, and a special system's badge. */
   joining: 15,
   searched: 17,
-  issue: 20,
+  /** A system's precursor region, split into one arc per precursor where regions overlap. */
+  precursor: 20,
+  issue: 23,
   /** The first watchlist entry's; each entry after it sits `WATCH_RING_STEP` further out. */
-  watchlist: 23,
+  watchlist: 26,
 } as const;
 
 /** How much further out each watchlist entry's ring sits than the one before it. */

@@ -324,3 +324,47 @@ fn every_located_system_is_returned_beyond_the_limit() {
     let miasma = s.search("miasma", 5, &no_loc, &no_special);
     assert!(miasma.systems.is_empty(), "{:?}", miasma.systems);
 }
+
+#[test]
+fn a_flag_matches_by_its_localised_name() {
+    let s = common::open_4_5();
+    let loc = |key: &str| match key {
+        "precursor_1" => Some("Vultaum".to_owned()),
+        "precursor_zroni_1" => Some("Zroni".to_owned()),
+        _ => None,
+    };
+    let flagged = |flag: &str| -> Vec<u32> {
+        let mut ids: Vec<u32> = s
+            .graph
+            .systems
+            .values()
+            .filter(|system| system.flags.iter().any(|f| f == flag))
+            .map(|system| system.id)
+            .collect();
+        ids.sort_unstable();
+        ids
+    };
+    let found = |query: &str, loc: NameResolver<'_>| -> Vec<SearchHit> {
+        of_kind(&find(&s, query, 1000, loc), SearchKind::System)
+    };
+    let ids = |hits: &[SearchHit]| -> Vec<u32> {
+        let mut ids: Vec<u32> = hits.iter().map(|h| h.id).collect();
+        ids.sort_unstable();
+        ids
+    };
+
+    let vultaum = found("vultaum", &loc);
+    assert_eq!(vultaum.len(), 82);
+    assert_eq!(ids(&vultaum), flagged("precursor_1"));
+    assert!(
+        vultaum
+            .iter()
+            .all(|h| h.matched_on.as_deref() == Some("Vultaum"))
+    );
+
+    let zroni = found("zroni", &loc);
+    assert_eq!(zroni.len(), 85);
+    assert_eq!(ids(&zroni), flagged("precursor_zroni_1"));
+
+    assert!(found("vultaum", &no_loc).is_empty());
+}

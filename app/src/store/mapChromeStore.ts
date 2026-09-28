@@ -109,6 +109,8 @@ export interface MapChromeState {
   shownKinds: Set<SpecialKind>;
   /** Initializer keys the legend has filtered out; their systems are dimmed and unlabelled. */
   hiddenInitializers: Set<string>;
+  /** Precursor keys the legend has filtered out; `NO_PRECURSOR` hides the grey "no precursor" mark. */
+  hiddenPrecursors: Set<string>;
   contextMenu: ContextMenu | null;
   tooltip: MapTooltip | null;
   /** β of the mesh action's skeleton. */
@@ -130,6 +132,8 @@ export interface MapChromeState {
   toggleAllKinds(): void;
   /** Shows or hides every system whose initializer is `key`. */
   toggleInitializer(key: string): void;
+  /** Shows or hides every system whose precursor (or lack of one) is `key`. */
+  togglePrecursor(key: string): void;
   /** Hides every key in `keys`, or shows them all once every one of them is hidden. */
   toggleInitializers(keys: Iterable<string>): void;
   showAllInitializers(): void;
@@ -250,6 +254,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
   layers: storedLayers(DEFAULT_LAYERS),
   sceneLayers: storedSceneLayers(),
   shownKinds: new Set<SpecialKind>(storedShownKinds()),
+  hiddenPrecursors: new Set<string>(),
   meshBeta: MESH_BETA_PREF.read(),
 
   toggleLayer(id) {
@@ -280,6 +285,13 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
     if (hiddenInitializers.has(key)) hiddenInitializers.delete(key);
     else hiddenInitializers.add(key);
     set({ hiddenInitializers });
+  },
+
+  togglePrecursor(key) {
+    const hiddenPrecursors = new Set(get().hiddenPrecursors);
+    if (hiddenPrecursors.has(key)) hiddenPrecursors.delete(key);
+    else hiddenPrecursors.add(key);
+    set({ hiddenPrecursors });
   },
 
   toggleInitializers(keys) {
@@ -329,6 +341,7 @@ export const useMapChromeStore = create<MapChromeState>((set, get) => ({
       sceneLayers: { ...DEFAULT_SCENE_LAYERS },
       shownKinds,
       hiddenInitializers: new Set<string>(),
+      hiddenPrecursors: new Set<string>(),
     });
     rememberKinds(shownKinds);
     writePref(PREF_KEYS.layers, {});

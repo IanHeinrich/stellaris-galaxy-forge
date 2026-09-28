@@ -87,10 +87,11 @@ export function useGroupPressed(group: Group): Pressed {
   return GROUP_PRESSED[useMapChromeStore((s) => groupState(s, kind, group.source))];
 }
 
-/** The layers the open document can answer for that the bar shown lists. */
+/** The layers the open document and the install as read answer for that the bar shown lists. */
 export function useShownLayers(): ReadonlySet<LayerId> {
   const mode = useBarMode();
-  const registered = layerIdsFor(useFileSessionStore(documentCapabilities));
+  const gameDataReady = useGameDataStore((s) => s.status === "ready");
+  const registered = layerIdsFor(useFileSessionStore(documentCapabilities), gameDataReady);
   return new Set([...registered].filter((id) => barShows(mode, id)));
 }
 

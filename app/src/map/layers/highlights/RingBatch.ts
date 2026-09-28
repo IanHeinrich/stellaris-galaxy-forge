@@ -10,6 +10,21 @@ export interface RingSpec {
   radius: number;
   width: number;
   alpha: number;
+  /** The part of the ring drawn, in radians as `arc` takes them; the whole ring without it. */
+  arc?: { start: number; end: number };
+}
+
+function ringShape(spec: RingSpec): GraphicsContext {
+  const shape = new GraphicsContext();
+  const { arc, radius } = spec;
+  if (arc) {
+    shape
+      .moveTo(radius * Math.cos(arc.start), radius * Math.sin(arc.start))
+      .arc(0, 0, radius, arc.start, arc.end);
+  } else {
+    shape.circle(0, 0, radius);
+  }
+  return shape.stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
 }
 
 /** Spare rings kept past what a placement needs before the rest are destroyed. */
@@ -28,9 +43,7 @@ export class RingBatch {
 
   constructor(spec: RingSpec, label: string) {
     this.container = new Container({ label });
-    this.shape = new GraphicsContext()
-      .circle(0, 0, spec.radius)
-      .stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
+    this.shape = ringShape(spec);
   }
 
   place(bright: readonly Pt[], dimmed: readonly Pt[] = []): void {

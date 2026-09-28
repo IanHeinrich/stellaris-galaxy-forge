@@ -14,6 +14,7 @@ mod localisation;
 mod naming;
 mod planet_discs;
 mod planet_views;
+mod precursors;
 mod registries;
 mod reload;
 mod scripts_bypasses;

@@ -129,6 +129,7 @@ impl Format for Scenario {
             nebulae: true,
             bypasses: false,
             special: true,
+            precursors: false,
             create_systems: true,
             lane_bridges: false,
             waylines: false,

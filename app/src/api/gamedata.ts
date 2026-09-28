@@ -19,6 +19,7 @@ import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
+import type { PrecursorView } from "../generated/PrecursorView";
 import type { ResourceIcon } from "../generated/ResourceIcon";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
@@ -152,6 +153,11 @@ export function getInitializers(): Promise<InitializerView[]> {
 /** Every galaxy shape a scenario can list itself under, in the loaded game data's order; empty without it. */
 export function getGalaxyShapes(): Promise<GalaxyShapeView[]> {
   return invoke<GalaxyShapeView[]>("get_galaxy_shapes");
+}
+
+/** Every precursor definition of the loaded game data, in definition order; empty without it. */
+export function getPrecursors(): Promise<PrecursorView[]> {
+  return invoke<PrecursorView[]>("get_precursors");
 }
 
 /** Every named map colour of the loaded game data; empty without it. */

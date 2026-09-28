@@ -22,7 +22,7 @@ use crate::registries::scripted_triggers::ScriptedTrigger;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
-use crate::registries::{colors, flags, registry, star_names};
+use crate::registries::{colors, flags, precursors, registry, star_names};
 use crate::scripts::ScriptIndex;
 use crate::{Bypasses, Colors, CountryTypes, Diagnostic, Flags, GameData, Initializers};
 
@@ -39,10 +39,10 @@ pub enum RegistryKind {
     Localisation,
     /// `common/scripted_variables`, which every definition can read: a change rereads all.
     Variables,
-    /// The definitions the generator and the planet page read (deposits and their
+    /// The definitions the generator, the planet page and the map read (deposits and their
     /// categories, star and planet classes and their lists, scripted triggers, modifiers,
-    /// colony types, ship sizes, defines, random names). They feed one another and are
-    /// never rebuilt apart: a change rereads all.
+    /// colony types, ship sizes, defines, random names, precursors). They feed one another
+    /// and are never rebuilt apart: a change rereads all.
     Definitions,
 }
 
@@ -59,7 +59,7 @@ const ALL: [RegistryKind; 9] = [
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 21] = [
+const DIRS: [(&str, RegistryKind); 22] = [
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/scripted_effects", RegistryKind::Scripts),
     ("events", RegistryKind::Scripts),
@@ -81,6 +81,7 @@ const DIRS: [(&str, RegistryKind); 21] = [
     ("common/starbase_levels", RegistryKind::Definitions),
     ("common/defines", RegistryKind::Definitions),
     (star_names::DIR, RegistryKind::Definitions),
+    (precursors::DIR, RegistryKind::Definitions),
 ];
 
 impl RegistryKind {
