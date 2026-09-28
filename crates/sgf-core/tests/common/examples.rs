@@ -455,6 +455,10 @@ pub fn one_of_each() -> Vec<Example> {
             system: 1,
             radius: 200.0,
         }),
+        Example::save_4_5(Op::MoveSavePlanet {
+            planet: 99,
+            to: 216,
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),

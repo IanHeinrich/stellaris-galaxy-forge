@@ -490,6 +490,23 @@ pub enum Op {
         system: u32,
         radius: f64,
     },
+    /// A save planet and its moons taken from their system into system `to`: their
+    /// `planet=` lines leave the old system and follow the new one's last, and their
+    /// `origin` becomes `to`. The planet keeps its angle about the centre on an orbit the
+    /// inner radius offset past the new system's reach, its moons keep their places about
+    /// it, and the new system's `inner_radius` grows as a moved body's does. The colony
+    /// of each colonised body moves between the two systems' `colonies`. A star, a body that
+    /// orbits another, a system with no bodies to join and a planet or moon with a
+    /// megastructure are refused, and so is an owned planet or moon unless its owner owns
+    /// both systems and controls it. The inverse moves it back, batched with the old inner
+    /// radius when it grew. The station fleet of each moved body with one
+    /// moves with it: it leaves the old system's `fleet_presence` for the new one's, and it
+    /// and its ships take the new `origin`, their points shifted with the body. No other
+    /// fleet is touched. Stellaris 4.x save documents only.
+    MoveSavePlanet {
+        planet: u32,
+        to: u32,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -538,7 +555,8 @@ impl Op {
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => true,
+            | Self::SetSaveInnerRadius { .. }
+            | Self::MoveSavePlanet { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -607,7 +625,8 @@ impl Op {
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => false,
+            | Self::SetSaveInnerRadius { .. }
+            | Self::MoveSavePlanet { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -946,6 +965,30 @@ pub enum OpError {
     InnerRadiusTooSmall { least: f64 },
     #[error("system {0} already has that inner radius")]
     InnerRadiusUnchanged(u32),
+    #[error("planet {planet} is already a body of system {system}")]
+    AlreadyInSystem { planet: u32, system: u32 },
+    #[error("planet {0} is a star: only a planet can move to another system")]
+    StarNotMovable(u32),
+    #[error("system {0} lists no bodies, so a planet cannot join it")]
+    NoBodies(u32),
+    #[error("system {system} holds planet {planet} from the save; move it out first")]
+    HoldsSavePlanet { system: u32, planet: u32 },
+    #[error("planet {planet} orbits planet {parent}: move planet {parent} instead")]
+    OrbitsBody { planet: u32, parent: u32 },
+    #[error("planet {0} has a megastructure, so it cannot move to another system")]
+    MegastructurePlanet(u32),
+    #[error("planet {planet} is owned by country {owner}, which does not own system {system}")]
+    OutsideOwner {
+        planet: u32,
+        owner: u32,
+        system: u32,
+    },
+    #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
+    PlanetOccupied {
+        planet: u32,
+        owner: u32,
+        controller: u32,
+    },
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -1070,6 +1113,14 @@ impl OpError {
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }
+            | Self::AlreadyInSystem { .. }
+            | Self::StarNotMovable { .. }
+            | Self::NoBodies { .. }
+            | Self::HoldsSavePlanet { .. }
+            | Self::OrbitsBody { .. }
+            | Self::MegastructurePlanet { .. }
+            | Self::OutsideOwner { .. }
+            | Self::PlanetOccupied { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }

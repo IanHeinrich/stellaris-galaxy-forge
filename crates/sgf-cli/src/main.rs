@@ -194,6 +194,16 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetStarClass { id, class, bodies },
         ),
+        Some(Command::MovePlanet {
+            sav,
+            planet,
+            system,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::MoveSavePlanet { planet, to: system },
+        ),
         Some(Command::PlanetSize {
             sav,
             planet,

@@ -18,9 +18,9 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, belts, bodies, bulk, deposits, flag, lanes, lgate, map_colors, move_system, nebula,
-    planet_ring, planet_size, remove_system, rename_system, replace_system, star_class,
-    terraform_candidate,
+    add_system, belts, bodies, bulk, deposits, flag, lanes, lgate, map_colors, move_planet,
+    move_system, nebula, planet_ring, planet_size, remove_system, rename_system, replace_system,
+    star_class, terraform_candidate,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -87,12 +87,14 @@ impl Format for Save {
                         continue;
                     };
                     let (root, buf) = parsed_statement(doc, subject, anchor)?;
-                    // A system new to the graph has no bodies read yet: an undo of a
-                    // removal brings back the system whose id it had renumbered.
-                    if !graph.systems.contains_key(&id) {
+                    // A system whose count of `planet` lines changed has its bodies read
+                    // again: an undo of a removal brings back a system with none read yet,
+                    // and a planet moved between systems leaves one list for another.
+                    let listed = graph.systems.get(&id).map(|s| s.planet_count);
+                    graph.refresh_system(id, &root, buf)?;
+                    if graph.systems.get(&id).map(|s| s.planet_count) != listed {
                         bodies.insert(id);
                     }
-                    graph.refresh_system(id, &root, buf)?;
                     let added = doc.added().get(EntityKind::System, id).is_some();
                     if let Some(system) = graph.systems.get_mut(&id) {
                         system.added = added;
@@ -202,6 +204,7 @@ impl Format for Save {
                 radius,
                 angle,
             } => bodies::plan_move(plan, s, *system, *body, *radius, *angle),
+            Op::MoveSavePlanet { planet, to } => move_planet::plan_move(plan, s, *planet, *to),
             Op::SetSaveBodyParent {
                 system,
                 body,

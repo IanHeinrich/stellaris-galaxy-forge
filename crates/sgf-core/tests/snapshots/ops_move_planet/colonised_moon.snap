@@ -1,0 +1,102 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #59 and its 2 moons from system #189 to system #718, at orbit 210; set the inner radius of system #718 from 185 to 264
+inverse: Batch { description: "Undo of \"Moved planet #59 and its 2 moons from system #189 to system #718, at orbit 210; set the inner radius of system #718 from 185 to 264\"", ops: [MoveSavePlanet { planet: 59, to: 189 }, SetSaveInnerRadius { system: 718, radius: 185.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -42237,9 +42237,6 @@
+ 		planet=56
+ 		planet=57
+ 		planet=58
+-		planet=59
+-		planet=60
+-		planet=61
+ 		planet=62
+ 		planet=63
+ 		planet=64
+@@ -42292,10 +42289,6 @@
+ 		}
+ 		sector=3
+ 		index=11
+-		colonies=
+-		{
+-			3 
+-		}
+ 		storm=4294967295
+ 	}
+ 	190=
+@@ -77717,6 +77710,9 @@
+ 		planet=240
+ 		planet=241
+ 		planet=242
++		planet=59
++		planet=60
++		planet=61
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -77758,8 +77754,8 @@
+ 		{
+ 			16777822 627 644 16777866 662 
+ 		}
+-		inner_radius=185
+-		outer_radius=285
++		inner_radius=264
++		outer_radius=364
+ 		starbases=
+ 		{
+ 			71 
+@@ -77768,7 +77764,7 @@
+ 		index=11
+ 		colonies=
+ 		{
+-			37 
++			37 3 
+ 		}
+ 		storm=4294967295
+ 	}
+@@ -95494,11 +95490,11 @@
+ 			binary_flags=72
+ 			coordinate=
+ 			{
+-				x=121.99005
+-				y=-57.9528
+-				origin=189
++				x=189.68374
++				y=-90.11148
++				origin=718
+ 			}
+-			orbit=135
++			orbit=210
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+@@ -95523,9 +95519,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=133.59255
+-				y=-50.11448
+-				origin=189
++				x=201.28624
++				y=-82.27316
++				origin=718
+ 			}
+ 			orbit=14
+ 			last_bombardment=			"0.01.01"
+@@ -95551,9 +95547,9 @@
+ 			binary_flags=585
+ 			coordinate=
+ 			{
+-				x=103.43685
+-				y=-42.72576
+-				origin=189
++				x=171.13054
++				y=-74.88444
++				origin=718
+ 			}
+ 			orbit=24
+ 			last_bombardment=			"0.01.01"

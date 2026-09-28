@@ -36,6 +36,7 @@ mod ops_history;
 mod ops_lanes;
 mod ops_lgate;
 mod ops_map_colors;
+mod ops_move_planet;
 mod ops_nebula;
 mod ops_nebula_footprint;
 mod ops_nebula_names;

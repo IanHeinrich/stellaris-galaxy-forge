@@ -177,6 +177,14 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Move a save planet and its moons to another system.
+    MovePlanet {
+        sav: PathBuf,
+        planet: u32,
+        system: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Set a save planet's size, star bodies included.
     PlanetSize {
         sav: PathBuf,

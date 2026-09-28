@@ -39,6 +39,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     each_once(ids, |&id| id)?;
     for &id in ids {
         check_added(s, id)?;
+        check_own_bodies(s, id)?;
     }
     let removed: BTreeSet<u32> = ids.iter().copied().collect();
     let counter = alloc::system_counter(&s.doc)?;
@@ -85,6 +86,18 @@ pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
         Err(OpError::SystemNotAdded(id))
     } else {
         Err(OpError::UnknownSystem(id))
+    }
+}
+
+/// Refuse a system that lists a planet the save held when it was opened: removing the
+/// system would leave that planet in no system.
+fn check_own_bodies(s: &Session, id: u32) -> Result<(), OpError> {
+    let held = bodies(&s.doc, id)?
+        .into_iter()
+        .find(|&planet| s.doc.added().get(EntityKind::Planet, planet).is_none());
+    match held {
+        Some(planet) => Err(OpError::HoldsSavePlanet { system: id, planet }),
+        None => Ok(()),
     }
 }
 

@@ -538,8 +538,8 @@ pub(super) fn present(
     ship_sizes: &HashMap<u32, String>,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
-    // No op writes the `starbase_mgr`, `ships` or `fleet` tables, so they are read from the
-    // original bytes even when a system's own entry has moved to the overlay.
+    // Ops write only fleet and ship positions, never the fields read here, so these tables
+    // are read from the original bytes even when a system's own entry has moved to the overlay.
     let src = doc.original();
     let index = doc.index();
     let stations = read::stations(doc)?;
