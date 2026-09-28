@@ -370,6 +370,20 @@ fn game_data_commands_with_the_install() {
     let find = |choices: &[DepositChoice], key: &str| -> Option<DepositChoice> {
         choices.iter().find(|c| c.key == key).cloned()
     };
+    let classless: Vec<DepositChoice> = invoke(
+        &w,
+        "get_deposit_choices",
+        json!({ "class": null, "size": null, "moon": false, "deposits": [] }),
+    )
+    .expect("deposit choices of no class");
+    assert!(!classless.is_empty() && classless.iter().all(|c| !c.usual));
+    let unsized_arctic: Vec<DepositChoice> = invoke(
+        &w,
+        "get_deposit_choices",
+        json!({ "class": "pc_arctic", "size": null, "moon": false, "deposits": [] }),
+    )
+    .expect("deposit choices of no size");
+    assert!(find(&unsized_arctic, "d_massive_glacier").is_some_and(|c| c.usual));
     let arctic = choices("pc_arctic", false);
     let glacier = find(&arctic, "d_massive_glacier").expect("the glacier");
     assert!(glacier.usual);

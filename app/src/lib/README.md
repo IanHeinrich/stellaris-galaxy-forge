@@ -26,11 +26,14 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `starClass` is the star class pickers and the bulk plan that sets one
   class on many systems. `terraform` says what making a body a terraforming
   candidate needs. `planetEdits` builds the ops a planet's page sends for
-  its name, size and deposits and the hint of a body's Edit chip, and
-  `depositPicker` groups the deposit types its picker offers into
-  families, sections and chips. `modifierPicker` is the modifier
-  picker's rows, chips and sections, and the ops that add and remove a
-  modifier. The system view's layout is
+  its name, size, deposits and modifiers, and the hint of a body's Edit
+  chip. `picker` is what the deposit and modifier pickers share: the
+  search, the usual rows first, and the target and edit adapter they add
+  through, so a source other than a save can plug in its own adapter
+  (`store/planetEditAdapter` holds the save's). `depositPicker` groups
+  the deposit types its picker offers into families, sections and chips,
+  and `modifierPicker` is the modifier picker's rows and chips. The
+  system view's layout is
   `orbits`: where each body, orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
   `orbitEdits` turns a geometry edit, a body or belt at an absolute radius

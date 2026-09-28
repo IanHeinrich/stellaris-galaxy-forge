@@ -11,18 +11,19 @@ import {
   type DistrictTotal,
 } from "../../../lib/details/planetPage";
 import {
+  addWarnings,
   removalTarget,
   removalWarnings,
   TERRAFORMING_NOTE,
   warningNameKeys,
 } from "../../../lib/details/depositWarnings";
+import type { PickerTarget } from "../../../lib/details/picker";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { useApplyOp } from "../../useApplyOp";
 import { Icon } from "../../parts";
 import { DrillLink, Section } from "../parts";
 import { DepositPicker } from "./DepositPicker";
@@ -240,42 +241,42 @@ function DepositRow({
 
 /**
  * A body's deposits: the district caps they add up to, one row per type, and the blockers apart.
- * Where `editable`, each row can lose one of its deposits and a picker adds one; `moon` says
- * which types fit.
+ * Where `editable`, each row can lose one of its deposits and a picker adds one, both through
+ * `target`'s adapter.
  */
 export function PlanetDeposits({
   page,
   editable,
-  moon,
+  target,
 }: {
   page: PlanetPage;
   editable: boolean;
-  moon: boolean;
+  target: PickerTarget;
 }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const ready = useGameDataStore((s) => s.status === "ready");
   const names = useGameDataStore((s) => s.names);
-  const applyOp = useApplyOp();
   const [confirming, setConfirming] = useState<number | null>(null);
   useEffect(() => {
     if (editable && ready) void useGameDataStore.getState().fetchNames(warningNameKeys(page));
   }, [page, editable, ready]);
   if (page.deposits.length === 0 && !editable) return null;
+  const addWarningsFor = (key: string) => addWarnings(page, key, views, names);
   const removal = (group: DepositGroup): Removal | null => {
-    const target = editable ? removalTarget(page, group.kind, group.swapType) : null;
-    if (target === null) return null;
+    const deposit = editable ? removalTarget(page, group.kind, group.swapType) : null;
+    if (deposit === null) return null;
     const remove = () => {
       setConfirming(null);
-      applyOp({ type: "RemoveSaveDeposit", deposit: target.id });
+      void target.edits.removeDeposit(deposit.id);
     };
-    const warnings = removalWarnings(page, target, views, names);
+    const warnings = removalWarnings(page, deposit, views, names);
     const worked = page.station !== null && (group.view?.yields.length ?? 0) > 0;
     return {
       title: worked ? STATION_STAYS : "Remove one deposit of this type",
       label: `Remove ${group.view?.name ?? group.kind}`,
-      run: warnings.length === 0 ? remove : () => setConfirming(target.id),
+      run: warnings.length === 0 ? remove : () => setConfirming(deposit.id),
       warnings,
-      confirming: confirming === target.id && warnings.length > 0,
+      confirming: confirming === deposit.id && warnings.length > 0,
       confirm: remove,
       cancel: () => setConfirming(null),
     };
@@ -300,7 +301,7 @@ export function PlanetDeposits({
           removal={removal(g)}
         />
       ))}
-      {editable && <DepositPicker page={page} moon={moon} mode="deposits" />}
+      {editable && <DepositPicker target={target} mode="deposits" warnings={addWarningsFor} />}
       {(blockers.length > 0 || editable) && (
         <>
           <div className="pl-sub-head">
@@ -317,7 +318,7 @@ export function PlanetDeposits({
           ))}
         </>
       )}
-      {editable && <DepositPicker page={page} moon={moon} mode="blockers" />}
+      {editable && <DepositPicker target={target} mode="blockers" warnings={addWarningsFor} />}
     </Section>
   );
 }

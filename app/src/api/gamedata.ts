@@ -130,11 +130,12 @@ export function getDeposits(): Promise<DepositView[]> {
 /**
  * Every deposit type but the null one, with its family, its category and whether the game's roll
  * could place it on a body of `planetClass` and `size`, a moon when `moon`, that holds the deposit
- * types `deposits`; empty without game data.
+ * types `deposits`; empty without game data. None is usual without a class; without a size a type
+ * is usual when it fits at any size the class draws.
  */
 export function getDepositChoices(
-  planetClass: string,
-  size: number,
+  planetClass: string | null,
+  size: number | null,
   moon: boolean,
   deposits: string[],
 ): Promise<DepositChoice[]> {

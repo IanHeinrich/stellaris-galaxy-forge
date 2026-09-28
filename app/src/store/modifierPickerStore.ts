@@ -3,47 +3,33 @@ import * as ipc from "../api/ipc";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import {
   addedModifierLine,
-  addModifierOp,
   type ModifierChip,
   type ModifierPickRow,
 } from "../lib/details/modifierPicker";
-import { useEditorStore } from "./editorStore";
+import type { PickerTarget } from "../lib/details/picker";
+import { PICKER_CLOSED, pickerSlice, type PickerState } from "./pickerSlice";
 
-/**
- * The modifier picker on a planet's page. It lives here rather than in the component because an
- * add makes the page read its planet again, which draws the page anew: the picker stays open, with
- * its search, its chip, its duration and the line saying what was added.
- */
-export interface ModifierPickerState {
-  /** The planet whose picker is open; `null` when none is. */
-  planet: number | null;
-  query: string;
-  chip: ModifierChip;
+/** The modifier picker on a planet's page, and how long its next add lasts. */
+export interface ModifierPickerState extends PickerState<ModifierChip> {
   /** How many days the next add lasts; `null` for ever. */
   days: number | null;
-  /** What the last add added, until the next. */
-  added: string | null;
   /** The modifiers offered; `null` until read. */
   choices: ModifierChoice[] | null;
-  open(planet: number): void;
-  close(): void;
-  setQuery(query: string): void;
-  setChip(chip: ModifierChip): void;
+  open(target: PickerTarget): void;
   setDays(days: number | null): void;
-  /** Adds `row` to the open planet for the days set and says so. */
+  /** Adds `row` to the open body for the days set, where its source can time one, and says so. */
   add(row: ModifierPickRow): Promise<void>;
 }
 
 export const useModifierPickerStore = create<ModifierPickerState>((set, get) => ({
-  planet: null,
-  query: "",
-  chip: "All",
+  ...pickerSlice<ModifierChip>(set),
   days: null,
-  added: null,
   choices: null,
 
-  open(planet) {
-    if (get().planet !== planet) set({ planet, query: "", chip: "All", added: null });
+  open(target) {
+    const was = get().target;
+    if (was?.key !== target.key) set({ ...PICKER_CLOSED, target });
+    else if (was !== target) set({ target });
     if (get().choices !== null) return;
     ipc.getModifierChoices().then(
       (choices) => set({ choices }),
@@ -55,15 +41,7 @@ export const useModifierPickerStore = create<ModifierPickerState>((set, get) => 
   },
 
   close() {
-    set({ planet: null, query: "", chip: "All", added: null, choices: null });
-  },
-
-  setQuery(query) {
-    set({ query });
-  },
-
-  setChip(chip) {
-    set({ chip });
+    set({ ...PICKER_CLOSED, choices: null });
   },
 
   setDays(days) {
@@ -71,9 +49,11 @@ export const useModifierPickerStore = create<ModifierPickerState>((set, get) => 
   },
 
   async add(row) {
-    const { planet, days } = get();
-    if (planet === null) return;
-    const op = addModifierOp(planet, row.choice, days);
-    if (await useEditorStore.getState().applyOp(op)) set({ added: addedModifierLine(row, days) });
+    const target = get().target;
+    if (target === null) return;
+    const days = target.edits.timedModifiers ? get().days : null;
+    if (await target.edits.addModifier(row.choice, days)) {
+      set({ added: addedModifierLine(row, days) });
+    }
   },
 }));
