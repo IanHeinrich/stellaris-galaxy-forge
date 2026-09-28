@@ -8,6 +8,13 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- With Details on, the system view shows which planets are colonised.
+  A colony's name has its owner's flag on the game's name plate, as
+  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
+  icon beside its name.
+
 ## [0.17.0] - 2026-09-28
 
 ### Added

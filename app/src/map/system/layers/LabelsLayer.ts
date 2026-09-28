@@ -1,8 +1,10 @@
 import { BitmapText, Container, Graphics, Sprite, TextStyle, Texture } from "pixi.js";
+import { type BodyMarks, marked, NO_MARKS, sameMarks } from "../../../lib/details/layout";
 import { formatAmount, resourceAbbrev, type ResourceRow } from "../../../lib/details/resources";
 import { MAP_FONT } from "../../../lib/visual/style";
-import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
+import { onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
+import { queuedTextures } from "../../layers/details/cell";
 import {
   ICON_SHADOW_ALPHA,
   ICON_SHADOW_OFFSET_PX,
@@ -14,6 +16,7 @@ import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../con
 import { bodyTier, drawnDisc } from "../geometry";
 import type { PlatePick } from "../picking";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
+import { NameMarks } from "./nameMarks";
 import { colonyBarReach, drawPlate, PLATE_PAD_X, PLATE_PAD_Y, type Plate } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
@@ -70,6 +73,8 @@ interface Label {
   body: SceneBody;
   holder: Container;
   plate: Plate | null;
+  /** A colony's or pre-FTL body's marks about its plate; null for any other body, or none shown. */
+  marks: NameMarks | null;
   cells: Cell[];
   w: number;
   h: number;
@@ -87,6 +92,7 @@ function labelledAlike(a: SceneBody, b: SceneBody): boolean {
     a.moon === b.moon &&
     a.colony === b.colony &&
     a.resources === b.resources &&
+    sameMarks(a.marks, b.marks) &&
     a.placement.star === b.placement.star &&
     a.placement.disc === b.placement.disc
   );
@@ -98,22 +104,32 @@ function rank(a: Label, b: Label): number {
 }
 
 /**
- * One body's label: its name on a plate when `named`, and under it the resources in `rows`, each
- * icon over its amount.
+ * One body's label: its name on a plate when `named`, with `marks` about the plate, and under it
+ * the resources in `rows`, each icon over its amount.
  */
-function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]): Label {
+function makeLabel(
+  body: SceneBody,
+  named: boolean,
+  rows: readonly ResourceRow[],
+  marks: BodyMarks,
+): Label {
   const holder = new Container();
   let plate: Plate | null = null;
   let name: BitmapText | null = null;
+  let nameMarks: NameMarks | null = null;
   if (named) {
     const g = new Graphics();
     g.label = "plate";
     name = new BitmapText({ text: body.name, style: styleOf(body) });
     name.label = "name";
     name.anchor.set(0.5, 0);
-    holder.addChild(g, name);
     const w = name.width + 2 * PLATE_PAD_X + colonyBarReach(body.colony);
     plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
+    if (marked(marks)) nameMarks = new NameMarks(marks, plate.w, plate.h);
+    if (nameMarks?.under) holder.addChild(nameMarks.under);
+    holder.addChild(g);
+    if (nameMarks) holder.addChild(nameMarks.over);
+    holder.addChild(name);
   }
 
   let rowHalf = 0;
@@ -139,10 +155,12 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
     return { cell: { key: row.sprite, icon, shadow, abbrev }, amount };
   });
 
-  const w = Math.max(plate?.w ?? 0, 2 * rowHalf);
+  const side = nameMarks?.side ?? 0;
+  const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * rowHalf);
   if (plate && name) {
     plate.x = (w - plate.w) / 2;
     name.position.set(w / 2 + colonyBarReach(plate.colony) / 2, PLATE_PAD_Y);
+    nameMarks?.place(plate.x, 0);
   }
   const rowY = plate ? plate.h + RESOURCE_GAP_PX : 0;
   for (const [i, { cell, amount }] of laid.entries()) {
@@ -154,14 +172,15 @@ function makeLabel(body: SceneBody, named: boolean, rows: readonly ResourceRow[]
     amount.position.set(x, at.amountY);
   }
   const h = laid.length > 0 ? rowY + RESOURCE_ICON_PX + amountH : (plate?.h ?? 0);
-  return { body, holder, plate, cells: laid.map((l) => l.cell), w, h };
+  return { body, holder, plate, marks: nameMarks, cells: laid.map((l) => l.cell), w, h };
 }
 
 /**
  * Each body's name on a plate centred under it, placed only where it clears the plates already
  * placed, so the lesser ones drop out as the view zooms out. A moon's plate goes under the moon,
  * or, where that is taken, in a column over its planet's plate. With the Details layer on, the
- * body's resources show under its name, or alone where the Labels layer is off. The plates
+ * body's resources show under its name, or alone where the Labels layer is off, and a colony's
+ * name shows its owner's flag on the game's plate, a pre-FTL world's the pre-FTL icon. The plates
  * shrink a little as the view zooms out.
  */
 export class LabelsLayer implements SystemLayer {
@@ -210,7 +229,8 @@ export class LabelsLayer implements SystemLayer {
         const named = ctx.sceneLayers.labels && body.name !== "";
         const rows = ctx.sceneLayers.details ? body.resources : [];
         if (!named && rows.length === 0) return [];
-        const label = makeLabel(body, named, rows);
+        const marks = ctx.sceneLayers.details ? body.marks : NO_MARKS;
+        const label = makeLabel(body, named, rows, marks);
         this.container.addChild(label.holder);
         return [label];
       })
@@ -243,15 +263,17 @@ export class LabelsLayer implements SystemLayer {
   }
 
   /**
-   * The resource icons once they have landed, and their abbreviations where they cannot load.
-   * Asks for them again after the cache was cleared, as when game data reloads.
+   * The resource icons and name marks once they have landed, and their abbreviations and glyphs
+   * where they cannot load. Asks for them again after the cache was cleared, as when game data
+   * reloads.
    */
   private redress(): void {
     const wanted = new Set<string>();
-    for (const { cells } of this.labels) {
+    const tex = queuedTextures(wanted);
+    for (const { cells, marks } of this.labels) {
+      marks?.dress(tex);
       for (const { key, icon, shadow, abbrev } of cells) {
-        const texture = getTexture(key);
-        if (texture === undefined) wanted.add(key);
+        const texture = tex.texture(key);
         if (texture && icon.texture !== texture) {
           for (const sprite of [icon, shadow]) {
             sprite.texture = texture;

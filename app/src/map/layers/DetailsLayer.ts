@@ -1,10 +1,10 @@
-import { Container, type Texture } from "pixi.js";
+import { Container } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
-import { type Icon, PRE_FTL_ICON_KEY } from "../../lib/details/icons";
+import { type Icon, PRE_FTL_ICON } from "../../lib/details/icons";
 import {
   bypassIcons,
   megastructureIcon,
@@ -31,8 +31,8 @@ import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { GHOST_ALPHA } from "../../lib/visual/style";
-import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
-import { rowY, type RowY, type Textures } from "./details/cell";
+import { onTextures, requestTextures } from "../../lib/visual/textures";
+import { queuedTextures, rowY, type RowY } from "./details/cell";
 import { fleets } from "./details/fleets";
 import { Hover, type Tip } from "./details/Hover";
 import { collapsed, icon } from "./details/icons";
@@ -75,10 +75,7 @@ export class DetailsLayer implements MapLayer {
   private readonly bounds = [0, 0, 0, 0];
   private readonly scale = { x: 1, y: 1 };
   private readonly keys = new Set<string>();
-  private readonly tex: Textures = {
-    texture: (key) => this.texture(key),
-    resolve: (keys) => this.resolve(keys),
-  };
+  private readonly tex = queuedTextures(this.keys);
   private ghosts: ReadonlyMap<number, MoveGhost> = new Map();
   private cam: Camera | null = null;
   private visible = true;
@@ -312,13 +309,7 @@ export class DetailsLayer implements MapLayer {
   private preFtl(row: Row, d: SystemDetails, x: number, y: RowY): number {
     const worlds = d.planets.filter((p) => p.pre_ftl);
     if (worlds.length === 0) return x;
-    const preFtl = {
-      keys: [PRE_FTL_ICON_KEY],
-      glyph: "☗",
-      label: "Pre-FTL civilisation",
-      frame: "poi" as const,
-    };
-    return icon(row, this.tex, preFtl, x, y, planetLines(this.ctx, this.tex, worlds));
+    return icon(row, this.tex, PRE_FTL_ICON, x, y, planetLines(this.ctx, this.tex, worlds));
   }
 
   /** Without a plate, the plate's bottom line alone underlines the name. */
@@ -326,24 +317,6 @@ export class DetailsLayer implements MapLayer {
     row.marks
       .rect(plate.x, plate.y + plate.height - 1, plate.width, 1)
       .fill({ color: 0xffffff, alpha: UNDERLINE_ALPHA });
-  }
-
-  /** The texture for `key` when it has landed; queues the key otherwise. */
-  private texture(key: string): Texture | null | undefined {
-    const texture = getTexture(key);
-    if (texture === undefined) this.keys.add(key);
-    return texture;
-  }
-
-  /** The first of `keys` that rendered; `undefined` while any is still loading, `null` when none can. */
-  private resolve(keys: string[]): Texture | null | undefined {
-    let pending = false;
-    for (const key of keys) {
-      const texture = this.texture(key);
-      if (texture) return texture;
-      if (texture === undefined) pending = true;
-    }
-    return pending ? undefined : null;
   }
 
   private make(): Row {
