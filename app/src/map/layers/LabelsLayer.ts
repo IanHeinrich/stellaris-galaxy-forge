@@ -1,7 +1,6 @@
-import { BitmapText, Container, NineSliceSprite, Texture } from "pixi.js";
+import { BitmapText, Container, type NineSliceSprite } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
-import { PLATE_BORDER_PX } from "../../lib/details/icons";
 import { nameRowY, plateBox, plateKey } from "../../lib/details/layout";
 import type { Camera } from "../Camera";
 import { compareImportance, labelTier } from "../../lib/visual/labels";
@@ -10,6 +9,7 @@ import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContex
 import { dimmedByInitializer, initializerLabel } from "../../lib/initializer/initializerLabels";
 import { FILTERED_ALPHA, GHOST_ALPHA, INITIALIZER_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
+import { fitPlate, namePlate } from "./details/namePlate";
 import type { DragState, MapLayer } from "./MapLayer";
 import { NAME_STYLE, nameHalf } from "./nameWidth";
 
@@ -362,24 +362,14 @@ export class LabelsLayer implements MapLayer {
       plate.visible = true;
       this.shownPlates.set(id, plate);
     }
-    const box = plateBox(nameHalf(label.text), this.offsetY);
-    if (plate.texture !== texture) plate.texture = texture;
-    plate.width = box.width;
-    plate.height = box.height;
-    plate.pivot.set(-box.x, -box.y);
+    fitPlate(plate, texture, plateBox(nameHalf(label.text), this.offsetY));
     plate.position.copyFrom(label.position);
     plate.scale.set(this.scale.x, this.scale.y);
     plate.alpha = label.alpha;
   }
 
   private makePlate(): NineSliceSprite {
-    const plate = new NineSliceSprite({
-      texture: Texture.EMPTY,
-      leftWidth: PLATE_BORDER_PX,
-      rightWidth: PLATE_BORDER_PX,
-      topHeight: 1,
-      bottomHeight: 1,
-    });
+    const plate = namePlate();
     this.plates.addChild(plate);
     return plate;
   }

@@ -19,16 +19,19 @@ const BYPASS_DASHES = 12;
 const ROW_GAP = 4;
 const BADGE_R = 6;
 
-/** Draws `item` on its disc at cell `x` when a key has rendered, its glyph when none can; advances a cell either way. */
+/**
+ * Draws `item` on its disc at cell `x` when a key has rendered, its glyph when none can; advances a
+ * cell either way. Null `lines` draws it with no tooltip.
+ */
 export function icon(
   row: Row,
   tex: Textures,
   item: Icon,
   x: number,
   y: RowY,
-  lines: MapTooltipLine[] = [],
+  lines: MapTooltipLine[] | null = [],
 ): number {
-  const tip = { title: item.label, lines };
+  const tip = lines === null ? null : { title: item.label, lines };
   disc(row.marks, x + DISC_PX / 2, y.disc + DISC_PX / 2, item.frame);
   const texture = tex.resolve(item.keys);
   const inset = (DISC_PX - ICON_PX) / 2;

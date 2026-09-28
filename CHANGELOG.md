@@ -8,6 +8,13 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- With Details on, the system view shows which planets are colonised.
+  A colony's name has its owner's flag on the game's name plate, as
+  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
+  icon beside its name.
+
 ### Changed
 
 - A save opens with the map border and the L-Cluster guide on.
