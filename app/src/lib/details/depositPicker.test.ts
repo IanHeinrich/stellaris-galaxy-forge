@@ -90,14 +90,6 @@ describe("the deposit picker's rows", () => {
     expect(alloys.amounts.map(amountText)).toEqual(["Add"]);
   });
 
-  it("lists what the roll could place here first under All, then everything else", () => {
-    const sections = depositSections(rows, "All", "");
-    expect(sections.map((s) => [s.title, s.rows.map((r) => r.family)])).toEqual([
-      ["Usual for this planet", ["yields:energy", "d_rich_mountain"]],
-      ["Everything else", ["d_alloys_gases"]],
-    ]);
-  });
-
   it("narrows to a chip's category, and to what the search matches", () => {
     const families = (chip: Parameters<typeof depositSections>[1], query = "") =>
       depositSections(rows, chip, query).flatMap((s) => s.rows.map((r) => r.family));

@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
-use sgf_gamedata::deposit_choices::{DepositChoice, deposit_choices};
-use sgf_gamedata::deposit_roll::RollBody;
+use sgf_gamedata::deposit_choices::{AskedBody, DepositChoice, deposit_choices};
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
@@ -202,23 +201,23 @@ pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
 /// Every deposit type but the null one, by key, with its family, its
 /// category and whether the game's roll could place it on a body of planet class `class`
 /// and `size`, a moon when `moon`, that holds the deposit types `deposits`; empty without
-/// game data.
+/// game data. Without a `class` none is usual, and without a `size` a type is usual when it
+/// fits at any size the class draws.
 #[tauri::command(async)]
 pub fn get_deposit_choices(
     game_data: State<'_, GameDataState>,
-    class: String,
-    size: u32,
+    class: Option<String>,
+    size: Option<u32>,
     moon: bool,
     deposits: Vec<String>,
 ) -> Vec<DepositChoice> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
-        let body = RollBody {
-            class: &class,
+        let asked = AskedBody {
+            class: class.as_deref(),
             size,
-            star: gd.planet_classes.get(&class).is_some_and(|c| c.star),
             moon,
         };
-        deposit_choices(&gd, &body, &deposits)
+        deposit_choices(&gd, &asked, &deposits)
     })
 }
 

@@ -16,6 +16,7 @@ import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
+import { useModifierPickerStore } from "./modifierPickerStore";
 import { resetOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
@@ -41,6 +42,7 @@ const STORES: StoreApi<object>[] = [
   useLayoutStore,
   useLGateStore,
   useMapChromeStore,
+  useModifierPickerStore,
   usePaintModStore,
   usePlanetDataStore,
   usePlanetMoveStore,

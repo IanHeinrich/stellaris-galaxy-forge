@@ -34,6 +34,7 @@ import { useInspectorStore, type Entry, type InspectorTab } from "../../../store
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { TERRAFORMING_NOTE } from "../../../lib/details/depositWarnings";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
+import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
@@ -406,7 +407,7 @@ describe("an unowned world's page", () => {
       ),
     });
     useDepositPickerStore.setState({
-      planet: WORLD,
+      target: planetPickerTarget(OLBERS, false),
       added: "Added +1 Energy",
       choices: {
         body: "",
@@ -465,7 +466,7 @@ describe("an unowned world's page", () => {
     expect(html.indexOf("Blockers · 0")).toBeLessThan(html.indexOf("+ Add blocker…"));
 
     useDepositPickerStore.setState({
-      planet: WORLD,
+      target: planetPickerTarget(planetPage({ id: WORLD }), false),
       mode: "blockers",
       choices: { body: "", list: [] },
     });

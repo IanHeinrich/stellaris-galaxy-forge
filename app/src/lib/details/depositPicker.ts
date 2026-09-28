@@ -5,6 +5,16 @@
 import type { DepositCategory } from "../../generated/DepositCategory";
 import type { DepositChoice } from "../../generated/DepositChoice";
 import type { DepositTypeView } from "../../generated/DepositTypeView";
+import {
+  byLabel,
+  COMMON_CHIPS,
+  EVERYTHING_ELSE,
+  pickerSections,
+  searchText,
+  type ChipItem,
+  type CommonChip,
+  type PickerSection,
+} from "./picker";
 import { formatAmount } from "./resources";
 import { effectText } from "./planetEdits";
 
@@ -16,19 +26,11 @@ export type PickerMode = "deposits" | "blockers";
  * blocker picker's chips are the techs that clear its blockers, as `tech:<key>`, `NoTech` and
  * `Uncleared`, and `Special`.
  */
-export type DepositChip =
-  "All" | "Usual" | DepositCategory | "NoTech" | "Uncleared" | `tech:${string}`;
-
-/** A chip and what it says. */
-export interface ChipItem {
-  chip: DepositChip;
-  label: string;
-}
+export type DepositChip = CommonChip | DepositCategory | "NoTech" | "Uncleared" | `tech:${string}`;
 
 /** The chips the deposit picker shows, in order, each with its label. */
-export const DEPOSIT_CHIPS: readonly ChipItem[] = [
-  { chip: "All", label: "All" },
-  { chip: "Usual", label: "Usual here" },
+export const DEPOSIT_CHIPS: readonly ChipItem<DepositChip>[] = [
+  ...COMMON_CHIPS,
   { chip: "Energy", label: "Energy" },
   { chip: "Minerals", label: "Minerals" },
   { chip: "Food", label: "Food" },
@@ -80,12 +82,6 @@ export interface DepositRow {
   amounts: DepositAmount[];
   /** What the search matches, lower case: name, resources, effects and category. */
   search: string;
-}
-
-/** A heading and the rows under it; the heading is empty for a single list. */
-export interface DepositSection {
-  title: string;
-  rows: DepositRow[];
 }
 
 function signed(n: number): string {
@@ -163,10 +159,10 @@ export function depositRows(
         const gives = amount === null ? label : `${signed(amount)} ${label}`;
         return { key: m.key, amount, title: own === null ? gives : `${gives}. ${own}` };
       }),
-      search: [label, gives, category].join(" ").toLowerCase(),
+      search: searchText([label, gives, category]),
     };
   });
-  return rows.sort((a, b) => a.label.localeCompare(b.label));
+  return byLabel(rows);
 }
 
 /** Whether a blocker only takes away districts of every kind: "Blocks 1 district". */
@@ -185,15 +181,14 @@ function plainBlock(view: DepositTypeView | undefined): boolean {
  * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, then
  * No tech needed, Can't be cleared and Special where a blocker is so.
  */
-export function blockerChips(rows: readonly DepositRow[]): ChipItem[] {
+export function blockerChips(rows: readonly DepositRow[]): ChipItem<DepositChip>[] {
   const techs = new Map<string, string>();
   for (const row of rows) for (const tech of row.clearedBy ?? []) techs.set(tech.key, tech.name);
   const byName = [...techs].sort((a, b) => a[1].localeCompare(b[1]));
   const some = (test: (row: DepositRow) => boolean) => rows.some(test);
   return [
-    { chip: "All", label: "All" },
-    { chip: "Usual", label: "Usual here" },
-    ...byName.map(([key, name]): ChipItem => ({ chip: `tech:${key}`, label: name })),
+    ...COMMON_CHIPS,
+    ...byName.map(([key, name]): ChipItem<DepositChip> => ({ chip: `tech:${key}`, label: name })),
     ...(some((r) => r.clearedBy?.length === 0)
       ? [{ chip: "NoTech" as const, label: "No tech needed" }]
       : []),
@@ -204,9 +199,8 @@ export function blockerChips(rows: readonly DepositRow[]): ChipItem[] {
   ];
 }
 
-/** Whether `row` stays under `chip`. */
+/** Whether `row` stays under `chip`, one of the deposit picker's own. */
 function kept(row: DepositRow, chip: DepositChip): boolean {
-  if (chip === "Usual") return row.usual;
   if (chip === "Special") return row.special;
   if (chip === "NoTech") return row.clearedBy?.length === 0;
   if (chip === "Uncleared") return row.category === "Blockers" && row.clearedBy === null;
@@ -219,23 +213,14 @@ function kept(row: DepositRow, chip: DepositChip): boolean {
 
 /**
  * The rows `chip` and `query` leave, as the list shows them: under All, those the roll could place
- * here first, then everything else; under any other chip, one list.
+ * here first, then everything else, which keeps its heading when none is usual.
  */
 export function depositSections(
   rows: readonly DepositRow[],
   chip: DepositChip,
   query: string,
-): DepositSection[] {
-  const words = query.trim().toLowerCase();
-  const matching = rows.filter((row) => words === "" || row.search.includes(words));
-  if (chip === "All") {
-    return [
-      { title: "Usual for this planet", rows: matching.filter((row) => row.usual) },
-      { title: "Everything else", rows: matching.filter((row) => !row.usual) },
-    ].filter((section) => section.rows.length > 0);
-  }
-  const left = matching.filter((row) => kept(row, chip));
-  return left.length === 0 ? [] : [{ title: "", rows: left }];
+): PickerSection<DepositRow>[] {
+  return pickerSections(rows, chip, query, kept, EVERYTHING_ELSE);
 }
 
 /** The line that confirms an add: "Added +3 Energy", or "Added Rich Mountains". */

@@ -10,7 +10,7 @@ import {
   planetDataKeys,
   type ModifierRow,
 } from "../../../lib/details/planetPage";
-import { removeModifierOp } from "../../../lib/details/modifierPicker";
+import type { PickerTarget } from "../../../lib/details/picker";
 import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
 import { bodyEditHint, renamePlanetOp, uncolonised } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
@@ -24,6 +24,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
 import type { Entry } from "../../../store/inspectorStore";
+import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
@@ -174,10 +175,20 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
   );
 }
 
-/** The planet's modifiers; where `editable`, each with its remove button and the picker below. */
-function PlanetModifiers({ page, editable }: { page: PlanetPage; editable: boolean }) {
+/**
+ * The planet's modifiers; where `editable`, each with its remove button and the picker below,
+ * both through `target`'s adapter.
+ */
+function PlanetModifiers({
+  page,
+  editable,
+  target,
+}: {
+  page: PlanetPage;
+  editable: boolean;
+  target: PickerTarget;
+}) {
   const views = usePlanetDataStore((s) => s.modifiers);
-  const applyOp = useApplyOp();
   const rows = modifierRows(page, views);
   if (rows.length === 0 && !editable) return null;
   return (
@@ -186,10 +197,10 @@ function PlanetModifiers({ page, editable }: { page: PlanetPage; editable: boole
         <ModifierRowView
           key={row.key}
           row={row}
-          onRemove={editable ? () => applyOp(removeModifierOp(page.id, row)) : null}
+          onRemove={editable ? () => void target.edits.removeModifier(row) : null}
         />
       ))}
-      {editable && <ModifierPicker page={page} />}
+      {editable && <ModifierPicker target={target} />}
     </Section>
   );
 }
@@ -410,6 +421,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   // A 4.x save: the deposit and modifier ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
+  const moon = found?.planet.moon ?? false;
+  const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable ? { value: page.size } : null,
@@ -441,8 +454,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
           {page.size !== null && !resizable && <PropertyRow label="Size">{page.size}</PropertyRow>}
         </Properties>
       )}
-      <PlanetDeposits page={page} editable={depositsEditable} moon={found?.planet.moon ?? false} />
-      <PlanetModifiers page={page} editable={modifiersEditable} />
+      <PlanetDeposits page={page} editable={depositsEditable} target={target} />
+      <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />
