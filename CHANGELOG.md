@@ -45,6 +45,11 @@ a release is made.
   still costs about 1 energy a month.
 - A planet's page shows the anomaly waiting on it, and which empires
   have found it.
+- Add and remove deposits and blockers on colonised planets too. When
+  the game will take something away for it, the page says what before
+  you confirm. That can be districts over a lowered cap, a building or
+  zone that needed the deposit, or a blocker's clearing and what was
+  spent on it. The game does this within a month.
 
 ### Changed
 

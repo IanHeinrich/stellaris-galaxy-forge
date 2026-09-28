@@ -258,6 +258,32 @@
   padding: 6px 2px 2px;
 }
 
+.pl-dep-confirm,
+.dp-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--warn);
+  border-left: 2px solid var(--warn);
+}
+
+.dp-confirm {
+  margin: 0 0 4px;
+}
+
+.pl-dep-confirm-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pl-dep-note {
+  padding: 4px 2px;
+  font-size: 11px;
+  color: var(--fg-soft);
+}
+
 .dp {
   margin: 6px 0 2px;
   padding: 6px;

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { PlanetPage } from "../../../generated/PlanetPage";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
@@ -10,7 +10,13 @@ import {
   type DepositGroup,
   type DistrictTotal,
 } from "../../../lib/details/planetPage";
-import { removeDepositOp, STATION_STAYS } from "../../../lib/details/planetEdits";
+import {
+  removalTarget,
+  removalWarnings,
+  TERRAFORMING_NOTE,
+  warningNameKeys,
+} from "../../../lib/details/depositWarnings";
+import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
@@ -24,11 +30,38 @@ import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
 
-/** A button that takes one deposit of a row's type off the planet. */
+/**
+ * A button that takes one deposit of a row's type off the planet. With `warnings`, the row
+ * shows them with a confirm in place of removing at once.
+ */
 interface Removal {
   title: string;
   label: string;
   run: () => void;
+  warnings: readonly string[];
+  confirming: boolean;
+  confirm: () => void;
+  cancel: () => void;
+}
+
+/** What the game takes away for a removal, and the buttons that make it or drop it. */
+function RemovalConfirm({ removal }: { removal: Removal | null }) {
+  if (removal === null || !removal.confirming) return null;
+  return (
+    <div className="pl-dep-confirm" role="alert">
+      {removal.warnings.map((warning) => (
+        <span key={warning}>{warning}</span>
+      ))}
+      <span className="pl-dep-confirm-actions">
+        <button type="button" className="dp-amount" onClick={removal.confirm}>
+          Remove anyway
+        </button>
+        <button type="button" className="dp-amount" onClick={removal.cancel}>
+          Cancel
+        </button>
+      </span>
+    </div>
+  );
 }
 
 function signed(n: number): string {
@@ -148,13 +181,16 @@ function RowEnd({ count, removal }: { count: number; removal: Removal | null }) 
 /** A type the game data does not describe: its key, as the save writes it. */
 function PlainDepositRow({ group, removal }: { group: DepositGroup; removal: Removal | null }) {
   return (
-    <div className="pl-dep plain">
-      <span>
-        <span className="l1 mono">{group.kind}</span>
-        <Hides swapType={group.swapType} />
-      </span>
-      <RowEnd count={group.count} removal={removal} />
-    </div>
+    <>
+      <div className="pl-dep plain">
+        <span>
+          <span className="l1 mono">{group.kind}</span>
+          <Hides swapType={group.swapType} />
+        </span>
+        <RowEnd count={group.count} removal={removal} />
+      </div>
+      <RemovalConfirm removal={removal} />
+    </>
   );
 }
 
@@ -172,30 +208,33 @@ function DepositRow({
   const extracted = view.yields.length > 0;
   const effects = view.effects.map((e) => e.text).join(" · ");
   return (
-    <div className={`pl-dep${view.blocker ? " blocker" : ""}`}>
-      <span className="pl-dep-art">
-        <Icon className="pl-art" keys={[view.texture_key]} glyph="" />
-        {view.blocker && <Icon className="pl-bmark" keys={[BLOCKER_ICON]} glyph="" />}
-      </span>
-      <span>
-        <span className="l1">{extracted ? <Yields yields={view.yields} /> : view.name}</span>
-        {effects !== "" && (
-          <span className={`l2${view.blocker ? " neg" : ""}`}>
-            {effects}
-            {group.count > 1 && " each"}
-          </span>
-        )}
-        {view.side_effects.map((side) => (
-          <span key={side.tech.key} className="l3">
-            {side.effects.map((e) => e.text).join(" · ")} with {side.tech.name}
-          </span>
-        ))}
-        <Clearing view={view} />
-        <Hides swapType={group.swapType} />
-        {extracted && station !== null && <StationLink id={station} />}
-      </span>
-      <RowEnd count={group.count} removal={removal} />
-    </div>
+    <>
+      <div className={`pl-dep${view.blocker ? " blocker" : ""}`}>
+        <span className="pl-dep-art">
+          <Icon className="pl-art" keys={[view.texture_key]} glyph="" />
+          {view.blocker && <Icon className="pl-bmark" keys={[BLOCKER_ICON]} glyph="" />}
+        </span>
+        <span>
+          <span className="l1">{extracted ? <Yields yields={view.yields} /> : view.name}</span>
+          {effects !== "" && (
+            <span className={`l2${view.blocker ? " neg" : ""}`}>
+              {effects}
+              {group.count > 1 && " each"}
+            </span>
+          )}
+          {view.side_effects.map((side) => (
+            <span key={side.tech.key} className="l3">
+              {side.effects.map((e) => e.text).join(" · ")} with {side.tech.name}
+            </span>
+          ))}
+          <Clearing view={view} />
+          <Hides swapType={group.swapType} />
+          {extracted && station !== null && <StationLink id={station} />}
+        </span>
+        <RowEnd count={group.count} removal={removal} />
+      </div>
+      <RemovalConfirm removal={removal} />
+    </>
   );
 }
 
@@ -215,16 +254,30 @@ export function PlanetDeposits({
 }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const ready = useGameDataStore((s) => s.status === "ready");
+  const names = useGameDataStore((s) => s.names);
   const applyOp = useApplyOp();
+  const [confirming, setConfirming] = useState<number | null>(null);
+  useEffect(() => {
+    if (editable && ready) void useGameDataStore.getState().fetchNames(warningNameKeys(page));
+  }, [page, editable, ready]);
   if (page.deposits.length === 0 && !editable) return null;
   const removal = (group: DepositGroup): Removal | null => {
-    const op = editable ? removeDepositOp(page, group.kind, group.swapType) : null;
-    if (op === null) return null;
+    const target = editable ? removalTarget(page, group.kind, group.swapType) : null;
+    if (target === null) return null;
+    const remove = () => {
+      setConfirming(null);
+      applyOp({ type: "RemoveSaveDeposit", deposit: target.id });
+    };
+    const warnings = removalWarnings(page, target, views, names);
     const worked = page.station !== null && (group.view?.yields.length ?? 0) > 0;
     return {
       title: worked ? STATION_STAYS : "Remove one deposit of this type",
       label: `Remove ${group.view?.name ?? group.kind}`,
-      run: () => applyOp(op),
+      run: warnings.length === 0 ? remove : () => setConfirming(target.id),
+      warnings,
+      confirming: confirming === target.id,
+      confirm: remove,
+      cancel: () => setConfirming(null),
     };
   };
   const { features, blockers } = depositGroups(page.deposits, views);
@@ -238,6 +291,7 @@ export function PlanetDeposits({
       summary={blocked > 0 ? counted(blocked, "blocker") : undefined}
     >
       {totals.length > 0 && <DistrictStrip totals={totals} />}
+      {editable && page.terraforming && <div className="pl-dep-note">{TERRAFORMING_NOTE}</div>}
       {features.map((g) => (
         <DepositRow
           key={`${g.kind}|${g.swapType ?? ""}`}

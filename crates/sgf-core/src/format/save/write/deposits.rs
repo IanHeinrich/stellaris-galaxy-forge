@@ -1,7 +1,8 @@
 //! `AddSaveDeposit` and `RemoveSaveDeposit`: one entry of the top-level `deposit` table
-//! and its id in the `deposits` list of the uncolonised planet holding it. Nothing else in
-//! a save names a deposit of an uncolonised planet, so nothing else is written: a station
-//! working a removed deposit is left standing.
+//! and its id in the `deposits` list of the planet holding it. Nothing else is written, on a
+//! colony too: a station working a removed deposit is left standing, and the game itself
+//! demolishes districts over a lowered cap, removes what needed the deposit and drops the
+//! clearing of a removed blocker on the next month tick.
 //!
 //! A new entry takes a slot as [`super::add_system`] gives one, and its id goes last in
 //! the planet's list, or in a list written last in the planet, where the game keeps it.
@@ -34,7 +35,7 @@ pub(crate) fn plan_add(
 ) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
     check_deposit_kind(kind)?;
-    let (system, _) = uncolonised(&s.doc, planet)?;
+    let (system, _) = planet_facts(&s.doc, planet)?;
     let mut table = SlotTable::deposits(&s.doc)?;
     let slot = table.take();
     let id = slot.id();
@@ -56,7 +57,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<
     check_version(&s.doc)?;
     let held = held(&s.doc, deposit)?;
     let planet = held.planet.ok_or(OpError::DepositNotOnPlanet(deposit))?;
-    let (system, facts) = match uncolonised(&s.doc, planet) {
+    let (system, facts) = match planet_facts(&s.doc, planet) {
         Err(OpError::UnknownPlanet(_)) => Err(OpError::DepositNotOnPlanet(deposit)),
         found => found,
     }?;
@@ -79,14 +80,10 @@ pub(crate) fn check_deposit_kind(kind: &str) -> Result<(), OpError> {
     check_text("a deposit type", kind, Form::Bare)
 }
 
-/// Planet `id`'s system and what its entry says, refused when the planet is colonised:
-/// an owner and a colony, which the game writes together.
-fn uncolonised(doc: &Document, id: u32) -> Result<(u32, PlanetFacts), OpError> {
+/// Planet `id`'s system and what its entry says.
+fn planet_facts(doc: &Document, id: u32) -> Result<(u32, PlanetFacts), OpError> {
     let (node, src) = planet_entity(doc, id)?;
     let facts = planet::read(&node, src);
-    if facts.colony.is_some() || facts.owner.is_some() {
-        return Err(OpError::PlanetColonised(id));
-    }
     Ok((planet_system(&node, src, id)?, facts))
 }
 

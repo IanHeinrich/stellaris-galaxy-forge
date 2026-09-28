@@ -31,6 +31,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload
 - [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload
 - [ ] A deposit added to an uncolonised planet shows on its page in game, a removed one is gone, and both hold after a save and reload
+- [ ] A deposit added to or removed from a colonised planet shows in game; districts over a lowered cap are demolished within a month, and a building or zone that needed a removed deposit goes
 - [ ] A planet given a new size loads drawn at that size and a month passes cleanly
 - [ ] A planet renamed shows the new name in game, its moons show it in theirs, and both hold after a save and reload
 - [ ] A planet marked as a terraforming candidate shows the modifier in game and offers terraforming once Climate Restoration is researched; an unmarked one no longer does

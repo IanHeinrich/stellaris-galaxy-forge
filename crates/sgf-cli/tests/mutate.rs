@@ -334,8 +334,8 @@ fn deposit_refusals_write_nothing() {
     let out_str = out_path.to_str().unwrap();
     let refusals: [(&[&str], &str); 3] = [
         (
-            &["remove", SAMPLE_4_5, "--deposit", "440"],
-            "planet 2 is colonised",
+            &["remove", SAMPLE_4_5, "--deposit", "999999"],
+            "deposit 999999 does not exist",
         ),
         (
             &[

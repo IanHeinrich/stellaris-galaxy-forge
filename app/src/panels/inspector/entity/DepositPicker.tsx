@@ -9,6 +9,7 @@ import {
   type DepositRow,
   type PickerMode,
 } from "../../../lib/details/depositPicker";
+import { addWarnings } from "../../../lib/details/depositWarnings";
 import { resourceAbbrev } from "../../../lib/details/resources";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -112,6 +113,8 @@ function DepositPopover({
   const query = useDepositPickerStore((s) => s.query);
   const chip = useDepositPickerStore((s) => s.chip);
   const added = useDepositPickerStore((s) => s.added);
+  const pending = useDepositPickerStore((s) => s.pending);
+  const names = useGameDataStore((s) => s.names);
   const choices = useDepositPickerStore((s) => s.choices);
   const views = usePlanetDataStore((s) => s.depositTypes);
   const root = useRef<HTMLDivElement>(null);
@@ -136,7 +139,8 @@ function DepositPopover({
 
   const add = (row: DepositRow, amount: number) => {
     const picked = row.amounts[amount];
-    if (picked !== undefined) void store.add(row, picked);
+    if (picked !== undefined)
+      void store.add(row, picked, addWarnings(page, picked.key, views, names));
   };
   const onKey = (e: KeyboardEvent) => {
     const inSearch = e.target === search.current;
@@ -212,7 +216,22 @@ function DepositPopover({
           ))}
         </div>
       )}
-      {added !== null && (
+      {pending !== null && (
+        <div className="dp-confirm" role="alert">
+          {pending.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+          <span className="pl-dep-confirm-actions">
+            <button type="button" className="dp-amount" onClick={() => void store.confirm()}>
+              Add anyway
+            </button>
+            <button type="button" className="dp-amount" onClick={() => store.cancel()}>
+              Cancel
+            </button>
+          </span>
+        </div>
+      )}
+      {pending === null && added !== null && (
         <div className="dp-added" role="status">
           ✓ {added}
         </div>
