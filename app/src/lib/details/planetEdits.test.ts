@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planetPage } from "../../test/builders";
-import {
-  effectText,
-  removeDepositOp,
-  renamePlanetOp,
-  uncolonised,
-} from "./planetEdits";
+import { effectText, removeDepositOp, renamePlanetOp, uncolonised } from "./planetEdits";
 
 describe("a planet page's edits", () => {
   it("renames to the trimmed text, and not to nothing or the same name", () => {
