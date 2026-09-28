@@ -97,7 +97,10 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
                   {name}
                 </DrillLink>
                 {body !== undefined && (
-                  <span className="muted"> · {bodyNote(body, planets, nameOf, countryName, names)}</span>
+                  <span className="muted">
+                    {" "}
+                    · {bodyNote(body, planets, nameOf, countryName, names)}
+                  </span>
                 )}
               </span>
               <button

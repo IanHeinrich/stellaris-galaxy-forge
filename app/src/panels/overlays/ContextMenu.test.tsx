@@ -733,7 +733,9 @@ describe("moving planets", () => {
     useDetailsStore.setState({ details: new Map([[SOL, systemDetails({ id: SOL, planets })]]) });
     const hissman = { key: "Hissman Consciousness", literal: true, variables: [] };
     useGalaxyStore.setState({
-      countries: new Map([[HISSMAN, countryNode({ id: HISSMAN, name: hissman, name_key: hissman.key })]]),
+      countries: new Map([
+        [HISSMAN, countryNode({ id: HISSMAN, name: hissman, name_key: hissman.key })],
+      ]),
     });
     vi.mocked(ipc.planetMoveTargets).mockImplementation(async (ids) => targets(ids));
   });

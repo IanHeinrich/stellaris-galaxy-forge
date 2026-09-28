@@ -64,10 +64,8 @@ export function CutItem({ system }: { system: number }) {
   const moving =
     availability.kind === "ready"
       ? availability.planets.length
-      : movingBodies(
-          selection.ids,
-          (id) => read?.planets.find((p) => p.id === id)?.parent ?? null,
-        ).length;
+      : movingBodies(selection.ids, (id) => read?.planets.find((p) => p.id === id)?.parent ?? null)
+          .length;
   return (
     <MenuItem
       disabled={availability.kind !== "ready"}

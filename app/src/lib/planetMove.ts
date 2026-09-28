@@ -110,7 +110,8 @@ export function selectionLine(
   leaving: readonly { moon: string; planet: string }[],
 ): string {
   const parts = [counted(planets, "planet")];
-  if (moonsAlong > 0) parts.push(`${counted(moonsAlong, "moon")} ${moonsAlong === 1 ? "comes" : "come"} along`);
+  if (moonsAlong > 0)
+    parts.push(`${counted(moonsAlong, "moon")} ${moonsAlong === 1 ? "comes" : "come"} along`);
   if (leaving.length > 0) {
     parts.push(andMore(`${leaving[0].moon} leaves ${leaving[0].planet}`, leaving.length));
   }
@@ -119,7 +120,9 @@ export function selectionLine(
 
 /** The inspector's hint under Cut: where else it is, or what to do once these planets are cut. */
 export function cutHint(cut: boolean): string {
-  return cut ? "Cut. Right-click a system to paste them there." : "Also in the right-click menu on the map.";
+  return cut
+    ? "Cut. Right-click a system to paste them there."
+    : "Also in the right-click menu on the map.";
 }
 
 /** `1 jump`, `2 jumps`. */

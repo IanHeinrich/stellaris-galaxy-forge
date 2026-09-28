@@ -4,7 +4,8 @@ import { usePlanetMoveStore, type BodySelection } from "../../../store/planetMov
 import { useSceneSystem } from "../../../store/sceneStore";
 
 /** What the inspector's stack does to follow the body selection. */
-export type SummaryStep = { kind: "open"; entry: Entry } | { kind: "pop" } | { kind: "clear" } | null;
+export type SummaryStep =
+  { kind: "open"; entry: Entry } | { kind: "pop" } | { kind: "clear" } | null;
 
 /**
  * The step that keeps the summary above the shown system's page while two or more of its bodies
