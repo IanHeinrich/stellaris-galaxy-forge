@@ -30,7 +30,7 @@ const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
 
 /// Initializers the generator seats any empire on.
 const GENERIC_HOME_PREFIXES: [&str; 2] = ["random_empire_init_", SOL_INITIALIZER];
-const FALLEN_EMPIRE_PREFIXES: [&str; 2] = ["fallen_", "ai_system_"];
+const FALLEN_EMPIRE_PREFIX: &str = "fallen_";
 /// Vanilla initializers that `spawn_megastructure` an `lgate_base` besides those named
 /// after it (`distant_stars_initializers.txt`).
 const LGATE_INITIALIZERS: [&str; 3] = [
@@ -97,10 +97,9 @@ impl std::fmt::Display for Category {
 /// capital stands in it.
 pub fn classify(initializer: &str, flags: &[String], is_capital: bool) -> Category {
     let has = |flag: &str| flags.iter().any(|f| f == flag);
-    let starts = |prefixes: &[&str]| prefixes.iter().any(|p| initializer.starts_with(p));
     if is_capital || has("empire_home_system") {
         Category::Home
-    } else if starts(&FALLEN_EMPIRE_PREFIXES) {
+    } else if initializer.starts_with(FALLEN_EMPIRE_PREFIX) {
         Category::FallenEmpire
     } else if initializer.starts_with(MARAUDER_PREFIX) || has("marauder_system") {
         Category::Marauder
@@ -183,7 +182,11 @@ mod tests {
     fn initializer_names_and_flags_pick_the_category() {
         for (initializer, flags, expected) in [
             ("fallen_machine_3", vec![], Category::FallenEmpire),
-            ("ai_system_04", vec![], Category::FallenEmpire),
+            (
+                "ai_system_04",
+                vec!["AI_hub", "AI_system_4"],
+                Category::Special,
+            ),
             ("marauder_1", vec![], Category::Marauder),
             ("basic_init_01", vec!["marauder_system"], Category::Marauder),
             ("ratling_home", vec![], Category::Ratling),

@@ -7,7 +7,14 @@ import type { SaveFile } from "../../generated/SaveFile";
 import type { SaveMeta } from "../../generated/SaveMeta";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
 import { displayNameIn, readableKey } from "../../lib/names";
-import { countText, rangeText, recentTarget, timesText, type Row } from "../../lib/openRows";
+import {
+  countText,
+  rangeText,
+  recentTarget,
+  START_YEAR,
+  timesText,
+  type Row,
+} from "../../lib/openRows";
 import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { fileName, folderOf } from "../../lib/paths";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
@@ -20,9 +27,6 @@ import type { RecentDoc } from "../../store/recentsStore";
 import { useNamed } from "../useNamed";
 import { EmpireMark, IRONMAN_TITLE } from "./OpenRows";
 import { useForPaint } from "./useForPaint";
-
-/** The first year of every game; the galaxy block states mid and end game as years after it. */
-const START_YEAR = 2200;
 
 const DLC_SHOWN = 5;
 

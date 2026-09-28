@@ -99,6 +99,19 @@ pub struct GalaxySettings {
     pub crises: Option<f64>,
     pub mid_game_start: Option<u32>,
     pub end_game_start: Option<u32>,
+    /// Years after 2200, as are `mid_game_start` and `end_game_start`.
+    pub victory_year: Option<u32>,
+    pub cosmic_storm_early_game_spawn_chance_scale: Option<f64>,
+    pub cosmic_storm_mid_game_spawn_chance_scale: Option<f64>,
+    pub cosmic_storm_late_game_spawn_chance_scale: Option<f64>,
+    pub cosmic_storm_early_game_spawn_max_cap: Option<u32>,
+    pub cosmic_storm_mid_game_spawn_max_cap: Option<u32>,
+    pub cosmic_storm_late_game_spawn_max_cap: Option<u32>,
+    pub cosmic_storm_spawn_cooldown_scale: Option<f64>,
+    pub cosmic_storm_devastation: Option<f64>,
+    pub voidworms_scaling: Option<f64>,
+    pub cutholoids_scaling: Option<f64>,
+    pub fallen_empire_strength_scale: Option<f64>,
     pub ironman: Option<bool>,
     pub core_radius: Option<f64>,
 }
@@ -247,7 +260,8 @@ pub fn read_galaxy_settings(path: impl AsRef<Path>) -> Result<GalaxySettings, Er
         .unwrap_or_default())
 }
 
-fn galaxy_settings(galaxy: &Node, src: &[u8]) -> GalaxySettings {
+/// The settings off `galaxy`, a parsed top-level `galaxy` block.
+pub(crate) fn galaxy_settings(galaxy: &Node, src: &[u8]) -> GalaxySettings {
     let text = |key| read::scalar(galaxy, key, src).map(str::to_owned);
     let number = |key| read::scalar(galaxy, key, src)?.parse().ok();
     let count = |key| read::scalar_u32(galaxy, key, src);
@@ -271,6 +285,24 @@ fn galaxy_settings(galaxy: &Node, src: &[u8]) -> GalaxySettings {
         crises: number(keys::CRISES),
         mid_game_start: count(keys::MID_GAME_START),
         end_game_start: count(keys::END_GAME_START),
+        victory_year: count(keys::VICTORY_YEAR),
+        cosmic_storm_early_game_spawn_chance_scale: number(
+            keys::COSMIC_STORM_EARLY_GAME_SPAWN_CHANCE_SCALE,
+        ),
+        cosmic_storm_mid_game_spawn_chance_scale: number(
+            keys::COSMIC_STORM_MID_GAME_SPAWN_CHANCE_SCALE,
+        ),
+        cosmic_storm_late_game_spawn_chance_scale: number(
+            keys::COSMIC_STORM_LATE_GAME_SPAWN_CHANCE_SCALE,
+        ),
+        cosmic_storm_early_game_spawn_max_cap: count(keys::COSMIC_STORM_EARLY_GAME_SPAWN_MAX_CAP),
+        cosmic_storm_mid_game_spawn_max_cap: count(keys::COSMIC_STORM_MID_GAME_SPAWN_MAX_CAP),
+        cosmic_storm_late_game_spawn_max_cap: count(keys::COSMIC_STORM_LATE_GAME_SPAWN_MAX_CAP),
+        cosmic_storm_spawn_cooldown_scale: number(keys::COSMIC_STORM_SPAWN_COOLDOWN_SCALE),
+        cosmic_storm_devastation: number(keys::COSMIC_STORM_DEVASTATION),
+        voidworms_scaling: number(keys::VOIDWORMS_SCALING),
+        cutholoids_scaling: number(keys::CUTHOLOIDS_SCALING),
+        fallen_empire_strength_scale: number(keys::FALLEN_EMPIRE_STRENGTH_SCALE),
         ironman: read::scalar(galaxy, keys::IRONMAN, src).map(|v| v == "yes"),
         core_radius: number(keys::CORE_RADIUS),
     }
