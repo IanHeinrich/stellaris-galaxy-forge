@@ -18,6 +18,7 @@ import { refKey, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
+import { usePlanetMoveStore } from "./planetMoveStore";
 import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { nudgeBody } from "./systemGeometry";
 import { symmetryAllowed, toolAllowed, useToolStore } from "./toolStore";
@@ -185,6 +186,15 @@ export function closeDocument(): void {
   if (session.status === "ready") void session.close();
 }
 
+/** Clears the bodies selected in the system shown, with the inspector back on the system. */
+function clearShownBodies(): boolean {
+  const moves = usePlanetMoveStore.getState();
+  if (moves.selection === null || moves.selection.system !== sceneSystem()) return false;
+  moves.clearBodies();
+  useInspectorStore.getState().popTo(0);
+  return true;
+}
+
 function escape(inInput: boolean): void {
   if (useInitializerBrowserStore.getState().open) {
     useInitializerBrowserStore.getState().close();
@@ -199,6 +209,10 @@ function escape(inInput: boolean): void {
     chrome.closeContextMenu();
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
+  } else if (usePlanetMoveStore.getState().cancelCut()) {
+    return;
+  } else if (clearShownBodies()) {
+    return;
   } else if (useInspectorStore.getState().escape()) {
     return;
   } else if (sceneSystem() !== null) {

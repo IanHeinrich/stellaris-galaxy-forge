@@ -20,6 +20,7 @@ import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
+import { usePlanetMoveStore } from "./planetMoveStore";
 import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
@@ -57,6 +58,34 @@ export function bindStores(): void {
   followScene();
   followSymmetry();
   followWatchlist();
+  followPlanetMove();
+}
+
+// A body selection and a cut belong to the open document. The selection belongs to one system,
+// so entering another clears it, and a body the details no longer hold there leaves it. An edit,
+// undo or redo can change where planets may go, so the targets are read again.
+function followPlanetMove(): void {
+  const moves = () => usePlanetMoveStore.getState();
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status !== previous.status) moves().reset();
+  });
+  useEditorStore.subscribe((state, previous) => {
+    if (state.history === previous.history) return;
+    if (useFileSessionStore.getState().status === "ready") moves().refresh();
+  });
+  useSceneStore.subscribe((state, previous) => {
+    if (state.visit === previous.visit) return;
+    const { selection } = moves();
+    if (selection !== null && selection.system !== sceneSystem()) moves().clearBodies();
+  });
+  useDetailsStore.subscribe((state, previous) => {
+    const { selection } = moves();
+    if (selection === null) return;
+    const after = state.details.get(selection.system);
+    if (after === undefined || after === previous.details.get(selection.system)) return;
+    const held = new Set(after.planets.map((p) => p.id));
+    moves().keepBodies((id) => held.has(id));
+  });
 }
 
 // The galaxy the document holds decides the notes raised on it: a seat's kind or a system count
