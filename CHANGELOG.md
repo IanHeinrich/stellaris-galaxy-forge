@@ -10,6 +10,10 @@ a release is made.
 
 ### Added
 
+- With Details on, the system view shows which planets are colonised.
+  A colony's name has its owner's flag on the game's name plate, as
+  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
+  icon beside its name.
 - Rename an empire from the Name field at the top of its page. Renaming
   your own empire also renames the save on the game's load screen.
 - A pre-FTL civilisation's page shows its age, such as Stone Age or

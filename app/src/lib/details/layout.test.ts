@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
 import { STAR_BASE_PX } from "../visual/starSize";
 import { COUNTRY, details, planet } from "./fixture";
+import { empireFlagKey } from "./fleets";
 import {
   NAME_ROW,
+  NO_MARKS,
+  bodyMarks,
   colonyOwner,
   emblemOwner,
   nameRowY,
@@ -60,6 +63,38 @@ describe("plateKey", () => {
 
   it("is null for a marauder-held system with nothing colonised, so no plate sits behind its emblem", () => {
     expect(plateKey(details({}))).toBeNull();
+  });
+});
+
+describe("bodyMarks", () => {
+  const countries = new Map([[COUNTRY.id, COUNTRY]]);
+
+  it("gives a colony the plate and its owner's flag, the capital's plate and rim on the capital", () => {
+    const colony = planet({ colonised: true, owner: COUNTRY.id });
+    expect(bodyMarks(colony, countries)).toEqual({
+      plate: "sprite:GFX_map_icon_bg",
+      flag: empireFlagKey(COUNTRY),
+      capital: false,
+      preFtl: false,
+    });
+    expect(bodyMarks({ ...colony, capital: true }, countries)).toMatchObject({
+      plate: "sprite:GFX_map_icon_bg_capital",
+      capital: true,
+    });
+  });
+
+  it("gives a pre-FTL world the icon alone, and an unsettled planet nothing", () => {
+    const preFtl = planet({ colonised: true, owner: COUNTRY.id, pre_ftl: true });
+    expect(bodyMarks(preFtl, countries)).toEqual({ ...NO_MARKS, preFtl: true });
+    expect(bodyMarks(planet({ owner: COUNTRY.id }), countries)).toEqual(NO_MARKS);
+  });
+
+  it("keeps a colony's plate when its owner has no flag", () => {
+    const colony = planet({ colonised: true, owner: 99 });
+    expect(bodyMarks(colony, countries)).toMatchObject({
+      plate: "sprite:GFX_map_icon_bg",
+      flag: null,
+    });
   });
 });
 
