@@ -127,6 +127,15 @@ describe("badgeLabel", () => {
     expect(badgeLabel("enclave", salvager, "Xanthe", NAMES)).toBe("Salvager Enclave");
   });
 
+  it("names hidden content by its kind, whatever country the classifier found there", () => {
+    const holy = special({ primary: "holy_world", label: "Keepers of Knowledge" });
+    expect(badgeLabel("holy_world", holy, "Kochab", NAMES)).toBe("Holy world");
+    const hub = special({ primary: "contingency", initializer: "ai_system_01", label: "Oris" });
+    expect(badgeLabel("contingency", hub, "Oris", NAMES)).toBe("Contingency hub");
+    expect(badgeLabel("horizon_signal", special({}), "Ixa", NAMES)).toBe("Horizon Signal");
+    expect(badgeLabel("cutholoid", special({}), "Ixa", NAMES)).toBe("Cutholoid");
+  });
+
   it("names an enclave with no country present after its initializer, then the bare kind", () => {
     const noCountry = special({
       primary: "enclave",
@@ -206,11 +215,19 @@ describe("badgeIconKey", () => {
       countries: [countryRef({ category: "pirate", file: "flag_pirate_1.dds" })],
     });
     expect(badgeIconKey("marauder", marauder)).toBe("symbol:pirate/flag_pirate_5.dds");
+    const holy = special({
+      primary: "holy_world",
+      countries: [countryRef({ category: "special", file: "hive_fe_flag_1.dds" })],
+    });
+    expect(badgeIconKey("holy_world", holy)).toBe("symbol:special/hive_fe_flag_1.dds");
   });
 
   it("gives every other kind a fixed icon", () => {
     expect(badgeIconKey("landmark", undefined)).toBe("sprite:GFX_point_of_interest_levels#1");
     expect(badgeIconKey("unique", undefined)).toBe("symbol:pointy/flag_pointy_16.dds");
+    expect(badgeIconKey("contingency", undefined)).toBe("symbol:special/ai_01.dds");
+    expect(badgeIconKey("cutholoid", undefined)).toBe("symbol:zoological/flag_zoological_1.dds");
+    expect(badgeIconKey("horizon_signal", undefined)).toBe("symbol:special/unknown.dds");
   });
 });
 
@@ -227,6 +244,10 @@ describe("badgeVisible", () => {
     expect(badgeVisible("leviathan", "none")).toBe(true);
     expect(badgeVisible("unique", "none")).toBe(false);
     expect(badgeVisible("unique", "some")).toBe(true);
+    expect(badgeVisible("contingency", "none")).toBe(true);
+    expect(badgeVisible("holy_world", "none")).toBe(true);
+    expect(badgeVisible("cutholoid", "none")).toBe(false);
+    expect(badgeVisible("cutholoid", "some")).toBe(true);
   });
 
   it("never badges a kind whose territory the owners layer emphasises instead", () => {

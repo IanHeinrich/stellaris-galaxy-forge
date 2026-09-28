@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
-use sgf_gamedata::deposit_roll::{NewBody, RollBody, roll_deposits};
+use sgf_gamedata::deposit_roll::{NewBody, RollBody, fitting, roll_deposits};
 use sgf_gamedata::generate::generate;
 use sgf_gamedata::layouts::odds;
 use sgf_gamedata::rng::Rng;
@@ -55,6 +55,7 @@ const FILES: [(&str, &str); 8] = [
          d_fx_mystery = {\n\tis_for_colonizable = no\n\tpotential = { mystery_scope = { x = y } }\n\tdrop_weight = { weight = 1000 }\n}\n\
          d_fx_param_value = {\n\tis_for_colonizable = no\n\tpotential = { NOT = { is_fx_class = yes } }\n\tdrop_weight = { weight = 1000 }\n}\n\
          d_fx_param_block = {\n\tis_for_colonizable = no\n\tpotential = { is_fx_optional = yes }\n\tdrop_weight = { weight = 1000 }\n}\n\
+         d_fx_event_only = {\n\tis_for_colonizable = no\n\tdrop_weight = { weight = 0 }\n}\n\
          d_fx_planet_scope = {\n\tis_for_colonizable = no\n\tpotential = { planet = { is_planet_class = pc_fx_rock } }\n\tdrop_weight = { weight = 1000 }\n}\n",
     ),
     (
@@ -643,4 +644,39 @@ fn a_generated_system_rolls_deposits_on_every_kind_of_body_at_abundance_2() {
         let (bodies, with) = seen[kind];
         assert!(with > 0 && with < bodies, "{kind}: {seen:?}");
     }
+}
+
+#[test]
+fn the_types_that_fit_a_hand_written_body_are_those_its_potential_allows() {
+    let (_dir, gd) = hand_written();
+    let fit_with = |body: &RollBody<'_>, have: &[String]| -> BTreeSet<String> {
+        fitting(&gd, body, have)
+            .iter()
+            .map(|d| d.key.clone())
+            .collect()
+    };
+    let fit = |body: &RollBody<'_>| fit_with(body, &[]);
+    let star = RollBody {
+        star: true,
+        ..body("pc_fx_star", 25)
+    };
+    assert_eq!(fit(&star), keys(&["d_fx_star_energy", "d_fx_star_physics"]));
+    let rock = body("pc_fx_rock", 15);
+    assert_eq!(
+        fit(&rock),
+        keys(&["d_fx_ore", "d_fx_unmarked"]),
+        "the null deposit, a potential that cannot be judged and a type that weighs nothing are left out"
+    );
+    let moon = RollBody { moon: true, ..rock };
+    assert_eq!(fit(&moon), keys(&["d_fx_ore", "d_fx_moon_only"]));
+    assert_eq!(
+        fit(&body("pc_fx_meadow", 16)),
+        keys(&["d_fx_farmland", "d_fx_blocker", "d_fx_swamp", "d_fx_bog"]),
+        "a habitable world takes the colonisable types, blockers included"
+    );
+    assert_eq!(
+        fit_with(&body("pc_fx_meadow", 16), &["d_fx_bog".to_owned()]),
+        keys(&["d_fx_farmland", "d_fx_blocker", "d_fx_bog"]),
+        "a weight reads the deposits the body holds"
+    );
 }

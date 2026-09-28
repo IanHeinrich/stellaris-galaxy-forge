@@ -118,6 +118,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetLGateOutcome { .. }
         | Op::SetStarClass { .. }
         | Op::SetPlanetSize { .. }
+        | Op::RenameSavePlanet { .. }
         | Op::SetTerraformCandidate { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
@@ -126,6 +127,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         // and its systems are statements `AddSystem` writes, with no bodies of their own.
         Op::SetEmpireMapColors { .. }
         | Op::SetEmpireFlag { .. }
+        | Op::RenameEmpire { .. }
         | Op::AddSaveSystem { .. }
         | Op::AddSaveDeposit { .. }
         | Op::RemoveSaveDeposit { .. }

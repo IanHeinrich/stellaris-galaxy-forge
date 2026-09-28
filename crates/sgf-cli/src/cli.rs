@@ -198,6 +198,23 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Rename a save planet or moon; its moons that name it by its old name follow.
+    RenamePlanet {
+        sav: PathBuf,
+        planet: u32,
+        name: String,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Rename an empire. Renaming the player's empire also renames the save on the load
+    /// screen.
+    RenameEmpire {
+        sav: PathBuf,
+        country: u32,
+        name: String,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Make a save planet a terraforming candidate, or stop it being one.
     TerraformCandidate {
         sav: PathBuf,

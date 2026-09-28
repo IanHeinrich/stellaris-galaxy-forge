@@ -386,6 +386,12 @@ pub fn one_of_each() -> Vec<Example> {
                 secondary: "dark_blue".to_owned(),
             },
         }),
+        Example::save(Op::RenameEmpire {
+            country: 0,
+            name: "Sgf Dominion".to_owned(),
+            value: None,
+            custom_name: None,
+        }),
         Example::save(Op::AddSaveSystem {
             spec: super::spec::dorellion(),
         }),
@@ -459,6 +465,11 @@ pub fn one_of_each() -> Vec<Example> {
             planet: 99,
             to: 216,
             at: None,
+        }),
+        Example::save_4_5(Op::RenameSavePlanet {
+            planet: 140,
+            name: "Nova Terra".to_owned(),
+            block: None,
         }),
         Example::each(
             Op::Batch {

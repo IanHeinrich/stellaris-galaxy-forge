@@ -56,6 +56,7 @@ fn node(raw: RawCountry) -> Option<CountryNode> {
         has_map_colors: Some(raw.has_map_colors),
         flag_icon: raw.flag_icon,
         flag_background: raw.flag_background,
+        preftl_age: raw.preftl_age,
         flags: raw.flags,
     })
 }

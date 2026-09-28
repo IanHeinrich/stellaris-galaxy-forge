@@ -1,13 +1,25 @@
 import { useState } from "react";
+import type { SystemNode } from "../../../../generated/SystemNode";
+import { hiddenContentLines } from "../../../../lib/special";
+import { useGameDataStore } from "../../../../store/gameDataStore";
 import { FilterField, FILTER_MIN } from "../../../parts";
 import { Empty, Section } from "../../parts";
 
-export function FlagsSection({ flags }: { flags: readonly string[] }) {
+/** The system's flags, led by what galaxy generation hid here; open whenever it hid something. */
+export function FlagsSection({ system }: { system: SystemNode }) {
   const [query, setQuery] = useState("");
+  const kinds = useGameDataStore((s) => s.special.get(system.id)?.kinds);
+  const { flags } = system;
   const needle = query.trim().toLowerCase();
   const shown = needle === "" ? flags : flags.filter((f) => f.toLowerCase().includes(needle));
+  const hidden = hiddenContentLines(kinds ?? []);
   return (
-    <Section id="system.flags" title="Flags" count={flags.length} startClosed>
+    <Section id="system.flags" title="Flags" count={flags.length} startClosed={hidden.length === 0}>
+      {hidden.map((line) => (
+        <div key={line} className="ins-line">
+          {line}
+        </div>
+      ))}
       {flags.length === 0 ? (
         <Empty>No flags on this system.</Empty>
       ) : (

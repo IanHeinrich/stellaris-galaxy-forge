@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_gamedata::deposit_choices::{DepositChoice, deposit_choices};
+use sgf_gamedata::deposit_roll::RollBody;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
@@ -193,6 +195,29 @@ pub fn get_star_classes(game_data: State<'_, GameDataState>) -> Vec<StarClassVie
 pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
         gd.deposits.iter().map(DepositView::from).collect()
+    })
+}
+
+/// Every deposit type but the null one, by key, with its family, its
+/// category and whether the game's roll could place it on a body of planet class `class`
+/// and `size`, a moon when `moon`, that holds the deposit types `deposits`; empty without
+/// game data.
+#[tauri::command(async)]
+pub fn get_deposit_choices(
+    game_data: State<'_, GameDataState>,
+    class: String,
+    size: u32,
+    moon: bool,
+    deposits: Vec<String>,
+) -> Vec<DepositChoice> {
+    game_data.loaded().map_or_else(Vec::new, |gd| {
+        let body = RollBody {
+            class: &class,
+            size,
+            star: gd.planet_classes.get(&class).is_some_and(|c| c.star),
+            moon,
+        };
+        deposit_choices(&gd, &body, &deposits)
     })
 }
 

@@ -38,39 +38,50 @@ beforeEach(async () => {
 });
 
 describe("a planet page after an edit", () => {
-  it("is read again once a star-type edit to its system has dropped it", async () => {
+  it("stays while it is read again after a star-type edit to its system, then is swapped", async () => {
     await readPages();
+    const before = entities().pages.get(STAR);
     mockedIpc.applyOp.mockResolvedValue(ALPHA_EDITED);
 
     await editor().applyOp(RETYPE);
-    expect([...entities().pages.keys()]).toEqual([WORLD]);
+    expect(entities().pages.get(STAR)).toBe(before);
+    expect([...entities().stalePages]).toEqual([STAR]);
 
-    getPlanetPage.mockResolvedValueOnce(
-      planetPage({ id: STAR, system: ALPHA, class: "pc_b_star" }),
+    let answer = (): void => undefined;
+    getPlanetPage.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = () => resolve(planetPage({ id: STAR, system: ALPHA, class: "pc_b_star" }));
+        }),
     );
     entities().requestPlanetPage(STAR);
+    expect(entities().pages.get(STAR)).toBe(before);
+    answer();
     await vi.waitFor(() => expect(entities().pages.get(STAR)?.class).toBe("pc_b_star"));
+    expect(entities().stalePages.size).toBe(0);
+    expect(getPlanetPage).toHaveBeenCalledTimes(3);
+
+    entities().requestPlanetPage(STAR);
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
   });
 
-  it("is dropped by an undo to its system as by the edit", async () => {
+  it("is made stale by an undo to its system as by the edit", async () => {
     await readPages();
     mockedIpc.undo.mockResolvedValue(ALPHA_EDITED);
 
     await editor().undo();
-    expect(entities().pages.has(STAR)).toBe(false);
-    expect(entities().pages.has(WORLD)).toBe(true);
+    expect([...entities().stalePages]).toEqual([STAR]);
 
     entities().requestPlanetPage(STAR);
-    await vi.waitFor(() => expect(entities().pages.has(STAR)).toBe(true));
+    await vi.waitFor(() => expect(entities().stalePages.size).toBe(0));
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
   });
 
-  it("is dropped when its system leaves the galaxy", async () => {
+  it("is stale when its system leaves the galaxy", async () => {
     await readPages();
 
     entities().noteEdit(editResult({ delta: { systems: [], removed: [SOL] } }));
-    expect([...entities().pages.keys()]).toEqual([STAR]);
+    expect([...entities().stalePages]).toEqual([WORLD]);
   });
 
   it("throws away a page read the edit overtook", async () => {
@@ -88,5 +99,6 @@ describe("a planet page after an edit", () => {
 
     expect(entities().pages.has(STAR)).toBe(false);
     expect(entities().pending.size).toBe(0);
+    expect(entities().stalePages.size).toBe(0);
   });
 });

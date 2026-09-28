@@ -1,0 +1,37 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed empire 0 to Sgf Dominion of Tests
+inverse: RenameEmpire { country: 0, name: "Test Empire", value: None, custom_name: None }
+
+--- gamestate
++++ gamestate
+@@ -1,6 +1,6 @@
+ version="Cygnus v4.5.0"
+ version_control_revision=90
+-name="Test Empire"
++name="Sgf Dominion of Tests"
+ date="2201.03.25"
+ required_dlcs=
+ {
+@@ -412340,7 +412340,7 @@
+ 		}
+ 		name=
+ 		{
+-			key="Test Empire"
++			key="Sgf Dominion of Tests"
+ 			literal=yes
+ 		}
+ 		adjective=
+
+--- meta
++++ meta
+@@ -1,6 +1,6 @@
+ version="Cygnus v4.5.0"
+ version_control_revision=90
+-name="Test Empire"
++name="Sgf Dominion of Tests"
+ date="2201.03.25"
+ required_dlcs=
+ {

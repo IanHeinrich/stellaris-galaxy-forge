@@ -20,6 +20,7 @@ use std::ops::{Deref, DerefMut};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::archive::GalaxySettings;
 use crate::cst::CstError;
 use crate::projections::name::NameTemplate;
 use crate::views::DocumentKind;
@@ -104,6 +105,10 @@ pub struct Galaxy {
     /// What day-one's L-Cluster roll landed on; `None` when the galaxy has no L-Gate, or
     /// for a scenario.
     pub lgate: Option<LGate>,
+    /// Day one's roll set the global flag `kaleidoscope_will_spawn`; `false` for a scenario.
+    pub kaleidoscope: bool,
+    /// The save's `galaxy` block as the Open dialog reads it; `None` for a scenario.
+    pub settings: Option<GalaxySettings>,
 }
 
 /// The setup screen a save was started with, as its top-level `galaxy` block still holds

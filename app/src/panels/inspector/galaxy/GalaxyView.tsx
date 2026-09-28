@@ -12,6 +12,8 @@ import { useIssuesStore } from "../../../store/issuesStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
 import { LGateBlock } from "./LGateBlock";
+import { SaveSetupSection } from "./SaveSetupSection";
+import { KALEIDOSCOPE_TITLE, KALEIDOSCOPE_VALUE } from "./saveSetup";
 import { handledKeys } from "./gameSetup";
 import {
   addHeaderField,
@@ -208,6 +210,11 @@ export function GalaxyView() {
             )}
           </PropertyRow>
           <PropertyRow label="Radius">{galaxy.galaxy_radius}</PropertyRow>
+          {galaxy.kaleidoscope && (
+            <PropertyRow label="Kaleidoscope" title={KALEIDOSCOPE_TITLE}>
+              {KALEIDOSCOPE_VALUE}
+            </PropertyRow>
+          )}
           {kind === "scenario" && (
             <PropertyRow
               label="Core radius"
@@ -230,6 +237,7 @@ export function GalaxyView() {
           <HeaderSection header={header} paint={paint} />
         </>
       )}
+      {galaxy.settings !== null && <SaveSetupSection settings={galaxy.settings} />}
       <Section id="galaxy.file" title="File">
         <Properties>
           <PropertyRow label="Name">{path === null ? "not saved yet" : fileName(path)}</PropertyRow>

@@ -47,6 +47,10 @@ pub struct GalaxyView {
     /// What day-one's L-Cluster roll landed on; `None` when the galaxy has no L-Gate, or
     /// for a scenario.
     pub lgate: Option<LGate>,
+    /// The setup-screen settings the save was started with; `None` for a scenario.
+    pub settings: Option<archive::GalaxySettings>,
+    /// Day one rolled for the Kaleidoscope to come; `false` for a scenario.
+    pub kaleidoscope: bool,
 }
 
 impl GalaxyView {
@@ -68,6 +72,8 @@ impl GalaxyView {
             components,
             header: galaxy.header.clone(),
             lgate: galaxy.lgate,
+            settings: galaxy.settings.clone(),
+            kaleidoscope: galaxy.kaleidoscope,
         }
     }
 }
@@ -442,6 +448,8 @@ pub struct EditResult {
     /// Whether the classification of the systems the op touched, and the territory the
     /// scripts give them, may have moved with it.
     pub reclassifies: bool,
+    /// The name the document is listed under, which renaming the player's empire changes.
+    pub title: String,
 }
 
 /// What `save` and `save_as` return: where the file landed and the session state after.

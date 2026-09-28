@@ -12,8 +12,12 @@ export const KIND_STYLE: Record<SpecialKind, { color: number }> = {
   leviathan: { color: 0xff5533 },
   enclave: { color: 0x2dd4bf },
   marauder: { color: 0x9333ea },
+  holy_world: { color: 0xfacc15 },
   fallen_empire: { color: 0xd4af37 },
   landmark: { color: 0x8b5cf6 },
+  contingency: { color: 0xef4444 },
+  horizon_signal: { color: 0x38bdf8 },
+  cutholoid: { color: 0xa3a3a3 },
   unique: { color: 0x22c55e },
 };
 
@@ -22,8 +26,11 @@ export const NOTABLE_KINDS: ReadonlySet<SpecialKind> = new Set([
   "leviathan",
   "enclave",
   "marauder",
+  "holy_world",
   "fallen_empire",
   "landmark",
+  "contingency",
+  "horizon_signal",
 ]);
 
 /** Kinds that own whole territories: the owners layer emphasises their borders instead of badging each system. */
@@ -144,8 +151,8 @@ function hidesGeneratedName(initializer: string): boolean {
 /**
  * The badge text, always saying what the system is: a leviathan by the country the classifier
  * found, a landmark by the megastructure standing there, an enclave by the classifier's name
- * unless that name is a generated one this map hides, else the classifier's name; a
- * humanised initializer before the kind alone.
+ * unless that name is a generated one this map hides, hidden content by its kind alone, else
+ * the classifier's name; a humanised initializer before the kind alone.
  */
 export function badgeLabel(
   kind: SpecialKind,
@@ -177,6 +184,11 @@ export function badgeLabel(
       const label = hidden ? null : classifierLabel(special, systemName);
       return label ?? initializerLabel(special) ?? kindLabel(kind);
     }
+    case "holy_world":
+    case "contingency":
+    case "horizon_signal":
+    case "cutholoid":
+      return kindLabel(kind);
     default:
       return classifierLabel(special, systemName) ?? kindLabel(kind);
   }
@@ -186,8 +198,12 @@ const KIND_ICONS: Record<SpecialKind, string> = {
   leviathan: "symbol:pirate/flag_pirate_3.dds",
   enclave: "symbol:enclaves/enclaves_flag_curator.dds",
   marauder: "symbol:pirate/flag_pirate_5.dds",
+  holy_world: "symbol:special/the_empire.dds",
   fallen_empire: "symbol:special/the_empire.dds",
   landmark: "sprite:GFX_point_of_interest_levels#1",
+  contingency: "symbol:special/ai_01.dds",
+  horizon_signal: "symbol:special/unknown.dds",
+  cutholoid: "symbol:zoological/flag_zoological_1.dds",
   unique: "symbol:pointy/flag_pointy_16.dds",
 };
 
@@ -198,7 +214,7 @@ export function symbolKey(icon: FlagIcon | null | undefined): string | null {
 
 /**
  * The texture key for a badge's icon: the spawned country's flag symbol for a leviathan, an
- * enclave or a fallen empire, else the kind's icon.
+ * enclave, a fallen empire or its holy world, else the kind's icon.
  */
 export function badgeIconKey(kind: SpecialKind, special: SpecialSystem | undefined): string {
   const countryIcon = symbolKey(special?.countries[0]?.icon);
@@ -206,6 +222,7 @@ export function badgeIconKey(kind: SpecialKind, special: SpecialSystem | undefin
     case "leviathan":
       return countryIcon ?? vanilla(special, LEVIATHANS)?.icon ?? KIND_ICONS.leviathan;
     case "enclave":
+    case "holy_world":
     case "fallen_empire":
       return countryIcon ?? KIND_ICONS[kind];
     default:

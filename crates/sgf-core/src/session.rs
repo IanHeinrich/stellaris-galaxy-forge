@@ -199,6 +199,7 @@ impl Session {
                 .collect(),
             details_stale: result.details_stale,
             reclassifies: result.reclassifies,
+            title: self.title(),
         }
     }
 

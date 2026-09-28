@@ -7,7 +7,7 @@ fn special_from_flags_alone_lists_systems_and_the_per_kind_footer() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("special: 100 system(s) (save flags only)"),
+        text.contains("special: 120 system(s) (save flags only)"),
         "{text}"
     );
     let footer = |kind: &str| -> Vec<String> {
@@ -21,6 +21,7 @@ fn special_from_flags_alone_lists_systems_and_the_per_kind_footer() {
     assert_eq!(footer("leviathan")[1], "6");
     assert_eq!(footer("enclave")[1], "14");
     assert_eq!(footer("landmark")[1..], ["11", "11"]);
+    assert_eq!(footer("contingency")[1..], ["4", "4"]);
     assert!(
         text.lines().any(|l| l.starts_with('#')
             && l.contains("guardians_init_dragon")

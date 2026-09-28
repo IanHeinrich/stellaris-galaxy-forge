@@ -265,6 +265,7 @@ fn territories(
                     has_map_colors: Some(false),
                     flag_icon: identity.icon.clone(),
                     flag_background: identity.background.clone(),
+                    preftl_age: None,
                     flags: Vec::new(),
                 },
             }

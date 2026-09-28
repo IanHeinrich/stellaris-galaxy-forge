@@ -234,6 +234,17 @@ pub struct PlanetPage {
     pub colony: Option<PlanetPageColony>,
     /// Entries in `flags`.
     pub flags: u32,
+    pub anomaly: Option<PlanetPageAnomaly>,
+}
+
+/// The anomaly a planet holds, `anomaly="<category>"`, waiting to be found by survey.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageAnomaly {
+    /// The anomaly category's key, which is also its localisation key.
+    pub category: String,
+    /// The countries that have found it: those whose `events.anomalies` lists the planet.
+    pub found_by: Vec<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

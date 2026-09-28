@@ -124,5 +124,6 @@ expression: value
       }
     ]
   },
-  "flags": 1
+  "flags": 1,
+  "anomaly": null
 }

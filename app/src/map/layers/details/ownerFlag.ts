@@ -1,11 +1,12 @@
-import type { Graphics } from "pixi.js";
+import type { Graphics, Texture } from "pixi.js";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import type { SystemNode } from "../../../generated/SystemNode";
 import { empireFlagKey } from "../../../lib/details/fleets";
 import { isColony } from "../../../lib/details/labels";
-import { emblemOwner } from "../../../lib/details/layout";
+import { type Box, emblemOwner } from "../../../lib/details/layout";
 import type { RenderContext } from "../../RenderContext";
 import { DISC_PX, ICON_PX, type RowY, type Textures } from "./cell";
+import type { Tip } from "./Hover";
 import { planetLines } from "./planets";
 import type { Row } from "./Row";
 
@@ -36,15 +37,35 @@ export function ownerFlag(
   if (!texture) return;
   const capital = d.planets.some((p) => p.capital && p.owner === owner);
   const lines = planetLines(ctx, tex, d.planets.filter(isColony));
-  // The flag is drawn oversized (EMBLEM_PX) but centred on the same cell as a row icon
-  // (ICON_PX wide, at `right`), so plateBox keeps using the cell's own width.
+  const tip = { title: table.get(owner)?.label ?? countryName(owner), lines };
+  flag(row, texture, right, y, capital, tip);
+}
+
+/**
+ * An empire flag in the row icon cell whose right edge is `right`, ringed in gold on the owner's
+ * capital. The flag is drawn oversized (EMBLEM_PX) but centred on the cell (ICON_PX wide), so
+ * plateBox keeps using the cell's own width.
+ */
+export function flag(
+  row: Row,
+  texture: Texture,
+  right: number,
+  y: RowY,
+  capital: boolean,
+  tip: Tip | null,
+): void {
   const cx = right - ICON_PX / 2;
   const cy = y.icon + ICON_PX / 2;
-  row.sprite(texture, cx - EMBLEM_PX / 2, cy - EMBLEM_PX / 2, EMBLEM_PX, {
-    title: table.get(owner)?.label ?? countryName(owner),
-    lines,
-  });
+  row.sprite(texture, cx - EMBLEM_PX / 2, cy - EMBLEM_PX / 2, EMBLEM_PX, tip);
   if (capital) capitalRim(row.marks, cx, cy);
+}
+
+/** Everything `flag` draws for the cell whose right edge is `right`, its capital's rim included. */
+export function flagBox(right: number, y: RowY): Box {
+  const reach = EMBLEM_PX / 2 + CAPITAL_RIM_PX + CAPITAL_RIM_WIDTH / 2;
+  const cx = right - ICON_PX / 2;
+  const cy = y.icon + ICON_PX / 2;
+  return { x: cx - reach, y: cy - reach, width: 2 * reach, height: 2 * reach };
 }
 
 /**

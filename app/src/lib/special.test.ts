@@ -7,9 +7,13 @@ const COUNTS: KindCount[] = [
   { kind: "leviathan", count: 3, primary_count: 3 },
   { kind: "enclave", count: 2, primary_count: 2 },
   { kind: "marauder", count: 1, primary_count: 1 },
-  { kind: "fallen_empire", count: 1, primary_count: 0 },
+  { kind: "holy_world", count: 4, primary_count: 4 },
+  { kind: "fallen_empire", count: 5, primary_count: 1 },
   { kind: "landmark", count: 4, primary_count: 4 },
-  { kind: "unique", count: 9, primary_count: 7 },
+  { kind: "unique", count: 9, primary_count: 9 },
+  { kind: "contingency", count: 4, primary_count: 4 },
+  { kind: "horizon_signal", count: 1, primary_count: 1 },
+  { kind: "cutholoid", count: 15, primary_count: 12 },
 ];
 
 describe("the order of the special kinds", () => {
@@ -26,9 +30,13 @@ describe("the order of the special kinds", () => {
       "Leviathan",
       "Enclave",
       "Marauder",
+      "Holy world",
       "Fallen empire",
       "Landmark",
       "Unique",
+      "Contingency hub",
+      "Horizon Signal",
+      "Cutholoid",
     ]);
     expect(kindTitle("marauder")).toBe(
       "Marauder: A marauder clan lives here, raiding its neighbours and hiring out as mercenaries.",

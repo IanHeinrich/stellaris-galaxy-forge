@@ -8,6 +8,44 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- With Details on, the system view shows which planets are colonised.
+  A colony's name has its owner's flag on the game's name plate, as
+  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
+  icon beside its name.
+- The Points of interest layer marks four more kinds of system. They are
+  off until you switch them on in the Layers menu.
+  - Contingency hubs: the four systems every galaxy gets. They are only
+    used if the Contingency is the crisis.
+  - Horizon Signal: the black hole its event chain starts from.
+  - Holy worlds: the Holy Guardians' holy worlds.
+  - Cutholoids: systems with a Cutholoid hiding in an asteroid.
+  - The Points of interest tab has a group for each kind.
+  - The system page names them at the top of its Flags section.
+- The galaxy page of a save shows its game setup: the crisis, the
+  mid-game, end-game and victory years, the cosmic storm settings,
+  voidworm and Cutholoid scaling, and fallen empire strength.
+- The galaxy page of a save has a Kaleidoscope row when the Kaleidoscope
+  will appear in that game.
+- Rename an empire from the Name field at the top of its page. Renaming
+  your own empire also renames the save on the game's load screen.
+- A pre-FTL civilisation's page shows its age, such as Stone Age or
+  Atomic Age.
+- Rename a save's planets on their page. Moons named after the planet
+  follow the new name.
+- Change an uncolonised planet's size, and add or remove its deposits,
+  on its page. Add deposit, under the deposit list, opens a list of every
+  deposit type with the ones the game places on that planet first.
+  Search by name, resource or category, or pick a category such as
+  Energy or Strategic. Deposits of one resource share a row with a
+  button per amount. Add blocker, under the blockers, does the same for
+  blockers. Both lists stay open, so you can add several in one go.
+  A mining or research station over a removed deposit stays in game and
+  still costs about 1 energy a month.
+- A planet's page shows the anomaly waiting on it, and which empires
+  have found it.
+
 ### Changed
 
 - A save opens with the map border and the L-Cluster guide on.
@@ -15,6 +53,12 @@ a release is made.
   system view. They show their planet icon without sphere shading, in a
   faint glow of their colour.
 - Tomb worlds show their surface in the system view, like other planets.
+
+### Fixed
+
+- Exporting a save for Paint a Galaxy keeps a Contingency hub that lies
+  near a fallen empire. It was left out with the fallen empire's
+  systems before. The export report counts the hubs as special systems.
 
 ## [0.17.0] - 2026-09-28
 

@@ -68,6 +68,7 @@ export const resolveNames = command("resolveNames");
 export const getStarClasses = command("getStarClasses");
 export const getGeneratorStarClasses = command("getGeneratorStarClasses");
 export const getDeposits = command("getDeposits");
+export const getDepositChoices = command("getDepositChoices");
 export const getDepositTypes = command("getDepositTypes");
 export const getModifiers = command("getModifiers");
 export const getColonyTypes = command("getColonyTypes");

@@ -27,8 +27,8 @@ pub(crate) use address::{address, inner_sections};
 pub use schema::{EntitySchema, FieldSchema, FieldType};
 pub use views::{
     ContentsRow, EntityAddr, EntityKind, EntityNode, EntitySource, EntityView, Fact, NodeValue,
-    PlanetPage, PlanetPageColony, PlanetPageDeposit, PlanetPageMoon, PlanetPageSpecies,
-    PlanetPageTimedModifier, ScalarForm,
+    PlanetPage, PlanetPageAnomaly, PlanetPageColony, PlanetPageDeposit, PlanetPageMoon,
+    PlanetPageSpecies, PlanetPageTimedModifier, ScalarForm,
 };
 
 #[derive(Debug, thiserror::Error)]

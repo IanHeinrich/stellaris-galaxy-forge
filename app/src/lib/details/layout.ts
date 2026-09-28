@@ -5,8 +5,9 @@ import type { SystemDetails } from "../../generated/SystemDetails";
 import { isMarauder } from "../countryKinds";
 import { DETAIL_SCALE } from "../visual/labels";
 import { STAR_BASE_PX, starDiameterPx } from "../visual/starSize";
+import { empireFlagKey } from "./fleets";
 import { CAPITAL_PLATE_KEY, PLATE_KEY } from "./icons";
-import { FALLBACK_HABITABLE } from "./labels";
+import { FALLBACK_HABITABLE, isColony } from "./labels";
 
 /** Zoom (pixels per world unit) at which system details pop in, shared with the star art tier. */
 export const DETAILS_MIN_SCALE = DETAIL_SCALE;
@@ -37,7 +38,8 @@ export const PLANET_STACK = {
   stride: 7,
   max: 6,
 };
-const PLATE_PAD_PX = 3;
+/** The plate past the name on each side. */
+export const PLATE_PAD_PX = 3;
 /** The plate hugs the text: a little above the caps, a little more below the descenders. */
 const PLATE_ABOVE_PX = 2;
 const PLATE_BELOW_PX = 5;
@@ -69,8 +71,56 @@ export function plateBottom(rowY: number): number {
 export function plateKey(d: SystemDetails): string | null {
   const owner = colonyOwner(d);
   if (owner === null) return null;
-  const capital = d.planets.some((p) => p.capital && p.owner === owner);
+  return namePlateKey(d.planets.some((p) => p.capital && p.owner === owner));
+}
+
+function namePlateKey(capital: boolean): string {
   return capital ? CAPITAL_PLATE_KEY : PLATE_KEY;
+}
+
+/** What a body's name adds with details shown: a colony's plate and owner's flag, or the pre-FTL icon. */
+export interface BodyMarks {
+  /** The plate under the name, the capital's on the owner's capital; null for a body that is not a colony. */
+  readonly plate: string | null;
+  /** The owner's flag texture key; null for a body that is not a colony, or an owner with no full flag. */
+  readonly flag: string | null;
+  /** The owner's capital, whose flag is ringed in gold. */
+  readonly capital: boolean;
+  readonly preFtl: boolean;
+}
+
+export const NO_MARKS: BodyMarks = Object.freeze({
+  plate: null,
+  flag: null,
+  capital: false,
+  preFtl: false,
+});
+const PRE_FTL_MARKS: BodyMarks = Object.freeze({ ...NO_MARKS, preFtl: true });
+
+/** The marks a planet's name shows, as the system's name shows them for the planets in it. */
+export function bodyMarks(
+  p: PlanetSummary,
+  countries: ReadonlyMap<number, CountryNode>,
+): BodyMarks {
+  if (p.pre_ftl) return PRE_FTL_MARKS;
+  if (!isColony(p) || p.owner === null) return NO_MARKS;
+  return {
+    plate: namePlateKey(p.capital),
+    flag: empireFlagKey(countries.get(p.owner)),
+    capital: p.capital,
+    preFtl: false,
+  };
+}
+
+export function sameMarks(a: BodyMarks, b: BodyMarks): boolean {
+  return (
+    a.plate === b.plate && a.flag === b.flag && a.capital === b.capital && a.preFtl === b.preFtl
+  );
+}
+
+/** Whether a body's name shows anything of `marks`. */
+export function marked(marks: BodyMarks): boolean {
+  return marks.plate !== null || marks.preFtl;
 }
 
 function planetShown(p: PlanetSummary): boolean {

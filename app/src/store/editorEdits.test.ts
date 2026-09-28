@@ -171,6 +171,48 @@ describe("editing", () => {
     expect(useGalaxyStore.getState().countries.get(0)).toEqual(empire);
   });
 
+  it("a rename gives the empire and the save title the new name, and undo the old one", async () => {
+    const empire: CountryNode = {
+      id: 0,
+      name: name("EMPIRE_Fixture"),
+      name_key: "EMPIRE_Fixture",
+      country_type: "default",
+      capital_system: 0,
+      system_count: 1,
+      colors: ["red", "purple"],
+      border_color: null,
+      fill_color: null,
+      use_map_color: false,
+      flag_icon: null,
+      flag_background: null,
+    };
+    mockedIpc.openSave.mockResolvedValueOnce({
+      ...OPEN_RESULT,
+      galaxy: { ...OPEN_RESULT.galaxy, countries: [empire] },
+    });
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    const renamed: CountryNode = {
+      ...empire,
+      name: { key: "Sgf Dominion", literal: true, variables: [] },
+      name_key: "Sgf Dominion",
+    };
+    mockedIpc.applyOp.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], countries: [renamed] }, title: "Sgf Dominion" }),
+    );
+
+    await editor().applyOp({ type: "RenameEmpire", country: 0, name: "Sgf Dominion" });
+    expect(useGalaxyStore.getState().countries.get(0)?.name_key).toBe("Sgf Dominion");
+    expect(useFileSessionStore.getState().dirty).toBe(true);
+    expect(useFileSessionStore.getState().title).toBe("Sgf Dominion");
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ delta: { systems: [], countries: [empire] } }),
+    );
+    await editor().undo();
+    expect(useGalaxyStore.getState().countries.get(0)).toEqual(empire);
+    expect(useFileSessionStore.getState().title).toBe(OPEN_RESULT.title);
+  });
+
   it("stale details stay cached, the projection is warmed again and the system is re-read", async () => {
     useDetailsStore.setState({
       details: new Map([[1, systemDetails({ id: 1 })]]),

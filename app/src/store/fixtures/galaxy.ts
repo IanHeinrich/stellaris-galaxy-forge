@@ -78,6 +78,8 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     header: [],
     components: 2,
     lgate: null,
+    settings: null,
+    kaleidoscope: false,
   },
   issues: [
     {
@@ -113,6 +115,7 @@ export function editResult(overrides: Partial<EditResult> = {}): EditResult {
     details_stale: [],
     touched_entities: [],
     reclassifies: false,
+    title: OPEN_RESULT.title,
     ...overrides,
   };
 }

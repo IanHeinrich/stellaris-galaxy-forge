@@ -8,6 +8,7 @@
 
 pub mod body_effects;
 pub mod condition;
+pub mod deposit_choices;
 pub mod deposit_roll;
 pub mod details;
 pub mod generate;

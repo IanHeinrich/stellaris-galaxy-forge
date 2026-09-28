@@ -32,6 +32,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
@@ -44,9 +45,9 @@ import {
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import { escaped as escapedText } from "../../../test/elements";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
-import { drawnBy, drawnField } from "../../../test/drawn";
+import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
-import { PickerField, ToggleField } from "../../EditField";
+import { PickerField, TextField, ToggleField } from "../../EditField";
 import { ComboField } from "../../ComboField";
 import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
@@ -227,7 +228,7 @@ describe("a colony's page", () => {
     expect(html).not.toContain("Blockers");
   });
 
-  it("shows its class and size as text, then the owner, designation, date and pops", async () => {
+  it("offers its name to edit, and shows its class and size as text, then the owner, designation, date and pops", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage(COLONY);
@@ -237,9 +238,25 @@ describe("a colony's page", () => {
     expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
     expect(html).toMatch(/<span class="k">Size<\/span><span>16<\/span>/);
     expect(html.match(/class="edit-field [^"]*"/g)).toEqual([
+      'class="edit-field edit-text"',
       'class="edit-field edit-text combo-box disabled"',
       'class="edit-field edit-key-sample"',
     ]);
+    expect(html).toMatch(/<input type="text" aria-label="Name"/);
+    expect(html).not.toContain("Add deposit");
+    expect(html).not.toContain("pl-dep-remove");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnBy(() => render(WORLD));
+    const nameField = drawnField(TextField, "Name") as { onCommit(v: string): void };
+    nameField.onCommit(" Nova Terra ");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "RenameSavePlanet",
+        planet: WORLD,
+        name: "Nova Terra",
+      }),
+    );
     expect(html).toContain("Colony");
     expect(html).toContain('title="Open the empire&#x27;s page"');
     expect(html).toContain("Ti Zru Conservers");
@@ -317,6 +334,117 @@ describe("an unowned world's page", () => {
     );
     expect(html).toContain('<div class="pl-dep blocker">');
     expect(html).not.toContain("Colony");
+  });
+
+  it("offers its size, a remove button per deposit type and a picker to add one", async () => {
+    await open("save");
+    await landPage(OLBERS);
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toMatch(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/);
+    expect(html.match(/class="pl-dep-remove"/g)).toHaveLength(3);
+    expect(html).toContain("+ Add deposit…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove d_active_volcano").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveSaveDeposit", deposit: 3 }),
+    );
+  });
+
+  it("opens the picker below the deposits: search, chips, and a row per family with its amounts", async () => {
+    await open("save");
+    await landPage(OLBERS);
+    usePlanetDataStore.setState({
+      depositTypes: new Map(
+        [1, 3].map((n) => [
+          `d_energy_${n}`,
+          depositTypeView(`d_energy_${n}`, {
+            name: `+${n}`,
+            orbital: true,
+            yields: [resourceAmount("energy", n, "Energy")],
+          }),
+        ]),
+      ),
+    });
+    useDepositPickerStore.setState({
+      planet: WORLD,
+      added: "Added +1 Energy",
+      choices: {
+        body: "",
+        list: [
+          {
+            key: "d_energy_1",
+            family: "d_energy",
+            amount: 1,
+            category: "Energy",
+            usual: true,
+            description: null,
+            event_only: false,
+          },
+          {
+            key: "d_energy_3",
+            family: "d_energy",
+            amount: 3,
+            category: "Energy",
+            usual: true,
+            description: null,
+            event_only: false,
+          },
+        ],
+      },
+    });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain('aria-label="Search deposits"');
+    expect(html).toContain('aria-pressed="true">All</button>');
+    expect(html).toContain("Usual here");
+    expect(html).toContain("✓ Added +1 Energy");
+    expect(html).toContain("Usual for this planet · 1");
+    expect(html).toContain("Energy per month");
+    expect(html).not.toContain("+ Add deposit…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Add +3 Energy").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "AddSaveDeposit",
+        planet: WORLD,
+        kind: "d_energy_3",
+      }),
+    );
+  });
+
+  it("puts Add deposit under the deposits and Add blocker under the blockers, even with none", async () => {
+    await open("save");
+    await landPage(
+      planetPage({ id: WORLD, deposits: [{ id: 1, kind: "d_open_plains", swap_type: null }] }),
+    );
+
+    const html = render(WORLD);
+    expect(html.indexOf("d_open_plains")).toBeLessThan(html.indexOf("+ Add deposit…"));
+    expect(html.indexOf("+ Add deposit…")).toBeLessThan(html.indexOf("Blockers · 0"));
+    expect(html.indexOf("Blockers · 0")).toBeLessThan(html.indexOf("+ Add blocker…"));
+
+    useDepositPickerStore.setState({
+      planet: WORLD,
+      mode: "blockers",
+      choices: { body: "", list: [] },
+    });
+    const open_ = render(WORLD);
+    expect(open_).toContain('aria-label="Search blockers"');
+    expect(open_).not.toContain("Deposit categories");
+    expect(open_).toContain("+ Add deposit…");
+  });
+
+  it("names the anomaly waiting on it and who found it", async () => {
+    await open("save");
+    useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [EMPIRE] } });
+
+    const html = render(WORLD);
+    expect(html).toMatch(/<span class="k">Anomaly<\/span><span>time_loop_world/);
+    expect(html).toContain("found by Ti Zru Conservers");
   });
 
   it("marks only a loss of districts of every kind with the blocker", async () => {

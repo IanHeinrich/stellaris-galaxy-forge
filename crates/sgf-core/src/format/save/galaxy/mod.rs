@@ -19,6 +19,7 @@ mod waylines;
 
 use std::collections::HashMap;
 
+use crate::archive;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::format::save::planet_statement;
@@ -92,6 +93,9 @@ impl Galaxy {
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.0);
         let setup = galaxy_node.as_ref().map(|n| game_setup(n, src));
+        let settings = galaxy_node
+            .as_ref()
+            .map(|n| archive::galaxy_settings(n, src));
         let player_country = index
             .section(keys::PLAYER)
             .map(|section| read::section_node(keys::PLAYER, section, src))
@@ -115,6 +119,8 @@ impl Galaxy {
             setup,
             player_country,
             lgate,
+            kaleidoscope: kaleidoscope(index, src)?,
+            settings,
         };
         galaxy.assign_nebulae();
         galaxy.refresh_turbulence();
@@ -297,6 +303,18 @@ fn game_setup(node: &Node, src: &[u8]) -> GameSetup {
             .and_then(|n| n.scalar_str(src))
             .and_then(|s| s.parse().ok()),
     }
+}
+
+/// Set by `situation.1999` on day one, three games in ten with Nemesis, for the Kaleidoscope
+/// to come.
+const KALEIDOSCOPE_FLAG: &str = "kaleidoscope_will_spawn";
+
+fn kaleidoscope(index: &Index, src: &[u8]) -> Result<bool, ProjectionError> {
+    let Some(section) = index.section(keys::FLAGS) else {
+        return Ok(false);
+    };
+    let flags = read::section_node(keys::FLAGS, section, src)?;
+    Ok(flags.find(KALEIDOSCOPE_FLAG, src).is_some())
 }
 
 fn scalar_f64(section: &Section, src: &[u8]) -> Result<f64, ProjectionError> {

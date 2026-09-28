@@ -420,6 +420,9 @@ function plainNumber(n: number): string {
   return String(Number(n.toFixed(2)));
 }
 
+/** The first year of every game; the galaxy block states mid game, end game and victory as years after it. */
+export const START_YEAR = 2200;
+
 /** `1.5×`: a multiplier the galaxy settings write, or null when the file leaves it out. */
 export function timesText(n: number | null): string | null {
   return n === null ? null : `${plainNumber(n)}×`;

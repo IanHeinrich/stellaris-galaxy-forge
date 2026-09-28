@@ -1,7 +1,10 @@
 import { useEffect, useMemo } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
-import { laneLabel, nebulaNameIn } from "../../lib/names";
+import type { CountryNode } from "../../generated/CountryNode";
+import type { PlanetPage } from "../../generated/PlanetPage";
+import { bodyName } from "../../lib/details/labels";
+import { laneLabel, nebulaNameIn, templateName, type Names } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
@@ -24,8 +27,35 @@ import { ChildView } from "./entity/ChildView";
 import { INSPECTOR_VIEWS } from "./entity/views";
 import { useBodySelectionPage } from "./selection/bodySelectionPage";
 
-function Breadcrumb() {
+/** What a crumb reads its name from: the galaxy's countries, the save bodies' pages as read. */
+interface CrumbNames {
+  countries: ReadonlyMap<number, CountryNode>;
+  pages: ReadonlyMap<number, PlanetPage>;
+  names: Names;
+}
+
+/**
+ * What a crumb reads: a country's or a save body's name as it stands now, since a rename happens
+ * with its page open, and any other page's label as it was opened.
+ */
+function crumbLabel(entry: Entry, { countries, pages, names }: CrumbNames): string {
+  if (entry.ref.kind === "country") {
+    const country = countries.get(entry.ref.id);
+    return country === undefined ? entry.label : templateName(country);
+  }
+  if (entry.ref.kind === "planet") {
+    const page = pages.get(entry.ref.id);
+    return page === undefined ? entry.label : bodyName(page, names);
+  }
+  return entry.label;
+}
+
+export function Breadcrumb() {
   const stack = useInspectorStore((s) => s.stack);
+  const countries = useGalaxyStore((s) => s.countries);
+  const pages = useEntityStore((s) => s.pages);
+  const names = useGameDataStore((s) => s.names);
+  const named: CrumbNames = { countries, pages, names };
   const popTo = useInspectorStore((s) => s.popTo);
   const home = useInspectorStore((s) => s.home);
   const back = useInspectorStore((s) => s.back);
@@ -52,10 +82,10 @@ function Breadcrumb() {
           <span key={`${entry.label}-${i}`}>
             <span className="sep">›</span>
             {i === stack.length - 1 ? (
-              <span className="here">{entry.label}</span>
+              <span className="here">{crumbLabel(entry, named)}</span>
             ) : (
               <button type="button" className="link" onClick={() => popTo(i)}>
-                {entry.label}
+                {crumbLabel(entry, named)}
               </button>
             )}
           </span>
