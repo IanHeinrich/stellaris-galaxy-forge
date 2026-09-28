@@ -8,6 +8,8 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-28
+
 ### Added
 
 - Move planets to another system in a save. Ctrl- or Shift-click
@@ -18,10 +20,9 @@ a release is made.
     with it. Other fleets stay where they are.
   - In the system view, a single planet lands where you right-click.
   - A moon moved on its own becomes a planet.
-  - A colony or station moved into another empire's system changes
-    ownership to that empire in game. A station changes owner when the
-    save loads, and a colony about a month later. The paste menu warns
-    you first.
+  - A colony or station moved into another empire's system goes to
+    that empire. A station changes owner when the save loads, and a
+    colony about a month later. The paste menu warns you first.
   - The planet page has a System field for moving one planet.
   - Stars, planets with a megastructure and occupied planets can't be
     moved.
@@ -34,13 +35,14 @@ a release is made.
   shows a grey ring.
   - The Layers menu lists each precursor with its number of systems.
     Click the eye beside one to hide it.
-- Search finds systems by their precursor, such as "Vultaum" or "First
-  League".
+  - Search finds systems by their precursor, such as "Vultaum" or
+    "First League".
 
-### Changed
+### Fixed
 
-- An empire's map colours follow the game's Independent Map Color
-  checkbox. With it off, the page shows the flag colours the map uses.
+- The Independent Map Color checkbox on an empire's page now works as
+  it does in game. With it off, the map uses the flag colours and the
+  page shows them.
 
 ## [0.16.0] - 2026-09-27
 
