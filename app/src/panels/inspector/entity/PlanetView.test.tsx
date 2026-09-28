@@ -32,6 +32,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { TERRAFORMING_NOTE } from "../../../lib/details/depositWarnings";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
@@ -169,6 +170,9 @@ describe("a colony's page", () => {
         { id: 20, name: name("SPEC_Ti-Zru"), pops: 800 },
         { id: 22, name: name("NAME_Synthetic"), pops: 800 },
       ],
+      districts: [{ kind: "district_mining", level: 2 }],
+      zones: [],
+      buildings: [],
     },
   });
 
@@ -225,7 +229,16 @@ describe("a colony's page", () => {
     expect(html).toContain("+3 Max Agriculture Districts each");
     expect(html).toContain("+2 Max Mining Districts<");
     expect(html).toContain("+0.05 Farmer Exotic Gases with Exotic Gas Extraction");
-    expect(html).not.toContain("Blockers");
+    expect(html).toContain("Blockers · 0");
+    expect(html).not.toContain(TERRAFORMING_NOTE);
+  });
+
+  it("says a terraforming colony's deposits change when it finishes", async () => {
+    await open("save");
+    await landPage({ ...COLONY, terraforming: true });
+    armDeposits();
+
+    expect(render(WORLD)).toContain(TERRAFORMING_NOTE);
   });
 
   it("offers its name to edit, and shows its class and size as text, then the owner, designation, date and pops", async () => {
@@ -241,12 +254,14 @@ describe("a colony's page", () => {
       'class="edit-field edit-text"',
       'class="edit-field edit-text combo-box disabled"',
       'class="edit-field dp-open"',
+      'class="edit-field dp-open"',
+      'class="edit-field dp-open"',
       'class="edit-field edit-key-sample"',
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
     expect(html).toContain("+ Add modifier…");
-    expect(html).not.toContain("Add deposit");
-    expect(html).not.toContain("pl-dep-remove");
+    expect(html).toContain("Add deposit");
+    expect(html.match(/pl-dep-remove/g)).toHaveLength(3);
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnBy(() => render(WORLD));

@@ -383,7 +383,7 @@ pub enum Op {
     AddSaveSystem {
         spec: SystemSpec,
     },
-    /// A new deposit of type `kind` on an uncolonised save planet, a star or moon included,
+    /// A new deposit of type `kind` on a save planet, a star, moon or colony included,
     /// written as the game writes one: an entry of the `deposit` table in the lowest dead
     /// slot one generation on, or past the highest, and its id last in the planet's
     /// `deposits`, which the planet gains when it has none. The type is written as given:
@@ -393,7 +393,7 @@ pub enum Op {
         planet: u32,
         kind: String,
     },
-    /// A deposit of an uncolonised save planet, as the game removes one: its entry becomes
+    /// A deposit of a save planet, a colony included, as the game removes one: its entry becomes
     /// the tombstone `<id>=none` and its id leaves the planet's `deposits`, which goes with
     /// its last id. A station working it is left standing. A deposit an
     /// [`Op::AddSaveDeposit`] wrote gives its slot back: a reused slot gets back the
@@ -999,8 +999,6 @@ pub enum OpError {
     UnknownDeposit(u32),
     #[error("deposit {0} is not held by a planet")]
     DepositNotOnPlanet(u32),
-    #[error("planet {0} is colonised: only an uncolonised planet's deposits can be edited")]
-    PlanetColonised(u32),
     #[error("every system of {nebula} is already {state}")]
     TurbulenceUnchanged { nebula: String, state: &'static str },
     #[error("{0:?} is not a nebula cloud type")]
@@ -1166,7 +1164,6 @@ impl OpError {
             | Self::CappedMismatch { .. }
             | Self::SystemNotAdded { .. }
             | Self::DepositNotOnPlanet { .. }
-            | Self::PlanetColonised { .. }
             | Self::TurbulenceUnchanged { .. }
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }

@@ -480,6 +480,8 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     colony: null,
     flags: 0,
     anomaly: null,
+    terraforming: false,
+    clearing: [],
     ...over,
   };
 }

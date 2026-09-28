@@ -48,6 +48,55 @@ fn each_page_reads_its_body_colony_deposits_modifiers_and_moons() {
     assert_eq!(page(&four_four, 5173).parent, Some(5172));
 }
 
+/// Colony 0 of the 4.5 sample, the player's capital: four districts, one of each type,
+/// and the zones and buildings in its city district.
+#[test]
+fn a_colony_lists_its_built_districts_zones_and_buildings() {
+    let colony = page(&common::load_4_5(), 2).colony.expect("colony 0");
+    let built: Vec<(&str, u32)> = colony
+        .districts
+        .iter()
+        .map(|d| (d.kind.as_str(), d.level))
+        .collect();
+    assert_eq!(
+        built,
+        [
+            ("district_city", 3),
+            ("district_generator", 3),
+            ("district_mining", 1),
+            ("district_farming", 6),
+        ]
+    );
+    assert_eq!(
+        colony.zones,
+        ["zone_default", "zone_research_unity", "zone_industrial"]
+    );
+    assert!(colony.buildings.contains(&"building_capital".to_owned()));
+    assert_eq!(colony.buildings.len(), 5);
+}
+
+#[test]
+fn a_terraforming_planet_says_so() {
+    let doc = common::load_4_5();
+    assert!(!page(&doc, 2).terraforming);
+    let session = common::open_edited_sample(common::SAMPLE_4_5, |text, _| {
+        let list = "			entity=1
+			deposits=
+			{
+				440 ";
+        assert_eq!(text.matches(list).count(), 1);
+        let process = "			terraform_process=
+			{
+				progress=1381.5
+				total=7200
+				planet_class=\"pc_ocean\"
+			}
+";
+        *text = text.replacen(list, &format!("{process}{list}"), 1);
+    });
+    assert!(page(&session.doc, 2).terraforming);
+}
+
 #[test]
 fn the_page_reads_the_bytes_an_op_wrote() {
     let mut session = common::open();

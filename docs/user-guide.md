@@ -177,14 +177,13 @@ too.
   they add up to, one row per type: what each one yields, or what it does
   while unworked. A blocked deposit shows a blocker mark, the tech and
   resources needed to clear it, and how long clearing takes.
-- On an uncolonised body, remove a deposit with the ✕ on its row. Add
-  deposit, under the deposits, lists every deposit type but blockers.
-  The ones the game places on that body come first, under "Usual for
-  this planet". Type to search by name, resource or category, or pick a
-  category chip. Special holds the deposits only events place. Orbital
-  deposits of one resource, such as +1 to +10 Energy, share a row: click
-  an amount to add that one. Hover a row to read the game's description
-  of it.
+- Remove a deposit with the ✕ on its row. Add deposit, under the
+  deposits, lists every deposit type but blockers. The ones the game
+  places on that body come first, under "Usual for this planet". Type
+  to search by name, resource or category, or pick a category chip.
+  Special holds the deposits only events place. Orbital deposits of one
+  resource, such as +1 to +10 Energy, share a row: click an amount to
+  add that one. Hover a row to read the game's description of it.
 - Add blocker, under the Blockers heading, works the same way for
   blockers. Its chips pick the blockers a tech clears, the ones that need
   no tech or can't be cleared, and Special for blockers that do more than
@@ -192,6 +191,20 @@ too.
 - Both lists stay open until you press Done or Escape. A mining or
   research station over a removed deposit stays in game and still costs
   about 1 energy a month.
+- Colonised planets take deposit edits too. The game catches up on its
+  next month tick, so the page warns you first when it will take
+  something away. You then press Remove anyway or Add anyway, or
+  Cancel.
+  - Districts over a lowered cap are demolished. The save doesn't store
+    the caps, so the page counts what the deposits give. It says "may"
+    when something else adds to the cap too.
+  - A zone or building that needs the removed deposit goes, such as
+    Crystal Mines without a rare crystals deposit, or the Xeno Zoo
+    without Alien Pets.
+  - Removing a blocker that is being cleared cancels the clearing. What
+    was spent on it isn't refunded.
+- On a planet that is terraforming, the game changes its deposits when
+  the terraforming finishes, added ones included.
 - Modifiers come next, each with what it changes and how many days are
   left.
 - Moons are listed below and open their own pages the same way.
@@ -585,8 +598,7 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
   `star`, `planet-size`, `modifier`, `deposit`, `add-system`.
-  `deposit add` and `deposit remove` change the deposits on an
-  uncolonised planet.
+  `deposit add` and `deposit remove` change a planet's deposits.
   `add-system` adds systems from a JSON spec you write, or rolls one from
   the install's own rules with `--generate`, a special layout included
   with `--layout`.

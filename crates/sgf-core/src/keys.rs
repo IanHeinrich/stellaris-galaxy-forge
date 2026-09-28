@@ -33,6 +33,7 @@ save_keys! {
     BLACK_HOLE_NAMES = "black_hole_names",
     BOMBARDMENT_DAMAGE = "bombardment_damage",
     BRIDGE = "bridge",
+    BUILDABLE_CLEAR_DEPOSIT_BLOCKER = "buildable_clear_deposit_blocker",
     BUILDINGS = "buildings",
     BUILD_QUEUE = "build_queue",
     BYPASS = "bypass",
@@ -46,6 +47,7 @@ save_keys! {
     COLONY = "colony",
     COLORS = "colors",
     COMBAT = "combat",
+    CONSTRUCTION = "construction",
     CONSTRUCTION_TYPE = "construction_type",
     CONTROLLER = "controller",
     COORDINATE = "coordinate",
@@ -76,6 +78,7 @@ save_keys! {
     DISCOVERY = "discovery",
     DISMANTLE_FINISH_DATE = "dismantle_finish_date",
     DISMANTLE_PROGRESS = "dismantle_progress",
+    DISTRICTS = "districts",
     END_GAME_START = "end_game_start",
     ENTITY = "entity",
     ENTITY_FACE_OBJECT = "entity_face_object",
@@ -111,6 +114,7 @@ save_keys! {
     INNER_RADIUS = "inner_radius",
     IRONMAN = "ironman",
     ITEMS = "items",
+    ITEM_MGR = "item_mgr",
     KEY = "key",
     LAST_BOMBARDMENT = "last_bombardment",
     LAST_CREATED_AMBIENT_OBJECT = "last_created_ambient_object",
@@ -168,6 +172,7 @@ save_keys! {
     RANDOM_NAME_DATABASE = "random_name_database",
     REQUIRED_DLCS = "required_dlcs",
     RESOURCE_ABUNDANCE = "resource_abundance",
+    RESOURCES = "resources",
     SAVE_ON_DEATH = "save_on_death",
     SCALE = "scale",
     SCALING = "scaling",
@@ -210,6 +215,7 @@ save_keys! {
     WAYSTATION_NETWORKS = "waystation_networks",
     X = "x",
     Y = "y",
+    ZONES = "zones",
 }
 
 /// Save keys a save may lack. The test asks only that some sample save writes each.
@@ -223,7 +229,13 @@ pub(crate) const OPTIONAL: &[&str] = &[
     ENTITY_PLANET_CLASS,
     // Written on every 4.5 system; the 4.4 sample has none.
     ARM,
+    // Written while a blocker is being cleared; the 4.5 sample clears none.
+    BUILDABLE_CLEAR_DEPOSIT_BLOCKER,
 ];
+
+/// Written on a planet while it terraforms, which no sample save's planet does, so the
+/// save-key test cannot look for it.
+pub(crate) const TERRAFORM_PROCESS: &str = "terraform_process";
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.
 pub(crate) mod meta {

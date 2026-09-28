@@ -7,8 +7,9 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::facts::{Sheet, count, other, reference, statement_at, system};
 use crate::entity::views::{
-    EntityAddr, EntityKind, PlanetPage, PlanetPageAnomaly, PlanetPageColony, PlanetPageDeposit,
-    PlanetPageMoon, PlanetPageSpecies, PlanetPageTimedModifier,
+    EntityAddr, EntityKind, PlanetPage, PlanetPageAnomaly, PlanetPageClearing, PlanetPageColony,
+    PlanetPageDeposit, PlanetPageDistrict, PlanetPageMoon, PlanetPageSpecies,
+    PlanetPageTimedModifier,
 };
 use crate::keys;
 use crate::overlay::Anchor;
@@ -184,6 +185,17 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
             category: category.to_owned(),
             found_by: doc.anomaly_finders(id).to_vec(),
         }),
+        terraforming: node.find(keys::TERRAFORM_PROCESS, src).is_some(),
+        clearing: facts
+            .deposits
+            .iter()
+            .filter_map(|&deposit| {
+                Some(PlanetPageClearing {
+                    deposit,
+                    cost: doc.clearing_cost(deposit)?.to_vec(),
+                })
+            })
+            .collect(),
     }
 }
 
@@ -242,6 +254,9 @@ fn colony_page(doc: &Document, id: u32, colonize_date: &str) -> PlanetPageColony
         designation: None,
         pops: 0,
         species: Vec::new(),
+        districts: Vec::new(),
+        zones: Vec::new(),
+        buildings: Vec::new(),
     };
     let Some((node, src)) = other(doc, EntityAddr::new(EntityKind::Colony, id)) else {
         return colony;
@@ -266,14 +281,56 @@ fn colony_page(doc: &Document, id: u32, colonize_date: &str) -> PlanetPageColony
                 .collect()
         })
         .unwrap_or_default();
+    districts(doc, &read::ids(&node, keys::DISTRICTS, src), &mut colony);
     colony
+}
+
+/// The colony's districts, summed by type, and the zones and buildings they hold. Each is an
+/// entity of its own top-level table, which no op writes.
+fn districts(doc: &Document, ids: &[u32], colony: &mut PlanetPageColony) {
+    for &id in ids {
+        let Some((node, src)) = table_entry(doc, keys::DISTRICTS, id) else {
+            continue;
+        };
+        let Some(kind) = read::scalar(&node, keys::TYPE, src) else {
+            continue;
+        };
+        let level = read::scalar_u32(&node, keys::LEVEL, src).unwrap_or(0);
+        match colony.districts.iter_mut().find(|d| d.kind == kind) {
+            Some(built) => built.level += level,
+            None => colony.districts.push(PlanetPageDistrict {
+                kind: kind.to_owned(),
+                level,
+            }),
+        }
+        for zone in read::ids(&node, keys::ZONES, src) {
+            let Some((zone, src)) = table_entry(doc, keys::ZONES, zone) else {
+                continue;
+            };
+            colony
+                .zones
+                .extend(read::scalar(&zone, keys::TYPE, src).map(str::to_owned));
+            for building in read::ids(&zone, keys::BUILDINGS, src) {
+                let Some((building, src)) = table_entry(doc, keys::BUILDINGS, building) else {
+                    continue;
+                };
+                colony
+                    .buildings
+                    .extend(read::scalar(&building, keys::TYPE, src).map(str::to_owned));
+            }
+        }
+    }
+}
+
+/// Entry `id` of the top-level table `section`; `None` for the null id or a tombstone.
+fn table_entry<'d>(doc: &'d Document, section: &str, id: u32) -> Option<(Node, &'d [u8])> {
+    let entity = doc.index().entity(section, u64::from(id))?;
+    statement_at(doc, Anchor::Original(entity.stmt))
 }
 
 /// `species_db.<id>.name`: species are no inspector kind, so the page carries the name.
 fn species_name(doc: &Document, id: u32) -> NameTemplate {
-    doc.index()
-        .entity(keys::SPECIES_DB, u64::from(id))
-        .and_then(|entity| statement_at(doc, Anchor::Original(entity.stmt)))
+    table_entry(doc, keys::SPECIES_DB, id)
         .map(|(node, src)| read::name(&node, src))
         .unwrap_or_default()
 }

@@ -1,7 +1,8 @@
-//! Adding a deposit to an uncolonised save planet and removing one, on the 4.5 and the 4.4
-//! sample: each edit's diff, the planet page and the details after a save and reopen, the
-//! save's findings, byte-exact undo, a deposit added in the session giving its slot back,
-//! a system added in the session taking the deposits added to it, and what is refused.
+//! Adding a deposit to a save planet and removing one, on the 4.5 and the 4.4 sample, a
+//! colony included: each edit's diff, the planet page and the details after a save and
+//! reopen, the save's findings, byte-exact undo, a deposit added in the session giving its
+//! slot back, a system added in the session taking the deposits added to it, a blocker
+//! being cleared, and what is refused.
 
 use sgf_core::entity::get_planet_page;
 use sgf_core::ops::{Op, OpError, SystemSpec};
@@ -84,6 +85,22 @@ fn cases() -> Vec<Case> {
             op: remove(16_777_696),
             system: 59,
             planet: 1129,
+        },
+        // The 4.5 player's capital, colony 0: the same entry and list as on any planet,
+        // and nothing of the colony's own.
+        Case {
+            name: "add_to_a_capital_4_5",
+            session: open_4_5,
+            op: add(2, "d_minerals_3"),
+            system: 169,
+            planet: 2,
+        },
+        Case {
+            name: "remove_from_a_capital_4_5",
+            session: open_4_5,
+            op: remove(440),
+            system: 169,
+            planet: 2,
         },
         Case {
             name: "add_to_a_planet_without_deposits_4_4",
@@ -409,14 +426,6 @@ fn refused(session: &mut Session, op: Op) -> OpError {
 fn what_the_ops_refuse() {
     let mut session = open_4_5();
     let cases: Vec<(Op, &str)> = vec![
-        (
-            add(2, "d_minerals_3"),
-            "planet 2 is colonised: only an uncolonised planet's deposits can be edited",
-        ),
-        (
-            remove(440),
-            "planet 2 is colonised: only an uncolonised planet's deposits can be edited",
-        ),
         (add(99_999, "d_minerals_3"), "planet 99999 does not exist"),
         (remove(999_999), "deposit 999999 does not exist"),
         (remove(0), "deposit 0 does not exist"),
@@ -434,14 +443,6 @@ fn what_the_ops_refuse() {
     for (op, message) in cases {
         let error = refused(&mut session, op);
         assert_eq!(error.to_string(), message);
-    }
-
-    let mut colonised = open();
-    for op in [add(3, "d_minerals_3"), remove(594)] {
-        assert!(matches!(
-            refused(&mut colonised, op),
-            OpError::PlanetColonised(3)
-        ));
     }
 
     session.apply(remove(257)).expect("remove");
@@ -470,4 +471,65 @@ fn what_the_ops_refuse() {
         refused(&mut old, remove(16)),
         OpError::SaveTooOld(_)
     ));
+}
+
+/// The 4.4 sample's one clearing item, which names a deposit the game had already removed,
+/// pointed at Olbers II's Dangerous Wildlife (3401).
+fn clearing_wildlife() -> Session {
+    open_edited(|text| {
+        let item = "deposit=753
+					planet=13
+";
+        assert_eq!(text.matches(item).count(), 1);
+        *text = text.replace(
+            item,
+            "deposit=3401
+					planet=5172
+",
+        );
+    })
+}
+
+#[test]
+fn a_blocker_being_cleared_leaves_its_item_to_the_game() {
+    let mut session = clearing_wildlife();
+    let before = get_planet_page(&session.doc, 5172).expect("Olbers II");
+    assert_eq!(before.clearing.len(), 1);
+    assert_eq!(before.clearing[0].deposit, 3401);
+    assert_eq!(
+        before.clearing[0].cost,
+        [("energy".to_owned(), 750.0), ("minerals".to_owned(), 250.0)]
+    );
+    assert!(
+        get_planet_page(&open().doc, 5172)
+            .unwrap()
+            .clearing
+            .is_empty()
+    );
+
+    let item = "deposit=3401
+					planet=5172
+";
+    round_trip_step(&mut session, "the blocker", remove(3401));
+    assert!(text(&session).contains(
+        "
+	3401=none
+"
+    ));
+    assert!(text(&session).contains(item));
+    let after = get_planet_page(&session.doc, 5172).expect("Olbers II");
+    assert!(after.clearing.is_empty());
+}
+
+#[test]
+fn a_colonys_other_deposits_and_its_districts_are_left_as_they_were() {
+    let mut session = open_4_5();
+    let colony = |s: &Session| get_planet_page(&s.doc, 2).unwrap().colony.unwrap();
+    let before = colony(&session);
+    round_trip_step(&mut session, "remove", remove(441));
+    round_trip_step(&mut session, "add", add(2, "d_rich_mountain"));
+    assert_eq!(colony(&session), before);
+    let kinds: Vec<String> = page(&session, 2).into_iter().map(|(_, k)| k).collect();
+    assert_eq!(kinds.len(), 13);
+    assert_eq!(kinds.last().map(String::as_str), Some("d_rich_mountain"));
 }

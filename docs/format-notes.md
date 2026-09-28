@@ -218,6 +218,14 @@ for planets or deposits.
   save holds an empty `deposits`. In 4.x, `deposits` is the last key of
   a planet entry. A station over a removed deposit stays and produces
   nothing.
+- A colony's deposits change the same way. Nothing else is rebuilt on
+  load: the game catches up on the next month tick (4.5.1). It
+  demolishes districts over a cap the deposits lowered, removes zones
+  and buildings whose deposit is gone, and drops a construction item
+  whose `buildable_clear_deposit_blocker` names a removed blocker, with
+  no refund. District caps aren't in the save. A finished terraform
+  retypes the planet's deposits in place, added ones too. So the editor
+  writes only the entry and the planet's list, on a colony as elsewhere.
 - A system the game spawns by script is a `galactic_object` entry with
   its keys in this order, and the editor writes an added system the same
   way: `coordinate={ x y origin=4294967295 visual_height }`, `name`,

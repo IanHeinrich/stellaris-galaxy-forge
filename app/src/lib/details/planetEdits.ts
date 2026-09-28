@@ -4,13 +4,14 @@ import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { StarClassView } from "../../generated/StarClassView";
+import { removalTarget } from "./depositWarnings";
 import { isStarBody } from "./starBody";
 
 /** The remove button's hover text on a deposit a station works. */
 export const STATION_STAYS =
   "Remove one. The station working it stays in game and still costs about 1 energy a month.";
 
-/** Whether nobody owns the body: the game lets only such a body's size and deposits change here. */
+/** Whether nobody owns the body: only such a body's size changes here. */
 export function uncolonised(page: PlanetPage): boolean {
   return page.owner === null && page.colony === null;
 }
@@ -26,17 +27,17 @@ export function addDepositOp(planet: number, kind: string): Op {
   return { type: "AddSaveDeposit", planet, kind };
 }
 
-/** The edit that takes one deposit of type `kind` hiding `swapType` off the page's planet: its last. */
+/**
+ * The edit that takes one deposit of type `kind` hiding `swapType` off the page's planet: its
+ * last, passing over one being cleared while another is not.
+ */
 export function removeDepositOp(
   page: PlanetPage,
   kind: string,
   swapType: string | null,
 ): Op | null {
-  const ids = page.deposits
-    .filter((d) => d.kind === kind && d.swap_type === swapType)
-    .map((d) => d.id);
-  const last = ids[ids.length - 1];
-  return last === undefined ? null : { type: "RemoveSaveDeposit", deposit: last };
+  const target = removalTarget(page, kind, swapType);
+  return target === null ? null : { type: "RemoveSaveDeposit", deposit: target.id };
 }
 
 /** One effect of a deposit type as the picker words it: a lost district as what it blocks. */

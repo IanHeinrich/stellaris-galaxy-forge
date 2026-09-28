@@ -46,6 +46,37 @@ beforeEach(() => {
 });
 
 describe("the deposit picker", () => {
+  it("holds an add with warnings until it is asked for again, and drops it on cancel", async () => {
+    const store = useDepositPickerStore.getState();
+    store.open(PAGE, false, "deposits");
+    await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    const [row] = depositRows(CHOICES, new Map(), "deposits");
+    const warnings = ["The game may demolish 1 district within a month."];
+
+    await store.add(row, row.amounts[0], warnings);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(useDepositPickerStore.getState().pending?.warnings).toEqual(warnings);
+    store.cancel();
+    expect(useDepositPickerStore.getState().pending).toBeNull();
+
+    await store.add(row, row.amounts[1], warnings);
+    await store.add(row, row.amounts[0], warnings);
+    expect(useDepositPickerStore.getState().pending?.amount).toBe(row.amounts[0]);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    // Asking again for the held amount, as Enter in the search does, confirms it.
+    await store.add(row, row.amounts[0], warnings);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "AddSaveDeposit",
+      planet: 40,
+      kind: "d_energy_1",
+    });
+    expect(useDepositPickerStore.getState()).toMatchObject({
+      pending: null,
+      added: "Added +1 d_energy_1",
+    });
+  });
+
   it("reads the types offered for the planet once, when it opens", async () => {
     useDepositPickerStore.getState().open(PAGE, true, "deposits");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices?.list).toEqual(CHOICES));

@@ -408,9 +408,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const planetBody = bodies && !starBody;
   const resizable = planetBody && unowned;
   // A 4.x save: the deposit and modifier ops refuse an older one.
-  const wholeEntries = useCanEdit("deposits");
-  const depositsEditable = wholeEntries && unowned;
-  const modifiersEditable = planetBody && wholeEntries;
+  const depositsEditable = useCanEdit("deposits");
+  const modifiersEditable = planetBody && depositsEditable;
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable ? { value: page.size } : null,

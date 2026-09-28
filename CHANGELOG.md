@@ -34,15 +34,18 @@ a release is made.
   Atomic Age.
 - Rename a save's planets on their page. Moons named after the planet
   follow the new name.
-- Change an uncolonised planet's size, and add or remove its deposits,
-  on its page. Add deposit, under the deposit list, opens a list of every
+- Change an uncolonised planet's size on its page. Add or remove any
+  planet's deposits there, colonies included. Add deposit, under the deposit list, opens a list of every
   deposit type with the ones the game places on that planet first.
   Search by name, resource or category, or pick a category such as
   Energy or Strategic. Deposits of one resource share a row with a
   button per amount. Add blocker, under the blockers, does the same for
   blockers. Both lists stay open, so you can add several in one go.
   A mining or research station over a removed deposit stays in game and
-  still costs about 1 energy a month.
+  still costs about 1 energy a month. On a colony, the page says what
+  the game will take away within a month before you confirm. That can
+  be districts over a lowered cap, a building or zone that needed the
+  deposit, or a blocker's clearing and what was spent on it.
 - A planet's page shows the anomaly waiting on it, and which empires
   have found it.
 - In a Stellaris 4.x save, a planet's Modifiers section can add and

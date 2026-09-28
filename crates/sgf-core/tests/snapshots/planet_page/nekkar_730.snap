@@ -41,5 +41,7 @@ expression: value
   "controller": 16,
   "colony": null,
   "flags": 0,
-  "anomaly": null
+  "anomaly": null,
+  "terraforming": false,
+  "clearing": []
 }

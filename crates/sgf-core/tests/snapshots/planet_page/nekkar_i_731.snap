@@ -122,8 +122,41 @@ expression: value
         },
         "pops": 800
       }
+    ],
+    "districts": [
+      {
+        "kind": "district_city",
+        "level": 4
+      },
+      {
+        "kind": "district_generator",
+        "level": 2
+      },
+      {
+        "kind": "district_mining",
+        "level": 2
+      }
+    ],
+    "zones": [
+      "zone_default",
+      "zone_industrial",
+      "zone_energy",
+      "zone_minerals"
+    ],
+    "buildings": [
+      "building_ancient_palace",
+      "building_fe_dome",
+      "building_micro_forge",
+      "building_affluence_emporium",
+      "building_dimensional_replicator",
+      "building_class_4_singularity",
+      "building_energy_nexus",
+      "building_fe_mine_2",
+      "building_mineral_purification_hub"
     ]
   },
   "flags": 1,
-  "anomaly": null
+  "anomaly": null,
+  "terraforming": false,
+  "clearing": []
 }

@@ -33,14 +33,23 @@ export interface DepositPickerState {
   chip: DepositChip;
   /** What the last add added, until the next. */
   added: string | null;
+  /** An add waiting for the user to confirm what the game will take away for it. */
+  pending: { row: DepositRow; amount: DepositAmount; warnings: readonly string[] } | null;
   /** The types offered, read for the body `body` names; `null` until read. */
   choices: { body: string; list: DepositChoice[] } | null;
   open(page: PlanetPage, moon: boolean, mode: PickerMode): void;
   close(): void;
   setQuery(query: string): void;
   setChip(chip: DepositChip): void;
-  /** Adds `amount` of `row` to the open planet and says so. */
-  add(row: DepositRow, amount: DepositAmount): Promise<void>;
+  /**
+   * Adds `amount` of `row` to the open planet and says so; with `warnings`, first holds the add
+   * for `confirm` instead. Asking again for the amount being held confirms it.
+   */
+  add(row: DepositRow, amount: DepositAmount, warnings?: readonly string[]): Promise<void>;
+  /** Makes the add waiting on its warnings. */
+  confirm(): Promise<void>;
+  /** Drops the add waiting on its warnings. */
+  cancel(): void;
 }
 
 export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
@@ -49,11 +58,12 @@ export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
   query: "",
   chip: "All",
   added: null,
+  pending: null,
   choices: null,
 
   open(page, moon, mode) {
     if (get().planet !== page.id || get().mode !== mode) {
-      set({ planet: page.id, mode, query: "", chip: "All", added: null });
+      set({ planet: page.id, mode, query: "", chip: "All", added: null, pending: null });
     }
     const body = bodyKey(page, moon);
     if (get().choices?.body === body) return;
@@ -73,7 +83,7 @@ export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
   },
 
   close() {
-    set({ planet: null, query: "", chip: "All", added: null });
+    set({ planet: null, query: "", chip: "All", added: null, pending: null });
   },
 
   setQuery(query) {
@@ -84,10 +94,24 @@ export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
     set({ chip });
   },
 
-  async add(row, amount) {
+  async add(row, amount, warnings = []) {
     const planet = get().planet;
     if (planet === null) return;
+    if (warnings.length > 0 && get().pending?.amount.key !== amount.key) {
+      set({ pending: { row, amount, warnings } });
+      return;
+    }
+    set({ pending: null });
     const op: Op = addDepositOp(planet, amount.key);
     if (await useEditorStore.getState().applyOp(op)) set({ added: addedLine(row, amount) });
+  },
+
+  async confirm() {
+    const pending = get().pending;
+    if (pending !== null) await get().add(pending.row, pending.amount);
+  },
+
+  cancel() {
+    set({ pending: null });
   },
 }));

@@ -21,6 +21,7 @@ use crate::format::scenario::index::{self as scenario, Changes, ScenarioIndex};
 use crate::keys;
 use crate::overlay::{Anchor, Overlay, OverlayError};
 use crate::projections::galaxy::ProjectionError;
+use crate::projections::read;
 use crate::scan::{self, Index, ScanError, Value, key_name};
 use crate::views::DocumentKind;
 
@@ -123,6 +124,8 @@ pub struct Document {
     inner: HashMap<&'static str, OnceLock<Option<Index>>>,
     /// See [`Self::anomaly_finders`].
     finders: OnceLock<HashMap<u32, Vec<u32>>>,
+    /// See [`Self::clearing_cost`].
+    clearings: OnceLock<HashMap<u32, Vec<(String, f64)>>>,
 }
 
 /// An empty cell for each section [`Document::inner_index`] answers for: those an entity
@@ -197,6 +200,56 @@ fn anomaly_lists(index: &Index, src: &[u8]) -> HashMap<u32, Vec<u32>> {
     finders
 }
 
+/// What each blocker being cleared costs, by deposit id: the `resources` of the
+/// `construction.item_mgr.items` entry whose `buildable_clear_deposit_blocker` names it.
+fn clearing_costs(index: &Index, src: &[u8]) -> HashMap<u32, Vec<(String, f64)>> {
+    let mut costs = HashMap::new();
+    let Some(items) = index
+        .section(keys::CONSTRUCTION)
+        .and_then(|section| inner_block(src, section.value, keys::ITEM_MGR))
+        .and_then(|item_mgr| inner_block(src, item_mgr, keys::ITEMS))
+    else {
+        return costs;
+    };
+    let Value::Block { open, close } = items else {
+        return costs;
+    };
+    let Ok(root) = cst::parse(&src[open + 1..close], open + 1) else {
+        return costs;
+    };
+    for item in root.children() {
+        let Some(deposit) = item
+            .find(keys::BUILDABLE_CLEAR_DEPOSIT_BLOCKER, src)
+            .and_then(|clearing| read::scalar_u32(clearing, keys::DEPOSIT, src))
+        else {
+            continue;
+        };
+        let resources = item
+            .find(keys::RESOURCES, src)
+            .map(|resources| {
+                resources
+                    .children()
+                    .iter()
+                    .filter_map(|r| {
+                        Some((r.key_str(src)?.to_owned(), r.scalar_str(src)?.parse().ok()?))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        costs.insert(deposit, resources);
+    }
+    costs
+}
+
+/// The value of the statement `key` inside the block `value`, scanned rather than parsed.
+fn inner_block(src: &[u8], value: Value, key: &str) -> Option<Value> {
+    let Value::Block { open, close } = value else {
+        return None;
+    };
+    let inner = scan::scan_range(src, open + 1..close).ok()?;
+    Some(inner.section(key)?.value)
+}
+
 impl Document {
     /// Read a document and index it, as the kind its bytes say it is.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
@@ -232,6 +285,7 @@ impl Document {
             },
             inner: inner_cells(),
             finders: OnceLock::new(),
+            clearings: OnceLock::new(),
         })
     }
 
@@ -247,6 +301,7 @@ impl Document {
             body: Body::Scenario(Box::new(scenario)),
             inner: inner_cells(),
             finders: OnceLock::new(),
+            clearings: OnceLock::new(),
         })
     }
 
@@ -372,6 +427,15 @@ impl Document {
             .get_or_init(|| anomaly_lists(&self.index, &self.original))
             .get(&planet)
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// What clearing blocker `deposit` costs, while a construction item clears it. Every item
+    /// is read on the first call and kept, because no op writes one.
+    pub(crate) fn clearing_cost(&self, deposit: u32) -> Option<&[(String, f64)]> {
+        self.clearings
+            .get_or_init(|| clearing_costs(&self.index, &self.original))
+            .get(&deposit)
+            .map(Vec::as_slice)
     }
 
     pub fn overlay(&self) -> &Overlay {

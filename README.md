@@ -139,7 +139,9 @@ list also shows how far out each body orbits.
 Every planet, moon, star and asteroid in a save has its own page,
 including its deposits using the game's artwork, blockers and their
 clearing costs, and its modifiers and moons. A colonised planet's page
-also summarises the colony.
+also summarises the colony. Add or remove deposits and blockers on any
+planet. On a colony, the page warns you first when the game will take
+something away for the change, such as districts over a lowered cap.
 
 In a scenario, the inspector shows what a system will spawn before you
 start the game. The Scripts tab shows the initializer and the events and
@@ -176,7 +178,7 @@ keys.
 | Which initializer a system uses | shown | editable |
 | The initializer itself (its star, planets, resources) | shown | shown, never written: initializers belong to the game and mod files |
 | Planets and moons | shown, each on its own page | shown, from the initializer |
-| Deposits | shown, and rolled for the systems you add. The `sgf` tool adds or removes them on uncolonised planets | shown, from the initializer |
+| Deposits | editable on any planet, colonies included, and rolled for the systems you add | shown, from the initializer |
 | Colonies | shown, with their pops | shown, from the initializer |
 | Nebulae: add, move, resize, rename, remove | editable | editable |
 | Turbulent nebulae | editable | not in the file |
