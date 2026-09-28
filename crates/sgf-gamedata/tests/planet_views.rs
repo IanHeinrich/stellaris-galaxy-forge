@@ -445,6 +445,16 @@ fn real_modifier_choices_offer_features_candidates_and_planet_modifiers() {
         .map(|c| (c.modifier.as_str(), c.feature.as_deref()))
         .collect();
     assert_eq!(keys.len(), choices.len(), "each choice once");
-    assert!(!choices.iter().any(|c| c.modifier == "difficulty_admiral"));
-    assert!((800..1500).contains(&choices.len()), "{}", choices.len());
+    for empire_wide in [
+        "difficulty_admiral",
+        "food_crisis",
+        "ai_fleet",
+        "ship_graveyard",
+    ] {
+        assert!(
+            !choices.iter().any(|c| c.modifier == empire_wide),
+            "{empire_wide} is not offered"
+        );
+    }
+    assert!((600..1200).contains(&choices.len()), "{}", choices.len());
 }

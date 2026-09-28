@@ -1,7 +1,10 @@
 /** The edits a save body's page offers beside its star's: its name, its size and its deposits. */
 import type { ModifierLineView } from "../../generated/ModifierLineView";
 import type { Op } from "../../generated/Op";
+import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
+import type { StarClassView } from "../../generated/StarClassView";
+import { isStarBody } from "./starBody";
 
 /** The remove button's hover text on a deposit a station works. */
 export const STATION_STAYS =
@@ -43,4 +46,20 @@ export function effectText(effect: ModifierLineView): string {
     return `Blocks ${n} ${n === 1 ? "district" : "districts"}`;
   }
   return effect.text;
+}
+
+/**
+ * Why a body's row in a planet list has the Edit chip, as its hover text: a star's type and
+ * size, or any other body's name, modifiers and deposits. `null` where bodies cannot be edited.
+ */
+export function bodyEditHint(
+  planetClass: string,
+  bodies: boolean,
+  planetClasses: ReadonlyMap<string, PlanetClassView>,
+  starClasses: ReadonlyMap<string, StarClassView>,
+): string | null {
+  if (!bodies) return null;
+  return isStarBody(planetClass, planetClasses, starClasses)
+    ? "Open this star's page to change its type and size"
+    : "Open this planet's page to rename it or change its modifiers and deposits";
 }

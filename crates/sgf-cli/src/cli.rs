@@ -222,7 +222,7 @@ pub enum Command {
         /// A static modifier, as `common/static_modifiers` names it.
         modifier: String,
         /// How many days it lasts; it never expires unless given.
-        #[arg(long, conflicts_with = "remove")]
+        #[arg(long, conflicts_with = "remove", value_parser = clap::value_parser!(i32).range(1..))]
         days: Option<i32>,
         /// The planet feature (`pm_*`) that applies the modifier, written or removed with it.
         #[arg(long)]

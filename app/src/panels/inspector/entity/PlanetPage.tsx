@@ -10,10 +10,9 @@ import {
   planetDataKeys,
   type ModifierRow,
 } from "../../../lib/details/planetPage";
-import { bodyEditHint } from "../../../lib/details/terraform";
 import { removeModifierOp } from "../../../lib/details/modifierPicker";
 import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
-import { renamePlanetOp, uncolonised } from "../../../lib/details/planetEdits";
+import { bodyEditHint, renamePlanetOp, uncolonised } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -361,7 +360,6 @@ function Moons({ page }: { page: PlanetPage }) {
   );
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
   if (page.moons.length === 0) return null;
   return (
@@ -376,14 +374,7 @@ function Moons({ page }: { page: PlanetPage }) {
             key={moon.id}
             planet={{ ...summary, moon: false }}
             details={read}
-            editHint={bodyEditHint(
-              summary.class,
-              bodies,
-              summary.permanent_modifiers,
-              planetClasses,
-              starClasses,
-              candidates,
-            )}
+            editHint={bodyEditHint(summary.class, bodies, planetClasses, starClasses)}
           />
         );
       })}
@@ -416,7 +407,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const unowned = uncolonised(page);
   const planetBody = bodies && !starBody;
   const resizable = planetBody && unowned;
-  const depositsEditable = useCanEdit("deposits") && unowned;
+  // A 4.x save: the deposit and modifier ops refuse an older one.
+  const wholeEntries = useCanEdit("deposits");
+  const depositsEditable = wholeEntries && unowned;
+  const modifiersEditable = planetBody && wholeEntries;
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable ? { value: page.size } : null,
@@ -449,11 +443,11 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
         </Properties>
       )}
       <PlanetDeposits page={page} editable={depositsEditable} moon={found?.planet.moon ?? false} />
-      <PlanetModifiers page={page} editable={planetBody} />
+      <PlanetModifiers page={page} editable={modifiersEditable} />
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />
-      {(starBlock || hasFields(fields) || depositsEditable || planetBody || orbitable) && (
+      {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (
         <EditKey />
       )}
     </>

@@ -24,9 +24,9 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   and its planet and timed modifiers as rows. `starBody` says whether a body
   is a star and what a star body's type and size can change to, and
   `starClass` is the star class pickers and the bulk plan that sets one
-  class on many systems. `terraform` says whether a body is or can be a
-  terraforming candidate and what terraforming it needs. `planetEdits`
-  builds the ops a planet's page sends for its name, size and deposits, and
+  class on many systems. `terraform` says what making a body a terraforming
+  candidate needs. `planetEdits` builds the ops a planet's page sends for
+  its name, size and deposits and the hint of a body's Edit chip, and
   `depositPicker` groups the deposit types its picker offers into
   families, sections and chips. `modifierPicker` is the modifier
   picker's rows, chips and sections, and the ops that add and remove a

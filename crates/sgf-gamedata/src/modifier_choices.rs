@@ -1,7 +1,8 @@
 //! The modifiers a save planet's page offers to add. Static modifiers name no scope, so a
-//! planet's are taken to be those the game draws with a planet modifier icon
-//! (`gfx/interface/icons/planet_modifiers/`), every planet feature's (`pm_*`) static
-//! modifier, offered as the feature, and every terraforming candidate modifier.
+//! planet's are taken to be every planet feature's (`pm_*`) static modifier, offered as the
+//! feature, every terraforming candidate modifier, and those the game draws with a planet
+//! modifier icon (`gfx/interface/icons/planet_modifiers/`) that change something beyond
+//! the empire and its ships.
 
 use std::collections::HashSet;
 
@@ -70,7 +71,9 @@ impl GameData {
             .static_modifiers
             .iter()
             .filter(|def| !featured.contains(&def.key))
-            .filter(|def| terraforming.contains(def.key.as_str()) || planet_icon(def))
+            .filter(|def| {
+                terraforming.contains(def.key.as_str()) || (planet_icon(def) && on_planet(def))
+            })
             .collect();
         rest.sort_by(|a, b| a.key.cmp(&b.key));
         for def in rest {
@@ -106,4 +109,11 @@ fn planet_icon(def: &StaticModifierDef) -> bool {
     def.icon
         .as_deref()
         .is_some_and(|icon| icon.replace('\\', "/").starts_with(PLANET_MODIFIER_ICONS))
+}
+
+/// Whether any of its effects is not an empire's (`country_*`) or its ships' (`ship_*`).
+fn on_planet(def: &StaticModifierDef) -> bool {
+    def.modifiers
+        .iter()
+        .any(|(key, _)| !key.starts_with("country_") && !key.starts_with("ship_"))
 }

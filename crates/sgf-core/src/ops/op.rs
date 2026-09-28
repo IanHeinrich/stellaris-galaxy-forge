@@ -304,9 +304,10 @@ pub enum Op {
     /// entry of `days`, each lasting that many days or `-1` for ever, added last as the
     /// game's `add_modifier` does. With `feature`, a planet feature (`pm_*`) whose static
     /// modifier `modifier` is, its `planet_modifier` line goes before `entity` too, unless the
-    /// planet has it, and `days` may be empty. A system's star is refused, and so are a
-    /// modifier the planet has, days of 0 or below -1 and more than `MAX_MODIFIER_COPIES`
-    /// items. The inverse removes what it wrote. Save documents only.
+    /// planet has it, and `days` may be empty. Days are written as given, a negative count
+    /// that a save holds included. A system's star is refused, and so are a modifier the
+    /// planet has, days of 0, more than `MAX_MODIFIER_COPIES` items and a save before
+    /// Stellaris 4.0. The inverse removes what it wrote. Save documents only.
     AddPlanetModifier {
         planet: u32,
         modifier: String,
@@ -317,8 +318,9 @@ pub enum Op {
     },
     /// Every `timed_modifier` item naming `modifier` on a save planet, permanent or not, as
     /// the game's `remove_modifier` takes it, and with `feature` every `planet_modifier` line
-    /// naming that. A system's star is refused, and so is a planet with neither. The inverse
-    /// adds back what it took, each item with its days. Save documents only.
+    /// naming that. A system's star is refused, and so are a planet with neither, an item
+    /// whose days are not a number and a save before Stellaris 4.0. The inverse adds back
+    /// what it took, each item with its days. Save documents only.
     RemovePlanetModifier {
         planet: u32,
         modifier: String,
@@ -939,8 +941,8 @@ pub enum OpError {
     ModifierPresent(u32, String),
     #[error("planet {0} does not have {1}")]
     ModifierAbsent(u32, String),
-    #[error("a modifier lasts -1 (for ever) or a positive number of days, not {0}")]
-    ModifierDays(i32),
+    #[error("a modifier cannot last 0 days: -1 keeps it for ever")]
+    ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
     #[error("country {0} does not exist")]

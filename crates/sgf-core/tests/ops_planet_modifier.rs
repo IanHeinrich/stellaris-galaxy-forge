@@ -7,7 +7,7 @@ use sgf_core::session::{OpResult, Session};
 
 use crate::common;
 use common::diff::{round_trip, round_trip_step, snapshot_step};
-use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
+use common::{SAMPLE_4_5, current, open, open_3_4, open_4_5, open_edited_sample};
 
 const CANDIDATE: &str = "terraforming_candidate";
 const FROZEN: &str = "frozen_terraforming_candidate";
@@ -237,11 +237,7 @@ fn a_modifier_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         ),
         (
             add(585, CANDIDATE, &[0]),
-            "a modifier lasts -1 (for ever) or a positive number of days, not 0",
-        ),
-        (
-            add(585, CANDIDATE, &[-2]),
-            "a modifier lasts -1 (for ever) or a positive number of days, not -2",
+            "a modifier cannot last 0 days: -1 keeps it for ever",
         ),
         (
             add(585, CANDIDATE, &[]),
@@ -310,4 +306,47 @@ fn removing_two_permanent_copies_has_an_inverse_that_puts_both_back() {
         current(&session) == session.doc.original(),
         "the inverse writes the two copies back as the file held them"
     );
+}
+
+#[test]
+fn a_negative_count_of_days_the_save_holds_is_written_back_as_it_was() {
+    let mut session = open();
+    let living_sea = ("living_sea".to_owned(), -360);
+    assert!(page(&session, 1567).contains(&living_sea));
+    let removed = session
+        .apply(remove(1567, "living_sea", None))
+        .expect("remove the living sea");
+    assert_eq!(removed.inverse, add(1567, "living_sea", &[-360]));
+    assert!(!page(&session, 1567).contains(&living_sea));
+
+    session.apply(removed.inverse).expect("write it back");
+    assert!(page(&session, 1567).contains(&living_sea));
+    assert_eq!(current(&session), session.doc.original());
+}
+
+#[test]
+fn an_item_whose_days_are_not_a_number_is_not_removed() {
+    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        *gamestate = gamestate.replacen("days=3426", "days=soon", 1);
+    });
+    let error = session
+        .apply(remove(40, HARVESTED, None))
+        .expect_err("unreadable days");
+    assert!(
+        error
+            .to_string()
+            .contains("harvested_resources_mining lasts \"soon\" days, which is not a number"),
+        "{error}"
+    );
+    assert!(!session.doc.is_dirty());
+}
+
+#[test]
+fn a_save_before_stellaris_4_is_refused() {
+    let mut session = open_3_4();
+    for op in [add(1, CANDIDATE, &[-1]), remove(1, CANDIDATE, None)] {
+        let error = session.apply(op).expect_err("a 3.4 save");
+        assert!(error.to_string().contains("3.4"), "{error}");
+    }
+    assert!(!session.doc.is_dirty());
 }

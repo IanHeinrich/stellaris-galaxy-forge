@@ -271,19 +271,18 @@ describe("the star class at the head", () => {
     expect(overview()).not.toContain("No star class has these stars");
   });
 
-  it("marks each star in the planet list as a page with fields to edit", async () => {
+  it("marks each star and planet in the planet list as a page with fields to edit", async () => {
     armStarClasses();
     await open("save");
     await land(stars());
 
-    expect(overview().match(/class="ins-edit-chip"/g)).toHaveLength(2);
+    const html = overview();
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(html).toContain("Open this star&#x27;s page to change its type and size");
   });
 
-  it("marks a planet that can be made a terraforming candidate", async () => {
+  it("marks every planet as editable, and a star with its own hint", async () => {
     armStarClasses();
-    const classes = new Map(useGameDataStore.getState().planetClasses);
-    classes.set("pc_barren", planetClassView("pc_barren", false, "terraforming_candidate"));
-    useGameDataStore.setState({ planetClasses: classes });
     await open("save");
     await land(
       details({
@@ -296,26 +295,10 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(2);
-    expect(html).toContain("Open this planet&#x27;s page to make it a terraforming candidate");
-  });
-
-  it("marks a planet that still carries a candidate modifier left from an earlier class", async () => {
-    useGameDataStore.setState({
-      terraformCandidates: new Map([
-        ["terraforming_candidate", { modifier: "terraforming_candidate", requires: [] }],
-      ]),
-    });
-    await open("save");
-    await land(
-      details({
-        planets: [planet(100, "Tarkin", { permanent_modifiers: ["terraforming_candidate"] })],
-      }),
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(html).toContain(
+      "Open this planet&#x27;s page to rename it or change its modifiers and deposits",
     );
-
-    const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(1);
-    expect(html).toContain("Open this planet&#x27;s page to clear its terraforming candidate");
   });
 
   it("marks a star as editable and lists it first without game data", async () => {
@@ -326,7 +309,7 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(1);
+    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(2);
     expect(html.indexOf("Alpha")).toBeLessThan(html.indexOf("Tarkin"));
   });
 

@@ -1,12 +1,13 @@
 //! A save planet's modifiers: the items of its `timed_modifier`, as the game's `add_modifier`
 //! and `remove_modifier` write them, and the `planet_modifier="pm_…"` line of a planet
 //! feature whose static modifier one of them is. A new block goes after
-//! `bombardment_damage` and a feature's line before `entity`, where the game writes them.
+//! `bombardment_damage` and a feature's line before `entity`, where Stellaris 4.x writes
+//! them; an older save puts both elsewhere and is refused.
 
 use crate::cst::Node;
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::timed_modifiers::{self, Place};
-use crate::format::save::{planet_entity, planet_system};
+use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -19,14 +20,15 @@ use crate::span::Span;
 /// keeps a hand-typed op from writing thousands.
 pub(crate) const MAX_MODIFIER_COPIES: u32 = 16;
 
-/// The planet `id`'s entity and system, once the modifier and feature are checked and the
-/// planet is known not to be its system's star.
+/// The planet `id`'s entity and system, once the save is known to be 4.x, the modifier and
+/// feature are checked and the planet is known not to be its system's star.
 fn planet<'a>(
     s: &'a Session,
     id: u32,
     modifier: &str,
     feature: Option<&str>,
 ) -> Result<(Node, &'a [u8], u32), OpError> {
+    check_version(&s.doc)?;
     let (node, src) = planet_entity(&s.doc, id)?;
     let system = planet_system(&node, src, id)?;
     check_text("a modifier", modifier, Form::Bare)?;
@@ -52,8 +54,8 @@ pub(crate) fn plan_add(
     if count > MAX_MODIFIER_COPIES || (count == 0 && feature.is_none()) {
         return Err(OpError::ModifierCopies(count));
     }
-    if let Some(&bad) = days.iter().find(|&&d| d == 0 || d < -1) {
-        return Err(OpError::ModifierDays(bad));
+    if days.contains(&0) {
+        return Err(OpError::ModifierDays);
     }
     if timed_days(&node, src, modifier).next().is_some() {
         return Err(OpError::ModifierPresent(id, modifier.to_owned()));
@@ -91,8 +93,14 @@ pub(crate) fn plan_remove(
 ) -> Result<Planned, OpError> {
     let (node, src, system) = planet(s, id, modifier, feature)?;
     let days: Vec<i32> = timed_days(&node, src, modifier)
-        .map(|d| d.parse().unwrap_or(-1))
-        .collect();
+        .map(|(offset, days)| {
+            days.parse().map_err(|_| OpError::PlanetParse {
+                planet: id,
+                offset,
+                reason: format!("{modifier} lasts {days:?} days, which is not a number"),
+            })
+        })
+        .collect::<Result<_, _>>()?;
     let held = u32::try_from(days.len()).unwrap_or(u32::MAX);
     if held > MAX_MODIFIER_COPIES {
         return Err(OpError::ModifierCopies(held));
@@ -170,16 +178,17 @@ fn feature_lines<'a>(
         .filter(move |m| m.scalar_str(src) == Some(feature))
 }
 
-/// The `days` of each of the planet's `timed_modifier` items naming `modifier`.
+/// The offset and `days` text of each of the planet's `timed_modifier` items naming
+/// `modifier`.
 fn timed_days<'a>(
     node: &'a Node,
     src: &'a [u8],
     modifier: &'a str,
-) -> impl Iterator<Item = String> {
+) -> impl Iterator<Item = (usize, String)> {
     node.find(keys::TIMED_MODIFIER, src)
         .and_then(|block| block.find(keys::ITEMS, src))
         .into_iter()
         .flat_map(|items| items.children())
         .filter(move |item| read::text(item, keys::MODIFIER, src) == modifier)
-        .map(move |item| read::text(item, keys::DAYS, src))
+        .map(move |item| (item.span().start, read::text(item, keys::DAYS, src)))
 }

@@ -156,14 +156,16 @@ too.
   planet take its new name too.
 - An uncolonised planet or moon has a Size field. A colonised planet
   shows its size as text.
-- The Modifiers section lists a planet's features and timed modifiers.
-  Remove one with the ✕ on its row. Add modifier, under the list, lists
-  the modifiers a planet can have. Search by name or effect, or pick a
-  chip: Features, Terraforming, Positive, Negative or Other. Pick
-  Permanent or a number of days before you click Add. A timed modifier
-  runs out in game after those days. Adding a planet feature writes it
-  as the game writes a rolled one. This does what the console's
-  `add_modifier` and `remove_modifier` do.
+- In a Stellaris 4.x save, the Modifiers section lists a planet's
+  features and timed modifiers. Remove one with the ✕ on its row. Add
+  modifier, under the list, lists the modifiers that act on a planet,
+  its pops or its jobs. Search by name or effect, or pick a chip:
+  Features, Terraforming, Positive, Negative or Other. Pick Permanent or
+  a number of days before you click Add. A timed modifier runs out in
+  game after those days. Adding or removing a timed modifier does what
+  the console's `add_modifier` and `remove_modifier` do. A planet
+  feature also has a line of its own, which is added and removed with
+  it, as the game writes a rolled feature.
 - A barren, frozen, toxic or grey goo world's terraforming candidate
   modifier is at the top of Add modifier, under "Usual for this
   planet". With it, the planet can be terraformed once the empire has
