@@ -364,3 +364,7 @@ button.link.ins-drill:hover {
   font-style: italic;
   color: var(--fg-muted);
 }
+
+.ins-body-pick {
+  border-bottom: 1px solid var(--ins-rule);
+}

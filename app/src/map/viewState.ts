@@ -12,6 +12,7 @@ import { useIssuesStore } from "../store/issuesStore";
 import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
+import { usePlanetMoveStore } from "../store/planetMoveStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { follows, type Binding, type Store } from "./follows";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
@@ -133,6 +134,13 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     useMapChromeStore,
     [(s) => s.highlightInitializer],
     (s, view) => setMatched(view, s.highlightInitializer),
+    "bind",
+  ),
+
+  follows(
+    usePlanetMoveStore,
+    [(s) => s.cut],
+    (s, view) => view.highlights.setCutSource(s.cut?.from ?? null),
     "bind",
   ),
 

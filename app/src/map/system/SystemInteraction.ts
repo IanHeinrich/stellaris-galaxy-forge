@@ -5,6 +5,7 @@ import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
+import { planetsCanMove, usePlanetMoveStore } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
@@ -111,6 +112,8 @@ export class SystemInteraction {
   /** Why the last drag was refused, said in the status bar until the pointer rests elsewhere. */
   private refusal: string | null = null;
   private readonly keyListeners: Array<() => void> = [];
+  /** Whether the last press held Shift or Ctrl, which makes a click on a body toggle it. */
+  private pressToggles = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -125,10 +128,16 @@ export class SystemInteraction {
       },
       contextMenu: (target, x, y) => {
         this.hover(null, null, null, x, y);
+        if (target.kind === "body" && !this.selected(target.id)) {
+          this.selectAlone(target.system, target.id);
+        }
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
       openBody: (system, id) => this.openBody(system, id),
-      showSystem: () => useInspectorStore.getState().popTo(0),
+      showSystem: () => {
+        usePlanetMoveStore.getState().clearBodies();
+        useInspectorStore.getState().popTo(0);
+      },
       frame: () => this.scene.frame(),
       preview: (step) => this.preview(step),
       commit: (intent) => {
@@ -248,12 +257,31 @@ export class SystemInteraction {
     this.refusal = null;
   }
 
+  /** A click on a body selects it and opens its page; with Shift or Ctrl it toggles it instead. */
   private openBody(system: number, id: number): void {
+    if (!this.scene.context().bodyById.get(id)?.planet) return;
+    // A drag opens its body's page as it starts, while the model is still busy with the press.
+    if (this.pressToggles && !this.model.busy() && planetsCanMove()) {
+      usePlanetMoveStore.getState().toggleBody(system, id);
+    } else {
+      this.selectAlone(system, id);
+    }
+  }
+
+  private selectAlone(system: number, id: number): void {
+    usePlanetMoveStore.getState().selectBody(system, id);
+    this.showBody(system, id);
+  }
+
+  private showBody(system: number, id: number): void {
     const ctx = this.scene.context();
     const planet = ctx.bodyById.get(id)?.planet;
     if (!planet) return;
-    const inspector = useInspectorStore.getState();
-    inspector.openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));
+    useInspectorStore.getState().openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));
+  }
+
+  private selected(id: number): boolean {
+    return usePlanetMoveStore.getState().selection?.ids.includes(id) === true;
   }
 
   private hover(
@@ -303,6 +331,7 @@ export class SystemInteraction {
       exit: body === null && handle === null ? pickExit(ctx.exits, this.cam, w) : null,
       draggable: !this.scene.holding() && (movable || handle !== null),
     };
+    if (kind === "down") this.pressToggles = input.shift || input.ctrl;
     if (kind === "move") {
       this.lastMove = input;
       // A move with no button held means the release went elsewhere.

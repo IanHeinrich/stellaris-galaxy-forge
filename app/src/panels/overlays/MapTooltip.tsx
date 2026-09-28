@@ -28,9 +28,12 @@ function lineKey(line: MapTooltipLine, i: number): string {
   return `${typeof line.label === "string" ? line.label : "line"}-${i}`;
 }
 
-/** The pointer's tooltip, flipped left or up when it would run past the map area's edge. */
+/**
+ * The pointer's tooltip, flipped left or up when it would run past the map area's edge. It hides
+ * while a context menu is open, which it would otherwise cover.
+ */
 export function MapTooltip() {
-  const tip = useMapChromeStore((s) => s.tooltip);
+  const tip = useMapChromeStore((s) => (s.contextMenu === null ? s.tooltip : null));
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 0, top: 0 });
 

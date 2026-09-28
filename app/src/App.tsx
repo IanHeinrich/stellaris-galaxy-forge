@@ -15,6 +15,7 @@ import { FileMenu } from "./panels/chrome/FileMenu";
 import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { PaintNotice } from "./panels/chrome/PaintNotice";
 import { SceneCrumb } from "./panels/chrome/SceneCrumb";
+import { CutBar } from "./panels/chrome/CutBar";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
 import { LayerToggles } from "./panels/chrome/LayerToggles";
@@ -211,6 +212,7 @@ function App() {
           <MapCanvas />
           {status === "ready" && tools && <ToolOptions />}
           {status === "ready" && shown !== null && <SceneCrumb system={shown} />}
+          {status === "ready" && <CutBar />}
           <ContextMenu />
           <MapTooltip />
           {status !== "ready" && <Launch />}

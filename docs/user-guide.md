@@ -266,6 +266,38 @@ the inner radius moves out with it. How far out follows the defines in
 your install and mods. The system view draws the hyperlane exits on the
 inner radius circle.
 
+#### Move planets to another system
+
+In a save, you can move planets and moons to another system. Click a
+planet in the system view, then Ctrl- or Shift-click more to add them.
+Right-click one of them and choose Cut. The planets stay where they are
+for now. They are dimmed with a dashed outline, and a bar at the top of
+the map says what you're moving. Press Esc to cancel.
+
+To paste, right-click another system on the galaxy map, or right-click
+empty space in that system's view, and choose Paste. A single planet
+lands where you right-clicked. Several planets go into the next free
+orbits past the system's outermost planet. The whole move is one edit,
+so one undo puts it all back.
+
+- A planet takes its moons with it. A moon you cut on its own becomes a
+  planet in the new system.
+- A planet takes its own mining or research station with it. Other
+  fleets stay where they are, even if they're parked at the planet.
+- Planets keep their names, so Meissa II can end up in Gilprim.
+- Stars, planets with a megastructure, such as a habitat or an arc
+  furnace, and occupied planets can't be moved.
+
+You can move a colony or a station into another empire's system. The
+game changes its ownership to that empire. A station changes owner as
+soon as the save loads, and a colony about a month later through an
+event. The Paste item warns you when this will happen. A colony moved into space
+no one owns stays yours.
+
+To move a single planet, you can also use the System field on its page.
+Type a system's name and pick it from the list. The nearest systems come
+first.
+
 #### Asteroid belts and the inner radius
 
 The system's page has a Belts section. You can change the inner radius

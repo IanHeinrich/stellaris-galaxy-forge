@@ -14,7 +14,7 @@ import {
 import { bodyTier, drawnDisc } from "../geometry";
 import { RING_TILT, ringStrip, sizeRing, type RingParts } from "./ring";
 import { flareParts, STAR_ART, type FlareShape } from "./starLight";
-import type { SystemLayer } from "./SystemLayer";
+import type { SceneHighlight, SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 
 /** The glow added round a star, in disc diameters, and how strongly. */
@@ -30,6 +30,8 @@ const PLANET_ART_SCALE = 1;
 const LARGE_ICON_PX = 48;
 /** A ring left to chance. */
 const CHANCE_RING_ALPHA = 0.4;
+/** A body cut and waiting for a paste, and each moon that goes with it. */
+const CUT_ALPHA = 0.3;
 /**
  * The atmosphere haze: its reach past the limb in disc radii per unit of the class's
  * `atmosphere_width`, never under two pixels, its alpha at the limb per unit of
@@ -128,12 +130,13 @@ function sized(sprite: Sprite, diameter: number): void {
  * surface the install bakes into a lit disc shows that in place of the tint and the icon. A class
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
  * behind the disc. A random class shows a question mark in place of the icon, and a ring left to
- * chance is faded.
+ * chance is faded. A body cut to move elsewhere is dimmed, and so are its moons.
  */
 export class BodiesLayer implements SystemLayer {
   readonly container = new Container();
   private bodies: readonly SceneBody[] = EMPTY_SYSTEM_CONTEXT.bodies;
   private drawn: Drawn[] = [];
+  private cut: readonly number[] = [];
   private scale = -1;
   private readonly unsubTextures: () => void;
 
@@ -144,11 +147,29 @@ export class BodiesLayer implements SystemLayer {
   rebuild(ctx: SystemContext): void {
     if (ctx.bodies === this.bodies) return;
     this.bodies = ctx.bodies;
-    if (this.move(ctx.bodies)) return;
-    for (const child of this.container.removeChildren()) child.destroy({ children: true });
-    const ordered = [...ctx.bodies].sort((a, b) => bodyTier(a) - bodyTier(b));
-    this.drawn = ordered.map((body) => this.place(body));
-    this.resize();
+    if (!this.move(ctx.bodies)) {
+      for (const child of this.container.removeChildren()) child.destroy({ children: true });
+      const ordered = [...ctx.bodies].sort((a, b) => bodyTier(a) - bodyTier(b));
+      this.drawn = ordered.map((body) => this.place(body));
+      this.resize();
+    }
+    this.dim();
+  }
+
+  setHighlighted(ref: SceneHighlight): void {
+    if (ref.cutBodies === this.cut) return;
+    this.cut = ref.cutBodies;
+    this.dim();
+  }
+
+  /** Dims the cut bodies and the moons that go with them, and brings every other body back. */
+  private dim(): void {
+    const cut = new Set(this.cut);
+    for (const { body, holder } of this.drawn) {
+      const { id, moon, parent } = body.placement;
+      const dimmed = cut.has(id) || (moon && parent !== null && cut.has(parent));
+      holder.alpha = dimmed ? CUT_ALPHA : 1;
+    }
   }
 
   /**

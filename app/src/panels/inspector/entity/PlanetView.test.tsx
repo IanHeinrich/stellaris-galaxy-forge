@@ -35,10 +35,20 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
+import {
+  READING_TARGETS,
+  SystemChoice,
+  TARGETS_FAILED,
+  type TargetsRead,
+} from "./PlanetSystemField";
+import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
+import { escaped as escapedText } from "../../../test/elements";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { PickerField, ToggleField } from "../../EditField";
+import { ComboField } from "../../ComboField";
+import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
 
@@ -226,7 +236,10 @@ describe("a colony's page", () => {
     const html = render(WORLD);
     expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
     expect(html).toMatch(/<span class="k">Size<\/span><span>16<\/span>/);
-    expect(html).not.toContain("edit-field");
+    expect(html.match(/class="edit-field [^"]*"/g)).toEqual([
+      'class="edit-field edit-text combo-box disabled"',
+      'class="edit-field edit-key-sample"',
+    ]);
     expect(html).toContain("Colony");
     expect(html).toContain('title="Open the empire&#x27;s page"');
     expect(html).toContain("Ti Zru Conservers");
@@ -815,5 +828,57 @@ describe("a body's ring", () => {
     await bodyPage(PLANET, { class: "pc_continental" });
 
     expect(render(PLANET)).not.toMatch(RING);
+  });
+});
+
+describe("the System field", () => {
+  const targets = (over: Partial<PlanetMoveTargets> = {}): PlanetMoveTargets => ({
+    planets: [WORLD],
+    refused: [],
+    systems: [
+      { system: 3, warnings: [] },
+      { system: 0, warnings: [] },
+    ],
+    ...over,
+  });
+  const field = (read: TargetsRead | null) =>
+    renderToStaticMarkup(<SystemChoice id={WORLD} system={SYSTEM} read={read} />);
+
+  it("shows the planet's system, and waits for where it can move", async () => {
+    await open("save");
+    expect(field(null)).toContain(`title="${READING_TARGETS}"`);
+    const html = field({ targets: targets() });
+    expect(html).toContain('value="Alpha Centauri"');
+    expect(html).not.toContain("disabled");
+  });
+
+  it("keeps the picked system's warning under the field until the next edit", async () => {
+    await open("save");
+    const warning = { planet: WORLD, kind: "station", owner: 1, new_owner: EMPIRE } as const;
+    const read = { targets: targets({ systems: [{ system: 3, warnings: [warning] }] }) };
+    mockedIpc.planetMoveOp.mockResolvedValue({ type: "Batch", description: "Moved", ops: [] });
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnBy(() => field(read));
+    drawnField(ComboField, "System").onPick("3");
+    await vi.waitFor(() => expect(field(read)).toContain("station will change ownership to"));
+
+    mockedIpc.applyOp.mockResolvedValue(editResult({ history: { undo: [], redo: [] } }));
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
+    expect(field(read)).not.toContain("station will change ownership to");
+  });
+
+  it("says so when the core could not say where the planet can move", async () => {
+    await open("save");
+    const html = field({ failed: true });
+    expect(html).toContain("disabled");
+    expect(html).toContain(escapedText(TARGETS_FAILED));
+  });
+
+  it("is disabled with the core's refusal for a planet that cannot move", async () => {
+    await open("save");
+    const reason = "Nekkar I has an arc furnace: planets with a megastructure can't move";
+    const html = field({ targets: targets({ refused: [{ planet: WORLD, reason }], systems: [] }) });
+    expect(html).toContain("disabled");
+    expect(html).toContain(escapedText(reason));
   });
 });

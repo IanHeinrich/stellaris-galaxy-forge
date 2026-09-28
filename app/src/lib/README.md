@@ -40,9 +40,12 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `feSpawnGhosts`, `marauder`, `ownership`, `countryKinds`, `spawn`,
   `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
   `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
-  `addSystem` (where a system may be added, and the Special menu's marks) and
+  `addSystem` (where a system may be added, and the Special menu's marks),
   `precursors` (each system's precursor flags, matched against the install's
-  definitions and grouped into the legend the map draws).
+  definitions and grouped into the legend the map draws) and `planetMove`
+  (moving save planets between systems: where a click in the system view
+  places a lone planet, the systems nearest by jumps, and every sentence the
+  menus, the cut bar and the inspector say about a cut and its paste).
 - The app's words: `issueCopy`, `paintCopy` and `sessionCopy` hold the
   sentences each screen uses for one subject, and `names`, `text` and
   `version` turn keys, counts and version strings into English.

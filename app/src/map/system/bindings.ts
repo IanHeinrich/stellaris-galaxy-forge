@@ -3,6 +3,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { subscribeOwnership } from "../../store/ownership";
+import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { follows, type Binding } from "../follows";
 
@@ -14,9 +15,12 @@ export interface SceneView {
   selectBody(top: EntityRef): void;
   /** Brightens what marks the body a panel's link names while the pointer is on the link. */
   linkBody(id: number | null): void;
+  /** Marks the planets selected to move, those cut, and where a lone cut planet would be pasted. */
+  showMove(): void;
 }
 
 const refresh = (_state: unknown, view: SceneView) => view.refresh();
+const showMove = (_state: unknown, view: SceneView) => view.showMove();
 
 /** The store fields the system scene follows, and the ones applied as it binds besides. */
 const BINDINGS: Array<Binding<SceneView, "bind">> = [
@@ -37,6 +41,8 @@ const BINDINGS: Array<Binding<SceneView, "bind">> = [
     (s, view) => view.selectBody(s.stack[s.stack.length - 1].ref),
     "bind",
   ),
+  follows(usePlanetMoveStore, [(s) => s.selection, (s) => s.cut], showMove, "bind"),
+  follows(useMapChromeStore, [(s) => s.contextMenu], showMove),
 ];
 
 /** Subscribes the scene to every field it follows and applies the ones that stand now. */

@@ -22,6 +22,7 @@ import "./inspector.css";
 import { Empty } from "./parts";
 import { ChildView } from "./entity/ChildView";
 import { INSPECTOR_VIEWS } from "./entity/views";
+import { useBodySelectionPage } from "./selection/bodySelectionPage";
 
 function Breadcrumb() {
   const stack = useInspectorStore((s) => s.stack);
@@ -130,6 +131,7 @@ export function Inspector() {
     () => tabsFor(entry.ref, hasContents, { scripts, data }),
     [entry.ref, hasContents, scripts, data],
   );
+  useBodySelectionPage();
 
   const root = useMemo<Entry>(() => {
     const name = (id: number) => systemNameOf(systems, names, id);

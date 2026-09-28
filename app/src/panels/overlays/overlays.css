@@ -355,3 +355,18 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* An entry set apart from the rest of the menu by a rule under it. */
+.context-menu button.context-menu-lead {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+  padding-bottom: 4px;
+}
+
+/* A warning under an entry's label, in the warning colour, whole in the tooltip too. */
+.context-menu button.hinted > .warn {
+  display: block;
+  max-width: 260px;
+  font-size: 11.5px;
+  white-space: normal;
+}

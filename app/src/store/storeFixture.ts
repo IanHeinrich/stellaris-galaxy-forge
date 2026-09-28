@@ -18,6 +18,7 @@ import { useMapChromeStore } from "./mapChromeStore";
 import { resetOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
+import { usePlanetMoveStore } from "./planetMoveStore";
 import { useRecentsStore } from "./recentsStore";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
@@ -40,6 +41,7 @@ const STORES: StoreApi<object>[] = [
   useMapChromeStore,
   usePaintModStore,
   usePlanetDataStore,
+  usePlanetMoveStore,
   useRecentsStore,
   useSceneStore,
   useScriptsStore,

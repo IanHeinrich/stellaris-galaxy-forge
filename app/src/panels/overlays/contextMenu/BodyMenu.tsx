@@ -9,8 +9,12 @@ import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
+import { CutItem } from "./PlanetMoveItems";
 
-/** The menu on a body in the system view: its page, its lock, its removal, and the way back out. */
+/**
+ * The menu on a body in the system view: its page, the selection's cut, its lock, its removal,
+ * and the way back out.
+ */
 export function BodyMenu({
   target,
   frame,
@@ -43,6 +47,7 @@ export function BodyMenu({
       >
         Inspect
       </MenuItem>
+      <CutItem system={target.system} />
       {lockable &&
         (locked ? (
           <MenuItem run={() => unlockBody(target.id)}>Unlock</MenuItem>
