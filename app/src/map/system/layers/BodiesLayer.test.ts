@@ -48,7 +48,9 @@ import {
   strokes,
   viewport,
 } from "../fixture";
+import { FLAT_BODY_MAX_PX } from "../geometry";
 import { ICY_TINT } from "../look";
+import { pickBody } from "../picking";
 import { NO_SOURCES } from "../sources";
 import { BodiesLayer } from "./BodiesLayer";
 
@@ -578,6 +580,38 @@ describe("the system scene's bodies layer", () => {
     await vi.waitFor(() => expect(sprite(drawn, "art").visible).toBe(true));
     expect(sprite(drawn, "art").texture).toBe(textureFor("sprite:GFX_pc_asteroid"));
     expect(sprite(drawn, "disc").visible).toBe(false);
+    resetTextures();
+    layer.destroy();
+  });
+
+  it("draws a class with no surface as its icon unshaded in a glow, never wider on screen than the flat cap, and picks it only there", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankSceneTextures());
+    const habitat = { ...EARTH, class: "pc_habitat" };
+    const view = { ...hazy("pc_habitat"), icon_sprite: "GFX_pc_habitat", flat_art: true };
+    const ctx = classedContext([habitat], [view]);
+    layer.rebuild(ctx);
+    const scale = 40;
+    const cam = viewport(layer, scale, { x: EARTH_AT[0], y: EARTH_AT[1] });
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "lit")).toBeUndefined();
+    expect(part(drawn, "rim")).toBeUndefined();
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(drawn, "art").visible).toBe(true));
+    const art = sprite(drawn, "art");
+    expect(art.texture).toBe(textureFor("sprite:GFX_pc_habitat"));
+    expect(art.width * scale).toBeCloseTo(FLAT_BODY_MAX_PX);
+    const glow = sprite(drawn, "glow");
+    expect(drawn.children.indexOf(glow)).toBeLessThan(drawn.children.indexOf(art));
+    expect(glow.blendMode).toBe("add");
+    expect(glow.width).toBeCloseTo(art.width * 1.5);
+
+    const offCentre = (px: number) => ({ x: EARTH_AT[0] + px / scale, y: EARTH_AT[1] });
+    expect(pickBody(ctx.bodies, cam, offCentre(FLAT_BODY_MAX_PX / 2 - 1))).toBe(habitat.id);
+    expect(pickBody(ctx.bodies, cam, offCentre(FLAT_BODY_MAX_PX / 2 + 1))).toBeNull();
     resetTextures();
     layer.destroy();
   });

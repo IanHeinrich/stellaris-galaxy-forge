@@ -18,7 +18,7 @@ export function pickBody(bodies: readonly SceneBody[], cam: Camera, at: Pt): num
     if (body.planet === null) continue;
     const { x, y, disc } = body.placement;
     const px = Math.hypot(x - at.x, y - at.y) * cam.scale;
-    const reach = Math.max(PICK_RADIUS_PX, drawnDisc(disc, cam.scale) * cam.scale);
+    const reach = Math.max(PICK_RADIUS_PX, drawnDisc(disc, cam.scale, body.look) * cam.scale);
     if (px <= reach && px < bestPx) {
       best = body.placement.id;
       bestPx = px;

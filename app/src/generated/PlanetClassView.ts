@@ -26,4 +26,10 @@ ringworld?: boolean,
  * `Some(true)` for a star class not drawn with the star shader (`star_gfx = no`; vanilla:
  * `pc_t_star`, `pc_rift_star`, `pc_protostar`); `None` otherwise.
  */
-draws_as_planet?: boolean, };
+draws_as_planet?: boolean, 
+/**
+ * `Some(true)` for a planet class with no surface map to bake into a disc, drawn from
+ * its icon alone (vanilla: habitats, ring world segments, broken and shattered worlds);
+ * `None` otherwise.
+ */
+flat_art?: boolean, };

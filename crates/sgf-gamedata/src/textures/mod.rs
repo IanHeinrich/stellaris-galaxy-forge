@@ -26,7 +26,7 @@ use crate::registries::gfx::Sprites;
 
 mod dds;
 mod key;
-mod planet_disc;
+pub(crate) mod planet_disc;
 mod sphere;
 mod star_disc;
 
@@ -59,13 +59,15 @@ impl SpriteSource for Sprites {
 /// A flag colour by its `flags/colors.txt` name.
 pub type ColourLookup<'a> = &'a dyn Fn(&str) -> Option<[u8; 3]>;
 
-/// The `entity` of a planet class that is drawn as a disc: neither a star nor an asteroid.
-pub type EntityLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+/// The surface map, relative to a layer root, of a planet class that is drawn as a disc:
+/// neither a star nor an asteroid.
+pub type SurfaceLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
 
 /// What a star planet class's disc is baked from.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StarBody {
-    pub entity: Option<String>,
+    /// Its entity's own surface map, relative to a layer root.
+    pub surface: Option<String>,
     /// The `class` its star class lights it as, which names its `gfx/worldgfx` settings.
     pub lighting: Option<String>,
     pub atmosphere: Option<StarAtmosphere>,
@@ -79,18 +81,18 @@ pub type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
 pub struct Lookups<'a> {
     pub sprites: &'a dyn SpriteSource,
     pub colour: ColourLookup<'a>,
-    pub planet_entity: EntityLookup<'a>,
+    pub planet_surface: SurfaceLookup<'a>,
     pub star_body: StarLookup<'a>,
 }
 
 impl<'a> Lookups<'a> {
-    /// No flag colour, disc entity or star body: every one of those keys fails, and only
+    /// No flag colour, planet surface or star body: every one of those keys fails, and only
     /// `sprites` resolves.
     pub fn none(sprites: &'a dyn SpriteSource) -> Self {
         fn no_colour(_: &str) -> Option<[u8; 3]> {
             None
         }
-        fn no_entity(_: &str) -> Option<String> {
+        fn no_surface(_: &str) -> Option<String> {
             None
         }
         fn no_star(_: &str) -> Option<StarBody> {
@@ -99,7 +101,7 @@ impl<'a> Lookups<'a> {
         Self {
             sprites,
             colour: &no_colour,
-            planet_entity: &no_entity,
+            planet_surface: &no_surface,
             star_body: &no_star,
         }
     }
@@ -118,12 +120,12 @@ impl GameData {
     /// This install's own lookups, built once and handed to `use_lookups`.
     fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
-        let entity = |class: &str| self.disc_entity(class);
+        let surface = |class: &str| self.planet_surface(class);
         let star = |class: &str| self.star_disc_inputs(class);
         use_lookups(&Lookups {
             sprites: &*self.sprites,
             colour: &colour,
-            planet_entity: &entity,
+            planet_surface: &surface,
             star_body: &star,
         })
     }
@@ -136,7 +138,7 @@ impl GameData {
             width: a.width,
         });
         Some(StarBody {
-            entity: def.entity.clone(),
+            surface: def.entity.as_deref().and_then(|e| self.entity_surface(e)),
             lighting: self.star_lighting(class),
             atmosphere,
         })
@@ -158,11 +160,45 @@ impl GameData {
             .or_else(|| classes().find_map(lit_as))
     }
 
-    fn disc_entity(&self, class: &str) -> Option<String> {
-        self.planet_classes
+    fn planet_surface(&self, class: &str) -> Option<String> {
+        let entity = self
+            .planet_classes
             .get(class)
-            .filter(|c| !c.star && !c.asteroid)
-            .and_then(|c| c.entity.clone())
+            .filter(|c| !c.star && !c.asteroid)?
+            .entity
+            .as_deref()?;
+        self.entity_surface(entity)
+    }
+
+    fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
+        self.surface_maps
+            .get_or_init(|| planet_disc::surface_maps(&self.layout))
+    }
+
+    fn entity_surface(&self, entity: &str) -> Option<String> {
+        planet_disc::diffuse(&self.layout, self.surface_maps(), entity)
+    }
+
+    /// Whether a planet of `class` is drawn from its icon alone: neither a star nor an
+    /// asteroid, and its entity's model read and found to have no planet surface, as a
+    /// habitat's or a ring world's.
+    pub(crate) fn flat_art(&self, class: &str) -> bool {
+        self.flat_art
+            .get_or_init(|| {
+                self.planet_classes
+                    .iter()
+                    .filter(|c| !c.star && !c.asteroid)
+                    .filter(|c| {
+                        c.entity.as_deref().is_some_and(|e| {
+                            let surface =
+                                planet_disc::surface(&self.layout, self.surface_maps(), e);
+                            surface == planet_disc::Surface::Flat
+                        })
+                    })
+                    .map(|c| c.key.clone())
+                    .collect()
+            })
+            .contains(class)
     }
 }
 
@@ -228,8 +264,6 @@ pub struct TextureView {
 #[derive(Debug)]
 pub struct Textures {
     cache_dir: PathBuf,
-    /// The surface maps of the last layout a disc key was asked of, read once.
-    surface_maps: Memo<planet_disc::SurfaceMaps>,
     /// The graphics settings of the last layout a `star_disc:` key was asked of, read once.
     worlds: Memo<star_disc::Worlds>,
 }
@@ -261,13 +295,8 @@ impl Textures {
         });
         Self {
             cache_dir,
-            surface_maps: Mutex::default(),
             worlds: Mutex::default(),
         }
-    }
-
-    fn surface_maps(&self, layout: &Layout) -> Arc<planet_disc::SurfaceMaps> {
-        memo(&self.surface_maps, layout, planet_disc::surface_maps)
     }
 
     fn worlds(&self, layout: &Layout) -> Arc<star_disc::Worlds> {
@@ -425,9 +454,7 @@ impl Job {
             TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
-                let entity = (lookups.planet_entity)(class).ok_or_else(no_disc)?;
-                let maps = textures.surface_maps(layout);
-                let rel = planet_disc::diffuse(layout, &maps, &entity).ok_or_else(no_disc)?;
+                let rel = (lookups.planet_surface)(class).ok_or_else(no_disc)?;
                 Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
             }
             TextureKey::Sprite { name, frame } => {
@@ -485,11 +512,8 @@ impl Job {
     ) -> Result<Self, TextureError> {
         let no_disc = || TextureError::NoDisc(class.to_owned());
         let body = (lookups.star_body)(class).ok_or_else(no_disc)?;
-        if let Some(entity) = &body.entity {
-            let maps = textures.surface_maps(layout);
-            if let Some(rel) = planet_disc::diffuse(layout, &maps, entity) {
-                return Ok(Self::StarSurface(Input::resolve(layout, &rel)?));
-            }
+        if let Some(rel) = &body.surface {
+            return Ok(Self::StarSurface(Input::resolve(layout, rel)?));
         }
         let worlds = textures.worlds(layout);
         let (world, lava) =

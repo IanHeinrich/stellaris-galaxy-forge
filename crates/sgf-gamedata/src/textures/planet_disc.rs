@@ -1,7 +1,8 @@
 //! `planet_disc:<class>`: the surface map a planet class's model wears, projected onto a
 //! disc lit from the left. The class names an entity; an `entity = { … }` block in a
-//! `gfx/models/planets` `.asset` file names the map as the `texture_diffuse` of its
-//! `planet_geosphereShape` mesh, beside the `.asset` file.
+//! `gfx/models` `.asset` file names the map as the `texture_diffuse` of its
+//! `planet_geosphereShape` mesh, beside the `.asset` file. An entity with no such block
+//! (vanilla: the tomb world's) leaves the map to the material its `.mesh` file stores.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -17,6 +18,8 @@ use crate::install::layers::Layout;
 use crate::install::script::last_scalar;
 
 const ASSETS: &str = "gfx/models/planets";
+/// Where entities and models are defined: a habitat's are among the ships'.
+const MODELS: &str = "gfx/models";
 const SURFACE_MESH: &str = "planet_geosphereShape";
 /// The disc's side, in pixels.
 const DISC: u32 = 128;
@@ -24,46 +27,169 @@ const DISC: u32 = 128;
 /// scaled down to it.
 pub(super) const SOURCE_WIDTH: u32 = 256;
 
-/// Entity name → the folder of its `.asset` file and its surface map's file name.
-pub(super) type SurfaceMaps = BTreeMap<String, (String, String)>;
+/// What the `.asset` and `.gfx` files of `gfx/models` say about each entity's surface.
+#[derive(Debug, Default)]
+pub(crate) struct SurfaceMaps {
+    /// Entity name → the folder of its `.asset` file and its surface map's file name.
+    maps: BTreeMap<String, (String, String)>,
+    /// Entity name → its `pdxmesh`, for an entity whose `.asset` names no surface map.
+    meshes: BTreeMap<String, String>,
+    /// `pdxmesh` name → its `.mesh` file, relative to a layer root.
+    mesh_files: BTreeMap<String, String>,
+}
 
-/// The surface map of `entity` in `maps`, relative to a layer root. The game numbers a
-/// class's models `<entity>_01_entity`, `<entity>_02_entity` …; the first one stands for
-/// them all.
-pub(super) fn diffuse(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Option<String> {
-    [
+/// What an entity's model has for a surface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Surface {
+    /// A map to bake into a disc, relative to a layer root.
+    Map(String),
+    /// None: the model is read, and has no planet surface.
+    Flat,
+    /// The files read do not say: no model of that name, or its `.mesh` missing.
+    Unknown,
+}
+
+/// The surface of `entity` in `maps`. The game numbers a class's models `<entity>_01_entity`,
+/// `<entity>_02_entity` …; the first one stands for them all. A map an `.asset` names comes
+/// before one a `.mesh` stores, whichever name each is under.
+pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surface {
+    let names = [
         format!("{entity}_01_entity"),
         format!("{entity}_entity"),
         entity.to_owned(),
-    ]
-    .iter()
-    .find_map(|name| maps.get(name))
-    .map(|(asset_dir, file)| {
-        let beside = format!("{asset_dir}/{file}");
-        if layout.resolve_file(&beside).is_some() {
-            beside
-        } else {
-            format!("{ASSETS}/{file}")
+    ];
+    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.maps.get(name)) {
+        return Surface::Map(beside_or_in_assets(layout, asset_dir, file));
+    }
+    let mesh = names
+        .iter()
+        .find_map(|name| maps.meshes.get(name))
+        .and_then(|mesh| maps.mesh_files.get(mesh));
+    let Some(mesh) = mesh else {
+        return Surface::Unknown;
+    };
+    let Some(bytes) = layout.resolve_file(mesh).and_then(|p| fs::read(p).ok()) else {
+        return Surface::Unknown;
+    };
+    match material_diffuse(&bytes, SURFACE_MESH) {
+        Some(file) => {
+            let dir = mesh.rsplit_once('/').map_or("", |(dir, _)| dir);
+            Surface::Map(beside_or_in_assets(layout, dir, file))
         }
-    })
+        None => Surface::Flat,
+    }
 }
 
-/// Every entity's surface map in the `.asset` files of `layout`. A later layer's file of
-/// the same path replaces the earlier one, and a later entity of the same name wins.
-pub(super) fn surface_maps(layout: &Layout) -> SurfaceMaps {
+/// The surface map of `entity` in `maps`, relative to a layer root.
+pub(crate) fn diffuse(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Option<String> {
+    match surface(layout, maps, entity) {
+        Surface::Map(rel) => Some(rel),
+        Surface::Flat | Surface::Unknown => None,
+    }
+}
+
+fn beside_or_in_assets(layout: &Layout, dir: &str, file: &str) -> String {
+    let beside = format!("{dir}/{file}");
+    if layout.resolve_file(&beside).is_some() {
+        beside
+    } else {
+        format!("{ASSETS}/{file}")
+    }
+}
+
+/// The `diff` texture of the material of object `shape` in a binary `.mesh`, when a planet
+/// shader draws it: a star's names a placeholder. An object opens with `[[<shape>` and its
+/// material with `[[[[material`; each property is `!`, the name's length in a byte, the name, a
+/// type byte (`i`, `f` or `s`) and a little-endian `u32` count of values, each four bytes, or
+/// for `s` a `u32` length and that many bytes ending in NUL.
+fn material_diffuse<'a>(mesh: &'a [u8], shape: &str) -> Option<&'a str> {
+    const MATERIAL: &[u8] = b"[[[[material\0";
+    let header = [b"[[", shape.as_bytes(), b"\0"].concat();
+    let object = find(mesh, &header, 0)?;
+    let end = next_object(mesh, object + header.len());
+    let mut at = find(&mesh[..end], MATERIAL, object)? + MATERIAL.len();
+    let u32_at = |at: usize| -> Option<usize> {
+        let bytes = mesh.get(at..at.checked_add(4)?)?;
+        Some(u32::from_le_bytes(bytes.try_into().ok()?) as usize)
+    };
+    let (mut shader, mut diff) = (None, None);
+    while mesh.get(at) == Some(&b'!') {
+        let name_len = usize::from(*mesh.get(at + 1)?);
+        let name = mesh.get(at + 2..at + 2 + name_len)?;
+        let kind = *mesh.get(at + 2 + name_len)?;
+        let count = u32_at(at + 3 + name_len)?;
+        at += 7 + name_len;
+        match kind {
+            b's' => {
+                for _ in 0..count {
+                    let len = u32_at(at)?;
+                    let start = at + 4;
+                    at = start.checked_add(len)?;
+                    let value = mesh.get(start..at)?;
+                    let value = value.strip_suffix(b"\0").unwrap_or(value);
+                    let value = std::str::from_utf8(value).ok();
+                    match name {
+                        b"shader" => shader = value,
+                        b"diff" => diff = value,
+                        _ => {}
+                    }
+                }
+            }
+            b'i' | b'f' => at = at.checked_add(count.checked_mul(4)?)?,
+            _ => return None,
+        }
+        if at > mesh.len() {
+            return None;
+        }
+    }
+    let planet = shader.is_some_and(|s| s.starts_with("PdxMeshPlanet"));
+    diff.filter(|d| planet && !d.is_empty())
+}
+
+/// Where the object after `from` opens, or the end of `mesh`: `[[`, not after another `[`,
+/// then a name and a NUL, then its first child's `[[[`.
+fn next_object(mesh: &[u8], from: usize) -> usize {
+    let mut at = from;
+    while let Some(open) = find(mesh, b"[[", at) {
+        let name = open + 2;
+        let named = mesh[name..]
+            .iter()
+            .position(|&b| !(b.is_ascii_alphanumeric() || b"_.:-".contains(&b)))
+            .filter(|&len| len > 0)
+            .is_some_and(|len| mesh[name + len..].starts_with(b"\0[[["));
+        if named && mesh.get(open.wrapping_sub(1)) != Some(&b'[') {
+            return open;
+        }
+        at = open + 1;
+    }
+    mesh.len()
+}
+
+fn find(haystack: &[u8], needle: &[u8], from: usize) -> Option<usize> {
+    haystack
+        .get(from..)?
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .map(|i| from + i)
+}
+
+/// The files of extension `ext` under `gfx/models` in the layers of `layout`, each
+/// with its folder relative to its layer root, in layer order then path order. A later
+/// layer's file of the same path replaces the earlier one.
+fn layered_files(layout: &Layout, ext: &str) -> Vec<(String, PathBuf)> {
     let mut files: BTreeMap<String, (usize, PathBuf)> = BTreeMap::new();
     for (index, layer) in layout.layers.iter().enumerate() {
-        let root = ASSETS.split('/').fold(layer.root.clone(), |p, s| p.join(s));
+        let root = MODELS.split('/').fold(layer.root.clone(), |p, s| p.join(s));
         for entry in WalkDir::new(&root)
             .sort_by_file_name()
             .into_iter()
             .flatten()
         {
             let path = entry.into_path();
-            let is_asset = path
+            let matches = path
                 .extension()
-                .is_some_and(|e| e.eq_ignore_ascii_case("asset"));
-            if !is_asset || !path.is_file() {
+                .is_some_and(|e| e.eq_ignore_ascii_case(ext));
+            if !matches || !path.is_file() {
                 continue;
             }
             if let Ok(rel) = path.strip_prefix(&layer.root) {
@@ -85,8 +211,19 @@ pub(super) fn surface_maps(layout: &Layout) -> SurfaceMaps {
         })
         .collect();
     ordered.sort();
-    let mut maps = BTreeMap::new();
-    for (_, dir, path) in ordered {
+    ordered
+        .into_iter()
+        .map(|(_, dir, path)| (dir, path))
+        .collect()
+}
+
+/// Every entity's surface map in the `.asset` files of `layout`, the model of each entity
+/// that names none, and the `.mesh` file of each model in the `.gfx` files. A later layer's
+/// file of the same path replaces the earlier one, and a later entity or model of the same
+/// name wins.
+pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
+    let mut maps = SurfaceMaps::default();
+    for (dir, path) in layered_files(layout, "asset") {
         let Ok(src) = fs::read(&path) else {
             continue;
         };
@@ -102,7 +239,34 @@ pub(super) fn surface_maps(layout: &Layout) -> SurfaceMaps {
                 continue;
             };
             if let Some(file) = surface_map(entity, &src) {
-                maps.insert(name.to_owned(), (dir.clone(), file.to_owned()));
+                maps.meshes.remove(name);
+                maps.maps
+                    .insert(name.to_owned(), (dir.clone(), file.to_owned()));
+            } else if let Some(mesh) = last_scalar(entity, "pdxmesh", &src) {
+                maps.maps.remove(name);
+                maps.meshes.insert(name.to_owned(), mesh.to_owned());
+            }
+        }
+    }
+    for (_, path) in layered_files(layout, "gfx") {
+        let Ok(src) = fs::read(&path) else {
+            continue;
+        };
+        let Ok(root) = cst::parse_script(&src, 0) else {
+            continue;
+        };
+        for types in root
+            .children()
+            .iter()
+            .filter(|n| n.key_str(&src) == Some("objectTypes"))
+        {
+            for mesh in types.find_all("pdxmesh", &src) {
+                let name = last_scalar(mesh, "name", &src);
+                let file = last_scalar(mesh, "file", &src);
+                if let (Some(name), Some(file)) = (name, file) {
+                    let file = file.replace('\\', "/");
+                    maps.mesh_files.insert(name.to_owned(), file);
+                }
             }
         }
     }

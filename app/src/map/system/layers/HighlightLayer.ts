@@ -201,7 +201,7 @@ export class HighlightLayer implements SystemLayer {
       const body = id === null ? undefined : this.ctx.bodyById.get(id);
       if (!body) return;
       const { x, y, disc } = body.placement;
-      g.circle(x, y, drawnDisc(disc, cam.scale) + gap * px).stroke({
+      g.circle(x, y, drawnDisc(disc, cam.scale, body.look) + gap * px).stroke({
         color,
         alpha,
         width: width * px,
@@ -254,7 +254,7 @@ export class HighlightLayer implements SystemLayer {
     const length = ring.radius;
     const px = 1 / cam.scale;
     const from = hubReach(body, cam);
-    const to = length - drawnDisc(disc, cam.scale) - SELECTED_GAP_PX * px;
+    const to = length - drawnDisc(disc, cam.scale, body.look) - SELECTED_GAP_PX * px;
     if (to <= from) return;
     const ux = (x - ring.cx) / length;
     const uy = (y - ring.cy) / length;
@@ -343,7 +343,7 @@ export class HighlightLayer implements SystemLayer {
     if (!anchor) return;
     const px = 1 / cam.scale;
     const { x, y, disc } = anchor.placement;
-    const r = drawnDisc(disc, cam.scale) + SELECTED_GAP_PX * px;
+    const r = drawnDisc(disc, cam.scale, anchor.look) + SELECTED_GAP_PX * px;
     const linked = this.ref.linkedBody === turn.anchor;
     dashedCircle(outline, x, y, r, ANCHOR_DASHES);
     outline.stroke({
@@ -371,17 +371,18 @@ export class HighlightLayer implements SystemLayer {
   private drawDrag(cam: Camera, drag: DragMarks | null): void {
     const g = this.dragMarks.clear();
     const px = 1 / cam.scale;
-    const placed = (id: number | null) =>
-      id === null ? undefined : this.ctx.bodyById.get(id)?.placement;
+    const scene = (id: number | null) => (id === null ? undefined : this.ctx.bodyById.get(id));
+    const placed = (id: number | null) => scene(id)?.placement;
     const around = (id: number | null, color: number, alpha: number) => {
-      const body = placed(id);
-      if (!body) return;
-      const r = drawnDisc(body.disc, cam.scale) + SELECTED_GAP_PX * px;
+      const found = scene(id);
+      if (!found) return;
+      const body = found.placement;
+      const r = drawnDisc(body.disc, cam.scale, found.look) + SELECTED_GAP_PX * px;
       g.circle(body.x, body.y, r).stroke({ color, alpha, width: TARGET_WIDTH_PX * px });
     };
     if (drag?.ghost) {
       const { x, y, disc } = drag.ghost;
-      g.circle(x, y, drawnDisc(disc, cam.scale)).fill({
+      g.circle(x, y, drawnDisc(disc, cam.scale, scene(drag.body)?.look)).fill({
         color: HOVER_COLOR,
         alpha: GHOST_ALPHA / 2,
       });
@@ -425,9 +426,10 @@ export class HighlightLayer implements SystemLayer {
     const cut = new Set([...this.ref.cutBodies, ...this.movingMoons(this.ref.cutBodies)]);
     const px = 1 / cam.scale;
     for (const id of cut) {
-      const body = this.ctx.bodyById.get(id)?.placement;
-      if (!body) continue;
-      const r = drawnDisc(body.disc, cam.scale) + SELECTED_GAP_PX * px;
+      const found = this.ctx.bodyById.get(id);
+      if (!found) continue;
+      const body = found.placement;
+      const r = drawnDisc(body.disc, cam.scale, found.look) + SELECTED_GAP_PX * px;
       dashedCircle(g, body.x, body.y, r, CUT_DASHES);
     }
     if (cut.size > 0) g.stroke({ color: CUT_COLOR, alpha: CUT_ALPHA, width: RING_WIDTH_PX * px });

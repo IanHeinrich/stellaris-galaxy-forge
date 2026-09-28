@@ -544,6 +544,12 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub draws_as_planet: Option<bool>,
+    /// `Some(true)` for a planet class with no surface map to bake into a disc, drawn from
+    /// its icon alone (vanilla: habitats, ring world segments, broken and shattered worlds);
+    /// `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub flat_art: Option<bool>,
 }
 
 /// A modifier that makes a planet a terraforming candidate, from the install's
@@ -756,6 +762,7 @@ impl GameData {
                 asteroid: marker(pc.asteroid),
                 ringworld: marker(pc.ringworld),
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
+                flat_art: marker(self.flat_art(&pc.key)),
             })
             .collect()
     }

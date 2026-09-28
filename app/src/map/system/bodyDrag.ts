@@ -355,7 +355,10 @@ export class BodyDrag implements Drag {
 
   /** How near, in screen pixels, the pointer must come for `b` to take the dragged body. */
   private reach(b: BodyPlacement, scale: number): number {
-    const least = Math.max(CAPTURE_MIN_PX, drawnDisc(b.disc, scale) * scale + CAPTURE_PAST_PX);
+    const least = Math.max(
+      CAPTURE_MIN_PX,
+      drawnDisc(b.disc, scale, this.frame.bodyById.get(b.id)?.look) * scale + CAPTURE_PAST_PX,
+    );
     if (b.star) return isCentreStar(b) ? least : Math.max(least, STAR_CAPTURE_UNITS * scale);
     const ring = this.frame.editing.bodies.get(b.id)?.moonRing;
     return ring === undefined ? least : Math.max(least, ring * scale + CAPTURE_RING_PX);

@@ -353,7 +353,7 @@ export class LabelsLayer implements SystemLayer {
         id: l.body.placement.id,
         x: at.x,
         y: at.y,
-        r: drawnDisc(disc, cam.scale) * cam.scale,
+        r: drawnDisc(disc, cam.scale, l.body.look) * cam.scale,
         w: l.w * k,
         h: l.h * k,
       };
