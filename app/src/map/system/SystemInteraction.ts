@@ -5,7 +5,7 @@ import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
-import { usePlanetMoveStore } from "../../store/planetMoveStore";
+import { planetsCanMove, usePlanetMoveStore } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
@@ -261,14 +261,11 @@ export class SystemInteraction {
   private openBody(system: number, id: number): void {
     if (!this.scene.context().bodyById.get(id)?.planet) return;
     // A drag opens its body's page as it starts, while the model is still busy with the press.
-    if (!this.pressToggles || this.model.busy()) {
+    if (this.pressToggles && !this.model.busy() && planetsCanMove()) {
+      usePlanetMoveStore.getState().toggleBody(system, id);
+    } else {
       this.selectAlone(system, id);
-      return;
     }
-    usePlanetMoveStore.getState().toggleBody(system, id);
-    const ids = usePlanetMoveStore.getState().selection?.ids ?? [];
-    if (ids.length === 1) this.showBody(system, ids[0]);
-    else useInspectorStore.getState().popTo(0);
   }
 
   private selectAlone(system: number, id: number): void {

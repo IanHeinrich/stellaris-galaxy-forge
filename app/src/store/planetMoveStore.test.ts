@@ -65,32 +65,74 @@ beforeEach(async () => {
   mockedIpc.applyOp.mockResolvedValue(editResult());
 });
 
+/** The ref of the page on top of the inspector. */
+const topPage = () => {
+  const { stack } = useInspectorStore.getState();
+  return stack[stack.length - 1].ref;
+};
+
 describe("body selection", () => {
   it("toggles bodies of one system in the order they were picked", () => {
+    useSceneStore.getState().enterSystem(SOL);
     moves().selectBody(SOL, EARTH);
     moves().toggleBody(SOL, MARS);
     moves().toggleBody(SOL, LUNA);
     expect(moves().selection).toEqual({ system: SOL, ids: [EARTH, MARS, LUNA] });
     moves().toggleBody(SOL, MARS);
     expect(moves().selection).toEqual({ system: SOL, ids: [EARTH, LUNA] });
-    moves().toggleBody(CENTAURI, JUPITER);
-    expect(moves().selection).toEqual({ system: CENTAURI, ids: [JUPITER] });
-    moves().toggleBody(CENTAURI, JUPITER);
+  });
+
+  it("opens the one body a toggle leaves, and goes back to the system when it leaves none", () => {
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    expect(moves().toggleBody(SOL, EARTH)).toBe(EARTH);
+    expect(topPage()).toEqual({ kind: "planet", id: EARTH });
+    expect(moves().toggleBody(SOL, MARS)).toBeNull();
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH, MARS] });
+    expect(moves().toggleBody(SOL, EARTH)).toBe(MARS);
+    expect(topPage()).toEqual({ kind: "planet", id: MARS });
+    expect(moves().selection).toEqual({ system: SOL, ids: [MARS] });
+    expect(moves().toggleBody(SOL, MARS)).toBeNull();
     expect(moves().selection).toBeNull();
+    expect(topPage()).toEqual({ kind: "system", id: SOL });
+  });
+
+  it("keeps a selection of one body on the page the inspector shows", () => {
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH] });
+    useInspectorStore.getState().open(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    expect(moves().selection).toEqual({ system: SOL, ids: [LUNA] });
+    useInspectorStore.getState().back();
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH] });
+    useInspectorStore.getState().popTo(0);
+    expect(moves().selection).toBeNull();
+  });
+
+  it("leaves two or more bodies selected whatever page the inspector shows", () => {
+    useSceneStore.getState().enterSystem(SOL);
+    moves().selectBody(SOL, EARTH);
+    moves().toggleBody(SOL, MARS);
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    useInspectorStore.getState().popTo(0);
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH, MARS] });
   });
 
   it("is cleared by entering another system and kept on entering its own", () => {
     useSceneStore.getState().enterSystem(SOL);
     moves().selectBody(SOL, EARTH);
+    moves().toggleBody(SOL, MARS);
     useSceneStore.getState().exitScene();
     useSceneStore.getState().enterSystem(SOL);
-    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH] });
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH, MARS] });
     useSceneStore.getState().enterSystem(CENTAURI);
     expect(moves().selection).toBeNull();
   });
 
   it("starts again with each toggle on a scenario, whose planets cannot move", async () => {
     await openFixtureScenario();
+    useSceneStore.getState().enterSystem(SOL);
     moves().selectBody(SOL, EARTH);
     moves().toggleBody(SOL, MARS);
     expect(moves().selection).toEqual({ system: SOL, ids: [MARS] });
@@ -168,6 +210,23 @@ describe("cut and paste", () => {
     expect(moves().selection).toEqual({ system: CENTAURI, ids: [EARTH] });
   });
 
+  it("moves a planet from its page on the galaxy map, leaving the selection and the inspector", async () => {
+    await useEditorStore.getState().select(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openPage(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    const stack = useInspectorStore.getState().stack;
+    mockedIpc.planetMoveOp.mockResolvedValue({
+      type: "MoveSavePlanet",
+      planet: EARTH,
+      to: BARNARD,
+    });
+    expect(await moves().move([EARTH], BARNARD)).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
+    expect(useEditorStore.getState().selection).toEqual([SOL]);
+    expect(useInspectorStore.getState().stack).toEqual(stack);
+    expect(moves().selection).toBeNull();
+  });
+
   it("keeps the cut when the edit is refused", async () => {
     await selectTwo();
     moves().cutSelection();
@@ -205,6 +264,39 @@ describe("paste checks", () => {
       refusal: null,
       warnings: [],
     });
+  });
+});
+
+describe("targets", () => {
+  it("are pending again while an edit's fresh answer is on its way", async () => {
+    useSceneStore.getState().enterSystem(SOL);
+    await selectTwo();
+    expect(cutAvailability(moves()).kind).toBe("ready");
+    const refused = { planet: EARTH, reason: "Earth is occupied" };
+    mockedIpc.planetMoveTargets.mockResolvedValue(
+      targets([EARTH, MARS], { refused: [refused], systems: [] }),
+    );
+    moves().refresh();
+    expect(cutAvailability(moves())).toEqual({ kind: "pending" });
+    expect(moves().cutSelection()).toBe(false);
+    await settle();
+    expect(cutAvailability(moves())).toEqual({ kind: "refused", reason: "Earth is occupied" });
+  });
+
+  it("drop a late answer for a selection that has changed since", async () => {
+    let answerFirst!: (t: PlanetMoveTargets) => void;
+    mockedIpc.planetMoveTargets.mockImplementationOnce(
+      () => new Promise<PlanetMoveTargets>((resolve) => (answerFirst = resolve)),
+    );
+    useSceneStore.getState().enterSystem(SOL);
+    moves().selectBody(SOL, EARTH);
+    moves().toggleBody(SOL, MARS);
+    await settle();
+    expect(moves().selectionTargets?.planets).toEqual([EARTH, MARS]);
+    answerFirst(targets([EARTH], { refused: [{ planet: EARTH, reason: "stale" }] }));
+    await settle();
+    expect(moves().selectionTargets?.planets).toEqual([EARTH, MARS]);
+    expect(cutAvailability(moves()).kind).toBe("ready");
   });
 });
 
@@ -254,6 +346,43 @@ describe("Esc", () => {
     esc();
     expect(moves().selection).toBeNull();
     expect(useInspectorStore.getState().stack).toHaveLength(1);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: SOL });
+
+    esc();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+  });
+
+  it("clears two or more bodies, with the inspector back on the system, before leaving", async () => {
+    useLayoutStore.setState({ tab: "inspector", collapsed: false });
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    await selectTwo();
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LUNA, "Luna"));
+
+    esc();
+    expect(moves().selection).toBeNull();
+    expect(topPage()).toEqual({ kind: "system", id: SOL });
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: SOL });
+
+    esc();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+  });
+
+  it("with one body selected steps back as it always has once the cut is gone", async () => {
+    useLayoutStore.setState({ tab: "inspector", collapsed: false });
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    useInspectorStore.getState().open(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    expect(moves().selection).toEqual({ system: SOL, ids: [LUNA] });
+
+    esc();
+    expect(topPage()).toEqual({ kind: "planet", id: EARTH });
+    expect(moves().selection).toEqual({ system: SOL, ids: [EARTH] });
+
+    esc();
+    expect(topPage()).toEqual({ kind: "system", id: SOL });
+    expect(moves().selection).toBeNull();
     expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: SOL });
 
     esc();

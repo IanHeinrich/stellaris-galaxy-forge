@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as ipc from "../../../api/ipc";
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
-import type { HistoryView } from "../../../generated/HistoryView";
 import {
   jumpsFrom,
   jumpsText,
@@ -17,30 +16,38 @@ import { ComboField, type ComboItem } from "../../ComboField";
 import { EditRow } from "../../EditField";
 import { useWarningNames } from "../../usePlanetMove";
 
-/** What the field says while the core is asked where the planet may go. */
+/** What the field says while the core is first asked where the planet may go. */
 export const READING_TARGETS = "Reading where this planet can move…";
 
-/** Where planet `id` may move, asked again after every edit, undo and redo; null while on its way. */
-function usePlanetTargets(id: number): PlanetMoveTargets | null {
+/** What the field says when the core could not say where the planet may go. */
+export const TARGETS_FAILED = "Couldn't read where this planet can move";
+
+/** Where a planet may move as last read: its targets, or the failure to read them. */
+export type TargetsRead = { targets: PlanetMoveTargets } | { failed: true };
+
+/**
+ * Where planet `id` may move, asked again after every edit, undo and redo. The last answer stays
+ * while the next is on its way; null only before the first.
+ */
+function usePlanetTargets(id: number): TargetsRead | null {
   const history = useEditorStore((s) => s.history);
-  const [answer, setAnswer] = useState<{
-    id: number;
-    history: HistoryView;
-    targets: PlanetMoveTargets;
-  } | null>(null);
+  const [answer, setAnswer] = useState<{ id: number; read: TargetsRead } | null>(null);
   useEffect(() => {
     let live = true;
     ipc
       .planetMoveTargets([id])
       .then((targets) => {
-        if (live) setAnswer({ id, history, targets });
+        if (live) setAnswer({ id, read: { targets } });
       })
-      .catch((e: unknown) => console.warn("planet move targets", ipc.errorMessage(e)));
+      .catch((e: unknown) => {
+        console.warn("planet move targets", ipc.errorMessage(e));
+        if (live) setAnswer({ id, read: { failed: true } });
+      });
     return () => {
       live = false;
     };
   }, [id, history]);
-  return answer !== null && answer.id === id && answer.history === history ? answer.targets : null;
+  return answer !== null && answer.id === id ? answer.read : null;
 }
 
 /** A warning line and every warning behind it, for under the field. */
@@ -54,20 +61,21 @@ interface Note {
  * nearest first. Each row names the owner, with a mark where the game would hand something over.
  */
 export function PlanetSystemField({ id, system }: { id: number; system: number }) {
-  const targets = usePlanetTargets(id);
-  return <SystemChoice id={id} system={system} targets={targets} />;
+  const read = usePlanetTargets(id);
+  return <SystemChoice id={id} system={system} read={read} />;
 }
 
-/** The field for `targets` as they were read, null while they are asked for. */
+/** The field for the targets as they were `read`, null while they are first asked for. */
 export function SystemChoice({
   id,
   system,
-  targets,
+  read,
 }: {
   id: number;
   system: number;
-  targets: PlanetMoveTargets | null;
+  read: TargetsRead | null;
 }) {
+  const targets = read !== null && "targets" in read ? read.targets : null;
   const systems = useGalaxyStore((s) => s.systems);
   const systemName = useGalaxyStore((s) => s.systemName);
   const countryName = useGalaxyStore((s) => s.countryName);
@@ -111,7 +119,8 @@ export function SystemChoice({
   });
 
   const refusal = targets === null ? null : refusalLine(targets.refused);
-  const disabledReason = targets === null ? READING_TARGETS : (refusal ?? undefined);
+  const disabledReason =
+    read === null ? READING_TARGETS : targets === null ? TARGETS_FAILED : (refusal ?? undefined);
   const note = (active: ComboItem | null) => {
     const shown = active === null ? picked : noteOf(Number(active.key));
     return shown === null ? null : <span title={shown.all}>⚠ {shown.line}</span>;

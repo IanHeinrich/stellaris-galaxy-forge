@@ -63,12 +63,24 @@ describe("the cut bar", () => {
     expect(shown(renderToStaticMarkup(<CutBar />))).toContain("Moving Luna from Sol as a planet");
   });
 
-  it("puts the paste hint in the status bar in either view", async () => {
+  it("puts the paste hint and the count in the status bar in either view", async () => {
     await cut(EARTH);
-    expect(renderToStaticMarkup(<StatusBar />)).toContain("Right-click a system to paste");
+    const hint = '<span class="muted">Right-click a system to paste</span>';
+    const count = '<span class="muted">1 planet cut</span>';
+    expect(renderToStaticMarkup(<StatusBar />)).toContain(hint + count);
     useSceneStore.getState().enterSystem(SOL);
-    expect(renderToStaticMarkup(<StatusBar />)).toContain("Right-click a system to paste");
+    expect(renderToStaticMarkup(<StatusBar />)).toContain(hint + count);
     moves().cancelCut();
-    expect(renderToStaticMarkup(<StatusBar />)).not.toContain("Right-click a system to paste");
+    expect(renderToStaticMarkup(<StatusBar />)).not.toContain(hint);
+  });
+
+  it("says how many bodies are selected in the system view, and how to add or clear them", async () => {
+    useSceneStore.getState().enterSystem(SOL);
+    moves().selectBody(SOL, EARTH);
+    expect(renderToStaticMarkup(<StatusBar />)).not.toContain("selected ·");
+    moves().toggleBody(SOL, LUNA);
+    expect(renderToStaticMarkup(<StatusBar />)).toContain(
+      "2 planets selected · Ctrl or Shift-click to add planets · Esc clears",
+    );
   });
 });

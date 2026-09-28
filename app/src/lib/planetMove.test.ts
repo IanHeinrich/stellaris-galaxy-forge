@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { lanesTo } from "../test/builders";
 import {
+  alreadyThere,
   andMore,
   cutHint,
+  cutCountLabel,
   cutLabel,
   jumpsFrom,
   jumpsText,
@@ -12,6 +14,7 @@ import {
   pasteLabel,
   placementAt,
   refusalLine,
+  selectedHint,
   selectionLine,
   warningLine,
   warningLines,
@@ -51,6 +54,18 @@ describe("labels", () => {
     expect(pasteLabel([MEISSA_II], AT)).toBe("Paste Meissa II here (orbit 108 · 20°)");
     expect(pasteLabel([URAY_IIIA], AT)).toBe("Paste Uray IIIa here as a planet (orbit 108 · 20°)");
     expect(pasteLabel([MEISSA_II])).toBe("Paste Meissa II here");
+  });
+
+  it("says a paste into the planets' own system has nowhere to go", () => {
+    expect(alreadyThere(THREE, "Meissa")).toBe("These planets are already in Meissa");
+    expect(alreadyThere([MEISSA_II], "Meissa")).toBe("Meissa II is already in Meissa");
+  });
+
+  it("says in the status bar what is selected and what is cut", () => {
+    expect(selectedHint(3, "Esc")).toBe(
+      "3 planets selected · Ctrl or Shift-click to add planets · Esc clears",
+    );
+    expect(cutCountLabel(3)).toBe("3 planets cut");
   });
 
   it("places a clicked point on a whole orbit and angle", () => {

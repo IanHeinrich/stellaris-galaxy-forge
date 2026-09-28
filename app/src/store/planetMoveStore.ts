@@ -5,12 +5,19 @@ import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
 import { documentCapabilities } from "../lib/capabilities";
+import { bodyName } from "../lib/details/labels";
 import { refusalLine } from "../lib/planetMove";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
+import { useGameDataStore } from "./gameDataStore";
+import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { sceneSystem } from "./sceneStore";
 
-/** The bodies selected in one system's view, in the order they were picked. */
+/**
+ * The bodies selected in one system's view, in the order they were picked. A selection of one
+ * body is always the body whose page the inspector shows in the system view.
+ */
 export interface BodySelection {
   system: number;
   ids: readonly number[];
@@ -41,13 +48,15 @@ export interface PlanetMoveState {
   cut: PlanetCut | null;
   /** The core's checks for destinations the cut's targets do not settle, by `checkKey`. */
   checks: ReadonlyMap<string, PlanetMoveCheck>;
-  /** Selects body `id` of `system` alone. */
+  /** Selects body `id` of `system` alone; the caller opens its page. */
   selectBody(system: number, id: number): void;
   /**
    * Adds body `id` to the selection, or takes it out. A body of another system starts a new
-   * selection, and so does any toggle on a document whose planets cannot move.
+   * selection, and so does any toggle on a document whose planets cannot move. When one body is
+   * left it opens that body's page and returns its id; when none is, the inspector goes back to
+   * the system.
    */
-  toggleBody(system: number, id: number): void;
+  toggleBody(system: number, id: number): number | null;
   clearBodies(): void;
   /** Cuts the selection, replacing any cut. False when the selection cannot be cut now. */
   cutSelection(): boolean;
@@ -56,20 +65,26 @@ export interface PlanetMoveState {
   /** Asks the core what a paste of the cut onto `to`, at `at` if given, would meet; null with no cut. */
   checkPaste(to: number, at?: OrbitPlacement | null): Promise<PlanetMoveCheck | null>;
   /**
-   * Moves the cut planets to `to` in one edit, a lone one at `at` if given. The cut goes, the
-   * moved planets become the selection in `to`, and on the galaxy map `to` becomes the selected
-   * system.
+   * Moves the cut planets to `to` in one edit, a lone one at `at` if given, and the cut goes.
+   * Two or more moved planets become the selection in `to`. In `to`'s view a lone one is
+   * selected with its page open. On the galaxy map `to` becomes the selected system.
    */
   paste(to: number, at?: OrbitPlacement | null): Promise<boolean>;
-  /** Moves `planets` to `to` in one edit, as a paste does, without touching the cut. */
+  /**
+   * Moves `planets` to `to` in one edit, leaving the cut, the galaxy's selection and the
+   * inspector as they were.
+   */
   move(planets: readonly number[], to: number, at?: OrbitPlacement | null): Promise<boolean>;
   /**
    * Reads what the last edit, undo or redo may have changed: the selection's and the cut's
-   * targets again, and no cached check. A cut whose planets have left its system goes.
+   * targets again, pending until they land, and no cached check. A cut whose planets have left
+   * its system goes.
    */
   refresh(): void;
   /** Keeps only the selected bodies `present` says are still in the selection's system. */
   keepBodies(present: (id: number) => boolean): void;
+  /** Makes a selection of one body or none the body whose page the inspector shows, if any. */
+  followInspector(): void;
   reset(): void;
 }
 
@@ -81,8 +96,33 @@ export function checkKey(to: number, at?: OrbitPlacement | null): string {
 }
 
 /** Whether the open document's planets can move: a save's can. */
-function canMove(): boolean {
+export function planetsCanMove(): boolean {
   return documentCapabilities(useFileSessionStore.getState()).details;
+}
+
+const canMove = planetsCanMove;
+
+/** The body of the system shown whose page is on top of the inspector, or null. */
+function inspectedBody(): { system: number; id: number } | null {
+  const shown = sceneSystem();
+  if (shown === null) return null;
+  const { stack } = useInspectorStore.getState();
+  const { ref } = stack[stack.length - 1];
+  if (ref.kind === "body") return ref.system === shown ? { system: shown, id: ref.id } : null;
+  if (ref.kind !== "planet") return null;
+  const read = useDetailsStore.getState().details.get(shown);
+  if (read !== undefined && !read.planets.some((p) => p.id === ref.id)) return null;
+  return { system: shown, id: ref.id };
+}
+
+/** Opens the page of body `id` of `system` above the system's, named as its read details name it. */
+function openBodyPage(system: number, id: number): void {
+  const planet = useDetailsStore
+    .getState()
+    .details.get(system)
+    ?.planets.find((p) => p.id === id);
+  const label = planet ? bodyName(planet, useGameDataStore.getState().names) : `#${id}`;
+  useInspectorStore.getState().openFromMap(bodyEntry(system, id, label));
 }
 
 /** Bumped by every selection change and reset, so a late answer for an older one is dropped. */
@@ -97,6 +137,12 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     selectionAsk += 1;
     set({ selection, selectionTargets: null });
     fetchSelectionTargets();
+  }
+
+  /** Selects body `id` of `system` alone, with its page open. */
+  function showAlone(system: number, id: number): void {
+    select({ system, ids: [id] });
+    openBodyPage(system, id);
   }
 
   function fetchSelectionTargets(): void {
@@ -139,14 +185,19 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
 
     toggleBody(system, id) {
       const { selection } = get();
-      if (selection === null || selection.system !== system || !canMove()) {
-        select({ system, ids: [id] });
-        return;
+      const ids =
+        selection === null || selection.system !== system || !canMove()
+          ? [id]
+          : selection.ids.includes(id)
+            ? selection.ids.filter((b) => b !== id)
+            : [...selection.ids, id];
+      if (ids.length === 1) {
+        showAlone(system, ids[0]);
+        return ids[0];
       }
-      const ids = selection.ids.includes(id)
-        ? selection.ids.filter((b) => b !== id)
-        : [...selection.ids, id];
       select(ids.length === 0 ? null : { system, ids });
+      if (ids.length === 0) useInspectorStore.getState().popTo(0);
+      return null;
     },
 
     clearBodies() {
@@ -196,8 +247,13 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       const { cut } = get();
       if (cut === null) return false;
       const made = cutMade;
-      if (!(await get().move(cut.planets, to, at))) return false;
+      const { planets } = cut;
+      if (!(await get().move(planets, to, at))) return false;
       if (cutMade === made) get().cancelCut();
+      const shown = sceneSystem();
+      if (shown === to && planets.length === 1) showAlone(to, planets[0]);
+      else select(shown === to || planets.length > 1 ? { system: to, ids: [...planets] } : null);
+      if (shown === null) await useEditorStore.getState().select(to);
       return true;
     },
 
@@ -209,19 +265,13 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
         useFileSessionStore.getState().setError(ipc.errorMessage(e));
         return false;
       }
-      if (!(await useEditorStore.getState().applyOp(op))) return false;
-      select({ system: to, ids: [...planets] });
-      if (sceneSystem() === null) await useEditorStore.getState().select(to);
-      return true;
+      return useEditorStore.getState().applyOp(op);
     },
 
     refresh() {
       const { selection, cut } = get();
       set({ checks: NO_CHECKS });
-      if (selection !== null) {
-        selectionAsk += 1;
-        fetchSelectionTargets();
-      }
+      if (selection !== null) select(selection);
       if (cut !== null) fetchCutTargets(cut);
     },
 
@@ -230,7 +280,20 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       if (selection === null) return;
       const ids = selection.ids.filter(present);
       if (ids.length === selection.ids.length) return;
-      select(ids.length === 0 ? null : { system: selection.system, ids });
+      select(ids.length > 1 ? { system: selection.system, ids } : null);
+      get().followInspector();
+    },
+
+    followInspector() {
+      const { selection } = get();
+      if (selection !== null && selection.ids.length > 1) return;
+      const body = inspectedBody();
+      if (body === null) {
+        if (selection !== null) select(null);
+        return;
+      }
+      if (selection?.system === body.system && selection.ids[0] === body.id) return;
+      select({ system: body.system, ids: [body.id] });
     },
 
     reset() {

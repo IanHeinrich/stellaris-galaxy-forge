@@ -1,5 +1,6 @@
 import type { OrbitPlacement } from "../../../generated/OrbitPlacement";
 import {
+  alreadyThere,
   cutLabel,
   movingBodies,
   pasteLabel,
@@ -14,7 +15,8 @@ import { MenuItem } from "./MenuItem";
 /**
  * Paste, while planets are cut: a lone planet at `at` where given, a group into the next free
  * orbits. A refused paste stays, disabled, with the refusal on hover; a warned one says the first
- * warning under its label and lists them all on hover.
+ * warning under its label and lists them all on hover. The planets' own system is refused without
+ * asking the core.
  */
 export function PasteItem({
   system,
@@ -26,11 +28,39 @@ export function PasteItem({
   className?: string;
 }) {
   const cut = useCut();
+  if (cut === null) return null;
+  const place = cut.count === 1 ? (at ?? null) : null;
+  const label = pasteLabel(cut.planets, place);
+  if (cut.fromId === system) {
+    return (
+      <MenuItem
+        className={className}
+        disabled
+        title={alreadyThere(cut.planets, cut.from)}
+        run={() => undefined}
+      >
+        {label}
+      </MenuItem>
+    );
+  }
+  return <CheckedPaste system={system} place={place} label={label} className={className} />;
+}
+
+/** Paste into another system, with what the core says a paste there meets. */
+function CheckedPaste({
+  system,
+  place,
+  label,
+  className,
+}: {
+  system: number;
+  place: OrbitPlacement | null;
+  label: string;
+  className?: string;
+}) {
   const paste = usePlanetMoveStore((s) => s.paste);
-  const place = cut?.count === 1 ? (at ?? null) : null;
   const check = usePasteCheck(system, place);
   const names = useWarningNames();
-  if (cut === null) return null;
   const refusal = check?.refusal ?? null;
   const warnings = refusal === null ? (check?.warnings ?? []) : [];
   const line = warningLine(warnings, names);
@@ -44,7 +74,7 @@ export function PasteItem({
       }
       run={() => paste(system, place)}
     >
-      {pasteLabel(cut.planets, place)}
+      {label}
       {line !== null && <span className="warn">⚠ {line}</span>}
     </MenuItem>
   );

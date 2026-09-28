@@ -54,6 +54,24 @@ function asPlanet(planets: readonly MovedPlanet[]): string {
 /** The status bar's hint while planets are cut. */
 export const PASTE_HINT = "Right-click a system to paste";
 
+/** The status bar while planets are cut: `3 planets cut`. */
+export function cutCountLabel(count: number): string {
+  return `${counted(count, "planet")} cut`;
+}
+
+/** The status bar while bodies are selected in the system view. */
+export function selectedHint(count: number, clearKey: string): string {
+  const added = "Ctrl or Shift-click to add planets";
+  return `${counted(count, "planet")} selected · ${added} · ${clearKey} clears`;
+}
+
+/** Why Paste is refused in the system the planets stand in: `These planets are already in Meissa`. */
+export function alreadyThere(planets: readonly MovedPlanet[], system: string): string {
+  return planets.length === 1
+    ? `${planets[0].name} is already in ${system}`
+    : `These planets are already in ${system}`;
+}
+
 /** The Cut item and button: `Cut 3 planets`. */
 export function cutLabel(count: number): string {
   return `Cut ${counted(count, "planet")}`;

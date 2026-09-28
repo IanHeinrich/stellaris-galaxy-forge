@@ -88,6 +88,18 @@ describe("the selected bodies' summary", () => {
     expect(moves().selection?.ids).toEqual([KORTOL, URAY_A]);
   });
 
+  it("opens the last body's page when its × leaves one", () => {
+    moves().toggleBody(SYSTEM, URAY_A);
+    page();
+    drawnButton("Remove Meissa IV from the selection").onClick();
+    expect(moves().selection?.ids).toEqual([KORTOL]);
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1]).toEqual({
+      ref: { kind: "planet", id: KORTOL },
+      label: "Kortol's Station",
+    });
+  });
+
   it("cuts the bodies, then cancels the move", async () => {
     await settle();
     page();

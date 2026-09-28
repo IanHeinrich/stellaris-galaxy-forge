@@ -62,8 +62,9 @@ export function bindStores(): void {
 }
 
 // A body selection and a cut belong to the open document. The selection belongs to one system,
-// so entering another clears it, and a body the details no longer hold there leaves it. An edit,
-// undo or redo can change where planets may go, so the targets are read again.
+// so entering another clears it, and a body the details no longer hold there leaves it. A
+// selection of one body follows the inspector's page. An edit, undo or redo can change where
+// planets may go, so the targets are read again.
 function followPlanetMove(): void {
   const moves = () => usePlanetMoveStore.getState();
   useFileSessionStore.subscribe((state, previous) => {
@@ -74,17 +75,24 @@ function followPlanetMove(): void {
     if (useFileSessionStore.getState().status === "ready") moves().refresh();
   });
   useSceneStore.subscribe((state, previous) => {
-    if (state.visit === previous.visit) return;
+    if (state.scene === previous.scene && state.visit === previous.visit) return;
     const { selection } = moves();
-    if (selection !== null && selection.system !== sceneSystem()) moves().clearBodies();
+    const entered = state.visit !== previous.visit;
+    if (entered && selection !== null && selection.system !== sceneSystem()) moves().clearBodies();
+    moves().followInspector();
+  });
+  useInspectorStore.subscribe((state, previous) => {
+    if (state.stack !== previous.stack) moves().followInspector();
   });
   useDetailsStore.subscribe((state, previous) => {
+    if (state.details === previous.details) return;
     const { selection } = moves();
-    if (selection === null) return;
-    const after = state.details.get(selection.system);
-    if (after === undefined || after === previous.details.get(selection.system)) return;
-    const held = new Set(after.planets.map((p) => p.id));
-    moves().keepBodies((id) => held.has(id));
+    const after = selection === null ? undefined : state.details.get(selection.system);
+    if (after !== undefined && after !== previous.details.get(after.id)) {
+      const held = new Set(after.planets.map((p) => p.id));
+      moves().keepBodies((id) => held.has(id));
+    }
+    moves().followInspector();
   });
 }
 

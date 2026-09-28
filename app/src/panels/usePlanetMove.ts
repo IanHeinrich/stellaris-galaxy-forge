@@ -39,9 +39,14 @@ export function useMovedPlanets(ids: readonly number[]): MovedPlanet[] {
 }
 
 /** The planets waiting for a paste and the system they stand in; null with no cut. */
-export function useCut(): { planets: MovedPlanet[]; from: string; count: number } | null {
+export function useCut(): {
+  planets: MovedPlanet[];
+  from: string;
+  fromId: number;
+  count: number;
+} | null {
   const cut = usePlanetMoveStore((s) => s.cut);
   const planets = useMovedPlanets(cut?.planets ?? NONE);
   const from = useGalaxyStore((s) => (cut === null ? "" : s.systemName(cut.from)));
-  return cut === null ? null : { planets, from, count: cut.planets.length };
+  return cut === null ? null : { planets, from, fromId: cut.from, count: cut.planets.length };
 }

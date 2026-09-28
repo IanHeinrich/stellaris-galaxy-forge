@@ -800,16 +800,20 @@ describe("moving planets", () => {
     );
   });
 
-  it("refuses a paste back into the planets' own system, and says so", async () => {
+  it("refuses a paste back into the planets' own system without asking the core", async () => {
     await selectBoth();
     moves().cutSelection();
-    const same = { refusal: "These planets are already in Sol", warnings: [] };
-    vi.mocked(ipc.planetMoveCheck).mockResolvedValue(same);
-    await moves().checkPaste(SOL);
     openOn({ kind: "system", id: SOL });
     expect(menu()).toContain(
       'disabled="" title="These planets are already in Sol">Paste 2 planets here</button>',
     );
+
+    moves().selectBody(SOL, EARTH);
+    await settle();
+    moves().cutSelection();
+    openOn({ kind: "systemSpace", system: SOL, x: 0, y: 50 });
+    expect(menu()).toContain('disabled="" title="Earth is already in Sol">Paste Earth here');
+    expect(ipc.planetMoveCheck).not.toHaveBeenCalled();
   });
 
   it("pastes a lone planet where the system view's space was pressed, and names the orbit", async () => {

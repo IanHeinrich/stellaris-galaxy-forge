@@ -186,11 +186,13 @@ export function closeDocument(): void {
   if (session.status === "ready") void session.close();
 }
 
-/** Clears the bodies selected in the system shown, with the inspector back on the system. */
+/** Clears two or more bodies selected in the system shown, with the inspector back on the system. */
 function clearShownBodies(): boolean {
-  const moves = usePlanetMoveStore.getState();
-  if (moves.selection === null || moves.selection.system !== sceneSystem()) return false;
-  moves.clearBodies();
+  const { selection, clearBodies } = usePlanetMoveStore.getState();
+  if (selection === null || selection.ids.length < 2 || selection.system !== sceneSystem()) {
+    return false;
+  }
+  clearBodies();
   useInspectorStore.getState().popTo(0);
   return true;
 }

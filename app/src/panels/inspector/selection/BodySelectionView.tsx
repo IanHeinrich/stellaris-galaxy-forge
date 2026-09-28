@@ -7,7 +7,7 @@ import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import type { Entry } from "../../../store/inspectorStore";
+import { type Entry } from "../../../store/inspectorStore";
 import { cutAvailability, usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { useOpenEntity } from "../entity/useEntity";
 import { DrillLink, Empty, Section } from "../parts";

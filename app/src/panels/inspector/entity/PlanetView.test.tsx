@@ -35,7 +35,12 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
-import { READING_TARGETS, SystemChoice } from "./PlanetSystemField";
+import {
+  READING_TARGETS,
+  SystemChoice,
+  TARGETS_FAILED,
+  type TargetsRead,
+} from "./PlanetSystemField";
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import { escaped as escapedText } from "../../../test/elements";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
@@ -834,21 +839,28 @@ describe("the System field", () => {
     ],
     ...over,
   });
-  const field = (t: PlanetMoveTargets | null) =>
-    renderToStaticMarkup(<SystemChoice id={WORLD} system={SYSTEM} targets={t} />);
+  const field = (read: TargetsRead | null) =>
+    renderToStaticMarkup(<SystemChoice id={WORLD} system={SYSTEM} read={read} />);
 
   it("shows the planet's system, and waits for where it can move", async () => {
     await open("save");
     expect(field(null)).toContain(`title="${READING_TARGETS}"`);
-    const html = field(targets());
+    const html = field({ targets: targets() });
     expect(html).toContain('value="Alpha Centauri"');
     expect(html).not.toContain("disabled");
+  });
+
+  it("says so when the core could not say where the planet can move", async () => {
+    await open("save");
+    const html = field({ failed: true });
+    expect(html).toContain("disabled");
+    expect(html).toContain(escapedText(TARGETS_FAILED));
   });
 
   it("is disabled with the core's refusal for a planet that cannot move", async () => {
     await open("save");
     const reason = "Nekkar I has an arc furnace: planets with a megastructure can't move";
-    const html = field(targets({ refused: [{ planet: WORLD, reason }], systems: [] }));
+    const html = field({ targets: targets({ refused: [{ planet: WORLD, reason }], systems: [] }) });
     expect(html).toContain("disabled");
     expect(html).toContain(escapedText(reason));
   });

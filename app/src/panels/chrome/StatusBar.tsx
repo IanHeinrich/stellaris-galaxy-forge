@@ -5,7 +5,7 @@ import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitEdits";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
-import { PASTE_HINT } from "../../lib/planetMove";
+import { cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
@@ -197,10 +197,16 @@ function SceneHint({ system }: { system: number }) {
   const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
   const { editing } = useSystemGeometry(system);
-  const cut = usePlanetMoveStore((s) => s.cut !== null);
+  const cut = usePlanetMoveStore((s) => s.cut?.planets.length ?? null);
+  const selected = usePlanetMoveStore((s) =>
+    s.selection !== null && s.selection.system === system ? s.selection.ids.length : 0,
+  );
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
-  if (cut) return <span className="muted">{PASTE_HINT}</span>;
+  if (cut !== null) return <CutHint count={cut} />;
+  if (selected > 1) {
+    return <span className="muted">{selectedHint(selected, shortcutLabel("clearSelection"))}</span>;
+  }
   const layout = details && systemLayout(details, roll, planetClasses, moonScale);
   const id = layout ? inspectedBody(layout, system, top?.ref ?? null) : null;
   const body = details && layout && id !== null ? bodyReadout(details, layout, id, names) : null;
@@ -209,18 +215,28 @@ function SceneHint({ system }: { system: number }) {
   return <span className="muted">{movable ? `${body} · ${DRAG_HINTS.movable}` : body}</span>;
 }
 
+/** While planets are cut: how to paste them, and how many there are. */
+function CutHint({ count }: { count: number }) {
+  return (
+    <>
+      <span className="muted">{PASTE_HINT}</span>
+      <span className="muted">{cutCountLabel(count)}</span>
+    </>
+  );
+}
+
 function Hint() {
   const shown = useSceneSystem();
   const hover = useEditorStore((s) => s.hover);
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
   const gesture = useMapChromeStore((s) => s.gesture);
-  const cut = usePlanetMoveStore((s) => s.cut !== null);
+  const cut = usePlanetMoveStore((s) => s.cut?.planets.length ?? null);
   if (gesture === "connecting") {
     return <span className="muted">release on a system to connect</span>;
   }
   if (shown !== null && gesture === null) return <SceneHint system={shown} />;
-  if (cut && gesture === null) return <span className="muted">{PASTE_HINT}</span>;
+  if (cut !== null && gesture === null) return <CutHint count={cut} />;
   if (hover !== null) {
     return <span className="muted">drag to move · drag ring to connect · Shift+click to add</span>;
   }
