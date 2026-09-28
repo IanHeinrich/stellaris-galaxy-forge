@@ -12,32 +12,35 @@ a release is made.
 
 ### Added
 
-- Edit a save's planets on their page: rename them, change their size,
-  and add or remove deposits, blockers and modifiers. Colonies can be
-  edited too. The page warns when the game will take something away as
-  a result, such as districts over a lowered cap.
-- Rename an empire from its page.
-- A planet's page shows any anomaly waiting on it. A pre-FTL
+- Edit a save's planets directly from their pages. Rename them, change
+  their size, and add or remove deposits, blockers, and modifiers.
+  Colonies can be edited too. The page warns you when an edit will cause
+  the game to remove something, such as districts that exceed a lowered
+  cap.
+- Rename an empire directly from its page in the Empires tab in the
+  Inspector.
+- A planet's page now shows any anomaly waiting on it, and a pre-FTL
   civilisation's page shows its age.
-- With Details on, the system view shows which planets are colonised,
-  with the owner's flag.
-- The Points of interest layer can mark Contingency hubs, the Horizon
-  Signal, holy worlds and Cutholoids. They are off until you switch them
-  on in the Layers menu.
-- The galaxy page of a save shows its game setup, such as the crisis and
-  the end-game year, and whether the Kaleidoscope will appear.
+- When the Details layer is enabled, the system view shows which planets
+  are colonised, along with their owner's flag.
+- The Points of Interest layer can now highlight Contingency hubs, the
+  Horizon Signal, holy worlds, and Cutholoids. These are off by default
+  and can be enabled from the Layers menu.
+- The galaxy page for a save now shows its game setup, including the
+  crisis and end-game year, as well as whether the Kaleidoscope will
+  appear.
 
 ### Changed
 
-- The Terraforming candidate checkbox is gone. Add the candidate
-  modifier from the Modifiers section instead.
-- A save opens with the map border and the L-Cluster guide on.
-- Habitats, ring worlds and broken planets look sharper in the system
-  view. Tomb worlds show their surface.
+- The Terraforming Candidate checkbox has been removed. Add the
+  candidate modifier from the Modifiers section instead.
+- Saves now open with the map border and L-Cluster guide enabled.
+- Habitats, ring worlds, and broken planets look sharper in the system
+  view. Tomb worlds now show their surface.
 
 ### Fixed
 
-- Exporting a save for Paint a Galaxy keeps Contingency hubs near a
+- Exporting a save for Paint a Galaxy now keeps Contingency hubs near a
   fallen empire.
 
 ## [0.17.0] - 2026-09-28
