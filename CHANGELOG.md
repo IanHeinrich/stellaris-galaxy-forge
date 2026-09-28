@@ -28,6 +28,10 @@ a release is made.
   voidworm and Cutholoid scaling, and fallen empire strength.
 - The galaxy page of a save has a Kaleidoscope row when the Kaleidoscope
   will appear in that game.
+- Rename an empire from the Name field at the top of its page. Renaming
+  your own empire also renames the save on the game's load screen.
+- A pre-FTL civilisation's page shows its age, such as Stone Age or
+  Atomic Age.
 
 ### Changed
 

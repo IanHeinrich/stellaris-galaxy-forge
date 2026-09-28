@@ -20,7 +20,18 @@ export type Op = { "type": "MoveSystem", id: number, x: number, y: number, } | {
  * How many items `on` adds: one unless given, and at most `MAX_MODIFIER_COPIES`.
  * Removal ignores it.
  */
-copies?: number, } | { "type": "SetEmpireMapColors", country: number, colors: MapColorPair | null, } | { "type": "SetEmpireFlag", country: number, flag: EmpireFlag, } | { "type": "AddSaveSystem", spec: SystemSpec, } | { "type": "AddSaveDeposit", planet: number, kind: string, } | { "type": "RemoveSaveDeposit", deposit: number, } | { "type": "ReplaceSaveSystem", system: number, spec: SystemSpec, } | { "type": "RenameSaveSystem", system: number, name: string, } | { "type": "SetNebulaTurbulent", nebula: number, turbulent: boolean, } | { "type": "SetNebulaFootprints", footprints: Array<NebulaFootprint>, } | { "type": "MoveSaveBody", system: number, body: number, radius: number, angle: number, } | { "type": "SetSaveBodyParent", system: number, body: number, parent: number | null, 
+copies?: number, } | { "type": "SetEmpireMapColors", country: number, colors: MapColorPair | null, } | { "type": "SetEmpireFlag", country: number, flag: EmpireFlag, } | { "type": "RenameEmpire", country: number, name: string, 
+/**
+ * The country's whole `name` value, written as it stands in place of the literal
+ * block `name` makes: what the inverse carries for a name the game generated. The
+ * header and `meta` still take `name`.
+ */
+value?: string, 
+/**
+ * `Some(false)` takes the country's `custom_name=yes` away: what the inverse
+ * carries when the rename added it. Otherwise the mark is added when missing.
+ */
+custom_name?: boolean, } | { "type": "AddSaveSystem", spec: SystemSpec, } | { "type": "AddSaveDeposit", planet: number, kind: string, } | { "type": "RemoveSaveDeposit", deposit: number, } | { "type": "ReplaceSaveSystem", system: number, spec: SystemSpec, } | { "type": "RenameSaveSystem", system: number, name: string, } | { "type": "SetNebulaTurbulent", nebula: number, turbulent: boolean, } | { "type": "SetNebulaFootprints", footprints: Array<NebulaFootprint>, } | { "type": "MoveSaveBody", system: number, body: number, radius: number, angle: number, } | { "type": "SetSaveBodyParent", system: number, body: number, parent: number | null, 
 /**
  * `parent` is a star: the body orbits it as a planet, with its moons, and takes no
  * moon bit. The core cannot tell a star from the bytes, so the caller says. Ignored

@@ -27,6 +27,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A single star body given a new type or size loads drawn that way in the system view, and a month passes cleanly
 - [ ] An empire given new map colours shows them as its border and fill; one set back to flag colours shows those
 - [ ] An empire given a new emblem, background and flag colours shows that flag in game, its ships take the new primary colour, and with Independent Map Color off its border and fill follow the new colours; the player's new flag shows on the load game screen
+- [ ] A renamed AI empire shows its new name in game and keeps it after a government reform. The player's renamed empire shows its new name in game and on the load game screen. A pre-FTL civilisation shows the same age in the app as in game
 - [ ] An added system loads with its bodies, names and lanes; it can be surveyed, claimed and colonised, and survives a save and reload
 - [ ] With the middle one of three added systems removed, the save loads, the renumbered system keeps its lanes and bodies, and it survives a save and reload
 - [ ] A deposit added to an uncolonised planet shows on its page in game, a removed one is gone, and both hold after a save and reload

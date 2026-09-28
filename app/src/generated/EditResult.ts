@@ -22,4 +22,8 @@ touched_entities: Array<EntityAddr>,
  * Whether the classification of the systems the op touched, and the territory the
  * scripts give them, may have moved with it.
  */
-reclassifies: boolean, };
+reclassifies: boolean, 
+/**
+ * The name the document is listed under, which renaming the player's empire changes.
+ */
+title: string, };

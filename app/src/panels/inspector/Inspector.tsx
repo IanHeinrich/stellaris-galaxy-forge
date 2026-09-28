@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
-import { laneLabel, nebulaNameIn } from "../../lib/names";
+import type { CountryNode } from "../../generated/CountryNode";
+import { laneLabel, nebulaNameIn, templateName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
@@ -24,8 +25,18 @@ import { ChildView } from "./entity/ChildView";
 import { INSPECTOR_VIEWS } from "./entity/views";
 import { useBodySelectionPage } from "./selection/bodySelectionPage";
 
-function Breadcrumb() {
+/**
+ * What a crumb reads: a country's name as it stands now, since a rename happens with its page
+ * open, and any other page's label as it was opened.
+ */
+function crumbLabel(entry: Entry, countries: ReadonlyMap<number, CountryNode>): string {
+  const country = entry.ref.kind === "country" ? countries.get(entry.ref.id) : undefined;
+  return country === undefined ? entry.label : templateName(country);
+}
+
+export function Breadcrumb() {
   const stack = useInspectorStore((s) => s.stack);
+  const countries = useGalaxyStore((s) => s.countries);
   const popTo = useInspectorStore((s) => s.popTo);
   const home = useInspectorStore((s) => s.home);
   const back = useInspectorStore((s) => s.back);
@@ -52,10 +63,10 @@ function Breadcrumb() {
           <span key={`${entry.label}-${i}`}>
             <span className="sep">›</span>
             {i === stack.length - 1 ? (
-              <span className="here">{entry.label}</span>
+              <span className="here">{crumbLabel(entry, countries)}</span>
             ) : (
               <button type="button" className="link" onClick={() => popTo(i)}>
-                {entry.label}
+                {crumbLabel(entry, countries)}
               </button>
             )}
           </span>

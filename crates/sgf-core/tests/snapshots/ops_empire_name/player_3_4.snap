@@ -1,0 +1,38 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed empire 0 to Sgf Dominion of Tests
+inverse: RenameEmpire { country: 0, name: "United Nations of Earth 6", value: Some("{\n\t\t\tkey=\"EMPIRE_DESIGN_humans1\"\n\t\t}"), custom_name: None }
+
+--- gamestate
++++ gamestate
+@@ -1,6 +1,6 @@
+ version="Cepheus v3.4.5"
+ version_control_revision=95132
+-name="United Nations of Earth 6"
++name="Sgf Dominion of Tests"
+ date="2200.04.11"
+ required_dlcs={
+ 	"Ancient Relics Story Pack"
+@@ -593721,7 +593721,8 @@
+ 		}
+ 		color_index=-1
+ 		name={
+-			key="EMPIRE_DESIGN_humans1"
++			key="Sgf Dominion of Tests"
++			literal=yes
+ 		}
+ 		adjective={
+ 			key="EMPIRE_DESIGN_humans1"
+
+--- meta
++++ meta
+@@ -1,6 +1,6 @@
+ version="Cepheus v3.4.5"
+ version_control_revision=95132
+-name="United Nations of Earth 6"
++name="Sgf Dominion of Tests"
+ date="2200.04.11"
+ required_dlcs={
+ 	"Ancient Relics Story Pack"

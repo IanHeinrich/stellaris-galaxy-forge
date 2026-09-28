@@ -18,7 +18,7 @@ import { useInspectorStore, type Entry, type InspectorTab } from "../../../store
 import { armSession, resetStores } from "../../../store/storeFixture";
 import { openWith } from "../../../test/session";
 import { drawnBy, drawnField } from "../../../test/drawn";
-import { SwatchField, ToggleField } from "../../EditField";
+import { SwatchField, TextField, ToggleField } from "../../EditField";
 import { TilePicker } from "../../TilePicker";
 import {
   CountryView,
@@ -295,5 +295,71 @@ describe("an empire's flag fields", () => {
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(flagWith({ primary: "light_pink" })),
     );
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("an empire's name", () => {
+  it("shows the name in an editable field above the flag", async () => {
+    await openSaveWith(FLAGGED);
+
+    const html = drawnBy(() => page("overview"));
+    expect(html).toContain('aria-label="Empire"');
+    expect(html).toContain('aria-label="Empire name"');
+    expect(html.indexOf('aria-label="Empire name"')).toBeLessThan(
+      html.indexOf('aria-label="Flag"'),
+    );
+    expect(drawnField(TextField, "Empire name").value).toBe("Test Empire");
+  });
+
+  it("sends the typed name as a rename of this empire", async () => {
+    await openSaveWith(FLAGGED);
+    drawnBy(() => page("overview"));
+
+    const field = drawnField(TextField, "Empire name");
+    if (field.kind !== "text") throw new Error("a text field");
+    field.onCommit(" Sgf Dominion ");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "RenameEmpire",
+        country: FLAGGED.id,
+        name: "Sgf Dominion",
+      }),
+    );
+  });
+
+  it("sends nothing for a blank name or the name the empire already has", async () => {
+    await openSaveWith(FLAGGED);
+    drawnBy(() => page("overview"));
+    mockedIpc.applyOp.mockClear();
+
+    const field = drawnField(TextField, "Empire name");
+    if (field.kind !== "text") throw new Error("a text field");
+    field.onCommit("   ");
+    field.onCommit(" Test Empire ");
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("a pre-FTL civilisation's age", () => {
+  it("shows the age by the name the game gives it", async () => {
+    await openSaveWith({ ...CHOSEN, country_type: "primitive", preftl_age: "stone_age" });
+    useGameDataStore.setState({ names: new Map([["stone_age", "Stone Age"]]) });
+
+    const html = page("overview");
+    expect(html).toContain("Age");
+    expect(html).toContain("Stone Age");
+  });
+
+  it("reads the age's key until game data names it", async () => {
+    await openSaveWith({ ...CHOSEN, country_type: "primitive", preftl_age: "late_medieval_age" });
+
+    expect(page("overview")).toContain("Late medieval age");
+  });
+
+  it("has no age row for an empire", async () => {
+    await openSaveWith(CHOSEN);
+
+    expect(page("overview")).not.toContain("Stone Age");
+    expect(page("overview")).not.toMatch(/>Age</);
   });
 });
