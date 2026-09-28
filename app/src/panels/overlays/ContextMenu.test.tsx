@@ -39,6 +39,7 @@ import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, drawnButton } from "../../test/drawn";
 import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
+import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
@@ -832,6 +833,21 @@ describe("moving planets", () => {
     drawnBy(menu);
     drawnButton(label).onClick();
     await vi.waitFor(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH], CENTAURI, at));
+  });
+
+  it("names a lone body in its Cut", async () => {
+    moves().selectBody(SOL, EARTH);
+    await settle();
+    openOn({ kind: "body", system: SOL, id: EARTH });
+    expect(menu()).toContain('role="menuitem">Cut Earth</button>');
+  });
+
+  it("hides the map's tooltip while a menu is open", () => {
+    const tooltip = () => renderToStaticMarkup(<MapTooltip />);
+    useMapChromeStore.getState().showTooltip({ x: 0, y: 0, title: "Sol", lines: [] });
+    expect(tooltip()).toContain("Sol");
+    openOn({ kind: "system", id: SOL });
+    expect(tooltip()).toBe("");
   });
 
   it("offers no Paste without a cut", () => {

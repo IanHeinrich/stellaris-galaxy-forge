@@ -47,6 +47,8 @@ import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
 import { drawnBy, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { PickerField, ToggleField } from "../../EditField";
+import { ComboField } from "../../ComboField";
+import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
 
@@ -848,6 +850,21 @@ describe("the System field", () => {
     const html = field({ targets: targets() });
     expect(html).toContain('value="Alpha Centauri"');
     expect(html).not.toContain("disabled");
+  });
+
+  it("keeps the picked system's warning under the field until the next edit", async () => {
+    await open("save");
+    const warning = { planet: WORLD, kind: "station", owner: 1, new_owner: EMPIRE } as const;
+    const read = { targets: targets({ systems: [{ system: 3, warnings: [warning] }] }) };
+    mockedIpc.planetMoveOp.mockResolvedValue({ type: "Batch", description: "Moved", ops: [] });
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnBy(() => field(read));
+    drawnField(ComboField, "System").onPick("3");
+    await vi.waitFor(() => expect(field(read)).toContain("station will pass to"));
+
+    mockedIpc.applyOp.mockResolvedValue(editResult({ history: { undo: [], redo: [] } }));
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
+    expect(field(read)).not.toContain("station will pass to");
   });
 
   it("says so when the core could not say where the planet can move", async () => {

@@ -9,7 +9,7 @@ import {
 } from "../../../lib/planetMove";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { cutAvailability, usePasteCheck, usePlanetMoveStore } from "../../../store/planetMoveStore";
-import { useCut, useWarningNames } from "../../usePlanetMove";
+import { useCut, useMovedPlanets, useWarningNames } from "../../usePlanetMove";
 import { MenuItem } from "./MenuItem";
 
 /**
@@ -90,19 +90,22 @@ export function CutItem({ system }: { system: number }) {
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const read = useDetailsStore((s) => s.details.get(system));
   const availability = cutAvailability({ selection, selectionTargets });
-  if (availability.kind === "none" || selection === null) return null;
   const moving =
     availability.kind === "ready"
-      ? availability.planets.length
-      : movingBodies(selection.ids, (id) => read?.planets.find((p) => p.id === id)?.parent ?? null)
-          .length;
+      ? availability.planets
+      : movingBodies(
+          selection?.ids ?? [],
+          (id) => read?.planets.find((p) => p.id === id)?.parent ?? null,
+        );
+  const planets = useMovedPlanets(moving);
+  if (availability.kind === "none" || selection === null) return null;
   return (
     <MenuItem
       disabled={availability.kind !== "ready"}
       title={availability.kind === "refused" ? availability.reason : undefined}
       run={cutSelection}
     >
-      {cutLabel(moving)}
+      {cutLabel(planets)}
     </MenuItem>
   );
 }

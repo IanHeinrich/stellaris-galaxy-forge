@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as ipc from "../../../api/ipc";
+import type { HistoryView } from "../../../generated/HistoryView";
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import {
   jumpsFrom,
@@ -57,6 +58,12 @@ interface Note {
 }
 
 /**
+ * The warning of the last move made from the field, kept outside it: the page reads the planet
+ * again after the move and draws a new field. It holds until another edit or another planet.
+ */
+let lastPick: { planet: number; history: HistoryView; note: Note } | null = null;
+
+/**
  * The System field: planet `id`, standing in `system`, moved to another system picked by name,
  * nearest first. Each row names the owner, with a mark where the game would hand something over.
  */
@@ -81,7 +88,9 @@ export function SystemChoice({
   const countryName = useGalaxyStore((s) => s.countryName);
   const move = usePlanetMoveStore((s) => s.move);
   const names = useWarningNames();
-  const [picked, setPicked] = useState<Note | null>(null);
+  const history = useEditorStore((s) => s.history);
+  const [, setPicks] = useState(0);
+  const picked = lastPick?.planet === id && lastPick.history === history ? lastPick.note : null;
 
   const jumps = useMemo(() => jumpsFrom(systems, system), [systems, system]);
   const order = useMemo(() => {
@@ -139,9 +148,11 @@ export function SystemChoice({
         onPick={(key) => {
           const to = Number(key);
           const warned = noteOf(to);
-          setPicked(null);
+          lastPick = null;
           void move([id], to).then((moved) => {
-            if (moved) setPicked(warned);
+            if (!moved || warned === null) return;
+            lastPick = { planet: id, history: useEditorStore.getState().history, note: warned };
+            setPicks((n) => n + 1);
           });
         }}
       />

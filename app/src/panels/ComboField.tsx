@@ -16,7 +16,8 @@ const ROWS_SHOWN = 6;
 /**
  * A choice typed for: the field shows `value`, and focusing it lists `items` in their order,
  * filtered by what is typed. Arrows move, Enter picks, Escape or leaving the field closes it.
- * `note` is the line under the field, told the highlighted row while the list is open.
+ * `note` is told the highlighted row while the list is open, and shows as the list's last line;
+ * told null while it is closed, it shows under the field.
  */
 export function ComboField({
   label,
@@ -142,9 +143,14 @@ export function ComboField({
               {more}
             </li>
           )}
+          {line !== undefined && line !== null && (
+            <li className="combo-more combo-note" role="presentation">
+              {line}
+            </li>
+          )}
         </ul>
       )}
-      {line !== undefined && line !== null && <span className="combo-note">{line}</span>}
+      {!open && line !== undefined && line !== null && <span className="combo-note">{line}</span>}
     </span>
   );
 }

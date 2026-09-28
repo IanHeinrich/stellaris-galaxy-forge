@@ -129,7 +129,9 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
               title={availability.kind === "refused" ? availability.reason : undefined}
               onClick={() => cutSelection()}
             >
-              {cutLabel(cutPlanets.length)}
+              {cutLabel(
+                cutPlanets.map((id) => ({ name: nameOf(id), moon: bodyOf(id)?.moon === true })),
+              )}
             </button>
           )}
         </div>

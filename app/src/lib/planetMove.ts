@@ -72,9 +72,9 @@ export function alreadyThere(planets: readonly MovedPlanet[], system: string): s
     : `These planets are already in ${system}`;
 }
 
-/** The Cut item and button: `Cut 3 planets`. */
-export function cutLabel(count: number): string {
-  return `Cut ${counted(count, "planet")}`;
+/** The Cut item and button: `Cut 3 planets`, or the one body's name, `Cut Fatis I`. */
+export function cutLabel(planets: readonly MovedPlanet[]): string {
+  return `Cut ${what(planets)}`;
 }
 
 /** The bar while planets are cut: `Moving 3 planets from Meissa`. */

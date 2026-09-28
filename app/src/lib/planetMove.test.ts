@@ -38,8 +38,9 @@ const research: PlanetMoveWarning = { planet: 3, kind: "station", owner: 7, new_
 
 describe("labels", () => {
   it("names the cut by its count", () => {
-    expect(cutLabel(3)).toBe("Cut 3 planets");
-    expect(cutLabel(1)).toBe("Cut 1 planet");
+    expect(cutLabel(THREE)).toBe("Cut 3 planets");
+    expect(cutLabel([MEISSA_II])).toBe("Cut Meissa II");
+    expect(cutLabel([URAY_IIIA])).toBe("Cut Uray IIIa");
   });
 
   it("says what is moving and from where", () => {
