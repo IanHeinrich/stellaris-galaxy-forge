@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_gamedata::deposit_roll::{self, RollBody};
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
@@ -193,6 +194,31 @@ pub fn get_star_classes(game_data: State<'_, GameDataState>) -> Vec<StarClassVie
 pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
         gd.deposits.iter().map(DepositView::from).collect()
+    })
+}
+
+/// The deposit types that fit a body of planet class `class` and `size`, a moon when `moon`,
+/// that holds the deposit types `deposits`, as the game rolls deposits for one; empty
+/// without game data.
+#[tauri::command(async)]
+pub fn get_fitting_deposits(
+    game_data: State<'_, GameDataState>,
+    class: String,
+    size: u32,
+    moon: bool,
+    deposits: Vec<String>,
+) -> Vec<String> {
+    game_data.loaded().map_or_else(Vec::new, |gd| {
+        let body = RollBody {
+            class: &class,
+            size,
+            star: gd.planet_classes.get(&class).is_some_and(|c| c.star),
+            moon,
+        };
+        deposit_roll::fitting(&gd, &body, &deposits)
+            .into_iter()
+            .map(|d| d.key.clone())
+            .collect()
     })
 }
 

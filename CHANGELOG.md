@@ -8,6 +8,17 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Rename a save's planets on their page. Moons named after the planet
+  follow the new name.
+- Change an uncolonised planet's size, and add or remove its deposits,
+  on its page. The deposit list offers only types that fit the planet.
+  A mining or research station over a removed deposit stays in game and
+  still costs about 1 energy a month.
+- A planet's page shows the anomaly waiting on it, and which empires
+  have found it.
+
 ## [0.17.0] - 2026-09-28
 
 ### Added

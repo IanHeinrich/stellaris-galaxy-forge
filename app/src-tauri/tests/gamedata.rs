@@ -142,6 +142,13 @@ fn game_data_commands_degrade_without_an_install() {
     assert!(star_classes.is_empty());
     let deposits: Vec<DepositView> = invoke(&w, "get_deposits", json!({})).expect("deposits");
     assert!(deposits.is_empty());
+    let fitting: Vec<String> = invoke(
+        &w,
+        "get_fitting_deposits",
+        json!({ "class": "pc_arctic", "size": 15, "moon": false, "deposits": [] }),
+    )
+    .expect("fitting deposits");
+    assert!(fitting.is_empty());
     let deposit_types: Vec<DepositTypeView> = invoke(
         &w,
         "get_deposit_types",
@@ -347,6 +354,30 @@ fn game_data_commands_with_the_install() {
         .find(|d| d.key == "d_energy_3")
         .expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
+    let fitting = |class: &str, moon: bool| -> Vec<String> {
+        invoke(
+            &w,
+            "get_fitting_deposits",
+            json!({ "class": class, "size": 15, "moon": moon, "deposits": [] }),
+        )
+        .expect("fitting deposits")
+    };
+    let arctic = fitting("pc_arctic", false);
+    assert!(
+        arctic.iter().any(|k| k == "d_massive_glacier"),
+        "{arctic:?}"
+    );
+    assert!(
+        !arctic.iter().any(|k| k == "d_energy_3"),
+        "orbital deposits are for bodies nobody colonises"
+    );
+    assert!(!arctic.iter().any(|k| k == "d_null_deposit"));
+    let barren = fitting("pc_barren", true);
+    assert!(
+        barren.iter().any(|k| k.starts_with("d_minerals_")),
+        "{barren:?}"
+    );
+    assert!(!barren.iter().any(|k| k == "d_massive_glacier"));
     let deposit_types: Vec<DepositTypeView> = invoke(
         &w,
         "get_deposit_types",

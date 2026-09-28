@@ -32,6 +32,7 @@ function page(planetClass: string, modifiers: string[] = []): PlanetPage {
     controller: null,
     colony: null,
     flags: 0,
+    anomaly: null,
   };
 }
 

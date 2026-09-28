@@ -512,6 +512,23 @@ pub enum Op {
         #[ts(optional)]
         at: Option<OrbitPlacement>,
     },
+    /// A save planet's or moon's name, written as the game writes a name a player typed:
+    /// `name={ key="<name>" literal=yes }`. Each moon, and each moon of a moon, whose name
+    /// holds the body's old name as the value of a `PARENT` variable, as
+    /// `SUBPLANET_NAME_FORMAT` names a moon after its planet, holds the new one there. A
+    /// moon holding something else there keeps it. `block`, when given, is written in place
+    /// of the name instead: a whole `{ … }` name value, which `name` then only describes.
+    /// It is what the inverse carries, so that undoing a rename puts back the name as it
+    /// stood. An empty name, a name the body already has, and a star are refused: the
+    /// system's primary body, or a body of a star's class, whose planets hold its name in
+    /// copies of their own. Save documents only.
+    RenameSavePlanet {
+        planet: u32,
+        name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        block: Option<String>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -534,7 +551,8 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
-    /// and [`Op::SetPlanetRing`] stale the one planet they wrote.
+    /// and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// does the planet and moons it renamed.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -561,7 +579,8 @@ impl Op {
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
-            | Self::MoveSavePlanet { .. } => true,
+            | Self::MoveSavePlanet { .. }
+            | Self::RenameSavePlanet { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -582,7 +601,8 @@ impl Op {
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => true,
+            | Self::SetSaveInnerRadius { .. }
+            | Self::RenameSavePlanet { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
@@ -631,7 +651,8 @@ impl Op {
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
-            | Self::MoveSavePlanet { .. } => false,
+            | Self::MoveSavePlanet { .. }
+            | Self::RenameSavePlanet { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -946,6 +967,10 @@ pub enum OpError {
     AmbientSlotTaken(u32),
     #[error("system {0} is already named {1}")]
     NameUnchanged(u32, String),
+    #[error("planet {0} is already named {1}")]
+    PlanetNameUnchanged(u32, String),
+    #[error("planet {0} is a star: only a planet or moon can be renamed")]
+    StarNotRenamed(u32),
     #[error("planet {0} stands at the system's centre")]
     AtCentre(u32),
     #[error(
@@ -1103,6 +1128,8 @@ impl OpError {
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
             | Self::NameUnchanged { .. }
+            | Self::PlanetNameUnchanged { .. }
+            | Self::StarNotRenamed { .. }
             | Self::AtCentre { .. }
             | Self::ParentMissing { .. }
             | Self::BodyUnchanged { .. }

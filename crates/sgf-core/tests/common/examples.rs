@@ -460,6 +460,11 @@ pub fn one_of_each() -> Vec<Example> {
             to: 216,
             at: None,
         }),
+        Example::save_4_5(Op::RenameSavePlanet {
+            planet: 140,
+            name: "Nova Terra".to_owned(),
+            block: None,
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),

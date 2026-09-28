@@ -67,7 +67,7 @@ impl DetailsProjection {
         })
     }
 
-    /// Read again the class, size, parent, modifiers and placement of each of `planets`, as
+    /// Read again the name, class, size, parent, modifiers and placement of each of `planets`, as
     /// (planet, system), from the bytes now standing for it, then the overlap findings of
     /// every system touched.
     pub fn refresh_planets(
@@ -86,6 +86,8 @@ impl DetailsProjection {
                 continue;
             };
             if let Some((facts, modifiers, placement)) = extract::planet_facts(doc, id)? {
+                planet.name = facts.name;
+                planet.name_key = facts.name_key;
                 planet.class = facts.class;
                 planet.size = facts.size;
                 planet.moon = facts.moon_of.is_some();

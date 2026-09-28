@@ -232,6 +232,40 @@
   border-radius: 7px;
 }
 
+.pl-dep-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pl-dep-remove {
+  padding: 0 4px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--fg-soft);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.pl-dep-remove:hover {
+  color: var(--warn);
+  border-color: var(--border);
+}
+
+.pl-dep-add {
+  padding: 6px 2px 2px;
+}
+
+.pl-pick-art img {
+  display: block;
+  width: 24px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
 .pl-sub-head {
   display: flex;
   align-items: center;

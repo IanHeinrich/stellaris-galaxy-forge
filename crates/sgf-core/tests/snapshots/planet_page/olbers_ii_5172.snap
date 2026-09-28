@@ -156,5 +156,6 @@ expression: value
   "owner": null,
   "controller": null,
   "colony": null,
-  "flags": 0
+  "flags": 0,
+  "anomaly": null
 }

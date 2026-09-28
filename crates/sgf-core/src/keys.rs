@@ -17,6 +17,8 @@ macro_rules! save_keys {
 save_keys! {
     ACTIVE = "active",
     AMBIENT_OBJECT = "ambient_object",
+    ANOMALIES = "anomalies",
+    ANOMALY = "anomaly",
     APPEAR_STATE = "appear_state",
     ARCHAEOLOGICAL_SITES = "archaeological_sites",
     /// 4.5 writes it on every system; the 4.4 sample has none.
@@ -68,6 +70,7 @@ save_keys! {
     ENTITY_FACE_OBJECT = "entity_face_object",
     ENTITY_NAME = "entity_name",
     ENTITY_PLANET_CLASS = "entity_planet_class",
+    EVENTS = "events",
     FILE = "file",
     FINAL_DESIGNATION = "final_designation",
     FLAG = "flag",

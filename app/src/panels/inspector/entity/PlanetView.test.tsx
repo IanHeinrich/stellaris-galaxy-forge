@@ -44,9 +44,9 @@ import {
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import { escaped as escapedText } from "../../../test/elements";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
-import { drawnBy, drawnField } from "../../../test/drawn";
+import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
-import { PickerField, ToggleField } from "../../EditField";
+import { PickerField, TextField, ToggleField } from "../../EditField";
 import { ComboField } from "../../ComboField";
 import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
@@ -227,7 +227,7 @@ describe("a colony's page", () => {
     expect(html).not.toContain("Blockers");
   });
 
-  it("shows its class and size as text, then the owner, designation, date and pops", async () => {
+  it("offers its name to edit, and shows its class and size as text, then the owner, designation, date and pops", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage(COLONY);
@@ -237,9 +237,25 @@ describe("a colony's page", () => {
     expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
     expect(html).toMatch(/<span class="k">Size<\/span><span>16<\/span>/);
     expect(html.match(/class="edit-field [^"]*"/g)).toEqual([
+      'class="edit-field edit-text"',
       'class="edit-field edit-text combo-box disabled"',
       'class="edit-field edit-key-sample"',
     ]);
+    expect(html).toMatch(/<input type="text" aria-label="Name"/);
+    expect(html).not.toContain("Add deposit");
+    expect(html).not.toContain("pl-dep-remove");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnBy(() => render(WORLD));
+    const nameField = drawnField(TextField, "Name") as { onCommit(v: string): void };
+    nameField.onCommit(" Nova Terra ");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "RenameSavePlanet",
+        planet: WORLD,
+        name: "Nova Terra",
+      }),
+    );
     expect(html).toContain("Colony");
     expect(html).toContain('title="Open the empire&#x27;s page"');
     expect(html).toContain("Ti Zru Conservers");
@@ -317,6 +333,40 @@ describe("an unowned world's page", () => {
     );
     expect(html).toContain('<div class="pl-dep blocker">');
     expect(html).not.toContain("Colony");
+  });
+
+  it("offers its size, a remove button per deposit type and a picker to add one", async () => {
+    await open("save");
+    await landPage(OLBERS);
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toMatch(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/);
+    expect(html.match(/class="pl-dep-remove"/g)).toHaveLength(3);
+    expect(html).toContain("Add deposit…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove d_active_volcano").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveSaveDeposit", deposit: 3 }),
+    );
+    drawnField(PickerField, "Add deposit").onPick("d_frozen_gas_lake");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "AddSaveDeposit",
+        planet: WORLD,
+        kind: "d_frozen_gas_lake",
+      }),
+    );
+  });
+
+  it("names the anomaly waiting on it and who found it", async () => {
+    await open("save");
+    useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [EMPIRE] } });
+
+    const html = render(WORLD);
+    expect(html).toMatch(/<span class="k">Anomaly<\/span><span>time_loop_world/);
+    expect(html).toContain("found by Ti Zru Conservers");
   });
 
   it("marks only a loss of districts of every kind with the blocker", async () => {

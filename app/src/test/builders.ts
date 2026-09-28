@@ -479,6 +479,7 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     controller: null,
     colony: null,
     flags: 0,
+    anomaly: null,
     ...over,
   };
 }

@@ -27,6 +27,7 @@ pub(crate) mod nebula;
 pub(crate) mod planet_ring;
 pub(crate) mod planet_size;
 pub(crate) mod remove_system;
+pub(crate) mod rename_planet;
 pub(crate) mod rename_system;
 pub(crate) mod replace_system;
 pub(crate) mod star_class;

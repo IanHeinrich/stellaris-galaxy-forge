@@ -7,8 +7,8 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::facts::{Sheet, count, other, reference, statement_at, system};
 use crate::entity::views::{
-    EntityAddr, EntityKind, PlanetPage, PlanetPageColony, PlanetPageDeposit, PlanetPageMoon,
-    PlanetPageSpecies, PlanetPageTimedModifier,
+    EntityAddr, EntityKind, PlanetPage, PlanetPageAnomaly, PlanetPageColony, PlanetPageDeposit,
+    PlanetPageMoon, PlanetPageSpecies, PlanetPageTimedModifier,
 };
 use crate::keys;
 use crate::overlay::Anchor;
@@ -180,6 +180,10 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
         owner: facts.owner,
         controller: facts.controller,
         flags: facts.flags,
+        anomaly: read::scalar(node, keys::ANOMALY, src).map(|category| PlanetPageAnomaly {
+            category: category.to_owned(),
+            found_by: doc.anomaly_finders(id).to_vec(),
+        }),
     }
 }
 

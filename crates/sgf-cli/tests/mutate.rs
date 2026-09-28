@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane` and `deposit`.
+//! The editing commands: `move`, `nebula`, `lane`, `deposit` and `rename-planet`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
 #[test]
@@ -407,4 +407,38 @@ fn terraform_candidate_writes_the_modifier_a_later_run_takes_away() {
         "{}",
         stdout(&off)
     );
+}
+
+#[test]
+fn rename_planet_writes_the_new_name_and_refuses_an_empty_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("renamed.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "rename-planet",
+        SAMPLE_4_5,
+        "140",
+        "Nova Terra",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains("Renamed planet #140 to Nova Terra"), "{text}");
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let refused = dir.path().join("refused.sav");
+    let out = sgf(&[
+        "rename-planet",
+        SAMPLE_4_5,
+        "140",
+        "",
+        "-o",
+        refused.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("a name may not be empty"), "{err}");
+    assert!(!refused.exists());
 }
