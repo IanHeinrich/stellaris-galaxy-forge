@@ -43,7 +43,7 @@ export interface DepositPickerState {
   setChip(chip: DepositChip): void;
   /**
    * Adds `amount` of `row` to the open planet and says so; with `warnings`, first holds the add
-   * for `confirm` instead.
+   * for `confirm` instead. Asking again for the amount being held confirms it.
    */
   add(row: DepositRow, amount: DepositAmount, warnings?: readonly string[]): Promise<void>;
   /** Makes the add waiting on its warnings. */
@@ -97,7 +97,7 @@ export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
   async add(row, amount, warnings = []) {
     const planet = get().planet;
     if (planet === null) return;
-    if (warnings.length > 0) {
+    if (warnings.length > 0 && get().pending?.amount.key !== amount.key) {
       set({ pending: { row, amount, warnings } });
       return;
     }

@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 
 describe("the deposit picker", () => {
-  it("holds an add with warnings until it is confirmed, and drops it on cancel", async () => {
+  it("holds an add with warnings until it is asked for again, and drops it on cancel", async () => {
     const store = useDepositPickerStore.getState();
     store.open(PAGE, false, "deposits");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
@@ -60,8 +60,12 @@ describe("the deposit picker", () => {
     store.cancel();
     expect(useDepositPickerStore.getState().pending).toBeNull();
 
+    await store.add(row, row.amounts[1], warnings);
     await store.add(row, row.amounts[0], warnings);
-    await store.confirm();
+    expect(useDepositPickerStore.getState().pending?.amount).toBe(row.amounts[0]);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    // Asking again for the held amount, as Enter in the search does, confirms it.
+    await store.add(row, row.amounts[0], warnings);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "AddSaveDeposit",
       planet: 40,

@@ -16,11 +16,34 @@ const DISTRICT_CAP = /^(district_\w+)_max_add$/;
 const MAX_DISTRICTS = "planet_max_districts_add";
 
 /**
+ * The district types that count against another type's cap, as their definitions'
+ * `shared_capacity_modifier` names it. Every other type counts against its own.
+ */
+const SHARED_CAP: Readonly<Record<string, string>> = {
+  district_geothermal: "district_generator",
+  district_photosynthesis_fields: "district_generator",
+  district_melting: "district_mining",
+  district_hollow_mountains: "district_mining",
+  district_orchard_forests: "district_farming",
+};
+
+/** The planet classes `is_generator_district_uncapped` names: volcanic and shattered ring worlds. */
+const UNCAPPED_GENERATORS = new Set(["pc_volcanic", "pc_shattered_ring_habitable"]);
+
+/** The classes whose district set is `habitat`, which `planet_is_habitat_equivalent` checks. */
+const HABITATS = new Set(["pc_habitat", "pc_crystal_habitat", "pc_warden_guardian"]);
+
+/**
  * The zones and buildings that need one of a set of deposits, as the game's own triggers
  * check for them: `has_rare_crystals_deposit` and its siblings, the Betharian zone script,
  * the Xeno Zoo's destroy trigger and the Sky Mountain zone.
  */
-const NEEDS: readonly { deposits: readonly string[]; needed: readonly string[] }[] = [
+const NEEDS: readonly {
+  deposits: readonly string[];
+  needed: readonly string[];
+  /** On a habitat the trigger looks at the system's mining stations, not the planet's deposits. */
+  strategic?: boolean;
+}[] = [
   {
     deposits: [
       "d_crystalline_caverns",
@@ -40,6 +63,7 @@ const NEEDS: readonly { deposits: readonly string[]; needed: readonly string[] }
       "zone_rare_crystals_hive",
       "building_crystal_mines",
     ],
+    strategic: true,
   },
   {
     deposits: [
@@ -55,6 +79,7 @@ const NEEDS: readonly { deposits: readonly string[]; needed: readonly string[] }
       "zone_volatile_motes_hive",
       "building_mote_harvesters",
     ],
+    strategic: true,
   },
   {
     deposits: [
@@ -71,6 +96,7 @@ const NEEDS: readonly { deposits: readonly string[]; needed: readonly string[] }
       "zone_exotic_gases_hive",
       "building_gas_extractors",
     ],
+    strategic: true,
   },
   {
     deposits: ["d_betharian_deposit"],
@@ -162,13 +188,16 @@ function capWarnings(
     }
     const district = DISTRICT_CAP.exec(key)?.[1];
     if (district === undefined) continue;
-    const built = colony.districts.find((d) => d.kind === district)?.level ?? 0;
+    if (district === "district_generator" && UNCAPPED_GENERATORS.has(page.class)) continue;
+    const pooled = colony.districts.filter((d) => (SHARED_CAP[d.kind] ?? d.kind) === district);
+    const built = pooled.reduce((n, d) => n + d.level, 0);
     const before = depositCap(page, views, key, null);
     const after = depositCap(page, views, key, except) + (except === null ? value : 0);
     const n = Math.min(-value, built - Math.max(after, 0));
     if (n <= 0) continue;
     const verb = built <= before ? "demolishes" : "may demolish";
-    warnings.push(`The game ${verb} ${districts(names, district, n)} within a month.`);
+    const what = pooled.length === 1 ? districts(names, pooled[0].kind, n) : counted(n, "district");
+    warnings.push(`The game ${verb} ${what} within a month.`);
   }
   return warnings;
 }
@@ -206,7 +235,9 @@ export function removalWarnings(
   const left = new Set(page.deposits.filter((d) => d.id !== deposit.id).map((d) => d.kind));
   const built = new Set([...colony.zones, ...colony.buildings]);
   const warned = new Set<string>();
+  const habitat = HABITATS.has(page.class);
   for (const need of NEEDS) {
+    if (need.strategic === true && habitat) continue;
     if (!need.deposits.includes(deposit.kind)) continue;
     if (need.deposits.some((kind) => left.has(kind))) continue;
     for (const key of need.needed) {

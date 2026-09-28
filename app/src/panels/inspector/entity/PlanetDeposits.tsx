@@ -275,7 +275,7 @@ export function PlanetDeposits({
       label: `Remove ${group.view?.name ?? group.kind}`,
       run: warnings.length === 0 ? remove : () => setConfirming(target.id),
       warnings,
-      confirming: confirming === target.id,
+      confirming: confirming === target.id && warnings.length > 0,
       confirm: remove,
       cancel: () => setConfirming(null),
     };

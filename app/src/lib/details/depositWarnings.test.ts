@@ -97,6 +97,34 @@ describe("what a deposit edit on a colony costs", () => {
     ).toEqual([]);
   });
 
+  it("counts the districts that share a cap against it, and names them together", () => {
+    const page = colonyPage(["d_waterfalls", "d_hot_springs"], {
+      colony: colony({
+        districts: [
+          { kind: "district_generator", level: 1 },
+          { kind: "district_geothermal", level: 2 },
+        ],
+      }),
+    });
+    expect(removing(page, 1)).toEqual(["The game demolishes 2 districts within a month."]);
+    const geothermal = colonyPage(["d_waterfalls", "d_hot_springs"], {
+      colony: colony({ districts: [{ kind: "district_geothermal", level: 3 }] }),
+    });
+    expect(removing(geothermal, 2)).toEqual([
+      "The game demolishes 1 Geothermal District within a month.",
+    ]);
+  });
+
+  it("warns of no generator districts on a planet where they have no cap", () => {
+    for (const planetClass of ["pc_volcanic", "pc_shattered_ring_habitable"]) {
+      const page = colonyPage(["d_waterfalls"], {
+        class: planetClass,
+        colony: colony({ districts: [{ kind: "district_generator", level: 3 }] }),
+      });
+      expect(removing(page, 1)).toEqual([]);
+    }
+  });
+
   it("says a blocker added to a colony with districts may demolish one, and one that adds capacity nothing", () => {
     const page = colonyPage([], {
       colony: colony({ districts: [{ kind: "district_city", level: 4 }] }),
@@ -128,6 +156,9 @@ describe("what a deposit edit on a colony costs", () => {
       "Xeno Zoo needs Alien Pets. The game removes it within a month.",
     ]);
     expect(removing(colonyPage(["d_alien_pets_deposit"]), 1)).toEqual([]);
+    // A habitat's rare crystals come from its system's mining stations, not its own deposits.
+    const habitat = colonyPage(["d_crystal_forest"], { class: "pc_habitat", colony: built });
+    expect(removing(habitat, 1)).toEqual([]);
   });
 
   it("says a blocker being cleared loses what was spent, and a blocker nobody clears nothing", () => {
