@@ -6,6 +6,7 @@
 //! their `fleet_presence`, its ships with it. The game re-anchors no fleet on load. No
 //! other fleet is touched.
 
+use crate::Span;
 use crate::cst::Node;
 use crate::emit::system::{MOON_FLAG, planet_lines};
 use crate::emit::{Lines, coord, inline};
@@ -13,21 +14,22 @@ use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::bodies::{frame, grow, set_flag, set_moon_of, unlist_moon};
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::{
+    check_version, entity, entity_at, planet_entity, planet_system, system_statement,
+};
 use crate::keys;
 use crate::ops::rules::bodies::{
     Body, angle_about, check_placement, descendants, drawn_radius, normalised, point, system_reach,
 };
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::scan::Value;
 use crate::session::Session;
 use crate::views::{
-    DocumentKind, OrbitPlacement, PlanetMoveTarget, PlanetMoveTargets, PlanetMoveWarning,
-    PlanetMoveWarningKind, PlanetRefusal,
+    DocumentKind, OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets,
+    PlanetMoveWarning, PlanetMoveWarningKind, PlanetRefusal,
 };
-use crate::{NULL_ID, Span};
 
 /// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
 /// and the black hole and pulsar classes are stars without it. `star` is the class an
@@ -93,7 +95,7 @@ pub(crate) fn plan_move(
     unlist(plan.edit(&s.doc, from)?, keys::FLEET_PRESENCE, &stations);
     list(plan.edit(&s.doc, to)?, &FLEETS_AT, &stations)?;
     for &station in &stations {
-        move_station(plan, s, station, [from, to], step)?;
+        move_fleet(plan, s, station, [from, to], Some(step))?;
     }
     if let Some(parent) = body.parent.filter(|&p| source.iter().any(|b| b.id == p)) {
         unlist_moon(plan.edit_planet(&s.doc, parent, from)?, planet)?;
@@ -253,9 +255,59 @@ struct Claim {
 
 /// The op that moves `planets` to system `to`, as [`targets`] lists them: the first at
 /// `at` when given, the rest each on the next free outer orbit.
-pub(crate) fn move_op(s: &Session, planets: &[u32], to: u32, at: Option<OrbitPlacement>) -> Op {
+pub(crate) fn move_op(
+    s: &Session,
+    planets: &[u32],
+    to: u32,
+    at: Option<OrbitPlacement>,
+) -> Result<Op, OpError> {
+    let mut ops = member_ops(s, planets, to, at)?;
+    if ops.len() == 1 {
+        return Ok(ops.remove(0));
+    }
+    Ok(Op::Batch {
+        description: format!("Moved {} planets to system #{to}", ops.len()),
+        ops,
+    })
+}
+
+/// Why [`move_op`] would be refused, or else what it hands to the country owning `to`.
+/// Each member is planned against the session as it stands and the plan dropped: once
+/// the set is normalised, no member's refusal depends on the members before it.
+pub(crate) fn check(
+    s: &Session,
+    planets: &[u32],
+    to: u32,
+    at: Option<OrbitPlacement>,
+) -> PlanetMoveCheck {
+    let refusal = member_ops(s, planets, to, at).and_then(|ops| {
+        ops.iter()
+            .try_for_each(|op| s.format().write(&mut Plan::new(), s, op).map(drop))
+    });
+    match refusal {
+        Ok(()) => PlanetMoveCheck {
+            refusal: None,
+            warnings: warnings(s, planets, to),
+        },
+        Err(e) => PlanetMoveCheck {
+            refusal: Some(e.to_string()),
+            warnings: Vec::new(),
+        },
+    }
+}
+
+/// One [`Op::MoveSavePlanet`] per planet of the normalised set, the first at `at`.
+fn member_ops(
+    s: &Session,
+    planets: &[u32],
+    to: u32,
+    at: Option<OrbitPlacement>,
+) -> Result<Vec<Op>, OpError> {
     let planets = normalised_set(s, planets);
-    let mut ops: Vec<Op> = planets
+    if planets.is_empty() {
+        return Err(OpError::NoPlanets);
+    }
+    Ok(planets
         .iter()
         .enumerate()
         .map(|(i, &planet)| Op::MoveSavePlanet {
@@ -263,14 +315,7 @@ pub(crate) fn move_op(s: &Session, planets: &[u32], to: u32, at: Option<OrbitPla
             to,
             at: if i == 0 { at } else { None },
         })
-        .collect();
-    if ops.len() == 1 {
-        return ops.remove(0);
-    }
-    Op::Batch {
-        description: format!("Moved {} planets to system #{to}", ops.len()),
-        ops,
-    }
+        .collect())
 }
 
 /// `planets` without repeats, and without a body whose parent, at any depth, is also
@@ -368,7 +413,7 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
         }
         colonies.extend(colony);
         let station = read::scalar_u32(&node, keys::SHIPCLASS_ORBITAL_STATION, src)
-            .filter(|&fleet| fleet != NULL_ID);
+            .filter(|&fleet| stationed(s, fleet, from));
         if let (Some(_), Some(controller)) =
             (station, read::scalar_u32(&node, keys::CONTROLLER, src))
         {
@@ -393,14 +438,20 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
 }
 
 /// Refuse a star: the system's primary, a body of a star's class, or a body others orbit
-/// without the moon bit. Returns whether the body holds the moon bit.
+/// without the moon bit. Returns whether the body is a moon: it orbits a planet, or holds
+/// the moon bit and orbits a body the save has lost.
 fn check_movable(s: &Session, frame: &[Body], body: &Body, moons: &[u32]) -> Result<bool, OpError> {
     let (node, src) = planet_entity(&s.doc, body.id)?;
-    let primary = frame.first().is_some_and(|primary| primary.id == body.id);
-    if primary || is_star_class(&read::text(&node, keys::PLANET_CLASS, src)) {
+    if is_star(frame, body.id, &node, src) {
         return Err(OpError::StarNotMovable(body.id));
     }
-    let moon = read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0);
+    let moon = match body.parent.map(|p| (p, planet_entity(&s.doc, p))) {
+        None => false,
+        Some((parent, Ok((node, src)))) => !is_star(frame, parent, &node, src),
+        Some((_, Err(_))) => {
+            read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0)
+        }
+    };
     for &id in moons {
         let (node, src) = planet_entity(&s.doc, id)?;
         let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
@@ -575,17 +626,47 @@ fn id_list(indent: &[u8], key: &str, ids: &[u32]) -> String {
     inline(indent, &w.into_bytes())
 }
 
-/// Move station fleet `fleet` and its ships from system `from` to `to` by `step`: the
+/// Whether body `id` of `frame`, whose entity is `node`, is a star: the system's primary
+/// or a body of a star's class.
+fn is_star(frame: &[Body], id: u32, node: &Node, src: &[u8]) -> bool {
+    frame.first().is_some_and(|primary| primary.id == id)
+        || is_star_class(&read::text(node, keys::PLANET_CLASS, src))
+}
+
+/// Whether fleet `fleet` is a fleet of the save standing in system `from`: its
+/// `movement_manager.coordinate` names `from`. A station fleet that is gone, or stands
+/// elsewhere, stays out of both systems' `fleet_presence`.
+fn stationed(s: &Session, fleet: u32, from: u32) -> bool {
+    let Some(anchor) = record(s, keys::FLEET, fleet) else {
+        return false;
+    };
+    let Ok(Some((node, src))) = entity_at(&s.doc, anchor) else {
+        return false;
+    };
+    node.find(keys::MOVEMENT_MANAGER, src)
+        .and_then(|m| m.find(keys::COORDINATE, src))
+        .and_then(|c| read::scalar_u32(c, keys::ORIGIN, src))
+        == Some(from)
+}
+
+/// The fleets system `id`'s `fleet_presence` lists.
+pub(crate) fn present_fleets(s: &Session, id: u32) -> Result<Vec<u32>, OpError> {
+    let anchor = system_statement(&s.doc, id).ok_or(OpError::UnknownSystem(id))?;
+    let (node, src) = entity(&s.doc, Subject::System(id), anchor)?;
+    Ok(read::ids(&node, keys::FLEET_PRESENCE, src))
+}
+
+/// Move fleet `fleet` and its ships from system `from` to `to`, by `step` when given: the
 /// fleet's `movement_manager.coordinate` and each ship's `coordinate` and
-/// `target_coordinate` shift with the body, and the fleet's `combat.coordinate`, which
-/// stands at the system's centre, only takes the new `origin`. A coordinate with any
-/// other origin, the null one included, is left as it stands.
-fn move_station(
+/// `target_coordinate` shift, and the fleet's `combat.coordinate`, which stands at the
+/// system's centre, only takes the new `origin`. A coordinate with any other origin, the
+/// null one included, is left as it stands.
+pub(crate) fn move_fleet(
     plan: &mut Plan,
     s: &Session,
     fleet: u32,
     [from, to]: [u32; 2],
-    step: (f64, f64),
+    step: Option<(f64, f64)>,
 ) -> Result<(), OpError> {
     let Some(anchor) = record(s, keys::FLEET, fleet) else {
         return Ok(());
@@ -596,7 +677,7 @@ fn move_station(
         edit,
         &[keys::MOVEMENT_MANAGER, keys::COORDINATE],
         systems,
-        Some(step),
+        step,
     )?;
     shift(edit, &[keys::COMBAT, keys::COORDINATE], systems, None)?;
     let ships = read::ids(edit.entity()?, keys::SHIPS, &edit.buf);
@@ -605,8 +686,8 @@ fn move_station(
             continue;
         };
         let edit = plan.edit_record(&s.doc, anchor)?;
-        shift(edit, &[keys::COORDINATE], systems, Some(step))?;
-        shift(edit, &[keys::TARGET_COORDINATE], systems, Some(step))?;
+        shift(edit, &[keys::COORDINATE], systems, step)?;
+        shift(edit, &[keys::TARGET_COORDINATE], systems, step)?;
     }
     Ok(())
 }

@@ -379,41 +379,26 @@ impl Session {
 
     /// The op that moves `planets` to system `to`: one [`Op::MoveSavePlanet`] per planet
     /// [`Self::planet_move_targets`] keeps, in order, the first at `at` when given, batched
-    /// when there are several.
-    pub fn planet_move_op(&self, planets: &[u32], to: u32, at: Option<OrbitPlacement>) -> Op {
+    /// when there are several. Refused when it keeps none.
+    pub fn planet_move_op(
+        &self,
+        planets: &[u32],
+        to: u32,
+        at: Option<OrbitPlacement>,
+    ) -> Result<Op, OpError> {
         move_planet::move_op(self, planets, to, at)
     }
 
     /// Why [`Self::planet_move_op`] would be refused, or else the colonies and stations it
-    /// takes into another country's system. The op runs on a copy of the document and
-    /// galaxy, so the session is left as it was.
+    /// takes into another country's system. Nothing is written: each move is planned
+    /// against the session and dropped.
     pub fn planet_move_check(
         &self,
         planets: &[u32],
         to: u32,
         at: Option<OrbitPlacement>,
     ) -> PlanetMoveCheck {
-        let op = self.planet_move_op(planets, to, at);
-        let mut scratch = Self {
-            path: None,
-            stamp: None,
-            doc: self.doc.clone(),
-            graph: self.graph.clone(),
-            details: OnceCell::new(),
-            history: History::new(),
-            saved_at: None,
-            radii: self.radii,
-        };
-        match ops::apply(&mut scratch, op) {
-            Ok(_) => PlanetMoveCheck {
-                refusal: None,
-                warnings: move_planet::warnings(self, planets, to),
-            },
-            Err(e) => PlanetMoveCheck {
-                refusal: Some(e.to_string()),
-                warnings: Vec::new(),
-            },
-        }
+        move_planet::check(self, planets, to, at)
     }
 
     /// Whether the document differs from what was last opened or saved at `path`.

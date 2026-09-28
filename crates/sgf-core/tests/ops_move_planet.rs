@@ -10,9 +10,9 @@ use sgf_core::views::{
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::spec::mura;
+use common::spec::{dorellion, mura};
 use common::{
-    current, findings, open, open_3_4, open_4_5, open_edited_sample, planet_ids, planets,
+    current, findings, open, open_3_4, open_4_5, open_edited_sample, planet_ids, planets, text,
 };
 
 fn move_planet(planet: u32, to: u32) -> Op {
@@ -355,12 +355,18 @@ fn a_moon_moved_alone_becomes_a_planet() {
 /// Planet 808 orbits companion star 807, and moon 58's planet 57 is gone from the save.
 #[test]
 fn a_planet_of_a_companion_star_and_a_moon_without_its_planet_move() {
-    for planet in [808, 58] {
+    for (planet, label) in [(808, "planet"), (58, "moon")] {
         round_trip(open_4_5(), move_planet(planet, 216));
         let mut session = open_4_5();
-        session
+        let result = session
             .apply(move_planet(planet, 216))
             .unwrap_or_else(|e| panic!("move {planet}: {e}"));
+        let described = format!("Moved {label} #{planet} from system #");
+        assert!(
+            result.entry.description.starts_with(&described),
+            "{}",
+            result.entry.description
+        );
         let moved = body(&session, 216, planet);
         assert!(!moved.moon && moved.parent.is_none(), "{moved:?}");
     }
@@ -538,7 +544,9 @@ fn a_batch_moves_station_planets_together() {
     let home = fleets(&session, 169);
     let before = findings(&session);
 
-    let op = session.planet_move_op(&[8, 10, 14], 2, None);
+    let op = session
+        .planet_move_op(&[8, 10, 14], 2, None)
+        .expect("an op");
     let Op::Batch { description, ops } = &op else {
         panic!("a batch, not {op:?}");
     };
@@ -578,7 +586,7 @@ fn a_batch_with_a_refused_planet_changes_nothing() {
         Some(refusal)
     );
 
-    let op = session.planet_move_op(&set, 2, None);
+    let op = session.planet_move_op(&set, 2, None).expect("an op");
     let error = session.apply(op).expect_err("86 is a star");
     assert_eq!(error.to_string(), refusal);
     assert_eq!(current(&session), original);
@@ -624,4 +632,86 @@ fn a_move_into_another_countrys_system_warns() {
     };
     assert_eq!(into(169).warnings, colony.warnings);
     assert!(into(216).warnings.is_empty());
+}
+
+#[test]
+fn an_empty_set_is_refused() {
+    let session = open_4_5();
+    let check = session.planet_move_check(&[], 216, None);
+    assert_eq!(check.refusal.as_deref(), Some("no planets to move"));
+    let error = session
+        .planet_move_op(&[], 216, None)
+        .expect_err("no planets");
+    assert_eq!(error.to_string(), "no planets to move");
+}
+
+/// Moons 11 and 12 of gas giant 10 in system 169 leave for system 216 in one batch; 10
+/// keeps moon 13.
+#[test]
+fn a_batch_detaches_two_moons_of_one_planet() {
+    let mut session = open_4_5();
+    let original = current(&session);
+    let op = session.planet_move_op(&[11, 12], 216, None).expect("an op");
+    session.apply(op).expect("move 11 and 12");
+    let under_10: Vec<u32> = planets(&session, 169)
+        .iter()
+        .filter(|p| p.parent == Some(10))
+        .map(|p| p.id)
+        .collect();
+    assert_eq!(under_10, [13]);
+    let [eleven, twelve] = [11, 12].map(|id| body(&session, 216, id));
+    assert!(!eleven.moon && !twelve.moon && eleven.parent.is_none());
+    assert!(
+        eleven.orbit.expect("an orbit") < twelve.orbit.expect("an orbit"),
+        "{eleven:?} {twelve:?}"
+    );
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), original);
+}
+
+/// Planet 14's station 363 stands in system 169, and fleet 329 in system 216.
+/// `shipclass_orbital_station` is pointed at a fleet the save lacks, then at 329: neither
+/// fleet moves, and neither system's `fleet_presence` changes.
+#[test]
+fn a_station_that_is_gone_or_elsewhere_stays_out_of_the_move() {
+    for station in ["4000000", "329"] {
+        let mut session = with_planet(14, |entity| {
+            entity.replace(
+                "shipclass_orbital_station=363",
+                &format!("shipclass_orbital_station={station}"),
+            )
+        });
+        let before = [169, 216, 2].map(|id| fleets(&session, id));
+        session.apply(move_planet(14, 2)).expect("move 14");
+        assert_eq!([169, 216, 2].map(|id| fleets(&session, id)), before);
+    }
+}
+
+/// Mura and Dorellion are added to the 4.5 sample as systems 601 and 602, and gas giant 10
+/// with its stations 364 and 365 moves into 602. Removing 601 makes 602 system 601, and
+/// every coordinate that named 602 now names 601.
+#[test]
+fn a_renumbered_system_takes_its_stations_along() {
+    let mut session = open_4_5();
+    for spec in [mura(), dorellion()] {
+        session.apply(Op::AddSaveSystem { spec }).expect("add");
+    }
+    session.apply(move_planet(10, 602)).expect("move 10");
+    assert!(fleets(&session, 602).contains(&364));
+    let before = current(&session);
+    assert!(text(&session).contains("origin=602\n"));
+
+    session
+        .apply(Op::RemoveSystem { id: 601 })
+        .expect("remove 601");
+    let after = text(&session);
+    assert!(
+        !after.contains("origin=602\n"),
+        "a coordinate still names 602"
+    );
+    let moved = fleets(&session, 601);
+    assert!(moved.contains(&364) && moved.contains(&365), "{moved:?}");
+
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), before);
 }

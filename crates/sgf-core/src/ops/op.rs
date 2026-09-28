@@ -822,6 +822,8 @@ pub enum OpError {
     AlreadyNormal,
     #[error("a batch with nothing in it")]
     EmptyBatch,
+    #[error("no planets to move")]
+    NoPlanets,
     #[error("a batch may not hold another batch")]
     NestedBatch,
     #[error("system {0} is listed more than once")]
@@ -1060,6 +1062,7 @@ impl OpError {
             | Self::NoEntries { .. }
             | Self::AlreadyNormal { .. }
             | Self::EmptyBatch { .. }
+            | Self::NoPlanets
             | Self::NestedBatch { .. }
             | Self::DuplicateSystem { .. }
             | Self::DuplicateLane { .. }

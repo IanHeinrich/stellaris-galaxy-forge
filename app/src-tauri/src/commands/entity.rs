@@ -92,7 +92,7 @@ pub fn planet_move_op(
 ) -> Result<Op, SgfError> {
     let guard = lock(&state);
     let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(session.planet_move_op(&planets, to, at))
+    Ok(session.planet_move_op(&planets, to, at)?)
 }
 
 /// The fields the Data tab labels for a kind; unknown keys render raw.

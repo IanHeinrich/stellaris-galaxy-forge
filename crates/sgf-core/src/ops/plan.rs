@@ -67,7 +67,7 @@ pub(crate) struct Plan {
 }
 
 impl Plan {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             edits: BTreeMap::new(),
             emits: Vec::new(),
