@@ -119,7 +119,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetStarClass { .. }
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
-        | Op::SetTerraformCandidate { .. } => Err(OpError::Unsupported {
+        | Op::AddPlanetModifier { .. }
+        | Op::RemovePlanetModifier { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),

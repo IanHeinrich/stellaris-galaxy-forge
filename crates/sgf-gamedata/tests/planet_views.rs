@@ -8,6 +8,7 @@ use std::fs;
 
 use image::GenericImageView;
 use sgf_gamedata::Diagnostic;
+use sgf_gamedata::modifier_choices::ModifierCategory;
 use sgf_gamedata::textures::TextureKey;
 
 #[test]
@@ -410,4 +411,40 @@ fn install_deposit_art_decodes_and_the_fallbacks_exist() {
         assert_eq!(image.dimensions(), (98, 75), "{key}");
     }
     assert!(fs::read_dir(textures.cache_dir()).unwrap().count() >= 3);
+}
+
+#[test]
+fn real_modifier_choices_offer_features_candidates_and_planet_modifiers() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let choices = gd.modifier_choices();
+    let find = |modifier: &str| {
+        choices
+            .iter()
+            .find(|c| c.modifier == modifier)
+            .unwrap_or_else(|| panic!("{modifier} is offered"))
+    };
+    let poor = find("mineral_poor");
+    assert_eq!(poor.feature.as_deref(), Some("pm_mineral_poor"));
+    assert_eq!(poor.category, ModifierCategory::Feature);
+    assert_eq!(poor.view.key, "pm_mineral_poor");
+    assert!(!poor.view.effects.is_empty());
+    assert_eq!(
+        find("terraforming_candidate").category,
+        ModifierCategory::Terraforming
+    );
+    assert!(
+        choices.iter().all(|c| c.feature.is_some()
+            || c.view.icon.is_some()
+            || c.category == ModifierCategory::Terraforming),
+        "every plain modifier has its planet modifier icon"
+    );
+    let keys: std::collections::HashSet<(&str, Option<&str>)> = choices
+        .iter()
+        .map(|c| (c.modifier.as_str(), c.feature.as_deref()))
+        .collect();
+    assert_eq!(keys.len(), choices.len(), "each choice once");
+    assert!(!choices.iter().any(|c| c.modifier == "difficulty_admiral"));
+    assert!((800..1500).contains(&choices.len()), "{}", choices.len());
 }

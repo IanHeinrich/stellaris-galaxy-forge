@@ -45,9 +45,16 @@ a release is made.
   still costs about 1 energy a month.
 - A planet's page shows the anomaly waiting on it, and which empires
   have found it.
+- A planet's Modifiers section can add and remove modifiers. Add
+  modifier lists every modifier a planet can have, with search and
+  category chips. A modifier can be permanent or last a number of days.
+  Planet features are added the way the game writes them.
 
 ### Changed
 
+- The Terraforming candidate checkbox is gone. Add or remove the
+  candidate modifier from the Modifiers section instead. A planet's own
+  candidate modifier is at the top of Add modifier.
 - A save opens with the map border and the L-Cluster guide on.
 - Habitats, ring world segments and broken planets look sharper in the
   system view. They show their planet icon without sphere shading, in a

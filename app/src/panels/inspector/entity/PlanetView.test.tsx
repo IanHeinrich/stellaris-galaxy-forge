@@ -240,9 +240,11 @@ describe("a colony's page", () => {
     expect(html.match(/class="edit-field [^"]*"/g)).toEqual([
       'class="edit-field edit-text"',
       'class="edit-field edit-text combo-box disabled"',
+      'class="edit-field dp-open"',
       'class="edit-field edit-key-sample"',
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
+    expect(html).toContain("+ Add modifier…");
     expect(html).not.toContain("Add deposit");
     expect(html).not.toContain("pl-dep-remove");
 
@@ -349,6 +351,27 @@ describe("an unowned world's page", () => {
     drawnButton("Remove d_active_volcano").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveSaveDeposit", deposit: 3 }),
+    );
+  });
+
+  it("offers a remove button per modifier, taking a feature's line with it, and a picker to add one", async () => {
+    await open("save");
+    await landPage(OLBERS);
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html.match(/class="pl-dep-remove pl-mod-remove"/g)).toHaveLength(1);
+    expect(html).toContain("+ Add modifier…");
+    expect(html).not.toContain("Terraforming candidate");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove pm_abundant_geothermal_activity").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "RemovePlanetModifier",
+        planet: WORLD,
+        modifier: "abundant_geothermal_activity",
+        feature: "pm_abundant_geothermal_activity",
+      }),
     );
   });
 

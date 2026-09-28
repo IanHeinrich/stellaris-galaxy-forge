@@ -112,6 +112,10 @@ export function districtTotals(groups: readonly DepositGroup[]): DistrictTotal[]
 /** A planet or timed modifier as one row: a `pm_*` carries the days of the timed one it applies. */
 export interface ModifierRow {
   key: string;
+  /** The static modifier its `timed_modifier` item names: a feature's own, else `key`. */
+  modifier: string;
+  /** A planet feature (`pm_*`) rather than a timed modifier alone. */
+  feature: boolean;
   /** Days left, `-1` for permanent, `null` when no timed modifier matches. */
   days: number | null;
   view: ModifierView | undefined;
@@ -128,11 +132,17 @@ export function modifierRows(
     const applied = view?.static_modifier ?? key.replace(/^pm_/, "");
     const days = timed.get(applied);
     if (days !== undefined) paired.add(applied);
-    return { key, days: days ?? null, view };
+    return { key, modifier: applied, feature: true, days: days ?? null, view };
   });
   for (const t of page.timed_modifiers) {
     if (!paired.has(t.modifier))
-      rows.push({ key: t.modifier, days: t.days, view: views.get(t.modifier) });
+      rows.push({
+        key: t.modifier,
+        modifier: t.modifier,
+        feature: false,
+        days: t.days,
+        view: views.get(t.modifier),
+      });
   }
   return rows;
 }

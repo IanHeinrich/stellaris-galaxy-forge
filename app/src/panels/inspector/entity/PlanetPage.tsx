@@ -10,13 +10,8 @@ import {
   planetDataKeys,
   type ModifierRow,
 } from "../../../lib/details/planetPage";
-import {
-  bodyEditHint,
-  setTerraformCandidateOp,
-  terraformCandidate,
-  terraformCandidateTitle,
-  type TerraformCandidate,
-} from "../../../lib/details/terraform";
+import { bodyEditHint } from "../../../lib/details/terraform";
+import { removeModifierOp } from "../../../lib/details/modifierPicker";
 import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
 import { renamePlanetOp, uncolonised } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
@@ -52,6 +47,7 @@ import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
+import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
@@ -94,8 +90,6 @@ interface PlanetFields {
   name: string | null;
   /** The body's size, offered for an uncolonised planet. */
   size: { value: number | null } | null;
-  /** Its terraforming candidate state, resolved. */
-  candidate: TerraformCandidate | null;
   /** Whether it has a ring. */
   ring: boolean | null;
   /** The system it moves from. */
@@ -110,13 +104,12 @@ function hasFields(fields: PlanetFields): boolean {
 /** Planet `id`'s fields. */
 function PlanetBlock({
   id,
-  fields: { name, size, candidate, ring, system },
+  fields: { name, size, ring, system },
 }: {
   id: number;
   fields: PlanetFields;
 }) {
   const applyOp = useApplyOp();
-  const candidates = useGameDataStore((s) => s.terraformCandidates);
   return (
     <EditBlock title="Planet">
       {name !== null && (
@@ -138,14 +131,6 @@ function PlanetBlock({
           <SizeField id={id} size={size.value} />
         </EditRow>
       )}
-      {candidate !== null && (
-        <ToggleField
-          label="Terraforming candidate"
-          title={terraformCandidateTitle(candidate.modifier, candidates)}
-          checked={candidate.checked}
-          onChange={(on) => applyOp(setTerraformCandidateOp(id, candidate.modifier, on))}
-        />
-      )}
       {ring !== null && (
         <ToggleField
           label="Ring"
@@ -159,7 +144,7 @@ function PlanetBlock({
   );
 }
 
-function ModifierRowView({ row }: { row: ModifierRow }) {
+function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() => void) | null }) {
   const view = row.view;
   const line = [
     ...(view?.effects.map((e) => e.text) ?? []),
@@ -175,19 +160,37 @@ function ModifierRowView({ row }: { row: ModifierRow }) {
         <span className={view === undefined ? "l1 mono" : "l1"}>{view?.name ?? row.key}</span>
         {line !== "" && <span className="l2">{line}</span>}
       </span>
+      {onRemove !== null && (
+        <button
+          type="button"
+          className="pl-dep-remove pl-mod-remove"
+          title={row.feature ? "Remove this planet feature" : "Remove this modifier"}
+          aria-label={`Remove ${view?.name ?? row.key}`}
+          onClick={onRemove}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }
 
-function PlanetModifiers({ page }: { page: PlanetPage }) {
+/** The planet's modifiers; where `editable`, each with its remove button and the picker below. */
+function PlanetModifiers({ page, editable }: { page: PlanetPage; editable: boolean }) {
   const views = usePlanetDataStore((s) => s.modifiers);
+  const applyOp = useApplyOp();
   const rows = modifierRows(page, views);
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && !editable) return null;
   return (
     <Section id="planet.modifiers" title="Modifiers" count={rows.length}>
       {rows.map((row) => (
-        <ModifierRowView key={row.key} row={row} />
+        <ModifierRowView
+          key={row.key}
+          row={row}
+          onRemove={editable ? () => applyOp(removeModifierOp(page.id, row)) : null}
+        />
       ))}
+      {editable && <ModifierPicker page={page} />}
     </Section>
   );
 }
@@ -397,7 +400,6 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const candidates = useGameDataStore((s) => s.terraformCandidates);
   const bodies = useCanEdit("bodies");
   const geometry = useCanEdit("geometry");
   const found = useFoundPlanet(page.id);
@@ -405,8 +407,6 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
   const starBlock = star && found !== null && system !== undefined;
   const starBody = isStarBody(page.class, planetClasses, starClasses);
-  const candidate =
-    !bodies || starBody ? null : terraformCandidate(page, planetClasses, candidates);
   const ring =
     geometry && found !== null && hasRingCheckbox(page.class, planetClasses, starClasses)
       ? found.planet.ring === true
@@ -420,7 +420,6 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable ? { value: page.size } : null,
-    candidate,
     ring,
     system: moveFrom,
   };
@@ -450,11 +449,13 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
         </Properties>
       )}
       <PlanetDeposits page={page} editable={depositsEditable} moon={found?.planet.moon ?? false} />
-      <PlanetModifiers page={page} />
+      <PlanetModifiers page={page} editable={planetBody} />
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />
-      {(starBlock || hasFields(fields) || depositsEditable || orbitable) && <EditKey />}
+      {(starBlock || hasFields(fields) || depositsEditable || planetBody || orbitable) && (
+        <EditKey />
+      )}
     </>
   );
 }

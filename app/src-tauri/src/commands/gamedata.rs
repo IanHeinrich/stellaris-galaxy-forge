@@ -8,6 +8,7 @@ use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::deposit_choices::{DepositChoice, deposit_choices};
 use sgf_gamedata::deposit_roll::RollBody;
+use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
@@ -230,6 +231,14 @@ pub fn get_deposit_types(
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.deposit_type_views(&keys))
+}
+
+/// Every modifier a planet's page offers to add; empty without game data.
+#[tauri::command(async)]
+pub fn get_modifier_choices(game_data: State<'_, GameDataState>) -> Vec<ModifierChoice> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.modifier_choices())
 }
 
 /// Each planet (`pm_*`) or timed modifier the install defines; empty without game data.

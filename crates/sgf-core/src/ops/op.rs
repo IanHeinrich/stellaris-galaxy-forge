@@ -7,7 +7,7 @@ use ts_rs::TS;
 
 use crate::document;
 use crate::format::save::system_spec::SystemSpec;
-use crate::format::save::write::terraform_candidate::MAX_MODIFIER_COPIES;
+use crate::format::save::write::planet_modifier::MAX_MODIFIER_COPIES;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
@@ -300,21 +300,31 @@ pub enum Op {
         id: u32,
         size: u32,
     },
-    /// A save planet's permanent `modifier` (`days=-1`), added last to its `timed_modifier`
-    /// items when `on` and taken out when not, as the console's `add_modifier` does. The app
-    /// offers the candidate modifiers the install's `is_terraforming_candidate` rule lists;
-    /// the modifier is written as given. A system's star is refused, and so is removing an
-    /// item that runs out. Removal takes out every copy, and its inverse adds them all back.
-    /// The inverse flips `on`. Save documents only.
-    SetTerraformCandidate {
-        id: u32,
+    /// A save planet's timed `modifier`, written as given: one `timed_modifier` item per
+    /// entry of `days`, each lasting that many days or `-1` for ever, added last as the
+    /// game's `add_modifier` does. With `feature`, a planet feature (`pm_*`) whose static
+    /// modifier `modifier` is, its `planet_modifier` line goes before `entity` too, unless the
+    /// planet has it, and `days` may be empty. A system's star is refused, and so are a
+    /// modifier the planet has, days of 0 or below -1 and more than `MAX_MODIFIER_COPIES`
+    /// items. The inverse removes what it wrote. Save documents only.
+    AddPlanetModifier {
+        planet: u32,
         modifier: String,
-        on: bool,
-        /// How many items `on` adds: one unless given, and at most `MAX_MODIFIER_COPIES`.
-        /// Removal ignores it.
+        days: Vec<i32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        copies: Option<u32>,
+        feature: Option<String>,
+    },
+    /// Every `timed_modifier` item naming `modifier` on a save planet, permanent or not, as
+    /// the game's `remove_modifier` takes it, and with `feature` every `planet_modifier` line
+    /// naming that. A system's star is refused, and so is a planet with neither. The inverse
+    /// adds back what it took, each item with its days. Save documents only.
+    RemovePlanetModifier {
+        planet: u32,
+        modifier: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        feature: Option<String>,
     },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
@@ -575,14 +585,15 @@ impl Op {
     /// because it may bring an initializer with it. A save's details list a star's
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
-    /// a save system an op adds brings its bodies with it, and [`Op::SetTerraformCandidate`]
-    /// and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
+    /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
     /// does the planet and moons it renamed.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::SetTerraformCandidate { .. }
+            | Self::AddPlanetModifier { .. }
+            | Self::RemovePlanetModifier { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveSystem { .. }
@@ -618,7 +629,8 @@ impl Op {
         match self {
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::SetTerraformCandidate { .. }
+            | Self::AddPlanetModifier { .. }
+            | Self::RemovePlanetModifier { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
@@ -665,7 +677,8 @@ impl Op {
             | Self::SetWormholeEnds { .. } => true,
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::SetTerraformCandidate { .. }
+            | Self::AddPlanetModifier { .. }
+            | Self::RemovePlanetModifier { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::MoveSaveBody { .. }
@@ -920,14 +933,14 @@ pub enum OpError {
     ZeroPlanetSize,
     #[error("planet {0} is already size {1}")]
     PlanetSizeUnchanged(u32, u32),
-    #[error("planet {0} is its system's star, which cannot be a terraforming candidate")]
-    StarCandidate(u32),
+    #[error("planet {0} is its system's star, which takes no planet modifiers")]
+    StarModifier(u32),
     #[error("planet {0} already has {1}")]
     ModifierPresent(u32, String),
     #[error("planet {0} does not have {1}")]
     ModifierAbsent(u32, String),
-    #[error("planet {0}'s {1} has {2} days left: only a permanent modifier can be removed")]
-    ModifierNotPermanent(u32, String, String),
+    #[error("a modifier lasts -1 (for ever) or a positive number of days, not {0}")]
+    ModifierDays(i32),
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
     #[error("country {0} does not exist")]
@@ -1128,10 +1141,10 @@ impl OpError {
             | Self::StarClassUnchanged { .. }
             | Self::ZeroPlanetSize { .. }
             | Self::PlanetSizeUnchanged { .. }
-            | Self::StarCandidate { .. }
+            | Self::StarModifier { .. }
             | Self::ModifierPresent { .. }
             | Self::ModifierAbsent { .. }
-            | Self::ModifierNotPermanent { .. }
+            | Self::ModifierDays { .. }
             | Self::ModifierCopies { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }

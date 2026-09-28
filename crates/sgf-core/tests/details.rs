@@ -765,7 +765,7 @@ fn a_belt_with_no_radius_leaves_its_system_without_belts() {
     assert_eq!(radii, [85.0, 195.0]);
 }
 
-/// Barren planet 585 carries no modifiers until `SetTerraformCandidate` adds one; the
+/// Barren planet 585 carries no modifiers until `AddPlanetModifier` adds one; the
 /// resolved details pick it up without a full projection rebuild (only its planet is stale).
 #[test]
 fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
@@ -790,11 +790,11 @@ fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
     assert_eq!(modifiers_of(&session), Some(Vec::new()));
 
     let result = session
-        .apply(Op::SetTerraformCandidate {
-            id: 585,
+        .apply(Op::AddPlanetModifier {
+            planet: 585,
             modifier: "terraforming_candidate".to_owned(),
-            on: true,
-            copies: None,
+            days: vec![-1],
+            feature: None,
         })
         .expect("add the candidate");
     assert_eq!(result.details_stale, vec![system]);

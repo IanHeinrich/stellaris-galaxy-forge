@@ -156,10 +156,19 @@ too.
   planet take its new name too.
 - An uncolonised planet or moon has a Size field. A colonised planet
   shows its size as text.
-- Barren, frozen, toxic and grey goo worlds have a Terraforming
-  candidate checkbox. It does what the console's `add_modifier` does. The planet
-  can be terraformed once the empire has Climate Restoration. Frozen
-  worlds also need Hydrocentric, and toxic worlds need Detox.
+- The Modifiers section lists a planet's features and timed modifiers.
+  Remove one with the ✕ on its row. Add modifier, under the list, lists
+  the modifiers a planet can have. Search by name or effect, or pick a
+  chip: Features, Terraforming, Positive, Negative or Other. Pick
+  Permanent or a number of days before you click Add. A timed modifier
+  runs out in game after those days. Adding a planet feature writes it
+  as the game writes a rolled one. This does what the console's
+  `add_modifier` and `remove_modifier` do.
+- A barren, frozen, toxic or grey goo world's terraforming candidate
+  modifier is at the top of Add modifier, under "Usual for this
+  planet". With it, the planet can be terraformed once the empire has
+  Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
+  worlds need Detox.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
@@ -573,7 +582,7 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   lists every key path with its count, and `roundtrip` writes the save
   out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`, `terraform-candidate`, `deposit`, `add-system`.
+  `star`, `planet-size`, `modifier`, `deposit`, `add-system`.
   `deposit add` and `deposit remove` change the deposits on an
   uncolonised planet.
   `add-system` adds systems from a JSON spec you write, or rolls one from

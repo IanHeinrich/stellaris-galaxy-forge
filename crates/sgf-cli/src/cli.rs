@@ -215,16 +215,21 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Make a save planet a terraforming candidate, or stop it being one.
-    TerraformCandidate {
+    /// Add a modifier to a save planet, such as `terraforming_candidate`, or remove it.
+    Modifier {
         sav: PathBuf,
         planet: u32,
-        /// A terraforming candidate modifier.
-        #[arg(long, default_value = "terraforming_candidate")]
+        /// A static modifier, as `common/static_modifiers` names it.
         modifier: String,
-        /// Take the modifier away instead.
+        /// How many days it lasts; it never expires unless given.
+        #[arg(long, conflicts_with = "remove")]
+        days: Option<i32>,
+        /// The planet feature (`pm_*`) that applies the modifier, written or removed with it.
         #[arg(long)]
-        off: bool,
+        feature: Option<String>,
+        /// Remove the modifier instead, however long it has left.
+        #[arg(long)]
+        remove: bool,
         #[command(flatten)]
         out: OutArg,
     },

@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Make planet #585 a terraforming candidate (terraforming_candidate)
-inverse: SetTerraformCandidate { id: 585, modifier: "terraforming_candidate", on: false, copies: None }
+Add modifier terraforming_candidate to planet #585 for 360 days
+inverse: RemovePlanetModifier { planet: 585, modifier: "terraforming_candidate", feature: None }
 
 --- gamestate
 +++ gamestate
@@ -18,7 +18,7 @@ inverse: SetTerraformCandidate { id: 585, modifier: "terraforming_candidate", on
 +					
 +					{
 +						modifier="terraforming_candidate"
-+						days=-1
++						days=360
 +					}
 + 
 +				}
