@@ -308,6 +308,26 @@ fn countries_carry_their_capital_system_and_system_count() {
 }
 
 #[test]
+fn a_primitive_carries_its_pre_ftl_age_and_an_empire_none() {
+    let session = common::open_4_5();
+    let age = |id: u32| {
+        let country = session.graph.countries.iter().find(|c| c.id == id);
+        country.expect("the country").preftl_age.clone()
+    };
+    assert_eq!(age(36).as_deref(), Some("stone_age"));
+    assert_eq!(age(37).as_deref(), Some("atomic_age"));
+    assert_eq!(age(0), None);
+    let primitives = session
+        .graph
+        .countries
+        .iter()
+        .filter(|c| c.country_type == "primitive");
+    for country in primitives {
+        assert!(country.preftl_age.is_some(), "country {}", country.id);
+    }
+}
+
+#[test]
 fn sample_validates_to_one_isolated_system_and_the_games_own_duplicate_lanes() {
     let doc = load();
     let g = GalaxyGraph::build(&doc).unwrap();

@@ -442,6 +442,8 @@ pub struct EditResult {
     /// Whether the classification of the systems the op touched, and the territory the
     /// scripts give them, may have moved with it.
     pub reclassifies: bool,
+    /// The name the document is listed under, which renaming the player's empire changes.
+    pub title: String,
 }
 
 /// What `save` and `save_as` return: where the file landed and the session state after.

@@ -1,0 +1,38 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed empire 0 to Sgf Dominion of Tests
+inverse: RenameEmpire { country: 0, name: "United Nations of Earth 2", value: Some("{\n\t\t\tkey=\"EMPIRE_DESIGN_humans1\"\n\t\t}"), custom_name: None }
+
+--- gamestate
++++ gamestate
+@@ -1,6 +1,6 @@
+ version="Pegasus v4.4.6"
+ version_control_revision=52
+-name="United Nations of Earth 2"
++name="Sgf Dominion of Tests"
+ date="2206.11.16"
+ required_dlcs=
+ {
+@@ -530824,7 +530824,8 @@
+ 		}
+ 		name=
+ 		{
+-			key="EMPIRE_DESIGN_humans1"
++			key="Sgf Dominion of Tests"
++			literal=yes
+ 		}
+ 		adjective=
+ 		{
+
+--- meta
++++ meta
+@@ -1,6 +1,6 @@
+ version="Pegasus v4.4.6"
+ version_control_revision=52
+-name="United Nations of Earth 2"
++name="Sgf Dominion of Tests"
+ date="2206.11.16"
+ required_dlcs=
+ {

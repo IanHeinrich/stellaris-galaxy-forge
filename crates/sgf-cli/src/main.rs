@@ -223,6 +223,21 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetSize { id: planet, size },
         ),
+        Some(Command::RenameEmpire {
+            sav,
+            country,
+            name,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::RenameEmpire {
+                country,
+                name,
+                value: None,
+                custom_name: None,
+            },
+        ),
         Some(Command::TerraformCandidate {
             sav,
             planet,

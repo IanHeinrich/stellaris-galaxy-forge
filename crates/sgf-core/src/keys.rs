@@ -16,6 +16,7 @@ macro_rules! save_keys {
 
 save_keys! {
     ACTIVE = "active",
+    ADJECTIVE = "adjective",
     AMBIENT_OBJECT = "ambient_object",
     APPEAR_STATE = "appear_state",
     ARCHAEOLOGICAL_SITES = "archaeological_sites",
@@ -52,6 +53,7 @@ save_keys! {
     CRISES = "crises",
     CRISIS_TYPE = "crisis_type",
     CURRENT_ORDER = "current_order",
+    CUSTOM_NAME = "custom_name",
     DATA = "data",
     DAYS = "days",
     DEPOSIT = "deposit",
@@ -145,6 +147,7 @@ save_keys! {
     PLANET_SIZE = "planet_size",
     PLAYER = "player",
     POP_GROUPS = "pop_groups",
+    PREFTL_AGE = "preftl_age",
     PRIMITIVE = "primitive",
     PROPERTIES = "properties",
     RADIUS = "radius",
@@ -152,6 +155,7 @@ save_keys! {
     RANDOM_NAME_DATABASE = "random_name_database",
     REQUIRED_DLCS = "required_dlcs",
     RESOURCE_ABUNDANCE = "resource_abundance",
+    SAVE_ON_DEATH = "save_on_death",
     SCALE = "scale",
     SCALING = "scaling",
     SECTOR = "sector",

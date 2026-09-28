@@ -8,7 +8,7 @@ import type { MapColor } from "../../../generated/MapColor";
 import type { MapColorPair } from "../../../generated/MapColorPair";
 import { empireFlagKey } from "../../../lib/details/fleets";
 import { flagKey } from "../../../lib/flagKey";
-import { stripped, templateName } from "../../../lib/names";
+import { readableKey, stripped, templateName } from "../../../lib/names";
 import { counted } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -20,6 +20,7 @@ import {
   EditNote,
   EditRow,
   SwatchField,
+  TextField,
   ToggleField,
   type Swatch,
 } from "../../EditField";
@@ -357,6 +358,35 @@ function FlagColourText({ swatch, source }: { swatch: Swatch; source: string }) 
   );
 }
 
+/** A save empire's name, as the game shows it: what the player types is written as it stands. */
+function NameFields({ country }: { country: CountryNode }) {
+  const applyOp = useApplyOp();
+  const shown = templateName(country);
+  const rename = (typed: string) => {
+    const name = typed.trim();
+    if (name !== "" && name !== shown) applyOp({ type: "RenameEmpire", country: country.id, name });
+  };
+  return (
+    <EditBlock title="Empire">
+      <EditRow label="Name">
+        <TextField
+          kind="text"
+          label="Empire name"
+          title="The empire's name. Renaming the player's empire also renames the save on the load screen."
+          value={shown}
+          onCommit={rename}
+        />
+      </EditRow>
+    </EditBlock>
+  );
+}
+
+/** A pre-FTL civilisation's age, as the game names it. */
+function Age({ age }: { age: string }) {
+  const named = useNamed([age], readableKey);
+  return <PropertyRow label="Age">{named(age)}</PropertyRow>;
+}
+
 /** The authority key `government` states, where the country's root level has been read. */
 function authorityOf(view: EntityViewData | undefined): string | null {
   const node = view?.nodes.find(
@@ -396,13 +426,14 @@ function About({ country }: { country: CountryNode }) {
           </LinkRow>
         )}
         <PropertyRow label="Systems">{counted(country.system_count, "system")}</PropertyRow>
+        {country.preftl_age !== undefined && <Age age={country.preftl_age} />}
         <Government id={country.id} />
       </Properties>
     </>
   );
 }
 
-/** A save empire's own page: its flag and map colours to edit first, then what it is. */
+/** A save empire's own page: its name, flag and map colours to edit first, then what it is. */
 function EmpireOverview({ country }: { country: CountryNode }) {
   const color = useOwnerCss(country.id) ?? undefined;
   const flag = empireFlagKey(country);
@@ -417,6 +448,7 @@ function EmpireOverview({ country }: { country: CountryNode }) {
         <span className="name">{templateName(country)}</span>
         <span className="muted mono">#{country.id}</span>
       </div>
+      <NameFields country={country} />
       <FlagFields country={country} />
       <MapColorFields country={country} />
       <About country={country} />

@@ -45,6 +45,11 @@ pub struct CountryNode {
     pub has_map_colors: Option<bool>,
     pub flag_icon: Option<FlagRef>,
     pub flag_background: Option<FlagRef>,
+    /// `preftl_age`, the age a primitive stands in (`stone_age`); `None` for any other
+    /// country.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub preftl_age: Option<String>,
     /// The keys of the save's `flags` map: the country flags scripts test.
     #[serde(skip)]
     #[ts(skip)]
