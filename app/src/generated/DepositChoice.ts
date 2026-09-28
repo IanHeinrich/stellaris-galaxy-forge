@@ -18,4 +18,9 @@ usual: boolean,
 /**
  * Its localised `<key>_desc`, when the install has one.
  */
-description: string | null, };
+description: string | null, 
+/**
+ * No roll ever places it: only events and scripts do. A blocker is filed under
+ * [`DepositCategory::Blockers`] all the same, so this says it.
+ */
+event_only: boolean, };

@@ -42,6 +42,9 @@ pub struct DepositChoice {
     pub usual: bool,
     /// Its localised `<key>_desc`, when the install has one.
     pub description: Option<String>,
+    /// No roll ever places it: only events and scripts do. A blocker is filed under
+    /// [`DepositCategory::Blockers`] all the same, so this says it.
+    pub event_only: bool,
 }
 
 /// Every deposit type but the null one, by key, for a planet `body` that holds `deposits`.
@@ -75,6 +78,7 @@ pub fn deposit_choices(
             category: category(gd, d),
             usual: usual.contains(d.key.as_str()),
             description: gd.loc.name(&format!("{}_desc", d.key)),
+            event_only: never_rolled(&d.roll.drop_weight),
         })
         .collect();
     split_differing(&mut choices, gd);

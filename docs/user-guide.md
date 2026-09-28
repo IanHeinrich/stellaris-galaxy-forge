@@ -171,7 +171,9 @@ too.
   an amount to add that one. Hover a row to read the game's description
   of it.
 - Add blocker, under the Blockers heading, works the same way for
-  blockers. The heading shows even when the body has none.
+  blockers. Its chips pick the blockers a tech clears, the ones that need
+  no tech or can't be cleared, and Special for blockers that do more than
+  take away districts. The heading shows even when the body has none.
 - Both lists stay open until you press Done or Escape. A mining or
   research station over a removed deposit stays in game and still costs
   about 1 energy a month.

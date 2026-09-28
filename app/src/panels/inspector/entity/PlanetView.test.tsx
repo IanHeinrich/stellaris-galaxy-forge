@@ -380,6 +380,7 @@ describe("an unowned world's page", () => {
             category: "Energy",
             usual: true,
             description: null,
+            event_only: false,
           },
           {
             key: "d_energy_3",
@@ -388,6 +389,7 @@ describe("an unowned world's page", () => {
             category: "Energy",
             usual: true,
             description: null,
+            event_only: false,
           },
         ],
       },

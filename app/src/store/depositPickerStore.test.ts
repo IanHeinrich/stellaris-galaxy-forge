@@ -23,6 +23,7 @@ const CHOICES: DepositChoice[] = [
     category: "Energy",
     usual: true,
     description: null,
+    event_only: false,
   },
   {
     key: "d_energy_3",
@@ -31,6 +32,7 @@ const CHOICES: DepositChoice[] = [
     category: "Energy",
     usual: false,
     description: null,
+    event_only: false,
   },
 ];
 

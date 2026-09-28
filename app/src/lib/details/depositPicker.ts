@@ -11,14 +11,22 @@ import { effectText } from "./planetEdits";
 /** What a picker adds: any deposit but a blocker, or a blocker. */
 export type PickerMode = "deposits" | "blockers";
 
-/** A chip above the rows: every row, the rows the roll could place here, or one category. */
-export type DepositChip = "All" | "Usual" | DepositCategory;
-
 /**
- * The chips the deposit picker shows, in order, each with its label. The blocker picker shows
- * none: its rows are all one category, and the usual ones already lead the list.
+ * A chip above the rows: every row, the rows the roll could place here, or one category. The
+ * blocker picker's chips are the techs that clear its blockers, as `tech:<key>`, `NoTech` and
+ * `Uncleared`, and `Special`.
  */
-export const DEPOSIT_CHIPS: readonly { chip: DepositChip; label: string }[] = [
+export type DepositChip =
+  "All" | "Usual" | DepositCategory | "NoTech" | "Uncleared" | `tech:${string}`;
+
+/** A chip and what it says. */
+export interface ChipItem {
+  chip: DepositChip;
+  label: string;
+}
+
+/** The chips the deposit picker shows, in order, each with its label. */
+export const DEPOSIT_CHIPS: readonly ChipItem[] = [
   { chip: "All", label: "All" },
   { chip: "Usual", label: "Usual here" },
   { chip: "Energy", label: "Energy" },
@@ -34,6 +42,8 @@ export const DEPOSIT_CHIPS: readonly { chip: DepositChip; label: string }[] = [
 export interface DepositAmount {
   key: string;
   amount: number | null;
+  /** Its button's hover text: what this type gives, then its own description when it has one. */
+  title: string;
 }
 
 /** One row: a family of types that differ only in amount, or one type of its own. */
@@ -47,10 +57,23 @@ export interface DepositRow {
    * for a type that gives nothing.
    */
   gives: string;
-  /** Its first type's localised description, for the row's hover text. */
+  /**
+   * Its first type's localised description, for the row's hover text; `null` for a family,
+   * whose types each describe themselves on their own button.
+   */
   description: string | null;
   /** Its first type's category that is not Special, else Special. */
   category: DepositCategory;
+  /**
+   * The Special chip keeps it: a type no roll places, or a blocker that does more, or other, than
+   * take away districts of every kind.
+   */
+  special: boolean;
+  /**
+   * For a blocker, the techs clearing it needs, by key and name: empty when it needs none, `null`
+   * when it cannot be cleared. `null` for any other type.
+   */
+  clearedBy: { key: string; name: string }[] | null;
   /** The roll could place one of its types here. */
   usual: boolean;
   /** Its types, smallest amount first. */
@@ -77,6 +100,15 @@ function typeLabel(key: string, view: DepositTypeView | undefined): string {
   if (view === undefined) return key;
   if (view.yields.length > 0) return view.yields.map((y) => y.name).join(" and ");
   return view.name || key;
+}
+
+/**
+ * `text` when it describes a type, `null` when it is empty or only an amount ("+1", "£energy£ +5"
+ * reads as "+5"), as an orbital deposit's localisation is.
+ */
+export function describes(text: string | null): string | null {
+  const trimmed = text?.trim() ?? "";
+  return trimmed === "" || /^[+-]?\d+(\.\d+)?$/.test(trimmed) ? null : trimmed;
 }
 
 /** What one type gives: each yield with its amount, then each effect. */
@@ -114,19 +146,75 @@ export function depositRows(
     const label = typeLabel(first.key, view);
     const gives = sorted.length > 1 ? familyGives(view) : typeGives(view);
     const category = sorted.find((m) => m.category !== "Special")?.category ?? "Special";
+    const blocker = category === "Blockers";
     return {
       family,
       view,
       label,
       gives,
-      description: first.description,
+      description: sorted.length > 1 ? null : describes(first.description),
       category,
+      special: category === "Special" || (blocker && (first.event_only || !plainBlock(view))),
+      clearedBy: blocker ? (view?.clearing?.techs ?? null) : null,
       usual: sorted.some((m) => m.usual),
-      amounts: sorted.map((m) => ({ key: m.key, amount: sorted.length > 1 ? m.amount : null })),
+      amounts: sorted.map((m) => {
+        const amount = sorted.length > 1 ? m.amount : null;
+        const own = describes(m.description);
+        const gives = amount === null ? label : `${signed(amount)} ${label}`;
+        return { key: m.key, amount, title: own === null ? gives : `${gives}. ${own}` };
+      }),
       search: [label, gives, category].join(" ").toLowerCase(),
     };
   });
   return rows.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Whether a blocker only takes away districts of every kind: "Blocks 1 district". */
+function plainBlock(view: DepositTypeView | undefined): boolean {
+  if (view === undefined) return true;
+  const [effect, ...more] = view.effects;
+  return (
+    more.length === 0 &&
+    view.yields.length === 0 &&
+    effect?.key === "planet_max_districts_add" &&
+    effect.value < 0
+  );
+}
+
+/**
+ * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, then
+ * No tech needed, Can't be cleared and Special where a blocker is so.
+ */
+export function blockerChips(rows: readonly DepositRow[]): ChipItem[] {
+  const techs = new Map<string, string>();
+  for (const row of rows) for (const tech of row.clearedBy ?? []) techs.set(tech.key, tech.name);
+  const byName = [...techs].sort((a, b) => a[1].localeCompare(b[1]));
+  const some = (test: (row: DepositRow) => boolean) => rows.some(test);
+  return [
+    { chip: "All", label: "All" },
+    { chip: "Usual", label: "Usual here" },
+    ...byName.map(([key, name]): ChipItem => ({ chip: `tech:${key}`, label: name })),
+    ...(some((r) => r.clearedBy?.length === 0)
+      ? [{ chip: "NoTech" as const, label: "No tech needed" }]
+      : []),
+    ...(some((r) => r.clearedBy === null)
+      ? [{ chip: "Uncleared" as const, label: "Can't be cleared" }]
+      : []),
+    ...(some((r) => r.special) ? [{ chip: "Special" as const, label: "Special" }] : []),
+  ];
+}
+
+/** Whether `row` stays under `chip`. */
+function kept(row: DepositRow, chip: DepositChip): boolean {
+  if (chip === "Usual") return row.usual;
+  if (chip === "Special") return row.special;
+  if (chip === "NoTech") return row.clearedBy?.length === 0;
+  if (chip === "Uncleared") return row.category === "Blockers" && row.clearedBy === null;
+  if (chip.startsWith("tech:")) {
+    const tech = chip.slice("tech:".length);
+    return row.clearedBy?.some((t) => t.key === tech) === true;
+  }
+  return row.category === chip;
 }
 
 /**
@@ -146,8 +234,8 @@ export function depositSections(
       { title: "Everything else", rows: matching.filter((row) => !row.usual) },
     ].filter((section) => section.rows.length > 0);
   }
-  const kept = matching.filter((row) => (chip === "Usual" ? row.usual : row.category === chip));
-  return kept.length === 0 ? [] : [{ title: "", rows: kept }];
+  const left = matching.filter((row) => kept(row, chip));
+  return left.length === 0 ? [] : [{ title: "", rows: left }];
 }
 
 /** The line that confirms an add: "Added +3 Energy", or "Added Rich Mountains". */

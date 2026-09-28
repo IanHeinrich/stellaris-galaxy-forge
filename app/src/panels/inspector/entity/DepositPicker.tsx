@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import type { PlanetPage } from "../../../generated/PlanetPage";
 import {
   amountText,
+  blockerChips,
   DEPOSIT_CHIPS,
   depositRows,
   depositSections,
@@ -81,6 +82,7 @@ function PickerRow({
             type="button"
             className={`dp-amount${cursor === i ? " active" : ""}`}
             aria-label={`Add ${amount.amount === null ? "" : `${amountText(amount)} `}${row.label}`}
+            title={amount.title}
             onClick={() => onAdd(i)}
           >
             {amountText(amount)}
@@ -92,8 +94,8 @@ function PickerRow({
 }
 
 /**
- * The open picker: a search, the category chips for deposits, a line saying what was added, and
- * one row per deposit family with a button per amount. The blocker picker has no chips. It stays open after an add; Escape, Done or a press
+ * The open picker: a search, the chips (categories for deposits, clearing techs for blockers), a
+ * line saying what was added, and one row per deposit family with a button per amount. It stays open after an add; Escape, Done or a press
  * outside closes it. Typing goes to the search, the arrows move between rows and amounts, and
  * Enter adds the amount they stand on.
  */
@@ -124,6 +126,7 @@ function DepositPopover({
     [choices, views, mode],
   );
   const sections = rows === null ? [] : depositSections(rows, chip, query);
+  const chips = mode === "deposits" ? DEPOSIT_CHIPS : blockerChips(rows ?? []);
   const flat = sections.flatMap((s) => s.rows);
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `dp-row-${page.id}-${mode}-${i}`;
@@ -187,9 +190,13 @@ function DepositPopover({
           Done
         </button>
       </div>
-      {mode === "deposits" && (
-        <div className="dp-chips" role="group" aria-label="Deposit categories">
-          {DEPOSIT_CHIPS.map(({ chip: each, label }) => (
+      {chips.length > 0 && (
+        <div
+          className="dp-chips"
+          role="group"
+          aria-label={mode === "blockers" ? "Blocker filters" : "Deposit categories"}
+        >
+          {chips.map(({ chip: each, label }) => (
             <button
               key={each}
               type="button"

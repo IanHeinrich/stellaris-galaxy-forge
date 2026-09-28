@@ -156,6 +156,8 @@ fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it(
         "a weight a modifier can raise is rolled somewhere"
     );
     assert_eq!(category("d_fx_glacier"), DepositCategory::Blockers);
+    assert!(!choice(&choices, "d_fx_glacier").event_only);
+    assert!(choice(&choices, "d_fx_relic").event_only);
 
     let usual = |choices: &[DepositChoice], key: &str| choice(choices, key).usual;
     assert!(usual(&choices, "d_fx_energy_1"));

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { DepositChoice } from "../../generated/DepositChoice";
 import { depositTypeView, modifierLine, resourceAmount } from "../../store/fixtures/planet";
-import { addedLine, amountText, depositRows, depositSections } from "./depositPicker";
+import {
+  addedLine,
+  amountText,
+  blockerChips,
+  depositRows,
+  depositSections,
+  describes,
+} from "./depositPicker";
 
 const choice = (over: Partial<DepositChoice> & { key: string }): DepositChoice => ({
   family: over.key,
@@ -9,6 +16,7 @@ const choice = (over: Partial<DepositChoice> & { key: string }): DepositChoice =
   category: "Features",
   usual: false,
   description: null,
+  event_only: false,
   ...over,
 });
 
@@ -118,10 +126,100 @@ describe("the deposit picker's rows", () => {
     expect(placeholder.description).toBe("Sealed caverns.");
   });
 
+  it("gives each amount its own hover text, and a family row none from its first type", () => {
+    const [energyRow] = depositRows(
+      [energy(1, { description: "+1" }), energy(5, { description: "A rich seam of energy." })],
+      VIEWS,
+      "deposits",
+    );
+    expect(energyRow.description).toBeNull();
+    expect(energyRow.amounts.map((a) => a.title)).toEqual([
+      "+1 Energy",
+      "+5 Energy. A rich seam of energy.",
+    ]);
+    expect(describes("+5")).toBeNull();
+    expect(describes(" 0.1 ")).toBeNull();
+    expect(describes("Sealed caverns.")).toBe("Sealed caverns.");
+  });
+
   it("says what an add added", () => {
     const energyRow = row("yields:energy");
     expect(addedLine(energyRow, energyRow.amounts[1])).toBe("Added +3 Energy");
     const mountains = row("d_rich_mountain");
     expect(addedLine(mountains, mountains.amounts[0])).toBe("Added Rich Mountains");
+  });
+});
+
+describe("the blocker picker's chips", () => {
+  const blocker = (key: string, over: Partial<DepositChoice> = {}) =>
+    choice({ key, category: "Blockers", ...over });
+  const clearing = (techs: { key: string; name: string }[]) => ({ cost: [], days: 180, techs });
+  const WILDLIFE = { key: "tech_wildlife", name: "Dangerous Wildlife Removal" };
+  const CLIMATE = { key: "tech_climate", name: "Climate Control Network" };
+  const loses = (n: number) => modifierLine("planet_max_districts_add", -n, `-${n} Max Districts`);
+  const views = new Map(
+    [
+      depositTypeView("d_wildlife", {
+        name: "Dangerous Wildlife",
+        blocker: true,
+        effects: [loses(1)],
+        clearing: clearing([WILDLIFE]),
+      }),
+      depositTypeView("d_glacier", {
+        name: "Massive Glacier",
+        blocker: true,
+        effects: [loses(2)],
+        clearing: clearing([CLIMATE, WILDLIFE]),
+      }),
+      depositTypeView("d_bog", {
+        name: "Bog",
+        blocker: true,
+        effects: [loses(1)],
+        clearing: clearing([]),
+      }),
+      depositTypeView("d_rift", {
+        name: "Shroud Rift",
+        blocker: true,
+        effects: [loses(1), modifierLine("pop_happiness", -0.1, "-10% Stability")],
+      }),
+      depositTypeView("d_pods", { name: "Stasis Pods", blocker: true, effects: [loses(1)] }),
+    ].map((v) => [v.key, v]),
+  );
+  const rows = depositRows(
+    [
+      blocker("d_wildlife", { usual: true }),
+      blocker("d_glacier"),
+      blocker("d_bog"),
+      blocker("d_rift"),
+      blocker("d_pods", { event_only: true }),
+    ],
+    views,
+    "blockers",
+  );
+  const families = (chip: Parameters<typeof depositSections>[1]) =>
+    depositSections(rows, chip, "").flatMap((s) => s.rows.map((r) => r.family));
+
+  it("offers one chip per clearing tech by name, then no tech, can't be cleared and Special", () => {
+    expect(blockerChips(rows).map((c) => c.label)).toEqual([
+      "All",
+      "Usual here",
+      "Climate Control Network",
+      "Dangerous Wildlife Removal",
+      "No tech needed",
+      "Can't be cleared",
+      "Special",
+    ]);
+  });
+
+  it("keeps under a tech's chip every blocker that tech clears", () => {
+    expect(families("tech:tech_wildlife")).toEqual(["d_wildlife", "d_glacier"]);
+    expect(families("tech:tech_climate")).toEqual(["d_glacier"]);
+    expect(families("NoTech")).toEqual(["d_bog"]);
+    expect(families("Uncleared")).toEqual(["d_rift", "d_pods"]);
+    expect(families("Usual")).toEqual(["d_wildlife"]);
+  });
+
+  it("calls Special a blocker that does more than take districts away, or that only events place", () => {
+    expect(families("Special")).toEqual(["d_rift", "d_pods"]);
   });
 });
