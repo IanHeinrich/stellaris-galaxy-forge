@@ -17,12 +17,13 @@ import {
   type TerraformCandidate,
 } from "../../../lib/details/terraform";
 import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
+import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { bodyOrbit } from "../../../lib/details/orbitEdits";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useCanEdit } from "../../../store/fileSessionStore";
+import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
@@ -50,6 +51,7 @@ import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
 import { PlanetDeposits } from "./PlanetDeposits";
+import { PlanetSystemField } from "./PlanetSystemField";
 import { StarBlock } from "./StarBlock";
 import { useSingleStarClasses } from "./useBodyClasses";
 import "./entity.css";
@@ -85,17 +87,19 @@ function Head({ page }: { page: PlanetPage }) {
 }
 
 /**
- * Planet `id`'s checkboxes: its resolved terraforming `candidate` and whether it has a `ring`, each
- * `null` where the page does not offer it.
+ * Planet `id`'s fields: its resolved terraforming `candidate`, whether it has a `ring` and the
+ * `system` it moves from, each `null` where the page does not offer it.
  */
 function PlanetBlock({
   id,
   candidate,
   ring,
+  system,
 }: {
   id: number;
   candidate: TerraformCandidate | null;
   ring: boolean | null;
+  system: number | null;
 }) {
   const applyOp = useApplyOp();
   const candidates = useGameDataStore((s) => s.terraformCandidates);
@@ -117,6 +121,7 @@ function PlanetBlock({
           onChange={(on) => applyOp(setPlanetRingOp(id, on))}
         />
       )}
+      {system !== null && <PlanetSystemField id={id} system={system} />}
     </EditBlock>
   );
 }
@@ -353,13 +358,15 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
     geometry && found !== null && hasRingCheckbox(page.class, planetClasses, starClasses)
       ? found.planet.ring === true
       : null;
+  const movable = useFileSessionStore((s) => documentCapabilities(s).details);
+  const moveFrom = movable ? page.system : null;
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));
   const { layout, editing } = useSystemGeometry(page.system);
   const orbit = bodyOrbit(layout, page.id);
-  const movable = orbit !== null && editing.bodies.get(page.id)?.move === true;
-  const radius = movable || orbit === null ? null : Math.round(orbit.radius);
+  const orbitable = orbit !== null && editing.bodies.get(page.id)?.move === true;
+  const radius = orbitable || orbit === null ? null : Math.round(orbit.radius);
   // The star's and the orbit's fields need the system's details, which a page reached from search
   // may not have read.
   useEffect(() => {
@@ -368,8 +375,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   return (
     <>
       <Head page={page} />
-      {(candidate !== null || ring !== null) && (
-        <PlanetBlock id={page.id} candidate={candidate} ring={ring} />
+      {(candidate !== null || ring !== null || moveFrom !== null) && (
+        <PlanetBlock id={page.id} candidate={candidate} ring={ring} system={moveFrom} />
       )}
       {starBlock && <StarBlock planet={found.planet} system={system} />}
       {!starBlock && star && waiting && <Empty>{READING_STARS}</Empty>}
@@ -385,7 +392,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />
-      {(starBlock || candidate !== null || ring !== null || movable) && <EditKey />}
+      {(starBlock || candidate !== null || ring !== null || moveFrom !== null || orbitable) && (
+        <EditKey />
+      )}
     </>
   );
 }

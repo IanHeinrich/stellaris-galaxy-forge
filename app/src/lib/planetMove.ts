@@ -4,6 +4,7 @@
  * come in resolved.
  */
 
+import type { Lane } from "../generated/Lane";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import type { PlanetRefusal } from "../generated/PlanetRefusal";
@@ -50,6 +51,9 @@ function asPlanet(planets: readonly MovedPlanet[]): string {
   return planets.length === 1 && planets[0].moon ? " as a planet" : "";
 }
 
+/** The status bar's hint while planets are cut. */
+export const PASTE_HINT = "Right-click a system to paste";
+
 /** The Cut item and button: `Cut 3 planets`. */
 export function cutLabel(count: number): string {
   return `Cut ${counted(count, "planet")}`;
@@ -74,8 +78,8 @@ export function warningText(warning: PlanetMoveWarning, names: WarningNames): st
   const planet = names.planet(warning.planet);
   const country = names.country(warning.new_owner);
   return warning.kind === "colony"
-    ? `${planet} will pass to the ${country} about a month after you load`
-    : `${planet}'s station will pass to the ${country}`;
+    ? `${planet} will pass to ${country} about a month after you load`
+    : `${planet}'s station will pass to ${country}`;
 }
 
 /** Every warning, one line each, as the hover lists them. */
@@ -97,4 +101,74 @@ export function warningLine(
 /** Why a set cannot be cut: the first refusal and how many more; null with none. */
 export function refusalLine(refused: readonly PlanetRefusal[]): string | null {
   return refused.length === 0 ? null : andMore(refused[0].reason, refused.length);
+}
+
+/** The summary's count line: `3 planets · 2 moons come along`, and which planet a lone moon leaves. */
+export function selectionLine(
+  planets: number,
+  moonsAlong: number,
+  leaving: readonly { moon: string; planet: string }[],
+): string {
+  const parts = [counted(planets, "planet")];
+  if (moonsAlong > 0) parts.push(`${counted(moonsAlong, "moon")} ${moonsAlong === 1 ? "comes" : "come"} along`);
+  if (leaving.length > 0) {
+    parts.push(andMore(`${leaving[0].moon} leaves ${leaving[0].planet}`, leaving.length));
+  }
+  return parts.join(" · ");
+}
+
+/** The inspector's hint under Cut: where else it is, or what to do once these planets are cut. */
+export function cutHint(cut: boolean): string {
+  return cut ? "Cut. Right-click a system to paste them there." : "Also in the right-click menu on the map.";
+}
+
+/** `1 jump`, `2 jumps`. */
+export function jumpsText(jumps: number): string {
+  return counted(jumps, "jump");
+}
+
+/** How many hyperlane jumps each system reachable from `from` is away, `from` itself at 0. */
+export function jumpsFrom(
+  systems: ReadonlyMap<number, { lanes: readonly Pick<Lane, "to">[] }>,
+  from: number,
+): Map<number, number> {
+  const jumps = new Map([[from, 0]]);
+  let ring = [from];
+  for (let step = 1; ring.length > 0; step++) {
+    const next: number[] = [];
+    for (const id of ring) {
+      for (const { to } of systems.get(id)?.lanes ?? []) {
+        if (jumps.has(to) || !systems.has(to)) continue;
+        jumps.set(to, step);
+        next.push(to);
+      }
+    }
+    ring = next;
+  }
+  return jumps;
+}
+
+/**
+ * `ids` nearest `from` first: by jumps, a system no lane reaches after every one that is, and
+ * straight-line distance between equals.
+ */
+export function nearestFirst(
+  ids: readonly number[],
+  jumps: ReadonlyMap<number, number>,
+  distance: (id: number) => number,
+): number[] {
+  const hops = (id: number) => jumps.get(id) ?? Number.POSITIVE_INFINITY;
+  return [...ids].sort((a, b) => hops(a) - hops(b) || distance(a) - distance(b));
+}
+
+/** The bodies of `ids` that move of their own: a moon whose planet is among them comes along. */
+export function movingBodies(
+  ids: readonly number[],
+  parentOf: (id: number) => number | null,
+): number[] {
+  const picked = new Set(ids);
+  return ids.filter((id) => {
+    const parent = parentOf(id);
+    return parent === null || !picked.has(parent);
+  });
 }

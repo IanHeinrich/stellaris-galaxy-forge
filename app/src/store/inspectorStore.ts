@@ -29,10 +29,12 @@ export const INSPECTOR_TAB_LABELS: Record<InspectorTab, string> = {
   source: "Source",
 };
 
-/** What the inspector is looking at. The first four come from the map, the rest from a drill-down. */
+/** What the inspector is looking at. The first five come from the map, the rest from a drill-down. */
 export type EntityRef =
   | { kind: "galaxy" }
   | { kind: "selection" }
+  /** Two or more bodies selected in one system's view, above that system's page. */
+  | { kind: "bodies"; system: number }
   | { kind: "lane"; a: number; b: number }
   | { kind: "nebula"; index: number }
   | { kind: "system"; id: number }
@@ -73,6 +75,8 @@ export function refKey(ref: EntityRef): string {
       return `nebula:${ref.index}`;
     case "body":
       return `body:${ref.system}:${ref.id}`;
+    case "bodies":
+      return `bodies:${ref.system}`;
     case "nodelist":
       return `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`;
     default:
@@ -85,6 +89,7 @@ export function entityAddr(ref: EntityRef): EntityAddr | null {
   switch (ref.kind) {
     case "galaxy":
     case "selection":
+    case "bodies":
     case "lane":
     case "nebula":
     case "body":
@@ -151,6 +156,7 @@ export function tabsFor(
     }
     case "galaxy":
     case "selection":
+    case "bodies":
     case "lane":
     case "nebula":
     case "body":
@@ -175,6 +181,7 @@ export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | n
     case "lane":
       return renumberedLane(pairs, ref);
     case "starbase":
+    case "bodies":
     case "body": {
       const system = id(ref.system);
       return system === null ? null : system === ref.system ? ref : { ...ref, system };

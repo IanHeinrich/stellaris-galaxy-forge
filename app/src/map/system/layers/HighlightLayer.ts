@@ -22,7 +22,12 @@ import {
 import { HANDLE_RADIUS_PX } from "./HandlesLayer";
 import { plateScaleAt } from "./labelSlots";
 import { standTag, TagCache, tagBox, type RadiusTag } from "./plate";
-import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
+import {
+  NO_HIGHLIGHT,
+  type PasteGhost,
+  type SceneHighlight,
+  type SystemLayer,
+} from "./SystemLayer";
 
 const HOVER_COLOR = 0xffffff;
 const HOVER_ALPHA = 0.75;
@@ -71,6 +76,14 @@ const TARGET_WIDTH_PX = 1.5;
 const OWN_RING_ALPHA = 0.8;
 const SOFT_ALPHA = 0.5;
 const HANDLE_GROW_PX = 2;
+/** A moon that comes along with its selected planet: a fainter, tighter ring than the selection. */
+const COMES_ALONG_ALPHA = 0.45;
+/** A cut body and its moons: a dashed outline where the selection ring would stand. */
+const CUT_COLOR = 0xffffff;
+const CUT_ALPHA = 0.75;
+const CUT_DASHES = 12;
+/** Where a lone cut planet would be pasted: its orbit dashed, its disc faint as a drag ghost. */
+const PASTE_RING_ALPHA = 0.85;
 
 type TagSlot = "radius" | "turn" | "step";
 
@@ -85,12 +98,14 @@ function hubReach(body: SceneBody, cam: Camera): number {
 }
 
 /**
- * The hover ring, the selection ring and the highlighted lane's arrow, and a line from what the
- * selected body orbits out to it, labelled with its radius. A scenario body's turn from the body
- * before it shows as two rays from its ring's centre with the stretch of ring between them lit.
- * What a scenario body is measured from is marked in a colour of its own: the body it turns from,
- * with a ray through it where the turn starts, and the orbit it steps out from, with the step's
- * stretch of the radius line labelled. Its ranged orbit shows as a faint band between its radii.
+ * The hover ring, the selection rings and the highlighted lane's arrow, and a line from what the
+ * selected body orbits out to it, labelled with its radius. The moons of a planet selected to move
+ * have a fainter ring, and cut bodies a dashed outline. A lone cut planet's paste shows as a ghost.
+ * A scenario body's turn from the body before it shows as two rays from its ring's centre with the
+ * stretch of ring between them lit. What a scenario body is measured from is marked in a colour of
+ * its own: the body it turns from, with a ray through it where the turn starts, and the orbit it
+ * steps out from, with the step's stretch of the radius line labelled. Its ranged orbit shows as a
+ * faint band between its radii.
  */
 export class HighlightLayer implements SystemLayer {
   readonly container = new Container();
@@ -105,6 +120,8 @@ export class HighlightLayer implements SystemLayer {
   readonly stepLine = new Graphics();
   readonly band = new Graphics();
   readonly dragMarks = new Graphics();
+  readonly cutRings = new Graphics();
+  readonly pasteGhost = new Graphics();
   private readonly tags = new TagCache<TagSlot>(this.container);
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private ref: SceneHighlight = NO_HIGHLIGHT;
@@ -123,8 +140,12 @@ export class HighlightLayer implements SystemLayer {
     this.stepLine.label = "step-line";
     this.band.label = "orbit-band";
     this.dragMarks.label = "drag";
+    this.cutRings.label = "cut";
+    this.pasteGhost.label = "paste-ghost";
     this.container.addChild(
+      this.pasteGhost,
       this.dragMarks,
+      this.cutRings,
       this.band,
       this.baseCircle,
       this.anchorRay,
@@ -173,6 +194,8 @@ export class HighlightLayer implements SystemLayer {
     this.drawAnchor(cam, selected);
     this.drawBand(selected);
     this.drawDrag(cam, this.ctx.drag);
+    this.drawPasteGhost(cam, this.ref.pasteGhost);
+    const cut = this.drawCut(cam);
     const px = 1 / cam.scale;
     const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
       const body = id === null ? undefined : this.ctx.bodyById.get(id);
@@ -185,7 +208,18 @@ export class HighlightLayer implements SystemLayer {
       });
     };
     ring(this.ref.hoverBody, HOVER_GAP_PX, RING_WIDTH_PX, HOVER_COLOR, HOVER_ALPHA);
-    ring(this.ref.selectedBody, SELECTED_GAP_PX, SELECTED_WIDTH_PX, ACCENT_COLOR, 1);
+    const selectedIds = new Set(this.ref.selectedBodies);
+    if (this.ref.selectedBody !== null) selectedIds.add(this.ref.selectedBody);
+    for (const selectedId of selectedIds) {
+      if (!cut.has(selectedId)) {
+        ring(selectedId, SELECTED_GAP_PX, SELECTED_WIDTH_PX, ACCENT_COLOR, 1);
+      }
+    }
+    for (const moon of this.movingMoons(this.ref.selectedBodies)) {
+      if (!selectedIds.has(moon) && !cut.has(moon)) {
+        ring(moon, HOVER_GAP_PX, RING_WIDTH_PX, ACCENT_COLOR, COMES_ALONG_ALPHA);
+      }
+    }
     for (const exit of this.ctx.exits) {
       if (exit.neighbour === this.ref.lane) {
         g.poly(exitTriangle(exit, cam.scale, LANE_GROW_PX)).fill({ color: ACCENT_COLOR });
@@ -374,6 +408,42 @@ export class HighlightLayer implements SystemLayer {
         .fill({ color: ACCENT_COLOR, alpha: SOFT_ALPHA })
         .stroke({ color: ACCENT_COLOR, width: TARGET_WIDTH_PX * px });
     }
+  }
+
+  /** The moons of `planets` that are not among them, which move with their planet. */
+  private movingMoons(planets: readonly number[]): number[] {
+    if (planets.length === 0) return [];
+    const moving = new Set(planets);
+    return this.ctx.bodies.flatMap(({ placement: { id, moon, parent } }) =>
+      moon && parent !== null && moving.has(parent) && !moving.has(id) ? [id] : [],
+    );
+  }
+
+  /** A dashed outline round each cut body and each moon that goes with it; returns them all. */
+  private drawCut(cam: Camera): ReadonlySet<number> {
+    const g = this.cutRings.clear();
+    const cut = new Set([...this.ref.cutBodies, ...this.movingMoons(this.ref.cutBodies)]);
+    const px = 1 / cam.scale;
+    for (const id of cut) {
+      const body = this.ctx.bodyById.get(id)?.placement;
+      if (!body) continue;
+      const r = drawnDisc(body.disc, cam.scale) + SELECTED_GAP_PX * px;
+      dashedCircle(g, body.x, body.y, r, CUT_DASHES);
+    }
+    if (cut.size > 0) g.stroke({ color: CUT_COLOR, alpha: CUT_ALPHA, width: RING_WIDTH_PX * px });
+    return cut;
+  }
+
+  /** The orbit a lone cut planet would be pasted on, dashed, and its faint disc where it lands. */
+  private drawPasteGhost(cam: Camera, ghost: PasteGhost | null): void {
+    const g = this.pasteGhost.clear();
+    if (!ghost) return;
+    const width = TARGET_WIDTH_PX / cam.scale;
+    dashedCircle(g, 0, 0, ghost.radius, ringDashes(ghost.radius, cam.scale));
+    g.stroke({ color: ACCENT_COLOR, alpha: PASTE_RING_ALPHA, width });
+    g.circle(ghost.x, ghost.y, drawnDisc(ghost.disc, cam.scale))
+      .fill({ color: HOVER_COLOR, alpha: GHOST_ALPHA / 2 })
+      .stroke({ color: ACCENT_COLOR, alpha: PASTE_RING_ALPHA, width });
   }
 
   /** The stretch of radii the selected scenario body's orbit may be rolled within. */

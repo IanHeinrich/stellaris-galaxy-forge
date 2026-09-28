@@ -63,6 +63,9 @@ const ADD_CLEAR = { color: ALLOWED_COLOR, alpha: 0.9 };
 const ADD_REFUSED = { color: REFUSED_COLOR, alpha: 0.9 };
 const ADD_BUFFER_DASHES = 24;
 const ADD_EDGE_DASHES = 160;
+/** The system planets were cut from, until they are pasted: dashed, past the selection ring. */
+const CUT_SOURCE = { color: ACCENT_COLOR, radius: RING_RADIUS.target, width: 1.5, alpha: 0.9 };
+const CUT_SOURCE_DASHES = 16;
 /** "Keep stars outside": the galaxy's core radius, as thin and faint as the origin mark. */
 const CORE_RING = { color: ORIGIN_MARK.color, alpha: ORIGIN_MARK.alpha };
 
@@ -77,6 +80,14 @@ export interface WorldRect {
 function ring(spec: RingSpec): Graphics {
   const g = new Graphics();
   g.circle(0, 0, spec.radius).stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
+  g.visible = false;
+  return g;
+}
+
+function dashedRing(spec: RingSpec, dashes: number): Graphics {
+  const g = new Graphics({ label: "cutSource" });
+  dashedCircle(g, 0, 0, spec.radius, dashes);
+  g.stroke({ color: spec.color, width: spec.width, alpha: spec.alpha });
   g.visible = false;
   return g;
 }
@@ -107,8 +118,9 @@ function touches(d: GalaxyDelta, ids: ReadonlySet<number>): boolean {
 }
 
 /**
- * Screen-sized rings around systems (selection, hover, move ghosts), the port ring and the
- * snap target's ring around a star or a zone's ring, plus the previews of an interaction in
+ * Screen-sized rings around systems (selection, hover, move ghosts, the system planets were cut
+ * from), the port ring and the snap target's ring around a star or a zone's ring, plus the
+ * previews of an interaction in
  * progress: the ghosts' lanes, the rubber lines of a pending lane or link, the lanes a mesh
  * action would add, the marquee, and the hovered edge (a lane or a zone's link) with its "×"
  * and the selected lane, and the brush circle with what a held stroke would add, remove or cut.
@@ -119,6 +131,7 @@ export class HighlightsLayer implements MapLayer {
   readonly id = "highlights" as const;
   readonly container = new Container();
   private readonly hover = ring(HOVER);
+  private readonly cutRing = dashedRing(CUT_SOURCE, CUT_SOURCE_DASHES);
   private readonly selectionRings = new RingBatch(SELECTION, "selectionRings");
   private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
@@ -146,6 +159,7 @@ export class HighlightsLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   private selection: ReadonlySet<number> = new Set();
   private hoverId: number | null = null;
+  private cutSource: number | null = null;
   private matched: ReadonlySet<number> = new Set();
   private searched: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
@@ -176,6 +190,7 @@ export class HighlightsLayer implements MapLayer {
       this.ghostRing,
       this.laneDrag.port,
       this.hover,
+      this.cutRing,
       this.laneDrag.target,
       this.brush.container,
     );
@@ -227,6 +242,7 @@ export class HighlightsLayer implements MapLayer {
     this.markerK = markerScale(cam.scale);
     cam.childScale(this.markerK, this.scale);
     this.hover.scale.set(this.scale.x, this.scale.y);
+    this.cutRing.scale.set(this.scale.x, this.scale.y);
     for (const rings of this.batches()) rings.setScale(this.scale);
     this.added.setScale(this.scale);
     cam.childScale(1, this.pixelScale);
@@ -265,6 +281,13 @@ export class HighlightsLayer implements MapLayer {
     this.hoverId = id;
     this.laneDrag.setHover(id);
     this.placeHover();
+  }
+
+  /** Rings the system planets were cut from, or none. */
+  setCutSource(id: number | null): void {
+    if (id === this.cutSource) return;
+    this.cutSource = id;
+    this.place(this.cutRing, id);
   }
 
   setDragState(drag: DragState | null): void {
@@ -367,6 +390,7 @@ export class HighlightsLayer implements MapLayer {
   /** Everything but the selection, matched and searched systems: a handful of rings at most. */
   private placeAll(): void {
     this.placeHover();
+    this.place(this.cutRing, this.cutSource);
     this.ghostRings.place(this.ghosts);
     this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
     const covered = this.feZoneDrag.preview?.blocked;

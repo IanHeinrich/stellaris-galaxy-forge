@@ -9,6 +9,7 @@ import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
 import { PlanetView } from "./PlanetView";
 import { ScenarioBodyView } from "./ScenarioBodyView";
 import { GalaxyView } from "../galaxy/GalaxyView";
+import { BodySelectionView } from "../selection/BodySelectionView";
 import { SelectionView } from "../selection/SelectionView";
 
 /** One entity's body, and the document capability it needs to be reachable. */
@@ -31,6 +32,7 @@ function entity(
 export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   galaxy: { label: "Galaxy", component: GalaxyView },
   selection: { label: "Selection", component: SelectionView },
+  bodies: { label: "Selected bodies", component: BodySelectionView, requires: "details" },
   lane: { label: "Hyperlane", component: LaneEntry },
   nebula: { label: "Nebula", component: NebulaEntry },
   system: { label: "System", component: SystemEntry },

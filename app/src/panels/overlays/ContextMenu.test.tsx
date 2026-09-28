@@ -5,6 +5,7 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
 import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
@@ -14,6 +15,7 @@ import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
   OPEN_RESULT,
   SCENARIO_RESULT,
+  countryNode,
   detailOf,
   name,
   node,
@@ -33,12 +35,16 @@ import { useSceneStore } from "../../store/sceneStore";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
-import { buttons, menuItem } from "../../test/elements";
+import { buttons, escaped, menuItem } from "../../test/elements";
+import { drawnBy, drawnButton } from "../../test/drawn";
 import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
+import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
+import { usePlanetMoveStore } from "../../store/planetMoveStore";
+import type { ContextTarget } from "../../store/mapChromeStore";
 import { PickCardBody } from "./contextMenu/PickCard";
 import { SpecialRows } from "./contextMenu/SpecialItems";
 
@@ -697,5 +703,135 @@ describe("the system view's empty space", () => {
     const html = menu();
     expect(html).not.toContain("Add belt here");
     expect(html).toContain(">Back to galaxy</button>");
+  });
+});
+
+describe("moving planets", () => {
+  const [SOL, CENTAURI, BARNARD] = [0, 1, 2];
+  const [EARTH, MARS] = [12, 13];
+  const HISSMAN = 7;
+  const colony = { planet: MARS, kind: "colony", owner: 0, new_owner: HISSMAN } as const;
+  const station = { planet: EARTH, kind: "station", owner: 0, new_owner: HISSMAN } as const;
+  const moves = () => usePlanetMoveStore.getState();
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const targets = (planets: number[], over: Partial<PlanetMoveTargets> = {}) => ({
+    planets,
+    refused: [],
+    systems: [
+      { system: CENTAURI, warnings: [] },
+      { system: BARNARD, warnings: [colony, station] },
+    ],
+    ...over,
+  });
+
+  beforeEach(() => {
+    useSceneStore.getState().enterSystem(SOL);
+    const planets = [
+      planetSummary({ id: EARTH, name: name("Earth"), name_key: "Earth" }),
+      planetSummary({ id: MARS, name: name("Mars"), name_key: "Mars" }),
+    ];
+    useDetailsStore.setState({ details: new Map([[SOL, systemDetails({ id: SOL, planets })]]) });
+    const hissman = { key: "Hissman Consciousness", literal: true, variables: [] };
+    useGalaxyStore.setState({
+      countries: new Map([[HISSMAN, countryNode({ id: HISSMAN, name: hissman, name_key: hissman.key })]]),
+    });
+    vi.mocked(ipc.planetMoveTargets).mockImplementation(async (ids) => targets(ids));
+  });
+
+  async function selectBoth(): Promise<void> {
+    moves().selectBody(SOL, EARTH);
+    moves().toggleBody(SOL, MARS);
+    await settle();
+  }
+
+  const openOn = (target: ContextTarget) =>
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+
+  it("cuts the selection from a body's menu, and says why it cannot", async () => {
+    moves().selectBody(SOL, EARTH);
+    moves().toggleBody(SOL, MARS);
+    const body = { kind: "body", system: SOL, id: EARTH } as const;
+    openOn(body);
+    expect(menu()).toMatch(/<button[^>]*disabled=""[^>]*>Cut 2 planets<\/button>/);
+
+    await settle();
+    expect(menu()).toContain('role="menuitem">Cut 2 planets</button>');
+    menuItem(<BodyMenu target={body} frame={{}} />, "Cut 2 planets").props.onClick();
+    expect(moves().cut).toMatchObject({ planets: [EARTH, MARS], from: SOL });
+
+    const reason = "Earth has an arc furnace: planets with a megastructure can't move";
+    vi.mocked(ipc.planetMoveTargets).mockResolvedValue(
+      targets([EARTH, MARS], { refused: [{ planet: EARTH, reason }], systems: [] }),
+    );
+    moves().toggleBody(SOL, MARS);
+    moves().toggleBody(SOL, MARS);
+    await settle();
+    openOn(body);
+    expect(menu()).toContain(`disabled="" title="${escaped(reason)}">Cut 2 planets</button>`);
+  });
+
+  it("puts Paste first on a system's menu, with the first warning under it and all of them on hover", async () => {
+    await selectBoth();
+    moves().cutSelection();
+    useSceneStore.getState().exitScene();
+
+    openOn({ kind: "system", id: CENTAURI });
+    let html = menu();
+    expect(buttons(html)[0]).toBe("Paste 2 planets here");
+    expect(html).not.toContain("⚠");
+
+    openOn({ kind: "system", id: BARNARD });
+    html = menu();
+    expect(buttons(html)[0]).toBe(
+      "Paste 2 planets here ⚠ Mars will pass to Hissman Consciousness about a month after you load (and 1 more)",
+    );
+    expect(html).toContain(
+      'title="Mars will pass to Hissman Consciousness about a month after you load\n' +
+        'Earth&#x27;s station will pass to Hissman Consciousness"',
+    );
+    expect(html).toContain('<span class="warn">⚠ ');
+
+    drawnBy(menu);
+    drawnButton("Paste 2 planets here").onClick();
+    await vi.waitFor(() =>
+      expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH, MARS], BARNARD, null),
+    );
+  });
+
+  it("refuses a paste back into the planets' own system, and says so", async () => {
+    await selectBoth();
+    moves().cutSelection();
+    const same = { refusal: "These planets are already in Sol", warnings: [] };
+    vi.mocked(ipc.planetMoveCheck).mockResolvedValue(same);
+    await moves().checkPaste(SOL);
+    openOn({ kind: "system", id: SOL });
+    expect(menu()).toContain(
+      'disabled="" title="These planets are already in Sol">Paste 2 planets here</button>',
+    );
+  });
+
+  it("pastes a lone planet where the system view's space was pressed, and names the orbit", async () => {
+    moves().selectBody(SOL, EARTH);
+    await settle();
+    moves().cutSelection();
+    useSceneStore.getState().enterSystem(CENTAURI);
+    const target = { kind: "systemSpace", system: CENTAURI, x: 0, y: 108 } as const;
+    const at = { radius: 108, angle: 90 };
+    vi.mocked(ipc.planetMoveCheck).mockResolvedValue({ refusal: null, warnings: [] });
+    await moves().checkPaste(CENTAURI, at);
+    openOn(target);
+    const label = "Paste Earth here (orbit 108 · 90°)";
+    expect(buttons(menu())[0]).toBe(label);
+
+    drawnBy(menu);
+    drawnButton(label).onClick();
+    await vi.waitFor(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH], CENTAURI, at));
+  });
+
+  it("offers no Paste without a cut", () => {
+    openOn({ kind: "system", id: CENTAURI });
+    expect(menu()).not.toContain("Paste");
+    openOn({ kind: "systemSpace", system: SOL, x: 5, y: 5 });
+    expect(menu()).not.toContain("Paste");
   });
 });

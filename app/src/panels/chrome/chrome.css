@@ -771,3 +771,43 @@ button.badge.paint-badge:hover {
   color: #fff;
   background: #c42b1c;
 }
+
+/* The width of the map, so the cut bar can tell a narrow map from a wide one. */
+.cut-bar-lane {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  container-type: inline-size;
+}
+
+.cut-bar {
+  margin-top: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent-dim);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.cut-bar b {
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* Beside the crumb it would cover it, so it drops below. */
+@container (max-width: 900px) {
+  .cut-bar {
+    margin: 44px 16px 0;
+    text-align: center;
+    white-space: normal;
+  }
+}

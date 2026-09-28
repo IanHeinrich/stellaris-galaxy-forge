@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
+import { lanesTo } from "../test/builders";
 import {
   andMore,
+  cutHint,
   cutLabel,
+  jumpsFrom,
+  jumpsText,
   movingLabel,
+  nearestFirst,
   pasteLabel,
   placementAt,
   refusalLine,
+  selectionLine,
   warningLine,
   warningLines,
   warningText,
@@ -56,17 +62,17 @@ describe("labels", () => {
 describe("warnings and refusals", () => {
   it("words a colony and a station passing to another empire", () => {
     expect(warningText(colony, NAMES)).toBe(
-      "Kortol's Station will pass to the Hissman Consciousness about a month after you load",
+      "Kortol's Station will pass to Hissman Consciousness about a month after you load",
     );
     expect(warningText(station, NAMES)).toBe(
-      "Meissa II's station will pass to the Hissman Consciousness",
+      "Meissa II's station will pass to Hissman Consciousness",
     );
   });
 
   it("shows the first warning with the count, and lists them all", () => {
     const all = [colony, station, research];
     expect(warningLine(all, NAMES)).toBe(
-      "Kortol's Station will pass to the Hissman Consciousness about a month after you load (and 2 more)",
+      "Kortol's Station will pass to Hissman Consciousness about a month after you load (and 2 more)",
     );
     expect(warningLines(all, NAMES)).toHaveLength(3);
     expect(warningLine([], NAMES)).toBeNull();
@@ -81,5 +87,44 @@ describe("warnings and refusals", () => {
       ]),
     ).toBe("Meissa III has an arc furnace (and 1 more)");
     expect(andMore("One", 1)).toBe("One");
+  });
+});
+
+describe("the selection summary", () => {
+  it("counts the planets, the moons that come along and the planet a lone moon leaves", () => {
+    expect(selectionLine(3, 2, [])).toBe("3 planets · 2 moons come along");
+    expect(selectionLine(1, 1, [])).toBe("1 planet · 1 moon comes along");
+    expect(selectionLine(2, 0, [{ moon: "Uray IIIa", planet: "Uray III" }])).toBe(
+      "2 planets · Uray IIIa leaves Uray III",
+    );
+    expect(cutHint(false)).toBe("Also in the right-click menu on the map.");
+    expect(cutHint(true)).toBe("Cut. Right-click a system to paste them there.");
+  });
+});
+
+describe("the nearest systems", () => {
+  // A chain 0-1-2 with a branch 1-3, and 4 that no lane reaches.
+  const systems = new Map([
+    [0, { lanes: lanesTo(1) }],
+    [1, { lanes: lanesTo(0, 2, 3) }],
+    [2, { lanes: lanesTo(1) }],
+    [3, { lanes: lanesTo(1) }],
+    [4, { lanes: lanesTo() }],
+  ]);
+
+  it("counts the jumps to every system the lanes reach", () => {
+    expect([...jumpsFrom(systems, 0)]).toEqual([
+      [0, 0],
+      [1, 1],
+      [2, 2],
+      [3, 2],
+    ]);
+    expect(jumpsText(1)).toBe("1 jump");
+    expect(jumpsText(2)).toBe("2 jumps");
+  });
+
+  it("puts the fewest jumps first, then the nearer, and a system no lane reaches last", () => {
+    const distance = (id: number) => ({ 1: 5, 2: 30, 3: 20, 4: 1 })[id] ?? 0;
+    expect(nearestFirst([4, 2, 3, 1], jumpsFrom(systems, 0), distance)).toEqual([1, 3, 2, 4]);
   });
 });

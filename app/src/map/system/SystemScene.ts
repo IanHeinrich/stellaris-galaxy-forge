@@ -14,6 +14,7 @@ import { fitScale, zoomLimits } from "./camera";
 import { EMPTY_SYSTEM_CONTEXT, selectedBody, systemContext, type SystemContext } from "./context";
 import { readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
+import { moveMarks } from "./moveMarks";
 import { pickPlate } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
@@ -103,6 +104,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       this.setHighlight({ lane: null, hoverExit: null });
     }
     this.id = id;
+    this.showMove();
     this.refresh();
   }
 
@@ -241,6 +243,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
 
   linkBody(id: number | null): void {
     this.setHighlight({ linkedBody: id });
+  }
+
+  showMove(): void {
+    this.setHighlight(moveMarks(this.id));
   }
 
   selectLane(neighbour: number | null): void {
