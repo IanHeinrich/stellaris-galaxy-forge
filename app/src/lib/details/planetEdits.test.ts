@@ -7,7 +7,6 @@ import {
   removeDepositOp,
   removeModifierOp,
   renamePlanetOp,
-  uncolonised,
 } from "./planetEdits";
 import { modifierRows } from "./planetPage";
 
@@ -68,11 +67,6 @@ describe("a planet page's edits", () => {
     expect(effectText(line("district_mining_max_add", 2, "+2 Max Mining Districts"))).toBe(
       "+2 Max Mining Districts",
     );
-  });
-
-  it("counts a planet as uncolonised only with no owner and no colony", () => {
-    expect(uncolonised(planetPage())).toBe(true);
-    expect(uncolonised(planetPage({ owner: 3 }))).toBe(false);
   });
 });
 

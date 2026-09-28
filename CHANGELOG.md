@@ -8,68 +8,40 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-28
+
 ### Added
 
-- With Details on, the system view shows which planets are colonised.
-  A colony's name has its owner's flag on the game's name plate, as
-  systems have on the galaxy map. A pre-FTL world shows the pre-FTL
-  icon beside its name.
-- The Points of interest layer marks four more kinds of system. They are
-  off until you switch them on in the Layers menu.
-  - Contingency hubs: the four systems every galaxy gets. They are only
-    used if the Contingency is the crisis.
-  - Horizon Signal: the black hole its event chain starts from.
-  - Holy worlds: the Holy Guardians' holy worlds.
-  - Cutholoids: systems with a Cutholoid hiding in an asteroid.
-  - The Points of interest tab has a group for each kind.
-  - The system page names them at the top of its Flags section.
-- The galaxy page of a save shows its game setup: the crisis, the
-  mid-game, end-game and victory years, the cosmic storm settings,
-  voidworm and Cutholoid scaling, and fallen empire strength.
-- The galaxy page of a save has a Kaleidoscope row when the Kaleidoscope
-  will appear in that game.
-- Rename an empire from the Name field at the top of its page. Renaming
-  your own empire also renames the save on the game's load screen.
-- A pre-FTL civilisation's page shows its age, such as Stone Age or
-  Atomic Age.
-- Rename a save's planets on their page. Moons named after the planet
-  follow the new name.
-- Change an uncolonised planet's size on its page. Add or remove any
-  planet's deposits there, colonies included. Add deposit, under the deposit list, opens a list of every
-  deposit type with the ones the game places on that planet first.
-  Search by name, resource or category, or pick a category such as
-  Energy or Strategic. Deposits of one resource share a row with a
-  button per amount. Add blocker, under the blockers, does the same for
-  blockers. Both lists stay open, so you can add several in one go.
-  A mining or research station over a removed deposit stays in game and
-  still costs about 1 energy a month. On a colony, the page says what
-  the game will take away within a month before you confirm. That can
-  be districts over a lowered cap, a building or zone that needed the
-  deposit, or a blocker's clearing and what was spent on it.
-- A planet's page shows the anomaly waiting on it, and which empires
-  have found it.
-- In a Stellaris 4.x save, a planet's Modifiers section can add and
-  remove modifiers. Add modifier lists the modifiers that act on a
-  planet, its pops or its jobs, with search and category chips. A
-  modifier can be permanent or last a number of days. Planet features
-  are added the way the game writes them.
+- Edit a save's planets directly from their pages. Rename them, change
+  their size, and add or remove deposits, blockers, and modifiers.
+  Colonies can be edited too. The page warns you when an edit will cause
+  the game to remove something, such as districts that exceed a lowered
+  cap.
+- Rename an empire directly from its page in the Empires tab in the
+  Inspector.
+- A planet's page now shows any anomaly waiting on it, and a pre-FTL
+  civilisation's page shows its age.
+- When the Details layer is enabled, the system view shows which planets
+  are colonised, along with their owner's flag.
+- The Points of Interest layer can now highlight Contingency hubs, the
+  Horizon Signal, holy worlds, and Cutholoids. These are off by default
+  and can be enabled from the Layers menu.
+- The galaxy page for a save now shows its game setup, including the
+  crisis and end-game year, as well as whether the Kaleidoscope will
+  appear.
 
 ### Changed
 
-- The Terraforming candidate checkbox is gone. Add or remove the
-  candidate modifier from the Modifiers section instead. A planet's own
-  candidate modifier is at the top of Add modifier.
-- A save opens with the map border and the L-Cluster guide on.
-- Habitats, ring world segments and broken planets look sharper in the
-  system view. They show their planet icon without sphere shading, in a
-  faint glow of their colour.
-- Tomb worlds show their surface in the system view, like other planets.
+- The Terraforming Candidate checkbox has been removed. Add the
+  candidate modifier from the Modifiers section instead.
+- Saves now open with the map border and L-Cluster guide enabled.
+- Habitats, ring worlds, and broken planets look sharper in the system
+  view. Tomb worlds now show their surface.
 
 ### Fixed
 
-- Exporting a save for Paint a Galaxy keeps a Contingency hub that lies
-  near a fallen empire. It was left out with the fallen empire's
-  systems before. The export report counts the hubs as special systems.
+- Exporting a save for Paint a Galaxy now keeps Contingency hubs near a
+  fallen empire.
 
 ## [0.17.0] - 2026-09-28
 
