@@ -8,6 +8,10 @@ a release is made.
 
 ## [Unreleased]
 
+### Changed
+
+- A save opens with the map border and the L-Cluster guide on.
+
 ## [0.17.0] - 2026-09-28
 
 ### Added
