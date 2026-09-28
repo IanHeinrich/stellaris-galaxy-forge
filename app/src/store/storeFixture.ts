@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { StoreApi } from "zustand";
 
+import { useDepositPickerStore } from "./depositPickerStore";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
@@ -28,6 +29,7 @@ import { useWatchlistStore } from "./watchlistStore";
 import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
+  useDepositPickerStore,
   useEditorStore,
   useEntityStore,
   useFileSessionStore,

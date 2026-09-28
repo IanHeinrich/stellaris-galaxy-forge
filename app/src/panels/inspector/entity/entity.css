@@ -258,27 +258,140 @@
   padding: 6px 2px 2px;
 }
 
-.pl-dep-add .icon-picker-pop {
-  min-width: 360px;
+.dp {
+  margin: 6px 0 2px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
 
-.pl-pick-yields {
-  display: inline-flex;
-  gap: 8px;
+.dp-head {
+  display: flex;
+  gap: 6px;
 }
 
-.pl-pick-yields .res {
-  display: inline-flex;
+.dp-head input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.dp-done,
+.dp-chip,
+.dp-amount {
+  padding: 1px 7px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.dp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.dp-chip[aria-pressed="true"],
+.dp-amount.active,
+.dp-amount:hover,
+.dp-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dp-added {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--ok, var(--accent));
+}
+
+.dp-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.dp-group {
+  padding: 6px 2px 2px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
+.dp-empty {
+  padding: 6px 2px;
+}
+
+.dp-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: 8px;
   align-items: center;
+  padding: 3px 2px;
+  border-radius: 3px;
+}
+
+.dp-row.active {
+  background: var(--bg-panel);
+}
+
+.dp-art img {
+  display: block;
+  width: 32px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.dp-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dp-text .l2 {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--fg-soft);
+}
+
+.dp-amounts {
+  display: flex;
   gap: 3px;
 }
 
-.pl-pick-art img {
-  display: block;
-  width: 24px;
-  height: 18px;
-  object-fit: cover;
-  border-radius: 2px;
+/* A family's amounts take a line of their own under its name, wrapping across the row. */
+.dp-row.family {
+  grid-template-columns: 32px minmax(0, 1fr);
+  row-gap: 3px;
+}
+
+.dp-row.family .dp-art {
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.dp-row.family .dp-amounts {
+  grid-column: 2;
+  flex-wrap: wrap;
+}
+
+.dp-text .l1,
+.dp-text .l2 {
+  overflow-wrap: anywhere;
 }
 
 .pl-sub-head {

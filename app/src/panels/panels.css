@@ -71,21 +71,6 @@
   color: var(--fg-muted);
 }
 
-.icon-picker-filter {
-  padding: 2px 2px 4px;
-}
-
-.icon-picker-filter input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 3px 6px;
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-}
-
 .icon-picker-empty {
   padding: 6px;
 }

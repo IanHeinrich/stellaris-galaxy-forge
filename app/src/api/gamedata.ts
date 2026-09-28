@@ -8,6 +8,7 @@ import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositTypeView } from "../generated/DepositTypeView";
+import type { DepositChoice } from "../generated/DepositChoice";
 import type { DepositView } from "../generated/DepositView";
 import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
@@ -126,16 +127,17 @@ export function getDeposits(): Promise<DepositView[]> {
 }
 
 /**
- * Every deposit type but the null one, each with whether it fits a body of `planetClass` and
- * `size`, a moon when `moon`, that holds the deposit types `deposits`; empty without game data.
+ * Every deposit type but the null one, with its family, its category and whether the game's roll
+ * could place it on a body of `planetClass` and `size`, a moon when `moon`, that holds the deposit
+ * types `deposits`; empty without game data.
  */
 export function getDepositChoices(
   planetClass: string,
   size: number,
   moon: boolean,
   deposits: string[],
-): Promise<Array<[string, boolean]>> {
-  return invoke<Array<[string, boolean]>>("get_deposit_choices", {
+): Promise<DepositChoice[]> {
+  return invoke<DepositChoice[]>("get_deposit_choices", {
     class: planetClass,
     size,
     moon,

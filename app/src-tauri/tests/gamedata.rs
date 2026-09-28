@@ -7,6 +7,7 @@ use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
+use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
@@ -142,7 +143,7 @@ fn game_data_commands_degrade_without_an_install() {
     assert!(star_classes.is_empty());
     let deposits: Vec<DepositView> = invoke(&w, "get_deposits", json!({})).expect("deposits");
     assert!(deposits.is_empty());
-    let choices: Vec<(String, bool)> = invoke(
+    let choices: Vec<DepositChoice> = invoke(
         &w,
         "get_deposit_choices",
         json!({ "class": "pc_arctic", "size": 15, "moon": false, "deposits": [] }),
@@ -354,7 +355,7 @@ fn game_data_commands_with_the_install() {
         .find(|d| d.key == "d_energy_3")
         .expect("d_energy_3");
     assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
-    let choices = |class: &str, moon: bool| -> Vec<(String, bool)> {
+    let choices = |class: &str, moon: bool| -> Vec<DepositChoice> {
         invoke(
             &w,
             "get_deposit_choices",
@@ -362,23 +363,37 @@ fn game_data_commands_with_the_install() {
         )
         .expect("deposit choices")
     };
-    let fits = |choices: &[(String, bool)], key: &str| {
-        choices
-            .iter()
-            .find(|(k, _)| k == key)
-            .map(|&(_, fits)| fits)
+    let find = |choices: &[DepositChoice], key: &str| -> Option<DepositChoice> {
+        choices.iter().find(|c| c.key == key).cloned()
     };
     let arctic = choices("pc_arctic", false);
-    assert_eq!(fits(&arctic, "d_massive_glacier"), Some(true));
-    assert_eq!(
-        fits(&arctic, "d_energy_3"),
-        Some(false),
+    let glacier = find(&arctic, "d_massive_glacier").expect("the glacier");
+    assert!(glacier.usual);
+    assert_eq!(glacier.category, DepositCategory::Blockers);
+    let energy_3 = find(&arctic, "d_energy_3").expect("+3 energy");
+    assert!(
+        !energy_3.usual,
         "every type is offered; an orbital one does not fit a world the game colonises"
     );
-    assert_eq!(fits(&arctic, "d_null_deposit"), None);
+    assert_eq!(
+        (energy_3.family.as_str(), energy_3.amount, energy_3.category),
+        ("d_energy", Some(3.0), DepositCategory::Energy)
+    );
+    assert!(find(&arctic, "d_null_deposit").is_none());
+    let dark_matter = find(&arctic, "d_dark_matter_deposit_10").expect("+10 dark matter");
+    assert_eq!(dark_matter.family, "d_dark_matter_deposit");
+    assert_eq!(
+        dark_matter.category,
+        DepositCategory::Special,
+        "no roll places it"
+    );
     let barren = choices("pc_barren", true);
-    assert_eq!(fits(&barren, "d_minerals_3"), Some(true));
-    assert_eq!(fits(&barren, "d_massive_glacier"), Some(false));
+    assert!(find(&barren, "d_minerals_3").expect("+3 minerals").usual);
+    assert!(
+        !find(&barren, "d_massive_glacier")
+            .expect("the glacier")
+            .usual
+    );
     let deposit_types: Vec<DepositTypeView> = invoke(
         &w,
         "get_deposit_types",

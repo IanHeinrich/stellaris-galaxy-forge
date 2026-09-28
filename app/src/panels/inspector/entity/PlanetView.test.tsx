@@ -32,6 +32,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
@@ -342,19 +343,58 @@ describe("an unowned world's page", () => {
     const html = drawnBy(() => render(WORLD));
     expect(html).toMatch(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/);
     expect(html.match(/class="pl-dep-remove"/g)).toHaveLength(3);
-    expect(html).toContain("Add deposit…");
+    expect(html).toContain("+ Add deposit…");
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove d_active_volcano").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveSaveDeposit", deposit: 3 }),
     );
-    drawnField(PickerField, "Add deposit").onPick("d_frozen_gas_lake");
+  });
+
+  it("opens the picker below the deposits: search, chips, and a row per family with its amounts", async () => {
+    await open("save");
+    await landPage(OLBERS);
+    usePlanetDataStore.setState({
+      depositTypes: new Map(
+        [1, 3].map((n) => [
+          `d_energy_${n}`,
+          depositTypeView(`d_energy_${n}`, {
+            name: `+${n}`,
+            orbital: true,
+            yields: [resourceAmount("energy", n, "Energy")],
+          }),
+        ]),
+      ),
+    });
+    useDepositPickerStore.setState({
+      planet: WORLD,
+      added: "Added +1 Energy",
+      choices: {
+        body: "",
+        list: [
+          { key: "d_energy_1", family: "d_energy", amount: 1, category: "Energy", usual: true },
+          { key: "d_energy_3", family: "d_energy", amount: 3, category: "Energy", usual: true },
+        ],
+      },
+    });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain('aria-label="Search deposits"');
+    expect(html).toContain('aria-pressed="true">All</button>');
+    expect(html).toContain("Usual here");
+    expect(html).toContain("✓ Added +1 Energy");
+    expect(html).toContain("Usual for this planet · 1");
+    expect(html).toContain("Energy per month");
+    expect(html).not.toContain("+ Add deposit…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Add +3 Energy").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "AddSaveDeposit",
         planet: WORLD,
-        kind: "d_frozen_gas_lake",
+        kind: "d_energy_3",
       }),
     );
   });

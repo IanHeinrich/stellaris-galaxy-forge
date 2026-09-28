@@ -26,8 +26,9 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `starClass` is the star class pickers and the bulk plan that sets one
   class on many systems. `terraform` says whether a body is a terraforming
   candidate and builds the op that sets it. `planetEdits` builds the ops a
-  planet's page sends for its name, size and deposits, and orders the
-  deposit types its picker offers. The system view's layout is
+  planet's page sends for its name, size and deposits, and
+  `depositPicker` groups the deposit types its picker offers into
+  families, sections and chips. The system view's layout is
   `orbits`: where each body, orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
   `orbitEdits` turns a geometry edit, a body or belt at an absolute radius
