@@ -1,0 +1,70 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #318 from system #400 to system #449, at orbit 216; set the inner radius of system #449 from 215 to 246
+inverse: Batch { description: "Undo of \"Moved planet #318 from system #400 to system #449, at orbit 216; set the inner radius of system #449 from 215 to 246\"", ops: [MoveSavePlanet { planet: 318, to: 400, at: Some(OrbitPlacement { radius: 100.077195429, angle: 340.222476642 }) }, SetSaveInnerRadius { system: 449, radius: 215.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -57235,7 +57235,6 @@
+ 		planet=315
+ 		planet=316
+ 		planet=317
+-		planet=318
+ 		planet=319
+ 		planet=320
+ 		planet=321
+@@ -57308,7 +57307,7 @@
+ 		index=11
+ 		colonies=
+ 		{
+-			10 11 
++			10 
+ 		}
+ 		inhibitor_owners=
+ 		{
+@@ -60736,6 +60735,7 @@
+ 		planet=411
+ 		planet=412
+ 		planet=413
++		planet=318
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -60781,8 +60781,8 @@
+ 		{
+ 			148 
+ 		}
+-		inner_radius=215
+-		outer_radius=315
++		inner_radius=246
++		outer_radius=346
+ 		starbases=
+ 		{
+ 			16 
+@@ -60791,7 +60791,7 @@
+ 		index=10
+ 		colonies=
+ 		{
+-			13 
++			13 11 
+ 		}
+ 		inhibitor_owners=
+ 		{
+@@ -95160,11 +95160,11 @@
+ 			binary_flags=201
+ 			coordinate=
+ 			{
+-				x=94.174
+-				y=-33.863
+-				origin=400
++				x=203.25893
++				y=-73.08766
++				origin=449
+ 			}
+-			orbit=100
++			orbit=216
+ 			last_bombardment=			"0.01.01"
+ 			owner=16777226
+ 			original_owner=16777226

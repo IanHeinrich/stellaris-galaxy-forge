@@ -176,6 +176,36 @@ for planets or deposits.
   bodies of the 4.4 sample whose `moon_of` is a star has 512. A few name
   the star at the centre (4.5 sample, system 76's asteroids name 1270);
   they orbit the centre.
+- A planet belongs to the system whose `galactic_object` entry lists it
+  as `planet=<id>`, and its `coordinate.origin` names that system. Each
+  moon has its own `planet=` line and `origin`. A colonised planet or
+  moon names its colony with `colony=<id>`, and its system lists that id
+  in `colonies={ }`, written right after `index`. The list is in the
+  order the colonies came, not sorted: system 40 of the 4.5 sample lists
+  `30 4`, the colonies of its moons 58 and 59,
+  and a system without a colony has no `colonies` at all: 26 of the 4.5
+  sample's 601 systems have one. A colonised planet has `owner` and
+  `controller`. An uncolonised planet with a mining or research station
+  has `controller` and `shipclass_orbital_station` but no `owner`, and a
+  bare one has neither, even in an owned system. Pops, jobs, armies,
+  deposits and the country's capital name the planet or the colony, not
+  the system.
+- A planet's `shipclass_orbital_station=<id>` names the fleet of its
+  mining or research station; the null id means it has none. The fleet
+  lists one ship, orbits the planet through
+  `movement_manager.orbit.orbitable.planet`, and names its system in
+  `movement_manager.coordinate`, a point beside the planet's, and in
+  `combat.coordinate`, which stands at 0,0. Its other coordinates
+  (`combat.start_coordinate`, `mia_from`, `movement_manager.target`,
+  `target_coordinate` and `last_ftl_jump.from`) have the null origin.
+  The ship's `coordinate` and `target_coordinate` both hold the fleet's
+  point. The system lists the fleet in `fleet_presence={ }`, written
+  after `init_parent`, or `initializer` when there is none, and absent
+  when no fleet is there (both samples, all 178 and 323 stations). The
+  game does not move a fleet whose planet moved to another system: the
+  planet shows as mined while its station stays in the old system. A
+  station moved with its planet into another empire's system passes to
+  that empire in game (4.5.1).
 - Planets, deposits and construction queues are slot tables. An id is
   `slot | generation<<24`, and the table is sorted by slot. A dead slot
   keeps its old id as `<id>=none`. When the game reuses a dead slot, it

@@ -19,6 +19,7 @@ use std::time::SystemTime;
 use crate::document::{self, Document, SaveOutcome};
 use crate::entity::views::{EntityAddr, EntityKind};
 use crate::format::save::details::DetailsProjection;
+use crate::format::save::write::move_planet;
 use crate::format::scenario::effect;
 use crate::format::{self, Format};
 use crate::library;
@@ -28,8 +29,8 @@ use crate::projections::galaxy::{GalaxyGraph, ProjectionError, SystemNode, Wayli
 use crate::search;
 use crate::validate::{self, Issue, validate};
 use crate::views::{
-    DocumentKind, EditResult, ErrorKind, GalaxyDelta, HistoryEntry, HistoryView, SaveResult,
-    SearchResult, SgfError,
+    DocumentKind, EditResult, ErrorKind, GalaxyDelta, HistoryEntry, HistoryView, OrbitPlacement,
+    PlanetMoveCheck, PlanetMoveTargets, SaveResult, SearchResult, SgfError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -369,6 +370,35 @@ impl Session {
             resolve,
             special,
         )
+    }
+
+    /// Where the save planets `planets` may move together, and which of them cannot move.
+    pub fn planet_move_targets(&self, planets: &[u32]) -> PlanetMoveTargets {
+        move_planet::targets(self, planets)
+    }
+
+    /// The op that moves `planets` to system `to`: one [`Op::MoveSavePlanet`] per planet
+    /// [`Self::planet_move_targets`] keeps, in order, the first at `at` when given, batched
+    /// when there are several. Refused when it keeps none.
+    pub fn planet_move_op(
+        &self,
+        planets: &[u32],
+        to: u32,
+        at: Option<OrbitPlacement>,
+    ) -> Result<Op, OpError> {
+        move_planet::move_op(self, planets, to, at)
+    }
+
+    /// Why [`Self::planet_move_op`] would be refused, or else the colonies and stations it
+    /// takes into another country's system. Nothing is written: each move is planned
+    /// against the session and dropped.
+    pub fn planet_move_check(
+        &self,
+        planets: &[u32],
+        to: u32,
+        at: Option<OrbitPlacement>,
+    ) -> PlanetMoveCheck {
+        move_planet::check(self, planets, to, at)
     }
 
     /// Whether the document differs from what was last opened or saved at `path`.

@@ -331,7 +331,7 @@ pub(crate) fn grow(
 
 /// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it
 /// out for a planet.
-fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), OpError> {
+pub(crate) fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), OpError> {
     let existing = child(edit, &[keys::MOON_OF])?;
     match (parent, existing) {
         (Some(parent), Some(_)) => edit.set_scalar(&[keys::MOON_OF], parent.to_string())?,
@@ -397,7 +397,7 @@ fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
 }
 
 /// Take `id` out of the planet's `moons`, and the list with it when nothing else is left.
-fn unlist_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
+pub(crate) fn unlist_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
         return Ok(());

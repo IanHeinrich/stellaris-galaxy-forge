@@ -1,0 +1,198 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #10 and its 3 moons, with 2 stations, from system #169 to system #2, at orbit 271; set the inner radius of system #2 from 244.88 to 326
+inverse: Batch { description: "Undo of \"Moved planet #10 and its 3 moons, with 2 stations, from system #169 to system #2, at orbit 271; set the inner radius of system #2 from 244.88 to 326\"", ops: [MoveSavePlanet { planet: 10, to: 169, at: Some(OrbitPlacement { radius: 160.075270303, angle: 203.989469506 }) }, SetSaveInnerRadius { system: 2, radius: 244.88 }] }
+
+--- gamestate
++++ gamestate
+@@ -29017,6 +29017,10 @@
+ 		planet=602
+ 		planet=603
+ 		planet=604
++		planet=10
++		planet=11
++		planet=12
++		planet=13
+ 		star_class="sc_m"
+ 		hyperlane=
+ 		{
+@@ -29042,8 +29046,12 @@
+ 			resource_region_exotic_gases_rich=62808000
+ 		}
+ 		initializer="ai_system_02"
+-		inner_radius=244.88
+-		outer_radius=344.88
++		fleet_presence=
++		{
++			365 364 
++		}
++		inner_radius=326
++		outer_radius=426
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -41020,10 +41028,6 @@
+ 		planet=7
+ 		planet=8
+ 		planet=9
+-		planet=10
+-		planet=11
+-		planet=12
+-		planet=13
+ 		planet=14
+ 		star_class="sc_g"
+ 		hyperlane=
+@@ -41056,7 +41060,7 @@
+ 		initializer="random_empire_init_04"
+ 		fleet_presence=
+ 		{
+-			0 2 3 362 363 364 365 366 
++			0 2 3 362 363 366 
+ 		}
+ 		inner_radius=215
+ 		outer_radius=315
+@@ -80343,11 +80347,11 @@
+ 			binary_flags=328
+ 			coordinate=
+ 			{
+-				x=-146.248
+-				y=-65.0816
+-				origin=169
++				x=-247.59107
++				y=-110.18013
++				origin=2
+ 			}
+-			orbit=160
++			orbit=271
+ 			last_bombardment=			"0.01.01"
+ 			controller=0
+ 			moons=
+@@ -80384,9 +80388,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-133.5019
+-				y=-72.9953
+-				origin=169
++				x=-234.84497
++				y=-118.09383
++				origin=2
+ 			}
+ 			orbit=15
+ 			last_bombardment=			"0.01.01"
+@@ -80418,9 +80422,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-165.3322
+-				y=-59.0354
+-				origin=169
++				x=-266.67527
++				y=-104.13393
++				origin=2
+ 			}
+ 			orbit=20
+ 			last_bombardment=			"0.01.01"
+@@ -80444,9 +80448,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-129.7395
+-				y=-46.30535
+-				origin=169
++				x=-231.08257
++				y=-91.40388
++				origin=2
+ 			}
+ 			orbit=25
+ 			last_bombardment=			"0.01.01"
+@@ -932232,15 +932236,15 @@
+ 		}
+ 		coordinate=
+ 		{
+-			x=-135.7395
+-			y=-52.30535
+-			origin=169
++			x=-237.08257
++			y=-97.40388
++			origin=2
+ 		}
+ 		target_coordinate=
+ 		{
+-			x=-135.7395
+-			y=-52.30535
+-			origin=169
++			x=-237.08257
++			y=-97.40388
++			origin=2
+ 		}
+ 		post_move_angle=-0.78561
+ 		hitpoints=2000
+@@ -932293,15 +932297,15 @@
+ 		}
+ 		coordinate=
+ 		{
+-			x=-158.848
+-			y=-77.6816
+-			origin=169
++			x=-260.19107
++			y=-122.78013
++			origin=2
+ 		}
+ 		target_coordinate=
+ 		{
+-			x=-158.848
+-			y=-77.6816
+-			origin=169
++			x=-260.19107
++			y=-122.78013
++			origin=2
+ 		}
+ 		post_move_angle=-0.78561
+ 		hitpoints=2000
+@@ -1031288,7 +1031292,7 @@
+ 			{
+ 				x=0
+ 				y=0
+-				origin=169
++				origin=2
+ 			}
+ 			formation_pos=
+ 			{
+@@ -1031340,9 +1031344,9 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-135.7395
+-				y=-52.30535
+-				origin=169
++				x=-237.08257
++				y=-97.40388
++				origin=2
+ 			}
+ 			target=
+ 			{
+@@ -1031429,7 +1031433,7 @@
+ 			{
+ 				x=0
+ 				y=0
+-				origin=169
++				origin=2
+ 			}
+ 			formation_pos=
+ 			{
+@@ -1031481,9 +1031485,9 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-158.848
+-				y=-77.6816
+-				origin=169
++				x=-260.19107
++				y=-122.78013
++				origin=2
+ 			}
+ 			target=
+ 			{

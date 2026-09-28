@@ -11,7 +11,7 @@ use crate::format::save::write::terraform_candidate::MAX_MODIFIER_COPIES;
 use crate::format::scenario::{FeLinkFlags, FeZone};
 use crate::overlay::OverlayError;
 use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
-use crate::views::{DocumentKind, ErrorKind};
+use crate::views::{DocumentKind, ErrorKind, OrbitPlacement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr)]
 #[ts(export)]
@@ -490,6 +490,28 @@ pub enum Op {
         system: u32,
         radius: f64,
     },
+    /// A save planet and its moons taken from their system into system `to`: their
+    /// `planet=` lines leave the old system and follow the new one's last, and their
+    /// `origin` becomes `to`. The planet keeps its angle about the centre on an orbit the
+    /// inner radius offset past the new system's reach, or goes to `at` when given, as
+    /// [`Op::MoveSaveBody`] places a body. Its moons keep their places about it, and the
+    /// new system's `inner_radius` grows as a moved body's does. A moon, or a planet of a
+    /// companion star, becomes a planet of the new system's centre: it leaves its parent's
+    /// `moons` and loses `moon_of` and the moon bit. The colony of each colonised body
+    /// moves between the two systems' `colonies`, and the station fleet of each body with
+    /// one between their `fleet_presence`, it and its ships taking the new `origin`, their
+    /// points shifted with the body. No other fleet is touched. A star, a system with no
+    /// bodies to join and a planet or moon with a megastructure are refused, and so is an
+    /// owned planet or moon another country controls. The
+    /// inverse moves it back to its old point, batched with the old inner radius when it
+    /// grew. Stellaris 4.x save documents only.
+    MoveSavePlanet {
+        planet: u32,
+        to: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        at: Option<OrbitPlacement>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -538,7 +560,8 @@ impl Op {
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => true,
+            | Self::SetSaveInnerRadius { .. }
+            | Self::MoveSavePlanet { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -607,7 +630,8 @@ impl Op {
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => false,
+            | Self::SetSaveInnerRadius { .. }
+            | Self::MoveSavePlanet { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -798,6 +822,8 @@ pub enum OpError {
     AlreadyNormal,
     #[error("a batch with nothing in it")]
     EmptyBatch,
+    #[error("no planets to move")]
+    NoPlanets,
     #[error("a batch may not hold another batch")]
     NestedBatch,
     #[error("system {0} is listed more than once")]
@@ -946,6 +972,22 @@ pub enum OpError {
     InnerRadiusTooSmall { least: f64 },
     #[error("system {0} already has that inner radius")]
     InnerRadiusUnchanged(u32),
+    #[error("planet {planet} is already a body of system {system}")]
+    AlreadyInSystem { planet: u32, system: u32 },
+    #[error("planet {0} is a star: only a planet can move to another system")]
+    StarNotMovable(u32),
+    #[error("system {0} lists no bodies, so a planet cannot join it")]
+    NoBodies(u32),
+    #[error("system {system} holds planet {planet} from the save; move it out first")]
+    HoldsSavePlanet { system: u32, planet: u32 },
+    #[error("planet {0} has a megastructure, so it cannot move to another system")]
+    MegastructurePlanet(u32),
+    #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
+    PlanetOccupied {
+        planet: u32,
+        owner: u32,
+        controller: u32,
+    },
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -1020,6 +1062,7 @@ impl OpError {
             | Self::NoEntries { .. }
             | Self::AlreadyNormal { .. }
             | Self::EmptyBatch { .. }
+            | Self::NoPlanets
             | Self::NestedBatch { .. }
             | Self::DuplicateSystem { .. }
             | Self::DuplicateLane { .. }
@@ -1070,6 +1113,12 @@ impl OpError {
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }
+            | Self::AlreadyInSystem { .. }
+            | Self::StarNotMovable { .. }
+            | Self::NoBodies { .. }
+            | Self::HoldsSavePlanet { .. }
+            | Self::MegastructurePlanet { .. }
+            | Self::PlanetOccupied { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }

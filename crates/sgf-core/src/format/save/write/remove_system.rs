@@ -8,7 +8,8 @@
 //! from the pool of unused star or black hole names and the asteroids' names taken from the pool of
 //! asteroid names. `last_created_system` goes down by one per system removed. Every system
 //! added after the first one removed takes the id below its own for each removed before
-//! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the lanes
+//! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the origin
+//! of the fleets it lists in `fleet_presence` and of their ships, the lanes
 //! and the nebula member lines naming it, and the nebula cloud it lists. Planet and deposit
 //! ids do not change. A removed system's nebula cloud gives its slot back.
 
@@ -24,6 +25,7 @@ use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::footprint::{Footprints, is_bare};
 use crate::format::save::write::initializer_counter::{self, counted};
 use crate::format::save::write::lanes::remove_entries;
+use crate::format::save::write::move_planet::{move_fleet, present_fleets};
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::{check_version, entity, system_statement};
 use crate::keys;
@@ -39,6 +41,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     each_once(ids, |&id| id)?;
     for &id in ids {
         check_added(s, id)?;
+        check_own_bodies(s, id)?;
     }
     let removed: BTreeSet<u32> = ids.iter().copied().collect();
     let counter = alloc::system_counter(&s.doc)?;
@@ -55,6 +58,9 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
         for planet in bodies(&s.doc, old)? {
             plan.edit_planet(&s.doc, planet, new)?
                 .set_scalar(&[keys::COORDINATE, keys::ORIGIN], new.to_string())?;
+        }
+        for fleet in present_fleets(s, old)? {
+            move_fleet(plan, s, fleet, [old, new], None)?;
         }
     }
     rewrite_lanes(plan, s, &removed, &renumber)?;
@@ -85,6 +91,18 @@ pub(crate) fn check_added(s: &Session, id: u32) -> Result<(), OpError> {
         Err(OpError::SystemNotAdded(id))
     } else {
         Err(OpError::UnknownSystem(id))
+    }
+}
+
+/// Refuse a system that lists a planet the save held when it was opened: removing the
+/// system would leave that planet in no system.
+fn check_own_bodies(s: &Session, id: u32) -> Result<(), OpError> {
+    let held = bodies(&s.doc, id)?
+        .into_iter()
+        .find(|&planet| s.doc.added().get(EntityKind::Planet, planet).is_none());
+    match held {
+        Some(planet) => Err(OpError::HoldsSavePlanet { system: id, planet }),
+        None => Ok(()),
     }
 }
 

@@ -1,0 +1,82 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; set the inner radius of system #216 from 230 to 291.02
+inverse: Batch { description: "Undo of \"Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; set the inner radius of system #216 from 230 to 291.02\"", ops: [MoveSavePlanet { planet: 99, to: 140, at: Some(OrbitPlacement { radius: 145.067951161, angle: 65.775205382 }) }, SetSaveInnerRadius { system: 216, radius: 230.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -38912,9 +38912,6 @@
+ 		planet=96
+ 		planet=97
+ 		planet=98
+-		planet=99
+-		planet=100
+-		planet=101
+ 		ambient_object=
+ 		{
+ 			1 339 
+@@ -44384,6 +44381,9 @@
+ 		planet=39
+ 		planet=40
+ 		planet=41
++		planet=99
++		planet=100
++		planet=101
+ 		ambient_object=
+ 		{
+ 			0 333 
+@@ -44441,8 +44441,8 @@
+ 		{
+ 			329 
+ 		}
+-		inner_radius=230
+-		outer_radius=330
++		inner_radius=291.02108
++		outer_radius=391.02108
+ 		starbases=
+ 		{
+ 			4294967295 53 
+@@ -84153,11 +84153,11 @@
+ 			binary_flags=328
+ 			coordinate=
+ 			{
+-				x=59.52395
+-				y=132.29365
+-				origin=140
++				x=100.93816
++				y=224.33789
++				origin=216
+ 			}
+-			orbit=145
++			orbit=246
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+@@ -84206,9 +84206,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=69.50245
+-				y=131.29375
+-				origin=140
++				x=110.91666
++				y=223.33799
++				origin=216
+ 			}
+ 			orbit=10
+ 			last_bombardment=			"0.01.01"
+@@ -84256,9 +84256,9 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=44.92505
+-				y=135.8299
+-				origin=140
++				x=86.33926
++				y=227.87414
++				origin=216
+ 			}
+ 			orbit=15
+ 			last_bombardment=			"0.01.01"

@@ -136,6 +136,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         }),
         // A scenario's bodies and belts come from its initializers, which the game data holds.
         Op::MoveSaveBody { .. }
+        | Op::MoveSavePlanet { .. }
         | Op::SetSaveBodyParent { .. }
         | Op::SetPlanetRing { .. }
         | Op::AddSaveBelt { .. }

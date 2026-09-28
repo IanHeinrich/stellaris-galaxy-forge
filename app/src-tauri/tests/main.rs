@@ -7,6 +7,7 @@ mod capabilities;
 mod edit;
 mod gamedata;
 mod listing;
+mod move_planet;
 mod nebula;
 mod scenario;
 mod session;

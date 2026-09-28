@@ -1,4 +1,5 @@
-//! Reading the open document: a system, one entity's bytes, and search.
+//! Reading the open document: a system, one entity's bytes, search, and where save planets
+//! may move.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
@@ -6,8 +7,11 @@ use std::sync::Arc;
 use sgf_core::entity::{
     self, EntityAddr, EntityKind, EntitySchema, EntitySource, EntityView, PlanetPage,
 };
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::GalaxyGraph;
-use sgf_core::views::{SearchResult, SgfError, SystemDetail};
+use sgf_core::views::{
+    OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SearchResult, SgfError, SystemDetail,
+};
 use sgf_gamedata::GameData;
 use sgf_gamedata::special::{self, SpecialKind};
 use tauri::State;
@@ -51,6 +55,44 @@ pub fn get_planet_page(state: State<'_, AppState>, id: u32) -> Result<PlanetPage
     let guard = lock(&state);
     let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
     Ok(entity::get_planet_page(&session.doc, id)?)
+}
+
+/// Where the save planets `planets` may move together, and which of them cannot move.
+#[tauri::command(async)]
+pub fn planet_move_targets(
+    state: State<'_, AppState>,
+    planets: Vec<u32>,
+) -> Result<PlanetMoveTargets, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    Ok(session.planet_move_targets(&planets))
+}
+
+/// Why moving `planets` to system `to` would be refused, or else the colonies and stations
+/// it takes into another country's system. The session is left as it was.
+#[tauri::command(async)]
+pub fn planet_move_check(
+    state: State<'_, AppState>,
+    planets: Vec<u32>,
+    to: u32,
+    at: Option<OrbitPlacement>,
+) -> Result<PlanetMoveCheck, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    Ok(session.planet_move_check(&planets, to, at))
+}
+
+/// The op that moves `planets` to system `to`, for `apply_op`.
+#[tauri::command(async)]
+pub fn planet_move_op(
+    state: State<'_, AppState>,
+    planets: Vec<u32>,
+    to: u32,
+    at: Option<OrbitPlacement>,
+) -> Result<Op, SgfError> {
+    let guard = lock(&state);
+    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+    Ok(session.planet_move_op(&planets, to, at)?)
 }
 
 /// The fields the Data tab labels for a kind; unknown keys render raw.

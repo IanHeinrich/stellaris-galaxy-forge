@@ -1,6 +1,6 @@
 //! The editing commands that apply ops as the arguments give them (`move`, `move-nebula`,
-//! `nebula`, `header`, `lane`, `spawn`, `isolate`, `star`, `planet-size`, `deposit`): the
-//! ops, then a save.
+//! `nebula`, `header`, `lane`, `spawn`, `isolate`, `star`, `move-planet`, `planet-size`,
+//! `deposit`): the ops, then a save.
 
 use std::path::Path;
 
