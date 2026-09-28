@@ -60,6 +60,42 @@ GalaxySettings {
     end_game_start: Some(
         225,
     ),
+    victory_year: Some(
+        1050,
+    ),
+    cosmic_storm_early_game_spawn_chance_scale: Some(
+        1.0,
+    ),
+    cosmic_storm_mid_game_spawn_chance_scale: Some(
+        5.0,
+    ),
+    cosmic_storm_late_game_spawn_chance_scale: Some(
+        1.0,
+    ),
+    cosmic_storm_early_game_spawn_max_cap: Some(
+        2,
+    ),
+    cosmic_storm_mid_game_spawn_max_cap: Some(
+        5,
+    ),
+    cosmic_storm_late_game_spawn_max_cap: Some(
+        8,
+    ),
+    cosmic_storm_spawn_cooldown_scale: Some(
+        1.0,
+    ),
+    cosmic_storm_devastation: Some(
+        1.0,
+    ),
+    voidworms_scaling: Some(
+        1.0,
+    ),
+    cutholoids_scaling: Some(
+        1.0,
+    ),
+    fallen_empire_strength_scale: Some(
+        1.0,
+    ),
     ironman: Some(
         false,
     ),

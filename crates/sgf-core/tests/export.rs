@@ -141,6 +141,12 @@ static_galaxy_scenario = {{
         .map(|c| (c.category, c.systems))
         .collect();
     assert_eq!(by_category[&Category::Home], seats as u32);
+    assert_eq!(
+        by_category[&Category::FallenEmpire],
+        24,
+        "the Contingency hubs are no fallen empire's"
+    );
+    assert_eq!(by_category[&Category::Special], 65);
     assert_eq!(by_category.values().sum::<u32>(), 791);
     assert!(
         report

@@ -164,7 +164,16 @@ export function specialSystemOfCountry(
 }
 
 /** The kinds the Points of interest tab lists: the country-shaped ones live in Empires. */
-export const POINT_KINDS = ["leviathan", "enclave", "landmark", "unique"] as const;
+export const POINT_KINDS = [
+  "leviathan",
+  "enclave",
+  "landmark",
+  "holy_world",
+  "contingency",
+  "horizon_signal",
+  "cutholoid",
+  "unique",
+] as const;
 
 export type PointKind = (typeof POINT_KINDS)[number];
 
@@ -172,6 +181,10 @@ const POINT_LABELS: Record<PointKind, string> = {
   leviathan: "Leviathans",
   enclave: "Enclaves",
   landmark: "Galactic landmarks",
+  holy_world: "Holy worlds",
+  contingency: "Contingency hubs",
+  horizon_signal: "Horizon Signal",
+  cutholoid: "Hidden Cutholoids",
   unique: "Scripted systems",
 };
 

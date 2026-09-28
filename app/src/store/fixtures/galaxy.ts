@@ -78,6 +78,8 @@ export const OPEN_RESULT: OpenResult & { path: string } = {
     header: [],
     components: 2,
     lgate: null,
+    settings: null,
+    kaleidoscope: false,
   },
   issues: [
     {

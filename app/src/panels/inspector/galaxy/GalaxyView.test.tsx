@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HeaderField } from "../../../generated/HeaderField";
 import type { LGateModTouch } from "../../../generated/LGateModTouch";
 import type { LGateOutcome } from "../../../generated/LGateOutcome";
+import type { GalaxySettings } from "../../../generated/GalaxySettings";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
@@ -38,6 +39,7 @@ import {
   SCRIPTS_LINE_TITLE,
   SHAPES_TITLE,
 } from "./gameSetup";
+import { KALEIDOSCOPE_VALUE } from "./saveSetup";
 import { addHeaderField, DUPLICATE_KEY_TITLE, removeHeaderField, setHeaderField } from "./header";
 import { mockedIpc } from "../../../test/ipc";
 
@@ -491,5 +493,78 @@ describe("the L-Gate outcome", () => {
   it("says nothing when the galaxy has no L-Gate", async () => {
     await open("save");
     expect(galaxy()).not.toContain('aria-label="L-Gate"');
+  });
+});
+
+describe("what day one rolled and set up", () => {
+  /** The 4.4 sample's settings, less the storm devastation, with other scalings. */
+  const SETTINGS: GalaxySettings = {
+    template: "large",
+    shape: "elliptical",
+    num_empires: 13,
+    num_advanced_empires: 0,
+    num_fallen_empires: 3,
+    num_marauder_empires: 2,
+    num_nomad_empires: 2,
+    habitability: 0.25,
+    primitive: 0.25,
+    resource_abundance: 2,
+    num_gateways: 1,
+    num_wormhole_pairs: 1,
+    num_hyperlanes: 0.75,
+    difficulty: "commodore",
+    scaling: "scaling_off",
+    ironman: false,
+    core_radius: 112.5,
+    crisis_type: "all",
+    crises: 5,
+    mid_game_start: 150,
+    end_game_start: 225,
+    victory_year: 1050,
+    cosmic_storm_early_game_spawn_chance_scale: 1,
+    cosmic_storm_mid_game_spawn_chance_scale: 5,
+    cosmic_storm_late_game_spawn_chance_scale: 1,
+    cosmic_storm_early_game_spawn_max_cap: 2,
+    cosmic_storm_mid_game_spawn_max_cap: 5,
+    cosmic_storm_late_game_spawn_max_cap: 8,
+    cosmic_storm_spawn_cooldown_scale: 1,
+    cosmic_storm_devastation: null,
+    voidworms_scaling: 1,
+    cutholoids_scaling: 0.5,
+    fallen_empire_strength_scale: 2,
+  };
+
+  it("says the Kaleidoscope will appear only when the roll set its flag", async () => {
+    await openWith(OPEN_RESULT, { galaxy: { kaleidoscope: true } });
+    expect(galaxy()).toContain(`>Kaleidoscope</span><span>${KALEIDOSCOPE_VALUE}</span>`);
+
+    await openWith(OPEN_RESULT);
+    expect(galaxy()).not.toContain(">Kaleidoscope<");
+  });
+
+  it("lists the settings the game keeps reading, read-only, and skips a key the save lacks", async () => {
+    await openWith(OPEN_RESULT, { galaxy: { settings: SETTINGS } });
+    const html = galaxy();
+    for (const [label, value] of [
+      ["Crisis", "All · 5×"],
+      ["Mid-game year", "2350"],
+      ["End-game year", "2425"],
+      ["Victory year", "3250"],
+      ["Cosmic storm chance (early · mid · late)", "1× · 5× · 1×"],
+      ["Cosmic storm cap (early · mid · late)", "2 · 5 · 8"],
+      ["Cosmic storm cooldown", "1×"],
+      ["Voidworm scaling", "1×"],
+      ["Cutholoid scaling", "0.5×"],
+      ["Fallen empire strength", "2×"],
+    ]) {
+      expect(html).toContain(`>${label}</span><span>${value}</span>`);
+    }
+    expect(html).not.toContain("Cosmic storm devastation");
+    expect(html).not.toContain("<input");
+  });
+
+  it("shows no setup on a scenario's page beyond its header grid", async () => {
+    await open("scenario");
+    expect(galaxy()).not.toContain("Victory year");
   });
 });
