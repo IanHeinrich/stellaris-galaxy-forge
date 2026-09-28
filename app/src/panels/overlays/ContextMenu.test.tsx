@@ -786,11 +786,11 @@ describe("moving planets", () => {
     openOn({ kind: "system", id: BARNARD });
     html = menu();
     expect(buttons(html)[0]).toBe(
-      "Paste 2 planets here ⚠ Mars will pass to Hissman Consciousness about a month after you load (and 1 more)",
+      "Paste 2 planets here ⚠ Mars will change ownership to Hissman Consciousness about a month after you load (and 1 more)",
     );
     expect(html).toContain(
-      'title="Mars will pass to Hissman Consciousness about a month after you load\n' +
-        'Earth&#x27;s station will pass to Hissman Consciousness"',
+      'title="Mars will change ownership to Hissman Consciousness about a month after you load\n' +
+        'Earth&#x27;s station will change ownership to Hissman Consciousness"',
     );
     expect(html).toContain('<span class="warn">⚠ ');
 

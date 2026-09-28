@@ -289,9 +289,9 @@ so one undo puts it all back.
   furnace, and occupied planets can't be moved.
 
 You can move a colony or a station into another empire's system. The
-game hands it to that empire. A station changes hands as soon as the
-save loads, and a colony about a month later through an event. The
-Paste item warns you when this will happen. A colony moved into space
+game changes its ownership to that empire. A station changes owner as
+soon as the save loads, and a colony about a month later through an
+event. The Paste item warns you when this will happen. A colony moved into space
 no one owns stays yours.
 
 To move a single planet, you can also use the System field on its page.

@@ -78,17 +78,17 @@ describe("labels", () => {
 describe("warnings and refusals", () => {
   it("words a colony and a station passing to another empire", () => {
     expect(warningText(colony, NAMES)).toBe(
-      "Kortol's Station will pass to Hissman Consciousness about a month after you load",
+      "Kortol's Station will change ownership to Hissman Consciousness about a month after you load",
     );
     expect(warningText(station, NAMES)).toBe(
-      "Meissa II's station will pass to Hissman Consciousness",
+      "Meissa II's station will change ownership to Hissman Consciousness",
     );
   });
 
   it("shows the first warning with the count, and lists them all", () => {
     const all = [colony, station, research];
     expect(warningLine(all, NAMES)).toBe(
-      "Kortol's Station will pass to Hissman Consciousness about a month after you load (and 2 more)",
+      "Kortol's Station will change ownership to Hissman Consciousness about a month after you load (and 2 more)",
     );
     expect(warningLines(all, NAMES)).toHaveLength(3);
     expect(warningLine([], NAMES)).toBeNull();

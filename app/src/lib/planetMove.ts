@@ -96,8 +96,8 @@ export function warningText(warning: PlanetMoveWarning, names: WarningNames): st
   const planet = names.planet(warning.planet);
   const country = names.country(warning.new_owner);
   return warning.kind === "colony"
-    ? `${planet} will pass to ${country} about a month after you load`
-    : `${planet}'s station will pass to ${country}`;
+    ? `${planet} will change ownership to ${country} about a month after you load`
+    : `${planet}'s station will change ownership to ${country}`;
 }
 
 /** Every warning, one line each, as the hover lists them. */

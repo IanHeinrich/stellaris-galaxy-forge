@@ -18,9 +18,10 @@ a release is made.
     with it. Other fleets stay where they are.
   - In the system view, a single planet lands where you right-click.
   - A moon moved on its own becomes a planet.
-  - A colony or station moved into another empire's system passes to
-    that empire in game. A station passes when the save loads, and a
-    colony about a month later. The paste menu warns you first.
+  - A colony or station moved into another empire's system changes
+    ownership to that empire in game. A station changes owner when the
+    save loads, and a colony about a month later. The paste menu warns
+    you first.
   - The planet page has a System field for moving one planet.
   - Stars, planets with a megastructure and occupied planets can't be
     moved.

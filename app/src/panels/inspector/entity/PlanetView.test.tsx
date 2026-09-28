@@ -860,11 +860,11 @@ describe("the System field", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnBy(() => field(read));
     drawnField(ComboField, "System").onPick("3");
-    await vi.waitFor(() => expect(field(read)).toContain("station will pass to"));
+    await vi.waitFor(() => expect(field(read)).toContain("station will change ownership to"));
 
     mockedIpc.applyOp.mockResolvedValue(editResult({ history: { undo: [], redo: [] } }));
     await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
-    expect(field(read)).not.toContain("station will pass to");
+    expect(field(read)).not.toContain("station will change ownership to");
   });
 
   it("says so when the core could not say where the planet can move", async () => {
