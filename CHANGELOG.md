@@ -34,7 +34,7 @@ a release is made.
   Atomic Age.
 - Rename a save's planets on their page. Moons named after the planet
   follow the new name.
-- Change an uncolonised planet's size on its page. Add or remove any
+- Change a planet's size on its page, colonies included. Add or remove any
   planet's deposits there, colonies included. Add deposit, under the deposit list, opens a list of every
   deposit type with the ones the game places on that planet first.
   Search by name, resource or category, or pick a category such as
