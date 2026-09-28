@@ -8,8 +8,34 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-28
+
 ### Added
 
+- Edit a save's planets on their page.
+  - Rename a planet. Moons named after it follow the new name.
+  - Change an uncolonised planet's size.
+  - Add or remove deposits and blockers on any planet, colonies
+    included. Add deposit and Add blocker list every type, with the
+    ones the game places on that planet first. Search by name or
+    resource, or pick a category such as Energy or Strategic. Deposits
+    of one resource share a row, with a button per amount. The list
+    stays open, so you can add several in one go.
+  - On a colony, the page says what the game will take away within a
+    month before you confirm. That can be districts over a lowered cap,
+    a building or zone that needed the deposit, or a blocker's clearing.
+    What was spent on the clearing isn't refunded.
+  - A mining or research station over a removed deposit stays in game
+    and still costs about 1 energy a month.
+  - In a Stellaris 4.x save, add or remove modifiers and planet
+    features. Search by name or effect, or pick a category. A modifier
+    can be permanent or last a number of days.
+- A planet's page shows the anomaly waiting on it, and which empires
+  have found it.
+- Rename an empire from the Name field at the top of its page. Renaming
+  your own empire also renames the save on the game's load screen.
+- A pre-FTL civilisation's page shows its age, such as Stone Age or
+  Atomic Age.
 - With Details on, the system view shows which planets are colonised.
   A colony's name has its owner's flag on the game's name plate, as
   systems have on the galaxy map. A pre-FTL world shows the pre-FTL
@@ -25,34 +51,8 @@ a release is made.
   - The system page names them at the top of its Flags section.
 - The galaxy page of a save shows its game setup: the crisis, the
   mid-game, end-game and victory years, the cosmic storm settings,
-  voidworm and Cutholoid scaling, and fallen empire strength.
-- The galaxy page of a save has a Kaleidoscope row when the Kaleidoscope
-  will appear in that game.
-- Rename an empire from the Name field at the top of its page. Renaming
-  your own empire also renames the save on the game's load screen.
-- A pre-FTL civilisation's page shows its age, such as Stone Age or
-  Atomic Age.
-- Rename a save's planets on their page. Moons named after the planet
-  follow the new name.
-- Change an uncolonised planet's size on its page. Add or remove any
-  planet's deposits there, colonies included. Add deposit, under the deposit list, opens a list of every
-  deposit type with the ones the game places on that planet first.
-  Search by name, resource or category, or pick a category such as
-  Energy or Strategic. Deposits of one resource share a row with a
-  button per amount. Add blocker, under the blockers, does the same for
-  blockers. Both lists stay open, so you can add several in one go.
-  A mining or research station over a removed deposit stays in game and
-  still costs about 1 energy a month. On a colony, the page says what
-  the game will take away within a month before you confirm. That can
-  be districts over a lowered cap, a building or zone that needed the
-  deposit, or a blocker's clearing and what was spent on it.
-- A planet's page shows the anomaly waiting on it, and which empires
-  have found it.
-- In a Stellaris 4.x save, a planet's Modifiers section can add and
-  remove modifiers. Add modifier lists the modifiers that act on a
-  planet, its pops or its jobs, with search and category chips. A
-  modifier can be permanent or last a number of days. Planet features
-  are added the way the game writes them.
+  voidworm and Cutholoid scaling, and fallen empire strength. It has a
+  Kaleidoscope row when the Kaleidoscope will appear in that game.
 
 ### Changed
 
