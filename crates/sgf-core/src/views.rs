@@ -303,6 +303,76 @@ pub struct SearchResult {
     pub systems: Vec<u32>,
 }
 
+/// Where a save planet goes in its new system: `radius` from the centre at `angle`
+/// degrees.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct OrbitPlacement {
+    pub radius: f64,
+    pub angle: f64,
+}
+
+/// Where a set of save planets may move together.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetMoveTargets {
+    /// The planets asked for, in order, without repeats and without a body whose parent is
+    /// also among them, since it moves with its parent.
+    pub planets: Vec<u32>,
+    /// The planets that cannot move to any system, with why.
+    pub refused: Vec<PlanetRefusal>,
+    /// Every system all of `planets` may move to, by id: each system with bodies but the
+    /// ones they stand in. Empty when one is refused.
+    pub systems: Vec<PlanetMoveTarget>,
+}
+
+/// A system a set of planets may move to, and what the game changes when they arrive.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetMoveTarget {
+    pub system: u32,
+    pub warnings: Vec<PlanetMoveWarning>,
+}
+
+/// A colony or station that a move takes into a system another country owns, which the
+/// game then hands to that country.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetMoveWarning {
+    /// The moved body with the colony or station.
+    pub planet: u32,
+    pub kind: PlanetMoveWarningKind,
+    /// The colony's owner, or the country that controls the body through its station.
+    pub owner: u32,
+    /// The owner of the system it moves to.
+    pub new_owner: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanetMoveWarningKind {
+    Colony,
+    Station,
+}
+
+/// What a move of a set of planets to one system meets: its refusal, or else its
+/// warnings.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetMoveCheck {
+    pub refusal: Option<String>,
+    pub warnings: Vec<PlanetMoveWarning>,
+}
+
+/// A planet that cannot move, and the refusal a move of it gets.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetRefusal {
+    pub planet: u32,
+    pub reason: String,
+}
+
 /// Systems re-projected by an op; the map replaces its copy of each.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
 #[ts(export)]

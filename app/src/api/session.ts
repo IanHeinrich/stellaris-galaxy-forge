@@ -18,6 +18,9 @@ import type { FeZone } from "../generated/FeZone";
 import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
+import type { OrbitPlacement } from "../generated/OrbitPlacement";
+import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
+import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
@@ -132,6 +135,32 @@ export function getEntitySource(addr: EntityAddr): Promise<EntitySource> {
 /** A save body's own Overview. Rejects with `not_found` on a scenario or for an absent planet. */
 export function getPlanetPage(id: number): Promise<PlanetPage> {
   return invoke<PlanetPage>("get_planet_page", { id });
+}
+
+/** Where the save planets may move together, and which of them cannot move. */
+export function planetMoveTargets(planets: number[]): Promise<PlanetMoveTargets> {
+  return invoke<PlanetMoveTargets>("planet_move_targets", { planets });
+}
+
+/**
+ * Why moving `planets` to system `to` would be refused, or else the colonies and stations it takes
+ * into another country's system.
+ */
+export function planetMoveCheck(
+  planets: number[],
+  to: number,
+  at: OrbitPlacement | null = null,
+): Promise<PlanetMoveCheck> {
+  return invoke<PlanetMoveCheck>("planet_move_check", { planets, to, at });
+}
+
+/** The op that moves `planets` to system `to`, the first at `at` when given, for `applyOp`. */
+export function planetMoveOp(
+  planets: number[],
+  to: number,
+  at: OrbitPlacement | null = null,
+): Promise<Op> {
+  return invoke<Op>("planet_move_op", { planets, to, at });
 }
 
 /** The labelled fields of a kind; keys outside it render raw. */

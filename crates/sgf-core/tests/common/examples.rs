@@ -458,6 +458,7 @@ pub fn one_of_each() -> Vec<Example> {
         Example::save_4_5(Op::MoveSavePlanet {
             planet: 99,
             to: 216,
+            at: None,
         }),
         Example::each(
             Op::Batch {

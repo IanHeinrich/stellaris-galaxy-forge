@@ -204,7 +204,9 @@ impl Format for Save {
                 radius,
                 angle,
             } => bodies::plan_move(plan, s, *system, *body, *radius, *angle),
-            Op::MoveSavePlanet { planet, to } => move_planet::plan_move(plan, s, *planet, *to),
+            Op::MoveSavePlanet { planet, to, at } => {
+                move_planet::plan_move(plan, s, *planet, *to, *at)
+            }
             Op::SetSaveBodyParent {
                 system,
                 body,

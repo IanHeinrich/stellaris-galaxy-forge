@@ -177,11 +177,16 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Move a save planet and its moons to another system.
+    /// Move a save planet and its moons to another system: to `--radius` from its centre
+    /// at `--angle` degrees, or else to the next free outer orbit.
     MovePlanet {
         sav: PathBuf,
         planet: u32,
         system: u32,
+        #[arg(long, requires = "angle")]
+        radius: Option<f64>,
+        #[arg(long, requires = "radius", allow_negative_numbers = true)]
+        angle: Option<f64>,
         #[command(flatten)]
         out: OutArg,
     },

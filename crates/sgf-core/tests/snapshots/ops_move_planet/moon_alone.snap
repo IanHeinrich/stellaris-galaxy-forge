@@ -1,0 +1,67 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved moon #100 from system #140 to system #216 as a planet, at orbit 231; set the inner radius of system #216 from 230 to 261
+inverse: Batch { description: "Undo of \"Moved moon #100 from system #140 to system #216 as a planet, at orbit 231; set the inner radius of system #216 from 230 to 261\"", ops: [MoveSavePlanet { planet: 100, to: 140, at: Some(OrbitPlacement { radius: 148.555172731, angle: 62.104776167 }) }, SetSaveInnerRadius { system: 216, radius: 230.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -38913,7 +38913,6 @@
+ 		planet=97
+ 		planet=98
+ 		planet=99
+-		planet=100
+ 		planet=101
+ 		ambient_object=
+ 		{
+@@ -44384,6 +44383,7 @@
+ 		planet=39
+ 		planet=40
+ 		planet=41
++		planet=100
+ 		ambient_object=
+ 		{
+ 			0 333 
+@@ -44441,8 +44441,8 @@
+ 		{
+ 			329 
+ 		}
+-		inner_radius=230
+-		outer_radius=330
++		inner_radius=261
++		outer_radius=361
+ 		starbases=
+ 		{
+ 			4294967295 53 
+@@ -84161,7 +84161,7 @@
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				100 101 
++				101 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -84203,16 +84203,15 @@
+ 			{
+ 				key="LITHOID1_PLANET_OterrArrek"
+ 			}
+-			binary_flags=584
++			binary_flags=72
+ 			coordinate=
+ 			{
+-				x=69.50245
+-				y=131.29375
+-				origin=140
++				x=108.07477
++				y=204.15887
++				origin=216
+ 			}
+-			orbit=10
++			orbit=231
+ 			last_bombardment=			"0.01.01"
+-			moon_of=99
+ 			planet_orbitals=
+ 			{
+ 			}

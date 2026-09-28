@@ -2,6 +2,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use sgf_core::ops::Op;
+use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
 
 mod cli;
@@ -198,11 +199,19 @@ fn run(cli: Cli) -> commands::Run {
             sav,
             planet,
             system,
+            radius,
+            angle,
             out,
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::MoveSavePlanet { planet, to: system },
+            Op::MoveSavePlanet {
+                planet,
+                to: system,
+                at: radius
+                    .zip(angle)
+                    .map(|(radius, angle)| OrbitPlacement { radius, angle }),
+            },
         ),
         Some(Command::PlanetSize {
             sav,
