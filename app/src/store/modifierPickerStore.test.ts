@@ -10,6 +10,7 @@ import { planetPage } from "../test/builders";
 import { bindStores } from "./bindStores";
 import { editResult } from "./fixture";
 import { useModifierPickerStore } from "./modifierPickerStore";
+import { planetPickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
 
@@ -32,28 +33,27 @@ const CHOICES: ModifierChoice[] = [
   },
 ];
 
-const ROW = modifierPickRows(CHOICES, planetPage(), null, () => "")[0];
+const ROW = modifierPickRows(CHOICES, [], null, () => "")[0];
+const TARGET = planetPickerTarget(planetPage({ id: 40 }), false);
 
 beforeEach(() => {
   resetStores();
-  useModifierPickerStore.getState().close();
-  useModifierPickerStore.setState({ days: null });
   useGameDataStore.setState({ status: "ready" });
   mockedIpc.getModifierChoices.mockResolvedValue(CHOICES);
 });
 
 describe("the modifier picker", () => {
   it("reads the modifiers once while open", async () => {
-    useModifierPickerStore.getState().open(40);
+    useModifierPickerStore.getState().open(TARGET);
     await vi.waitFor(() => expect(useModifierPickerStore.getState().choices).toEqual(CHOICES));
-    useModifierPickerStore.getState().open(40);
+    useModifierPickerStore.getState().open(TARGET);
     expect(mockedIpc.getModifierChoices).toHaveBeenCalledTimes(1);
-    expect(useModifierPickerStore.getState().planet).toBe(40);
+    expect(useModifierPickerStore.getState().target?.key).toBe("save-planet:40");
   });
 
   it("adds for the days set, stays open with its search, and says what it added", async () => {
     const store = useModifierPickerStore.getState();
-    store.open(40);
+    store.open(TARGET);
     store.setQuery("poor");
     store.setDays(360);
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -66,8 +66,8 @@ describe("the modifier picker", () => {
       feature: "pm_mineral_poor",
     });
     const after = useModifierPickerStore.getState();
-    expect([after.planet, after.query, after.added]).toEqual([
-      40,
+    expect([after.target?.key, after.query, after.added]).toEqual([
+      "save-planet:40",
       "poor",
       "Added Mineral Poor for 360 days",
     ]);

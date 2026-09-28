@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { PlanetPage } from "../../../generated/PlanetPage";
+import { useEffect, useMemo } from "react";
 import {
   amountText,
   blockerChips,
@@ -9,18 +8,19 @@ import {
   type DepositRow,
   type PickerMode,
 } from "../../../lib/details/depositPicker";
-import { addWarnings } from "../../../lib/details/depositWarnings";
+import type { PickerTarget } from "../../../lib/details/picker";
 import { resourceAbbrev } from "../../../lib/details/resources";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { ENTER, ESCAPE } from "../../keys";
 import { Icon } from "../../parts";
-import { useOutsidePress } from "../../useOutsidePress";
+import { PickerMenu, PickerOpener, type PickerItem } from "./PickerMenu";
 
 export const PICKER_NEEDS_GAME_DATA = "Adding a deposit needs the game data";
 export const READING_CHOICES = "Reading the deposit types…";
 export const NONE_MATCH = "No deposit type matches";
+
+/** What the game will take away for adding the deposit type `key`, for the user to confirm. */
+export type DepositWarnings = (key: string) => readonly string[];
 
 /** What each picker's button says, and its hover text. */
 const OPENERS: Record<PickerMode, { label: string; title: string }> = {
@@ -34,268 +34,123 @@ const OPENERS: Record<PickerMode, { label: string; title: string }> = {
   },
 };
 
-/** Where the keyboard stands in the list: a row, and one of its amounts. */
-interface Cursor {
-  row: number;
-  amount: number;
+/** A deposit family's row: its art, its resources, and a button per amount. */
+function depositItem(row: DepositRow): PickerItem {
+  const view = row.view;
+  return {
+    key: row.family,
+    label: row.label,
+    gives: row.gives,
+    description: row.description,
+    art: view !== undefined && <Icon className="pl-art" keys={[view.texture_key]} glyph="" />,
+    yields: view?.yields.map((y) => (
+      <Icon
+        key={y.resource}
+        className="gi"
+        keys={y.icon === null ? [] : [y.icon]}
+        glyph={resourceAbbrev(y.resource)}
+      />
+    )),
+    buttons: row.amounts.map((amount) => ({
+      text: amountText(amount),
+      label: `Add ${amount.amount === null ? "" : `${amountText(amount)} `}${row.label}`,
+      title: amount.title,
+    })),
+  };
 }
 
-function PickerRow({
-  row,
-  id,
-  cursor,
-  onAdd,
-}: {
-  row: DepositRow;
-  id: string;
-  /** The amount the keyboard stands on, when it stands on this row. */
-  cursor: number | null;
-  onAdd: (amount: number) => void;
-}) {
-  const view = row.view;
+/** What the game will take away for the add waiting on it, and the buttons that make or drop it. */
+function PendingConfirm({ warnings }: { warnings: readonly string[] }) {
+  const store = useDepositPickerStore.getState();
   return (
-    <div
-      id={id}
-      className={`dp-row${row.amounts.length > 1 ? " family" : ""}${cursor === null ? "" : " active"}`}
-      title={row.description ?? undefined}
-    >
-      <span className="dp-art">
-        {view !== undefined && <Icon className="pl-art" keys={[view.texture_key]} glyph="" />}
-      </span>
-      <span className="dp-text">
-        <span className="l1">{row.label}</span>
-        <span className="l2">
-          {view?.yields.map((y) => (
-            <Icon
-              key={y.resource}
-              className="gi"
-              keys={y.icon === null ? [] : [y.icon]}
-              glyph={resourceAbbrev(y.resource)}
-            />
-          ))}
-          {row.gives === "" ? <span className="muted">No effect</span> : row.gives}
-        </span>
-      </span>
-      <span className="dp-amounts">
-        {row.amounts.map((amount, i) => (
-          <button
-            key={amount.key}
-            type="button"
-            className={`dp-amount${cursor === i ? " active" : ""}`}
-            aria-label={`Add ${amount.amount === null ? "" : `${amountText(amount)} `}${row.label}`}
-            title={amount.title}
-            onClick={() => onAdd(i)}
-          >
-            {amountText(amount)}
-          </button>
-        ))}
+    <div className="dp-confirm" role="alert">
+      {warnings.map((warning) => (
+        <span key={warning}>{warning}</span>
+      ))}
+      <span className="pl-dep-confirm-actions">
+        <button type="button" className="dp-amount" onClick={() => void store.confirm()}>
+          Add anyway
+        </button>
+        <button type="button" className="dp-amount" onClick={() => store.cancel()}>
+          Cancel
+        </button>
       </span>
     </div>
   );
 }
 
 /**
- * The open picker: a search, the chips (categories for deposits, clearing techs for blockers), a
- * line saying what was added, and one row per deposit family with a button per amount. It stays open after an add; Escape, Done or a press
- * outside closes it. Typing goes to the search, the arrows move between rows and amounts, and
- * Enter adds the amount they stand on.
+ * The open picker, with the chips: categories for deposits, clearing techs for blockers. One row
+ * per deposit family has a button per amount, and Left and Right step between them.
  */
-function DepositPopover({
-  page,
-  moon,
+function DepositMenu({
+  target,
   mode,
+  warnings,
 }: {
-  page: PlanetPage;
-  moon: boolean;
+  target: PickerTarget;
   mode: PickerMode;
+  warnings?: DepositWarnings;
 }) {
-  const store = useDepositPickerStore.getState();
   const query = useDepositPickerStore((s) => s.query);
   const chip = useDepositPickerStore((s) => s.chip);
-  const added = useDepositPickerStore((s) => s.added);
   const pending = useDepositPickerStore((s) => s.pending);
-  const names = useGameDataStore((s) => s.names);
   const choices = useDepositPickerStore((s) => s.choices);
   const views = usePlanetDataStore((s) => s.depositTypes);
-  const root = useRef<HTMLDivElement>(null);
-  const search = useRef<HTMLInputElement>(null);
-  const [cursor, setCursor] = useState<Cursor>({ row: 0, amount: 0 });
-  useOutsidePress(true, () => useDepositPickerStore.getState().close(), root);
-  useEffect(() => search.current?.focus(), []);
-  useEffect(() => useDepositPickerStore.getState().open(page, moon, mode), [page, moon, mode]);
+  useEffect(() => useDepositPickerStore.getState().open(target, mode), [target, mode]);
 
   const rows = useMemo(
     () => (choices === null ? null : depositRows(choices.list, views, mode)),
     [choices, views, mode],
   );
-  const sections = rows === null ? [] : depositSections(rows, chip, query);
-  const chips = mode === "deposits" ? DEPOSIT_CHIPS : blockerChips(rows ?? []);
-  const flat = sections.flatMap((s) => s.rows);
-  const at = Math.min(cursor.row, flat.length - 1);
-  const rowId = (i: number) => `dp-row-${page.id}-${mode}-${i}`;
-  useEffect(() => {
-    document.getElementById(rowId(at))?.scrollIntoView?.({ block: "nearest" });
-  });
-
+  const blockers = mode === "blockers";
   const add = (row: DepositRow, amount: number) => {
     const picked = row.amounts[amount];
     if (picked !== undefined)
-      void store.add(row, picked, addWarnings(page, picked.key, views, names));
+      void useDepositPickerStore.getState().add(row, picked, warnings?.(picked.key));
   };
-  const onKey = (e: KeyboardEvent) => {
-    const inSearch = e.target === search.current;
-    const row = flat[at];
-    const move = (to: number) =>
-      setCursor({ row: Math.max(0, Math.min(to, flat.length - 1)), amount: 0 });
-    const step = (by: number) =>
-      row &&
-      setCursor({
-        row: at,
-        amount: Math.max(0, Math.min(cursor.amount + by, row.amounts.length - 1)),
-      });
-    if (e.key === ESCAPE) store.close();
-    else if (e.key === "ArrowDown") move(at + 1);
-    else if (e.key === "ArrowUp") move(at - 1);
-    else if (e.key === "ArrowRight" && !(inSearch && query !== "")) step(1);
-    else if (e.key === "ArrowLeft" && !(inSearch && query !== "")) step(-1);
-    else if (e.key === ENTER && inSearch && row !== undefined) add(row, cursor.amount);
-    else {
-      if (!inSearch && e.key.length === 1 && !e.ctrlKey && !e.metaKey) search.current?.focus();
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  let index = 0;
   return (
-    <div
-      className="dp"
-      ref={root}
-      role="group"
-      aria-label={mode === "blockers" ? "Add blockers" : "Add deposits"}
-      onKeyDown={onKey}
-    >
-      <div className="dp-head">
-        <input
-          ref={search}
-          type="search"
-          aria-label={mode === "blockers" ? "Search blockers" : "Search deposits"}
-          placeholder={
-            mode === "blockers" ? "Search name or effect" : "Search name, resource or category"
-          }
-          value={query}
-          onChange={(e) => {
-            store.setQuery(e.target.value);
-            setCursor({ row: 0, amount: 0 });
-          }}
-        />
-        <button type="button" className="dp-done" onClick={() => store.close()}>
-          Done
-        </button>
-      </div>
-      {chips.length > 0 && (
-        <div
-          className="dp-chips"
-          role="group"
-          aria-label={mode === "blockers" ? "Blocker filters" : "Deposit categories"}
-        >
-          {chips.map(({ chip: each, label }) => (
-            <button
-              key={each}
-              type="button"
-              className="dp-chip"
-              aria-pressed={chip === each}
-              onClick={() => {
-                store.setChip(each);
-                setCursor({ row: 0, amount: 0 });
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      {pending !== null && (
-        <div className="dp-confirm" role="alert">
-          {pending.warnings.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-          <span className="pl-dep-confirm-actions">
-            <button type="button" className="dp-amount" onClick={() => void store.confirm()}>
-              Add anyway
-            </button>
-            <button type="button" className="dp-amount" onClick={() => store.cancel()}>
-              Cancel
-            </button>
-          </span>
-        </div>
-      )}
-      {pending === null && added !== null && (
-        <div className="dp-added" role="status">
-          ✓ {added}
-        </div>
-      )}
-      <div className="dp-list">
-        {rows === null && <div className="dp-empty muted">{READING_CHOICES}</div>}
-        {rows !== null && flat.length === 0 && <div className="dp-empty muted">{NONE_MATCH}</div>}
-        {sections.map((section) => (
-          <div key={section.title}>
-            {section.title !== "" && (
-              <div className="dp-group">
-                {section.title} · {section.rows.length}
-              </div>
-            )}
-            {section.rows.map((row) => {
-              const i = index++;
-              return (
-                <PickerRow
-                  key={row.family}
-                  row={row}
-                  id={rowId(i)}
-                  cursor={i === at ? Math.min(cursor.amount, row.amounts.length - 1) : null}
-                  onAdd={(amount) => {
-                    setCursor({ row: i, amount });
-                    add(row, amount);
-                  }}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
+    <PickerMenu
+      usePicker={useDepositPickerStore}
+      name={blockers ? "Add blockers" : "Add deposits"}
+      searchName={blockers ? "Search blockers" : "Search deposits"}
+      placeholder={blockers ? "Search name or effect" : "Search name, resource or category"}
+      chips={blockers ? blockerChips(rows ?? []) : DEPOSIT_CHIPS}
+      chipsName={blockers ? "Blocker filters" : "Deposit categories"}
+      sections={rows === null ? null : depositSections(rows, chip, query)}
+      reading={READING_CHOICES}
+      noneMatch={NONE_MATCH}
+      idPrefix={`dp-row-${target.key}-${mode}`}
+      item={depositItem}
+      onAdd={add}
+      variants
+      notice={pending === null ? undefined : <PendingConfirm warnings={pending.warnings} />}
+    />
   );
 }
 
 /**
  * A picker's button, and the picker below it while open: `deposits` adds any deposit but a
- * blocker, `blockers` adds a blocker.
+ * blocker, `blockers` adds a blocker. `warnings`, where given, are confirmed before an add.
  */
 export function DepositPicker({
-  page,
-  moon,
+  target,
   mode,
+  warnings,
 }: {
-  page: PlanetPage;
-  moon: boolean;
+  target: PickerTarget;
   mode: PickerMode;
+  warnings?: DepositWarnings;
 }) {
-  const open = useDepositPickerStore((s) => s.planet === page.id && s.mode === mode);
-  const ready = useGameDataStore((s) => s.status === "ready");
-  if (open) return <DepositPopover page={page} moon={moon} mode={mode} />;
+  const open = useDepositPickerStore((s) => s.target?.key === target.key && s.mode === mode);
+  if (open) return <DepositMenu target={target} mode={mode} warnings={warnings} />;
   const opener = OPENERS[mode];
   return (
-    <div className="pl-dep-add">
-      <button
-        type="button"
-        className="edit-field dp-open"
-        disabled={!ready}
-        title={ready ? opener.title : PICKER_NEEDS_GAME_DATA}
-        onClick={() => useDepositPickerStore.getState().open(page, moon, mode)}
-      >
-        {opener.label}
-      </button>
-    </div>
+    <PickerOpener
+      label={opener.label}
+      title={opener.title}
+      needsGameData={PICKER_NEEDS_GAME_DATA}
+      onOpen={() => useDepositPickerStore.getState().open(target, mode)}
+    />
   );
 }

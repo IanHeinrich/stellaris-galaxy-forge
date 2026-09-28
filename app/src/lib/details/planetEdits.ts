@@ -1,11 +1,19 @@
-/** The edits a save body's page offers beside its star's: its name, its size and its deposits. */
+/**
+ * The edits a save body's page offers beside its star's: its name, its size, its deposits and its
+ * modifiers.
+ */
+import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { ModifierLineView } from "../../generated/ModifierLineView";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetPage } from "../../generated/PlanetPage";
 import type { StarClassView } from "../../generated/StarClassView";
 import { removalTarget } from "./depositWarnings";
+import type { ModifierRow } from "./planetPage";
 import { isStarBody } from "./starBody";
+
+/** Days for an item that never runs out. */
+export const PERMANENT = -1;
 
 /** The remove button's hover text on a deposit a station works. */
 export const STATION_STAYS =
@@ -25,6 +33,27 @@ export function renamePlanetOp(id: number, current: string, text: string): Op | 
 
 export function addDepositOp(planet: number, kind: string): Op {
   return { type: "AddSaveDeposit", planet, kind };
+}
+
+/** The edit that adds `choice` to planet `planet` for `days`, or for ever when `null`. */
+export function addModifierOp(planet: number, choice: ModifierChoice, days: number | null): Op {
+  return {
+    type: "AddPlanetModifier",
+    planet,
+    modifier: choice.modifier,
+    days: [days ?? PERMANENT],
+    ...(choice.feature === null ? {} : { feature: choice.feature }),
+  };
+}
+
+/** The edit that takes a row of the page's Modifiers list off planet `planet`. */
+export function removeModifierOp(planet: number, row: ModifierRow): Op {
+  return {
+    type: "RemovePlanetModifier",
+    planet,
+    modifier: row.modifier,
+    ...(row.feature ? { feature: row.key } : {}),
+  };
 }
 
 /**

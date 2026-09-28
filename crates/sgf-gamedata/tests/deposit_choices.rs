@@ -4,13 +4,12 @@
 
 use crate::common;
 
-use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice, deposit_choices};
-use sgf_gamedata::deposit_roll::RollBody;
+use sgf_gamedata::deposit_choices::{AskedBody, DepositCategory, DepositChoice, deposit_choices};
 
 const FILES: [(&str, &str); 4] = [
     (
         "common/planet_classes/00_fx.txt",
-        "pc_fx_rock = {\n\tplanet_size = { min = 10 max = 20 }\n}\n",
+        "pc_fx_rock = {\n\tplanet_size = { min = 10 max = 20 }\n\tmoon_size = { min = 2 max = 6 }\n}\n",
     ),
     (
         "common/deposit_categories/00_fx.txt",
@@ -35,6 +34,9 @@ const FILES: [(&str, &str); 4] = [
          d_fx_lab = {\n\tresources = { category = orbital_mining_deposits produces = { physics_research = 2 } }\n}\n\
          d_fx_alloys = {\n\tresources = { category = orbital_mining_deposits produces = { alloys = 5 sr_exotic_gases = 3 } }\n}\n\
          d_fx_mountains = {\n\tplanet_modifier = { district_mining_max_add = 1 }\n}\n\
+         d_fx_big = {\n\tpotential = { planet_size >= 18 }\n}\n\
+         d_fx_small = {\n\tpotential = { planet_size < 12 }\n}\n\
+         d_fx_huge = {\n\tpotential = { planet_size >= 25 }\n}\n\
          d_fx_relic = {\n\tdrop_weight = { weight = 0 }\n}\n\
          d_fx_rising = {\n\tdrop_weight = { weight = 0 modifier = { add = 5 is_moon = yes } }\n}\n\
          d_fx_exotic_mountain = {
@@ -56,11 +58,10 @@ fn choice<'a>(choices: &'a [DepositChoice], key: &str) -> &'a DepositChoice {
         .unwrap_or_else(|| panic!("{key} is offered"))
 }
 
-fn rock() -> RollBody<'static> {
-    RollBody {
-        class: "pc_fx_rock",
-        size: 15,
-        star: false,
+fn rock() -> AskedBody<'static> {
+    AskedBody {
+        class: Some("pc_fx_rock"),
+        size: Some(15),
         moon: false,
     }
 }
@@ -174,11 +175,116 @@ fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it(
         !usual(&choices, "d_fx_glacier"),
         "the rock cannot be colonised"
     );
-    let moon = RollBody {
+    let moon = AskedBody {
         moon: true,
         ..rock()
     };
     let on_a_moon = deposit_choices(&gd, &moon, &[]);
     assert!(usual(&on_a_moon, "d_fx_energy_2"));
     assert!(usual(&on_a_moon, "d_fx_rising"));
+}
+
+fn keys(choices: &[DepositChoice]) -> Vec<&str> {
+    choices.iter().map(|c| c.key.as_str()).collect()
+}
+
+#[test]
+fn a_planet_of_no_class_offers_one_type_per_button_with_none_usual() {
+    let (_dir, gd) = common::hand_written(&FILES);
+    let shape = |choices: &[DepositChoice]| -> Vec<(String, Option<f64>)> {
+        choices
+            .iter()
+            .map(|c| (c.family.clone(), c.amount))
+            .collect()
+    };
+    let known = deposit_choices(&gd, &rock(), &[]);
+    let unknown = AskedBody {
+        class: None,
+        ..rock()
+    };
+    let choices = deposit_choices(&gd, &unknown, &[]);
+    assert_eq!(shape(&choices), shape(&known));
+    assert!(choices.iter().all(|c| !c.usual));
+    assert!(
+        keys(&choices).contains(&"d_fx_energy_0old"),
+        "with none usual, the first by key stands for its family"
+    );
+}
+
+#[test]
+fn the_real_install_offers_every_choice_of_a_class_at_no_size() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let asked = |class, size| AskedBody {
+        class,
+        size,
+        moon: false,
+    };
+    let none = deposit_choices(gd, &asked(None, None), &[]);
+    let any_size = deposit_choices(gd, &asked(Some("pc_arctic"), None), &[]);
+    assert!(none.iter().all(|c| !c.usual));
+    assert_eq!(keys(&none), keys(&any_size));
+    let usual = |choices: &[DepositChoice], key: &str| choice(choices, key).usual;
+    assert!(usual(&any_size, "d_massive_glacier"));
+
+    let at_size = |size| deposit_choices(gd, &asked(Some("pc_arctic"), Some(size)), &[]);
+    let range = gd
+        .planet_classes
+        .get("pc_arctic")
+        .and_then(|c| c.planet_size)
+        .expect("a size range");
+    let every_size: Vec<Vec<DepositChoice>> = (range.min.round() as u32..=range.max.round() as u32)
+        .map(at_size)
+        .collect();
+    for c in &any_size {
+        let at_any = every_size.iter().any(|s| usual(s, &c.key));
+        assert_eq!(c.usual, at_any, "{}", c.key);
+    }
+}
+
+#[test]
+fn a_planet_of_no_size_is_judged_at_every_size_its_class_draws() {
+    let (_dir, gd) = common::hand_written(&FILES);
+    let usual = |size| {
+        let asked = AskedBody { size, ..rock() };
+        let choices = deposit_choices(&gd, &asked, &[]);
+        ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual)
+    };
+    assert_eq!(usual(Some(15)), [false, false, false]);
+    assert_eq!(usual(None), [true, true, false], "the rock draws 10 to 20");
+    let any = deposit_choices(
+        &gd,
+        &AskedBody {
+            size: None,
+            ..rock()
+        },
+        &[],
+    );
+    assert!(choice(&any, "d_fx_energy_1").usual);
+}
+
+#[test]
+fn a_moon_of_no_size_is_judged_over_its_class_moon_sizes() {
+    let (_dir, gd) = common::hand_written(&FILES);
+    let moon = AskedBody {
+        size: None,
+        moon: true,
+        ..rock()
+    };
+    let choices = deposit_choices(&gd, &moon, &[]);
+    let usual = ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual);
+    assert_eq!(usual, [true, false, false], "the rock's moons draw 2 to 6");
+}
+
+#[test]
+fn a_planet_of_an_unknown_class_and_no_size_has_none_usual() {
+    let (_dir, gd) = common::hand_written(&FILES);
+    let unknown = AskedBody {
+        class: Some("pc_fx_unknown"),
+        size: None,
+        moon: false,
+    };
+    let choices = deposit_choices(&gd, &unknown, &[]);
+    assert!(!choices.is_empty() && choices.iter().all(|c| !c.usual));
 }

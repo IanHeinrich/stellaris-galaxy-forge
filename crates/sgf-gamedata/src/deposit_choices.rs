@@ -47,18 +47,26 @@ pub struct DepositChoice {
     pub event_only: bool,
 }
 
-/// Every deposit type but the null one, by key, for a planet `body` that holds `deposits`.
+/// The planet a picker is asked about, any of whose class and size may be left to a random
+/// draw, as in a system initializer's planet block.
+#[derive(Debug, Clone, Copy)]
+pub struct AskedBody<'a> {
+    pub class: Option<&'a str>,
+    pub size: Option<u32>,
+    pub moon: bool,
+}
+
+/// Every deposit type but the null one, by key, for the planet `asked` that holds `deposits`.
 /// Of two types in one family with the same yields and the same planet modifiers, only one
-/// is offered: the one the roll could place here, else the first by key.
+/// is offered: the one the roll could place here, else the first by key. With no class none
+/// is usual. With no size a type is usual when the roll could place it at any size the
+/// class draws.
 pub fn deposit_choices(
     gd: &GameData,
-    body: &RollBody<'_>,
+    asked: &AskedBody<'_>,
     deposits: &[String],
 ) -> Vec<DepositChoice> {
-    let usual: HashSet<&str> = fitting(gd, body, deposits)
-        .into_iter()
-        .map(|d| d.key.as_str())
-        .collect();
+    let usual = usual_keys(gd, asked, deposits);
     let offered: Vec<&DepositDef> = gd.deposits.iter().filter(|d| !d.roll.is_null).collect();
     let mut kept: HashMap<(String, String), &DepositDef> = HashMap::new();
     for d in &offered {
@@ -83,6 +91,35 @@ pub fn deposit_choices(
         .collect();
     split_differing(&mut choices, gd);
     choices
+}
+
+/// The keys the roll could place on `asked`.
+fn usual_keys<'a>(
+    gd: &'a GameData,
+    asked: &AskedBody<'_>,
+    deposits: &[String],
+) -> HashSet<&'a str> {
+    let Some(class) = asked.class else {
+        return HashSet::new();
+    };
+    let class_def = gd.planet_classes.get(class);
+    let sizes = match (asked.size, class_def.and_then(|c| c.size(asked.moon))) {
+        (Some(size), _) => size..=size,
+        (None, Some(range)) => range.min.round() as u32..=range.max.round() as u32,
+        (None, None) => return HashSet::new(),
+    };
+    sizes
+        .flat_map(|size| {
+            let body = RollBody {
+                class,
+                size,
+                star: class_def.is_some_and(|c| c.star),
+                moon: asked.moon,
+            };
+            fitting(gd, &body, deposits)
+        })
+        .map(|d| d.key.as_str())
+        .collect()
 }
 
 /// Orbital and habitat deposits yielding the same resources share a family, which the

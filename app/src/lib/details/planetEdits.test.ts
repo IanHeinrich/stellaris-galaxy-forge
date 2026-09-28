@@ -1,6 +1,35 @@
 import { describe, expect, it } from "vitest";
+import type { ModifierChoice } from "../../generated/ModifierChoice";
 import { planetPage } from "../../test/builders";
-import { effectText, removeDepositOp, renamePlanetOp, uncolonised } from "./planetEdits";
+import {
+  addModifierOp,
+  effectText,
+  removeDepositOp,
+  removeModifierOp,
+  renamePlanetOp,
+  uncolonised,
+} from "./planetEdits";
+import { modifierRows } from "./planetPage";
+
+function choice(modifier: string, name: string, feature: string | null = null): ModifierChoice {
+  return {
+    modifier,
+    feature,
+    category: feature === null ? "Positive" : "Feature",
+    description: null,
+    view: {
+      key: feature ?? modifier,
+      name,
+      static_modifier: modifier,
+      icon: null,
+      icon_frame: null,
+      effects: [],
+    },
+  };
+}
+
+const MINERAL_POOR = choice("mineral_poor", "Mineral Poor", "pm_mineral_poor");
+const HOLY_WORLD = choice("holy_planet", "Holy World");
 
 describe("a planet page's edits", () => {
   it("renames to the trimmed text, and not to nothing or the same name", () => {
@@ -44,5 +73,47 @@ describe("a planet page's edits", () => {
   it("counts a planet as uncolonised only with no owner and no colony", () => {
     expect(uncolonised(planetPage())).toBe(true);
     expect(uncolonised(planetPage({ owner: 3 }))).toBe(false);
+  });
+});
+
+describe("the modifier edits", () => {
+  it("adds a feature with its line, for ever unless days are set", () => {
+    expect(addModifierOp(7, MINERAL_POOR, null)).toEqual({
+      type: "AddPlanetModifier",
+      planet: 7,
+      modifier: "mineral_poor",
+      days: [-1],
+      feature: "pm_mineral_poor",
+    });
+    expect(addModifierOp(7, HOLY_WORLD, 360)).toEqual({
+      type: "AddPlanetModifier",
+      planet: 7,
+      modifier: "holy_planet",
+      days: [360],
+    });
+  });
+
+  it("removes a page row: a feature by its line and its modifier, a timed one by its name", () => {
+    const page = planetPage({
+      id: 7,
+      planet_modifiers: ["pm_mineral_poor"],
+      timed_modifiers: [
+        { modifier: "mineral_poor", days: -1 },
+        { modifier: "holy_planet", days: 120 },
+      ],
+    });
+    const views = new Map([["pm_mineral_poor", MINERAL_POOR.view]]);
+    const [feature, timed] = modifierRows(page, views);
+    expect(removeModifierOp(7, feature)).toEqual({
+      type: "RemovePlanetModifier",
+      planet: 7,
+      modifier: "mineral_poor",
+      feature: "pm_mineral_poor",
+    });
+    expect(removeModifierOp(7, timed)).toEqual({
+      type: "RemovePlanetModifier",
+      planet: 7,
+      modifier: "holy_planet",
+    });
   });
 });
