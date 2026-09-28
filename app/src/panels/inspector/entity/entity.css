@@ -258,6 +258,21 @@
   padding: 6px 2px 2px;
 }
 
+.pl-dep-add .icon-picker-pop {
+  min-width: 360px;
+}
+
+.pl-pick-yields {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.pl-pick-yields .res {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .pl-pick-art img {
   display: block;
   width: 24px;

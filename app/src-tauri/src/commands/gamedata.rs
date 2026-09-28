@@ -1,6 +1,6 @@
 //! Loading the install's game data, and serving what the loaded data holds.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -197,17 +197,17 @@ pub fn get_deposits(game_data: State<'_, GameDataState>) -> Vec<DepositView> {
     })
 }
 
-/// The deposit types that fit a body of planet class `class` and `size`, a moon when `moon`,
-/// that holds the deposit types `deposits`, as the game rolls deposits for one; empty
-/// without game data.
+/// Every deposit type but the null one, in the install's order, each with whether it fits
+/// a body of planet class `class` and `size`, a moon when `moon`, that holds the deposit
+/// types `deposits`, as the game rolls deposits for one; empty without game data.
 #[tauri::command(async)]
-pub fn get_fitting_deposits(
+pub fn get_deposit_choices(
     game_data: State<'_, GameDataState>,
     class: String,
     size: u32,
     moon: bool,
     deposits: Vec<String>,
-) -> Vec<String> {
+) -> Vec<(String, bool)> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
         let body = RollBody {
             class: &class,
@@ -215,9 +215,14 @@ pub fn get_fitting_deposits(
             star: gd.planet_classes.get(&class).is_some_and(|c| c.star),
             moon,
         };
-        deposit_roll::fitting(&gd, &body, &deposits)
+        let fits: HashSet<&str> = deposit_roll::fitting(&gd, &body, &deposits)
             .into_iter()
-            .map(|d| d.key.clone())
+            .map(|d| d.key.as_str())
+            .collect();
+        gd.deposits
+            .iter()
+            .filter(|d| !d.roll.is_null)
+            .map(|d| (d.key.clone(), fits.contains(d.key.as_str())))
             .collect()
     })
 }

@@ -163,8 +163,10 @@ too.
   while unworked. A blocked deposit shows a blocker mark, the tech and
   resources needed to clear it, and how long clearing takes.
 - On an uncolonised body, remove a deposit with the ✕ on its row, or
-  add one with Add deposit. The list only offers deposit types that fit
-  the body. A mining or research station over a removed deposit stays in
+  add one with Add deposit. The list has every deposit type. The ones
+  the game places on that body come first, under "Usual for this
+  planet". Type in the box at the top to find a deposit by name or
+  resource. A mining or research station over a removed deposit stays in
   game and still costs about 1 energy a month.
 - Modifiers come next, each with what it changes and how many days are
   left.

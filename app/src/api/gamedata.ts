@@ -126,16 +126,21 @@ export function getDeposits(): Promise<DepositView[]> {
 }
 
 /**
- * The deposit types that fit a body of `planetClass` and `size`, a moon when `moon`, that holds
- * the deposit types `deposits`, as the game rolls deposits for one; empty without game data.
+ * Every deposit type but the null one, each with whether it fits a body of `planetClass` and
+ * `size`, a moon when `moon`, that holds the deposit types `deposits`; empty without game data.
  */
-export function getFittingDeposits(
+export function getDepositChoices(
   planetClass: string,
   size: number,
   moon: boolean,
   deposits: string[],
-): Promise<string[]> {
-  return invoke<string[]>("get_fitting_deposits", { class: planetClass, size, moon, deposits });
+): Promise<Array<[string, boolean]>> {
+  return invoke<Array<[string, boolean]>>("get_deposit_choices", {
+    class: planetClass,
+    size,
+    moon,
+    deposits,
+  });
 }
 
 /** The planet page's view of each deposit type in `keys` the game data defines; empty without it. */

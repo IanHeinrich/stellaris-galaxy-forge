@@ -74,7 +74,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_star_classes,
             commands::get_generator_star_classes,
             commands::get_deposits,
-            commands::get_fitting_deposits,
+            commands::get_deposit_choices,
             commands::get_deposit_types,
             commands::get_modifiers,
             commands::get_colony_types,

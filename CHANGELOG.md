@@ -13,7 +13,9 @@ a release is made.
 - Rename a save's planets on their page. Moons named after the planet
   follow the new name.
 - Change an uncolonised planet's size, and add or remove its deposits,
-  on its page. The deposit list offers only types that fit the planet.
+  on its page. The deposit list offers every deposit type. The types the
+  game places on that planet come first, and a filter finds the rest by
+  name or resource.
   A mining or research station over a removed deposit stays in game and
   still costs about 1 energy a month.
 - A planet's page shows the anomaly waiting on it, and which empires

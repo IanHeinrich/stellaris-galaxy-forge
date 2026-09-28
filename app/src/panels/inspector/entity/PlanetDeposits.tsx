@@ -14,6 +14,7 @@ import {
 import {
   addDepositOp,
   depositChoices,
+  effectText,
   removeDepositOp,
   STATION_STAYS,
 } from "../../../lib/details/planetEdits";
@@ -31,9 +32,9 @@ import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
 
-/** What the Add deposit picker says while it reads the types that fit, and when none do. */
-export const READING_FITTING = "Reading the deposit types that fit this body…";
-export const NONE_FIT = "No deposit type fits this body";
+/** What the Add deposit picker says while it reads the types, and when none match the filter. */
+export const READING_CHOICES = "Reading the deposit types…";
+export const NONE_MATCH = "No deposit type matches";
 export const DEPOSITS_NEED_GAME_DATA = "Adding a deposit needs the game data";
 
 const ADD: IconPickerItem = { key: "", label: "Add deposit…" };
@@ -214,39 +215,64 @@ function DepositRow({
 }
 
 /**
- * The deposit types that fit planet `page`, a moon when `moon`, read the first time the picker
- * opens; `null` until they are.
+ * Every deposit type the picker offers for planet `page`, a moon when `moon`, each with whether it
+ * fits the planet, read the first time the picker opens; `null` until they are.
  */
-function useFittingDeposits(page: PlanetPage, moon: boolean): [string[] | null, () => void] {
+function useDepositChoices(
+  page: PlanetPage,
+  moon: boolean,
+): [(readonly [string, boolean])[] | null, () => void] {
   const held = useMemo(() => page.deposits.map((d) => d.kind), [page.deposits]);
   const body = `${page.class}|${page.size ?? 0}|${moon}|${held.join(" ")}`;
-  const [read, setRead] = useState<{ body: string; keys: string[] } | null>(null);
+  const [read, setRead] = useState<{ body: string; offered: [string, boolean][] } | null>(null);
   const ask = useCallback(() => {
     if (read?.body === body) return;
     ipc
-      .getFittingDeposits(page.class, page.size ?? 0, moon, held)
-      .then((keys) => {
-        usePlanetDataStore.getState().request({ deposits: keys, modifiers: [], colonyTypes: [] });
-        setRead({ body, keys });
+      .getDepositChoices(page.class, page.size ?? 0, moon, held)
+      .then((offered) => {
+        const deposits = offered.map(([key]) => key);
+        usePlanetDataStore.getState().request({ deposits, modifiers: [], colonyTypes: [] });
+        setRead({ body, offered });
       })
       .catch((e: unknown) => {
-        console.warn("fitting deposits", ipc.errorMessage(e));
-        setRead({ body, keys: [] });
+        console.warn("deposit choices", ipc.errorMessage(e));
+        setRead({ body, offered: [] });
       });
   }, [body, read, page.class, page.size, moon, held]);
-  return [read?.body === body ? read.keys : null, ask];
+  return [read?.body === body ? read.offered : null, ask];
 }
 
-/** A picker of the deposit types that fit the planet, each added as the game writes one. */
+/**
+ * What a type in the picker gives, spelled out: each yield with its resource's icon and name, or
+ * else its effects.
+ */
+function ChoiceNote({ view }: { view: DepositTypeView }) {
+  if (view.yields.length === 0) return <>{view.effects.map(effectText).join(", ")}</>;
+  return (
+    <span className="pl-pick-yields">
+      {view.yields.map((y, i) => (
+        <span key={y.resource} className="res">
+          <ResourceIcon amount={y} />
+          {signed(y.amount)} {y.name}
+          {i < view.yields.length - 1 && ","}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** A picker of every deposit type, those that fit the planet first, each added as the game writes one. */
 function AddDeposit({ page, moon }: { page: PlanetPage; moon: boolean }) {
   const applyOp = useApplyOp();
   const ready = useGameDataStore((s) => s.status === "ready");
   const views = usePlanetDataStore((s) => s.depositTypes);
-  const [fitting, ask] = useFittingDeposits(page, moon);
-  const items: IconPickerItem[] = depositChoices(fitting ?? [], views).map((choice) => ({
+  const [offered, ask] = useDepositChoices(page, moon);
+  const items: IconPickerItem[] = depositChoices(offered ?? [], views).map((choice) => ({
     key: choice.key,
     label: choice.label,
     group: choice.group,
+    search: choice.search,
+    note: choice.view === undefined ? undefined : <ChoiceNote view={choice.view} />,
     icon:
       choice.view === undefined ? undefined : (
         <Icon className="pl-pick-art" keys={[choice.view.texture_key]} glyph="" />
@@ -256,11 +282,12 @@ function AddDeposit({ page, moon }: { page: PlanetPage; moon: boolean }) {
     <div className="pl-dep-add">
       <PickerField
         label="Add deposit"
-        title="Add a deposit of a type that fits this body"
+        title="Add a deposit of any type. The types the game places on this planet come first."
         disabledReason={ready ? undefined : DEPOSITS_NEED_GAME_DATA}
         current={ADD}
         items={items}
-        empty={fitting === null ? READING_FITTING : NONE_FIT}
+        empty={offered === null ? READING_CHOICES : NONE_MATCH}
+        filter="Filter by name or resource"
         onOpen={ask}
         onPick={(key) => applyOp(addDepositOp(page.id, key))}
       />

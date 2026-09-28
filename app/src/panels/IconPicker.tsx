@@ -12,6 +12,14 @@ export interface IconPickerItem {
   note?: ReactNode;
   /** Runs instead of picking this row: a local action (revealing more rows) that leaves the list open. */
   onSelect?: () => void;
+  /** What a list's filter matches, lower case; the label when not given. */
+  search?: string;
+}
+
+/** Whether `item` matches what was typed in the list's filter. */
+function matches(item: IconPickerItem, query: string): boolean {
+  const words = query.trim().toLowerCase();
+  return words === "" || (item.search ?? item.label.toLowerCase()).includes(words);
 }
 
 function Row({ item }: { item: IconPickerItem }) {
@@ -28,7 +36,9 @@ function Row({ item }: { item: IconPickerItem }) {
  * A button showing `current` that opens a list of `items` to pick from, each with its icon: what
  * a native `<select>` cannot draw. Arrows move, Enter picks, Esc or a press outside closes.
  * `onOpen` runs as the list opens, and `empty` stands in the list while it has no items.
- * `triggerClassName` dresses the button, as the editable fields do.
+ * `triggerClassName` dresses the button, as the editable fields do. With `filter`, a text box
+ * heads the list and narrows it to the items that match what is typed, `filter` being its
+ * placeholder.
  */
 export function IconPicker({
   label,
@@ -38,6 +48,7 @@ export function IconPicker({
   disabled,
   empty,
   triggerClassName,
+  filter,
   onOpen,
   onPick,
 }: {
@@ -48,11 +59,15 @@ export function IconPicker({
   disabled?: boolean;
   empty?: ReactNode;
   triggerClassName?: string;
+  filter?: string;
   onOpen?: () => void;
   onPick: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [query, setQuery] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const shown = filter === undefined ? items : items.filter((item) => matches(item, query));
   const root = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -61,13 +76,14 @@ export function IconPicker({
 
   useOutsidePress(open, () => setOpen(false), root);
   useEffect(() => {
-    if (open) list.current?.focus();
+    if (open) (input.current ?? list.current)?.focus();
   }, [open]);
   useEffect(() => {
     if (open) document.getElementById(optionId(active))?.scrollIntoView({ block: "nearest" });
   });
 
   const show = () => {
+    setQuery("");
     setActive(
       Math.max(
         0,
@@ -82,7 +98,7 @@ export function IconPicker({
     trigger.current?.focus();
   };
   const pick = (key: string) => {
-    const item = items.find((i) => i.key === key);
+    const item = shown.find((i) => i.key === key);
     if (item?.onSelect) {
       item.onSelect();
       return;
@@ -93,15 +109,18 @@ export function IconPicker({
 
   // The app's own keys act on the selection, so a key the list takes goes no further.
   const onListKey = (e: KeyboardEvent) => {
-    const move = (to: number) => setActive((to + items.length) % items.length);
+    const move = (to: number) => setActive((to + shown.length) % shown.length);
+    // In the filter, space, Home and End edit the text.
+    const typing = e.target === input.current;
     if (e.key === "Tab") setOpen(false);
     if (e.key === ESCAPE) close();
-    else if (items.length === 0) return;
+    else if (shown.length === 0) return;
     else if (e.key === "ArrowDown") move(active + 1);
     else if (e.key === "ArrowUp") move(active - 1);
-    else if (e.key === "Home") move(0);
-    else if (e.key === "End") move(items.length - 1);
-    else if (e.key === ENTER || e.key === SPACE) pick(items[active].key);
+    else if (e.key === "Home" && !typing) move(0);
+    else if (e.key === "End" && !typing) move(shown.length - 1);
+    else if (e.key === ENTER || (e.key === SPACE && !typing))
+      pick(shown[Math.min(active, shown.length - 1)].key);
     else return;
     e.preventDefault();
     e.stopPropagation();
@@ -139,22 +158,37 @@ export function IconPicker({
           className="icon-picker-pop"
           role="listbox"
           aria-label={label}
-          aria-activedescendant={items.length > 0 ? optionId(active) : undefined}
+          aria-activedescendant={shown.length > 0 ? optionId(active) : undefined}
           tabIndex={-1}
           ref={list}
           onKeyDown={onListKey}
         >
-          {items.length === 0 && empty !== undefined && (
+          {filter !== undefined && (
+            <li className="icon-picker-filter" role="presentation">
+              <input
+                ref={input}
+                type="text"
+                aria-label={`Filter ${label}`}
+                placeholder={filter}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
+              />
+            </li>
+          )}
+          {shown.length === 0 && empty !== undefined && (
             <li className="icon-picker-empty muted" role="presentation">
               {empty}
             </li>
           )}
-          {items.map((item, i) => (
+          {shown.map((item, i) => (
             <Option
               key={item.key}
               id={optionId(i)}
               item={item}
-              header={item.group !== undefined && item.group !== items[i - 1]?.group}
+              header={item.group !== undefined && item.group !== shown[i - 1]?.group}
               active={i === active}
               selected={item.key === current.key}
               onHover={() => setActive(i)}
