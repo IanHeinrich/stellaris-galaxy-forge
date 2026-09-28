@@ -1,0 +1,22 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 34's flag
+inverse: SetEmpireFlag { country: 34, flag: EmpireFlag { icon_category: "pre_ftl", icon_file: "preftl_medieval_age.dds", background: "new_dawn.dds", primary: "light_blue", secondary: "blue" } }
+
+--- gamestate
++++ gamestate
+@@ -593461,8 +593461,8 @@
+ 			}
+ 			colors=
+ 			{
+-				"light_blue"
+-				"blue"
++				"green"
++				"dark_green"
+ 				"null"
+ 				"null"
+ 				"null"
+
+meta unchanged

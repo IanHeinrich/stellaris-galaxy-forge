@@ -37,6 +37,7 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "sprite:GFX_planet_type",
         "sprite:GFX_planet_type#4",
         "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null",
+        "empire_flag:00_solid.dds::blue,black,null,null",
         "planet_disc:pc_continental",
         "star_disc:pc_g_star",
         "planet_ring",
@@ -369,4 +370,15 @@ fn install_empire_flag_composes() {
         "empire_flag:diagonal.dds:human/flag_human_9.dds:#ff0000,#00ff00,null,null",
     );
     assert!(hex.error.is_none(), "{hex:?}");
+
+    let key = "empire_flag:00_solid.dds::blue,black,null,null";
+    let png = textures
+        .png(layout, &lookups, key)
+        .unwrap_or_else(|e| panic!("{key}: {e}"));
+    let plain = image::load_from_memory(&png).unwrap();
+    let centre = plain.get_pixel(35, 35);
+    assert!(
+        centre.0[2] > 120 && centre.0[0] < 80,
+        "the centre shows the background, not an emblem: {centre:?}"
+    );
 }

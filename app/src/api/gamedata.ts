@@ -9,6 +9,7 @@ import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositView } from "../generated/DepositView";
+import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
@@ -167,6 +168,11 @@ export function getMapColors(): Promise<MapColor[]> {
 /** The mod whose palette the map colours come from; null for vanilla's, or without game data. */
 export function getMapColorSource(): Promise<string | null> {
   return invoke<string | null>("get_map_color_source");
+}
+
+/** Every emblem category and background of the loaded game data's flags; empty without it. */
+export function getFlagParts(): Promise<FlagParts> {
+  return invoke<FlagParts>("get_flag_parts");
 }
 
 /** Every planet class of the loaded game data; empty without it. */

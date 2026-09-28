@@ -10,6 +10,9 @@ a release is made.
 
 ### Added
 
+- Change an empire's flag on its page: the emblem, the background, and
+  the primary and secondary colours. Emblems and backgrounds from your
+  mods are listed too.
 - The Precursors layer shows where each precursor's anomalies can turn
   up in a save. Each precursor has its own ring colour. A system two
   precursors share shows a split ring. A system no precursor reaches
@@ -18,6 +21,11 @@ a release is made.
     Click the eye beside one to hide it.
 - Search finds systems by their precursor, such as "Vultaum" or "First
   League".
+
+### Changed
+
+- An empire's map colours follow the game's Independent Map Color
+  checkbox. With it off, the page shows the flag colours the map uses.
 
 ## [0.16.0] - 2026-09-27
 

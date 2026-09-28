@@ -22,9 +22,9 @@ use crate::registries::scripted_triggers::ScriptedTrigger;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
-use crate::registries::{colors, precursors, registry, star_names};
+use crate::registries::{colors, flags, precursors, registry, star_names};
 use crate::scripts::ScriptIndex;
-use crate::{Bypasses, Colors, CountryTypes, Diagnostic, GameData, Initializers};
+use crate::{Bypasses, Colors, CountryTypes, Diagnostic, Flags, GameData, Initializers};
 
 /// A registry a watched file can belong to; the others are only rebuilt by
 /// a full load.
@@ -35,6 +35,7 @@ pub enum RegistryKind {
     CountryTypes,
     Bypasses,
     Colors,
+    Flags,
     Localisation,
     /// `common/scripted_variables`, which every definition can read: a change rereads all.
     Variables,
@@ -45,12 +46,13 @@ pub enum RegistryKind {
     Definitions,
 }
 
-const ALL: [RegistryKind; 8] = [
+const ALL: [RegistryKind; 9] = [
     RegistryKind::Initializers,
     RegistryKind::Scripts,
     RegistryKind::CountryTypes,
     RegistryKind::Bypasses,
     RegistryKind::Colors,
+    RegistryKind::Flags,
     RegistryKind::Localisation,
     RegistryKind::Variables,
     RegistryKind::Definitions,
@@ -97,6 +99,7 @@ impl RegistryKind {
             Self::CountryTypes => "country_types",
             Self::Bypasses => "bypasses",
             Self::Colors => "colors",
+            Self::Flags => "flags",
             Self::Localisation => "localisation",
             Self::Variables => "variables",
             Self::Definitions => "definitions",
@@ -112,11 +115,12 @@ impl RegistryKind {
         {
             return Some(*kind);
         }
-        if rel
-            .strip_prefix("flags/")
-            .is_some_and(|under| under.rsplit('/').next() == Some("colors.txt"))
-        {
-            return Some(Self::Colors);
+        if let Some(under) = rel.strip_prefix("flags/") {
+            return Some(if under.rsplit('/').next() == Some("colors.txt") {
+                Self::Colors
+            } else {
+                Self::Flags
+            });
         }
         if rel.starts_with("localisation/") && rel.ends_with(".yml") {
             return Some(Self::Localisation);
@@ -202,6 +206,17 @@ impl GameData {
                 &self.colors,
                 built,
                 |colors: &Colors| colors.entries.is_empty(),
+                &mut replaced,
+                &mut fresh,
+            );
+        }
+        if kinds.contains(&RegistryKind::Flags) {
+            let built = flags::Flags::load(&self.layout);
+            out.flags = kept(
+                RegistryKind::Flags,
+                &self.flags,
+                built,
+                |flags: &Flags| flags.emblems.is_empty() && flags.backgrounds.is_empty(),
                 &mut replaced,
                 &mut fresh,
             );

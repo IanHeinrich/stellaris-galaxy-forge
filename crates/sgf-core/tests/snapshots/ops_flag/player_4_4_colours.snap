@@ -1,0 +1,34 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 0's flag
+inverse: SetEmpireFlag { country: 0, flag: EmpireFlag { icon_category: "human", icon_file: "flag_human_9.dds", background: "00_solid.dds", primary: "blue", secondary: "black" } }
+
+--- gamestate
++++ gamestate
+@@ -530816,8 +530816,8 @@
+ 			}
+ 			colors=
+ 			{
+-				"blue"
+-				"black"
++				"green"
++				"dark_green"
+ 				"null"
+ 				"null"
+ 			}
+
+--- meta
++++ meta
+@@ -41,8 +41,8 @@
+ 	}
+ 	colors=
+ 	{
+-		"blue"
+-		"black"
++		"green"
++		"dark_green"
+ 		"null"
+ 		"null"
+ 	}

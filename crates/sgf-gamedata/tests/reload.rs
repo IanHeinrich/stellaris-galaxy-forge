@@ -230,7 +230,7 @@ fn a_changed_path_names_the_registry_that_reads_it() {
     let install = tree.path().join("install");
     let one = tree.path().join("userdata/mod/one");
 
-    let table: [(PathBuf, Option<RegistryKind>); 19] = [
+    let table: [(PathBuf, Option<RegistryKind>); 20] = [
         (
             install.join("common/deposits/00_fixture.txt"),
             Some(RegistryKind::Definitions),
@@ -280,6 +280,10 @@ fn a_changed_path_names_the_registry_that_reads_it() {
             Some(RegistryKind::Bypasses),
         ),
         (install.join("flags/colors.txt"), Some(RegistryKind::Colors)),
+        (
+            install.join("flags/pointy/flag_pointy_9.dds"),
+            Some(RegistryKind::Flags),
+        ),
         (
             install.join("localisation/english/a_l_english.yml"),
             Some(RegistryKind::Localisation),

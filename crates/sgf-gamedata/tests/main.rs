@@ -3,6 +3,7 @@
 mod common;
 
 mod deposit_roll;
+mod flags;
 mod galaxy_shapes;
 mod galaxy_sizes;
 mod generate;

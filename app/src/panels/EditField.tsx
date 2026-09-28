@@ -158,6 +158,7 @@ export function SwatchField({
   current: Swatch;
   swatches: readonly Swatch[];
   title?: string;
+  onOpen?: () => void;
   onPick: (key: string) => void;
 }) {
   return <PickerField current={swatchItem(current)} items={swatches.map(swatchItem)} {...rest} />;

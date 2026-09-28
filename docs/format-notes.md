@@ -557,6 +557,19 @@ Id-keyed tables cross-reference each other, often in both directions.
   paint its territory in the fifth and sixth entries. Otherwise the
   border and fill are the first two flag colours, and 4.5 copies them
   into the fifth and sixth anyway.
+- A flag edit writes the primary colour to the first entry and the
+  secondary to the second. The third and fourth are left alone. With
+  map colours off, a fifth entry that matched the old primary takes the
+  new one, and a sixth that matched the old secondary does too. A
+  `"null"` there stays. With map colours on, the fifth and sixth are
+  left alone.
+- `meta` holds a copy of the player's flag as a top-level `flag={...}`
+  of the same shape. The load screen draws it. In the 4.5 sample it
+  matches the player country's flag. Editing the player's flag rewrites
+  both.
+- The top-level `used_color` and `used_symbols` lists steer the random
+  flags the game gives new empires. A flag edit leaves them as they
+  are.
 - Primitives and fallen empires write `"null"` for every entry past the
   ones they use, as in
   `{ "red_orange" "black" "null" "null" "null" "null" }`.

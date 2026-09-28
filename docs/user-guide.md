@@ -131,8 +131,12 @@ this session, select it and press Delete, or right-click it and pick
   the star's type and size.
 - With several systems selected, the Star class action applies one
   class to all of them.
-- In a Stellaris 4.5 save, an empire's page has Border and Fill colour
-  pickers.
+- An empire's page sets its flag: the emblem, the background, and the
+  primary and secondary colours. For the player's empire, the load game
+  screen shows the new flag too.
+- In a Stellaris 4.5 save, the page also has Independent Map Color. With
+  it on, pick the border and fill colours. With it off, the map uses the
+  flag's primary and secondary colours.
 - With nothing selected, the Inspector can reveal which L-Gate outcome
   the save rolled. You can change it until a gate opens.
 

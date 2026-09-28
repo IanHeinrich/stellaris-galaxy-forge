@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
 use super::edit::{Edit, load, owns_line, parsed, splice};
-use super::{Applied, Op, OpError, Subject, refresh, rollback};
+use super::{Applied, MetaEdit, Op, OpError, Subject, refresh, rollback};
 use crate::Span;
 use crate::cst;
 use crate::document::Document;
@@ -55,10 +55,11 @@ impl Emitted {
 }
 
 /// A planned op: one edit per entity it rewrites, keyed by what that entity stands for,
-/// plus the statements it emits whole.
+/// plus the statements it emits whole and the save's `meta` it rewrites.
 pub(crate) struct Plan {
     edits: BTreeMap<Subject, Edit>,
     emits: Vec<(Emitted, usize, Vec<u8>)>,
+    meta: Option<Vec<u8>>,
     /// The slot of a statement an earlier op rewrote, which its erasure's line replaces.
     absorbed: BTreeMap<Subject, Anchor>,
     /// See [`Applied::renumbered`].
@@ -70,6 +71,7 @@ impl Plan {
         Self {
             edits: BTreeMap::new(),
             emits: Vec::new(),
+            meta: None,
             absorbed: BTreeMap::new(),
             renumbered: Vec::new(),
         }
@@ -138,6 +140,11 @@ impl Plan {
         let end = edit.buf.len();
         edit.splices.push((0..end, bytes));
         Ok(())
+    }
+
+    /// Write `bytes` as the save's whole `meta` once the gamestate edits are in.
+    pub fn replace_meta(&mut self, bytes: Vec<u8>) {
+        self.meta = Some(bytes);
     }
 
     /// Emit `bytes` as a new statement at original offset `at`.
@@ -253,6 +260,11 @@ impl Plan {
                 return Err(e);
             }
         }
+        let meta = self.meta.map(|bytes| {
+            let before = session.doc.replace_meta(bytes);
+            let after = session.doc.edited_meta().map(<[u8]>::to_vec);
+            MetaEdit { before, after }
+        });
         Ok(Applied {
             op,
             description: planned.description,
@@ -261,6 +273,7 @@ impl Plan {
             after,
             touched,
             renumbered: self.renumbered,
+            meta,
         })
     }
 }

@@ -1,0 +1,28 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set empire 1's flag
+inverse: SetEmpireFlag { country: 1, flag: EmpireFlag { icon_category: "blocky", icon_file: "flag_blocky_18.dds", background: "flag_BG_12.dds", primary: "red", secondary: "purple" } }
+
+--- gamestate
++++ gamestate
+@@ -418440,12 +418440,12 @@
+ 			}
+ 			colors=
+ 			{
+-				"red"
+-				"purple"
++				"blue"
++				"dark_blue"
+ 				"black"
+ 				"red"
+-				"red"
+-				"purple"
++				"blue"
++				"dark_blue"
+ 			}
+ 		}
+ 		name=
+
+meta unchanged

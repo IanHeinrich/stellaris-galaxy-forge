@@ -13,8 +13,8 @@ use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    CountryTypeView, DepositView, GameDataSummary, InitializerView, MapColor, PaintModView,
-    PrecursorView, ResourceIcon, StarClassView, TerraformCandidateView,
+    CountryTypeView, DepositView, FlagParts, GameDataSummary, InitializerView, MapColor,
+    PaintModView, PrecursorView, ResourceIcon, StarClassView, TerraformCandidateView,
 };
 use tauri::Manager;
 
@@ -167,6 +167,9 @@ fn game_data_commands_degrade_without_an_install() {
     assert!(precursors.is_empty());
     let colors: Vec<MapColor> = invoke(&w, "get_map_colors", json!({})).expect("map colors");
     assert!(colors.is_empty());
+    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
+    assert!(flag_parts.emblems.is_empty());
+    assert!(flag_parts.backgrounds.is_empty());
     let country_types: Vec<CountryTypeView> =
         invoke(&w, "get_country_types", json!({})).expect("country types");
     assert!(country_types.is_empty());
@@ -390,6 +393,9 @@ fn game_data_commands_with_the_install() {
     assert_eq!(initializers.len(), summary.initializers as usize);
     let colors: Vec<MapColor> = invoke(&w, "get_map_colors", json!({})).expect("map colors");
     assert!(colors.iter().any(|c| c.name == "blue"), "{colors:?}");
+    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
+    assert!(!flag_parts.emblems.is_empty());
+    assert!(!flag_parts.backgrounds.is_empty());
     assert!(
         !invoke::<Vec<Value>>(&w, "get_planet_classes", json!({}))
             .expect("planet classes")

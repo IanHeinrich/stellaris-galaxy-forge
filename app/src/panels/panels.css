@@ -196,6 +196,13 @@
   margin: 0;
 }
 
+.edit-derived {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+}
+
 .edit-block {
   margin: 6px 0 8px;
   padding: 6px 8px;
@@ -313,4 +320,100 @@
   flex: 1;
   min-width: 0;
   margin: 0;
+}
+
+.tile-picker-trigger {
+  max-width: 100%;
+  vertical-align: top;
+}
+
+/* Squared off below, so the open panel reads as the field's own. */
+.tile-picker-trigger[aria-expanded="true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.tile-picker-thumb {
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.tile-picker-thumb img,
+.tile-panel-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tile-picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Across the whole edit grid, its top border meeting the field's bottom one over the row gap. */
+.tile-panel {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-top: -5px;
+  padding: 6px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+}
+
+.tile-panel-dropdown {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.tile-panel-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  max-height: 250px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tile-panel-grid:focus {
+  outline: none;
+}
+
+.tile-panel-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tile-panel-tile.active {
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+.tile-panel-grid:focus-visible .tile-panel-tile.active {
+  border-color: var(--fg-muted);
+}
+
+.tile-panel-tile[aria-selected="true"] {
+  border-color: var(--accent);
+}
+
+.tile-panel-thumb {
+  display: flex;
+  width: 100%;
+  height: 100%;
 }
