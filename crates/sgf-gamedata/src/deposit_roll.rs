@@ -134,6 +134,37 @@ pub fn roll_deposits(
     roll(gd, body, abundance, rng, true)
 }
 
+/// The deposit types the game's roll could place on `body`, which holds `deposits` already:
+/// made for a body the game can colonise when it can, and for one it cannot otherwise, whose
+/// `potential` holds for it and whose `drop_weight` for it is above zero, in the install's
+/// order. The null deposit is left out, and so are a type whose `potential` cannot be judged
+/// and a type only events place, which weighs nothing.
+pub fn fitting<'a>(
+    gd: &'a GameData,
+    body: &RollBody<'_>,
+    deposits: &[String],
+) -> Vec<&'a DepositDef> {
+    let class_def = gd.planet_classes.get(body.class);
+    let colonizable = !body.star && class_def.is_some_and(|c| c.colonizable);
+    let subject = NewBody {
+        body,
+        class_def,
+        deposits,
+        triggers: &gd.scripted_triggers,
+    };
+    gd.deposits
+        .iter()
+        .filter(|d| !d.roll.is_null && d.is_for_colonizable == colonizable)
+        .filter(|d| {
+            d.roll
+                .potential
+                .as_ref()
+                .is_none_or(|p| p.evaluate(&subject) == Some(true))
+        })
+        .filter(|d| d.roll.drop_weight.evaluate(&subject) > 0.0)
+        .collect()
+}
+
 /// As [`roll_deposits`], with `blockers` false for a body its layout writes
 /// `deposit_blockers = none`: no blocker is drawn, and the minimum blockers are not topped
 /// up.

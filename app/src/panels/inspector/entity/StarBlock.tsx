@@ -70,10 +70,9 @@ function StarTypeField({ planet, system }: { planet: PlanetSummary; system: Syst
   );
 }
 
-/** A body's size as a whole number of at least 1; anything else puts the field back. */
-function SizeField({ planet }: { planet: PlanetSummary }) {
+/** Body `id`'s size as a whole number of at least 1; anything else puts the field back. */
+export function SizeField({ id, size }: { id: number; size: number | null }) {
   const applyOp = useApplyOp();
-  const size = planet.size;
   if (size === null) {
     return (
       <TextField
@@ -92,7 +91,7 @@ function SizeField({ planet }: { planet: PlanetSummary }) {
       title="Change the body's size"
       value={size}
       onCommit={(next) => {
-        const op = setPlanetSizeOp(planet.id, size, next);
+        const op = setPlanetSizeOp(id, size, next);
         if (op !== null) applyOp(op);
       }}
     />
@@ -107,7 +106,7 @@ export function StarBlock({ planet, system }: { planet: PlanetSummary; system: S
         <StarTypeField planet={planet} system={system} />
       </EditRow>
       <EditRow label="Size">
-        <SizeField planet={planet} />
+        <SizeField id={planet.id} size={planet.size} />
       </EditRow>
     </EditBlock>
   );

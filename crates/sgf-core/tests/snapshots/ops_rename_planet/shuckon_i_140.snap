@@ -1,0 +1,70 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Renamed planet #140 to Nova Terra
+inverse: RenameSavePlanet { planet: 140, name: "PLANET_NAME_FORMAT", block: Some("{\n\t\t\t\tkey=\"PLANET_NAME_FORMAT\"\n\t\t\t\tvariables=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"PARENT\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"Shuckon\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"NUMERAL\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"I\"\n\t\t\t\t\t\t\tliteral=yes\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}") }
+
+--- gamestate
++++ gamestate
+@@ -85755,28 +85755,8 @@
+ 			build_queue=283
+ 			name=
+ 			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Shuckon"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="I"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
++				key="Nova Terra"
++				literal=yes
+ 			}
+ 			coordinate=
+ 			{
+@@ -85812,28 +85792,8 @@
+ 						key="PARENT"
+ 						value=
+ 						{
+-							key="PLANET_NAME_FORMAT"
+-							variables=
+-							{
+-								
+-								{
+-									key="PARENT"
+-									value=
+-									{
+-										key="Shuckon"
+-									}
+-								}
+- 
+-								{
+-									key="NUMERAL"
+-									value=
+-									{
+-										key="I"
+-										literal=yes
+-									}
+-								}
+- 
+-							}
++							key="Nova Terra"
++							literal=yes
+ 						}
+ 					}

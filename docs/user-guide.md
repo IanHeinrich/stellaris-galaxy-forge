@@ -151,8 +151,11 @@ list, to open its page in the Inspector. F search finds a planet by name
 too.
 
 - A star's page opens with its type and size to edit, as [Stars and
-  empires](#stars-and-empires) describes. Any other body's page shows its
-  class and size instead.
+  empires](#stars-and-empires) describes.
+- Rename a planet or moon in its Name field. Moons named after a
+  planet take its new name too.
+- An uncolonised planet or moon has a Size field. A colonised planet
+  shows its size as text.
 - Barren, frozen, toxic and grey goo worlds have a Terraforming
   candidate checkbox. It does what the console's `add_modifier` does. The planet
   can be terraformed once the empire has Climate Restoration. Frozen
@@ -163,11 +166,28 @@ too.
   they add up to, one row per type: what each one yields, or what it does
   while unworked. A blocked deposit shows a blocker mark, the tech and
   resources needed to clear it, and how long clearing takes.
+- On an uncolonised body, remove a deposit with the ✕ on its row. Add
+  deposit, under the deposits, lists every deposit type but blockers.
+  The ones the game places on that body come first, under "Usual for
+  this planet". Type to search by name, resource or category, or pick a
+  category chip. Special holds the deposits only events place. Orbital
+  deposits of one resource, such as +1 to +10 Energy, share a row: click
+  an amount to add that one. Hover a row to read the game's description
+  of it.
+- Add blocker, under the Blockers heading, works the same way for
+  blockers. Its chips pick the blockers a tech clears, the ones that need
+  no tech or can't be cleared, and Special for blockers that do more than
+  take away districts. The heading shows even when the body has none.
+- Both lists stay open until you press Done or Escape. A mining or
+  research station over a removed deposit stays in game and still costs
+  about 1 energy a month.
 - Modifiers come next, each with what it changes and how many days are
   left.
 - Moons are listed below and open their own pages the same way.
 - A colonised planet has a Colony section: its owner, designation, when
   it was colonised, and its pops by species.
+- A planet with an anomaly waiting on it shows an Anomaly row: the
+  anomaly's name, and which empires have found it.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.

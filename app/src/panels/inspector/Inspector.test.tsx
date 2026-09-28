@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { countryNode, OPEN_RESULT } from "../../store/fixture";
+import { countryNode, OPEN_RESULT, planetPage } from "../../store/fixture";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { bindStores } from "../../store/bindStores";
+import { useEntityStore } from "../../store/entityStore";
 import { useInspectorStore, type Entry } from "../../store/inspectorStore";
 import { armSession, resetStores } from "../../store/storeFixture";
 import { openWith } from "../../test/session";
@@ -46,5 +47,27 @@ describe("the breadcrumb", () => {
     useInspectorStore.setState({ stack: [{ ref: { kind: "system", id: 1 }, label: "Sol" }, PAGE] });
 
     expect(renderToStaticMarkup(<Breadcrumb />)).toContain('<span class="here">Test Empire</span>');
+  });
+
+  it("names an open planet page by the planet's name as its page was last read", async () => {
+    await openWith(OPEN_RESULT, { galaxy: { countries: [] } });
+    const MOON: Entry = { ref: { kind: "planet", id: 141 }, label: "Shuckon Ia" };
+    useInspectorStore.setState({ stack: [{ ref: { kind: "system", id: 1 }, label: "Sol" }, MOON] });
+    useEntityStore.setState({
+      pages: new Map([
+        [
+          141,
+          planetPage({
+            id: 141,
+            name: { key: "Pebble", literal: true, variables: [] },
+            name_key: "Pebble",
+          }),
+        ],
+      ]),
+    });
+    expect(renderToStaticMarkup(<Breadcrumb />)).toContain('<span class="here">Pebble</span>');
+
+    useEntityStore.setState({ pages: new Map() });
+    expect(renderToStaticMarkup(<Breadcrumb />)).toContain('<span class="here">Shuckon Ia</span>');
   });
 });

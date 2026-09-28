@@ -16,6 +16,9 @@ pub struct DepositDef {
     pub key: String,
     pub icon: Option<String>,
     pub category: Option<String>,
+    /// The `category` its `resources` block names, as `orbital_mining_deposits`, even where
+    /// a top-level `category` overrides it for [`Self::category`].
+    pub resource_category: Option<String>,
     pub produces: Vec<(String, f64)>,
     /// `is_for_colonizable = yes`: a random roll gives it to bodies that can be colonised,
     /// and otherwise to those that cannot. The game reads a missing key as `no`.
@@ -94,6 +97,9 @@ impl FromDef for DepositDef {
         let (always, side_effects) = triggered(def);
         Self {
             icon: def.scalar("icon").map(str::to_owned),
+            resource_category: resources
+                .and_then(|r| r.find("category", src)?.scalar_str(src))
+                .map(str::to_owned),
             category,
             produces: numbers_in("produces"),
             is_for_colonizable: def.flag("is_for_colonizable"),

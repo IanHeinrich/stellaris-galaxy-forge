@@ -2,6 +2,7 @@
 
 mod common;
 
+mod deposit_choices;
 mod deposit_roll;
 mod flags;
 mod galaxy_shapes;

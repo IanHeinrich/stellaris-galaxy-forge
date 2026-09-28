@@ -32,6 +32,19 @@ a release is made.
   your own empire also renames the save on the game's load screen.
 - A pre-FTL civilisation's page shows its age, such as Stone Age or
   Atomic Age.
+- Rename a save's planets on their page. Moons named after the planet
+  follow the new name.
+- Change an uncolonised planet's size, and add or remove its deposits,
+  on its page. Add deposit, under the deposit list, opens a list of every
+  deposit type with the ones the game places on that planet first.
+  Search by name, resource or category, or pick a category such as
+  Energy or Strategic. Deposits of one resource share a row with a
+  button per amount. Add blocker, under the blockers, does the same for
+  blockers. Both lists stay open, so you can add several in one go.
+  A mining or research station over a removed deposit stays in game and
+  still costs about 1 energy a month.
+- A planet's page shows the anomaly waiting on it, and which empires
+  have found it.
 
 ### Changed
 

@@ -18,6 +18,8 @@ save_keys! {
     ACTIVE = "active",
     ADJECTIVE = "adjective",
     AMBIENT_OBJECT = "ambient_object",
+    ANOMALIES = "anomalies",
+    ANOMALY = "anomaly",
     APPEAR_STATE = "appear_state",
     ARCHAEOLOGICAL_SITES = "archaeological_sites",
     /// 4.5 writes it on every system; the 4.4 sample has none.
@@ -79,6 +81,7 @@ save_keys! {
     ENTITY_FACE_OBJECT = "entity_face_object",
     ENTITY_NAME = "entity_name",
     ENTITY_PLANET_CLASS = "entity_planet_class",
+    EVENTS = "events",
     FALLEN_EMPIRE_STRENGTH_SCALE = "fallen_empire_strength_scale",
     FILE = "file",
     FINAL_DESIGNATION = "final_designation",

@@ -13,6 +13,7 @@ use std::sync::{Arc, OnceLock};
 
 use crate::Span;
 use crate::archive::{self, RawSave};
+use crate::cst;
 use crate::entity::inner_sections;
 use crate::format;
 use crate::format::save::added::Added;
@@ -120,6 +121,8 @@ pub struct Document {
     /// See [`Self::inner_index`]; one cell per section, so a damaged one is nobody
     /// else's business.
     inner: HashMap<&'static str, OnceLock<Option<Index>>>,
+    /// See [`Self::anomaly_finders`].
+    finders: OnceLock<HashMap<u32, Vec<u32>>>,
 }
 
 /// An empty cell for each section [`Document::inner_index`] answers for: those an entity
@@ -156,6 +159,44 @@ fn scan_inner(
         })
 }
 
+/// Each planet some country's `events.anomalies` lists, with those countries in file order.
+/// A country's own statements are scanned to find `events`, and only that block is parsed.
+fn anomaly_lists(index: &Index, src: &[u8]) -> HashMap<u32, Vec<u32>> {
+    let mut finders: HashMap<u32, Vec<u32>> = HashMap::new();
+    for country in index.entities(keys::COUNTRY) {
+        let (Value::Block { open, close }, Ok(id)) = (country.value, u32::try_from(country.id))
+        else {
+            continue;
+        };
+        let Some(events) = scan::scan_range(src, open + 1..close)
+            .ok()
+            .and_then(|inner| inner.section(keys::EVENTS).map(|section| section.stmt))
+        else {
+            continue;
+        };
+        let bytes = events.slice(src);
+        let Ok(root) = cst::parse(bytes, 0) else {
+            continue;
+        };
+        let planets = root
+            .children()
+            .first()
+            .and_then(|events| events.find(keys::ANOMALIES, bytes))
+            .map(|list| {
+                list.children()
+                    .iter()
+                    .filter(|item| item.key.is_none())
+                    .filter_map(|item| item.scalar_str(bytes)?.parse().ok())
+                    .collect::<Vec<u32>>()
+            })
+            .unwrap_or_default();
+        for planet in planets {
+            finders.entry(planet).or_default().push(id);
+        }
+    }
+    finders
+}
+
 impl Document {
     /// Read a document and index it, as the kind its bytes say it is.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
@@ -190,6 +231,7 @@ impl Document {
                 added: Added::new(),
             },
             inner: inner_cells(),
+            finders: OnceLock::new(),
         })
     }
 
@@ -204,6 +246,7 @@ impl Document {
             overlay: Overlay::new(),
             body: Body::Scenario(Box::new(scenario)),
             inner: inner_cells(),
+            finders: OnceLock::new(),
         })
     }
 
@@ -319,6 +362,16 @@ impl Document {
         }
         let scanned = scan_inner(&self.index, &self.original, name)?;
         Ok(cell.get_or_init(|| scanned).as_ref())
+    }
+
+    /// The countries that have found the anomaly on planet `planet`: those whose
+    /// `events.anomalies` lists it. Every country's list is read on the first call and kept,
+    /// because no op writes one.
+    pub(crate) fn anomaly_finders(&self, planet: u32) -> &[u32] {
+        self.finders
+            .get_or_init(|| anomaly_lists(&self.index, &self.original))
+            .get(&planet)
+            .map_or(&[], Vec::as_slice)
     }
 
     pub fn overlay(&self) -> &Overlay {

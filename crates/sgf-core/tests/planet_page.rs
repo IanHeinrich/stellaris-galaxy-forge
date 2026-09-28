@@ -69,3 +69,19 @@ fn an_absent_planet_and_a_scenarios_are_not_found() {
     let err = get_planet_page(&scenario.doc, 0).unwrap_err();
     assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 }
+
+/// The 4.5 sample's anomalies: two one country has found, one no country has, and a
+/// planet that holds none.
+#[test]
+fn a_page_names_the_anomaly_its_planet_holds_and_who_found_it() {
+    let doc = common::load_4_5();
+    let anomaly = |id: u32| page(&doc, id).anomaly;
+    let found = anomaly(185).expect("planet 185's anomaly");
+    assert_eq!(found.category, "AIANOM_RESEARCHDEPO_CAT");
+    assert_eq!(found.found_by, anomaly(182).expect("182's").found_by);
+    assert_eq!(found.found_by.len(), 1, "{found:?}");
+    let waiting = anomaly(2600).expect("planet 2600's anomaly");
+    assert_eq!(waiting.category, "time_loop_world");
+    assert!(waiting.found_by.is_empty(), "{waiting:?}");
+    assert_eq!(anomaly(140), None);
+}
