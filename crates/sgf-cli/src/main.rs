@@ -277,6 +277,25 @@ fn run(cli: Cli) -> commands::Run {
                 },
             },
         ),
+        Some(Command::DigSite {
+            sav,
+            planet,
+            site_type,
+            difficulty,
+            remove,
+            out,
+        }) => match (site_type, difficulty) {
+            (Some(site_type), Some(difficulty)) if !remove => commands::mutate::run(
+                &sav,
+                out.path.as_deref(),
+                Op::AddDigSite {
+                    planet,
+                    site_type,
+                    difficulty,
+                },
+            ),
+            _ => commands::mutate::remove_dig_site(&sav, out.path.as_deref(), planet),
+        },
         Some(Command::Deposit { command }) => match command {
             DepositCommand::Add {
                 sav,

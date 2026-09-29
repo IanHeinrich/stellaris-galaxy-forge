@@ -8,6 +8,11 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Add an archaeological dig site to a save planet, or remove one, from
+  its page in the Inspector. The page shows the site's stage and clues.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added

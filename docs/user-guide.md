@@ -171,6 +171,14 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Dig site section shows a planet's
+  archaeological site: its stage, its clues, and whether a fleet is
+  excavating it. Remove it with the ✕. Removing a site takes out its
+  entry and nothing else, so a fleet excavating it keeps its order. A
+  planet without a site has Add dig site. Search by name, or pick Found
+  by surveys or Event only. A planet holds one site, so the list closes
+  after an add. The two site types that do something in game as they
+  are created aren't listed.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
@@ -597,7 +605,7 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   lists every key path with its count, and `roundtrip` writes the save
   out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`, `modifier`, `deposit`, `add-system`.
+  `star`, `planet-size`, `modifier`, `dig-site`, `deposit`, `add-system`.
   `deposit add` and `deposit remove` change a planet's deposits.
   `add-system` adds systems from a JSON spec you write, or rolls one from
   the install's own rules with `--generate`, a special layout included

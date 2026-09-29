@@ -141,5 +141,6 @@ expression: value
   "flags": 1,
   "anomaly": null,
   "terraforming": false,
-  "clearing": []
+  "clearing": [],
+  "dig_site": null
 }

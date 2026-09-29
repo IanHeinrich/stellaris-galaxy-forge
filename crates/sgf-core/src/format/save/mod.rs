@@ -4,6 +4,7 @@ mod abundance;
 pub(crate) mod added;
 pub(crate) mod alloc;
 pub mod details;
+pub(crate) mod dig_sites;
 pub(crate) mod galaxy;
 pub(crate) mod read_spec;
 pub mod system_spec;
@@ -18,9 +19,9 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, belts, bodies, bulk, deposits, empire_name, flag, lanes, lgate, map_colors,
-    move_planet, move_system, nebula, planet_modifier, planet_ring, planet_size, remove_system,
-    rename_planet, rename_system, replace_system, star_class,
+    add_system, belts, bodies, bulk, deposits, dig_site, empire_name, flag, lanes, lgate,
+    map_colors, move_planet, move_system, nebula, planet_modifier, planet_ring, planet_size,
+    remove_system, rename_planet, rename_system, replace_system, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -202,6 +203,12 @@ impl Format for Save {
             }
             Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
             Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
+            Op::AddDigSite {
+                planet,
+                site_type,
+                difficulty,
+            } => dig_site::plan_add(plan, s, *planet, site_type, *difficulty),
+            Op::RemoveDigSite { site } => dig_site::plan_remove(plan, s, *site),
             Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
             Op::RemoveSystems { ids } => remove_system::plan_remove(plan, s, ids),
             Op::ReplaceSaveSystem { system, spec } => {

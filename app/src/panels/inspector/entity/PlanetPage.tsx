@@ -48,6 +48,7 @@ import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
 import { ModifierPicker } from "./ModifierPicker";
+import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
@@ -417,7 +418,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const moveFrom = movable ? page.system : null;
   const planetBody = bodies && !starBody;
   const resizable = planetBody;
-  // A 4.x save: the deposit and modifier ops refuse an older one.
+  // A 4.x save: the deposit, modifier and dig site ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
   const moon = found?.planet.moon ?? false;
@@ -457,6 +458,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       )}
       <PlanetDeposits page={page} editable={depositsEditable} target={target} />
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
+      <PlanetDigSite site={page.dig_site} editable={modifiersEditable} target={target} />
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />

@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Remove dig site site_tiyanki_graveyard (#1) from planet #1019
+inverse: AddDigSite { planet: 1019, site_type: "site_tiyanki_graveyard", difficulty: 3 }
+
+--- gamestate
++++ gamestate
+@@ -1404706,22 +1404706,6 @@
+ 			days_left=90
+ 			difficulty=1
+ 		}
+-		1=
+-		{
+-			location=
+-			{
+-				type=2
+-				id=1019
+-			}
+-			last_excavator_country=4294967295
+-			excavator_fleet=4294967295
+-			type="site_tiyanki_graveyard"
+-			index=0
+-			clues=0
+-			last_roll=0
+-			days_left=90
+-			difficulty=3
+-		}
+ 		2=
+ 		{
+ 			location=

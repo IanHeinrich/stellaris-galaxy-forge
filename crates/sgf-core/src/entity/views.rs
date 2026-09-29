@@ -239,6 +239,22 @@ pub struct PlanetPage {
     pub terraforming: bool,
     /// Its blockers a construction item is clearing, in the order its list has them.
     pub clearing: Vec<PlanetPageClearing>,
+    /// The archaeological dig site on it, from `archaeological_sites.sites`.
+    pub dig_site: Option<PlanetPageDigSite>,
+}
+
+/// A planet's archaeological dig site, as its entry in `archaeological_sites.sites` says.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetPageDigSite {
+    pub id: u32,
+    /// The site's `type`, which is also its localisation key.
+    pub kind: String,
+    /// `index`: the stages finished.
+    pub stages_done: u32,
+    pub clues: u32,
+    /// A fleet is excavating it now.
+    pub excavating: bool,
 }
 
 /// A blocker being cleared, and what the clearing costs: the item's `resources`, paid when

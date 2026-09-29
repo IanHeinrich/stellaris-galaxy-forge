@@ -30,6 +30,7 @@ mod ops_belts;
 mod ops_black_hole_names;
 mod ops_bodies;
 mod ops_deposits;
+mod ops_dig_site;
 mod ops_empire_name;
 mod ops_flag;
 mod ops_header;

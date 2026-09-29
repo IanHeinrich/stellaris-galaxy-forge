@@ -476,6 +476,12 @@ pub fn one_of_each() -> Vec<Example> {
             name: "Nova Terra".to_owned(),
             block: None,
         }),
+        Example::save(Op::AddDigSite {
+            planet: 749,
+            site_type: "site_lost_moments".to_owned(),
+            difficulty: 1,
+        }),
+        Example::save(Op::RemoveDigSite { site: 0 }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),

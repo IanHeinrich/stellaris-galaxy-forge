@@ -88,6 +88,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_planet_classes,
             commands::get_terraform_candidates,
             commands::get_modifier_choices,
+            commands::get_dig_site_choices,
             commands::get_starbase_levels,
             commands::get_ship_sizes,
             commands::get_country_types,

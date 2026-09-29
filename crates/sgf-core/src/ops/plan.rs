@@ -64,6 +64,8 @@ pub(crate) struct Plan {
     absorbed: BTreeMap<Subject, Anchor>,
     /// See [`Applied::renumbered`].
     renumbered: Vec<(u32, Option<u32>)>,
+    /// See [`Self::stale`].
+    stales: Vec<Subject>,
 }
 
 impl Plan {
@@ -74,12 +76,19 @@ impl Plan {
             meta: None,
             absorbed: BTreeMap::new(),
             renumbered: Vec::new(),
+            stales: Vec::new(),
         }
     }
 
     /// Record that system `old` is now `new`, or gone when `None`, once the plan commits.
     pub fn renumber(&mut self, old: u32, new: Option<u32>) {
         self.renumbered.push((old, new));
+    }
+
+    /// Count `subject` among what the op touched though it writes none of its bytes: a dig
+    /// site's entry stands outside the planet it belongs to.
+    pub fn stale(&mut self, subject: Subject) {
+        self.stales.push(subject);
     }
 
     /// The edit for system `id`, loading and parsing its entity on first use.
@@ -244,6 +253,7 @@ impl Plan {
                 }
             }
         }
+        touched.extend(self.stales);
         match refresh(
             &mut session.doc,
             &mut session.graph,
