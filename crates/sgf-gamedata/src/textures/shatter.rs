@@ -1,5 +1,5 @@
-//! `planet_disc_shattered:<class>:<seed>`: a lit disc broken into shards along jagged cracks,
-//! each pushed out from the centre and turned a little, with a few fragments past the edge.
+//! `planet_disc_shattered:<class>:<seed>`: a lit disc torn into shards along jagged cracks,
+//! each flung out from the centre and turned, with fragments scattered past the edge.
 //! The seed is the planet's id, so each planet breaks its own way, and always the same way.
 
 use std::f64::consts::TAU;
@@ -8,23 +8,25 @@ use image::{Rgba, RgbaImage};
 
 /// The share of the image's half-width the planet fills before it breaks, leaving room for its
 /// shards to part.
-const CORE: f64 = 0.8;
+const CORE: f64 = 0.6;
 /// The fewest and most shards, and the count from which one sits in the middle.
 const SHARDS: (u64, u64) = (5, 9);
 const CENTRED_FROM: usize = 7;
-/// How far a shard off the middle moves out, in planet radii, and the most it turns, in radians.
-const PUSH: (f64, f64) = (0.06, 0.11);
-const TURN: f64 = 0.09;
+/// How far a shard off the middle moves out, in planet radii, how far its path strays from
+/// straight out, and how far it turns, in radians.
+const PUSH: (f64, f64) = (0.2, 0.35);
+const STRAY: f64 = 0.3;
+const TURN: (f64, f64) = (0.26, 0.44);
 /// How far the cracks wander from straight lines, in planet radii.
-const JAG: f64 = 0.08;
+const JAG: f64 = 0.1;
 /// How far in from a crack a shard's edge darkens, in planet radii, and how dark it gets there.
 const RIM: f64 = 0.045;
 const RIM_DARK: f64 = 0.5;
 /// The fewest and most fragments, their distance from the centre and their size, in planet
 /// radii.
-const FRAGMENTS: (u64, u64) = (3, 6);
-const FRAGMENT_REACH: (f64, f64) = (1.12, 1.18);
-const FRAGMENT_SIZE: (f64, f64) = (0.035, 0.06);
+const FRAGMENTS: (u64, u64) = (5, 9);
+const FRAGMENT_REACH: (f64, f64) = (1.15, 1.5);
+const FRAGMENT_SIZE: (f64, f64) = (0.05, 0.1);
 const FRAGMENT_CORNERS: usize = 5;
 /// Samples per output pixel along each side, so the cracks' edges are smooth.
 const SUPERSAMPLE: u32 = 3;
@@ -244,13 +246,10 @@ impl Shard {
     fn new(centre: Pt, rng: &mut Rng) -> Self {
         let off_middle = centre[0].hypot(centre[1]);
         let push = rng.range(PUSH.0, PUSH.1) * (off_middle / 0.35).min(1.0);
-        let offset = if off_middle > 0.0 {
-            [centre[0] / off_middle * push, centre[1] / off_middle * push]
-        } else {
-            [0.0, 0.0]
-        };
+        let heading = centre[1].atan2(centre[0]) + rng.range(-STRAY, STRAY);
+        let offset = [push * heading.cos(), push * heading.sin()];
         let sign = if rng.unit() < 0.5 { -1.0 } else { 1.0 };
-        let angle = sign * TURN * rng.range(0.3, 1.0);
+        let angle = sign * rng.range(TURN.0, TURN.1);
         Self {
             centre,
             offset,

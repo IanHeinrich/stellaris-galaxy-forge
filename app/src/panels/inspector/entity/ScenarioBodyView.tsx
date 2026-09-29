@@ -41,6 +41,7 @@ function Head({ name, body }: { name: string; body: PlanetSummary | null }) {
           <PlanetIcon
             planetClass={body.class}
             sprite={planetClasses.get(body.class)?.icon_sprite}
+            seed={body.id}
           />
         ))}
       <span className="name">{name}</span>

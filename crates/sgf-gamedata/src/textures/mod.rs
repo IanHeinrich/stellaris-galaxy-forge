@@ -39,7 +39,7 @@ pub use star_disc::StarAtmosphere;
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
 /// disc, a composed flag, a cropped frame) is baked afresh rather than served stale from a
 /// user's disk cache.
-const BAKE: u32 = 2;
+const BAKE: u32 = 3;
 
 /// Where a `GFX_` sprite's texture lives; the `.gfx` registry implements it.
 pub trait SpriteSource {

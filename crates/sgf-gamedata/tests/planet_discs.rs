@@ -444,7 +444,7 @@ fn assert_shattered(gd: &GameData, class: &str) {
     );
     assert!(gaps > 0.03, "{class}: the shards part, {gaps:.3}");
     assert!(
-        opaque > 128 * 128 / 3,
+        opaque > 128 * 128 / 8,
         "{class}: most of the planet is still there"
     );
     assert_eq!(

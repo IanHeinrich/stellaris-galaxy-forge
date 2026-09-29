@@ -2,7 +2,7 @@
  * How the system view draws a class, read from its key once the scene has resolved which class a
  * body is. The layers draw from what this gives and never from a key.
  */
-import { planetTint } from "../../lib/details/icons";
+import { planetTint, shatteredDiscKey } from "../../lib/details/icons";
 import { starFlare, starGlyph, type StarFlare } from "../../lib/visual/starGlyphs";
 
 export const ICY_TINT = 0xbfd9ee;
@@ -89,11 +89,13 @@ export function bodyLook(
   const irregular = /asteroid/.test(planetClass) || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";
-  const shattered = baked && starClass === null && shatterSeed !== null;
+  const seed = starClass === null && baked ? shatterSeed : null;
+  const shattered = seed !== null;
   const modelKeys = model !== null && starClass === null ? [`planet_model:${model}`] : [];
-  const keys = shattered
-    ? [`planet_disc_shattered:${planetClass}:${shatterSeed}`]
-    : [...modelKeys, `${kind}:${planetClass}`];
+  const keys =
+    seed !== null
+      ? [shatteredDiscKey(planetClass, seed)]
+      : [...modelKeys, `${kind}:${planetClass}`];
   return {
     tint: classTint(planetClass, starClass),
     surfaceKeys: baked ? keys : [],

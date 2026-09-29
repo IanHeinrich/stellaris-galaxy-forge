@@ -74,7 +74,7 @@ export function PlanetRow({
         entry.ref.kind === "planet" ? opener.open(entry.ref, entry.label) : open(entry)
       }
     >
-      <PlanetIcon planetClass={planet.class} sprite={sprite} />
+      <PlanetIcon planetClass={planet.class} sprite={sprite} seed={planet.id} />
       <span>
         <span className="l1">
           {planet.colonised && <Swatch owner={planet.owner} />}

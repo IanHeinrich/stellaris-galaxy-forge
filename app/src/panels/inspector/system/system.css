@@ -375,6 +375,11 @@
   box-shadow: none;
 }
 
+.ins-prow .pi.shattered {
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .ins-unknown {
   color: var(--fg-muted);
 }

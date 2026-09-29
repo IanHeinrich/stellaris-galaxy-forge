@@ -134,8 +134,8 @@ function sized(sprite: Sprite, diameter: number): void {
  * with an atmosphere shows a haze outside the limb, and a ringed body its ring, the far half
  * behind the disc. A random class shows a question mark in place of the icon, and a ring left to
  * chance is faded. A class with no surface to bake shows its icon unshaded, never wider than
- * `FLAT_BODY_MAX_PX`, in a faint glow of its tint. A body cut to move elsewhere is dimmed, and
- * so are its moons.
+ * `FLAT_BODY_MAX_PX`, in a faint glow of its tint. A shattered class shows its baked shards alone,
+ * with no shading over them. A body cut to move elsewhere is dimmed, and so are its moons.
  */
 export class BodiesLayer implements SystemLayer {
   readonly container = new Container();
@@ -284,7 +284,7 @@ export class BodiesLayer implements SystemLayer {
       glaze.alpha = GLAZE_ALPHA;
     }
     let shade: Sprite | null = null;
-    if (!placement.star && !look.irregular) {
+    if (!placement.star && !look.irregular && !look.shattered) {
       shade = sprite("shade", look.gloss ? this.textures.gloss : this.textures.shade);
       shade.blendMode = "multiply";
       shade.rotation = placement.light ?? 0;
