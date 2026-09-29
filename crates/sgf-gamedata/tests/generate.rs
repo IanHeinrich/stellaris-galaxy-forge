@@ -52,6 +52,7 @@ const FILES: [(&str, &str); 8] = [
          pc_meadow = {\n\tmin_distance_from_sun = @fx_min\n\tmax_distance_from_sun = @fx_max\n\tspawn_odds = @fx_odds\n\tchance_of_ring = 0.2\n\textra_orbit_size = 0\n\textra_planet_count = 0\n\tplanet_size = { min = 12 max = 20 }\n\tmoon_size = { min = 8 max = 10 }\n\tcolonizable = yes\n}\n\
          pc_rock = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\tspawn_odds = 10\n\tplanet_size = { min = 10 max = 20 }\n\tmoon_size = { min = 5 max = 8 }\n}\n\
          pc_puff = {\n\tmin_distance_from_sun = 40\n\tmax_distance_from_sun = 1000\n\tspawn_odds = 6\n\textra_orbit_size = 0\n\textra_planet_count = 2\n\tcan_be_moon = no\n\tplanet_size = { min = 20 max = 30 }\n\tmoon_size = { min = 8 max = 15 }\n}\n\
+         pc_shell = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\tspawn_odds = 50\n\tplanet_size = 9\n\tmoon_size = 3\n\tis_artificial_planet = yes\n}\n\
          pc_boulder = {\n\tasteroid = yes\n\tspawn_odds = 10\n\tplanet_size = 5\n}\n",
     ),
     (
@@ -1086,6 +1087,48 @@ fn a_lone_body_is_rolled_from_the_classes_that_spawn_where_it_stands() {
         ]),
         "past every band, any class"
     );
+}
+
+#[test]
+fn an_artificial_planet_is_never_offered_or_rolled() {
+    let (_dir, gd) = hand_written();
+    assert!(gd.planet_classes.get("pc_shell").unwrap().artificial);
+    for moon in [false, true] {
+        assert!(
+            body_classes(&gd, moon).iter().all(|c| c.key != "pc_shell"),
+            "moon {moon}"
+        );
+    }
+    for seed in 0..SEEDS {
+        for (moon, orbit) in [(false, 20.0), (true, 80.0), (false, 5000.0)] {
+            let body = roll_body(&gd, seed, &lone(None, moon, orbit)).expect("a body");
+            assert_ne!(body.class, "pc_shell", "seed {seed}");
+        }
+    }
+}
+
+#[test]
+fn the_real_install_offers_no_arkship_but_keeps_its_other_special_worlds() {
+    let Some(gd) = install() else {
+        return;
+    };
+    for moon in [false, true] {
+        let keys: Vec<&str> = body_classes(gd, moon)
+            .iter()
+            .map(|c| c.key.as_str())
+            .collect();
+        assert!(!keys.contains(&"pc_ark"), "moon {moon}");
+        for kept in [
+            "pc_city",
+            "pc_relic",
+            "pc_infested",
+            "pc_gray_goo",
+            "pc_nanotech",
+        ] {
+            assert!(keys.contains(&kept), "{kept}, moon {moon}");
+        }
+    }
+    assert!(gd.planet_classes.get("pc_ark").unwrap().artificial);
 }
 
 #[test]

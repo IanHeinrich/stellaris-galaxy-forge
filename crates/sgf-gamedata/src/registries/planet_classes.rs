@@ -25,6 +25,8 @@ pub struct PlanetClassDef {
     pub asteroid: bool,
     /// `ringworld = yes`: a ring world segment.
     pub ringworld: bool,
+    /// `is_artificial_planet = yes`: built, not found (vanilla: arkships, habitats).
+    pub artificial: bool,
     /// `star_gfx = no`: this class is not drawn with the star shader (vanilla: `pc_t_star`,
     /// `pc_rift_star`, `pc_protostar`). Meaningless off a star class.
     pub star_gfx: bool,
@@ -53,12 +55,13 @@ pub struct Atmosphere {
 }
 
 impl PlanetClasses {
-    /// The classes a random body can be drawn as: no star or asteroid, with a distance from
+    /// The classes a random body can be drawn as: no star, asteroid or artificial planet, with a distance from
     /// the star it spawns at, and colonisable or not when `colonizable` says.
     pub fn drawable(&self, colonizable: Option<bool>) -> impl Iterator<Item = &PlanetClassDef> {
         self.iter().filter(move |c| {
             !c.star
                 && !c.asteroid
+                && !c.artificial
                 && c.distance_from_sun.is_some()
                 && colonizable.is_none_or(|wanted| c.colonizable == wanted)
         })
@@ -92,6 +95,7 @@ impl FromDef for PlanetClassDef {
             star: def.flag("star"),
             asteroid: def.flag("asteroid"),
             ringworld: def.flag("ringworld"),
+            artificial: def.flag("is_artificial_planet"),
             star_gfx: def.scalar("star_gfx") != Some("no"),
             can_be_moon: def.scalar("can_be_moon") != Some("no"),
             climate: def.scalar("climate").map(str::to_owned),
