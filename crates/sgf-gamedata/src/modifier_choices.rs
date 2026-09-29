@@ -94,7 +94,7 @@ impl GameData {
         feature: Option<&str>,
         category: ModifierCategory,
     ) -> Option<ModifierChoice> {
-        let described = |key: &str| self.loc.name(&format!("{key}_desc"));
+        let described = |key: &str| self.loc.description(&format!("{key}_desc"));
         Some(ModifierChoice {
             modifier: modifier.to_owned(),
             feature: feature.map(str::to_owned),

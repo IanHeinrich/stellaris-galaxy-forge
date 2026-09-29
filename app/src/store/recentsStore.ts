@@ -20,9 +20,12 @@ export interface RecentsState {
   /** Records a document as just opened: dedupes by path, newest first, capped. */
   noteOpened(doc: Omit<RecentDoc, "openedAt">): void;
   forget(path: string): void;
+  /** Removes every listed path in one write. */
+  forgetAll(paths: string[]): void;
+  clear(): void;
 }
 
-const RECENTS_CAP = 20;
+const RECENTS_CAP = 10;
 
 const RECENTS = prefField<unknown[]>(PREF_KEYS.recents, [], Array.isArray);
 
@@ -74,5 +77,17 @@ export const useRecentsStore = create<RecentsState>((set, get) => ({
     const recents = get().recents.filter((r) => r.path !== path);
     set({ recents });
     RECENTS.save(recents);
+  },
+
+  forgetAll(paths) {
+    const gone = new Set(paths);
+    const recents = get().recents.filter((r) => !gone.has(r.path));
+    set({ recents });
+    RECENTS.save(recents);
+  },
+
+  clear() {
+    set({ recents: [] });
+    RECENTS.save([]);
   },
 }));

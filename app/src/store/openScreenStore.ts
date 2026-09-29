@@ -44,6 +44,8 @@ export interface OpenScreenState extends OpenLists {
    */
   open(path: string, mode: OpenMode, asPaint?: boolean): Promise<void>;
   forget(path: string): void;
+  /** Empties the recent list. */
+  clear(): void;
 }
 
 const INITIAL = {
@@ -177,11 +179,17 @@ export const useOpenScreenStore = create<OpenScreenState>((set, get) => ({
     useRecentsStore.getState().forget(path);
     set({ missing: get().missing.filter((p) => p !== path) });
   },
+
+  clear() {
+    useRecentsStore.getState().clear();
+    set({ missing: [] });
+  },
 }));
 
 /**
- * Both lists read for `token`, each reporting its own failure, and the newest campaign opened;
- * a read a newer token overtook writes nothing.
+ * Both lists read for `token`, each reporting its own failure, the recent documents whose files
+ * are gone forgotten, and the newest campaign opened; a read a newer token overtook writes
+ * nothing.
  */
 async function read(token: unknown): Promise<void> {
   const { getState } = useOpenScreenStore;
@@ -207,10 +215,23 @@ async function read(token: unknown): Promise<void> {
       (e: unknown) =>
         setState({ scenarios: [], scenarioNotices: [], scenariosError: ipc.errorMessage(e) }),
     ),
+    forgetMissingRecents(token),
   ]);
   if (token !== readFor) return;
   const newest = getState().campaigns?.[0];
   if (newest && getState().expanded === null) await getState().expand(newest.dir);
+}
+
+/** Drops the recent documents whose files are gone; a failed check leaves the list alone. */
+async function forgetMissingRecents(token: unknown): Promise<void> {
+  const paths = useRecentsStore.getState().recents.map((r) => r.path);
+  if (paths.length === 0) return;
+  try {
+    const gone = await ipc.missingPaths(paths);
+    if (token === readFor && gone.length > 0) useRecentsStore.getState().forgetAll(gone);
+  } catch {
+    return;
+  }
 }
 
 function byNewest(files: SaveFile[]): SaveFile[] {

@@ -234,9 +234,14 @@ describe("detailNameKeys", () => {
     variables: [{ name: variable, value: { key: value, literal: false, variables: [] } }],
   });
 
-  it("collects planet, fleet and station template keys and canonical resource ids", () => {
+  it("collects planet, fleet and station template keys, anomaly categories and canonical resource ids", () => {
     const d = details({
-      planets: [planet({ name: nested("PLANET_NAME_FORMAT", "NAME", "NAME_Alpha") })],
+      planets: [
+        planet({
+          name: nested("PLANET_NAME_FORMAT", "NAME", "NAME_Alpha"),
+          anomaly: "AIANOM_RESEARCHDEPO_CAT",
+        }),
+      ],
       fleets_present: [fleet({ military_power: 1 })],
       starbase: {
         level: "starbase_level_outpost",
@@ -260,6 +265,7 @@ describe("detailNameKeys", () => {
       "PLANET_NAME_FORMAT",
       "NAME",
       "NAME_Alpha",
+      "AIANOM_RESEARCHDEPO_CAT",
       "NAME_Fleet",
       "STARBASE_NAME_FORMAT",
       "PLANET",

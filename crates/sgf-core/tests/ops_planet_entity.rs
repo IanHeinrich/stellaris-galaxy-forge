@@ -1,7 +1,9 @@
 //! The planet model op on the 4.5 sample: the diff each change produces is snapshotted, the
-//! planet page reads the model back, and undo puts the original bytes back.
+//! planet page and the system details read the model back, and undo puts the original bytes
+//! back.
 
 use sgf_core::entity::get_planet_page;
+use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
@@ -22,6 +24,21 @@ fn set(planet: u32, entity: Option<&str>) -> Op {
 fn model(session: &Session, id: u32) -> Option<String> {
     let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     page.entity_name
+}
+
+/// Planet `id`'s model as its system's details read it, from the projection built before the
+/// edit.
+fn drawn_model(session: &Session, id: u32) -> Option<String> {
+    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let system = page.system.expect("the planet's system");
+    let details = session.built_details().expect("the details kept");
+    let resolved = details.resolve(system, &HeuristicResolver, false);
+    let planets = resolved.expect("the system's details").planets;
+    let planet = planets
+        .into_iter()
+        .find(|p| p.id == id)
+        .expect("the planet");
+    planet.entity_name
 }
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
@@ -126,6 +143,30 @@ fn a_scripted_model_is_taken_off_and_the_flags_stay() {
     );
     assert_eq!(model(&session, 6268), None);
     assert_eq!(flags(&session, 6268).as_deref(), Some("65"));
+}
+
+/// The system view draws from the details: they read a model given and one taken off in
+/// place, through undo too, and the op names the planet's system as stale.
+#[test]
+fn the_system_details_read_the_model_in_place() {
+    let mut session = open_4_5();
+    session.warm_details().expect("build details");
+    assert_eq!(drawn_model(&session, 585), None);
+    let given = session
+        .apply(set(585, Some(PARADISE)))
+        .expect("give 585 a model");
+    assert_eq!(given.details_stale, [1]);
+    assert_eq!(drawn_model(&session, 585).as_deref(), Some(PARADISE));
+    session.undo().expect("undo").expect("something to undo");
+    assert_eq!(drawn_model(&session, 585), None);
+
+    let held = drawn_model(&session, 1415);
+    assert_eq!(held.as_deref(), Some("gas_giant_02_entity"));
+    let taken = session
+        .apply(set(1415, None))
+        .expect("take 1415's model off");
+    assert_eq!(taken.details_stale.len(), 1);
+    assert_eq!(drawn_model(&session, 1415), None);
 }
 
 #[test]

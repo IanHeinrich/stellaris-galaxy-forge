@@ -4,13 +4,13 @@ import {
   resourceAbbrev,
   resourceChips,
   resourceLabel,
-  resourceRows,
+  type ResourceRow,
   resourceStride,
 } from "../../../lib/details/resources";
+import type { Names } from "../../../lib/names";
 import { MAP_FONT } from "../../../lib/visual/style";
-import type { RenderContext } from "../../RenderContext";
 import type { Textures } from "./cell";
-import type { Row } from "./Row";
+import type { Row, RowTextStyle } from "./Row";
 
 /** A resource's icon, and its amount's text under it, in screen pixels. */
 export const RESOURCE_ICON_PX = 15;
@@ -49,31 +49,55 @@ export function resourceCell(i: number, count: number, top: number): ResourceCel
   };
 }
 
+/** The text styles of a resource row: its abbreviations in the row's own text style when unset. */
+export interface ResourceStyles {
+  readonly abbrev?: RowTextStyle;
+  readonly amount: RowTextStyle;
+}
+
+const RESOURCE_STYLES: ResourceStyles = { amount: AMOUNT_STYLE };
+
+/** How far a drawn resource row reaches either side of its middle, and down from its top. */
+export interface ResourceReach {
+  readonly half: number;
+  readonly height: number;
+}
+
+/**
+ * Each resource's icon over its amount, centred across x = 0 with its top at `top`, the icon's
+ * abbreviation standing in where the icon cannot load.
+ */
 export function resourceIcons(
   row: Row,
-  ctx: RenderContext,
+  names: Names,
   tex: Textures,
-  d: SystemDetails,
-  resourceY: number,
-): void {
-  const { resourceIcons, names } = ctx;
-  const rows = resourceRows(d, resourceIcons);
+  rows: readonly ResourceRow[],
+  top: number,
+  styles: ResourceStyles = RESOURCE_STYLES,
+): ResourceReach {
+  let half = 0;
+  let height = 0;
   for (const [i, r] of rows.entries()) {
-    const cell = resourceCell(i, rows.length, resourceY);
+    const cell = resourceCell(i, rows.length, top);
     const texture = tex.texture(r.sprite);
     const title = names.get(r.resource) ?? resourceLabel(r.resource);
     const amount = formatAmount(r.amount);
     const tip = { title, lines: [`+${amount} ${title}`] };
+    let wide = cell.size;
     if (texture) {
       row.shadow(texture, cell.iconX, cell.iconY, cell.size);
       row.sprite(texture, cell.iconX, cell.iconY, cell.size, tip);
     } else if (texture === null) {
-      const w = row.text(resourceAbbrev(r.resource), cell.x, cell.abbrevY, tip);
+      const w = row.text(resourceAbbrev(r.resource), cell.x, cell.abbrevY, tip, styles.abbrev);
       row.nudgeLastText(-w / 2);
+      wide = Math.max(wide, w);
     }
-    const w = row.text(amount, cell.x, cell.amountY, tip, AMOUNT_STYLE);
+    const w = row.text(amount, cell.x, cell.amountY, tip, styles.amount);
     row.nudgeLastText(-w / 2);
+    half = Math.max(half, Math.abs(cell.x) + Math.max(wide, w) / 2);
+    height = Math.max(height, cell.amountY - top + row.lastTextHeight());
   }
+  return { half, height };
 }
 
 /** The totals as one line of chips, for a row drawn without game data. */

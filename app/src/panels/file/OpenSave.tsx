@@ -222,6 +222,8 @@ export function OpenSave({ modal = false, footnote }: { modal?: boolean; footnot
                 rows={rows}
                 onPress={press}
                 onForget={(path) => actions.forget(path)}
+                onClear={() => actions.clear()}
+                onShowAll={() => pickTab("recent")}
               />
             ))}
           </div>

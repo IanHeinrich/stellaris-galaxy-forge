@@ -145,25 +145,75 @@ describe("tabs", () => {
   });
 });
 
+describe("the recent list on the All tab", () => {
+  const TEN: RecentDoc[] = Array.from({ length: 10 }, (_, i) => ({
+    ...RECENT,
+    path: `C:/saves/terran/${i}.sav`,
+    openedAt: 100 - i,
+  }));
+
+  it("lists the newest 5 and says how many it left out", () => {
+    const recent = openSections(lists(), TEN).find((s) => s.id === "recent")!;
+    expect(recent.rows.map((r) => r.key)).toEqual(TEN.slice(0, 5).map((d) => `recent:${d.path}`));
+    expect(recent.more).toBe(5);
+    expect(recent.count).toBe(10);
+  });
+
+  it("lists all of them on the Recent tab, and leaves nothing out below the cap", () => {
+    const recent = openSections(lists({ tab: "recent" }), TEN)[0];
+    expect(recent.rows).toHaveLength(10);
+    expect(recent.more).toBeUndefined();
+    expect(sections().find((s) => s.id === "recent")?.more).toBeUndefined();
+  });
+
+  it("counts every document in the tabs, and walks only the rows shown", () => {
+    const counts = Object.fromEntries(openTabs(lists(), TEN).map((t) => [t.id, t.count]));
+    expect(counts).toMatchObject({ all: 16, recent: 10 });
+    const walked = navigableRows(openSections(lists(), TEN)).filter((r) => r.kind === "recent");
+    expect(walked).toHaveLength(5);
+  });
+});
+
 describe("rows", () => {
-  it("titles a save with its game date, tags an autosave, and falls back to the file name", () => {
-    const autosave = save({ path: "C:/saves/terran/autosave_2207.01.01.sav" });
+  it("titles a save with the name it was given and puts its game date under it", () => {
+    const named = save({ path: "C:/saves/terran/my run.sav", file_name: "my run.sav" });
+    const all = sections({ files: { [TERRAN.dir]: [named] } });
+    expect(rowOf<"save">(all, `save:${named.path}`)).toMatchObject({
+      title: "my run",
+      sub: "2206.11.16",
+      autosave: false,
+    });
+  });
+
+  it("shows the date once for a save the game named, and the name alone when the header is unread", () => {
     const unread = save({
       path: "C:/saves/terran/broken.sav",
       file_name: "broken.sav",
       meta: null,
     });
-    const all = sections({
-      files: {
-        [TERRAN.dir]: [save(), { ...autosave, file_name: "autosave_2207.01.01.sav" }, unread],
-      },
-    });
+    const all = sections({ files: { [TERRAN.dir]: [save(), unread] } });
     expect(rowOf<"save">(all, `save:${save().path}`)).toMatchObject({
       title: "2206.11.16",
-      autosave: false,
+      sub: null,
     });
-    expect(rowOf<"save">(all, `save:${autosave.path}`)).toMatchObject({ autosave: true });
-    expect(rowOf<"save">(all, `save:${unread.path}`)).toMatchObject({ title: "broken.sav" });
+    expect(rowOf<"save">(all, `save:${unread.path}`)).toMatchObject({
+      title: "broken",
+      sub: null,
+    });
+  });
+
+  it("tags an autosave and titles it with its date", () => {
+    const autosave = save({
+      path: "C:/saves/terran/autosave_2207.01.01.sav",
+      file_name: "autosave_2207.01.01.sav",
+      meta: saveMeta({ date: "2207.01.01" }),
+    });
+    const all = sections({ files: { [TERRAN.dir]: [autosave] } });
+    expect(rowOf<"save">(all, `save:${autosave.path}`)).toMatchObject({
+      title: "2207.01.01",
+      sub: null,
+      autosave: true,
+    });
   });
 
   it("says one save, one system, and the newest save's version and date under a campaign", () => {

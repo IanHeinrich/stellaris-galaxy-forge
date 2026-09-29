@@ -639,9 +639,10 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
-    /// the planet whose site they wrote.
+    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`] and [`Op::SetPlanetEntity`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// does the planet and moons it renamed, [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
+    /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
+    /// planet whose anomaly they wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -664,6 +665,7 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -672,7 +674,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. } => true,
+            | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -690,12 +694,15 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
-            | Self::RenameSavePlanet { .. } => true,
+            | Self::RenameSavePlanet { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
@@ -751,7 +758,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. } => false,
+            | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }

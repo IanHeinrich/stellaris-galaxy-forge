@@ -18,7 +18,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - `lib/initializer/`: what the game's initializers are: how they group, how
   they are searched, the rows they read as and the labels the legend shows.
 - `lib/details/`: one system's own detail: where its name row and plate sit
-  (`layout`), the English its keys read as (`labels`), the textures and frames
+  and whose flag shows beside it (`layout`), the icons right of a system's or
+  a body's name (`nameIcons`), the English its keys read as (`labels`), the textures and frames
   it draws with (`icons`), and its fleets and resources. `planetPage` is one
   body's page: its deposits grouped by type, the district caps they add up to,
   and its planet and timed modifiers as rows. `starBody` says whether a body

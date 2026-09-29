@@ -55,7 +55,7 @@ fn a_planet_no_one_has_surveyed_takes_the_key_alone() {
         );
         assert_eq!(result.inverse, remove(planet));
         assert_eq!(anomaly(&session, planet), waiting(ASTEROID, &[]));
-        assert!(result.details_stale.is_empty());
+        assert_eq!(result.details_stale.len(), 1, "the planet's system");
     }
 }
 

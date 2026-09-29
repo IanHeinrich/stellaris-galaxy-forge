@@ -25,7 +25,13 @@ On a Mac, read Cmd wherever this guide says Ctrl.
 The Open screen lists your saves by campaign, newest first, and the
 scenarios in your install and your mods. It finds saves in the game's
 save folder and in Steam's cloud folder. Cloud saves are marked "☁" (see
-[Steam Cloud saves](#steam-cloud-saves)) and Ironman saves "⚿".
+[Steam Cloud saves](#steam-cloud-saves)) and Ironman saves "⚿". On the
+Saves tab, a save shows the name you gave it in the game, with its date
+underneath.
+
+The Recent list holds the last 10 documents you opened. The All tab
+shows the newest 5, and "Show all" opens the rest under Recent. Clear
+empties the list. Files you have deleted drop off it.
 
 Enter or a double-click opens the selected row. A save first asks whether
 to edit it as a save or as a scenario. "Browse…" opens any `.sav` or
@@ -191,13 +197,13 @@ too.
   the game wouldn't run that script. The AI's own anomalies aren't
   offered either.
 - In a Stellaris 4.x save, the Dig site section shows a planet's
-  archaeological site: its stage, its clues, and whether a fleet is
-  excavating it. Remove it with the ✕. A science ship excavating a
-  removed site stops on the game's first day and waits in orbit. A
-  planet without a site has Add dig site. Search by name, or pick Found
-  by surveys or Event only. A planet holds one site, so the list closes
-  after an add. The two site types that do something in game as they
-  are created aren't listed.
+  archaeological site: its stage, its clues, whether a fleet is
+  excavating it, and the game's description of it. Remove it with the
+  ✕. A science ship excavating a removed site stops on the game's first
+  day and waits in orbit. A planet without a site has Add dig site.
+  Search by name, or pick Found by surveys or Event only. A planet holds
+  one site, so the list closes after an add. The two site types that do
+  something in game as they are created aren't listed.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
@@ -210,7 +216,10 @@ too.
   to search by name, resource or category, or pick a category chip.
   Special holds the deposits only events place. Orbital deposits of one
   resource, such as +1 to +10 Energy, share a row: click an amount to
-  add that one. Hover a row to read the game's description of it.
+  add that one.
+- The bottom of the deposit, blocker, modifier and dig site lists shows
+  the game's description of the row you hover. Without the pointer on a
+  row, it describes the row the arrow keys are on.
 - Add blocker, under the Blockers heading, works the same way for
   blockers. Its chips pick the blockers a tech clears, the ones that need
   no tech or can't be cleared, and Special for blockers that do more than
@@ -393,8 +402,11 @@ Each body's name sits on a plate under it. A colonised planet's plate
 has a bar in its owner's colour. Names, System details and Nebulae
 still work while a system is open, with their own settings, so you can
 have them on in the galaxy and off in a system. With System details on,
-each body's resources show under its name. A system inside a nebula
-shows faint clouds behind it while Nebulae is on. The other layer
+each body's resources show under its name. A colony's name shows its
+owner's flag. A body's name also shows icons for its megastructures,
+dig site, anomaly and pre-FTL civilisation. Hover an icon or a resource
+to see what it is. A system inside a nebula shows faint clouds behind
+it while Nebulae is on. The other layer
 buttons and the tool rail are for the galaxy, so they are hidden while
 a system is open. Undo and redo still work from the Edit menu and their
 keys.

@@ -20,6 +20,7 @@ const CHOICES: DigSiteChoice[] = [
   {
     key: "site_lost_moments",
     name: "Never Forget",
+    description: null,
     difficulty: 1,
     stages: 3,
     rolled: true,

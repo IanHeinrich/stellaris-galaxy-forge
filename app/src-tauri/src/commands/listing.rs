@@ -100,6 +100,19 @@ pub async fn save_details(path: String) -> Result<GalaxySettings, SgfError> {
     .map_err(io_error)?
 }
 
+/// The paths in `paths` that are not a file on disk.
+#[tauri::command]
+pub async fn missing_paths(paths: Vec<String>) -> Result<Vec<String>, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        paths
+            .into_iter()
+            .filter(|path| !Path::new(path).is_file())
+            .collect()
+    })
+    .await
+    .map_err(io_error)
+}
+
 /// Whether `path` lies under a Steam Cloud save directory (see `SaveFile::cloud`).
 #[tauri::command]
 pub fn is_cloud_save(path: String) -> bool {
