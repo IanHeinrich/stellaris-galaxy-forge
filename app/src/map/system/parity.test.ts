@@ -152,13 +152,19 @@ function rounded(value: unknown): unknown {
 }
 
 /**
- * A body as the scene resolved it, without the source record it was resolved from, or the steps
- * and turn from the body before it that only a scenario gives.
+ * A body as the scene resolved it, without the source record it was resolved from, which its
+ * marks keep too for their tooltips, or the steps and turn from the body before it that only a
+ * scenario gives.
  */
 function resolved(body: SceneBody): unknown {
-  const { placement } = body;
+  const { placement, marks } = body;
   const radius = placement.radius && { ...placement.radius, step: null, base: null };
-  return rounded({ ...body, planet: null, placement: { ...placement, radius, turn: null } });
+  return rounded({
+    ...body,
+    planet: null,
+    marks: { ...marks, icons: { ...marks.icons, planets: null } },
+    placement: { ...placement, radius, turn: null },
+  });
 }
 
 /** What the bodies layer draws for each body: where, and each part's look. */

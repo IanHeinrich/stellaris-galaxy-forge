@@ -48,8 +48,8 @@ impl GameData {
                     description: def
                         .desc
                         .as_deref()
-                        .and_then(|desc| self.loc.name(desc))
-                        .or_else(|| self.loc.name(&format!("{}_desc", def.key))),
+                        .and_then(|desc| self.loc.description(desc))
+                        .or_else(|| self.loc.description(&format!("{}_desc", def.key))),
                     difficulty: first.unwrap_or(0),
                     stages: u32::try_from(def.difficulties.len()).unwrap_or(u32::MAX),
                     rolled: def.rolled,

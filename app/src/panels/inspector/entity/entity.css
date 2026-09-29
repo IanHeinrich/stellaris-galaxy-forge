@@ -368,8 +368,7 @@
   border-radius: 3px;
 }
 
-.dp-row.active,
-.dp-row:hover {
+.dp-row.active {
   background: var(--bg-panel);
 }
 

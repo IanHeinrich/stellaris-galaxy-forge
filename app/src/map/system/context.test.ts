@@ -151,7 +151,15 @@ describe("the bodies of a system", () => {
     const ctx = save([sun, owned(2, false), owned(3, true)], {
       countries: new Map([[9, country]]),
     });
-    expect(ctx.bodies.map((b) => [b.marks.plate, b.marks.flag !== null, b.marks.preFtl])).toEqual([
+    const preFtl = (b: (typeof ctx.bodies)[number]) =>
+      b.marks.slots.some((slot) => slot.kind === "preFtl");
+    expect(
+      ctx.bodies.map((b) => [
+        b.marks.emblem?.plate ?? null,
+        Boolean(b.marks.emblem?.flag),
+        preFtl(b),
+      ]),
+    ).toEqual([
       [null, false, false],
       ["sprite:GFX_map_icon_bg", true, false],
       [null, false, true],
@@ -183,14 +191,18 @@ describe("the bodies of a system", () => {
     });
     expect(
       ctx.bodies.map(({ marks }) => [
-        marks.megastructures.map((m) => m.id),
-        marks.sites.map((site) => site.id),
-        marks.anomaly,
+        marks.icons.megastructures.map((m) => m.id),
+        marks.icons.sites.map((site) => site.id),
+        marks.icons.anomaly,
       ]),
     ).toEqual([
       [[], [], null],
-      [[50], [], "Research Depot"],
+      [[50, 51], [], "Research Depot"],
       [[], [60], null],
+    ]);
+    expect(ctx.bodies[1].marks.slots.map((slot) => slot.kind)).toEqual([
+      "megastructures",
+      "anomaly",
     ]);
   });
 

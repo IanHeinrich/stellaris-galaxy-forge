@@ -149,6 +149,15 @@ fn the_install_offers_every_site_type_but_the_two_with_on_create() {
         "the first of its triggered descs: {:?}",
         shanty.description
     );
+    let shallash = choice(&choices, "site_ruins_of_shallash");
+    assert!(
+        shallash
+            .description
+            .as_deref()
+            .is_some_and(|text| text.starts_with("This planet was clearly once home")),
+        "the planet it names: {:?}",
+        shallash.description
+    );
     let undescribed: Vec<&str> = choices
         .iter()
         .filter(|c| c.description.is_none())

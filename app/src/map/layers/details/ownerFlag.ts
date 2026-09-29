@@ -1,13 +1,14 @@
 import type { Graphics, Texture } from "pixi.js";
+import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import type { SystemNode } from "../../../generated/SystemNode";
-import { empireFlagKey } from "../../../lib/details/fleets";
 import { isColony } from "../../../lib/details/labels";
-import { type Box, emblemOwner } from "../../../lib/details/layout";
+import { type Box, type NameEmblem, nameEmblem } from "../../../lib/details/layout";
+import type { Ownership } from "../../../lib/ownership";
 import type { RenderContext } from "../../RenderContext";
 import { DISC_PX, ICON_PX, type RowY, type Textures } from "./cell";
 import type { Tip } from "./Hover";
-import { planetLines } from "./planets";
+import { type PlanetLineContext, planetLines } from "./planets";
 import type { Row } from "./Row";
 
 /**
@@ -19,6 +20,10 @@ const CAPITAL_RIM_PX = 1;
 const CAPITAL_RIM_WIDTH = 2;
 const CAPITAL_RIM_COLOR = 0xe8c872;
 
+/** What a flag's tooltip reads: the owner's name and the colonies' lines. */
+export type FlagContext = PlanetLineContext & Pick<Ownership, "table">;
+
+/** The flag left of a system's name, for whoever holds it. */
 export function ownerFlag(
   row: Row,
   ctx: RenderContext,
@@ -28,17 +33,30 @@ export function ownerFlag(
   right: number,
   y: RowY,
 ): void {
-  const { countries, owners, table, countryName, hiddenOwners } = ctx;
+  const { countries, owners, hiddenOwners } = ctx;
   const systemOwner = hiddenOwners.has(s.id) ? null : (owners.get(s.id) ?? null);
-  const owner = emblemOwner(d, systemOwner, countries);
-  if (owner === null) return;
-  const key = empireFlagKey(countries.get(owner));
-  const texture = key ? tex.texture(key) : null;
+  const emblem = nameEmblem(d.planets, countries, systemOwner);
+  if (emblem) emblemFlag(row, ctx, tex, emblem, d.planets, right, y);
+}
+
+/**
+ * `emblem`'s flag in the cell whose right edge is `right`, its tooltip naming the owner and the
+ * colonies among `planets`; nothing while the flag has not landed or cannot.
+ */
+export function emblemFlag(
+  row: Row,
+  ctx: FlagContext,
+  tex: Textures,
+  emblem: NameEmblem,
+  planets: readonly PlanetSummary[],
+  right: number,
+  y: RowY,
+): void {
+  const texture = emblem.flag === null ? null : tex.texture(emblem.flag);
   if (!texture) return;
-  const capital = d.planets.some((p) => p.capital && p.owner === owner);
-  const lines = planetLines(ctx, tex, d.planets.filter(isColony));
-  const tip = { title: table.get(owner)?.label ?? countryName(owner), lines };
-  flag(row, texture, right, y, capital, tip);
+  const title = ctx.table.get(emblem.owner)?.label ?? ctx.countryName(emblem.owner);
+  const lines = planetLines(ctx, tex, planets.filter(isColony));
+  flag(row, texture, right, y, emblem.capital, { title, lines });
 }
 
 /**
@@ -46,13 +64,13 @@ export function ownerFlag(
  * capital. The flag is drawn oversized (EMBLEM_PX) but centred on the cell (ICON_PX wide), so
  * plateBox keeps using the cell's own width.
  */
-export function flag(
+function flag(
   row: Row,
   texture: Texture,
   right: number,
   y: RowY,
   capital: boolean,
-  tip: Tip | null,
+  tip: Tip,
 ): void {
   const cx = right - ICON_PX / 2;
   const cy = y.icon + ICON_PX / 2;

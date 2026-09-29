@@ -22,11 +22,13 @@ import {
   PRE_FTL_ICON_KEY,
 } from "../../../lib/details/icons";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
+import type { Camera } from "../../Camera";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import { countryNode } from "../../../test/builders";
 import { systemContext } from "../context";
 import {
   EARTH,
+  LUNA,
   MARS,
   SUN,
   context,
@@ -286,8 +288,8 @@ describe("the system scene's labels layer", () => {
     layer.destroy();
   });
 
-  it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
-    clearTextures();
+  /** Decodes every texture the layer asks for as a blank one of its own, returned by key. */
+  const decodeAll = () => {
     const decoded = new Map<string, Texture>();
     const textureFor = (key: string) => {
       if (!decoded.has(key)) decoded.set(key, new Texture());
@@ -295,6 +297,36 @@ describe("the system scene's labels layer", () => {
     };
     setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
     fetch.answers = true;
+    return textureFor;
+  };
+
+  /** Body `id`'s shown marks, and the screen point over the middle of one of their sprites. */
+  const markSprites = (layer: LabelsLayer, cam: Camera, id: number) => {
+    const plate = layer.plates().find((p) => p.id === id);
+    if (!plate) throw new Error(`no plate for ${id}`);
+    const holder = shown(layer).find(
+      (h) => h.position.x === plate.x && h.position.y === plate.y,
+    ) as Container;
+    const over = holder.children.find((c) => c.label === "marks") as Container;
+    const k = Math.abs(holder.scale.x) * cam.scale;
+    const top = cam.worldToScreen(plate.x, plate.y);
+    return {
+      top,
+      sprites: () =>
+        over.children
+          .flatMap((c) => c.children)
+          .filter((c): c is Sprite => c instanceof Sprite && c.visible)
+          .sort((a, b) => a.x - b.x),
+      pointOver: (sprite: Sprite) => ({
+        x: top.x + (over.x + over.scale.x * (sprite.x + sprite.width / 2)) * k,
+        y: top.y + (over.y + over.scale.y * (sprite.y + sprite.height / 2)) * k,
+      }),
+    };
+  };
+
+  it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
+    clearTextures();
+    const textureFor = decodeAll();
     const natives = { ...EARTH, colonised: true, owner: 10, pre_ftl: true };
     const holding = { ...natives, anomaly: "AIANOM_RESEARCHDEPO_CAT" };
     const ctx = systemContext({
@@ -312,40 +344,99 @@ describe("the system scene's labels layer", () => {
     const layer = new LabelsLayer();
     layer.rebuild(ctx);
     const cam = viewport(layer, 2);
-    const plate = layer.plates().find((p) => p.id === EARTH.id);
-    if (!plate) throw new Error("no plate for the planet");
-    const holder = shown(layer).find(
-      (h) => h.position.x === plate.x && h.position.y === plate.y,
-    ) as Container;
-    const over = holder.children.find((c) => c.label === "marks") as Container;
-    const sprites = () =>
-      over.children
-        .flatMap((c) => c.children)
-        .filter((c): c is Sprite => c instanceof Sprite && c.visible)
-        .sort((a, b) => a.x - b.x);
+    const earth = markSprites(layer, cam, EARTH.id);
     const icons = [
       MEGASTRUCTURE_ICON_KEY,
       ARCHAEOLOGY_ICON_KEYS[0],
       ANOMALY_ICON_KEY,
       PRE_FTL_ICON_KEY,
     ].map(textureFor);
-    await vi.waitFor(() => expect(sprites().map((s) => s.texture)).toEqual(icons));
+    await vi.waitFor(() => expect(earth.sprites().map((s) => s.texture)).toEqual(icons));
 
-    const k = Math.abs(holder.scale.x) * cam.scale;
-    const top = cam.worldToScreen(plate.x, plate.y);
-    const tipOver = (sprite: Sprite) =>
-      layer.tipAt(
-        top.x + (over.x + over.scale.x * (sprite.x + sprite.width / 2)) * k,
-        top.y + (over.y + over.scale.y * (sprite.y + sprite.height / 2)) * k,
-      );
-    const [megastructure, site, anomaly] = sprites();
+    const tipOver = (sprite: Sprite, body = EARTH.id) => {
+      const at = earth.pointOver(sprite);
+      return layer.tipAt(body, at.x, at.y);
+    };
+    const [megastructure, site, anomaly] = earth.sprites();
     expect(tipOver(megastructure)?.title).toBe("Dyson Sphere (stage 2)");
     expect(tipOver(site)).toEqual({
       title: "Tiyanki Graveyard",
       lines: [ctx.templateName(holding)],
     });
     expect(tipOver(anomaly)).toEqual({ title: "Research Depot", lines: ["Anomaly"] });
-    expect(layer.tipAt(top.x - 50, top.y - 50)).toBeNull();
+    expect(layer.tipAt(EARTH.id, earth.top.x - 50, earth.top.y - 50)).toBeNull();
+    layer.destroy();
+  });
+
+  it("gives no mark tooltip for a body other than the one hovered, whose disc may lie under another's plate", async () => {
+    clearTextures();
+    const textureFor = decodeAll();
+    const holding = { ...EARTH, anomaly: "time_loop_world" };
+    const layer = new LabelsLayer();
+    layer.rebuild(
+      systemContext({
+        ...context({ planets: [SUN, holding, LUNA] }),
+        sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details: true },
+      }),
+    );
+    const cam = viewport(layer, 2);
+    const earth = markSprites(layer, cam, EARTH.id);
+    await vi.waitFor(() =>
+      expect(earth.sprites().map((s) => s.texture)).toEqual([textureFor(ANOMALY_ICON_KEY)]),
+    );
+    const at = earth.pointOver(earth.sprites()[0]);
+    expect(layer.tipAt(EARTH.id, at.x, at.y)?.title).toBe("Time Loop World");
+    expect(layer.tipAt(LUNA.id, at.x, at.y)).toBeNull();
+    layer.destroy();
+  });
+
+  it("names a flag's owner as the context now does after a change that leaves the labels standing", async () => {
+    clearTextures();
+    const textureFor = decodeAll();
+    const empire = countryNode({
+      id: 9,
+      colors: ["red", "black"],
+      flag_icon: { category: "human", file: "flag_human_9.dds" },
+      flag_background: { category: "backgrounds", file: "00_solid.dds" },
+    });
+    const colony = { ...EARTH, colonised: true, owner: empire.id };
+    const ownership = (label: string) => ({
+      owners: new Map<number, number>(),
+      table: new Map([
+        [
+          empire.id,
+          {
+            id: empire.id,
+            label,
+            kind: "country" as const,
+            colors: { outline: 0x3366cc, fill: 0 },
+          },
+        ],
+      ]),
+    });
+    const sources = {
+      ...context({ planets: [SUN, colony] }),
+      sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details: true },
+      countries: new Map([[empire.id, empire]]),
+    };
+    const layer = new LabelsLayer();
+    layer.rebuild(systemContext({ ...sources, ownership: ownership("Old Empire") }));
+    const cam = viewport(layer, 2);
+    const flag = textureFor(empireFlagKey(empire) ?? "");
+    const earth = markSprites(layer, cam, EARTH.id);
+    await vi.waitFor(() => expect(earth.sprites().map((s) => s.texture)).toContain(flag));
+    const flagTitle = () => {
+      const sprite = earth.sprites().find((s) => s.texture === flag);
+      if (!sprite) throw new Error("no flag");
+      const at = earth.pointOver(sprite);
+      return layer.tipAt(EARTH.id, at.x, at.y)?.title;
+    };
+    expect(flagTitle()).toBe("Old Empire");
+
+    const before = layer.container.children[0];
+    layer.rebuild(systemContext({ ...sources, ownership: ownership("New Empire") }));
+    expect(layer.container.children[0]).toBe(before);
+    expect(flagTitle()).toBe("New Empire");
     layer.destroy();
   });
 

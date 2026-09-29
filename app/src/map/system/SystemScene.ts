@@ -180,8 +180,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     return pickPlate(this.labels.plates(), this.cam, { x: sx, y: sy });
   }
 
-  markTipAt(sx: number, sy: number): Tip | null {
-    return this.labels.tipAt(sx, sy);
+  markTipAt(body: number, sx: number, sy: number): Tip | null {
+    return this.labels.tipAt(body, sx, sy);
   }
 
   /** Does nothing while the scene is hidden: showing it reads the stores again. */

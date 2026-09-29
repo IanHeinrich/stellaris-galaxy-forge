@@ -5,7 +5,6 @@ import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
 import { useOutsidePress } from "../../useOutsidePress";
 
-export const PICKER_DETAILS_HINT = "Hover a row to read about it";
 export const NO_DESCRIPTION = "No description";
 
 /** A picker's store, as the menu reads it. */
@@ -45,21 +44,28 @@ interface Cursor {
 function PickerRow({
   item,
   id,
+  lit,
   cursor,
+  describedBy,
   onHover,
   onAdd,
 }: {
   item: PickerItem;
   id: string;
-  /** The button the keyboard stands on, when it stands on this row. */
+  /** The details under the list describe this row. */
+  lit: boolean;
+  /** The button the keyboard stands on, when it stands on this row and nothing else is lit. */
   cursor: number | null;
+  /** The details' id, when they describe the row the keyboard stands on. */
+  describedBy: string | undefined;
   onHover: () => void;
   onAdd: (button: number) => void;
 }) {
   return (
     <div
       id={id}
-      className={`dp-row${item.buttons.length > 1 ? " family" : ""}${cursor === null ? "" : " active"}`}
+      className={`dp-row${item.buttons.length > 1 ? " family" : ""}${lit ? " active" : ""}`}
+      aria-describedby={describedBy}
       onMouseEnter={onHover}
     >
       <span className={`dp-art${item.artClass === undefined ? "" : ` ${item.artClass}`}`}>
@@ -91,13 +97,14 @@ function PickerRow({
   );
 }
 
-/** The name and description of the row under the pointer or the keyboard, at a fixed height. */
-function PickerDetails({ item }: { item: PickerItem | null }) {
+/**
+ * The name and description of the row under the pointer or the keyboard, at a fixed height; empty
+ * without rows.
+ */
+function PickerDetails({ id, item }: { id: string; item: PickerItem | null }) {
   return (
-    <div className="dp-details" aria-live="polite">
-      {item === null ? (
-        <span className="muted">{PICKER_DETAILS_HINT}</span>
-      ) : (
+    <div id={id} className="dp-details">
+      {item !== null && (
         <>
           <span className="dp-details-name">{item.label}</span>
           {item.description === null ? (
@@ -176,8 +183,8 @@ export function PickerMenu<R, C extends string>({
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `${idPrefix}-${i}`;
   useEffect(() => {
-    document.getElementById(rowId(at))?.scrollIntoView?.({ block: "nearest" });
-  });
+    document.getElementById(`${idPrefix}-${at}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [idPrefix, at]);
 
   const onKey = (e: KeyboardEvent) => {
     const inSearch = e.target === search.current;
@@ -212,7 +219,9 @@ export function PickerMenu<R, C extends string>({
     setHovered(null);
     setCursor({ row: 0, button: 0 });
   };
-  const detailed = flat[hovered ?? at];
+  const lit = hovered ?? at;
+  const detailed = flat[lit];
+  const detailsId = `${idPrefix}-details`;
   let index = 0;
   return (
     <div
@@ -284,7 +293,13 @@ export function PickerMenu<R, C extends string>({
                   key={shown.key}
                   item={shown}
                   id={rowId(i)}
-                  cursor={i === at ? Math.min(cursor.button, shown.buttons.length - 1) : null}
+                  lit={i === lit}
+                  cursor={
+                    i === at && lit === at
+                      ? Math.min(cursor.button, shown.buttons.length - 1)
+                      : null
+                  }
+                  describedBy={i === at && lit === at ? detailsId : undefined}
                   onHover={() => setHovered(i)}
                   onAdd={(button) => {
                     setCursor({ row: i, button });
@@ -296,7 +311,7 @@ export function PickerMenu<R, C extends string>({
           </div>
         ))}
       </div>
-      <PickerDetails item={detailed === undefined ? null : item(detailed)} />
+      <PickerDetails id={detailsId} item={detailed === undefined ? null : item(detailed)} />
     </div>
   );
 }

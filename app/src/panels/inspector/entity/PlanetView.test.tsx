@@ -39,7 +39,6 @@ import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
-import { PICKER_DETAILS_HINT } from "./PickerMenu";
 import {
   READING_TARGETS,
   SystemChoice,
@@ -645,8 +644,11 @@ describe("an unowned world's page", () => {
     expect(html).toContain("Repowered Complex");
     expect(html).toContain("1 stage · event only");
     expect(html).not.toContain("Never Forget");
-    expect(html).toContain(
-      '<div class="dp-details" aria-live="polite"><span class="dp-details-name">Repowered Complex</span><span class="dp-details-text">A complex that has come back to life.</span></div>',
+    expect(html).toMatch(
+      /<div id="(ds-row-[^"]+-details)" class="dp-details"><span class="dp-details-name">Repowered Complex<\/span><span class="dp-details-text">A complex that has come back to life.<\/span><\/div>/,
+    );
+    expect(html).toMatch(
+      /id="ds-row-[^"]+-0" class="dp-row active" aria-describedby="ds-row-[^"]+-details"/,
     );
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -664,7 +666,9 @@ describe("an unowned world's page", () => {
       target: planetPickerTarget(OLBERS, false),
       query: "no such site",
     });
-    expect(render(WORLD)).toContain(`<span class="muted">${PICKER_DETAILS_HINT}</span>`);
+    const none = render(WORLD);
+    expect(none).toContain("No dig site matches");
+    expect(none).toMatch(/class="dp-details"><\/div>/);
   });
 });
 

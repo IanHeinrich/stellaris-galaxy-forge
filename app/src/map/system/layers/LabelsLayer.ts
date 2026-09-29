@@ -13,6 +13,7 @@ import {
   resourceIcons,
   type ResourceStyles,
 } from "../../layers/details/resources";
+import type { FlagContext } from "../../layers/details/ownerFlag";
 import type { Row } from "../../layers/details/Row";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import { bodyTier, drawnDisc } from "../geometry";
@@ -96,6 +97,23 @@ function labelledAlike(a: SceneBody, b: SceneBody): boolean {
   );
 }
 
+/** What the labels' tooltips read from `ctx`. */
+function tipContext(ctx: SystemContext): FlagContext {
+  const { planetClasses, names, templateName, countryName } = ctx;
+  return { planetClasses, names, templateName, countryName, table: ctx.ownership.table };
+}
+
+/** Whether the tooltips read `ctx` as they read `was`. */
+function sameTipContext(was: FlagContext, ctx: SystemContext): boolean {
+  return (
+    was.planetClasses === ctx.planetClasses &&
+    was.names === ctx.names &&
+    was.templateName === ctx.templateName &&
+    was.countryName === ctx.countryName &&
+    was.table === ctx.ownership.table
+  );
+}
+
 /** Stars first, then planets from the largest, then moons from the largest. */
 function rank(a: Label, b: Label): number {
   return bodyTier(a.body) - bodyTier(b.body) || b.body.placement.disc - a.body.placement.disc;
@@ -123,7 +141,7 @@ function makeLabel(
   named: boolean,
   rows: readonly ResourceRow[],
   marks: BodyMarks,
-  ctx: SystemContext,
+  names: Names,
 ): Label {
   const holder = new Container();
   let plate: Plate | null = null;
@@ -137,9 +155,7 @@ function makeLabel(
     name.anchor.set(0.5, 0);
     const w = name.width + 2 * PLATE_PAD_X + colonyBarReach(body.colony);
     plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
-    if (marked(marks) && body.planet !== null) {
-      nameMarks = new NameMarks(marks, body.planet, ctx, plate.w, plate.h);
-    }
+    if (marked(marks)) nameMarks = new NameMarks(marks, plate.w, plate.h);
     if (nameMarks?.under) holder.addChild(nameMarks.under);
     holder.addChild(g);
     if (nameMarks) holder.addChild(nameMarks.over);
@@ -150,7 +166,7 @@ function makeLabel(
   let reach: ResourceReach = { half: 0, height: 0 };
   if (rows.length > 0) {
     resources = new LabelRow("resources");
-    reach = drawResources(resources.row, ctx.names, NO_TEXTURES, rows);
+    reach = drawResources(resources.row, names, NO_TEXTURES, rows);
     holder.addChild(resources.root);
   }
 
@@ -179,7 +195,7 @@ function makeLabel(
 export class LabelsLayer implements SystemLayer {
   readonly container = new Container();
   private bodies: readonly SceneBody[] = EMPTY_SYSTEM_CONTEXT.bodies;
-  private names: Names = EMPTY_SYSTEM_CONTEXT.names;
+  private tips: FlagContext = tipContext(EMPTY_SYSTEM_CONTEXT);
   private detailsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.details;
   private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
@@ -201,14 +217,16 @@ export class LabelsLayer implements SystemLayer {
     return this.shown;
   }
 
-  /** The tooltip of the mark or resource under the screen point, on a shown label; null for none. */
-  tipAt(sx: number, sy: number): Tip | null {
+  /**
+   * The tooltip of the mark or resource under the screen point on `body`'s shown label; null for
+   * none, and where another body's disc or plate is what the pointer is over.
+   */
+  tipAt(body: number, sx: number, sy: number): Tip | null {
     const cam = this.cam;
     if (!cam) return null;
-    const id = pickPlate(this.shown, cam, { x: sx, y: sy });
-    const plate = this.shown.find((p) => p.id === id);
-    const label = this.labels.find((l) => l.body.placement.id === id);
-    if (!plate || !label) return null;
+    const plate = this.shown.find((p) => p.id === body);
+    const label = this.labels.find((l) => l.body.placement.id === body);
+    if (!plate || !label || pickPlate([plate], cam, { x: sx, y: sy }) === null) return null;
     const top = cam.worldToScreen(plate.x, plate.y);
     const k = plateScaleAt(cam, this.fitRadius);
     const x = (sx - top.x) / k;
@@ -229,7 +247,7 @@ export class LabelsLayer implements SystemLayer {
       if (this.move(ctx)) return;
     }
     this.bodies = ctx.bodies;
-    this.names = ctx.names;
+    this.tips = tipContext(ctx);
     this.detailsShown = ctx.sceneLayers.details;
     this.labelsShown = ctx.sceneLayers.labels;
     this.fitRadius = ctx.layout.fitRadius;
@@ -240,7 +258,7 @@ export class LabelsLayer implements SystemLayer {
         const rows = ctx.sceneLayers.details ? body.resources : [];
         if (!named && rows.length === 0) return [];
         const marks = ctx.sceneLayers.details ? body.marks : NO_MARKS;
-        const label = makeLabel(body, named, rows, marks, ctx);
+        const label = makeLabel(body, named, rows, marks, ctx.names);
         this.container.addChild(label.holder);
         return [label];
       })
@@ -264,10 +282,16 @@ export class LabelsLayer implements SystemLayer {
       return now !== undefined && labelledAlike(was, now);
     };
     if (!this.bodies.every(alike)) return false;
+    const stale =
+      !sameTipContext(this.tips, ctx) ||
+      this.labels.some((l) => byId.get(l.body.placement.id)?.planet !== l.body.planet);
     this.bodies = ctx.bodies;
-    this.names = ctx.names;
     this.fitRadius = ctx.layout.fitRadius;
     for (const label of this.labels) label.body = byId.get(label.body.placement.id)!;
+    if (stale) {
+      this.tips = tipContext(ctx);
+      this.redress();
+    }
     this.drawnRev = -1;
     this.place();
     return true;
@@ -282,8 +306,8 @@ export class LabelsLayer implements SystemLayer {
     const wanted = new Set<string>();
     const tex = queuedTextures(wanted);
     for (const { body, marks, resources } of this.labels) {
-      marks?.dress(tex);
-      if (resources) drawResources(resources.row, this.names, tex, body.resources);
+      marks?.dress(tex, body.marks, this.tips);
+      if (resources) drawResources(resources.row, this.tips.names, tex, body.resources);
     }
     if (wanted.size > 0) requestTextures(wanted);
   }

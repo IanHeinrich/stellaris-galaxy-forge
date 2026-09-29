@@ -29,8 +29,8 @@ export interface SceneTarget {
   frame(): SystemContext;
   /** The body whose shown name plate covers the screen point, or null. */
   plateAt(sx: number, sy: number): number | null;
-  /** The tooltip of the mark or resource icon on a name plate under the screen point, or null. */
-  markTipAt(sx: number, sy: number): Tip | null;
+  /** The tooltip of the mark or resource icon under the screen point on `body`'s name plate, or null. */
+  markTipAt(body: number, sx: number, sy: number): Tip | null;
   hover(body: number | null, exit: number | null, handle: HandleRef | null): void;
   /** Shows the handles of one band, the one the pointer is over or the one dragged, or none. */
   revealHandles(owner: HandleRef | null): void;
@@ -303,7 +303,7 @@ export class SystemInteraction {
     }
     const own = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle) : last.tip;
     this.hovered = { body, exit, handle, ctx, tip: own, sx, sy };
-    const tip = (body === null ? null : this.scene.markTipAt(sx, sy)) ?? own;
+    const tip = (body === null ? null : this.scene.markTipAt(body, sx, sy)) ?? own;
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
   }

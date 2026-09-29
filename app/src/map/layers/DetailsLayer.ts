@@ -19,6 +19,7 @@ import {
   plateKey,
   visiblePlanets,
 } from "../../lib/details/layout";
+import { systemIcons } from "../../lib/details/nameIcons";
 import { resourceRows } from "../../lib/details/resources";
 import { nameHalf } from "./nameWidth";
 import type { Camera } from "../Camera";
@@ -41,7 +42,6 @@ const UNDERLINE_ALPHA = 0.7;
 /** How far beyond the viewport, in screen pixels, rows are still laid out. */
 const CULL_MARGIN_PX = 160;
 const MAX_ROWS = 300;
-const NO_BYPASSES: readonly Icon[] = [];
 
 /** What a shown row was laid out from: everything but the camera's translation. */
 interface LaidOut {
@@ -233,13 +233,7 @@ export class DetailsLayer implements MapLayer {
     const first = half + NAME_ROW.gap;
     let x = first;
     x = withIcons ? this.starbaseIcon(row, d, x, y) : this.starbaseText(row, d, x, y);
-    const icons = nameIcons(ctx, tex, {
-      planets: d.planets,
-      megastructures: d.megastructures,
-      bypasses: this.bypassesOf.get(d.id) ?? NO_BYPASSES,
-      sites: d.sites,
-      anomaly: null,
-    });
+    const icons = nameIcons(ctx, tex, systemIcons(d, this.bypassesOf.get(d.id)));
     x = drawNameIcons(row, tex, icons, x, y);
     if (x > first && plateKey(d) === null) this.underline(row, plateBox(half, y.row));
     fleets(row, ctx, tex, d, withIcons);

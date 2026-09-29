@@ -9,7 +9,8 @@ import {
   NO_MARKS,
   bodyMarks,
   colonyOwner,
-  emblemOwner,
+  marked,
+  nameEmblem,
   nameRowY,
   plateBottom,
   plateBox,
@@ -74,29 +75,33 @@ describe("bodyMarks", () => {
   const names = new Map<string, string>();
   const marksOf = (p: ReturnType<typeof planet>, d = empty, n = names) =>
     bodyMarks(p, countries, d, n);
+  const kinds = (p: ReturnType<typeof planet>, d = empty) =>
+    marksOf(p, d).slots.map((slot) => slot.kind);
 
-  it("gives a colony the plate and its owner's flag, the capital's plate and rim on the capital", () => {
+  it("gives a colony its owner's emblem, the capital's plate and rim on the capital", () => {
     const colony = planet({ colonised: true, owner: COUNTRY.id });
-    expect(marksOf(colony)).toEqual({
-      ...NO_MARKS,
-      plate: "sprite:GFX_map_icon_bg",
+    expect(marksOf(colony).emblem).toEqual({
+      owner: COUNTRY.id,
       flag: empireFlagKey(COUNTRY),
+      plate: "sprite:GFX_map_icon_bg",
+      capital: false,
     });
-    expect(marksOf({ ...colony, capital: true })).toMatchObject({
+    expect(marksOf({ ...colony, capital: true }).emblem).toMatchObject({
       plate: "sprite:GFX_map_icon_bg_capital",
       capital: true,
     });
   });
 
-  it("gives a pre-FTL world the icon alone, and an unsettled planet nothing", () => {
+  it("gives a pre-FTL world its icon and no emblem, and an unsettled planet nothing", () => {
     const preFtl = planet({ colonised: true, owner: COUNTRY.id, pre_ftl: true });
-    expect(marksOf(preFtl)).toEqual({ ...NO_MARKS, preFtl: true });
-    expect(marksOf(planet({ owner: COUNTRY.id }))).toEqual(NO_MARKS);
+    expect(marksOf(preFtl).emblem).toBeNull();
+    expect(kinds(preFtl)).toEqual(["preFtl"]);
+    expect(marked(marksOf(planet({})))).toBe(false);
   });
 
   it("keeps a colony's plate when its owner has no flag", () => {
     const colony = planet({ colonised: true, owner: 99 });
-    expect(marksOf(colony)).toMatchObject({
+    expect(marksOf(colony).emblem).toMatchObject({
       plate: "sprite:GFX_map_icon_bg",
       flag: null,
     });
@@ -124,12 +129,14 @@ describe("bodyMarks", () => {
     });
     const named = new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]);
     const marks = marksOf(body, d, named);
-    expect(marks.megastructures.map((m) => m.id)).toEqual([1]);
-    expect(marks.sites.map((s) => s.id)).toEqual([10]);
-    expect(marks.anomaly).toBe("Research Depot");
-    expect(marks.plate).toBeNull();
-    expect(marksOf(body, d).anomaly).toBe("Aianom Researchdepo");
-    expect(marksOf({ ...body, id: 9, anomaly: undefined }, d)).toBe(NO_MARKS);
+    expect(marks.slots.map((slot) => [slot.kind, slot.icon.label, slot.count])).toEqual([
+      ["megastructures", "Dyson Sphere (stage 2)", 1],
+      ["sites", "Tiyanki Graveyard", 1],
+      ["anomaly", "Research Depot", 1],
+    ]);
+    expect(marks.emblem).toBeNull();
+    expect(marksOf(body, d).icons.anomaly).toBe("Aianom Researchdepo");
+    expect(marked(marksOf({ ...body, id: 9, anomaly: undefined }, d))).toBe(false);
   });
 
   it("reads the same for equal icons in fresh arrays, and apart for a changed anomaly or site", () => {
@@ -139,6 +146,7 @@ describe("bodyMarks", () => {
     const renamed = new Map([["time_loop_world", "Time Loop"]]);
     expect(sameMarks(marksOf(body, d()), marksOf(body, d(), renamed))).toBe(false);
     expect(sameMarks(marksOf(body, d()), marksOf(body))).toBe(false);
+    expect(sameMarks(NO_MARKS, marksOf(planet({})))).toBe(true);
   });
 });
 
@@ -161,22 +169,32 @@ describe("plateBox", () => {
   });
 });
 
-describe("emblemOwner", () => {
-  it("is the coloniser, else a marauder clan holding the system, else nobody", () => {
+describe("nameEmblem", () => {
+  it("is the coloniser's, else a marauder clan's holding the system with no plate, else nobody's", () => {
     const countries = new Map<number, CountryNode>([
       [5, { ...COUNTRY, id: 5, country_type: "dormant_marauders" }],
       [6, { ...COUNTRY, id: 6, country_type: "default" }],
     ]);
-    expect(emblemOwner(details({ planets: [planet({ owner: 6 })] }), 5, countries)).toBe(6);
-    expect(emblemOwner(details({}), 5, countries)).toBe(5);
-    expect(emblemOwner(details({}), 6, countries)).toBeNull();
-    expect(emblemOwner(details({}), null, countries)).toBeNull();
+    const owner = (planets: ReturnType<typeof planet>[], holder: number | null) =>
+      nameEmblem(planets, countries, holder)?.owner ?? null;
+    expect(owner([planet({ owner: 6 })], 5)).toBe(6);
+    expect(owner([], 5)).toBe(5);
+    expect(nameEmblem([], countries, 5)?.plate).toBeNull();
+    expect(owner([], 6)).toBeNull();
+    expect(owner([], null)).toBeNull();
   });
 
-  it("is the marauder clan even with no colonised planet in the system", () => {
-    const countries = new Map<number, CountryNode>([
-      [5, { ...COUNTRY, id: 5, country_type: "dormant_marauders" }],
-    ]);
-    expect(emblemOwner(details({ planets: [] }), 5, countries)).toBe(5);
+  it("rings the flag and picks the capital's plate only where the owner's capital is among the planets", () => {
+    const countries = new Map([[COUNTRY.id, COUNTRY]]);
+    const colony = planet({ id: 1, owner: COUNTRY.id, colonised: true });
+    const foreignCapital = planet({ id: 2, owner: 9, colonised: true, capital: true });
+    expect(nameEmblem([colony, foreignCapital], countries)).toMatchObject({
+      capital: false,
+      plate: "sprite:GFX_map_icon_bg",
+    });
+    expect(nameEmblem([{ ...colony, capital: true }], countries)).toMatchObject({
+      capital: true,
+      plate: "sprite:GFX_map_icon_bg_capital",
+    });
   });
 });
