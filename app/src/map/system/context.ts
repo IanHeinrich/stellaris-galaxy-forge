@@ -3,7 +3,7 @@ import type { BeltLook } from "../../generated/BeltLook";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
-import { discRadius } from "../../lib/details/discs";
+import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { boundsText, isColony, wormholeLabel } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
@@ -643,7 +643,7 @@ export function systemContext(
     wormholes,
     viewRadius: Math.max(
       layout.fitRadius,
-      ...wormholes.map((w) => Math.hypot(w.x, w.y) + FIT_MARGIN),
+      ...wormholes.map((w) => Math.hypot(w.x, w.y) + WORMHOLE_RADIUS + FIT_MARGIN),
     ),
     drag: preview?.marks ?? null,
   });
