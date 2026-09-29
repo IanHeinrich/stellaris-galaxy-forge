@@ -55,6 +55,7 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - The game's concepts, one module each and named for it: `feZone`, `feLinks`,
   `feSpawnGhosts`, `marauder`, `ownership`, `countryKinds`, `spawn`,
   `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
+  `wormholes` (a save's natural wormhole pairs, read from its bypass links),
   `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
   `addSystem` (where a system may be added, and the Special menu's marks),
   `addBody` (the words of the Add planet and Add moon menus, and which

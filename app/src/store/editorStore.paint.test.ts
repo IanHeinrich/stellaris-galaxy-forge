@@ -7,7 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import type { EditResult } from "../generated/EditResult";
 import type { Op } from "../generated/Op";
 import type { SystemNode } from "../generated/SystemNode";
-import { editor, openFixtureSave, sessionError } from "./editorFixture";
+import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./editorFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult, node } from "./fixture";
@@ -64,6 +64,10 @@ describe("header empire counts", () => {
 });
 
 describe("wormhole pairs", () => {
+  beforeEach(async () => {
+    await openFixtureScenario();
+  });
+
   it("linkWormholePair numbers the new pair past every pair in use, from 1, and shows the layer", async () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     useMapChromeStore.setState({
@@ -101,6 +105,42 @@ describe("wormhole pairs", () => {
 
     expect(await editor().unlinkWormholePair(1, 3)).toBe(false);
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a save's wormhole pairs", () => {
+  it("linkWormholePair adds a natural wormhole pair and shows the bypasses layer", async () => {
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    useMapChromeStore.setState({
+      layers: { ...useMapChromeStore.getState().layers, bypasses: false },
+    });
+    expect(await editor().linkWormholePair(0, 3)).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "AddSaveWormholePair", a: 0, b: 3 });
+    expect(useMapChromeStore.getState().layers.bypasses).toBe(true);
+  });
+
+  it("unlinkWormholePair removes the pair the bypass links join, and refuses systems they do not", async () => {
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    useGalaxyStore.getState().applyDelta({
+      systems: [],
+      bypasses: [{ type: "wormhole", a: 1, b: 2 }],
+    });
+    expect(await editor().unlinkWormholePair(2, 1)).toBe(true);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "RemoveSaveWormholePair",
+      a: 2,
+      b: 1,
+    });
+
+    expect(await editor().unlinkWormholePair(1, 3)).toBe(false);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+  });
+
+  it("the links an edit sends replace the ones the galaxy holds", async () => {
+    const bypasses = [{ type: "wormhole", a: 0, b: 3 } as const];
+    mockedIpc.applyOp.mockResolvedValue(editResult({ delta: { systems: [], bypasses } }));
+    await editor().linkWormholePair(0, 3);
+    expect(useGalaxyStore.getState().bypasses).toEqual(bypasses);
   });
 });
 

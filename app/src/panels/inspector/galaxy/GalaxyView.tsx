@@ -161,14 +161,13 @@ export function GalaxyView() {
   const countries = useGalaxyStore((s) => s.countries);
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const lgate = useGalaxyStore((s) => s.lgate);
+  const links = useGalaxyStore((s) => s.bypasses);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const paint = usePaintLayer();
   useGalaxyVersion();
 
   const scenario = kind === "scenario";
-  const bypasses = scenario
-    ? bypassLinks(placed, true, true).length
-    : (galaxy?.bypasses.length ?? 0);
+  const bypasses = scenario ? bypassLinks(placed, true, true).length : links.length;
   const random = scenario ? randomBypassLine(placed) : null;
   const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
   const components = galaxyIslandCount(systems);

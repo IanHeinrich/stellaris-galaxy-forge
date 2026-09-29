@@ -26,6 +26,7 @@ import { SpawnPointSection } from "./sections/scenario/SpawnPointSection";
 import { WormholePairSection } from "./sections/scenario/WormholePairSection";
 import { SiteSection } from "./sections/Sites";
 import { StationSection } from "./sections/Station";
+import { SaveWormholePairSection } from "./sections/WormholePair";
 import { Header, OverviewHead } from "./SystemHeader";
 
 /** How many hyperlanes the Overview lists before sending the reader to the Lanes tab. */
@@ -133,6 +134,7 @@ export function Overview({
       <OverviewHead detail={detail} />
       <HyperlaneSection detail={detail} limit={OVERVIEW_LANES} />
       <BypassSection system={system.id} />
+      <SaveWormholePairSection system={system.id} />
       <PlanetSection details={details} />
       <BeltSection details={details} />
       {details.starbase && <StationSection starbase={details.starbase} system={system.id} />}

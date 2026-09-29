@@ -330,7 +330,7 @@ export function renderContext(): RenderContext {
     bypasses:
       kind === "scenario"
         ? linksIn(data.scenarioBypasses, chrome.layers.bypasses, chrome.layers.day_one_bypasses)
-        : (galaxy.galaxy?.bypasses ?? NOTHING),
+        : galaxy.bypasses,
     waylines: galaxy.waylines,
     waystations: stationsIn(galaxy.waystations),
     radius: galaxy.galaxy?.galaxy_radius ?? 0,

@@ -13,6 +13,7 @@ pub(crate) mod write;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use crate::Span;
 use crate::archive;
 use crate::cst::{self, CstError, Node};
 use crate::document::{self, Document};
@@ -22,7 +23,7 @@ use crate::format::save::write::{
     add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
     lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
     planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
-    rename_system, replace_system, star_class, wormhole,
+    rename_system, replace_system, star_class, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -122,6 +123,9 @@ impl Format for Save {
             let subject = Subject::System(id);
             let (root, buf) = parsed_statement(doc, subject, self.statement(doc, subject)?)?;
             graph.refresh_bodies(id, &root, buf, doc)?;
+        }
+        if writes_bypasses(doc, touched) {
+            graph.refresh_bypasses(doc)?;
         }
         let reassigned = if nebulae {
             graph.refresh_nebulae(doc)?
@@ -259,6 +263,8 @@ impl Format for Save {
                 radius,
                 angle,
             } => wormhole::plan_move(plan, s, *wormhole, *radius, *angle),
+            Op::AddSaveWormholePair { a, b, at } => wormhole_pair::plan_add(plan, s, *a, *b, *at),
+            Op::RemoveSaveWormholePair { a, b } => wormhole_pair::plan_remove(plan, s, *a, *b),
             Op::SetPlanetRing { planet, ring } => planet_ring::plan_set(plan, s, *planet, *ring),
             Op::RemoveColony { planet } => remove_planet::plan_remove_colony(plan, s, *planet),
             Op::DeleteSavePlanet { planet } => remove_planet::plan_delete(plan, s, *planet),
@@ -382,8 +388,25 @@ impl Format for Save {
             map_colors: true,
             lgate: true,
             symmetry: false,
+            wormhole_pairs: check_version(doc).is_ok(),
         }
     }
+}
+
+/// Whether `touched` names a row of `bypasses` or `natural_wormholes`, which the graph's
+/// bypass links are read from.
+fn writes_bypasses(doc: &Document, touched: &[Subject]) -> bool {
+    let tables: Vec<Span> = [keys::BYPASSES, keys::NATURAL_WORMHOLES]
+        .into_iter()
+        .filter_map(|key| doc.index().section(key))
+        .map(|section| section.stmt)
+        .collect();
+    touched.iter().any(|subject| match subject {
+        Subject::Record(anchor) => tables
+            .iter()
+            .any(|table| (table.start..table.end).contains(&anchor.start())),
+        _ => false,
+    })
 }
 
 /// The bytes standing at `anchor`, `subject`'s statement, parsed whole.

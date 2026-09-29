@@ -48,6 +48,7 @@ export function SystemMenu({
   const paint = usePaintLayer();
   const capabilities = useFileSessionStore(documentCapabilities);
   const canCreate = useCanEdit("create_systems");
+  const wormholePairs = useCanEdit("wormhole_pairs");
   const zones = useZones();
   const { selection, selected, selectedName } = useSelected();
   const linkItem = useZoneLink();
@@ -92,7 +93,7 @@ export function SystemMenu({
           >
             Isolate
           </MenuItem>
-          {zones && selection.length === 2 && inSelection && (
+          {(zones || wormholePairs) && selection.length === 2 && inSelection && (
             <WormholePairButton
               a={selection[0]}
               b={selection[1]}

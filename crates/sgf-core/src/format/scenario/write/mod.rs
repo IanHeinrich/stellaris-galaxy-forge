@@ -148,6 +148,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         // and its wormholes are placed when the game starts.
         Op::MoveSaveBody { .. }
         | Op::MoveSaveWormhole { .. }
+        | Op::AddSaveWormholePair { .. }
+        | Op::RemoveSaveWormholePair { .. }
         | Op::MoveSavePlanet { .. }
         | Op::SetSaveBodyParent { .. }
         | Op::SetPlanetRing { .. }

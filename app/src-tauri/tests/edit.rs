@@ -1,6 +1,7 @@
 //! Edit / undo / redo IPC commands end to end, through the mock runtime, on the real sample save.
 use serde_json::json;
 use sgf_core::format::save::details::SystemDetails;
+use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::validate::Issue;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
@@ -251,6 +252,26 @@ fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
             .iter()
             .all(|i| i.code.as_str() != "bodies_overlap")
     );
+}
+
+#[test]
+fn a_wormhole_pair_added_and_undone_sends_the_bypass_links() {
+    let w = opened(SAMPLE_45);
+    let pair = BypassLink::Wormhole { a: 1, b: 140 };
+    let added: EditResult = invoke(
+        &w,
+        "apply_op",
+        json!({ "op": { "type": "AddSaveWormholePair", "a": 1, "b": 140 } }),
+    )
+    .expect("add the pair");
+    let links = added.delta.bypasses.expect("the delta lists the links");
+    assert!(links.contains(&pair), "{links:?}");
+
+    let undone = invoke::<Option<EditResult>>(&w, "undo", json!({}))
+        .expect("undo")
+        .expect("something to undo");
+    let links = undone.delta.bypasses.expect("the delta lists the links");
+    assert!(!links.contains(&pair), "{links:?}");
 }
 
 fn class_op(from: &str, from_change: &str, to: &str, to_change: &str) -> serde_json::Value {

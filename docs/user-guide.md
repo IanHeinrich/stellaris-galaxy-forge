@@ -431,6 +431,18 @@ open its page in the Inspector. The page links to the system on the
 other side, and you can type a new distance and angle there. The
 selected wormhole has a ring around it in the system view.
 
+In a Stellaris 4.x save, you can add a wormhole pair. Select two
+systems, right-click one and choose "Link as wormhole pair". Each end
+starts near the inner edge of its system, where the game puts the
+wormholes it spawns, so drag it where you want it. A system can hold one
+wormhole or shroud tunnel, so the option doesn't show when either system
+already has one.
+
+To remove a pair, select both ends, right-click one and choose "Unlink
+wormhole pair". This works on the wormholes the game made as well as
+the ones you added. A system you added can't be deleted while it has a
+wormhole, so unlink it first.
+
 #### Delete planets and remove colonies
 
 In a Stellaris 4.x save, you can delete a planet or moon. Right-click it

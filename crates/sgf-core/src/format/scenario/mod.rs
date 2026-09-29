@@ -140,6 +140,7 @@ impl Format for Scenario {
             map_colors: false,
             lgate: false,
             symmetry: true,
+            wormhole_pairs: false,
         }
     }
 }

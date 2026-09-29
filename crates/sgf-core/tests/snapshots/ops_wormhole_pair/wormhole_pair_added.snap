@@ -1,0 +1,87 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added a wormhole pair between Xu Nur #1 and Tharbarite system #140
+inverse: RemoveSaveWormholePair { a: 1, b: 140 }
+
+--- gamestate
++++ gamestate
+@@ -28966,6 +28966,10 @@
+ 			}
+  
+ 		}
++		natural_wormholes=
++		{
++			15 
++		}
+ 		arm=2
+ 		flags=
+ 		{
+@@ -38939,6 +38943,10 @@
+ 			}
+  
+ 		}
++		natural_wormholes=
++		{
++			16 
++		}
+ 		asteroid_belts=
+ 		{
+ 			
+@@ -1401326,6 +1401334,28 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
++	23=
++	{
++		type="wormhole"
++		active=yes
++		linked_to=24
++		owner=
++		{
++			type=7
++			id=15
++		}
++	}
++	24=
++	{
++		type="wormhole"
++		active=yes
++		linked_to=23
++		owner=
++		{
++			type=7
++			id=16
++		}
++	}
+ }
+ natural_wormholes=
+ {
+@@ -1401494,6 +1401524,26 @@
+ 		bypass=22
+ 		graphics_entity_name=""
+ 	}
++	15=
++	{
++		coordinate=
++		{
++			x=-187.71
++			y=0
++			origin=1
++		}
++		bypass=23
++	}
++	16=
++	{
++		coordinate=
++		{
++			x=0
++			y=191
++			origin=140
++		}
++		bypass=24
++	}
+ }
+ sectors=
+ {

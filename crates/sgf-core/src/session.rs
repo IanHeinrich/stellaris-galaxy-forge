@@ -25,7 +25,7 @@ use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
 use crate::ops::{self, Applied, Op, OpError, Plan, Subject, SystemRadii};
-use crate::projections::galaxy::{GalaxyGraph, ProjectionError, SystemNode, Wayline};
+use crate::projections::galaxy::{BypassLink, GalaxyGraph, ProjectionError, SystemNode, Wayline};
 use crate::search;
 use crate::validate::{self, Issue, validate};
 use crate::views::{
@@ -66,6 +66,8 @@ pub struct OpResult {
     pub reclassifies: bool,
     /// The whole wayline list when the op changed it, `None` when it stands as before.
     pub waylines: Option<Vec<Wayline>>,
+    /// The whole bypass link list when the op changed it, `None` when it stands as before.
+    pub bypasses: Option<Vec<BypassLink>>,
     /// See [`Applied::renumbered`]; an undo reports the renumbering that takes it back.
     pub renumbered: Vec<(u32, Option<u32>)>,
     pub issues: Vec<Issue>,
@@ -134,13 +136,13 @@ impl Session {
     /// The details are brought up to date before validating, so a finding that reads them
     /// (an overlap) is current.
     pub fn apply(&mut self, op: Op) -> Result<OpResult, OpError> {
-        let waylines = self.graph.waylines.clone();
+        let before = Derived::of(&self.graph);
         let applied = ops::apply(self, op)?;
         let mut result = result(
             &self.graph,
             self.history.undo_len() + 1,
             &applied,
-            &waylines,
+            &before,
             false,
             Vec::new(),
         );
@@ -158,11 +160,11 @@ impl Session {
     /// to date before validating, as [`Self::apply`] does.
     pub fn undo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len();
-        let waylines = self.graph.waylines.clone();
+        let before = Derived::of(&self.graph);
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let mut result = result(&self.graph, seq, applied, &waylines, true, Vec::new());
+        let mut result = result(&self.graph, seq, applied, &before, true, Vec::new());
         let in_place = applied.op.refreshes_details_in_place();
         self.update_details(in_place, &result);
         result.issues = self.validate();
@@ -173,11 +175,11 @@ impl Session {
     /// brought up to date before validating, as [`Self::apply`] does.
     pub fn redo(&mut self) -> Result<Option<OpResult>, OpError> {
         let seq = self.history.undo_len() + 1;
-        let waylines = self.graph.waylines.clone();
+        let before = Derived::of(&self.graph);
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
-        let mut result = result(&self.graph, seq, applied, &waylines, false, Vec::new());
+        let mut result = result(&self.graph, seq, applied, &before, false, Vec::new());
         let in_place = applied.op.refreshes_details_in_place();
         self.update_details(in_place, &result);
         result.issues = self.validate();
@@ -188,7 +190,12 @@ impl Session {
     pub fn edit_result(&self, result: OpResult) -> EditResult {
         EditResult {
             entry: result.entry,
-            delta: self.delta(&result.subjects, result.waylines, result.renumbered),
+            delta: self.delta(
+                &result.subjects,
+                result.waylines,
+                result.bypasses,
+                result.renumbered,
+            ),
             issues: result.issues,
             history: self.history(),
             dirty: self.is_dirty(),
@@ -219,10 +226,12 @@ impl Session {
         &self,
         subjects: &[Subject],
         waylines: Option<Vec<Wayline>>,
+        bypasses: Option<Vec<BypassLink>>,
         renumbered: Vec<(u32, Option<u32>)>,
     ) -> GalaxyDelta {
         let mut delta = GalaxyDelta {
             waylines,
+            bypasses,
             renumbered,
             ..GalaxyDelta::default()
         };
@@ -521,12 +530,28 @@ fn validate_document(doc: &Document, graph: &GalaxyGraph) -> Vec<Issue> {
     issues
 }
 
+/// The lists the graph derives whole after an edit, as they stood before it, so a result
+/// reports each only when the edit changed it.
+struct Derived {
+    waylines: Vec<Wayline>,
+    bypasses: Vec<BypassLink>,
+}
+
+impl Derived {
+    fn of(graph: &GalaxyGraph) -> Self {
+        Self {
+            waylines: graph.waylines.clone(),
+            bypasses: graph.bypasses.clone(),
+        }
+    }
+}
+
 /// What `applied` did, or what undoing it did when `undone`, with the `issues` it left.
 fn result(
     graph: &GalaxyGraph,
     seq: usize,
     applied: &Applied,
-    waylines: &[Wayline],
+    before: &Derived,
     undone: bool,
     issues: Vec<Issue>,
 ) -> OpResult {
@@ -562,7 +587,8 @@ fn result(
         inverse: applied.inverse.clone(),
         subjects: applied.touched.clone(),
         touched,
-        waylines: (graph.waylines != waylines).then(|| graph.waylines.clone()),
+        waylines: (graph.waylines != before.waylines).then(|| graph.waylines.clone()),
+        bypasses: (graph.bypasses != before.bypasses).then(|| graph.bypasses.clone()),
         renumbered,
         issues,
     }

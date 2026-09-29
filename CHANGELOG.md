@@ -10,6 +10,9 @@ a release is made.
 
 ### Added
 
+- Add a wormhole pair to a save, or remove one. Select two systems,
+  right-click one and choose Link as wormhole pair or Unlink wormhole
+  pair. A system can have only one wormhole.
 - Delete a planet or moon from a save, from the system view's right-click
   menu or from its page. A planet's moons go with it, and so does any
   colony on it.

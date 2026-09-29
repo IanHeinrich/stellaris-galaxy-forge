@@ -14,6 +14,7 @@ import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemDetail } from "../generated/SystemDetail";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScriptFor, nextSystemId, nextWormholePair, sharedWormholePair } from "../lib/paint";
+import { wormholePartnerOf } from "../lib/wormholes";
 import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, runAdd, systems, type OpSource } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
@@ -23,7 +24,7 @@ import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
 import { deletableSelection, removeActions } from "./editorStore.remove";
 import { searchActions } from "./editorStore.search";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { canEdit, getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -232,7 +233,10 @@ export interface EditorState {
   fitFeZones(count: number): Promise<void>;
   /** Writes the empire-count header keys the mod's formulas give the scenario's seats. */
   updateEmpireCounts(): Promise<void>;
-  /** Makes `a` and `b` the two ends of a new wormhole pair, numbered past every pair in use. */
+  /**
+   * Makes `a` and `b` the two ends of a new wormhole pair: in a save a natural wormhole in each,
+   * in a scenario a Paint a Galaxy pair numbered past every pair in use.
+   */
   linkWormholePair(a: number, b: number): Promise<boolean>;
   /** Takes the pair `a` and `b` share away from both; nothing when they share none. */
   unlinkWormholePair(a: number, b: number): Promise<boolean>;
@@ -452,6 +456,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async linkWormholePair(a, b) {
+      if (canEdit("wormhole_pairs")) {
+        const linked = await get().applyOp({ type: "AddSaveWormholePair", a, b });
+        if (linked) useMapChromeStore.getState().setLayerQuietly("bypasses", true);
+        return linked;
+      }
       const linked = await get().applyOp(() => ({
         type: "SetWormholePair",
         a,
@@ -463,6 +472,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     async unlinkWormholePair(a, b) {
+      if (canEdit("wormhole_pairs")) {
+        if (wormholePartnerOf(useGalaxyStore.getState().bypasses, a) !== b) return false;
+        return get().applyOp({ type: "RemoveSaveWormholePair", a, b });
+      }
       if (sharedWormholePair(systems(), a, b) === null) return false;
       return get().applyOp({ type: "SetWormholePair", a, b, pair: null });
     },

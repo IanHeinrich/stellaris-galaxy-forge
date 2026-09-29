@@ -11,7 +11,8 @@
 //! it, so the ids stay dense: its entry's key, its bodies' `coordinate.origin`, the origin
 //! of the fleets it lists in `fleet_presence` and of their ships, the lanes
 //! and the nebula member lines naming it, and the nebula cloud it lists. Planet and deposit
-//! ids do not change. A removed system's nebula cloud gives its slot back.
+//! ids do not change. A removed system's nebula cloud gives its slot back. A system with a
+//! wormhole pair is refused, whether it would be removed or renumbered.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -20,6 +21,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
+use crate::format::save::galaxy::bypasses::natural_wormholes;
 use crate::format::save::read_spec::{bodies, spec_of};
 use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::footprint::{Footprints, is_bare};
@@ -46,6 +48,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<P
     let removed: BTreeSet<u32> = ids.iter().copied().collect();
     let counter = alloc::system_counter(&s.doc)?;
     let renumber = renumbering(s, &removed, counter.last)?;
+    check_wormholes(s, removed.iter().chain(renumber.keys()))?;
     let inverse = restoring(s, &removed, &renumber)?;
     let description = describe(s, &removed, &renumber);
 
@@ -104,6 +107,18 @@ fn check_own_bodies(s: &Session, id: u32) -> Result<(), OpError> {
         Some(planet) => Err(OpError::HoldsSavePlanet { system: id, planet }),
         None => Ok(()),
     }
+}
+
+/// Refuse a system with a natural wormhole among `ids`, the systems a removal takes out or
+/// renumbers: its entry would name a system that is gone, or another one.
+fn check_wormholes<'a>(s: &Session, ids: impl Iterator<Item = &'a u32>) -> Result<(), OpError> {
+    let standing = natural_wormholes(&s.doc, &s.graph.systems)?;
+    for &id in ids {
+        if standing.iter().any(|wormhole| wormhole.system == id) {
+            return Err(OpError::HoldsWormhole(id));
+        }
+    }
+    Ok(())
 }
 
 /// The id each system after the first removed one takes, refused unless every one of them

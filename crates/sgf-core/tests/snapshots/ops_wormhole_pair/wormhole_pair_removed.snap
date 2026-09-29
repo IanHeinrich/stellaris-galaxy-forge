@@ -1,0 +1,119 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed the wormhole pair between Aulderaan #152 and Ferragon #489
+inverse: AddSaveWormholePair { a: 152, b: 489, at: Some(((57.61222, 347.70984), (4.20498, 459.52851))) }
+
+--- gamestate
++++ gamestate
+@@ -39822,14 +39822,6 @@
+ 			}
+  
+ 		}
+-		natural_wormholes=
+-		{
+-			2 
+-		}
+-		bypasses=
+-		{
+-			10 
+-		}
+ 		asteroid_belts=
+ 		{
+ 			
+@@ -63560,14 +63552,6 @@
+ 			}
+  
+ 		}
+-		natural_wormholes=
+-		{
+-			1 
+-		}
+-		bypasses=
+-		{
+-			9 
+-		}
+ 		asteroid_belts=
+ 		{
+ 			
+@@ -1401018,50 +1401002,6 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	9=
+-	{
+-		type="wormhole"
+-		active=yes
+-		linked_to=10
+-		connections=
+-		{
+-			10 
+-		}
+-		active_connections=
+-		{
+-			10 
+-		}
+-		owner=
+-		{
+-			type=7
+-			id=1
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
+-	10=
+-	{
+-		type="wormhole"
+-		active=yes
+-		linked_to=9
+-		connections=
+-		{
+-			9 
+-		}
+-		active_connections=
+-		{
+-			9 
+-		}
+-		owner=
+-		{
+-			type=7
+-			id=2
+-		}
+-		lock_country=4294967295
+-		lock_remaining_days=-1
+-		is_manual_lock=no
+-	}
+ 	11=
+ 	{
+ 		type="wormhole"
+@@ -1401338,28 +1401278,6 @@
+ 			origin=24
+ 		}
+ 		bypass=1
+-		graphics_entity_name=""
+-	}
+-	1=
+-	{
+-		coordinate=
+-		{
+-			x=4.20498
+-			y=459.52851
+-			origin=489
+-		}
+-		bypass=9
+-		graphics_entity_name=""
+-	}
+-	2=
+-	{
+-		coordinate=
+-		{
+-			x=57.61222
+-			y=347.70984
+-			origin=152
+-		}
+-		bypass=10
+ 		graphics_entity_name=""
+ 	}
+ 	3=
