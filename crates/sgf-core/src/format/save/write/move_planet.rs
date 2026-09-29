@@ -492,7 +492,7 @@ fn planet_statements(edit: &Edit, ids: &[u32]) -> Result<Vec<Span>, OpError> {
         .collect())
 }
 
-fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
+pub(crate) fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
     for span in planet_statements(edit, ids)? {
         edit.require_alone_on_line(span, "a planet statement")?;
         edit.remove_lines(span);
@@ -501,7 +501,7 @@ fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
 }
 
 /// Write a `planet=` line per id after the system's last, in its indentation.
-fn list_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
+pub(crate) fn list_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
     let last = edit
         .entity()?
         .find_all(keys::PLANET, &edit.buf)

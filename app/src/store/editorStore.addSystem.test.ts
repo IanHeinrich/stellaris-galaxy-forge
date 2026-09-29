@@ -22,6 +22,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { useGeneratorStore } from "./generatorStore";
 import { useInspectorStore } from "./inspectorStore";
 import { editResult, historyEntry, saveMeta } from "./fixture";
 import { mockedIpc } from "../test/ipc";
@@ -78,6 +79,66 @@ describe("adding a system to a save", () => {
     expect(await editor().addRandomSystemAt(3, 0)).toBe(false);
     expect(addRandomSystem).not.toHaveBeenCalled();
     expect(sessionError()).toMatch(/^Too close to .+: 3 away, the game needs 10$/);
+  });
+});
+
+describe("adding a planet or moon to a save system", () => {
+  const at = { radius: 150, angle: 307 };
+
+  it("rolls the body in one edit and shows it alone, with its page open", async () => {
+    mockedIpc.addBody.mockResolvedValueOnce({
+      edit: editResult({ details_stale: [0] }),
+      planet: 20,
+    });
+
+    expect(await editor().addBodyAt(0, at, null, "pc_desert")).toBe(true);
+
+    const [system, parent, planetClass, size, radius, angle, seed] =
+      mockedIpc.addBody.mock.calls[0];
+    expect([system, parent, planetClass, size, radius, angle]).toEqual([
+      0,
+      null,
+      "pc_desert",
+      null,
+      150,
+      307,
+    ]);
+    expect(Number.isSafeInteger(seed)).toBe(true);
+    expect(editor().history.undo).toHaveLength(1);
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "planet", id: 20 });
+  });
+
+  it("asks for a random moon of a planet", async () => {
+    mockedIpc.addBody.mockResolvedValueOnce({ edit: editResult(), planet: 21 });
+    expect(await editor().addBodyAt(0, { radius: 25, angle: 0 }, 2)).toBe(true);
+    expect(mockedIpc.addBody.mock.calls[0].slice(0, 6)).toEqual([0, 2, null, null, 25, 0]);
+  });
+
+  it("reports a refusal and opens nothing", async () => {
+    const stack = useInspectorStore.getState().stack;
+    mockedIpc.addBody.mockRejectedValueOnce({ kind: "op", message: "planet 1 is a star" });
+    expect(await editor().addBodyAt(0, at, 1)).toBe(false);
+    expect(sessionError()).toBe("planet 1 is a star");
+    expect(useInspectorStore.getState().stack).toEqual(stack);
+  });
+
+  it("is refused without game data, without asking the core", async () => {
+    useGameDataStore.setState({ status: "idle" });
+    expect(await editor().addBodyAt(0, at)).toBe(false);
+    expect(mockedIpc.addBody).not.toHaveBeenCalled();
+    expect(sessionError()).toBe("Load game data to add a planet or moon.");
+  });
+
+  it("reads the classes a planet and a moon may take once per loaded game data", async () => {
+    const desert = { key: "pc_desert", name: "Desert", min_size: 10, max_size: 25 };
+    const barren = { key: "pc_barren", name: "Barren", min_size: 5, max_size: 8 };
+    mockedIpc.getBodyClasses.mockImplementation(async (moon) => (moon ? [barren] : [desert]));
+    useGeneratorStore.getState().requestBodyClasses();
+    useGeneratorStore.getState().requestBodyClasses();
+    await vi.waitFor(() => expect(useGeneratorStore.getState().moonClasses).toEqual([barren]));
+    expect(useGeneratorStore.getState().planetClasses).toEqual([desert]);
+    expect(mockedIpc.getBodyClasses).toHaveBeenCalledTimes(2);
   });
 });
 

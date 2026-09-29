@@ -4,6 +4,7 @@ import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { HistoryView } from "../generated/HistoryView";
+import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
 import type { Op } from "../generated/Op";
@@ -163,6 +164,17 @@ export interface EditorState {
    * and selects it, as `addRandomSystemAt` does.
    */
   addSpecialSystemAt(x: number, y: number, layout: string): Promise<boolean>;
+  /**
+   * Rolls a body into system `system` of the open save in one edit, at `at` about what it orbits:
+   * a moon of `parent`, or a planet for null, of `planetClass` or a class drawn at its orbit for
+   * null. The new body is selected alone with its page open. Refused without game data.
+   */
+  addBodyAt(
+    system: number,
+    at: OrbitPlacement,
+    parent?: number | null,
+    planetClass?: string | null,
+  ): Promise<boolean>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any

@@ -1,0 +1,90 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added planet #16777273 to system #408 (pc_barren, size 10) at orbit 45 at 300°, with 1 deposit
+inverse: RemoveAddedBody { planet: 16777273 }
+
+--- gamestate
++++ gamestate
+@@ -57820,6 +57820,7 @@
+ 		planet=136
+ 		planet=137
+ 		planet=138
++		planet=16777273
+ 		star_class="sc_b"
+ 		hyperlane=
+ 		{
+@@ -82369,7 +82370,54 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_barren"
++			planet_size=10
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="Meissa"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="V"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=22.5
++				y=-38.97114
++				origin=408
++			}
++			orbit=45
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 
++			}
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -1076220,7 +1076268,15 @@
+ }
+ deposit=
+ {
+-	0=none
++	16777216=
++	{
++		type="d_minerals_2"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
+ 	1=none
+ 	2=none
+ 	3=none

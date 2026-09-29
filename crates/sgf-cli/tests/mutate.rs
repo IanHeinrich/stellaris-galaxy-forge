@@ -1,6 +1,6 @@
 //! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `anomaly`, `model`,
-//! `dig-site`, `rename-planet` and `rename-empire`.
-use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
+//! `dig-site`, `rename-planet`, `rename-empire` and `add-body`.
+use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout, without_install};
 
 #[test]
 fn move_writes_the_edited_save_to_the_output_path() {
@@ -615,4 +615,72 @@ fn dig_site_writes_a_site_a_later_run_takes_away() {
 
     let none = sgf(&["dig-site", SAMPLE_4_5, "585", "--remove", "-o", out_str]);
     assert_ne!(none.status.code(), Some(0));
+}
+
+#[test]
+fn add_body_writes_a_planet_and_a_rolled_moon() {
+    let dir = tempfile::tempdir().unwrap();
+    let planet = dir.path().join("planet.sav");
+    let moon = dir.path().join("moon.sav");
+    let (planet_str, moon_str) = (planet.to_str().unwrap(), moon.to_str().unwrap());
+
+    let out = sgf(&[
+        "add-body",
+        SAMPLE_4_5,
+        "408",
+        "--class",
+        "pc_desert",
+        "--size",
+        "12",
+        "--radius",
+        "45",
+        "--angle",
+        "-60",
+        "--deposit",
+        "d_minerals_2",
+        "-o",
+        planet_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains(
+            "Added planet #16777273 to system #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit"
+        ),
+        "{text}"
+    );
+
+    let out = sgf(&[
+        "add-body",
+        planet_str,
+        "408",
+        "--moon-of",
+        "138",
+        "--radius",
+        "15",
+        "--angle",
+        "90",
+        "--roll",
+        "--seed",
+        "7",
+        "-o",
+        moon_str,
+    ]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(text.contains("Added moon #"), "{text}");
+    assert!(text.contains("of planet #138 in system #408"), "{text}");
+}
+
+#[test]
+fn add_body_without_a_class_or_a_roll_is_refused() {
+    let out = sgf(&[
+        "add-body", SAMPLE_4_5, "408", "--radius", "45", "--angle", "0",
+    ]);
+    assert!(!out.status.success());
+    let text = String::from_utf8_lossy(&out.stderr);
+    assert!(text.contains("--class"), "{text}");
 }

@@ -24,6 +24,7 @@ mod index;
 mod issues;
 mod marauders;
 mod op_kinds;
+mod ops_add_body;
 mod ops_add_special_system;
 mod ops_add_system;
 mod ops_anomaly;

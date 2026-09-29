@@ -1,5 +1,6 @@
 //! One module per `sgf` subcommand, and the little they share.
 
+pub mod add_body;
 pub mod add_system;
 pub mod details;
 pub mod export;

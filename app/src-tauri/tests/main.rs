@@ -2,6 +2,7 @@
 
 mod common;
 
+mod add_body;
 mod add_system;
 mod capabilities;
 mod edit;

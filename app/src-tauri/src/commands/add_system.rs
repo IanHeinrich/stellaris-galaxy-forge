@@ -119,7 +119,7 @@ pub fn get_generator_star_classes(game_data: State<'_, GameDataState>) -> Vec<(S
     })
 }
 
-fn game_data<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<GameData>, SgfError> {
+pub(crate) fn game_data<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<GameData>, SgfError> {
     app.state::<GameDataState>()
         .loaded()
         .ok_or_else(|| SgfError::new(ErrorKind::Op, NEEDS_GAME_DATA))
