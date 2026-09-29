@@ -466,10 +466,10 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(html).toContain(">Seat<");
     expect(html).toContain('<optgroup label="Reserved for one empire">');
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C</option>');
-    expect(html.match(/<option /g)).toHaveLength(29);
+    expect(html.match(/<option /g)).toHaveLength(53);
     expect(html).not.toContain(">Player<");
     expect(html).toContain("Only an empire whose species has the");
-    expect(html).toContain("Reserved Spawn C");
+    expect(html).toContain("Reserved Spawn: C");
     expect(html).toContain("trait starts here.");
     expect(html).toContain("The trait comes from the");
     expect(html).toContain("Reserved Spawns submod ↗");
@@ -495,13 +495,12 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withScript("preferred", true);
     await open("scenario");
     const weighted = overview();
-    expect(weighted).toContain('<option value="preferred" selected="">Preferred</option>');
+    expect(weighted).toContain('<option value="preferred" selected="">1st Player</option>');
     expect(weighted.match(/<input type="checkbox"[^>]*>/g)![1]).toContain("checked=");
-    expect(weighted).toContain("Filled before enabled seats.");
     expect(weighted).toContain(
-      "Weighted so it is the likeliest start once the earlier-placed empires have taken theirs. " +
-        "Not a certain one.",
+      "Kept for the first player: you in single player, the host in multiplayer.",
     );
+    expect(weighted).toContain("Weighted so the first player is all but certain to start here.");
 
     withScript("sol", true);
     await open("scenario");
@@ -512,7 +511,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     withScript({ reserved: "c" }, true);
     await open("scenario");
     expect(overview()).toContain(
-      "Weighted so an empire with the Reserved Spawn C trait is certain to start here. No other empire can.",
+      "Weighted so an empire with the &quot;Reserved Spawn: C&quot; trait is certain to start here. No other empire can.",
     );
   });
 
@@ -533,7 +532,9 @@ describe("a scenario system Paint a Galaxy seats", () => {
 
     withScript("preferred");
     await open("scenario");
-    expect(overview()).toContain("Filled before enabled seats.");
+    expect(overview()).toContain(
+      "Kept for the first player: you in single player, the host in multiplayer.",
+    );
 
     withScript("sol");
     await open("scenario");
@@ -566,9 +567,27 @@ describe("a scenario system Paint a Galaxy seats", () => {
     const html = overview();
     expect(html).toContain('<option value="reserved:c" selected="">Reserved C · in use</option>');
     expect(html).toContain('<option value="sol">Sol · in use</option>');
-    expect(html).toContain('<option value="preferred">Preferred</option>');
+    expect(html).toContain('<option value="preferred">1st Player</option>');
     expect(html).toContain('<option value="reserved:a">Reserved A</option>');
     expect(html).toContain("Weighted for its empire · in use");
+  });
+
+  it("offers a Greek reserved seat by its name, and marks it in use", async () => {
+    withScript({ reserved: "alpha" });
+    await open("scenario");
+    const systems = new Map(useGalaxyStore.getState().systems);
+    systems.set(2, {
+      ...systems.get(2)!,
+      spawn_script: {
+        paint_a_galaxy: { kind: { reserved: "omega" }, random_value: 1, player: false },
+      },
+    });
+    useGalaxyStore.setState({ systems });
+
+    const html = overview();
+    expect(html).toContain('<option value="reserved:alpha" selected="">Reserved Alpha</option>');
+    expect(html).toContain('<option value="reserved:omega">Reserved Omega · in use</option>');
+    expect(html).toContain("Reserved Spawn: Alpha");
   });
 
   it("selects the seat the file names, and the change it writes keeps the random value", async () => {

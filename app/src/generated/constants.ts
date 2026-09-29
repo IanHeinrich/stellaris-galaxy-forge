@@ -41,3 +41,6 @@ export const BELT_SCATTER = 10;
 
 /** How far a body's point may stray from its stored orbit for the stored value to be drawn. */
 export const STORED_ORBIT_SLACK = 0.01;
+
+/** Every name a Paint a Galaxy reserved seat can take, Latin letters then Greek. */
+export const RESERVED_SEAT_NAMES = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"] as const;

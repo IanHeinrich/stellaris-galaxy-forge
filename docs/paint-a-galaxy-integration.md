@@ -106,9 +106,11 @@ the save's own shape moved to the front. The plain profile does the same,
 and nothing else in its header changes. The setup's `primitive` and
 `habitability` pass through as set, on the game's own scale, without
 conversion. `marauder_empire_max` and `marauder_empire_default` are both
-the number of marauder clans whose home the map holds. `S-R-1` becomes
-`S-R` when the player's own seat is a reserved or Sol seat, since `R`
-already counts it.
+the number of marauder clans whose home the map holds. `R` counts the
+1st Player, reserved and Sol seats. `S-R-1` becomes `S-R` when the map
+has a 1st Player seat or the player's own seat is a reserved or Sol
+seat, since `R` already counts it. Paint a Galaxy sizes its safe count
+the same way.
 
 Without a setup (a scenario re-exported, or a new empty scenario),
 two keys come from a band on the system count:
@@ -155,28 +157,38 @@ Nations of Earth, the seat is the Sol seat:
 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } }
 ```
 
-Otherwise it is a preferred seat:
+Otherwise it is a 1st Player seat, which Paint a Galaxy writes as
+`PREFERRED`:
 
 ```
-spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 } }
+spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 has_country_flag = painted_galaxy_host } }
 ```
+
+The mod sets `painted_galaxy_host` on the first country whose ruler is
+created, which is the player in single player and the host in
+multiplayer. It does so from `on_ruler_created`, before the galaxy is
+generated.
 
 Each empire draws its seat at random from the free seats, weighted by
 `spawn_weight`. Empires draw in placement order, and the player is not
 always placed first. An AI whose origin needs special placement (Fear of
 the Dark, or a federation origin's leader) is seated in an earlier pass.
-It draws by the same weights. In my runs, a preferred seat with the
-weight went to such an AI two times in three.
+It draws by the same weights. In my runs, a preferred seat with an
+unconditioned 100000 went to such an AI two times in three. That was
+before the mod tied the seat to the host.
 
 A weight alone never makes a seat certain. A seat is certain only when
 every other empire weighs it at zero, and the mod's Sol and reserved
 kinds do that. Sol multiplies the weight to zero and adds 1000 for
-`human_1`. A reserved letter does the same for the matching Reserved
-Spawns trait. The `modifier` carries the kind's own condition and adds
-100000. The empire that can take the seat is then all but sure to draw
-it whenever it is placed, and no other empire gains anything. On a
-preferred seat the modifier has no condition. That makes the seat the
-likeliest start and no more.
+`human_1`. A reserved seat does the same for the matching Reserved
+Spawns trait. A 1st Player seat multiplies to zero and adds 100 for
+`painted_galaxy_host`, but the mod's leader-age term comes after the
+multiply, so every other empire still weighs it at 0 or 10. The
+`modifier` carries the kind's own condition and adds 100000. The empire
+that can take the seat is then all but sure to draw it whenever it is
+placed, and no other empire gains anything. An AI seated before the
+player can still draw a 1st Player seat at 10, against the 10 to 20 of
+each enabled seat.
 
 The report names the seat as `player_seat` and its kind as
 `player_seat_kind`. The player's seat always gets a generic
@@ -215,7 +227,8 @@ Each wormhole pair (`BypassLink::Wormhole`) is flagged on both ends, with
 effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cluster }
 ```
 
-Preferred and reserved seats are not chosen at export. A seat's kind is
+1st Player and reserved seats are not chosen at export, apart from the
+player's own. A seat's kind is
 changed afterwards, in the inspector's Spawn point section. Forge does
 not write the custom-initializer flag.
 
@@ -388,24 +401,29 @@ a `marauder_empire_max` that is not that number, or a default above it.
 
 Forge reads a system as a Paint a Galaxy spawn when the `add` scalar of
 its `spawn_weight` starts with `value:painted_galaxy_spawn_weight|`. The
-rest is read as `|KEY|value|` pairs (`PREFERRED|yes`, `RESERVED|<letter>`,
+rest is read as `|KEY|value|` pairs (`PREFERRED|yes`, `RESERVED|<name>`,
 `SOL|yes`, `RANDOM_VALUE|n`). Forge skips a key it does not know instead
 of rejecting it, so a parameter that a later Paint a Galaxy build adds
 still reads back as a seat.
 
 The seat is weighted for its holder when the block carries exactly one
 `modifier`, and that modifier holds `add = 100000`, the kind's own
-condition and nothing else. The condition is empty for a preferred seat,
+condition and nothing else. The condition is
+`has_country_flag = painted_galaxy_host` for a 1st Player seat,
 `has_country_flag = human_1` for Sol, and
 `has_trait = trait_painted_galaxy_reserved_spawn_<x>` for reserved `x`.
+A 1st Player seat with an empty condition, as Forge wrote it before
+Paint a Galaxy tied the seat to the host, also reads as the player's.
+Forge writes the host condition when it next changes that seat.
 An enabled seat has no such marker. Forge treats any other modifier
 content, or a marker shaped for another kind, as foreign script. The seat
 then reads as its kind alone, and Forge neither rewrites nor clears the
 block.
 
-Forge writes a reserved seat's letter as one lowercase ASCII letter,
-matching the star flags Paint a Galaxy itself uses. On read, whatever
-follows `RESERVED|` is taken as the letter. The mod resolves the weight
+A reserved seat is named by a lowercase letter `a` to `z` or a Greek
+letter spelled out, `alpha` to `omega`, as Paint a Galaxy names them.
+Forge refuses any other name when it sets a seat. On read, whatever
+follows `RESERVED|` is taken as the name. The mod resolves the weight
 from the seat kind rather than from a number, so setting a base spawn
 weight on a system that already carries a script is refused. What
 changes instead is its Paint a Galaxy spawn kind.
