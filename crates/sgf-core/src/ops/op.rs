@@ -862,10 +862,12 @@ pub enum OpError {
     ScriptedSpawn(u32),
     #[error("a system takes a spawn weight or a spawn script, not both")]
     WeightAndScript,
-    #[error("a reserved seat is named by one letter, not {0:?}")]
+    #[error(
+        "a reserved seat is named by a letter a to z or a Greek letter alpha to omega, not {0:?}"
+    )]
     InvalidSeatLetter(String),
     #[error(
-        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+        "an enabled seat has no marker to make it the player's; choose a 1st Player, Sol or reserved seat"
     )]
     EnabledSeatPlayer,
     #[error(

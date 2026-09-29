@@ -106,11 +106,11 @@ function AddHeaderRow({ header }: { header: readonly HeaderField[] }) {
 const LISTED_AS_SIZE =
   "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.";
 
-/** `Seats N · preferred P · reserved A, C · Sol · safe AI empires K`, parts left out while zero. */
+/** `Seats N · 1st Player P · reserved A, C · Sol · safe AI empires K`, parts left out while zero. */
 function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummary): string | null {
   if (seats === 0) return null;
   const parts = [`Seats ${seats}`];
-  if (preferred > 0) parts.push(`preferred ${preferred}`);
+  if (preferred > 0) parts.push(`1st Player ${preferred}`);
   if (reserved.length > 0) parts.push(`reserved ${reserved.join(", ")}`);
   if (sol) parts.push("Sol");
   if (safeAi > 0) parts.push(`safe AI empires ${safeAi}`);

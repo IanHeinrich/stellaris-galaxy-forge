@@ -95,7 +95,7 @@ fn spawn_systems(graph: &GalaxyGraph) -> BTreeSet<u32> {
 
 /// The capital of the player's country, when the save names one, and the seat it
 /// takes: the Sol seat when the country carries the United Nations of Earth's flag,
-/// which only that empire weighs above zero, else a preferred seat.
+/// which only that empire weighs above zero, else a 1st Player seat.
 fn player_seat(graph: &GalaxyGraph) -> Option<(u32, PaintSpawnKind)> {
     let player = graph.player_country?;
     let country = graph
@@ -127,9 +127,10 @@ fn clan_count(draft: &Draft) -> u32 {
 /// Each spawn system gets the enabled seat with the next random value, the player's
 /// capital the player's seat of `player`'s kind, or keeps the script it already
 /// carries. The Sol seat is certain for the United Nations of Earth, since every other
-/// empire weighs it at zero; a preferred seat is only the likeliest start, since an
-/// empire whose origin needs special placement is seated before the player. A seat
-/// with no initializer, or one the report says to review, gets a generic start.
+/// empire weighs it at zero. A 1st Player seat is all but certain for the host: an
+/// empire whose origin needs special placement is seated before the player and can
+/// still draw it. A seat with no initializer, or one the report says to review, gets a
+/// generic start.
 fn mark_spawns(
     draft: &mut Draft,
     report: &mut ExportReport,

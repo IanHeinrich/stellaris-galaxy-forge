@@ -19,7 +19,7 @@ export type NameOf = (system: number) => string;
 
 /**
  * `17 seats. Your capital, Sol, is the Sol seat: only the United Nations of Earth can start there,
- * and it will.` Any other empire's capital is a weighted preferred seat, the likeliest start.
+ * and it will.` Any other empire's capital is a weighted 1st Player seat, all but certain.
  */
 export function seatsSummary(report: ExportReport, nameOf: NameOf): string {
   const seats = `${counted(report.seats, "seat")}.`;
@@ -28,7 +28,7 @@ export function seatsSummary(report: ExportReport, nameOf: NameOf): string {
   if (report.player_seat_kind === "sol") {
     return `${seats} ${capital} is the Sol seat: only the United Nations of Earth can start there, and it will.`;
   }
-  return `${seats} ${capital} is a weighted preferred seat: the likeliest start, not a certain one. For a certain one, reserve a letter and give your empire its trait.`;
+  return `${seats} ${capital} is a weighted 1st Player seat: you are all but certain to start there. For a certain start, reserve the seat and give your empire its trait.`;
 }
 
 /**

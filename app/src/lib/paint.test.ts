@@ -3,13 +3,18 @@ import type { HeaderField } from "../generated/HeaderField";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import { paintModView, scenarioSummary, systemNode } from "../test/builders";
+import { RESERVED_SEAT_NAMES } from "../generated/constants";
 import {
   PAINT_SPAWN_KINDS,
+  RESERVED_SPAWN_KINDS,
+  SEAT_KINDS,
   canBeWeighted,
   enabledScript,
   paintKindDescription,
   paintKindKey,
   paintLayer,
+  reservedName,
+  reservedSeatName,
   scenarioForPaint,
   scenarioHeaderName,
   scenarioOpenPrompt,
@@ -36,34 +41,58 @@ function script(kind: SpawnScript["paint_a_galaxy"]["kind"], player = false): Sp
 }
 
 describe("a painted galaxy", () => {
-  it("names each seat, a reserved letter in capitals and a weighted one by its weight", () => {
+  it("names each seat, a reserved name capitalised and a weighted one by its weight", () => {
     expect(spawnScriptLabel(script("enabled"))).toBe("enabled");
-    expect(spawnScriptLabel(script("preferred"))).toBe("preferred");
-    expect(spawnScriptLabel(script("preferred", true))).toBe("preferred, weighted");
+    expect(spawnScriptLabel(script("preferred"))).toBe("1st Player");
+    expect(spawnScriptLabel(script("preferred", true))).toBe("1st Player, weighted");
     expect(spawnScriptLabel(script({ reserved: "a" }))).toBe("reserved A");
     expect(spawnScriptLabel(script({ reserved: "a" }, true))).toBe("reserved A, weighted");
+    expect(spawnScriptLabel(script({ reserved: "alpha" }))).toBe("reserved α (Alpha)");
     expect(spawnScriptLabel(script("sol"))).toBe("Sol");
     expect(spawnScriptLabel(script("sol", true))).toBe("Sol, weighted");
   });
 
+  it("shows a Latin reserved seat by its letter and a Greek one by its symbol and name, chipped with its symbol", () => {
+    expect(reservedName("a")).toEqual({ display: "A", shown: "A", tag: "A" });
+    expect(reservedName("alpha")).toEqual({ display: "Alpha", shown: "α (Alpha)", tag: "α" });
+    expect(reservedName("OMEGA")).toEqual({ display: "Omega", shown: "ω (Omega)", tag: "ω" });
+    expect(reservedName("sigma")).toEqual({ display: "Sigma", shown: "σ (Sigma)", tag: "σ" });
+    expect(SEAT_KINDS.reserved.tag(reservedName("lambda"))).toBe("λ");
+    for (const name of RESERVED_SEAT_NAMES) expect([...reservedName(name).tag]).toHaveLength(1);
+  });
+
   it("offers every seat once, keyed so a select can round-trip the kind", () => {
-    expect(PAINT_SPAWN_KINDS).toHaveLength(29);
+    expect(PAINT_SPAWN_KINDS).toHaveLength(53);
     expect(PAINT_SPAWN_KINDS[0]).toEqual({ key: "enabled", label: "Enabled" });
-    expect(PAINT_SPAWN_KINDS[1]).toEqual({ key: "preferred", label: "Preferred" });
+    expect(PAINT_SPAWN_KINDS[1]).toEqual({ key: "preferred", label: "1st Player" });
     expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "sol", label: "Sol" });
     expect(PAINT_SPAWN_KINDS[3]).toEqual({ key: "reserved:a", label: "Reserved A" });
     expect(PAINT_SPAWN_KINDS[28]).toEqual({ key: "reserved:z", label: "Reserved Z" });
+    expect(PAINT_SPAWN_KINDS[29]).toEqual({ key: "reserved:alpha", label: "Reserved α (Alpha)" });
+    expect(PAINT_SPAWN_KINDS[52]).toEqual({ key: "reserved:omega", label: "Reserved ω (Omega)" });
+    expect(RESERVED_SPAWN_KINDS.map((k) => k.key)).toEqual(
+      RESERVED_SEAT_NAMES.map((name) => `reserved:${name}`),
+    );
     expect(paintKindKey(script("preferred"))).toBe("preferred");
     expect(paintKindKey(script("preferred", true))).toBe("preferred");
     expect(paintKindKey(script({ reserved: "B" }))).toBe("reserved:b");
+    expect(paintKindKey(script({ reserved: "Alpha" }))).toBe("reserved:alpha");
+    expect(scriptForKind("reserved:alpha", systemNode()).paint_a_galaxy.kind).toEqual({
+      reserved: "alpha",
+    });
+    expect(reservedSeatName("reserved:alpha")).toBe("α");
+    expect(reservedSeatName("reserved:c")).toBe("C");
     for (const { key } of PAINT_SPAWN_KINDS) {
       expect(paintKindKey(scriptForKind(key, systemNode()))).toBe(key);
     }
   });
 
-  it("describes what each kind means, a reserved letter's sentence ending before its submod", () => {
+  it("describes what each kind means, a reserved seat's sentence ending before its submod", () => {
     expect(paintKindDescription(script("enabled"))).toBe("Any empire may start here.");
-    expect(paintKindDescription(script("preferred"))).toContain("Filled before enabled seats.");
+    expect(paintKindDescription(script("preferred"))).toBe(
+      "Kept for the first player: you in single player, the host in multiplayer. AI empires and " +
+        "other players seldom start here. Use reserved seats to choose where they start.",
+    );
     expect(paintKindDescription(script("preferred", true))).toBe(
       paintKindDescription(script("preferred")),
     );
@@ -74,7 +103,10 @@ describe("a painted galaxy", () => {
         "of Man.",
     );
     expect(paintKindDescription(script({ reserved: "c" }))).toBe(
-      'Only an empire whose species has the "Reserved Spawn C" trait starts here.',
+      'Only an empire whose species has the "Reserved Spawn: C" trait starts here.',
+    );
+    expect(paintKindDescription(script({ reserved: "alpha" }))).toBe(
+      'Only an empire whose species has the "Reserved Spawn: Alpha" trait starts here.',
     );
     expect(paintKindDescription(script({ reserved: "c" }))).not.toContain("The trait comes from");
   });
@@ -122,14 +154,13 @@ describe("a painted galaxy", () => {
 
   it("says what the weight does for each kind that can carry it", () => {
     expect(weightedDescription("preferred")).toBe(
-      "Weighted so it is the likeliest start once the earlier-placed empires have taken theirs. " +
-        "Not a certain one.",
+      "Weighted so the first player is all but certain to start here.",
     );
     expect(weightedDescription("sol")).toBe(
       "Weighted so the United Nations of Earth is certain to start here. No other empire can.",
     );
     expect(weightedDescription({ reserved: "c" })).toBe(
-      "Weighted so an empire with the Reserved Spawn C trait is certain to start here. No other empire can.",
+      'Weighted so an empire with the "Reserved Spawn: C" trait is certain to start here. No other empire can.',
     );
   });
 });
@@ -238,38 +269,56 @@ describe("the scenario header's name", () => {
 });
 
 describe("the seats a galaxy's scripts add up to", () => {
-  it("counts every scripted system and every kind it names", () => {
+  it("counts every scripted system and every kind it names, reserved names in the site's order", () => {
     const systems = [
       scripted(1, "enabled"),
       scripted(2, "preferred"),
       scripted(3, "preferred"),
       scripted(4, { reserved: "c" }),
-      scripted(5, { reserved: "a" }),
-      scripted(6, "sol", 3, true),
-      systemNode({ id: 7 }),
+      scripted(5, { reserved: "beta" }),
+      scripted(6, { reserved: "a" }),
+      scripted(7, "sol", 3, true),
+      scripted(8, "enabled"),
+      systemNode({ id: 9 }),
     ];
     expect(seatSummary(systems)).toEqual({
-      seats: 6,
+      seats: 8,
       preferred: 2,
-      reserved: ["A", "C"],
+      reserved: ["A", "C", "β"],
       sol: true,
       player: true,
-      safeAi: 3,
+      safeAi: 2,
     });
   });
 
-  it("sets the player's seat aside once: not again when it is a reserved one", () => {
-    const safeAi = (playerOn: "sol" | "reserved" | "preferred" | null) =>
+  it("sets the 1st Player seats aside, and the player's own seat only when there is none", () => {
+    const safeAi = (firstPlayer: boolean, playerOn: "sol" | "reserved" | "enabled" | null) =>
       seatSummary([
-        scripted(1, "enabled"),
-        scripted(2, "preferred", 0, playerOn === "preferred"),
-        scripted(3, { reserved: "a" }, 0, playerOn === "reserved"),
-        scripted(4, "sol", 0, playerOn === "sol"),
+        scripted(1, "enabled", 0, playerOn === "enabled"),
+        scripted(2, "enabled"),
+        scripted(3, "enabled"),
+        ...(firstPlayer ? [scripted(4, "preferred")] : []),
+        scripted(5, { reserved: "a" }, 0, playerOn === "reserved"),
+        scripted(6, "sol", 0, playerOn === "sol"),
       ]).safeAi;
-    expect(safeAi("sol")).toBe(2);
-    expect(safeAi("reserved")).toBe(2);
-    expect(safeAi("preferred")).toBe(1);
-    expect(safeAi(null)).toBe(1);
+    expect(safeAi(true, null)).toBe(3);
+    expect(safeAi(true, "enabled")).toBe(3);
+    expect(safeAi(true, "reserved")).toBe(3);
+    expect(safeAi(false, null)).toBe(2);
+    expect(safeAi(false, "enabled")).toBe(2);
+    expect(safeAi(false, "reserved")).toBe(3);
+    expect(safeAi(false, "sol")).toBe(3);
+  });
+
+  it("sets aside every seat a name reserves, though it lists the name once", () => {
+    const summary = seatSummary([
+      scripted(1, "enabled"),
+      scripted(2, "enabled"),
+      scripted(3, { reserved: "alpha" }),
+      scripted(4, { reserved: "alpha" }),
+    ]);
+    expect(summary.reserved).toEqual(["α"]);
+    expect(summary.safeAi).toBe(1);
   });
 
   it("leaves out what a plain galaxy never scripts, and floors safe AI empires at zero", () => {
