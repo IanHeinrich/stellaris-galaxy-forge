@@ -17,6 +17,8 @@ a release is made.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
 - The Open screen has a Clear button on the Recent list.
+- A save's system view shows its wormholes. Drag a natural wormhole to
+  move it within its system.
 
 ### Changed
 

@@ -7,6 +7,7 @@ import type { MegastructureSummary } from "./MegastructureSummary";
 import type { PlanetSummary } from "./PlanetSummary";
 import type { ResourceAmount } from "./ResourceAmount";
 import type { StarbaseSummary } from "./StarbaseSummary";
+import type { WormholeSummary } from "./WormholeSummary";
 
 export type SystemDetails = { id: number, resources: Array<ResourceAmount>, planets: Array<PlanetSummary>, starbase: StarbaseSummary | null, fleets: FleetPresence, 
 /**
@@ -20,4 +21,8 @@ belts: Array<BeltSpec>,
 /**
  * A save's `inner_radius`; `None` in a scenario.
  */
-inner_radius: number | null, };
+inner_radius: number | null, 
+/**
+ * A save's natural wormholes and shroud tunnels, in file order; empty in a scenario.
+ */
+wormholes: Array<WormholeSummary>, };

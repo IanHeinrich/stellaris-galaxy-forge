@@ -1,9 +1,11 @@
 /** The app's commands over the stores: what a key press does, apart from the key it was pressed. */
 import type { DocumentKind } from "../generated/DocumentKind";
+import { documentCapabilities } from "../lib/capabilities";
 import { isToolAction, orbitNudge, toolOfAction, type KeyAction, type Nudge } from "../lib/keys";
 import { groupsFor, type Source } from "../lib/visual/layerGroups";
 import {
   barShows,
+  barShowsLayer,
   barTakes,
   layerAtKey,
   onSceneSwitch,
@@ -128,7 +130,8 @@ export function nudgeSelected(nudge: Nudge): void {
 export function toggleLayerKey(index: number): void {
   const mode = currentBarMode();
   const layer = layerAtKey(index, mode);
-  if (layer === null) return;
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  if (layer === null || !barShowsLayer(mode, layer, capabilities)) return;
   const chrome = useMapChromeStore.getState();
   if (onSceneSwitch(mode, layer)) chrome.toggleSceneLayer(layer);
   else chrome.toggleLayerKey(index);

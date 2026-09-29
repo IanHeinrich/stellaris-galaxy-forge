@@ -562,3 +562,26 @@ describe("the bodies locked to what they orbit", () => {
     expect(systemContext(readSystemSources(null)).lockedBodies.has(3)).toBe(false);
   });
 });
+
+describe("a system's wormholes", () => {
+  it("draws a save's where a drag's preview puts them, and a scenario's none", () => {
+    const wormholes = [{ id: 30, bypass: 31, kind: "wormhole", partner: 6, x: 0, y: 100 }];
+    const saved = systemContext({
+      ...fixtureContext({ wormholes }),
+      kind: "save",
+      geometry: SAVE_GEOMETRY,
+    });
+    const intent: GeometryIntent = {
+      kind: "moveWormhole",
+      system: SYSTEM,
+      wormhole: 30,
+      radius: 50,
+      angle: 0,
+    };
+    const override = SAVE_GEOMETRY.preview(intent, saved);
+    const [shown] = systemContext(saved, { override, marks: null }).wormholes;
+    expect(shown).toMatchObject({ x: 50, y: 0, saved: { x: 0, y: 100 }, movable: true });
+    expect(shown.name).toBe("Wormhole to S6");
+    expect(scenario([scenarioSun], rollOf([scenarioSun])).wormholes).toEqual([]);
+  });
+});

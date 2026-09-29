@@ -27,13 +27,15 @@ import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { RadiiLayer } from "./layers/RadiiLayer";
 import { RolledLayer } from "./layers/RolledLayer";
+import { WormholesLayer } from "./layers/WormholesLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
 import { SystemInteraction, type SceneTarget } from "./SystemInteraction";
 
 /**
- * One system's bodies, orbits, belts and hyperlane exits, drawn about its centre with a camera of
- * its own. The host retargets it to the system the scene store shows; nothing here is React state.
+ * One system's bodies, orbits, belts, wormholes and hyperlane exits, drawn about its centre with a
+ * camera of its own. The host retargets it to the system the scene store shows; nothing here is
+ * React state.
  */
 export class SystemScene implements Scene, SceneView, SceneTarget {
   readonly cam = new Camera();
@@ -79,6 +81,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
+      new WormholesLayer(),
       new LocksLayer(),
       this.handles,
       this.labels,
@@ -122,7 +125,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   deactivate(): void {
     this.shown = false;
     this.interaction.deactivate();
-    this.setHighlight({ hoverBody: null, hoverExit: null, lane: null });
+    this.setHighlight({ hoverBody: null, hoverExit: null, hoverWormhole: null, lane: null });
     useMapChromeStore.getState().setSceneHint(null);
   }
 
@@ -232,8 +235,13 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.setHighlight({ selectedBody: selectedBody(this.ctx, top) });
   }
 
-  hover(body: number | null, exit: number | null, handle: HandleRef | null): void {
-    this.setHighlight({ hoverBody: body, hoverExit: exit });
+  hover(
+    body: number | null,
+    exit: number | null,
+    handle: HandleRef | null,
+    wormhole: number | null,
+  ): void {
+    this.setHighlight({ hoverBody: body, hoverExit: exit, hoverWormhole: wormhole });
     this.highlights.hoverHandle(handle);
   }
 
@@ -277,10 +285,14 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       .setSceneHint(`${laneLabel(here, lane.name)} · length ${lane.length}`);
   }
 
-  /** The scale at which the whole system, its hyperlane arrows and their labels included, is in view. */
+  /**
+   * The scale at which the whole system, its wormholes, hyperlane arrows and their labels included,
+   * is in view.
+   */
   private fittedScale(): number {
     const { width, height } = this.cam;
-    const { fitRadius, innerRadius } = this.ctx.layout;
+    const { innerRadius } = this.ctx.layout;
+    const fitRadius = this.ctx.viewRadius;
     const half = Math.min(width, height) / 2;
     const exitsInView = Math.max(half - EXIT_REACH_PX, half / 2) / Math.max(innerRadius, 1);
     return Math.min(fitScale(fitRadius, width, height), exitsInView);
@@ -289,7 +301,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   /** Out to half the fit, in until the largest body fills the view's short side. */
   private limit(scale: number): void {
     const { width, height } = this.cam;
-    const { fitRadius, largestDisc } = this.ctx.layout;
+    const { largestDisc } = this.ctx.layout;
+    const fitRadius = this.ctx.viewRadius;
     const limits = zoomLimits(fitRadius, width, height, largestDisc);
     this.cam.minScale = Math.min(limits.minScale, scale / 2);
     this.cam.maxScale = Math.max(limits.maxScale, scale);

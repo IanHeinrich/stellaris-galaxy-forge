@@ -48,7 +48,7 @@ export interface SystemSources {
   readonly kind: DocumentKind | null;
   readonly gameDataReady: boolean;
   readonly resourceIcons: ReadonlyMap<string, string>;
-  /** Which of the scene's switches are on: names, resources, nebula clouds and orbit radii. */
+  /** Which of the scene's switches are on: names, resources, clouds, wormholes and orbit radii. */
   readonly sceneLayers: Readonly<Record<SceneLayerId, boolean>>;
   /** Where the roll drawn lands the system's bodies, or the planets the game rolls; null until one is in. */
   readonly roll: SystemRoll | null;
@@ -79,7 +79,13 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   kind: null,
   gameDataReady: false,
   resourceIcons: new Map<string, string>(),
-  sceneLayers: Object.freeze({ labels: true, details: false, nebulae: false, orbitRadii: false }),
+  sceneLayers: Object.freeze({
+    labels: true,
+    details: false,
+    nebulae: false,
+    bypasses: true,
+    orbitRadii: false,
+  }),
   roll: null,
   ownership: NO_OWNERSHIP,
   countries: new Map<number, CountryNode>(),

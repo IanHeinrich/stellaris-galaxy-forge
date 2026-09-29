@@ -174,6 +174,46 @@ describe("the system scene's fit", () => {
     shown.tick();
     expect(camera(shown)).toEqual(fitted);
   });
+
+  function wormholeLands(y: number): void {
+    const wormhole = { id: 30, bypass: 31, kind: "wormhole", partner: OTHER, x: 0, y };
+    const details = systemDetails({
+      id: SYSTEM,
+      inner_radius: 400,
+      planets: [SUN, NAMED_EARTH],
+      wormholes: [wormhole],
+    });
+    useDetailsStore.setState({ details: new Map([[SYSTEM, details]]) });
+  }
+
+  function inView(shown: SystemScene, y: number): boolean {
+    const at = shown.cam.worldToScreen(0, y);
+    return at.y >= 0 && at.y <= shown.cam.height;
+  }
+
+  it("reaches a wormhole past the inner radius on entering, unless Bypasses is off", () => {
+    detailsLand(SYSTEM);
+    const plain = entered().cam.scale;
+    scene?.dispose();
+    wormholeLands(459.5);
+    const shown = entered();
+    expect(inView(shown, 459.5 + 40)).toBe(true);
+    expect(shown.cam.scale).toBeLessThan(plain);
+    scene?.dispose();
+    const { sceneLayers } = useMapChromeStore.getState();
+    useMapChromeStore.setState({ sceneLayers: { ...sceneLayers, bypasses: false } });
+    expect(entered().cam.scale).toBe(plain);
+  });
+
+  it("leaves the camera where it is when a wormhole moves further out", () => {
+    wormholeLands(459.5);
+    const shown = entered();
+    const fitted = camera(shown);
+    wormholeLands(600);
+    shown.tick();
+    expect(shown.context().wormholes[0].y).toBe(600);
+    expect(camera(shown)).toEqual(fitted);
+  });
 });
 
 describe("the system scene's lanes", () => {

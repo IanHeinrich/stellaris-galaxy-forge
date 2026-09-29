@@ -701,3 +701,31 @@ describe("the inner radius a belt grows", () => {
     expect(SAVE_GEOMETRY.editing(frame).innerFloor).toBe(180);
   });
 });
+
+describe("a save's wormholes", () => {
+  const wormhole = { id: 30, bypass: 31, kind: "wormhole", partner: 8, x: 0, y: 100 };
+  const tunnel = { id: 32, bypass: 33, kind: "shroud_tunnel", partner: null, x: 50, y: 0 };
+  const frame = frameOf({ ...orbitSystem(), wormholes: [wormhole, tunnel] });
+  const moveTo = (id: number, radius: number, angle: number): GeometryIntent => ({
+    kind: "moveWormhole",
+    system: SYSTEM,
+    wormhole: id,
+    radius,
+    angle,
+  });
+
+  it("move a natural wormhole about the centre, and keep a shroud tunnel where it is", () => {
+    expect(SAVE_GEOMETRY.editing(frame).wormholes).toEqual(new Set([30]));
+    expect(op(moveTo(30, 150, 405), frame)).toEqual({
+      op: { type: "MoveSaveWormhole", wormhole: 30, radius: 150, angle: 45 },
+    });
+    expect(SAVE_GEOMETRY.preview(moveTo(30, 100, 0), frame).wormholes?.get(30)).toEqual({
+      x: 100,
+      y: 0,
+    });
+    expect(op(moveTo(30, 100, 90), frame)).toBeNull();
+    expect(op(moveTo(32, 80, 0), frame)).toEqual({ refused: GEOMETRY_REASONS.lockedWormhole });
+    expect(op(moveTo(30, 0, 0), frame)).toEqual({ refused: GEOMETRY_REASONS.wormholeAtCentre });
+    expect(op(moveTo(99, 80, 0), frame)).toEqual({ refused: GEOMETRY_REASONS.wormholeElsewhere });
+  });
+});

@@ -1,3 +1,4 @@
+import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { KeyAction } from "../keys";
 import {
@@ -6,6 +7,7 @@ import {
   LAYER_KEYS,
   isGalaxyLayer,
   isSceneLayer,
+  sceneDraws,
   type LayerId,
   type SceneLayerId,
 } from "./layerIds";
@@ -70,6 +72,15 @@ export function barShows(mode: BarMode, control: BarControl): boolean {
 /** Whether `mode` switches `id` on the system scene's own switch rather than the galaxy's. */
 export function onSceneSwitch(mode: BarMode, id: LayerId): id is SceneLayerId {
   return mode === "system" && isSceneLayer(id);
+}
+
+/**
+ * Whether the bar `mode` shows layer `id` for a document with `capabilities`: in a system, only a
+ * switch the scene draws something for.
+ */
+export function barShowsLayer(mode: BarMode, id: LayerId, capabilities: Capabilities): boolean {
+  if (!barShows(mode, id)) return false;
+  return !onSceneSwitch(mode, id) || sceneDraws(id, capabilities);
 }
 
 /** The layer number key `index` switches in `mode`, or null where that key does nothing. */

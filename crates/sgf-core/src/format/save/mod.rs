@@ -21,7 +21,7 @@ use crate::format::Format;
 use crate::format::save::write::{
     add_system, belts, bodies, bulk, deposits, dig_site, empire_name, flag, lanes, lgate,
     map_colors, move_planet, move_system, nebula, planet_entity, planet_modifier, planet_ring,
-    planet_size, remove_system, rename_planet, rename_system, replace_system, star_class,
+    planet_size, remove_system, rename_planet, rename_system, replace_system, star_class, wormhole,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -245,6 +245,11 @@ impl Format for Save {
                 radius,
                 angle,
             } => bodies::plan_parent(plan, s, *system, *body, *parent, *star, *radius, *angle),
+            Op::MoveSaveWormhole {
+                wormhole,
+                radius,
+                angle,
+            } => wormhole::plan_move(plan, s, *wormhole, *radius, *angle),
             Op::SetPlanetRing { planet, ring } => planet_ring::plan_set(plan, s, *planet, *ring),
             Op::SetPlanetEntity { planet, entity } => {
                 planet_entity::plan_set(plan, s, *planet, entity.as_deref())

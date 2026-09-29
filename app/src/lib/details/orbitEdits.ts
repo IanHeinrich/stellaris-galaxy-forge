@@ -1,5 +1,5 @@
 /**
- * Moving a system's bodies, belts and inner radius, whatever the document is.
+ * Moving a system's bodies, belts, inner radius and wormholes, whatever the document is.
  *
  * The drag, the fields and the nudge say where a thing should end up as an absolute intent. A
  * source's adapter says what may be edited, what the scene draws while an intent is shown, and the
@@ -11,6 +11,7 @@ import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRadii } from "../../generated/SystemRadii";
+import type { WormholeSummary } from "../../generated/WormholeSummary";
 import {
   BELT_SCATTER,
   MOON_RING_FIRST,
@@ -23,6 +24,7 @@ import type { EntityRef } from "../../store/inspectorStore";
 import { counted } from "../text";
 import {
   polar,
+  saveAngle,
   wrapDegrees,
   type BodyOrbit,
   type BodyPlacement,
@@ -34,8 +36,9 @@ import {
 export type { BodyOrbit, LayoutOverride } from "./orbits";
 
 /**
- * Where a body, a belt or the inner radius should end up. Radius and angle are about the new
- * parent's point, in `polar`'s degrees; `parent: null` is the system's centre.
+ * Where a body, a belt, the inner radius or a wormhole should end up. Radius and angle are about
+ * the new parent's point, in `polar`'s degrees; `parent: null` is the system's centre, which a
+ * wormhole is always placed about.
  */
 export type GeometryIntent =
   | { kind: "move"; system: number; body: number; radius: number; angle: number }
@@ -51,7 +54,8 @@ export type GeometryIntent =
   | { kind: "setBeltRadius"; system: number; index: number; radius: number }
   | { kind: "setBeltKind"; system: number; index: number; beltKind: string }
   | { kind: "removeBelt"; system: number; index: number }
-  | { kind: "innerRadius"; system: number; radius: number };
+  | { kind: "innerRadius"; system: number; radius: number }
+  | { kind: "moveWormhole"; system: number; wormhole: number; radius: number; angle: number };
 
 /** What may be done to one body. */
 export interface BodyEditing {
@@ -86,6 +90,8 @@ export interface SceneEditing {
   innerRadius: boolean;
   /** The least the inner radius may be set to. */
   innerFloor: number;
+  /** The wormholes that may be dragged, by id. */
+  wormholes: ReadonlySet<number>;
 }
 
 /** What an adapter reads of a system. */
@@ -122,6 +128,9 @@ export const GEOMETRY_REASONS = {
   elsewhere: "That body is not in this system",
   notANumber: "That isn't a number",
   asteroidPast: "One of the belt's asteroids would end up at or past the centre",
+  lockedWormhole: "Only a natural wormhole can be moved",
+  wormholeElsewhere: "That wormhole is not in this system",
+  wormholeAtCentre: "A wormhole can't stand at the system's centre",
 } as const;
 
 /** The inner radius may not go below `least`. */
@@ -137,9 +146,17 @@ export const DRAG_HINTS = {
   toPlanet: "release to make it a planet",
   belt: "belt radius · Esc cancels",
   innerRadius: "inner radius · Esc cancels",
+  wormhole: "drag to move · Shift snaps to 15° · Esc cancels",
   /** Added to the readout of a body that can move. */
   movable: "drag to move · Shift+arrows nudge",
+  /** Under the name of a wormhole that can move. */
+  movableWormhole: "drag to move",
 } as const;
+
+/** Whether a `natural_wormholes` entry is a natural wormhole, the only kind that may be moved. */
+export function isNaturalWormhole(wormhole: WormholeSummary): boolean {
+  return wormhole.kind === "wormhole";
+}
 
 /** What the status bar says while a body is held over `host`, which it would orbit. */
 export function toMoonHint(host: string): string {
@@ -464,6 +481,7 @@ const NOTHING_EDITABLE: SceneEditing = {
   belts: false,
   innerRadius: false,
   innerFloor: VANILLA_SYSTEM_RADII.min_inner,
+  wormholes: new Set(),
 };
 
 /** Nothing about the system's geometry may be edited. */
@@ -564,6 +582,7 @@ function saveEditing(frame: GeometryFrame): SceneEditing {
     belts: true,
     innerRadius: details.inner_radius !== null,
     innerFloor: innerFloorOf(frame),
+    wormholes: new Set(details.wormholes.filter(isNaturalWormhole).map((w) => w.id)),
   };
 }
 
@@ -632,6 +651,10 @@ function savePreview(intent: GeometryIntent, frame: GeometryFrame): LayoutOverri
       return { belts: belts.filter((_, i) => i !== intent.index) };
     case "innerRadius":
       return { innerRadius: intent.radius };
+    case "moveWormhole":
+      return {
+        wormholes: new Map([[intent.wormhole, polar(0, 0, intent.radius, intent.angle)]]),
+      };
   }
 }
 
@@ -731,6 +754,21 @@ function beltRadiusOp(
   return { op: { type: "Batch", description, ops: [op, ...moves] } };
 }
 
+function wormholeOp(
+  intent: Extract<GeometryIntent, { kind: "moveWormhole" }>,
+  frame: GeometryFrame,
+): GeometryOp {
+  const { wormhole: id, radius, angle } = intent;
+  const wormhole = frame.details?.wormholes.find((w) => w.id === id);
+  if (!wormhole) return { refused: GEOMETRY_REASONS.wormholeElsewhere };
+  if (!isNaturalWormhole(wormhole)) return { refused: GEOMETRY_REASONS.lockedWormhole };
+  if (!(radius > 0)) return { refused: GEOMETRY_REASONS.wormholeAtCentre };
+  const { x, y } = wormhole;
+  const unmoved = same(Math.hypot(x, y), radius) && angleGap(saveAngle(0, 0, x, y), angle) < SAME;
+  if (unmoved) return null;
+  return { op: { type: "MoveSaveWormhole", wormhole: id, radius, angle: wrapDegrees(angle) } };
+}
+
 /** The class of body `id`, as the details give it. */
 function classOfBody(frame: GeometryFrame, id: number): string | undefined {
   return frame.details?.planets.find((p) => p.id === id)?.class;
@@ -784,6 +822,8 @@ function saveOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {
       if (intent.radius < least) return { refused: innerTooSmall(least) };
       return { op: { type: "SetSaveInnerRadius", system: intent.system, radius: intent.radius } };
     }
+    case "moveWormhole":
+      return wormholeOp(intent, frame);
   }
 }
 

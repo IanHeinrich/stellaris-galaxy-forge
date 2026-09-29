@@ -322,6 +322,11 @@ export function bypassName(kind: string): string {
   return BYPASS_NAMES[kind] ?? (keyWords(kind) || kind);
 }
 
+/** What the system view calls a wormhole: "Wormhole to Sol", or its kind alone with no partner. */
+export function wormholeLabel(kind: string, partner: string | null): string {
+  return partner === null ? bypassName(kind) : `${bypassName(kind)} to ${partner}`;
+}
+
 function bypassIcon(kind: string, label: string, kinds?: BypassKinds): Icon {
   const key = bypassIconKey(kind, kinds);
   return {

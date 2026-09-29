@@ -1,7 +1,8 @@
 //! Per-system facts for the zoom-in map tier: planets, orbital deposits, the starbase,
 //! the fleets present, megastructures and dig sites, projected from the `planets`,
 //! `deposit`, `colony`, `starbase_mgr`, `ships`, `ship_design`, `fleet`, `country`,
-//! `megastructures`, `archaeological_sites` and `galactic_object` sections.
+//! `megastructures`, `archaeological_sites`, `natural_wormholes`, `bypasses` and
+//! `galactic_object` sections.
 //!
 //! Built lazily (see `Session::details`) because it parses about half the file. The raw
 //! projection keeps save keys (`d_energy_5`, `pc_continental`); [`DetailsProjection::resolve`]
@@ -20,7 +21,7 @@ use crate::validate::{self, Issue};
 
 pub use extract::{
     ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawStarbase, RawSystemDetails,
-    ShipSizeCount,
+    ShipSizeCount, WormholeSummary,
 };
 pub use resolve::{
     BodyLayout, Bounds, DepositCount, DetailsResolver, FleetPresence, HeuristicResolver,
@@ -57,6 +58,7 @@ impl DetailsProjection {
         extract::megastructures(index, src, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
         extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
+        extract::wormholes(doc, graph, &mut by_system)?;
         let overlaps = by_system
             .iter()
             .map(|(&id, raw)| (id, validate::bodies::overlaps(id, raw)))
@@ -105,7 +107,8 @@ impl DetailsProjection {
     }
 
     /// Read again the belts and `inner_radius` of each of the systems `ids` from the bytes
-    /// now standing for its entry, then its overlap findings.
+    /// now standing for its entry, and the point of each of its natural wormholes, then its
+    /// overlap findings.
     pub fn refresh_systems(
         &mut self,
         doc: &Document,

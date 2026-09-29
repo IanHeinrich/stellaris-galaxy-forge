@@ -9,7 +9,7 @@
 //! the build, so ops need no incremental bookkeeping.
 
 pub(crate) mod bodies;
-mod bypasses;
+pub(crate) mod bypasses;
 mod countries;
 pub(crate) mod lgate;
 mod nebulae;

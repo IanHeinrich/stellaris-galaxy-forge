@@ -125,12 +125,14 @@ export interface BodyOrbit {
 
 /**
  * What a layout draws in place of the details: bodies put elsewhere, other belts, another inner
- * radius. A body's moons go with it.
+ * radius. A body's moons go with it. Wormholes put elsewhere, by id, are drawn there by the scene;
+ * the layout itself does not place them.
  */
 export interface LayoutOverride {
   bodies?: ReadonlyMap<number, BodyOrbit>;
   belts?: readonly { kind: string; radius: number }[];
   innerRadius?: number;
+  wormholes?: ReadonlyMap<number, Point>;
 }
 
 export interface Bearing {
@@ -174,7 +176,7 @@ export function wrapDegrees(deg: number): number {
 }
 
 /** Degrees from (fromX, fromY) to (toX, toY) in the save frame, in [0, 360). */
-function saveAngle(fromX: number, fromY: number, toX: number, toY: number): number {
+export function saveAngle(fromX: number, fromY: number, toX: number, toY: number): number {
   return wrapDegrees((Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI);
 }
 

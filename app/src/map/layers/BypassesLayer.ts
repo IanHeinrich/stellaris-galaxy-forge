@@ -5,6 +5,7 @@ import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
 import { bypassName } from "../../lib/details/labels";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
+import { WORMHOLE_COLOR } from "../../lib/visual/style";
 import { useLGateStore } from "../../store/lgateStore";
 import { OwnedTooltip } from "../ownedTooltip";
 import { lgateOutcomeLine } from "../../lib/lgate";
@@ -13,7 +14,7 @@ import { Badge, badgeTexture, otherSide, BADGE_RING_RADIUS } from "./badge";
 import { dashedLine } from "./dashes";
 import { markerScale, type MapLayer } from "./MapLayer";
 
-const WORMHOLE = { color: 0xc084fc, alpha: 0.8, dash: 5, gap: 4 };
+const WORMHOLE = { color: WORMHOLE_COLOR, alpha: 0.8, dash: 5, gap: 4 };
 const GATEWAY = { color: 0x38bdf8, icon: "gateway", label: "Gateway", ruined: "Ruined gateway" };
 const LGATE = { color: 0x22d3ee, icon: "lgate", label: "L-Gate" };
 const OTHER = { color: 0xa3e635, size: 3.5, width: 1.5, alpha: 0.85 };

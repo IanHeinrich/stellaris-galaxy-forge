@@ -1,3 +1,4 @@
+import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
 
@@ -31,14 +32,21 @@ export type LayerId = (typeof LAYER_IDS)[number];
 
 /**
  * The layers the system scene draws, each switched there apart from the galaxy, with what the
- * scene starts with. `sceneOnly` marks one the galaxy map does not draw.
+ * scene starts with. `sceneOnly` marks one the galaxy map does not draw, and `needs` the
+ * capability without which the scene draws nothing for it.
  */
 const SCENE_LAYERS = [
   { id: "labels", on: true },
   { id: "details", on: true },
   { id: "nebulae", on: true },
+  { id: "bypasses", on: true, needs: "bypasses" },
   { id: "orbitRadii", on: false, sceneOnly: true },
-] as const satisfies readonly { id: LayerId; on: boolean; sceneOnly?: true }[];
+] as const satisfies readonly {
+  id: LayerId;
+  on: boolean;
+  sceneOnly?: true;
+  needs?: keyof Capabilities;
+}[];
 
 type SceneLayer = (typeof SCENE_LAYERS)[number];
 export type SceneLayerId = SceneLayer["id"];
@@ -46,6 +54,12 @@ export const SCENE_LAYER_IDS: readonly SceneLayerId[] = SCENE_LAYERS.map((layer)
 
 export function isSceneLayer(id: LayerId): id is SceneLayerId {
   return (SCENE_LAYER_IDS as readonly LayerId[]).includes(id);
+}
+
+/** Whether the system scene draws anything for switch `id` in a document with `capabilities`. */
+export function sceneDraws(id: SceneLayerId, capabilities: Capabilities): boolean {
+  const layer: SceneLayer | undefined = SCENE_LAYERS.find((one) => one.id === id);
+  return layer === undefined || !("needs" in layer) || capabilities[layer.needs];
 }
 
 /** The layers only the system scene draws; the galaxy's menus list them as switches of their own. */
@@ -61,7 +75,7 @@ export function isGalaxyLayer(id: LayerId): id is GalaxyLayerId {
   return !SCENE_ONLY_IDS.includes(id);
 }
 
-/** What the system scene starts with: names, resources and nebula clouds drawn, radii not. */
+/** What the system scene starts with: names, resources, clouds and wormholes drawn, radii not. */
 export const DEFAULT_SCENE_LAYERS = Object.fromEntries(
   SCENE_LAYERS.map((layer) => [layer.id, layer.on]),
 ) as Record<SceneLayerId, boolean>;

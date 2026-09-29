@@ -13,6 +13,8 @@ import {
   SOURCE_LABELS,
   type Source,
 } from "../../lib/visual/layerGroups";
+import { LAYER_KEYS } from "../../lib/visual/layerIds";
+import { toggleLayerKey } from "../../store/commands";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { readyAs } from "../../test/session";
 import { OPEN_RESULT, SCENARIO_RESULT } from "../../store/fixture";
@@ -170,11 +172,11 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
   });
 
-  it("shows only Names, System details, Nebulae and Orbit radii while a system is shown, none greyed", async () => {
+  it("shows only Names, System details, Nebulae, Bypasses and Orbit radii while a system is shown, none greyed", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
-    const scene = ["Names", "Nebulae", "Orbit radii", "System details"];
+    const scene = ["Bypasses", "Names", "Nebulae", "Orbit radii", "System details"];
     expect(bar()).not.toContain("disabled");
     expect(buttonLabels(bar())).toEqual(expect.arrayContaining(["Hyperlanes", "Leviathans"]));
     expect(buttonLabels(bar())).not.toContain("Orbit radii");
@@ -186,6 +188,9 @@ describe("the split layer bar", () => {
     expect(buttonLabels(bar()).sort()).toEqual(scene);
     expect(bar()).not.toContain("disabled");
     expect(rowNames(menuBody()).sort()).toEqual(scene);
+    const { sceneLayers } = useMapChromeStore.getState();
+    toggleLayerKey(LAYER_KEYS.indexOf("bypasses"));
+    expect(useMapChromeStore.getState().sceneLayers.bypasses).toBe(!sceneLayers.bypasses);
     expect(menuBody()).not.toContain("disabled");
     expect(menuBody()).toContain("<span>Orbit radii</span><kbd>2</kbd>");
 
@@ -198,7 +203,7 @@ describe("the split layer bar", () => {
     expect(buttonLabels(bar())).toContain("Hyperlanes");
   });
 
-  it("drops a scenario's masters while a system is shown, and keeps its frames' own reasons", async () => {
+  it("drops a scenario's masters and Bypasses while a system is shown, key 6 included, and keeps its frames' own reasons", async () => {
     resetStores();
     armSession();
     await openWith(SCENARIO_RESULT);
@@ -214,6 +219,11 @@ describe("the split layer bar", () => {
       "System details",
     ]);
     expect(html).not.toContain(`aria-label="${label("scripts")}"`);
+    expect(rowNames(menuBody())).not.toContain("Bypasses");
+    const { layers, sceneLayers } = useMapChromeStore.getState();
+    toggleLayerKey(LAYER_KEYS.indexOf("bypasses"));
+    expect(useMapChromeStore.getState().layers).toBe(layers);
+    expect(useMapChromeStore.getState().sceneLayers).toBe(sceneLayers);
     expect(menuBody()).not.toContain("master-pill");
     expect(html).toMatch(
       new RegExp(`aria-label="System details"[^>]*disabled[^>]*title="${NO_GAME_DATA_KEYS_TITLE}"`),

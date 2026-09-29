@@ -477,6 +477,17 @@ pub enum Op {
         radius: f64,
         angle: f64,
     },
+    /// A save's natural wormhole put at `radius` and `angle` about its system's star, as
+    /// [`Op::MoveSaveBody`] places a planet. Angles are degrees, written normalised to
+    /// [0, 360). Only `coordinate.x` and `.y` of the `natural_wormholes` entry are written: a
+    /// wormhole has no orbit, and the system's `inner_radius` is left as it is. An entry
+    /// whose bypass is not a `wormhole`, such as a shroud tunnel, is refused. The inverse
+    /// moves it back to its old point. Stellaris 4.x save documents only.
+    MoveSaveWormhole {
+        wormhole: u32,
+        radius: f64,
+        angle: f64,
+    },
     /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
     /// the statement is written before `entity_planet_class` or `coordinate` when the body
     /// has none, and goes when only the bit set beside any other is left. The body's class
@@ -620,7 +631,8 @@ impl Op {
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
     /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
     /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
-    /// the planet whose site they wrote.
+    /// the planet whose site they wrote. [`Op::MoveSaveWormhole`] stales the system whose
+    /// wormhole it moved.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -642,6 +654,7 @@ impl Op {
             | Self::SetSpawnScripts { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::MoveSaveWormhole { .. }
             | Self::SetPlanetRing { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
@@ -658,8 +671,8 @@ impl Op {
     }
 
     /// Whether the details this op stales come up to date by rereading, in place, the
-    /// planets it rewrote and the belts and inner radius of the systems it rewrote, without
-    /// building the projection again.
+    /// planets it rewrote and the belts, inner radius and wormhole points of the systems it
+    /// rewrote, without building the projection again.
     pub fn refreshes_details_in_place(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -668,6 +681,7 @@ impl Op {
             | Self::RemovePlanetModifier { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::MoveSaveWormhole { .. }
             | Self::SetPlanetRing { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
@@ -720,6 +734,7 @@ impl Op {
             | Self::RemoveSaveDeposit { .. }
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
+            | Self::MoveSaveWormhole { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
@@ -1067,6 +1082,12 @@ pub enum OpError {
     ParentMissing { body: u32, parent: u32 },
     #[error("planet {0} already stands there")]
     BodyUnchanged(u32),
+    #[error("natural wormhole {0} does not exist")]
+    UnknownWormhole(u32),
+    #[error("natural wormhole {wormhole} has bypass type \"{kind}\": only a wormhole can be moved")]
+    NotAWormhole { wormhole: u32, kind: String },
+    #[error("wormhole {0} already stands there")]
+    WormholeUnchanged(u32),
     #[error("{reason}")]
     InvalidParent { reason: String },
     #[error("planet {0} has moons, so it cannot become a moon")]
@@ -1135,7 +1156,8 @@ impl OpError {
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
             | Self::UnknownDigSite { .. }
-            | Self::UnknownBelt { .. } => ErrorKind::NotFound,
+            | Self::UnknownBelt { .. }
+            | Self::UnknownWormhole { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
             | Self::HeaderParse { .. }
@@ -1229,6 +1251,8 @@ impl OpError {
             | Self::AtCentre { .. }
             | Self::ParentMissing { .. }
             | Self::BodyUnchanged { .. }
+            | Self::NotAWormhole { .. }
+            | Self::WormholeUnchanged { .. }
             | Self::InvalidParent { .. }
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }

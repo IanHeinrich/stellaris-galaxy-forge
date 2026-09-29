@@ -439,6 +439,11 @@ pub fn one_of_each() -> Vec<Example> {
             radius: 20.0,
             angle: 90.0,
         }),
+        Example::save_4_5(Op::MoveSaveWormhole {
+            wormhole: 1,
+            radius: 300.0,
+            angle: 45.0,
+        }),
         Example::save_4_5(Op::SetPlanetRing {
             planet: 585,
             ring: true,

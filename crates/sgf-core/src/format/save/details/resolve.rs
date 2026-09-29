@@ -9,6 +9,7 @@ use ts_rs::TS;
 use crate::as_u32;
 use crate::format::save::details::{
     ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawSystemDetails,
+    WormholeSummary,
 };
 use crate::format::save::system_spec::BeltSpec;
 use crate::ops::rules::bodies;
@@ -88,6 +89,8 @@ pub struct SystemDetails {
     pub belts: Vec<BeltSpec>,
     /// A save's `inner_radius`; `None` in a scenario.
     pub inner_radius: Option<f64>,
+    /// A save's natural wormholes and shroud tunnels, in file order; empty in a scenario.
+    pub wormholes: Vec<WormholeSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -304,6 +307,7 @@ pub(super) fn resolve(
         with_game_data,
         belts: raw.belts.clone(),
         inner_radius: raw.inner_radius,
+        wormholes: raw.wormholes.clone(),
     }
 }
 

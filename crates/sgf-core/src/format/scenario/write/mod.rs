@@ -139,8 +139,10 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
-        // A scenario's bodies and belts come from its initializers, which the game data holds.
+        // A scenario's bodies and belts come from its initializers, which the game data holds,
+        // and its wormholes are placed when the game starts.
         Op::MoveSaveBody { .. }
+        | Op::MoveSaveWormhole { .. }
         | Op::MoveSavePlanet { .. }
         | Op::SetSaveBodyParent { .. }
         | Op::SetPlanetRing { .. }

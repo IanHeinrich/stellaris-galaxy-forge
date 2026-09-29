@@ -4,15 +4,17 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
 import { discRadius } from "../../lib/details/discs";
-import { boundsText, isColony } from "../../lib/details/labels";
+import { boundsText, isColony, wormholeLabel } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
+  isNaturalWormhole,
   type LayoutOverride,
   type SceneEditing,
 } from "../../lib/details/orbitEdits";
 import {
   exitBearing,
+  FIT_MARGIN,
   placeholderPlanets,
   systemLayout,
   type BeltBand,
@@ -169,6 +171,22 @@ export interface SceneHandle {
   readonly y: number;
 }
 
+/** A save's wormhole or shroud tunnel, drawn at its point about the centre. */
+export interface SceneWormhole {
+  readonly id: number;
+  /** Where it is drawn, a drag's preview included, in save units. */
+  readonly x: number;
+  readonly y: number;
+  /** Where the save puts it. */
+  readonly saved: { readonly x: number; readonly y: number };
+  /** It is a natural wormhole; anything else, a shroud tunnel say, stays where it is. */
+  readonly natural: boolean;
+  /** A drag moves it: a natural wormhole, where the source may be edited. */
+  readonly movable: boolean;
+  /** "Wormhole to Sol", as its tooltip names it. */
+  readonly name: string;
+}
+
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
 export interface ScenePreview {
   readonly override: LayoutOverride;
@@ -196,6 +214,13 @@ export interface SystemContext extends SystemSources {
   readonly editing: SceneEditing;
   /** The handles on its belts and inner radius, where they may be edited. */
   readonly handles: readonly SceneHandle[];
+  /** Its wormholes and shroud tunnels, while the Bypasses switch is on. */
+  readonly wormholes: readonly SceneWormhole[];
+  /**
+   * The radius the camera fits on entering the system: the layout's, out to the wormholes drawn,
+   * which often stand near the outer radius. Only the layout's changing refits a view in place.
+   */
+  readonly viewRadius: number;
   /** What a drag marks; null while nothing is dragged. */
   readonly drag: DragMarks | null;
 }
@@ -480,6 +505,7 @@ const lastExits = lastOf<readonly Exit[]>();
 const lastRolled = lastOf<readonly RolledPlanet[]>();
 const lastEditing = lastOf<SceneEditing>();
 const lastHandles = lastOf<readonly SceneHandle[]>();
+const lastWormholes = lastOf<readonly SceneWormhole[]>();
 
 /** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
 export const HANDLES_PER_CIRCLE = 6;
@@ -506,6 +532,29 @@ function sceneHandles(layout: SystemLayout, editing: SceneEditing): SceneHandle[
     : [];
   if (!editing.innerRadius) return belts;
   return [...belts, ...handlesAt({ kind: "innerRadius" }, layout.innerRadius, null)];
+}
+
+function sceneWormholes(
+  src: SystemSources,
+  editing: SceneEditing,
+  moved: LayoutOverride["wormholes"],
+): SceneWormhole[] {
+  if (!src.sceneLayers.bypasses || !src.details) return NOTHING;
+  return src.details.wormholes.map((w) => {
+    const partner = w.partner === null ? undefined : src.systems.get(w.partner);
+    const partnerName =
+      w.partner === null ? null : partner ? src.nodeName(partner.name) : `#${w.partner}`;
+    const at = moved?.get(w.id) ?? w;
+    return {
+      id: w.id,
+      x: at.x,
+      y: at.y,
+      saved: { x: w.x, y: w.y },
+      natural: isNaturalWormhole(w),
+      movable: editing.wormholes.has(w.id),
+      name: wormholeLabel(w.kind, partnerName),
+    };
+  });
 }
 
 /**
@@ -546,6 +595,17 @@ export function systemContext(
     ],
     () => sceneBodies(src, node, layout),
   );
+  const wormholes = lastWormholes(
+    [
+      src.details,
+      src.sceneLayers.bypasses,
+      editing,
+      preview?.override.wormholes,
+      src.systems,
+      src.names,
+    ],
+    () => sceneWormholes(src, editing, preview?.override.wormholes),
+  );
   return Object.freeze({
     ...src,
     node,
@@ -565,6 +625,11 @@ export function systemContext(
     editing,
     handles: lastHandles([layout.belts, layout.innerRadius, editing], () =>
       sceneHandles(layout, editing),
+    ),
+    wormholes,
+    viewRadius: Math.max(
+      layout.fitRadius,
+      ...wormholes.map((w) => Math.hypot(w.x, w.y) + FIT_MARGIN),
     ),
     drag: preview?.marks ?? null,
   });

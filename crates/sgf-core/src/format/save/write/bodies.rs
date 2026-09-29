@@ -457,7 +457,7 @@ fn successor(edit: &Edit, keys: &[&str]) -> Result<Span, OpError> {
 }
 
 /// A radius or an angle as a description names it: up to two decimals.
-fn number(v: f64) -> String {
+pub(crate) fn number(v: f64) -> String {
     let text = format!("{v:.2}");
     let text = text.trim_end_matches('0').trim_end_matches('.');
     if text == "-0" { "0" } else { text }.to_owned()

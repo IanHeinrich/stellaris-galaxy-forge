@@ -14,7 +14,7 @@ import {
 } from "../../lib/details/orbitEdits";
 import { wrapDegrees, type BodyPlacement } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
-import type { SystemContext } from "./context";
+import type { SceneWormhole, SystemContext } from "./context";
 import { drawnDisc } from "./geometry";
 
 /** Within this many screen pixels of another ring about the same centre, a drag takes its radius. */
@@ -70,6 +70,8 @@ export interface DragMarks {
   /** The body it would become a moon of. */
   readonly host: number | null;
   readonly handle: HandleRef | null;
+  /** The wormhole dragged, whose save point is drawn faint. */
+  readonly wormhole: number | null;
 }
 
 /** The text at the pointer while something is dragged. */
@@ -455,6 +457,7 @@ export class BodyDrag implements Drag {
         other: null,
         host: null,
         handle: null,
+        wormhole: null,
         ...marks,
       },
       readout,
@@ -562,6 +565,55 @@ export class BodyDrag implements Drag {
   }
 }
 
+/**
+ * A natural wormhole dragged freely about the centre, in whole units and degrees, or Shift's steps.
+ * Nothing takes it and it takes nothing.
+ */
+export class WormholeDrag implements Drag {
+  private constructor(
+    private readonly system: number,
+    private readonly wormhole: SceneWormhole,
+    /** From the pointer to the wormhole's point, as it was grabbed. */
+    private readonly grab: Pt,
+  ) {}
+
+  /** The drag of wormhole `id`, pressed at `from`, or null when it may not move. */
+  static start(frame: WormholeFrame, id: number, from: Pt): WormholeDrag | null {
+    const wormhole = frame.wormholes.find((w) => w.id === id);
+    if (frame.id === null || !wormhole?.movable) return null;
+    return new WormholeDrag(frame.id, wormhole, { x: wormhole.x - from.x, y: wormhole.y - from.y });
+  }
+
+  move(pointer: DragPointer): DragStep {
+    const at = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
+    const radius = Math.max(1, Math.round(Math.hypot(at.x, at.y)));
+    const angle = snapAngle(angleAbout(ORIGIN, at), pointer.shift);
+    const { id, x, y } = this.wormhole;
+    const was = { radius: Math.hypot(x, y), angle: angleAbout(ORIGIN, this.wormhole) };
+    const from = whole(was.radius);
+    const to = whole(radius);
+    const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);
+    return {
+      intent: { kind: "moveWormhole", system: this.system, wormhole: id, radius, angle },
+      marks: {
+        body: null,
+        ghost: null,
+        tone: "own",
+        other: null,
+        host: null,
+        handle: null,
+        wormhole: id,
+      },
+      readout: { text: `r ${from === to ? to : `${from} → ${to}`} · ${degrees(angle)}` },
+      hint: DRAG_HINTS.wormhole,
+      changed: !same,
+    };
+  }
+}
+
+/** What a wormhole's drag reads of the scene as it starts. */
+export type WormholeFrame = Pick<SystemContext, "id" | "wormholes">;
+
 /** A belt's or the inner radius's handle dragged out or in about the centre, in whole units. */
 export class HandleDrag implements Drag {
   private constructor(
@@ -599,6 +651,7 @@ export class HandleDrag implements Drag {
       other: null,
       host: null,
       handle: this.handle,
+      wormhole: null,
     };
     const system = this.system;
     const from = whole(this.radius);

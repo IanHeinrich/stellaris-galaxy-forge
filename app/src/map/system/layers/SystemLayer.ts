@@ -11,13 +11,15 @@ export interface PasteGhost {
 }
 
 /**
- * What the scene marks: the body and arrow under the pointer, the body selected, the lane clicked,
- * the body a panel's link names while the pointer is on the link, and the planets being moved.
+ * What the scene marks: the body, wormhole and arrow under the pointer, the body selected, the lane
+ * clicked, the body a panel's link names while the pointer is on the link, and the planets being
+ * moved.
  */
 export interface SceneHighlight {
   readonly hoverBody: number | null;
   /** The neighbour whose arrow is under the pointer. */
   readonly hoverExit: number | null;
+  readonly hoverWormhole: number | null;
   readonly selectedBody: number | null;
   /** The neighbour whose lane was clicked. */
   readonly lane: number | null;
@@ -33,6 +35,7 @@ export interface SceneHighlight {
 export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
   hoverBody: null,
   hoverExit: null,
+  hoverWormhole: null,
   selectedBody: null,
   lane: null,
   linkedBody: null,

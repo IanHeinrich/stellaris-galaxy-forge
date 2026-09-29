@@ -365,6 +365,14 @@ To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
 first.
 
+#### Wormholes
+
+In a save, the system view shows each wormhole as a purple ring where it
+sits in the system. Point at it to see which system is on the other
+side. Drag a natural wormhole to move it. Hold Shift to snap the angle
+to 15° steps. Shroud tunnels show too, but they stay where they are.
+Turn off Bypasses to hide them.
+
 #### Asteroid belts and the inner radius
 
 The system's page has a Belts section. You can change the inner radius
@@ -381,14 +389,14 @@ space and choose Add belt here to add a belt at that distance from the
 star.
 
 Each body's name sits on a plate under it. A colonised planet's plate
-has a bar in its owner's colour. Names, System details and Nebulae
-still work while a system is open, with their own settings, so you can
-have them on in the galaxy and off in a system. With System details on,
-each body's resources show under its name. A system inside a nebula
-shows faint clouds behind it while Nebulae is on. The other layer
-buttons and the tool rail are for the galaxy, so they are hidden while
-a system is open. Undo and redo still work from the Edit menu and their
-keys.
+has a bar in its owner's colour. Names, System details, Nebulae and,
+in a save, Bypasses still work while a system is open, with their own
+settings, so you can have them on in the galaxy and off in a system.
+With System details on, each body's resources show under its name. A
+system inside a nebula shows faint clouds behind it while Nebulae is
+on. The other layer buttons and the tool rail are for the galaxy, so
+they are hidden while a system is open. Undo and redo still work from
+the Edit menu and their keys.
 
 To get back to the galaxy, press Esc or M, click "Galaxy" in the crumb
 at the map's top left, right-click and choose Back to galaxy, or use View → Back
