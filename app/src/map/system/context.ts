@@ -66,7 +66,10 @@ export interface SceneBody {
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
-  /** A colony's plate and owner's flag, or the pre-FTL icon, as the Details layer shows a system's. */
+  /**
+   * A colony's plate and owner's flag, and its megastructure, dig site, anomaly and pre-FTL
+   * icons, as the Details layer shows a system's.
+   */
   readonly marks: BodyMarks;
   /** Its orbit's radius as the readouts show it; null for a body with no ring. */
   readonly readout: RadiusReadout | null;
@@ -233,6 +236,8 @@ interface DrawnClass {
   /** The star class a star is drawn as; null for a planet. */
   starClass: string | null;
   drawn: boolean;
+  /** The model a save names for a planet, drawn in place of its class's; null for none. */
+  model: string | null;
 }
 
 type BodyArt = Pick<
@@ -258,6 +263,7 @@ function artOf(drawn: DrawnClass, src: SystemSources, planet: PlanetSummary | nu
     kept.drawn.planetClass === drawn.planetClass &&
     kept.drawn.starClass === drawn.starClass &&
     kept.drawn.drawn === drawn.drawn &&
+    kept.drawn.model === drawn.model &&
     kept.planetClasses === src.planetClasses &&
     kept.starClasses === src.starClasses
   ) {
@@ -301,7 +307,10 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 }
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
-function freshArt({ planetClass, starClass, drawn }: DrawnClass, src: SystemSources): BodyArt {
+function freshArt(
+  { planetClass, starClass, drawn, model }: DrawnClass,
+  src: SystemSources,
+): BodyArt {
   if (starClass !== null) {
     const look = bodyLook(planetClass, starClass, drawn);
     const view = src.starClasses.get(starClass);
@@ -316,7 +325,7 @@ function freshArt({ planetClass, starClass, drawn }: DrawnClass, src: SystemSour
     };
   }
   const view = drawn ? undefined : src.planetClasses.get(planetClass);
-  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true);
+  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true, model);
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {
@@ -386,7 +395,7 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       resources: NOTHING,
       marks: NO_MARKS,
       readout: null,
-      ...artOf({ planetClass: star.class, starClass, drawn: false }, src, null),
+      ...artOf({ planetClass: star.class, starClass, drawn: false, model: null }, src, null),
     };
   });
 }
@@ -435,8 +444,9 @@ function sceneBodies(
   layout: SystemLayout,
 ): SceneBody[] {
   const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
-  if (src.details === null || noBodies) return galaxyStars(src, node);
-  const planets = new Map(src.details.planets.map((p) => [p.id, p]));
+  const details = src.details;
+  if (details === null || noBodies) return galaxyStars(src, node);
+  const planets = new Map(details.planets.map((p) => [p.id, p]));
   const system = systemStar(src, node);
   const discs = discsByPoint(layout.bodies);
   return layout.bodies.flatMap((placement) => {
@@ -454,9 +464,13 @@ function sceneBodies(
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
         chance: chanceOf(placement, planet, drawn),
         resources: rowsOf(planet, src.resourceIcons),
-        marks: bodyMarks(planet, src.countries),
+        marks: bodyMarks(planet, src.countries, details, src.names),
         readout: readoutOf(placement, discs),
-        ...artOf({ planetClass: planet.class, starClass, drawn }, src, planet),
+        ...artOf(
+          { planetClass: planet.class, starClass, drawn, model: planet.entity_name ?? null },
+          src,
+          planet,
+        ),
       },
     ];
   });

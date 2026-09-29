@@ -56,6 +56,17 @@ export function blankSceneTextures(): SceneTextures {
   };
 }
 
+/** The amounts a label's resource row shows, in order: its visible texts that are numbers. */
+export function resourceAmounts(holder: Container): string[] {
+  const row = holder.children.find((c) => c.label === "resources");
+  if (!row) return [];
+  const texts = (c: Container): string[] => [
+    ...(c instanceof BitmapText && c.visible && /^\d/.test(c.text) ? [c.text] : []),
+    ...c.children.flatMap(texts),
+  ];
+  return texts(row);
+}
+
 /** The texts labelled `label` on the plates shown in `container`. */
 export function plateTexts(container: Container, label: string): string[] {
   return container.children

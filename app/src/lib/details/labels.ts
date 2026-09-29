@@ -13,6 +13,7 @@ import { canonicalResource } from "../resources";
 import { wholeTurn } from "./orbits";
 import { keyWords, titleCase } from "../text";
 import {
+  ANOMALY_ICON_KEY,
   ARCHAEOLOGY_ICON_KEYS,
   MEGASTRUCTURE_ICON_KEY,
   PLANET_SIZE_ICON_KEY,
@@ -385,10 +386,26 @@ export function siteLabel(kind: string): string {
   return words.length === 0 ? kind : titleCase(words);
 }
 
-/** Every localisation key the details bar and its tooltips show for `d`: planet and fleet names, resource ids. */
+/** What an anomaly category is called: the game's name, else its key's words. */
+export function anomalyName(category: string, names: Names): string {
+  return names.get(category) || keyWords(category.toLowerCase().replace(/_cat$/, ""));
+}
+
+/** The icon for the anomaly a planet holds, titled by its name. */
+export function anomalyIcon(name: string): Icon {
+  return { keys: [ANOMALY_ICON_KEY], glyph: "?", label: name, frame: "poi" };
+}
+
+/**
+ * Every localisation key the details bar, the planet labels and their tooltips show for `d`:
+ * planet and fleet names, anomaly categories, resource ids.
+ */
 export function detailNameKeys(d: SystemDetails): string[] {
   const keys: string[] = [];
-  for (const p of d.planets) keys.push(...templateKeys(p.name));
+  for (const p of d.planets) {
+    keys.push(...templateKeys(p.name));
+    if (p.anomaly) keys.push(p.anomaly);
+  }
   for (const f of d.fleets_present) keys.push(...templateKeys(f.name));
   if (d.starbase) keys.push(...templateKeys(d.starbase.name));
   for (const r of d.resources) keys.push(canonicalResource(r.resource));

@@ -106,12 +106,21 @@ impl Localisation {
             return Some(done.clone());
         }
         let resolved = self.resolve_key(key, &mut Vec::new())?;
-        let text = strip_markup(&resolved).trim().to_owned();
+        let text = strip_markup(&resolved, Scopes::Drop).trim().to_owned();
         self.display
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .insert(key.to_owned(), text.clone());
         Some(text)
+    }
+
+    /// The text of a description, when it has any: as [`Self::get`], but a
+    /// `[scope.GetName]` substitution reads as what it names, such as "this
+    /// planet", where a name drops it.
+    pub fn description(&self, key: &str) -> Option<String> {
+        let resolved = self.resolve_key(key, &mut Vec::new())?;
+        let text = strip_markup(&resolved, Scopes::StandIn).trim().to_owned();
+        (!text.is_empty()).then_some(text)
     }
 
     /// `key`'s entry with references substituted and markup intact.
@@ -232,9 +241,20 @@ fn unescape(value: &str) -> String {
     value.replace("\\n", "\n").replace("\\\"", "\"")
 }
 
-/// Remove `£icon£`, `§X` … `§!` colour codes and `[scope.Expression]`
-/// substitutions, keeping the text around and inside colour spans.
-pub(crate) fn strip_markup(text: &str) -> String {
+/// What [`strip_markup`] does with a `[scope.Expression]` substitution, which
+/// has no scope to fill it from.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Scopes {
+    /// Remove it, as a name wants.
+    Drop,
+    /// Put a stand-in for what it names, as running text wants.
+    StandIn,
+}
+
+/// Remove `£icon£` and `§X` … `§!` colour codes, keeping the text around and
+/// inside colour spans, and `[…]` substitutions without a space, or put a
+/// stand-in for one as `scopes` says.
+pub(crate) fn strip_markup(text: &str, scopes: Scopes) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.char_indices().peekable();
     while let Some((i, c)) = chars.next() {
@@ -253,7 +273,12 @@ pub(crate) fn strip_markup(text: &str) -> String {
                 let rest = &text[i + 1..];
                 match rest.find(']') {
                     Some(end) if end > 0 && !rest[..end].contains(char::is_whitespace) => {
-                        skip_to(&mut chars, i + 1 + end + 1);
+                        let close = i + 1 + end + 1;
+                        let taken = (scopes == Scopes::StandIn)
+                            .then(|| stand_in(&rest[..end]))
+                            .flatten()
+                            .map_or(0, |word| push_stand_in(&mut out, word, &text[close..]));
+                        skip_to(&mut chars, close + taken);
                     }
                     _ => out.push(c),
                 }
@@ -262,6 +287,134 @@ pub(crate) fn strip_markup(text: &str) -> String {
         }
     }
     out
+}
+
+/// The scopes that say nothing of what they hold, so a name read through only
+/// these is "it".
+const BARE_SCOPES: [&str; 10] = [
+    "root",
+    "this",
+    "from",
+    "fromfrom",
+    "fromfromfrom",
+    "prev",
+    "prevprev",
+    "target",
+    "recipient",
+    "actor",
+];
+
+/// What a `[From.Planet.GetName]`-style expression reads as without a scope:
+/// a pronoun, else the kind of name its function or nearest scope gives, else
+/// "it" when it reads only [`BARE_SCOPES`]. `None` for what is to go: an
+/// expression without a scope such as `[GetDate]`, one whose function gives no
+/// name such as `[miner.GetIcon]`, a name through a scope saved under a name of
+/// its own such as `[artisan.GetName]`, and what is not an expression, such as
+/// `['concept_pops']`.
+fn stand_in(expression: &str) -> Option<&'static str> {
+    let expression = expression.split('|').next()?;
+    let parts: Vec<String> = expression
+        .split('.')
+        .map(|part| {
+            let part = part.to_ascii_lowercase();
+            part.strip_prefix("event_target:")
+                .map_or(part.clone(), str::to_owned)
+        })
+        .collect();
+    let valid = |part: &String| {
+        !part.is_empty()
+            && part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | ':'))
+    };
+    if !parts.iter().all(valid) {
+        return None;
+    }
+    let (function, scopes) = parts.split_last()?;
+    if scopes.is_empty() {
+        return None;
+    }
+    match function.as_str() {
+        "gethisher" | "getherhis" => return Some("their"),
+        "getheshe" | "getshehe" => return Some("they"),
+        "gethimher" | "getherhim" => return Some("them"),
+        "getplanetmoon" => return Some("planet"),
+        _ => {}
+    }
+    let names = ["name", "nameplural", "names"]
+        .iter()
+        .any(|end| function.ends_with(end));
+    if !names {
+        return None;
+    }
+    let kind = function.strip_prefix("get").unwrap_or(function);
+    scope_stand_in(kind)
+        .or_else(|| scopes.iter().rev().find_map(|scope| scope_stand_in(scope)))
+        .or_else(|| {
+            let bare = |scope: &String| BARE_SCOPES.contains(&scope.as_str());
+            scopes.iter().all(bare).then_some("it")
+        })
+}
+
+fn scope_stand_in(scope: &str) -> Option<&'static str> {
+    Some(match scope {
+        s if s.contains("species") => "this species",
+        s if s.contains("leader") || s.contains("scientist") => "your scientist",
+        s if s.contains("ruler") || s.contains("regnal") => "your ruler",
+        s if s.contains("system") => "this system",
+        s if s.contains("planet") || s.contains("homeworld") || s == "capital" => "this planet",
+        s if s.contains("country") || s.contains("empire") || s == "owner" || s == "controller" => {
+            "your empire"
+        }
+        _ => return None,
+    })
+}
+
+/// `word` after `out`, read into the text around it: "the [x] system" is
+/// "this system", "the [x]" is "it", "[x]'s" is "its", and a sentence's first
+/// word is capitalised.
+/// Returns how many bytes of `after` it took.
+fn push_stand_in(out: &mut String, word: &str, after: &str) -> usize {
+    if word == "it" || word.contains(' ') {
+        drop_article(out);
+    }
+    let (word, taken) = match word.split_once(' ') {
+        Some((determiner, noun)) => {
+            let repeated = after
+                .trim_start_matches("§!")
+                .strip_prefix(' ')
+                .and_then(|rest| rest.strip_prefix(noun))
+                .is_some_and(|rest| !rest.starts_with(char::is_alphanumeric));
+            (if repeated { determiner } else { word }, 0)
+        }
+        None if word == "it" && after.starts_with("'s") => ("its", 2),
+        None => (word, 0),
+    };
+    let before = out.trim_end_matches([' ', '\t']);
+    if before.is_empty() || before.ends_with(['.', '!', '?', '\n']) {
+        let mut chars = word.chars();
+        if let Some(first) = chars.next() {
+            out.extend(first.to_uppercase());
+            out.push_str(chars.as_str());
+        }
+    } else {
+        out.push_str(word);
+    }
+    taken
+}
+
+/// A trailing "the ", which "it" and a stand-in with its own determiner do
+/// not take.
+fn drop_article(out: &mut String) {
+    for article in ["the ", "The "] {
+        if let Some(kept) = out.strip_suffix(article)
+            && !kept.ends_with(char::is_alphanumeric)
+        {
+            let len = kept.len();
+            out.truncate(len);
+            return;
+        }
+    }
 }
 
 fn skip_to(chars: &mut std::iter::Peekable<std::str::CharIndices<'_>>, offset: usize) {

@@ -33,8 +33,11 @@ const ASTEROID_GLAZES: Array<[RegExp, number]> = [
 export interface BodyLook {
   /** The disc's colour until its surface or icon lands, and its glow's, outline's and ring's. */
   readonly tint: number;
-  /** The texture key of its surface baked as a disc; null for a black hole, a draw or an irregular body. */
-  readonly surfaceKey: string | null;
+  /**
+   * Texture keys for its surface baked as a disc, the first that renders drawn: its model's, then
+   * its class's. None for a black hole, a draw or an irregular body.
+   */
+  readonly surfaceKeys: readonly string[];
   /** Drawn black with its swirl behind it, where every other star shines. */
   readonly blackHole: boolean;
   /** The light a pulsar or a neutron star throws off its poles. */
@@ -65,13 +68,15 @@ function classTint(planetClass: string, starClass: string | null): number {
 
 /**
  * How a body of `planetClass` is drawn: a star as `starClass`, a body whose class is left to a
- * draw with no surface of its own, and a `flat` class from its icon alone.
+ * draw with no surface of its own, and a `flat` class from its icon alone. A planet whose save
+ * names a `model` shows that model's surface where the install has one, else its class's.
  */
 export function bodyLook(
   planetClass: string,
   starClass: string | null,
   drawn: boolean,
   flat = false,
+  model: string | null = null,
 ): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
@@ -79,9 +84,10 @@ export function bodyLook(
   const irregular = /asteroid/.test(planetClass) || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";
+  const modelKeys = model !== null && starClass === null ? [`planet_model:${model}`] : [];
   return {
     tint: classTint(planetClass, starClass),
-    surfaceKey: baked ? `${kind}:${planetClass}` : null,
+    surfaceKeys: baked ? [...modelKeys, `${kind}:${planetClass}`] : [],
     blackHole,
     flare: starClass !== null ? starFlare(starClass) : null,
     irregular,

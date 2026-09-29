@@ -182,14 +182,28 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Anomaly section shows the anomaly on a
+  planet, moon or star: its name, which empires have found it, and the
+  game's description of it. Remove it with the ✕ on its row. When it
+  has none, Add anomaly lists the anomalies you can add. Search by name,
+  or pick a level chip. The ones that can turn up on that body come
+  first, under "Usual for this planet". Some only turn up on stars, such
+  as the ones around pulsars and black holes. A body holds one anomaly,
+  so the list closes after you add one.
+- If you have surveyed the planet, the added anomaly shows in game right
+  away, ready for a science ship to research. If you haven't, it turns up
+  when you survey the planet. Anomalies that run their own script when
+  the game places them, such as precursor ones, aren't offered, because
+  the game wouldn't run that script. The AI's own anomalies aren't
+  offered either.
 - In a Stellaris 4.x save, the Dig site section shows a planet's
-  archaeological site: its stage, its clues, and whether a fleet is
-  excavating it. Remove it with the ✕. A science ship excavating a
-  removed site stops on the game's first day and waits in orbit. A
-  planet without a site has Add dig site. Search by name, or pick Found
-  by surveys or Event only. A planet holds one site, so the list closes
-  after an add. The two site types that do something in game as they
-  are created aren't listed.
+  archaeological site: its stage, its clues, whether a fleet is
+  excavating it, and the game's description of it. Remove it with the
+  ✕. A science ship excavating a removed site stops on the game's first
+  day and waits in orbit. A planet without a site has Add dig site.
+  Search by name, or pick Found by surveys or Event only. A planet holds
+  one site, so the list closes after an add. The two site types that do
+  something in game as they are created aren't listed.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
@@ -202,7 +216,10 @@ too.
   to search by name, resource or category, or pick a category chip.
   Special holds the deposits only events place. Orbital deposits of one
   resource, such as +1 to +10 Energy, share a row: click an amount to
-  add that one. Hover a row to read the game's description of it.
+  add that one.
+- The bottom of the deposit, blocker, modifier and dig site lists shows
+  the game's description of the row you hover. Without the pointer on a
+  row, it describes the row the arrow keys are on.
 - Add blocker, under the Blockers heading, works the same way for
   blockers. Its chips pick the blockers a tech clears, the ones that need
   no tech or can't be cleared, and Special for blockers that do more than
@@ -229,8 +246,9 @@ too.
 - Moons are listed below and open their own pages the same way.
 - A colonised planet has a Colony section: its owner, designation, when
   it was colonised, and its pops by species.
-- A planet with an anomaly waiting on it shows an Anomaly row: the
-  anomaly's name, and which empires have found it.
+- In an older save, a planet with an anomaly waiting on it shows an
+  Anomaly row in About: the anomaly's name, and which empires have
+  found it.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
@@ -393,10 +411,13 @@ has a bar in its owner's colour. Names, System details, Nebulae and,
 in a save, Bypasses still work while a system is open, with their own
 settings, so you can have them on in the galaxy and off in a system.
 With System details on, each body's resources show under its name. A
-system inside a nebula shows faint clouds behind it while Nebulae is
-on. The other layer buttons and the tool rail are for the galaxy, so
-they are hidden while a system is open. Undo and redo still work from
-the Edit menu and their keys.
+colony's name shows its owner's flag. A body's name also shows icons
+for its megastructures, dig site, anomaly and pre-FTL civilisation.
+Hover an icon or a resource to see what it is. A system inside a nebula
+shows faint clouds behind it while Nebulae is on. The other layer
+buttons and the tool rail are for the galaxy, so they are hidden while
+a system is open. Undo and redo still work from the Edit menu and their
+keys.
 
 To get back to the galaxy, press Esc or M, click "Galaxy" in the crumb
 at the map's top left, right-click and choose Back to galaxy, or use View → Back

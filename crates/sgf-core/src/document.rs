@@ -123,7 +123,7 @@ pub struct Document {
     /// else's business.
     inner: HashMap<&'static str, OnceLock<Option<Index>>>,
     /// See [`Self::anomaly_finders`].
-    finders: OnceLock<HashMap<u32, Vec<u32>>>,
+    finders: OnceLock<Vec<AnomalyList>>,
     /// See [`Self::clearing_cost`].
     clearings: OnceLock<HashMap<u32, Vec<(String, f64)>>>,
 }
@@ -162,42 +162,66 @@ fn scan_inner(
         })
 }
 
-/// Each planet some country's `events.anomalies` lists, with those countries in file order.
+/// One country's `events.anomalies` as the file was opened: the country, its statement,
+/// and the planets it lists.
+#[derive(Clone, Debug)]
+struct AnomalyList {
+    country: u32,
+    stmt: Span,
+    planets: Vec<u32>,
+}
+
+/// Every country's `events.anomalies`, in file order, an empty one for a country without.
 /// A country's own statements are scanned to find `events`, and only that block is parsed.
-fn anomaly_lists(index: &Index, src: &[u8]) -> HashMap<u32, Vec<u32>> {
-    let mut finders: HashMap<u32, Vec<u32>> = HashMap::new();
+fn anomaly_lists(index: &Index, src: &[u8]) -> Vec<AnomalyList> {
+    let mut lists = Vec::new();
     for country in index.entities(keys::COUNTRY) {
         let (Value::Block { open, close }, Ok(id)) = (country.value, u32::try_from(country.id))
         else {
             continue;
         };
-        let Some(events) = scan::scan_range(src, open + 1..close)
+        let planets = scan::scan_range(src, open + 1..close)
             .ok()
             .and_then(|inner| inner.section(keys::EVENTS).map(|section| section.stmt))
-        else {
-            continue;
-        };
-        let bytes = events.slice(src);
-        let Ok(root) = cst::parse(bytes, 0) else {
-            continue;
-        };
-        let planets = root
-            .children()
-            .first()
-            .and_then(|events| events.find(keys::ANOMALIES, bytes))
-            .map(|list| {
-                list.children()
-                    .iter()
-                    .filter(|item| item.key.is_none())
-                    .filter_map(|item| item.scalar_str(bytes)?.parse().ok())
-                    .collect::<Vec<u32>>()
+            .and_then(|events| {
+                let bytes = events.slice(src);
+                let root = cst::parse(bytes, 0).ok()?;
+                Some(listed_anomalies(root.children().first()?, bytes))
             })
             .unwrap_or_default();
-        for planet in planets {
-            finders.entry(planet).or_default().push(id);
-        }
+        lists.push(AnomalyList {
+            country: id,
+            stmt: country.stmt,
+            planets,
+        });
     }
-    finders
+    lists
+}
+
+/// The planets an `events` block's `anomalies` lists.
+fn listed_anomalies(events: &cst::Node, src: &[u8]) -> Vec<u32> {
+    events
+        .find(keys::ANOMALIES, src)
+        .map(|list| {
+            list.children()
+                .iter()
+                .filter(|item| item.key.is_none())
+                .filter_map(|item| item.scalar_str(src)?.parse().ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The planets a whole country statement's `events.anomalies` lists.
+fn country_anomalies(bytes: &[u8]) -> Vec<u32> {
+    let Ok(root) = cst::parse(bytes, 0) else {
+        return Vec::new();
+    };
+    root.children()
+        .first()
+        .and_then(|country| country.find(keys::EVENTS, bytes))
+        .map(|events| listed_anomalies(events, bytes))
+        .unwrap_or_default()
 }
 
 /// What each blocker being cleared costs, by deposit id: the `resources` of the
@@ -420,13 +444,20 @@ impl Document {
     }
 
     /// The countries that have found the anomaly on planet `planet`: those whose
-    /// `events.anomalies` lists it. Every country's list is read on the first call and kept,
-    /// because no op writes one.
-    pub(crate) fn anomaly_finders(&self, planet: u32) -> &[u32] {
+    /// `events.anomalies` lists it, in file order. Every country's list is read on the first
+    /// call and kept; a country an op rewrote is read again from its current bytes.
+    pub(crate) fn anomaly_finders(&self, planet: u32) -> Vec<u32> {
         self.finders
             .get_or_init(|| anomaly_lists(&self.index, &self.original))
-            .get(&planet)
-            .map_or(&[], Vec::as_slice)
+            .iter()
+            .filter(|list| match self.overlay.has_original_at(list.stmt.start) {
+                true => self
+                    .current(Anchor::Original(list.stmt))
+                    .is_ok_and(|bytes| country_anomalies(bytes).contains(&planet)),
+                false => list.planets.contains(&planet),
+            })
+            .map(|list| list.country)
+            .collect()
     }
 
     /// What clearing blocker `deposit` costs, while a construction item clears it. Every item

@@ -43,6 +43,11 @@ export function icon(
   return x + DISC_PX + ROW_GAP;
 }
 
+/** The width `count` icons side by side take, from the first disc's left edge to the last's right. */
+export function iconsWidth(count: number): number {
+  return count === 0 ? 0 : count * (DISC_PX + ROW_GAP) - ROW_GAP;
+}
+
 /** One icon standing for every item of its kind, badged with the count past one. */
 export function collapsed(
   row: Row,

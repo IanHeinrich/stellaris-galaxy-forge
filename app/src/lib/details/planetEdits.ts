@@ -1,6 +1,6 @@
 /**
  * The edits a save body's page offers beside its star's: its name, its size, its deposits, its
- * modifiers and its dig site.
+ * modifiers, its dig site and its anomaly.
  */
 import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
@@ -56,6 +56,16 @@ export function removeModifierOp(planet: number, row: ModifierRow): Op {
   };
 }
 
+/** The edit that adds an anomaly of category `category` to planet `planet`. */
+export function addAnomalyOp(planet: number, category: string): Op {
+  return { type: "AddAnomaly", planet, category };
+}
+
+/** The edit that takes planet `planet`'s anomaly off it. */
+export function removeAnomalyOp(planet: number): Op {
+  return { type: "RemoveAnomaly", planet };
+}
+
 /** The edit that puts a dig site of `choice`'s type on planet `planet`, at its first stage. */
 export function addDigSiteOp(planet: number, choice: DigSiteChoice): Op {
   return { type: "AddDigSite", planet, site_type: choice.key, difficulty: choice.difficulty };
@@ -96,5 +106,5 @@ export function bodyEditHint(
   if (!bodies) return null;
   return isStarBody(planetClass, planetClasses, starClasses)
     ? "Open this star's page to change its type and size"
-    : "Open this planet's page to rename it or change its modifiers and deposits";
+    : "Open this planet's page to rename it or change its modifiers, deposits and anomaly";
 }

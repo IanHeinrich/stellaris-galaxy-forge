@@ -43,6 +43,9 @@ export interface Textures {
   resolve(keys: string[]): Texture | null | undefined;
 }
 
+/** No texture for any key, so everything draws as its stand-in text: for measuring a row at its widest. */
+export const NO_TEXTURES: Textures = { texture: () => null, resolve: () => null };
+
 /** Textures as they have landed, adding each key still to load to `queued` for the caller to ask for. */
 export function queuedTextures(queued: Set<string>): Textures {
   const texture = (key: string): Texture | null | undefined => {

@@ -328,6 +328,27 @@ pub enum Op {
         #[ts(optional)]
         feature: Option<String>,
     },
+    /// A save planet's anomaly, `anomaly="<category>"` written after its `planet_orbitals`
+    /// as given. Without `found_by`, the planet also goes last in the player's
+    /// `events.anomalies` when the player has surveyed it, because the game lists an
+    /// anomaly only when a survey turns it up; with it, in the lists of those countries,
+    /// each once. A star takes one as any body does. A planet that has an anomaly is refused,
+    /// and so is a save before Stellaris 4.0. The inverse removes what it wrote. Save
+    /// documents only.
+    AddAnomaly {
+        planet: u32,
+        category: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        found_by: Option<Vec<u32>>,
+    },
+    /// A save planet's anomaly, and the planet from every country's `events.anomalies`,
+    /// the list going with its last planet. A planet without one is refused, and so is a
+    /// save before Stellaris 4.0. The inverse adds it back with the countries that had
+    /// found it. Save documents only.
+    RemoveAnomaly {
+        planet: u32,
+    },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
     /// writes both and turns that on; `None` turns it off and mirrors the first two flag
@@ -629,9 +650,10 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
-    /// the planet whose site they wrote. [`Op::MoveSaveWormhole`] stales the system whose
+    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`] and [`Op::SetPlanetEntity`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// does the planet and moons it renamed, [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
+    /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
+    /// planet whose anomaly they wrote. [`Op::MoveSaveWormhole`] stales the system whose
     /// wormhole it moved.
     pub fn stales_details(&self) -> bool {
         match self {
@@ -656,6 +678,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::MoveSaveWormhole { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -664,7 +687,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. } => true,
+            | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -683,12 +708,15 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::MoveSaveWormhole { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
-            | Self::RenameSavePlanet { .. } => true,
+            | Self::RenameSavePlanet { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
@@ -745,7 +773,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. } => false,
+            | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -1000,6 +1030,10 @@ pub enum OpError {
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
+    #[error("planet {0} already has anomaly {1}")]
+    AnomalyPresent(u32, String),
+    #[error("planet {0} has no anomaly")]
+    AnomalyAbsent(u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -1221,6 +1255,8 @@ impl OpError {
             | Self::ModifierAbsent { .. }
             | Self::ModifierDays { .. }
             | Self::ModifierCopies { .. }
+            | Self::AnomalyPresent { .. }
+            | Self::AnomalyAbsent { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::FlagUnchanged { .. }

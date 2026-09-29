@@ -288,6 +288,24 @@ fn run(cli: Cli) -> commands::Run {
                 },
             },
         ),
+        Some(Command::Anomaly {
+            sav,
+            planet,
+            category,
+            remove,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            match category.filter(|_| !remove) {
+                Some(category) => Op::AddAnomaly {
+                    planet,
+                    category,
+                    found_by: None,
+                },
+                None => Op::RemoveAnomaly { planet },
+            },
+        ),
         Some(Command::DigSite {
             sav,
             planet,

@@ -375,7 +375,5 @@ fn named(gd: &GameData, key: &str) -> Named {
 }
 
 fn description(gd: &GameData, star_class: &str) -> Option<String> {
-    gd.loc
-        .get(&format!("{star_class}_desc"))
-        .filter(|text| !text.is_empty())
+    gd.loc.description(&format!("{star_class}_desc"))
 }

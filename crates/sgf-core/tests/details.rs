@@ -804,6 +804,32 @@ fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
     );
 }
 
+/// Planet 185 of the 4.5 sample holds an anomaly, which its summary names by category;
+/// planet 140 holds none.
+#[test]
+fn a_planet_summary_names_the_anomaly_it_holds() {
+    let session = common::open_4_5();
+    let anomaly_of = |id: u32| {
+        let system = get_planet_page(&session.doc, id)
+            .expect("the planet")
+            .system
+            .expect("it orbits a system");
+        session
+            .details()
+            .expect("build details")
+            .resolve(system, &HeuristicResolver, false)
+            .expect("system resolved")
+            .planets
+            .iter()
+            .find(|p| p.id == id)
+            .expect("the planet's summary")
+            .anomaly
+            .clone()
+    };
+    assert_eq!(anomaly_of(185).as_deref(), Some("AIANOM_RESEARCHDEPO_CAT"));
+    assert_eq!(anomaly_of(140), None);
+}
+
 /// A fresh build (not the refresh path) keeps a planet's permanent modifiers and drops a
 /// temporary one, which the terraform op could never remove and which the game data's
 /// candidate list never carries a checkbox for.

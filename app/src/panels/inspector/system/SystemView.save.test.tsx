@@ -297,7 +297,7 @@ describe("the star class at the head", () => {
     const html = overview();
     expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
     expect(html).toContain(
-      "Open this planet&#x27;s page to rename it or change its modifiers and deposits",
+      "Open this planet&#x27;s page to rename it or change its modifiers, deposits and anomaly",
     );
   });
 

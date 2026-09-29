@@ -11,6 +11,7 @@ import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
 import { PointerBridge } from "../interaction/pointerBridge";
 import type { Textures } from "../layers/details/cell";
+import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
 import { beltLabel, sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
@@ -28,6 +29,8 @@ export interface SceneTarget {
   frame(): SystemContext;
   /** The body whose shown name plate covers the screen point, or null. */
   plateAt(sx: number, sy: number): number | null;
+  /** The tooltip of the mark or resource icon under the screen point on `body`'s name plate, or null. */
+  markTipAt(body: number, sx: number, sy: number): Tip | null;
   hover(
     body: number | null,
     exit: number | null,
@@ -322,8 +325,9 @@ export class SystemInteraction {
       this.scene.hover(body, exit, handle, wormhole);
       this.dropRefusal();
     }
-    const tip = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle, wormhole) : last.tip;
-    this.hovered = { body, exit, handle, wormhole, ctx, tip, sx, sy };
+    const own = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle, wormhole) : last.tip;
+    this.hovered = { body, exit, handle, wormhole, ctx, tip: own, sx, sy };
+    const tip = (body === null ? null : this.scene.markTipAt(body, sx, sy)) ?? own;
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
   }
