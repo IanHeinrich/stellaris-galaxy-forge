@@ -50,6 +50,7 @@ import { OrbitBlock } from "./OrbitBlock";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
+import { PlanetClassField } from "./PlanetClassField";
 import { PlanetModelField } from "./PlanetModelField";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
@@ -92,6 +93,8 @@ interface PlanetFields {
   name: string | null;
   /** The body's size, and the Size field's hover text on a colony. */
   size: { value: number | null; title?: string } | null;
+  /** Its class, and whether a colony narrows the classes it may take. */
+  planetClass: { current: string; colonised: boolean } | null;
   /** Its class and the model it has in place of the class's own. */
   model: { planetClass: string; current: string | null } | null;
   /** Whether it has a ring. */
@@ -108,7 +111,7 @@ function hasFields(fields: PlanetFields): boolean {
 /** Planet `id`'s fields. */
 function PlanetBlock({
   id,
-  fields: { name, size, model, ring, system },
+  fields: { name, size, planetClass, model, ring, system },
 }: {
   id: number;
   fields: PlanetFields;
@@ -134,6 +137,13 @@ function PlanetBlock({
         <EditRow label="Size">
           <SizeField id={id} size={size.value} title={size.title} />
         </EditRow>
+      )}
+      {planetClass !== null && (
+        <PlanetClassField
+          id={id}
+          planetClass={planetClass.current}
+          colonised={planetClass.colonised}
+        />
       )}
       {model !== null && (
         <PlanetModelField id={id} planetClass={model.planetClass} current={model.current} />
@@ -434,6 +444,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
     size: resizable
       ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
       : null,
+    planetClass: modifiersEditable
+      ? { current: page.class, colonised: page.colony !== null }
+      : null,
     model: modifiersEditable ? { planetClass: page.class, current: page.entity_name } : null,
     ring,
     system: moveFrom,
@@ -459,7 +472,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
       {!starBlock && !(star && waiting) && (
         <Properties>
-          <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
+          {!modifiersEditable && (
+            <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
+          )}
           {page.size !== null && !resizable && <PropertyRow label="Size">{page.size}</PropertyRow>}
         </Properties>
       )}

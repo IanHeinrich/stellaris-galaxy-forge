@@ -1,6 +1,6 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`, `dig-site`,
-//! `rename-planet` and `rename-empire`.
-use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`,
+//! `planet-class`, `dig-site`, `rename-planet` and `rename-empire`.
+use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout, without_install};
 
 #[test]
 fn move_writes_the_edited_save_to_the_output_path() {
@@ -464,6 +464,44 @@ fn model_writes_a_planet_model_a_later_run_clears() {
         "{}",
         stdout(&cleared)
     );
+}
+
+/// The install says what each class is: a barren world may become an ocean world, and a colony
+/// may not become barren.
+#[test]
+fn planet_class_writes_the_new_class_and_refuses_a_colony_made_barren() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("class.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&["planet-class", SAMPLE_4_5, "585", "pc_ocean", "-o", out_str]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Set the class of planet #585 from pc_barren to pc_ocean"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let refused = dir.path().join("refused.sav");
+    let out = sgf(&[
+        "planet-class",
+        SAMPLE_4_5,
+        "2",
+        "pc_barren",
+        "-o",
+        refused.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("planet 2 is a colony, and a colony cannot be changed to or from pc_barren"),
+        "{err}"
+    );
+    assert!(!refused.exists());
 }
 
 #[test]

@@ -17,6 +17,10 @@ a release is made.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
 - The system view draws a planet with the look you gave it.
+- Change a save planet's class from its page, such as making a barren
+  world an ocean world. The planet takes the new class's look.
+  Colonies can move between the habitable classes. Stars, habitats and
+  ring worlds keep their class.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
 - In the system view, a planet's or moon's name shows icons for its

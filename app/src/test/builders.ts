@@ -421,6 +421,7 @@ export function planetClassView(
   key: string,
   star = true,
   terraformCandidate: string | null = null,
+  over: Partial<PlanetClassView> = {},
 ): PlanetClassView {
   return {
     key,
@@ -432,6 +433,9 @@ export function planetClassView(
     atmosphere_color: null,
     atmosphere_intensity: null,
     atmosphere_width: null,
+    change: star ? "never" : "uncolonised",
+    models: 1,
+    ...over,
   };
 }
 

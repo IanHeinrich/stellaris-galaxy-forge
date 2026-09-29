@@ -335,6 +335,14 @@ for planets or deposits.
   a model without the bit and clears the bit when it removes a model.
   A class change in game, a terraform included, drops `entity_name` and
   leaves bit 2 set. Checked in game on 4.5.1.
+- The effect `change_pc` writes `planet_class` and removes
+  `entity_name`, and nothing else. `entity`, `binary_flags` with bit 2,
+  deposits, modifiers, flags and the colony stay as they were. A colony
+  keeps its districts, zones and buildings, and the game recomputes each
+  pop group's `habitability` for the new class by the month tick. The
+  editor's class change writes the same, and writes `entity=0` when the
+  index is past the new class's numbered models (`<model>_01_entity`
+  on, in `gfx/models/planets`). Checked in game on 4.5.1.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an
   item of the planet's
   `timed_modifier={ items={ { modifier="X" days=-1 } } }`, after

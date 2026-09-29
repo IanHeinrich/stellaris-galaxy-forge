@@ -7,6 +7,7 @@ use crate::common;
 use std::fs;
 
 use image::GenericImageView;
+use sgf_core::ops::ClassChange;
 use sgf_gamedata::Diagnostic;
 use sgf_gamedata::modifier_choices::ModifierCategory;
 use sgf_gamedata::textures::TextureKey;
@@ -505,4 +506,54 @@ fn real_planet_models_offer_the_looks_the_install_gives_planets() {
     let labels: std::collections::HashSet<&str> = models.iter().map(|m| m.label.as_str()).collect();
     assert_eq!(labels.len(), models.len(), "each label once");
     assert!((30..120).contains(&models.len()), "{}", models.len());
+}
+
+/// Which save planets each class may be given to, from the install's flags, and how many
+/// models its `.asset` files number for it.
+#[test]
+fn install_planet_classes_say_who_may_take_them_and_their_models() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let rule = |class: &str| {
+        let rule = gd.planet_class_rule(class).expect(class);
+        (rule.change, rule.models)
+    };
+    for class in ["pc_desert", "pc_continental", "pc_nuked", "pc_gaia"] {
+        assert_eq!(rule(class).0, ClassChange::Any, "{class}");
+    }
+    for class in [
+        "pc_barren",
+        "pc_gas_giant",
+        "pc_asteroid",
+        "pc_volcanic",
+        "pc_city",
+        "pc_hive",
+        "pc_machine",
+    ] {
+        assert_eq!(rule(class).0, ClassChange::Uncolonised, "{class}");
+    }
+    for class in [
+        "pc_g_star",
+        "pc_black_hole",
+        "pc_pulsar",
+        "pc_neutron_star",
+        "pc_habitat",
+        "pc_ringworld_habitable",
+        "pc_ringworld_seam_damaged",
+        "pc_shattered_ring_habitable",
+        "pc_cosmogenesis_world",
+        "pc_ark",
+        "pc_shrouded",
+        "pc_ai",
+        "pc_astral_scar",
+    ] {
+        assert_eq!(rule(class).0, ClassChange::Never, "{class}");
+    }
+    assert_eq!(rule("pc_continental").1, 4);
+    assert_eq!(rule("pc_barren").1, 3);
+    assert_eq!(rule("pc_gas_giant").1, 5);
+    assert_eq!(rule("pc_nuked").1, 1);
+    assert_eq!(rule("pc_ice_asteroid").1, 1);
+    assert!(gd.planet_class_rule("pc_no_such_class").is_none());
 }

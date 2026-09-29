@@ -2,8 +2,8 @@
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{
-    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, Op, StarBody,
-    SystemMove,
+    ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint,
+    Op, PlanetClassRule, StarBody, SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -446,6 +446,20 @@ pub fn one_of_each() -> Vec<Example> {
         Example::save_4_5(Op::SetPlanetEntity {
             planet: 585,
             entity: Some("ocean_paradise_planet_01_entity".to_owned()),
+        }),
+        Example::save_4_5(Op::SetPlanetClass {
+            planet: 585,
+            from: PlanetClassRule {
+                class: "pc_barren".to_owned(),
+                change: ClassChange::Uncolonised,
+                models: 3,
+            },
+            to: PlanetClassRule {
+                class: "pc_ocean".to_owned(),
+                change: ClassChange::Any,
+                models: 3,
+            },
+            look: None,
         }),
         Example::save_4_5(Op::AddSaveBelt {
             system: 140,

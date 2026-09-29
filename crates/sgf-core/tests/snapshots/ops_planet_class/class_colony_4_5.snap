@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the class of planet #2 from pc_continental to pc_ocean
+inverse: SetPlanetClass { planet: 2, from: PlanetClassRule { class: "pc_ocean", change: Any, models: 3 }, to: PlanetClassRule { class: "pc_continental", change: Any, models: 4 }, look: Some(PlanetLook { entity: Some(1), entity_name: None }) }
+
+--- gamestate
++++ gamestate
+@@ -80073,7 +80073,7 @@
+ 		2=
+ 		{
+ 			colony=0
+-			planet_class="pc_continental"
++			planet_class="pc_ocean"
+ 			planet_size=20
+ 			colonize_date=			"2016.05.09"
+ 			carrier_binary_flags=1

@@ -42,6 +42,7 @@ mod ops_move_planet;
 mod ops_nebula;
 mod ops_nebula_footprint;
 mod ops_nebula_names;
+mod ops_planet_class;
 mod ops_planet_entity;
 mod ops_planet_modifier;
 mod ops_planet_ring;

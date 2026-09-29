@@ -167,6 +167,12 @@ too.
   look. The looks the game uses on the planet's class come first.
   Default puts back its class's look. A class change in game, such as
   terraforming, also puts it back.
+- In a Stellaris 4.x save, change a planet's or moon's class in its
+  Class field. Deposits, modifiers and any colony stay as they are. The
+  planet takes the new class's look, and the Model field can set
+  another. A colony can only move between the habitable classes with
+  ordinary districts, such as continental, ocean or tomb world. Stars,
+  habitats, ring worlds, arks and other special worlds keep their class.
 - In a Stellaris 4.x save, the Modifiers section lists a planet's
   features and timed modifiers. Remove one with the ✕ on its row. Add
   modifier, under the list, lists the modifiers that act on a planet,

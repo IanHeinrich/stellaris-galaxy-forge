@@ -497,6 +497,25 @@ pub enum Op {
         planet: u32,
         entity: Option<String>,
     },
+    /// A save planet's class, written as the game's `change_pc` writes one: `planet_class`
+    /// becomes `to`'s class and `entity_name` goes, so the planet takes the new class's own
+    /// model. `entity` becomes 0 when it is past the `models` `to` has, and stays otherwise.
+    /// `binary_flags`, deposits, modifiers and the colony stay as they are. The install
+    /// knows what each class is and the bytes do not, so the caller says, in `from` for the
+    /// class the planet has and `to` for the new one. A star, a class that never changes
+    /// taken from or to, a colony taken from or to a class not open to colonies, a `from`
+    /// that is not the planet's class and a class it already has are refused. `look`, when
+    /// given, is written in place of that model and index: it is what the inverse carries,
+    /// so that undoing a change puts back the look the planet had. Stellaris 4.x save
+    /// documents only.
+    SetPlanetClass {
+        planet: u32,
+        from: PlanetClassRule,
+        to: PlanetClassRule,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        look: Option<PlanetLook>,
+    },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
     /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
@@ -618,7 +637,8 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`] and [`Op::SetPlanetEntity`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`], [`Op::SetPlanetEntity`] and
+    /// [`Op::SetPlanetClass`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
     /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
     /// the planet whose site they wrote.
     pub fn stales_details(&self) -> bool {
@@ -644,6 +664,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -671,6 +692,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -724,6 +746,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -753,6 +776,40 @@ pub struct InitializerSet {
 pub struct StarBody {
     pub planet: u32,
     pub class: String,
+}
+
+/// What the install says about one planet class, for [`Op::SetPlanetClass`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetClassRule {
+    pub class: String,
+    pub change: ClassChange,
+    /// How many models the install numbers for the class, `<model>_01_entity` on; 0 when
+    /// it names none.
+    pub models: u32,
+}
+
+/// Which planets a class may be given to, or taken from, in [`Op::SetPlanetClass`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum ClassChange {
+    /// None: a star, a habitat, a ring world, an ark and the other classes the game builds
+    /// or scripts its own way.
+    Never,
+    /// Any planet, a colony included: a class colonised with the standard district set.
+    Any,
+    /// A planet with no colony only.
+    Uncolonised,
+}
+
+/// A save planet's model in [`Op::SetPlanetClass`]: its `entity` index and the
+/// `entity_name` it has in place of its class's own, each `None` where the planet has none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetLook {
+    pub entity: Option<u32>,
+    pub entity_name: Option<String>,
 }
 
 /// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
@@ -1081,6 +1138,20 @@ pub enum OpError {
     StarModel(u32),
     #[error("planet {planet} {state}")]
     ModelUnchanged { planet: u32, state: String },
+    #[error("planet {0} is a star; its star type is changed on the star's page")]
+    StarPlanetClass(u32),
+    #[error("{0} is a class no planet is changed to or from")]
+    FixedPlanetClass(String),
+    #[error("planet {planet} is a colony, and a colony cannot be changed to or from {class}")]
+    ColonyPlanetClass { planet: u32, class: String },
+    #[error("planet {planet} is {class}, not {from}")]
+    PlanetClassMismatch {
+        planet: u32,
+        class: String,
+        from: String,
+    },
+    #[error("planet {0} is already {1}")]
+    PlanetClassUnchanged(u32, String),
     #[error("system {system} has no belt {index}")]
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
@@ -1237,6 +1308,11 @@ impl OpError {
             | Self::RingUnchanged { .. }
             | Self::StarModel { .. }
             | Self::ModelUnchanged { .. }
+            | Self::StarPlanetClass { .. }
+            | Self::FixedPlanetClass { .. }
+            | Self::ColonyPlanetClass { .. }
+            | Self::PlanetClassMismatch { .. }
+            | Self::PlanetClassUnchanged { .. }
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }

@@ -228,6 +228,18 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Change a save planet's class, such as to `pc_ocean`, with the rules the install gives
+    /// each class.
+    PlanetClass {
+        sav: PathBuf,
+        planet: u32,
+        /// The new class, as `common/planet_classes` names it.
+        class: String,
+        #[command(flatten)]
+        install: InstallArg,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Add a modifier to a save planet, such as `terraforming_candidate`, or remove it.
     Modifier {
         sav: PathBuf,

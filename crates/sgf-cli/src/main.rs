@@ -263,6 +263,19 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             Op::SetPlanetEntity { planet, entity },
         ),
+        Some(Command::PlanetClass {
+            sav,
+            planet,
+            class,
+            install,
+            out,
+        }) => commands::mutate::planet_class(
+            &sav,
+            out.path.as_deref(),
+            planet,
+            &class,
+            &install.options(),
+        ),
         Some(Command::Modifier {
             sav,
             planet,
