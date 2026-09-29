@@ -246,6 +246,12 @@ fn run(cli: Cli) -> commands::Run {
                 block: None,
             },
         ),
+        Some(Command::DeletePlanet { sav, planet, out }) => {
+            commands::mutate::run(&sav, out.path.as_deref(), Op::DeleteSavePlanet { planet })
+        }
+        Some(Command::RemoveColony { sav, planet, out }) => {
+            commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveColony { planet })
+        }
         Some(Command::RenameEmpire {
             sav,
             country,
@@ -271,6 +277,19 @@ fn run(cli: Cli) -> commands::Run {
             &sav,
             out.path.as_deref(),
             Op::SetPlanetEntity { planet, entity },
+        ),
+        Some(Command::PlanetClass {
+            sav,
+            planet,
+            class,
+            install,
+            out,
+        }) => commands::mutate::planet_class(
+            &sav,
+            out.path.as_deref(),
+            planet,
+            &class,
+            &install.options(),
         ),
         Some(Command::Modifier {
             sav,

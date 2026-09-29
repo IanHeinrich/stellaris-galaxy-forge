@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the class of planet #585 from pc_barren to pc_ocean
+inverse: SetPlanetClass { planet: 585, from: PlanetClassRule { class: "pc_ocean", change: Any, models: 3 }, to: PlanetClassRule { class: "pc_barren", change: Uncolonised, models: 3 }, look: Some(PlanetLook { entity: Some(2), entity_name: None }) }
+
+--- gamestate
++++ gamestate
+@@ -110069,7 +110069,7 @@
+ 		}
+ 		585=
+ 		{
+-			planet_class="pc_barren"
++			planet_class="pc_ocean"
+ 			planet_size=27
+ 			carrier_binary_flags=1
+ 			build_queue=702

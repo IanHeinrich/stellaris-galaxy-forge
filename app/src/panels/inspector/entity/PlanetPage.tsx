@@ -52,6 +52,8 @@ import { AnomalyPicker } from "./AnomalyPicker";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
+import { PlanetClassField } from "./PlanetClassField";
+import { DeletePlanetAction, RemoveColonyAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
@@ -94,6 +96,8 @@ interface PlanetFields {
   name: string | null;
   /** The body's size, and the Size field's hover text on a colony. */
   size: { value: number | null; title?: string } | null;
+  /** Its class, and whether a colony or a moon narrows the classes it may take. */
+  planetClass: { current: string; colonised: boolean; moon: boolean } | null;
   /** Its class and the model it has in place of the class's own. */
   model: { planetClass: string; current: string | null } | null;
   /** Whether it has a ring. */
@@ -110,7 +114,7 @@ function hasFields(fields: PlanetFields): boolean {
 /** Planet `id`'s fields. */
 function PlanetBlock({
   id,
-  fields: { name, size, model, ring, system },
+  fields: { name, size, planetClass, model, ring, system },
 }: {
   id: number;
   fields: PlanetFields;
@@ -136,6 +140,14 @@ function PlanetBlock({
         <EditRow label="Size">
           <SizeField id={id} size={size.value} title={size.title} />
         </EditRow>
+      )}
+      {planetClass !== null && (
+        <PlanetClassField
+          id={id}
+          planetClass={planetClass.current}
+          colonised={planetClass.colonised}
+          moon={planetClass.moon}
+        />
       )}
       {model !== null && (
         <PlanetModelField id={id} planetClass={model.planetClass} current={model.current} />
@@ -235,7 +247,8 @@ function CountryRow({ label, id }: { label: string; id: number }) {
   );
 }
 
-function Colony({ page }: { page: PlanetPage }) {
+/** The colony's facts, and its removal when `removable` names the body. */
+function Colony({ page, removable }: { page: PlanetPage; removable: string | null }) {
   const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
   const opener = useOpenEntity();
   const colony = page.colony;
@@ -271,6 +284,7 @@ function Colony({ page }: { page: PlanetPage }) {
           #{colony.id}
         </LinkRow>
       </Properties>
+      {removable !== null && <RemoveColonyAction page={page} name={removable} />}
     </Section>
   );
 }
@@ -500,11 +514,16 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   // The game places some anomalies on stars, so a star's page takes one too.
   const anomalyEditable = depositsEditable;
   const moon = found?.planet.moon ?? false;
+  // A 4.x save's planet or moon: the core says why one of them cannot go.
+  const removable = depositsEditable && !starBody;
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
     size: resizable
       ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
+      : null,
+    planetClass: modifiersEditable
+      ? { current: page.class, colonised: page.colony !== null, moon }
       : null,
     model: modifiersEditable ? { planetClass: page.class, current: page.entity_name } : null,
     ring,
@@ -531,7 +550,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
       {!starBlock && !(star && waiting) && (
         <Properties>
-          <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
+          {!modifiersEditable && (
+            <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
+          )}
           {page.size !== null && !resizable && <PropertyRow label="Size">{page.size}</PropertyRow>}
         </Properties>
       )}
@@ -539,9 +560,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
       {anomalyEditable && <PlanetAnomaly target={target} />}
       <PlanetDigSite site={page.dig_site} editable={modifiersEditable} target={target} />
-      <Colony page={page} />
+      <Colony page={page} removable={removable ? bodyName(page, names) : null} />
       <About page={page} radius={radius} anomalyEditable={anomalyEditable} />
       <Moons page={page} />
+      {removable && <DeletePlanetAction page={page} name={bodyName(page, names)} moon={moon} />}
       {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (
         <EditKey />
       )}

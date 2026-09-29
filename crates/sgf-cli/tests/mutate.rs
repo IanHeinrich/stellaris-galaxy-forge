@@ -1,5 +1,6 @@
 //! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `anomaly`, `model`,
-//! `dig-site`, `rename-planet`, `rename-empire` and `add-body`.
+//! `planet-class`, `dig-site`, `rename-planet`, `rename-empire`, `add-body`, `delete-planet` and
+//! `remove-colony`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout, without_install};
 
 #[test]
@@ -466,6 +467,44 @@ fn model_writes_a_planet_model_a_later_run_clears() {
     );
 }
 
+/// The install says what each class is: a barren world may become an ocean world, and a colony
+/// may not become barren.
+#[test]
+fn planet_class_writes_the_new_class_and_refuses_a_colony_made_barren() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("class.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&["planet-class", SAMPLE_4_5, "585", "pc_ocean", "-o", out_str]);
+    if without_install(&out) {
+        return;
+    }
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Set the class of planet #585 from pc_barren to pc_ocean"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let refused = dir.path().join("refused.sav");
+    let out = sgf(&[
+        "planet-class",
+        SAMPLE_4_5,
+        "2",
+        "pc_barren",
+        "-o",
+        refused.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("planet 2 is a colony, and a colony cannot be changed to or from pc_barren"),
+        "{err}"
+    );
+    assert!(!refused.exists());
+}
+
 #[test]
 fn anomaly_writes_one_a_later_run_takes_away() {
     let dir = tempfile::tempdir().unwrap();
@@ -683,4 +722,55 @@ fn add_body_without_a_class_or_a_roll_is_refused() {
     assert!(!out.status.success());
     let text = String::from_utf8_lossy(&out.stderr);
     assert!(text.contains("--class"), "{text}");
+}
+
+#[test]
+fn delete_planet_and_remove_colony_write_and_refuse() {
+    let dir = tempfile::tempdir().unwrap();
+    let deleted = dir.path().join("deleted.sav");
+    let out = sgf(&[
+        "delete-planet",
+        SAMPLE_4_5,
+        "99",
+        "-o",
+        deleted.to_str().unwrap(),
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Deleted planet #99 and its 2 moons"),
+        "{text}"
+    );
+    assert_eq!(
+        sgf(&["validate", deleted.to_str().unwrap()]).status.code(),
+        Some(0)
+    );
+
+    let removed = dir.path().join("removed.sav");
+    let out = sgf(&[
+        "remove-colony",
+        SAMPLE_4_5,
+        "517",
+        "-o",
+        removed.to_str().unwrap(),
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Removed colony #18 from planet #517"),
+        "{text}"
+    );
+
+    let refused = dir.path().join("refused.sav");
+    let out = sgf(&[
+        "delete-planet",
+        SAMPLE_4_5,
+        "2445",
+        "-o",
+        refused.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("it is a ring world segment"), "{err}");
+    assert!(!refused.exists());
 }

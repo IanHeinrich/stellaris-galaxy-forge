@@ -1,0 +1,186 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #99 and its 2 moons
+details stale: [140]
+inverse: Restored planet #99 and its 2 moons
+
+  System: 140
+  Planet: 99 100 101
+
+--- gamestate
++++ gamestate
+@@ -38912,9 +38912,6 @@
+ 		planet=96
+ 		planet=97
+ 		planet=98
+-		planet=99
+-		planet=100
+-		planet=101
+ 		ambient_object=
+ 		{
+ 			1 339 
+@@ -84140,159 +84137,9 @@
+ 			}
+ 			entity=0
+ 		}
+-		99=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=27
+-			carrier_binary_flags=3
+-			build_queue=245
+-			name=
+-			{
+-				key="LITHOID1_PLANET_RuktOtekk"
+-			}
+-			binary_flags=328
+-			coordinate=
+-			{
+-				x=59.52395
+-				y=132.29365
+-				origin=140
+-			}
+-			orbit=145
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				100 101 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="harvested_resources_mining"
+-						days=6726
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				starting_deposit=62808000
+-			}
+-			variables=
+-			{
+-				duration=239
+-			}
+-			entity=3
+-			deposits=
+-			{
+-				197 
+-			}
+-		}
+-		100=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=5
+-			carrier_binary_flags=3
+-			build_queue=246
+-			name=
+-			{
+-				key="LITHOID1_PLANET_OterrArrek"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=69.50245
+-				y=131.29375
+-				origin=140
+-			}
+-			orbit=10
+-			last_bombardment=			"0.01.01"
+-			moon_of=99
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="harvested_resources_mining"
+-						days=6756
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				starting_deposit=62808000
+-			}
+-			variables=
+-			{
+-				duration=240
+-			}
+-			entity=2
+-			deposits=
+-			{
+-				200 
+-			}
+-		}
+-		101=
+-		{
+-			planet_class="pc_toxic"
+-			planet_size=5
+-			carrier_binary_flags=3
+-			build_queue=247
+-			name=
+-			{
+-				key="LITHOID1_PLANET_DettAttok"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=44.92505
+-				y=135.8299
+-				origin=140
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=99
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="harvested_resources_mining"
+-						days=6006
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				starting_deposit=62808000
+-			}
+-			variables=
+-			{
+-				duration=215
+-			}
+-			entity=3
+-			deposits=
+-			{
+-				198 
+-			}
+-		}
++		99=none
++		100=none
++		101=none
+ 		102=
+ 		{
+ 			planet_class="pc_m_star"

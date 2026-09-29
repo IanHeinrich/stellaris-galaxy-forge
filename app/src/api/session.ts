@@ -174,6 +174,11 @@ export function getEntitySchema(kind: EntityKind): Promise<EntitySchema> {
   return invoke<EntitySchema>("get_entity_schema", { kind });
 }
 
+/** Why `op` would be refused, or null when it would apply; the session is left as it was. */
+export function checkOp(op: Op): Promise<string | null> {
+  return invoke<string | null>("check_op", { op });
+}
+
 /** Apply one edit to the session. Rejects with `SgfError` (kind `op`) when a precondition fails. */
 export function applyOp(op: Op): Promise<EditResult> {
   return invoke<EditResult>("apply_op", { op });

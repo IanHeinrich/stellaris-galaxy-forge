@@ -86,7 +86,7 @@ export function SystemChoice({
   const systems = useGalaxyStore((s) => s.systems);
   const systemName = useGalaxyStore((s) => s.systemName);
   const countryName = useGalaxyStore((s) => s.countryName);
-  const move = usePlanetMoveStore((s) => s.move);
+  const movePlanet = usePlanetMoveStore((s) => s.movePlanet);
   const names = useWarningNames();
   const history = useEditorStore((s) => s.history);
   const [, setPicks] = useState(0);
@@ -149,7 +149,7 @@ export function SystemChoice({
           const to = Number(key);
           const warned = noteOf(to);
           lastPick = null;
-          void move([id], to).then((moved) => {
+          void movePlanet(id, to).then((moved) => {
             if (!moved || warned === null) return;
             lastPick = { planet: id, history: useEditorStore.getState().history, note: warned };
             setPicks((n) => n + 1);

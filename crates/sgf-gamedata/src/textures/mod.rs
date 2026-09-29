@@ -182,6 +182,14 @@ impl GameData {
             .get_or_init(|| planet_disc::surface_maps(&self.layout))
     }
 
+    /// How many models the install numbers for a planet of `class`; 0 when it names none.
+    pub(crate) fn class_models(&self, class: &str) -> u32 {
+        self.planet_classes
+            .get(class)
+            .and_then(|c| c.entity.as_deref())
+            .map_or(0, |entity| self.surface_maps().model_count(entity))
+    }
+
     fn entity_surface(&self, entity: &str) -> Option<String> {
         planet_disc::diffuse(&self.layout, self.surface_maps(), entity)
     }

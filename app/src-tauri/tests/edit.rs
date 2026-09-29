@@ -5,7 +5,7 @@ use sgf_core::validate::Issue;
 use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 
 use crate::common;
-use common::{SAMPLE, invoke, kind, webview};
+use common::{SAMPLE, SAMPLE_45, invoke, kind, opened, webview, with_game_data};
 
 #[test]
 fn edit_undo_redo() {
@@ -250,5 +250,63 @@ fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
             .issues
             .iter()
             .all(|i| i.code.as_str() != "bodies_overlap")
+    );
+}
+
+fn class_op(from: &str, from_change: &str, to: &str, to_change: &str) -> serde_json::Value {
+    json!({
+        "type": "SetPlanetClass",
+        "planet": 585,
+        "from": { "class": from, "change": from_change, "models": 3 },
+        "to": { "class": to, "change": to_change, "models": 3 },
+    })
+}
+
+/// Planet 585 is barren and uncolonised. The rules a caller sends with a class change are
+/// replaced by the install's, so a rule that lies changes nothing.
+#[test]
+fn a_class_change_takes_its_rules_from_the_install() {
+    let w = opened(SAMPLE_45);
+    let error = invoke::<EditResult>(
+        &w,
+        "apply_op",
+        json!({ "op": class_op("pc_barren", "uncolonised", "pc_ocean", "any") }),
+    )
+    .expect_err("no game data");
+    assert_eq!(error.kind, ErrorKind::Op);
+    assert_eq!(error.message, "load game data to change a planet class");
+
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let lie = class_op("pc_barren", "uncolonised", "pc_habitat", "any");
+    let refused = invoke::<EditResult>(&w, "apply_op", json!({ "op": lie }));
+    assert_eq!(
+        refused.expect_err("a habitat").message,
+        "pc_habitat is a class no planet is changed to or from"
+    );
+    let batch = json!({
+        "type": "Batch",
+        "description": "Change classes",
+        "ops": [class_op("pc_barren", "uncolonised", "pc_ringworld_habitable", "any")],
+    });
+    let refused = invoke::<EditResult>(&w, "apply_op", json!({ "op": batch }));
+    assert_eq!(
+        refused.expect_err("a ring world in a batch").message,
+        "pc_ringworld_habitable is a class no planet is changed to or from"
+    );
+    let unknown = class_op("pc_barren", "uncolonised", "pc_no_such_class", "any");
+    let refused = invoke::<EditResult>(&w, "apply_op", json!({ "op": unknown }));
+    assert_eq!(
+        refused.expect_err("an unknown class").message,
+        "the install has no planet class pc_no_such_class"
+    );
+
+    let honest = class_op("pc_barren", "never", "pc_ocean", "never");
+    let changed: EditResult =
+        invoke(&w, "apply_op", json!({ "op": honest })).expect("the install's rules allow it");
+    assert_eq!(
+        changed.entry.description,
+        "Set the class of planet #585 from pc_barren to pc_ocean"
     );
 }

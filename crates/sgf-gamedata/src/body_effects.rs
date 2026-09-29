@@ -221,6 +221,14 @@ pub(crate) fn read(body: &Node, def: &Def) -> (Vec<BodyEffect>, Unwritten) {
     (effects, Unwritten { plain, converted })
 }
 
+/// What the scripted effect `def` runs on a body, as [`read`] reads a layout body's
+/// `init_effect`.
+pub(crate) fn read_effect(def: &Def) -> Vec<BodyEffect> {
+    let mut effects = Vec::new();
+    read_block(&def.node, def, Dropping::Script, &mut effects, &mut None);
+    effects
+}
+
 fn read_block(
     block: &Node,
     def: &Def,
