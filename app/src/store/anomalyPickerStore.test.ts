@@ -44,6 +44,14 @@ describe("the anomaly picker", () => {
     expect(mockedIpc.getAnomalyChoices).toHaveBeenLastCalledWith("pc_barren", 12, true);
   });
 
+  it("reads the categories for a body's page without opening", async () => {
+    useAnomalyPickerStore.getState().load(TARGET);
+    await vi.waitFor(() => expect(useAnomalyPickerStore.getState().choices?.list).toEqual(CHOICES));
+    expect(useAnomalyPickerStore.getState().target).toBeNull();
+    useAnomalyPickerStore.getState().open(TARGET);
+    expect(mockedIpc.getAnomalyChoices).toHaveBeenCalledTimes(1);
+  });
+
   it("adds the category and closes, as a planet holds one anomaly", async () => {
     useAnomalyPickerStore.getState().open(TARGET);
     mockedIpc.applyOp.mockResolvedValue(editResult());

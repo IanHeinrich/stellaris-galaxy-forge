@@ -3,6 +3,7 @@
  * chips every picker starts with, the search, and the usual rows first under All.
  */
 import type { ModifierChoice } from "../../generated/ModifierChoice";
+import type { PlanetPageAnomaly } from "../../generated/PlanetPageAnomaly";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
 export type CommonChip = "All" | "Usual";
@@ -102,7 +103,7 @@ export interface PickerTarget {
   deposits: readonly string[];
   /** The modifiers and planet features it has. */
   modifiers: readonly string[];
-  /** The category of the anomaly it holds; `null` for none. */
-  anomaly: string | null;
+  /** The anomaly it holds and who has found it; `null` for none. */
+  anomaly: PlanetPageAnomaly | null;
   edits: PlanetEditAdapter;
 }

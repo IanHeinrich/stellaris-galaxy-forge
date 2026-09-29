@@ -24,6 +24,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
 import type { Entry } from "../../../store/inspectorStore";
+import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
@@ -322,11 +323,21 @@ function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
   );
 }
 
-/** The anomaly as the Anomaly section lists it: its name, who found it, and its remove button. */
+/**
+ * The anomaly as the Anomaly section lists it: its name, who found it, the game's description of
+ * it once the anomaly choices are read, and its remove button.
+ */
 function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; target: PickerTarget }) {
   const named = useNamed([anomaly.category]);
   const found = useFinders(anomaly);
   const name = named(anomaly.category);
+  const ready = useGameDataStore((s) => s.status === "ready");
+  const description = useAnomalyPickerStore(
+    (s) => s.choices?.list.find((c) => c.key === anomaly.category)?.description ?? null,
+  );
+  useEffect(() => {
+    if (ready) useAnomalyPickerStore.getState().load(target);
+  }, [ready, target]);
   return (
     <div className="pl-mod">
       <span className="pl-mod-icon">
@@ -335,6 +346,7 @@ function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; targe
       <span>
         <span className="l1">{name}</span>
         <span className="l2">{found}</span>
+        {ready && description !== null && <span className="pl-anomaly-desc">{description}</span>}
       </span>
       <button
         type="button"
@@ -349,27 +361,32 @@ function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; targe
   );
 }
 
-/** The planet's anomaly with its remove button, or the picker that adds one. */
-function PlanetAnomaly({
-  anomaly,
-  target,
-}: {
-  anomaly: PlanetPageAnomaly | null;
-  target: PickerTarget;
-}) {
+/** The body's anomaly as `target` holds it, with its remove button, or the picker that adds one. */
+function PlanetAnomaly({ target }: { target: PickerTarget }) {
   return (
     <Section id="planet.anomaly" title="Anomaly">
-      {anomaly === null ? (
+      {target.anomaly === null ? (
         <AnomalyPicker target={target} />
       ) : (
-        <AnomalyRowView anomaly={anomaly} target={target} />
+        <AnomalyRowView anomaly={target.anomaly} target={target} />
       )}
     </Section>
   );
 }
 
-/** What the page only shows; `radius` is the body's orbit where no Orbit block edits it. */
-function About({ page, radius }: { page: PlanetPage; radius: number | null }) {
+/**
+ * What the page only shows; `radius` is the body's orbit where no Orbit block edits it, and the
+ * anomaly shows here where no Anomaly section edits it.
+ */
+function About({
+  page,
+  radius,
+  anomalyEditable,
+}: {
+  page: PlanetPage;
+  radius: number | null;
+  anomalyEditable: boolean;
+}) {
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
   const occupied = page.controller !== null && page.controller !== page.owner;
@@ -384,7 +401,7 @@ function About({ page, radius }: { page: PlanetPage; radius: number | null }) {
         )}
         {page.parent !== null && <Orbits parent={page.parent} radius={radius} />}
         {page.surveyed_by !== null && <CountryRow label="Surveyed by" id={page.surveyed_by} />}
-        {page.anomaly !== null && <AnomalyRow anomaly={page.anomaly} />}
+        {page.anomaly !== null && !anomalyEditable && <AnomalyRow anomaly={page.anomaly} />}
         {occupied && page.controller !== null && (
           <CountryRow label="Controller" id={page.controller} />
         )}
@@ -473,7 +490,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   // A 4.x save: the deposit, modifier and anomaly ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
-  const anomalyEditable = modifiersEditable;
+  // The game places some anomalies on stars, so a star's page takes one too.
+  const anomalyEditable = depositsEditable;
   const moon = found?.planet.moon ?? false;
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
@@ -511,9 +529,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       )}
       <PlanetDeposits page={page} editable={depositsEditable} target={target} />
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
-      {anomalyEditable && <PlanetAnomaly anomaly={page.anomaly} target={target} />}
+      {anomalyEditable && <PlanetAnomaly target={target} />}
       <Colony page={page} />
-      <About page={page} radius={radius} />
+      <About page={page} radius={radius} anomalyEditable={anomalyEditable} />
       <Moons page={page} />
       {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (
         <EditKey />

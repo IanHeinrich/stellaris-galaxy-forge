@@ -331,9 +331,10 @@ pub enum Op {
     /// A save planet's anomaly, `anomaly="<category>"` written after its `planet_orbitals`
     /// as given. Without `found_by`, the planet also goes last in the player's
     /// `events.anomalies` when the player has surveyed it, because the game lists an
-    /// anomaly only when a survey turns it up; with it, in the lists of those countries. A
-    /// system's star is refused, and so are a planet that has an anomaly and a save before
-    /// Stellaris 4.0. The inverse removes what it wrote. Save documents only.
+    /// anomaly only when a survey turns it up; with it, in the lists of those countries,
+    /// each once. A star takes one as any body does. A planet that has an anomaly is refused,
+    /// and so is a save before Stellaris 4.0. The inverse removes what it wrote. Save
+    /// documents only.
     AddAnomaly {
         planet: u32,
         category: String,
@@ -342,9 +343,9 @@ pub enum Op {
         found_by: Option<Vec<u32>>,
     },
     /// A save planet's anomaly, and the planet from every country's `events.anomalies`,
-    /// the list going with its last planet. A system's star is refused, and so are a planet
-    /// without one and a save before Stellaris 4.0. The inverse adds it back with the countries that had found
-    /// it. Save documents only.
+    /// the list going with its last planet. A planet without one is refused, and so is a
+    /// save before Stellaris 4.0. The inverse adds it back with the countries that had
+    /// found it. Save documents only.
     RemoveAnomaly {
         planet: u32,
     },
@@ -965,8 +966,6 @@ pub enum OpError {
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
-    #[error("planet {0} is its system's star, which takes no anomaly")]
-    StarAnomaly(u32),
     #[error("planet {0} already has anomaly {1}")]
     AnomalyPresent(u32, String),
     #[error("planet {0} has no anomaly")]
@@ -1172,7 +1171,6 @@ impl OpError {
             | Self::ModifierAbsent { .. }
             | Self::ModifierDays { .. }
             | Self::ModifierCopies { .. }
-            | Self::StarAnomaly { .. }
             | Self::AnomalyPresent { .. }
             | Self::AnomalyAbsent { .. }
             | Self::NoMapColors { .. }

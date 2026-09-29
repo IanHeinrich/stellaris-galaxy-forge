@@ -7,9 +7,12 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
+use crate::condition::{Condition, Subject};
 use crate::deposit_choices::AskedBody;
 use crate::deposit_roll::{NewBody, RollBody};
 use crate::registries::anomalies::AnomalyCategoryDef;
+use crate::registries::scripted_triggers::ScriptedTriggers;
+use crate::weight::Weight;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -21,7 +24,7 @@ pub struct AnomalyChoice {
     /// How hard it is to research, 1 to 10.
     pub level: Option<u32>,
     pub description: Option<String>,
-    /// Its `spawn_chance` is above zero for the planet asked about.
+    /// Its `spawn_chance` could be above zero for the planet asked about.
     pub usual: bool,
 }
 
@@ -41,9 +44,10 @@ impl GameData {
             .collect()
     }
 
-    /// Whether `def`'s `spawn_chance` is above zero for `asked`, judged as a body the
-    /// generator has just made; a modifier asking about the surveying ship or its empire
-    /// cannot be judged and counts for nothing.
+    /// Whether `def`'s `spawn_chance` could be above zero for `asked`, judged as a body the
+    /// generator has just made. A modifier asking what the body cannot answer, such as the
+    /// surveying ship, its empire or the body's strategic resources, adds as if it held but
+    /// never multiplies or sets the chance.
     fn anomaly_usual(&self, def: &AnomalyCategoryDef, asked: &AskedBody<'_>) -> bool {
         let Some(class) = asked.class else {
             return false;
@@ -55,6 +59,63 @@ impl GameData {
             star: class_def.is_some_and(|c| c.star),
             moon: asked.moon,
         };
-        def.spawn_chance.evaluate(&NewBody::new(self, &body, &[])) > 0.0
+        let subject = SurveyedBody {
+            gd: self,
+            body: NewBody::new(self, &body, &[]),
+        };
+        could_be_positive(&def.spawn_chance, &subject)
     }
+}
+
+/// A body as an anomaly's `spawn_chance` judges it: its class, size and kind as a new body's,
+/// the class of its system's star when it is a star, and nothing of its flags, modifiers,
+/// owner or system, which a save's body may have and a new one has not.
+struct SurveyedBody<'a> {
+    gd: &'a GameData,
+    body: NewBody<'a>,
+}
+
+impl Subject for SurveyedBody<'_> {
+    fn leaf(&self, leaf: &Condition) -> Option<bool> {
+        match leaf {
+            Condition::StarClass(key) if self.body.body.star => {
+                let class = self.body.body.class;
+                Some(
+                    self.gd
+                        .star_classes
+                        .get(key)
+                        .is_some_and(|sc| sc.planets.iter().any(|p| p.key == class)),
+                )
+            }
+            Condition::StarFlag(_)
+            | Condition::Exists(_)
+            | Condition::InsideNebula(_)
+            | Condition::StarClass(_)
+            | Condition::Unknown(_) => None,
+            _ => self.body.leaf(leaf),
+        }
+    }
+
+    fn triggers(&self) -> Option<&ScriptedTriggers> {
+        self.body.triggers()
+    }
+}
+
+/// `weight` for `subject` with every modifier that could hold adding, and only those that
+/// surely hold multiplying or setting it: whether some body like it could draw a chance.
+fn could_be_positive(weight: &Weight, subject: &dyn Subject) -> bool {
+    let mut chance = weight.base * weight.factor;
+    for modifier in &weight.modifiers {
+        match modifier.when.evaluate(subject) {
+            Some(false) => {}
+            Some(true) => {
+                chance = chance * modifier.factor.unwrap_or(1.0) + modifier.add.unwrap_or(0.0);
+                if let Some(set) = modifier.weight {
+                    chance = set;
+                }
+            }
+            None => chance += modifier.add.unwrap_or(0.0),
+        }
+    }
+    chance > 0.0
 }

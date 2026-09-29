@@ -9,7 +9,6 @@ use crate::cst::Node;
 use crate::emit::inline;
 use crate::emit::system::anomalies_list;
 use crate::format;
-use crate::format::save::read_spec::bodies;
 use crate::format::save::{check_version, entity, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, quoted};
@@ -33,7 +32,12 @@ pub(crate) fn plan_add(
         return Err(OpError::AnomalyPresent(id, held.to_owned()));
     }
     let finders = match found_by {
-        Some(countries) => countries.to_vec(),
+        Some(countries) => countries.iter().fold(Vec::new(), |mut once, &country| {
+            if !once.contains(&country) {
+                once.push(country);
+            }
+            once
+        }),
         None => match s.graph.player_country {
             Some(player) if surveyed(s, &node, src, id, player)? => vec![player],
             _ => Vec::new(),
@@ -87,15 +91,12 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     })
 }
 
-/// The planet `id`'s entity and system, once the save is known to be 4.x and the planet
-/// is known not to be its system's star.
+/// The planet `id`'s entity and system, once the save is known to be 4.x. A star takes an
+/// anomaly as any other body does: the game places some categories only on stars.
 fn planet(s: &Session, id: u32) -> Result<(Node, &[u8], u32), OpError> {
     check_version(&s.doc)?;
     let (node, src) = planet_entity(&s.doc, id)?;
     let system = planet_system(&node, src, id)?;
-    if bodies(&s.doc, system)?.first() == Some(&id) {
-        return Err(OpError::StarAnomaly(id));
-    }
     Ok((node, src, system))
 }
 

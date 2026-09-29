@@ -15,6 +15,8 @@ export interface AnomalyPickerState extends PickerState<AnomalyChip> {
   /** The categories offered, read for the body `body` names; `null` until read. */
   choices: { body: string; list: AnomalyChoice[] } | null;
   open(target: PickerTarget): void;
+  /** Reads the categories offered for `target`'s body, unless they are read already. */
+  load(target: PickerTarget): void;
   /** Adds `row` to the open body and closes, as a planet holds one anomaly. */
   add(row: AnomalyPickRow): Promise<void>;
 }
@@ -27,6 +29,10 @@ export const useAnomalyPickerStore = create<AnomalyPickerState>((set, get) => ({
     const was = get().target;
     if (was?.key !== target.key) set({ ...PICKER_CLOSED, target });
     else if (was !== target) set({ target });
+    get().load(target);
+  },
+
+  load(target) {
     const body = bodyKey(target);
     if (get().choices?.body === body) return;
     ipc.getAnomalyChoices(target.planetClass, target.size, target.moon).then(

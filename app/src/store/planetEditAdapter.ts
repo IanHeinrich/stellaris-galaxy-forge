@@ -47,7 +47,7 @@ export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarge
     moon,
     deposits: page.deposits.map((d) => d.kind),
     modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
-    anomaly: page.anomaly?.category ?? null,
+    anomaly: page.anomaly,
     edits: planetEditAdapterFor(page),
   };
 }

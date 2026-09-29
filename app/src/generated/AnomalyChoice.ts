@@ -14,6 +14,6 @@ name: string,
  */
 level: number | null, description: string | null, 
 /**
- * Its `spawn_chance` is above zero for the planet asked about.
+ * Its `spawn_chance` could be above zero for the planet asked about.
  */
 usual: boolean, };

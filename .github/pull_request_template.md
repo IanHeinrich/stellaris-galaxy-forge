@@ -36,7 +36,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A planet renamed shows the new name in game, its moons show it in theirs, and both hold after a save and reload
 - [ ] A modifier added to a planet shows in the planet view with its effect, a timed one expires, a removed one is gone; a planet feature added both ways shows as a feature
 - [ ] A planet given its terraforming candidate modifier from the modifier picker offers terraforming once Climate Restoration is researched; with the modifier removed it no longer does
-- [ ] An anomaly added to a planet the player has surveyed shows in game and a science ship can research it; one added to a planet nobody has surveyed turns up when the player surveys it; a removed one is gone
+- [ ] An anomaly added to a planet the player has surveyed shows in game and a science ship can research it; one added to a planet you haven't surveyed turns up when you survey it; a removed one is gone. Remove an anomaly the player had already found: the Situation Log has no entry left for it
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
 - [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons
 - [ ] A special layout placed in a save loads with its fixed bodies, flags and name

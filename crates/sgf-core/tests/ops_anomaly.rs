@@ -118,8 +118,14 @@ fn a_removal_takes_the_key_and_the_planet_from_every_finder() {
 #[test]
 fn the_inverse_of_a_removal_writes_the_file_back() {
     // 7807 is the only planet country 16777220 lists, so its list goes and comes back; 2090 is
-    // last of two in country 51's; 2600 no country has found.
-    for (session, planet) in [(open(), 7807), (open(), 2090), (open_4_5(), 2600)] {
+    // last of two in country 51's; 2600 no country has found; the red dwarf 1895, a star, is
+    // the only planet country 16777218 lists, before its situations.
+    for (session, planet) in [
+        (open(), 7807),
+        (open(), 2090),
+        (open_4_5(), 2600),
+        (open_4_5(), 1895),
+    ] {
         let mut session = session;
         let before = anomaly(&session, planet);
         let removed = session.apply(remove(planet)).expect("remove");
@@ -150,18 +156,49 @@ fn an_anomaly_round_trips_from_the_file_as_opened() {
 }
 
 #[test]
-fn an_anomaly_is_refused_for_a_star_a_held_one_none_or_a_bad_category() {
+fn a_star_takes_an_anomaly_as_any_body_does() {
+    // 584 is its system's star; the game places the Distant Stars star anomalies on stars.
+    let mut session = open_4_5();
+    snapshot_step(&mut session, "star_4_5", add(584, "DISTAR_TIME_CAT"));
+    assert_eq!(anomaly(&session, 584), waiting("DISTAR_TIME_CAT", &[]));
+}
+
+#[test]
+fn a_country_named_twice_lists_the_planet_once() {
+    let mut session = open();
+    let result = session
+        .apply(Op::AddAnomaly {
+            planet: 749,
+            category: ASTEROID.to_owned(),
+            found_by: Some(vec![PLAYER, 17, PLAYER]),
+        })
+        .expect("add");
+    assert_eq!(
+        result.entry.description,
+        format!("Add anomaly {ASTEROID} to planet #749, found by empires 0 and 17")
+    );
+    assert_eq!(anomaly(&session, 749), waiting(ASTEROID, &[PLAYER, 17]));
+    let removed = session.apply(remove(749)).expect("remove");
+    assert_eq!(
+        current(&session),
+        session.doc.original(),
+        "no second copy left"
+    );
+    assert_eq!(
+        removed.inverse,
+        Op::AddAnomaly {
+            planet: 749,
+            category: ASTEROID.to_owned(),
+            found_by: Some(vec![PLAYER, 17]),
+        }
+    );
+}
+
+#[test]
+fn an_anomaly_is_refused_for_a_held_one_none_or_a_bad_category() {
     let mut session = open_4_5();
     let refusals = [
         (add(99_999, ASTEROID), "planet 99999 does not exist"),
-        (
-            add(584, ASTEROID),
-            "planet 584 is its system's star, which takes no anomaly",
-        ),
-        (
-            remove(584),
-            "planet 584 is its system's star, which takes no anomaly",
-        ),
         (
             add(185, ASTEROID),
             "planet 185 already has anomaly AIANOM_RESEARCHDEPO_CAT",
