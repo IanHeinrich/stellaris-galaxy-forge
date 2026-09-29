@@ -5,8 +5,10 @@
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
-//! `planet_model:<entity>`, `star_disc:<class>` and `planet_ring`.
+//! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>` and
+//! `planet_ring`.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
@@ -27,6 +29,7 @@ use crate::registries::gfx::Sprites;
 mod dds;
 mod key;
 pub(crate) mod planet_disc;
+mod shatter;
 mod sphere;
 mod star_disc;
 
@@ -73,6 +76,10 @@ pub struct StarBody {
     pub atmosphere: Option<StarAtmosphere>,
 }
 
+/// The map of the pieces, relative to a layer root, of a planet class whose model is a planet
+/// broken into pieces.
+pub type PiecesLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+
 /// The surface map, relative to a layer root, of a planet model by its entity name.
 pub type ModelLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
 
@@ -85,13 +92,14 @@ pub struct Lookups<'a> {
     pub sprites: &'a dyn SpriteSource,
     pub colour: ColourLookup<'a>,
     pub planet_surface: SurfaceLookup<'a>,
+    pub planet_pieces: PiecesLookup<'a>,
     pub model_surface: ModelLookup<'a>,
     pub star_body: StarLookup<'a>,
 }
 
 impl<'a> Lookups<'a> {
-    /// No flag colour, planet or model surface or star body: every one of those keys fails, and only
-    /// `sprites` resolves.
+    /// No flag colour, planet surface or pieces, model surface or star body: every one of those
+    /// keys fails, and only `sprites` resolves.
     pub fn none(sprites: &'a dyn SpriteSource) -> Self {
         fn no_colour(_: &str) -> Option<[u8; 3]> {
             None
@@ -106,6 +114,7 @@ impl<'a> Lookups<'a> {
             sprites,
             colour: &no_colour,
             planet_surface: &no_surface,
+            planet_pieces: &no_surface,
             model_surface: &no_surface,
             star_body: &no_star,
         }
@@ -126,12 +135,14 @@ impl GameData {
     fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let surface = |class: &str| self.planet_surface(class);
+        let pieces = |class: &str| self.planet_pieces(class);
         let model = |entity: &str| self.entity_surface(entity);
         let star = |class: &str| self.star_disc_inputs(class);
         use_lookups(&Lookups {
             sprites: &*self.sprites,
             colour: &colour,
             planet_surface: &surface,
+            planet_pieces: &pieces,
             model_surface: &model,
             star_body: &star,
         })
@@ -168,13 +179,24 @@ impl GameData {
     }
 
     fn planet_surface(&self, class: &str) -> Option<String> {
-        let entity = self
-            .planet_classes
+        self.entity_surface(self.planet_entity(class)?)
+    }
+
+    fn planet_pieces(&self, class: &str) -> Option<String> {
+        let entity = self.planet_entity(class)?;
+        match planet_disc::surface(&self.layout, self.surface_maps(), entity) {
+            planet_disc::Surface::Pieces(rel) => Some(rel),
+            _ => None,
+        }
+    }
+
+    /// The model family of `class`, when it is neither a star nor an asteroid.
+    fn planet_entity(&self, class: &str) -> Option<&str> {
+        self.planet_classes
             .get(class)
             .filter(|c| !c.star && !c.asteroid)?
             .entity
-            .as_deref()?;
-        self.entity_surface(entity)
+            .as_deref()
     }
 
     fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
@@ -191,21 +213,36 @@ impl GameData {
     /// habitat's or a ring world's.
     pub(crate) fn flat_art(&self, class: &str) -> bool {
         self.flat_art
+            .get_or_init(|| self.classes_whose_surface(|s| *s == planet_disc::Surface::Flat))
+            .contains(class)
+    }
+
+    /// Whether a planet of `class` is drawn broken apart: its entity's model is a planet in
+    /// pieces, as the shattered world's.
+    pub(crate) fn shattered(&self, class: &str) -> bool {
+        self.shattered
             .get_or_init(|| {
-                self.planet_classes
-                    .iter()
-                    .filter(|c| !c.star && !c.asteroid)
-                    .filter(|c| {
-                        c.entity.as_deref().is_some_and(|e| {
-                            let surface =
-                                planet_disc::surface(&self.layout, self.surface_maps(), e);
-                            surface == planet_disc::Surface::Flat
-                        })
-                    })
-                    .map(|c| c.key.clone())
-                    .collect()
+                self.classes_whose_surface(|s| matches!(s, planet_disc::Surface::Pieces(_)))
             })
             .contains(class)
+    }
+
+    /// The planet classes, neither stars nor asteroids, whose entity's model has a surface
+    /// `wanted` accepts.
+    fn classes_whose_surface(
+        &self,
+        wanted: impl Fn(&planet_disc::Surface) -> bool,
+    ) -> BTreeSet<String> {
+        self.planet_classes
+            .iter()
+            .filter(|c| !c.star && !c.asteroid)
+            .filter(|c| {
+                c.entity.as_deref().is_some_and(|e| {
+                    wanted(&planet_disc::surface(&self.layout, self.surface_maps(), e))
+                })
+            })
+            .map(|c| c.key.clone())
+            .collect()
     }
 }
 
@@ -229,6 +266,7 @@ impl TextureKey {
             Self::Sprite { .. }
             | Self::EmpireFlag { .. }
             | Self::PlanetDisc { .. }
+            | Self::ShatteredDisc { .. }
             | Self::PlanetModel { .. }
             | Self::StarDisc { .. } => Err(TextureError::BadKey(self.to_string())),
         }
@@ -434,6 +472,10 @@ enum Job {
         colours: [Option<[u8; 3]>; 4],
     },
     PlanetDisc(Input),
+    ShatteredDisc {
+        input: Input,
+        seed: u32,
+    },
     StarSurface(Input),
     StarLava {
         noise: Input,
@@ -466,6 +508,14 @@ impl Job {
                 let no_disc = || TextureError::NoDisc(class.clone());
                 let rel = (lookups.planet_surface)(class).ok_or_else(no_disc)?;
                 Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
+            }
+            TextureKey::ShatteredDisc { class, seed } => {
+                let no_disc = || TextureError::NoDisc(class.clone());
+                let rel = (lookups.planet_pieces)(class).ok_or_else(no_disc)?;
+                Ok(Self::ShatteredDisc {
+                    input: Input::resolve(layout, &rel)?,
+                    seed: *seed,
+                })
             }
             TextureKey::PlanetModel { entity } => {
                 let no_disc = || TextureError::NoModelDisc(entity.clone());
@@ -601,6 +651,10 @@ impl Job {
             )),
             Self::PlanetDisc(input) => Ok(planet_disc::bake(
                 &input.decode_near(planet_disc::SOURCE_WIDTH)?,
+            )),
+            Self::ShatteredDisc { input, seed } => Ok(shatter::shatter(
+                &planet_disc::bake(&input.decode_near(planet_disc::SOURCE_WIDTH)?),
+                u64::from(*seed),
             )),
             Self::StarSurface(input) => Ok(star_disc::bake_surface(
                 &input.decode_near(star_disc::SURFACE_WIDTH)?,
@@ -818,6 +872,10 @@ mod tests {
                 colours: [None, None, None, None],
             },
             Job::PlanetDisc(input()),
+            Job::ShatteredDisc {
+                input: input(),
+                seed: 1,
+            },
             Job::StarSurface(input()),
             Job::StarLava {
                 noise: input(),

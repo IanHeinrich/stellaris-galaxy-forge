@@ -47,6 +47,7 @@ a release is made.
 - Saves and scenarios you have deleted drop off the recent list.
 - Saves on the Open screen and in the File menu's recent list show the
   name you gave the save. The Saves tab shows its date underneath.
+- Shattered worlds look broken apart in the system view.
 
 ## [0.18.0] - 2026-09-28
 

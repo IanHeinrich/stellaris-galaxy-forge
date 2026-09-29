@@ -29,7 +29,13 @@ ringworld?: boolean,
 draws_as_planet?: boolean, 
 /**
  * `Some(true)` for a planet class with no surface map to bake into a disc, drawn from
- * its icon alone (vanilla: habitats, ring world segments, broken and shattered worlds);
- * `None` otherwise.
+ * its icon alone (vanilla: habitats, ring world segments and broken worlds); `None`
+ * otherwise.
  */
-flat_art?: boolean, };
+flat_art?: boolean, 
+/**
+ * `Some(true)` for a planet class whose model is a planet in pieces, drawn as the disc of
+ * `planet_disc_shattered:<class>:<planet id>` (vanilla: the shattered worlds and the
+ * cracked egg); `None` otherwise.
+ */
+shattered?: boolean, };
