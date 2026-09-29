@@ -33,7 +33,7 @@ const TABLE = 256;
  * Gradient noise in about [-1, 1], repeating every `period` cells along x so a ring of it has no
  * seam. `period` is at most the table's size.
  */
-class RingNoise {
+export class RingNoise {
   private readonly perm = new Uint8Array(2 * TABLE);
   private readonly gx = new Float32Array(TABLE);
   private readonly gy = new Float32Array(TABLE);

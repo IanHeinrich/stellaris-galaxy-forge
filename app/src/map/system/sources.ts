@@ -11,6 +11,7 @@ import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
+import type { BypassKinds } from "../../lib/details/icons";
 import {
   geometryAdapterFor,
   NO_GEOMETRY,
@@ -43,6 +44,8 @@ export interface SystemSources {
   readonly starClasses: ReadonlyMap<string, StarClassView>;
   /** Each asteroid belt kind the game data defines, by key. */
   readonly beltKinds: ReadonlyMap<string, BeltKindView>;
+  /** Each bypass kind the game data defines, for the glyph a wormhole's plate shows. */
+  readonly bypassKinds: BypassKinds;
   /** The star class each initializer gives its system, for a scenario system with none of its own. */
   readonly initializerClasses: ReadonlyMap<string, string>;
   readonly kind: DocumentKind | null;
@@ -75,6 +78,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   radii: VANILLA_SYSTEM_RADII,
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
+  bypassKinds: new Map(),
   initializerClasses: new Map<string, string>(),
   kind: null,
   gameDataReady: false,
@@ -107,6 +111,7 @@ export const sameSources = sameFields<SystemSources>({
   radii: true,
   starClasses: true,
   beltKinds: true,
+  bypassKinds: true,
   initializerClasses: true,
   kind: true,
   gameDataReady: true,
@@ -157,6 +162,7 @@ export function readSystemSources(id: number | null): SystemSources {
     radii: systemRadiiOf(data),
     starClasses: data.starClasses,
     beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),
+    bypassKinds: data.bypasses,
     initializerClasses: data.initializerClasses,
     kind: session.kind,
     gameDataReady: ready,

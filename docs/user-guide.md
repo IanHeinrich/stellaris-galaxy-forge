@@ -410,9 +410,10 @@ first.
 
 #### Wormholes
 
-In a save, the system view shows each wormhole as a purple ring where it
-sits in the system. Point at it to see which system is on the other
-side. Drag a natural wormhole to move it. Hold Shift to snap the angle
+In a save, the system view shows each wormhole as a blue swirl where it
+sits in the system, as the game draws it. With Names on, its name plate
+shows under it. Point at it to see which system is on the other side.
+Drag a natural wormhole to move it. Hold Shift to snap the angle
 to 15° steps. Shroud tunnels show too, but they stay where they are.
 Turn off Bypasses to hide them.
 

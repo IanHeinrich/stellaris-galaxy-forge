@@ -10,6 +10,7 @@ import {
   wispTexels,
 } from "./starLight";
 import type { Texels } from "./texels";
+import { wormholeHazeTexels, wormholeRimTexels, wormholeSwirlTexels } from "./wormholeField";
 
 /** The textures the scene draws its bodies and belts with, baked once per scene. */
 export interface SceneTextures {
@@ -44,6 +45,13 @@ export interface SceneTextures {
    * nothing at the edge, tinted and turned per system.
    */
   nebula: Texture;
+  /**
+   * A natural wormhole's three layers, sharing one frame: its wide soft haze, its swirl of cloud
+   * about a dark eye, and the ring hugging the eye with the pinpoint inside it.
+   */
+  wormholeHaze: Texture;
+  wormholeSwirl: Texture;
+  wormholeRim: Texture;
 }
 
 /** The pieces an asteroid belt is drawn with, one texture each, shared by every belt. */
@@ -308,6 +316,9 @@ export function bakeSceneTextures(renderer: Renderer): SceneTextures {
     ringBack: bake(renderer, (g) => drawRingHalf(g, true), ringFrame()),
     ringFront: bake(renderer, (g) => drawRingHalf(g, false), ringFrame()),
     nebula: texelTexture(nebulaTexels()),
+    wormholeHaze: texelTexture(wormholeHazeTexels()),
+    wormholeSwirl: texelTexture(wormholeSwirlTexels()),
+    wormholeRim: texelTexture(wormholeRimTexels()),
   };
 }
 

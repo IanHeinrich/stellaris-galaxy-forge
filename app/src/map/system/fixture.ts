@@ -53,6 +53,9 @@ export function blankSceneTextures(): SceneTextures {
     ringBack: t(),
     ringFront: t(),
     nebula: t(),
+    wormholeHaze: t(),
+    wormholeSwirl: t(),
+    wormholeRim: t(),
   };
 }
 
