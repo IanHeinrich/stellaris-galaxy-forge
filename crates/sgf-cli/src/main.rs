@@ -11,14 +11,23 @@ mod commands;
 use cli::{Cli, Command, DepositCommand, HeaderCommand, LaneCommand, NebulaCommand, SpawnCommand};
 use commands::Outcome;
 
+/// Clap's derived parser and `run`'s match over every command outgrow Windows' 1 MB main
+/// thread stack in a debug build.
+const STACK_BYTES: usize = 8 << 20;
+
 fn main() -> ExitCode {
-    match run(Cli::parse()) {
-        Ok(outcome) => outcome.into(),
-        Err(e) => {
-            eprintln!("error: {e}");
-            ExitCode::FAILURE
-        }
-    }
+    std::thread::Builder::new()
+        .stack_size(STACK_BYTES)
+        .spawn(|| match run(Cli::parse()) {
+            Ok(outcome) => outcome.into(),
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::FAILURE
+            }
+        })
+        .expect("spawn the main thread")
+        .join()
+        .unwrap_or(ExitCode::FAILURE)
 }
 
 fn run(cli: Cli) -> commands::Run {
@@ -388,6 +397,43 @@ fn run(cli: Cli) -> commands::Run {
                 &install.options(),
             ),
         },
+        Some(Command::AddBody {
+            sav,
+            system,
+            class,
+            size,
+            moon_of,
+            radius,
+            angle,
+            name,
+            deposits,
+            ring,
+            roll,
+            seed,
+            install,
+            out,
+        }) => {
+            let body = commands::add_body::Body {
+                system,
+                class,
+                size,
+                moon_of,
+                at: OrbitPlacement { radius, angle },
+                name,
+                deposits,
+                ring,
+            };
+            match roll.then_some(seed).flatten() {
+                Some(seed) => commands::add_body::rolled(
+                    &sav,
+                    out.path.as_deref(),
+                    body,
+                    seed,
+                    &install.options(),
+                ),
+                None => commands::add_body::given(&sav, out.path.as_deref(), body),
+            }
+        }
         Some(Command::Synth {
             systems,
             seed,

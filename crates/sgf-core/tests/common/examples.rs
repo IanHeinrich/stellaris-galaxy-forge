@@ -2,11 +2,12 @@
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{
-    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, Op, StarBody,
-    SystemMove,
+    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, NewBody, Op,
+    StarBody, SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
+use sgf_core::views::OrbitPlacement;
 
 use super::brush::new_system;
 use super::fixture::PAINTED;
@@ -51,6 +52,15 @@ impl Example {
             save: Some(op),
             scenario: None,
             open_save: save_4_5,
+        }
+    }
+
+    /// A save example that needs a body added to the 4.5 sample in the session.
+    fn added_body(op: Op) -> Self {
+        Self {
+            save: Some(op),
+            scenario: None,
+            open_save: save_4_5_with_added_body,
         }
     }
 
@@ -113,6 +123,35 @@ pub fn save_with_added() -> Session {
 /// The 4.5 sample, which the save examples that need its six-entry flag colours apply to.
 pub fn save_4_5() -> Session {
     super::open_4_5()
+}
+
+/// The 4.5 sample with [`meissa_v`] added to Meissa as planet [`ADDED_BODY`].
+pub fn save_4_5_with_added_body() -> Session {
+    let mut session = save_4_5();
+    session.apply(meissa_v()).expect("add Meissa V");
+    session
+}
+
+/// The id the 4.5 sample's first added planet takes: dead slot 57, one generation on.
+pub const ADDED_BODY: u32 = 57 | 1 << 24;
+
+/// A barren planet added to the 4.5 sample's Meissa (408), which nobody owns.
+pub fn meissa_v() -> Op {
+    Op::AddSaveBody {
+        system: 408,
+        spec: NewBody {
+            class: "pc_barren".to_owned(),
+            size: 10,
+            moon_of: None,
+            name: None,
+            deposits: vec!["d_minerals_2".to_owned()],
+            ring: false,
+        },
+        at: OrbitPlacement {
+            radius: 45.0,
+            angle: 300.0,
+        },
+    }
 }
 
 /// The painted fixture with a `prevent_hyperlane` added, which every scenario example
@@ -491,6 +530,8 @@ pub fn one_of_each() -> Vec<Example> {
             name: "Nova Terra".to_owned(),
             block: None,
         }),
+        Example::save_4_5(meissa_v()),
+        Example::added_body(Op::RemoveAddedBody { planet: ADDED_BODY }),
         Example::save(Op::AddDigSite {
             planet: 749,
             site_type: "site_lost_moments".to_owned(),

@@ -1,6 +1,7 @@
 //! The Tauri commands. Names and argument names match `app/src/api/ipc.ts`;
 //! the event name matches `app/src/api/events.ts`.
 
+pub mod add_body;
 pub mod add_system;
 pub mod entity;
 pub mod gamedata;
@@ -11,6 +12,7 @@ pub mod scenario;
 pub mod session;
 pub mod update;
 
+pub use add_body::*;
 pub use add_system::*;
 pub use entity::*;
 pub use gamedata::*;

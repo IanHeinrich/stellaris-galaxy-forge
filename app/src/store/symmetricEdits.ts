@@ -429,6 +429,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetSaveInnerRadius: null,
   MoveSavePlanet: null,
   RenameSavePlanet: null,
+  AddSaveBody: null,
+  RemoveAddedBody: null,
   Batch: null,
 };
 

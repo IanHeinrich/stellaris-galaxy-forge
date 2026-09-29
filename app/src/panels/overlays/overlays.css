@@ -197,6 +197,21 @@
   gap: 12px;
 }
 
+.body-pick-art {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-right: -6px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.body-pick-art img {
+  width: 100%;
+  height: 100%;
+}
+
 .pick-marks {
   display: inline-flex;
   align-items: center;

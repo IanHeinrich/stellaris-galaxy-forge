@@ -22,7 +22,7 @@ pub(crate) struct Stored {
     pub(crate) body: Body,
     /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
     /// `moon_of` without the bit.
-    moon: bool,
+    pub(crate) moon: bool,
     orbit: String,
     x: String,
     y: String,
@@ -289,6 +289,46 @@ pub(crate) fn grow(
     inverse: Op,
 ) -> Result<Planned, OpError> {
     let radii = s.radii();
+    grow_by(
+        plan,
+        s,
+        system,
+        description,
+        inverse,
+        |edit, entity, current| {
+            let reached = system_reach(before, &belts::belt_radii(edit, entity));
+            radii.grown(reach, reached, current)
+        },
+    )
+}
+
+/// Grow the system's `inner_radius` only when something the op puts `reach` from the centre
+/// lies past it, and return the description and inverse the op ends with.
+pub(crate) fn grow_past(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    reach: f64,
+    description: String,
+    inverse: Op,
+) -> Result<Planned, OpError> {
+    let radii = s.radii();
+    grow_by(plan, s, system, description, inverse, |_, _, current| {
+        (reach > current).then(|| radii.inner_about(reach))
+    })
+}
+
+/// Set the system's `inner_radius`, and `outer_radius` past it, to what `rule` grows the
+/// current inner radius to, when it grows it; the inverse then puts the old radius back too.
+fn grow_by(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    description: String,
+    inverse: Op,
+    rule: impl FnOnce(&Edit, &Node, f64) -> Option<f64>,
+) -> Result<Planned, OpError> {
+    let radii = s.radii();
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let Some(current) = read::scalar_f64(entity, keys::INNER_RADIUS, &edit.buf) else {
@@ -297,8 +337,7 @@ pub(crate) fn grow(
             inverse,
         });
     };
-    let reached = system_reach(before, &belts::belt_radii(edit, entity));
-    let Some(grown) = radii.grown(reach, reached, current) else {
+    let Some(grown) = rule(edit, entity, current) else {
         return Ok(Planned {
             description,
             inverse,
@@ -372,7 +411,7 @@ pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpErr
 
 /// Put `id` in the planet's `moons` in ascending order, writing the list before
 /// `planet_orbitals` when the planet has none.
-fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
+pub(crate) fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
         let next = successor(edit, &[keys::PLANET_ORBITALS])?;

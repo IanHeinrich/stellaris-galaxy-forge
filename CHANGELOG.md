@@ -13,6 +13,12 @@ a release is made.
 - Add an anomaly to a planet or moon in a save, or remove one, from its
   page. If you have already surveyed the planet, the anomaly is ready to
   research. Otherwise it turns up when a science ship surveys it.
+- Add a planet or moon to a system in a save. In the system view,
+  right-click empty space and choose Add planet here, or right-click a
+  planet and choose Add moon. Pick a planet class or Random. Its size and
+  deposits are rolled by the game's rules, and it takes the next free
+  numeral or letter, such as Meissa V. This needs game data and a
+  Stellaris 4.x save that isn't Ironman.
 - Add an archaeological dig site to a save planet, or remove one, from
   its page in the Inspector. The page shows the site's stage and clues.
 - A dig site's description shows on its planet's page and in the Add

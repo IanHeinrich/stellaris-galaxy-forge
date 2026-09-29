@@ -289,7 +289,8 @@ impl GameData {
         system: &str,
     ) -> PlanetSummary {
         let body = expanded.block;
-        layout.size = body_size(body, self.planet_classes.get(&class), expanded.moon).map(bounds);
+        layout.size =
+            body_size(Some(body), self.planet_classes.get(&class), expanded.moon).map(bounds);
         let name_key = body.name.clone().unwrap_or_default();
         let habitable = self.planet_habitable(&class);
         PlanetSummary {

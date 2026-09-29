@@ -351,6 +351,31 @@ the inner radius moves out with it. How far out follows the defines in
 your install and mods. The system view draws the hyperlane exits on the
 inner radius circle.
 
+#### Add planets and moons
+
+In a Stellaris 4.x save that isn't Ironman, right-click empty space in
+the system view and choose Add planet here. Pick Random, or a planet class from the list.
+Each class shows the sizes it comes in. The planet lands where you
+right-clicked.
+
+To add a moon, right-click a planet and choose Add moon. The moon goes on
+the next free moon orbit of its planet.
+
+The rest is rolled by the game's own rules. Random picks a class that
+suits the orbit, the size comes from the class's range, and the body gets
+the deposits a new body would. The new body is selected and its page
+opens, so you can change its name, size and deposits there. Adding it is
+one edit, so one undo takes it away.
+
+- A new planet takes the numeral after the system's highest, so a planet
+  added to Meissa after Meissa IV is Meissa V. A moon takes the letter
+  after its planet's moons, so the first moon of Meissa IV is Meissa IV a.
+- Stars, moons and asteroids can't be given a moon.
+- Adding a planet or moon needs game data loaded.
+- If a new planet or moon sits past the system's inner radius, the inner
+  radius moves out with it, as it does when you move a planet there.
+- The body starts unsurveyed. The game adds the rest when the save loads.
+
 #### Move planets to another system
 
 In a save, you can move planets and moons to another system. Click a

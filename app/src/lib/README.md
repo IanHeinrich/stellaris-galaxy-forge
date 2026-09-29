@@ -54,6 +54,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
   `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
   `addSystem` (where a system may be added, and the Special menu's marks),
+  `addBody` (the words of the Add planet and Add moon menus, and which
+  bodies may take a moon),
   `precursors` (each system's precursor flags, matched against the install's
   definitions and grouped into the legend the map draws) and `planetMove`
   (moving save planets between systems: where a click in the system view

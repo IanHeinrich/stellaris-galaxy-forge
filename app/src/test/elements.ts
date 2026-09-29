@@ -6,16 +6,36 @@ type ButtonElement = ReactElement<{ onClick(): void; disabled?: boolean }>;
 
 /**
  * Walks a pure element tree, calling function components to reach their handlers. This is safe
- * only for components that take no hooks of their own, since it runs outside React's render pass.
+ * only for components that take no hooks of their own, since it runs outside React's render pass:
+ * one that calls React's own hooks, such as a submenu, is passed over with what it holds. Any
+ * other error it throws reaches the test.
  */
 export function elements(node: ReactNode): ReactElement[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!isValidElement(node)) return [];
   const element = node as ReactElement<{ children?: ReactNode }>;
   if (typeof element.type === "function") {
-    return elements((element.type as (props: unknown) => ReactNode)(element.props));
+    let rendered: ReactNode;
+    try {
+      rendered = (element.type as (props: unknown) => ReactNode)(element.props);
+    } catch (e) {
+      if (hookOutsideRender(e)) return [];
+      throw e;
+    }
+    return elements(rendered);
   }
   return [element, ...elements(element.props.children)];
+}
+
+/**
+ * Whether `e` is what React throws when a hook runs with no render pass to hold it: its hook
+ * dispatcher is null, so reading `useState`, `useEffect` or another hook off it fails.
+ */
+function hookOutsideRender(e: unknown): boolean {
+  return (
+    e instanceof TypeError &&
+    /^Cannot read properties of null \(reading 'use\w*'\)$/.test(e.message)
+  );
 }
 
 /** The first button in `tree` named `label`, by its `aria-label` or its whole text; undefined with none. */
