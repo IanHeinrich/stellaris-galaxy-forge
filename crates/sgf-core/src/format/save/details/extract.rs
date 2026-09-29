@@ -13,6 +13,7 @@ use crate::document::Document;
 use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
 use crate::entity::views::EntityKind;
+use crate::format::save::galaxy::bypasses::natural_wormholes;
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
 use crate::format::save::{dig_sites, read_spec};
@@ -38,6 +39,8 @@ pub struct RawSystemDetails {
     /// The system's `asteroid_belts`, in order.
     pub belts: Vec<BeltSpec>,
     pub inner_radius: Option<f64>,
+    /// The system's `natural_wormholes` entries, in file order.
+    pub wormholes: Vec<WormholeSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,6 +140,24 @@ pub struct MegastructureSummary {
     pub owner: Option<u32>,
     /// The planet it orbits, when it orbits one.
     pub planet: Option<u32>,
+}
+
+/// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct WormholeSummary {
+    /// The `natural_wormholes` id.
+    pub id: u32,
+    /// The `bypasses` entry it stands for.
+    pub bypass: u32,
+    /// That bypass's `type`, such as `wormhole` or `shroud_tunnel`; empty when the save holds no
+    /// such bypass. Only a `wormhole` can be moved.
+    pub kind: String,
+    /// The system its bypass's `linked_to` stands in.
+    pub partner: Option<u32>,
+    /// `coordinate` x/y, relative to the system's centre. A wormhole has no orbit.
+    pub x: f64,
+    pub y: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -604,6 +625,44 @@ pub(super) fn refresh_geometry(
     };
     if let Some((node, src)) = current_entity(doc, keys::GALACTIC_OBJECT, u64::from(id), anchor)? {
         read_geometry(details, &node, src);
+    }
+    for wormhole in &mut details.wormholes {
+        let Some(entity) = doc
+            .index()
+            .entity(keys::NATURAL_WORMHOLES, u64::from(wormhole.id))
+        else {
+            continue;
+        };
+        let anchor = Anchor::Original(entity.stmt);
+        let id = u64::from(wormhole.id);
+        let Some((node, src)) = current_entity(doc, keys::NATURAL_WORMHOLES, id, anchor)? else {
+            continue;
+        };
+        if let Ok((x, y)) = read::coordinate(&node, src) {
+            wormhole.x = x;
+            wormhole.y = y;
+        }
+    }
+    Ok(())
+}
+
+/// Every natural wormhole the save holds, filed under the system it stands in.
+pub(super) fn wormholes(
+    doc: &Document,
+    graph: &GalaxyGraph,
+    by_system: &mut HashMap<u32, RawSystemDetails>,
+) -> Result<(), ProjectionError> {
+    for wormhole in natural_wormholes(doc, &graph.systems)? {
+        if let Some(details) = by_system.get_mut(&wormhole.system) {
+            details.wormholes.push(WormholeSummary {
+                id: wormhole.id,
+                bypass: wormhole.bypass,
+                kind: wormhole.kind,
+                partner: wormhole.partner,
+                x: wormhole.at.0,
+                y: wormhole.at.1,
+            });
+        }
     }
     Ok(())
 }

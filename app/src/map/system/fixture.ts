@@ -4,6 +4,7 @@ import type { Bounds } from "../../generated/Bounds";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRoll } from "../../generated/SystemRoll";
+import type { WormholeSummary } from "../../generated/WormholeSummary";
 import { bodyLayout, byId, placedNode, planetSummary, systemDetails } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { Camera } from "../Camera";
@@ -52,6 +53,9 @@ export function blankSceneTextures(): SceneTextures {
     ringBack: t(),
     ringFront: t(),
     nebula: t(),
+    wormholeHaze: t(),
+    wormholeSwirl: t(),
+    wormholeRim: t(),
   };
 }
 
@@ -151,7 +155,25 @@ export function rollOf(
 
 export const SCENARIO_STAR = scenarioBody(1, "pc_g_star", { orbit: fixed(0), angle: fixed(0) });
 
-/** System 5 of `details`, with lanes to 6 and 7 and a bypass to 8. */
+/** A natural wormhole to system 8, and a shroud tunnel with no partner. */
+export const WORMHOLE: WormholeSummary = {
+  id: 30,
+  bypass: 31,
+  kind: "wormhole",
+  partner: 8,
+  x: 120,
+  y: 40,
+};
+export const SHROUD_TUNNEL: WormholeSummary = {
+  id: 32,
+  bypass: 33,
+  kind: "shroud_tunnel",
+  partner: null,
+  x: -60,
+  y: -90,
+};
+
+/** System 5 of `details`, with lanes to 6 and 7, a bypass to 8, and its two wormholes. */
 export function context(details: Partial<SystemDetails>): SystemContext {
   const home = placedNode(SYSTEM, 0, 0, [6, 7]);
   return systemContext({
@@ -163,7 +185,12 @@ export function context(details: Partial<SystemDetails>): SystemContext {
       placedNode(7, 0, 100, [SYSTEM]),
       placedNode(8, -100, 0),
     ),
-    details: systemDetails({ id: SYSTEM, inner_radius: 160, ...details }),
+    details: systemDetails({
+      id: SYSTEM,
+      inner_radius: 160,
+      wormholes: [WORMHOLE, SHROUD_TUNNEL],
+      ...details,
+    }),
     roll: rollOf(details.planets ?? []),
   });
 }

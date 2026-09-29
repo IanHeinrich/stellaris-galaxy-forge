@@ -543,6 +543,27 @@ for planets or deposits.
   wormhole's system comes from
   `natural_wormholes.<id>.coordinate.origin`, and the wormhole's
   `linked_to` names its partner bypass id.
+- A `natural_wormholes` row is `coordinate`, `bypass` and
+  `graphics_entity_name`, and its bypass has `owner={ type=7 id=<row> }`.
+  Shroud tunnels use the same table, with bypass type `shroud_tunnel`.
+  The coordinate is relative to the star, like a planet's, and there is
+  no `orbit`. On 4.5 a wormhole whose `x`/`y` are rewritten draws at the
+  new point, and fleets fly there to jump.
+- A system lists its wormhole in `natural_wormholes={ <row> }` and its
+  bypass in `bypasses={ <id> }`. On load, 4.5 fills in a bypass's
+  `connections` and `active_connections` from `linked_to`, the lock
+  fields, the system's `bypasses` list and each country's
+  `usable_bypasses`. It doesn't fill in the system's
+  `natural_wormholes` list: without it the galaxy map shows the icon, but
+  the system has no wormhole to explore. A bypass without `active` loads
+  as `active=no`.
+- `usable_bypasses` on a country is rebuilt on load. It drops removed
+  bypasses and adds active new ones. Regular empires have none on day
+  one, and add a wormhole once they explore it.
+- Removing a wormhole pair needs its rows in both tables and its ids in
+  both systems' lists gone. The game doesn't clean up anything less. A
+  bypass row left behind, or a system list naming a missing bypass,
+  shows a broken wormhole icon on the galaxy map.
 - System `flags` mark the special kinds of system: `guardian`,
   `enclave`, `marauder_system`, `lgate`, `empire_home_system`,
   `galactic_landmark_system` and `hostile_system`. Every system names

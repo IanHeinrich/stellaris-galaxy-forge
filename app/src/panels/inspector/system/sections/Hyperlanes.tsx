@@ -1,16 +1,24 @@
 import type { ReactNode } from "react";
 import type { SystemDetail } from "../../../../generated/SystemDetail";
 import type { ScenarioBypass } from "../../../../generated/ScenarioBypass";
-import { bypassIcons, scenarioBypassIcon } from "../../../../lib/details/labels";
+import type { WormholeSummary } from "../../../../generated/WormholeSummary";
+import { bypassIconKey } from "../../../../lib/details/icons";
+import {
+  bypassIcons,
+  bypassName,
+  scenarioBypassIcon,
+  wormholePlateName,
+} from "../../../../lib/details/labels";
 import { bypassSource, bypassSourceTitle, bypassesOf } from "../../../../lib/scenarioBypasses";
 import { displayName } from "../../../../lib/names";
+import { useDetailsStore } from "../../../../store/detailsStore";
 import { useEditorStore } from "../../../../store/editorStore";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { useGalaxyVersion, useSystemName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useInspectorStore } from "../../../../store/inspectorStore";
+import { useInspectorStore, wormholeEntry } from "../../../../store/inspectorStore";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { Chip, Icon, SourceChip } from "../../../parts";
 import { DrillLink, DrillRow, Empty, MoreButton, Section } from "../../parts";
@@ -236,6 +244,29 @@ function ScenarioBypassRow({ bypass }: { bypass: ScenarioBypass }) {
   );
 }
 
+const NO_WORMHOLES: readonly WormholeSummary[] = [];
+
+/** A save's natural wormhole or shroud tunnel here, opening its own page. */
+function WormholeRow({ system, hole }: { system: number; hole: WormholeSummary }) {
+  const open = useInspectorStore((s) => s.open);
+  const kinds = useGameDataStore((s) => s.bypasses);
+  const here = useSystemName(system);
+  const key = bypassIconKey(hole.kind, kinds);
+  const label = hole.kind === "wormhole" ? "Natural wormhole" : bypassName(hole.kind);
+  return (
+    <div className="ins-line">
+      <Icon className="gi" keys={key === null ? [] : [key]} glyph="◎" />
+      <DrillLink
+        requires="details"
+        title={`Open the ${label.toLowerCase()}'s page`}
+        onOpen={() => open(wormholeEntry(system, hole.id, wormholePlateName(here, hole.kind)))}
+      >
+        {label}
+      </DrillLink>
+    </div>
+  );
+}
+
 /**
  * The bypasses of the open system: the ones the save writes, or the ones a scenario's
  * initializers and day-one scripts place, which a scenario shows only where there are any.
@@ -245,7 +276,12 @@ export function BypassSection({ system }: { system: number }) {
   const galaxy = useGalaxyStore((s) => s.galaxy);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const kinds = useGameDataStore((s) => s.bypasses);
-  const icons = bypassIcons(galaxy?.bypasses ?? [], system, kinds);
+  const holes = useDetailsStore((s) => s.details.get(system)?.wormholes) ?? NO_WORMHOLES;
+  const listed = new Set(holes.map((hole) => hole.kind));
+  const others = (galaxy?.bypasses ?? []).filter((b) =>
+    b.type === "wormhole" ? !listed.has("wormhole") : b.type !== "other" || !listed.has(b.kind),
+  );
+  const icons = bypassIcons(others, system, kinds);
   const bypasses = bypassesOf(placed, system);
   if (scenario) {
     if (bypasses.length === 0) return null;
@@ -258,16 +294,21 @@ export function BypassSection({ system }: { system: number }) {
     );
   }
   return (
-    <Section id="system.bypasses" title="Bypasses" count={icons.length}>
-      {icons.length === 0 ? (
+    <Section id="system.bypasses" title="Bypasses" count={holes.length + icons.length}>
+      {holes.length + icons.length === 0 ? (
         <Empty>No bypasses touch this system.</Empty>
       ) : (
-        icons.map((icon, i) => (
-          <div className="ins-line" key={`${icon.label}-${i}`}>
-            <Icon className="gi" keys={icon.keys} glyph={icon.glyph} />
-            <span>{icon.label}</span>
-          </div>
-        ))
+        <>
+          {holes.map((hole) => (
+            <WormholeRow key={hole.id} system={system} hole={hole} />
+          ))}
+          {icons.map((icon, i) => (
+            <div className="ins-line" key={`${icon.label}-${i}`}>
+              <Icon className="gi" keys={icon.keys} glyph={icon.glyph} />
+              <span>{icon.label}</span>
+            </div>
+          ))}
+        </>
       )}
     </Section>
   );

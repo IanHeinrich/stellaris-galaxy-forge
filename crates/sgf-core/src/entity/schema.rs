@@ -58,6 +58,7 @@ pub(crate) fn of(kind: EntityKind) -> EntitySchema {
         EntityKind::Fleet => FLEET,
         EntityKind::Starbase => STARBASE,
         EntityKind::Megastructure => MEGASTRUCTURE,
+        EntityKind::Wormhole => WORMHOLE,
         _ => &[],
     };
     EntitySchema {
@@ -241,4 +242,9 @@ const MEGASTRUCTURE: &[Field] = &[
         .units("%"),
     date(keys::DISMANTLE_FINISH_DATE, "Dismantled on").computed(),
     number(keys::BUILD_QUEUE, "Build queue").computed(),
+];
+
+const WORMHOLE: &[Field] = &[
+    block(keys::COORDINATE, "Position"),
+    number(keys::BYPASS, "Bypass"),
 ];

@@ -2,7 +2,7 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import { documentCapabilities } from "../../lib/capabilities";
 import { shortcutLabel } from "../../lib/keys";
 import { kindLabel } from "../../lib/special";
-import { barShows, onSceneSwitch } from "../../lib/visual/barMode";
+import { barShowsLayer, onSceneSwitch } from "../../lib/visual/barMode";
 import { isGalaxyLayer, type LayerId } from "../../lib/visual/layerIds";
 import {
   groupState,
@@ -91,8 +91,9 @@ export function useGroupPressed(group: Group): Pressed {
 export function useShownLayers(): ReadonlySet<LayerId> {
   const mode = useBarMode();
   const gameDataReady = useGameDataStore((s) => s.status === "ready");
-  const registered = layerIdsFor(useFileSessionStore(documentCapabilities), gameDataReady);
-  return new Set([...registered].filter((id) => barShows(mode, id)));
+  const capabilities = useFileSessionStore(documentCapabilities);
+  const registered = layerIdsFor(capabilities, gameDataReady);
+  return new Set([...registered].filter((id) => barShowsLayer(mode, id, capabilities)));
 }
 
 /** Whether there is a document to draw at all: with none, the bar carries nothing to toggle. */

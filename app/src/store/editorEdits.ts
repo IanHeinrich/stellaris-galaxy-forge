@@ -414,6 +414,7 @@ function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
     case "system":
       return touched.has(ref.id);
     case "starbase":
+    case "wormhole":
     case "body":
       return touched.has(ref.system);
     case "lane":

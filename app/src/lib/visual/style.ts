@@ -38,6 +38,9 @@ export const NEBULA_COLOR = 0xc4b5fd;
 export const NEBULA_FILL_COLOR = 0x7c5cbf;
 export const NEBULA_EDGE_COLOR = 0x9d7ce0;
 
+/** A natural wormhole: the link between its ends on the galaxy map, its marker in the system view. */
+export const WORMHOLE_COLOR = 0xc084fc;
+
 /** The dark plate a badge, an icon or an added system's mark sits on. */
 export const PLATE_COLOR = 0x0b0f14;
 

@@ -1,4 +1,5 @@
 import type { Bounds } from "../../generated/Bounds";
+import { WORMHOLE_RADIUS } from "../../lib/details/discs";
 import type { BodyPlacement, Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import { markerScale } from "../layers/MapLayer";
@@ -7,6 +8,8 @@ import type { BodyLook } from "./look";
 
 /** The smallest a body's disc radius is drawn, in screen pixels, before the marker factor. */
 const BODY_FLOOR_PX = 3;
+/** The smallest a wormhole's vortex is drawn, in screen pixels, before the marker factor. */
+const WORMHOLE_FLOOR_PX = 8;
 /**
  * The widest a flat body is drawn, in screen pixels: its 76 pixel icon at about 1.25 times, past
  * which it would only blur.
@@ -86,6 +89,11 @@ export function bodyTier(body: SceneBody): number {
 export function drawnDisc(disc: number, scale: number, look?: Pick<BodyLook, "flat">): number {
   const r = Math.max(disc, (BODY_FLOOR_PX * markerScale(scale)) / scale);
   return look?.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
+}
+
+/** A wormhole's drawn vortex radius in world units at `scale`: its own, or the screen-pixel floor. */
+export function drawnWormhole(scale: number): number {
+  return Math.max(WORMHOLE_RADIUS, (WORMHOLE_FLOOR_PX * markerScale(scale)) / scale);
 }
 
 /** The point `px` screen pixels past the inner radius along `exit`, in world units. */

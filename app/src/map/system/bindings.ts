@@ -11,7 +11,7 @@ import { follows, type Binding } from "../follows";
 export interface SceneView {
   /** Re-reads the stores and rebuilds the layers, unless nothing they draw moved. */
   refresh(): void;
-  /** Rings the body the page on top of the inspector's stack opens, where it is one of the system's. */
+  /** Rings the body or wormhole the page on top of the inspector's stack opens, where it is the system's. */
   selectBody(top: EntityRef): void;
   /** Brightens what marks the body a panel's link names while the pointer is on the link. */
   linkBody(id: number | null): void;

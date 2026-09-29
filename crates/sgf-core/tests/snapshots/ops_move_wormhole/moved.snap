@@ -1,0 +1,20 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved the wormhole in Ferragon #489 from 459.55 at 89.48° to 300 at 45°, linked to Aulderaan #152
+inverse: MoveSaveWormhole { wormhole: 1, radius: 459.547748727, angle: 89.475721577 }
+
+--- gamestate
++++ gamestate
+@@ -1401344,8 +1401344,8 @@
+ 	{
+ 		coordinate=
+ 		{
+-			x=4.20498
+-			y=459.52851
++			x=212.13203
++			y=212.13203
+ 			origin=489
+ 		}
+ 		bypass=9

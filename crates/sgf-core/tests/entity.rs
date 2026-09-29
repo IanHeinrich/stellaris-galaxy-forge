@@ -12,7 +12,7 @@ use crate::common;
 use common::fixture::GRAMMAR;
 
 /// One entity of each kind the address table names, chosen for a readable snapshot.
-const SAMPLES: [(EntityKind, u32); 11] = [
+const SAMPLES: [(EntityKind, u32); 12] = [
     // Sol, whose 24 `planet=` statements make the repeated-key case the rule rather than
     // the exception: a row naming `planet` alone would resolve to no node.
     (EntityKind::System, 217),
@@ -26,6 +26,7 @@ const SAMPLES: [(EntityKind, u32); 11] = [
     (EntityKind::PopGroup, 29),
     (EntityKind::Sector, 0),
     (EntityKind::Deposit, 21),
+    (EntityKind::Wormhole, 1),
 ];
 
 fn addr(kind: EntityKind, id: u32) -> EntityAddr {
@@ -184,6 +185,52 @@ fn the_overview_reads_what_the_entity_is_doing() {
     let drill =
         get_entity(&doc, addr(EntityKind::Planet, 3), &path(&["coordinate"])).expect("drill");
     assert!(drill.overview.is_empty() && drill.contents.is_empty());
+}
+
+/// A natural wormhole reads its bypass's type and the system at the other end beside its own
+/// position; a shroud tunnel reads as its kind, with no other end. On the 4.5 sample, wormhole
+/// 1 stands in Ferragon (489) linked to Aulderaan (152), and shroud tunnel 0 in system 24.
+#[test]
+fn a_wormhole_reads_its_kind_system_partner_and_position() {
+    let doc = common::load_4_5();
+    let rows = |id: u32| {
+        let view = get_entity(&doc, addr(EntityKind::Wormhole, id), &[]).expect("read wormhole");
+        view.overview
+            .iter()
+            .map(|f| (f.label.clone(), f.value.clone(), f.link))
+            .collect::<Vec<_>>()
+    };
+    let row = |label: &str, value: &str, link: Option<EntityAddr>| {
+        (label.to_owned(), value.to_owned(), link)
+    };
+    assert_eq!(
+        rows(1),
+        [
+            row("Type", "wormhole", None),
+            row("System", "489", Some(addr(EntityKind::System, 489))),
+            row("Linked to", "152", Some(addr(EntityKind::System, 152))),
+            row("Distance", "459.55", None),
+            row("Angle", "89.48°", None),
+            row("Bypass", "9", None),
+        ]
+    );
+    assert_eq!(
+        rows(0),
+        [
+            row("Type", "shroud_tunnel", None),
+            row("System", "24", Some(addr(EntityKind::System, 24))),
+            row("Distance", "190.86", None),
+            row("Angle", "179.93°", None),
+            row("Bypass", "1", None),
+        ]
+    );
+
+    let source = get_entity_source(&doc, addr(EntityKind::Wormhole, 1)).expect("read source");
+    assert!(source.text.starts_with("1="), "{}", source.text);
+    assert!(source.text.contains("bypass=9"), "{}", source.text);
+
+    let err = get_entity(&doc, addr(EntityKind::Wormhole, 999_999), &[]).unwrap_err();
+    assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 }
 
 #[test]

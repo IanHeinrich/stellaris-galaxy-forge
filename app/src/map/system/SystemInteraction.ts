@@ -1,9 +1,9 @@
 import { bodyName } from "../../lib/details/labels";
-import type { GeometryIntent } from "../../lib/details/orbitEdits";
+import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitEdits";
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
-import { bodyEntry, useInspectorStore } from "../../store/inspectorStore";
+import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { planetsCanMove, usePlanetMoveStore } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
@@ -16,7 +16,7 @@ import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
 import { beltLabel, sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
 import type { SystemContext } from "./context";
-import { handleOwnerAt, pickBody, pickExit, pickHandle } from "./picking";
+import { handleOwnerAt, pickBody, pickExit, pickHandle, pickWormhole } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
@@ -31,7 +31,12 @@ export interface SceneTarget {
   plateAt(sx: number, sy: number): number | null;
   /** The tooltip of the mark or resource icon under the screen point on `body`'s name plate, or null. */
   markTipAt(body: number, sx: number, sy: number): Tip | null;
-  hover(body: number | null, exit: number | null, handle: HandleRef | null): void;
+  hover(
+    body: number | null,
+    exit: number | null,
+    handle: HandleRef | null,
+    wormhole: number | null,
+  ): void;
   /** Shows the handles of one band, the one the pointer is over or the one dragged, or none. */
   revealHandles(owner: HandleRef | null): void;
   selectLane(neighbour: number | null): void;
@@ -65,6 +70,7 @@ function tipFor(
   body: number | null,
   exit: number | null,
   handle: HandleRef | null,
+  wormhole: number | null,
 ): Omit<MapTooltip, "x" | "y"> | null {
   if (body !== null) {
     const planet = ctx.bodyById.get(body)?.planet;
@@ -73,6 +79,15 @@ function tipFor(
       title: bodyName(planet, ctx.names),
       lines: planetLines(ctx, TEXTURES, [planet]),
     };
+  }
+  const hole = wormhole === null ? undefined : ctx.wormholes.find((w) => w.id === wormhole);
+  if (hole) {
+    const hint = hole.movable
+      ? DRAG_HINTS.movableWormhole
+      : hole.natural
+        ? null
+        : GEOMETRY_REASONS.lockedWormhole;
+    return { title: hole.name, lines: hint === null ? [] : [hint] };
   }
   const held = handle === null ? undefined : ctx.handles.find((h) => sameHandle(h.ref, handle));
   if (held) {
@@ -104,11 +119,12 @@ export class SystemInteraction {
     body: number | null;
     exit: number | null;
     handle: HandleRef | null;
+    wormhole: number | null;
     ctx: SystemContext | null;
     tip: Omit<MapTooltip, "x" | "y"> | null;
     sx: number;
     sy: number;
-  } = { body: null, exit: null, handle: null, ctx: null, tip: null, sx: 0, sy: 0 };
+  } = { body: null, exit: null, handle: null, wormhole: null, ctx: null, tip: null, sx: 0, sy: 0 };
   private readonly at: Pt = { x: 0, y: 0 };
   /** The last move the pointer made, which a change of Shift or Ctrl feeds to the model again. */
   private lastMove: SystemInput | null = null;
@@ -124,7 +140,8 @@ export class SystemInteraction {
     private readonly scene: SceneTarget,
   ) {
     this.intent = {
-      hover: (body, exit, handle, sx, sy) => this.hover(body, exit, handle, sx, sy),
+      hover: (body, exit, handle, wormhole, sx, sy) =>
+        this.hover(body, exit, handle, sx, sy, wormhole),
       selectLane: (neighbour) => this.scene.selectLane(neighbour),
       enterSystem: (id) => {
         if (canEnterSystem()) useSceneStore.getState().enterSystem(id);
@@ -137,6 +154,7 @@ export class SystemInteraction {
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
       openBody: (system, id) => this.openBody(system, id),
+      openWormhole: (system, id) => this.openWormhole(system, id),
       showSystem: () => {
         usePlanetMoveStore.getState().clearBodies();
         useInspectorStore.getState().popTo(0);
@@ -196,8 +214,10 @@ export class SystemInteraction {
 
   /** Builds the tooltip shown again from the scene's new context, where the pointer rests. */
   contextChanged(): void {
-    const { body, exit, handle, sx, sy } = this.hovered;
-    if (body !== null || exit !== null || handle !== null) this.hover(body, exit, handle, sx, sy);
+    const { body, exit, handle, wormhole, sx, sy } = this.hovered;
+    if (body !== null || exit !== null || handle !== null || wormhole !== null) {
+      this.hover(body, exit, handle, sx, sy, wormhole);
+    }
   }
 
   /** Esc drops a gesture and goes no further; Shift or Ctrl going down or up moves a drag again. */
@@ -271,6 +291,14 @@ export class SystemInteraction {
     }
   }
 
+  /** A click on a wormhole selects it alone and opens its page. */
+  private openWormhole(system: number, id: number): void {
+    const hole = this.scene.context().wormholes.find((w) => w.id === id);
+    if (!hole) return;
+    usePlanetMoveStore.getState().clearBodies();
+    useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
+  }
+
   private selectAlone(system: number, id: number): void {
     usePlanetMoveStore.getState().selectBody(system, id);
     this.showBody(system, id);
@@ -293,16 +321,21 @@ export class SystemInteraction {
     handle: HandleRef | null,
     sx: number,
     sy: number,
+    wormhole: number | null = null,
   ): void {
     const last = this.hovered;
     const ctx = this.scene.context();
-    const moved = body !== last.body || exit !== last.exit || !sameHandle(handle, last.handle);
+    const moved =
+      body !== last.body ||
+      exit !== last.exit ||
+      wormhole !== last.wormhole ||
+      !sameHandle(handle, last.handle);
     if (moved) {
-      this.scene.hover(body, exit, handle);
+      this.scene.hover(body, exit, handle, wormhole);
       this.dropRefusal();
     }
-    const own = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle) : last.tip;
-    this.hovered = { body, exit, handle, ctx, tip: own, sx, sy };
+    const own = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle, wormhole) : last.tip;
+    this.hovered = { body, exit, handle, wormhole, ctx, tip: own, sx, sy };
     const tip = (body === null ? null : this.scene.markTipAt(body, sx, sy)) ?? own;
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
@@ -313,11 +346,16 @@ export class SystemInteraction {
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
     // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
     const body = pickBody(ctx.bodies, this.cam, w) ?? this.scene.plateAt(e.offsetX, e.offsetY);
+    const wormhole = body === null ? pickWormhole(ctx.wormholes, this.cam, w) : null;
     const shown = ctx.drag?.handle ?? handleOwnerAt(ctx, this.cam, w);
     this.scene.revealHandles(shown);
-    const handle = body === null ? pickHandle(ctx.handles, this.cam, w, shown) : null;
+    const free = body === null && wormhole === null;
+    const handle = free ? pickHandle(ctx.handles, this.cam, w, shown) : null;
     const own = body === null ? undefined : ctx.editing.bodies.get(body);
-    const movable = own?.move === true || own?.detachOnly === true;
+    const movable =
+      own?.move === true ||
+      own?.detachOnly === true ||
+      ctx.wormholes.some((hole) => hole.id === wormhole && hole.movable);
     const input: SystemInput = {
       kind,
       sx: e.offsetX,
@@ -331,8 +369,9 @@ export class SystemInteraction {
       time: e.timeStamp,
       system: ctx.id ?? -1,
       body,
+      wormhole,
       handle,
-      exit: body === null && handle === null ? pickExit(ctx.exits, this.cam, w) : null,
+      exit: free && handle === null ? pickExit(ctx.exits, this.cam, w) : null,
       draggable: !this.scene.holding() && (movable || handle !== null),
     };
     if (kind === "down") this.pressToggles = input.shift || input.ctrl;

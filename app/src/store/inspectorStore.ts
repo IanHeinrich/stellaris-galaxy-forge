@@ -49,6 +49,8 @@ export type EntityRef =
   | { kind: "pop_group"; id: number }
   | { kind: "sector"; id: number }
   | { kind: "deposit"; id: number }
+  /** A natural wormhole or shroud tunnel, keyed by its own id; the map focuses its system. */
+  | { kind: "wormhole"; system: number; id: number }
   /** A scenario's body: its id is the details' own, so it is keyed by the system that lists it. */
   | { kind: "body"; system: number; id: number }
   /** A list or block inside an entity: a Data row drills into it rather than nesting. */
@@ -102,12 +104,12 @@ export function entityAddr(ref: EntityRef): EntityAddr | null {
 }
 
 /**
- * What a drill onto `addr` opens. A station carries the system it stands in, so a link with
- * no system to give it stays where it is.
+ * What a drill onto `addr` opens. A station or a wormhole carries the system it stands in, so a
+ * link with no system to give it stays where it is.
  */
 export function refFor(addr: EntityAddr, system: number | null): EntityRef | null {
-  if (addr.kind !== "starbase") return { kind: addr.kind, id: addr.id };
-  return system === null ? null : { kind: "starbase", system, id: addr.id };
+  if (addr.kind !== "starbase" && addr.kind !== "wormhole") return { kind: addr.kind, id: addr.id };
+  return system === null ? null : { kind: addr.kind, system, id: addr.id };
 }
 
 /**
@@ -163,6 +165,8 @@ export function tabsFor(
       return ["overview"];
     case "nodelist":
       return ["data"];
+    case "wormhole":
+      return ["overview", "data", "source"];
     default:
       return hasContents
         ? ["overview", "contents", "data", "source"]
@@ -181,6 +185,7 @@ export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | n
     case "lane":
       return renumberedLane(pairs, ref);
     case "starbase":
+    case "wormhole":
     case "bodies":
     case "body": {
       const system = id(ref.system);
@@ -254,6 +259,11 @@ const SECTIONS = prefField<Record<string, boolean>>(
   {},
   isBooleanRecord,
 );
+
+/** The page a wormhole in system `system` opens, named as its plate is. */
+export function wormholeEntry(system: number, id: number, label: string): Entry {
+  return { ref: { kind: "wormhole", system, id }, label };
+}
 
 /** What a system's strip offers on a document of `kind`: scripts on a scenario with game data, data on a save. */
 export function systemTabsOf(kind: DocumentKind | null, gameDataReady: boolean): SystemTabs {

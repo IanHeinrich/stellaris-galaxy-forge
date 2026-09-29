@@ -417,6 +417,20 @@ To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
 first.
 
+#### Wormholes
+
+In a save, the system view shows each wormhole as a blue swirl where it
+sits in the system, as the game draws it. With Names on, its name plate
+shows under it. Point at it to see which system is on the other side.
+Drag a natural wormhole to move it. Hold Shift to snap the angle
+to 15° steps. Shroud tunnels show too, but they stay where they are.
+Turn off Bypasses to hide them.
+
+Click a wormhole, or its row under Bypasses on the system's page, to
+open its page in the Inspector. The page links to the system on the
+other side, and you can type a new distance and angle there. The
+selected wormhole has a ring around it in the system view.
+
 #### Delete planets and remove colonies
 
 In a Stellaris 4.x save, you can delete a planet or moon. Right-click it
@@ -472,14 +486,14 @@ space and choose Add belt here to add a belt at that distance from the
 star.
 
 Each body's name sits on a plate under it. A colonised planet's plate
-has a bar in its owner's colour. Names, System details and Nebulae
-still work while a system is open, with their own settings, so you can
-have them on in the galaxy and off in a system. With System details on,
-each body's resources show under its name. A colony's name shows its
-owner's flag. A body's name also shows icons for its megastructures,
-dig site, anomaly and pre-FTL civilisation. Hover an icon or a resource
-to see what it is. A system inside a nebula shows faint clouds behind
-it while Nebulae is on. The other layer
+has a bar in its owner's colour. Names, System details, Nebulae and,
+in a save, Bypasses still work while a system is open, with their own
+settings, so you can have them on in the galaxy and off in a system.
+With System details on, each body's resources show under its name. A
+colony's name shows its owner's flag. A body's name also shows icons
+for its megastructures, dig site, anomaly and pre-FTL civilisation.
+Hover an icon or a resource to see what it is. A system inside a nebula
+shows faint clouds behind it while Nebulae is on. The other layer
 buttons and the tool rail are for the galaxy, so they are hidden while
 a system is open. Undo and redo still work from the Edit menu and their
 keys.

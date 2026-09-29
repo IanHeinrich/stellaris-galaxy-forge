@@ -3,4 +3,4 @@
 /**
  * An entity kind the address table knows how to reach.
  */
-export type EntityKind = "system" | "planet" | "colony" | "fleet" | "ship" | "starbase" | "megastructure" | "country" | "pop_group" | "sector" | "deposit";
+export type EntityKind = "system" | "planet" | "colony" | "fleet" | "ship" | "starbase" | "megastructure" | "country" | "pop_group" | "sector" | "deposit" | "wormhole";

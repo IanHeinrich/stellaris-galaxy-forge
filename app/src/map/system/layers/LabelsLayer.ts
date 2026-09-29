@@ -1,4 +1,4 @@
-import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
+import { BitmapText, Container, Graphics, Sprite, TextStyle } from "pixi.js";
 import {
   type BodyMarks,
   marked,
@@ -22,8 +22,13 @@ import {
 import type { FlagContext } from "../../layers/details/ownerFlag";
 import type { Row } from "../../layers/details/Row";
 import { NAME_STYLE } from "../../layers/nameWidth";
-import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
-import { bodyTier, drawnDisc } from "../geometry";
+import {
+  EMPTY_SYSTEM_CONTEXT,
+  type SceneBody,
+  type SceneWormhole,
+  type SystemContext,
+} from "../context";
+import { bodyTier, drawnDisc, drawnWormhole } from "../geometry";
 import { pickPlate, type PlatePick } from "../picking";
 import { LabelRow } from "./labelRow";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
@@ -74,6 +79,9 @@ const ABBREV_STYLE = new TextStyle({
   fill: 0xd6dde8,
   stroke: { color: 0x000000, width: 2 },
 });
+/** How far a wormhole's glyph stands past its plate, and how far it reaches above and below it. */
+const WORMHOLE_GLYPH_GAP_PX = 2;
+const WORMHOLE_GLYPH_OVERHANG_PX = 2;
 /** A plain body's resource row; a marked body's has the galaxy row's styles. */
 const PLAIN_RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
 
@@ -95,6 +103,29 @@ interface Label {
   scale: number;
   w: number;
   h: number;
+}
+
+/**
+ * A wormhole's name on a plate, with its kind's glyph at the plate's right end, in unscaled
+ * pixels from the box's top-left.
+ */
+interface WormholeLabel {
+  hole: SceneWormhole;
+  holder: Container;
+  plate: Plate;
+  /** The glyph, shown once its texture lands; null for a kind with none. */
+  glyph: Sprite | null;
+  glyphPx: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Where a wormhole's label takes part in the slotting: its own ids below zero, so none meets a
+ * body's, and none is picked as a body's plate.
+ */
+function wormholeSlot(index: number): number {
+  return -1 - index;
 }
 
 function styleOf(body: SceneBody): TextStyle {
@@ -163,22 +194,50 @@ interface Nameplate {
   nameY: number;
 }
 
-/** The galaxy's name and plate for a marked body; a smaller name on a snug plate for another. */
-function nameplateOf(body: SceneBody, big: boolean): Nameplate {
+/** `text` in `style` on the galaxy row's plate when `big`, else a snug one, with room for a colony's bar. */
+function nameplate(text: string, style: TextStyle, big: boolean, colony: number | null): Nameplate {
   const g = new Graphics();
   g.label = "plate";
-  const name = new BitmapText({ text: body.name, style: big ? NAME_STYLE : styleOf(body) });
+  const name = new BitmapText({ text, style });
   name.label = "name";
   name.anchor.set(0.5, 0);
-  const bar = colonyBarReach(body.colony);
+  const bar = colonyBarReach(colony);
   if (big) {
     const w = name.width + 2 * PLATE_PAD_PX + bar;
-    const plate = { g, x: 0, w, h: NAME_FRAME.height, colony: body.colony };
+    const plate = { g, x: 0, w, h: NAME_FRAME.height, colony };
     return { plate, name, nameY: -NAME_FRAME.y };
   }
   const w = name.width + 2 * PLATE_PAD_X + bar;
-  const plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
+  const plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony };
   return { plate, name, nameY: PLATE_PAD_Y };
+}
+
+/** The galaxy's name and plate for a marked body; a smaller name on a snug plate for another. */
+function nameplateOf(body: SceneBody, big: boolean): Nameplate {
+  return nameplate(body.name, big ? NAME_STYLE : styleOf(body), big, body.colony);
+}
+
+/** A wormhole's name on a planet's snug plate, room for its glyph at the right end. */
+function makeWormholeLabel(hole: SceneWormhole): WormholeLabel {
+  const holder = new Container();
+  const { plate, name, nameY } = nameplate(hole.plateName, PLANET_STYLE, false, null);
+  holder.addChild(plate.g, name);
+  const glyphPx = plate.h + 2 * WORMHOLE_GLYPH_OVERHANG_PX;
+  const top = hole.iconKey === null ? 0 : WORMHOLE_GLYPH_OVERHANG_PX;
+  plate.g.position.set(0, top);
+  name.position.set(plate.w / 2, top + nameY);
+  let glyph: Sprite | null = null;
+  let w = plate.w;
+  if (hole.iconKey !== null) {
+    glyph = new Sprite();
+    glyph.label = "glyph";
+    glyph.anchor.set(0, 0.5);
+    glyph.visible = false;
+    glyph.position.set(plate.w + WORMHOLE_GLYPH_GAP_PX, top + plate.h / 2);
+    holder.addChild(glyph);
+    w += WORMHOLE_GLYPH_GAP_PX + glyphPx;
+  }
+  return { hole, holder, plate, glyph, glyphPx, w, h: plate.h + 2 * top };
 }
 
 /**
@@ -241,7 +300,8 @@ function makeLabel(
  * shows its owner's flag on the game's plate, and a body's name the icons of its megastructures,
  * dig sites, anomaly and pre-FTL civilisation, each with its tooltip. A name with marks is drawn
  * the size of the galaxy's system name row, a moon's a little smaller. The plates shrink a little
- * as the view zooms out.
+ * as the view zooms out. With the Labels layer on, each wormhole's name shows on a plate under it
+ * with its kind's glyph, slotted with the bodies' plates.
  */
 export class LabelsLayer implements SystemLayer {
   readonly container = new Container();
@@ -251,6 +311,8 @@ export class LabelsLayer implements SystemLayer {
   private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
   private labels: Label[] = [];
+  private wormholes: readonly SceneWormhole[] = EMPTY_SYSTEM_CONTEXT.wormholes;
+  private wormholeLabels: WormholeLabel[] = [];
   private shown: PlatePick[] = [];
   private ref: SceneHighlight = NO_HIGHLIGHT;
   /** Whether the hovered body's plate is placed first; see `setHighlighted`. */
@@ -286,15 +348,18 @@ export class LabelsLayer implements SystemLayer {
   }
 
   rebuild(ctx: SystemContext): void {
-    const same =
-      ctx.bodies === this.bodies &&
-      ctx.sceneLayers.details === this.detailsShown &&
-      ctx.sceneLayers.labels === this.labelsShown;
-    if (same) return;
-    if (
-      ctx.sceneLayers.details === this.detailsShown &&
-      ctx.sceneLayers.labels === this.labelsShown
-    ) {
+    const switched =
+      ctx.sceneLayers.details !== this.detailsShown || ctx.sceneLayers.labels !== this.labelsShown;
+    if (!switched) {
+      const holesMoved = ctx.wormholes !== this.wormholes;
+      if (holesMoved) this.labelWormholes(ctx);
+      if (ctx.bodies === this.bodies) {
+        if (holesMoved) {
+          this.drawnRev = -1;
+          this.place();
+        }
+        return;
+      }
       if (this.move(ctx)) return;
     }
     this.bodies = ctx.bodies;
@@ -303,6 +368,7 @@ export class LabelsLayer implements SystemLayer {
     this.labelsShown = ctx.sceneLayers.labels;
     this.fitRadius = ctx.layout.fitRadius;
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
+    this.wormholeLabels = [];
     this.labels = ctx.bodies
       .flatMap((body) => {
         const named = ctx.sceneLayers.labels && body.name !== "";
@@ -315,10 +381,37 @@ export class LabelsLayer implements SystemLayer {
       })
       .sort(rank);
     for (const label of this.labels) this.mark(label);
+    this.labelWormholes(ctx);
     this.shown = [];
     this.redress();
     this.drawnRev = -1;
     this.place();
+  }
+
+  /**
+   * A label for each of `ctx`'s wormholes while the Labels layer is on; the same labels, stood at
+   * the wormholes' new points, when only where they stand changed.
+   */
+  private labelWormholes(ctx: SystemContext): void {
+    const holes = ctx.sceneLayers.labels ? ctx.wormholes : [];
+    this.wormholes = ctx.wormholes;
+    const alike =
+      holes.length === this.wormholeLabels.length &&
+      this.wormholeLabels.every(
+        (l, i) => l.hole.id === holes[i].id && l.hole.plateName === holes[i].plateName,
+      );
+    if (alike) {
+      this.wormholeLabels.forEach((l, i) => (l.hole = holes[i]));
+      return;
+    }
+    for (const label of this.wormholeLabels) label.holder.destroy({ children: true });
+    this.wormholeLabels = holes.map((hole) => {
+      const label = makeWormholeLabel(hole);
+      this.container.addChild(label.holder);
+      this.markWormhole(label);
+      return label;
+    });
+    this.redress();
   }
 
   /**
@@ -361,6 +454,14 @@ export class LabelsLayer implements SystemLayer {
       if (!resources) continue;
       drawResources(resources.row, this.tips.names, tex, body.resources, resourceStyles);
     }
+    for (const { hole, glyph, glyphPx } of this.wormholeLabels) {
+      if (!glyph || hole.iconKey === null) continue;
+      const texture = tex.texture(hole.iconKey);
+      glyph.visible = Boolean(texture);
+      if (!texture) continue;
+      glyph.texture = texture;
+      glyph.scale.set(glyphPx / Math.max(texture.width, texture.height, 1));
+    }
     if (wanted.size > 0) requestTextures(wanted);
   }
 
@@ -374,6 +475,11 @@ export class LabelsLayer implements SystemLayer {
         ref.hoverBody !== null && !this.shown.some((plate) => plate.id === ref.hoverBody);
     }
     this.ref = ref;
+    const holeSelected = ref.selectedWormhole !== was.selectedWormhole;
+    if (ref.hoverWormhole !== was.hoverWormhole || holeSelected) {
+      for (const label of this.wormholeLabels) this.markWormhole(label);
+    }
+    if (holeSelected && !changed) this.place();
     if (!changed) return;
     const touched = [was.hoverBody, was.selectedBody, ref.hoverBody, ref.selectedBody];
     for (const label of this.labels) {
@@ -387,6 +493,16 @@ export class LabelsLayer implements SystemLayer {
     const id = body.placement.id;
     const state =
       id === this.ref.selectedBody ? "selected" : id === this.ref.hoverBody ? "hovered" : "rest";
+    drawPlate(plate, state);
+  }
+
+  private markWormhole({ hole, plate }: WormholeLabel): void {
+    const state =
+      hole.id === this.ref.selectedWormhole
+        ? "selected"
+        : hole.id === this.ref.hoverWormhole
+          ? "hovered"
+          : "rest";
     drawPlate(plate, state);
   }
 
@@ -433,10 +549,32 @@ export class LabelsLayer implements SystemLayer {
         h: l.h * k * l.scale,
       };
     };
-    const items = order.map((l) => ({ ...item(l), moons: moonsOfLabel(l).map(item) }));
-    this.shown = placeLabels(items).map((box) => {
+    const withMoons = (l: Label) => ({ ...item(l), moons: moonsOfLabel(l).map(item) });
+    const holes = this.wormholeLabels.map((l, i): LabelItem => {
+      const at = cam.worldToScreen(l.hole.x, l.hole.y);
+      const r = drawnWormhole(cam.scale) * cam.scale;
+      return { id: wormholeSlot(i), x: at.x, y: at.y, r, w: l.w * k, h: l.h * k };
+    });
+    const chosen = this.wormholeLabels.findIndex((l) => l.hole.id === this.ref.selectedWormhole);
+    const selectedHole = (item: LabelItem) => chosen >= 0 && item.id === wormholeSlot(chosen);
+    const items = [
+      ...holes.filter(selectedHole),
+      ...order.filter(groupPinned).map(withMoons),
+      ...holes.filter((item) => !selectedHole(item)),
+      ...order.filter((l) => !groupPinned(l)).map(withMoons),
+    ];
+    const boxes = placeLabels(items).map((box) => {
       const at = cam.screenToWorld(box.x, box.y);
       return { id: box.id, x: at.x, y: at.y, w: box.w, h: box.h };
+    });
+    this.shown = boxes.filter((box) => box.id >= 0);
+    const size = cam.childScale(k);
+    this.wormholeLabels.forEach(({ holder }, i) => {
+      const box = boxes.find((b) => b.id === wormholeSlot(i));
+      holder.visible = box !== undefined;
+      if (!box) return;
+      holder.position.set(box.x, box.y);
+      holder.scale.set(size.x, size.y);
     });
     const shown = new Map(this.shown.map((plate) => [plate.id, plate]));
     for (const { body, holder, scale } of this.labels) {

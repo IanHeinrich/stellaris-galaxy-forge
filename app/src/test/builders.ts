@@ -185,6 +185,7 @@ export function systemDetails(over: Partial<SystemDetails> = {}): SystemDetails 
     with_game_data: false,
     belts: [],
     inner_radius: null,
+    wormholes: [],
     ...over,
   };
 }

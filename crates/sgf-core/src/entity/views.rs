@@ -24,11 +24,13 @@ pub enum EntityKind {
     PopGroup,
     Sector,
     Deposit,
+    /// A `natural_wormholes` row: a natural wormhole or a shroud tunnel.
+    Wormhole,
 }
 
 impl EntityKind {
     /// Every kind, in address-table order.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::System,
         Self::Planet,
         Self::Colony,
@@ -40,6 +42,7 @@ impl EntityKind {
         Self::PopGroup,
         Self::Sector,
         Self::Deposit,
+        Self::Wormhole,
     ];
 
     /// The wire name, as `serde` writes it.
@@ -56,6 +59,7 @@ impl EntityKind {
             Self::PopGroup => "pop_group",
             Self::Sector => "sector",
             Self::Deposit => "deposit",
+            Self::Wormhole => "wormhole",
         }
     }
 }

@@ -2,8 +2,8 @@ import type { Pt } from "../../lib/geometry/pt";
 import type { Camera } from "../Camera";
 import { PICK_RADIUS_PX } from "../picking/zones";
 import { sameHandle, type HandleRef } from "./bodyDrag";
-import type { Exit, SceneBody, SceneHandle, SystemContext } from "./context";
-import { drawnDisc, exitCentre } from "./geometry";
+import type { Exit, SceneBody, SceneHandle, SceneWormhole, SystemContext } from "./context";
+import { drawnDisc, drawnWormhole, exitCentre } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
 
@@ -21,6 +21,27 @@ export function pickBody(bodies: readonly SceneBody[], cam: Camera, at: Pt): num
     const reach = Math.max(PICK_RADIUS_PX, drawnDisc(disc, cam.scale, body.look) * cam.scale);
     if (px <= reach && px < bestPx) {
       best = body.placement.id;
+      bestPx = px;
+    }
+  }
+  return best;
+}
+
+/**
+ * The wormhole nearest the world point `at` within its drawn vortex or the pick radius, whichever
+ * is larger.
+ */
+export function pickWormhole(
+  wormholes: readonly SceneWormhole[],
+  cam: Camera,
+  at: Pt,
+): number | null {
+  let best: number | null = null;
+  let bestPx = Math.max(PICK_RADIUS_PX, drawnWormhole(cam.scale) * cam.scale);
+  for (const { id, x, y } of wormholes) {
+    const px = Math.hypot(x - at.x, y - at.y) * cam.scale;
+    if (px <= bestPx) {
+      best = id;
       bestPx = px;
     }
   }
