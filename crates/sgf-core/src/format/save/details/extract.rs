@@ -13,7 +13,7 @@ use crate::document::Document;
 use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
 use crate::entity::views::EntityKind;
-use crate::format::save::galaxy::bypasses::natural_wormholes;
+use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes, row};
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
 use crate::format::save::{dig_sites, read_spec};
@@ -627,18 +627,10 @@ pub(super) fn refresh_geometry(
         read_geometry(details, &node, src);
     }
     for wormhole in &mut details.wormholes {
-        let Some(entity) = doc
-            .index()
-            .entity(keys::NATURAL_WORMHOLES, u64::from(wormhole.id))
-        else {
+        let Some(row) = row(doc, NATURAL, wormhole.id)? else {
             continue;
         };
-        let anchor = Anchor::Original(entity.stmt);
-        let id = u64::from(wormhole.id);
-        let Some((node, src)) = current_entity(doc, keys::NATURAL_WORMHOLES, id, anchor)? else {
-            continue;
-        };
-        if let Ok((x, y)) = read::coordinate(&node, src) {
+        if let Ok((x, y)) = read::coordinate(&row.node, row.src) {
             wormhole.x = x;
             wormhole.y = y;
         }

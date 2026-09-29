@@ -143,7 +143,8 @@ pub enum Op {
     /// with its bodies, their deposits, its lanes on both ends and its nebula member lines.
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
     /// or black hole names the add took it from, and `last_created_system` goes down. The
-    /// systems added after it take the id below their own, so that ids stay dense. The
+    /// systems added after it take the id below their own, so that ids stay dense. A system
+    /// with a wormhole pair, whether removed or renumbered, is refused. The
     /// inverse adds the system again, read back as a spec, at the end of the list, which
     /// joins it to the nebula it stands in; then its bridges, the lane lengths that are not
     /// `floor(distance)` and its nebula footprint are put back. The bytes come back exactly
@@ -509,6 +510,41 @@ pub enum Op {
         radius: f64,
         angle: f64,
     },
+    /// A natural wormhole pair between save systems `a` and `b`, written with only what the
+    /// game does not fill in on load. Each end gets a `natural_wormholes` entry holding its
+    /// point and its bypass, and a `bypasses` entry holding `type="wormhole"`, `active=yes`,
+    /// the other end's bypass as `linked_to` and its `natural_wormholes` entry as `owner`;
+    /// each table's new ids follow its highest. Each system lists its end in a
+    /// `natural_wormholes` list after its `hyperlane` block, or after `star_class` without
+    /// one. The game fills in the systems' `bypasses` lists and each country's
+    /// `usable_bypasses` on load. `a`'s end stands at 180° and `b`'s at 90°, just outside
+    /// each system's `inner_radius`, where the game puts a pair it spawns without a random
+    /// position. A pair of one system, and a system that already has a natural wormhole or
+    /// a shroud tunnel, are refused. The inverse is [`Op::RemoveSaveWormholePair`].
+    /// Stellaris 4.x save documents only.
+    AddSaveWormholePair {
+        a: u32,
+        b: u32,
+        /// `a`'s end and `b`'s, each as x/y about its star, in place of the points the op
+        /// picks: what the inverse of [`Op::RemoveSaveWormholePair`] carries, so that the
+        /// pair comes back where it stood.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        at: Option<((f64, f64), (f64, f64))>,
+    },
+    /// The natural wormhole pair between save systems `a` and `b`, named in either order.
+    /// Both ends' `natural_wormholes` and `bypasses` entries are erased, and their ids leave
+    /// both systems' `natural_wormholes` and `bypasses` lists, each list going with its last
+    /// id. Each country's `usable_bypasses` is left for the game to rebuild on load, and a
+    /// fleet's `bypass_from` and `bypass_to` are left as they are. Two systems that are not
+    /// the ends of one wormhole are refused, a shroud tunnel included, and so is a wormhole
+    /// whose other end has no `natural_wormholes` entry. The inverse adds the pair back at
+    /// the points it stood at, numbered as [`Op::AddSaveWormholePair`] numbers a new one.
+    /// Stellaris 4.x save documents only.
+    RemoveSaveWormholePair {
+        a: u32,
+        b: u32,
+    },
     /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
     /// the statement is written before `entity_planet_class` or `coordinate` when the body
     /// has none, and goes when only the bit set beside any other is left. The body's class
@@ -745,7 +781,8 @@ impl Op {
     /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
     /// planet whose anomaly they wrote. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
     /// change which bodies a system lists. [`Op::MoveSaveWormhole`] stales the system whose
-    /// wormhole it moved.
+    /// wormhole it moved, and [`Op::AddSaveWormholePair`] and [`Op::RemoveSaveWormholePair`]
+    /// the two systems whose wormholes they wrote.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -768,6 +805,8 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::MoveSaveWormhole { .. }
+            | Self::AddSaveWormholePair { .. }
+            | Self::RemoveSaveWormholePair { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
             | Self::SetPlanetClass { .. }
@@ -866,6 +905,8 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::MoveSaveWormhole { .. }
+            | Self::AddSaveWormholePair { .. }
+            | Self::RemoveSaveWormholePair { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
             | Self::SetPlanetClass { .. }
@@ -1319,6 +1360,18 @@ pub enum OpError {
     NotAWormhole { wormhole: u32, kind: String },
     #[error("wormhole {0} already stands there")]
     WormholeUnchanged(u32),
+    #[error(
+        "system {system} already has a natural wormhole of bypass type \"{kind}\", and a system holds one at most"
+    )]
+    HasNaturalWormhole { system: u32, kind: String },
+    #[error("systems {0} and {1} are not the two ends of a wormhole")]
+    NotAWormholePair(u32, u32),
+    #[error(
+        "the wormhole in system {system} is linked to system {partner}, which has no natural wormhole for it"
+    )]
+    WormholeEndMissing { system: u32, partner: u32 },
+    #[error("system {0} has a wormhole: remove the wormhole pair first")]
+    HoldsWormhole(u32),
     #[error("{reason}")]
     InvalidParent { reason: String },
     #[error("planet {0} has moons, so it cannot become a moon")]
@@ -1528,6 +1581,10 @@ impl OpError {
             | Self::BodyUnchanged { .. }
             | Self::NotAWormhole { .. }
             | Self::WormholeUnchanged { .. }
+            | Self::HasNaturalWormhole { .. }
+            | Self::NotAWormholePair { .. }
+            | Self::WormholeEndMissing { .. }
+            | Self::HoldsWormhole { .. }
             | Self::InvalidParent { .. }
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }

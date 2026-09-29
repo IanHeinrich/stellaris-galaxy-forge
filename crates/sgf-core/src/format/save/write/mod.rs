@@ -41,3 +41,4 @@ pub(crate) mod replace_system;
 pub(crate) mod star_class;
 pub(crate) mod timed_modifiers;
 pub(crate) mod wormhole;
+pub(crate) mod wormhole_pair;

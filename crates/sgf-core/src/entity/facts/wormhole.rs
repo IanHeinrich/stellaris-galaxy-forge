@@ -3,13 +3,14 @@
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::entity::facts::{Sheet, reference, statement_at};
+use crate::entity::facts::{Sheet, reference};
 use crate::entity::views::EntityKind;
+use crate::format::save::added::Table;
+use crate::format::save::galaxy::bypasses::{NATURAL, row, rows};
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::write::bodies::number;
 use crate::keys;
 use crate::ops::rules::bodies::normalised;
-use crate::overlay::Anchor;
 use crate::projections::read;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -28,15 +29,14 @@ pub(crate) struct WormholeFacts {
 
 pub(crate) fn read(doc: &Document, node: &Node, src: &[u8]) -> WormholeFacts {
     let bypass = reference(node, keys::BYPASS, src);
-    let (kind, linked_to) = bypass.and_then(|id| bypass_row(doc, id)).map_or_else(
-        Default::default,
-        |(row, row_src)| {
+    let (kind, linked_to) = bypass
+        .and_then(|id| row(doc, Table::Bypass, id).ok().flatten())
+        .map_or_else(Default::default, |row| {
             (
-                read::text(&row, keys::TYPE, row_src),
-                reference(&row, keys::LINKED_TO, row_src),
+                read::text(&row.node, keys::TYPE, row.src),
+                reference(&row.node, keys::LINKED_TO, row.src),
             )
-        },
-    );
+        });
     WormholeFacts {
         kind,
         origin: read::origin(node, src).filter(|&id| id != crate::NULL_ID),
@@ -46,24 +46,14 @@ pub(crate) fn read(doc: &Document, node: &Node, src: &[u8]) -> WormholeFacts {
     }
 }
 
-/// The `bypasses` row `id`, as it stands now.
-fn bypass_row(doc: &Document, id: u32) -> Option<(Node, &[u8])> {
-    let entry = doc.index().entity(keys::BYPASSES, u64::from(id))?;
-    statement_at(doc, Anchor::Original(entry.stmt))
-}
-
 /// The system the `natural_wormholes` row standing for `bypass` is in.
 fn system_of(doc: &Document, bypass: u32) -> Option<u32> {
-    doc.index()
-        .entities(keys::NATURAL_WORMHOLES)
-        .iter()
-        .find_map(|entry| {
-            let (row, src) = statement_at(doc, Anchor::Original(entry.stmt))?;
-            if read::scalar_u32(&row, keys::BYPASS, src) != Some(bypass) {
-                return None;
-            }
-            read::origin(&row, src).filter(|&id| id != crate::NULL_ID)
-        })
+    rows(doc, NATURAL).ok()?.iter().find_map(|row| {
+        if read::scalar_u32(&row.node, keys::BYPASS, row.src) != Some(bypass) {
+            return None;
+        }
+        read::origin(&row.node, row.src).filter(|&id| id != crate::NULL_ID)
+    })
 }
 
 /// Distance and angle are about the star, as `MoveSaveWormhole` takes them.

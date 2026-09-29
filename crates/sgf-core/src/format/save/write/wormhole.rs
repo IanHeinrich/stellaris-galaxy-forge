@@ -14,7 +14,7 @@ use crate::projections::read;
 use crate::session::Session;
 
 /// The bypass type of the one kind of natural wormhole that may be moved.
-const WORMHOLE: &str = "wormhole";
+pub(super) const WORMHOLE: &str = "wormhole";
 
 pub(crate) fn plan_move(
     plan: &mut Plan,
@@ -81,7 +81,7 @@ fn written(edit: &Edit) -> Result<(String, String), OpError> {
 }
 
 /// "Ferragon #489", or "#489" for a system with no name or one the galaxy lacks.
-fn named(s: &Session, system: u32) -> String {
+pub(super) fn named(s: &Session, system: u32) -> String {
     let name = s
         .graph
         .systems

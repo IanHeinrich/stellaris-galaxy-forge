@@ -1,4 +1,5 @@
-//! The systems, planets, deposits and dig sites a save gained after it was opened.
+//! The systems, planets, deposits, dig sites and wormholes a save gained after it was
+//! opened.
 //!
 //! The index is scanned once, from the bytes as loaded, so an entity an op wrote is found
 //! here instead: an inserted statement, or a tombstone (`<id>=none`) rewritten as a new
@@ -14,30 +15,35 @@ use crate::keys;
 use crate::overlay::{Anchor, Overlay};
 use crate::scan::{self, Index};
 
-/// The id-keyed tables an op adds entities to: an entity kind's, or the ambient objects and
-/// the dig sites of `archaeological_sites.sites`, which the inspector does not address.
+/// The id-keyed tables an op adds entities to: an entity kind's, or the ambient objects,
+/// the dig sites of `archaeological_sites.sites` and the bypasses, which the inspector does
+/// not address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Table {
     Entity(EntityKind),
     AmbientObject,
     DigSite,
+    Bypass,
 }
 
 impl Table {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 7] = [
         Self::Entity(EntityKind::System),
         Self::Entity(EntityKind::Planet),
         Self::Entity(EntityKind::Deposit),
+        Self::Entity(EntityKind::Wormhole),
         Self::AmbientObject,
         Self::DigSite,
+        Self::Bypass,
     ];
 
     /// The top-level section the table's entities stand in.
-    fn section(self) -> &'static str {
+    pub(crate) fn section(self) -> &'static str {
         match self {
             Self::Entity(kind) => address(kind).section,
             Self::AmbientObject => keys::AMBIENT_OBJECT,
             Self::DigSite => keys::ARCHAEOLOGICAL_SITES,
+            Self::Bypass => keys::BYPASSES,
         }
     }
 

@@ -4,7 +4,8 @@
 //!
 //! Built once at load by [`GalaxyGraph::build`]. One system is re-extracted after an op
 //! through [`GalaxyGraph::refresh_system`], the nebulae with their membership through
-//! [`GalaxyGraph::refresh_nebulae`], the L-Gate through [`GalaxyGraph::refresh_lgate`] and
+//! [`GalaxyGraph::refresh_nebulae`], the bypass links through
+//! [`GalaxyGraph::refresh_bypasses`], the L-Gate through [`GalaxyGraph::refresh_lgate`] and
 //! one country through [`GalaxyGraph::refresh_country`]; all run the same extraction as
 //! the build, so ops need no incremental bookkeeping.
 
@@ -234,6 +235,13 @@ impl GalaxyGraph {
         let reassigned = self.assign_nebulae();
         self.refresh_turbulence();
         Ok(reassigned)
+    }
+
+    /// Re-read every bypass link from the rows the document now holds, once the systems
+    /// hold their `bypasses` lists as they now stand.
+    pub(crate) fn refresh_bypasses(&mut self, doc: &Document) -> Result<(), ProjectionError> {
+        self.bypasses = bypasses::extract_current(doc, &self.systems)?;
+        Ok(())
     }
 
     /// Re-read the L-Gate from `flags`, the `flags=` block as it now stands. A galaxy with

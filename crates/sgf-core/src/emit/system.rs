@@ -294,6 +294,53 @@ pub fn ambient_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// One end of a new wormhole pair: its entry in the top-level `natural_wormholes` table and
+/// its bypass's in `bypasses`. The game fills in the rest of both on load.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WormholeEnd {
+    /// The `natural_wormholes` id.
+    pub id: u32,
+    pub bypass: u32,
+    /// The other end's bypass.
+    pub linked_to: u32,
+    pub system: u32,
+    /// Relative to the system's centre.
+    pub at: (f64, f64),
+}
+
+/// `owner.type` of a bypass whose owner is a `natural_wormholes` row.
+const NATURAL_WORMHOLE_OWNER: &str = "7";
+
+pub fn natural_wormhole_entry(indent: &[u8], end: &WormholeEnd) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.open(0, &end.id.to_string());
+    w.coordinate(1, end.at, end.system);
+    w.pair(1, keys::BYPASS, &end.bypass.to_string());
+    w.close(0);
+    w.into_bytes()
+}
+
+pub fn wormhole_bypass_entry(indent: &[u8], end: &WormholeEnd) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.open(0, &end.bypass.to_string());
+    w.pair(1, keys::TYPE, &quoted("wormhole"));
+    w.pair(1, keys::ACTIVE, "yes");
+    w.pair(1, keys::LINKED_TO, &end.linked_to.to_string());
+    w.open(1, keys::OWNER);
+    w.pair(2, keys::TYPE, NATURAL_WORMHOLE_OWNER);
+    w.pair(2, keys::ID, &end.id.to_string());
+    w.close(1);
+    w.close(0);
+    w.into_bytes()
+}
+
+/// A system's `natural_wormholes` list, for a system that has none.
+pub fn natural_wormholes_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.list(0, keys::NATURAL_WORMHOLES, ids);
+    w.into_bytes()
+}
+
 /// A `timed_modifier` block of `items`, each a modifier and its days (`-1` for one that
 /// never expires), for an entity that has none.
 pub fn timed_modifiers(indent: &[u8], items: &[(&str, i32)]) -> Vec<u8> {

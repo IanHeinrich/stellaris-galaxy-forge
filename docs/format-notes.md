@@ -557,6 +557,14 @@ for planets or deposits.
   `natural_wormholes` list: without it the galaxy map shows the icon, but
   the system has no wormhole to explore. A bypass without `active` loads
   as `active=no`.
+- The editor adds a wormhole pair at the highest id plus one in each
+  table, so the 4.5 sample's first pair takes rows 15 and 16 and
+  bypasses 23 and 24. Neither sample has a gap or a `none` entry in
+  either table. A pair the game spawns without a random position stands
+  about 1 past each system's `inner_radius`, the first end at 180° and
+  the second at 90°. The editor puts a new pair there too, at exactly
+  `inner_radius + 1`. Every other wormhole in the samples stands between
+  `inner_radius` and `outer_radius`.
 - `usable_bypasses` on a country is rebuilt on load. It drops removed
   bypasses and adds active new ones. Regular empires have none on day
   one, and add a wormhole once they explore it.
