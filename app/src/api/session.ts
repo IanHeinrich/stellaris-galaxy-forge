@@ -61,6 +61,11 @@ export function saveDetails(path: string): Promise<GalaxySettings> {
   return invoke<GalaxySettings>("save_details", { path });
 }
 
+/** The paths among `paths` that are not a file on disk. */
+export function missingPaths(paths: string[]): Promise<string[]> {
+  return invoke<string[]>("missing_paths", { paths });
+}
+
 /** Open a save or a scenario script as the session; emits `sgf://progress` while it loads. */
 export function openSave(path: string): Promise<OpenResult> {
   return invoke<OpenResult>("open_save", { path });
