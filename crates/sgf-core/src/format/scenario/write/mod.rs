@@ -142,6 +142,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::MoveSavePlanet { .. }
         | Op::SetSaveBodyParent { .. }
         | Op::SetPlanetRing { .. }
+        | Op::AddSaveBody { .. }
+        | Op::RemoveAddedBody { .. }
         | Op::AddSaveBelt { .. }
         | Op::RemoveSaveBelt { .. }
         | Op::SetSaveBeltRadius { .. }

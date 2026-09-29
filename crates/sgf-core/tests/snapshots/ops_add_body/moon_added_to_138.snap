@@ -1,0 +1,114 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added moon #16777273 of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°; set the inner radius of system #408 from 175 to 190.04
+inverse: Batch { description: "Undo of \"Added moon #16777273 of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°; set the inner radius of system #408 from 175 to 190.04\"", ops: [RemoveAddedBody { planet: 16777273 }, SetSaveInnerRadius { system: 408, radius: 175.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -57820,6 +57820,7 @@
+ 		planet=136
+ 		planet=137
+ 		planet=138
++		planet=16777273
+ 		star_class="sc_b"
+ 		hyperlane=
+ 		{
+@@ -57850,8 +57851,8 @@
+ 		}
+ 		initializer="neighbor_t1_first_colony"
+ 		init_parent=169
+-		inner_radius=175
+-		outer_radius=275
++		inner_radius=190.04296
++		outer_radius=290.04296
+ 		starbases=
+ 		{
+ 			4294967295 
+@@ -82369,7 +82370,73 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_barren"
++			planet_size=6
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="Meissa"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="IV"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="a"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=127.774
++				y=83.63865
++				origin=408
++			}
++			orbit=15
++			last_bombardment=			"0.01.01"
++			moon_of=138
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -85701,6 +85768,10 @@
+ 			}
+ 			orbit=145
+ 			last_bombardment=			"0.01.01"
++			moons=
++			{
++				16777273 
++			}
+ 			planet_orbitals=
+ 			{
+ 			}

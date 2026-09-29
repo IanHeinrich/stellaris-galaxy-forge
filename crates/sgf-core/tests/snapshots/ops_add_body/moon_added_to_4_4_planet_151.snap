@@ -1,0 +1,156 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added moon #8404 of planet #151 in system #8 (pc_barren, size 7) at orbit 30 at 10°
+inverse: RemoveAddedBody { planet: 8404 }
+
+--- gamestate
++++ gamestate
+@@ -29431,6 +29431,8 @@
+ 		planet=156
+ 		planet=157
+ 		planet=158
++		planet=8403
++		planet=8404
+ 		star_class="sc_a"
+ 		hyperlane=
+ 		{
+@@ -29468,8 +29470,8 @@
+ 		{
+ 			36 39 414 415 416 417 418 545 571 16777790 597 611 640 16777408 786 
+ 		}
+-		inner_radius=225
+-		outer_radius=325
++		inner_radius=240
++		outer_radius=340
+ 		has_access_to_relay_network=yes
+ 		starbases=
+ 		{
+@@ -98928,7 +98930,7 @@
+ 			controller=16777225
+ 			moons=
+ 			{
+-				152 153 154 
++				152 153 154 8404 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -530216,6 +530218,117 @@
+ 				4988 
+ 			}
+ 		}
++		8403=
++		{
++			planet_class="pc_toxic"
++			planet_size=15
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PRESCRIPTED_system_name_xt489"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IX"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=148.49242
++				y=148.49242
++				origin=8
++			}
++			orbit=210
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
++		8404=
++		{
++			planet_class="pc_barren"
++			planet_size=7
++			carrier_binary_flags=1
++			name=
++			{
++				key="SUBPLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PLANET_NAME_FORMAT"
++							variables=
++							{
++								
++								{
++									key="PARENT"
++									value=
++									{
++										key="PRESCRIPTED_system_name_xt489"
++									}
++								}
++ 
++								{
++									key="NUMERAL"
++									value=
++									{
++										key="VI"
++										literal=yes
++									}
++								}
++ 
++							}
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="d"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=69.69543
++				y=-144.6988
++				origin=8
++			}
++			orbit=30
++			last_bombardment=			"0.01.01"
++			moon_of=151
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 	}
+ }
+ astral_rifts=

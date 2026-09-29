@@ -1,0 +1,79 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added planet #8403 to system #8 (pc_toxic, size 15) at orbit 210 at 45°; set the inner radius of system #8 from 225 to 240
+inverse: Batch { description: "Undo of \"Added planet #8403 to system #8 (pc_toxic, size 15) at orbit 210 at 45°; set the inner radius of system #8 from 225 to 240\"", ops: [RemoveAddedBody { planet: 8403 }, SetSaveInnerRadius { system: 8, radius: 225.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -29431,6 +29431,7 @@
+ 		planet=156
+ 		planet=157
+ 		planet=158
++		planet=8403
+ 		star_class="sc_a"
+ 		hyperlane=
+ 		{
+@@ -29468,8 +29469,8 @@
+ 		{
+ 			36 39 414 415 416 417 418 545 571 16777790 597 611 640 16777408 786 
+ 		}
+-		inner_radius=225
+-		outer_radius=325
++		inner_radius=240
++		outer_radius=340
+ 		has_access_to_relay_network=yes
+ 		starbases=
+ 		{
+@@ -530216,6 +530217,50 @@
+ 				4988 
+ 			}
+ 		}
++		8403=
++		{
++			planet_class="pc_toxic"
++			planet_size=15
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="PRESCRIPTED_system_name_xt489"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="IX"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=148.49242
++				y=148.49242
++				origin=8
++			}
++			orbit=210
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++		}
+ 	}
+ }
+ astral_rifts=

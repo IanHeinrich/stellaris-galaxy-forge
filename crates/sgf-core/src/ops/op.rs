@@ -566,6 +566,31 @@ pub enum Op {
         #[ts(optional)]
         block: Option<String>,
     },
+    /// A new planet, or a moon of the planet `spec.moon_of` names, in save system `system`,
+    /// written as the game writes a body it spawns: its entry and its deposits' take the
+    /// lowest dead slot of their tables one generation on, or the slot past the highest. It
+    /// stands `at` its radius and angle about its parent's point, the system's centre for a
+    /// planet, and the system lists it after its last `planet=` line. A moon gets `moon_of`
+    /// and the moon bit, and its planet lists it in `moons`. Without a name in the spec, a
+    /// planet takes the numeral after the highest of the system's numbered planets and a moon
+    /// the letter after its planet's highest. The inner radius grows as a moved body's does.
+    /// The game builds its construction queue when it loads, and nobody has surveyed it. A
+    /// moon of a star or of a moon, and a parent outside the system, are refused. The inverse
+    /// is [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris
+    /// 4.x save documents only.
+    AddSaveBody {
+        system: u32,
+        spec: NewBody,
+        at: OrbitPlacement,
+    },
+    /// A save planet or moon [`Op::AddSaveBody`] added since the file was opened, taken out
+    /// again: its entry and its deposits' give their slots back as a removed system's bodies
+    /// do, its `planet=` line goes, and so does its id from its planet's `moons`. A body the
+    /// file held, and one with moons, are refused. The inverse adds it back, read as a spec,
+    /// at the radius and angle it stood at. Stellaris 4.x save documents only.
+    RemoveAddedBody {
+        planet: u32,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -589,7 +614,8 @@ impl Op {
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
     /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed.
+    /// does the planet and moons it renamed. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
+    /// change which bodies a system lists.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -618,7 +644,9 @@ impl Op {
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. } => true,
+            | Self::RenameSavePlanet { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -660,7 +688,9 @@ impl Op {
             | Self::RemoveSystem { .. }
             | Self::RemoveSystems { .. }
             | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. } => true,
+            | Self::RemoveSaveDeposit { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -692,7 +722,9 @@ impl Op {
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. } => false,
+            | Self::RenameSavePlanet { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -713,6 +745,27 @@ pub struct InitializerSet {
 pub struct StarBody {
     pub planet: u32,
     pub class: String,
+}
+
+/// The body [`Op::AddSaveBody`] writes, every value chosen by the caller.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewBody {
+    /// `pc_desert`, `pc_gas_giant`, …
+    pub class: String,
+    pub size: u32,
+    /// The planet a moon orbits; `None` for a planet of the system's centre.
+    #[serde(default)]
+    pub moon_of: Option<u32>,
+    /// A name written as typed, with `literal=yes`; `None` numbers it after its siblings.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Deposit keys, `d_minerals_2`, …
+    #[serde(default)]
+    pub deposits: Vec<String>,
+    /// Drawn with a ring around it. A moon is refused one.
+    #[serde(default)]
+    pub ring: bool,
 }
 
 /// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
@@ -1047,6 +1100,12 @@ pub enum OpError {
     HoldsSavePlanet { system: u32, planet: u32 },
     #[error("planet {0} has a megastructure, so it cannot move to another system")]
     MegastructurePlanet(u32),
+    #[error(
+        "planet {0} was in the save when it was opened: only a body added since then can be taken out again"
+    )]
+    BodyNotAdded(u32),
+    #[error("planet {0} has moons: take them out first")]
+    BodyHasMoons(u32),
     #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
     PlanetOccupied {
         planet: u32,
@@ -1185,6 +1244,8 @@ impl OpError {
             | Self::NoBodies { .. }
             | Self::HoldsSavePlanet { .. }
             | Self::MegastructurePlanet { .. }
+            | Self::BodyNotAdded { .. }
+            | Self::BodyHasMoons { .. }
             | Self::PlanetOccupied { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }

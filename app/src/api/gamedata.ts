@@ -4,6 +4,7 @@
  * `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
@@ -120,6 +121,14 @@ export function getStarClasses(): Promise<StarClassView[]> {
  */
 export function getGeneratorStarClasses(): Promise<Array<[string, string]>> {
   return invoke<Array<[string, string]>>("get_generator_star_classes");
+}
+
+/**
+ * The classes a planet, or with `moon` a moon, added to a save may take, each with its name and
+ * the sizes a random one is drawn from, by name; empty without game data.
+ */
+export function getBodyClasses(moon: boolean): Promise<BodyClassPick[]> {
+  return invoke<BodyClassPick[]>("get_body_classes", { moon });
 }
 
 /** Every deposit definition of the loaded game data; empty without it. */

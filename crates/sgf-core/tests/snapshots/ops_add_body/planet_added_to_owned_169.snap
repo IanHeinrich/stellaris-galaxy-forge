@@ -1,0 +1,111 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added planet #16777273 to system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of system #169 from 215 to 270
+inverse: Batch { description: "Undo of \"Added planet #16777273 to system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of system #169 from 215 to 270\"", ops: [RemoveAddedBody { planet: 16777273 }, SetSaveInnerRadius { system: 169, radius: 215.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,7 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		planet=16777273
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -41058,8 +41059,8 @@
+ 		{
+ 			0 2 3 362 363 364 365 366 
+ 		}
+-		inner_radius=215
+-		outer_radius=315
++		inner_radius=270
++		outer_radius=370
+ 		has_access_to_relay_network=yes
+ 		starbases=
+ 		{
+@@ -82369,7 +82370,54 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_desert"
++			planet_size=12
++			carrier_binary_flags=1
++			name=
++			{
++				key="PLANET_NAME_FORMAT"
++				variables=
++				{
++					
++					{
++						key="PARENT"
++						value=
++						{
++							key="SPEC_Alari_system"
++						}
++					}
++ 
++					{
++						key="NUMERAL"
++						value=
++						{
++							key="I"
++							literal=yes
++						}
++					}
++ 
++				}
++			}
++			coordinate=
++			{
++				x=-225.52623
++				y=-82.08483
++				origin=169
++			}
++			orbit=240
++			last_bombardment=			"0.01.01"
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			entity=0
++			deposits=
++			{
++				16777216 16777217 
++			}
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -1076220,8 +1076268,24 @@
+ }
+ deposit=
+ {
+-	0=none
+-	1=none
++	16777216=
++	{
++		type="d_mineral_fields"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
++	16777217=
++	{
++		type="d_rich_mountain"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
+ 	2=none
+ 	3=none
+ 	4=none

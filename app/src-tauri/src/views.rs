@@ -1,11 +1,31 @@
-//! The shell's own IPC view types: what the updater commands answer with.
+//! The shell's own IPC view types: what the updater and add-body commands answer with.
 //!
 //! Each type derives `TS`; `cargo test -p sgf-app` writes the TypeScript
 //! declarations to `app/src/generated/` (directory set in `.cargo/config.toml`).
 //! The generated files are committed and never hand-edited.
 
 use serde::{Deserialize, Serialize};
+use sgf_core::views::EditResult;
 use ts_rs::TS;
+
+/// A class a body added to a save may take, named as the game names it, with the sizes a
+/// random one of it is drawn from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BodyClassPick {
+    pub key: String,
+    pub name: String,
+    pub min_size: u32,
+    pub max_size: u32,
+}
+
+/// What adding a body answers with: the edit, and the id the new body took.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddedBody {
+    pub edit: EditResult,
+    pub planet: u32,
+}
 
 /// What the running copy can do about an update: replace itself, or send the user
 /// to the releases page.

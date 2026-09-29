@@ -8,6 +8,14 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Add a planet or moon to a system in a save. In the system view,
+  right-click empty space and choose Add planet here, or right-click a
+  planet and choose Add moon. Pick a planet class or Random. Its size and
+  deposits are rolled by the game's rules, and it takes the next free
+  numeral or letter, such as Meissa V.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added

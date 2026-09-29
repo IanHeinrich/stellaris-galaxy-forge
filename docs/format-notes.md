@@ -370,6 +370,11 @@ for planets or deposits.
   - the `terra_incognita` and `visited_objects` entries of countries
     that know every system
   - `randomized=yes` on the coordinate
+- A planet or moon the editor adds to a system the save holds is written
+  the same way as an added system's bodies. The system lists it after its
+  last `planet=`, and a moon's planet lists it in `moons`. On 4.5.1 the
+  game gave each such body a construction queue at load, in an owned and
+  an unowned system alike, and the body loaded unsurveyed.
 - A nebula is a top-level `nebula={ coordinate name radius
   galactic_object=... }`. It is written as `coordinate={ x y
   origin=4294967295 randomized=yes visual_height=3.65056 }`,

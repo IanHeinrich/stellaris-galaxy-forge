@@ -22,7 +22,7 @@ pub(crate) struct Stored {
     pub(crate) body: Body,
     /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
     /// `moon_of` without the bit.
-    moon: bool,
+    pub(crate) moon: bool,
     orbit: String,
     x: String,
     y: String,
@@ -372,7 +372,7 @@ pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpErr
 
 /// Put `id` in the planet's `moons` in ascending order, writing the list before
 /// `planet_orbitals` when the planet has none.
-fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
+pub(crate) fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
         let next = successor(edit, &[keys::PLANET_ORBITALS])?;
@@ -457,7 +457,7 @@ fn successor(edit: &Edit, keys: &[&str]) -> Result<Span, OpError> {
 }
 
 /// A radius or an angle as a description names it: up to two decimals.
-fn number(v: f64) -> String {
+pub(crate) fn number(v: f64) -> String {
     let text = format!("{v:.2}");
     let text = text.trim_end_matches('0').trim_end_matches('.');
     if text == "-0" { "0" } else { text }.to_owned()

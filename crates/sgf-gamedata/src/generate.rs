@@ -359,6 +359,45 @@ pub fn for_save(
     Ok(spec)
 }
 
+/// A body for system `system` of `session`'s save, rolled from `seed` as [`roll_body`] rolls
+/// one about the system's star at the save's Resource Abundance: a moon of `parent` when given,
+/// banded by how far that planet stands from the star, else a planet banded by `radius`.
+#[allow(clippy::too_many_arguments)]
+pub fn body_for_save(
+    gd: &GameData,
+    session: &Session,
+    seed: u64,
+    system: u32,
+    parent: Option<u32>,
+    class: Option<&str>,
+    size: Option<u32>,
+    radius: f64,
+) -> Result<BodySpec, ForSaveError> {
+    let node = session
+        .system(system)
+        .ok_or(ForSaveError::NoSystem(system))?;
+    let orbit = match parent {
+        Some(parent) => standing(session, system, parent).unwrap_or(radius),
+        None => radius,
+    };
+    let roll = BodyRoll {
+        star_class: &node.star_class,
+        class,
+        size,
+        moon: parent.is_some(),
+        orbit,
+        abundance: gd.deposit_defines.abundance(session.resource_abundance()),
+    };
+    Ok(roll_body(gd, seed, &roll)?)
+}
+
+/// How far planet `id` of `system` stands from the system's centre.
+fn standing(session: &Session, system: u32, id: u32) -> Option<f64> {
+    let details = session.details().ok()?;
+    let planet = details.raw(system)?.planets.iter().find(|p| p.id == id)?;
+    planet.at.map(|(x, y)| x.hypot(y)).or(planet.orbit)
+}
+
 /// The system `system` of `session`'s save rolled again from `seed` as `pick`, keeping its
 /// name and position.
 pub fn reroll(
@@ -569,20 +608,7 @@ impl<'g> Roller<'g> {
         colonizable: Option<bool>,
         orbit: Option<f64>,
     ) -> Vec<(&'g PlanetClassDef, f64)> {
-        let star = self.star_class;
-        self.gd
-            .planet_classes
-            .drawable(colonizable)
-            .filter(|c| {
-                c.distance_from_sun
-                    .is_some_and(|band| orbit.is_none_or(|orbit| band.contains(orbit)))
-            })
-            .filter(|c| match moon {
-                true => c.moon_size.is_some() && c.can_be_moon,
-                false => c.planet_size.is_some(),
-            })
-            .map(|c| (c, c.spawn_odds * star.planet_odds(&c.key)))
-            .collect()
+        drawable(self.gd, self.star_class, moon, colonizable, orbit)
     }
 
     /// A class of the install, or one drawn alike among a planet list's; for a moon, among
@@ -637,6 +663,112 @@ impl<'g> Roller<'g> {
             .int(count.min.round() as i64, count.max.round() as i64);
         u32::try_from(drawn).unwrap_or(0)
     }
+}
+
+/// Each class a random body about a star of `star` can be drawn as, with its weight: those at
+/// `orbit` when one is given, and those `colonizable` or not when it says.
+fn drawable<'g>(
+    gd: &'g GameData,
+    star: &StarClass,
+    moon: bool,
+    colonizable: Option<bool>,
+    orbit: Option<f64>,
+) -> Vec<(&'g PlanetClassDef, f64)> {
+    gd.planet_classes
+        .drawable(colonizable)
+        .filter(|c| {
+            c.distance_from_sun
+                .is_some_and(|band| orbit.is_none_or(|orbit| band.contains(orbit)))
+        })
+        .filter(|c| can_be(c, moon))
+        .map(|c| (c, c.spawn_odds * star.planet_odds(&c.key)))
+        .collect()
+}
+
+/// Whether a random draw can give a body of `class` as a moon, or as a planet.
+fn can_be(class: &PlanetClassDef, moon: bool) -> bool {
+    match moon {
+        true => class.moon_size.is_some() && class.can_be_moon,
+        false => class.planet_size.is_some(),
+    }
+}
+
+/// The classes a body added to a save may be, as a moon or as a planet: every class a random
+/// draw can give one, by key.
+pub fn body_classes(gd: &GameData, moon: bool) -> Vec<&PlanetClassDef> {
+    gd.planet_classes
+        .drawable(None)
+        .filter(|c| can_be(c, moon))
+        .collect()
+}
+
+/// What [`roll_body`] rolls a lone body from.
+#[derive(Debug, Clone, Copy)]
+pub struct BodyRoll<'a> {
+    /// The star class of the system it joins, which weighs a drawn class.
+    pub star_class: &'a str,
+    /// Drawn at random when `None`.
+    pub class: Option<&'a str>,
+    /// Drawn from the class's range when `None`.
+    pub size: Option<u32>,
+    pub moon: bool,
+    /// How far from the star it orbits, a moon its planet's, which bands a drawn class.
+    pub orbit: f64,
+    /// The save's Resource Abundance.
+    pub abundance: f64,
+}
+
+/// One planet or moon rolled from `seed` as the game's roll gives a body of a new system: a
+/// class drawn at its orbit when none is given, or anywhere when none spawns there, a size
+/// drawn from the class's range when none is given, a planet's ring, and its deposits. Where
+/// it stands is the caller's, so its orbit and angle are 0.
+pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySpec, GenerateError> {
+    let mut rng = Rng::new(seed);
+    let class = match roll.class {
+        Some(key) => gd
+            .planet_classes
+            .get(key)
+            .ok_or_else(|| GenerateError::UnknownPlanetClass(key.to_owned()))?,
+        None => {
+            let star = gd
+                .star_classes
+                .get(roll.star_class)
+                .ok_or_else(|| GenerateError::UnknownStar(roll.star_class.to_owned()))?;
+            let banded = drawable(gd, star, roll.moon, None, Some(roll.orbit));
+            let weighted = match banded.iter().any(|(_, weight)| *weight > 0.0) {
+                true => banded,
+                false => drawable(gd, star, roll.moon, None, None),
+            };
+            rng.weighted(&weighted)
+                .copied()
+                .ok_or(GenerateError::NoPlanetClass(roll.orbit))?
+        }
+    };
+    let size = match roll.size {
+        Some(size) => size,
+        None => {
+            let range = class
+                .size(roll.moon)
+                .ok_or_else(|| GenerateError::NoSize(class.key.clone()))?;
+            let drawn = rng.int(range.min.round() as i64, range.max.round() as i64);
+            u32::try_from(drawn).unwrap_or(0)
+        }
+    };
+    let ring = !roll.moon && Rng::new(seed ^ RING_STREAM).unit() < class.chance_of_ring;
+    let rolled = RollBody {
+        class: &class.key,
+        size,
+        star: false,
+        moon: roll.moon,
+    };
+    let mut deposits = Rng::new(seed ^ DEPOSIT_STREAM);
+    Ok(BodySpec {
+        class: class.key.clone(),
+        size,
+        ring,
+        deposits: deposit_roll::roll(gd, &rolled, roll.abundance, &mut deposits, true),
+        ..BodySpec::default()
+    })
 }
 
 /// The system's own bodies as the roller walks them. The first block whose class is a star's

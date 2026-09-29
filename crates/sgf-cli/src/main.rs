@@ -340,6 +340,43 @@ fn run(cli: Cli) -> commands::Run {
                 &install.options(),
             ),
         },
+        Some(Command::AddBody {
+            sav,
+            system,
+            class,
+            size,
+            moon_of,
+            radius,
+            angle,
+            name,
+            deposits,
+            ring,
+            roll,
+            seed,
+            install,
+            out,
+        }) => {
+            let body = commands::add_body::Body {
+                system,
+                class,
+                size,
+                moon_of,
+                at: OrbitPlacement { radius, angle },
+                name,
+                deposits,
+                ring,
+            };
+            match roll.then_some(seed).flatten() {
+                Some(seed) => commands::add_body::rolled(
+                    &sav,
+                    out.path.as_deref(),
+                    body,
+                    seed,
+                    &install.options(),
+                ),
+                None => commands::add_body::given(&sav, out.path.as_deref(), body),
+            }
+        }
         Some(Command::Synth {
             systems,
             seed,
