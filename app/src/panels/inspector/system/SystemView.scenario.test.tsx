@@ -585,8 +585,10 @@ describe("a scenario system Paint a Galaxy seats", () => {
     useGalaxyStore.setState({ systems });
 
     const html = overview();
-    expect(html).toContain('<option value="reserved:alpha" selected="">Reserved Alpha</option>');
-    expect(html).toContain('<option value="reserved:omega">Reserved Omega · in use</option>');
+    expect(html).toContain(
+      '<option value="reserved:alpha" selected="">Reserved α (Alpha)</option>',
+    );
+    expect(html).toContain('<option value="reserved:omega">Reserved ω (Omega) · in use</option>');
     expect(html).toContain("Reserved Spawn: Alpha");
   });
 

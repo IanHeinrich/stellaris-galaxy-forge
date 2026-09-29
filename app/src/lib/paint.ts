@@ -67,10 +67,12 @@ export function scenarioOpenPrompt(
 /** A seat's kind without a reserved seat's name: the keys of `SEAT_KINDS`. */
 export type SeatKind = "enabled" | "preferred" | "sol" | "reserved";
 
-/** A reserved seat's name as the site shows it: `display` in text, `tag` on its map chip. */
+/** A reserved seat's name: `display` as its trait spells it, `shown` in lists, `tag` on its chip. */
 export interface ReservedName {
   /** `A` or `Alpha`, as the trait "Reserved Spawn: A" spells it. */
   display: string;
+  /** `A` or `α (Alpha)`: the chip's glyph, with a Greek letter's name after it. */
+  shown: string;
   /** `A` or `α`: one glyph. */
   tag: string;
 }
@@ -106,10 +108,13 @@ const GREEK_TAGS: Readonly<Record<string, string>> = {
 export function reservedName(name: string): ReservedName {
   const lower = name.toLowerCase();
   const display = lower.charAt(0).toUpperCase() + lower.slice(1);
-  return { display, tag: GREEK_TAGS[lower] ?? display };
+  const greek = GREEK_TAGS[lower];
+  return greek === undefined
+    ? { display, shown: display, tag: display }
+    : { display, shown: `${greek} (${display})`, tag: greek };
 }
 
-const NOT_RESERVED: ReservedName = { display: "", tag: "" };
+const NOT_RESERVED: ReservedName = { display: "", shown: "", tag: "" };
 
 /** What the app says and draws for one kind of seat; `name` is a reserved seat's. */
 interface SeatKindInfo {
@@ -159,7 +164,7 @@ export const SEAT_KINDS: Record<SeatKind, SeatKindInfo> = {
       "Weighted so the United Nations of Earth is certain to start here. No other empire can.",
   },
   reserved: {
-    label: (name) => `reserved ${name.display}`,
+    label: (name) => `reserved ${name.shown}`,
     tag: (name) => name.tag,
     description: (name) =>
       `Only an empire whose species has the "Reserved Spawn: ${name.display}" trait starts here.`,
@@ -201,7 +206,7 @@ export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
   { key: "sol", label: "Sol" },
   ...RESERVED_SEAT_NAMES.map((name) => ({
     key: `${RESERVED_PREFIX}${name}`,
-    label: `Reserved ${reservedName(name).display}`,
+    label: `Reserved ${reservedName(name).shown}`,
   })),
 ];
 
@@ -210,9 +215,9 @@ export function isReservedKey(key: string): boolean {
   return key.startsWith(RESERVED_PREFIX);
 }
 
-/** The name a reserved key names, as `seatSummary` lists it: `A` or `Alpha`. */
+/** The name a reserved key names, as `seatSummary` lists it: `A` or `α`. */
 export function reservedSeatName(key: string): string {
-  return reservedName(key.slice(RESERVED_PREFIX.length)).display;
+  return reservedName(key.slice(RESERVED_PREFIX.length)).tag;
 }
 
 /** The seats any empire may take, then the ones reserved for one: the select's two groups. */
@@ -309,7 +314,7 @@ export interface SeatSummary {
   seats: number;
   /** 1st Player seats. */
   preferred: number;
-  /** Reserved names in use as `reservedName` shows them, deduplicated, in the site's order. */
+  /** Reserved seats in use by their chip's glyph (`A`, `α`), deduplicated, in the site's order. */
   reserved: string[];
   sol: boolean;
   /** A seat of any kind carries its holder's weight. */
@@ -348,9 +353,9 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
     if (seat === "sol") sol = true;
     else if (seat === "reserved") reserved.add(name.display);
   }
-  const names = [...reserved].sort(
-    (a, b) => reservedOrder(a) - reservedOrder(b) || a.localeCompare(b),
-  );
+  const names = [...reserved]
+    .sort((a, b) => reservedOrder(a) - reservedOrder(b) || a.localeCompare(b))
+    .map((display) => reservedName(display).tag);
   const playersOwn = preferred > 0 || playerOnReserved ? 0 : 1;
   const safeAi = Math.max(0, seats - preferred - reservedSeats - playersOwn);
   return { seats, preferred, reserved: names, sol, player, safeAi };

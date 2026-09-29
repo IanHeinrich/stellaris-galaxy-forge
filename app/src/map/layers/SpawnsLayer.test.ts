@@ -212,7 +212,7 @@ describe("the spawn points layer", () => {
 
     markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
-      lines: ["Spawn point · Paint a Galaxy reserved Alpha"],
+      lines: ["Spawn point · Paint a Galaxy reserved α (Alpha)"],
     });
   });
 

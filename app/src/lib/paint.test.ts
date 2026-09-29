@@ -47,16 +47,16 @@ describe("a painted galaxy", () => {
     expect(spawnScriptLabel(script("preferred", true))).toBe("1st Player, weighted");
     expect(spawnScriptLabel(script({ reserved: "a" }))).toBe("reserved A");
     expect(spawnScriptLabel(script({ reserved: "a" }, true))).toBe("reserved A, weighted");
-    expect(spawnScriptLabel(script({ reserved: "alpha" }))).toBe("reserved Alpha");
+    expect(spawnScriptLabel(script({ reserved: "alpha" }))).toBe("reserved α (Alpha)");
     expect(spawnScriptLabel(script("sol"))).toBe("Sol");
     expect(spawnScriptLabel(script("sol", true))).toBe("Sol, weighted");
   });
 
-  it("shows a Latin reserved seat by its letter and a Greek one by its name, chipped with its symbol", () => {
-    expect(reservedName("a")).toEqual({ display: "A", tag: "A" });
-    expect(reservedName("alpha")).toEqual({ display: "Alpha", tag: "α" });
-    expect(reservedName("OMEGA")).toEqual({ display: "Omega", tag: "ω" });
-    expect(reservedName("sigma")).toEqual({ display: "Sigma", tag: "σ" });
+  it("shows a Latin reserved seat by its letter and a Greek one by its symbol and name, chipped with its symbol", () => {
+    expect(reservedName("a")).toEqual({ display: "A", shown: "A", tag: "A" });
+    expect(reservedName("alpha")).toEqual({ display: "Alpha", shown: "α (Alpha)", tag: "α" });
+    expect(reservedName("OMEGA")).toEqual({ display: "Omega", shown: "ω (Omega)", tag: "ω" });
+    expect(reservedName("sigma")).toEqual({ display: "Sigma", shown: "σ (Sigma)", tag: "σ" });
     expect(SEAT_KINDS.reserved.tag(reservedName("lambda"))).toBe("λ");
     for (const name of RESERVED_SEAT_NAMES) expect([...reservedName(name).tag]).toHaveLength(1);
   });
@@ -68,8 +68,8 @@ describe("a painted galaxy", () => {
     expect(PAINT_SPAWN_KINDS[2]).toEqual({ key: "sol", label: "Sol" });
     expect(PAINT_SPAWN_KINDS[3]).toEqual({ key: "reserved:a", label: "Reserved A" });
     expect(PAINT_SPAWN_KINDS[28]).toEqual({ key: "reserved:z", label: "Reserved Z" });
-    expect(PAINT_SPAWN_KINDS[29]).toEqual({ key: "reserved:alpha", label: "Reserved Alpha" });
-    expect(PAINT_SPAWN_KINDS[52]).toEqual({ key: "reserved:omega", label: "Reserved Omega" });
+    expect(PAINT_SPAWN_KINDS[29]).toEqual({ key: "reserved:alpha", label: "Reserved α (Alpha)" });
+    expect(PAINT_SPAWN_KINDS[52]).toEqual({ key: "reserved:omega", label: "Reserved ω (Omega)" });
     expect(RESERVED_SPAWN_KINDS.map((k) => k.key)).toEqual(
       RESERVED_SEAT_NAMES.map((name) => `reserved:${name}`),
     );
@@ -80,7 +80,7 @@ describe("a painted galaxy", () => {
     expect(scriptForKind("reserved:alpha", systemNode()).paint_a_galaxy.kind).toEqual({
       reserved: "alpha",
     });
-    expect(reservedSeatName("reserved:alpha")).toBe("Alpha");
+    expect(reservedSeatName("reserved:alpha")).toBe("α");
     expect(reservedSeatName("reserved:c")).toBe("C");
     for (const { key } of PAINT_SPAWN_KINDS) {
       expect(paintKindKey(scriptForKind(key, systemNode()))).toBe(key);
@@ -284,7 +284,7 @@ describe("the seats a galaxy's scripts add up to", () => {
     expect(seatSummary(systems)).toEqual({
       seats: 8,
       preferred: 2,
-      reserved: ["A", "C", "Beta"],
+      reserved: ["A", "C", "β"],
       sol: true,
       player: true,
       safeAi: 2,
@@ -317,7 +317,7 @@ describe("the seats a galaxy's scripts add up to", () => {
       scripted(3, { reserved: "alpha" }),
       scripted(4, { reserved: "alpha" }),
     ]);
-    expect(summary.reserved).toEqual(["Alpha"]);
+    expect(summary.reserved).toEqual(["α"]);
     expect(summary.safeAi).toBe(1);
   });
 
