@@ -8,74 +8,42 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-29
+
 ### Added
 
-- Add a wormhole pair to a save, or remove one. Select two systems,
-  right-click one and choose Link as wormhole pair or Unlink wormhole
-  pair. A system can have only one wormhole.
-- Delete a planet or moon from a save, from the system view's right-click
-  menu or from its page. A planet's moons go with it, and so does any
-  colony on it.
-- Remove a colony and keep its planet with Remove colony on the planet's
-  page. The colony's pops, buildings, defence armies and orbital ring go.
-- Stars, ring worlds and a few other bodies can't be deleted. The menu
-  and the page say why.
-- Add an anomaly to a planet or moon in a save, or remove one, from its
-  page. If you have already surveyed the planet, the anomaly is ready to
-  research. Otherwise it turns up when a science ship surveys it.
-- Add a planet or moon to a system in a save. In the system view,
-  right-click empty space and choose Add planet here, or right-click a
-  planet and choose Add moon. Pick a planet class or Random. Its size and
-  deposits are rolled by the game's rules, and it takes the next free
-  numeral or letter, such as Meissa V. This needs game data and a
-  Stellaris 4.x save that isn't Ironman.
-- Add an archaeological dig site to a save planet, or remove one, from
-  its page in the Inspector. The page shows the site's stage and clues.
-- A dig site's description shows on its planet's page and in the Add
-  dig site list.
-- Change a planet's look from its page, such as giving an ocean world
-  the Ocean Paradise look.
-- The system view draws a planet with the look you gave it.
-- Change a save planet's class from its page, such as making a barren
-  world an ocean world. The planet takes the new class's look.
-  A colony can move between the habitable classes with ordinary
-  districts, such as continental, ocean and arid. Stars, habitats and
-  ring worlds keep their class.
-- Reserved seats can be named Alpha to Omega as well as A to Z, as in
-  Paint a Galaxy.
-- In the system view, a planet's or moon's name shows icons for its
-  megastructures, dig site, anomaly and pre-FTL civilisation. Hover an
-  icon or a resource to see what it is.
-- The Open screen has a Clear button on the Recent list.
-- A save's system view shows its wormholes as the game draws them, with
-  their names. Drag a natural wormhole to move it within its system.
-  Click one to open its page, which lists where it leads and has its
-  distance and angle to edit.
+- Add planets and moons to a save's systems, or delete them. Right-click
+  in the system view to add or delete one. A new planet gets its size
+  and deposits from the game's rules. Stars and ring worlds can't be
+  deleted.
+- Change a planet's class or look from its page, such as turning a
+  barren world into an ocean world. The system view draws the new look.
+- Remove a colony and keep its planet.
+- Add or remove anomalies and archaeological dig sites on a planet's
+  page.
+- Add or remove wormhole pairs in a save by selecting two systems and
+  right-clicking. Drag a natural wormhole in the system view to move it.
+- In the system view, a planet's name shows its megastructures, dig
+  site, anomaly and pre-FTL civilisation. Wormholes show as the game
+  draws them.
+- Reserved seats can be named Alpha to Omega, as in Paint a Galaxy.
 
 ### Changed
 
-- The deposit, blocker, modifier and dig site lists show a row's
-  description under the list instead of as a hover tip.
 - Preferred seats are now 1st Player seats, to match Paint a Galaxy's
-  latest update. The mod keeps them for the first player, or the host in
-  multiplayer. Maps you already made need no changes.
-- A save converted for Paint a Galaxy weights your seat for the first
-  player only. Before, an AI placed ahead of you could take it.
-- The recent list keeps the last 10 documents. The All tab shows the
-  newest 5, with a link to the rest.
-- Saves and scenarios you have deleted drop off the recent list.
-- Saves on the Open screen and in the File menu's recent list show the
-  name you gave the save. The Saves tab shows its date underneath.
+  latest update. Maps you already made need no changes.
+- The recent list keeps your last 10 files, shows the names you gave
+  your saves and drops files you've deleted. It has a Clear button.
+- Descriptions of deposits, modifiers and dig sites show under their
+  lists instead of as hover tips.
 - Shattered worlds look broken apart in the system view.
 
 ### Fixed
 
-- Moving a planet with its System field in the system view shows the new
-  system, centred on the planet.
-- Add planet here no longer offers the arkship. Two classes the game
-  gives the same name, such as the two Nanite Worlds, show their class key.
-- A relic world added to a system gets the game's relic deposits, and an
-  ecumenopolis, hive or machine world gets none.
+- In a save converted for Paint a Galaxy, an AI placed ahead of you can
+  no longer take your seat.
+- Moving a planet with its System field shows the new system, centred on
+  the planet.
 
 ## [0.18.0] - 2026-09-28
 

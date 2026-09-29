@@ -4,10 +4,11 @@ Galaxy Forge is a desktop editor for Stellaris galaxy maps. It runs
 outside the game, on Windows, macOS and Linux, and lets you edit both
 existing save files and galaxy scenarios.
 
-You can move star systems, draw and cut hyperlanes, add new systems to an
-ongoing campaign, and inspect planets and their deposits. You can also
-turn a save into a scenario and start a new game from it with the Paint a
-Galaxy mod.
+You can move star systems, draw and cut hyperlanes, and add new systems
+to an ongoing campaign. Inside a system you can rearrange its orbits, add
+and delete planets, and edit each planet's class, deposits and colony.
+You can also turn a save into a scenario and start a new game from it
+with the Paint a Galaxy mod.
 
 - Download: [the latest release](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest)
 - How to use it: [the user guide](docs/user-guide.md)
@@ -45,14 +46,49 @@ to continue the same campaign.
   created nebulae use names from the game's own name list. Systems inside
   a nebula get its cloud and hide ships, as they do in the game's own
   nebulae. A checkbox on the nebula's page makes it turbulent or calm.
-- **Edit colours.** On a Stellaris 4.5 save, change an empire's border
-  and fill colours.
+- **Edit wormholes.** Select two systems and right-click to link them as
+  a wormhole pair, or unlink a pair.
+- **Edit empires.** Rename an empire and change its flag. On a Stellaris
+  4.5 save, also change its border and fill colours.
 - **Edit the L-Gate outcome.** See which outcome the save rolled and
   change it until a gate opens.
 
 The user guide's [Edit a save](docs/user-guide.md#edit-a-save) and
 [Add a system](docs/user-guide.md#add-a-system) list the menus and keys
 for each of these.
+
+### The system view
+
+Double-click a system, or select it and press M, to open the system
+view. It shows the star, planets, moons and asteroid belts with the art
+from your installation.
+
+- **Rearrange the system.** Drag planets, moons and companion stars to
+  new orbits. Add, move and remove asteroid belts, and give a planet a
+  ring or take it away.
+- **Add and delete planets.** Right-click empty space to add a planet, or
+  right-click a planet to add a moon or delete it. A new planet gets its
+  size and deposits from the game's rules. Stars and ring worlds can't be
+  deleted.
+- **Move planets to another system.** Cut planets, then paste them into
+  another system. A planet takes its moons and its own mining or research
+  station with it.
+- **Move wormholes.** Drag a natural wormhole to a new point in its
+  system.
+
+### Planets
+
+Every planet and moon in a save has its own page. On it you can:
+
+- Rename the planet, change its size, and change its class or look.
+- Add or remove deposits, blockers, modifiers, anomalies and dig sites.
+- Remove a colony and keep the planet.
+
+Colonised planets can be edited too. The page warns you first when the
+game will take something away for an edit, such as districts over a
+lowered cap. [System view](docs/user-guide.md#system-view) and
+[Planet pages](docs/user-guide.md#planet-moon-star-and-asteroid-pages)
+in the user guide go through each of these.
 
 ## Making a galaxy for a new game
 
@@ -138,10 +174,8 @@ list also shows how far out each body orbits.
 
 Every planet, moon, star and asteroid in a save has its own page,
 including its deposits using the game's artwork, blockers and their
-clearing costs, and its modifiers and moons. A colonised planet's page
-also summarises the colony. Add or remove deposits and blockers on any
-planet. On a colony, the page warns you first when the game will take
-something away for the change, such as districts over a lowered cap.
+clearing costs, its modifiers and moons, and any anomaly or dig site. A
+colonised planet's page also summarises the colony.
 
 In a scenario, the inspector shows what a system will spawn before you
 start the game. The Scripts tab shows the initializer and the events and
@@ -161,7 +195,8 @@ every save you open.
 
 Zoom in and the map shows each system's planets, stations and resources,
 using the art and names from your own installation. The Layers menu lets
-you show and hide map layers, and the main ones have a number key.
+you show and hide map layers, such as where each precursor's anomalies
+can turn up. The main layers have a number key.
 [Get around the map](docs/user-guide.md#get-around-the-map) lists the
 keys.
 
@@ -177,16 +212,20 @@ keys.
 | Stars: type and size | editable | from the initializer |
 | Which initializer a system uses | shown | editable |
 | The initializer itself (its star, planets, resources) | shown | shown, never written: initializers belong to the game and mod files |
-| Planets and moons | shown, each on its own page | shown, from the initializer |
-| Deposits | editable on any planet, colonies included, and rolled for the systems you add | shown, from the initializer |
-| Colonies | shown, with their pops | shown, from the initializer |
+| System layout: orbits, belts, rings | editable in the system view | from the initializer |
+| Planets and moons: add, delete, move, rename, resize, class, look | editable | shown, from the initializer |
+| Deposits, blockers, modifiers | editable on any planet, colonies included, and rolled for the systems and planets you add | shown, from the initializer |
+| Anomalies, dig sites | editable | not in the file |
+| Colonies | shown, with their pops; a colony can be removed | shown, from the initializer |
 | Nebulae: add, move, resize, rename, remove | editable | editable |
 | Turbulent nebulae | editable | not in the file |
+| Empire names and flags | editable | not in the file |
 | Empire border and fill colours | editable on 4.5 saves | not in the file |
 | L-Gate outcome | editable | not in the file |
 | Spawn points, weights, seat kinds | not in the file | editable |
 | Marauder clans | shown | editable |
-| Fallen empire zones, wormhole pairs | fallen empires and wormholes shown | editable on a map for Paint a Galaxy |
+| Wormhole pairs | editable, and natural wormholes can be moved | editable on a map for Paint a Galaxy |
+| Fallen empire zones | fallen empires shown | editable on a map for Paint a Galaxy |
 | Prevented lanes, header keys, new-game counts | not in the file | editable |
 | Fleets, starbases, waystations | shown | not in the file |
 | Empires and territories | shown | shown, from scripts, best guess |
@@ -219,17 +258,18 @@ restore the original.
 
 ## Limits
 
-Galaxy Forge is still in beta. At the moment, only the galaxy map can be
-edited. Empires, colonies and fleets are shown when they exist in the
-file, but cannot be changed.
+Galaxy Forge is still in beta. It edits the galaxy map, the systems and
+planets in it, and empires' names, flags and colours. Fleets, pops,
+leaders and techs can't be changed.
 
-Galaxy Forge works with Stellaris 4.x saves. I've tested the edits
-in-game on 4.4.6 and 4.5.0 with all DLC and no mods. Hyperlane editing
-also works on saves from 3.4 through 3.9. Adding new systems requires a
-4.x save and has been tested in-game on 4.5.0.
+Galaxy Forge works with Stellaris 4.x saves. I test with all DLC and no
+mods. I've tested the galaxy map edits in-game on 4.4.6 and 4.5, and the
+system view, planet, empire and wormhole edits on 4.5 only. Hyperlane
+editing also works on saves from 3.4 through 3.9. Adding systems and
+planets needs a 4.x save.
 
-Ironman saves are not supported. Adding systems is disabled for them, and
-I haven't tested the other edits on Ironman saves.
+Ironman saves are not supported. Adding systems and planets is disabled
+for them, and I haven't tested the other edits on Ironman saves.
 
 If Stellaris uses Steam Cloud, Steam may restore the cloud copy over an
 edited save. Close Steam or disable Steam Cloud for Stellaris before
@@ -260,12 +300,12 @@ Moving systems and editing hyperlanes and nebulae only touch the galaxy
 sections of the save (`galactic_object`, `hyperlane`, `nebula`) and its
 brace structure. Those have not changed across Stellaris versions, so I
 don't expect an update to break those edits. Adding systems and editing
-stars, planets and empire colours go deeper into the save, so they are
-the edits most likely to need a fix after an update. The parts drawn from
-your installation can break too: star and planet art, localised names,
-special-system detection and script reading. If they do, the map falls
-back to plain stars and generated names. Anything Galaxy Forge does not
-understand is still copied through as it was.
+stars, planets, colonies, empires and wormholes go deeper into the save,
+so they are the edits most likely to need a fix after an update. The parts
+drawn from your installation can break too: star and planet art, localised
+names, special-system detection and script reading. If they do, the map
+falls back to plain stars and generated names. Anything Galaxy Forge does
+not understand is still copied through as it was.
 
 ## Scope
 

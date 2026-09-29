@@ -2,9 +2,9 @@
 
 Galaxy Forge is a desktop editor for Stellaris galaxy maps. It runs outside the game and lets you edit both existing save files and galaxy scenarios.
 
-You can move star systems, draw and cut hyperlanes, add new systems to an ongoing campaign, and inspect planets and their deposits. You can also turn a save into a scenario and start a new game from it with the Paint a Galaxy mod.
+You can move star systems, draw and cut hyperlanes, and add new systems to an ongoing campaign. Inside a system you can rearrange its orbits, add and delete planets, and edit each planet's class, deposits and colony. You can also turn a save into a scenario and start a new game from it with the Paint a Galaxy mod.
 
-[b]Important:[/b] subscribing to this Workshop page does not install the editor. It contains no mod files; it exists so people can find Galaxy Forge here.
+[b]Important:[/b] subscribing does not install the editor. This page has no mod files. It's here so people can find Galaxy Forge.
 
 [b]Download:[/b] [url=https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest]GitHub releases[/url]
 Builds for Windows, macOS, and Linux. The Windows installer is signed, but because the certificate is new, SmartScreen may still show a warning. Click More info, then Run anyway. The macOS build is not signed.
@@ -16,21 +16,30 @@ Open a .sav file, make your changes, save it, and load it in Stellaris to contin
 [list]
 [*][b]Move systems:[/b] Drag a star system to a new location. Its hyperlanes move with it and their lengths are updated.
 [*][b]Edit hyperlanes:[/b] Draw new lanes, cut existing ones, or disconnect a system completely. The Connect and Cut brushes let you work in broad strokes. Join reconnects separate parts of the galaxy.
-[*][b]Add systems:[/b] Right-click empty space to add a new star system. Galaxy Forge generates it from your Stellaris installation's own rules, with its star, planets, moons, asteroid belts, and deposits. You can reroll it, choose its star, or rename it.
-[*][b]Add special systems:[/b] The Special entry adds unique systems such as Zevox and special systems such as Trappist.
-[*][b]Delete systems:[/b] Remove systems you added, one at a time or as a selection. The save's original systems cannot be deleted.
+[*][b]Add systems:[/b] Right-click empty space to add a new star system, generated from your installation's own rules. The Special entry adds unique systems such as Zevox. Systems you added can be deleted again.
 [*][b]Change stars:[/b] Change a star's type or size, or apply a star class to a selection of systems.
-[*][b]Edit nebulae:[/b] Add, move, resize, and rename nebulae. Newly created nebulae use names from the game's own name list.
-[*][b]Edit colours:[/b] On a Stellaris 4.5 save, change an empire's border and fill colours.
-[*][b]Edit the L-Gate outcome:[/b] See which outcome the save rolled and change it until a gate opens. It stays hidden until you click Reveal.
+[*][b]Edit nebulae:[/b] Add, move, resize, and rename nebulae.
+[*][b]Edit wormholes:[/b] Link two systems as a wormhole pair, or unlink a pair.
+[*][b]Edit empires:[/b] Rename an empire and change its flag. On a 4.5 save, also change its border and fill colours.
+[*][b]Edit the L-Gate outcome:[/b] See which outcome the save rolled and change it until a gate opens.
 [/list]
 
 [img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/workshop/images/save-editing.gif[/img]
 
+[h2]The system view and planets[/h2]
+Double-click a system to open the system view, with the star, planets, moons and asteroid belts in the game's own art.
+[list]
+[*]Drag planets, moons and belts to new orbits, and give a planet a ring or take it away.
+[*]Add planets and moons, or delete them. A new planet gets its size and deposits from the game's rules.
+[*]Cut planets and paste them into another system. They take their moons and stations with them.
+[*]Drag a natural wormhole to move it.
+[/list]
+Every planet and moon has its own page. Rename it, change its size, class or look, and add or remove deposits, blockers, modifiers, anomalies and dig sites. You can also remove a colony and keep the planet. The page warns you first when the game will take something away for an edit.
+
 [h2]Making a galaxy for a new game[/h2]
 A scenario is a galaxy map that a new game starts from instead of generating a random galaxy.
 
-Galaxy Forge can create a scenario from a blank map or from an existing save. When you open a save as a scenario, its layout, names, and fallen empires are preserved, while the original save remains unchanged.
+Galaxy Forge can create a scenario from a blank map or from an existing save, keeping its layout, names, and fallen empires. The original save is left unchanged.
 
 Systems, hyperlanes, and nebulae work the same way as in a save. Scenarios also let you:
 [list]
@@ -53,7 +62,7 @@ With symmetry on, every system, hyperlane, and brush stroke is mirrored around t
 [h2]Playing your scenario[/h2]
 To play your map you need the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115]Paint a Galaxy[/url] mod, plus the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682]Reserved Spawns[/url] submod if your map reserves seats.
 
-Stellaris has some limitations with hand-made galaxies: empires can start on the wrong homeworlds, and marauders and fallen empires may fail to appear. Oatmeal Problem's Paint a Galaxy fixes these issues, and Galaxy Forge scenarios are built around it. Scenarios are written in the mod's format unless you disable that option.
+Stellaris has some limitations with hand-made galaxies, such as empires starting on the wrong homeworlds. Oatmeal Problem's Paint a Galaxy fixes these, and Galaxy Forge scenarios are built around it.
 
 When your map is ready:
 [olist]
@@ -68,35 +77,30 @@ You do not need Paint a Galaxy to edit a save file.
 [h2]What you can see[/h2]
 Select a system to see its position, hyperlanes and their in-game lengths, bypasses, planets, fleets, flags, and initializer.
 
-Every planet, moon, star, and asteroid has its own page with its deposits in the game's artwork, blockers and their clearing costs, and modifiers.
-
 Press F to search for systems by name or by what they contain, such as "gaia" or "leviathan". Pin a search and its results stay highlighted on every save you open. The Layers menu shows and hides map layers.
 
-In a scenario, the Scripts tab shows the initializer and the events and effects that affect a system, along with the file and line each comes from. This list is a best guess.
+In a scenario, the Scripts tab shows the events and effects that affect a system, with the file and line of each. It is a best guess.
 
 [img]https://raw.githubusercontent.com/IanHeinrich/stellaris-galaxy-forge/main/workshop/images/inspectors.png[/img]
 
 [h2]Keeping your save safe[/h2]
 Galaxy Forge edits save files at the byte level, so only the parts you change are rewritten. Everything else, including data from mods or newer game versions, is copied as it was.
 [list]
-[*]Each save keeps a timestamped backup of the previous file, up to eight per file.
-[*]The first backup is the file you originally opened.
+[*]Each save keeps a timestamped backup of the previous file, up to eight per file. The first is the file you opened.
 [*]If Stellaris saves over the file while it is open in Galaxy Forge, the editor asks before overwriting it.
 [*]Every edit can be undone, and the Changes tab keeps track of them.
 [*]The Issues tab checks for problems before you save, such as a hyperlane that exists at only one end.
 [/list]
 
 [h2]Mods[/h2]
-Galaxy Forge reads game definitions, names, and artwork from your Stellaris installation and enabled mods. Nothing from the game is bundled.
-
-Modded systems appear with their own names and artwork, and new systems are generated from the same files. Anything a mod puts in a save that Galaxy Forge does not understand is left untouched.
+Galaxy Forge reads definitions, names, and artwork from your installation and enabled mods, so modded systems show with their own art and new systems can use modded content too. Nothing from the game is bundled.
 
 [h2]Limits[/h2]
-Galaxy Forge is still in beta. Only the galaxy map can be edited. Empires, colonies, and fleets are shown but cannot be changed.
+Galaxy Forge is still in beta. Fleets, pops, leaders and techs can't be changed.
 
-Galaxy Forge works with Stellaris 4.x saves, tested in-game on 4.4.6 and 4.5.0 with all DLC. Hyperlane editing also works on saves from 3.4 through 3.9. Adding systems requires a 4.x save and has been tested on 4.5.0.
+Galaxy Forge works with Stellaris 4.x saves, tested in-game with all DLC. The galaxy map edits are tested on 4.4.6 and 4.5, the system view, planet, empire and wormhole edits on 4.5 only. Hyperlane editing also works on saves from 3.4 through 3.9.
 
-Ironman saves are not supported. Adding systems is disabled for them, and the other edits have not been tested on Ironman.
+Ironman saves are not supported. Adding systems and planets is disabled for them, and I haven't tested the other edits on Ironman.
 
 Steam Cloud can restore the original save over your edited copy. Close Steam or disable Steam Cloud for Stellaris before playing an edited save.
 
