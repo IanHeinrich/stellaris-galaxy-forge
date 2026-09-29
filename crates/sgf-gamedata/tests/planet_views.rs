@@ -458,3 +458,51 @@ fn real_modifier_choices_offer_features_candidates_and_planet_modifiers() {
     }
     assert!((600..1200).contains(&choices.len()), "{}", choices.len());
 }
+
+#[test]
+fn real_planet_models_offer_the_looks_the_install_gives_planets() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let models = gd.planet_model_choices();
+    let find = |entity: &str| {
+        models
+            .iter()
+            .find(|m| m.entity == entity)
+            .unwrap_or_else(|| panic!("{entity} is offered"))
+    };
+    let paradise = find("ocean_paradise_planet_01_entity");
+    assert_eq!(paradise.label, "Ocean Paradise");
+    assert_eq!(paradise.classes, ["pc_ocean"]);
+    let earth = find("desert_planet_earth_entity");
+    assert!(earth.label.starts_with("Earth ("), "{}", earth.label);
+    assert_eq!(earth.classes, ["pc_desert"]);
+    assert_eq!(
+        find("previously_terraformed_planet_entity").classes,
+        ["pc_continental"]
+    );
+    assert_eq!(find("gas_giant_02_entity").label, "Gas Giant 2");
+    for left_out in [
+        "m_star_class_star_entity",
+        "infernal_system_crisis_star_entity",
+        "pc_molten",
+        "habitat_phase_03_entity",
+        "ringworld_habitable_entity_01_entity",
+        "invisible_turret_entity",
+    ] {
+        assert!(
+            !models.iter().any(|m| m.entity == left_out),
+            "{left_out} is not offered"
+        );
+    }
+    assert!(
+        models.iter().all(|m| m
+            .entity
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_')),
+        "every model is named outright"
+    );
+    let labels: std::collections::HashSet<&str> = models.iter().map(|m| m.label.as_str()).collect();
+    assert_eq!(labels.len(), models.len(), "each label once");
+    assert!((30..120).contains(&models.len()), "{}", models.len());
+}

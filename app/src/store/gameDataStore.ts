@@ -12,6 +12,7 @@ import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
+import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
 import type { PrecursorView } from "../generated/PrecursorView";
 import type { Progress } from "../generated/Progress";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
@@ -90,6 +91,9 @@ export interface GameDataState {
   /** Every galaxy shape a scenario can list itself under, read on first use; `null` until then. */
   galaxyShapes: GalaxyShapeView[] | null;
   galaxyShapesPending: boolean;
+  /** Every model a planet's page offers, read on first use; `null` until then. */
+  planetModels: PlanetModelChoice[] | null;
+  planetModelsPending: boolean;
   autoLoad: AutoLoad;
   startup: Startup;
   /** The load `start` kicked off, the one the start screen covers. */
@@ -126,6 +130,8 @@ export interface GameDataState {
   loadInitializers(): Promise<void>;
   /** Reads the galaxy shapes once per loaded game data; a no-op without it. */
   loadGalaxyShapes(): Promise<void>;
+  /** Reads the planet models once per loaded game data; a no-op without it. */
+  loadPlanetModels(): Promise<void>;
   /** Re-classifies the open save's systems; a no-op without an open save, or once `alive` says no. */
   refreshSpecial(alive?: () => boolean): Promise<void>;
   /** Re-reads the scenario's scripted ownership and bypasses; a no-op without a document. */
@@ -168,6 +174,8 @@ const UNLOADED = {
   initializersPending: false,
   galaxyShapes: null as GalaxyShapeView[] | null,
   galaxyShapesPending: false,
+  planetModels: null as PlanetModelChoice[] | null,
+  planetModelsPending: false,
   scenarioOwners: null as ScenarioOwners | null,
   scenarioOwnersPending: false,
   scenarioBypasses: null as ScenarioBypasses | null,
@@ -190,6 +198,8 @@ const FRESH_DATA = {
   initializersPending: false,
   galaxyShapes: null,
   galaxyShapesPending: false,
+  planetModels: null,
+  planetModelsPending: false,
 };
 
 /**
@@ -357,6 +367,19 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       if (get().status === "ready") set({ galaxyShapes });
     } catch (e) {
       set({ error: ipc.errorMessage(e), galaxyShapesPending: false });
+    }
+  },
+
+  async loadPlanetModels() {
+    if (get().status !== "ready" || get().planetModels !== null || get().planetModelsPending)
+      return;
+    set({ planetModelsPending: true });
+    try {
+      const planetModels = await ipc.getPlanetModels();
+      set({ planetModelsPending: false });
+      if (get().status === "ready") set({ planetModels });
+    } catch (e) {
+      set({ error: ipc.errorMessage(e), planetModelsPending: false });
     }
   },
 

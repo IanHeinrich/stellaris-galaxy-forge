@@ -13,6 +13,7 @@ expression: value
   "label": "SPEC_Nagyari_planet",
   "class": "pc_alpine",
   "size": 21,
+  "entity_name": null,
   "orbit": 95.0,
   "system": 463,
   "parent": 15,

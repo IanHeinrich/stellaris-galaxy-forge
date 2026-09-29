@@ -18,6 +18,10 @@ export type PlanetPage = { id: number, name: NameTemplate, name_key: string,
  */
 label: string, class: string, size: number | null, 
 /**
+ * `entity_name`: the model drawn in place of its class's own.
+ */
+entity_name: string | null, 
+/**
  * `orbit`: the radius around the body it orbits.
  */
 orbit: number | null, 

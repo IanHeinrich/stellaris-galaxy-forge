@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `dig-site`,
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`, `dig-site`,
 //! `rename-planet` and `rename-empire`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
@@ -425,6 +425,44 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
         stdout(&timed).contains("Add modifier terraforming_candidate to planet #585 for 360 days"),
         "{}",
         stdout(&timed)
+    );
+}
+
+#[test]
+fn model_writes_a_planet_model_a_later_run_clears() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("model.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "model",
+        SAMPLE_4_5,
+        "585",
+        "ocean_paradise_planet_01_entity",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Gave planet #585 the model ocean_paradise_planet_01_entity"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let cleared = sgf(&[
+        "model",
+        out_str,
+        "585",
+        "--clear",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&cleared);
+    assert!(
+        stdout(&cleared).contains("Took the model ocean_paradise_planet_01_entity off planet #585"),
+        "{}",
+        stdout(&cleared)
     );
 }
 

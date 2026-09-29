@@ -156,6 +156,11 @@ too.
   planet take its new name too.
 - Change a planet's or moon's size in its Size field. On a colony, the
   game demolishes districts over a lowered cap within a month.
+- In a Stellaris 4.x save, change a planet's or moon's look in its Model
+  field, such as the Ocean Paradise, Earth or Previously Terraformed
+  look. The looks the game uses on the planet's class come first.
+  Default puts back its class's look. A class change in game, such as
+  terraforming, also puts it back.
 - In a Stellaris 4.x save, the Modifiers section lists a planet's
   features and timed modifiers. Remove one with the ✕ on its row. Add
   modifier, under the list, lists the modifiers that act on a planet,

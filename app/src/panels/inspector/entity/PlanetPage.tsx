@@ -50,6 +50,7 @@ import { OrbitBlock } from "./OrbitBlock";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
+import { PlanetModelField } from "./PlanetModelField";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useSingleStarClasses } from "./useBodyClasses";
@@ -91,6 +92,8 @@ interface PlanetFields {
   name: string | null;
   /** The body's size, and the Size field's hover text on a colony. */
   size: { value: number | null; title?: string } | null;
+  /** Its class and the model it has in place of the class's own. */
+  model: { planetClass: string; current: string | null } | null;
   /** Whether it has a ring. */
   ring: boolean | null;
   /** The system it moves from. */
@@ -105,7 +108,7 @@ function hasFields(fields: PlanetFields): boolean {
 /** Planet `id`'s fields. */
 function PlanetBlock({
   id,
-  fields: { name, size, ring, system },
+  fields: { name, size, model, ring, system },
 }: {
   id: number;
   fields: PlanetFields;
@@ -131,6 +134,9 @@ function PlanetBlock({
         <EditRow label="Size">
           <SizeField id={id} size={size.value} title={size.title} />
         </EditRow>
+      )}
+      {model !== null && (
+        <PlanetModelField id={id} planetClass={model.planetClass} current={model.current} />
       )}
       {ring !== null && (
         <ToggleField
@@ -428,6 +434,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
     size: resizable
       ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
       : null,
+    model: modifiersEditable ? { planetClass: page.class, current: page.entity_name } : null,
     ring,
     system: moveFrom,
   };

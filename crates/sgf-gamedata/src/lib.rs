@@ -21,6 +21,7 @@ pub mod menu;
 pub mod modifier_choices;
 pub mod naming;
 pub(crate) mod orbit_walk;
+pub mod planet_models;
 pub mod planet_views;
 pub mod registries;
 pub mod reload;

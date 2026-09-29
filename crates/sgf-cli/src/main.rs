@@ -252,6 +252,17 @@ fn run(cli: Cli) -> commands::Run {
                 custom_name: None,
             },
         ),
+        Some(Command::Model {
+            sav,
+            planet,
+            entity,
+            clear: _,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::SetPlanetEntity { planet, entity },
+        ),
         Some(Command::Modifier {
             sav,
             planet,

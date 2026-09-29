@@ -55,6 +55,7 @@ import { ComboField } from "../../ComboField";
 import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
+import { MODEL_TITLE } from "../../../lib/details/planetModel";
 
 bindStores();
 
@@ -1103,6 +1104,77 @@ describe("a body's ring", () => {
     await bodyPage(PLANET, { class: "pc_continental" });
 
     expect(render(PLANET)).not.toMatch(RING);
+  });
+});
+
+describe("a planet's model", () => {
+  const MODELS = [
+    { entity: "ocean_paradise_planet_01_entity", label: "Ocean Paradise", classes: ["pc_ocean"] },
+    { entity: "arctic_planet_earth_entity", label: "Earth", classes: ["pc_arctic"] },
+  ];
+  const MODEL = '<span class="edit-label">Model</span>';
+
+  async function arm(over: Partial<PlanetPage> = {}): Promise<void> {
+    await open("save");
+    useGameDataStore.setState({
+      planetModels: MODELS,
+      names: new Map([["pc_arctic", "Arctic World"]]),
+    });
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic", ...over }));
+  }
+
+  it("offers Default, then the class's usual models, then the others, and a pick sends it", async () => {
+    await arm();
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain(MODEL);
+    expect(html).toContain(escapedText(MODEL_TITLE));
+    const field = drawnField(PickerField, "Model");
+    expect(field.current.label).toBe("Default");
+    expect(field.items.map((item) => [item.label, item.group])).toEqual([
+      ["Default", undefined],
+      ["Earth", "Usual for Arctic World"],
+      ["Ocean Paradise", "Other models"],
+    ]);
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    field.onPick("ocean_paradise_planet_01_entity");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetEntity",
+        planet: WORLD,
+        entity: "ocean_paradise_planet_01_entity",
+      }),
+    );
+  });
+
+  it("shows the model a planet has, and Default takes it off", async () => {
+    await arm({ entity_name: "ocean_paradise_planet_01_entity" });
+    drawnBy(() => render(WORLD));
+    const field = drawnField(PickerField, "Model");
+    expect(field.current.label).toBe("Ocean Paradise");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    field.onPick("");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetEntity",
+        planet: WORLD,
+        entity: null,
+      }),
+    );
+  });
+
+  it("offers no model to a star or on a scenario", async () => {
+    armStarClasses();
+    await open("save");
+    await land(stars());
+    await landPage(planetPage({ id: STAR, class: "pc_a_star", size: 30 }));
+    expect(render(STAR)).toContain("Star type");
+    expect(render(STAR)).not.toContain(MODEL);
+
+    await open("scenario");
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic" }));
+    expect(render(WORLD)).not.toContain(MODEL);
   });
 });
 

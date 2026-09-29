@@ -22,6 +22,7 @@ expression: value
   "label": "STAR_NAME_1_OF_1",
   "class": "pc_g_star",
   "size": 28,
+  "entity_name": null,
   "orbit": 0.0,
   "system": 396,
   "parent": null,

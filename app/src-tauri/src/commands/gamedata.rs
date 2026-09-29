@@ -9,6 +9,7 @@ use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::deposit_choices::{AskedBody, DepositChoice, deposit_choices};
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
 use sgf_gamedata::modifier_choices::ModifierChoice;
+use sgf_gamedata::planet_models::PlanetModelChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
@@ -247,6 +248,15 @@ pub fn get_dig_site_choices(game_data: State<'_, GameDataState>) -> Vec<DigSiteC
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.dig_site_choices())
+}
+
+/// Every model a planet's page offers, with the classes each is used on; empty without game
+/// data.
+#[tauri::command(async)]
+pub fn get_planet_models(game_data: State<'_, GameDataState>) -> Vec<PlanetModelChoice> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.planet_model_choices())
 }
 
 /// Each planet (`pm_*`) or timed modifier the install defines; empty without game data.

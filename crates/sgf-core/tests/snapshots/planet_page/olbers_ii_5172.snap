@@ -30,6 +30,7 @@ expression: value
   "label": "PLANET_NAME_FORMAT",
   "class": "pc_arctic",
   "size": 18,
+  "entity_name": null,
   "orbit": 85.0,
   "system": 466,
   "parent": 5169,

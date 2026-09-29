@@ -167,6 +167,7 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
             .colony
             .map(|colony| colony_page(doc, colony, &facts.colonize_date)),
         orbit: read::scalar(node, keys::ORBIT, src).and_then(|o| o.parse().ok()),
+        entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
         planet_modifiers: node
             .find_all(keys::PLANET_MODIFIER, src)
             .filter_map(|m| Some(m.scalar_str(src)?.to_owned()))

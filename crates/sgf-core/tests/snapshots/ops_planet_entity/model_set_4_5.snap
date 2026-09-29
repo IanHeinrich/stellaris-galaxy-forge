@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Gave planet #585 the model ocean_paradise_planet_01_entity
+inverse: SetPlanetEntity { planet: 585, entity: None }
+
+--- gamestate
++++ gamestate
+@@ -110115,6 +110115,7 @@
+ 			}
+ 			bombardment_damage=0
+ 			entity=2
++			entity_name="ocean_paradise_planet_01_entity"
+ 		}
+ 		586=
+ 		{

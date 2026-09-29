@@ -30,6 +30,7 @@ expression: value
   "label": "PLANET_NAME_FORMAT",
   "class": "pc_tropical",
   "size": 16,
+  "entity_name": null,
   "orbit": 60.0,
   "system": 396,
   "parent": 730,

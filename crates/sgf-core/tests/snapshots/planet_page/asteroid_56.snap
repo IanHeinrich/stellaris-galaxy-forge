@@ -30,6 +30,7 @@ expression: value
   "label": "ASTEROID_NAME_FORMAT",
   "class": "pc_asteroid",
   "size": 5,
+  "entity_name": null,
   "orbit": 85.0,
   "system": 189,
   "parent": 52,
