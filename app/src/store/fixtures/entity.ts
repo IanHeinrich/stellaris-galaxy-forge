@@ -24,6 +24,7 @@ const ENTITY_IDS: Record<EntityKind, number> = {
   pop_group: 640,
   sector: 3,
   deposit: 900,
+  wormhole: 2,
 };
 
 export function entityAddrOf(kind: EntityKind): EntityAddr {

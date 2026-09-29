@@ -3,7 +3,7 @@ import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/det
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
-import { bodyEntry, useInspectorStore } from "../../store/inspectorStore";
+import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { planetsCanMove, usePlanetMoveStore } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
@@ -154,6 +154,7 @@ export class SystemInteraction {
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
       openBody: (system, id) => this.openBody(system, id),
+      openWormhole: (system, id) => this.openWormhole(system, id),
       showSystem: () => {
         usePlanetMoveStore.getState().clearBodies();
         useInspectorStore.getState().popTo(0);
@@ -288,6 +289,14 @@ export class SystemInteraction {
     } else {
       this.selectAlone(system, id);
     }
+  }
+
+  /** A click on a wormhole selects it alone and opens its page. */
+  private openWormhole(system: number, id: number): void {
+    const hole = this.scene.context().wormholes.find((w) => w.id === id);
+    if (!hole) return;
+    usePlanetMoveStore.getState().clearBodies();
+    useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
   }
 
   private selectAlone(system: number, id: number): void {

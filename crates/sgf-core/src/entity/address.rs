@@ -35,6 +35,7 @@ pub(crate) const fn address(kind: EntityKind) -> Address {
         EntityKind::PopGroup => (keys::POP_GROUPS, None),
         EntityKind::Sector => (keys::SECTORS, None),
         EntityKind::Deposit => (keys::DEPOSIT, None),
+        EntityKind::Wormhole => (keys::NATURAL_WORMHOLES, None),
     };
     Address { section, inner }
 }

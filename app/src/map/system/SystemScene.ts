@@ -12,7 +12,13 @@ import type { Scene } from "../Scene";
 import { bindSystemScene, type SceneView } from "./bindings";
 import type { DragStep, HandleRef } from "./bodyDrag";
 import { fitScale, zoomLimits } from "./camera";
-import { EMPTY_SYSTEM_CONTEXT, selectedBody, systemContext, type SystemContext } from "./context";
+import {
+  EMPTY_SYSTEM_CONTEXT,
+  selectedBody,
+  selectedWormhole,
+  systemContext,
+  type SystemContext,
+} from "./context";
 import { readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
@@ -62,7 +68,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   /** The scene store's count of systems entered, as it stood when this system was shown. */
   private visit: number | null = null;
   private shown = false;
-  /** The page on top of the inspector's stack, whose body is ringed when it is one of this system's. */
+  /** The page on top of the inspector's stack, whose body or wormhole is ringed when it is this system's. */
   private inspected: EntityRef | null = null;
   private appliedRev = -1;
   private fitPending = false;
@@ -240,7 +246,10 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
 
   selectBody(top: EntityRef | null): void {
     this.inspected = top;
-    this.setHighlight({ selectedBody: selectedBody(this.ctx, top) });
+    this.setHighlight({
+      selectedBody: selectedBody(this.ctx, top),
+      selectedWormhole: selectedWormhole(this.ctx, top),
+    });
   }
 
   hover(

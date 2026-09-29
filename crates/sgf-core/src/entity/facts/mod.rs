@@ -11,6 +11,7 @@ pub(crate) mod megastructure;
 pub(crate) mod planet;
 pub(crate) mod starbase;
 pub(crate) mod system;
+pub(crate) mod wormhole;
 
 use crate::NULL_ID;
 use crate::cst::{self, Node};
@@ -81,6 +82,18 @@ impl Sheet {
         });
     }
 
+    /// A row naming another entity, found through another entity's bytes, so it carries
+    /// no path of its own.
+    fn borrowed_reference(&mut self, label: &str, kind: EntityKind, id: u32) {
+        self.overview.push(Fact {
+            label: label.to_owned(),
+            value: id.to_string(),
+            icon: None,
+            link: Some(EntityAddr::new(kind, id)),
+            path: None,
+        });
+    }
+
     /// A Contents row for child entities a repeated key names (`planet=` appears once per
     /// body), which is no single node of this entity and so carries no path to badge.
     fn entities(&mut self, label: &str, count: u32, of: EntityKind) {
@@ -124,6 +137,7 @@ pub(crate) fn sheet(doc: &Document, addr: EntityAddr, node: &Node, src: &[u8]) -
         EntityKind::Fleet => fleet::sheet(&fleet::read(node, src)),
         EntityKind::Starbase => starbase::sheet(&starbase::read(node, src), doc),
         EntityKind::Megastructure => megastructure::sheet(&megastructure::read(node, src)),
+        EntityKind::Wormhole => wormhole::sheet(&wormhole::read(doc, node, src)),
         _ => Sheet::default(),
     }
 }

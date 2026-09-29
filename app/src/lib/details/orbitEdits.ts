@@ -158,6 +158,25 @@ export function isNaturalWormhole(wormhole: WormholeSummary): boolean {
   return wormhole.kind === "wormhole";
 }
 
+/** Where `wormhole` stands about the star, as its page's Distance and Angle fields show it. */
+export function wormholePlace(wormhole: WormholeSummary): { radius: number; angle: number } {
+  const { x, y } = wormhole;
+  return { radius: Math.hypot(x, y), angle: saveAngle(0, 0, x, y) };
+}
+
+/** The move typing `typed` into a wormhole's Distance or Angle field asks for. */
+export function wormholeFieldIntent(
+  system: number,
+  wormhole: WormholeSummary,
+  field: "radius" | "angle",
+  typed: number,
+): GeometryIntent {
+  const place = wormholePlace(wormhole);
+  const to =
+    field === "angle" ? { ...place, angle: wrapDegrees(typed) } : { ...place, radius: typed };
+  return { kind: "moveWormhole", system, wormhole: wormhole.id, ...to };
+}
+
 /** What the status bar says while a body is held over `host`, which it would orbit. */
 export function toMoonHint(host: string): string {
   return `release to make it a moon of ${host}`;

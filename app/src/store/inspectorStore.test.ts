@@ -13,6 +13,7 @@ import {
   renumberedRef,
   tabsFor,
   useInspectorStore,
+  wormholeEntry,
   type Entry,
 } from "./inspectorStore";
 import { openSystem } from "./commands";
@@ -298,6 +299,24 @@ describe("opening a system's page", () => {
     openSystem(12);
     expect(useEditorStore.getState().focus?.id).toBe(12);
     await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([12]));
+  });
+});
+
+describe("a wormhole opened from the system view", () => {
+  it("stands above the system's page on Overview, Data and Source, and Esc takes it off", () => {
+    useLayoutStore.setState({ tab: "inspector", collapsed: false });
+    inspector().setRoot(SOL);
+    inspector().openFromMap(EARTH);
+    const hole = wormholeEntry(452, 30, "Sol Wormhole");
+
+    inspector().openFromMap(hole);
+    expect(labels()).toEqual(["Sol", "Sol Wormhole"]);
+    expect(entityAddr(hole.ref)).toEqual({ kind: "wormhole", id: 30 });
+    expect(tabsFor(hole.ref)).toEqual(["overview", "data", "source"]);
+    expect(refKey(hole.ref)).toBe("wormhole:30");
+
+    expect(inspector().escape()).toBe(true);
+    expect(labels()).toEqual(["Sol"]);
   });
 });
 

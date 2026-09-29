@@ -1,13 +1,14 @@
 import type { Container, Graphics } from "pixi.js";
 import { describe, expect, it } from "vitest";
-import { MATCHED_COLOR } from "../../../lib/visual/style";
-import { systemContext } from "../context";
+import { ACCENT_COLOR, MATCHED_COLOR } from "../../../lib/visual/style";
+import { selectedWormhole, systemContext } from "../context";
 import {
   EARTH,
   LUNA,
   MARS,
   SCENARIO_STAR,
   SUN,
+  SYSTEM,
   context,
   drawOps,
   fixed,
@@ -16,9 +17,12 @@ import {
   strokes,
   stubTextMeasurement,
   viewport,
+  WORMHOLE,
 } from "../fixture";
+import { drawnWormhole, SELECTED_GAP_PX } from "../geometry";
 import { HighlightLayer } from "./HighlightLayer";
 import { NO_HIGHLIGHT } from "./SystemLayer";
+import { HOVER_GROW } from "./WormholesLayer";
 
 stubTextMeasurement();
 
@@ -217,5 +221,36 @@ describe("the system scene's turn wedge", () => {
       expect(measured("scenario", id)).toMatchObject({ anchor: 0, ray: 0, base: 0, step: 0 });
       expect(wedged("scenario", id)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90–270°"] });
     }
+  });
+});
+
+describe("the system scene's selected wormhole", () => {
+  it("rings the wormhole whose page is open just past its swirl, grown with it under the pointer", () => {
+    const ctx = context({});
+    const page = { kind: "wormhole" as const, system: SYSTEM, id: WORMHOLE.id };
+    expect(selectedWormhole(ctx, page)).toBe(WORMHOLE.id);
+    expect(selectedWormhole(ctx, { ...page, system: SYSTEM + 1 })).toBeNull();
+
+    const layer = new HighlightLayer();
+    layer.rebuild(ctx);
+    viewport(layer, 1);
+    expect(strokes(layer.wormholeRing)).toEqual([]);
+
+    layer.setHighlighted({ ...NO_HIGHLIGHT, selectedWormhole: WORMHOLE.id });
+    const [ring] = strokes(layer.wormholeRing);
+    expect(ring.color).toBe(ACCENT_COLOR);
+    expect(ring.segments).toEqual([[WORMHOLE.x, WORMHOLE.y, drawnWormhole(1) + SELECTED_GAP_PX]]);
+
+    layer.setHighlighted({
+      ...NO_HIGHLIGHT,
+      selectedWormhole: WORMHOLE.id,
+      hoverWormhole: WORMHOLE.id,
+    });
+    const [grown] = strokes(layer.wormholeRing);
+    expect(grown.segments[0][2]).toBeCloseTo(drawnWormhole(1) * HOVER_GROW + SELECTED_GAP_PX);
+
+    layer.setHighlighted(NO_HIGHLIGHT);
+    expect(strokes(layer.wormholeRing)).toEqual([]);
+    layer.destroy();
   });
 });

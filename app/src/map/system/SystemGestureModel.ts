@@ -62,6 +62,8 @@ export interface SystemIntent {
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
   /** Opens body `id`'s page, straight above the system's. */
   openBody(system: number, id: number): void;
+  /** Opens wormhole `id`'s page, straight above the system's. */
+  openWormhole(system: number, id: number): void;
   /** Takes the inspector back to the system's page. */
   showSystem(): void;
   /** The scene as a drag starts from it, with no preview. */
@@ -99,7 +101,7 @@ function pointerOf(input: SystemInput): DragPointer {
 }
 
 /**
- * The system scene's pointer gestures: pans, hover, body clicks, the hyperlane arrows' clicks, and
+ * The system scene's pointer gestures: pans, hover, body and wormhole clicks, the hyperlane arrows' clicks, and
  * drags of a body, a wormhole or a handle, previewed as they move and sent on release.
  */
 export class SystemGestureModel {
@@ -196,7 +198,7 @@ export class SystemGestureModel {
     }
   }
 
-  /** Starts the drag the press asks for, if the scene lets it; a body's page opens first. */
+  /** Starts the drag the press asks for, if the scene lets it; a body's or wormhole's page opens first. */
   private startDrag(press: Press, input: SystemInput, intent: SystemIntent): boolean {
     const frame = intent.frame();
     const from = { x: press.wx, y: press.wy };
@@ -212,7 +214,10 @@ export class SystemGestureModel {
       }
     } else if (press.wormhole !== null) {
       const drag = WormholeDrag.start(frame, press.wormhole, from);
-      if (drag) state = { kind: "wormholeDrag", drag, step: drag.move(pointerOf(input)) };
+      if (drag) {
+        intent.openWormhole(press.system, press.wormhole);
+        state = { kind: "wormholeDrag", drag, step: drag.move(pointerOf(input)) };
+      }
     }
     if (state === null) return false;
     this.state = state;
@@ -262,7 +267,9 @@ export class SystemGestureModel {
       this.lastExit = { exit: press.exit, sx: press.sx, sy: press.sy, time: press.time };
     } else if (press.body !== null) {
       intent.openBody(press.system, press.body);
-    } else if (press.wormhole === null) {
+    } else if (press.wormhole !== null) {
+      intent.openWormhole(press.system, press.wormhole);
+    } else {
       intent.selectLane(null);
       intent.showSystem();
     }

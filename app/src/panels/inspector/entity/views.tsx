@@ -8,6 +8,7 @@ import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
 import { PlanetView } from "./PlanetView";
 import { ScenarioBodyView } from "./ScenarioBodyView";
+import { WormholeView } from "./WormholeView";
 import { GalaxyView } from "../galaxy/GalaxyView";
 import { BodySelectionView } from "../selection/BodySelectionView";
 import { SelectionView } from "../selection/SelectionView";
@@ -46,6 +47,7 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   pop_group: entity("pop_group", "Pop group"),
   sector: entity("sector", "Sector"),
   deposit: entity("deposit", "Deposit"),
+  wormhole: entity("wormhole", "Wormhole", WormholeView),
   body: { label: "Body", component: ScenarioBodyView },
   nodelist: { label: "List", component: EntityView },
 };

@@ -898,6 +898,20 @@ describe("a wormhole dragged in the system scene", () => {
     model.handle(on("up", [69.6, 20.2], { shift: true }), intent);
     expect(named(intent.calls, "commit")).toEqual([["commit", { ...moved, angle: 15 }]]);
     expect(named(intent.calls, "openBody")).toEqual([]);
+    expect(named(intent.calls, "openWormhole")).toEqual([["openWormhole", ORBITS, WORMHOLE]]);
+  });
+
+  it("opens a wormhole's page on a click, a shroud tunnel's too, and moves neither", () => {
+    const model = new SystemGestureModel();
+    const intent = recorder(wormholeFrame());
+    model.handle(on("down", [0, 100], { wormhole: WORMHOLE, draggable: true }), intent);
+    model.handle(on("up", [0, 100], { wormhole: WORMHOLE }), intent);
+    model.handle(on("down", [-100, 0], { wormhole: TUNNEL }), intent);
+    model.handle(on("up", [-100, 0], { wormhole: TUNNEL }), intent);
+    expect(without(intent.calls, "hover")).toEqual([
+      ["openWormhole", ORBITS, WORMHOLE],
+      ["openWormhole", ORBITS, TUNNEL],
+    ]);
   });
 
   it("pans from a shroud tunnel, which does not move", () => {

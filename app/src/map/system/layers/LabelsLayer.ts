@@ -475,9 +475,11 @@ export class LabelsLayer implements SystemLayer {
         ref.hoverBody !== null && !this.shown.some((plate) => plate.id === ref.hoverBody);
     }
     this.ref = ref;
-    if (ref.hoverWormhole !== was.hoverWormhole) {
+    const holeSelected = ref.selectedWormhole !== was.selectedWormhole;
+    if (ref.hoverWormhole !== was.hoverWormhole || holeSelected) {
       for (const label of this.wormholeLabels) this.markWormhole(label);
     }
+    if (holeSelected && !changed) this.place();
     if (!changed) return;
     const touched = [was.hoverBody, was.selectedBody, ref.hoverBody, ref.selectedBody];
     for (const label of this.labels) {
@@ -495,7 +497,13 @@ export class LabelsLayer implements SystemLayer {
   }
 
   private markWormhole({ hole, plate }: WormholeLabel): void {
-    drawPlate(plate, hole.id === this.ref.hoverWormhole ? "hovered" : "rest");
+    const state =
+      hole.id === this.ref.selectedWormhole
+        ? "selected"
+        : hole.id === this.ref.hoverWormhole
+          ? "hovered"
+          : "rest";
+    drawPlate(plate, state);
   }
 
   onViewport(cam: Camera): void {
@@ -547,9 +555,12 @@ export class LabelsLayer implements SystemLayer {
       const r = drawnWormhole(cam.scale) * cam.scale;
       return { id: wormholeSlot(i), x: at.x, y: at.y, r, w: l.w * k, h: l.h * k };
     });
+    const chosen = this.wormholeLabels.findIndex((l) => l.hole.id === this.ref.selectedWormhole);
+    const selectedHole = (item: LabelItem) => chosen >= 0 && item.id === wormholeSlot(chosen);
     const items = [
+      ...holes.filter(selectedHole),
       ...order.filter(groupPinned).map(withMoons),
-      ...holes,
+      ...holes.filter((item) => !selectedHole(item)),
       ...order.filter((l) => !groupPinned(l)).map(withMoons),
     ];
     const boxes = placeLabels(items).map((box) => {

@@ -24,7 +24,7 @@ const NATURAL_ALPHA = 0.8;
 /** A shroud tunnel or anything else that stays where it is. */
 const LOCKED_ALPHA = 0.35;
 /** The vortex under the pointer grows by this factor and brightens by this one. */
-const HOVER_GROW = 1.2;
+export const HOVER_GROW = 1.2;
 const HOVER_BRIGHTEN = 1.25;
 
 interface Drawn {
