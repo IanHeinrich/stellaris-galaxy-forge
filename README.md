@@ -43,9 +43,8 @@ to continue the same campaign.
 - **Change stars.** Change a star's type or size, or apply a star class
   to a selection of systems.
 - **Edit nebulae.** Add, move, resize, rename and remove nebulae. Newly
-  created nebulae use names from the game's own name list. Systems inside
-  a nebula get its cloud and hide ships, as they do in the game's own
-  nebulae. A checkbox on the nebula's page makes it turbulent or calm.
+  created nebulae use names from the game's name list. Systems inside a
+  nebula get its cloud and hide ships, as they do in the game. A checkbox on the nebula's page makes it turbulent or calm.
 - **Edit wormholes.** Select two systems and right-click to link them as
   a wormhole pair, or unlink a pair.
 - **Edit empires.** Rename an empire and change its flag. On a Stellaris
@@ -60,8 +59,7 @@ for each of these.
 ### The system view
 
 Double-click a system, or select it and press M, to open the system
-view. It shows the star, planets, moons and asteroid belts with the art
-from your installation.
+view.
 
 - **Rearrange the system.** Drag planets, moons and companion stars to
   new orbits. Add, move and remove asteroid belts, and give a planet a
@@ -80,9 +78,9 @@ from your installation.
 
 Every planet and moon in a save has its own page. On it you can:
 
-- Rename the planet, change its size, and change its class or look.
+- Rename the planet, change its size, and change its class or skin.
 - Add or remove deposits, blockers, modifiers, anomalies and dig sites.
-- Remove a colony and keep the planet.
+- Delete a colony without deleting the planet.
 
 Colonised planets can be edited too. The page warns you first when the
 game will take something away for an edit, such as districts over a
@@ -98,7 +96,7 @@ A scenario is a galaxy map that a new game starts from instead of
 generating a random galaxy.
 
 Galaxy Forge can create a scenario from a blank map, from a day-one save
-if you want the game's own layout, or from any existing save. When you
+if you want the game's layout, or from any existing save. When you
 open a save as a scenario, its layout, names and fallen empires are
 preserved, while the original save remains unchanged.
 
@@ -194,7 +192,7 @@ every save you open.
 </p>
 
 Zoom in and the map shows each system's planets, stations and resources,
-using the art and names from your own installation. The Layers menu lets
+using the art and names from your installation. The Layers menu lets
 you show and hide map layers, such as where each precursor's anomalies
 can turn up. The main layers have a number key.
 [Get around the map](docs/user-guide.md#get-around-the-map) lists the
@@ -275,9 +273,9 @@ playing an edited save. See
 
 Nothing from the game is included with Galaxy Forge itself. It reads
 game definitions, names and artwork directly from your Stellaris
-installation and your enabled mods. Modded systems appear with their own
-names and artwork, and newly added systems are generated from the same
-files. Without an installation, the map shows plain stars with generated
+installation and your enabled mods. Modded systems show up with their
+mod's names and artwork, and newly added systems are generated from the
+same files. Without an installation, the map shows plain stars with generated
 names, and you cannot add systems to a save.
 
 Scenario editing is newer than save editing and has had less testing.
@@ -469,10 +467,10 @@ in-game checks that go with a change to the galaxy.
   [Paint a Galaxy](https://steamcommunity.com/sharedfiles/filedetails/?id=3532904115)
   mod. Everything Galaxy Forge writes for a playable scenario, from the
   seat scripts to the fallen empire zones and wormhole pairs, uses the
-  mod's format, and the mod's own scripts were the reference for how they
+  mod's format, and the mod's scripts were the reference for how they
   behave.
 - The facts about the save format and the install were measured from the
-  game's own files. For the edge cases of how mods layer over the install
+  game's files. For the edge cases of how mods layer over the install
   (load order, `replace_path`) and of the script dialect,
   [Irony Mod Manager](https://github.com/bcssov/IronyModManager),
   [CWTools](https://github.com/cwtools/cwtools) and
