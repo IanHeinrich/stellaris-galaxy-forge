@@ -662,6 +662,12 @@ export function systemContext(
 
 export const EMPTY_SYSTEM_CONTEXT: SystemContext = systemContext(NO_SOURCES);
 
+/** The wormhole of `ctx` that `ref` opens, or null. */
+export function selectedWormhole(ctx: SystemContext, ref: EntityRef | null): number | null {
+  if (ref?.kind !== "wormhole" || ref.system !== ctx.id) return null;
+  return ctx.wormholes.some((w) => w.id === ref.id) ? ref.id : null;
+}
+
 /** The body of `ctx` that `ref` opens, or null, as the nudge finds it. */
 export function selectedBody(ctx: SystemContext, ref: EntityRef | null): number | null {
   return inspectedBody(ctx.layout, ctx.id, ref);

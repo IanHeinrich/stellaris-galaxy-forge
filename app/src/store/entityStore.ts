@@ -130,7 +130,8 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     const pages = [...get().pages.values()]
       .filter((page) => page.system !== null && systems.has(page.system))
       .map((page): EntityAddr => ({ kind: "planet", id: page.id }));
-    get().invalidate([...result.touched_entities, ...pages]);
+    const wormholes = systems.size > 0 ? wormholeReads(get()) : [];
+    get().invalidate([...result.touched_entities, ...pages, ...wormholes]);
     if (systems.size > 0) dropPendingPages();
   },
 
@@ -168,6 +169,15 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     });
   },
 }));
+
+/** Every wormhole read cached or out: none is filed under its system, so any edit to a system drops them. */
+function wormholeReads(state: EntityState): EntityAddr[] {
+  const owners = [...state.views.keys(), ...state.sources.keys(), ...state.pending].map(ownerOf);
+  const ids = new Set(
+    owners.filter((key) => key.startsWith("wormhole:")).map((key) => Number(key.slice(9))),
+  );
+  return [...ids].map((id): EntityAddr => ({ kind: "wormhole", id }));
+}
 
 /** A page read already out does not say which system it is in, so any edit to a system drops it. */
 function dropPendingPages(): void {

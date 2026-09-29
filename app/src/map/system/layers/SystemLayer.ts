@@ -11,7 +11,7 @@ export interface PasteGhost {
 }
 
 /**
- * What the scene marks: the body, wormhole and arrow under the pointer, the body selected, the lane
+ * What the scene marks: the body, wormhole and arrow under the pointer, the body or wormhole selected, the lane
  * clicked, the body a panel's link names while the pointer is on the link, and the planets being
  * moved.
  */
@@ -21,6 +21,8 @@ export interface SceneHighlight {
   readonly hoverExit: number | null;
   readonly hoverWormhole: number | null;
   readonly selectedBody: number | null;
+  /** The wormhole whose page is on top of the inspector's stack. */
+  readonly selectedWormhole: number | null;
   /** The neighbour whose lane was clicked. */
   readonly lane: number | null;
   readonly linkedBody: number | null;
@@ -37,6 +39,7 @@ export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
   hoverExit: null,
   hoverWormhole: null,
   selectedBody: null,
+  selectedWormhole: null,
   lane: null,
   linkedBody: null,
   selectedBodies: [],

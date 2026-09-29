@@ -1,0 +1,19 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+wormhole 1 at []
+label: wormhole #1
+bytes: 111 dirty: false span: 24632580..24632691
+= Type: wormhole (borrowed)
+= System: 52 -> system 52 @coordinate.origin
+= Linked to: 449 -> system 449 (borrowed)
+= Distance: 464.07 @coordinate
+= Angle: 14.24° @coordinate
+= Bypass: 15 @bypass
+  coordinate = block[3] @8..70
+  coordinate.x = Decimal 449.82037 @27..38
+  coordinate.y = Decimal 114.12239 @42..53
+  coordinate.origin = Int 52 @57..66
+  bypass = Int 15 @73..82
+  graphics_entity_name = Quoted  @85..108

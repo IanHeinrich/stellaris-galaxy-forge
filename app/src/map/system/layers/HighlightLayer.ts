@@ -14,12 +14,14 @@ import { sameHandle, type DragMarks, type HandleRef } from "../bodyDrag";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import {
   drawnDisc,
+  drawnWormhole,
   exitTriangle,
   ringDashes,
   SELECTED_GAP_PX,
   SELECTED_WIDTH_PX,
 } from "../geometry";
 import { HANDLE_RADIUS_PX } from "./HandlesLayer";
+import { HOVER_GROW as WORMHOLE_HOVER_GROW } from "./WormholesLayer";
 import { plateScaleAt } from "./labelSlots";
 import { standTag, TagCache, tagBox, type RadiusTag } from "./plate";
 import {
@@ -122,6 +124,7 @@ export class HighlightLayer implements SystemLayer {
   readonly dragMarks = new Graphics();
   readonly cutRings = new Graphics();
   readonly pasteGhost = new Graphics();
+  readonly wormholeRing = new Graphics();
   private readonly tags = new TagCache<TagSlot>(this.container);
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private ref: SceneHighlight = NO_HIGHLIGHT;
@@ -142,6 +145,7 @@ export class HighlightLayer implements SystemLayer {
     this.dragMarks.label = "drag";
     this.cutRings.label = "cut";
     this.pasteGhost.label = "paste-ghost";
+    this.wormholeRing.label = "wormhole-ring";
     this.container.addChild(
       this.pasteGhost,
       this.dragMarks,
@@ -155,6 +159,7 @@ export class HighlightLayer implements SystemLayer {
       this.radiusLine,
       this.stepLine,
       this.anchorRing,
+      this.wormholeRing,
       this.g,
     );
   }
@@ -215,6 +220,7 @@ export class HighlightLayer implements SystemLayer {
         ring(selectedId, SELECTED_GAP_PX, SELECTED_WIDTH_PX, ACCENT_COLOR, 1);
       }
     }
+    this.ringWormhole(cam);
     for (const moon of this.movingMoons(this.ref.selectedBodies)) {
       if (!selectedIds.has(moon) && !cut.has(moon)) {
         ring(moon, HOVER_GAP_PX, RING_WIDTH_PX, ACCENT_COLOR, COMES_ALONG_ALPHA);
@@ -409,6 +415,22 @@ export class HighlightLayer implements SystemLayer {
         .fill({ color: ACCENT_COLOR, alpha: SOFT_ALPHA })
         .stroke({ color: ACCENT_COLOR, width: TARGET_WIDTH_PX * px });
     }
+  }
+
+  /** The selected wormhole's ring, just past its swirl as drawn, grown with it under the pointer. */
+  private ringWormhole(cam: Camera): void {
+    const g = this.wormholeRing.clear();
+    const id = this.ref.selectedWormhole;
+    const hole = id === null ? undefined : this.ctx.wormholes.find((w) => w.id === id);
+    if (!hole) return;
+    const px = 1 / cam.scale;
+    const grow = id === this.ref.hoverWormhole ? WORMHOLE_HOVER_GROW : 1;
+    const r = drawnWormhole(cam.scale) * grow + SELECTED_GAP_PX * px;
+    g.circle(hole.x, hole.y, r).stroke({
+      color: ACCENT_COLOR,
+      alpha: 1,
+      width: SELECTED_WIDTH_PX * px,
+    });
   }
 
   /** The moons of `planets` that are not among them, which move with their planet. */
