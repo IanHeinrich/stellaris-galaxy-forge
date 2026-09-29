@@ -14,6 +14,16 @@ a release is made.
   its page in the Inspector. The page shows the site's stage and clues.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
+- Reserved seats can be named Alpha to Omega as well as A to Z, as in
+  Paint a Galaxy.
+
+### Changed
+
+- Preferred seats are now 1st Player seats, to match Paint a Galaxy's
+  latest update. The mod keeps them for the first player, or the host in
+  multiplayer. Maps you already made need no changes.
+- A save converted for Paint a Galaxy weights your seat for the first
+  player only. Before, an AI placed ahead of you could take it.
 
 ## [0.18.0] - 2026-09-28
 

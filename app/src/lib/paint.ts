@@ -7,6 +7,7 @@ import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import type { SystemNode } from "../generated/SystemNode";
+import { RESERVED_SEAT_NAMES } from "../generated/constants";
 import { isUnder, normalise } from "./paths";
 
 /** The facts of the open document the Paint a Galaxy layer is derived from. */
@@ -63,25 +64,74 @@ export function scenarioOpenPrompt(
   return warnNotForPaint ? "not_for_paint" : "none";
 }
 
-/** A seat's kind without a reserved seat's letter: the keys of `SEAT_KINDS`. */
+/** A seat's kind without a reserved seat's name: the keys of `SEAT_KINDS`. */
 export type SeatKind = "enabled" | "preferred" | "sol" | "reserved";
 
-/** What the app says and draws for one kind of seat; `letter` is a reserved seat's, uppercase. */
+/** A reserved seat's name: `display` as its trait spells it, `shown` in lists, `tag` on its chip. */
+export interface ReservedName {
+  /** `A` or `Alpha`, as the trait "Reserved Spawn: A" spells it. */
+  display: string;
+  /** `A` or `α (Alpha)`: the chip's glyph, with a Greek letter's name after it. */
+  shown: string;
+  /** `A` or `α`: one glyph. */
+  tag: string;
+}
+
+const GREEK_TAGS: Readonly<Record<string, string>> = {
+  alpha: "α",
+  beta: "β",
+  gamma: "γ",
+  delta: "δ",
+  epsilon: "ε",
+  zeta: "ζ",
+  eta: "η",
+  theta: "θ",
+  iota: "ι",
+  kappa: "κ",
+  lambda: "λ",
+  mu: "μ",
+  nu: "ν",
+  xi: "ξ",
+  omicron: "ο",
+  pi: "π",
+  rho: "ρ",
+  sigma: "σ",
+  tau: "τ",
+  upsilon: "υ",
+  phi: "φ",
+  chi: "χ",
+  psi: "ψ",
+  omega: "ω",
+};
+
+/** How the site shows the reserved seat a script names `name`, in any case. */
+export function reservedName(name: string): ReservedName {
+  const lower = name.toLowerCase();
+  const display = lower.charAt(0).toUpperCase() + lower.slice(1);
+  const greek = GREEK_TAGS[lower];
+  return greek === undefined
+    ? { display, shown: display, tag: display }
+    : { display, shown: `${greek} (${display})`, tag: greek };
+}
+
+const NOT_RESERVED: ReservedName = { display: "", shown: "", tag: "" };
+
+/** What the app says and draws for one kind of seat; `name` is a reserved seat's. */
 interface SeatKindInfo {
   /** In a word or two, as a script's label spells it. */
-  label(letter: string): string;
-  /** The letters its chip on the map carries, or null for none. */
-  tag(letter: string): string | null;
+  label(name: ReservedName): string;
+  /** What its chip on the map shows, or null for none. */
+  tag(name: ReservedName): string | null;
   /** What the kind means, in the site's own terms. */
-  description(letter: string): string;
+  description(name: ReservedName): string;
   /** Whether a seat of the kind can carry its holder's weight. */
   weightable: boolean;
   /** What the weight does for a seat of the kind. */
-  weighted(letter: string): string;
+  weighted(name: ReservedName): string;
 }
 
 /**
- * Every kind of seat the site writes. A reserved letter's description ends before naming the
+ * Every kind of seat the site writes. A reserved seat's description ends before naming the
  * trait's submod, which a caller with a link to offer appends itself.
  */
 export const SEAT_KINDS: Record<SeatKind, SeatKindInfo> = {
@@ -93,15 +143,13 @@ export const SEAT_KINDS: Record<SeatKind, SeatKindInfo> = {
     weighted: () => "",
   },
   preferred: {
-    label: () => "preferred",
+    label: () => "1st Player",
     tag: () => "P",
     description: () =>
-      "Filled before enabled seats. In single player the player is seated first, so with one " +
-      "preferred seat that is where you start.",
+      "Kept for the first player: you in single player, the host in multiplayer. AI empires and " +
+      "other players seldom start here. Use reserved seats to choose where they start.",
     weightable: true,
-    weighted: () =>
-      "Weighted so it is the likeliest start once the earlier-placed empires have taken theirs. " +
-      "Not a certain one.",
+    weighted: () => "Weighted so the first player is all but certain to start here.",
   },
   sol: {
     label: () => "Sol",
@@ -116,28 +164,28 @@ export const SEAT_KINDS: Record<SeatKind, SeatKindInfo> = {
       "Weighted so the United Nations of Earth is certain to start here. No other empire can.",
   },
   reserved: {
-    label: (letter) => `reserved ${letter}`,
-    tag: (letter) => letter,
-    description: (letter) =>
-      `Only an empire whose species has the "Reserved Spawn ${letter}" trait starts here.`,
+    label: (name) => `reserved ${name.shown}`,
+    tag: (name) => name.tag,
+    description: (name) =>
+      `Only an empire whose species has the "Reserved Spawn: ${name.display}" trait starts here.`,
     weightable: true,
-    weighted: (letter) =>
-      `Weighted so an empire with the Reserved Spawn ${letter} trait is certain to start here. No other empire can.`,
+    weighted: (name) =>
+      `Weighted so an empire with the "Reserved Spawn: ${name.display}" trait is certain to start here. No other empire can.`,
   },
 };
 
-/** A script's kind of seat, and a reserved seat's letter in upper case ("" for the rest). */
-export function seatKindOf(kind: PaintSpawnKind): { seat: SeatKind; letter: string } {
+/** A script's kind of seat, and how a reserved seat's name shows (empty for the rest). */
+export function seatKindOf(kind: PaintSpawnKind): { seat: SeatKind; name: ReservedName } {
   return typeof kind === "string"
-    ? { seat: kind, letter: "" }
-    : { seat: "reserved", letter: kind.reserved.toUpperCase() };
+    ? { seat: kind, name: NOT_RESERVED }
+    : { seat: "reserved", name: reservedName(kind.reserved) };
 }
 
 /** The seat a script offers, in a word or two; ", weighted" when it carries its holder's weight. */
 export function spawnScriptLabel(script: SpawnScript): string {
   const { kind, player } = script.paint_a_galaxy;
-  const { seat, letter } = seatKindOf(kind);
-  const label = SEAT_KINDS[seat].label(letter);
+  const { seat, name } = seatKindOf(kind);
+  const label = SEAT_KINDS[seat].label(name);
   return player ? `${label}, weighted` : label;
 }
 
@@ -148,29 +196,28 @@ export interface PaintSpawnKindOption {
 }
 
 const RESERVED_PREFIX = "reserved:";
-/** The random values an enabled or preferred seat is drawn from, as the mod reads them. */
+/** The random values an enabled or 1st Player seat is drawn from, as the mod reads them. */
 const SEAT_MODULO = 10;
-const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
-/** Every seat the site knows: enabled, preferred, Sol, then one reservation per letter. */
+/** Every seat the site knows: enabled, 1st Player, Sol, then one reservation per name. */
 export const PAINT_SPAWN_KINDS: readonly PaintSpawnKindOption[] = [
   { key: "enabled", label: "Enabled" },
-  { key: "preferred", label: "Preferred" },
+  { key: "preferred", label: "1st Player" },
   { key: "sol", label: "Sol" },
-  ...[...LETTERS].map((letter) => ({
-    key: `${RESERVED_PREFIX}${letter}`,
-    label: `Reserved ${letter.toUpperCase()}`,
+  ...RESERVED_SEAT_NAMES.map((name) => ({
+    key: `${RESERVED_PREFIX}${name}`,
+    label: `Reserved ${reservedName(name).shown}`,
   })),
 ];
 
-/** Whether a select key names a reserved letter's seat. */
+/** Whether a select key names a reserved seat. */
 export function isReservedKey(key: string): boolean {
   return key.startsWith(RESERVED_PREFIX);
 }
 
-/** The letter a reserved key names, uppercase as `seatSummary` lists it. */
-export function reservedLetter(key: string): string {
-  return key.slice(RESERVED_PREFIX.length).toUpperCase();
+/** The name a reserved key names, as `seatSummary` lists it: `A` or `α`. */
+export function reservedSeatName(key: string): string {
+  return reservedName(key.slice(RESERVED_PREFIX.length)).tag;
 }
 
 /** The seats any empire may take, then the ones reserved for one: the select's two groups. */
@@ -183,8 +230,8 @@ export const RESERVED_SPAWN_KINDS: readonly PaintSpawnKindOption[] = PAINT_SPAWN
 
 /** What a seat's kind means, in the site's own terms (see `SEAT_KINDS`). */
 export function paintKindDescription(script: SpawnScript): string {
-  const { seat, letter } = seatKindOf(script.paint_a_galaxy.kind);
-  return SEAT_KINDS[seat].description(letter);
+  const { seat, name } = seatKindOf(script.paint_a_galaxy.kind);
+  return SEAT_KINDS[seat].description(name);
 }
 
 /** Whether a seat of this kind can carry its holder's weight. */
@@ -194,14 +241,14 @@ export function canBeWeighted(kind: PaintSpawnKind): boolean {
 
 /** What the weight does for a seat of this kind. */
 export function weightedDescription(kind: PaintSpawnKind): string {
-  const { seat, letter } = seatKindOf(kind);
-  return SEAT_KINDS[seat].weighted(letter);
+  const { seat, name } = seatKindOf(kind);
+  return SEAT_KINDS[seat].weighted(name);
 }
 
-/** The select key of a script's seat: a reserved letter is lower-cased, as the site writes it. */
+/** The select key of a script's seat: a reserved name is lower-cased, as the site writes it. */
 export function paintKindKey(script: SpawnScript): string {
-  const { seat, letter } = seatKindOf(script.paint_a_galaxy.kind);
-  return seat === "reserved" ? `${RESERVED_PREFIX}${letter.toLowerCase()}` : seat;
+  const kind = script.paint_a_galaxy.kind;
+  return typeof kind === "string" ? kind : `${RESERVED_PREFIX}${kind.reserved.toLowerCase()}`;
 }
 
 function kindOf(key: string): PaintSpawnKind {
@@ -265,14 +312,24 @@ export function scenarioHeaderName(header: readonly HeaderField[]): string | nul
 export interface SeatSummary {
   /** Every system a script seats, of any kind. */
   seats: number;
+  /** 1st Player seats. */
   preferred: number;
-  /** Reserved letters in use, uppercase and deduplicated, ascending. */
+  /** Reserved seats in use by their chip's glyph (`A`, `α`), deduplicated, in the site's order. */
   reserved: string[];
   sol: boolean;
   /** A seat of any kind carries its holder's weight. */
   player: boolean;
-  /** AI empires the seats leave room for once the reserved seats and the player's are set aside. */
+  /**
+   * AI empires the seats leave room for once the 1st Player, reserved and Sol seats are set
+   * aside, and the player's own seat when it is none of those.
+   */
   safeAi: number;
+}
+
+/** Where a reserved name falls in the site's order; a name it does not list goes last. */
+function reservedOrder(display: string): number {
+  const i = (RESERVED_SEAT_NAMES as readonly string[]).indexOf(display.toLowerCase());
+  return i === -1 ? RESERVED_SEAT_NAMES.length : i;
 }
 
 /** The seats a galaxy's scripted systems add up to, for the header section's summary line. */
@@ -281,26 +338,30 @@ export function seatSummary(systems: Iterable<SystemNode>): SeatSummary {
   let preferred = 0;
   let sol = false;
   let player = false;
+  let reservedSeats = 0;
   let playerOnReserved = false;
   const reserved = new Set<string>();
   for (const system of systems) {
     const script = system.spawn_script?.paint_a_galaxy;
     if (script === undefined) continue;
-    const { seat, letter } = seatKindOf(script.kind);
+    const { seat, name } = seatKindOf(script.kind);
     seats++;
     if (script.player) player = true;
     if (script.player && (seat === "sol" || seat === "reserved")) playerOnReserved = true;
     if (seat === "preferred") preferred++;
-    else if (seat === "sol") sol = true;
-    else if (seat === "reserved") reserved.add(letter);
+    if (seat === "sol" || seat === "reserved") reservedSeats++;
+    if (seat === "sol") sol = true;
+    else if (seat === "reserved") reserved.add(name.display);
   }
-  const reservedLetters = [...reserved].sort();
-  const playersOwn = playerOnReserved ? 0 : 1;
-  const safeAi = Math.max(0, seats - reservedLetters.length - (sol ? 1 : 0) - playersOwn);
-  return { seats, preferred, reserved: reservedLetters, sol, player, safeAi };
+  const names = [...reserved]
+    .sort((a, b) => reservedOrder(a) - reservedOrder(b) || a.localeCompare(b))
+    .map((display) => reservedName(display).tag);
+  const playersOwn = preferred > 0 || playerOnReserved ? 0 : 1;
+  const safeAi = Math.max(0, seats - preferred - reservedSeats - playersOwn);
+  return { seats, preferred, reserved: names, sol, player, safeAi };
 }
 
-/** The systems seated by a reserved letter, in the galaxy's order; a Sol seat is not one. */
+/** The systems seated by a reserved name, in the galaxy's order; a Sol seat is not one. */
 export function reservedSeatIds(systems: Iterable<SystemNode>): number[] {
   const ids: number[] = [];
   for (const system of systems) {

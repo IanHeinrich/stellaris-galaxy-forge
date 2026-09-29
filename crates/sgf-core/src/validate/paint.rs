@@ -129,7 +129,7 @@ pub(super) fn seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             IssueCode::SeatLetterDuplicate,
             format!(
                 "Reserved {} is on {} systems: only one empire holds the trait.",
-                letter.to_uppercase(),
+                capitalised(&letter),
                 systems.len()
             ),
             systems,
@@ -284,4 +284,12 @@ pub(super) fn fe_links(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             }
         }
     }
+}
+
+/// `a` as `A` and `alpha` as `Alpha`, as the Reserved Spawns traits spell them.
+fn capitalised(name: &str) -> String {
+    let mut chars = name.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }

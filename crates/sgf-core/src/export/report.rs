@@ -45,8 +45,8 @@ pub struct ExportReport {
     /// takes. `None` for the plain profile or a save with no player.
     pub player_seat: Option<u32>,
     /// The seat's kind: Sol for the United Nations of Earth, the only empire that
-    /// weighs it above zero, so the start is certain; preferred for any other empire,
-    /// weighted to be the likeliest start, not a certain one.
+    /// weighs it above zero, so the start is certain; 1st Player for any other empire,
+    /// weighted for the host, so the start is all but certain.
     pub player_seat_kind: Option<PaintSpawnKind>,
     /// Systems left out because the game adds its own, ascending by category.
     pub omitted: Vec<OmittedCount>,

@@ -180,7 +180,7 @@ describe("the report", () => {
     const html = renderToStaticMarkup(
       <ExportReportRows report={exportReport({ player_seat: 2, player_seat_kind: "preferred" })} />,
     );
-    expect(html).toContain("Your capital, Barnard, is a weighted preferred seat");
+    expect(html).toContain("Your capital, Barnard, is a weighted 1st Player seat");
   });
 
   it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
@@ -191,7 +191,7 @@ describe("the report", () => {
     expect(
       seatsSummary(exportReport({ player_seat: 217, player_seat_kind: "preferred" }), id),
     ).toBe(
-      "17 seats. Your capital, system 217, is a weighted preferred seat: the likeliest start, not a certain one. For a certain one, reserve a letter and give your empire its trait.",
+      "17 seats. Your capital, system 217, is a weighted 1st Player seat: you are all but certain to start there. For a certain start, reserve the seat and give your empire its trait.",
     );
 
     expect(fallenEmpiresSummary(exportReport())).toBeNull();
