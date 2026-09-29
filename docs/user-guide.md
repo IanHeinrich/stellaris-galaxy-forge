@@ -25,7 +25,13 @@ On a Mac, read Cmd wherever this guide says Ctrl.
 The Open screen lists your saves by campaign, newest first, and the
 scenarios in your install and your mods. It finds saves in the game's
 save folder and in Steam's cloud folder. Cloud saves are marked "☁" (see
-[Steam Cloud saves](#steam-cloud-saves)) and Ironman saves "⚿".
+[Steam Cloud saves](#steam-cloud-saves)) and Ironman saves "⚿". On the
+Saves tab, a save shows the name you gave it in the game, with its date
+underneath.
+
+The Recent list holds the last 10 documents you opened. The All tab
+shows the newest 5, and "Show all" opens the rest under Recent. Clear
+empties the list. Files you have deleted drop off it.
 
 Enter or a double-click opens the selected row. A save first asks whether
 to edit it as a save or as a scenario. "Browse…" opens any `.sav` or

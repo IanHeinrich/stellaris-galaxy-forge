@@ -110,6 +110,9 @@
 }
 
 .open-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -230,8 +233,8 @@
   white-space: nowrap;
 }
 
-.open-row .ghost {
-  grid-column: 3;
+.open-row .ghost,
+.open-heading .ghost {
   padding: 2px 8px;
   font-size: 12px;
   background: none;
@@ -240,7 +243,24 @@
   color: var(--fg-soft);
 }
 
-.open-row .ghost:hover {
+.open-row .ghost {
+  grid-column: 3;
+}
+
+.open-heading .ghost {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.open-more {
+  display: block;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.open-row .ghost:hover,
+.open-heading .ghost:hover {
   color: var(--fg);
   background: rgba(255, 255, 255, 0.08);
 }

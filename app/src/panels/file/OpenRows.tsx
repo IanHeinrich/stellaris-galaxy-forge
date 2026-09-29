@@ -1,11 +1,12 @@
 import type { MouseEvent, RefObject } from "react";
-import type {
-  CampaignRow,
-  RecentRow,
-  Row,
-  SaveRow,
-  ScenarioRow,
-  Section,
+import {
+  recentTitle,
+  type CampaignRow,
+  type RecentRow,
+  type Row,
+  type SaveRow,
+  type ScenarioRow,
+  type Section,
 } from "../../lib/openRows";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
@@ -71,7 +72,7 @@ function RecentRowLine({ row, onForget }: { row: RecentRow; onForget: () => void
       <span className="open-main">
         <span className={row.missing ? "open-title gone" : "open-title"}>
           <span className="flag kind">{row.doc.kind === "save" ? "SAVE" : "SCENARIO"}</span>
-          {row.doc.title}
+          {recentTitle(row.doc)}
           {row.doc.kind === "scenario" && <PaintTag path={row.doc.path} listings={scenarios} />}
         </span>
         <span className="open-sub">{row.doc.subtitle || row.doc.path}</span>
@@ -139,6 +140,7 @@ function SaveRowLine({ row }: { row: SaveRow }) {
             </span>
           )}
         </span>
+        {row.sub && <span className="open-sub open-date">{row.sub}</span>}
       </span>
       <span className="open-side">{formatWhen(row.file.modified)}</span>
     </>
@@ -215,6 +217,8 @@ export function SectionRows({
   rows,
   onPress,
   onForget,
+  onClear,
+  onShowAll,
 }: {
   section: Section;
   current: Row | undefined;
@@ -223,10 +227,25 @@ export function SectionRows({
   rows: RefObject<Map<string, HTMLDivElement>>;
   onPress: (row: Row, e: MouseEvent) => void;
   onForget: (path: string) => void;
+  onClear: () => void;
+  onShowAll: () => void;
 }) {
   return (
     <section className="open-section">
-      <div className="open-heading">{section.label}</div>
+      <div className="open-heading">
+        {section.label}
+        {section.id === "recent" && section.rows.length > 0 && (
+          <button
+            type="button"
+            className="ghost"
+            title="Empty the recent list"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
       {section.note && <div className="open-note">{section.note}</div>}
       {section.notices.map((notice, i) => (
         <div key={`${i}:${notice}`} className="open-note warn">
@@ -273,6 +292,16 @@ export function SectionRows({
           </div>
         );
       })}
+      {section.more !== undefined && (
+        <button
+          type="button"
+          className="link open-more"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onShowAll}
+        >
+          Show all {section.count} recent
+        </button>
+      )}
     </section>
   );
 }
