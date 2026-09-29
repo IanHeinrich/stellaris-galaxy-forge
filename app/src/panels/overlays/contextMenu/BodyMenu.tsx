@@ -33,7 +33,7 @@ export function BodyMenu({
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const addBodyAt = useEditorStore((s) => s.addBodyAt);
-  const canAddBodies = useCanEdit("geometry");
+  const canAddBodies = useCanEdit("added_systems");
   const { layout, editing, frame: geometry } = useSystemGeometry(target.system);
   const locked = useSceneStore((s) => s.lockedBodies.has(target.id));
   const lockBody = useSceneStore((s) => s.lockBody);

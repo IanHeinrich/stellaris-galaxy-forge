@@ -2,8 +2,8 @@ import { BODIES_NEED_GAME_DATA, RANDOM_BODY_LABEL, sizeRange } from "../../../li
 import { PLANET_ICON_KEYS, planetTint } from "../../../lib/details/icons";
 import { toCss } from "../../../lib/visual/ownerColors";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { useGeneratorStore } from "../../../store/generatorStore";
 import { Icon } from "../../parts";
+import { useBodyClasses } from "../../useGeneratorData";
 import { MenuItem } from "./MenuItem";
 import { Submenu } from "./Submenu";
 
@@ -37,9 +37,7 @@ export function AddBodyItems({
   add: (planetClass: string | null) => unknown;
 }) {
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const classes = useGeneratorStore((s) => (moon ? s.moonClasses : s.planetClasses));
-  // Asked once per loaded game data, and answered after this render.
-  if (gameData && classes === null) useGeneratorStore.getState().requestBodyClasses();
+  const classes = useBodyClasses(moon);
   return (
     <Submenu
       label={label}

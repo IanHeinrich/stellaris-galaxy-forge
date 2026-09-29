@@ -1,8 +1,8 @@
 //! `AddSaveBody` and `RemoveAddedBody`: one planet or moon added to a save system, and
 //! taken out again. The body's entry and its deposits' take slots as
 //! [`super::add_system`] gives them, the system lists it after its last `planet=` line, a
-//! moon's planet lists it in `moons`, and the inner radius grows when the body reaches past
-//! it. The game builds the body's construction queue when it loads.
+//! moon's planet lists it in `moons`, and the inner radius grows when the body lies past it.
+//! The game builds the body's construction queue when it loads.
 
 use crate::document::Document;
 use crate::emit::roman;
@@ -12,15 +12,19 @@ use crate::format::save::alloc::SlotTable;
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::system_spec::BodySpec;
 use crate::format::save::write::add_system::{
-    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, letter, literal, write_body,
+    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, letter, literal, write_body,
 };
-use crate::format::save::write::bodies::{Stored, frame, grow, list_moon, number, unlist_moon};
-use crate::format::save::write::deposits::check_deposit_kind;
+use crate::format::save::write::asteroid_names;
+use crate::format::save::write::bodies::{
+    Stored, frame, grow_past, list_moon, number, unlist_moon,
+};
 use crate::format::save::write::move_planet::{is_star_class, list_planets, unlist_planets};
-use crate::format::save::{check_version, entity_at, planet_entity, planet_system};
+use crate::format::save::{
+    check_adds_system, check_version, entity_at, planet_entity, planet_system,
+};
 use crate::keys;
 use crate::ops::rules::bodies::{Body, check_placement, drawn_radius, normalised, point, reach};
-use crate::ops::rules::{Form, check_name, check_text};
+use crate::ops::rules::check_name;
 use crate::ops::{NewBody, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::plural;
@@ -37,7 +41,18 @@ pub(crate) fn plan_add(
     spec: &NewBody,
     at: OrbitPlacement,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
+    check_adds_system(&s.doc)?;
+    let angle = normalised(at.angle);
+    let body_spec = BodySpec {
+        class: spec.class.clone(),
+        size: spec.size,
+        orbit: at.radius,
+        angle,
+        deposits: spec.deposits.clone(),
+        ring: spec.ring,
+        ..BodySpec::default()
+    };
+    check_body(&body_spec)?;
     check_spec(spec)?;
     check_placement(at.radius, at.angle)?;
     if !s.graph.systems.contains_key(&system) {
@@ -51,7 +66,6 @@ pub(crate) fn plan_add(
         Some(parent) => Some(moon_parent(s, &stored, system, parent)?),
         None => None,
     };
-    let angle = normalised(at.angle);
     let centre = parent.map_or((0.0, 0.0), |p| p.at);
     let (x, y) = point(centre, at.radius, angle);
     let name = match &spec.name {
@@ -69,15 +83,6 @@ pub(crate) fn plan_add(
     };
     let slot = planets.take();
     let id = slot.id();
-    let body_spec = BodySpec {
-        class: spec.class.clone(),
-        size: spec.size,
-        orbit: at.radius,
-        angle,
-        deposits: spec.deposits.clone(),
-        ring: spec.ring,
-        ..BodySpec::default()
-    };
     let body = add_system::Body {
         spec: &body_spec,
         star: false,
@@ -101,14 +106,13 @@ pub(crate) fn plan_add(
         list_moon(plan.edit_planet(&s.doc, parent, system)?, id)?;
     }
 
-    let before: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let added = Body {
         id,
         parent: spec.moon_of,
         at: (x, y),
         orbit: at.radius,
     };
-    let mut after = before.clone();
+    let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
     after.push(added);
     let whose = match spec.moon_of {
         Some(parent) => format!("moon #{id} of planet #{parent} in"),
@@ -126,15 +130,7 @@ pub(crate) fn plan_add(
         number(angle),
     );
     let inverse = Op::RemoveAddedBody { planet: id };
-    grow(
-        plan,
-        s,
-        system,
-        &before,
-        reach(&after, &added),
-        description,
-        inverse,
-    )
+    grow_past(plan, s, system, reach(&after, &added), description, inverse)
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
@@ -196,14 +192,9 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     })
 }
 
+/// What [`check_body`] leaves to the add: the typed name, which the body spec does not
+/// hold, and a moon's ring.
 fn check_spec(spec: &NewBody) -> Result<(), OpError> {
-    check_text("a planet class", &spec.class, Form::Bare)?;
-    if spec.size == 0 {
-        return Err(OpError::ZeroPlanetSize);
-    }
-    for deposit in &spec.deposits {
-        check_deposit_kind(deposit)?;
-    }
     if let Some(name) = &spec.name {
         check_name(name)?;
     }
@@ -213,7 +204,9 @@ fn check_spec(spec: &NewBody) -> Result<(), OpError> {
     Ok(())
 }
 
-/// Body `parent` of the system, refused as a moon's parent when it is a star or a moon.
+/// Body `parent` of the system, refused as a moon's parent when it is a star, a moon or an
+/// asteroid. An asteroid is named from the save's pool of asteroid names, as a system read
+/// back as a spec tells one.
 fn moon_parent(s: &Session, stored: &[Stored], system: u32, parent: u32) -> Result<Body, OpError> {
     let host = stored
         .iter()
@@ -230,6 +223,9 @@ fn moon_parent(s: &Session, stored: &[Stored], system: u32, parent: u32) -> Resu
         || stored
             .iter()
             .any(|b| b.body.parent == Some(parent) && !b.moon);
+    if asteroid_names::parts(&read::name(&node, src)).is_some() {
+        return Err(OpError::MoonsNotAllowed("an asteroid"));
+    }
     let reason = if star {
         format!("planet {parent} is a star: a moon needs a planet to orbit")
     } else if host.moon {

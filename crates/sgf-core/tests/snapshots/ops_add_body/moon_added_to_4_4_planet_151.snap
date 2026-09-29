@@ -16,17 +16,6 @@ inverse: RemoveAddedBody { planet: 8404 }
  		star_class="sc_a"
  		hyperlane=
  		{
-@@ -29468,8 +29470,8 @@
- 		{
- 			36 39 414 415 416 417 418 545 571 16777790 597 611 640 16777408 786 
- 		}
--		inner_radius=225
--		outer_radius=325
-+		inner_radius=240
-+		outer_radius=340
- 		has_access_to_relay_network=yes
- 		starbases=
- 		{
 @@ -98928,7 +98930,7 @@
  			controller=16777225
  			moons=

@@ -316,8 +316,8 @@ inner radius circle.
 
 #### Add planets and moons
 
-In a Stellaris 4.x save, right-click empty space in the system view and
-choose Add planet here. Pick Random, or a planet class from the list.
+In a Stellaris 4.x save that isn't Ironman, right-click empty space in
+the system view and choose Add planet here. Pick Random, or a planet class from the list.
 Each class shows the sizes it comes in. The planet lands where you
 right-clicked.
 
@@ -335,8 +335,9 @@ one edit, so one undo takes it away.
   after its planet's moons, so the first moon of Meissa IV is Meissa IV a.
 - Stars, moons and asteroids can't be given a moon.
 - Adding a planet or moon needs game data loaded.
-- The body starts unsurveyed. The game builds what else it needs when the
-  save loads.
+- If a new planet or moon sits past the system's inner radius, the inner
+  radius moves out with it, as it does when you move a planet there.
+- The body starts unsurveyed. The game adds the rest when the save loads.
 
 #### Move planets to another system
 

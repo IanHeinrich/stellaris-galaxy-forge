@@ -30,7 +30,7 @@ export function SceneSpaceMenu({
   const radius = Math.round(Math.hypot(target.x, target.y));
   const belt = editing.belts && radius > 0;
   const addBodyAt = useEditorStore((s) => s.addBodyAt);
-  const planet = useCanEdit("geometry") && radius > 0;
+  const planet = useCanEdit("added_systems") && radius > 0;
   const addBelt = () =>
     applyGeometry({
       kind: "addBelt",

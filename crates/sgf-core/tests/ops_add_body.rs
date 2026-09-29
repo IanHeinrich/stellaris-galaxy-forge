@@ -9,7 +9,7 @@ use sgf_core::views::OrbitPlacement;
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::examples::{ADDED_BODY, meissa_v};
-use common::{current, open, open_3_4, open_4_5, text};
+use common::{current, open, open_3_4, open_4_5, open_edited_sample, text};
 
 fn body(class: &str, size: u32) -> NewBody {
     NewBody {
@@ -122,9 +122,9 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
 }
 
 /// Meissa IV (138) has no moons. Its first is Meissa IV a, with the moon bit and `moon_of`,
-/// and Meissa IV gains a `moons` list; the second is Meissa IV b. The first reaches past
-/// Meissa IV, so the inner radius grows. The second takes a slot past the table's end, so it
-/// comes first in the ascending list.
+/// and Meissa IV gains a `moons` list; the second is Meissa IV b. The first reaches 160, past
+/// Meissa IV but inside the inner radius of 175, so the radii stay. The second takes a slot past
+/// the table's end, so it comes first in the ascending list.
 #[test]
 fn moons_added_to_a_planet_are_lettered_in_turn() {
     let mut session = open_4_5();
@@ -137,9 +137,13 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
     assert_eq!(
         first.entry.description,
         format!(
-            "Added moon #{a} of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°; \
-             set the inner radius of system #408 from 175 to 190.04"
+            "Added moon #{a} of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°"
         )
+    );
+    assert_eq!(first.inverse, Op::RemoveAddedBody { planet: a });
+    assert!(
+        text(&session).contains("\t\tinner_radius=175\n\t\touter_radius=275\n"),
+        "the radii stay"
     );
     let entry = planet_entry(&session, a);
     assert!(entry.contains("binary_flags=576"), "{entry}");
@@ -245,6 +249,10 @@ fn adds_and_removals_are_refused() {
             "planet 2 is not a body of system 408",
         ),
         (
+            add(216, moon("pc_barren", 5, 29), 10.0, 0.0),
+            "an asteroid cannot have moons",
+        ),
+        (
             add(408, body("pc_desert", 0), 50.0, 0.0),
             "a planet size may not be zero",
         ),
@@ -291,6 +299,14 @@ fn adds_and_removals_are_refused() {
         matches!(error, OpError::BodyHasMoons(p) if p == id),
         "{error}"
     );
+}
+
+#[test]
+fn an_ironman_save_is_refused() {
+    let mut session =
+        open_edited_sample(common::SAMPLE_4_5, |_, meta| meta.push_str("ironman=yes\n"));
+    let error = session.apply(meissa_v()).expect_err("Ironman");
+    assert!(matches!(error, OpError::Ironman), "{error}");
 }
 
 #[test]

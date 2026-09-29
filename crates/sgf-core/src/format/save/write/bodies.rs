@@ -289,6 +289,46 @@ pub(crate) fn grow(
     inverse: Op,
 ) -> Result<Planned, OpError> {
     let radii = s.radii();
+    grow_by(
+        plan,
+        s,
+        system,
+        description,
+        inverse,
+        |edit, entity, current| {
+            let reached = system_reach(before, &belts::belt_radii(edit, entity));
+            radii.grown(reach, reached, current)
+        },
+    )
+}
+
+/// Grow the system's `inner_radius` only when something the op puts `reach` from the centre
+/// lies past it, and return the description and inverse the op ends with.
+pub(crate) fn grow_past(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    reach: f64,
+    description: String,
+    inverse: Op,
+) -> Result<Planned, OpError> {
+    let radii = s.radii();
+    grow_by(plan, s, system, description, inverse, |_, _, current| {
+        (reach > current).then(|| radii.inner_about(reach))
+    })
+}
+
+/// Set the system's `inner_radius`, and `outer_radius` past it, to what `rule` grows the
+/// current inner radius to, when it grows it; the inverse then puts the old radius back too.
+fn grow_by(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    description: String,
+    inverse: Op,
+    rule: impl FnOnce(&Edit, &Node, f64) -> Option<f64>,
+) -> Result<Planned, OpError> {
+    let radii = s.radii();
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let Some(current) = read::scalar_f64(entity, keys::INNER_RADIUS, &edit.buf) else {
@@ -297,8 +337,7 @@ pub(crate) fn grow(
             inverse,
         });
     };
-    let reached = system_reach(before, &belts::belt_radii(edit, entity));
-    let Some(grown) = radii.grown(reach, reached, current) else {
+    let Some(grown) = rule(edit, entity, current) else {
         return Ok(Planned {
             description,
             inverse,

@@ -574,7 +574,7 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     Ok(())
 }
 
-fn check_body(body: &BodySpec) -> Result<(), OpError> {
+pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {
     check_text("a planet class", &body.class, Form::Bare)?;
     if body.size == 0 {
         return Err(OpError::ZeroPlanetSize);

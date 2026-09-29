@@ -567,10 +567,8 @@ impl<'g> Roller<'g> {
         Ok(walk.moons)
     }
 
-    /// The layout's `has_ring` when it says, else the class's `chance_of_ring`.
     fn ring(&mut self, block: &InitPlanet, class: &PlanetClassDef) -> bool {
-        let roll = self.rings.unit();
-        block.has_ring.unwrap_or(roll < class.chance_of_ring)
+        draw_ring(&mut self.rings, Some(block), class)
     }
 
     fn class(
@@ -640,19 +638,13 @@ impl<'g> Roller<'g> {
             .ok_or_else(|| GenerateError::UnknownPlanetClass(class.to_owned()))
     }
 
-    /// Drawn from [`body_size`].
     fn size(
         &mut self,
         block: &InitPlanet,
         class: &PlanetClassDef,
         moon: bool,
     ) -> Result<u32, GenerateError> {
-        let range = body_size(block, Some(class), moon)
-            .ok_or_else(|| GenerateError::NoSize(class.key.clone()))?;
-        let size = self
-            .rng
-            .int(range.min.round() as i64, range.max.round() as i64);
-        Ok(u32::try_from(size).unwrap_or(0))
+        draw_size(&mut self.rng, Some(block), class, moon)
     }
 
     /// Drawn from the block's [`InitPlanet::count`].
@@ -683,6 +675,28 @@ fn drawable<'g>(
         .filter(|c| can_be(c, moon))
         .map(|c| (c, c.spawn_odds * star.planet_odds(&c.key)))
         .collect()
+}
+
+/// A body's size, drawn from [`body_size`].
+fn draw_size(
+    rng: &mut Rng,
+    block: Option<&InitPlanet>,
+    class: &PlanetClassDef,
+    moon: bool,
+) -> Result<u32, GenerateError> {
+    let range = body_size(block, Some(class), moon)
+        .ok_or_else(|| GenerateError::NoSize(class.key.clone()))?;
+    let size = rng.int(range.min.round() as i64, range.max.round() as i64);
+    Ok(u32::try_from(size).unwrap_or(0))
+}
+
+/// Whether a planet has a ring: the layout's `has_ring` when it says, else a roll against the
+/// class's `chance_of_ring`, drawn from `rings` either way.
+fn draw_ring(rings: &mut Rng, block: Option<&InitPlanet>, class: &PlanetClassDef) -> bool {
+    let roll = rings.unit();
+    block
+        .and_then(|b| b.has_ring)
+        .unwrap_or(roll < class.chance_of_ring)
 }
 
 /// Whether a random draw can give a body of `class` as a moon, or as a planet.
@@ -746,15 +760,9 @@ pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySp
     };
     let size = match roll.size {
         Some(size) => size,
-        None => {
-            let range = class
-                .size(roll.moon)
-                .ok_or_else(|| GenerateError::NoSize(class.key.clone()))?;
-            let drawn = rng.int(range.min.round() as i64, range.max.round() as i64);
-            u32::try_from(drawn).unwrap_or(0)
-        }
+        None => draw_size(&mut rng, None, class, roll.moon)?,
     };
-    let ring = !roll.moon && Rng::new(seed ^ RING_STREAM).unit() < class.chance_of_ring;
+    let ring = !roll.moon && draw_ring(&mut Rng::new(seed ^ RING_STREAM), None, class);
     let rolled = RollBody {
         class: &class.key,
         size,

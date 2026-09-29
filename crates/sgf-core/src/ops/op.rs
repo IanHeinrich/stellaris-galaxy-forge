@@ -573,11 +573,12 @@ pub enum Op {
     /// planet, and the system lists it after its last `planet=` line. A moon gets `moon_of`
     /// and the moon bit, and its planet lists it in `moons`. Without a name in the spec, a
     /// planet takes the numeral after the highest of the system's numbered planets and a moon
-    /// the letter after its planet's highest. The inner radius grows as a moved body's does.
-    /// The game builds its construction queue when it loads, and nobody has surveyed it. A
-    /// moon of a star or of a moon, and a parent outside the system, are refused. The inverse
-    /// is [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris
-    /// 4.x save documents only.
+    /// the letter after its planet's highest. When the body lies past the system's
+    /// `inner_radius`, that radius grows to the body's reach plus its margin. The game builds
+    /// its construction queue when it loads, and nobody has surveyed it. A moon of a star, a
+    /// moon or an asteroid, and a parent outside the system, are refused. The inverse is
+    /// [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris 4.x
+    /// save documents only, and not an Ironman save.
     AddSaveBody {
         system: u32,
         spec: NewBody,

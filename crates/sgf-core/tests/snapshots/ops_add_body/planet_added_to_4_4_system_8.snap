@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added planet #8403 to system #8 (pc_toxic, size 15) at orbit 210 at 45°; set the inner radius of system #8 from 225 to 240
-inverse: Batch { description: "Undo of \"Added planet #8403 to system #8 (pc_toxic, size 15) at orbit 210 at 45°; set the inner radius of system #8 from 225 to 240\"", ops: [RemoveAddedBody { planet: 8403 }, SetSaveInnerRadius { system: 8, radius: 225.0 }] }
+Added planet #8403 to system #8 (pc_toxic, size 15) at orbit 210 at 45°
+inverse: RemoveAddedBody { planet: 8403 }
 
 --- gamestate
 +++ gamestate
@@ -14,17 +14,6 @@ inverse: Batch { description: "Undo of \"Added planet #8403 to system #8 (pc_tox
 +		planet=8403
  		star_class="sc_a"
  		hyperlane=
- 		{
-@@ -29468,8 +29469,8 @@
- 		{
- 			36 39 414 415 416 417 418 545 571 16777790 597 611 640 16777408 786 
- 		}
--		inner_radius=225
--		outer_radius=325
-+		inner_radius=240
-+		outer_radius=340
- 		has_access_to_relay_network=yes
- 		starbases=
  		{
 @@ -530216,6 +530217,50 @@
  				4988 
