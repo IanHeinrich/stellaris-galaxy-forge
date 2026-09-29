@@ -20,6 +20,14 @@ export const CAPITAL_PLATE_KEY = "sprite:GFX_map_icon_bg_capital";
 /** Horizontal fade of the plate texture, in pixels, kept unstretched at both ends. */
 export const PLATE_BORDER_PX = 15;
 
+/** The seed a shattered class breaks by where no planet gives one, as in the class picker. */
+export const SHATTERED_ICON_SEED = 1;
+
+/** The texture key of a shattered class's disc, broken as `seed`, a planet's id, says. */
+export function shatteredDiscKey(planetClass: string, seed: number): string {
+  return `planet_disc_shattered:${planetClass}:${seed}`;
+}
+
 /** The game's planet-size glyph, shown before the size when the texture has landed. */
 export const PLANET_SIZE_ICON_KEY = "sprite:GFX_text_planetsize";
 

@@ -592,6 +592,29 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
+  it("draws a shattered class as its shards alone, broken by its id, with no haze, shading or disc round them", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    const layer = new BodiesLayer(blankSceneTextures());
+    const broken = { ...EARTH, class: "pc_shattered" };
+    const view = { ...hazy("pc_shattered"), shattered: true };
+    layer.rebuild(classedContext([broken], [view]));
+    viewport(layer, 2);
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "rim")).toBeUndefined();
+    expect(part(drawn, "glow")).toBeUndefined();
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(drawn, "lit").visible).toBe(true));
+    const shards = textureFor(`planet_disc_shattered:pc_shattered:${EARTH.id}`);
+    expect(sprite(drawn, "lit").texture).toBe(shards);
+    expect(sprite(drawn, "disc").visible).toBe(false);
+    expect(sprite(drawn, "art").visible).toBe(false);
+    resetTextures();
+    layer.destroy();
+  });
+
   it("draws an asteroid as its icon alone once it lands, with no round disc or shading under it", async () => {
     resetTextures();
     const textureFor = decodeByKey();

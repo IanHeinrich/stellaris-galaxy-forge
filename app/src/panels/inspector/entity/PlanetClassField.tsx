@@ -31,8 +31,8 @@ export function PlanetClassField({
   const label = useNamed([planetClass, ...planetClasses.keys()], (key) =>
     bodyClassName(key, names),
   );
-  const icon = (key: string) => (
-    <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} />
+  const icon = (key: string, seed?: number) => (
+    <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} seed={seed} />
   );
   const items: IconPickerItem[] = classRows(planetClass, colonised, moon, planetClasses, label).map(
     (row) => ({ ...row, icon: icon(row.key) }),
@@ -46,7 +46,7 @@ export function PlanetClassField({
             label="Class"
             title={CLASS_TITLE}
             disabledReason={reason}
-            current={{ key: planetClass, label: label(planetClass), icon: icon(planetClass) }}
+            current={{ key: planetClass, label: label(planetClass), icon: icon(planetClass, id) }}
             items={items}
             onPick={(key) => {
               const op = setPlanetClassOp(id, planetClass, key, planetClasses);

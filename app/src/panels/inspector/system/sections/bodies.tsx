@@ -1,5 +1,11 @@
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { PLANET_ICON_KEYS, PLANET_SIZE_ICON_KEY, planetTint } from "../../../../lib/details/icons";
+import {
+  PLANET_ICON_KEYS,
+  PLANET_SIZE_ICON_KEY,
+  SHATTERED_ICON_SEED,
+  planetTint,
+  shatteredDiscKey,
+} from "../../../../lib/details/icons";
 import { isStarBody } from "../../../../lib/details/starBody";
 import {
   type ResourceRow,
@@ -62,14 +68,17 @@ function StarIcon({ keys }: { keys: readonly string[] }) {
 
 /**
  * A body's class sprite, on the disc the class is tinted; a class with no art of its own wears the
- * map's neutral planet marker, and a star wears its star art so it never reads as a planet.
+ * map's neutral planet marker, and a star wears its star art so it never reads as a planet. A
+ * shattered class shows its shards as the map does, broken as `seed`, the planet's id, says.
  */
 export function PlanetIcon({
   planetClass,
   sprite,
+  seed = SHATTERED_ICON_SEED,
 }: {
   planetClass: string;
   sprite: string | null | undefined;
+  seed?: number;
 }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
@@ -77,6 +86,9 @@ export function PlanetIcon({
   if (isStarBody(planetClass, planetClasses, starClasses)) {
     const texture = starClasses.get(planetClass)?.texture_key;
     return <StarIcon keys={texture ? [...own, texture] : own} />;
+  }
+  if (planetClasses.get(planetClass)?.shattered === true) {
+    return <Icon className="pi shattered" keys={[shatteredDiscKey(planetClass, seed), ...own]} />;
   }
   return (
     <Icon

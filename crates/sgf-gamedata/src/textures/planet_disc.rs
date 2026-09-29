@@ -2,7 +2,9 @@
 //! disc lit from the left. The class names an entity; an `entity = { … }` block in a
 //! `gfx/models` `.asset` file names the map as the `texture_diffuse` of its
 //! `planet_geosphereShape` mesh, beside the `.asset` file. An entity with no such block
-//! (vanilla: the tomb world's) leaves the map to the material its `.mesh` file stores.
+//! (vanilla: the tomb world's) leaves the map to the material its `.mesh` file stores. A
+//! model with no such mesh whose `pieceShape1` a planet shader draws is a planet broken into
+//! pieces (vanilla: the shattered world's), and that map is its pieces' surface.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -21,6 +23,8 @@ const ASSETS: &str = "gfx/models/planets";
 /// Where entities and models are defined: a habitat's are among the ships'.
 const MODELS: &str = "gfx/models";
 const SURFACE_MESH: &str = "planet_geosphereShape";
+/// The mesh of a planet model broken into pieces.
+const PIECES_MESH: &str = "pieceShape1";
 /// The disc's side, in pixels.
 const DISC: u32 = 128;
 /// How wide a map the disc is sampled from: a mip level of about this width, or the map
@@ -32,6 +36,9 @@ pub(super) const SOURCE_WIDTH: u32 = 256;
 pub(crate) struct SurfaceMaps {
     /// Entity name → the folder of its `.asset` file and its surface map's file name.
     maps: BTreeMap<String, (String, String)>,
+    /// Entity name → the folder of its `.asset` file and its pieces' map, for an entity whose
+    /// `.asset` names no surface map.
+    pieces: BTreeMap<String, (String, String)>,
     /// Entity name → its `pdxmesh`, for an entity whose `.asset` names no surface map.
     meshes: BTreeMap<String, String>,
     /// `pdxmesh` name → its `.mesh` file, relative to a layer root.
@@ -43,6 +50,8 @@ pub(crate) struct SurfaceMaps {
 pub(crate) enum Surface {
     /// A map to bake into a disc, relative to a layer root.
     Map(String),
+    /// A map to bake into a disc and break apart: the model is a planet in pieces.
+    Pieces(String),
     /// None: the model is read, and has no planet surface.
     Flat,
     /// The files read do not say: no model of that name, or its `.mesh` missing.
@@ -66,7 +75,8 @@ impl SurfaceMaps {
 
 /// The surface of `entity` in `maps`. The game numbers a class's models `<entity>_01_entity`,
 /// `<entity>_02_entity` …; the first one stands for them all. A map an `.asset` names comes
-/// before one a `.mesh` stores, whichever name each is under.
+/// before one a `.mesh` stores, whichever name each is under, and a whole surface before
+/// pieces.
 pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surface {
     let names = [
         format!("{entity}_01_entity"),
@@ -75,6 +85,9 @@ pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surf
     ];
     if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.maps.get(name)) {
         return Surface::Map(beside_or_in_assets(layout, asset_dir, file));
+    }
+    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.pieces.get(name)) {
+        return Surface::Pieces(beside_or_in_assets(layout, asset_dir, file));
     }
     let mesh = names
         .iter()
@@ -86,12 +99,13 @@ pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surf
     let Some(bytes) = layout.resolve_file(mesh).and_then(|p| fs::read(p).ok()) else {
         return Surface::Unknown;
     };
-    match material_diffuse(&bytes, SURFACE_MESH) {
-        Some(file) => {
-            let dir = mesh.rsplit_once('/').map_or("", |(dir, _)| dir);
-            Surface::Map(beside_or_in_assets(layout, dir, file))
-        }
-        None => Surface::Flat,
+    let dir = mesh.rsplit_once('/').map_or("", |(dir, _)| dir);
+    if let Some(file) = material_diffuse(&bytes, SURFACE_MESH) {
+        Surface::Map(beside_or_in_assets(layout, dir, file))
+    } else if let Some(file) = material_diffuse(&bytes, PIECES_MESH) {
+        Surface::Pieces(beside_or_in_assets(layout, dir, file))
+    } else {
+        Surface::Flat
     }
 }
 
@@ -99,7 +113,7 @@ pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surf
 pub(crate) fn diffuse(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Option<String> {
     match surface(layout, maps, entity) {
         Surface::Map(rel) => Some(rel),
-        Surface::Flat | Surface::Unknown => None,
+        Surface::Pieces(_) | Surface::Flat | Surface::Unknown => None,
     }
 }
 
@@ -253,12 +267,19 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
             let Some(name) = last_scalar(entity, "name", &src) else {
                 continue;
             };
-            if let Some(file) = surface_map(entity, &src) {
+            if let Some(file) = mesh_map(entity, SURFACE_MESH, &src) {
                 maps.meshes.remove(name);
+                maps.pieces.remove(name);
                 maps.maps
                     .insert(name.to_owned(), (dir.clone(), file.to_owned()));
             } else if let Some(mesh) = last_scalar(entity, "pdxmesh", &src) {
                 maps.maps.remove(name);
+                match mesh_map(entity, PIECES_MESH, &src) {
+                    Some(file) => maps
+                        .pieces
+                        .insert(name.to_owned(), (dir.clone(), file.to_owned())),
+                    None => maps.pieces.remove(name),
+                };
                 maps.meshes.insert(name.to_owned(), mesh.to_owned());
             }
         }
@@ -288,10 +309,10 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
     maps
 }
 
-fn surface_map<'a>(entity: &Node, src: &'a [u8]) -> Option<&'a str> {
+fn mesh_map<'a>(entity: &Node, shape: &str, src: &'a [u8]) -> Option<&'a str> {
     entity
         .find_all("meshsettings", src)
-        .find(|mesh| last_scalar(mesh, "name", src) == Some(SURFACE_MESH))
+        .find(|mesh| last_scalar(mesh, "name", src) == Some(shape))
         .and_then(|mesh| last_scalar(mesh, "texture_diffuse", src))
 }
 

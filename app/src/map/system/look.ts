@@ -2,7 +2,7 @@
  * How the system view draws a class, read from its key once the scene has resolved which class a
  * body is. The layers draw from what this gives and never from a key.
  */
-import { planetTint } from "../../lib/details/icons";
+import { planetTint, shatteredDiscKey } from "../../lib/details/icons";
 import { starFlare, starGlyph, type StarFlare } from "../../lib/visual/starGlyphs";
 
 export const ICY_TINT = 0xbfd9ee;
@@ -50,6 +50,8 @@ export interface BodyLook {
    * and a glow behind it keeps it reading as a body when small.
    */
   readonly flat: boolean;
+  /** Its surface broken into shards, as the game's model of a shattered world is. */
+  readonly shattered: boolean;
   /** Light on a black ground, added as a star's art is: an astral scar. */
   readonly luminous: boolean;
   /** A hard surface that catches a highlight; a gas giant has none. */
@@ -69,7 +71,9 @@ function classTint(planetClass: string, starClass: string | null): number {
 /**
  * How a body of `planetClass` is drawn: a star as `starClass`, a body whose class is left to a
  * draw with no surface of its own, and a `flat` class from its icon alone. A planet whose save
- * names a `model` shows that model's surface where the install has one, else its class's.
+ * names a `model` shows that model's surface where the install has one, else its class's. A class
+ * the install draws broken apart shows its shattered disc, broken as `shatterSeed`, the planet's
+ * id, says, so each planet breaks its own way and always the same way.
  */
 export function bodyLook(
   planetClass: string,
@@ -77,6 +81,7 @@ export function bodyLook(
   drawn: boolean,
   flat = false,
   model: string | null = null,
+  shatterSeed: number | null = null,
 ): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
@@ -84,14 +89,21 @@ export function bodyLook(
   const irregular = /asteroid/.test(planetClass) || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";
+  const seed = starClass === null && baked ? shatterSeed : null;
+  const shattered = seed !== null;
   const modelKeys = model !== null && starClass === null ? [`planet_model:${model}`] : [];
+  const keys =
+    seed !== null
+      ? [shatteredDiscKey(planetClass, seed)]
+      : [...modelKeys, `${kind}:${planetClass}`];
   return {
     tint: classTint(planetClass, starClass),
-    surfaceKeys: baked ? [...modelKeys, `${kind}:${planetClass}`] : [],
+    surfaceKeys: baked ? keys : [],
     blackHole,
     flare: starClass !== null ? starFlare(starClass) : null,
     irregular,
     flat: flatArt,
+    shattered,
     luminous,
     gloss: !/gas_giant/.test(planetClass),
     glaze: ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null,

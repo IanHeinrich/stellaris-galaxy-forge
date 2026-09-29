@@ -545,11 +545,17 @@ pub struct PlanetClassView {
     #[ts(optional)]
     pub draws_as_planet: Option<bool>,
     /// `Some(true)` for a planet class with no surface map to bake into a disc, drawn from
-    /// its icon alone (vanilla: habitats, ring world segments, broken and shattered worlds);
-    /// `None` otherwise.
+    /// its icon alone (vanilla: habitats, ring world segments and broken worlds); `None`
+    /// otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub flat_art: Option<bool>,
+    /// `Some(true)` for a planet class whose model is a planet in pieces, drawn as the disc of
+    /// `planet_disc_shattered:<class>:<planet id>` (vanilla: the shattered worlds and the
+    /// cracked egg); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub shattered: Option<bool>,
     /// `Some(true)` for a class a moon may not have (`can_be_moon = no`); `None` otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -772,6 +778,7 @@ impl GameData {
                 ringworld: marker(pc.ringworld),
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
                 flat_art: marker(self.flat_art(&pc.key)),
+                shattered: marker(self.shattered(&pc.key)),
                 moonless: marker(!pc.can_be_moon),
                 change: pc.change(),
                 models: self.class_models(&pc.key),

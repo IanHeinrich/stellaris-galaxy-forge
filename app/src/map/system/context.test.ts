@@ -256,6 +256,60 @@ describe("the bodies of a system", () => {
     ]);
   });
 
+  it("draws a shattered class broken apart as its planet's id says, with no haze, and every other class whole", () => {
+    const layout = (id: number) =>
+      bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(10) });
+    const shattered = {
+      ...planetClassView("pc_shattered", false),
+      shattered: true,
+      atmosphere_color: "#b39b6b",
+      atmosphere_intensity: 1,
+      atmosphere_width: 0.5,
+    };
+    const planetClasses = new Map(sources.planetClasses).set(shattered.key, shattered);
+    const broken = (id: number) =>
+      planetSummary({
+        id,
+        class: "pc_shattered",
+        entity_name: "shattered_planet_01_entity",
+        layout: layout(id),
+      });
+    const whole = planetSummary({ id: 4, class: "pc_continental", layout: layout(4) });
+    const scene = () => save([sun, broken(2), broken(3), whole], { planetClasses });
+    const ctx = scene();
+    const looks = [2, 3, 4].map((id) => {
+      const { look, atmosphere } = ctx.bodyById.get(id)!;
+      const { shattered, flat, irregular, surfaceKeys } = look;
+      return { shattered, flat, irregular, surfaceKeys, haze: atmosphere !== null };
+    });
+    expect(looks).toEqual([
+      {
+        shattered: true,
+        flat: false,
+        irregular: false,
+        surfaceKeys: ["planet_disc_shattered:pc_shattered:2"],
+        haze: false,
+      },
+      {
+        shattered: true,
+        flat: false,
+        irregular: false,
+        surfaceKeys: ["planet_disc_shattered:pc_shattered:3"],
+        haze: false,
+      },
+      {
+        shattered: false,
+        flat: false,
+        irregular: false,
+        surfaceKeys: ["planet_disc:pc_continental"],
+        haze: false,
+      },
+    ]);
+    expect(scene().bodyById.get(2)!.look.surfaceKeys).toEqual(
+      ctx.bodyById.get(2)!.look.surfaceKeys,
+    );
+  });
+
   it("draws a save planet's own model before its class's disc, and draws it afresh when the model changes", () => {
     const layout = bodyLayout({ orbit: fixed(40), at: [40, 0], size: fixed(10) });
     const plain = planetSummary({ id: 2, class: "pc_continental", layout });

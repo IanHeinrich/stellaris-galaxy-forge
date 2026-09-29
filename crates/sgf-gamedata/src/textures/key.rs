@@ -42,6 +42,12 @@ pub enum TextureKey {
     PlanetDisc {
         class: String,
     },
+    /// A planet class whose model is in pieces: its pieces' map baked as [`Self::PlanetDisc`]
+    /// bakes a class's, then broken apart as `seed`, a planet's id, says.
+    ShatteredDisc {
+        class: String,
+        seed: u32,
+    },
     /// A planet model's surface map baked as [`Self::PlanetDisc`] bakes a class's, for a
     /// planet whose save names a model of its own.
     PlanetModel {
@@ -138,6 +144,14 @@ impl FromStr for TextureKey {
             "planet_disc" => Self::PlanetDisc {
                 class: component(rest).ok_or_else(bad)?,
             },
+            "planet_disc_shattered" => {
+                let (class, seed) = rest.rsplit_once(':').ok_or_else(bad)?;
+                let digits = !seed.is_empty() && seed.bytes().all(|b| b.is_ascii_digit());
+                Self::ShatteredDisc {
+                    class: component(class).ok_or_else(bad)?,
+                    seed: seed.parse().ok().filter(|_| digits).ok_or_else(bad)?,
+                }
+            }
             "planet_model" => Self::PlanetModel {
                 entity: component(rest).ok_or_else(bad)?,
             },
@@ -174,6 +188,9 @@ impl fmt::Display for TextureKey {
                 write!(f, "empire_flag:{background}:{icon}:{}", colours.join(","))
             }
             Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
+            Self::ShatteredDisc { class, seed } => {
+                write!(f, "planet_disc_shattered:{class}:{seed}")
+            }
             Self::PlanetModel { entity } => write!(f, "planet_model:{entity}"),
             Self::PlanetRing => f.write_str("planet_ring"),
             Self::StarDisc { class } => write!(f, "star_disc:{class}"),

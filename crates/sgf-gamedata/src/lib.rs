@@ -145,6 +145,8 @@ pub struct GameData {
     surface_maps: Arc<OnceLock<textures::planet_disc::SurfaceMaps>>,
     /// The planet classes drawn from their icons alone, worked out once for this layout.
     flat_art: Arc<OnceLock<BTreeSet<String>>>,
+    /// The planet classes drawn broken apart, worked out once for this layout.
+    shattered: Arc<OnceLock<BTreeSet<String>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -380,6 +382,7 @@ impl GameData {
             eligibility: Arc::default(),
             surface_maps: Arc::default(),
             flat_art: Arc::default(),
+            shattered: Arc::default(),
         }
     }
 }

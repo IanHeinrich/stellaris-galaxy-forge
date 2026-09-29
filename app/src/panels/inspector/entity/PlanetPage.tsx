@@ -82,7 +82,11 @@ function Head({ page }: { page: PlanetPage }) {
       {star ? (
         own && <StarRowIcon view={own} />
       ) : (
-        <PlanetIcon planetClass={page.class} sprite={planetClasses.get(page.class)?.icon_sprite} />
+        <PlanetIcon
+          planetClass={page.class}
+          sprite={planetClasses.get(page.class)?.icon_sprite}
+          seed={page.id}
+        />
       )}
       <span className="name">{bodyName(page, names)}</span>
       <span className="muted mono">#{page.id}</span>
@@ -444,7 +448,11 @@ function MoonFallbackRow({ moon }: { moon: PlanetPageMoon }) {
       requires={capabilityFor("planet")}
       onOpen={() => opener.open({ kind: "planet", id: moon.id }, name)}
     >
-      <PlanetIcon planetClass={moon.class} sprite={classes.get(moon.class)?.icon_sprite} />
+      <PlanetIcon
+        planetClass={moon.class}
+        sprite={classes.get(moon.class)?.icon_sprite}
+        seed={moon.id}
+      />
       <span>
         <span className="l1">{name}</span>
         <span className="l2">

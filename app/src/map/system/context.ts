@@ -213,6 +213,8 @@ interface DrawnClass {
   drawn: boolean;
   /** The model a save names for a planet, drawn in place of its class's; null for none. */
   model: string | null;
+  /** The planet's id, which a shattered class breaks by; null for a star. */
+  id: number | null;
 }
 
 type BodyArt = Pick<
@@ -239,6 +241,7 @@ function artOf(drawn: DrawnClass, src: SystemSources, planet: PlanetSummary | nu
     kept.drawn.starClass === drawn.starClass &&
     kept.drawn.drawn === drawn.drawn &&
     kept.drawn.model === drawn.model &&
+    kept.drawn.id === drawn.id &&
     kept.planetClasses === src.planetClasses &&
     kept.starClasses === src.starClasses
   ) {
@@ -283,7 +286,7 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
 function freshArt(
-  { planetClass, starClass, drawn, model }: DrawnClass,
+  { planetClass, starClass, drawn, model, id }: DrawnClass,
   src: SystemSources,
 ): BodyArt {
   if (starClass !== null) {
@@ -300,7 +303,8 @@ function freshArt(
     };
   }
   const view = drawn ? undefined : src.planetClasses.get(planetClass);
-  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true, model);
+  const seed = view?.shattered === true ? id : null;
+  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true, model, seed);
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {
@@ -309,7 +313,7 @@ function freshArt(
     look,
     iconKeys: small,
     largeIconKeys: large,
-    atmosphere: atmosphereOf(view),
+    atmosphere: look.shattered ? null : atmosphereOf(view),
   };
 }
 
@@ -370,7 +374,11 @@ function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
       resources: NOTHING,
       marks: NO_MARKS,
       readout: null,
-      ...artOf({ planetClass: star.class, starClass, drawn: false, model: null }, src, null),
+      ...artOf(
+        { planetClass: star.class, starClass, drawn: false, model: null, id: null },
+        src,
+        null,
+      ),
     };
   });
 }
@@ -442,7 +450,13 @@ function sceneBodies(
         marks: bodyMarks(planet, src.countries, details, src.names),
         readout: readoutOf(placement, discs),
         ...artOf(
-          { planetClass: planet.class, starClass, drawn, model: planet.entity_name ?? null },
+          {
+            planetClass: planet.class,
+            starClass,
+            drawn,
+            model: planet.entity_name ?? null,
+            id: planet.id,
+          },
           src,
           planet,
         ),
