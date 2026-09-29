@@ -12,7 +12,6 @@ export { SPAWN_BUFFER };
 
 export const NEEDS_GAME_DATA = "Load game data to add a system";
 export const NEEDS_STELLARIS_4 = "Adding systems needs a Stellaris 4 save";
-export const IRONMAN = "Ironman save: adding systems is turned off";
 export const ADDED_THIS_SESSION = "Added this session";
 /** What the placing rules read about the open save and the spot. */
 export interface PlaceFacts {
@@ -45,7 +44,6 @@ export function isStellaris4(meta: SaveMeta | null): boolean {
 export function addSystemRefusal(facts: PlaceFacts): AddRefusal | null {
   if (!facts.gameData) return { reason: NEEDS_GAME_DATA, limit: null };
   if (!isStellaris4(facts.meta)) return { reason: NEEDS_STELLARIS_4, limit: null };
-  if (facts.meta?.ironman) return { reason: IRONMAN, limit: null };
   const radius = facts.radius;
   if (radius > 0 && Math.hypot(facts.x, facts.y) > radius) {
     const reason = `Outside the galaxy's edge (radius ${Math.round(radius)})`;

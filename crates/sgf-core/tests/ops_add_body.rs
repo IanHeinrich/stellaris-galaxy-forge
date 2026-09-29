@@ -302,11 +302,12 @@ fn adds_and_removals_are_refused() {
 }
 
 #[test]
-fn an_ironman_save_is_refused() {
+fn an_ironman_save_takes_a_planet() {
     let mut session =
         open_edited_sample(common::SAMPLE_4_5, |_, meta| meta.push_str("ironman=yes\n"));
-    let error = session.apply(meissa_v()).expect_err("Ironman");
-    assert!(matches!(error, OpError::Ironman), "{error}");
+    session
+        .apply(meissa_v())
+        .expect("an Ironman save takes a planet");
 }
 
 #[test]

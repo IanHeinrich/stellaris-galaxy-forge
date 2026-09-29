@@ -19,9 +19,7 @@ use crate::format::save::write::bodies::{
     Stored, frame, grow_past, list_moon, number, unlist_moon,
 };
 use crate::format::save::write::move_planet::{is_star_class, list_planets, unlist_planets};
-use crate::format::save::{
-    check_adds_system, check_version, entity_at, planet_entity, planet_system,
-};
+use crate::format::save::{check_version, entity_at, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{Body, check_placement, drawn_radius, normalised, point, reach};
 use crate::ops::rules::check_name;
@@ -41,7 +39,7 @@ pub(crate) fn plan_add(
     spec: &NewBody,
     at: OrbitPlacement,
 ) -> Result<Planned, OpError> {
-    check_adds_system(&s.doc)?;
+    check_version(&s.doc)?;
     let angle = normalised(at.angle);
     let body_spec = BodySpec {
         class: spec.class.clone(),

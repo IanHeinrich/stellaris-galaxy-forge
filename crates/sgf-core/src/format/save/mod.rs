@@ -209,7 +209,7 @@ impl Format for Save {
                 custom_name.unwrap_or(true),
             ),
             Op::AddSaveSystem { spec } => {
-                check_adds_system(&s.doc)?;
+                check_version(&s.doc)?;
                 add_system::plan_add(plan, s, spec)
             }
             Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
@@ -381,7 +381,7 @@ impl Format for Save {
             create_systems: false,
             lane_bridges: true,
             waylines: true,
-            added_systems: check_adds_system(doc).is_ok(),
+            added_systems: check_version(doc).is_ok(),
             bodies: true,
             deposits: check_version(doc).is_ok(),
             geometry: check_version(doc).is_ok(),
@@ -440,16 +440,6 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
         Some(_) => Err(OpError::SaveTooOld(version)),
         None => Err(OpError::UnknownSaveVersion(version)),
     }
-}
-
-/// Whether the save takes a new system: [`check_version`], and not an Ironman save.
-pub(crate) fn check_adds_system(doc: &Document) -> Result<(), OpError> {
-    check_version(doc)?;
-    let ironman = archive::parse_meta(doc.meta()).is_ok_and(|meta| meta.ironman);
-    if ironman {
-        return Err(OpError::Ironman);
-    }
-    Ok(())
 }
 
 /// The statement standing for system `id`: one an op added, or the one loaded.

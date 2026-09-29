@@ -6,7 +6,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { EditResult } from "../generated/EditResult";
 import type { SystemNode } from "../generated/SystemNode";
-import { IRONMAN, NEEDS_GAME_DATA, NEEDS_STELLARIS_4 } from "../lib/addSystem";
+import { NEEDS_GAME_DATA, NEEDS_STELLARIS_4 } from "../lib/addSystem";
 import { run } from "./commands";
 import {
   addedNode,
@@ -218,9 +218,9 @@ describe("why a system cannot be added", () => {
     expect(addSystemRefusalAt(-50, -20)?.reason).toBe(NEEDS_STELLARIS_4);
   });
 
-  it("is off for an Ironman save", () => {
+  it("is on for an Ironman save", () => {
     useFileSessionStore.setState({ meta: saveMeta({ ironman: true }) });
-    expect(addSystemRefusalAt(-50, -20)?.reason).toBe(IRONMAN);
+    expect(addSystemRefusalAt(-50, -20)).toBeNull();
   });
 });
 

@@ -362,7 +362,7 @@ inner radius circle.
 
 #### Add planets and moons
 
-In a Stellaris 4.x save that isn't Ironman, right-click empty space in
+In a Stellaris 4.x save, right-click empty space in
 the system view and choose Add planet here. Pick Random, or a planet class from the list.
 Each class shows the sizes it comes in. The planet lands where you
 right-clicked.

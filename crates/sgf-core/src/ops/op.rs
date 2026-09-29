@@ -400,8 +400,7 @@ pub enum Op {
     /// dead slot of their tables first. Its name leaves the save's pool of unused star
     /// names, or failing that of black hole names, when one holds it. A system standing
     /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
-    /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only, and not an Ironman
-    /// save.
+    /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only.
     AddSaveSystem {
         spec: SystemSpec,
     },
@@ -719,7 +718,7 @@ pub enum Op {
     /// its construction queue when it loads, and nobody has surveyed it. A moon of a star, a
     /// moon or an asteroid, and a parent outside the system, are refused. The inverse is
     /// [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris 4.x
-    /// save documents only, and not an Ironman save.
+    /// save documents only.
     AddSaveBody {
         system: u32,
         spec: NewBody,
@@ -1290,8 +1289,6 @@ pub enum OpError {
     SaveTooOld(String),
     #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
     UnknownSaveVersion(String),
-    #[error("an Ironman save cannot take this edit")]
-    Ironman,
     #[error("the save has no `{0}`")]
     MissingSaveKey(&'static str),
     #[error(
@@ -1555,7 +1552,6 @@ impl OpError {
             | Self::EmpireNameUnchanged { .. }
             | Self::SaveTooOld { .. }
             | Self::UnknownSaveVersion { .. }
-            | Self::Ironman { .. }
             | Self::MissingSaveKey { .. }
             | Self::SystemIdsNotDense { .. }
             | Self::TooClose { .. }

@@ -157,7 +157,7 @@ fn corpus_round_trips_within_budget() {
     }
 
     println!(
-        "added and removed a system on {took_a_system} of {} saves; a 3.x or Ironman save takes none",
+        "added and removed a system on {took_a_system} of {} saves; a 3.x save takes none",
         saves.len()
     );
     assert!(
