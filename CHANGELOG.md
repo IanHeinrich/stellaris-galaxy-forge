@@ -16,17 +16,20 @@ a release is made.
   in the system view to add or delete one. A new planet gets its size
   and deposits from the game's rules. Stars and ring worlds can't be
   deleted.
-- Change a planet's class or look from its page, such as turning a
-  barren world into an ocean world. The system view draws the new look.
-- Remove a colony and keep its planet.
+- Change a planet's class from its page, such as turning a barren world
+  into an ocean world.
+- Change a planet's skin separately from its class.
+- Delete a colony without deleting the planet.
 - Add or remove anomalies and archaeological dig sites on a planet's
   page.
 - Add or remove wormhole pairs in a save by selecting two systems and
-  right-clicking. Drag a natural wormhole in the system view to move it.
+  right-clicking.
+- Wormholes are now visible in the system view, and can be moved to new
+  positions within the system.
 - In the system view, a planet's name shows its megastructures, dig
-  site, anomaly and pre-FTL civilisation. Wormholes show as the game
-  draws them.
-- Reserved seats can be named Alpha to Omega, as in Paint a Galaxy.
+  site, anomaly and pre-FTL civilisation.
+- Support for Paint a Galaxy's latest update. Reserved seats can be
+  named Alpha to Omega.
 
 ### Changed
 
@@ -651,8 +654,8 @@ a release is made.
 
 - The map uses your install's star art, icons and names, matching your
   DLC and the save's mods.
-- Empire territories are drawn as the game draws them, with each
-  empire's colours, emblem and name.
+- Empire territories look as they do in the game, with each empire's
+  colours, emblem and name.
 - Leviathans, enclaves, marauders, fallen empires and landmarks are
   marked on the map.
 - Zooming in shows each system's owner, starbase, resources and fleets.

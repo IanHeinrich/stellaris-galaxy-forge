@@ -69,5 +69,5 @@ A scenario stores no positions, so the scene draws a scenario system from one ex
 body's orbit and angle. The same system and roll always give the same layout, and Roll again asks for the next
 roll. Where the game rolls the planets itself (a `random`, empty or unknown initializer, or one that places its
 planets only through an inline script), the roll holds placeholder planets instead, rolled by the add-system
-generator for the system's star class. The scene draws them faint and they cannot be picked. The app draws what
+generator for the system's star class. The scene shows them faint and they cannot be picked. The app draws what
 the roll gives and does not walk the initializer itself.

@@ -158,7 +158,7 @@ for planets or deposits.
   `origin=4294967295`.
 - Moving a system changes its own `x`/`y` and the `length` of each of
   its lanes, on both ends. Nothing inside the system moves. The game
-  keeps the moved system's lanes and draws them to the old neighbours.
+  keeps the moved system's lanes, still joined to the old neighbours.
 - A planet's `orbit` is its orbital radius, and its `x`/`y` are the
   current point on that orbit. A moon has `moon_of=<planet>` and an
   `orbit` around its parent, and its coordinates are relative to the

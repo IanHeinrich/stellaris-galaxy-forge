@@ -265,7 +265,7 @@ for that page, or "Galaxy" for the whole map.
 ### System view
 
 Open one system to see its star, planets, moons and asteroid belts laid
-out the way the game draws them. There are five ways in:
+out as they are in the game. There are five ways in:
 
 - Double-click the system on the map.
 - Select the system and press Enter or M.
@@ -420,11 +420,10 @@ first.
 #### Wormholes
 
 In a save, the system view shows each wormhole as a blue swirl where it
-sits in the system, as the game draws it. With Names on, its name plate
-shows under it. Point at it to see which system is on the other side.
-Drag a natural wormhole to move it. Hold Shift to snap the angle
-to 15° steps. Shroud tunnels show too, but they stay where they are.
-Turn off Bypasses to hide them.
+sits in the system. With Names on, its name plate shows under it. Point
+at it to see which system is on the other side. Drag a natural wormhole
+to move it. Hold Shift to snap the angle to 15° steps. Shroud tunnels
+show too, but they stay where they are. Turn off Bypasses to hide them.
 
 Click a wormhole, or its row under Bypasses on the system's page, to
 open its page in the Inspector. The page links to the system on the
