@@ -1,20 +1,23 @@
-import { BitmapText, Container, Graphics, Sprite, TextStyle, Texture } from "pixi.js";
+import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
 import { type BodyMarks, marked, NO_MARKS, sameMarks } from "../../../lib/details/layout";
-import { formatAmount, resourceAbbrev, type ResourceRow } from "../../../lib/details/resources";
+import type { ResourceRow } from "../../../lib/details/resources";
+import type { Names } from "../../../lib/names";
 import { MAP_FONT } from "../../../lib/visual/style";
 import { onTextures, requestTextures } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
-import { queuedTextures } from "../../layers/details/cell";
+import { NO_TEXTURES, queuedTextures, type Textures } from "../../layers/details/cell";
+import type { Tip } from "../../layers/details/Hover";
 import {
-  ICON_SHADOW_ALPHA,
-  ICON_SHADOW_OFFSET_PX,
   RESOURCE_AMOUNT_PX,
-  RESOURCE_ICON_PX,
-  resourceCell,
+  type ResourceReach,
+  resourceIcons,
+  type ResourceStyles,
 } from "../../layers/details/resources";
+import type { Row } from "../../layers/details/Row";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import { bodyTier, drawnDisc } from "../geometry";
-import type { PlatePick } from "../picking";
+import { pickPlate, type PlatePick } from "../picking";
+import { LabelRow } from "./labelRow";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
 import { NameMarks } from "./nameMarks";
 import { colonyBarReach, drawPlate, PLATE_PAD_X, PLATE_PAD_Y, type Plate } from "./plate";
@@ -57,13 +60,7 @@ const ABBREV_STYLE = new TextStyle({
   fill: 0xd6dde8,
   stroke: { color: 0x000000, width: 2 },
 });
-
-interface Cell {
-  key: string;
-  icon: Sprite;
-  shadow: Sprite;
-  abbrev: BitmapText;
-}
+const RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
 
 /**
  * A body's plate with its name, its resource row, or both, in unscaled screen pixels from the
@@ -73,9 +70,10 @@ interface Label {
   body: SceneBody;
   holder: Container;
   plate: Plate | null;
-  /** A colony's or pre-FTL body's marks about its plate; null for any other body, or none shown. */
+  /** The marks about its plate; null for a body with none, or none shown. */
   marks: NameMarks | null;
-  cells: Cell[];
+  /** The resources under its plate; null for a body with none, or none shown. */
+  resources: LabelRow | null;
   w: number;
   h: number;
 }
@@ -103,6 +101,19 @@ function rank(a: Label, b: Label): number {
   return bodyTier(a.body) - bodyTier(b.body) || b.body.placement.disc - a.body.placement.disc;
 }
 
+/** Draws `rows` into a label's resource row, its middle at x = 0 and its top at 0. */
+function drawResources(
+  row: Row,
+  names: Names,
+  tex: Textures,
+  rows: readonly ResourceRow[],
+): ResourceReach {
+  row.begin();
+  const reach = resourceIcons(row, names, tex, rows, 0, RESOURCE_STYLES);
+  row.end();
+  return reach;
+}
+
 /**
  * One body's label: its name on a plate when `named`, with `marks` about the plate, and under it
  * the resources in `rows`, each icon over its amount.
@@ -112,6 +123,7 @@ function makeLabel(
   named: boolean,
   rows: readonly ResourceRow[],
   marks: BodyMarks,
+  ctx: SystemContext,
 ): Label {
   const holder = new Container();
   let plate: Plate | null = null;
@@ -125,67 +137,49 @@ function makeLabel(
     name.anchor.set(0.5, 0);
     const w = name.width + 2 * PLATE_PAD_X + colonyBarReach(body.colony);
     plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
-    if (marked(marks)) nameMarks = new NameMarks(marks, plate.w, plate.h);
+    if (marked(marks) && body.planet !== null) {
+      nameMarks = new NameMarks(marks, body.planet, ctx, plate.w, plate.h);
+    }
     if (nameMarks?.under) holder.addChild(nameMarks.under);
     holder.addChild(g);
     if (nameMarks) holder.addChild(nameMarks.over);
     holder.addChild(name);
   }
 
-  let rowHalf = 0;
-  let amountH = 0;
-  const laid = rows.map((row, i) => {
-    const dx = resourceCell(i, rows.length, 0).x;
-    const shadow = new Sprite(Texture.EMPTY);
-    shadow.tint = 0x000000;
-    shadow.alpha = ICON_SHADOW_ALPHA;
-    shadow.anchor.set(0.5, 0);
-    const icon = new Sprite(Texture.EMPTY);
-    icon.label = "resource";
-    icon.anchor.set(0.5, 0);
-    const abbrev = new BitmapText({ text: resourceAbbrev(row.resource), style: ABBREV_STYLE });
-    abbrev.anchor.set(0.5, 0);
-    const amount = new BitmapText({ text: formatAmount(row.amount), style: AMOUNT_STYLE });
-    amount.label = "amount";
-    amount.anchor.set(0.5, 0);
-    holder.addChild(shadow, icon, abbrev, amount);
-    const reach = Math.max(RESOURCE_ICON_PX, abbrev.width, amount.width) / 2;
-    rowHalf = Math.max(rowHalf, Math.abs(dx) + reach);
-    amountH = Math.max(amountH, amount.height);
-    return { cell: { key: row.sprite, icon, shadow, abbrev }, amount };
-  });
+  let resources: LabelRow | null = null;
+  let reach: ResourceReach = { half: 0, height: 0 };
+  if (rows.length > 0) {
+    resources = new LabelRow("resources");
+    reach = drawResources(resources.row, ctx.names, NO_TEXTURES, rows);
+    holder.addChild(resources.root);
+  }
 
   const side = nameMarks?.side ?? 0;
-  const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * rowHalf);
+  const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * reach.half);
   if (plate && name) {
     plate.x = (w - plate.w) / 2;
     name.position.set(w / 2 + colonyBarReach(plate.colony) / 2, PLATE_PAD_Y);
     nameMarks?.place(plate.x, 0);
   }
   const rowY = plate ? plate.h + RESOURCE_GAP_PX : 0;
-  for (const [i, { cell, amount }] of laid.entries()) {
-    const at = resourceCell(i, laid.length, rowY);
-    const x = w / 2 + at.x;
-    cell.icon.position.set(x, at.iconY);
-    cell.shadow.position.set(x + ICON_SHADOW_OFFSET_PX, at.iconY + ICON_SHADOW_OFFSET_PX);
-    cell.abbrev.position.set(x, at.abbrevY);
-    amount.position.set(x, at.amountY);
-  }
-  const h = laid.length > 0 ? rowY + RESOURCE_ICON_PX + amountH : (plate?.h ?? 0);
-  return { body, holder, plate, marks: nameMarks, cells: laid.map((l) => l.cell), w, h };
+  resources?.root.position.set(w / 2, rowY);
+  const h = resources ? rowY + reach.height : (plate?.h ?? 0);
+  return { body, holder, plate, marks: nameMarks, resources, w, h };
 }
 
 /**
  * Each body's name on a plate centred under it, placed only where it clears the plates already
  * placed, so the lesser ones drop out as the view zooms out. A moon's plate goes under the moon,
  * or, where that is taken, in a column over its planet's plate. With the Details layer on, the
- * body's resources show under its name, or alone where the Labels layer is off, and a colony's
- * name shows its owner's flag on the game's plate, a pre-FTL world's the pre-FTL icon. The plates
- * shrink a little as the view zooms out.
+ * body's resources show under its name, or alone where the Labels layer is off. A colony's name
+ * shows its owner's flag on the game's plate, and a body's name the icons of its megastructures,
+ * dig sites, anomaly and pre-FTL civilisation, each with its tooltip. The plates shrink a little
+ * as the view zooms out.
  */
 export class LabelsLayer implements SystemLayer {
   readonly container = new Container();
   private bodies: readonly SceneBody[] = EMPTY_SYSTEM_CONTEXT.bodies;
+  private names: Names = EMPTY_SYSTEM_CONTEXT.names;
   private detailsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.details;
   private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
@@ -207,6 +201,21 @@ export class LabelsLayer implements SystemLayer {
     return this.shown;
   }
 
+  /** The tooltip of the mark or resource under the screen point, on a shown label; null for none. */
+  tipAt(sx: number, sy: number): Tip | null {
+    const cam = this.cam;
+    if (!cam) return null;
+    const id = pickPlate(this.shown, cam, { x: sx, y: sy });
+    const plate = this.shown.find((p) => p.id === id);
+    const label = this.labels.find((l) => l.body.placement.id === id);
+    if (!plate || !label) return null;
+    const top = cam.worldToScreen(plate.x, plate.y);
+    const k = plateScaleAt(cam, this.fitRadius);
+    const x = (sx - top.x) / k;
+    const y = (sy - top.y) / k;
+    return label.marks?.tipAt(x, y) ?? label.resources?.tipAt(x, y) ?? null;
+  }
+
   rebuild(ctx: SystemContext): void {
     const same =
       ctx.bodies === this.bodies &&
@@ -220,6 +229,7 @@ export class LabelsLayer implements SystemLayer {
       if (this.move(ctx)) return;
     }
     this.bodies = ctx.bodies;
+    this.names = ctx.names;
     this.detailsShown = ctx.sceneLayers.details;
     this.labelsShown = ctx.sceneLayers.labels;
     this.fitRadius = ctx.layout.fitRadius;
@@ -230,7 +240,7 @@ export class LabelsLayer implements SystemLayer {
         const rows = ctx.sceneLayers.details ? body.resources : [];
         if (!named && rows.length === 0) return [];
         const marks = ctx.sceneLayers.details ? body.marks : NO_MARKS;
-        const label = makeLabel(body, named, rows, marks);
+        const label = makeLabel(body, named, rows, marks, ctx);
         this.container.addChild(label.holder);
         return [label];
       })
@@ -255,6 +265,7 @@ export class LabelsLayer implements SystemLayer {
     };
     if (!this.bodies.every(alike)) return false;
     this.bodies = ctx.bodies;
+    this.names = ctx.names;
     this.fitRadius = ctx.layout.fitRadius;
     for (const label of this.labels) label.body = byId.get(label.body.placement.id)!;
     this.drawnRev = -1;
@@ -270,21 +281,9 @@ export class LabelsLayer implements SystemLayer {
   private redress(): void {
     const wanted = new Set<string>();
     const tex = queuedTextures(wanted);
-    for (const { cells, marks } of this.labels) {
+    for (const { body, marks, resources } of this.labels) {
       marks?.dress(tex);
-      for (const { key, icon, shadow, abbrev } of cells) {
-        const texture = tex.texture(key);
-        if (texture && icon.texture !== texture) {
-          for (const sprite of [icon, shadow]) {
-            sprite.texture = texture;
-            sprite.width = RESOURCE_ICON_PX;
-            sprite.height = RESOURCE_ICON_PX;
-          }
-        }
-        icon.visible = Boolean(texture);
-        shadow.visible = Boolean(texture);
-        abbrev.visible = texture === null;
-      }
+      if (resources) drawResources(resources.row, this.names, tex, body.resources);
     }
     if (wanted.size > 0) requestTextures(wanted);
   }

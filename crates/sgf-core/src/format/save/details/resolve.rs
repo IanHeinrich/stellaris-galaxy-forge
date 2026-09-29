@@ -150,6 +150,11 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub permanent_modifiers: Option<Vec<String>>,
+    /// The category of the anomaly the planet holds, its `anomaly`, which is also its
+    /// localisation key. `None` for a planet with none, and for a scenario's bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub anomaly: Option<String>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -277,6 +282,7 @@ pub(super) fn resolve(
             star_class: None,
             drawn: Some(false),
             permanent_modifiers: Some(p.permanent_modifiers.clone()),
+            anomaly: p.anomaly.clone(),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {

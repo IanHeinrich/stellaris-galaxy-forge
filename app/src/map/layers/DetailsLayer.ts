@@ -1,17 +1,11 @@
 import { Container } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
-import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
-import { type Icon, PRE_FTL_ICON } from "../../lib/details/icons";
+import type { Icon } from "../../lib/details/icons";
 import {
   bypassIcons,
-  megastructureIcon,
-  megastructureLabel,
-  shownMegastructures,
-  siteIcon,
-  siteLabel,
   starbaseFrame,
   starbaseKeys,
   starbaseLabel,
@@ -25,7 +19,7 @@ import {
   plateKey,
   visiblePlanets,
 } from "../../lib/details/layout";
-import type { MapTooltipLine } from "../../store/mapChromeStore";
+import { resourceRows } from "../../lib/details/resources";
 import { nameHalf } from "./nameWidth";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
@@ -35,9 +29,10 @@ import { onTextures, requestTextures } from "../../lib/visual/textures";
 import { queuedTextures, rowY, type RowY } from "./details/cell";
 import { fleets } from "./details/fleets";
 import { Hover, type Tip } from "./details/Hover";
-import { collapsed, icon } from "./details/icons";
+import { icon } from "./details/icons";
+import { drawNameIcons, nameIcons } from "./details/nameIcons";
 import { ownerFlag } from "./details/ownerFlag";
-import { planetDots, planetIcons, planetLines } from "./details/planets";
+import { planetDots, planetIcons } from "./details/planets";
 import { resourceIcons, resourceText } from "./details/resources";
 import { Row } from "./details/Row";
 import type { DragState, MapLayer } from "./MapLayer";
@@ -46,6 +41,7 @@ const UNDERLINE_ALPHA = 0.7;
 /** How far beyond the viewport, in screen pixels, rows are still laid out. */
 const CULL_MARGIN_PX = 160;
 const MAX_ROWS = 300;
+const NO_BYPASSES: readonly Icon[] = [];
 
 /** What a shown row was laid out from: everything but the camera's translation. */
 interface LaidOut {
@@ -237,25 +233,19 @@ export class DetailsLayer implements MapLayer {
     const first = half + NAME_ROW.gap;
     let x = first;
     x = withIcons ? this.starbaseIcon(row, d, x, y) : this.starbaseText(row, d, x, y);
-    const structures = shownMegastructures(d.megastructures);
-    const megastructures = megastructureIcon(structures);
-    x = collapsed(
-      row,
-      tex,
-      megastructures,
-      x,
-      structures.length,
-      this.megastructureLines(structures),
-      y,
-    );
-    for (const b of this.bypassesOf.get(d.id) ?? []) x = icon(row, tex, b, x, y);
-    const sites = siteIcon(d.sites.map((site) => site.kind));
-    x = collapsed(row, tex, sites, x, d.sites.length, this.siteLines(d), y);
-    x = this.preFtl(row, d, x, y);
+    const icons = nameIcons(ctx, tex, {
+      planets: d.planets,
+      megastructures: d.megastructures,
+      bypasses: this.bypassesOf.get(d.id) ?? NO_BYPASSES,
+      sites: d.sites,
+      anomaly: null,
+    });
+    x = drawNameIcons(row, tex, icons, x, y);
     if (x > first && plateKey(d) === null) this.underline(row, plateBox(half, y.row));
     fleets(row, ctx, tex, d, withIcons);
-    if (withIcons) resourceIcons(row, ctx, tex, d, y.resource);
-    else resourceText(row, d, y.resource);
+    if (withIcons) {
+      resourceIcons(row, ctx.names, tex, resourceRows(d, ctx.resourceIcons), y.resource);
+    } else resourceText(row, d, y.resource);
     const planets = visiblePlanets(d);
     if (withIcons) planetIcons(row, ctx, tex, planets);
     else planetDots(row, ctx, tex, planets);
@@ -287,29 +277,6 @@ export class DetailsLayer implements MapLayer {
     const title = this.ctx.names.get(level) ?? starbaseLabel(level);
     const lines = owner === null ? [] : [this.ctx.countryName(owner)];
     return { title, lines };
-  }
-
-  private megastructureLines(structures: MegastructureSummary[]): MapTooltipLine[] {
-    if (structures.length < 2) return [];
-    const { countryName } = this.ctx;
-    return structures.map((m) => ({
-      label: megastructureLabel(m.kind),
-      value: m.owner === null ? "unowned" : countryName(m.owner),
-    }));
-  }
-
-  private siteLines(d: SystemDetails): MapTooltipLine[] {
-    return d.sites.map((site) => {
-      const planet = d.planets.find((p) => p.id === site.planet);
-      const value = planet ? this.ctx.templateName(planet) : "";
-      return d.sites.length > 1 ? { label: siteLabel(site.kind), value } : value;
-    });
-  }
-
-  private preFtl(row: Row, d: SystemDetails, x: number, y: RowY): number {
-    const worlds = d.planets.filter((p) => p.pre_ftl);
-    if (worlds.length === 0) return x;
-    return icon(row, this.tex, PRE_FTL_ICON, x, y, planetLines(this.ctx, this.tex, worlds));
   }
 
   /** Without a plate, the plate's bottom line alone underlines the name. */

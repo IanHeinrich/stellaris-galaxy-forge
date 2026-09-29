@@ -29,6 +29,7 @@ import {
   blankSceneTextures,
   context as fixtureContext,
   fixed,
+  resourceAmounts,
   rollOf,
   SYSTEM,
   stubTextMeasurement,
@@ -157,6 +158,42 @@ describe("the bodies of a system", () => {
     ]);
   });
 
+  it("marks a body with the megastructures and dig sites on it and its anomaly by the game's name", () => {
+    const at = (id: number) =>
+      bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(16) });
+    const holding = planetSummary({
+      id: 2,
+      class: "pc_barren",
+      anomaly: "AIANOM_RESEARCHDEPO_CAT",
+      layout: at(2),
+    });
+    const other = planetSummary({ id: 3, class: "pc_barren", layout: at(3) });
+    const planets = [sun, holding, other];
+    const ctx = save(planets, {
+      details: systemDetails({
+        id: SYSTEM,
+        planets,
+        megastructures: [
+          { id: 50, kind: "dyson_sphere_2", owner: null, planet: 2 },
+          { id: 51, kind: "gateway_final", owner: null, planet: 2 },
+        ],
+        sites: [{ id: 60, kind: "site_zroni_ruins", planet: 3 }],
+      }),
+      names: new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]),
+    });
+    expect(
+      ctx.bodies.map(({ marks }) => [
+        marks.megastructures.map((m) => m.id),
+        marks.sites.map((site) => site.id),
+        marks.anomaly,
+      ]),
+    ).toEqual([
+      [[], [], null],
+      [[50], [], "Research Depot"],
+      [[], [60], null],
+    ]);
+  });
+
   it("draws and sizes a body whose parent is missing as the moon the core says it is", () => {
     const orphan = planetSummary({
       id: 2,
@@ -269,7 +306,7 @@ describe("what a scenario leaves to chance", () => {
     const labelled = (holder: Container, label: string) =>
       holder.children.filter((c) => c.label === label).length;
     const holders = layer.container.children as Container[];
-    expect(holders.map((h) => [labelled(h, "plate"), labelled(h, "resource")])).toEqual([
+    expect(holders.map((h) => [labelled(h, "plate"), resourceAmounts(h).length])).toEqual([
       [1, 0],
       [1, 2],
       [1, 2],

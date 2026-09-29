@@ -34,6 +34,8 @@ pub(crate) struct PlanetFacts {
     pub deposits: Vec<u32>,
     pub orbitals: u32,
     pub flags: u32,
+    /// `anomaly`: the category of the anomaly the planet holds.
+    pub anomaly: Option<String>,
 }
 
 pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
@@ -51,6 +53,7 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
         deposits: read::ids(node, keys::DEPOSITS, src),
         orbitals: count(node, keys::PLANET_ORBITALS, src),
         flags: count(node, keys::FLAGS, src),
+        anomaly: read::scalar(node, keys::ANOMALY, src).map(str::to_owned),
     }
 }
 
@@ -183,8 +186,8 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
         owner: facts.owner,
         controller: facts.controller,
         flags: facts.flags,
-        anomaly: read::scalar(node, keys::ANOMALY, src).map(|category| PlanetPageAnomaly {
-            category: category.to_owned(),
+        anomaly: facts.anomaly.map(|category| PlanetPageAnomaly {
+            category,
             found_by: doc.anomaly_finders(id).to_vec(),
         }),
         terraforming: node.find(keys::TERRAFORM_PROCESS, src).is_some(),

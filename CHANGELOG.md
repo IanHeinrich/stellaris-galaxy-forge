@@ -12,10 +12,17 @@ a release is made.
 
 - Add an archaeological dig site to a save planet, or remove one, from
   its page in the Inspector. The page shows the site's stage and clues.
+- The deposit, modifier and dig site lists show the game's description
+  of a row at the bottom of the list. Hover the row, or move to it with
+  the arrow keys. The Dig site section shows the site's description too.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
+- In the system view, a planet's or moon's name shows icons for its
+  megastructures, dig site, anomaly and pre-FTL civilisation, as a
+  system's name does on the galaxy map. Hover an icon or a resource to
+  see what it is.
 
 ### Changed
 

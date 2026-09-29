@@ -14,7 +14,13 @@ vi.mock("../../../api/textures", () => ({
 
 import { BitmapText, Container, Graphics, NineSliceSprite, Sprite, Texture } from "pixi.js";
 import { empireFlagKey } from "../../../lib/details/fleets";
-import { CAPITAL_PLATE_KEY, PRE_FTL_ICON_KEY } from "../../../lib/details/icons";
+import {
+  ANOMALY_ICON_KEY,
+  ARCHAEOLOGY_ICON_KEYS,
+  CAPITAL_PLATE_KEY,
+  MEGASTRUCTURE_ICON_KEY,
+  PRE_FTL_ICON_KEY,
+} from "../../../lib/details/icons";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import { countryNode } from "../../../test/builders";
@@ -25,6 +31,7 @@ import {
   SUN,
   context,
   drawOps,
+  resourceAmounts,
   strokes,
   stubTextMeasurement,
   viewport,
@@ -65,7 +72,7 @@ describe("the system scene's labels layer", () => {
       .filter((c) => c.label === label);
 
   const amounts = (layer: LabelsLayer) =>
-    parts(layer, "amount").map((c) => (c instanceof BitmapText ? c.text : ""));
+    shown(layer).flatMap((h) => resourceAmounts(h as Container));
 
   it("moves the plates a preview moves with their bodies, keeping every display object", () => {
     const layer = new LabelsLayer();
@@ -276,6 +283,69 @@ describe("the system scene's labels layer", () => {
     layer.rebuild(withDetails(false));
     expect(parts(layer, "marks")).toHaveLength(0);
     expect(width(layer, capital.id)).toBe(plain.capital);
+    layer.destroy();
+  });
+
+  it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
+    clearTextures();
+    const decoded = new Map<string, Texture>();
+    const textureFor = (key: string) => {
+      if (!decoded.has(key)) decoded.set(key, new Texture());
+      return decoded.get(key)!;
+    };
+    setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
+    fetch.answers = true;
+    const natives = { ...EARTH, colonised: true, owner: 10, pre_ftl: true };
+    const holding = { ...natives, anomaly: "AIANOM_RESEARCHDEPO_CAT" };
+    const ctx = systemContext({
+      ...context({
+        planets: [SUN, holding, MARS],
+        megastructures: [{ id: 50, kind: "dyson_sphere_2", owner: null, planet: EARTH.id }],
+        sites: [
+          { id: 60, kind: "site_tiyanki_graveyard", planet: EARTH.id },
+          { id: 61, kind: "site_zroni_ruins", planet: MARS.id },
+        ],
+      }),
+      sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details: true },
+      names: new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]),
+    });
+    const layer = new LabelsLayer();
+    layer.rebuild(ctx);
+    const cam = viewport(layer, 2);
+    const plate = layer.plates().find((p) => p.id === EARTH.id);
+    if (!plate) throw new Error("no plate for the planet");
+    const holder = shown(layer).find(
+      (h) => h.position.x === plate.x && h.position.y === plate.y,
+    ) as Container;
+    const over = holder.children.find((c) => c.label === "marks") as Container;
+    const sprites = () =>
+      over.children
+        .flatMap((c) => c.children)
+        .filter((c): c is Sprite => c instanceof Sprite && c.visible)
+        .sort((a, b) => a.x - b.x);
+    const icons = [
+      MEGASTRUCTURE_ICON_KEY,
+      ARCHAEOLOGY_ICON_KEYS[0],
+      ANOMALY_ICON_KEY,
+      PRE_FTL_ICON_KEY,
+    ].map(textureFor);
+    await vi.waitFor(() => expect(sprites().map((s) => s.texture)).toEqual(icons));
+
+    const k = Math.abs(holder.scale.x) * cam.scale;
+    const top = cam.worldToScreen(plate.x, plate.y);
+    const tipOver = (sprite: Sprite) =>
+      layer.tipAt(
+        top.x + (over.x + over.scale.x * (sprite.x + sprite.width / 2)) * k,
+        top.y + (over.y + over.scale.y * (sprite.y + sprite.height / 2)) * k,
+      );
+    const [megastructure, site, anomaly] = sprites();
+    expect(tipOver(megastructure)?.title).toBe("Dyson Sphere (stage 2)");
+    expect(tipOver(site)).toEqual({
+      title: "Tiyanki Graveyard",
+      lines: [ctx.templateName(holding)],
+    });
+    expect(tipOver(anomaly)).toEqual({ title: "Research Depot", lines: ["Anomaly"] });
+    expect(layer.tipAt(top.x - 50, top.y - 50)).toBeNull();
     layer.destroy();
   });
 

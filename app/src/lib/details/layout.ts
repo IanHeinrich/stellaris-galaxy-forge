@@ -1,13 +1,16 @@
 /** Where the details bar puts the name row, the plate behind it and the planets beside the star. */
+import type { ArchaeologySite } from "../../generated/ArchaeologySite";
 import type { CountryNode } from "../../generated/CountryNode";
+import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { isMarauder } from "../countryKinds";
+import type { Names } from "../names";
 import { DETAIL_SCALE } from "../visual/labels";
 import { STAR_BASE_PX, starDiameterPx } from "../visual/starSize";
 import { empireFlagKey } from "./fleets";
 import { CAPITAL_PLATE_KEY, PLATE_KEY } from "./icons";
-import { FALLBACK_HABITABLE, isColony } from "./labels";
+import { anomalyName, FALLBACK_HABITABLE, isColony, shownMegastructures } from "./labels";
 
 /** Zoom (pixels per world unit) at which system details pop in, shared with the star art tier. */
 export const DETAILS_MIN_SCALE = DETAIL_SCALE;
@@ -78,7 +81,10 @@ function namePlateKey(capital: boolean): string {
   return capital ? CAPITAL_PLATE_KEY : PLATE_KEY;
 }
 
-/** What a body's name adds with details shown: a colony's plate and owner's flag, or the pre-FTL icon. */
+/**
+ * What a body's name adds with details shown: a colony's plate and owner's flag, and the icons
+ * of its megastructures, dig sites, anomaly and pre-FTL civilisation.
+ */
 export interface BodyMarks {
   /** The plate under the name, the capital's on the owner's capital; null for a body that is not a colony. */
   readonly plate: string | null;
@@ -87,40 +93,87 @@ export interface BodyMarks {
   /** The owner's capital, whose flag is ringed in gold. */
   readonly capital: boolean;
   readonly preFtl: boolean;
+  /** The megastructures orbiting it, less the bypasses, which the galaxy's row leaves out too. */
+  readonly megastructures: readonly MegastructureSummary[];
+  readonly sites: readonly ArchaeologySite[];
+  /** The name of the anomaly it holds; null for none. */
+  readonly anomaly: string | null;
 }
+
+const NONE: readonly never[] = Object.freeze([]);
 
 export const NO_MARKS: BodyMarks = Object.freeze({
   plate: null,
   flag: null,
   capital: false,
   preFtl: false,
+  megastructures: NONE,
+  sites: NONE,
+  anomaly: null,
 });
 const PRE_FTL_MARKS: BodyMarks = Object.freeze({ ...NO_MARKS, preFtl: true });
+
+/** The items of `items` on planet `id`. */
+function onPlanet<T extends { planet: number | null }>(
+  items: readonly T[],
+  id: number,
+): readonly T[] {
+  const on = items.filter((item) => item.planet === id);
+  return on.length === 0 ? NONE : on;
+}
 
 /** The marks a planet's name shows, as the system's name shows them for the planets in it. */
 export function bodyMarks(
   p: PlanetSummary,
   countries: ReadonlyMap<number, CountryNode>,
+  d: Pick<SystemDetails, "megastructures" | "sites">,
+  names: Names,
 ): BodyMarks {
-  if (p.pre_ftl) return PRE_FTL_MARKS;
-  if (!isColony(p) || p.owner === null) return NO_MARKS;
+  const megastructures = onPlanet(shownMegastructures(d.megastructures), p.id);
+  const sites = onPlanet(d.sites, p.id);
+  const anomaly = p.anomaly ? anomalyName(p.anomaly, names) : null;
+  const icons = { megastructures, sites, anomaly };
+  const plain = megastructures.length === 0 && sites.length === 0 && anomaly === null;
+  if (p.pre_ftl) return plain ? PRE_FTL_MARKS : { ...PRE_FTL_MARKS, ...icons };
+  if (!isColony(p) || p.owner === null) return plain ? NO_MARKS : { ...NO_MARKS, ...icons };
   return {
     plate: namePlateKey(p.capital),
     flag: empireFlagKey(countries.get(p.owner)),
     capital: p.capital,
     preFtl: false,
+    ...icons,
   };
 }
 
 export function sameMarks(a: BodyMarks, b: BodyMarks): boolean {
   return (
-    a.plate === b.plate && a.flag === b.flag && a.capital === b.capital && a.preFtl === b.preFtl
+    a.plate === b.plate &&
+    a.flag === b.flag &&
+    a.capital === b.capital &&
+    a.preFtl === b.preFtl &&
+    a.anomaly === b.anomaly &&
+    sameItems(
+      a.megastructures,
+      b.megastructures,
+      (x, y) => x.id === y.id && x.kind === y.kind && x.owner === y.owner,
+    ) &&
+    sameItems(a.sites, b.sites, (x, y) => x.id === y.id && x.kind === y.kind)
   );
+}
+
+function sameItems<T>(a: readonly T[], b: readonly T[], same: (x: T, y: T) => boolean): boolean {
+  return a.length === b.length && a.every((x, i) => same(x, b[i]));
 }
 
 /** Whether a body's name shows anything of `marks`. */
 export function marked(marks: BodyMarks): boolean {
-  return marks.plate !== null || marks.preFtl;
+  return (
+    marks.plate !== null ||
+    marks.preFtl ||
+    marks.megastructures.length > 0 ||
+    marks.sites.length > 0 ||
+    marks.anomaly !== null
+  );
 }
 
 function planetShown(p: PlanetSummary): boolean {

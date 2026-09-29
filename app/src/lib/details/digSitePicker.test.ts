@@ -7,6 +7,7 @@ const CHOICES: DigSiteChoice[] = [
   {
     key: "site_repowered_complex",
     name: "Repowered Complex",
+    description: null,
     difficulty: 2,
     stages: 1,
     rolled: false,
@@ -15,6 +16,7 @@ const CHOICES: DigSiteChoice[] = [
   {
     key: "site_lost_moments",
     name: "Never Forget",
+    description: null,
     difficulty: 1,
     stages: 3,
     rolled: true,
@@ -23,6 +25,7 @@ const CHOICES: DigSiteChoice[] = [
   {
     key: "site_krazura_dig",
     name: "Ancient Capital Site",
+    description: null,
     difficulty: 3,
     stages: 2,
     rolled: true,
@@ -31,6 +34,7 @@ const CHOICES: DigSiteChoice[] = [
   {
     key: "site_the_library",
     name: "The Library",
+    description: null,
     difficulty: 4,
     stages: 3,
     rolled: true,

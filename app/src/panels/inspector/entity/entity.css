@@ -368,7 +368,8 @@
   border-radius: 3px;
 }
 
-.dp-row.active {
+.dp-row.active,
+.dp-row:hover {
   background: var(--bg-panel);
 }
 
@@ -420,6 +421,27 @@
   overflow-wrap: anywhere;
 }
 
+/* A fixed height, so the list above stays put as the pointer moves from row to row. */
+.dp-details {
+  box-sizing: border-box;
+  height: 104px;
+  margin-top: 6px;
+  padding: 6px 2px 0;
+  overflow-y: auto;
+  font-size: 11px;
+  color: var(--fg-soft);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+}
+
+.dp-details-name {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--fg);
+}
+
 .pl-sub-head {
   display: flex;
   align-items: center;
@@ -469,6 +491,20 @@
   margin-top: 1px;
   font-size: 10.5px;
   color: var(--fg-soft);
+}
+
+.pl-mod .l3 {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--fg-muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pl-mod:has(.l3) {
+  align-items: start;
 }
 
 .pl-dep .mono,

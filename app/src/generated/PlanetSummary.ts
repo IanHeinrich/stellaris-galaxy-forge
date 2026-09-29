@@ -60,4 +60,9 @@ drawn?: boolean,
  * class now says. `None` for a scenario's bodies, which carry no save-persisted
  * modifiers.
  */
-permanent_modifiers?: Array<string>, };
+permanent_modifiers?: Array<string>, 
+/**
+ * The category of the anomaly the planet holds, its `anomaly`, which is also its
+ * localisation key. `None` for a planet with none, and for a scenario's bodies.
+ */
+anomaly?: string, };

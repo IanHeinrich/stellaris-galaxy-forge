@@ -5,6 +5,9 @@ import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
 import { useOutsidePress } from "../../useOutsidePress";
 
+export const PICKER_DETAILS_HINT = "Hover a row to read about it";
+export const NO_DESCRIPTION = "No description";
+
 /** A picker's store, as the menu reads it. */
 export type PickerHook<C extends string> = <U>(selector: (state: PickerState<C>) => U) => U;
 
@@ -22,7 +25,7 @@ export interface PickerItem {
   label: string;
   /** What it gives, spelled out; empty for nothing. */
   gives: string;
-  /** The row's hover text. */
+  /** What the details under the list say about it. */
   description: string | null;
   art: ReactNode;
   /** Added to the art's class. */
@@ -43,19 +46,21 @@ function PickerRow({
   item,
   id,
   cursor,
+  onHover,
   onAdd,
 }: {
   item: PickerItem;
   id: string;
   /** The button the keyboard stands on, when it stands on this row. */
   cursor: number | null;
+  onHover: () => void;
   onAdd: (button: number) => void;
 }) {
   return (
     <div
       id={id}
       className={`dp-row${item.buttons.length > 1 ? " family" : ""}${cursor === null ? "" : " active"}`}
-      title={item.description ?? undefined}
+      onMouseEnter={onHover}
     >
       <span className={`dp-art${item.artClass === undefined ? "" : ` ${item.artClass}`}`}>
         {item.art}
@@ -86,10 +91,31 @@ function PickerRow({
   );
 }
 
+/** The name and description of the row under the pointer or the keyboard, at a fixed height. */
+function PickerDetails({ item }: { item: PickerItem | null }) {
+  return (
+    <div className="dp-details" aria-live="polite">
+      {item === null ? (
+        <span className="muted">{PICKER_DETAILS_HINT}</span>
+      ) : (
+        <>
+          <span className="dp-details-name">{item.label}</span>
+          {item.description === null ? (
+            <span className="muted">{NO_DESCRIPTION}</span>
+          ) : (
+            <span className="dp-details-text">{item.description}</span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * The open picker: a search, the chips, the picker's own `controls`, a line saying what was added,
- * and the rows under their headings. It stays open after an add; Escape, Done or a press outside
- * closes it. The arrows move between rows, and Enter in the search adds the button they stand on.
+ * the rows under their headings, and the details of the row under the pointer, else the keyboard.
+ * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
+ * rows, and Enter in the search adds the button they stand on.
  */
 export function PickerMenu<R, C extends string>({
   usePicker,
@@ -142,6 +168,7 @@ export function PickerMenu<R, C extends string>({
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [cursor, setCursor] = useState<Cursor>({ row: 0, button: 0 });
+  const [hovered, setHovered] = useState<number | null>(null);
   useOutsidePress(true, close, root);
   useEffect(() => search.current?.focus(), []);
 
@@ -156,8 +183,10 @@ export function PickerMenu<R, C extends string>({
     const inSearch = e.target === search.current;
     const row = flat[at];
     const stepping = variants && !(inSearch && query !== "");
-    const move = (to: number) =>
+    const move = (to: number) => {
+      setHovered(null);
       setCursor({ row: Math.max(0, Math.min(to, flat.length - 1)), button: 0 });
+    };
     const step = (by: number) =>
       row !== undefined &&
       setCursor({
@@ -179,9 +208,21 @@ export function PickerMenu<R, C extends string>({
     e.stopPropagation();
   };
 
+  const restart = () => {
+    setHovered(null);
+    setCursor({ row: 0, button: 0 });
+  };
+  const detailed = flat[hovered ?? at];
   let index = 0;
   return (
-    <div className="dp" ref={root} role="group" aria-label={name} onKeyDown={onKey}>
+    <div
+      className="dp"
+      ref={root}
+      role="group"
+      aria-label={name}
+      onKeyDown={onKey}
+      onMouseLeave={() => setHovered(null)}
+    >
       <div className="dp-head">
         <input
           ref={search}
@@ -191,7 +232,7 @@ export function PickerMenu<R, C extends string>({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setCursor({ row: 0, button: 0 });
+            restart();
           }}
         />
         <button type="button" className="dp-done" onClick={() => close()}>
@@ -208,7 +249,7 @@ export function PickerMenu<R, C extends string>({
               aria-pressed={chip === each}
               onClick={() => {
                 setChip(each);
-                setCursor({ row: 0, button: 0 });
+                restart();
               }}
             >
               {label}
@@ -244,6 +285,7 @@ export function PickerMenu<R, C extends string>({
                   item={shown}
                   id={rowId(i)}
                   cursor={i === at ? Math.min(cursor.button, shown.buttons.length - 1) : null}
+                  onHover={() => setHovered(i)}
                   onAdd={(button) => {
                     setCursor({ row: i, button });
                     onAdd(row, button);
@@ -254,6 +296,7 @@ export function PickerMenu<R, C extends string>({
           </div>
         ))}
       </div>
+      <PickerDetails item={detailed === undefined ? null : item(detailed)} />
     </div>
   );
 }

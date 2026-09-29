@@ -31,7 +31,7 @@ function digSiteItem(row: DigSitePickRow): PickerItem {
     key: row.key,
     label: row.label,
     gives: row.gives,
-    description: null,
+    description: row.choice.description,
     artClass: "pl-mod-icon",
     art: <SiteArt />,
     buttons: [{ text: "Add", label: `Add ${row.label}`, title: `Add ${row.label}` }],
@@ -77,7 +77,10 @@ function DigSitePicker({ target }: { target: PickerTarget }) {
   );
 }
 
-/** The site's row: its name, its stage and clues, and where editable a button to remove it. */
+/**
+ * The site's row: its name, its stage and clues, the game's description of its type, and where
+ * editable a button to remove it.
+ */
 function DigSiteRow({
   site,
   onRemove,
@@ -91,7 +94,9 @@ function DigSiteRow({
   useEffect(() => {
     if (ready) useDigSitePickerStore.getState().read();
   }, [ready, choices]);
-  const stages = choices?.find((c) => c.key === site.kind)?.stages ?? null;
+  const choice = choices?.find((c) => c.key === site.kind);
+  const stages = choice?.stages ?? null;
+  const description = choice?.description ?? null;
   const name = named(site.kind);
   return (
     <div className="pl-mod">
@@ -101,6 +106,7 @@ function DigSiteRow({
       <span>
         <span className="l1">{name}</span>
         <span className="l2">{digSiteLine(site, stages)}</span>
+        {description !== null && <span className="l3">{description}</span>}
       </span>
       {onRemove !== null && (
         <button

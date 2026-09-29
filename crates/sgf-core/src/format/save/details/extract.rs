@@ -69,6 +69,8 @@ pub struct RawPlanet {
     /// the shape a terraforming candidate modifier is written in, whatever the planet's
     /// class now says.
     pub permanent_modifiers: Vec<String>,
+    /// `anomaly`: the category of the anomaly the planet holds.
+    pub anomaly: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -317,6 +319,7 @@ pub(super) fn planets(
                 .and_then(|c| colony_pops.get(&c).copied())
                 .unwrap_or(0),
             permanent_modifiers: permanent_modifiers(&node, src),
+            anomaly: planet.anomaly,
         });
     }
     Ok(planet_system)

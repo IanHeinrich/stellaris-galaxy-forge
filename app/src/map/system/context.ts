@@ -64,7 +64,10 @@ export interface SceneBody {
   readonly colony: number | null;
   /** What its deposits yield, per resource, as the Details layer shows them. */
   readonly resources: readonly ResourceRow[];
-  /** A colony's plate and owner's flag, or the pre-FTL icon, as the Details layer shows a system's. */
+  /**
+   * A colony's plate and owner's flag, and its megastructure, dig site, anomaly and pre-FTL
+   * icons, as the Details layer shows a system's.
+   */
   readonly marks: BodyMarks;
   /** Its orbit's radius as the readouts show it; null for a body with no ring. */
   readonly readout: RadiusReadout | null;
@@ -410,8 +413,9 @@ function sceneBodies(
   layout: SystemLayout,
 ): SceneBody[] {
   const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
-  if (src.details === null || noBodies) return galaxyStars(src, node);
-  const planets = new Map(src.details.planets.map((p) => [p.id, p]));
+  const details = src.details;
+  if (details === null || noBodies) return galaxyStars(src, node);
+  const planets = new Map(details.planets.map((p) => [p.id, p]));
   const system = systemStar(src, node);
   const discs = discsByPoint(layout.bodies);
   return layout.bodies.flatMap((placement) => {
@@ -429,7 +433,7 @@ function sceneBodies(
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
         chance: chanceOf(placement, planet, drawn),
         resources: rowsOf(planet, src.resourceIcons),
-        marks: bodyMarks(planet, src.countries),
+        marks: bodyMarks(planet, src.countries, details, src.names),
         readout: readoutOf(placement, discs),
         ...artOf({ planetClass: planet.class, starClass, drawn }, src, planet),
       },
