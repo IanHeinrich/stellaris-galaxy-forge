@@ -13,7 +13,8 @@ import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView } from "../../test/builders";
 import { buttons, shown } from "../../test/elements";
 import { saveRow, scenarioListing, scenarioRow } from "../../test/openRows";
-import { RowLine } from "./OpenRows";
+import type { RecentRow, Section } from "../../lib/openRows";
+import { RowLine, SectionRows } from "./OpenRows";
 
 const noop = () => undefined;
 
@@ -23,7 +24,30 @@ beforeEach(() => {
 });
 
 describe("a row", () => {
-  it("titles a save with its date, tags an autosave, and carries no button of its own", () => {
+  it("titles a save with its name and puts the date under it", () => {
+    const html = renderToStaticMarkup(
+      <RowLine row={saveRow({ title: "my run", sub: "2250.01.01" })} onForget={noop} />,
+    );
+    expect(shown(html)).toMatch(/^my run 2250\.01\.01 /);
+    expect(html).toContain('<span class="open-sub open-date">2250.01.01</span>');
+  });
+
+  it("titles a recent save with its file name and keeps empire, date and version under it", () => {
+    const html = renderToStaticMarkup(
+      <RowLine
+        row={recentRow({
+          kind: "save",
+          path: "C:/saves/terran/my run.sav",
+          title: "Terran Federation",
+          subtitle: "Terran Federation · 2250.01.01 · v4.5.0",
+        })}
+        onForget={noop}
+      />,
+    );
+    expect(shown(html)).toMatch(/^SAVE my run Terran Federation · 2250\.01\.01 · v4\.5\.0 /);
+  });
+
+  it("tags an autosave under its date, and carries no button of its own", () => {
     const html = renderToStaticMarkup(
       <RowLine row={saveRow({ title: "2207.01.01", autosave: true })} onForget={noop} />,
     );
@@ -69,5 +93,59 @@ describe("a row", () => {
     useOpenScreenStore.setState({ scenarios: [scenarioListing()] });
     expect(shown(recent(scenarioListing().path))).toContain("Plain");
     expect(shown(recent("C:/elsewhere/mine.txt"))).not.toMatch(/PaG|Plain/);
+  });
+});
+
+function recentRow(over: Partial<RecentRow["doc"]> = {}): RecentRow {
+  const doc = {
+    kind: "scenario" as const,
+    path: "C:/mods/a.txt",
+    title: "a",
+    subtitle: "",
+    openedAt: 5,
+    ...over,
+  };
+  return { kind: "recent", key: `recent:${doc.path}`, doc, missing: false };
+}
+
+describe("the Recent section", () => {
+  const rows = { current: new Map<string, HTMLDivElement>() };
+
+  function heading(over: Partial<Section> = {}): string {
+    const section: Section = {
+      id: "recent",
+      label: "Recent",
+      rows: [recentRow()],
+      count: 1,
+      note: null,
+      notices: [],
+      ...over,
+    };
+    return renderToStaticMarkup(
+      <SectionRows
+        section={section}
+        current={undefined}
+        busy={null}
+        rowError={null}
+        rows={rows}
+        onPress={noop}
+        onForget={noop}
+        onClear={noop}
+        onShowAll={noop}
+      />,
+    );
+  }
+
+  it("has a Clear button in its heading while it lists rows", () => {
+    expect(buttons(heading())).toEqual(["Clear"]);
+    expect(buttons(heading({ rows: [], note: "Nothing opened yet." }))).toEqual([]);
+  });
+
+  it("links to the Recent tab when the All tab left rows out", () => {
+    expect(buttons(heading({ count: 10, more: 5 }))).toEqual(["Clear", "Show all 10 recent"]);
+  });
+
+  it("gives the Saves section no Clear button", () => {
+    expect(buttons(heading({ id: "saves", label: "Saves", rows: [] }))).toEqual([]);
   });
 });

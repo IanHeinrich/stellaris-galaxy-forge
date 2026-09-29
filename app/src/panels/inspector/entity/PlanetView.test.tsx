@@ -39,6 +39,7 @@ import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
+import { PICKER_HEIGHT } from "./PickerMenu";
 import {
   READING_TARGETS,
   SystemChoice,
@@ -448,6 +449,9 @@ describe("an unowned world's page", () => {
     expect(html).toContain("✓ Added +1 Energy");
     expect(html).toContain("Usual for this planet · 1");
     expect(html).toContain("Energy per month");
+    expect(html).toContain(
+      '<span class="dp-details-name">Energy</span><span class="muted">No description</span>',
+    );
     expect(html).not.toContain("+ Add deposit…");
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -539,6 +543,7 @@ describe("an unowned world's page", () => {
     {
       key: "site_lost_moments",
       name: "Never Forget",
+      description: "Records of a people who chose to remember.",
       difficulty: 1,
       stages: 3,
       rolled: true,
@@ -547,6 +552,7 @@ describe("an unowned world's page", () => {
     {
       key: "site_repowered_complex",
       name: "Repowered Complex",
+      description: "A complex that has come back to life.",
       difficulty: 2,
       stages: 1,
       rolled: false,
@@ -554,7 +560,7 @@ describe("an unowned world's page", () => {
     },
   ];
 
-  it("shows its dig site's stage and clues, with a button to remove it", async () => {
+  it("shows its dig site's stage, clues and description, with a button to remove it", async () => {
     await open("save");
     await landPage({
       ...OLBERS,
@@ -573,6 +579,7 @@ describe("an unowned world's page", () => {
     expect(html).toContain("Dig site");
     expect(html).toContain("Never Forget");
     expect(html).toContain("Stage 2 of 3 · 5 clues · Excavating");
+    expect(html).toContain('<span class="l3">Records of a people who chose to remember.</span>');
     expect(html).not.toContain("+ Add dig site…");
     expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Dig site"));
 
@@ -595,6 +602,7 @@ describe("an unowned world's page", () => {
         {
           key: "site_the_library",
           name: "The Library",
+          description: null,
           difficulty: 4,
           stages: 3,
           rolled: true,
@@ -603,7 +611,21 @@ describe("an unowned world's page", () => {
       ],
     });
 
-    expect(render(WORLD)).toContain("Finished · 0 clues");
+    const html = render(WORLD);
+    expect(html).toContain("Finished · 0 clues");
+    expect(html).not.toContain('class="l3"');
+  });
+
+  it("describes nothing of its dig site without the game data", async () => {
+    await open("save");
+    await landPage({
+      ...OLBERS,
+      dig_site: { id: 7, kind: "site_lost_moments", stages_done: 0, clues: 0, excavating: false },
+    });
+
+    const html = render(WORLD);
+    expect(html).toContain("Stage 1 · 0 clues");
+    expect(html).not.toContain('class="l3"');
   });
 
   it("offers Add dig site without one, and the open picker filters by how a site is found", async () => {
@@ -618,11 +640,18 @@ describe("an unowned world's page", () => {
     });
     const html = drawnBy(() => render(WORLD));
     expect(html).toContain('aria-label="Search dig sites"');
+    expect(html).toContain(`<div class="dp" style="height:${PICKER_HEIGHT}px"`);
     expect(html).toContain("Found by surveys");
     expect(html).toContain('aria-pressed="true">Event only</button>');
     expect(html).toContain("Repowered Complex");
     expect(html).toContain("1 stage · event only");
     expect(html).not.toContain("Never Forget");
+    expect(html).toMatch(
+      /<div id="(ds-row-[^"]+-details)" class="dp-details"><span class="dp-details-name">Repowered Complex<\/span><span class="dp-details-text">A complex that has come back to life.<\/span><\/div>/,
+    );
+    expect(html).toMatch(
+      /id="ds-row-[^"]+-0" class="dp-row active" aria-describedby="ds-row-[^"]+-details"/,
+    );
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Add Repowered Complex").onClick();
@@ -634,6 +663,14 @@ describe("an unowned world's page", () => {
         difficulty: 2,
       }),
     );
+
+    useDigSitePickerStore.setState({
+      target: planetPickerTarget(OLBERS, false),
+      query: "no such site",
+    });
+    const none = render(WORLD);
+    expect(none).toContain("No dig site matches");
+    expect(none).toMatch(/class="dp-details"><\/div>/);
   });
 });
 

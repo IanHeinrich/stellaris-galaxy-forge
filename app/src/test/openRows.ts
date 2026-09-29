@@ -27,6 +27,7 @@ export function saveRow(over: Partial<SaveRow> = {}): SaveRow {
     file: saveFile(),
     empire: "Terran Federation",
     title: "2206.11.16",
+    sub: null,
     autosave: false,
     ...over,
   };

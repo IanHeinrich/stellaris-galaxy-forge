@@ -47,12 +47,12 @@ describe("noteOpened", () => {
     expect(recents().recents).toHaveLength(2);
   });
 
-  it("caps the list at 20", () => {
-    for (let i = 0; i < 25; i++) {
+  it("caps the list at 10", () => {
+    for (let i = 0; i < 15; i++) {
       recents().noteOpened({ ...SAVE, path: `C:/saves/${i}.sav` });
     }
-    expect(recents().recents).toHaveLength(20);
-    expect(recents().recents[0].path).toBe("C:/saves/24.sav");
+    expect(recents().recents).toHaveLength(10);
+    expect(recents().recents[0].path).toBe("C:/saves/14.sav");
   });
 
   it("persists through writePref", () => {
@@ -74,7 +74,46 @@ describe("forget", () => {
   });
 });
 
+describe("forgetAll", () => {
+  it("removes several entries at once and persists the change", () => {
+    for (const name of ["a", "b", "c"]) {
+      recents().noteOpened({ ...SAVE, path: `C:/saves/${name}.sav` });
+    }
+    recents().forgetAll(["C:/saves/a.sav", "C:/saves/c.sav", "C:/saves/never.sav"]);
+    expect(recents().recents.map((r) => r.path)).toEqual(["C:/saves/b.sav"]);
+    const persisted = JSON.parse(stored.get("sgf.recents") ?? "[]") as RecentDoc[];
+    expect(persisted.map((r) => r.path)).toEqual(["C:/saves/b.sav"]);
+  });
+});
+
+describe("clear", () => {
+  it("empties the list and persists it", () => {
+    recents().noteOpened(SAVE);
+    recents().noteOpened({ ...SAVE, path: "C:/saves/b.sav" });
+    recents().clear();
+    expect(recents().recents).toEqual([]);
+    expect(JSON.parse(stored.get("sgf.recents") ?? "[]")).toEqual([]);
+  });
+});
+
 describe("load", () => {
+  it("keeps the newest 10 of a longer stored list", async () => {
+    const twenty = Array.from({ length: 20 }, (_, i) => ({
+      kind: "save",
+      path: `C:/saves/${i}.sav`,
+      title: "A",
+      openedAt: 100 - i,
+      subtitle: "",
+    }));
+    stored.set("sgf.recents", JSON.stringify(twenty));
+    vi.resetModules();
+    const fresh = await import("./recentsStore");
+    const loaded = fresh.useRecentsStore.getState().recents;
+    expect(loaded).toHaveLength(10);
+    expect(loaded[0].path).toBe("C:/saves/0.sav");
+    expect(loaded[9].path).toBe("C:/saves/9.sav");
+  });
+
   it("drops malformed persisted entries and keeps the well-formed ones", async () => {
     stored.set(
       "sgf.recents",

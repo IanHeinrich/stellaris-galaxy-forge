@@ -318,6 +318,8 @@ impl GameData {
             star_class: self.drawn_star_class(&class, system),
             drawn: Some(self.drawn(&class)),
             permanent_modifiers: None,
+            anomaly: None,
+            entity_name: None,
             class,
         }
     }

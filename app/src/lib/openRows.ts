@@ -56,8 +56,10 @@ export interface SaveRow {
   file: SaveFile;
   /** Localised empire name; null when the header could not be read. */
   empire: string | null;
-  /** The in-game date, else the file name when the header could not be read. */
+  /** The name the save was given, or its in-game date for an autosave. */
   title: string;
+  /** The in-game date under a title that is not the date; null when the title says it. */
+  sub: string | null;
   autosave: boolean;
 }
 
@@ -85,6 +87,8 @@ export interface Section {
   note: string | null;
   /** A line each for what went wrong beside the rows, which are listed all the same. */
   notices: string[];
+  /** How many rows the tab leaves out of `rows`; the Recent section on the All tab. */
+  more?: number;
 }
 
 export interface Tab {
@@ -131,14 +135,28 @@ function empireOf(meta: { name: string } | null): string | null {
   return meta ? displayName(meta.name) : null;
 }
 
+/** A save's file name without `.sav`: the name the player gave it in the game's save dialog. */
+export function saveStem(name: string): string {
+  return name.replace(/\.sav$/i, "");
+}
+
+/** What a recent document is called: a save by the name it was given, a scenario by its own. */
+export function recentTitle(doc: RecentDoc): string {
+  return doc.kind === "save" ? saveStem(fileName(doc.path)) : doc.title || fileName(doc.path);
+}
+
 function saveRow(file: SaveFile): SaveRow {
+  const autosave = file.file_name.toLowerCase().startsWith("autosave");
+  const date = file.meta?.date ?? "";
+  const stem = saveStem(file.file_name);
   return {
     kind: "save",
     key: `save:${file.path}`,
     file,
     empire: empireOf(file.meta),
-    title: file.meta?.date || file.file_name,
-    autosave: file.file_name.toLowerCase().startsWith("autosave"),
+    title: autosave ? date || stem : stem,
+    sub: !autosave && date !== "" && date !== stem ? date : null,
+    autosave,
   };
 }
 
@@ -252,6 +270,9 @@ function scenariosSection(state: OpenLists, words: string[]): Section {
   };
 }
 
+/** How many recent documents the All tab lists before it links to the Recent tab. */
+export const ALL_TAB_RECENTS = 5;
+
 function everySection(state: OpenLists, recents: RecentDoc[]): Section[] {
   const words = state.filter.toLowerCase().split(/\s+/).filter(Boolean);
   return [
@@ -265,7 +286,13 @@ function everySection(state: OpenLists, recents: RecentDoc[]): Section[] {
 export function openSections(state: OpenLists, recents: RecentDoc[]): Section[] {
   const all = everySection(state, recents);
   if (state.tab !== "all") return all.filter((s) => s.id === state.tab);
-  return all.filter((s) => s.id !== "recent" || s.rows.length > 0);
+  return all
+    .filter((s) => s.id !== "recent" || s.rows.length > 0)
+    .map((s) =>
+      s.id === "recent" && s.rows.length > ALL_TAB_RECENTS
+        ? { ...s, rows: s.rows.slice(0, ALL_TAB_RECENTS), more: s.rows.length - ALL_TAB_RECENTS }
+        : s,
+    );
 }
 
 /** The rail's tabs, each counting what the filter leaves whichever tab is chosen. */

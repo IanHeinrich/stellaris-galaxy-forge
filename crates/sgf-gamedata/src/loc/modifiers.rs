@@ -4,7 +4,7 @@
 use sgf_core::projections::galaxy::display_name;
 
 use crate::Localisation;
-use crate::loc::localisation::strip_markup;
+use crate::loc::localisation::{Scopes, strip_markup};
 
 /// The engine flags percentage modifiers in code, not in the script files; these are the
 /// endings and beginnings of the ones it shows as a percentage.
@@ -43,7 +43,7 @@ impl Localisation {
         };
         let text = self.fill_job_names(&text);
         let (icon, rest) = leading_icon(text.trim_start());
-        let label = collapse(&strip_markup(rest));
+        let label = collapse(&strip_markup(rest, Scopes::Drop));
         let icon_name = icon
             .and_then(|icon| self.get(icon))
             .filter(|name| !name.is_empty() && !starts_with_ignoring_case(&label, name));
