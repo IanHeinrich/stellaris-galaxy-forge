@@ -52,6 +52,8 @@ a release is made.
 
 - Moving a planet with its System field in the system view shows the new
   system, centred on the planet.
+- Add planet here no longer offers the arkship. Two classes the game
+  gives the same name, such as the two Nanite Worlds, show their class key.
 
 ## [0.18.0] - 2026-09-28
 
