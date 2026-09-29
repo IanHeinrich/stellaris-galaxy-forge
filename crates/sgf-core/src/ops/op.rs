@@ -578,7 +578,8 @@ pub enum Op {
         difficulty: i32,
     },
     /// A dig site's entry, dug or not, taken out whole. Nothing else is written: the order of
-    /// a fleet excavating the site, which names its id, is left as it stands. A site that is
+    /// a fleet excavating the site, which names its id, is left for the game to drop on its
+    /// first day. A site that is
     /// not on a planet is refused, and so is a save before Stellaris 4.0. The inverse adds a
     /// site of the same type and current difficulty to the same planet; undo puts the entry
     /// back as it stood. Save documents only.

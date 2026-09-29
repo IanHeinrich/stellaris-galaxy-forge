@@ -108,7 +108,7 @@ function DigSiteRow({
           className="pl-dep-remove pl-mod-remove"
           title={
             site.excavating
-              ? "Remove this dig site. A fleet is excavating it and keeps its order."
+              ? "Remove this dig site. The ship excavating it stops on the game's first day."
               : "Remove this dig site"
           }
           aria-label={`Remove ${name}`}

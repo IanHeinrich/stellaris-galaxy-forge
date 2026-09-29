@@ -173,8 +173,8 @@ too.
   worlds need Detox.
 - In a Stellaris 4.x save, the Dig site section shows a planet's
   archaeological site: its stage, its clues, and whether a fleet is
-  excavating it. Remove it with the ✕. Removing a site takes out its
-  entry and nothing else, so a fleet excavating it keeps its order. A
+  excavating it. Remove it with the ✕. A science ship excavating a
+  removed site stops on the game's first day and waits in orbit. A
   planet without a site has Add dig site. Search by name, or pick Found
   by surveys or Event only. A planet holds one site, so the list closes
   after an add. The two site types that do something in game as they
