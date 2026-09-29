@@ -44,6 +44,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::fe_zone_candidate_count,
             commands::header_empire_counts,
             commands::sibling_scenario_names,
+            commands::check_op,
             commands::undo,
             commands::redo,
             commands::save,

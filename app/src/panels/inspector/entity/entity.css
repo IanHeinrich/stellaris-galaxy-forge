@@ -499,3 +499,16 @@
 .mp-duration input[type="number"] {
   width: 64px;
 }
+
+.pl-remove {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0;
+  font-size: 11px;
+}
+
+.pl-remove-button {
+  align-self: flex-start;
+  color: var(--warn);
+}

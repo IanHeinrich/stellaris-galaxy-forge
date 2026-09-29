@@ -19,8 +19,8 @@ use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
     add_system, belts, bodies, bulk, deposits, empire_name, flag, lanes, lgate, map_colors,
-    move_planet, move_system, nebula, planet_modifier, planet_ring, planet_size, remove_system,
-    rename_planet, rename_system, replace_system, star_class,
+    move_planet, move_system, nebula, planet_modifier, planet_ring, planet_size, remove_planet,
+    remove_system, rename_planet, rename_system, replace_system, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -239,6 +239,12 @@ impl Format for Save {
                 angle,
             } => bodies::plan_parent(plan, s, *system, *body, *parent, *star, *radius, *angle),
             Op::SetPlanetRing { planet, ring } => planet_ring::plan_set(plan, s, *planet, *ring),
+            Op::RemoveColony { planet } => remove_planet::plan_remove_colony(plan, s, *planet),
+            Op::DeleteSavePlanet { planet } => remove_planet::plan_delete(plan, s, *planet),
+            Op::RestoreSaveEntities {
+                description,
+                entities,
+            } => remove_planet::plan_restore(plan, s, description, entities),
             Op::AddSaveBelt {
                 system,
                 kind,

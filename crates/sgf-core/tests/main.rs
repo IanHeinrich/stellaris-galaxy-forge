@@ -46,6 +46,7 @@ mod ops_planet_ring;
 mod ops_planet_size;
 mod ops_prevent;
 mod ops_remove_added_system;
+mod ops_remove_planet;
 mod ops_rename_added_system;
 mod ops_rename_planet;
 mod ops_replace_added_system;

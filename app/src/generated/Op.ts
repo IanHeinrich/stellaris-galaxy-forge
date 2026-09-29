@@ -10,6 +10,7 @@ import type { MapColorPair } from "./MapColorPair";
 import type { NebulaFootprint } from "./NebulaFootprint";
 import type { NewSystem } from "./NewSystem";
 import type { OrbitPlacement } from "./OrbitPlacement";
+import type { SavedEntity } from "./SavedEntity";
 import type { SpawnScript } from "./SpawnScript";
 import type { StarBody } from "./StarBody";
 import type { SystemMove } from "./SystemMove";
@@ -32,4 +33,4 @@ custom_name?: boolean, } | { "type": "AddSaveSystem", spec: SystemSpec, } | { "t
  * moon bit. The core cannot tell a star from the bytes, so the caller says. Ignored
  * with no parent.
  */
-star: boolean, radius: number, angle: number, } | { "type": "SetPlanetRing", planet: number, ring: boolean, } | { "type": "AddSaveBelt", system: number, kind: string, radius: number, } | { "type": "RemoveSaveBelt", system: number, index: number, } | { "type": "SetSaveBeltRadius", system: number, index: number, radius: number, } | { "type": "SetSaveBeltKind", system: number, index: number, kind: string, } | { "type": "SetSaveInnerRadius", system: number, radius: number, } | { "type": "MoveSavePlanet", planet: number, to: number, at?: OrbitPlacement, } | { "type": "RenameSavePlanet", planet: number, name: string, block?: string, } | { "type": "Batch", description: string, ops: Array<Op>, };
+star: boolean, radius: number, angle: number, } | { "type": "SetPlanetRing", planet: number, ring: boolean, } | { "type": "AddSaveBelt", system: number, kind: string, radius: number, } | { "type": "RemoveSaveBelt", system: number, index: number, } | { "type": "SetSaveBeltRadius", system: number, index: number, radius: number, } | { "type": "SetSaveBeltKind", system: number, index: number, kind: string, } | { "type": "SetSaveInnerRadius", system: number, radius: number, } | { "type": "MoveSavePlanet", planet: number, to: number, at?: OrbitPlacement, } | { "type": "RenameSavePlanet", planet: number, name: string, block?: string, } | { "type": "RemoveColony", planet: number, } | { "type": "DeleteSavePlanet", planet: number, } | { "type": "RestoreSaveEntities", description: string, entities: Array<SavedEntity>, } | { "type": "Batch", description: string, ops: Array<Op>, };

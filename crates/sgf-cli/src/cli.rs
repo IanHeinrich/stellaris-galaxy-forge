@@ -206,6 +206,20 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Delete a save planet and its moons, or a moon, with any colony on them.
+    DeletePlanet {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Remove the colony on a save planet or moon; the planet stays.
+    RemoveColony {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Rename an empire. Renaming the player's empire also renames the save on the load
     /// screen.
     RenameEmpire {

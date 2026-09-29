@@ -566,6 +566,41 @@ pub enum Op {
         #[ts(optional)]
         block: Option<String>,
     },
+    /// The colony on a save planet or moon, as the game's `destroy_colony` leaves it, while
+    /// the planet stays: the planet loses `colony`, `owner`, `controller`, `colonize_date`
+    /// and `orbital_defence`. The colony, its pop groups, jobs, districts, zones and
+    /// buildings, its defence armies and its orbital ring's starbase, ships, fleet and
+    /// starbase queues become tombstones. The colony leaves its system's `colonies`, and
+    /// the owner's colony, planet, army and fleet lists lose what went. The owner's queues
+    /// at the planet are left with no owner, as the game leaves them. Refused for a
+    /// country's capital, a species' home planet, an occupied planet, construction under
+    /// way there, a starbase other than an orbital ring, a habitat or ring world segment,
+    /// and a megastructure on or around the planet. The inverse is the
+    /// [`Op::RestoreSaveEntities`] that writes back every entity it rewrote. Stellaris 4.x
+    /// save documents only.
+    RemoveColony {
+        planet: u32,
+    },
+    /// A save planet and its moons, or a moon alone, as the game's `remove_planet` leaves
+    /// it: each body's entry becomes `<id>=none` and its `planet=` line leaves the system.
+    /// A moon deleted alone leaves its parent's `moons`. A colonised body first loses its
+    /// colony as [`Op::RemoveColony`] takes it. Deposits, survey lists, fleets in orbit and
+    /// orphaned construction queues are left for the game. A star, a body with a station
+    /// or starbase other than its colony's orbital ring, an archaeological site, an
+    /// anomaly or an event target, a species' home planet, a habitat or ring world segment
+    /// and a megastructure on or around it are refused, as is any colony
+    /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
+    /// writes back every entity it rewrote. Stellaris 4.x save documents only.
+    DeleteSavePlanet {
+        planet: u32,
+    },
+    /// Save entities written back whole, each over whatever stands for it now: what
+    /// [`Op::RemoveColony`] and [`Op::DeleteSavePlanet`] invert to. Each text must be one
+    /// entity with its id. The inverse carries the texts displaced. Save documents only.
+    RestoreSaveEntities {
+        description: String,
+        entities: Vec<SavedEntity>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -618,7 +653,10 @@ impl Op {
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. } => true,
+            | Self::RenameSavePlanet { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
+            | Self::RestoreSaveEntities { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -660,7 +698,10 @@ impl Op {
             | Self::RemoveSystem { .. }
             | Self::RemoveSystems { .. }
             | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. } => true,
+            | Self::RemoveSaveDeposit { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
+            | Self::RestoreSaveEntities { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -692,7 +733,10 @@ impl Op {
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. } => false,
+            | Self::RenameSavePlanet { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
+            | Self::RestoreSaveEntities { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -778,6 +822,37 @@ pub struct NebulaFootprint {
 pub struct NebulaCloud {
     pub id: u32,
     pub kind: String,
+}
+
+/// One save entity in [`Op::RestoreSaveEntities`]: the table it stands in, its id, and its
+/// whole `<id>={ … }` statement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SavedEntity {
+    pub table: SavedTable,
+    pub id: u32,
+    pub text: String,
+}
+
+/// The id-keyed save tables [`SavedEntity`] names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum SavedTable {
+    System,
+    Planet,
+    Country,
+    Colony,
+    PopGroup,
+    PopJob,
+    District,
+    Zone,
+    Building,
+    Army,
+    Starbase,
+    Fleet,
+    Ship,
+    /// `construction.queue_mgr.queues`.
+    ConstructionQueue,
 }
 
 /// One system's destination in [`Op::MoveSystems`].
@@ -1053,6 +1128,18 @@ pub enum OpError {
         owner: u32,
         controller: u32,
     },
+    #[error("planet {0} has no colony")]
+    NoColony(u32),
+    #[error("planet {0} is a star: only a planet or moon can be deleted")]
+    StarNotDeleted(u32),
+    #[error("planet {planet} cannot be deleted: {reason}")]
+    PlanetKept { planet: u32, reason: String },
+    #[error("the colony on planet {planet} cannot be removed: {reason}")]
+    ColonyKept { planet: u32, reason: String },
+    #[error("{table:?} {id} does not exist")]
+    UnknownEntity { table: SavedTable, id: u32 },
+    #[error("the text for {table:?} {id} is not one entity with that id")]
+    EntityMismatch { table: SavedTable, id: u32 },
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -1082,7 +1169,8 @@ impl OpError {
             | Self::UnknownPlanet { .. }
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
-            | Self::UnknownBelt { .. } => ErrorKind::NotFound,
+            | Self::UnknownBelt { .. }
+            | Self::UnknownEntity { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
             | Self::HeaderParse { .. }
@@ -1186,6 +1274,11 @@ impl OpError {
             | Self::HoldsSavePlanet { .. }
             | Self::MegastructurePlanet { .. }
             | Self::PlanetOccupied { .. }
+            | Self::NoColony { .. }
+            | Self::StarNotDeleted { .. }
+            | Self::PlanetKept { .. }
+            | Self::ColonyKept { .. }
+            | Self::EntityMismatch { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }

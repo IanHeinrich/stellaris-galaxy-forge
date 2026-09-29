@@ -1,0 +1,65 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted moon #23
+details stale: [463]
+inverse: Restored moon #23
+
+  System: 463
+  Planet: 22 23
+
+--- gamestate
++++ gamestate
+@@ -61691,7 +61691,6 @@
+ 		planet=20
+ 		planet=21
+ 		planet=22
+-		planet=23
+ 		planet=24
+ 		planet=25
+ 		planet=26
+@@ -80807,42 +80806,13 @@
+ 			}
+ 			orbit=190
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				23 
+-			}
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+ 			entity=0
+ 		}
+-		23=
+-		{
+-			planet_class="pc_barren"
+-			planet_size=9
+-			carrier_binary_flags=1
+-			build_queue=175
+-			name=
+-			{
+-				key="HUM3_PLANET_Pakon"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=-54.36235
+-				y=-191.3144
+-				origin=463
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=22
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
++		23=none
+ 		24=
+ 		{
+ 			planet_class="pc_gas_giant"

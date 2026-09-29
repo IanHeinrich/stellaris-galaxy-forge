@@ -220,6 +220,16 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
     .await
 }
 
+/// Why `op` would be refused, or `None` when it would apply. The session is left as it was.
+#[tauri::command]
+pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<String>, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.check_op(&op))
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn undo<R: Runtime>(app: AppHandle<R>) -> Result<Option<EditResult>, SgfError> {
     with_session(app, |mut guard| {

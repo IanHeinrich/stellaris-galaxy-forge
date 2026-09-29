@@ -297,6 +297,65 @@ describe("a colony's page", () => {
   });
 });
 
+describe("a colony's removal and a planet's deletion", () => {
+  const COLONY = planetPage({
+    id: WORLD,
+    class: "pc_tropical",
+    owner: EMPIRE,
+    controller: EMPIRE,
+    colony: {
+      id: 29,
+      colonised: "2200.01.01",
+      final_designation: null,
+      designation: null,
+      pops: 1600,
+      species: [],
+      districts: [],
+      zones: [],
+      buildings: [],
+    },
+  });
+
+  it("offers Remove colony in the colony's section and Delete planet below the moons, apart", async () => {
+    await open("save");
+    await landPage(COLONY);
+
+    const html = render(WORLD);
+    expect(html).toContain(">Remove colony</button>");
+    expect(html).toContain(">Delete planet</button>");
+    expect(html.indexOf("Remove colony")).toBeLessThan(html.indexOf("About"));
+    expect(html.indexOf("About")).toBeLessThan(html.indexOf("Delete planet"));
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "RemoveColony", planet: WORLD });
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: WORLD });
+  });
+
+  it("shows why the core refuses, and disables the action", async () => {
+    await open("save");
+    await landPage(COLONY);
+    const refusal = "the colony on planet 100 cannot be removed: it is the capital of country 16";
+    mockedIpc.checkOp.mockImplementation(async (op) =>
+      op.type === "RemoveColony" ? refusal : null,
+    );
+    render(WORLD);
+    await vi.waitFor(() => expect(render(WORLD)).toContain(refusal));
+
+    const html = render(WORLD);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove colony<\/button>/);
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Delete planet<\/button>/);
+  });
+
+  it("offers neither on a save's star", async () => {
+    await open("save");
+    await landPage({ ...planetPage({ id: WORLD }), class: "pc_g_star" });
+    useGameDataStore.setState({
+      starClasses: new Map([starClassView("sc_g", "pc_g_star")].map((v) => [v.key, v])),
+    });
+    const html = render(WORLD);
+    expect(html).not.toContain("Delete planet");
+    expect(html).not.toContain("Remove colony");
+  });
+});
+
 describe("an unowned world's page", () => {
   const OLBERS = planetPage({
     id: WORLD,

@@ -1,18 +1,22 @@
 import { bodyName } from "../../../lib/details/labels";
 import { lockedToName, orbitParent } from "../../../lib/details/orbitEdits";
+import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { deletePlanet } from "../../../store/planetRemoval";
 import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
+import { useOpCheck } from "../../useOpCheck";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
 import { CutItem } from "./PlanetMoveItems";
 
 /**
- * The menu on a body in the system view: its page, the selection's cut, its lock, its removal,
+ * The menu on a body in the system view: its page, the selection's cut, its lock, its deletion,
  * and the way back out.
  */
 export function BodyMenu({
@@ -34,6 +38,8 @@ export function BodyMenu({
     return planet === undefined ? undefined : bodyName(planet, names);
   };
   const name = nameOf(target.id);
+  const moon = details?.planets.find((p) => p.id === target.id)?.moon === true;
+  const deletable = useCanEdit("deposits");
   const placed = layout.bodies.find((b) => b.id === target.id);
   const lockable = placed !== undefined && editing.bodies.get(target.id)?.move === true;
   return (
@@ -56,12 +62,26 @@ export function BodyMenu({
             {`Lock to ${lockedToName(orbitParent(layout, placed), nameOf)}`}
           </MenuItem>
         ))}
-      <MenuItem disabled run={() => undefined}>
-        Remove
-      </MenuItem>
+      {deletable && name !== undefined && <DeleteItem planet={target.id} name={name} moon={moon} />}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>
     </MenuFrame>
+  );
+}
+
+/** Deletes the body with its moons, or says why it cannot: offered once the core has answered. */
+function DeleteItem({ planet, name, moon }: { planet: number; name: string; moon: boolean }) {
+  const refusal = useOpCheck(deleteOp(planet));
+  return (
+    <MenuItem
+      disabled={refusal !== null}
+      className={refusal ? "hinted" : undefined}
+      title={refusal ?? undefined}
+      run={() => deletePlanet(planet, name, moon)}
+    >
+      {deleteLabel(moon)}
+      {refusal && <span className="muted">{refusal}</span>}
+    </MenuItem>
   );
 }

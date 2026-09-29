@@ -24,7 +24,7 @@ use crate::format::scenario::effect;
 use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
-use crate::ops::{self, Applied, Op, OpError, Subject, SystemRadii};
+use crate::ops::{self, Applied, Op, OpError, Plan, Subject, SystemRadii};
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, SystemNode, Wayline};
 use crate::search;
 use crate::validate::{self, Issue, validate};
@@ -400,6 +400,19 @@ impl Session {
         at: Option<OrbitPlacement>,
     ) -> PlanetMoveCheck {
         move_planet::check(self, planets, to, at)
+    }
+
+    /// Why `op` would be refused, or `None` when it would apply. Nothing is written: the op
+    /// is planned against the session and dropped, each member of a batch against the
+    /// session as it stands.
+    pub fn check_op(&self, op: &Op) -> Option<String> {
+        let ops = match op {
+            Op::Batch { ops, .. } => ops.as_slice(),
+            op => std::slice::from_ref(op),
+        };
+        ops.iter()
+            .find_map(|op| self.format().write(&mut Plan::new(), self, op).err())
+            .map(|error| error.to_string())
     }
 
     /// Whether the document differs from what was last opened or saved at `path`.

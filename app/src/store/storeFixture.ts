@@ -17,6 +17,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
+import { resetOpChecks, useOpCheckStore } from "./opCheckStore";
 import { resetOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
@@ -43,6 +44,7 @@ const STORES: StoreApi<object>[] = [
   useLGateStore,
   useMapChromeStore,
   useModifierPickerStore,
+  useOpCheckStore,
   usePaintModStore,
   usePlanetDataStore,
   usePlanetMoveStore,
@@ -60,6 +62,7 @@ export function resetStores(): void {
   useGalaxyStore.getState().clear();
   useDetailsStore.getState().clear();
   resetOpenScreen();
+  resetOpChecks();
   for (const store of STORES) store.setState({ ...store.getInitialState() });
 }
 
@@ -79,6 +82,7 @@ export function armSession(): void {
   mockedIpc.closeSave.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.confirm.mockResolvedValue(true);
+  mockedIpc.checkOp.mockResolvedValue(null);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
   mockedIpc.getScenarioOwners.mockResolvedValue(null);
 }

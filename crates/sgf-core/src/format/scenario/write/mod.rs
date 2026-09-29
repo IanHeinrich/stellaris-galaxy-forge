@@ -119,6 +119,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetStarClass { .. }
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
+        | Op::RemoveColony { .. }
+        | Op::DeleteSavePlanet { .. }
+        | Op::RestoreSaveEntities { .. }
         | Op::AddPlanetModifier { .. }
         | Op::RemovePlanetModifier { .. } => Err(OpError::Unsupported {
             op: op.name(),

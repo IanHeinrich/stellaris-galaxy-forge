@@ -49,6 +49,7 @@ import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDeposits } from "./PlanetDeposits";
+import { DeletePlanetAction, RemoveColonyAction } from "./PlanetRemoval";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useSingleStarClasses } from "./useBodyClasses";
@@ -226,7 +227,8 @@ function CountryRow({ label, id }: { label: string; id: number }) {
   );
 }
 
-function Colony({ page }: { page: PlanetPage }) {
+/** The colony's facts, and its removal when `removable` names the body. */
+function Colony({ page, removable }: { page: PlanetPage; removable: string | null }) {
   const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
   const opener = useOpenEntity();
   const colony = page.colony;
@@ -262,6 +264,7 @@ function Colony({ page }: { page: PlanetPage }) {
           #{colony.id}
         </LinkRow>
       </Properties>
+      {removable !== null && <RemoveColonyAction page={page} name={removable} />}
     </Section>
   );
 }
@@ -421,6 +424,8 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
   const moon = found?.planet.moon ?? false;
+  // A 4.x save's planet or moon: the core says why one of them cannot go.
+  const removable = depositsEditable && !starBody;
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
     name: planetBody ? bodyName(page, names) : null,
@@ -457,9 +462,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       )}
       <PlanetDeposits page={page} editable={depositsEditable} target={target} />
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
-      <Colony page={page} />
+      <Colony page={page} removable={removable ? bodyName(page, names) : null} />
       <About page={page} radius={radius} />
       <Moons page={page} />
+      {removable && <DeletePlanetAction page={page} name={bodyName(page, names)} moon={moon} />}
       {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (
         <EditKey />
       )}

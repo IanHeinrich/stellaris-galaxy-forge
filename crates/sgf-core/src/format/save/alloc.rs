@@ -309,6 +309,14 @@ impl SlotTable {
         Slot::Reused { id, tombstone }
     }
 
+    /// The dead slot whose tombstone holds `id`.
+    pub fn dead_slot(&self, id: u32) -> Option<Anchor> {
+        self.dead
+            .iter()
+            .find(|&&(dead, _)| dead == id)
+            .map(|&(_, anchor)| anchor)
+    }
+
     /// The id [`Self::append`] hands out next.
     pub fn next_appended(&self) -> u32 {
         self.next

@@ -209,7 +209,10 @@ too.
   left.
 - Moons are listed below and open their own pages the same way.
 - A colonised planet has a Colony section: its owner, designation, when
-  it was colonised, and its pops by species.
+  it was colonised, and its pops by species. In a Stellaris 4.x save its
+  Remove colony button removes the colony and keeps the planet, as
+  [Delete planets and remove colonies](#delete-planets-and-remove-colonies)
+  describes.
 - A planet with an anomaly waiting on it shows an Anomaly row: the
   anomaly's name, and which empires have found it.
 
@@ -345,6 +348,37 @@ no one owns stays yours.
 To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
 first.
+
+#### Delete planets and remove colonies
+
+In a Stellaris 4.x save, you can delete a planet or moon. Right-click it
+in the system view and choose Delete planet or Delete moon, or use the
+button at the bottom of its page. The app asks before it deletes
+anything, and one undo puts it all back.
+
+- A planet takes its moons with it. A moon deleted on its own leaves its
+  planet.
+- A colonised planet loses its colony first. The confirm says what goes:
+  the colony, its pops, its buildings, its defence armies and any orbital
+  ring.
+- Deposits, fleets parked at the planet and survey records stay in the
+  save. The game tidies them up when it loads.
+
+To remove a colony and keep the planet, press Remove colony in the
+planet's Colony section. The planet stays, with no owner. Its pops,
+jobs, districts, buildings, defence armies and orbital ring go.
+
+These can't be deleted or have their colony removed, and the button or
+menu item says why:
+
+- stars, habitats and ring world segments
+- a planet with a megastructure on or around it
+- a planet with a mining or research station, or with a starbase that
+  isn't its colony's orbital ring
+- a planet with an anomaly, an archaeological site or an event target
+- a species' home planet and an empire's capital
+- an occupied planet, and a colony with something under construction.
+  Cancel the construction in game first.
 
 #### Asteroid belts and the inner radius
 

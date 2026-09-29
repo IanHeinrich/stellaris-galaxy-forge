@@ -1,5 +1,5 @@
 //! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`,
-//! `rename-planet` and `rename-empire`.
+//! `rename-planet`, `rename-empire`, `delete-planet` and `remove-colony`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
 #[test]
@@ -493,4 +493,55 @@ fn rename_empire_renames_the_player_in_the_save_and_on_the_load_screen() {
     assert_eq!(same.status.code(), Some(1));
     let err = String::from_utf8_lossy(&same.stderr);
     assert!(err.contains("country 0 already has that name"), "{err}");
+}
+
+#[test]
+fn delete_planet_and_remove_colony_write_and_refuse() {
+    let dir = tempfile::tempdir().unwrap();
+    let deleted = dir.path().join("deleted.sav");
+    let out = sgf(&[
+        "delete-planet",
+        SAMPLE_4_5,
+        "99",
+        "-o",
+        deleted.to_str().unwrap(),
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Deleted planet #99 and its 2 moons"),
+        "{text}"
+    );
+    assert_eq!(
+        sgf(&["validate", deleted.to_str().unwrap()]).status.code(),
+        Some(0)
+    );
+
+    let removed = dir.path().join("removed.sav");
+    let out = sgf(&[
+        "remove-colony",
+        SAMPLE_4_5,
+        "517",
+        "-o",
+        removed.to_str().unwrap(),
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Removed colony #18 from planet #517"),
+        "{text}"
+    );
+
+    let refused = dir.path().join("refused.sav");
+    let out = sgf(&[
+        "remove-colony",
+        SAMPLE_4_5,
+        "2",
+        "-o",
+        refused.to_str().unwrap(),
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("it is the capital of country 0"), "{err}");
+    assert!(!refused.exists());
 }

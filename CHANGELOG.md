@@ -8,6 +8,16 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Delete a planet or moon from a save, from the system view's right-click
+  menu or from its page. A planet's moons go with it, and so does any
+  colony on it.
+- Remove a colony and keep its planet with Remove colony on the planet's
+  page. The colony's pops, buildings, defence armies and orbital ring go.
+- Stars, capitals, habitats and a few other bodies can't be deleted. The
+  menu and the page say why.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added
