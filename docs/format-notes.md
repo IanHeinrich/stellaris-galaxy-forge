@@ -340,9 +340,11 @@ for planets or deposits.
   deposits, modifiers, flags and the colony stay as they were. A colony
   keeps its districts, zones and buildings, and the game recomputes each
   pop group's `habitability` for the new class by the month tick. The
-  editor's class change writes the same, and writes `entity=0` when the
-  index is past the new class's numbered models (`<model>_01_entity`
-  on, in `gfx/models/planets`). Checked in game on 4.5.1.
+  editor's class change writes the same. Checked in game on 4.5.1.
+  It also writes `entity=0` when the index is past the new class's
+  models. The count of models comes from the `entity` blocks named
+  `<model>_01_entity` on in the `.asset` files under `gfx/models`, from
+  every layer. I haven't checked the `entity=0` reset in game.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an
   item of the planet's
   `timed_modifier={ items={ { modifier="X" days=-1 } } }`, after

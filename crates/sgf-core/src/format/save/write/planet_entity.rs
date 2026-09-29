@@ -12,7 +12,7 @@ use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 
@@ -44,31 +44,13 @@ pub(crate) fn plan_set(
     }
 
     let edit = plan.edit_planet(&s.doc, id, system)?;
-    let written = edit
-        .entity()?
-        .find(keys::ENTITY_NAME, &edit.buf)
-        .map(|n| n.span());
-    let description = match (written, entity) {
-        (Some(span), None) => {
-            edit.remove_statement(span);
+    write_entity_name(edit, entity)?;
+    let description = match entity {
+        Some(entity) => format!("Gave planet #{id} the model {entity}"),
+        None => {
             set_flag(edit, ENTITY_NAME_FLAG, false)?;
             let old = held.as_deref().unwrap_or_default();
             format!("Took the model {old} off planet #{id}")
-        }
-        (Some(_), Some(entity)) => {
-            edit.set_scalar(&[keys::ENTITY_NAME], quoted(entity))?;
-            format!("Gave planet #{id} the model {entity}")
-        }
-        (None, entity) => {
-            let entity = entity.unwrap_or_default();
-            let anchor = edit
-                .entity()?
-                .find(keys::ENTITY, &edit.buf)
-                .map(|n| n.span())
-                .ok_or_else(|| edit.parse_error(0, format!("missing {}", keys::ENTITY)))?;
-            let line = format!("{}={}", keys::ENTITY_NAME, quoted(entity));
-            edit.insert_after(anchor.end, &line);
-            format!("Gave planet #{id} the model {entity}")
         }
     };
     Ok(Planned {
@@ -78,4 +60,30 @@ pub(crate) fn plan_set(
             entity: held,
         },
     })
+}
+
+/// Makes the planet's `entity_name` read `name`: replaced where it is written, put after the
+/// `entity=` line where it is not, and removed for `None`.
+pub(crate) fn write_entity_name(edit: &mut Edit, name: Option<&str>) -> Result<(), OpError> {
+    let written = edit
+        .entity()?
+        .find(keys::ENTITY_NAME, &edit.buf)
+        .map(|n| n.span());
+    match (written, name) {
+        (Some(span), None) => edit.remove_statement(span),
+        (Some(_), Some(name)) => edit.set_scalar(&[keys::ENTITY_NAME], quoted(name))?,
+        (None, Some(name)) => {
+            let anchor = edit
+                .entity()?
+                .find(keys::ENTITY, &edit.buf)
+                .map(|n| n.span())
+                .ok_or_else(|| edit.parse_error(0, format!("missing {}", keys::ENTITY)))?;
+            edit.insert_after(
+                anchor.end,
+                &format!("{}={}", keys::ENTITY_NAME, quoted(name)),
+            );
+        }
+        (None, None) => {}
+    }
+    Ok(())
 }

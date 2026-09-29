@@ -34,8 +34,6 @@ pub struct PlanetClassDef {
     pub artificial: bool,
     /// `astral_scar = yes`.
     pub astral_scar: bool,
-    /// `can_be_invaded = no` says it may not be, as the crisis worlds say.
-    pub can_be_invaded: bool,
     /// `district_set`, the districts a colony of it builds: `standard` for most.
     pub district_set: Option<String>,
     /// `star_gfx = no`: this class is not drawn with the star shader (vanilla: `pc_t_star`,
@@ -70,16 +68,14 @@ const SET_APART: [&str; 1] = ["pc_shrouded"];
 
 impl PlanetClassDef {
     /// Which planets may be given this class, or have it taken: none for a star, a habitat,
-    /// a ring world, anything else built, the astral scar, a world that cannot be invaded
-    /// and the Shroud's world; any for a class colonised with the standard district set;
-    /// else only a planet with no colony.
+    /// a ring world, anything else built, the astral scar and the Shroud's world; any for a
+    /// class colonised with the standard district set; else only a planet with no colony.
     pub fn change(&self) -> ClassChange {
         let fixed = self.star
             || self.habitat
             || self.ringworld
             || self.artificial
             || self.astral_scar
-            || !self.can_be_invaded
             || SET_APART.contains(&self.key.as_str());
         if fixed {
             ClassChange::Never
@@ -134,7 +130,6 @@ impl FromDef for PlanetClassDef {
             habitat: def.flag("habitat"),
             artificial: def.flag("is_artificial_planet"),
             astral_scar: def.flag("astral_scar"),
-            can_be_invaded: def.scalar("can_be_invaded") != Some("no"),
             district_set: def.scalar("district_set").map(str::to_owned),
             star_gfx: def.scalar("star_gfx") != Some("no"),
             can_be_moon: def.scalar("can_be_moon") != Some("no"),

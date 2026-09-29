@@ -530,6 +530,9 @@ fn install_planet_classes_say_who_may_take_them_and_their_models() {
         "pc_city",
         "pc_hive",
         "pc_machine",
+        "pc_gray_goo",
+        "pc_infested",
+        "pc_ai",
     ] {
         assert_eq!(rule(class).0, ClassChange::Uncolonised, "{class}");
     }
@@ -545,7 +548,6 @@ fn install_planet_classes_say_who_may_take_them_and_their_models() {
         "pc_cosmogenesis_world",
         "pc_ark",
         "pc_shrouded",
-        "pc_ai",
         "pc_astral_scar",
     ] {
         assert_eq!(rule(class).0, ClassChange::Never, "{class}");

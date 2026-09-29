@@ -37,12 +37,14 @@ export function classFieldReason(
 }
 
 /**
- * The classes a planet of `current` may become: none where it keeps its own, and for a colony only
- * those open to colonies. Habitable classes come first, each group by name.
+ * The classes a planet of `current` may become: none where it keeps its own, for a colony only
+ * those open to colonies, and for a moon none that cannot be one. Habitable classes come first,
+ * each group by name.
  */
 export function classRows(
   current: string,
   colonised: boolean,
+  moon: boolean,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   label: (key: string) => string,
 ): ClassRow[] {
@@ -51,6 +53,7 @@ export function classRows(
   return [...planetClasses.values()]
     .filter((c) => c.key !== current && c.change !== "never")
     .filter((c) => !colonised || c.change === "any")
+    .filter((c) => !moon || c.moonless !== true)
     .map((c): ClassRow => ({ key: c.key, label: label(c.key), group: group(c) }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
 }

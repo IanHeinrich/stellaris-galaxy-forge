@@ -93,8 +93,8 @@ interface PlanetFields {
   name: string | null;
   /** The body's size, and the Size field's hover text on a colony. */
   size: { value: number | null; title?: string } | null;
-  /** Its class, and whether a colony narrows the classes it may take. */
-  planetClass: { current: string; colonised: boolean } | null;
+  /** Its class, and whether a colony or a moon narrows the classes it may take. */
+  planetClass: { current: string; colonised: boolean; moon: boolean } | null;
   /** Its class and the model it has in place of the class's own. */
   model: { planetClass: string; current: string | null } | null;
   /** Whether it has a ring. */
@@ -143,6 +143,7 @@ function PlanetBlock({
           id={id}
           planetClass={planetClass.current}
           colonised={planetClass.colonised}
+          moon={planetClass.moon}
         />
       )}
       {model !== null && (
@@ -445,7 +446,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
       : null,
     planetClass: modifiersEditable
-      ? { current: page.class, colonised: page.colony !== null }
+      ? { current: page.class, colonised: page.colony !== null, moon }
       : null,
     model: modifiersEditable ? { planetClass: page.class, current: page.entity_name } : null,
     ring,

@@ -547,3 +547,9 @@
 .mp-duration input[type="number"] {
   width: 64px;
 }
+
+/* The class art is taller than the field and overhangs it by 8px above and below; this room lets it clear the rows around it. */
+.pl-class-field {
+  display: flex;
+  margin: 10px 0;
+}

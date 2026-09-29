@@ -35,6 +35,10 @@ draws_as_planet?: boolean,
  */
 flat_art?: boolean, 
 /**
+ * `Some(true)` for a class a moon may not have (`can_be_moon = no`); `None` otherwise.
+ */
+moonless?: boolean, 
+/**
  * Which save planets may be changed to or from it.
  */
 change: ClassChange, 

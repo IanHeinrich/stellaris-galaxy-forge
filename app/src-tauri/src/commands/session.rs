@@ -7,12 +7,12 @@ use sgf_core::archive;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
-use sgf_core::ops::Op;
+use sgf_core::ops::{Op, PlanetClassRule};
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::Issue;
 use sgf_core::views::{
-    Capabilities, DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase,
-    SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
+    ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
@@ -21,6 +21,7 @@ use super::{DONE, START, VALIDATE_AT, io_error, progress, require, size_systems,
 use crate::state::GameDataState;
 
 const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
+const CLASS_NEEDS_GAME_DATA: &str = "load game data to change a planet class";
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
@@ -212,12 +213,51 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
 
 #[tauri::command]
 pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
+    let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
+        let op = with_install_class_rules(op, gd.as_deref())?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
     })
     .await
+}
+
+/// `op` with the rules of every planet class change in it read from the install, whatever the
+/// caller sent: the core takes the rules as given, since only the install knows them.
+fn with_install_class_rules(op: Op, gd: Option<&GameData>) -> Result<Op, SgfError> {
+    match op {
+        Op::SetPlanetClass {
+            planet,
+            from,
+            to,
+            look,
+        } => {
+            let gd = gd.ok_or_else(|| SgfError::new(ErrorKind::Op, CLASS_NEEDS_GAME_DATA))?;
+            let rule = |given: &PlanetClassRule| {
+                gd.planet_class_rule(&given.class).ok_or_else(|| {
+                    SgfError::new(
+                        ErrorKind::Op,
+                        format!("the install has no planet class {}", given.class),
+                    )
+                })
+            };
+            Ok(Op::SetPlanetClass {
+                planet,
+                from: rule(&from)?,
+                to: rule(&to)?,
+                look,
+            })
+        }
+        Op::Batch { description, ops } => Ok(Op::Batch {
+            description,
+            ops: ops
+                .into_iter()
+                .map(|op| with_install_class_rules(op, gd))
+                .collect::<Result<_, _>>()?,
+        }),
+        op => Ok(op),
+    }
 }
 
 #[tauri::command]

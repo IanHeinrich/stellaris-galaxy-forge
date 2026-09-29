@@ -550,6 +550,10 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub flat_art: Option<bool>,
+    /// `Some(true)` for a class a moon may not have (`can_be_moon = no`); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub moonless: Option<bool>,
     /// Which save planets may be changed to or from it.
     pub change: ClassChange,
     /// How many models the install numbers for it, `<model>_01_entity` on; 0 when it names
@@ -768,6 +772,7 @@ impl GameData {
                 ringworld: marker(pc.ringworld),
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
                 flat_art: marker(self.flat_art(&pc.key)),
+                moonless: marker(!pc.can_be_moon),
                 change: pc.change(),
                 models: self.class_models(&pc.key),
             })

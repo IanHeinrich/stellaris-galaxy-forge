@@ -504,10 +504,10 @@ pub enum Op {
     /// knows what each class is and the bytes do not, so the caller says, in `from` for the
     /// class the planet has and `to` for the new one. A star, a class that never changes
     /// taken from or to, a colony taken from or to a class not open to colonies, a `from`
-    /// that is not the planet's class and a class it already has are refused. `look`, when
-    /// given, is written in place of that model and index: it is what the inverse carries,
-    /// so that undoing a change puts back the look the planet had. Stellaris 4.x save
-    /// documents only.
+    /// that is not the planet's class, a planet with a megastructure and a class it already
+    /// has are refused. `look`, when given, is written in place of that model and index, and
+    /// its index must be below the `models` `to` has: it is what the inverse carries, so that
+    /// undoing a change puts back the look the planet had. Stellaris 4.x save documents only.
     SetPlanetClass {
         planet: u32,
         from: PlanetClassRule,
@@ -1172,6 +1172,15 @@ pub enum OpError {
     HoldsSavePlanet { system: u32, planet: u32 },
     #[error("planet {0} has a megastructure, so it cannot move to another system")]
     MegastructurePlanet(u32),
+    #[error("planet {0} has a megastructure, so it keeps its class")]
+    MegastructureClass(u32),
+    #[error("{class} has {models} models, so planet {planet} cannot take model {entity}")]
+    PlanetModelIndex {
+        planet: u32,
+        entity: u32,
+        class: String,
+        models: u32,
+    },
     #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
     PlanetOccupied {
         planet: u32,
@@ -1321,6 +1330,8 @@ impl OpError {
             | Self::NoBodies { .. }
             | Self::HoldsSavePlanet { .. }
             | Self::MegastructurePlanet { .. }
+            | Self::MegastructureClass { .. }
+            | Self::PlanetModelIndex { .. }
             | Self::PlanetOccupied { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }

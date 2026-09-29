@@ -3,12 +3,12 @@
 //! The install's rules for each class are written out here, as the app sends them.
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::{ClassChange, Op, PlanetClassRule};
+use sgf_core::ops::{ClassChange, Op, PlanetClassRule, PlanetLook};
 use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open_3_4, open_4_5};
+use common::{SAMPLE_4_5, current, open_3_4, open_4_5, open_edited_sample};
 
 /// What the install says of `class`, as far as these tests need it.
 fn rule(class: &str) -> PlanetClassRule {
@@ -181,4 +181,101 @@ fn a_save_before_stellaris_4_is_refused() {
         .expect_err("a 3.4 save");
     assert!(error.to_string().contains("3.4"), "{error}");
     assert!(!session.doc.is_dirty());
+}
+
+fn with_look(look: PlanetLook) -> Op {
+    Op::SetPlanetClass {
+        planet: 585,
+        from: rule("pc_barren"),
+        to: rule("pc_ocean"),
+        look: Some(look),
+    }
+}
+
+#[test]
+fn a_look_is_written_only_when_it_is_a_model_the_class_has() {
+    let mut session = open_4_5();
+    let refusals = [
+        (
+            PlanetLook {
+                entity: None,
+                entity_name: Some("two words".to_owned()),
+            },
+            "\"two words\" cannot be written as a planet model",
+        ),
+        (
+            PlanetLook {
+                entity: None,
+                entity_name: Some(String::new()),
+            },
+            "a planet model may not be empty",
+        ),
+        (
+            PlanetLook {
+                entity: Some(3),
+                entity_name: None,
+            },
+            "pc_ocean has 3 models, so planet 585 cannot take model 3",
+        ),
+    ];
+    for (look, message) in refusals {
+        let error = session.apply(with_look(look)).expect_err(message);
+        assert_eq!(error.to_string(), message);
+    }
+    assert!(!session.doc.is_dirty());
+
+    session
+        .apply(with_look(PlanetLook {
+            entity: Some(1),
+            entity_name: Some("ocean_paradise_planet_01_entity".to_owned()),
+        }))
+        .expect("a model the class has");
+    assert_eq!(
+        look(&session, 585),
+        (
+            "pc_ocean".to_owned(),
+            Some("ocean_paradise_planet_01_entity".to_owned())
+        )
+    );
+}
+
+/// Planet 936 has a megastructure, which the class change leaves out of what it can move.
+#[test]
+fn a_planet_with_a_megastructure_keeps_its_class() {
+    let mut session = open_4_5();
+    let class = look(&session, 936).0;
+    let held = PlanetClassRule {
+        class,
+        change: ClassChange::Uncolonised,
+        models: 3,
+    };
+    let error = session
+        .apply(Op::SetPlanetClass {
+            planet: 936,
+            from: held,
+            to: rule("pc_barren"),
+            look: None,
+        })
+        .expect_err("a megastructure");
+    assert_eq!(
+        error.to_string(),
+        "planet 936 has a megastructure, so it keeps its class"
+    );
+    assert!(!session.doc.is_dirty());
+}
+
+/// `colony=4294967295` is the null id: the planet has no colony, as its page reads it.
+#[test]
+fn a_null_colony_is_no_colony() {
+    let mut session = open_edited_sample(SAMPLE_4_5, |gamestate, _| {
+        let start = gamestate.find("\n\t\t585=\n").expect("planet 585");
+        let class = start
+            + gamestate[start..]
+                .find("\n\t\t\tplanet_class=")
+                .expect("its class");
+        gamestate.insert_str(class, "\n\t\t\tcolony=4294967295");
+    });
+    session
+        .apply(set(585, "pc_barren", "pc_ocean"))
+        .expect("a planet with a null colony changes as an uncolonised one does");
 }
