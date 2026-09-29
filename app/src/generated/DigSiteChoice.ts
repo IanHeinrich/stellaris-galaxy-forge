@@ -10,6 +10,10 @@ key: string,
  */
 name: string, 
 /**
+ * The localised text its `desc` names, or else its `<key>_desc`, when the install has one.
+ */
+description: string | null, 
+/**
  * The first stage's difficulty, which a new site starts at; 0 when it cannot be read.
  */
 difficulty: number, 

@@ -3,6 +3,7 @@
  * names here match `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { AddedBody } from "../generated/AddedBody";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import type { CampaignListing } from "../generated/CampaignListing";
 import type { EditResult } from "../generated/EditResult";
@@ -59,6 +60,11 @@ export function scenarioPainted(path: string): Promise<boolean> {
 /** The setup screen the save at `path` was started with, read without opening it. */
 export function saveDetails(path: string): Promise<GalaxySettings> {
   return invoke<GalaxySettings>("save_details", { path });
+}
+
+/** The paths among `paths` that are not a file on disk. */
+export function missingPaths(paths: string[]): Promise<string[]> {
+  return invoke<string[]>("missing_paths", { paths });
 }
 
 /** Open a save or a scenario script as the session; emits `sgf://progress` while it loads. */
@@ -190,6 +196,32 @@ export function addRandomSystem(
   starClass: string | null,
 ): Promise<EditResult> {
   return invoke<EditResult>("add_random_system", { seed, x, y, starClass });
+}
+
+/**
+ * Roll a body from `seed` and add it to system `system` of the open save as one edit, `radius`
+ * from what it orbits at `angle` degrees: a moon of `parent`, or a planet for null. It is of
+ * `planetClass` and `size` when given, else drawn as the game draws them, with the deposits it
+ * rolls. Answers with the edit and the new body's id; refused without game data.
+ */
+export function addBody(
+  system: number,
+  parent: number | null,
+  planetClass: string | null,
+  size: number | null,
+  radius: number,
+  angle: number,
+  seed: number,
+): Promise<AddedBody> {
+  return invoke<AddedBody>("add_body", {
+    system,
+    parent,
+    class: planetClass,
+    size,
+    radius,
+    angle,
+    seed,
+  });
 }
 
 /**

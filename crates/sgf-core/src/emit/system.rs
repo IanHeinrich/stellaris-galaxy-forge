@@ -243,6 +243,13 @@ pub fn deposits_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
     w.into_bytes()
 }
 
+/// A country's `events.anomalies` list, for an `events` block that has none.
+pub fn anomalies_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.list(0, keys::ANOMALIES, ids);
+    w.into_bytes()
+}
+
 /// A nebula cloud's entry in the top-level `ambient_object` table.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientEntry<'a> {

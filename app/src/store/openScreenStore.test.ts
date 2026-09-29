@@ -109,6 +109,7 @@ beforeEach(() => {
   mockedIpc.listCampaigns.mockResolvedValue([VOID, TERRAN]);
   mockedIpc.listCampaignSaves.mockResolvedValue([save()]);
   mockedIpc.listScenarios.mockResolvedValue(listed([scenario()]));
+  mockedIpc.missingPaths.mockResolvedValue([]);
   mockedIpc.closeSave.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
@@ -174,6 +175,53 @@ describe("load", () => {
 
     expect(section("saves").note).toBe("Could not list saves: no save folder");
     expect(rowKeys("scenarios")).toContain(`scenario:${scenario().path}`);
+  });
+});
+
+describe("recent documents", () => {
+  const GONE: RecentDoc = { ...RECENT, path: "C:/saves/terran/deleted.sav", openedAt: 4 };
+
+  beforeEach(() => {
+    useRecentsStore.setState({ recents: [RECENT, GONE] });
+  });
+
+  const recentPaths = () => useRecentsStore.getState().recents.map((r) => r.path);
+
+  it("forgets the ones whose files are gone when the lists are read", async () => {
+    mockedIpc.missingPaths.mockResolvedValue([GONE.path]);
+    await screen().load(null);
+
+    expect(mockedIpc.missingPaths).toHaveBeenCalledExactlyOnceWith([RECENT.path, GONE.path]);
+    expect(recentPaths()).toEqual([RECENT.path]);
+  });
+
+  it("leaves the list as it was when the check fails", async () => {
+    mockedIpc.missingPaths.mockRejectedValue({ kind: "io", message: "no answer" });
+    await screen().load(null);
+
+    expect(recentPaths()).toEqual([RECENT.path, GONE.path]);
+    expect(screen().campaigns).not.toBeNull();
+  });
+
+  it("forgets nothing for a read a newer token overtook", async () => {
+    let answerOld: (paths: string[]) => void = () => undefined;
+    mockedIpc.missingPaths.mockReturnValueOnce(new Promise((resolve) => (answerOld = resolve)));
+    const older = screen().load(null);
+    await screen().load("C:/saves/terran/2206.11.16.sav");
+
+    answerOld([RECENT.path]);
+    await older;
+
+    expect(recentPaths()).toEqual([RECENT.path, GONE.path]);
+  });
+
+  it("clears the list and the not-found marks", async () => {
+    useOpenScreenStore.setState({ missing: [GONE.path] });
+
+    screen().clear();
+
+    expect(recentPaths()).toEqual([]);
+    expect(screen().missing).toEqual([]);
   });
 });
 

@@ -10,6 +10,8 @@ export const ARCHAEOLOGY_ICON_KEYS = [
   "sprite:GFX_icon_archaeology",
 ];
 export const PRE_FTL_ICON_KEY = "sprite:GFX_firstcontact_icon";
+/** The situation log's anomaly category icon. */
+export const ANOMALY_ICON_KEY = "sprite:GFX_category_anomalies";
 /** The ring-with-structure frame of the ship-class sheet, the game's map glyph for a megastructure. */
 export const MEGASTRUCTURE_ICON_KEY = "sprite:GFX_ship_class_small#22";
 /** The name plate the game draws behind the owner flag and name of a colonised system. */

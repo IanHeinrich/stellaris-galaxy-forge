@@ -1,15 +1,19 @@
-import { BitmapText, Container, Graphics, Sprite, type Texture } from "pixi.js";
+import {
+  BitmapText,
+  Container,
+  Graphics,
+  Sprite,
+  type Texture,
+  type TextStyle,
+  type TextStyleOptions,
+} from "pixi.js";
 import { MAP_FONT } from "../../../lib/visual/style";
-import type { Hover, Item, Tip } from "./Hover";
+import type { Item, Tip, TipSink } from "./Hover";
 import { ICON_SHADOW_ALPHA, ICON_SHADOW_OFFSET_PX } from "./resources";
 
 const TEXT_STYLE = { fontFamily: MAP_FONT, fontSize: 11, fill: 0xd6dde8 };
 
-interface Style {
-  fontFamily: string;
-  fontSize: number;
-  fill: number;
-}
+export type RowTextStyle = TextStyle | TextStyleOptions;
 
 /**
  * One system's details: pooled sprites, texts and marks under a screen-stable root, layered
@@ -26,12 +30,12 @@ export class Row {
   private readonly sprites: Sprite[] = [];
   private readonly shadows: Sprite[] = [];
   private readonly texts: BitmapText[] = [];
-  private readonly textStyles: Style[] = [];
+  private readonly textStyles: RowTextStyle[] = [];
   private usedSprites = 0;
   private usedShadows = 0;
   private usedTexts = 0;
 
-  constructor(private readonly hover: Hover) {
+  constructor(private readonly hover: TipSink) {
     this.root.eventMode = "passive";
     this.marks.eventMode = "none";
     this.spriteLayer.sortableChildren = true;
@@ -100,7 +104,13 @@ export class Row {
     fit(s, texture, x + ICON_SHADOW_OFFSET_PX, y + ICON_SHADOW_OFFSET_PX, size);
   }
 
-  text(str: string, x: number, y: number, tip: Tip | null = null, style = TEXT_STYLE): number {
+  text(
+    str: string,
+    x: number,
+    y: number,
+    tip: Tip | null = null,
+    style: RowTextStyle = TEXT_STYLE,
+  ): number {
     let t = this.texts[this.usedTexts];
     if (!t) {
       t = new BitmapText({ text: "", style });
@@ -123,6 +133,10 @@ export class Row {
 
   nudgeLastText(dx: number): void {
     this.texts[this.usedTexts - 1].x += dx;
+  }
+
+  lastTextHeight(): number {
+    return this.texts[this.usedTexts - 1].height;
   }
 
   private hide(item: Item): void {

@@ -19,10 +19,10 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_system, belts, bodies, bulk, deposits, dig_site, empire_name, flag, lanes, lgate,
-    map_colors, move_planet, move_system, nebula, planet_entity, planet_modifier, planet_ring,
-    planet_size, remove_planet, remove_system, rename_planet, rename_system, replace_system,
-    star_class,
+    add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
+    lanes, lgate, map_colors, move_planet, move_system, nebula, planet_entity, planet_modifier,
+    planet_ring, planet_size, remove_planet, remove_system, rename_planet, rename_system,
+    replace_system, star_class,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -181,6 +181,12 @@ impl Format for Save {
                 modifier,
                 feature,
             } => planet_modifier::plan_remove(plan, s, *planet, modifier, feature.as_deref()),
+            Op::AddAnomaly {
+                planet,
+                category,
+                found_by,
+            } => anomaly::plan_add(plan, s, *planet, category, found_by.as_deref()),
+            Op::RemoveAnomaly { planet } => anomaly::plan_remove(plan, s, *planet),
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
@@ -238,6 +244,8 @@ impl Format for Save {
                 name,
                 block,
             } => rename_planet::plan_rename(plan, s, *planet, name, block.as_deref()),
+            Op::AddSaveBody { system, spec, at } => add_body::plan_add(plan, s, *system, spec, *at),
+            Op::RemoveAddedBody { planet } => add_body::plan_remove(plan, s, *planet),
             Op::SetSaveBodyParent {
                 system,
                 body,

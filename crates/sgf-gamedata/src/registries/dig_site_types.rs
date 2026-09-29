@@ -1,5 +1,5 @@
-//! `common/archaeological_site_types`: the dig sites a planet can hold, their stages, and
-//! whether the survey roll can pick one.
+//! `common/archaeological_site_types`: the dig sites a planet can hold, their stages, whether
+//! the survey roll can pick one, and the text the game's site window describes one with.
 
 use sgf_core::cst::Node;
 
@@ -20,6 +20,9 @@ pub struct DigSiteTypeDef {
     /// modifiers' `add`. The survey roll (`ancrel.9999`) creates a site with
     /// `create_archaeological_site = random`, which draws only such a type.
     pub rolled: bool,
+    /// The localisation key its `desc` names: the key itself, or the first `desc = { trigger
+    /// text }` block's `text`, as the triggers read a site the editor does not have.
+    pub desc: Option<String>,
 }
 
 impl FromDef for DigSiteTypeDef {
@@ -41,6 +44,11 @@ impl FromDef for DigSiteTypeDef {
                 .node
                 .find("weight", src)
                 .is_some_and(|weight| can_weigh(def, weight)),
+            desc: def.node.find("desc", src).and_then(|desc| {
+                desc.scalar_str(src)
+                    .or_else(|| desc.find("text", src)?.scalar_str(src))
+                    .map(str::to_owned)
+            }),
             key,
         }
     }

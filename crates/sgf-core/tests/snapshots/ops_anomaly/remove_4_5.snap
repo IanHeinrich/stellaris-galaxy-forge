@@ -1,0 +1,26 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Remove anomaly AIANOM_RESEARCHDEPO_CAT from planet #185
+inverse: AddAnomaly { planet: 185, category: "AIANOM_RESEARCHDEPO_CAT", found_by: Some([16777221]) }
+
+--- gamestate
++++ gamestate
+@@ -88334,7 +88334,6 @@
+ 			{
+ 				0=16777721
+ 			}
+-			anomaly="AIANOM_RESEARCHDEPO_CAT"
+ 			bombardment_damage=0
+ 			entity=1
+ 			surveyed_by=16777221
+@@ -445252,7 +445251,7 @@
+ 		{
+ 			anomalies=
+ 			{
+-				185 182 
++				182 
+ 			}
+ 		}
+ 		terra_incognita=

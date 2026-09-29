@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
+import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { PickSummary } from "../generated/PickSummary";
 import type { SpecialLayout } from "../generated/SpecialLayout";
 import { useGameDataStore } from "./gameDataStore";
@@ -21,8 +22,14 @@ export interface GeneratorState {
   starClasses: GeneratorStarClass[] | null;
   /** What the Add system menu offers for the open save, each with its card; null until read. */
   picks: AddSystemPicks | null;
+  /** The classes an added planet may take, by name; null until read. */
+  planetClasses: BodyClassPick[] | null;
+  /** The classes an added moon may take, by name; null until read. */
+  moonClasses: BodyClassPick[] | null;
   /** Reads the classes once per loaded game data; a no-op without it. */
   request(): void;
+  /** Reads the planet and moon classes once per loaded game data; a no-op without it. */
+  requestBodyClasses(): void;
   /**
    * Reads the picks for the open save again, since each add changes what the galaxy holds. The
    * last ones stay until the new ones land; a no-op without game data.
@@ -36,11 +43,14 @@ export interface GeneratorState {
 export const useGeneratorStore = create<GeneratorState>((set, get) => {
   let generation = 0;
   let asked = false;
+  let bodiesAsked = false;
   /** The latest picks read asked for; an older answer landing after it is dropped. */
   let picksAsked = 0;
   return {
     starClasses: null,
     picks: null,
+    planetClasses: null,
+    moonClasses: null,
 
     request() {
       if (asked || useGameDataStore.getState().status !== "ready") return;
@@ -54,6 +64,21 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
         (e: unknown) => {
           if (mine === generation) asked = false;
           console.warn("generator star classes", ipc.errorMessage(e));
+        },
+      );
+    },
+
+    requestBodyClasses() {
+      if (bodiesAsked || useGameDataStore.getState().status !== "ready") return;
+      bodiesAsked = true;
+      const mine = generation;
+      Promise.all([ipc.getBodyClasses(false), ipc.getBodyClasses(true)]).then(
+        ([planetClasses, moonClasses]) => {
+          if (mine === generation) set({ planetClasses, moonClasses });
+        },
+        (e: unknown) => {
+          if (mine === generation) bodiesAsked = false;
+          console.warn("body classes", ipc.errorMessage(e));
         },
       );
     },
@@ -80,7 +105,11 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
     clear() {
       generation += 1;
       asked = false;
+      bodiesAsked = false;
       if (get().starClasses !== null) set({ starClasses: null });
+      if (get().planetClasses !== null || get().moonClasses !== null) {
+        set({ planetClasses: null, moonClasses: null });
+      }
       get().clearPicks();
     },
   };

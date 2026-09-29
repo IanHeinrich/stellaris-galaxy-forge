@@ -24,6 +24,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
 import type { Entry } from "../../../store/inspectorStore";
+import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
@@ -47,6 +48,7 @@ import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
+import { AnomalyPicker } from "./AnomalyPicker";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
@@ -306,27 +308,95 @@ function Orbits({ parent, radius }: { parent: number; radius: number | null }) {
   );
 }
 
-/** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
-function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
-  const named = useNamed([anomaly.category]);
+/** Who has found `anomaly`: "found by …", or "not found yet". */
+function useFinders(anomaly: PlanetPageAnomaly): string {
   const countries = useGalaxyStore((s) => s.countries);
   const finders = anomaly.found_by.map((id) => {
     const country = countries.get(id);
     return country === undefined ? `country #${id}` : templateName(country);
   });
+  return finders.length === 0 ? "not found yet" : `found by ${finders.join(", ")}`;
+}
+
+/** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
+function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
+  const named = useNamed([anomaly.category]);
+  const found = useFinders(anomaly);
   return (
     <PropertyRow label="Anomaly">
       {named(anomaly.category)}
       <span className="muted">
         {" · "}
-        {finders.length === 0 ? "not found yet" : `found by ${finders.join(", ")}`}
+        {found}
       </span>
     </PropertyRow>
   );
 }
 
-/** What the page only shows; `radius` is the body's orbit where no Orbit block edits it. */
-function About({ page, radius }: { page: PlanetPage; radius: number | null }) {
+/**
+ * The anomaly as the Anomaly section lists it: its name, who found it, the game's description of
+ * it once the anomaly choices are read, and its remove button.
+ */
+function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; target: PickerTarget }) {
+  const named = useNamed([anomaly.category]);
+  const found = useFinders(anomaly);
+  const name = named(anomaly.category);
+  const ready = useGameDataStore((s) => s.status === "ready");
+  const description = useAnomalyPickerStore(
+    (s) => s.choices?.list.find((c) => c.key === anomaly.category)?.description ?? null,
+  );
+  useEffect(() => {
+    if (ready) useAnomalyPickerStore.getState().load(target);
+  }, [ready, target]);
+  return (
+    <div className="pl-mod">
+      <span className="pl-mod-icon">
+        <Icon keys={[]} glyph="?" />
+      </span>
+      <span>
+        <span className="l1">{name}</span>
+        <span className="l2">{found}</span>
+        {ready && description !== null && <span className="pl-anomaly-desc">{description}</span>}
+      </span>
+      <button
+        type="button"
+        className="pl-dep-remove pl-mod-remove"
+        title="Remove this anomaly"
+        aria-label={`Remove ${name}`}
+        onClick={() => void target.edits.removeAnomaly()}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+/** The body's anomaly as `target` holds it, with its remove button, or the picker that adds one. */
+function PlanetAnomaly({ target }: { target: PickerTarget }) {
+  return (
+    <Section id="planet.anomaly" title="Anomaly">
+      {target.anomaly === null ? (
+        <AnomalyPicker target={target} />
+      ) : (
+        <AnomalyRowView anomaly={target.anomaly} target={target} />
+      )}
+    </Section>
+  );
+}
+
+/**
+ * What the page only shows; `radius` is the body's orbit where no Orbit block edits it, and the
+ * anomaly shows here where no Anomaly section edits it.
+ */
+function About({
+  page,
+  radius,
+  anomalyEditable,
+}: {
+  page: PlanetPage;
+  radius: number | null;
+  anomalyEditable: boolean;
+}) {
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
   const occupied = page.controller !== null && page.controller !== page.owner;
@@ -341,7 +411,7 @@ function About({ page, radius }: { page: PlanetPage; radius: number | null }) {
         )}
         {page.parent !== null && <Orbits parent={page.parent} radius={radius} />}
         {page.surveyed_by !== null && <CountryRow label="Surveyed by" id={page.surveyed_by} />}
-        {page.anomaly !== null && <AnomalyRow anomaly={page.anomaly} />}
+        {page.anomaly !== null && !anomalyEditable && <AnomalyRow anomaly={page.anomaly} />}
         {occupied && page.controller !== null && (
           <CountryRow label="Controller" id={page.controller} />
         )}
@@ -427,9 +497,11 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const moveFrom = movable ? page.system : null;
   const planetBody = bodies && !starBody;
   const resizable = planetBody;
-  // A 4.x save: the deposit, modifier and dig site ops refuse an older one.
+  // A 4.x save: the deposit, modifier, dig site and anomaly ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
+  // The game places some anomalies on stars, so a star's page takes one too.
+  const anomalyEditable = depositsEditable;
   const moon = found?.planet.moon ?? false;
   // A 4.x save's planet or moon: the core says why one of them cannot go.
   const removable = depositsEditable && !starBody;
@@ -470,9 +542,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       )}
       <PlanetDeposits page={page} editable={depositsEditable} target={target} />
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
+      {anomalyEditable && <PlanetAnomaly target={target} />}
       <PlanetDigSite site={page.dig_site} editable={modifiersEditable} target={target} />
       <Colony page={page} removable={removable ? bodyName(page, names) : null} />
-      <About page={page} radius={radius} />
+      <About page={page} radius={radius} anomalyEditable={anomalyEditable} />
       <Moons page={page} />
       {removable && <DeletePlanetAction page={page} name={bodyName(page, names)} moon={moon} />}
       {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (

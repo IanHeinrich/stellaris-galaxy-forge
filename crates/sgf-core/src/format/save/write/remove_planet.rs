@@ -3,7 +3,9 @@
 //! A deleted body is left as the game's `remove_planet` leaves one: `<id>=none` in its slot
 //! and no `planet=` line in its system. Deposits, survey lists, fleets in orbit and orphaned
 //! construction queues are the game's to tidy, which it does at load or lets stand. A dig
-//! site on a deleted body goes as `RemoveDigSite` takes one: its entry alone.
+//! site on a deleted body goes as `RemoveDigSite` takes one: its entry alone. The body
+//! leaves each country's `events.anomalies` as `RemoveAnomaly` takes one out. A body added
+//! since the file was opened goes as `RemoveAddedBody` takes it, its slots given back.
 //!
 //! A colony goes as the game's `destroy_colony` takes it: the planet loses its owner,
 //! controller, colonisation date and orbital defence; the colony, its pops, jobs,
@@ -20,10 +22,12 @@ use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
+use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::dig_sites::{self, DigSite};
 use crate::format::save::write::bodies::{frame, unlist_moon};
 use crate::format::save::write::move_planet::{is_star_class, unlist_planets};
+use crate::format::save::write::{add_body, anomaly};
 use crate::format::save::{
     check_version, entity_at, entity_in, planet_entity, planet_statement, planet_system,
     system_statement,
@@ -74,10 +78,13 @@ pub(crate) fn plan_remove_colony(
 
 pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
     check_version(&s.doc)?;
+    if s.doc.added().get(EntityKind::Planet, planet).is_some() {
+        return plan_delete_added(plan, s, planet);
+    }
     let (node, src) = planet_entity(&s.doc, planet)?;
     let system = planet_system(&node, src, planet)?;
     let bodies: Vec<Body> = frame(s, system)?.into_iter().map(|b| b.body).collect();
-    let moon = read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0);
+    let moon = is_moon(&node, src);
     let parent = read::scalar_u32(&node, keys::MOON_OF, src);
     let moons = descendants(&bodies, planet);
     let deleted: Vec<u32> = std::iter::once(planet)
@@ -86,10 +93,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
 
     let mut teardowns = Vec::new();
     let mut stations = Vec::new();
-    let sites: Vec<(Anchor, DigSite)> = dig_sites::sites(&s.doc)?
-        .into_iter()
-        .filter(|(_, site)| site.planet.is_some_and(|p| deleted.contains(&p)))
-        .collect();
+    let sites = sites_on(s, &deleted)?;
     for &id in &deleted {
         let (node, src) = planet_entity(&s.doc, id)?;
         let refuse = |reason: String| OpError::PlanetKept { planet: id, reason };
@@ -126,6 +130,11 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     for (anchor, _) in &sites {
         plan.erase(&s.doc, Subject::Record(*anchor), *anchor)?;
     }
+    for &id in &deleted {
+        for country in s.doc.anomaly_finders(id) {
+            anomaly::unlist(country_edit(plan, &s.doc, &mut saved, country)?, id)?;
+        }
+    }
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     saved.keep(&s.doc, SavedTable::System, system, anchor)?;
     unlist_planets(plan.edit(&s.doc, system)?, &deleted)?;
@@ -155,33 +164,91 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         1 => ", with a colony".to_owned(),
         n => format!(", with {n} colonies"),
     };
-    let dug = match sites.len() {
-        0 => String::new(),
-        1 => ", and a dig site".to_owned(),
-        n => format!(", and {n} dig sites"),
-    };
+    let dug = dug(sites.len());
     let restored = format!("Restored {label} #{planet}{carrying}");
     // An erased site has no statement to write back over, so it is added again, as
     // `RemoveDigSite`'s inverse adds one; undo puts back the bytes as they stood.
-    let inverse = match saved.inverse(restored.clone()) {
-        restore if sites.is_empty() => restore,
-        restore => Op::Batch {
-            description: restored,
-            ops: std::iter::once(restore)
-                .chain(sites.into_iter().filter_map(|(_, site)| {
-                    Some(Op::AddDigSite {
-                        planet: site.planet?,
-                        site_type: site.kind,
-                        difficulty: site.difficulty,
-                    })
-                }))
-                .collect(),
-        },
-    };
+    let inverse = then(saved.inverse(restored.clone()), restored, site_adds(sites));
     Ok(Planned {
         description: format!("Deleted {label} #{planet}{carrying}{colonies}{dug}"),
         inverse,
     })
+}
+
+/// A body added since the file was opened goes as [`Op::RemoveAddedBody`] takes it, its
+/// slots given back, once its dig site and its place in the finders' anomaly lists have
+/// gone. The inverse adds the body back, then its site and anomaly.
+fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
+    let (node, src) = planet_entity(&s.doc, planet)?;
+    let moon = is_moon(&node, src);
+    let category = read::scalar(&node, keys::ANOMALY, src).map(str::to_owned);
+    let finders = s.doc.anomaly_finders(planet);
+    let sites = sites_on(s, &[planet])?;
+    for (anchor, _) in &sites {
+        plan.erase(&s.doc, Subject::Record(*anchor), *anchor)?;
+    }
+    for &country in &finders {
+        anomaly::unlist(plan.edit_country(&s.doc, country)?, planet)?;
+    }
+    let removed = add_body::plan_remove(plan, s, planet)?;
+
+    let label = if moon { "moon" } else { "planet" };
+    let dug = dug(sites.len());
+    let found = category.map(|category| Op::AddAnomaly {
+        planet,
+        category,
+        found_by: Some(finders),
+    });
+    let restored = format!("Restored {label} #{planet}");
+    let inverse = then(removed.inverse, restored, site_adds(sites).chain(found));
+    Ok(Planned {
+        description: format!("Deleted {label} #{planet}{dug}"),
+        inverse,
+    })
+}
+
+fn is_moon(node: &Node, src: &[u8]) -> bool {
+    read::scalar_u32(node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0)
+}
+
+/// The dig sites on any of `planets`.
+fn sites_on(s: &Session, planets: &[u32]) -> Result<Vec<(Anchor, DigSite)>, OpError> {
+    Ok(dig_sites::sites(&s.doc)?
+        .into_iter()
+        .filter(|(_, site)| site.planet.is_some_and(|p| planets.contains(&p)))
+        .collect())
+}
+
+/// The ops that add each of `sites` back.
+fn site_adds(sites: Vec<(Anchor, DigSite)>) -> impl Iterator<Item = Op> {
+    sites.into_iter().filter_map(|(_, site)| {
+        Some(Op::AddDigSite {
+            planet: site.planet?,
+            site_type: site.kind,
+            difficulty: site.difficulty,
+        })
+    })
+}
+
+/// ", and a dig site", for the description.
+fn dug(sites: usize) -> String {
+    match sites {
+        0 => String::new(),
+        1 => ", and a dig site".to_owned(),
+        n => format!(", and {n} dig sites"),
+    }
+}
+
+/// `first`, batched with `rest` when there is any.
+fn then(first: Op, description: String, rest: impl Iterator<Item = Op>) -> Op {
+    let mut rest = rest.peekable();
+    if rest.peek().is_none() {
+        return first;
+    }
+    Op::Batch {
+        description,
+        ops: std::iter::once(first).chain(rest).collect(),
+    }
 }
 
 pub(crate) fn plan_restore(
@@ -478,10 +545,7 @@ impl Stationed {
             Emptied::Drop,
         )?;
         if let Some(country) = self.controller {
-            let anchor = locate(doc, SavedTable::Country, country)?
-                .ok_or(OpError::UnknownCountry(country))?;
-            saved.keep(doc, SavedTable::Country, country, anchor)?;
-            let edit = plan.edit_country(doc, country)?;
+            let edit = country_edit(plan, doc, saved, country)?;
             unlist_fleet(edit, self.fleet)?;
             unlist(
                 edit,
@@ -492,6 +556,19 @@ impl Stationed {
         }
         Ok(())
     }
+}
+
+/// The edit for country `country`, its statement kept for the inverse.
+fn country_edit<'p>(
+    plan: &'p mut Plan,
+    doc: &Document,
+    saved: &mut Saved,
+    country: u32,
+) -> Result<&'p mut Edit, OpError> {
+    let anchor =
+        locate(doc, SavedTable::Country, country)?.ok_or(OpError::UnknownCountry(country))?;
+    saved.keep(doc, SavedTable::Country, country, anchor)?;
+    plan.edit_country(doc, country)
 }
 
 /// Write each of `dead` as its tombstone, keeping what stood there for the inverse.
@@ -672,10 +749,7 @@ impl Teardown {
         }
 
         for &country in &self.countries {
-            let anchor = locate(doc, SavedTable::Country, country)?
-                .ok_or(OpError::UnknownCountry(country))?;
-            saved.keep(doc, SavedTable::Country, country, anchor)?;
-            let edit = plan.edit_country(doc, country)?;
+            let edit = country_edit(plan, doc, saved, country)?;
             unlist(edit, keys::OWNED_PLANETS, &[self.colony], Emptied::Keep)?;
             unlist(
                 edit,

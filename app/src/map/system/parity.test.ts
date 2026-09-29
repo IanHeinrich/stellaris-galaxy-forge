@@ -152,13 +152,19 @@ function rounded(value: unknown): unknown {
 }
 
 /**
- * A body as the scene resolved it, without the source record it was resolved from, or the steps
- * and turn from the body before it that only a scenario gives.
+ * A body as the scene resolved it, without the source record it was resolved from, which its
+ * marks keep too for their tooltips, or the steps and turn from the body before it that only a
+ * scenario gives.
  */
 function resolved(body: SceneBody): unknown {
-  const { placement } = body;
+  const { placement, marks } = body;
   const radius = placement.radius && { ...placement.radius, step: null, base: null };
-  return rounded({ ...body, planet: null, placement: { ...placement, radius, turn: null } });
+  return rounded({
+    ...body,
+    planet: null,
+    marks: { ...marks, icons: { ...marks.icons, planets: null } },
+    placement: { ...placement, radius, turn: null },
+  });
 }
 
 /** What the bodies layer draws for each body: where, and each part's look. */
@@ -261,7 +267,7 @@ describe("a scenario body on a fixed orbit and angle is drawn as a save body at 
     const bodies = [star("pc_pulsar", "sc_pulsar"), planet];
     expectParity("sc_pulsar", bodies);
     const [pulsar] = asScenario("sc_pulsar", bodies).bodies;
-    expect(pulsar.look.surfaceKey).toBe("star_disc:pc_pulsar");
+    expect(pulsar.look.surfaceKeys).toEqual(["star_disc:pc_pulsar"]);
     expect(pulsar.look.flare).toBe("pulsar");
   });
 
@@ -278,7 +284,7 @@ describe("a scenario body on a fixed orbit and angle is drawn as a save body at 
     expectParity("sc_black_hole", bodies);
     const [hole, planet] = asScenario("sc_black_hole", bodies).bodies;
     expect(hole.look.blackHole).toBe(true);
-    expect(hole.look.surfaceKey).toBeNull();
+    expect(hole.look.surfaceKeys).toEqual([]);
     expect(Math.hypot(planet.placement.x, planet.placement.y)).toBeGreaterThan(
       hole.placement.disc + planet.placement.disc,
     );

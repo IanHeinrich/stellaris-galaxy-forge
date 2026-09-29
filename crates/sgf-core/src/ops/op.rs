@@ -328,6 +328,27 @@ pub enum Op {
         #[ts(optional)]
         feature: Option<String>,
     },
+    /// A save planet's anomaly, `anomaly="<category>"` written after its `planet_orbitals`
+    /// as given. Without `found_by`, the planet also goes last in the player's
+    /// `events.anomalies` when the player has surveyed it, because the game lists an
+    /// anomaly only when a survey turns it up; with it, in the lists of those countries,
+    /// each once. A star takes one as any body does. A planet that has an anomaly is refused,
+    /// and so is a save before Stellaris 4.0. The inverse removes what it wrote. Save
+    /// documents only.
+    AddAnomaly {
+        planet: u32,
+        category: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        found_by: Option<Vec<u32>>,
+    },
+    /// A save planet's anomaly, and the planet from every country's `events.anomalies`,
+    /// the list going with its last planet. A planet without one is refused, and so is a
+    /// save before Stellaris 4.0. The inverse adds it back with the countries that had
+    /// found it. Save documents only.
+    RemoveAnomaly {
+        planet: u32,
+    },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
     /// writes both and turns that on; `None` turns it off and mirrors the first two flag
@@ -599,13 +620,16 @@ pub enum Op {
     /// colony as [`Op::RemoveColony`] takes it, and a mining or research station goes with
     /// the body it works: its fleet and ships become tombstones and leave the system's
     /// `fleet_presence` and the controller's `owned_fleets` and `controlled_planets`.
-    /// Deposits, survey lists, anomaly finders, event targets, fleets in orbit and orphaned
-    /// construction queues are left for the game. A dig site on a deleted body goes as
-    /// [`Op::RemoveDigSite`] takes it. A star, an uncolonised body a starbase orbits, a ring
-    /// world segment and a megastructure on or around it are refused, as is any colony
+    /// Deposits, survey lists, event targets, fleets in orbit and orphaned construction
+    /// queues are left for the game. A dig site on a deleted body goes as
+    /// [`Op::RemoveDigSite`] takes it, and the body leaves each country's `events.anomalies`
+    /// as [`Op::RemoveAnomaly`] takes it out. A star, an uncolonised body a starbase orbits,
+    /// a ring world segment and a megastructure on or around it are refused, as is any colony
     /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
     /// writes back every entity it rewrote, batched with an [`Op::AddDigSite`] per site it
-    /// removed. Stellaris 4.x save documents only.
+    /// removed. A body [`Op::AddSaveBody`] added since the file was opened goes as
+    /// [`Op::RemoveAddedBody`] takes it, and is refused while it has moons; its inverse adds
+    /// it back, then its site and anomaly. Stellaris 4.x save documents only.
     DeleteSavePlanet {
         planet: u32,
     },
@@ -616,6 +640,32 @@ pub enum Op {
     RestoreSaveEntities {
         description: String,
         entities: Vec<SavedEntity>,
+    },
+    /// A new planet, or a moon of the planet `spec.moon_of` names, in save system `system`,
+    /// written as the game writes a body it spawns: its entry and its deposits' take the
+    /// lowest dead slot of their tables one generation on, or the slot past the highest. It
+    /// stands `at` its radius and angle about its parent's point, the system's centre for a
+    /// planet, and the system lists it after its last `planet=` line. A moon gets `moon_of`
+    /// and the moon bit, and its planet lists it in `moons`. Without a name in the spec, a
+    /// planet takes the numeral after the highest of the system's numbered planets and a moon
+    /// the letter after its planet's highest. When the body lies past the system's
+    /// `inner_radius`, that radius grows to the body's reach plus its margin. The game builds
+    /// its construction queue when it loads, and nobody has surveyed it. A moon of a star, a
+    /// moon or an asteroid, and a parent outside the system, are refused. The inverse is
+    /// [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris 4.x
+    /// save documents only, and not an Ironman save.
+    AddSaveBody {
+        system: u32,
+        spec: NewBody,
+        at: OrbitPlacement,
+    },
+    /// A save planet or moon [`Op::AddSaveBody`] added since the file was opened, taken out
+    /// again: its entry and its deposits' give their slots back as a removed system's bodies
+    /// do, its `planet=` line goes, and so does its id from its planet's `moons`. A body the
+    /// file held, and one with moons, are refused. The inverse adds it back, read as a spec,
+    /// at the radius and angle it stood at. Stellaris 4.x save documents only.
+    RemoveAddedBody {
+        planet: u32,
     },
     /// A new archaeological dig site of type `site_type` on a save planet, a moon or colony
     /// included: an entry last in `archaeological_sites.sites`, its id one past the highest
@@ -659,9 +709,11 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
-    /// the planet whose site they wrote.
+    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`] and [`Op::SetPlanetEntity`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// does the planet and moons it renamed, [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
+    /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
+    /// planet whose anomaly they wrote. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
+    /// change which bodies a system lists.
     pub fn stales_details(&self) -> bool {
         match self {
             Self::SetStarClass { .. }
@@ -684,6 +736,7 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -693,8 +746,12 @@ impl Op {
             | Self::RenameSavePlanet { .. }
             | Self::RemoveColony { .. }
             | Self::DeleteSavePlanet { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. }
             | Self::RestoreSaveEntities { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
@@ -713,12 +770,15 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
             | Self::SetSaveBeltKind { .. }
             | Self::SetSaveInnerRadius { .. }
-            | Self::RenameSavePlanet { .. } => true,
+            | Self::RenameSavePlanet { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
@@ -740,6 +800,8 @@ impl Op {
             | Self::RemoveSaveDeposit { .. }
             | Self::RemoveColony { .. }
             | Self::DeleteSavePlanet { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. }
             | Self::RestoreSaveEntities { .. } => true,
@@ -778,8 +840,12 @@ impl Op {
             | Self::RenameSavePlanet { .. }
             | Self::RemoveColony { .. }
             | Self::DeleteSavePlanet { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. }
             | Self::RestoreSaveEntities { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
@@ -801,6 +867,27 @@ pub struct InitializerSet {
 pub struct StarBody {
     pub planet: u32,
     pub class: String,
+}
+
+/// The body [`Op::AddSaveBody`] writes, every value chosen by the caller.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewBody {
+    /// `pc_desert`, `pc_gas_giant`, …
+    pub class: String,
+    pub size: u32,
+    /// The planet a moon orbits; `None` for a planet of the system's centre.
+    #[serde(default)]
+    pub moon_of: Option<u32>,
+    /// A name written as typed, with `literal=yes`; `None` numbers it after its siblings.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Deposit keys, `d_minerals_2`, …
+    #[serde(default)]
+    pub deposits: Vec<String>,
+    /// Drawn with a ring around it. A moon is refused one.
+    #[serde(default)]
+    pub ring: bool,
 }
 
 /// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.
@@ -1068,6 +1155,10 @@ pub enum OpError {
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
+    #[error("planet {0} already has anomaly {1}")]
+    AnomalyPresent(u32, String),
+    #[error("planet {0} has no anomaly")]
+    AnomalyAbsent(u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -1182,6 +1273,12 @@ pub enum OpError {
     HoldsSavePlanet { system: u32, planet: u32 },
     #[error("planet {0} has a megastructure, so it cannot move to another system")]
     MegastructurePlanet(u32),
+    #[error(
+        "planet {0} was in the save when it was opened: only a body added since then can be taken out again"
+    )]
+    BodyNotAdded(u32),
+    #[error("planet {0} has moons: take them out first")]
+    BodyHasMoons(u32),
     #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
     PlanetOccupied {
         planet: u32,
@@ -1295,6 +1392,8 @@ impl OpError {
             | Self::ModifierAbsent { .. }
             | Self::ModifierDays { .. }
             | Self::ModifierCopies { .. }
+            | Self::AnomalyPresent { .. }
+            | Self::AnomalyAbsent { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::FlagUnchanged { .. }
@@ -1339,6 +1438,8 @@ impl OpError {
             | Self::NoBodies { .. }
             | Self::HoldsSavePlanet { .. }
             | Self::MegastructurePlanet { .. }
+            | Self::BodyNotAdded { .. }
+            | Self::BodyHasMoons { .. }
             | Self::PlanetOccupied { .. }
             | Self::NoColony { .. }
             | Self::StarNotDeleted { .. }

@@ -403,6 +403,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetPlanetSize: null,
   AddPlanetModifier: null,
   RemovePlanetModifier: null,
+  AddAnomaly: null,
+  RemoveAnomaly: null,
   AddDigSite: null,
   RemoveDigSite: null,
   SetEmpireMapColors: null,
@@ -429,6 +431,8 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   RemoveColony: null,
   DeleteSavePlanet: null,
   RestoreSaveEntities: null,
+  AddSaveBody: null,
+  RemoveAddedBody: null,
   Batch: null,
 };
 

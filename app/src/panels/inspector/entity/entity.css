@@ -284,12 +284,20 @@
   color: var(--fg-soft);
 }
 
+/* Only the list scrolls: it takes what the rest leaves of the picker's fixed height. */
 .dp {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   margin: 6px 0 2px;
   padding: 6px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
+}
+
+.dp > * {
+  flex: none;
 }
 
 .dp-head {
@@ -342,9 +350,11 @@
   color: var(--ok, var(--accent));
 }
 
-.dp-list {
-  max-height: 340px;
+.dp > .dp-list {
+  flex: 1 1 0;
+  min-height: 96px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dp-group {
@@ -420,6 +430,30 @@
   overflow-wrap: anywhere;
 }
 
+/* As tall as its text, up to a share of the picker; only a very long description scrolls. */
+.dp > .dp-details {
+  flex: 0 1 auto;
+  box-sizing: border-box;
+  min-height: 3em;
+  max-height: 40%;
+  margin-top: 6px;
+  padding: 6px 2px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 11px;
+  color: var(--fg-soft);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+}
+
+.dp-details-name {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--fg);
+}
+
 .pl-sub-head {
   display: flex;
   align-items: center;
@@ -469,6 +503,29 @@
   margin-top: 1px;
   font-size: 10.5px;
   color: var(--fg-soft);
+}
+
+.pl-anomaly-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+  white-space: normal;
+}
+
+.pl-mod .l3 {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--fg-muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.pl-mod:has(.l3) {
+  align-items: start;
 }
 
 .pl-dep .mono,

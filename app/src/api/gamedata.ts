@@ -4,6 +4,8 @@
  * `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { AnomalyChoice } from "../generated/AnomalyChoice";
+import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
@@ -124,6 +126,14 @@ export function getGeneratorStarClasses(): Promise<Array<[string, string]>> {
   return invoke<Array<[string, string]>>("get_generator_star_classes");
 }
 
+/**
+ * The classes a planet, or with `moon` a moon, added to a save may take, each with its name and
+ * the sizes a random one is drawn from, by name; empty without game data.
+ */
+export function getBodyClasses(moon: boolean): Promise<BodyClassPick[]> {
+  return invoke<BodyClassPick[]>("get_body_classes", { moon });
+}
+
 /** Every deposit definition of the loaded game data; empty without it. */
 export function getDeposits(): Promise<DepositView[]> {
   return invoke<DepositView[]>("get_deposits");
@@ -157,6 +167,18 @@ export function getDepositTypes(keys: string[]): Promise<DepositTypeView[]> {
 /** Every modifier a planet's page offers to add, planet features first; empty without game data. */
 export function getModifierChoices(): Promise<ModifierChoice[]> {
   return invoke<ModifierChoice[]>("get_modifier_choices");
+}
+
+/**
+ * Every anomaly category a planet's page offers to add, each usual when it could turn up on a
+ * body of `planetClass` and `size`, a moon when `moon`; empty without game data.
+ */
+export function getAnomalyChoices(
+  planetClass: string | null,
+  size: number | null,
+  moon: boolean,
+): Promise<AnomalyChoice[]> {
+  return invoke<AnomalyChoice[]>("get_anomaly_choices", { class: planetClass, size, moon });
 }
 
 /** Every archaeological dig site type a planet's page offers to add; empty without game data. */

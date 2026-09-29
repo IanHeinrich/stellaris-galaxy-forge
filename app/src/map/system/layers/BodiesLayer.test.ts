@@ -564,6 +564,34 @@ describe("the system scene's bodies layer", () => {
     layer.destroy();
   });
 
+  it("draws a planet's own model as its lit disc, and its class's disc when the model has none", async () => {
+    resetTextures();
+    const textureFor = decodeByKey();
+    fetch.fails = (key) => key === "planet_model:modded_planet_entity";
+    const layer = new BodiesLayer(blankSceneTextures());
+    const paradise = { ...EARTH, entity_name: "ocean_paradise_planet_01_entity" };
+    const modded = { ...MARS, entity_name: "modded_planet_entity" };
+    layer.rebuild(
+      classedContext([paradise, modded], [iconed("pc_continental"), iconed("pc_arid")]),
+    );
+    viewport(layer, 2);
+    const earth = holderAt(layer, ...EARTH_AT);
+    const mars = holderAt(layer, ...MARS_AT);
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(earth, "lit").visible).toBe(true));
+    const model = textureFor("planet_model:ocean_paradise_planet_01_entity");
+    expect(sprite(earth, "lit").texture).toBe(model);
+    expect(sprite(mars, "lit").visible).toBe(false);
+
+    await answerFetch();
+    await vi.waitFor(() => expect(sprite(mars, "lit").visible).toBe(true));
+    expect(sprite(mars, "lit").texture).toBe(textureFor("planet_disc:pc_arid"));
+    expect(sprite(mars, "disc").visible).toBe(false);
+    resetTextures();
+    layer.destroy();
+  });
+
   it("draws an asteroid as its icon alone once it lands, with no round disc or shading under it", async () => {
     resetTextures();
     const textureFor = decodeByKey();

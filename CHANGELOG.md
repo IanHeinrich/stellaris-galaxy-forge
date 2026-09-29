@@ -17,20 +17,43 @@ a release is made.
   page. The colony's pops, buildings, defence armies and orbital ring go.
 - Stars, ring worlds and a few other bodies can't be deleted. The menu
   and the page say why.
+- Add an anomaly to a planet or moon in a save, or remove one, from its
+  page. If you have already surveyed the planet, the anomaly is ready to
+  research. Otherwise it turns up when a science ship surveys it.
+- Add a planet or moon to a system in a save. In the system view,
+  right-click empty space and choose Add planet here, or right-click a
+  planet and choose Add moon. Pick a planet class or Random. Its size and
+  deposits are rolled by the game's rules, and it takes the next free
+  numeral or letter, such as Meissa V. This needs game data and a
+  Stellaris 4.x save that isn't Ironman.
 - Add an archaeological dig site to a save planet, or remove one, from
   its page in the Inspector. The page shows the site's stage and clues.
+- A dig site's description shows on its planet's page and in the Add
+  dig site list.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
+- The system view draws a planet with the look you gave it.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
+- In the system view, a planet's or moon's name shows icons for its
+  megastructures, dig site, anomaly and pre-FTL civilisation. Hover an
+  icon or a resource to see what it is.
+- The Open screen has a Clear button on the Recent list.
 
 ### Changed
 
+- The deposit, blocker, modifier and dig site lists show a row's
+  description under the list instead of as a hover tip.
 - Preferred seats are now 1st Player seats, to match Paint a Galaxy's
   latest update. The mod keeps them for the first player, or the host in
   multiplayer. Maps you already made need no changes.
 - A save converted for Paint a Galaxy weights your seat for the first
   player only. Before, an AI placed ahead of you could take it.
+- The recent list keeps the last 10 documents. The All tab shows the
+  newest 5, with a link to the rest.
+- Saves and scenarios you have deleted drop off the recent list.
+- Saves on the Open screen and in the File menu's recent list show the
+  name you gave the save. The Saves tab shows its date underneath.
 
 ## [0.18.0] - 2026-09-28
 

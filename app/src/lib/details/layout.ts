@@ -3,11 +3,19 @@ import type { CountryNode } from "../../generated/CountryNode";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { isMarauder } from "../countryKinds";
+import type { Names } from "../names";
 import { DETAIL_SCALE } from "../visual/labels";
 import { STAR_BASE_PX, starDiameterPx } from "../visual/starSize";
 import { empireFlagKey } from "./fleets";
 import { CAPITAL_PLATE_KEY, PLATE_KEY } from "./icons";
-import { FALLBACK_HABITABLE, isColony } from "./labels";
+import { FALLBACK_HABITABLE } from "./labels";
+import {
+  bodyIcons,
+  type NameIconSlot,
+  type NameIconSubject,
+  nameIconSlots,
+  sameSlots,
+} from "./nameIcons";
 
 /** Zoom (pixels per world unit) at which system details pop in, shared with the star art tier. */
 export const DETAILS_MIN_SCALE = DETAIL_SCALE;
@@ -69,58 +77,90 @@ export function plateBottom(rowY: number): number {
 
 /** The plate under a colonised system's name, the capital's when the owner's capital is here; none otherwise. */
 export function plateKey(d: SystemDetails): string | null {
-  const owner = colonyOwner(d);
-  if (owner === null) return null;
-  return namePlateKey(d.planets.some((p) => p.capital && p.owner === owner));
+  return nameEmblem(d.planets, NO_COUNTRIES)?.plate ?? null;
 }
 
-function namePlateKey(capital: boolean): string {
-  return capital ? CAPITAL_PLATE_KEY : PLATE_KEY;
-}
+const NO_COUNTRIES: ReadonlyMap<number, CountryNode> = new Map();
 
-/** What a body's name adds with details shown: a colony's plate and owner's flag, or the pre-FTL icon. */
-export interface BodyMarks {
-  /** The plate under the name, the capital's on the owner's capital; null for a body that is not a colony. */
-  readonly plate: string | null;
-  /** The owner's flag texture key; null for a body that is not a colony, or an owner with no full flag. */
+/** The flag left of a name, and the plate under it. */
+export interface NameEmblem {
+  readonly owner: number;
+  /** The owner's flag texture key; null for an owner with no full flag. */
   readonly flag: string | null;
-  /** The owner's capital, whose flag is ringed in gold. */
+  /** The plate under the name, the capital's on the owner's capital; null where no colony is held. */
+  readonly plate: string | null;
+  /** The owner's capital is among the planets, and its flag is ringed in gold. */
   readonly capital: boolean;
-  readonly preFtl: boolean;
 }
+
+/**
+ * The emblem of whoever holds `planets`: the first country with a colony among them, else
+ * `holder` where it is a marauder clan, whose flag shows with no plate. Null for neither.
+ */
+export function nameEmblem(
+  planets: readonly PlanetSummary[],
+  countries: ReadonlyMap<number, CountryNode>,
+  holder: number | null = null,
+): NameEmblem | null {
+  const colony = colonyOwnerOf(planets);
+  const owner = colony ?? (holder !== null && isMarauder(countries.get(holder)) ? holder : null);
+  if (owner === null) return null;
+  const capital = planets.some((p) => p.capital && p.owner === owner);
+  return {
+    owner,
+    flag: empireFlagKey(countries.get(owner)),
+    plate: colony === null ? null : capital ? CAPITAL_PLATE_KEY : PLATE_KEY,
+    capital,
+  };
+}
+
+function sameEmblem(a: NameEmblem | null, b: NameEmblem | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.owner === b.owner && a.flag === b.flag && a.plate === b.plate && a.capital === b.capital;
+}
+
+/** What a body's name adds with details shown: its owner's flag and plate, and its icons. */
+export interface BodyMarks {
+  /** On a colony; null for any other body. */
+  readonly emblem: NameEmblem | null;
+  readonly icons: NameIconSubject;
+  /** The icons `icons` draws. */
+  readonly slots: readonly NameIconSlot[];
+}
+
+const NONE: readonly never[] = Object.freeze([]);
 
 export const NO_MARKS: BodyMarks = Object.freeze({
-  plate: null,
-  flag: null,
-  capital: false,
-  preFtl: false,
+  emblem: null,
+  icons: Object.freeze({
+    planets: NONE,
+    megastructures: NONE,
+    bypasses: NONE,
+    sites: NONE,
+    anomaly: null,
+  }),
+  slots: NONE,
 });
-const PRE_FTL_MARKS: BodyMarks = Object.freeze({ ...NO_MARKS, preFtl: true });
 
 /** The marks a planet's name shows, as the system's name shows them for the planets in it. */
 export function bodyMarks(
   p: PlanetSummary,
   countries: ReadonlyMap<number, CountryNode>,
+  d: Pick<SystemDetails, "megastructures" | "sites">,
+  names: Names,
 ): BodyMarks {
-  if (p.pre_ftl) return PRE_FTL_MARKS;
-  if (!isColony(p) || p.owner === null) return NO_MARKS;
-  return {
-    plate: namePlateKey(p.capital),
-    flag: empireFlagKey(countries.get(p.owner)),
-    capital: p.capital,
-    preFtl: false,
-  };
+  const icons = bodyIcons(p, d, names);
+  return { emblem: nameEmblem([p], countries), icons, slots: nameIconSlots(icons) };
 }
 
+/** Whether both draw the same flag, plate and icons, so a label laid out for one fits the other. */
 export function sameMarks(a: BodyMarks, b: BodyMarks): boolean {
-  return (
-    a.plate === b.plate && a.flag === b.flag && a.capital === b.capital && a.preFtl === b.preFtl
-  );
+  return sameEmblem(a.emblem, b.emblem) && sameSlots(a.slots, b.slots);
 }
 
 /** Whether a body's name shows anything of `marks`. */
 export function marked(marks: BodyMarks): boolean {
-  return marks.plate !== null || marks.preFtl;
+  return marks.emblem !== null || marks.slots.length > 0;
 }
 
 function planetShown(p: PlanetSummary): boolean {
@@ -136,17 +176,9 @@ export function visiblePlanets(d: SystemDetails): PlanetSummary[] {
 
 /** The first country holding a planet here that is not a pre-FTL civilisation. */
 export function colonyOwner(d: SystemDetails): number | null {
-  return d.planets.find((p) => p.owner !== null && !p.pre_ftl)?.owner ?? null;
+  return colonyOwnerOf(d.planets);
 }
 
-/** Whose emblem sits left of the name: the coloniser, else a marauder clan holding the system. */
-export function emblemOwner(
-  d: SystemDetails,
-  systemOwner: number | null,
-  countries: ReadonlyMap<number, CountryNode>,
-): number | null {
-  const colony = colonyOwner(d);
-  if (colony !== null) return colony;
-  if (systemOwner !== null && isMarauder(countries.get(systemOwner))) return systemOwner;
-  return null;
+function colonyOwnerOf(planets: readonly PlanetSummary[]): number | null {
+  return planets.find((p) => p.owner !== null && !p.pre_ftl)?.owner ?? null;
 }

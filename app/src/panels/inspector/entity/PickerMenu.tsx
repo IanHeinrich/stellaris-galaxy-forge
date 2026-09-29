@@ -1,9 +1,25 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { ChipItem, PickerSection } from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
 import { useOutsidePress } from "../../useOutsidePress";
+
+export const NO_DESCRIPTION = "No description";
+/** The open picker's height where the page has room for it. */
+export const PICKER_HEIGHT = 520;
+/** The least it shrinks to, which still leaves three rows above a capped description. */
+export const PICKER_MIN_HEIGHT = 320;
+/** The page's padding and the picker's margins, which the picker leaves out of the room it takes. */
+const PAGE_ROOM_MARGIN = 24;
 
 /** A picker's store, as the menu reads it. */
 export type PickerHook<C extends string> = <U>(selector: (state: PickerState<C>) => U) => U;
@@ -22,7 +38,7 @@ export interface PickerItem {
   label: string;
   /** What it gives, spelled out; empty for nothing. */
   gives: string;
-  /** The row's hover text. */
+  /** What the details under the list say about it. */
   description: string | null;
   art: ReactNode;
   /** Added to the art's class. */
@@ -42,20 +58,29 @@ interface Cursor {
 function PickerRow({
   item,
   id,
+  lit,
   cursor,
+  describedBy,
+  onHover,
   onAdd,
 }: {
   item: PickerItem;
   id: string;
-  /** The button the keyboard stands on, when it stands on this row. */
+  /** The details under the list describe this row. */
+  lit: boolean;
+  /** The button the keyboard stands on, when it stands on this row and nothing else is lit. */
   cursor: number | null;
+  /** The details' id, when they describe the row the keyboard stands on. */
+  describedBy: string | undefined;
+  onHover: () => void;
   onAdd: (button: number) => void;
 }) {
   return (
     <div
       id={id}
-      className={`dp-row${item.buttons.length > 1 ? " family" : ""}${cursor === null ? "" : " active"}`}
-      title={item.description ?? undefined}
+      className={`dp-row${item.buttons.length > 1 ? " family" : ""}${lit ? " active" : ""}`}
+      aria-describedby={describedBy}
+      onMouseEnter={onHover}
     >
       <span className={`dp-art${item.artClass === undefined ? "" : ` ${item.artClass}`}`}>
         {item.art}
@@ -87,9 +112,71 @@ function PickerRow({
 }
 
 /**
+ * The name and description of the row under the pointer or the keyboard, at a fixed height; empty
+ * without rows.
+ */
+function PickerDetails({ id, item }: { id: string; item: PickerItem | null }) {
+  return (
+    <div id={id} className="dp-details">
+      {item !== null && (
+        <>
+          <span className="dp-details-name">{item.label}</span>
+          {item.description === null ? (
+            <span className="muted">{NO_DESCRIPTION}</span>
+          ) : (
+            <span className="dp-details-text">{item.description}</span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The nearest ancestor that scrolls, which is the page the picker sits in. */
+function scrollingPage(el: HTMLElement): HTMLElement | null {
+  for (let at = el.parentElement; at !== null; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (overflowY === "auto" || overflowY === "scroll") return at;
+  }
+  return null;
+}
+
+/**
+ * The picker's height: its own where the page shows that much, else what the page shows, down to
+ * its least. Once on open, the page scrolls the least that brings the whole picker into view, so
+ * its details are never below the fold.
+ */
+function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
+  const [height, setHeight] = useState(PICKER_HEIGHT);
+  const [fitted, setFitted] = useState(false);
+  useLayoutEffect(() => {
+    const el = root.current;
+    const page = el === null ? null : scrollingPage(el);
+    if (page === null) return;
+    const fit = () => {
+      const room = page.clientHeight - PAGE_ROOM_MARGIN;
+      setHeight(Math.max(PICKER_MIN_HEIGHT, Math.min(PICKER_HEIGHT, room)));
+      setFitted(true);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(page);
+    return () => observer.disconnect();
+  }, [root]);
+  const shown = useRef(false);
+  useEffect(() => {
+    if (!fitted || shown.current) return;
+    shown.current = true;
+    root.current?.scrollIntoView?.({ block: "nearest" });
+  }, [fitted, root]);
+  return height;
+}
+
+/**
  * The open picker: a search, the chips, the picker's own `controls`, a line saying what was added,
- * and the rows under their headings. It stays open after an add; Escape, Done or a press outside
- * closes it. The arrows move between rows, and Enter in the search adds the button they stand on.
+ * the rows under their headings, and the details of the row under the pointer, else the keyboard.
+ * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
+ * rows, and Enter in the search adds the button they stand on.
  */
 export function PickerMenu<R, C extends string>({
   usePicker,
@@ -142,6 +229,8 @@ export function PickerMenu<R, C extends string>({
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [cursor, setCursor] = useState<Cursor>({ row: 0, button: 0 });
+  const [hovered, setHovered] = useState<number | null>(null);
+  const height = useFittedHeight(root);
   useOutsidePress(true, close, root);
   useEffect(() => search.current?.focus(), []);
 
@@ -149,15 +238,17 @@ export function PickerMenu<R, C extends string>({
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `${idPrefix}-${i}`;
   useEffect(() => {
-    document.getElementById(rowId(at))?.scrollIntoView?.({ block: "nearest" });
-  });
+    document.getElementById(`${idPrefix}-${at}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [idPrefix, at]);
 
   const onKey = (e: KeyboardEvent) => {
     const inSearch = e.target === search.current;
     const row = flat[at];
     const stepping = variants && !(inSearch && query !== "");
-    const move = (to: number) =>
+    const move = (to: number) => {
+      setHovered(null);
       setCursor({ row: Math.max(0, Math.min(to, flat.length - 1)), button: 0 });
+    };
     const step = (by: number) =>
       row !== undefined &&
       setCursor({
@@ -179,9 +270,24 @@ export function PickerMenu<R, C extends string>({
     e.stopPropagation();
   };
 
+  const restart = () => {
+    setHovered(null);
+    setCursor({ row: 0, button: 0 });
+  };
+  const lit = hovered ?? at;
+  const detailed = flat[lit];
+  const detailsId = `${idPrefix}-details`;
   let index = 0;
   return (
-    <div className="dp" ref={root} role="group" aria-label={name} onKeyDown={onKey}>
+    <div
+      className="dp"
+      ref={root}
+      style={{ height }}
+      role="group"
+      aria-label={name}
+      onKeyDown={onKey}
+      onMouseLeave={() => setHovered(null)}
+    >
       <div className="dp-head">
         <input
           ref={search}
@@ -191,7 +297,7 @@ export function PickerMenu<R, C extends string>({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            setCursor({ row: 0, button: 0 });
+            restart();
           }}
         />
         <button type="button" className="dp-done" onClick={() => close()}>
@@ -208,7 +314,7 @@ export function PickerMenu<R, C extends string>({
               aria-pressed={chip === each}
               onClick={() => {
                 setChip(each);
-                setCursor({ row: 0, button: 0 });
+                restart();
               }}
             >
               {label}
@@ -243,7 +349,14 @@ export function PickerMenu<R, C extends string>({
                   key={shown.key}
                   item={shown}
                   id={rowId(i)}
-                  cursor={i === at ? Math.min(cursor.button, shown.buttons.length - 1) : null}
+                  lit={i === lit}
+                  cursor={
+                    i === at && lit === at
+                      ? Math.min(cursor.button, shown.buttons.length - 1)
+                      : null
+                  }
+                  describedBy={i === at && lit === at ? detailsId : undefined}
+                  onHover={() => setHovered(i)}
                   onAdd={(button) => {
                     setCursor({ row: i, button });
                     onAdd(row, button);
@@ -254,6 +367,7 @@ export function PickerMenu<R, C extends string>({
           </div>
         ))}
       </div>
+      <PickerDetails id={detailsId} item={detailed === undefined ? null : item(detailed)} />
     </div>
   );
 }

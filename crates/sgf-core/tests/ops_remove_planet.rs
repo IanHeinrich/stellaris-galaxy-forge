@@ -10,7 +10,8 @@ use sgf_core::session::{OpResult, Session};
 use similar::{Algorithm, TextDiff};
 
 use crate::common;
-use common::diff::{round_trip, unified_diff};
+use common::diff::{round_trip, round_trip_step, unified_diff};
+use common::examples::{ADDED_BODY, meissa_v};
 use common::{current, open, open_3_4, open_4_5, text};
 
 fn delete(planet: u32) -> Op {
@@ -256,6 +257,15 @@ fn cases() -> Vec<Case> {
             session: open_4_5,
             op: delete(1159),
             system: 62,
+            whole: false,
+        },
+        // Moon 185's anomaly, which country 16777221 has found: the moon leaves its list,
+        // and planet 182 stays in it.
+        Case {
+            name: "delete_a_moon_with_a_found_anomaly_4_5",
+            session: open_4_5,
+            op: delete(185),
+            system: 496,
             whole: false,
         },
         // A planet a `saved_event_target` names, which is left for the game.
@@ -509,5 +519,33 @@ fn the_inverse_of_the_inverse_deletes_again() {
         let restored = session.apply(result.inverse).expect(case.name);
         session.apply(restored.inverse).expect(case.name);
         assert_eq!(current(&session), edited, "{}", case.name);
+    }
+}
+
+/// A body added since the file was opened goes as `RemoveAddedBody` takes it, its anomaly
+/// with it: the file is as it was before the add, undo puts the body back, and so does the
+/// inverse.
+#[test]
+fn an_added_body_is_deleted_as_its_removal_takes_it() {
+    let found = Op::AddAnomaly {
+        planet: ADDED_BODY,
+        category: "asteroid_uninhabitable_category".to_owned(),
+        found_by: Some(vec![0]),
+    };
+    for edits in [vec![meissa_v()], vec![meissa_v(), found]] {
+        let mut session = open_4_5();
+        let before = current(&session);
+        for op in edits {
+            session.apply(op).expect("an edit before the deletion");
+        }
+        let added = current(&session);
+        let result = round_trip_step(&mut session, "delete", delete(ADDED_BODY));
+        assert_eq!(
+            result.entry.description,
+            format!("Deleted planet #{ADDED_BODY}")
+        );
+        assert_eq!(current(&session), before);
+        session.apply(result.inverse).expect("the inverse");
+        assert_eq!(current(&session), added);
     }
 }
