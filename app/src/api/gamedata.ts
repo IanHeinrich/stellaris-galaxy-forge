@@ -17,11 +17,13 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { DigSiteChoice } from "../generated/DigSiteChoice";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
+import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
 import type { PrecursorView } from "../generated/PrecursorView";
 import type { ResourceIcon } from "../generated/ResourceIcon";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
@@ -164,6 +166,16 @@ export function getDepositTypes(keys: string[]): Promise<DepositTypeView[]> {
 /** Every modifier a planet's page offers to add, planet features first; empty without game data. */
 export function getModifierChoices(): Promise<ModifierChoice[]> {
   return invoke<ModifierChoice[]>("get_modifier_choices");
+}
+
+/** Every archaeological dig site type a planet's page offers to add; empty without game data. */
+export function getDigSiteChoices(): Promise<DigSiteChoice[]> {
+  return invoke<DigSiteChoice[]>("get_dig_site_choices");
+}
+
+/** Every model a planet's page offers, with the classes each is used on; empty without game data. */
+export function getPlanetModels(): Promise<PlanetModelChoice[]> {
+  return invoke<PlanetModelChoice[]>("get_planet_models");
 }
 
 /** Each planet (`pm_*`) or timed modifier in `keys` the game data defines; empty without it. */

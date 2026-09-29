@@ -1,17 +1,22 @@
 /**
- * How a planet's page adds and removes deposits and modifiers, whatever the document is.
+ * How a planet's page adds and removes deposits, modifiers and dig sites, whatever the document is.
  * `planetEditAdapterFor` is the one place a source is chosen.
  */
 import type { Op } from "../generated/Op";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { PickerTarget, PlanetEditAdapter } from "../lib/details/picker";
 import type { ModifierRow } from "../lib/details/planetPage";
-import { addDepositOp, addModifierOp, removeModifierOp } from "../lib/details/planetEdits";
+import {
+  addDepositOp,
+  addDigSiteOp,
+  addModifierOp,
+  removeModifierOp,
+} from "../lib/details/planetEdits";
 import { useEditorStore } from "./editorStore";
 
 /**
- * A save planet's edits, made by the save's own ops. A deposit row's ref is the deposit's id, and
- * a modifier row's is the page's `ModifierRow`.
+ * A save planet's edits, made by the save's own ops. A deposit row's ref is the deposit's id, a
+ * modifier row's is the page's `ModifierRow`, and a dig site's is the site's id.
  */
 function saveEdits(planet: number): PlanetEditAdapter {
   const apply = (op: Op) => useEditorStore.getState().applyOp(op);
@@ -21,6 +26,8 @@ function saveEdits(planet: number): PlanetEditAdapter {
     removeDeposit: (ref) => apply({ type: "RemoveSaveDeposit", deposit: ref as number }),
     addModifier: (choice, days) => apply(addModifierOp(planet, choice, days)),
     removeModifier: (ref) => apply(removeModifierOp(planet, ref as ModifierRow)),
+    addDigSite: (choice) => apply(addDigSiteOp(planet, choice)),
+    removeDigSite: (ref) => apply({ type: "RemoveDigSite", site: ref as number }),
   };
 }
 

@@ -30,6 +30,7 @@ expression: value
   "label": "PLANET_NAME_FORMAT",
   "class": "pc_tropical",
   "size": 16,
+  "entity_name": null,
   "orbit": 60.0,
   "system": 396,
   "parent": 730,
@@ -158,5 +159,6 @@ expression: value
   "flags": 1,
   "anomaly": null,
   "terraforming": false,
-  "clearing": []
+  "clearing": [],
+  "dig_site": null
 }

@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Gave planet #3318 the model ocean_paradise_planet_01_entity
+inverse: SetPlanetEntity { planet: 3318, entity: Some("previously_terraformed_planet_entity") }
+
+--- gamestate
++++ gamestate
+@@ -252298,7 +252298,7 @@
+ 				}
+ 			}
+ 			entity=0
+-			entity_name="previously_terraformed_planet_entity"
++			entity_name="ocean_paradise_planet_01_entity"
+ 			deposits=
+ 			{
+ 				2411 2412 2413 2414 2415 2416 2417 2418 2421 2422

@@ -4,6 +4,7 @@ import type { PlanetPageAnomaly } from "./PlanetPageAnomaly";
 import type { PlanetPageClearing } from "./PlanetPageClearing";
 import type { PlanetPageColony } from "./PlanetPageColony";
 import type { PlanetPageDeposit } from "./PlanetPageDeposit";
+import type { PlanetPageDigSite } from "./PlanetPageDigSite";
 import type { PlanetPageMoon } from "./PlanetPageMoon";
 import type { PlanetPageTimedModifier } from "./PlanetPageTimedModifier";
 
@@ -16,6 +17,10 @@ export type PlanetPage = { id: number, name: NameTemplate, name_key: string,
  * The no-game-data stand-in, as [`EntityView::label`].
  */
 label: string, class: string, size: number | null, 
+/**
+ * `entity_name`: the model drawn in place of its class's own.
+ */
+entity_name: string | null, 
 /**
  * `orbit`: the radius around the body it orbits.
  */
@@ -51,4 +56,8 @@ terraforming: boolean,
 /**
  * Its blockers a construction item is clearing, in the order its list has them.
  */
-clearing: Array<PlanetPageClearing>, };
+clearing: Array<PlanetPageClearing>, 
+/**
+ * The archaeological dig site on it, from `archaeological_sites.sites`.
+ */
+dig_site: PlanetPageDigSite | null, };

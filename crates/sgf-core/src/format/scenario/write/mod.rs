@@ -120,7 +120,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
         | Op::AddPlanetModifier { .. }
-        | Op::RemovePlanetModifier { .. } => Err(OpError::Unsupported {
+        | Op::RemovePlanetModifier { .. }
+        | Op::AddDigSite { .. }
+        | Op::RemoveDigSite { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),
@@ -144,6 +146,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetPlanetRing { .. }
         | Op::AddSaveBody { .. }
         | Op::RemoveAddedBody { .. }
+        | Op::SetPlanetEntity { .. }
         | Op::AddSaveBelt { .. }
         | Op::RemoveSaveBelt { .. }
         | Op::SetSaveBeltRadius { .. }

@@ -14,8 +14,8 @@ use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::starbases::fleet_owners;
-use crate::format::save::read_spec;
 use crate::format::save::system_spec::BeltSpec;
+use crate::format::save::{dig_sites, read_spec};
 use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
@@ -396,9 +396,6 @@ fn current_entity<'d>(
     })
 }
 
-/// `location.type` of an archaeological site on a planet.
-const PLANET_LOCATION: &str = "2";
-
 /// Every entity of the top-level `megastructures`, filed under its `coordinate.origin`.
 pub(super) fn megastructures(
     index: &Index,
@@ -426,29 +423,15 @@ pub(super) fn megastructures(
     Ok(())
 }
 
-/// Every entity of `archaeological_sites.sites` located on a planet (`location.type=2`),
-/// filed under the planet's system.
+/// Every site of `archaeological_sites.sites` the save now holds on a planet, the ones an op
+/// added included, filed under the planet's system.
 pub(super) fn sites(
     doc: &Document,
     planet_system: &HashMap<u32, u32>,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
-    let src = doc.original();
-    let Some(inner) = doc.inner_index(keys::ARCHAEOLOGICAL_SITES)? else {
-        return Ok(());
-    };
-    for entity in inner.entities(keys::SITES) {
-        let Some(node) = read::entity_node(entity, src, keys::ARCHAEOLOGICAL_SITES)? else {
-            continue;
-        };
-        let Ok(id) = u32::try_from(entity.id) else {
-            continue;
-        };
-        let location = node.find(keys::LOCATION, src);
-        if location.and_then(|l| read::scalar(l, keys::TYPE, src)) != Some(PLANET_LOCATION) {
-            continue;
-        }
-        let Some(planet) = location.and_then(|l| read::scalar_u32(l, keys::ID, src)) else {
+    for (_, site) in dig_sites::sites(doc)? {
+        let Some(planet) = site.planet else {
             continue;
         };
         let Some(details) = planet_system
@@ -458,8 +441,8 @@ pub(super) fn sites(
             continue;
         };
         details.sites.push(ArchaeologySite {
-            id,
-            kind: read::text(&node, keys::TYPE, src),
+            id: site.id,
+            kind: site.kind,
             planet,
         });
     }

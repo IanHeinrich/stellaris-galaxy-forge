@@ -1,9 +1,10 @@
 //! The editing commands that apply ops as the arguments give them (`move`, `move-nebula`,
 //! `nebula`, `header`, `lane`, `spawn`, `isolate`, `star`, `move-planet`, `planet-size`,
-//! `deposit`): the ops, then a save.
+//! `deposit`, `dig-site`): the ops, then a save.
 
 use std::path::Path;
 
+use sgf_core::entity::get_planet_page;
 use sgf_core::ops::{Op, OpError, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::validate::Issue;
@@ -52,6 +53,15 @@ pub fn save(mut session: Session, out: Option<&Path>, issues: &[Issue]) -> Run {
         println!("backup {}", backup.display());
     }
     Ok(Outcome::Ok)
+}
+
+/// `dig-site --remove`: the dig site planet `planet` has.
+pub fn remove_dig_site(sav: &Path, out: Option<&Path>, planet: u32) -> Run {
+    let session = Session::open(sav)?;
+    let site = get_planet_page(&session.doc, planet)?
+        .dig_site
+        .ok_or_else(|| format!("planet {planet} has no dig site"))?;
+    apply_all(session, out, vec![Op::RemoveDigSite { site: site.id }])
 }
 
 /// `nebula add`: a nebula named `name`, else as the app names one, from the install when

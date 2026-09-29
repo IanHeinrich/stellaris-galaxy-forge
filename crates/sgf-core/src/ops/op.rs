@@ -487,6 +487,16 @@ pub enum Op {
         planet: u32,
         ring: bool,
     },
+    /// A save planet's model: `entity_name="<entity>"` written on the line after its
+    /// `entity=N`, which stays, or rewritten in place, or removed with the `binary_flags` bit
+    /// an initializer's model sets when `None`. The model is written as given, on any class:
+    /// only one that is not an identifier is refused, and so are a star and a model already
+    /// as asked. A class change in game drops the model. The inverse sets the old one back,
+    /// without that bit. Stellaris 4.x save documents only.
+    SetPlanetEntity {
+        planet: u32,
+        entity: Option<String>,
+    },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
     /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
@@ -592,6 +602,26 @@ pub enum Op {
     RemoveAddedBody {
         planet: u32,
     },
+    /// A new archaeological dig site of type `site_type` on a save planet, a moon or colony
+    /// included: an entry last in `archaeological_sites.sites`, its id one past the highest
+    /// the save has held since it was opened, written as the game writes a site nobody has
+    /// dug, with `difficulty` its first stage's. The game fills in which countries see it. The
+    /// type is written as given: only an empty one, or one that is not an identifier, is
+    /// refused, and so are a star, a planet that has a site and a save before Stellaris 4.0. The inverse is [`Op::RemoveDigSite`]. Save documents only.
+    AddDigSite {
+        planet: u32,
+        site_type: String,
+        difficulty: i32,
+    },
+    /// A dig site's entry, dug or not, taken out whole. Nothing else is written: the order of
+    /// a fleet excavating the site, which names its id, is left for the game to drop on its
+    /// first day. A site that is
+    /// not on a planet is refused, and so is a save before Stellaris 4.0. The inverse adds a
+    /// site of the same type and current difficulty to the same planet; undo puts the entry
+    /// back as it stood. Save documents only.
+    RemoveDigSite {
+        site: u32,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -615,7 +645,8 @@ impl Op {
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
     /// [`Op::RemovePlanetModifier`] and [`Op::SetPlanetRing`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
+    /// does the planet and moons it renamed, and [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
+    /// the planet whose site they wrote. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
     /// change which bodies a system lists.
     pub fn stales_details(&self) -> bool {
         match self {
@@ -647,7 +678,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. } => true,
+            | Self::RemoveAddedBody { .. }
+            | Self::AddDigSite { .. }
+            | Self::RemoveDigSite { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -691,7 +724,9 @@ impl Op {
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
             | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. } => true,
+            | Self::RemoveAddedBody { .. }
+            | Self::AddDigSite { .. }
+            | Self::RemoveDigSite { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -717,6 +752,7 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -725,7 +761,9 @@ impl Op {
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
             | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. } => false,
+            | Self::RemoveAddedBody { .. }
+            | Self::AddDigSite { .. }
+            | Self::RemoveDigSite { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -905,10 +943,12 @@ pub enum OpError {
     ScriptedSpawn(u32),
     #[error("a system takes a spawn weight or a spawn script, not both")]
     WeightAndScript,
-    #[error("a reserved seat is named by one letter, not {0:?}")]
+    #[error(
+        "a reserved seat is named by a letter a to z or a Greek letter alpha to omega, not {0:?}"
+    )]
     InvalidSeatLetter(String),
     #[error(
-        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+        "an enabled seat has no marker to make it the player's; choose a 1st Player, Sol or reserved seat"
     )]
     EnabledSeatPlayer,
     #[error(
@@ -1053,6 +1093,14 @@ pub enum OpError {
     UnknownDeposit(u32),
     #[error("deposit {0} is not held by a planet")]
     DepositNotOnPlanet(u32),
+    #[error("planet {0} is a star, which takes no dig site")]
+    StarDigSite(u32),
+    #[error("planet {planet} already has dig site {site}")]
+    DigSitePresent { planet: u32, site: u32 },
+    #[error("dig site {0} does not exist")]
+    UnknownDigSite(u32),
+    #[error("dig site {0} is not on a planet")]
+    DigSiteNotOnPlanet(u32),
     #[error("every system of {nebula} is already {state}")]
     TurbulenceUnchanged { nebula: String, state: &'static str },
     #[error("{0:?} is not a nebula cloud type")]
@@ -1081,6 +1129,10 @@ pub enum OpError {
     ParentUnchanged(u32),
     #[error("planet {planet} {state}")]
     RingUnchanged { planet: u32, state: &'static str },
+    #[error("planet {0} is a star, which takes no planet model")]
+    StarModel(u32),
+    #[error("planet {planet} {state}")]
+    ModelUnchanged { planet: u32, state: String },
     #[error("system {system} has no belt {index}")]
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
@@ -1142,6 +1194,7 @@ impl OpError {
             | Self::UnknownPlanet { .. }
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
+            | Self::UnknownDigSite { .. }
             | Self::UnknownBelt { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
@@ -1224,6 +1277,9 @@ impl OpError {
             | Self::CappedMismatch { .. }
             | Self::SystemNotAdded { .. }
             | Self::DepositNotOnPlanet { .. }
+            | Self::StarDigSite { .. }
+            | Self::DigSitePresent { .. }
+            | Self::DigSiteNotOnPlanet { .. }
             | Self::TurbulenceUnchanged { .. }
             | Self::InvalidCloudType { .. }
             | Self::AmbientSlotTaken { .. }
@@ -1237,6 +1293,8 @@ impl OpError {
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }
             | Self::RingUnchanged { .. }
+            | Self::StarModel { .. }
+            | Self::ModelUnchanged { .. }
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }
