@@ -36,7 +36,7 @@ function Action({
 
 /** Removes the colony on the body `page` shows, named `name`; the body stays. */
 export function RemoveColonyAction({ page, name }: { page: PlanetPage; name: string }) {
-  const refusal = useOpCheck(removeColonyOp(page.id));
+  const refusal = useOpCheck(removeColonyOp(page.id), page.system);
   return <Action refusal={refusal} label={REMOVE_COLONY} run={() => removeColony(page.id, name)} />;
 }
 
@@ -50,7 +50,7 @@ export function DeletePlanetAction({
   name: string;
   moon: boolean;
 }) {
-  const refusal = useOpCheck(deleteOp(page.id));
+  const refusal = useOpCheck(deleteOp(page.id), page.system);
   return (
     <Action
       refusal={refusal}

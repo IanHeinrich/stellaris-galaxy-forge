@@ -15,8 +15,8 @@ a release is made.
   colony on it.
 - Remove a colony and keep its planet with Remove colony on the planet's
   page. The colony's pops, buildings, defence armies and orbital ring go.
-- Stars, capitals, habitats and a few other bodies can't be deleted. The
-  menu and the page say why.
+- Stars, ring worlds and a few other bodies can't be deleted. The menu
+  and the page say why.
 
 ## [0.18.0] - 2026-09-28
 

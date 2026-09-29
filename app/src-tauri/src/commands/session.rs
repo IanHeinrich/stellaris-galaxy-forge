@@ -11,8 +11,8 @@ use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::Issue;
 use sgf_core::views::{
-    Capabilities, DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase,
-    SaveResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
+    ProgressPhase, SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
@@ -210,8 +210,27 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
     .await
 }
 
+/// Refuse an op the app never sends: [`Op::RestoreSaveEntities`], which writes whole entities
+/// as given and is reached only through undo, alone or in a batch.
+fn sent_by_the_app(op: &Op) -> Result<(), SgfError> {
+    let restores = match op {
+        Op::Batch { ops, .. } => ops
+            .iter()
+            .any(|op| matches!(op, Op::RestoreSaveEntities { .. })),
+        op => matches!(op, Op::RestoreSaveEntities { .. }),
+    };
+    if restores {
+        return Err(SgfError::new(
+            ErrorKind::Op,
+            "RestoreSaveEntities is only an inverse: undo writes it back",
+        ));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
+    sent_by_the_app(&op)?;
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         let result = session.apply(op)?;
@@ -223,6 +242,7 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
 /// Why `op` would be refused, or `None` when it would apply. The session is left as it was.
 #[tauri::command]
 pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<String>, SgfError> {
+    sent_by_the_app(&op)?;
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         Ok(session.check_op(&op))

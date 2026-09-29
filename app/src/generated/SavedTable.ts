@@ -3,4 +3,4 @@
 /**
  * The id-keyed save tables [`SavedEntity`] names.
  */
-export type SavedTable = "System" | "Planet" | "Country" | "Colony" | "PopGroup" | "PopJob" | "District" | "Zone" | "Building" | "Army" | "Starbase" | "Fleet" | "Ship" | "ConstructionQueue";
+export type SavedTable = "System" | "Planet" | "Country" | "Colony" | "PopGroup" | "PopJob" | "District" | "Zone" | "Building" | "Army" | "Starbase" | "Fleet" | "Ship" | "ConstructionQueue" | "ConstructionItem";

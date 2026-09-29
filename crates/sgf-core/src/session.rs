@@ -403,15 +403,15 @@ impl Session {
     }
 
     /// Why `op` would be refused, or `None` when it would apply. Nothing is written: the op
-    /// is planned against the session and dropped, each member of a batch against the
-    /// session as it stands.
+    /// is planned against the session and dropped. A batch is refused, since its members
+    /// after the first would be planned against a session none of them had changed.
     pub fn check_op(&self, op: &Op) -> Option<String> {
-        let ops = match op {
-            Op::Batch { ops, .. } => ops.as_slice(),
-            op => std::slice::from_ref(op),
-        };
-        ops.iter()
-            .find_map(|op| self.format().write(&mut Plan::new(), self, op).err())
+        if matches!(op, Op::Batch { .. }) {
+            return Some("a batch cannot be checked: check each of its ops".to_owned());
+        }
+        self.format()
+            .write(&mut Plan::new(), self, op)
+            .err()
             .map(|error| error.to_string())
     }
 

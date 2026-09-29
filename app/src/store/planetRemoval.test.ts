@@ -51,6 +51,13 @@ beforeEach(async () => {
 });
 
 describe("the confirms say what goes", () => {
+  it("adds the colonies on its moons to a colonised planet's", () => {
+    const colonised = planetPage({ colony: COLONY, owner: 0, moons: [MOON, MOON] });
+    expect(deleteQuestion(colonised, "Terra", false, 2)).toBe(
+      "Delete Terra and its 2 moons? Its colony goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The colonies on 2 of its moons go too.",
+    );
+  });
+
   it("names the moons, and the colony's pops, buildings, armies and ring", () => {
     const bare = planetPage({ moons: [MOON] });
     expect(deleteQuestion(bare, "Terra", false)).toBe(
@@ -80,6 +87,29 @@ describe("deleting a planet", () => {
       expect.objectContaining({ title: "Terra", kind: "warning" }),
     );
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 1207 });
+    expect(labels()).toEqual(["Sol"]);
+  });
+
+  it("names a colonised moon in the confirm and closes its colony's page", async () => {
+    const MOON_COLONY = { ...COLONY, id: 40 };
+    mockedIpc.getPlanetPage.mockImplementation(async (id) =>
+      id === 1207
+        ? planetPage({ moons: [MOON] })
+        : planetPage({ id: 1208, colony: MOON_COLONY, owner: 0 }),
+    );
+    useInspectorStore.setState({
+      stack: [
+        { ref: { kind: "system", id: 1 }, label: "Sol" },
+        { ref: { kind: "colony", id: 40 }, label: "Colony #40" },
+      ],
+    });
+
+    expect(await deletePlanet(1207, "Terra", false)).toBe(true);
+
+    expect(mockedIpc.confirm).toHaveBeenCalledWith(
+      "Delete Terra and its 1 moon? The colony on 1 of its moons goes with it, with its pops, buildings, defence armies and any orbital rings.",
+      expect.anything(),
+    );
     expect(labels()).toEqual(["Sol"]);
   });
 

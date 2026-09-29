@@ -332,7 +332,8 @@ describe("a colony's removal and a planet's deletion", () => {
   it("shows why the core refuses, and disables the action", async () => {
     await open("save");
     await landPage(COLONY);
-    const refusal = "the colony on planet 100 cannot be removed: it is the capital of country 16";
+    const refusal =
+      "the colony on planet 100 cannot be removed: a megastructure stands on or around it, which has not been tried in game";
     mockedIpc.checkOp.mockImplementation(async (op) =>
       op.type === "RemoveColony" ? refusal : null,
     );

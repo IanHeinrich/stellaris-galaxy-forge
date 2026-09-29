@@ -30,13 +30,31 @@ function colonyParts(page: PlanetPage): string {
   return `${colony.pops === 1 ? pops : `${thousands(colony.pops)} pops`}${built}, its defence armies and any orbital ring`;
 }
 
-/** The confirm for deleting the body `page` shows, named `name`, with its moons. */
-export function deleteQuestion(page: PlanetPage, name: string, moon: boolean): string {
+/**
+ * The confirm for deleting the body `page` shows, named `name`, with its moons, of which
+ * `colonisedMoons` have colonies.
+ */
+export function deleteQuestion(
+  page: PlanetPage,
+  name: string,
+  moon: boolean,
+  colonisedMoons = 0,
+): string {
   const moons = page.moons.length;
   const what = moons === 0 ? name : `${name} and its ${counted(moons, "moon")}`;
   const kind = moon ? "moon" : "planet";
-  if (page.colony === null) return `Delete ${what}? The ${kind} is removed from the save.`;
-  return `Delete ${what}? Its colony goes with it: ${colonyParts(page)}.`;
+  const one = colonisedMoons === 1;
+  const onMoons = one
+    ? "The colony on 1 of its moons"
+    : `The colonies on ${colonisedMoons} of its moons`;
+  const verb = one ? "goes" : "go";
+  if (page.colony === null) {
+    if (colonisedMoons === 0) return `Delete ${what}? The ${kind} is removed from the save.`;
+    const theirs = one ? "its" : "their";
+    return `Delete ${what}? ${onMoons} ${verb} with it, with ${theirs} pops, buildings, defence armies and any orbital rings.`;
+  }
+  const also = colonisedMoons === 0 ? "" : ` ${onMoons} ${verb} too.`;
+  return `Delete ${what}? Its colony goes with it: ${colonyParts(page)}.${also}`;
 }
 
 /** The confirm for removing the colony on the body `page` shows, named `name`. */

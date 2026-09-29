@@ -534,14 +534,14 @@ fn delete_planet_and_remove_colony_write_and_refuse() {
 
     let refused = dir.path().join("refused.sav");
     let out = sgf(&[
-        "remove-colony",
+        "delete-planet",
         SAMPLE_4_5,
-        "2",
+        "2445",
         "-o",
         refused.to_str().unwrap(),
     ]);
     assert_eq!(out.status.code(), Some(1));
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(err.contains("it is the capital of country 0"), "{err}");
+    assert!(err.contains("it is a ring world segment"), "{err}");
     assert!(!refused.exists());
 }

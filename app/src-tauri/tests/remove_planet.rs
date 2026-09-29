@@ -2,12 +2,12 @@
 //! the menus ask for, and the op the app applies.
 use serde_json::json;
 use sgf_core::ops::Op;
-use sgf_core::views::EditResult;
+use sgf_core::views::{EditResult, ErrorKind};
 
-use crate::common::{SAMPLE_45, invoke, opened};
+use crate::common::{SAMPLE_45, invoke, kind, opened};
 
 /// Gas giant 99 of system 140 has two bare moons; 0 is a star; colony 18 on planet 517 is
-/// a fallen empire's; colony 0 on planet 2 is the player's capital.
+/// a fallen empire's; 2445 is a ring world segment.
 #[test]
 fn deletes_are_checked_and_applied() {
     let w = opened(SAMPLE_45);
@@ -20,8 +20,10 @@ fn deletes_are_checked_and_applied() {
         Some("planet 0 is a star: only a planet or moon can be deleted")
     );
     assert_eq!(
-        check(Op::RemoveColony { planet: 2 }).as_deref(),
-        Some("the colony on planet 2 cannot be removed: it is the capital of country 0")
+        check(Op::DeleteSavePlanet { planet: 2445 }).as_deref(),
+        Some(
+            "planet 2445 cannot be deleted: it is a ring world segment, which has not been tried in game"
+        )
     );
     assert_eq!(check(Op::RemoveColony { planet: 517 }), None);
 
@@ -39,5 +41,39 @@ fn deletes_are_checked_and_applied() {
     assert_eq!(
         check(Op::DeleteSavePlanet { planet: 99 }).as_deref(),
         Some("planet 99 does not exist")
+    );
+}
+
+/// The inverse a delete records writes whole entities, so the app may not send it, and a
+/// batch cannot be dry-run.
+#[test]
+fn a_restore_and_a_batch_are_refused() {
+    let w = opened(SAMPLE_45);
+    let restore = Op::RestoreSaveEntities {
+        description: "Restored planet #23".to_owned(),
+        entities: Vec::new(),
+    };
+    let applied: Result<EditResult, _> = invoke(&w, "apply_op", json!({ "op": restore }));
+    assert_eq!(kind(applied), ErrorKind::Op);
+    let batch = Op::Batch {
+        description: "Restored".to_owned(),
+        ops: vec![restore.clone()],
+    };
+    let applied: Result<EditResult, _> = invoke(&w, "apply_op", json!({ "op": batch }));
+    assert_eq!(kind(applied), ErrorKind::Op);
+    let checked: Result<Option<String>, _> = invoke(&w, "check_op", json!({ "op": restore }));
+    assert_eq!(kind(checked), ErrorKind::Op);
+
+    let batch = Op::Batch {
+        description: "Deleted two".to_owned(),
+        ops: vec![
+            Op::DeleteSavePlanet { planet: 23 },
+            Op::DeleteSavePlanet { planet: 99 },
+        ],
+    };
+    let checked: Option<String> = invoke(&w, "check_op", json!({ "op": batch })).expect("check");
+    assert_eq!(
+        checked.as_deref(),
+        Some("a batch cannot be checked: check each of its ops")
     );
 }

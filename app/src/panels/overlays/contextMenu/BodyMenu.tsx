@@ -62,7 +62,9 @@ export function BodyMenu({
             {`Lock to ${lockedToName(orbitParent(layout, placed), nameOf)}`}
           </MenuItem>
         ))}
-      {deletable && name !== undefined && <DeleteItem planet={target.id} name={name} moon={moon} />}
+      {deletable && name !== undefined && (
+        <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
+      )}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>
@@ -71,8 +73,18 @@ export function BodyMenu({
 }
 
 /** Deletes the body with its moons, or says why it cannot: offered once the core has answered. */
-function DeleteItem({ planet, name, moon }: { planet: number; name: string; moon: boolean }) {
-  const refusal = useOpCheck(deleteOp(planet));
+function DeleteItem({
+  system,
+  planet,
+  name,
+  moon,
+}: {
+  system: number;
+  planet: number;
+  name: string;
+  moon: boolean;
+}) {
+  const refusal = useOpCheck(deleteOp(planet), system);
   return (
     <MenuItem
       disabled={refusal !== null}

@@ -7,9 +7,10 @@
 //! A colony goes as the game's `destroy_colony` takes it: the planet loses its owner,
 //! controller, colonisation date and orbital defence; the colony, its pops, jobs,
 //! districts, zones, buildings, defence armies and orbital ring become tombstones and leave
-//! the lists that name them; and the owner's queues at the planet are left with no owner. A
-//! colonised body is never deleted with its colony standing: the game crashes on load when
-//! a colony's planet is gone.
+//! the lists of the owner, of an occupier and of the armies' owners; and their queues at the
+//! planet are left with no owner. A country's capital, a species' home planet and
+//! construction items naming the colony are left for the game. A colonised body is never
+//! deleted with its colony standing: the game crashes on load when a colony's planet is gone.
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
@@ -82,6 +83,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         .collect();
 
     let mut teardowns = Vec::new();
+    let mut stations = Vec::new();
     for &id in &deleted {
         let (node, src) = planet_entity(&s.doc, id)?;
         let refuse = |reason: String| OpError::PlanetKept { planet: id, reason };
@@ -96,12 +98,23 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
             return Err(refuse("a starbase orbits it".to_owned()));
         }
         check_planet(s, id, &node, src, refuse)?;
-        check_bare(s, id, &node, src, refuse)?;
+        check_bare(s, id, refuse)?;
+        if let Some(fleet) = some_id(&node, keys::SHIPCLASS_ORBITAL_STATION, src) {
+            stations.push(Stationed {
+                planet: id,
+                fleet,
+                controller: some_id(&node, keys::CONTROLLER, src),
+                dead: fleet_records(&s.doc, fleet)?,
+            });
+        }
     }
 
     let mut saved = Saved::default();
     for teardown in &teardowns {
         teardown.write(plan, s, &mut saved, false)?;
+    }
+    for station in &stations {
+        station.write(plan, s, &mut saved, system)?;
     }
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     saved.keep(&s.doc, SavedTable::System, system, anchor)?;
@@ -149,25 +162,21 @@ pub(crate) fn plan_restore(
     for entity in entities {
         let SavedEntity { table, id, text } = entity;
         let (table, id) = (*table, *id);
-        let named = entity_in(text.as_bytes())
-            .ok()
-            .flatten()
-            .and_then(|node| node.key_str(text.as_bytes())?.parse::<u32>().ok());
-        if named != Some(id) {
+        if statement_id(text) != Some(id) {
             return Err(OpError::EntityMismatch { table, id });
         }
         let anchor = locate(&s.doc, table, id)?.ok_or(OpError::UnknownEntity { table, id })?;
         let subject = match table {
             SavedTable::System => Subject::System(id),
             SavedTable::Country => Subject::Country(id),
-            SavedTable::Planet => {
-                let node = entity_in(text.as_bytes())
-                    .ok()
-                    .flatten()
-                    .ok_or(OpError::EntityMismatch { table, id })?;
-                let system = planet_system(&node, text.as_bytes(), id)?;
-                Subject::Planet { id, system }
-            }
+            // A planet written back, or deleted again, re-reads the bodies of the system the
+            // entity it becomes names, or else of the one it replaces.
+            SavedTable::Planet => match planet_origin(text.as_bytes(), id)
+                .or_else(|| planet_origin(s.doc.current(anchor).ok()?, id))
+            {
+                Some(system) => Subject::Planet { id, system },
+                None => Subject::Record(anchor),
+            },
             _ => Subject::Record(anchor),
         };
         saved.keep(&s.doc, table, id, anchor)?;
@@ -177,6 +186,27 @@ pub(crate) fn plan_restore(
         description: description.to_owned(),
         inverse: saved.inverse(format!("Undid: {description}")),
     })
+}
+
+/// The id of the one statement `text` holds, when it holds exactly one, keyed by a number:
+/// an entity or a tombstone.
+fn statement_id(text: &str) -> Option<u32> {
+    let bytes = text.as_bytes();
+    let root = crate::cst::parse(bytes, 0).ok()?;
+    let [node] = root.children() else {
+        return None;
+    };
+    let dead = node.scalar_str(bytes) == Some("none");
+    if node.scalar_span().is_some() && !dead {
+        return None;
+    }
+    node.key_str(bytes)?.parse().ok()
+}
+
+/// The system of the planet entity `bytes` hold; `None` for a tombstone.
+fn planet_origin(bytes: &[u8], id: u32) -> Option<u32> {
+    let node = entity_in(bytes).ok()??;
+    planet_system(&node, bytes, id).ok()
 }
 
 /// The whole statement of each entity an op rewrites, as it stood before, keyed by table
@@ -226,6 +256,9 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
         }
         SavedTable::ConstructionQueue => {
             return Ok(queue_index(doc).and_then(|i| entry(&i, keys::QUEUES, id)));
+        }
+        SavedTable::ConstructionItem => {
+            return Ok(item_index(doc).and_then(|i| entry(&i, keys::ITEMS, id)));
         }
         SavedTable::Country => keys::COUNTRY,
         SavedTable::Colony => keys::COLONY,
@@ -278,6 +311,35 @@ fn tombstoned(doc: &Document, anchor: Anchor, id: u32) -> Result<Vec<u8>, OpErro
     .concat())
 }
 
+/// Fleet `fleet` and its ships, as tombstones to write.
+fn fleet_records(doc: &Document, fleet: u32) -> Result<Vec<(SavedTable, u32, Anchor)>, OpError> {
+    let Some(found) = live(doc, SavedTable::Fleet, fleet)? else {
+        return Ok(Vec::new());
+    };
+    let mut records = vec![(SavedTable::Fleet, fleet, found.anchor)];
+    for ship in some_ids(&found.node, keys::SHIPS, found.src) {
+        if let Some(ship_found) = live(doc, SavedTable::Ship, ship)? {
+            records.push((SavedTable::Ship, ship, ship_found.anchor));
+        }
+    }
+    Ok(records)
+}
+
+/// Queue `queue` and the construction items it lists, as tombstones to write, so that no
+/// item is left in a dead queue.
+fn queue_records(doc: &Document, queue: u32) -> Result<Vec<(SavedTable, u32, Anchor)>, OpError> {
+    let Some(found) = live(doc, SavedTable::ConstructionQueue, queue)? else {
+        return Ok(Vec::new());
+    };
+    let mut records = vec![(SavedTable::ConstructionQueue, queue, found.anchor)];
+    for item in some_ids(&found.node, keys::ITEMS, found.src) {
+        if let Some(item_found) = live(doc, SavedTable::ConstructionItem, item)? {
+            records.push((SavedTable::ConstructionItem, item, item_found.anchor));
+        }
+    }
+    Ok(records)
+}
+
 /// `construction.queue_mgr`, scanned so that its `queues` expose their entities.
 fn queue_index(doc: &Document) -> Option<Index> {
     construction_part(doc, keys::QUEUE_MGR)
@@ -313,8 +375,9 @@ fn some_ids(node: &Node, key: &str, src: &[u8]) -> Vec<u32> {
         .collect()
 }
 
-/// What refuses both a colony's removal and a planet's deletion: a habitat or ring world
-/// segment, a megastructure on or around it, and a species' home planet.
+/// What refuses both a colony's removal and a planet's deletion: a ring world segment, and a
+/// megastructure on or around the body. A habitat is a planet class with no megastructure
+/// entry of its own, so it passes.
 fn check_planet(
     s: &Session,
     planet: u32,
@@ -323,12 +386,9 @@ fn check_planet(
     refuse: impl Fn(String) -> OpError,
 ) -> Result<(), OpError> {
     let class = read::text(node, keys::PLANET_CLASS, src);
-    if class == "pc_habitat"
-        || class.starts_with("pc_ringworld")
-        || class.starts_with("pc_shattered_ring")
-    {
+    if class.starts_with("pc_ringworld") || class.starts_with("pc_shattered_ring") {
         return Err(refuse(
-            "it is a habitat or ring world segment, which has not been tried in game".to_owned(),
+            "it is a ring world segment, which has not been tried in game".to_owned(),
         ));
     }
     if some_id(node, keys::MEGASTRUCTURE, src).is_some() || megastructure_at(&s.doc, planet) {
@@ -336,34 +396,13 @@ fn check_planet(
             "a megastructure stands on or around it, which has not been tried in game".to_owned(),
         ));
     }
-    if let Some(species) = home_of(&s.doc, planet) {
-        return Err(refuse(format!(
-            "it is the home planet of species {species}"
-        )));
-    }
     Ok(())
 }
 
-/// What refuses a planet's deletion alone: a station, an anomaly, an archaeological site
-/// and an event target.
-fn check_bare(
-    s: &Session,
-    planet: u32,
-    node: &Node,
-    src: &[u8],
-    refuse: impl Fn(String) -> OpError,
-) -> Result<(), OpError> {
-    if some_id(node, keys::SHIPCLASS_ORBITAL_STATION, src).is_some() {
-        return Err(refuse("it has a mining or research station".to_owned()));
-    }
-    if node.find(keys::ANOMALY, src).is_some() || !s.doc.anomaly_finders(planet).is_empty() {
-        return Err(refuse("it has an anomaly".to_owned()));
-    }
+/// What refuses a planet's deletion alone: an archaeological site.
+fn check_bare(s: &Session, planet: u32, refuse: impl Fn(String) -> OpError) -> Result<(), OpError> {
     if site_at(&s.doc, planet) {
         return Err(refuse("it has an archaeological site".to_owned()));
-    }
-    if event_target(&s.doc, planet) {
-        return Err(refuse("an event target names it".to_owned()));
     }
     Ok(())
 }
@@ -383,33 +422,6 @@ fn parsed_scalar(doc: &Document, stmt: Span, key: &str) -> Option<u32> {
     read::scalar_u32(&node, key, bytes)
 }
 
-/// The species whose `home_planet` names `planet`.
-fn home_of(doc: &Document, planet: u32) -> Option<u64> {
-    let src = doc.original();
-    doc.index()
-        .entities(keys::SPECIES_DB)
-        .iter()
-        .find(|species| {
-            let Value::Block { open, close } = species.value else {
-                return false;
-            };
-            let Some(home) = scan::scan_range(src, open + 1..close)
-                .ok()
-                .and_then(|inner| inner.section(keys::HOME_PLANET).map(|h| h.stmt))
-            else {
-                return false;
-            };
-            let bytes = home.slice(src);
-            crate::cst::parse(bytes, 0).ok().is_some_and(|root| {
-                root.children().first().is_some_and(|home| {
-                    read::scalar(home, keys::TYPE, bytes) == Some(keys::PLANET)
-                        && read::scalar_u32(home, keys::REFERENCE, bytes) == Some(planet)
-                })
-            })
-        })
-        .map(|species| species.id)
-}
-
 /// Whether an archaeological site stands on `planet`.
 fn site_at(doc: &Document, planet: u32) -> bool {
     let Ok(Some(inner)) = doc.inner_index(keys::ARCHAEOLOGICAL_SITES) else {
@@ -426,40 +438,66 @@ fn site_at(doc: &Document, planet: u32) -> bool {
     })
 }
 
-/// Whether a top-level `saved_event_target` names `planet`.
-fn event_target(doc: &Document, planet: u32) -> bool {
-    doc.index()
-        .sections_named(keys::SAVED_EVENT_TARGET)
-        .any(|section| {
-            let bytes = section.stmt.slice(doc.original());
-            crate::cst::parse(bytes, 0).ok().is_some_and(|root| {
-                root.children().first().is_some_and(|target| {
-                    read::scalar(target, keys::TYPE, bytes) == Some(keys::PLANET)
-                        && read::scalar_u32(target, keys::ID, bytes) == Some(planet)
-                })
-            })
-        })
+/// A mining or research station at a deleted body: its fleet, which goes with the body.
+struct Stationed {
+    planet: u32,
+    fleet: u32,
+    /// The country the station makes the body's controller.
+    controller: Option<u32>,
+    /// The fleet and its ships.
+    dead: Vec<(SavedTable, u32, Anchor)>,
 }
 
-/// The country whose `capital` is `colony`.
-fn capital_of(doc: &Document, colony: u32) -> Option<u64> {
-    let src = doc.original();
-    doc.index()
-        .entities(keys::COUNTRY)
-        .iter()
-        .find(|country| {
-            let Value::Block { open, close } = country.value else {
-                return false;
-            };
-            scan::scan_range(src, open + 1..close)
-                .ok()
-                .and_then(|inner| match inner.section(keys::CAPITAL)?.value {
-                    Value::Scalar(span) => std::str::from_utf8(span.slice(src)).ok()?.parse().ok(),
-                    Value::Block { .. } => None,
-                })
-                == Some(colony)
-        })
-        .map(|country| country.id)
+impl Stationed {
+    /// Tombstone the fleet and its ships, and take them out of the system's `fleet_presence`
+    /// and the controller's `owned_fleets` and `controlled_planets`.
+    fn write(
+        &self,
+        plan: &mut Plan,
+        s: &Session,
+        saved: &mut Saved,
+        system: u32,
+    ) -> Result<(), OpError> {
+        let doc = &s.doc;
+        tombstone_all(plan, doc, saved, &self.dead)?;
+        let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
+        saved.keep(doc, SavedTable::System, system, anchor)?;
+        unlist(
+            plan.edit(doc, system)?,
+            keys::FLEET_PRESENCE,
+            &[self.fleet],
+            Emptied::Drop,
+        )?;
+        if let Some(country) = self.controller {
+            let anchor = locate(doc, SavedTable::Country, country)?
+                .ok_or(OpError::UnknownCountry(country))?;
+            saved.keep(doc, SavedTable::Country, country, anchor)?;
+            let edit = plan.edit_country(doc, country)?;
+            unlist_fleet(edit, self.fleet)?;
+            unlist(
+                edit,
+                keys::CONTROLLED_PLANETS,
+                &[self.planet],
+                Emptied::Keep,
+            )?;
+        }
+        Ok(())
+    }
+}
+
+/// Write each of `dead` as its tombstone, keeping what stood there for the inverse.
+fn tombstone_all(
+    plan: &mut Plan,
+    doc: &Document,
+    saved: &mut Saved,
+    dead: &[(SavedTable, u32, Anchor)],
+) -> Result<(), OpError> {
+    for &(table, id, anchor) in dead {
+        saved.keep(doc, table, id, anchor)?;
+        let bytes = tombstoned(doc, anchor, id)?;
+        plan.replace(doc, Subject::Record(anchor), anchor, bytes)?;
+    }
+    Ok(())
 }
 
 /// A colony and everything that goes with it.
@@ -467,10 +505,12 @@ struct Teardown {
     planet: u32,
     system: u32,
     colony: u32,
-    owner: u32,
+    /// The owner, any other controller, and the owners of its armies: the countries whose
+    /// lists name the colony, the planet, the armies or the ring.
+    countries: Vec<u32>,
     /// The entities that become tombstones.
     dead: Vec<(SavedTable, u32, Anchor)>,
-    /// The owner's queues at the planet, left with no owner.
+    /// The queues at the planet of one of `countries`, left with no owner.
     orphaned: Vec<(u32, Anchor)>,
     pops: usize,
     armies: Vec<u32>,
@@ -491,18 +531,8 @@ impl Teardown {
         let colony = read::scalar_u32(node, keys::COLONY, src).ok_or(OpError::NoColony(planet))?;
         let owner = some_id(node, keys::OWNER, src)
             .ok_or_else(|| refuse("the planet has no owner".to_owned()))?;
-        if let Some(controller) = some_id(node, keys::CONTROLLER, src)
-            && controller != owner
-        {
-            return Err(OpError::PlanetOccupied {
-                planet,
-                owner,
-                controller,
-            });
-        }
-        if let Some(country) = capital_of(doc, colony) {
-            return Err(refuse(format!("it is the capital of country {country}")));
-        }
+        let mut countries = vec![owner];
+        countries.extend(some_id(node, keys::CONTROLLER, src));
         let entity = live(doc, SavedTable::Colony, colony)?
             .ok_or_else(|| refuse(format!("colony #{colony} is not in the save")))?;
         let (col, csrc) = (&entity.node, entity.src);
@@ -533,12 +563,14 @@ impl Teardown {
             if army.node.find(keys::SHIP, army.src).is_some() {
                 return Err(refuse("one of its armies is aboard a ship".to_owned()));
             }
+            countries.extend(some_id(&army.node, keys::OWNER, army.src));
         }
+        countries.sort_unstable();
+        countries.dedup();
 
         let queues = queue_index(doc);
         let queue = |id: u32| queues.as_ref().and_then(|q| entry(q, keys::QUEUES, id));
         let mut orphaned = Vec::new();
-        let mut building_queues = Vec::new();
         for id in [
             some_id(node, keys::BUILD_QUEUE, src),
             some_id(col, keys::ARMY_BUILD_QUEUE, csrc),
@@ -546,66 +578,36 @@ impl Teardown {
         .into_iter()
         .flatten()
         {
-            building_queues.push(id);
             let Some(anchor) = queue(id) else { continue };
             let Some((q, qsrc)) = entity_at(doc, anchor).ok().flatten() else {
                 continue;
             };
-            if read::scalar_u32(&q, keys::OWNER, qsrc) == Some(owner) {
+            if read::scalar_u32(&q, keys::OWNER, qsrc).is_some_and(|o| countries.contains(&o)) {
                 orphaned.push((id, anchor));
             }
         }
 
+        // `orbital_defence` names the planet's orbital ring, or the system's own starbase when
+        // that orbits the planet; only a ring goes with the colony.
         let mut ring = None;
-        if let Some(fleet) = some_id(node, keys::ORBITAL_DEFENCE, src) {
-            let entity = live(doc, SavedTable::Fleet, fleet)?.ok_or_else(|| {
-                refuse(format!(
-                    "its orbital defence, fleet #{fleet}, is not in the save"
-                ))
-            })?;
-            let ships = some_ids(&entity.node, keys::SHIPS, entity.src);
-            let Station {
-                id: starbase,
-                anchor,
-                level,
-                queues: starbase_queues,
-            } = station_of(doc, &ships)?
-                .ok_or_else(|| refuse("its orbital defence has no starbase".to_owned()))?;
-            if !level.starts_with(ORBITAL_RING_LEVEL) {
-                return Err(refuse(format!(
-                    "its starbase is {level}, not an orbital ring, which has not been tried in game"
-                )));
+        if let Some(fleet) = some_id(node, keys::ORBITAL_DEFENCE, src)
+            && let Some(entity) = live(doc, SavedTable::Fleet, fleet)?
+            && let Some(station) =
+                station_of(doc, &some_ids(&entity.node, keys::SHIPS, entity.src))?
+            && station.level.starts_with(ORBITAL_RING_LEVEL)
+        {
+            dead.push((SavedTable::Starbase, station.id, station.anchor));
+            dead.extend(fleet_records(doc, fleet)?);
+            for id in station.queues {
+                dead.extend(queue_records(doc, id)?);
             }
-            dead.push((SavedTable::Starbase, starbase, anchor));
-            dead.push((SavedTable::Fleet, fleet, entity.anchor));
-            for ship in ships {
-                if let Some(found) = live(doc, SavedTable::Ship, ship)? {
-                    dead.push((SavedTable::Ship, ship, found.anchor));
-                }
-            }
-            for id in starbase_queues {
-                building_queues.push(id);
-                if let Some(anchor) = queue(id) {
-                    dead.push((SavedTable::ConstructionQueue, id, anchor));
-                }
-            }
-            ring = Some((starbase, fleet));
-        }
-        if under_construction(
-            doc,
-            &building_queues,
-            colony,
-            ring.map(|(starbase, _)| starbase),
-        ) {
-            return Err(refuse(
-                "construction is under way there: cancel it in game first".to_owned(),
-            ));
+            ring = Some((station.id, fleet));
         }
         Ok(Self {
             planet,
             system,
             colony,
-            owner,
+            countries,
             dead,
             orphaned,
             pops,
@@ -643,11 +645,7 @@ impl Teardown {
         keep_planet: bool,
     ) -> Result<(), OpError> {
         let doc = &s.doc;
-        for &(table, id, anchor) in &self.dead {
-            saved.keep(doc, table, id, anchor)?;
-            let bytes = tombstoned(doc, anchor, id)?;
-            plan.replace(doc, Subject::Record(anchor), anchor, bytes)?;
-        }
+        tombstone_all(plan, doc, saved, &self.dead)?;
         for &(id, anchor) in &self.orphaned {
             saved.keep(doc, SavedTable::ConstructionQueue, id, anchor)?;
             plan.edit_record(doc, anchor)?
@@ -664,26 +662,28 @@ impl Teardown {
             unlist(edit, keys::FLEET_PRESENCE, &[fleet], Emptied::Drop)?;
         }
 
-        let anchor = locate(doc, SavedTable::Country, self.owner)?
-            .ok_or(OpError::UnknownCountry(self.owner))?;
-        saved.keep(doc, SavedTable::Country, self.owner, anchor)?;
-        let edit = plan.edit_country(doc, self.owner)?;
-        unlist(edit, keys::OWNED_PLANETS, &[self.colony], Emptied::Keep)?;
-        unlist(
-            edit,
-            keys::CONTROLLED_COLONIES,
-            &[self.colony],
-            Emptied::Keep,
-        )?;
-        unlist(
-            edit,
-            keys::CONTROLLED_PLANETS,
-            &[self.planet],
-            Emptied::Keep,
-        )?;
-        unlist(edit, keys::OWNED_ARMIES, &self.armies, Emptied::Keep)?;
-        if let Some((_, fleet)) = self.ring {
-            unlist_fleet(edit, fleet)?;
+        for &country in &self.countries {
+            let anchor = locate(doc, SavedTable::Country, country)?
+                .ok_or(OpError::UnknownCountry(country))?;
+            saved.keep(doc, SavedTable::Country, country, anchor)?;
+            let edit = plan.edit_country(doc, country)?;
+            unlist(edit, keys::OWNED_PLANETS, &[self.colony], Emptied::Keep)?;
+            unlist(
+                edit,
+                keys::CONTROLLED_COLONIES,
+                &[self.colony],
+                Emptied::Keep,
+            )?;
+            unlist(
+                edit,
+                keys::CONTROLLED_PLANETS,
+                &[self.planet],
+                Emptied::Keep,
+            )?;
+            unlist(edit, keys::OWNED_ARMIES, &self.armies, Emptied::Keep)?;
+            if let Some((_, fleet)) = self.ring {
+                unlist_fleet(edit, fleet)?;
+            }
         }
 
         if keep_planet {
@@ -750,27 +750,6 @@ fn station_of(doc: &Document, ships: &[u32]) -> Result<Option<Station>, OpError>
         }
     }
     Ok(None)
-}
-
-/// Whether a construction item stands in one of `queues`, or builds on `colony` or on
-/// `starbase`.
-fn under_construction(doc: &Document, queues: &[u32], colony: u32, starbase: Option<u32>) -> bool {
-    let Some(items) = item_index(doc) else {
-        return false;
-    };
-    items.entities(keys::ITEMS).iter().any(|item| {
-        let bytes = item.stmt.slice(doc.original());
-        let Some(node) = entity_in(bytes).ok().flatten() else {
-            return false;
-        };
-        read::scalar_u32(&node, keys::QUEUE, bytes).is_some_and(|q| queues.contains(&q))
-            || node.children().iter().any(|part| {
-                part.scalar_span().is_none()
-                    && (read::scalar_u32(part, keys::PLANET, bytes) == Some(colony)
-                        || starbase.is_some()
-                            && read::scalar_u32(part, keys::STARBASE, bytes) == starbase)
-            })
-    })
 }
 
 /// What a list left with none of its ids becomes.

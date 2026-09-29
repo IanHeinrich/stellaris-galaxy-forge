@@ -16,10 +16,14 @@ import { useInspectorStore } from "./inspectorStore";
 /** Deletes body `planet`, named `name`, with its moons, once the user confirms. */
 export async function deletePlanet(planet: number, name: string, moon: boolean): Promise<boolean> {
   const page = await ipc.getPlanetPage(planet);
-  const question = deleteQuestion(page, name, moon);
+  const moons = await Promise.all(page.moons.map((m) => ipc.getPlanetPage(m.id)));
+  const colonies = [page, ...moons].flatMap((body) =>
+    body.colony === null ? [] : [body.colony.id],
+  );
+  const colonisedMoons = moons.filter((body) => body.colony !== null).length;
+  const question = deleteQuestion(page, name, moon, colonisedMoons);
   if (!(await confirm(question, { title: name, kind: "warning" }))) return false;
   if (!(await useEditorStore.getState().applyOp(deleteOp(planet)))) return false;
-  const colonies = page.colony === null ? [] : [page.colony.id];
   useInspectorStore.getState().dropPlanets([planet, ...page.moons.map((m) => m.id)], colonies);
   return true;
 }

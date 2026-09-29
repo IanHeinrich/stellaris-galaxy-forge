@@ -569,13 +569,15 @@ pub enum Op {
     /// The colony on a save planet or moon, as the game's `destroy_colony` leaves it, while
     /// the planet stays: the planet loses `colony`, `owner`, `controller`, `colonize_date`
     /// and `orbital_defence`. The colony, its pop groups, jobs, districts, zones and
-    /// buildings, its defence armies and its orbital ring's starbase, ships, fleet and
-    /// starbase queues become tombstones. The colony leaves its system's `colonies`, and
-    /// the owner's colony, planet, army and fleet lists lose what went. The owner's queues
-    /// at the planet are left with no owner, as the game leaves them. Refused for a
-    /// country's capital, a species' home planet, an occupied planet, construction under
-    /// way there, a starbase other than an orbital ring, a habitat or ring world segment,
-    /// and a megastructure on or around the planet. The inverse is the
+    /// buildings, its defence armies and its orbital ring's starbase, ships, fleet, queues
+    /// and the construction items in those queues become tombstones. A system's own
+    /// starbase that `orbital_defence` names stays. The colony leaves its system's
+    /// `colonies`, and the owner's colony, planet, army and fleet lists lose what went, as
+    /// do an occupier's and the armies' owners'. Their queues at the planet are left with no
+    /// owner, as the game leaves them, and the items in them stay. A country's `capital`
+    /// and a species' `home_planet` are left for the game. Refused for an army aboard a
+    /// ship, a ring world segment, and a megastructure on or around the planet. The inverse
+    /// is the
     /// [`Op::RestoreSaveEntities`] that writes back every entity it rewrote. Stellaris 4.x
     /// save documents only.
     RemoveColony {
@@ -584,19 +586,21 @@ pub enum Op {
     /// A save planet and its moons, or a moon alone, as the game's `remove_planet` leaves
     /// it: each body's entry becomes `<id>=none` and its `planet=` line leaves the system.
     /// A moon deleted alone leaves its parent's `moons`. A colonised body first loses its
-    /// colony as [`Op::RemoveColony`] takes it. Deposits, survey lists, fleets in orbit and
-    /// orphaned construction queues are left for the game. A star, a body with a station
-    /// or starbase other than its colony's orbital ring, an archaeological site, an
-    /// anomaly or an event target, a species' home planet, a habitat or ring world segment
-    /// and a megastructure on or around it are refused, as is any colony
-    /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
+    /// colony as [`Op::RemoveColony`] takes it, and a mining or research station goes with
+    /// the body it works: its fleet and ships become tombstones and leave the system's
+    /// `fleet_presence` and the controller's `owned_fleets` and `controlled_planets`.
+    /// Deposits, survey lists, anomaly finders, event targets, fleets in orbit and orphaned
+    /// construction queues are left for the game. A star, an uncolonised body a starbase
+    /// orbits, an archaeological site, a ring world segment and a megastructure on or around
+    /// it are refused, as is any colony [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
     /// writes back every entity it rewrote. Stellaris 4.x save documents only.
     DeleteSavePlanet {
         planet: u32,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
     /// [`Op::RemoveColony`] and [`Op::DeleteSavePlanet`] invert to. Each text must be one
-    /// entity with its id. The inverse carries the texts displaced. Save documents only.
+    /// statement keyed by its id, the entity or its tombstone. The app never sends it: undo
+    /// reaches it through the bytes. The inverse carries the texts displaced. Save documents only.
     RestoreSaveEntities {
         description: String,
         entities: Vec<SavedEntity>,
@@ -853,6 +857,8 @@ pub enum SavedTable {
     Ship,
     /// `construction.queue_mgr.queues`.
     ConstructionQueue,
+    /// `construction.item_mgr.items`.
+    ConstructionItem,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

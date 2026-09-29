@@ -246,9 +246,13 @@ for planets or deposits.
   `owner=4294967295`. The orbital ring's starbase and its `build_queue`
   become `=none`, and an event then places a ruined ring. When the
   editor removes a colony, it also tombstones the colony, its districts,
-  zones and buildings, the ring's ship and fleet, and takes the planet's
-  `colony` key and the ring out of the system's `starbases` and
-  `fleet_presence` and the owner's `owned_fleets`. It writes no ruin.
+  zones and buildings, the ring's ship and fleet, and the construction
+  items in the ring's queues, whose `items` list them. It takes the
+  planet's `colony` key and the ring out of the system's `starbases` and
+  `fleet_presence` and the owner's `owned_fleets`. It writes no ruin. A
+  planet's `orbital_defence` can name the system's own starbase instead,
+  such as a fallen empire's citadel (4.5 sample, planet 318); that one
+  stays and the planet only loses the key.
   Branch offices, faction members, fleets parked at the planet and caches
   are left to the game. After its own removal the game dropped the first
   two within a month; left by the editor, they have not been tried in
@@ -256,7 +260,10 @@ for planets or deposits.
 - A country's `capital` is a colony id. A colony names what it builds in
   `construction.item_mgr.items` by `planet=<colony>` inside the item's
   `buildable_*` block, and its queues are the planet's `build_queue` and
-  the colony's `army_build_queue`.
+  the colony's `army_build_queue`. A queue lists its items in `items`.
+  The editor leaves a removed colony's `capital`, a species'
+  `home_planet` and the items in queues it leaves without an owner for
+  the game. That has not been tried in game.
 - A system the game spawns by script is a `galactic_object` entry with
   its keys in this order, and the editor writes an added system the same
   way: `coordinate={ x y origin=4294967295 visual_height }`, `name`,

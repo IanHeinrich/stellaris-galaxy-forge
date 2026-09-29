@@ -4,7 +4,7 @@
 //! refused.
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::{Op, OpError, SavedTable};
+use sgf_core::ops::{Op, OpError, SavedEntity, SavedTable};
 use sgf_core::session::{OpResult, Session};
 
 use similar::{Algorithm, TextDiff};
@@ -73,6 +73,54 @@ fn rewrites(session: &Session) -> String {
     out
 }
 
+/// The 4.4 sample with planet 217, colony 39 of country 1, controlled by country 3, whose
+/// `controlled_planets` lists it.
+fn open_occupied() -> Session {
+    common::open_edited(|text| {
+        let planets = text
+            .find(
+                "
+planets=",
+            )
+            .expect("planets");
+        let entry = planets
+            + text[planets..]
+                .find(
+                    "
+		217=
+		{",
+                )
+                .expect("planet 217");
+        let owned = "			controller=1
+";
+        let at = entry + text[entry..].find(owned).expect("its controller");
+        text.replace_range(
+            at..at + owned.len(),
+            "			controller=3
+",
+        );
+        let countries = text
+            .find(
+                "
+country=",
+            )
+            .expect("countries");
+        let three = countries
+            + text[countries..]
+                .find(
+                    "
+	3=
+	{",
+                )
+                .expect("country 3");
+        let list = "		controlled_planets=
+		{
+			";
+        let at = three + text[three..].find(list).expect("its planets") + list.len();
+        text.insert_str(at, "217 ");
+    })
+}
+
 /// One edit on a sample: its snapshot's name, the session, the op, the system the planet
 /// is in, and whether its snapshot keeps the whole diff.
 struct Case {
@@ -129,6 +177,86 @@ fn cases() -> Vec<Case> {
             session: open,
             op: remove_colony(217),
             system: 137,
+            whole: false,
+        },
+        // The capital of country 16777222 and its species' home planet.
+        Case {
+            name: "remove_a_capital_colony_4_5",
+            session: open_4_5,
+            op: remove_colony(77),
+            system: 564,
+            whole: false,
+        },
+        // A capital and home planet deleted with its colony.
+        Case {
+            name: "delete_a_capital_4_4",
+            session: open,
+            op: delete(96),
+            system: 537,
+            whole: false,
+        },
+        // A home planet with no colony on it.
+        Case {
+            name: "delete_a_home_planet_4_5",
+            session: open_4_5,
+            op: delete(726),
+            system: 18,
+            whole: true,
+        },
+        // An army building at the colony: the item stays in the queue, which loses its owner.
+        Case {
+            name: "remove_a_colony_under_construction_4_5",
+            session: open_4_5,
+            op: remove_colony(385),
+            system: 513,
+            whole: false,
+        },
+        // Colony 39 of country 1, occupied by country 3, which lists the planet too.
+        Case {
+            name: "remove_an_occupied_colony_4_4",
+            session: open_occupied,
+            op: remove_colony(217),
+            system: 137,
+            whole: false,
+        },
+        Case {
+            name: "delete_a_habitat_4_5",
+            session: open_4_5,
+            op: delete(6268),
+            system: 596,
+            whole: true,
+        },
+        // A fallen empire's colony whose `orbital_defence` is the system's own citadel, which
+        // stays: the planet only loses the key.
+        Case {
+            name: "remove_a_colony_at_the_system_starbase_4_5",
+            session: open_4_5,
+            op: remove_colony(318),
+            system: 400,
+            whole: false,
+        },
+        // A moon of the player's capital with a mining station, which goes with it.
+        Case {
+            name: "delete_a_moon_with_a_station_4_5",
+            session: open_4_5,
+            op: delete(8),
+            system: 169,
+            whole: true,
+        },
+        // A planet with an anomaly waiting on it: the key goes with the tombstone.
+        Case {
+            name: "delete_a_planet_with_an_anomaly_4_5",
+            session: open_4_5,
+            op: delete(1159),
+            system: 62,
+            whole: false,
+        },
+        // A planet a `saved_event_target` names, which is left for the game.
+        Case {
+            name: "delete_an_event_target_4_5",
+            session: open_4_5,
+            op: delete(4913),
+            system: 448,
             whole: false,
         },
         Case {
@@ -247,7 +375,7 @@ type Refused = (&'static str, fn() -> Session, Op, &'static str);
 
 #[test]
 fn what_is_refused() {
-    let cases: [Refused; 14] = [
+    let cases: [Refused; 6] = [
         (
             "star",
             open_4_5,
@@ -255,58 +383,16 @@ fn what_is_refused() {
             "planet 0 is a star: only a planet or moon can be deleted",
         ),
         (
-            "capital",
+            "ring world",
             open_4_5,
-            remove_colony(2),
-            "the colony on planet 2 cannot be removed: it is the capital of country 0",
-        ),
-        (
-            "capital deleted",
-            open_4_5,
-            delete(2),
-            "the colony on planet 2 cannot be removed: it is the capital of country 0",
-        ),
-        (
-            "citadel",
-            open_4_5,
-            remove_colony(318),
-            "the colony on planet 318 cannot be removed: its starbase is starbase_level_deep_space_citadel_3, not an orbital ring, which has not been tried in game",
-        ),
-        (
-            "construction",
-            open_4_5,
-            remove_colony(385),
-            "the colony on planet 385 cannot be removed: construction is under way there: cancel it in game first",
+            delete(2445),
+            "planet 2445 cannot be deleted: it is a ring world segment, which has not been tried in game",
         ),
         (
             "no colony",
             open_4_5,
             remove_colony(71),
             "planet 71 has no colony",
-        ),
-        (
-            "station",
-            open_4_5,
-            delete(8),
-            "planet 8 cannot be deleted: it has a mining or research station",
-        ),
-        (
-            "station on a moon",
-            open_4_5,
-            delete(71),
-            "planet 72 cannot be deleted: it has a mining or research station",
-        ),
-        (
-            "anomaly",
-            open_4_5,
-            delete(1159),
-            "planet 1159 cannot be deleted: it has an anomaly",
-        ),
-        (
-            "habitat",
-            open_4_5,
-            delete(6268),
-            "planet 6268 cannot be deleted: it is a habitat or ring world segment, which has not been tried in game",
         ),
         (
             "megastructure",
@@ -319,12 +405,6 @@ fn what_is_refused() {
             open_4_5,
             delete(703),
             "planet 703 cannot be deleted: it has an archaeological site",
-        ),
-        (
-            "event target",
-            open_4_5,
-            delete(4913),
-            "planet 4913 cannot be deleted: an event target names it",
         ),
         (
             "3.x",
@@ -357,4 +437,33 @@ fn a_restore_names_its_entities_by_id() {
         })
         .expect_err("a mismatch");
     assert!(matches!(error, OpError::EntityMismatch { .. }), "{error}");
+}
+
+#[test]
+fn a_restore_takes_one_statement_per_text() {
+    let mut session = open_4_5();
+    let before = current(&session);
+    let two = Op::RestoreSaveEntities {
+        description: "Two".to_owned(),
+        entities: vec![SavedEntity {
+            table: SavedTable::Planet,
+            id: 23,
+            text: "23=none\n24=none".to_owned(),
+        }],
+    };
+    let error = session.apply(two).expect_err("two statements");
+    assert!(matches!(error, OpError::EntityMismatch { .. }), "{error}");
+    assert_eq!(current(&session), before);
+}
+
+#[test]
+fn the_inverse_of_the_inverse_deletes_again() {
+    for case in cases() {
+        let mut session = (case.session)();
+        let result = session.apply(case.op.clone()).expect(case.name);
+        let edited = current(&session);
+        let restored = session.apply(result.inverse).expect(case.name);
+        session.apply(restored.inverse).expect(case.name);
+        assert_eq!(current(&session), edited, "{}", case.name);
+    }
 }
