@@ -8,9 +8,10 @@ use crate::document::Document;
 use crate::entity::facts::{Sheet, count, other, reference, statement_at, system};
 use crate::entity::views::{
     EntityAddr, EntityKind, PlanetPage, PlanetPageAnomaly, PlanetPageClearing, PlanetPageColony,
-    PlanetPageDeposit, PlanetPageDistrict, PlanetPageMoon, PlanetPageSpecies,
+    PlanetPageDeposit, PlanetPageDigSite, PlanetPageDistrict, PlanetPageMoon, PlanetPageSpecies,
     PlanetPageTimedModifier,
 };
+use crate::format::save::dig_sites;
 use crate::keys;
 use crate::overlay::Anchor;
 use crate::projections::name::NameTemplate;
@@ -197,7 +198,20 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
                 })
             })
             .collect(),
+        dig_site: dig_site(doc, id),
     }
+}
+
+/// The site on planet `id`; `None` too when the sites cannot be read.
+fn dig_site(doc: &Document, id: u32) -> Option<PlanetPageDigSite> {
+    let site = dig_sites::on_planet(doc, id).ok()??;
+    Some(PlanetPageDigSite {
+        id: site.id,
+        kind: site.kind,
+        stages_done: site.index,
+        clues: site.clues,
+        excavating: site.excavating,
+    })
 }
 
 /// A moon names the body it orbits; anything else orbits the system's primary body, the

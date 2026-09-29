@@ -246,6 +246,23 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Add an archaeological dig site to a planet of a Stellaris 4.x save, or remove the one
+    /// it has.
+    DigSite {
+        sav: PathBuf,
+        planet: u32,
+        /// The site type, as `common/archaeological_site_types` names it.
+        #[arg(required_unless_present = "remove", conflicts_with = "remove")]
+        site_type: Option<String>,
+        /// The difficulty of the type's first stage.
+        #[arg(long, required_unless_present = "remove", conflicts_with = "remove")]
+        difficulty: Option<i32>,
+        /// Remove the planet's dig site instead, and any excavation under way there.
+        #[arg(long)]
+        remove: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Add or remove deposits on the planets of a Stellaris 4.x save.
     Deposit {
         #[command(subcommand)]

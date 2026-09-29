@@ -357,6 +357,24 @@ for planets or deposits.
   day-one sample, such as `pm_extensive_moon_system`, have only the
   line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
   and `planet_modifier` after `entity`.
+- A dig site is an entry of the top-level
+  `archaeological_sites={ sites={ <id>={ … } } }`. The ids run up from 0
+  with no counter. While a fleet excavates a site, the site's
+  `excavator_fleet` names the fleet and the fleet's
+  `current_order={ excavate_archaeological_site_fleet_order={ …
+  archaeological_site=<id> … } }` names the site. The 3.4 sample and
+  the spike saves show it; nothing else names a site. A site
+  nobody has dug holds `location={ type=2 id=<planet> }`,
+  `last_excavator_country` and `excavator_fleet` at the null id,
+  `type="<site type>"`, `index=0 clues=0 last_roll=0`, `days_left=90`
+  (`ARCHAEOLOGICAL_SITE_DISCOVERY_DAYS`) and `difficulty`, its current
+  stage's. `index` counts the stages finished. `visible_to` lists the
+  countries that see the site, and the game fills it in for a site
+  written without one. A dug site adds `completed` and `events`.
+  Stellaris 3.4 also writes `locked=no` on each site. An empty table is
+  written inline as `sites={ }`, and a new site goes on a line of its
+  own. The editor refuses to add a site to a save whose section has no
+  `sites` block, because no save seen writes one without it.
 - A star-class body other than the star, such as the Great Wound's
   black holes, has `carrier_binary_flags=3`, as the star does. A star
   off centre writes its `orbit` and position like a planet, and the

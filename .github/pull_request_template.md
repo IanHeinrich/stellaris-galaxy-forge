@@ -36,6 +36,7 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] An ocean world given the Ocean Paradise model shows that look in game, a planet whose initializer model was set back to Default shows its class's look, and both hold after a month and a save and reload
 - [ ] A planet renamed shows the new name in game, its moons show it in theirs, and both hold after a save and reload
 - [ ] A modifier added to a planet shows in the planet view with its effect, a timed one expires, a removed one is gone; a planet feature added both ways shows as a feature
+- [ ] A dig site added to a planet shows in game and can be excavated, an event-only type too; a removed one is gone, one removed while a fleet excavates it too, and both hold after a save and reload
 - [ ] A planet given its terraforming candidate modifier from the modifier picker offers terraforming once Climate Restoration is researched; with the modifier removed it no longer does
 - [ ] An added system rolled again loads as the new roll, with its name, position and lanes kept
 - [ ] An added system renamed shows the new name on the galaxy map, its star, planets and moons

@@ -483,6 +483,7 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     anomaly: null,
     terraforming: false,
     clearing: [],
+    dig_site: null,
     ...over,
   };
 }

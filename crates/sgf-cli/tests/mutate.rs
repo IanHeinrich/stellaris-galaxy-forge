@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`,
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`, `dig-site`,
 //! `rename-planet` and `rename-empire`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
@@ -531,4 +531,47 @@ fn rename_empire_renames_the_player_in_the_save_and_on_the_load_screen() {
     assert_eq!(same.status.code(), Some(1));
     let err = String::from_utf8_lossy(&same.stderr);
     assert!(err.contains("country 0 already has that name"), "{err}");
+}
+
+#[test]
+fn dig_site_writes_a_site_a_later_run_takes_away() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("site.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "dig-site",
+        SAMPLE_4_5,
+        "585",
+        "site_lost_moments",
+        "--difficulty",
+        "1",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Add dig site site_lost_moments (#4) to planet #585"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let removed = sgf(&[
+        "dig-site",
+        out_str,
+        "585",
+        "--remove",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&removed);
+    assert!(
+        stdout(&removed).contains("Remove dig site site_lost_moments (#4) from planet #585"),
+        "{}",
+        stdout(&removed)
+    );
+
+    let none = sgf(&["dig-site", SAMPLE_4_5, "585", "--remove", "-o", out_str]);
+    assert_ne!(none.status.code(), Some(0));
 }

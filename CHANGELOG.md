@@ -10,6 +10,8 @@ a release is made.
 
 ### Added
 
+- Add an archaeological dig site to a save planet, or remove one, from
+  its page in the Inspector. The page shows the site's stage and clues.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in

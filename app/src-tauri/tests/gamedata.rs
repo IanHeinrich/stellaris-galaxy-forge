@@ -8,6 +8,7 @@ use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
 use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
+use sgf_gamedata::dig_site_choices::DigSiteChoice;
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_models::PlanetModelChoice;
@@ -169,6 +170,9 @@ fn game_data_commands_degrade_without_an_install() {
     let modifier_choices: Vec<Value> =
         invoke(&w, "get_modifier_choices", json!({})).expect("modifier choices");
     assert!(modifier_choices.is_empty());
+    let dig_site_choices: Vec<Value> =
+        invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");
+    assert!(dig_site_choices.is_empty());
     let planet_models: Vec<Value> =
         invoke(&w, "get_planet_models", json!({})).expect("planet models");
     assert!(planet_models.is_empty());
@@ -499,6 +503,18 @@ fn game_data_commands_with_the_install() {
             .iter()
             .any(|c| c.feature.as_deref() == Some("pm_mineral_poor"))
     );
+    let dig_sites: Vec<DigSiteChoice> =
+        invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");
+    let lost = dig_sites
+        .iter()
+        .find(|c| c.key == "site_lost_moments")
+        .expect("Never Forget is offered");
+    assert_eq!((lost.name.as_str(), lost.difficulty), ("Never Forget", 1));
+    let library = dig_sites
+        .iter()
+        .find(|c| c.key == "site_the_library")
+        .expect("the Library's stages are listed");
+    assert!(!library.offered);
     let planet_models: Vec<PlanetModelChoice> =
         invoke(&w, "get_planet_models", json!({})).expect("planet models");
     let paradise = planet_models

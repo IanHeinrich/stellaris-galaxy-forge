@@ -4,6 +4,7 @@ mod common;
 
 mod deposit_choices;
 mod deposit_roll;
+mod dig_site_choices;
 mod flags;
 mod galaxy_shapes;
 mod galaxy_sizes;
