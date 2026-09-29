@@ -1,0 +1,82 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #703, and a dig site
+details stale: [12]
+inverse: Restored planet #703
+
+  System: 12
+  Planet: 703
+  then AddDigSite { planet: 703, site_type: "site_lost_moments", difficulty: 1 }
+
+--- gamestate
++++ gamestate
+@@ -29713,7 +29713,6 @@
+ 		planet=700
+ 		planet=701
+ 		planet=702
+-		planet=703
+ 		planet=704
+ 		ambient_object=
+ 		{
+@@ -116160,35 +116159,7 @@
+ 			bombardment_damage=0
+ 			entity=0
+ 		}
+-		703=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=26
+-			carrier_binary_flags=3
+-			build_queue=820
+-			name=
+-			{
+-				key="NAME_Spjuuht"
+-			}
+-			binary_flags=65
+-			coordinate=
+-			{
+-				x=120.85764
+-				y=-248.25096
+-				origin=12
+-			}
+-			orbit=276
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=0
+-			deposits=
+-			{
+-				921 
+-			}
+-		}
++		703=none
+ 		704=
+ 		{
+ 			planet_class="pc_gas_giant"
+@@ -1404690,22 +1404661,6 @@
+ {
+ 	sites=
+ 	{
+-		0=
+-		{
+-			location=
+-			{
+-				type=2
+-				id=703
+-			}
+-			last_excavator_country=4294967295
+-			excavator_fleet=4294967295
+-			type="site_lost_moments"
+-			index=0
+-			clues=0
+-			last_roll=0
+-			days_left=90
+-			difficulty=1
+-		}
+ 		1=
+ 		{
+ 			location=

@@ -2,8 +2,8 @@
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{
-    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint, NewBody, Op,
-    StarBody, SystemMove,
+    ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint,
+    NewBody, Op, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -497,6 +497,20 @@ pub fn one_of_each() -> Vec<Example> {
             planet: 585,
             entity: Some("ocean_paradise_planet_01_entity".to_owned()),
         }),
+        Example::save_4_5(Op::SetPlanetClass {
+            planet: 585,
+            from: PlanetClassRule {
+                class: "pc_barren".to_owned(),
+                change: ClassChange::Uncolonised,
+                models: 3,
+            },
+            to: PlanetClassRule {
+                class: "pc_ocean".to_owned(),
+                change: ClassChange::Any,
+                models: 3,
+            },
+            look: None,
+        }),
         Example::save_4_5(Op::AddSaveBelt {
             system: 140,
             kind: "rocky_asteroid_belt".to_owned(),
@@ -529,6 +543,27 @@ pub fn one_of_each() -> Vec<Example> {
             planet: 140,
             name: "Nova Terra".to_owned(),
             block: None,
+        }),
+        Example::save(Op::RemoveColony { planet: 217 }),
+        Example::save(Op::DeleteSavePlanet { planet: 12 }),
+        Example::save_4_5(Op::RestoreSaveEntities {
+            description: "Left queue 0 with no owner".to_owned(),
+            entities: vec![SavedEntity {
+                table: SavedTable::ConstructionQueue,
+                id: 0,
+                text: "0=
+			{
+				owner=4294967295
+				location=
+				{
+					type=2
+					id=2
+				}
+				simultaneous=1
+				type=planet
+			}"
+                .to_owned(),
+            }],
         }),
         Example::save_4_5(meissa_v()),
         Example::added_body(Op::RemoveAddedBody { planet: ADDED_BODY }),

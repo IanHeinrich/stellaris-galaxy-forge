@@ -17,6 +17,8 @@ export interface SceneView {
   linkBody(id: number | null): void;
   /** Marks the planets selected to move, those cut, and where a lone cut planet would be pasted. */
   showMove(): void;
+  /** Centres the camera on body `id` once the system's layout places it. */
+  focusBody(id: number): void;
 }
 
 const refresh = (_state: unknown, view: SceneView) => view.refresh();
@@ -34,6 +36,9 @@ const BINDINGS: Array<Binding<SceneView, "bind">> = [
   { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
   follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
   follows(useSceneStore, [(s) => s.roll, (s) => s.lockedBodies], refresh),
+  follows(useSceneStore, [(s) => s.bodyFocus], (s, view) => {
+    if (s.bodyFocus) view.focusBody(s.bodyFocus.id);
+  }),
   follows(useSceneStore, [(s) => s.linkedBody], (s, view) => view.linkBody(s.linkedBody), "bind"),
   follows(
     useInspectorStore,

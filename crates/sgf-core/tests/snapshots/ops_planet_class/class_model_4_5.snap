@@ -1,0 +1,26 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the class of planet #3318 from pc_continental to pc_arid
+inverse: SetPlanetClass { planet: 3318, from: PlanetClassRule { class: "pc_arid", change: Any, models: 3 }, to: PlanetClassRule { class: "pc_continental", change: Any, models: 4 }, look: Some(PlanetLook { entity: Some(0), entity_name: Some("previously_terraformed_planet_entity") }) }
+
+--- gamestate
++++ gamestate
+@@ -252243,7 +252243,7 @@
+ 		}
+ 		3318=
+ 		{
+-			planet_class="pc_continental"
++			planet_class="pc_arid"
+ 			planet_size=21
+ 			carrier_binary_flags=1
+ 			build_queue=6466
+@@ -252298,7 +252298,6 @@
+ 				}
+ 			}
+ 			entity=0
+-			entity_name="previously_terraformed_planet_entity"
+ 			deposits=
+ 			{
+ 				2411 2412 2413 2414 2415 2416 2417 2418 2421 2422

@@ -10,9 +10,10 @@ import { refusalLine } from "../lib/planetMove";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
-import { sceneSystem } from "./sceneStore";
+import { sceneSystem, useSceneStore } from "./sceneStore";
 
 /**
  * The bodies selected in one system's view, in the order they were picked. A selection of one
@@ -77,6 +78,12 @@ export interface PlanetMoveState {
    * inspector as they were.
    */
   move(planets: readonly number[], to: number, at?: OrbitPlacement | null): Promise<boolean>;
+  /**
+   * Moves planet `id` to `to` from its page, in one edit. In a system view the view follows it:
+   * `to` is shown centred on the planet, with it selected alone and its page open. On the galaxy
+   * map it moves as `move` moves it.
+   */
+  movePlanet(id: number, to: number): Promise<boolean>;
   /**
    * Reads what the last edit, undo or redo may have changed: the selection's and the cut's
    * targets again, pending until they land, and no cached check. A cut whose planets have left
@@ -145,6 +152,18 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
   function showAlone(system: number, id: number): void {
     select({ system, ids: [id] });
     openBodyPage(system, id);
+  }
+
+  /**
+   * Shows system `to` centred on its body `id`, selected alone with its page open. The page opens
+   * above `to`'s own, which the inspector would otherwise restart on as the selection follows.
+   */
+  function followTo(to: number, id: number): void {
+    useSceneStore.getState().enterSystem(to);
+    const label = useGalaxyStore.getState().systemName(to);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: to }, label });
+    showAlone(to, id);
+    useSceneStore.getState().focusBody(id);
   }
 
   function fetchSelectionTargets(): void {
@@ -272,6 +291,12 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
         return false;
       }
       return useEditorStore.getState().applyOp(op);
+    },
+
+    async movePlanet(id, to) {
+      if (!(await get().move([id], to))) return false;
+      if (sceneSystem() !== null) followTo(to, id);
+      return true;
     },
 
     refresh() {

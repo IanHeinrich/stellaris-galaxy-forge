@@ -1,0 +1,64 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #247, with its colony
+details stale: [237]
+inverse: Restored planet #247
+
+  System: 237
+  Planet: 247
+  Country: 16777220
+  Colony: 38
+  PopGroup: 16778199 738198504 1241514866 1241514990 1241514991
+  PopJob: 1008 1009 1010 1011 1012 1013 1014 1015 1016 1017 1018 1019 1020 1021 1022 1066
+  District: 33554545
+  Zone: 33554557
+  Building: 16777438
+  ConstructionQueue: 8455 8566
+@@ -45476,5 +45130,4 @@
+ 		planet=245
+ 		planet=246
+-		planet=247
+ 		planet=248
+ 		planet=249
+@@ -45521,8 +45174,4 @@
+ 		sector=4
+ 		index=42
+-		colonies=
+-		{
+-			38 
+-		}
+ 		storm=4294967295
+ 	}
+@@ -567885,13 +567301,13 @@
+ 		owned_planets=
+ 		{
+-			4 38 
++			4 
+ 		}
+ 		controlled_colonies=
+ 		{
+-			4 38 
++			4 
+ 		}
+ 		controlled_planets=
+ 		{
+-			73 70 84 76 75 79 78 77 71 243 245 247 383 387 385 5712 5726 5724 386 
++			73 70 84 76 75 79 78 77 71 243 245 383 387 385 5712 5726 5724 386 
+ 		}
+ 		ship_design_collection=
+@@ -951789,5 +951205,5 @@
+ 			8455=
+ 			{
+-				owner=16777220
++				owner=4294967295
+ 				location=
+ 				{
+@@ -953026,5 +952442,5 @@
+ 			8566=
+ 			{
+-				owner=16777220
++				owner=4294967295
+ 				location=
+ 				{

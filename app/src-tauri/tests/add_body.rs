@@ -85,3 +85,35 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     let undone: EditResult = invoke(&w, "undo", json!({})).expect("undo");
     assert_eq!(undone.history.undo.len(), 1);
 }
+
+/// `pc_gray_goo` and `pc_nanotech` are both "Nanite World" in the install, and `pc_barren` and
+/// `pc_barren_cold` both "Barren World": each row of the class menu has a name of its own.
+#[test]
+fn no_two_classes_in_the_menu_share_a_name() {
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    for moon in [false, true] {
+        let classes: Vec<BodyClassPick> =
+            invoke(&w, "get_body_classes", json!({ "moon": moon })).expect("classes");
+        let mut names: Vec<&str> = classes.iter().map(|c| c.name.as_str()).collect();
+        names.sort_unstable();
+        let before = names.len();
+        names.dedup();
+        assert_eq!(before, names.len(), "moon {moon}: {names:?}");
+        let goo = |key: &str| {
+            classes
+                .iter()
+                .find(|c| c.key == key)
+                .map(|c| c.name.as_str())
+        };
+        assert_eq!(goo("pc_gray_goo"), Some("Nanite World (pc_gray_goo)"));
+        assert_eq!(goo("pc_nanotech"), Some("Nanite World (pc_nanotech)"));
+        assert_eq!(
+            goo("pc_desert"),
+            Some("Desert World"),
+            "unshared names stay"
+        );
+        assert!(goo("pc_ark").is_none());
+    }
+}

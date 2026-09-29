@@ -1,0 +1,33 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted moon #185
+details stale: [496]
+inverse: Restored moon #185
+
+  System: 496
+  Planet: 184 185
+  Country: 16777221
+@@ -64075,5 +64075,4 @@
+ 		planet=183
+ 		planet=184
+-		planet=185
+ 		planet=186
+ 		planet=187
+@@ -88258,8 +88257,4 @@
+ 			orbit=165
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				185 
+-			}
+ 			planet_orbitals=
+ 			{
+@@ -445253,5 +445178,5 @@
+ 			anomalies=
+ 			{
+-				185 182 
++				182 
+ 			}
+ 		}

@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #1159 and its 2 moons
+details stale: [62]
+inverse: Restored planet #1159 and its 2 moons
+
+  System: 62
+  Planet: 1159 1160 1161
+@@ -33488,7 +33488,4 @@
+ 		}
+ 		planet=1158
+-		planet=1159
+-		planet=1160
+-		planet=1161
+ 		planet=1162
+ 		planet=1163

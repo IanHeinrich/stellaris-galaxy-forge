@@ -60,6 +60,7 @@ import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
 import { MODEL_TITLE } from "../../../lib/details/planetModel";
+import { CLASS_FIXED, CLASS_LOOK_NOTE } from "../../../lib/details/planetClass";
 
 bindStores();
 
@@ -248,14 +249,16 @@ describe("a colony's page", () => {
     expect(render(WORLD)).toContain(TERRAFORMING_NOTE);
   });
 
-  it("offers its name and size to edit, and shows its class as text, then the owner, designation, date and pops", async () => {
+  it("offers its name, size and class to edit, then shows the owner, designation, date and pops", async () => {
     await open("save");
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage(COLONY);
     armDeposits();
 
     const html = render(WORLD);
-    expect(html).toMatch(/<span class="k">Class<\/span><span>Tropical World<\/span>/);
+    expect(html).toContain('<span class="edit-label">Class</span>');
+    expect(html).toContain("Tropical World");
+    expect(html).not.toMatch(/<span class="k">Class<\/span>/);
     expect(html).not.toMatch(/<span class="k">Size<\/span>/);
     expect(html).toMatch(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/);
     expect(html).toContain("Within a month the game demolishes districts over a lowered cap.");
@@ -304,6 +307,66 @@ describe("a colony's page", () => {
     expect(html).not.toContain("Controller");
     expect(html.indexOf("Deposits")).toBeLessThan(html.indexOf("Colonised"));
     expect(html.indexOf("Colonised")).toBeLessThan(html.indexOf("About"));
+  });
+});
+
+describe("a colony's removal and a planet's deletion", () => {
+  const COLONY = planetPage({
+    id: WORLD,
+    class: "pc_tropical",
+    owner: EMPIRE,
+    controller: EMPIRE,
+    colony: {
+      id: 29,
+      colonised: "2200.01.01",
+      final_designation: null,
+      designation: null,
+      pops: 1600,
+      species: [],
+      districts: [],
+      zones: [],
+      buildings: [],
+    },
+  });
+
+  it("offers Remove colony in the colony's section and Delete planet below the moons, apart", async () => {
+    await open("save");
+    await landPage(COLONY);
+
+    const html = render(WORLD);
+    expect(html).toContain(">Remove colony</button>");
+    expect(html).toContain(">Delete planet</button>");
+    expect(html.indexOf("Remove colony")).toBeLessThan(html.indexOf("About"));
+    expect(html.indexOf("About")).toBeLessThan(html.indexOf("Delete planet"));
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "RemoveColony", planet: WORLD });
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: WORLD });
+  });
+
+  it("shows why the core refuses, and disables the action", async () => {
+    await open("save");
+    await landPage(COLONY);
+    const refusal =
+      "the colony on planet 100 cannot be removed: a megastructure stands on or around it, which has not been tried in game";
+    mockedIpc.checkOp.mockImplementation(async (op) =>
+      op.type === "RemoveColony" ? refusal : null,
+    );
+    render(WORLD);
+    await vi.waitFor(() => expect(render(WORLD)).toContain(refusal));
+
+    const html = render(WORLD);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove colony<\/button>/);
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Delete planet<\/button>/);
+  });
+
+  it("offers neither on a save's star", async () => {
+    await open("save");
+    await landPage({ ...planetPage({ id: WORLD }), class: "pc_g_star" });
+    useGameDataStore.setState({
+      starClasses: new Map([starClassView("sc_g", "pc_g_star")].map((v) => [v.key, v])),
+    });
+    const html = render(WORLD);
+    expect(html).not.toContain("Delete planet");
+    expect(html).not.toContain("Remove colony");
   });
 });
 
@@ -1279,6 +1342,86 @@ describe("a planet's model", () => {
     await open("scenario");
     await landPage(planetPage({ id: WORLD, class: "pc_arctic" }));
     expect(render(WORLD)).not.toContain(MODEL);
+  });
+});
+
+describe("a planet's class", () => {
+  const CLASS = '<span class="edit-label">Class</span>';
+
+  async function arm(over: Partial<PlanetPage> = {}): Promise<void> {
+    await open("save");
+    useGameDataStore.setState({
+      names: new Map([
+        ["pc_arctic", "Arctic World"],
+        ["pc_ocean", "Ocean World"],
+        ["pc_barren", "Barren World"],
+      ]),
+      planetClasses: new Map(
+        [
+          planetClassView("pc_arctic", false, null, { change: "any", models: 3 }),
+          planetClassView("pc_ocean", false, null, { change: "any", models: 3 }),
+          planetClassView("pc_barren", false, null, { habitable: false, models: 3 }),
+          planetClassView("pc_habitat", false, null, { change: "never" }),
+        ].map((c) => [c.key, c]),
+      ),
+    });
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic", ...over }));
+  }
+
+  it("offers the classes the planet may take, says the look resets, and a pick sends it", async () => {
+    await arm();
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain(CLASS);
+    expect(html).toContain(escapedText(CLASS_LOOK_NOTE));
+    expect(html).not.toContain('<span class="k">Class</span>');
+    const field = drawnField(PickerField, "Class");
+    expect(field.current.label).toBe("Arctic World");
+    expect(field.items.map((item) => [item.label, item.group])).toEqual([
+      ["Ocean World", "Habitable"],
+      ["Barren World", "Other"],
+    ]);
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    field.onPick("pc_barren");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetClass",
+        planet: WORLD,
+        from: { class: "pc_arctic", change: "any", models: 3 },
+        to: { class: "pc_barren", change: "uncolonised", models: 3 },
+      }),
+    );
+  });
+
+  it("offers a colony only the classes open to colonies", async () => {
+    const colony = {
+      id: 29,
+      colonised: "2200.01.01",
+      final_designation: null,
+      designation: null,
+      pops: 100,
+      species: [],
+      districts: [],
+      zones: [],
+      buildings: [],
+    };
+    await arm({ owner: EMPIRE, controller: EMPIRE, colony });
+    drawnBy(() => render(WORLD));
+    const field = drawnField(PickerField, "Class");
+    expect(field.items.map((item) => item.key)).toEqual(["pc_ocean"]);
+  });
+
+  it("keeps a habitat's class, and offers no class on a scenario", async () => {
+    await arm({ class: "pc_habitat" });
+    drawnBy(() => render(WORLD));
+    const field = drawnField(PickerField, "Class");
+    expect(field.items).toEqual([]);
+    expect(render(WORLD)).toContain(escapedText(CLASS_FIXED));
+    expect(render(WORLD)).not.toContain(escapedText(CLASS_LOOK_NOTE));
+
+    await open("scenario");
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic" }));
+    expect(render(WORLD)).not.toContain(CLASS);
   });
 });
 

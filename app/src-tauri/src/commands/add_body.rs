@@ -85,8 +85,22 @@ pub fn get_body_classes(game_data: State<'_, GameDataState>, moon: bool) -> Vec<
             })
         })
         .collect();
+    tell_apart(&mut picks);
     picks.sort_by(|a, b| a.name.cmp(&b.name));
     picks
+}
+
+/// Classes can share a name (`pc_nanotech` is named `$pc_gray_goo$`, `pc_barren_cold` is
+/// "Barren World" like `pc_barren`), so each of them shows its key after the name.
+fn tell_apart(picks: &mut [BodyClassPick]) {
+    let shared: Vec<String> = picks
+        .iter()
+        .filter(|a| picks.iter().filter(|b| b.name == a.name).count() > 1)
+        .map(|a| a.key.clone())
+        .collect();
+    for pick in picks.iter_mut().filter(|p| shared.contains(&p.key)) {
+        pick.name = format!("{} ({})", pick.name, pick.key);
+    }
 }
 
 /// The body an add's inverse takes out again.

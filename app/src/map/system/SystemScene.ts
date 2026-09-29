@@ -66,6 +66,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   private inspected: EntityRef | null = null;
   private appliedRev = -1;
   private fitPending = false;
+  /** The body to centre on once the layout places it; a new visit drops it. */
+  private focusPending: number | null = null;
   /** Where the last fit left the camera: still there means nobody has panned or zoomed since. */
   private fitted = { x: NaN, y: NaN, scale: NaN };
   private sizedFor = { width: 0, height: 0 };
@@ -103,6 +105,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       this.visit = visit;
       this.highlight = NO_HIGHLIGHT;
       this.fitPending = true;
+      this.focusPending = null;
     } else if (id !== this.id) {
       this.interaction.dropExit();
       this.setHighlight({ lane: null, hoverExit: null });
@@ -331,6 +334,19 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     this.fit();
   }
 
+  focusBody(id: number): void {
+    this.focusPending = id;
+  }
+
+  /** Centres the camera on the pending body at the scale it has, once the layout places it. */
+  private focus(): void {
+    if (this.focusPending === null) return;
+    const body = this.ctx.id === this.id ? this.ctx.bodyById.get(this.focusPending) : undefined;
+    if (body === undefined) return;
+    this.focusPending = null;
+    this.cam.easeTo(body.placement.x, body.placement.y, this.cam.scale, 0);
+  }
+
   tick(): void {
     if (this.stepPending) this.apply();
     const { width, height } = this.cam;
@@ -341,6 +357,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       this.sizedFor = { width, height };
       this.limit(this.fittedScale());
     }
+    this.focus();
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
     for (const layer of this.layers) layer.onViewport?.(this.cam);

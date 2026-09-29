@@ -20,9 +20,9 @@ use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
     add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
-    lanes, lgate, map_colors, move_planet, move_system, nebula, planet_entity, planet_modifier,
-    planet_ring, planet_size, remove_system, rename_planet, rename_system, replace_system,
-    star_class, wormhole,
+    lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
+    planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
+    rename_system, replace_system, star_class, wormhole,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -260,9 +260,21 @@ impl Format for Save {
                 angle,
             } => wormhole::plan_move(plan, s, *wormhole, *radius, *angle),
             Op::SetPlanetRing { planet, ring } => planet_ring::plan_set(plan, s, *planet, *ring),
+            Op::RemoveColony { planet } => remove_planet::plan_remove_colony(plan, s, *planet),
+            Op::DeleteSavePlanet { planet } => remove_planet::plan_delete(plan, s, *planet),
+            Op::RestoreSaveEntities {
+                description,
+                entities,
+            } => remove_planet::plan_restore(plan, s, description, entities),
             Op::SetPlanetEntity { planet, entity } => {
                 planet_entity::plan_set(plan, s, *planet, entity.as_deref())
             }
+            Op::SetPlanetClass {
+                planet,
+                from,
+                to,
+                look,
+            } => planet_class::plan_set(plan, s, *planet, from, to, look.as_ref()),
             Op::AddSaveBelt {
                 system,
                 kind,

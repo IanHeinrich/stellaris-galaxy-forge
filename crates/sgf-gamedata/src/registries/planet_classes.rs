@@ -2,6 +2,8 @@
 //! `galactic_object.star_class`'s `planet_keys`) looks like, whether it
 //! can be colonised, and where and how large a random draw spawns it.
 
+use sgf_core::ops::ClassChange;
+
 use crate::install::script::{Def, Range};
 use crate::registries::colors;
 use crate::registries::registry::{FromDef, Registry};
@@ -25,6 +27,15 @@ pub struct PlanetClassDef {
     pub asteroid: bool,
     /// `ringworld = yes`: a ring world segment.
     pub ringworld: bool,
+    /// `habitat = yes`: an orbital habitat.
+    pub habitat: bool,
+    /// `is_artificial_planet = yes`: built rather than formed, as a habitat, a ring world,
+    /// an ark or a cosmogenesis world is.
+    pub artificial: bool,
+    /// `astral_scar = yes`.
+    pub astral_scar: bool,
+    /// `district_set`, the districts a colony of it builds: `standard` for most.
+    pub district_set: Option<String>,
     /// `star_gfx = no`: this class is not drawn with the star shader (vanilla: `pc_t_star`,
     /// `pc_rift_star`, `pc_protostar`). Meaningless off a star class.
     pub star_gfx: bool,
@@ -52,13 +63,38 @@ pub struct Atmosphere {
     pub width: f64,
 }
 
+/// The class no flag sets apart that the game still keeps to its own story: the Shroud's world.
+const SET_APART: [&str; 1] = ["pc_shrouded"];
+
+impl PlanetClassDef {
+    /// Which planets may be given this class, or have it taken: none for a star, a habitat,
+    /// a ring world, anything else built, the astral scar and the Shroud's world; any for a
+    /// class colonised with the standard district set; else only a planet with no colony.
+    pub fn change(&self) -> ClassChange {
+        let fixed = self.star
+            || self.habitat
+            || self.ringworld
+            || self.artificial
+            || self.astral_scar
+            || SET_APART.contains(&self.key.as_str());
+        if fixed {
+            ClassChange::Never
+        } else if self.colonizable && self.district_set.as_deref() == Some("standard") {
+            ClassChange::Any
+        } else {
+            ClassChange::Uncolonised
+        }
+    }
+}
+
 impl PlanetClasses {
-    /// The classes a random body can be drawn as: no star or asteroid, with a distance from
+    /// The classes a random body can be drawn as: no star, asteroid or artificial planet, with a distance from
     /// the star it spawns at, and colonisable or not when `colonizable` says.
     pub fn drawable(&self, colonizable: Option<bool>) -> impl Iterator<Item = &PlanetClassDef> {
         self.iter().filter(move |c| {
             !c.star
                 && !c.asteroid
+                && !c.artificial
                 && c.distance_from_sun.is_some()
                 && colonizable.is_none_or(|wanted| c.colonizable == wanted)
         })
@@ -92,6 +128,10 @@ impl FromDef for PlanetClassDef {
             star: def.flag("star"),
             asteroid: def.flag("asteroid"),
             ringworld: def.flag("ringworld"),
+            habitat: def.flag("habitat"),
+            artificial: def.flag("is_artificial_planet"),
+            astral_scar: def.flag("astral_scar"),
+            district_set: def.scalar("district_set").map(str::to_owned),
             star_gfx: def.scalar("star_gfx") != Some("no"),
             can_be_moon: def.scalar("can_be_moon") != Some("no"),
             climate: def.scalar("climate").map(str::to_owned),

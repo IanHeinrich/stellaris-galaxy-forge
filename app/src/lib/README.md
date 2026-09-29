@@ -29,9 +29,12 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   candidate needs. `planetEdits` builds the ops a planet's page sends for
   its name, size, deposits, modifiers, dig site and anomaly, and the hint
   of a body's Edit chip. `planetModel` is the Model field's rows, usual models
-  first, and the edit a pick sends. `picker` is what the deposit, modifier,
-  dig site and anomaly pickers share: the search, the usual rows first, and the
-  target and edit adapter they add
+  first, and the edit a pick sends. `planetClass` is the Class field's
+  rows, with a colony's narrower choice, and the edit a pick sends.
+  `planetRemoval` is the ops that delete a body or remove its colony and
+  the sentences their confirms ask. `picker` is what the deposit, modifier,
+  dig site and anomaly pickers share: the search, the usual rows first, and
+  the target and edit adapter they add
   through, so a source other than a save can plug in its own adapter
   (`store/planetEditAdapter` holds the save's). `depositPicker` groups
   the deposit types its picker offers into families, sections and chips,

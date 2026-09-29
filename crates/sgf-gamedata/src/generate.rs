@@ -26,6 +26,10 @@ use crate::rng::Rng;
 const DEPOSIT_STREAM: u64 = 0x6465_706F;
 /// Separates the ring draw from the system draw of the same seed.
 const RING_STREAM: u64 = 0x7269_6E67;
+/// The classes the game never spawns, each with the scripted effect that sets its deposits
+/// wherever the game makes one (`common/scripted_effects/archaeology_event_effects.txt`). A
+/// class of no spawn odds that is not listed gets no deposits.
+const DEPOSIT_EFFECTS: [(&str, &str); 1] = [("pc_relic", "relic_world_deposits")];
 /// The `class` of the star classes the game names from its black hole names.
 const BLACK_HOLE: &str = "black_hole";
 
@@ -769,14 +773,25 @@ pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySp
         star: false,
         moon: roll.moon,
     };
-    let mut deposits = Rng::new(seed ^ DEPOSIT_STREAM);
-    Ok(BodySpec {
+    let mut spec = BodySpec {
         class: class.key.clone(),
         size,
         ring,
-        deposits: deposit_roll::roll(gd, &rolled, roll.abundance, &mut deposits, true),
         ..BodySpec::default()
-    })
+    };
+    if class.spawn_odds > 0.0 {
+        let mut deposits = Rng::new(seed ^ DEPOSIT_STREAM);
+        spec.deposits = deposit_roll::roll(gd, &rolled, roll.abundance, &mut deposits, true);
+    } else if let Some(effect) = deposit_effect(gd, &class.key) {
+        body_effects::apply(gd, &effect, &mut spec, &Dlc::of(gd, None));
+    }
+    Ok(spec)
+}
+
+/// What the install's scripted effect for a class the game never spawns runs on its body.
+fn deposit_effect(gd: &GameData, class: &str) -> Option<Vec<body_effects::BodyEffect>> {
+    let (_, effect) = DEPOSIT_EFFECTS.iter().find(|(key, _)| *key == class)?;
+    gd.scripts.effect(effect).map(body_effects::read_effect)
 }
 
 /// The system's own bodies as the roller walks them. The first block whose class is a star's
