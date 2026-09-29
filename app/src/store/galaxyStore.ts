@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { BypassLink } from "../generated/BypassLink";
 import type { CountryNode } from "../generated/CountryNode";
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { GalaxyView } from "../generated/GalaxyView";
@@ -22,6 +23,8 @@ export interface GalaxyState {
   /** A save's waystations, one per station, and the waylines the game derives between them. */
   waystations: Waystation[];
   waylines: Wayline[];
+  /** A save's bypass links as they now read, on their own so an edit of them leaves `galaxy` alone. */
+  bypasses: BypassLink[];
   /** A save's L-Gate outcome as it now reads, on its own so an edit of it leaves `galaxy` alone. */
   lgate: LGate | null;
   /** Current nodes by id, in file order. The truth for positions after deltas. */
@@ -59,6 +62,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   header: [],
   waystations: [],
   waylines: [],
+  bypasses: [],
   lgate: null,
   systems: new Map(),
   nebulae: [],
@@ -80,6 +84,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       header: view.header,
       waystations: view.waystations,
       waylines: view.waylines,
+      bypasses: view.bypasses,
       lgate: view.lgate,
       systems,
       nebulae: view.nebulae,
@@ -114,6 +119,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     const nebulae = delta.nebulae ?? get().nebulae;
     const header = delta.header ?? get().header;
     const waylines = delta.waylines ?? get().waylines;
+    const bypasses = delta.bypasses ?? get().bypasses;
     const lgate = delta.lgate ?? get().lgate;
     const countries = withCountries(get().countries, delta.countries);
     set({
@@ -121,6 +127,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       nebulae,
       header,
       waylines,
+      bypasses,
       lgate,
       countries,
       lastDelta: delta,
@@ -157,6 +164,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       header: [],
       waystations: [],
       waylines: [],
+      bypasses: [],
       lgate: null,
       systems: new Map(),
       nebulae: [],

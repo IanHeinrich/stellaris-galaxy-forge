@@ -5,6 +5,7 @@ use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::session::Session;
+use sgf_core::views::Capabilities;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
@@ -71,6 +72,36 @@ fn a_wormhole_pair_added_between_two_systems() {
     assert!(linked(&reopened.graph, 1, 140));
     assert_eq!(wormholes(&reopened, 1), one);
     assert_eq!(wormholes(&reopened, 140), other);
+}
+
+#[test]
+fn the_edit_result_reports_the_bypass_links_only_when_they_change() {
+    let mut session = open_4_5();
+    let moved = session
+        .apply(Op::MoveSystem {
+            id: 1,
+            x: -150.0,
+            y: 60.0,
+        })
+        .expect("move a system");
+    assert_eq!(session.edit_result(moved).delta.bypasses, None);
+
+    let added = session.apply(add(1, 140)).expect("the add");
+    let links = session
+        .edit_result(added)
+        .delta
+        .bypasses
+        .expect("the links");
+    assert_eq!(links, session.graph.bypasses);
+    assert!(links.contains(&BypassLink::Wormhole { a: 1, b: 140 }));
+
+    let undone = session.undo().expect("undo").expect("an op to undo");
+    let links = session
+        .edit_result(undone)
+        .delta
+        .bypasses
+        .expect("the links");
+    assert!(!links.contains(&BypassLink::Wormhole { a: 1, b: 140 }));
 }
 
 #[test]
@@ -181,6 +212,9 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
 
 #[test]
 fn a_3_x_save_is_refused() {
+    assert!(Capabilities::of(&open_4_5().doc).wormhole_pairs);
+    assert!(Capabilities::of(&open().doc).wormhole_pairs);
+    assert!(!Capabilities::of(&open_3_4().doc).wormhole_pairs);
     for op in [add(0, 1), remove(0, 1)] {
         let error = open_3_4().apply(op).expect_err("a 3.4 save");
         assert!(matches!(error, OpError::SaveTooOld(_)), "{error:?}");

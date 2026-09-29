@@ -68,4 +68,8 @@ lgate: boolean,
 /**
  * An edit can be mirrored across the galaxy's centre.
  */
-symmetry: boolean, };
+symmetry: boolean, 
+/**
+ * A natural wormhole pair can be added between two systems and taken out.
+ */
+wormhole_pairs: boolean, };

@@ -388,6 +388,7 @@ impl Format for Save {
             map_colors: true,
             lgate: true,
             symmetry: false,
+            wormhole_pairs: check_version(doc).is_ok(),
         }
     }
 }

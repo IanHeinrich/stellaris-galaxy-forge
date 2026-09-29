@@ -5,6 +5,7 @@ import { deleteAddedLabel } from "../lib/addSystem";
 import { documentCapabilities } from "../lib/capabilities";
 import { clanMenuItem, nextFreeClan } from "../lib/marauder";
 import { sharedWormholePair } from "../lib/paint";
+import { wormholePairAction, type WormholePairAction } from "../lib/wormholes";
 import { useCanEdit, useFileSessionStore, usePaintLayer } from "../store/fileSessionStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import {
@@ -42,6 +43,7 @@ export function BulkActions({
   const laneLengths = useCanEdit("lane_lengths");
   const canCreate = useCanEdit("create_systems");
   const paint = usePaintLayer();
+  const wormholePairs = useCanEdit("wormhole_pairs");
 
   const counts = useMemo(
     () => ({
@@ -99,7 +101,7 @@ export function BulkActions({
       {connectAll}
       <MeshRow dismiss={dismiss} itemRole={itemRole} />
       {rest}
-      {paint && selection.length === 2 && (
+      {(paint || wormholePairs) && selection.length === 2 && (
         <WormholePairButton
           a={selection[0]}
           b={selection[1]}
@@ -169,7 +171,11 @@ export function MarauderClanButton({
   );
 }
 
-/** Two selected systems under the Paint a Galaxy layer: made a wormhole pair, or parted again. */
+/**
+ * Two selected systems under the Paint a Galaxy layer, or in a save that takes wormhole pairs:
+ * made a wormhole pair, or parted again. In a save it is hidden when either system holds a
+ * natural wormhole or shroud tunnel that does not join the two.
+ */
 export function WormholePairButton({
   a,
   b,
@@ -184,8 +190,15 @@ export function WormholePairButton({
   const linkWormholePair = useEditorStore((s) => s.linkWormholePair);
   const unlinkWormholePair = useEditorStore((s) => s.unlinkWormholePair);
   const systems = useGalaxyStore((s) => s.systems);
-  const shared = sharedWormholePair(systems, a, b);
-  const run = shared === null ? linkWormholePair : unlinkWormholePair;
+  const bypasses = useGalaxyStore((s) => s.bypasses);
+  const save = useCanEdit("wormhole_pairs");
+  const action: WormholePairAction = save
+    ? wormholePairAction(bypasses, a, b)
+    : sharedWormholePair(systems, a, b) === null
+      ? "link"
+      : "unlink";
+  if (action === null) return null;
+  const run = action === "link" ? linkWormholePair : unlinkWormholePair;
   return (
     <button
       type="button"
@@ -195,7 +208,7 @@ export function WormholePairButton({
         void run(a, b);
       }}
     >
-      {shared === null ? "Link as wormhole pair" : "Unlink wormhole pair"}
+      {action === "link" ? "Link as wormhole pair" : "Unlink wormhole pair"}
     </button>
   );
 }

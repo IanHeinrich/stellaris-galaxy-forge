@@ -21,8 +21,7 @@ function MegastructureRowView({
   system: number;
 }) {
   const owner = useCountryName(megastructure.owner);
-  const galaxy = useGalaxyStore((s) => s.galaxy);
-  const bypasses = galaxy?.bypasses ?? [];
+  const bypasses = useGalaxyStore((s) => s.bypasses);
   const names = useGameDataStore((s) => s.names);
   const opener = useOpenEntity();
   const orbits = useDetailsStore((s) =>

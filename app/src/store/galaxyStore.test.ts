@@ -77,6 +77,20 @@ describe("galaxyStore", () => {
     expect(useGalaxyStore.getState().waystations).toEqual([station]);
   });
 
+  it("applyDelta replaces the bypass links when a delta carries them, leaving the galaxy object", () => {
+    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
+    const galaxy = useGalaxyStore.getState().galaxy;
+    expect(useGalaxyStore.getState().bypasses).toEqual(OPEN_RESULT.galaxy.bypasses);
+
+    useGalaxyStore.getState().applyDelta({ systems: [] });
+    expect(useGalaxyStore.getState().bypasses).toEqual(OPEN_RESULT.galaxy.bypasses);
+
+    const links = [...OPEN_RESULT.galaxy.bypasses, { type: "wormhole", a: 0, b: 3 } as const];
+    useGalaxyStore.getState().applyDelta({ systems: [], bypasses: links });
+    expect(useGalaxyStore.getState().bypasses).toBe(links);
+    expect(useGalaxyStore.getState().galaxy).toBe(galaxy);
+  });
+
   it("applyDelta drops every removed system from the map and the grid", () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     const before = useGalaxyStore.getState();

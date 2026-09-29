@@ -273,12 +273,12 @@ function WormholeRow({ system, hole }: { system: number; hole: WormholeSummary }
  */
 export function BypassSection({ system }: { system: number }) {
   const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const galaxy = useGalaxyStore((s) => s.galaxy);
+  const links = useGalaxyStore((s) => s.bypasses);
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const kinds = useGameDataStore((s) => s.bypasses);
   const holes = useDetailsStore((s) => s.details.get(system)?.wormholes) ?? NO_WORMHOLES;
   const listed = new Set(holes.map((hole) => hole.kind));
-  const others = (galaxy?.bypasses ?? []).filter((b) =>
+  const others = links.filter((b) =>
     b.type === "wormhole" ? !listed.has("wormhole") : b.type !== "other" || !listed.has(b.kind),
   );
   const icons = bypassIcons(others, system, kinds);

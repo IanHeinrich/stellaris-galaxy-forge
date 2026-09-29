@@ -125,6 +125,8 @@ pub struct Capabilities {
     pub lgate: bool,
     /// An edit can be mirrored across the galaxy's centre.
     pub symmetry: bool,
+    /// A natural wormhole pair can be added between two systems and taken out.
+    pub wormhole_pairs: bool,
 }
 
 impl Capabilities {
@@ -405,6 +407,10 @@ pub struct GalaxyDelta {
     /// galaxy connects; the map replaces the waylines it draws.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waylines: Option<Vec<Wayline>>,
+    /// The whole bypass link list, present only when an op changed the galaxy's wormholes,
+    /// gateways or other bypasses; the map replaces the links it draws.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bypasses: Option<Vec<BypassLink>>,
     /// The L-Gate as it now reads, present only when an op rewrote the global flags.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lgate: Option<LGate>,
