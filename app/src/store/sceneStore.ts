@@ -33,6 +33,10 @@ export interface SceneState {
   lockBody(id: number): void;
   unlockBody(id: number): void;
   clearLocks(): void;
+  /** The body the system view last asked to be centred on; the nonce tells one ask from the next. */
+  bodyFocus: { id: number; nonce: number } | null;
+  /** Centres the system view on body `id` of the system shown, once its layout places it. */
+  focusBody(id: number): void;
   /** Shows system `id`; `bindStores` selects it and clears the galaxy's tool, menu and overlays. */
   enterSystem(id: number): void;
   /** Back to the galaxy, leaving the inspector as it is; `backToGalaxy` is the user's way out. */
@@ -97,6 +101,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   roll: 0,
   linkedBody: null,
   lockedBodies: NO_LOCKS,
+  bodyFocus: null,
 
   rollAgain() {
     if (!canRollAgain()) return;
@@ -122,6 +127,10 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   clearLocks() {
     if (get().lockedBodies.size > 0) set({ lockedBodies: NO_LOCKS });
+  },
+
+  focusBody(id) {
+    set({ bodyFocus: { id, nonce: (get().bodyFocus?.nonce ?? 0) + 1 } });
   },
 
   enterSystem(id) {

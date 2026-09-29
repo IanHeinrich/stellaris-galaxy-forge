@@ -48,6 +48,11 @@ a release is made.
 - Saves on the Open screen and in the File menu's recent list show the
   name you gave the save. The Saves tab shows its date underneath.
 
+### Fixed
+
+- Moving a planet with its System field in the system view shows the new
+  system, centred on the planet.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added
