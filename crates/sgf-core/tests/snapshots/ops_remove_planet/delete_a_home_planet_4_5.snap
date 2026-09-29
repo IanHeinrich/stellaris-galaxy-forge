@@ -1,0 +1,78 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #726
+details stale: [18]
+inverse: Restored planet #726
+
+  System: 18
+  Planet: 726
+
+--- gamestate
++++ gamestate
+@@ -30167,7 +30167,6 @@
+ 		}
+ 		planet=724
+ 		planet=725
+-		planet=726
+ 		planet=727
+ 		planet=728
+ 		star_class="sc_m_giant"
+@@ -117209,55 +117208,7 @@
+ 			bombardment_damage=0
+ 			entity=1
+ 		}
+-		726=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=25
+-			carrier_binary_flags=1
+-			build_queue=843
+-			name=
+-			{
+-				key="PLANET_NAME_FORMAT"
+-				variables=
+-				{
+-					
+-					{
+-						key="PARENT"
+-						value=
+-						{
+-							key="Siplim"
+-						}
+-					}
+- 
+-					{
+-						key="NUMERAL"
+-						value=
+-						{
+-							key="II"
+-							literal=yes
+-						}
+-					}
+- 
+-				}
+-			}
+-			coordinate=
+-			{
+-				x=-62.81336
+-				y=68.26393
+-				origin=18
+-			}
+-			orbit=92.76
+-			last_bombardment=			"0.01.01"
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			flags=
+-			{
+-				guardians_artists_planet=62808000
+-			}
+-			entity=1
+-		}
++		726=none
+ 		727=
+ 		{
+ 			planet_class="pc_molten"

@@ -2,6 +2,7 @@
 
 mod common;
 
+mod add_body;
 mod add_system;
 mod capabilities;
 mod edit;
@@ -9,6 +10,7 @@ mod gamedata;
 mod listing;
 mod move_planet;
 mod nebula;
+mod remove_planet;
 mod scenario;
 mod session;
 mod update;

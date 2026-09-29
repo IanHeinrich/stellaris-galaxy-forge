@@ -226,6 +226,44 @@ for planets or deposits.
   no refund. District caps aren't in the save. A finished terraform
   retypes the planet's deposits in place, added ones too. So the editor
   writes only the entry and the planet's list, on a colony as elsewhere.
+- When the game removes a planet (`remove_planet`), its entry becomes
+  `<id>=none` in place and its `planet=` line leaves the system. Planet
+  57 of the 4.5 sample is one. At load the game strips a deposit's
+  `deposit_holder` that names a dead planet, and it plays on with a
+  moon whose `moon_of` names one, a parent whose `moons` lists a dead
+  moon, and survey lists and orphaned construction queues that name
+  one (4.5.1). The editor deletes a planet with the tombstone and the
+  line alone. It takes the moons too, and a moon deleted on its own
+  leaves its parent's `moons`.
+- A planet deleted with its colony still standing crashes the game on
+  load. The colony's `carrier` and its pop groups reach the dead planet
+  (4.5.1).
+- `destroy_colony` keeps the planet. It loses `owner`, `controller`,
+  `colonize_date` and `orbital_defence`. The pop groups, jobs and
+  defence armies go, the colony leaves the system's `colonies` and the
+  owner's `owned_planets` and `controlled_colonies`, and the planet
+  leaves `controlled_planets`. The owner's queues at the planet get
+  `owner=4294967295`. The orbital ring's starbase and its `build_queue`
+  become `=none`, and an event then places a ruined ring. When the
+  editor removes a colony, it also tombstones the colony, its districts,
+  zones and buildings, the ring's ship and fleet, and the construction
+  items in the ring's queues, whose `items` list them. It takes the
+  planet's `colony` key and the ring out of the system's `starbases` and
+  `fleet_presence` and the owner's `owned_fleets`. It writes no ruin. A
+  planet's `orbital_defence` can name the system's own starbase instead,
+  such as a fallen empire's citadel (4.5 sample, planet 318); that one
+  stays and the planet only loses the key.
+  Branch offices, faction members, fleets parked at the planet and caches
+  are left to the game. After its own removal the game dropped the first
+  two within a month; left by the editor, they have not been tried in
+  game.
+- A country's `capital` is a colony id. A colony names what it builds in
+  `construction.item_mgr.items` by `planet=<colony>` inside the item's
+  `buildable_*` block, and its queues are the planet's `build_queue` and
+  the colony's `army_build_queue`. A queue lists its items in `items`.
+  The editor leaves a removed colony's `capital`, a species'
+  `home_planet` and the items in queues it leaves without an owner for
+  the game. That has not been tried in game.
 - A system the game spawns by script is a `galactic_object` entry with
   its keys in this order, and the editor writes an added system the same
   way: `coordinate={ x y origin=4294967295 visual_height }`, `name`,
@@ -367,6 +405,24 @@ for planets or deposits.
   day-one sample, such as `pm_extensive_moon_system`, have only the
   line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
   and `planet_modifier` after `entity`.
+- A planet's anomaly is `anomaly="<category>"`, the category's key in
+  `common/anomalies`, written right after `planet_orbitals`. A country
+  that has found it lists the planet in its `events.anomalies`, a list
+  of planet ids written before `situations`, laid out like `deposits`.
+  A country with none has no `anomalies` at all. The 4.5 sample has 12
+  anomalies, 3 of them found, and the 4.4 sample 19, with 10 found.
+- The game lists an anomaly for a country only when that country's
+  survey turns it up. A key alone on a planet the player has already
+  surveyed is never listed (4.5.1, in a month of play), so the editor
+  lists an added one for the player itself. On a planet the player
+  hasn't surveyed it writes the key alone: planet 2090 of the 4.4 sample
+  is listed by the country that surveyed it after the key was placed.
+- A country's `surveyed_deposit_holders` holds `{ type=0 id=<planet> }`
+  for every planet it has surveyed. A planet's `surveyed_by` names only
+  the first country to survey it. The home system's planets are in the
+  player's list from day one without a `surveyed_by`.
+- Stellaris 3.4 writes `anomaly` the same way but has no
+  `events.anomalies`, so the editor refuses anomaly edits before 4.0.
 - A dig site is an entry of the top-level
   `archaeological_sites={ sites={ <id>={ … } } }`. The ids run up from 0
   with no counter. While a fleet excavates a site, the site's
@@ -406,6 +462,11 @@ for planets or deposits.
   - the `terra_incognita` and `visited_objects` entries of countries
     that know every system
   - `randomized=yes` on the coordinate
+- A planet or moon the editor adds to a system the save holds is written
+  the same way as an added system's bodies. The system lists it after its
+  last `planet=`, and a moon's planet lists it in `moons`. On 4.5.1 the
+  game gave each such body a construction queue at load, in an owned and
+  an unowned system alike, and the body loaded unsurveyed.
 - A nebula is a top-level `nebula={ coordinate name radius
   galactic_object=... }`. It is written as `coordinate={ x y
   origin=4294967295 randomized=yes visual_height=3.65056 }`,

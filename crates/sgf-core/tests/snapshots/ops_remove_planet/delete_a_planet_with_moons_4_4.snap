@@ -1,0 +1,115 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #81 and its 2 moons
+details stale: [192]
+inverse: Restored planet #81 and its 2 moons
+
+  System: 192
+  Planet: 81 82 83
+
+--- gamestate
++++ gamestate
+@@ -42436,9 +42436,6 @@
+ 		planet=78
+ 		planet=79
+ 		planet=80
+-		planet=81
+-		planet=82
+-		planet=83
+ 		planet=84
+ 		star_class="sc_binary_8"
+ 		hyperlane=
+@@ -96239,88 +96236,9 @@
+ 			bombardment_damage=0
+ 			entity=2
+ 		}
+-		81=
+-		{
+-			planet_class="pc_gas_giant"
+-			planet_size=25
+-			carrier_binary_flags=1
+-			build_queue=248
+-			name=
+-			{
+-				key="HUM4_PLANET_Pegans"
+-			}
+-			binary_flags=328
+-			coordinate=
+-			{
+-				x=180.55815
+-				y=-41.55285
+-				origin=192
+-			}
+-			orbit=185
+-			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				82 83 
+-			}
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			planet_modifier="pm_extensive_moon_system"
+-			entity=4
+-		}
+-		82=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=9
+-			carrier_binary_flags=1
+-			build_queue=249
+-			name=
+-			{
+-				key="HUM4_PLANET_Lupodek"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=194.70135
+-				y=-46.58445
+-				origin=192
+-			}
+-			orbit=15
+-			last_bombardment=			"0.01.01"
+-			moon_of=81
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
+-		83=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=8
+-			carrier_binary_flags=1
+-			build_queue=250
+-			name=
+-			{
+-				key="HUM4_PLANET_Algaremo"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=169.96355
+-				y=-58.52065
+-				origin=192
+-			}
+-			orbit=20
+-			last_bombardment=			"0.01.01"
+-			moon_of=81
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			entity=1
+-		}
++		81=none
++		82=none
++		83=none
+ 		84=
+ 		{
+ 			planet_class="pc_gas_giant"

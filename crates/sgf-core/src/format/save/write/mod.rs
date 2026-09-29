@@ -7,7 +7,9 @@
 //!
 //! One module per op or per thing an op writes, each named for it.
 
+pub(crate) mod add_body;
 pub(crate) mod add_system;
+pub(crate) mod anomaly;
 pub(crate) mod asteroid_names;
 pub(crate) mod belts;
 pub(crate) mod bodies;
@@ -31,6 +33,7 @@ pub(crate) mod planet_entity;
 pub(crate) mod planet_modifier;
 pub(crate) mod planet_ring;
 pub(crate) mod planet_size;
+pub(crate) mod remove_planet;
 pub(crate) mod remove_system;
 pub(crate) mod rename_planet;
 pub(crate) mod rename_system;

@@ -7,7 +7,8 @@ use sgf_core::ops::{ClassChange, Op, PlanetClassRule, PlanetLook};
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
+use common::diff::{round_trip, round_trip_step, snapshot_step};
+use common::examples::{ADDED_BODY, meissa_v};
 use common::{SAMPLE_4_5, current, open_3_4, open_4_5, open_edited_sample};
 
 /// What the install says of `class`, as far as these tests need it.
@@ -106,6 +107,23 @@ fn the_inverse_puts_back_a_model_and_its_index() {
         "pc_barren",
         "class_model_and_index_4_5",
     );
+}
+
+/// Meissa V, added this session as a barren world, becomes an ocean world, and undo and the
+/// inverse each put back the planet as it was added.
+#[test]
+fn a_planet_added_this_session_changes_class() {
+    let mut session = open_4_5();
+    session.apply(meissa_v()).expect("add Meissa V");
+    let added = current(&session);
+    let result = round_trip_step(
+        &mut session,
+        "class of an added planet",
+        set(ADDED_BODY, "pc_barren", "pc_ocean"),
+    );
+    assert_eq!(look(&session, ADDED_BODY), ("pc_ocean".to_owned(), None));
+    session.apply(result.inverse).expect("apply the inverse");
+    assert_eq!(current(&session), added);
 }
 
 #[test]

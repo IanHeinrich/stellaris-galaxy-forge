@@ -1,0 +1,73 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted moon #12
+details stale: [217]
+inverse: Restored moon #12
+
+  System: 217
+  Planet: 10 12
+
+--- gamestate
++++ gamestate
+@@ -44189,7 +44189,6 @@
+ 		planet=9
+ 		planet=10
+ 		planet=11
+-		planet=12
+ 		planet=13
+ 		planet=14
+ 		planet=15
+@@ -93803,7 +93802,7 @@
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				11 12 13 14 
++				11 13 14 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -93846,41 +93845,7 @@
+ 			}
+ 			entity=2
+ 		}
+-		12=
+-		{
+-			planet_class="pc_frozen"
+-			planet_size=6
+-			carrier_binary_flags=3
+-			build_queue=183
+-			name=
+-			{
+-				key="NAME_Europa"
+-			}
+-			binary_flags=585
+-			coordinate=
+-			{
+-				x=-98.93041
+-				y=-145.85289
+-				origin=217
+-			}
+-			orbit=18.5
+-			last_bombardment=			"0.01.01"
+-			moon_of=10
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			flags=
+-			{
+-				moon_europa=62808000
+-				starting_deposit=62808000
+-			}
+-			entity=0
+-			deposits=
+-			{
+-				28 
+-			}
+-		}
++		12=none
+ 		13=
+ 		{
+ 			planet_class="pc_frozen"

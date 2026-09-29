@@ -7,6 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
+import * as dialog from "@tauri-apps/plugin-dialog";
 import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -17,6 +18,7 @@ import {
   SCENARIO_RESULT,
   countryNode,
   detailOf,
+  editResult,
   name,
   node,
   planetSummary,
@@ -36,13 +38,16 @@ import { useDetailsStore } from "../../store/detailsStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { buttons, escaped, menuItem } from "../../test/elements";
-import { drawnBy, drawnButton } from "../../test/drawn";
-import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
+import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
+import { orbitClasses, orbitSystem, planetPage, saveBody } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
 import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
+import { MenuItem } from "./contextMenu/MenuItem";
+import type { BodyClassPick } from "../../generated/BodyClassPick";
+import { useGeneratorStore } from "../../store/generatorStore";
 import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
@@ -560,7 +565,7 @@ describe("the system view's menus", () => {
     let html = menu();
     expect(html).toContain('<div class="context-menu-header">Earth</div>');
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete planet<\/button>/);
     expect(html).toContain('class="context-menu-separated">Back to galaxy</button>');
 
     useLayoutStore.setState({ tab: "issues" });
@@ -584,6 +589,34 @@ describe("the system view's menus", () => {
     await openWith(SCENARIO_RESULT);
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
+  });
+
+  it("deletes a save body after asking, and offers no deletion on a scenario", async () => {
+    useSceneStore.getState().enterSystem(0);
+    const moon = planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true });
+    useDetailsStore.setState({
+      details: new Map([[0, systemDetails({ id: 0, planets: [moon] })]]),
+    });
+    const body = { kind: "body", system: 0, id: 13 } as const;
+    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
+    expect(menu()).toContain(">Delete moon</button>");
+
+    vi.mocked(ipc.getPlanetPage).mockResolvedValue(planetPage({ id: 13 }));
+    vi.mocked(dialog.confirm).mockResolvedValue(true);
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    menuItem(<BodyMenu target={body} frame={{}} />, "Delete moon").props.onClick();
+    await vi.waitFor(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 13 }),
+    );
+    expect(dialog.confirm).toHaveBeenCalledWith(
+      "Delete Luna? The moon is removed from the save.",
+      expect.objectContaining({ kind: "warning" }),
+    );
+
+    await openWith(SCENARIO_RESULT);
+    useSceneStore.getState().enterSystem(0);
+    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
+    expect(menu()).not.toContain("Delete");
   });
 });
 
@@ -704,6 +737,105 @@ describe("the system view's empty space", () => {
     const html = menu();
     expect(html).not.toContain("Add belt here");
     expect(html).toContain(">Back to galaxy</button>");
+  });
+});
+
+describe("adding a planet or moon in the system view", () => {
+  const space = { kind: "systemSpace", system: 0, x: 90, y: -120 } as const;
+  const body = (id: number) => ({ kind: "body", system: 0, id }) as const;
+  const desert: BodyClassPick = { key: "pc_desert", name: "Desert", min_size: 10, max_size: 25 };
+  const barren: BodyClassPick = { key: "pc_barren", name: "Barren", min_size: 5, max_size: 5 };
+
+  beforeEach(() => {
+    useSceneStore.getState().enterSystem(0);
+    const planets = orbitSystem({ id: 0 }).planets.map((p) => ({
+      ...p,
+      name: name(`P${p.id}`),
+      name_key: `P${p.id}`,
+    }));
+    useDetailsStore.setState({ details: new Map([[0, systemDetails({ id: 0, planets })]]) });
+    useGameDataStore.setState({ status: "ready", planetClasses: orbitClasses() });
+    useGeneratorStore.setState({ planetClasses: [desert], moonClasses: [barren] });
+    vi.mocked(ipc.addBody).mockResolvedValue({
+      edit: editResult({ details_stale: [0] }),
+      planet: 20,
+    });
+  });
+
+  const menuOn = (target: ContextTarget) => {
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    return menu();
+  };
+
+  /** The row of the class list named `label` that the last render drew. */
+  const row = (label: string) =>
+    lastDrawn(
+      ({ type, props }) =>
+        type === MenuItem &&
+        (Array.isArray(props.children) ? props.children : [props.children]).includes(label),
+      `row ${label}`,
+    ) as { run(): unknown };
+
+  it("offers a planet on a save's empty space, and adds the class picked where it was pressed, selected with its page open once its details land", async () => {
+    const html = drawnBy(() => menuOn(space));
+    expect(html).toContain('Add planet here<span class="context-submenu-caret"');
+    expect(html.indexOf("Add planet here")).toBeLessThan(html.indexOf("Back to galaxy"));
+    expect(html).not.toMatch(/aria-haspopup="menu"[^>]*disabled=""/);
+
+    await row("Desert").run();
+    expect(ipc.addBody).toHaveBeenCalledWith(
+      0,
+      null,
+      "pc_desert",
+      null,
+      150,
+      307,
+      expect.any(Number),
+    );
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "planet", id: 20 });
+
+    const read = useDetailsStore.getState().details.get(0)!;
+    const added = planetSummary({ id: 20, class: "pc_desert", name: name("P20"), name_key: "P20" });
+    useDetailsStore.setState({
+      details: new Map([[0, { ...read, planets: [...read.planets, added] }]]),
+    });
+    expect(usePlanetMoveStore.getState().selection).toEqual({ system: 0, ids: [20] });
+  });
+
+  it("rolls a random planet, of no class asked for", async () => {
+    drawnBy(() => menuOn(space));
+    await row("Random").run();
+    expect(ipc.addBody).toHaveBeenCalledWith(0, null, null, null, 150, 307, expect.any(Number));
+  });
+
+  it("stays without game data, disabled, with the reason under it", () => {
+    useGameDataStore.setState({ status: "idle" });
+    const html = menuOn(space);
+    expect(html).toMatch(/aria-haspopup="menu"[^>]*disabled=""/);
+    expect(html).toContain("Load game data to add a planet or moon.");
+  });
+
+  it("offers a moon of a planet on the next moon ring, and none of a moon, the star or an asteroid", async () => {
+    const html = drawnBy(() => menuOn(body(2)));
+    expect(html).toContain('Add moon<span class="context-submenu-caret"');
+    await row("Barren").run();
+    expect(ipc.addBody).toHaveBeenCalledWith(0, 2, "pc_barren", null, 25, 0, expect.any(Number));
+
+    for (const id of [1, 3, 6]) expect(menuOn(body(id))).not.toContain("Add moon");
+  });
+
+  it("is not offered on a scenario or an Ironman save", async () => {
+    useFileSessionStore.setState({
+      capabilities: { ...useFileSessionStore.getState().capabilities!, added_systems: false },
+    });
+    expect(menuOn(space)).not.toContain("Add planet here");
+    expect(menuOn(body(2))).not.toContain("Add moon");
+
+    await openWith(SCENARIO_RESULT);
+    useSceneStore.getState().enterSystem(0);
+    expect(menuOn(space)).not.toContain("Add planet here");
+    expect(menuOn(body(2))).not.toContain("Add moon");
   });
 });
 

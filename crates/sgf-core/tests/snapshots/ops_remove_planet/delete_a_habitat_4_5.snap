@@ -1,0 +1,89 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #6268
+details stale: [596]
+inverse: Restored planet #6268
+
+  System: 596
+  Planet: 6267 6268
+
+--- gamestate
++++ gamestate
+@@ -71105,7 +71105,6 @@
+ 		}
+ 		planet=6266
+ 		planet=6267
+-		planet=6268
+ 		planet=6269
+ 		planet=6270
+ 		planet=6271
+@@ -407596,10 +407595,6 @@
+ 			}
+ 			orbit=243.18
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				6268 
+-			}
+ 			planet_orbitals=
+ 			{
+ 			}
+@@ -407610,55 +407605,7 @@
+ 			}
+ 			entity=4
+ 		}
+-		6268=
+-		{
+-			planet_class="pc_habitat"
+-			planet_size=10
+-			carrier_binary_flags=1
+-			build_queue=6493
+-			name=
+-			{
+-				key="paradisiacal_habitat_science"
+-			}
+-			binary_flags=65
+-			coordinate=
+-			{
+-				x=4.82169
+-				y=236.77745
+-				origin=596
+-			}
+-			orbit=9.899
+-			last_bombardment=			"0.01.01"
+-			moon_of=6267
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="paradisiacal_habitat_science"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				megastructure=62808000
+-				habitat=62808000
+-				habitat_level_10=62808000
+-			}
+-			entity=0
+-			entity_name="mammalian_01_habitat_phase_03_entity"
+-			deposits=
+-			{
+-				3951 
+-			}
+-		}
++		6268=none
+ 		6269=
+ 		{
+ 			planet_class="pc_gas_giant"

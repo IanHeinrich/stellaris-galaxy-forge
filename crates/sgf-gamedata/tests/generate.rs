@@ -7,12 +7,15 @@ use crate::common;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
-use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, free_star_names};
+use sgf_core::ops::{BeltSpec, BodySpec, NewBody, Op, SystemSpec, free_star_names};
 use sgf_core::session::Session;
+use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::{BodyEffect, Dropping};
 use sgf_gamedata::condition::Condition;
-use sgf_gamedata::generate::{GenerateError, generate, generate_layout_for, star_classes};
+use sgf_gamedata::generate::{
+    BodyRoll, GenerateError, body_classes, generate, generate_layout_for, roll_body, star_classes,
+};
 use sgf_gamedata::install::script::Range;
 use sgf_gamedata::layouts::{SaveFacts, plain_initializers, special_initializers};
 use sgf_gamedata::naming::{pick_system_name, pick_unused};
@@ -1019,4 +1022,153 @@ fn deposits_are_drawn_apart_so_a_seed_rolls_the_same_bodies_at_any_abundance() {
         assert_eq!(bare(most), none, "seed {seed}");
     }
     assert_eq!(with, 200, "every star rolls one");
+}
+
+fn lone(class: Option<&str>, moon: bool, orbit: f64) -> BodyRoll<'_> {
+    BodyRoll {
+        star_class: "sc_sun",
+        class,
+        size: None,
+        moon,
+        orbit,
+        abundance: ABUNDANCE,
+    }
+}
+
+#[test]
+fn a_lone_body_is_rolled_from_the_classes_that_spawn_where_it_stands() {
+    let (_dir, gd) = hand_written();
+    let keys = |moon| -> Vec<&str> {
+        body_classes(&gd, moon)
+            .iter()
+            .map(|c| c.key.as_str())
+            .collect()
+    };
+    assert_eq!(keys(false), ["pc_meadow", "pc_puff", "pc_rock"]);
+    assert_eq!(
+        keys(true),
+        ["pc_meadow", "pc_rock"],
+        "pc_puff cannot be a moon"
+    );
+
+    let mut near = BTreeSet::new();
+    let mut moons = BTreeSet::new();
+    let mut far = BTreeSet::new();
+    for seed in 0..200 {
+        let planet = roll_body(&gd, seed, &lone(None, false, 20.0)).expect("a planet");
+        near.insert(planet.class.clone());
+        let range = gd.planet_classes.get(&planet.class).unwrap().planet_size;
+        assert!(within(planet.size, range.unwrap()), "seed {seed}");
+        let moon = roll_body(&gd, seed, &lone(None, true, 80.0)).expect("a moon");
+        assert!(!moon.ring, "a moon has no ring");
+        moons.insert(moon.class);
+        far.insert(
+            roll_body(&gd, seed, &lone(None, false, 5000.0))
+                .unwrap()
+                .class,
+        );
+    }
+    assert_eq!(
+        near,
+        BTreeSet::from(["pc_rock".to_owned()]),
+        "only rock spawns at 20"
+    );
+    assert_eq!(
+        moons,
+        BTreeSet::from(["pc_meadow".to_owned(), "pc_rock".to_owned()])
+    );
+    assert_eq!(
+        far,
+        BTreeSet::from([
+            "pc_meadow".to_owned(),
+            "pc_puff".to_owned(),
+            "pc_rock".to_owned()
+        ]),
+        "past every band, any class"
+    );
+}
+
+#[test]
+fn a_lone_body_keeps_the_class_and_size_asked_for() {
+    let (_dir, gd) = hand_written();
+    for seed in 0..50 {
+        let sized = BodyRoll {
+            size: Some(17),
+            ..lone(Some("pc_meadow"), false, 300.0)
+        };
+        let planet = roll_body(&gd, seed, &sized).expect("a meadow");
+        assert_eq!((planet.class.as_str(), planet.size), ("pc_meadow", 17));
+        let moon = roll_body(&gd, seed, &lone(Some("pc_rock"), true, 10.0)).expect("a moon");
+        assert!((5..=8).contains(&moon.size), "a moon's size range");
+    }
+    assert_eq!(
+        roll_body(&gd, 1, &lone(Some("pc_nowhere"), false, 50.0)),
+        Err(GenerateError::UnknownPlanetClass("pc_nowhere".to_owned()))
+    );
+    let unknown_star = BodyRoll {
+        star_class: "sc_nowhere",
+        ..lone(None, false, 50.0)
+    };
+    assert_eq!(
+        roll_body(&gd, 1, &unknown_star),
+        Err(GenerateError::UnknownStar("sc_nowhere".to_owned()))
+    );
+}
+
+/// Bodies rolled from the real install join Meissa (408) of the 4.5 sample, a planet and a moon
+/// of Meissa IV, each with the deposits it rolled.
+#[test]
+fn bodies_rolled_from_the_real_install_are_added_to_a_save() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let mut session = common::open_4_5();
+    let planet = roll_body(
+        gd,
+        7,
+        &BodyRoll {
+            star_class: "sc_b",
+            class: None,
+            size: None,
+            moon: false,
+            orbit: 170.0,
+            abundance: ABUNDANCE,
+        },
+    )
+    .expect("a planet");
+    let moon = roll_body(
+        gd,
+        8,
+        &BodyRoll {
+            star_class: "sc_b",
+            class: Some("pc_barren"),
+            size: None,
+            moon: true,
+            orbit: 145.0,
+            abundance: ABUNDANCE,
+        },
+    )
+    .expect("a moon");
+    for (spec, moon_of, radius) in [(planet, None, 170.0), (moon, Some(138), 15.0)] {
+        let class = gd.planet_classes.get(&spec.class).expect("a real class");
+        assert!(body_classes(gd, moon_of.is_some()).contains(&class));
+        session
+            .apply(Op::AddSaveBody {
+                system: 408,
+                spec: NewBody {
+                    class: spec.class,
+                    size: spec.size,
+                    moon_of,
+                    name: None,
+                    deposits: spec.deposits,
+                    ring: spec.ring,
+                },
+                at: OrbitPlacement {
+                    radius,
+                    angle: 90.0,
+                },
+            })
+            .expect("the op takes the rolled body");
+    }
+    assert_eq!(session.system(408).expect("Meissa").planet_count, 7);
 }

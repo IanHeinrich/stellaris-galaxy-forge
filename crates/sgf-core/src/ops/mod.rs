@@ -27,7 +27,8 @@ pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths, spliced};
 pub use op::{
     ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud,
-    NebulaFootprint, NewSystem, Op, OpError, PlanetClassRule, PlanetLook, StarBody, SystemMove,
+    NebulaFootprint, NewBody, NewSystem, Op, OpError, PlanetClassRule, PlanetLook, SavedEntity,
+    SavedTable, StarBody, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 pub use rules::bodies::{

@@ -37,11 +37,11 @@ use crate::scan::Value;
 use crate::session::Session;
 
 const STAR_NAME: &str = "STAR_NAME_1_OF_1";
-const PLANET_NAME: &str = "PLANET_NAME_FORMAT";
-const MOON_NAME: &str = "SUBPLANET_NAME_FORMAT";
+pub(crate) const PLANET_NAME: &str = "PLANET_NAME_FORMAT";
+pub(crate) const MOON_NAME: &str = "SUBPLANET_NAME_FORMAT";
 pub(crate) const NAME_VAR: &str = "NAME";
 pub(crate) const PARENT_VAR: &str = "PARENT";
-const NUMERAL_VAR: &str = "NUMERAL";
+pub(crate) const NUMERAL_VAR: &str = "NUMERAL";
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -487,7 +487,7 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
     placed
 }
 
-fn format(key: &str, variables: Vec<(&str, NameTemplate)>) -> NameTemplate {
+pub(crate) fn format(key: &str, variables: Vec<(&str, NameTemplate)>) -> NameTemplate {
     NameTemplate {
         key: key.to_owned(),
         literal: false,
@@ -501,7 +501,7 @@ fn format(key: &str, variables: Vec<(&str, NameTemplate)>) -> NameTemplate {
     }
 }
 
-fn literal(text: &str) -> NameTemplate {
+pub(crate) fn literal(text: &str) -> NameTemplate {
     NameTemplate {
         literal: true,
         ..NameTemplate::plain(text)
@@ -509,7 +509,7 @@ fn literal(text: &str) -> NameTemplate {
 }
 
 /// `a`, `b`, … `z`, `aa`, `ab`, …
-fn letter(index: usize) -> String {
+pub(crate) fn letter(index: usize) -> String {
     let this = char::from(b'a' + (index % 26) as u8);
     match index / 26 {
         0 => this.to_string(),
@@ -574,7 +574,7 @@ pub(crate) fn check_contents(spec: &SystemSpec) -> Result<(), OpError> {
     Ok(())
 }
 
-fn check_body(body: &BodySpec) -> Result<(), OpError> {
+pub(crate) fn check_body(body: &BodySpec) -> Result<(), OpError> {
     check_text("a planet class", &body.class, Form::Bare)?;
     if body.size == 0 {
         return Err(OpError::ZeroPlanetSize);

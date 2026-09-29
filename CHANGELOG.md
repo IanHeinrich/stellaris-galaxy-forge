@@ -10,6 +10,22 @@ a release is made.
 
 ### Added
 
+- Delete a planet or moon from a save, from the system view's right-click
+  menu or from its page. A planet's moons go with it, and so does any
+  colony on it.
+- Remove a colony and keep its planet with Remove colony on the planet's
+  page. The colony's pops, buildings, defence armies and orbital ring go.
+- Stars, ring worlds and a few other bodies can't be deleted. The menu
+  and the page say why.
+- Add an anomaly to a planet or moon in a save, or remove one, from its
+  page. If you have already surveyed the planet, the anomaly is ready to
+  research. Otherwise it turns up when a science ship surveys it.
+- Add a planet or moon to a system in a save. In the system view,
+  right-click empty space and choose Add planet here, or right-click a
+  planet and choose Add moon. Pick a planet class or Random. Its size and
+  deposits are rolled by the game's rules, and it takes the next free
+  numeral or letter, such as Meissa V. This needs game data and a
+  Stellaris 4.x save that isn't Ironman.
 - Add an archaeological dig site to a save planet, or remove one, from
   its page in the Inspector. The page shows the site's stage and clues.
 - A dig site's description shows on its planet's page and in the Add

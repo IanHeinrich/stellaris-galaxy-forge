@@ -50,6 +50,8 @@ export interface PlanetMoveState {
   checks: ReadonlyMap<string, PlanetMoveCheck>;
   /** Selects body `id` of `system` alone; the caller opens its page. */
   selectBody(system: number, id: number): void;
+  /** Selects body `id` of `system` alone, with its page open. */
+  showBody(system: number, id: number): void;
   /**
    * Adds body `id` to the selection, or takes it out. A body of another system starts a new
    * selection, and so does any toggle on a document whose planets cannot move. When one body is
@@ -181,6 +183,10 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
 
     selectBody(system, id) {
       select({ system, ids: [id] });
+    },
+
+    showBody(system, id) {
+      showAlone(system, id);
     },
 
     toggleBody(system, id) {

@@ -2,6 +2,7 @@ import type { StoreApi } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditResult } from "../generated/EditResult";
 import type { SaveMeta } from "../generated/SaveMeta";
+import { BODIES_NEED_GAME_DATA } from "../lib/addBody";
 import { addSystemRefusal, type AddRefusal } from "../lib/addSystem";
 import { newSeed } from "../lib/random";
 import {
@@ -17,10 +18,11 @@ import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
+import { usePlanetMoveStore } from "./planetMoveStore";
 
 type AddSystemActions = Pick<
   EditorState,
-  "addRandomSystemAt" | "addSpecialSystemAt" | "rerollSystem" | "renameAddedSystem"
+  "addRandomSystemAt" | "addSpecialSystemAt" | "addBodyAt" | "rerollSystem" | "renameAddedSystem"
 >;
 
 /** What a refusal at a spot reads: the open save, whether game data is loaded and the galaxy. */
@@ -102,6 +104,29 @@ export function addSystemActions(
 
     addSpecialSystemAt(x, y, layout) {
       return addAt(x, y, () => ipc.addSpecialSystem(newSeed(), x, y, layout));
+    },
+
+    addBodyAt(system, at, parent = null, planetClass = null) {
+      const gameData = useGameDataStore.getState().status === "ready";
+      return refuseOr(gameData ? null : BODIES_NEED_GAME_DATA, async () => {
+        let planet: number | null = null;
+        const result = await runEdit(async () => {
+          const added = await ipc.addBody(
+            system,
+            parent,
+            planetClass,
+            null,
+            at.radius,
+            at.angle,
+            newSeed(),
+          );
+          planet = added.planet;
+          return added.edit;
+        });
+        if (result === null || planet === null) return false;
+        usePlanetMoveStore.getState().showBody(system, planet);
+        return true;
+      });
     },
 
     rerollSystem(id, starClass) {

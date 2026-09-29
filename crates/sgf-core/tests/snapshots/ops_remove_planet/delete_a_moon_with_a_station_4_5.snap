@@ -1,0 +1,325 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted moon #8
+details stale: [169]
+inverse: Restored moon #8
+
+  System: 169
+  Planet: 6 8
+  Country: 0
+  Fleet: 366
+  Ship: 2048
+
+--- gamestate
++++ gamestate
+@@ -41018,7 +41018,6 @@
+ 		planet=5
+ 		planet=6
+ 		planet=7
+-		planet=8
+ 		planet=9
+ 		planet=10
+ 		planet=11
+@@ -41056,7 +41055,7 @@
+ 		initializer="random_empire_init_04"
+ 		fleet_presence=
+ 		{
+-			0 2 3 362 363 364 365 366 
++			0 2 3 362 363 364 365 
+ 		}
+ 		inner_radius=215
+ 		outer_radius=315
+@@ -80233,7 +80232,7 @@
+ 			last_bombardment=			"0.01.01"
+ 			moons=
+ 			{
+-				7 8 9 
++				7 9 
+ 			}
+ 			planet_orbitals=
+ 			{
+@@ -80267,43 +80266,7 @@
+ 			bombardment_damage=0
+ 			entity=1
+ 		}
+-		8=
+-		{
+-			planet_class="pc_barren_cold"
+-			planet_size=10
+-			carrier_binary_flags=3
+-			build_queue=161
+-			name=
+-			{
+-				key="HUM1_PLANET_FindirbansOutpost"
+-			}
+-			binary_flags=584
+-			coordinate=
+-			{
+-				x=47.9066
+-				y=-120.7392
+-				origin=169
+-			}
+-			orbit=20
+-			last_bombardment=			"0.01.01"
+-			controller=0
+-			moon_of=6
+-			planet_orbitals=
+-			{
+-			}
+-			shipclass_orbital_station=366
+-			bombardment_damage=0
+-			flags=
+-			{
+-				starting_research_target=62808000
+-				starting_deposit=62808000
+-			}
+-			entity=2
+-			deposits=
+-			{
+-				24 
+-			}
+-		}
++		8=none
+ 		9=
+ 		{
+ 			planet_class="pc_barren"
+@@ -417944,7 +417907,7 @@
+ 		}
+ 		controlled_planets=
+ 		{
+-			2 0 14 13 10 8 
++			2 0 14 13 10 
+ 		}
+ 		ship_design_collection=
+ 		{
+@@ -418227,10 +418190,6 @@
+ 					fleet=365
+ 				}
+  
+-				{
+-					fleet=366
+-				}
+- 
+ 			}
+ 		}
+ 		customization="default"
+@@ -932320,67 +932279,7 @@
+ 		construction_date=		"2200.01.01"
+ 		maturation_date=		"0.01.01"
+ 	}
+-	2048=
+-	{
+-		fleet=366
+-		name=
+-		{
+-			key="shipclass_research_station_name"
+-			variables=
+-			{
+-				
+-				{
+-					key="PLANET"
+-					value=
+-					{
+-						key="HUM1_PLANET_FindirbansOutpost"
+-					}
+-				}
+- 
+-			}
+-		}
+-		reserve=0
+-		ship_design_implementation=
+-		{
+-			design=9
+-			upgrade=4294967295
+-			growth_stage=0
+-		}
+-		graphical_culture="mammalian_01"
+-		section=
+-		{
+-			design="DEFAULT_RESEARCH_STATION_SECTION"
+-			slot="mid"
+-		}
+-		coordinate=
+-		{
+-			x=41.9066
+-			y=-126.7392
+-			origin=169
+-		}
+-		target_coordinate=
+-		{
+-			x=41.9066
+-			y=-126.7392
+-			origin=169
+-		}
+-		post_move_angle=-0.78561
+-		hitpoints=2000
+-		armor_hitpoints=1000
+-		max_hitpoints=2000
+-		max_armor_hitpoints=1000
+-		rotation=-0.78561
+-		forward_x=0.70726
+-		forward_y=0.70696
+-		upgrade_progress=0
+-		created_this_update=no
+-		targeting_module=
+-		{
+-		}
+-		combat_action=1
+-		construction_date=		"2200.01.01"
+-		maturation_date=		"0.01.01"
+-	}
++	2048=none
+ 	2049=
+ 	{
+ 		fleet=367
+@@ -1031542,147 +1031441,7 @@
+ 		cached_combined_removed_ships=0
+ 		commanding_armada=none
+ 	}
+-	366=
+-	{
+-		name=
+-		{
+-			key="shipclass_research_station_name"
+-			variables=
+-			{
+-				
+-				{
+-					key="PLANET"
+-					value=
+-					{
+-						key="HUM1_PLANET_FindirbansOutpost"
+-					}
+-				}
+- 
+-			}
+-		}
+-		ships=
+-		{
+-			2048 
+-		}
+-		combat=
+-		{
+-			coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=169
+-			}
+-			formation_pos=
+-			{
+-				x=0
+-				y=0
+-				speed=0
+-				rotation=0
+-				forward_x=0
+-				forward_y=0
+-			}
+-			formation=
+-			{
+-				root=-1
+-			}
+-			start_coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=4294967295
+-			}
+-			start_date=			"0.01.01"
+-		}
+-		fleet_stats=
+-		{
+-			combat_stats=
+-			{
+-				fleet=
+-				{
+-				}
+-				date=				"0.01.01"
+-			}
+-		}
+-		ground_support_stance="selective"
+-		ship_class=shipclass_research_station
+-		space_fauna_growth_stance=excessive
+-		mia_from=
+-		{
+-			x=0
+-			y=0
+-			origin=4294967295
+-		}
+-		movement_manager=
+-		{
+-			formation=
+-			{
+-				scale=1
+-				angle=-0.78561
+-				type=wedge
+-			}
+-			coordinate=
+-			{
+-				x=41.9066
+-				y=-126.7392
+-				origin=169
+-			}
+-			target=
+-			{
+-				coordinate=
+-				{
+-					x=0
+-					y=0
+-					origin=4294967295
+-				}
+-			}
+-			target_coordinate=
+-			{
+-				x=0
+-				y=0
+-				origin=4294967295
+-			}
+-			state=move_idle
+-			path=
+-			{
+-				date=				"0.01.01"
+-			}
+-			orbit=
+-			{
+-				orbitable=
+-				{
+-					planet=8
+-				}
+-				index=-1
+-			}
+-			last_ftl_jump=
+-			{
+-				from=
+-				{
+-					x=0
+-					y=0
+-					origin=4294967295
+-				}
+-				fleet=4294967295
+-				jump_method=jump_count
+-				bypass_from=4294967295
+-				bypass_to=4294967295
+-			}
+-		}
+-		properties=
+-		{
+-			station=yes
+-			valid_for_combat=yes
+-			orbital_station=yes
+-		}
+-		hit_points=2000.00000
+-		military_power=0.00000
+-		diplomacy_weight=0.00000
+-		cached_killed_ships=0
+-		cached_disabled_ships=0
+-		cached_disengaged_ships=0
+-		cached_combined_removed_ships=0
+-		commanding_armada=none
+-	}
++	366=none
+ 	367=
+ 	{
+ 		name=

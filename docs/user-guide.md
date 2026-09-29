@@ -188,6 +188,20 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Anomaly section shows the anomaly on a
+  planet, moon or star: its name, which empires have found it, and the
+  game's description of it. Remove it with the ✕ on its row. When it
+  has none, Add anomaly lists the anomalies you can add. Search by name,
+  or pick a level chip. The ones that can turn up on that body come
+  first, under "Usual for this planet". Some only turn up on stars, such
+  as the ones around pulsars and black holes. A body holds one anomaly,
+  so the list closes after you add one.
+- If you have surveyed the planet, the added anomaly shows in game right
+  away, ready for a science ship to research. If you haven't, it turns up
+  when you survey the planet. Anomalies that run their own script when
+  the game places them, such as precursor ones, aren't offered, because
+  the game wouldn't run that script. The AI's own anomalies aren't
+  offered either.
 - In a Stellaris 4.x save, the Dig site section shows a planet's
   archaeological site: its stage, its clues, whether a fleet is
   excavating it, and the game's description of it. Remove it with the
@@ -237,9 +251,13 @@ too.
   left.
 - Moons are listed below and open their own pages the same way.
 - A colonised planet has a Colony section: its owner, designation, when
-  it was colonised, and its pops by species.
-- A planet with an anomaly waiting on it shows an Anomaly row: the
-  anomaly's name, and which empires have found it.
+  it was colonised, and its pops by species. In a Stellaris 4.x save its
+  Remove colony button removes the colony and keeps the planet, as
+  [Delete planets and remove colonies](#delete-planets-and-remove-colonies)
+  describes.
+- In an older save, a planet with an anomaly waiting on it shows an
+  Anomaly row in About: the anomaly's name, and which empires have
+  found it.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
@@ -342,6 +360,31 @@ the inner radius moves out with it. How far out follows the defines in
 your install and mods. The system view draws the hyperlane exits on the
 inner radius circle.
 
+#### Add planets and moons
+
+In a Stellaris 4.x save that isn't Ironman, right-click empty space in
+the system view and choose Add planet here. Pick Random, or a planet class from the list.
+Each class shows the sizes it comes in. The planet lands where you
+right-clicked.
+
+To add a moon, right-click a planet and choose Add moon. The moon goes on
+the next free moon orbit of its planet.
+
+The rest is rolled by the game's own rules. Random picks a class that
+suits the orbit, the size comes from the class's range, and the body gets
+the deposits a new body would. The new body is selected and its page
+opens, so you can change its name, size and deposits there. Adding it is
+one edit, so one undo takes it away.
+
+- A new planet takes the numeral after the system's highest, so a planet
+  added to Meissa after Meissa IV is Meissa V. A moon takes the letter
+  after its planet's moons, so the first moon of Meissa IV is Meissa IV a.
+- Stars, moons and asteroids can't be given a moon.
+- Adding a planet or moon needs game data loaded.
+- If a new planet or moon sits past the system's inner radius, the inner
+  radius moves out with it, as it does when you move a planet there.
+- The body starts unsurveyed. The game adds the rest when the save loads.
+
 #### Move planets to another system
 
 In a save, you can move planets and moons to another system. Click a
@@ -373,6 +416,45 @@ no one owns stays yours.
 To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
 first.
+
+#### Delete planets and remove colonies
+
+In a Stellaris 4.x save, you can delete a planet or moon. Right-click it
+in the system view and choose Delete planet or Delete moon, or use the
+button at the bottom of its page. The app asks before it deletes
+anything, and one undo puts it all back.
+
+- A planet takes its moons with it. Deleting a moon leaves its planet in
+  place.
+- A colonised planet loses its colony first. The confirm says what goes:
+  the colony, its pops, its buildings, its defence armies and any orbital
+  ring. Colonies on its moons go too, and the confirm says so.
+- A mining or research station goes with the planet it works.
+- A dig site on the planet goes too, as its ✕ removes one. A science
+  ship excavating it stops on the game's first day.
+- An anomaly on the planet goes too, and no empire lists it any more.
+- A planet you added can't be deleted while it has moons. Delete its
+  moons first.
+- Deposits and survey records stay in the save. The game tidies them up
+  when it loads. Fleets parked at the planet stay where they are. I
+  haven't tried what the game does with them.
+
+To remove a colony and keep the planet, press Remove colony in the
+planet's Colony section. The planet stays, with no owner. Its pops,
+jobs, districts, buildings, defence armies and orbital ring go. A
+system's own starbase that orbits the planet stays.
+
+Capitals, home planets, habitats and occupied planets can be deleted or
+lose their colony too. The empire's capital and the species' home planet
+are left for the game to sort out. Anything the colony was building
+stays in the construction queue.
+
+These can't be deleted or have their colony removed, and the button or
+menu item says why:
+
+- stars and ring world segments
+- a planet with a megastructure on or around it
+- an uncolonised planet a starbase orbits
 
 #### Asteroid belts and the inner radius
 

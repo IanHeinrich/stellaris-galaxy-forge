@@ -119,8 +119,13 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetStarClass { .. }
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
+        | Op::RemoveColony { .. }
+        | Op::DeleteSavePlanet { .. }
+        | Op::RestoreSaveEntities { .. }
         | Op::AddPlanetModifier { .. }
         | Op::RemovePlanetModifier { .. }
+        | Op::AddAnomaly { .. }
+        | Op::RemoveAnomaly { .. }
         | Op::AddDigSite { .. }
         | Op::RemoveDigSite { .. } => Err(OpError::Unsupported {
             op: op.name(),
@@ -144,6 +149,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::MoveSavePlanet { .. }
         | Op::SetSaveBodyParent { .. }
         | Op::SetPlanetRing { .. }
+        | Op::AddSaveBody { .. }
+        | Op::RemoveAddedBody { .. }
         | Op::SetPlanetEntity { .. }
         | Op::SetPlanetClass { .. }
         | Op::AddSaveBelt { .. }

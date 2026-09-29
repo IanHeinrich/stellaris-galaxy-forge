@@ -128,14 +128,15 @@ impl PlanetClassDef {
     }
 }
 
-/// The size a body of `block` is drawn from: the block's own `size`, else its class's.
+/// The size a body of `block` is drawn from: the block's own `size`, else its class's. A body
+/// no layout writes has no block.
 pub(crate) fn body_size(
-    block: &InitPlanet,
+    block: Option<&InitPlanet>,
     class: Option<&PlanetClassDef>,
     moon: bool,
 ) -> Option<Range> {
     block
-        .size_range()
+        .and_then(InitPlanet::size_range)
         .or_else(|| class.and_then(|c| c.size(moon)))
 }
 

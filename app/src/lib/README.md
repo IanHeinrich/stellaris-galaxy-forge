@@ -27,18 +27,22 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `starClass` is the star class pickers and the bulk plan that sets one
   class on many systems. `terraform` says what making a body a terraforming
   candidate needs. `planetEdits` builds the ops a planet's page sends for
-  its name, size, deposits, modifiers and dig site, and the hint of a
-  body's Edit chip. `planetModel` is the Model field's rows, usual models
+  its name, size, deposits, modifiers, dig site and anomaly, and the hint
+  of a body's Edit chip. `planetModel` is the Model field's rows, usual models
   first, and the edit a pick sends. `planetClass` is the Class field's
-  rows, with a colony's narrower choice, and the edit a pick sends. `picker` is what the deposit, modifier
-  and dig site pickers share: the search, the usual rows first, and the
-  target and edit adapter they add
+  rows, with a colony's narrower choice, and the edit a pick sends.
+  `planetRemoval` is the ops that delete a body or remove its colony and
+  the sentences their confirms ask. `picker` is what the deposit, modifier,
+  dig site and anomaly pickers share: the search, the usual rows first, and
+  the target and edit adapter they add
   through, so a source other than a save can plug in its own adapter
   (`store/planetEditAdapter` holds the save's). `depositPicker` groups
   the deposit types its picker offers into families, sections and chips,
-  `modifierPicker` is the modifier picker's rows and chips, and
+  `modifierPicker` is the modifier picker's rows and chips,
   `digSitePicker` is the dig site picker's rows and chips and the line a
-  planet's site reads as. The system view's layout is `orbits`: where each body, orbit, belt and hyperlane exit sits, from the
+  planet's site reads as, and `anomalyPicker` is the anomaly picker's rows
+  and level chips. The system view's layout is `orbits`: where each body,
+  orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
   `orbitEdits` turns a geometry edit, a body or belt at an absolute radius
   and angle, into an op. It picks an adapter per document: a save's builds
@@ -53,6 +57,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `special`, `paint`, `guides`, `entities`, `resources`, `scenarioBypasses`,
   `issues`, `lgate` (the L-Gate's outcomes and the mods that touch them),
   `addSystem` (where a system may be added, and the Special menu's marks),
+  `addBody` (the words of the Add planet and Add moon menus, and which
+  bodies may take a moon),
   `precursors` (each system's precursor flags, matched against the install's
   definitions and grouped into the legend the map draws) and `planetMove`
   (moving save planets between systems: where a click in the system view

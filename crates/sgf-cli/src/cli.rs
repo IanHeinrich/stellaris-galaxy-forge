@@ -206,6 +206,20 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Delete a save planet and its moons, or a moon, with any colony on them.
+    DeletePlanet {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Remove the colony on a save planet or moon; the planet stays.
+    RemoveColony {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Rename an empire. Renaming the player's empire also renames the save on the load
     /// screen.
     RenameEmpire {
@@ -254,6 +268,20 @@ pub enum Command {
         feature: Option<String>,
         /// Remove the modifier instead, however long it has left.
         #[arg(long)]
+        remove: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Add an anomaly to a save planet, or remove the one it has. A planet the player has
+    /// surveyed is listed as found by the player too.
+    Anomaly {
+        sav: PathBuf,
+        planet: u32,
+        /// An anomaly category, as `common/anomalies` names it.
+        #[arg(required_unless_present = "remove")]
+        category: Option<String>,
+        /// Remove the planet's anomaly instead.
+        #[arg(long, conflicts_with = "category")]
         remove: bool,
         #[command(flatten)]
         out: OutArg,
@@ -354,6 +382,48 @@ pub enum Command {
         /// On --then-reroll, build a system of a Special menu layout from that layout again.
         #[arg(long, requires = "then_reroll")]
         keep_special: bool,
+        #[command(flatten)]
+        install: InstallArg,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Add a planet, or a moon of --moon-of, to a system of a Stellaris 4.x save, --radius
+    /// from what it orbits at --angle degrees. Give its --class and --size, or --roll it from
+    /// the install's rules with --seed, keeping the class and size given:
+    ///   sgf add-body game.sav 408 --class pc_desert --size 12 --radius 170 --angle 200
+    ///   sgf add-body game.sav 408 --moon-of 138 --radius 15 --angle 90 --roll --seed 7
+    #[command(verbatim_doc_comment)]
+    AddBody {
+        sav: PathBuf,
+        system: u32,
+        /// A planet class (`pc_desert`); drawn at the body's orbit with --roll when not given.
+        #[arg(long, required_unless_present = "roll")]
+        class: Option<String>,
+        /// Drawn from the class's range with --roll when not given.
+        #[arg(long, required_unless_present = "roll")]
+        size: Option<u32>,
+        /// The planet a new moon orbits.
+        #[arg(long)]
+        moon_of: Option<u32>,
+        #[arg(long)]
+        radius: f64,
+        #[arg(long, allow_negative_numbers = true)]
+        angle: f64,
+        /// A name written as typed; the next free numeral or letter otherwise.
+        #[arg(long)]
+        name: Option<String>,
+        /// A deposit the body holds (`d_minerals_2`); repeatable.
+        #[arg(long = "deposit", conflicts_with = "roll")]
+        deposits: Vec<String>,
+        /// Draw it with a ring.
+        #[arg(long, conflicts_with = "roll")]
+        ring: bool,
+        /// Roll the body from the install's rules, its deposits included.
+        #[arg(long, requires = "seed")]
+        roll: bool,
+        /// What --roll draws from; the same seed gives the same body.
+        #[arg(long, requires = "roll")]
+        seed: Option<u64>,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]

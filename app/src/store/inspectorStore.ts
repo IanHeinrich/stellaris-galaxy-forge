@@ -224,6 +224,8 @@ export interface InspectorState {
   openFromMap(entry: Entry): void;
   /** Closes every page on a scenario body, or on one in `systems`, with everything opened from it. */
   dropBodies(systems?: readonly number[]): void;
+  /** Closes every page on one of `planets` or `colonies`, with everything opened from it. */
+  dropPlanets(planets: readonly number[], colonies: readonly number[]): void;
   /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
@@ -327,6 +329,18 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const { stack, tab } = get();
     const at = stack.findIndex(
       ({ ref }) => ref.kind === "body" && (systems === undefined || systems.includes(ref.system)),
+    );
+    if (at < 0) return;
+    const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
+    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+  },
+
+  dropPlanets(planets, colonies) {
+    const { stack, tab } = get();
+    const at = stack.findIndex(
+      ({ ref }) =>
+        (ref.kind === "planet" && planets.includes(ref.id)) ||
+        (ref.kind === "colony" && colonies.includes(ref.id)),
     );
     if (at < 0) return;
     const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
