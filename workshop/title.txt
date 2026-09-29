@@ -1,1 +1,1 @@
-Galaxy Forge - Save & Scenario Editor [4.5, 4.x]
+Galaxy Forge - Save, Scenario & Map Editor [4.5, 4.x]
