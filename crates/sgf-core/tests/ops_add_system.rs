@@ -833,6 +833,5 @@ fn a_save_that_refuses_the_add_offers_no_added_systems_but_keeps_bodies() {
     assert_eq!(offered(&open_3_4()), (false, true, false));
 
     let ironman = with_meta(|meta| meta.push_str("ironman=yes\n"));
-    assert_eq!(offered(&ironman), (false, true, true));
-    assert!(matches!(refused(ironman, dorellion()), OpError::Ironman));
+    assert_eq!(offered(&ironman), (true, true, true));
 }

@@ -266,10 +266,7 @@ Galaxy Forge works with Stellaris 4.x saves. I test with all DLC and no
 mods. I've tested the galaxy map edits in-game on 4.4.6 and 4.5, and the
 system view, planet, empire and wormhole edits on 4.5 only. Hyperlane
 editing also works on saves from 3.4 through 3.9. Adding systems and
-planets needs a 4.x save.
-
-Ironman saves are not supported. Adding systems and planets is disabled
-for them, and I haven't tested the other edits on Ironman saves.
+planets needs a 4.x save. I haven't tested Ironman saves.
 
 If Stellaris uses Steam Cloud, Steam may restore the cloud copy over an
 edited save. Close Steam or disable Steam Cloud for Stellaris before

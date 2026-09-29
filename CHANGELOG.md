@@ -37,6 +37,7 @@ a release is made.
 - Descriptions of deposits, modifiers and dig sites show under their
   lists instead of as hover tips.
 - Shattered worlds look broken apart in the system view.
+- You can add systems and planets to Ironman saves.
 
 ### Fixed
 

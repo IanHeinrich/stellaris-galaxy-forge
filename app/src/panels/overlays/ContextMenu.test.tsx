@@ -825,7 +825,7 @@ describe("adding a planet or moon in the system view", () => {
     for (const id of [1, 3, 6]) expect(menuOn(body(id))).not.toContain("Add moon");
   });
 
-  it("is not offered on a scenario or an Ironman save", async () => {
+  it("is not offered on a scenario or a save that cannot take it", async () => {
     useFileSessionStore.setState({
       capabilities: { ...useFileSessionStore.getState().capabilities!, added_systems: false },
     });
