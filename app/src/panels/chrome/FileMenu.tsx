@@ -1,5 +1,6 @@
 import { shortcutLabel } from "../../lib/keys";
-import { fileName, isUnder } from "../../lib/paths";
+import { recentTitle } from "../../lib/openRows";
+import { isUnder } from "../../lib/paths";
 import { closeDocument, save, saveAs } from "../../store/commands";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
@@ -32,7 +33,7 @@ function RecentDocs({ onOpen }: { onOpen: (doc: RecentDoc) => void }) {
 ${doc.subtitle}`}
           onClick={() => onOpen(doc)}
         >
-          <span className="menu-file">{doc.title || fileName(doc.path)}</span>
+          <span className="menu-file">{recentTitle(doc)}</span>
           <span className="menu-detail muted">
             {doc.kind === "save" ? "save" : "scenario"} · {formatWhen(doc.openedAt / 1000)}
           </span>

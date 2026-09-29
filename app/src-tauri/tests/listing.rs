@@ -91,6 +91,20 @@ fn save_details_reads_the_setup_screen_without_opening_the_save() {
 }
 
 #[test]
+fn missing_paths_returns_only_the_paths_that_are_not_files() {
+    let w = webview();
+    let gone = "no/such/file.sav";
+    let folder = env!("CARGO_MANIFEST_DIR");
+    let missing: Vec<String> = invoke(
+        &w,
+        "missing_paths",
+        json!({ "paths": [SAMPLE, gone, folder] }),
+    )
+    .expect("missing paths");
+    assert_eq!(missing, [gone, folder]);
+}
+
+#[test]
 fn the_scenarios_beside_a_file_are_listed_without_a_session() {
     let w = webview();
     let dir = tempfile::tempdir().expect("tempdir");

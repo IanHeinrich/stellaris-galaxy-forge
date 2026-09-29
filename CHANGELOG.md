@@ -22,6 +22,7 @@ a release is made.
 - In the system view, a planet's or moon's name shows icons for its
   megastructures, dig site, anomaly and pre-FTL civilisation. Hover an
   icon or a resource to see what it is.
+- The Open screen has a Clear button on the Recent list.
 
 ### Changed
 
@@ -32,6 +33,11 @@ a release is made.
   multiplayer. Maps you already made need no changes.
 - A save converted for Paint a Galaxy weights your seat for the first
   player only. Before, an AI placed ahead of you could take it.
+- The recent list keeps the last 10 documents. The All tab shows the
+  newest 5, with a link to the rest.
+- Saves and scenarios you have deleted drop off the recent list.
+- Saves on the Open screen and in the File menu's recent list show the
+  name you gave the save. The Saves tab shows its date underneath.
 
 ## [0.18.0] - 2026-09-28
 
