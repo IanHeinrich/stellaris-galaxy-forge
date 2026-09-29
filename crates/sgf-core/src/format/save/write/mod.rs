@@ -8,6 +8,7 @@
 //! One module per op or per thing an op writes, each named for it.
 
 pub(crate) mod add_system;
+pub(crate) mod anomaly;
 pub(crate) mod asteroid_names;
 pub(crate) mod belts;
 pub(crate) mod bodies;

@@ -10,6 +10,9 @@ a release is made.
 
 ### Added
 
+- Add an anomaly to a planet or moon in a save, or remove one, from its
+  page. If you have already surveyed the planet, the anomaly is ready to
+  research. Otherwise it turns up when a science ship surveys it.
 - Add an archaeological dig site to a save planet, or remove one, from
   its page in the Inspector. The page shows the site's stage and clues.
 - A dig site's description shows on its planet's page and in the Add

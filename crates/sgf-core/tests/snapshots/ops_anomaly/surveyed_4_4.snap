@@ -1,0 +1,28 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Add anomaly asteroid_uninhabitable_category to planet #1, found by empire 0
+inverse: RemoveAnomaly { planet: 1 }
+
+--- gamestate
++++ gamestate
+@@ -93503,6 +93503,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			anomaly="asteroid_uninhabitable_category"
+ 			bombardment_damage=0
+ 			flags=
+ 			{
+@@ -532012,6 +532013,10 @@
+ 					random_allowed=yes
+ 				}
+ 			}
++			anomalies=
++			{
++				1 
++			}
+ 		}
+ 		terra_incognita=
+ 		{

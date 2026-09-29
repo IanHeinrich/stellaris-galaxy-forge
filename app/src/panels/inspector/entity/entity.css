@@ -505,6 +505,15 @@
   color: var(--fg-soft);
 }
 
+.pl-anomaly-desc {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--fg-muted);
+  white-space: normal;
+}
+
 .pl-mod .l3 {
   display: block;
   margin-top: 3px;
