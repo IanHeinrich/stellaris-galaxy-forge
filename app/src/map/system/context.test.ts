@@ -29,6 +29,7 @@ import {
   blankSceneTextures,
   context as fixtureContext,
   fixed,
+  resourceAmounts,
   rollOf,
   SYSTEM,
   stubTextMeasurement,
@@ -150,10 +151,58 @@ describe("the bodies of a system", () => {
     const ctx = save([sun, owned(2, false), owned(3, true)], {
       countries: new Map([[9, country]]),
     });
-    expect(ctx.bodies.map((b) => [b.marks.plate, b.marks.flag !== null, b.marks.preFtl])).toEqual([
+    const preFtl = (b: (typeof ctx.bodies)[number]) =>
+      b.marks.slots.some((slot) => slot.kind === "preFtl");
+    expect(
+      ctx.bodies.map((b) => [
+        b.marks.emblem?.plate ?? null,
+        Boolean(b.marks.emblem?.flag),
+        preFtl(b),
+      ]),
+    ).toEqual([
       [null, false, false],
       ["sprite:GFX_map_icon_bg", true, false],
       [null, false, true],
+    ]);
+  });
+
+  it("marks a body with the megastructures and dig sites on it and its anomaly by the game's name", () => {
+    const at = (id: number) =>
+      bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(16) });
+    const holding = planetSummary({
+      id: 2,
+      class: "pc_barren",
+      anomaly: "AIANOM_RESEARCHDEPO_CAT",
+      layout: at(2),
+    });
+    const other = planetSummary({ id: 3, class: "pc_barren", layout: at(3) });
+    const planets = [sun, holding, other];
+    const ctx = save(planets, {
+      details: systemDetails({
+        id: SYSTEM,
+        planets,
+        megastructures: [
+          { id: 50, kind: "dyson_sphere_2", owner: null, planet: 2 },
+          { id: 51, kind: "gateway_final", owner: null, planet: 2 },
+        ],
+        sites: [{ id: 60, kind: "site_zroni_ruins", planet: 3 }],
+      }),
+      names: new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]),
+    });
+    expect(
+      ctx.bodies.map(({ marks }) => [
+        marks.icons.megastructures.map((m) => m.id),
+        marks.icons.sites.map((site) => site.id),
+        marks.icons.anomaly,
+      ]),
+    ).toEqual([
+      [[], [], null],
+      [[50, 51], [], "Research Depot"],
+      [[], [60], null],
+    ]);
+    expect(ctx.bodies[1].marks.slots.map((slot) => slot.kind)).toEqual([
+      "megastructures",
+      "anomaly",
     ]);
   });
 
@@ -198,13 +247,34 @@ describe("the bodies of a system", () => {
       planetClasses,
     });
     const looks = [2, 3].map((id) => {
-      const { flat, irregular, surfaceKey } = ctx.bodyById.get(id)!.look;
-      return { flat, irregular, surfaceKey };
+      const { flat, irregular, surfaceKeys } = ctx.bodyById.get(id)!.look;
+      return { flat, irregular, surfaceKeys };
     });
     expect(looks).toEqual([
-      { flat: true, irregular: true, surfaceKey: null },
-      { flat: false, irregular: false, surfaceKey: "planet_disc:pc_continental" },
+      { flat: true, irregular: true, surfaceKeys: [] },
+      { flat: false, irregular: false, surfaceKeys: ["planet_disc:pc_continental"] },
     ]);
+  });
+
+  it("draws a save planet's own model before its class's disc, and draws it afresh when the model changes", () => {
+    const layout = bodyLayout({ orbit: fixed(40), at: [40, 0], size: fixed(10) });
+    const plain = planetSummary({ id: 2, class: "pc_continental", layout });
+    const paradise = { ...plain, entity_name: "ocean_paradise_planet_01_entity" };
+    const keys = (planet: PlanetSummary) => save([sun, planet]).bodyById.get(2)!.look.surfaceKeys;
+    expect(keys(paradise)).toEqual([
+      "planet_model:ocean_paradise_planet_01_entity",
+      "planet_disc:pc_continental",
+    ]);
+    expect(keys(plain)).toEqual(["planet_disc:pc_continental"]);
+    const star = save([{ ...sun, entity_name: "star_entity" }]).bodyById.get(1)!;
+    expect(star.look.surfaceKeys).toEqual(["star_disc:pc_g_star"]);
+
+    const shown = save([sun, plain]);
+    const given = systemContext({
+      ...shown,
+      details: systemDetails({ id: SYSTEM, planets: [sun, paradise] }),
+    });
+    expect(given.bodyById.get(2)!.look).not.toBe(shown.bodyById.get(2)!.look);
   });
 
   it("draws both stars of a binary scenario system still loading", () => {
@@ -269,7 +339,7 @@ describe("what a scenario leaves to chance", () => {
     const labelled = (holder: Container, label: string) =>
       holder.children.filter((c) => c.label === label).length;
     const holders = layer.container.children as Container[];
-    expect(holders.map((h) => [labelled(h, "plate"), labelled(h, "resource")])).toEqual([
+    expect(holders.map((h) => [labelled(h, "plate"), resourceAmounts(h).length])).toEqual([
       [1, 0],
       [1, 2],
       [1, 2],

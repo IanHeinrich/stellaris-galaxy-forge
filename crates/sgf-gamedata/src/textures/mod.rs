@@ -5,7 +5,7 @@
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
-//! `star_disc:<class>` and `planet_ring`.
+//! `planet_model:<entity>`, `star_disc:<class>` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -73,6 +73,9 @@ pub struct StarBody {
     pub atmosphere: Option<StarAtmosphere>,
 }
 
+/// The surface map, relative to a layer root, of a planet model by its entity name.
+pub type ModelLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+
 /// The star planet classes by key.
 pub type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
 
@@ -82,11 +85,12 @@ pub struct Lookups<'a> {
     pub sprites: &'a dyn SpriteSource,
     pub colour: ColourLookup<'a>,
     pub planet_surface: SurfaceLookup<'a>,
+    pub model_surface: ModelLookup<'a>,
     pub star_body: StarLookup<'a>,
 }
 
 impl<'a> Lookups<'a> {
-    /// No flag colour, planet surface or star body: every one of those keys fails, and only
+    /// No flag colour, planet or model surface or star body: every one of those keys fails, and only
     /// `sprites` resolves.
     pub fn none(sprites: &'a dyn SpriteSource) -> Self {
         fn no_colour(_: &str) -> Option<[u8; 3]> {
@@ -102,6 +106,7 @@ impl<'a> Lookups<'a> {
             sprites,
             colour: &no_colour,
             planet_surface: &no_surface,
+            model_surface: &no_surface,
             star_body: &no_star,
         }
     }
@@ -121,11 +126,13 @@ impl GameData {
     fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
         let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
         let surface = |class: &str| self.planet_surface(class);
+        let model = |entity: &str| self.entity_surface(entity);
         let star = |class: &str| self.star_disc_inputs(class);
         use_lookups(&Lookups {
             sprites: &*self.sprites,
             colour: &colour,
             planet_surface: &surface,
+            model_surface: &model,
             star_body: &star,
         })
     }
@@ -222,6 +229,7 @@ impl TextureKey {
             Self::Sprite { .. }
             | Self::EmpireFlag { .. }
             | Self::PlanetDisc { .. }
+            | Self::PlanetModel { .. }
             | Self::StarDisc { .. } => Err(TextureError::BadKey(self.to_string())),
         }
     }
@@ -245,6 +253,8 @@ pub enum TextureError {
     UnknownColour(String),
     #[error("planet class `{0}` has no surface map to draw as a disc")]
     NoDisc(String),
+    #[error("planet model `{0}` has no surface map to draw as a disc")]
+    NoModelDisc(String),
     #[error("{}: {reason}", path.display())]
     Decode { path: PathBuf, reason: String },
     #[error("png encoding failed: {0}")]
@@ -455,6 +465,11 @@ impl Job {
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
                 let rel = (lookups.planet_surface)(class).ok_or_else(no_disc)?;
+                Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
+            }
+            TextureKey::PlanetModel { entity } => {
+                let no_disc = || TextureError::NoModelDisc(entity.clone());
+                let rel = (lookups.model_surface)(entity).ok_or_else(no_disc)?;
                 Ok(Self::PlanetDisc(Input::resolve(layout, &rel)?))
             }
             TextureKey::Sprite { name, frame } => {

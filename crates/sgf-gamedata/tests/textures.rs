@@ -39,6 +39,7 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "empire_flag:00_solid.dds:human/flag_human_9.dds:blue,black,null,null",
         "empire_flag:00_solid.dds::blue,black,null,null",
         "planet_disc:pc_continental",
+        "planet_model:ocean_paradise_planet_01_entity",
         "star_disc:pc_g_star",
         "planet_ring",
     ] {
@@ -78,6 +79,8 @@ fn keys_round_trip_and_bad_ones_are_rejected() {
         "planet_disc:",
         "planet_disc:pc/x",
         "planet_disc:..",
+        "planet_model:",
+        "planet_model:a/b",
         "planet_ring:",
         "planet_ring:x",
     ] {

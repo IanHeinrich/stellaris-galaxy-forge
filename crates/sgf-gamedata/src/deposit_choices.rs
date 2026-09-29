@@ -85,7 +85,7 @@ pub fn deposit_choices(
             amount: d.produces.first().map(|&(_, amount)| amount),
             category: category(gd, d),
             usual: usual.contains(d.key.as_str()),
-            description: gd.loc.name(&format!("{}_desc", d.key)),
+            description: gd.loc.description(&format!("{}_desc", d.key)),
             event_only: never_rolled(&d.roll.drop_weight),
         })
         .collect();

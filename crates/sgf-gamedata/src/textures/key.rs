@@ -42,6 +42,11 @@ pub enum TextureKey {
     PlanetDisc {
         class: String,
     },
+    /// A planet model's surface map baked as [`Self::PlanetDisc`] bakes a class's, for a
+    /// planet whose save names a model of its own.
+    PlanetModel {
+        entity: String,
+    },
     /// The texture of the game's gas giant ring mesh.
     PlanetRing,
     /// A star planet class's sphere baked as the system view shows it.
@@ -133,6 +138,9 @@ impl FromStr for TextureKey {
             "planet_disc" => Self::PlanetDisc {
                 class: component(rest).ok_or_else(bad)?,
             },
+            "planet_model" => Self::PlanetModel {
+                entity: component(rest).ok_or_else(bad)?,
+            },
             "star_disc" => Self::StarDisc {
                 class: component(rest).ok_or_else(bad)?,
             },
@@ -166,6 +174,7 @@ impl fmt::Display for TextureKey {
                 write!(f, "empire_flag:{background}:{icon}:{}", colours.join(","))
             }
             Self::PlanetDisc { class } => write!(f, "planet_disc:{class}"),
+            Self::PlanetModel { entity } => write!(f, "planet_model:{entity}"),
             Self::PlanetRing => f.write_str("planet_ring"),
             Self::StarDisc { class } => write!(f, "star_disc:{class}"),
         }

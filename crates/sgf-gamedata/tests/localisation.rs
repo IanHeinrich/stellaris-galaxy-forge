@@ -50,6 +50,46 @@ fn reads_resolves_and_strips_markup() {
 }
 
 #[test]
+fn a_scope_placeholder_reads_as_what_it_names() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/scripted_variables/00_fx.txt", ""),
+        (
+            "localisation/english/fx_l_english.yml",
+            "l_english:\n\
+             fx_planet:0 \"[From.Planet.GetName] was once home to a people.\"\n\
+             fx_system:0 \"Our scans of the §H[From.Planet.System.GetName]§! system show debris.\"\n\
+             fx_owner:0 \"The [Root.Owner.GetName] declines.\"\n\
+             fx_species:0 \"Ask the [From.GetSpeciesNamePlural].\"\n\
+             fx_leader:0 \"Led by [From.Leader.GetName].\"\n\
+             fx_bare:0 \"Sensors see [Root.GetName]'s orbit. [Root.GetName] is deep.\"\n\
+             fx_gone:0 \"Worked by [miner.GetIcon][artisan.GetName] on [GetDate].\"\n\
+             fx_ruins:0 \"$fx_name$ lie on [This.Planet.GetName].\"\n\
+             fx_moon:0 \"Near the [From.GetPlanetMoon] of [Root.GetHisHer] birth.\"\n\
+             fx_name:0 \"Ruins\"\n",
+        ),
+    ]);
+    let cases = [
+        ("fx_planet", "This planet was once home to a people."),
+        ("fx_system", "Our scans of this system show debris."),
+        ("fx_owner", "Your empire declines."),
+        ("fx_species", "Ask this species."),
+        ("fx_leader", "Led by your scientist."),
+        ("fx_bare", "Sensors see its orbit. It is deep."),
+        ("fx_gone", "Worked by  on ."),
+        ("fx_ruins", "Ruins lie on this planet."),
+        ("fx_moon", "Near the planet of their birth."),
+    ];
+    for (key, expected) in cases {
+        assert_eq!(gd.loc.description(key).as_deref(), Some(expected), "{key}");
+    }
+    assert_eq!(
+        gd.loc.get("fx_planet").as_deref(),
+        Some("was once home to a people."),
+        "a name drops it"
+    );
+}
+
+#[test]
 fn later_layers_win_and_replace_files_win_over_all() {
     let gd = common::cached_fixture_with_mods();
     assert_eq!(gd.loc.get("vanilla_only").as_deref(), Some("still here"));
