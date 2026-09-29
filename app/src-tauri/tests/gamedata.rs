@@ -10,6 +10,7 @@ use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult
 use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::modifier_choices::ModifierChoice;
+use sgf_gamedata::planet_models::PlanetModelChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
@@ -168,6 +169,9 @@ fn game_data_commands_degrade_without_an_install() {
     let modifier_choices: Vec<Value> =
         invoke(&w, "get_modifier_choices", json!({})).expect("modifier choices");
     assert!(modifier_choices.is_empty());
+    let planet_models: Vec<Value> =
+        invoke(&w, "get_planet_models", json!({})).expect("planet models");
+    assert!(planet_models.is_empty());
     let colony_types: Vec<ColonyTypeView> =
         invoke(&w, "get_colony_types", json!({ "keys": ["col_fe_colony"] })).expect("colony types");
     assert!(colony_types.is_empty());
@@ -494,6 +498,16 @@ fn game_data_commands_with_the_install() {
         modifier_choices
             .iter()
             .any(|c| c.feature.as_deref() == Some("pm_mineral_poor"))
+    );
+    let planet_models: Vec<PlanetModelChoice> =
+        invoke(&w, "get_planet_models", json!({})).expect("planet models");
+    let paradise = planet_models
+        .iter()
+        .find(|m| m.entity == "ocean_paradise_planet_01_entity")
+        .expect("Ocean Paradise is offered");
+    assert_eq!(
+        (paradise.label.as_str(), paradise.classes.as_slice()),
+        ("Ocean Paradise", &["pc_ocean".to_owned()][..])
     );
     let candidates: Vec<TerraformCandidateView> =
         invoke(&w, "get_terraform_candidates", json!({})).expect("terraform candidates");

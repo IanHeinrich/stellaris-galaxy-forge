@@ -487,6 +487,16 @@ pub enum Op {
         planet: u32,
         ring: bool,
     },
+    /// A save planet's model: `entity_name="<entity>"` written on the line after its
+    /// `entity=N`, which stays, or rewritten in place, or removed with the `binary_flags` bit
+    /// an initializer's model sets when `None`. The model is written as given, on any class:
+    /// only one that is not an identifier is refused, and so are a star and a model already
+    /// as asked. A class change in game drops the model. The inverse sets the old one back,
+    /// without that bit. Stellaris 4.x save documents only.
+    SetPlanetEntity {
+        planet: u32,
+        entity: Option<String>,
+    },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
     /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
@@ -686,6 +696,7 @@ impl Op {
             | Self::MoveSaveBody { .. }
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -1027,6 +1038,10 @@ pub enum OpError {
     ParentUnchanged(u32),
     #[error("planet {planet} {state}")]
     RingUnchanged { planet: u32, state: &'static str },
+    #[error("planet {0} is a star, which takes no planet model")]
+    StarModel(u32),
+    #[error("planet {planet} {state}")]
+    ModelUnchanged { planet: u32, state: String },
     #[error("system {system} has no belt {index}")]
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
@@ -1177,6 +1192,8 @@ impl OpError {
             | Self::HasMoons { .. }
             | Self::ParentUnchanged { .. }
             | Self::RingUnchanged { .. }
+            | Self::StarModel { .. }
+            | Self::ModelUnchanged { .. }
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }

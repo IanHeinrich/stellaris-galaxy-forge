@@ -466,6 +466,7 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     label: "NAME_Planet",
     class: "pc_continental",
     size: 16,
+    entity_name: null,
     orbit: null,
     system: 1,
     parent: null,
