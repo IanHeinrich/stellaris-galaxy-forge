@@ -71,6 +71,8 @@ pub struct RawPlanet {
     pub permanent_modifiers: Vec<String>,
     /// `anomaly`: the category of the anomaly the planet holds.
     pub anomaly: Option<String>,
+    /// `entity_name`: the model the planet is drawn as, in place of its class's.
+    pub entity_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -320,6 +322,7 @@ pub(super) fn planets(
                 .unwrap_or(0),
             permanent_modifiers: permanent_modifiers(&node, src),
             anomaly: planet.anomaly,
+            entity_name: planet.entity_name,
         });
     }
     Ok(planet_system)

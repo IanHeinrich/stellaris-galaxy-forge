@@ -36,6 +36,8 @@ pub(crate) struct PlanetFacts {
     pub flags: u32,
     /// `anomaly`: the category of the anomaly the planet holds.
     pub anomaly: Option<String>,
+    /// `entity_name`: the model the planet is drawn as, in place of its class's.
+    pub entity_name: Option<String>,
 }
 
 pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
@@ -54,6 +56,7 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
         orbitals: count(node, keys::PLANET_ORBITALS, src),
         flags: count(node, keys::FLAGS, src),
         anomaly: read::scalar(node, keys::ANOMALY, src).map(str::to_owned),
+        entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
     }
 }
 
@@ -170,7 +173,7 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
             .colony
             .map(|colony| colony_page(doc, colony, &facts.colonize_date)),
         orbit: read::scalar(node, keys::ORBIT, src).and_then(|o| o.parse().ok()),
-        entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+        entity_name: facts.entity_name,
         planet_modifiers: node
             .find_all(keys::PLANET_MODIFIER, src)
             .filter_map(|m| Some(m.scalar_str(src)?.to_owned()))

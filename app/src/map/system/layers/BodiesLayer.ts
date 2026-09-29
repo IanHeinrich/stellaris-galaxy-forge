@@ -250,7 +250,7 @@ export class BodiesLayer implements SystemLayer {
     const disc = sprite("disc", this.textures.disc);
     disc.tint = hole ? 0x000000 : tint;
     let lit: Sprite | null = null;
-    if (look.surfaceKey !== null) {
+    if (look.surfaceKeys.length > 0) {
       lit = sprite("lit", Texture.EMPTY);
       lit.visible = false;
       lit.rotation = placement.light ?? 0;
@@ -338,8 +338,7 @@ export class BodiesLayer implements SystemLayer {
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
     if (drawn.ring) this.dressRing(drawn.ring);
-    const key = body.look.surfaceKey;
-    const surface = key === null ? null : landed([key], true);
+    const surface = landed(body.look.surfaceKeys, true);
     if (lit) {
       lit.texture = surface ?? Texture.EMPTY;
       lit.visible = surface !== null;

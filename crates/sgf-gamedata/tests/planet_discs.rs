@@ -176,6 +176,25 @@ fn a_class_with_no_readable_map_or_no_planet_surface_has_no_disc() {
     );
 }
 
+/// A model bakes from the map its entity names, as a class does; a model with no map, one whose
+/// map does not decode and one the install does not define have no disc.
+#[test]
+fn a_planet_model_bakes_from_its_own_entity() {
+    let (_dir, gd) = painted();
+    let disc = common::bake_disc(&gd, "planet_model:painted_planet_01_entity");
+    assert_disc(&disc, 50.0);
+    let (_cache, textures) = common::temp_textures();
+    for entity in [
+        "bare_planet_01_entity",
+        "broken_planet_01_entity",
+        "nowhere_01_entity",
+    ] {
+        let view = gd.texture(&textures, &format!("planet_model:{entity}"));
+        assert!(view.png_base64.is_none(), "{entity}");
+        assert!(view.error.is_some(), "{entity}");
+    }
+}
+
 #[test]
 fn the_class_view_passes_its_atmosphere_and_big_icon() {
     let (_dir, gd) = painted();
@@ -271,6 +290,20 @@ fn the_installs_continental_world_bakes_into_a_disc() {
     );
     assert!(continental.atmosphere_color.is_some());
     assert!(continental.atmosphere_width.is_some());
+}
+
+#[test]
+fn the_installs_ocean_paradise_model_bakes_into_a_disc() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let disc = common::bake_disc(gd, "planet_model:ocean_paradise_planet_01_entity");
+    assert_disc(&disc, 15.0);
+    assert_ne!(
+        disc,
+        common::bake_disc(gd, "planet_disc:pc_ocean"),
+        "the model's map, not its class's"
+    );
 }
 
 #[test]

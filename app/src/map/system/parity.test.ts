@@ -267,7 +267,7 @@ describe("a scenario body on a fixed orbit and angle is drawn as a save body at 
     const bodies = [star("pc_pulsar", "sc_pulsar"), planet];
     expectParity("sc_pulsar", bodies);
     const [pulsar] = asScenario("sc_pulsar", bodies).bodies;
-    expect(pulsar.look.surfaceKey).toBe("star_disc:pc_pulsar");
+    expect(pulsar.look.surfaceKeys).toEqual(["star_disc:pc_pulsar"]);
     expect(pulsar.look.flare).toBe("pulsar");
   });
 
@@ -284,7 +284,7 @@ describe("a scenario body on a fixed orbit and angle is drawn as a save body at 
     expectParity("sc_black_hole", bodies);
     const [hole, planet] = asScenario("sc_black_hole", bodies).bodies;
     expect(hole.look.blackHole).toBe(true);
-    expect(hole.look.surfaceKey).toBeNull();
+    expect(hole.look.surfaceKeys).toEqual([]);
     expect(Math.hypot(planet.placement.x, planet.placement.y)).toBeGreaterThan(
       hole.placement.disc + planet.placement.disc,
     );

@@ -65,4 +65,9 @@ permanent_modifiers?: Array<string>,
  * The category of the anomaly the planet holds, its `anomaly`, which is also its
  * localisation key. `None` for a planet with none, and for a scenario's bodies.
  */
-anomaly?: string, };
+anomaly?: string, 
+/**
+ * A save's `entity_name`: the model the planet is drawn as, in place of its class's.
+ * `None` for a planet with none, and for a scenario's bodies.
+ */
+entity_name?: string, };

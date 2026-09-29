@@ -16,6 +16,7 @@ a release is made.
   dig site list.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
+- The system view draws a planet with the look you gave it.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
 - In the system view, a planet's or moon's name shows icons for its

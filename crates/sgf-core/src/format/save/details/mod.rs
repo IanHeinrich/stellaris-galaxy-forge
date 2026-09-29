@@ -67,7 +67,7 @@ impl DetailsProjection {
         })
     }
 
-    /// Read again the name, class, size, parent, modifiers, anomaly and placement of each of
+    /// Read again the name, class, size, parent, modifiers, anomaly, model and placement of each of
     /// `planets`, as (planet, system), from the bytes now standing for it, then the overlap
     /// findings of every system touched.
     pub fn refresh_planets(
@@ -94,6 +94,7 @@ impl DetailsProjection {
                 planet.parent = facts.moon_of;
                 planet.permanent_modifiers = modifiers;
                 planet.anomaly = facts.anomaly;
+                planet.entity_name = facts.entity_name;
                 planet.orbit = placement.orbit;
                 planet.at = placement.at;
                 planet.ring = placement.ring;

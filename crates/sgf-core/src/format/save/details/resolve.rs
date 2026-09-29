@@ -155,6 +155,11 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub anomaly: Option<String>,
+    /// A save's `entity_name`: the model the planet is drawn as, in place of its class's.
+    /// `None` for a planet with none, and for a scenario's bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub entity_name: Option<String>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -283,6 +288,7 @@ pub(super) fn resolve(
             drawn: Some(false),
             permanent_modifiers: Some(p.permanent_modifiers.clone()),
             anomaly: p.anomaly.clone(),
+            entity_name: p.entity_name.clone(),
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {

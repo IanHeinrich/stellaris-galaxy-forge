@@ -247,13 +247,34 @@ describe("the bodies of a system", () => {
       planetClasses,
     });
     const looks = [2, 3].map((id) => {
-      const { flat, irregular, surfaceKey } = ctx.bodyById.get(id)!.look;
-      return { flat, irregular, surfaceKey };
+      const { flat, irregular, surfaceKeys } = ctx.bodyById.get(id)!.look;
+      return { flat, irregular, surfaceKeys };
     });
     expect(looks).toEqual([
-      { flat: true, irregular: true, surfaceKey: null },
-      { flat: false, irregular: false, surfaceKey: "planet_disc:pc_continental" },
+      { flat: true, irregular: true, surfaceKeys: [] },
+      { flat: false, irregular: false, surfaceKeys: ["planet_disc:pc_continental"] },
     ]);
+  });
+
+  it("draws a save planet's own model before its class's disc, and draws it afresh when the model changes", () => {
+    const layout = bodyLayout({ orbit: fixed(40), at: [40, 0], size: fixed(10) });
+    const plain = planetSummary({ id: 2, class: "pc_continental", layout });
+    const paradise = { ...plain, entity_name: "ocean_paradise_planet_01_entity" };
+    const keys = (planet: PlanetSummary) => save([sun, planet]).bodyById.get(2)!.look.surfaceKeys;
+    expect(keys(paradise)).toEqual([
+      "planet_model:ocean_paradise_planet_01_entity",
+      "planet_disc:pc_continental",
+    ]);
+    expect(keys(plain)).toEqual(["planet_disc:pc_continental"]);
+    const star = save([{ ...sun, entity_name: "star_entity" }]).bodyById.get(1)!;
+    expect(star.look.surfaceKeys).toEqual(["star_disc:pc_g_star"]);
+
+    const shown = save([sun, plain]);
+    const given = systemContext({
+      ...shown,
+      details: systemDetails({ id: SYSTEM, planets: [sun, paradise] }),
+    });
+    expect(given.bodyById.get(2)!.look).not.toBe(shown.bodyById.get(2)!.look);
   });
 
   it("draws both stars of a binary scenario system still loading", () => {
