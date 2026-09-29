@@ -20,6 +20,11 @@ const ASTEROID_SCALE = 2;
  * their orbits than the game draws them, so a star is kept short of its full in-game share.
  */
 const STAR_SCALE = 1.8;
+/**
+ * The radius a natural wormhole's vortex is drawn to, in world units: 1.8 times the largest gas
+ * giant's disc (size 30), as its soft rim fades well inside that.
+ */
+export const WORMHOLE_RADIUS = 1.8 * 30 * DISC_PER_SIZE;
 
 /** What a disc is sized by besides its `planet_size`. */
 export interface DiscKind {

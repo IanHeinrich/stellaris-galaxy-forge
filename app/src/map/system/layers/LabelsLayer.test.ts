@@ -37,11 +37,14 @@ import {
   saveBody,
   context,
   drawOps,
+  plateTexts,
   resourceAmounts,
   strokes,
   stubTextMeasurement,
   viewport,
+  WORMHOLE,
 } from "../fixture";
+import { drawnWormhole } from "../geometry";
 import { NO_SOURCES } from "../sources";
 import { LabelsLayer } from "./LabelsLayer";
 import { NO_HIGHLIGHT } from "./SystemLayer";
@@ -65,7 +68,7 @@ describe("the system scene's labels layer", () => {
 
   const labelled = (layers: { labels: boolean; details: boolean }) =>
     systemContext({
-      ...context({ planets: [SUN, MINED] }),
+      ...context({ planets: [SUN, MINED], wormholes: [] }),
       sceneLayers: { ...NO_SOURCES.sceneLayers, labels: layers.labels, details: layers.details },
     });
 
@@ -457,6 +460,38 @@ describe("the system scene's labels layer", () => {
     expect(top.x + row.w / 2).toBeCloseTo(earthAt.x);
     expect(top.y).toBeGreaterThan(earthAt.y);
     clearTextures();
+    layer.destroy();
+  });
+});
+
+describe("the system scene's labels layer at wormholes", () => {
+  it("names each wormhole on a plate under its swirl with Labels on, never picked as a body's", () => {
+    const layer = new LabelsLayer();
+    const ctx = context({ planets: [SUN] });
+    layer.rebuild(ctx);
+    const cam = viewport(layer, 2);
+    const names = plateTexts(layer.container, "name");
+    expect(names).toContain("S5 Wormhole");
+    expect(names).toContain("S5 Shroud Tunnel");
+    const holder = layer.container.children.find((h) =>
+      (h as Container).children.some((c) => c instanceof BitmapText && c.text === "S5 Wormhole"),
+    )!;
+    const swirl = cam.worldToScreen(WORMHOLE.x, WORMHOLE.y);
+    const top = cam.worldToScreen(holder.x, holder.y);
+    expect(top.y).toBeGreaterThan(swirl.y + drawnWormhole(cam.scale) * cam.scale);
+    expect(layer.plates().map((p) => p.id)).toEqual([SUN.id]);
+    const glyph = (holder as Container).children.find((c) => c.label === "glyph");
+    expect(glyph?.visible).toBe(false);
+
+    const was = holder.y;
+    const dragged = new Map([[WORMHOLE.id, { x: WORMHOLE.x, y: WORMHOLE.y + 60 }]]);
+    layer.rebuild(systemContext(ctx, { override: { wormholes: dragged }, marks: null }));
+    expect(layer.container.children).toContain(holder);
+    expect(holder.y).toBeCloseTo(was + 60);
+
+    const unnamed = { ...ctx.sceneLayers, labels: false };
+    layer.rebuild(systemContext({ ...ctx, sceneLayers: unnamed }));
+    expect(plateTexts(layer.container, "name")).toEqual([]);
     layer.destroy();
   });
 });

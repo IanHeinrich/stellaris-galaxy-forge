@@ -82,7 +82,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
-      new WormholesLayer(),
+      new WormholesLayer(textures),
       new LocksLayer(),
       this.handles,
       this.labels,
