@@ -1,8 +1,9 @@
 //! The empire counts a Paint a Galaxy header carries, sized by the seats the map holds
 //! the way the app's `generate_galaxy_txt.ts` sizes them: `S` seats of which `R` are
-//! reserved for one empire (a reserved letter or Sol) leave `S - R - 1` seats any
-//! empire may take, the `1` the player's own seat, which is already among the `R`
-//! when it is reserved; the defaults are shares of `S - 1`. The fallen empire counts
+//! held for one empire (a 1st Player seat, a reserved seat or Sol) leave `S - R - 1`
+//! seats any empire may take, the `1` the player's own seat. It is already among the
+//! `R` when the map has a 1st Player seat, which the host takes, or when the player's
+//! marker is on a reserved or Sol seat. The defaults are shares of `S - 1`. The fallen empire counts
 //! follow the zones the same way: one fallen empire per zone, up to the six kinds the
 //! mod knows. The marauder counts follow the clan homes: each home spawns its clan, so
 //! no more can appear than are placed.
@@ -26,17 +27,20 @@ pub const KEYS: [&str; 9] = [
 /// The most fallen empires the mod can seat: it knows six kinds.
 pub const MOST_FALLEN_EMPIRES: u32 = 6;
 
-/// A map's seats, how many are reserved, and whether the player's seat is one of those.
+/// A map's seats, how many are held for one empire, and whether the player's seat is
+/// one of those.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SeatCounts {
     pub seats: u32,
     pub reserved: u32,
-    /// The player's marker is on a Sol or reserved seat, so `reserved` already counts it.
+    /// The map has a 1st Player seat, or the player's marker is on a Sol or reserved
+    /// seat, so `reserved` already counts the player's seat.
     pub player_on_reserved: bool,
 }
 
 impl SeatCounts {
-    /// `seats` seats with `scripts`: how many are reserved, and whether the player's is one.
+    /// `seats` seats with `scripts`: how many are held for one empire, and whether the
+    /// player's is one.
     pub fn from_scripts<'a>(
         seats: u32,
         scripts: impl IntoIterator<Item = &'a SpawnScript>,
@@ -46,7 +50,7 @@ impl SeatCounts {
         for script in scripts {
             if is_reserved_script(script) {
                 reserved += 1;
-                player_on_reserved |= holds_player(script);
+                player_on_reserved |= holds_player(script) || is_first_player(script);
             }
         }
         Self {
@@ -189,12 +193,22 @@ pub fn is_seat(system: &SystemNode) -> bool {
     system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
 }
 
-/// A script seating one empire by trait: a reserved letter or Sol.
+/// A script seating one empire: a 1st Player seat, a reserved seat or Sol.
 pub fn is_reserved_script(script: &SpawnScript) -> bool {
     matches!(
         script,
         SpawnScript::PaintAGalaxy {
-            kind: PaintSpawnKind::Reserved(_) | PaintSpawnKind::Sol,
+            kind: PaintSpawnKind::Preferred | PaintSpawnKind::Reserved(_) | PaintSpawnKind::Sol,
+            ..
+        }
+    )
+}
+
+fn is_first_player(script: &SpawnScript) -> bool {
+    matches!(
+        script,
+        SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Preferred,
             ..
         }
     )

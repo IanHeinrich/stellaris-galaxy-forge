@@ -35,9 +35,10 @@ pub enum SpawnScript {
         kind: PaintSpawnKind,
         random_value: u8,
         /// The player's seat: a `modifier` beside the value adds 100000 for the seat's
-        /// holder, under the condition the kind takes (none for a preferred seat, the
-        /// `human_1` country flag for Sol, the submod's trait for a reserved letter), so
-        /// that holder outweighs every other empire by far. An enabled seat has none.
+        /// holder, under the condition the kind takes (the `painted_galaxy_host` country
+        /// flag for a 1st Player seat, the `human_1` flag for Sol, the submod's trait
+        /// for a reserved seat), so that holder outweighs every other empire by far. An
+        /// enabled seat has none.
         #[serde(default)]
         player: bool,
     },
@@ -50,9 +51,11 @@ pub enum SpawnScript {
 pub enum PaintSpawnKind {
     /// Any empire may be seated here.
     Enabled,
-    /// `PREFERRED=yes`: seated before the enabled systems.
+    /// `PREFERRED=yes`, the 1st Player seat: meant for the first player, the host, and
+    /// weighed at 0 or 10 by every other empire.
     Preferred,
-    /// `RESERVED=<letter>`: held for the empire the letter names.
+    /// `RESERVED=<name>`: held for the empire with the submod's trait for that name, a
+    /// letter a to z or a Greek letter alpha to omega.
     Reserved(String),
     /// `SOL=yes`: held for the United Nations of Earth, or an empire with the submod's
     /// Sol trait.

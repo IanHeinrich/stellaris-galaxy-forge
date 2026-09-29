@@ -49,14 +49,14 @@ const TAG_STYLE = new TextStyle({
 
 /**
  * What a scripted seat's kind draws beside the marker: nothing for an enabled seat, a star for a
- * preferred one, letters on a chip for the rest, the chip ringed when the seat is weighted.
+ * 1st Player one, letters on a chip for the rest, the chip ringed when the seat is weighted.
  */
 type Tag = "star" | { letters: string; weighted: boolean } | null;
 
 function tagOf(script: SpawnScript): Tag {
   const { kind, player } = script.paint_a_galaxy;
-  const { seat, letter } = seatKindOf(kind);
-  const letters = SEAT_KINDS[seat].tag(letter);
+  const { seat, name } = seatKindOf(kind);
+  const letters = SEAT_KINDS[seat].tag(name);
   if (letters === null) return null;
   if (seat === "preferred" && !player) return "star";
   return { letters, weighted: player };
@@ -78,7 +78,7 @@ function drawChip(g: Graphics, weighted: boolean): void {
   if (weighted) chip().stroke(RING);
 }
 
-/** A preferred seat's five-point star, drawn beside the marker rather than spelled out. */
+/** A 1st Player seat's five-point star, drawn beside the marker rather than spelled out. */
 function drawStar(g: Graphics): void {
   const { x, y } = TAG_OFFSET;
   const points: number[] = [];

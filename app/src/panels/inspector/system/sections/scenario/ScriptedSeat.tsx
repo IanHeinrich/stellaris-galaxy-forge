@@ -7,7 +7,7 @@ import {
   isReservedKey,
   paintKindDescription,
   paintKindKey,
-  reservedLetter,
+  reservedSeatName,
   scriptForKind,
   seatSummary,
   weightedDescription,
@@ -23,7 +23,7 @@ function optionLabel(k: { key: string; label: string }, others: ReturnType<typeo
   const inUse =
     k.key === "sol"
       ? others.sol
-      : isReservedKey(k.key) && others.reserved.includes(reservedLetter(k.key));
+      : isReservedKey(k.key) && others.reserved.includes(reservedSeatName(k.key));
   return inUse ? `${k.label} · in use` : k.label;
 }
 

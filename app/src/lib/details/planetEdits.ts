@@ -1,7 +1,8 @@
 /**
  * The edits a save body's page offers beside its star's: its name, its size, its deposits, its
- * modifiers and its anomaly.
+ * modifiers, its dig site and its anomaly.
  */
+import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { ModifierLineView } from "../../generated/ModifierLineView";
 import type { Op } from "../../generated/Op";
@@ -63,6 +64,11 @@ export function addAnomalyOp(planet: number, category: string): Op {
 /** The edit that takes planet `planet`'s anomaly off it. */
 export function removeAnomalyOp(planet: number): Op {
   return { type: "RemoveAnomaly", planet };
+}
+
+/** The edit that puts a dig site of `choice`'s type on planet `planet`, at its first stage. */
+export function addDigSiteOp(planet: number, choice: DigSiteChoice): Op {
+  return { type: "AddDigSite", planet, site_type: choice.key, difficulty: choice.difficulty };
 }
 
 /**

@@ -1,6 +1,6 @@
 /**
- * How a planet's page adds and removes deposits, modifiers and an anomaly, whatever the document
- * is.
+ * How a planet's page adds and removes deposits, modifiers, dig sites and an anomaly, whatever the
+ * document is.
  * `planetEditAdapterFor` is the one place a source is chosen.
  */
 import type { Op } from "../generated/Op";
@@ -10,6 +10,7 @@ import type { ModifierRow } from "../lib/details/planetPage";
 import {
   addAnomalyOp,
   addDepositOp,
+  addDigSiteOp,
   addModifierOp,
   removeAnomalyOp,
   removeModifierOp,
@@ -17,8 +18,8 @@ import {
 import { useEditorStore } from "./editorStore";
 
 /**
- * A save planet's edits, made by the save's own ops. A deposit row's ref is the deposit's id, and
- * a modifier row's is the page's `ModifierRow`.
+ * A save planet's edits, made by the save's own ops. A deposit row's ref is the deposit's id, a
+ * modifier row's is the page's `ModifierRow`, and a dig site's is the site's id.
  */
 function saveEdits(planet: number): PlanetEditAdapter {
   const apply = (op: Op) => useEditorStore.getState().applyOp(op);
@@ -30,6 +31,8 @@ function saveEdits(planet: number): PlanetEditAdapter {
     removeModifier: (ref) => apply(removeModifierOp(planet, ref as ModifierRow)),
     addAnomaly: (category) => apply(addAnomalyOp(planet, category)),
     removeAnomaly: () => apply(removeAnomalyOp(planet)),
+    addDigSite: (choice) => apply(addDigSiteOp(planet, choice)),
+    removeDigSite: (ref) => apply({ type: "RemoveDigSite", site: ref as number }),
   };
 }
 

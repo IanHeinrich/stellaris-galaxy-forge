@@ -297,8 +297,8 @@ for planets or deposits.
   with it too. The game reads `unique_system` for its "Unique System"
   timeline entry when an empire takes the system.
 - A body's `binary_flags` comes after `name`. Its bits are 1 for a name
-  the layout fixed, 2 for an `entity_name`, 4 for surveyed, 8 for
-  `prevent_anomaly`, 256 for a ring and 512 for a moon. 64 is set
+  the layout fixed, 2 for a model the layout set in `entity_name`, 4 for
+  surveyed, 8 for `prevent_anomaly`, 256 for a ring and 512 for a moon. 64 is set
   alongside any of them. A body with none of them writes no
   `binary_flags`. A plain moon is therefore 576, a fixed-name planet 65
   and a ringed planet 320.
@@ -326,7 +326,15 @@ for planets or deposits.
   degree of each other. The overlapping-bodies finding leaves those
   alone.
 - A layout's `entity = "…"` is written as `entity_name="…"` after
-  `entity=`, and `entity=` is still written.
+  `entity=`, and `entity=` is still written. `entity=N` is the index of
+  the class's random variant.
+- Bit 2 of `binary_flags` marks a model an initializer set, not every
+  `entity_name`. The effect `set_planet_entity` writes `entity_name`
+  without it, as on habitats and arc furnace worlds. The game draws
+  `entity_name` whatever bit 2 says, on any class, so the editor writes
+  a model without the bit and clears the bit when it removes a model.
+  A class change in game, a terraform included, drops `entity_name` and
+  leaves bit 2 set. Checked in game on 4.5.1.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an
   item of the planet's
   `timed_modifier={ items={ { modifier="X" days=-1 } } }`, after
@@ -367,6 +375,24 @@ for planets or deposits.
   player's list from day one without a `surveyed_by`.
 - Stellaris 3.4 writes `anomaly` the same way but has no
   `events.anomalies`, so the editor refuses anomaly edits before 4.0.
+- A dig site is an entry of the top-level
+  `archaeological_sites={ sites={ <id>={ … } } }`. The ids run up from 0
+  with no counter. While a fleet excavates a site, the site's
+  `excavator_fleet` names the fleet and the fleet's
+  `current_order={ excavate_archaeological_site_fleet_order={ …
+  archaeological_site=<id> … } }` names the site. The 3.4 sample and
+  the spike saves show it; nothing else names a site. A site
+  nobody has dug holds `location={ type=2 id=<planet> }`,
+  `last_excavator_country` and `excavator_fleet` at the null id,
+  `type="<site type>"`, `index=0 clues=0 last_roll=0`, `days_left=90`
+  (`ARCHAEOLOGICAL_SITE_DISCOVERY_DAYS`) and `difficulty`, its current
+  stage's. `index` counts the stages finished. `visible_to` lists the
+  countries that see the site, and the game fills it in for a site
+  written without one. A dug site adds `completed` and `events`.
+  Stellaris 3.4 also writes `locked=no` on each site. An empty table is
+  written inline as `sites={ }`, and a new site goes on a line of its
+  own. The editor refuses to add a site to a save whose section has no
+  `sites` block, because no save seen writes one without it.
 - A star-class body other than the star, such as the Great Wound's
   black holes, has `carrier_binary_flags=3`, as the star does. A star
   off centre writes its `orbit` and position like a planet, and the

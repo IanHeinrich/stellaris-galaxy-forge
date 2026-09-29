@@ -10,6 +10,7 @@ pub mod country_types;
 pub mod defines;
 pub mod deposit_categories;
 pub mod deposits;
+pub mod dig_site_types;
 pub mod flags;
 pub mod galaxy_shapes;
 pub mod galaxy_sizes;

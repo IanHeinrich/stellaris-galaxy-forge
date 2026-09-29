@@ -50,8 +50,8 @@ fallen_empires: Array<FallenEmpireReport>,
 player_seat: number | null, 
 /**
  * The seat's kind: Sol for the United Nations of Earth, the only empire that
- * weighs it above zero, so the start is certain; preferred for any other empire,
- * weighted to be the likeliest start, not a certain one.
+ * weighs it above zero, so the start is certain; 1st Player for any other empire,
+ * weighted for the host, so the start is all but certain.
  */
 player_seat_kind: PaintSpawnKind | null, 
 /**

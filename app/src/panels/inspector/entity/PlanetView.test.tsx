@@ -37,6 +37,7 @@ import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { SAVE_CAPABILITIES } from "../../../lib/capabilities";
+import { useDigSitePickerStore } from "../../../store/digSitePickerStore";
 import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
@@ -57,6 +58,7 @@ import { ComboField } from "../../ComboField";
 import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
+import { MODEL_TITLE } from "../../../lib/details/planetModel";
 
 bindStores();
 
@@ -264,10 +266,12 @@ describe("a colony's page", () => {
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
+      'class="edit-field dp-open"',
       'class="edit-field edit-key-sample"',
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
     expect(html).toContain("+ Add modifier…");
+    expect(html).toContain("+ Add dig site…");
     expect(html).toContain("Add deposit");
     expect(html).toContain("+ Add anomaly…");
     expect(html.match(/pl-dep-remove/g)).toHaveLength(3);
@@ -596,6 +600,107 @@ describe("an unowned world's page", () => {
     expect(html).toContain("+4 Max Generator Districts · permanent");
     expect(html).toMatch(/Surveyed by<\/span>.*Ti Zru Conservers/);
   });
+
+  const SITE_TYPES = [
+    {
+      key: "site_lost_moments",
+      name: "Never Forget",
+      difficulty: 1,
+      stages: 3,
+      rolled: true,
+      offered: true,
+    },
+    {
+      key: "site_repowered_complex",
+      name: "Repowered Complex",
+      difficulty: 2,
+      stages: 1,
+      rolled: false,
+      offered: true,
+    },
+  ];
+
+  it("shows its dig site's stage and clues, with a button to remove it", async () => {
+    await open("save");
+    await landPage({
+      ...OLBERS,
+      dig_site: {
+        id: 7,
+        kind: "site_lost_moments",
+        stages_done: 1,
+        clues: 5,
+        excavating: true,
+      },
+    });
+    useGameDataStore.setState({ names: new Map([["site_lost_moments", "Never Forget"]]) });
+    useDigSitePickerStore.setState({ choices: SITE_TYPES });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain("Dig site");
+    expect(html).toContain("Never Forget");
+    expect(html).toContain("Stage 2 of 3 · 5 clues · Excavating");
+    expect(html).not.toContain("+ Add dig site…");
+    expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Dig site"));
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove Never Forget").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDigSite", site: 7 }),
+    );
+  });
+
+  it("counts the stages of a site type the picker leaves out", async () => {
+    await open("save");
+    await landPage({
+      ...OLBERS,
+      dig_site: { id: 2, kind: "site_the_library", stages_done: 3, clues: 0, excavating: false },
+    });
+    useDigSitePickerStore.setState({
+      choices: [
+        ...SITE_TYPES,
+        {
+          key: "site_the_library",
+          name: "The Library",
+          difficulty: 4,
+          stages: 3,
+          rolled: true,
+          offered: false,
+        },
+      ],
+    });
+
+    expect(render(WORLD)).toContain("Finished · 0 clues");
+  });
+
+  it("offers Add dig site without one, and the open picker filters by how a site is found", async () => {
+    await open("save");
+    await landPage(OLBERS);
+    expect(render(WORLD)).toContain("+ Add dig site…");
+
+    useDigSitePickerStore.setState({
+      target: planetPickerTarget(OLBERS, false),
+      choices: SITE_TYPES,
+      chip: "Events",
+    });
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain('aria-label="Search dig sites"');
+    expect(html).toContain("Found by surveys");
+    expect(html).toContain('aria-pressed="true">Event only</button>');
+    expect(html).toContain("Repowered Complex");
+    expect(html).toContain("1 stage · event only");
+    expect(html).not.toContain("Never Forget");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Add Repowered Complex").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "AddDigSite",
+        planet: WORLD,
+        site_type: "site_repowered_complex",
+        difficulty: 2,
+      }),
+    );
+  });
 });
 
 describe("a gas giant's page", () => {
@@ -733,6 +838,7 @@ describe("a save star body's page", () => {
     expect(html).toContain("+ Add anomaly…");
     expect(html).toContain('title="Open the system&#x27;s page"');
     expect(html).toContain("editable · plain text is information");
+    expect(html).not.toContain("Dig site");
   });
 
   it("waits, disabled, while an edit has left the system's details stale", async () => {
@@ -1065,6 +1171,77 @@ describe("a body's ring", () => {
     await bodyPage(PLANET, { class: "pc_continental" });
 
     expect(render(PLANET)).not.toMatch(RING);
+  });
+});
+
+describe("a planet's model", () => {
+  const MODELS = [
+    { entity: "ocean_paradise_planet_01_entity", label: "Ocean Paradise", classes: ["pc_ocean"] },
+    { entity: "arctic_planet_earth_entity", label: "Earth", classes: ["pc_arctic"] },
+  ];
+  const MODEL = '<span class="edit-label">Model</span>';
+
+  async function arm(over: Partial<PlanetPage> = {}): Promise<void> {
+    await open("save");
+    useGameDataStore.setState({
+      planetModels: MODELS,
+      names: new Map([["pc_arctic", "Arctic World"]]),
+    });
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic", ...over }));
+  }
+
+  it("offers Default, then the class's usual models, then the others, and a pick sends it", async () => {
+    await arm();
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain(MODEL);
+    expect(html).toContain(escapedText(MODEL_TITLE));
+    const field = drawnField(PickerField, "Model");
+    expect(field.current.label).toBe("Default");
+    expect(field.items.map((item) => [item.label, item.group])).toEqual([
+      ["Default", undefined],
+      ["Earth", "Usual for Arctic World"],
+      ["Ocean Paradise", "Other models"],
+    ]);
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    field.onPick("ocean_paradise_planet_01_entity");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetEntity",
+        planet: WORLD,
+        entity: "ocean_paradise_planet_01_entity",
+      }),
+    );
+  });
+
+  it("shows the model a planet has, and Default takes it off", async () => {
+    await arm({ entity_name: "ocean_paradise_planet_01_entity" });
+    drawnBy(() => render(WORLD));
+    const field = drawnField(PickerField, "Model");
+    expect(field.current.label).toBe("Ocean Paradise");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    field.onPick("");
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetPlanetEntity",
+        planet: WORLD,
+        entity: null,
+      }),
+    );
+  });
+
+  it("offers no model to a star or on a scenario", async () => {
+    armStarClasses();
+    await open("save");
+    await land(stars());
+    await landPage(planetPage({ id: STAR, class: "pc_a_star", size: 30 }));
+    expect(render(STAR)).toContain("Star type");
+    expect(render(STAR)).not.toContain(MODEL);
+
+    await open("scenario");
+    await landPage(planetPage({ id: WORLD, class: "pc_arctic" }));
+    expect(render(WORLD)).not.toContain(MODEL);
   });
 });
 

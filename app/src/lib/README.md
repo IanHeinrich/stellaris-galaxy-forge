@@ -26,16 +26,19 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `starClass` is the star class pickers and the bulk plan that sets one
   class on many systems. `terraform` says what making a body a terraforming
   candidate needs. `planetEdits` builds the ops a planet's page sends for
-  its name, size, deposits, modifiers and anomaly, and the hint of a body's Edit
-  chip. `picker` is what the deposit, modifier and anomaly pickers share: the
-  search, the usual rows first, and the target and edit adapter they add
+  its name, size, deposits, modifiers, dig site and anomaly, and the hint
+  of a body's Edit chip. `planetModel` is the Model field's rows, usual models
+  first, and the edit a pick sends. `picker` is what the deposit, modifier,
+  dig site and anomaly pickers share: the search, the usual rows first, and the
+  target and edit adapter they add
   through, so a source other than a save can plug in its own adapter
   (`store/planetEditAdapter` holds the save's). `depositPicker` groups
   the deposit types its picker offers into families, sections and chips,
-  `modifierPicker` is the modifier picker's rows and chips, and
-  `anomalyPicker` is the anomaly picker's rows and level chips. The
-  system view's layout is
-  `orbits`: where each body, orbit, belt and hyperlane exit sits, from the
+  `modifierPicker` is the modifier picker's rows and chips,
+  `digSitePicker` is the dig site picker's rows and chips and the line a
+  planet's site reads as, and `anomalyPicker` is the anomaly picker's rows
+  and level chips. The system view's layout is `orbits`: where each body,
+  orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
   `orbitEdits` turns a geometry edit, a body or belt at an absolute radius
   and angle, into an op. It picks an adapter per document: a save's builds

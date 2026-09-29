@@ -252,6 +252,17 @@ fn run(cli: Cli) -> commands::Run {
                 custom_name: None,
             },
         ),
+        Some(Command::Model {
+            sav,
+            planet,
+            entity,
+            clear: _,
+            out,
+        }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::SetPlanetEntity { planet, entity },
+        ),
         Some(Command::Modifier {
             sav,
             planet,
@@ -295,6 +306,25 @@ fn run(cli: Cli) -> commands::Run {
                 None => Op::RemoveAnomaly { planet },
             },
         ),
+        Some(Command::DigSite {
+            sav,
+            planet,
+            site_type,
+            difficulty,
+            remove,
+            out,
+        }) => match (site_type, difficulty) {
+            (Some(site_type), Some(difficulty)) if !remove => commands::mutate::run(
+                &sav,
+                out.path.as_deref(),
+                Op::AddDigSite {
+                    planet,
+                    site_type,
+                    difficulty,
+                },
+            ),
+            _ => commands::mutate::remove_dig_site(&sav, out.path.as_deref(), planet),
+        },
         Some(Command::Deposit { command }) => match command {
             DepositCommand::Add {
                 sav,

@@ -28,7 +28,8 @@ pub use schema::{EntitySchema, FieldSchema, FieldType};
 pub use views::{
     ContentsRow, EntityAddr, EntityKind, EntityNode, EntitySource, EntityView, Fact, NodeValue,
     PlanetPage, PlanetPageAnomaly, PlanetPageClearing, PlanetPageColony, PlanetPageDeposit,
-    PlanetPageDistrict, PlanetPageMoon, PlanetPageSpecies, PlanetPageTimedModifier, ScalarForm,
+    PlanetPageDigSite, PlanetPageDistrict, PlanetPageMoon, PlanetPageSpecies,
+    PlanetPageTimedModifier, ScalarForm,
 };
 
 #[derive(Debug, thiserror::Error)]

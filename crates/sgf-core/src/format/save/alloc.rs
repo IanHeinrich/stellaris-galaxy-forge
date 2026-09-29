@@ -396,7 +396,7 @@ impl SlotTable {
 
     fn tombstone_id(&self, id: u32) -> u32 {
         match self.table {
-            Table::AmbientObject => id,
+            Table::AmbientObject | Table::DigSite => id,
             Table::Entity(_) => tombstone_id(id),
         }
     }

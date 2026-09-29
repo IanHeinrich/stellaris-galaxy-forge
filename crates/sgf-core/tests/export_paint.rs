@@ -487,7 +487,7 @@ fn sample_without_une_flag() -> Session {
 }
 
 #[test]
-fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
+fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
     let save = sample_without_une_flag();
     assert_eq!(save.graph.player_country, Some(0));
     assert!(
@@ -506,13 +506,13 @@ fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
     assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Preferred));
     assert!(
         text.contains(
-            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 } } }
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 has_country_flag = painted_galaxy_host } } }
 "
         ),
         "{text}"
     );
     assert_eq!(text.matches("modifier = {").count(), 1);
-    // Without a reserved seat every seat is open, and the header counts say so.
+    // Every seat but the host's is open, and the header counts say so.
     assert!(
         text.contains(
             "	num_empires = { min = 0 max = 16 }
@@ -531,14 +531,14 @@ fn a_player_that_is_not_the_une_gets_a_preferred_seat() {
             player: true,
         })
     );
-    // The player's preferred seat is one of the 17 open ones, so 16 are left to the AI.
+    // The player's 1st Player seat is held for the host, so 16 are left to the AI.
     let seats = seat_counts(&reopened.graph);
     assert_eq!(
         seats,
         SeatCounts {
             seats: 17,
-            reserved: 0,
-            player_on_reserved: false,
+            reserved: 1,
+            player_on_reserved: true,
         }
     );
     assert_eq!(seats.safe(), 16);
