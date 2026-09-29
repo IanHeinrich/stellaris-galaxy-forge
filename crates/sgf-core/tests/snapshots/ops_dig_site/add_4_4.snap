@@ -1,0 +1,32 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Add dig site site_krazura_dig (#5) to planet #749
+inverse: RemoveDigSite { site: 5 }
+
+--- gamestate
++++ gamestate
+@@ -1814631,6 +1814631,22 @@
+ 			days_left=90
+ 			difficulty=1
+ 		}
++		5=
++		{
++			location=
++			{
++				type=2
++				id=749
++			}
++			last_excavator_country=4294967295
++			excavator_fleet=4294967295
++			type="site_krazura_dig"
++			index=0
++			clues=0
++			last_roll=0
++			days_left=90
++			difficulty=3
++		}
+ 	}
+ }
+ espionage_operations=

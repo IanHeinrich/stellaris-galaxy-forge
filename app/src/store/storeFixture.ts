@@ -3,6 +3,7 @@ import type { StoreApi } from "zustand";
 
 import { useDepositPickerStore } from "./depositPickerStore";
 import { useDetailsStore } from "./detailsStore";
+import { useDigSitePickerStore } from "./digSitePickerStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -32,6 +33,7 @@ import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
   useDepositPickerStore,
+  useDigSitePickerStore,
   useEditorStore,
   useEntityStore,
   useFileSessionStore,

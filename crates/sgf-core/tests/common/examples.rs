@@ -443,6 +443,10 @@ pub fn one_of_each() -> Vec<Example> {
             planet: 585,
             ring: true,
         }),
+        Example::save_4_5(Op::SetPlanetEntity {
+            planet: 585,
+            entity: Some("ocean_paradise_planet_01_entity".to_owned()),
+        }),
         Example::save_4_5(Op::AddSaveBelt {
             system: 140,
             kind: "rocky_asteroid_belt".to_owned(),
@@ -497,6 +501,12 @@ pub fn one_of_each() -> Vec<Example> {
                 .to_owned(),
             }],
         }),
+        Example::save(Op::AddDigSite {
+            planet: 749,
+            site_type: "site_lost_moments".to_owned(),
+            difficulty: 1,
+        }),
+        Example::save(Op::RemoveDigSite { site: 0 }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),

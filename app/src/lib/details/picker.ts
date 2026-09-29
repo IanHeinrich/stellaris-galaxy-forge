@@ -2,6 +2,7 @@
  * What a planet's pickers share: the body they add to and the adapter that writes to it, the
  * chips every picker starts with, the search, and the usual rows first under All.
  */
+import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
@@ -77,7 +78,7 @@ export function pickerSections<R extends PickRow, C extends string>(
 /** A value a source gives each row it lists, and takes back to remove that row. */
 export type RowRef = unknown;
 
-/** How one source adds and removes a body's deposits and modifiers. */
+/** How one source adds and removes a body's deposits, modifiers and dig site. */
 export interface PlanetEditAdapter {
   /** Whether a modifier it adds can run out after some days; without, every add is permanent. */
   timedModifiers: boolean;
@@ -86,6 +87,8 @@ export interface PlanetEditAdapter {
   /** Adds `choice` for `days`, or for ever when `null`. */
   addModifier(choice: ModifierChoice, days: number | null): Promise<boolean>;
   removeModifier(ref: RowRef): Promise<boolean>;
+  addDigSite(choice: DigSiteChoice): Promise<boolean>;
+  removeDigSite(ref: RowRef): Promise<boolean>;
 }
 
 /** The body a picker adds to: what its choices are read for, and how it is edited. */

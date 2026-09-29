@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`,
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `model`, `dig-site`,
 //! `rename-planet`, `rename-empire`, `delete-planet` and `remove-colony`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
@@ -429,6 +429,44 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
 }
 
 #[test]
+fn model_writes_a_planet_model_a_later_run_clears() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("model.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "model",
+        SAMPLE_4_5,
+        "585",
+        "ocean_paradise_planet_01_entity",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Gave planet #585 the model ocean_paradise_planet_01_entity"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let cleared = sgf(&[
+        "model",
+        out_str,
+        "585",
+        "--clear",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&cleared);
+    assert!(
+        stdout(&cleared).contains("Took the model ocean_paradise_planet_01_entity off planet #585"),
+        "{}",
+        stdout(&cleared)
+    );
+}
+
+#[test]
 fn rename_planet_writes_the_new_name_and_refuses_an_empty_one() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("renamed.sav");
@@ -493,6 +531,49 @@ fn rename_empire_renames_the_player_in_the_save_and_on_the_load_screen() {
     assert_eq!(same.status.code(), Some(1));
     let err = String::from_utf8_lossy(&same.stderr);
     assert!(err.contains("country 0 already has that name"), "{err}");
+}
+
+#[test]
+fn dig_site_writes_a_site_a_later_run_takes_away() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("site.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "dig-site",
+        SAMPLE_4_5,
+        "585",
+        "site_lost_moments",
+        "--difficulty",
+        "1",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    let text = stdout(&out);
+    assert!(
+        text.contains("Add dig site site_lost_moments (#4) to planet #585"),
+        "{text}"
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let removed = sgf(&[
+        "dig-site",
+        out_str,
+        "585",
+        "--remove",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&removed);
+    assert!(
+        stdout(&removed).contains("Remove dig site site_lost_moments (#4) from planet #585"),
+        "{}",
+        stdout(&removed)
+    );
+
+    let none = sgf(&["dig-site", SAMPLE_4_5, "585", "--remove", "-o", out_str]);
+    assert_ne!(none.status.code(), Some(0));
 }
 
 #[test]

@@ -1,0 +1,25 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Took the model previously_terraformed_planet_entity off planet #3318
+inverse: SetPlanetEntity { planet: 3318, entity: Some("previously_terraformed_planet_entity") }
+
+--- gamestate
++++ gamestate
+@@ -252272,7 +252272,6 @@
+  
+ 				}
+ 			}
+-			binary_flags=322
+ 			coordinate=
+ 			{
+ 				x=12.1808
+@@ -252298,7 +252297,6 @@
+ 				}
+ 			}
+ 			entity=0
+-			entity_name="previously_terraformed_planet_entity"
+ 			deposits=
+ 			{
+ 				2411 2412 2413 2414 2415 2416 2417 2418 2421 2422

@@ -2,7 +2,8 @@
 //!
 //! A deleted body is left as the game's `remove_planet` leaves one: `<id>=none` in its slot
 //! and no `planet=` line in its system. Deposits, survey lists, fleets in orbit and orphaned
-//! construction queues are the game's to tidy, which it does at load or lets stand.
+//! construction queues are the game's to tidy, which it does at load or lets stand. A dig
+//! site on a deleted body goes as `RemoveDigSite` takes one: its entry alone.
 //!
 //! A colony goes as the game's `destroy_colony` takes it: the planet loses its owner,
 //! controller, colonisation date and orbital defence; the colony, its pops, jobs,
@@ -20,6 +21,7 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
 use crate::format::save::alloc::{self, SlotTable};
+use crate::format::save::dig_sites::{self, DigSite};
 use crate::format::save::write::bodies::{frame, unlist_moon};
 use crate::format::save::write::move_planet::{is_star_class, unlist_planets};
 use crate::format::save::{
@@ -84,6 +86,10 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
 
     let mut teardowns = Vec::new();
     let mut stations = Vec::new();
+    let sites: Vec<(Anchor, DigSite)> = dig_sites::sites(&s.doc)?
+        .into_iter()
+        .filter(|(_, site)| site.planet.is_some_and(|p| deleted.contains(&p)))
+        .collect();
     for &id in &deleted {
         let (node, src) = planet_entity(&s.doc, id)?;
         let refuse = |reason: String| OpError::PlanetKept { planet: id, reason };
@@ -98,7 +104,6 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
             return Err(refuse("a starbase orbits it".to_owned()));
         }
         check_planet(s, id, &node, src, refuse)?;
-        check_bare(s, id, refuse)?;
         if let Some(fleet) = some_id(&node, keys::SHIPCLASS_ORBITAL_STATION, src) {
             stations.push(Stationed {
                 planet: id,
@@ -115,6 +120,11 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     }
     for station in &stations {
         station.write(plan, s, &mut saved, system)?;
+    }
+    // A site goes as `RemoveDigSite` takes it, the entry alone: the game drops an
+    // excavating fleet's order on its first day.
+    for (anchor, _) in &sites {
+        plan.erase(&s.doc, Subject::Record(*anchor), *anchor)?;
     }
     let anchor = system_statement(&s.doc, system).ok_or(OpError::UnknownSystem(system))?;
     saved.keep(&s.doc, SavedTable::System, system, anchor)?;
@@ -145,9 +155,32 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         1 => ", with a colony".to_owned(),
         n => format!(", with {n} colonies"),
     };
+    let dug = match sites.len() {
+        0 => String::new(),
+        1 => ", and a dig site".to_owned(),
+        n => format!(", and {n} dig sites"),
+    };
+    let restored = format!("Restored {label} #{planet}{carrying}");
+    // An erased site has no statement to write back over, so it is added again, as
+    // `RemoveDigSite`'s inverse adds one; undo puts back the bytes as they stood.
+    let inverse = match saved.inverse(restored.clone()) {
+        restore if sites.is_empty() => restore,
+        restore => Op::Batch {
+            description: restored,
+            ops: std::iter::once(restore)
+                .chain(sites.into_iter().filter_map(|(_, site)| {
+                    Some(Op::AddDigSite {
+                        planet: site.planet?,
+                        site_type: site.kind,
+                        difficulty: site.difficulty,
+                    })
+                }))
+                .collect(),
+        },
+    };
     Ok(Planned {
-        description: format!("Deleted {label} #{planet}{carrying}{colonies}"),
-        inverse: saved.inverse(format!("Restored {label} #{planet}{carrying}")),
+        description: format!("Deleted {label} #{planet}{carrying}{colonies}{dug}"),
+        inverse,
     })
 }
 
@@ -399,14 +432,6 @@ fn check_planet(
     Ok(())
 }
 
-/// What refuses a planet's deletion alone: an archaeological site.
-fn check_bare(s: &Session, planet: u32, refuse: impl Fn(String) -> OpError) -> Result<(), OpError> {
-    if site_at(&s.doc, planet) {
-        return Err(refuse("it has an archaeological site".to_owned()));
-    }
-    Ok(())
-}
-
 /// Whether an entry of `megastructures` names `planet`.
 fn megastructure_at(doc: &Document, planet: u32) -> bool {
     doc.index()
@@ -420,22 +445,6 @@ fn parsed_scalar(doc: &Document, stmt: Span, key: &str) -> Option<u32> {
     let bytes = stmt.slice(doc.original());
     let node = entity_in(bytes).ok()??;
     read::scalar_u32(&node, key, bytes)
-}
-
-/// Whether an archaeological site stands on `planet`.
-fn site_at(doc: &Document, planet: u32) -> bool {
-    let Ok(Some(inner)) = doc.inner_index(keys::ARCHAEOLOGICAL_SITES) else {
-        return false;
-    };
-    inner.entities(keys::SITES).iter().any(|site| {
-        let bytes = site.stmt.slice(doc.original());
-        entity_in(bytes).ok().flatten().is_some_and(|node| {
-            node.find(keys::LOCATION, bytes).is_some_and(|at| {
-                read::scalar(at, keys::TYPE, bytes) == Some("2")
-                    && read::scalar_u32(at, keys::ID, bytes) == Some(planet)
-            })
-        })
-    })
 }
 
 /// A mining or research station at a deleted body: its fleet, which goes with the body.

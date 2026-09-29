@@ -229,6 +229,19 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Give a save planet a model, such as `ocean_paradise_planet_01_entity`, or clear it.
+    Model {
+        sav: PathBuf,
+        planet: u32,
+        /// The model's entity, as `gfx/models/planets` names it.
+        #[arg(required_unless_present = "clear")]
+        entity: Option<String>,
+        /// Take the planet's model off instead, back to its class's own.
+        #[arg(long, conflicts_with = "entity")]
+        clear: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Add a modifier to a save planet, such as `terraforming_candidate`, or remove it.
     Modifier {
         sav: PathBuf,
@@ -242,6 +255,23 @@ pub enum Command {
         #[arg(long)]
         feature: Option<String>,
         /// Remove the modifier instead, however long it has left.
+        #[arg(long)]
+        remove: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Add an archaeological dig site to a planet of a Stellaris 4.x save, or remove the one
+    /// it has.
+    DigSite {
+        sav: PathBuf,
+        planet: u32,
+        /// The site type, as `common/archaeological_site_types` names it.
+        #[arg(required_unless_present = "remove", conflicts_with = "remove")]
+        site_type: Option<String>,
+        /// The difficulty of the type's first stage.
+        #[arg(long, required_unless_present = "remove", conflicts_with = "remove")]
+        difficulty: Option<i32>,
+        /// Remove the planet's dig site instead, and any excavation under way there.
         #[arg(long)]
         remove: bool,
         #[command(flatten)]

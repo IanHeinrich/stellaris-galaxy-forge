@@ -71,7 +71,7 @@ fn print_paint_report(report: &ExportReport) {
     if let Some(seat) = report.player_seat {
         let kind = match report.player_seat_kind {
             Some(PaintSpawnKind::Sol) => "Sol seat, certain for the United Nations of Earth",
-            _ => "preferred seat, weighted: the likeliest start, not a certain one",
+            _ => "1st Player seat, weighted for the host: all but certain",
         };
         println!("player seat: system {seat} ({kind})");
     }

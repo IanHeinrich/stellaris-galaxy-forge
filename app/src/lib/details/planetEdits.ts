@@ -1,7 +1,8 @@
 /**
- * The edits a save body's page offers beside its star's: its name, its size, its deposits and its
- * modifiers.
+ * The edits a save body's page offers beside its star's: its name, its size, its deposits, its
+ * modifiers and its dig site.
  */
+import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { ModifierLineView } from "../../generated/ModifierLineView";
 import type { Op } from "../../generated/Op";
@@ -53,6 +54,11 @@ export function removeModifierOp(planet: number, row: ModifierRow): Op {
     modifier: row.modifier,
     ...(row.feature ? { feature: row.key } : {}),
   };
+}
+
+/** The edit that puts a dig site of `choice`'s type on planet `planet`, at its first stage. */
+export function addDigSiteOp(planet: number, choice: DigSiteChoice): Op {
+  return { type: "AddDigSite", planet, site_type: choice.key, difficulty: choice.difficulty };
 }
 
 /**

@@ -13,11 +13,12 @@ const VISUAL_HEIGHT: &str = "4.31213";
 /// `carrier_binary_flags` of a star body and of any other body.
 pub(crate) const STAR_CARRIER_FLAGS: u32 = 3;
 const BODY_CARRIER_FLAGS: u32 = 1;
-/// The `binary_flags` bits of a body: a name fixed by its layout, a model named in
+/// The `binary_flags` bits of a body: a name fixed by its layout, a model its layout set in
 /// `entity_name`, a ring and a moon. The game sets 64 beside any of them, and writes no
-/// `binary_flags` when none is set.
+/// `binary_flags` when none is set. A model set by an event's `set_planet_entity` has no bit
+/// 2, and the game draws `entity_name` either way.
 const FIXED_NAME_FLAG: u32 = 1;
-const ENTITY_NAME_FLAG: u32 = 2;
+pub(crate) const ENTITY_NAME_FLAG: u32 = 2;
 pub(crate) const ANY_FLAG: u32 = 64;
 pub(crate) const RING_FLAG: u32 = 256;
 pub(crate) const MOON_FLAG: u32 = 512;

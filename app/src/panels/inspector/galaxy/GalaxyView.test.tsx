@@ -248,7 +248,7 @@ describe("the scenario header", () => {
     expect(html).toContain(
       "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.",
     );
-    expect(html).toContain("Seats 2 · preferred 1 · reserved B");
+    expect(html).toContain("Seats 2 · 1st Player 1 · reserved B");
     expect(html).toContain(">Fit fallen empire zones…</button>");
   });
 });

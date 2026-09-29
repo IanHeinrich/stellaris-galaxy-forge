@@ -8,6 +8,7 @@ use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
 use sgf_core::format::scenario::fe_zone::{
     DEFAULT_DISTANCE, FE_ZONE_DISTANCES, FE_ZONE_EXTENT, FE_ZONE_RADIUS,
 };
+use sgf_core::format::scenario::paint::RESERVED_SEAT_NAMES;
 use sgf_core::guides::L_CLUSTER;
 use sgf_core::ops::{
     BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, SPAWN_BUFFER,
@@ -107,6 +108,15 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How far a body's point may stray from its stored orbit for the stored value to be drawn.",
         "STORED_ORBIT_SLACK",
         STORED_ORBIT_SLACK.to_string(),
+    );
+    let names: Vec<String> = RESERVED_SEAT_NAMES
+        .iter()
+        .map(|n| format!("{n:?}"))
+        .collect();
+    constant(
+        "Every name a Paint a Galaxy reserved seat can take, Latin letters then Greek.",
+        "RESERVED_SEAT_NAMES",
+        format!("[{}] as const", names.join(", ")),
     );
     let out = out.trim_end().to_owned() + "\n";
 

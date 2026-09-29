@@ -156,6 +156,11 @@ too.
   planet take its new name too.
 - Change a planet's or moon's size in its Size field. On a colony, the
   game demolishes districts over a lowered cap within a month.
+- In a Stellaris 4.x save, change a planet's or moon's look in its Model
+  field, such as the Ocean Paradise, Earth or Previously Terraformed
+  look. The looks the game uses on the planet's class come first.
+  Default puts back its class's look. A class change in game, such as
+  terraforming, also puts it back.
 - In a Stellaris 4.x save, the Modifiers section lists a planet's
   features and timed modifiers. Remove one with the ✕ on its row. Add
   modifier, under the list, lists the modifiers that act on a planet,
@@ -171,6 +176,14 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Dig site section shows a planet's
+  archaeological site: its stage, its clues, and whether a fleet is
+  excavating it. Remove it with the ✕. A science ship excavating a
+  removed site stops on the game's first day and waits in orbit. A
+  planet without a site has Add dig site. Search by name, or pick Found
+  by surveys or Event only. A planet holds one site, so the list closes
+  after an add. The two site types that do something in game as they
+  are created aren't listed.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity
@@ -362,6 +375,8 @@ anything, and one undo puts it all back.
   the colony, its pops, its buildings, its defence armies and any orbital
   ring. Colonies on its moons go too, and the confirm says so.
 - A mining or research station goes with the planet it works.
+- A dig site on the planet goes too, as its ✕ removes one. A science
+  ship excavating it stops on the game's first day.
 - Deposits and survey records stay in the save. The game tidies them up
   when it loads. Fleets parked at the planet stay where they are. I
   haven't tried what the game does with them.
@@ -382,7 +397,6 @@ menu item says why:
 - stars and ring world segments
 - a planet with a megastructure on or around it
 - an uncolonised planet a starbase orbits
-- a planet with an archaeological site
 
 #### Asteroid belts and the inner radius
 
@@ -467,9 +481,10 @@ Everything from [Edit a save](#edit-a-save), plus:
 
 On a map for Paint a Galaxy you can also:
 
-- Set each seat's kind. Enabled seats accept any empire. Preferred
-  seats are favoured. Sol is for the United Nations of Earth. Reserved
-  seats A to Z are for one specific empire each.
+- Set each seat's kind. Enabled seats accept any empire. The 1st
+  Player seat is for you, or the host in multiplayer. Sol is for the
+  United Nations of Earth. Reserved seats A to Z and Alpha to Omega are
+  for one specific empire each.
 - Right-click a system and pick "Add fallen empire zone". Drag the ring
   to move it, and drag from a system's ring onto it to choose what the
   fallen empire connects to.
@@ -519,12 +534,13 @@ On day one:
   empire whose species has the matching trait from the Reserved Spawns
   submod can start on a reserved seat. With "Weighted for its empire"
   ticked on the seat, that empire is certain to start there.
-- A preferred seat is only the most likely start, even when weighted. An
-  AI whose origin needs a special place, such as Fear of the Dark, is
-  seated before you and uses the same weights. In my test games such an
-  AI took the weighted preferred seat two times in three.
+- A 1st Player seat goes to the first player, or the host in
+  multiplayer. Other empires can still start there now and then. An AI
+  whose origin needs a special place, such as Fear of the Dark, is
+  seated before you and can draw it. With "Weighted for its empire"
+  ticked, you are all but certain to get it.
 - A save converted for the mod gives your capital a weighted Sol seat if
-  you play the United Nations of Earth, and a weighted preferred seat
+  you play the United Nations of Earth, and a weighted 1st Player seat
   otherwise.
 - The mod builds each fallen empire in its zone and opens your wormhole
   pairs. The game adds its own L-Cluster.
@@ -635,7 +651,7 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   lists every key path with its count, and `roundtrip` writes the save
   out unchanged.
 - Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`, `modifier`, `deposit`, `add-system`.
+  `star`, `planet-size`, `modifier`, `dig-site`, `deposit`, `add-system`.
   `deposit add` and `deposit remove` change a planet's deposits.
   `add-system` adds systems from a JSON spec you write, or rolls one from
   the install's own rules with `--generate`, a special layout included

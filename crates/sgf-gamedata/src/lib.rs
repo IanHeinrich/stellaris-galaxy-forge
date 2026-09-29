@@ -11,6 +11,7 @@ pub mod condition;
 pub mod deposit_choices;
 pub mod deposit_roll;
 pub mod details;
+pub mod dig_site_choices;
 pub mod generate;
 pub mod initializers;
 pub mod install;
@@ -20,6 +21,7 @@ pub mod menu;
 pub mod modifier_choices;
 pub mod naming;
 pub(crate) mod orbit_walk;
+pub mod planet_models;
 pub mod planet_views;
 pub mod registries;
 pub mod reload;
@@ -57,6 +59,7 @@ pub use registries::country_types::CountryTypes;
 pub use registries::defines::{BorderDefines, DepositDefines};
 pub use registries::deposit_categories::DepositCategories;
 pub use registries::deposits::Deposits;
+pub use registries::dig_site_types::DigSiteTypes;
 pub use registries::flags::Flags;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
@@ -106,6 +109,8 @@ pub struct GameData {
     pub static_modifiers: Arc<StaticModifiers>,
     pub planet_modifiers: Arc<PlanetModifiers>,
     pub colony_types: Arc<ColonyTypes>,
+    /// `common/archaeological_site_types`: the dig sites a planet can hold.
+    pub dig_site_types: Arc<DigSiteTypes>,
     pub asteroid_belts: Arc<AsteroidBelts>,
     pub bypasses: Arc<Bypasses>,
     pub planet_classes: Arc<PlanetClasses>,
@@ -299,6 +304,7 @@ impl GameData {
         );
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
+        let dig_site_types = registry::load(&layout, &vars, &mut diagnostics);
         let asteroid_belts = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
         let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
@@ -347,6 +353,7 @@ impl GameData {
             static_modifiers: Arc::new(static_modifiers),
             planet_modifiers: Arc::new(planet_modifiers),
             colony_types: Arc::new(colony_types),
+            dig_site_types: Arc::new(dig_site_types),
             asteroid_belts: Arc::new(asteroid_belts),
             bypasses: Arc::new(bypasses),
             planet_classes: Arc::new(planet_classes),

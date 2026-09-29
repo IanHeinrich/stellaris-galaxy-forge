@@ -3,7 +3,7 @@
 //! after a save and reopen, byte-exact undo, the inverse restoring every entity, and what is
 //! refused.
 
-use sgf_core::entity::get_planet_page;
+use sgf_core::entity::{PlanetPageDigSite, get_planet_page};
 use sgf_core::ops::{Op, OpError, SavedEntity, SavedTable};
 use sgf_core::session::{OpResult, Session};
 
@@ -24,10 +24,14 @@ fn remove_colony(planet: u32) -> Op {
 /// The description, the entities the inverse writes back grouped by table, and the diff:
 /// `whole`, or else without the hunks that only write tombstones.
 fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
+    let (restore, also) = match &result.inverse {
+        Op::Batch { ops, .. } => (&ops[0], &ops[1..]),
+        restore => (restore, &[][..]),
+    };
     let Op::RestoreSaveEntities {
         description,
         entities,
-    } = &result.inverse
+    } = restore
     else {
         panic!("the inverse restores entities: {:?}", result.inverse);
     };
@@ -44,6 +48,9 @@ fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
         out.push_str(&format!(" {}", entity.id));
     }
     out.push('\n');
+    for op in also {
+        out.push_str(&format!("  then {op:?}\n"));
+    }
     if whole {
         out.push_str(&unified_diff(session, None));
     } else {
@@ -259,6 +266,14 @@ fn cases() -> Vec<Case> {
             system: 448,
             whole: false,
         },
+        // Site 0, Lost Moments, on an unowned planet: its entry goes too.
+        Case {
+            name: "delete_a_planet_with_a_dig_site_4_5",
+            session: open_4_5,
+            op: delete(703),
+            system: 12,
+            whole: true,
+        },
         Case {
             name: "delete_a_colonised_planet_4_5",
             session: open_4_5,
@@ -300,9 +315,44 @@ fn the_inverse_writes_back_every_entity() {
         let mut session = (case.session)();
         let before = current(&session);
         let result = session.apply(case.op.clone()).expect(case.name);
+        let sited = matches!(result.inverse, Op::Batch { .. });
         session.apply(result.inverse).expect(case.name);
-        assert_eq!(current(&session), before, "{}", case.name);
+        if !sited {
+            assert_eq!(current(&session), before, "{}", case.name);
+        }
     }
+}
+
+#[test]
+fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
+    let mut session = open_4_5();
+    let before = get_planet_page(&session.doc, 703)
+        .expect("the planet")
+        .dig_site;
+    let result = session.apply(delete(703)).expect("delete");
+    assert_eq!(
+        result.entry.description,
+        "Deleted planet #703, and a dig site"
+    );
+    let lost = |text: &str| text.matches("type=\"site_lost_moments\"").count();
+    assert_eq!(lost(&text(&session)) + 1, lost(&text(&open_4_5())));
+    let Op::Batch { ops, .. } = &result.inverse else {
+        panic!("a batch: {:?}", result.inverse);
+    };
+    assert_eq!(
+        ops[1],
+        Op::AddDigSite {
+            planet: 703,
+            site_type: "site_lost_moments".to_owned(),
+            difficulty: 1,
+        }
+    );
+    session.apply(result.inverse).expect("the inverse");
+    let after = get_planet_page(&session.doc, 703)
+        .expect("the planet")
+        .dig_site;
+    let kind = |site: &Option<_>| site.as_ref().map(|s: &PlanetPageDigSite| s.kind.clone());
+    assert_eq!(kind(&after), kind(&before));
 }
 
 #[test]
@@ -375,7 +425,7 @@ type Refused = (&'static str, fn() -> Session, Op, &'static str);
 
 #[test]
 fn what_is_refused() {
-    let cases: [Refused; 6] = [
+    let cases: [Refused; 5] = [
         (
             "star",
             open_4_5,
@@ -399,12 +449,6 @@ fn what_is_refused() {
             open_4_5,
             delete(936),
             "planet 936 cannot be deleted: a megastructure stands on or around it, which has not been tried in game",
-        ),
-        (
-            "site",
-            open_4_5,
-            delete(703),
-            "planet 703 cannot be deleted: it has an archaeological site",
         ),
         (
             "3.x",

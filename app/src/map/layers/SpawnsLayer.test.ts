@@ -205,20 +205,31 @@ describe("the spawn points layer", () => {
     expect(drawnText(tagsOf(layer))).toEqual(["Sol"]);
   });
 
-  it("draws a star beside a preferred seat's marker, spelling out nothing", () => {
+  it("draws a Greek reserved seat's symbol on the chip, and names it in full while hovered", () => {
+    const layer = drawn([scriptedNode(2, 40, { reserved: "alpha" })]);
+    expect(drawnText(tagsOf(layer))).toEqual(["α"]);
+    expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
+
+    markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
+    expect(useMapChromeStore.getState().tooltip).toMatchObject({
+      lines: ["Spawn point · Paint a Galaxy reserved α (Alpha)"],
+    });
+  });
+
+  it("draws a star beside a 1st Player seat's marker, spelling out nothing", () => {
     const layer = drawn([scriptedNode(2, 40, "preferred")]);
     expect(drawnText(tagsOf(layer))).toEqual([]);
     expect(tagsOf(layer).children.filter((c) => c instanceof Graphics)).toHaveLength(1);
   });
 
-  it("draws a P over a ringed chip beside a weighted preferred seat, and says so while hovered", () => {
+  it("draws a P over a ringed chip beside a weighted 1st Player seat, and says so while hovered", () => {
     const layer = drawn([scriptedNode(2, 40, "preferred", true)]);
     expect(drawnText(tagsOf(layer))).toEqual(["P"]);
     expect(strokes(chipOf(layer))).toHaveLength(1);
 
     markOf(layer, 40).emit("pointerover", { global: { x: 4, y: 6 } } as never);
     expect(useMapChromeStore.getState().tooltip).toMatchObject({
-      lines: ["Spawn point · Paint a Galaxy preferred, weighted"],
+      lines: ["Spawn point · Paint a Galaxy 1st Player, weighted"],
     });
   });
 

@@ -113,9 +113,9 @@ fn each_kind_rewrites_the_weight_of_a_scripted_system_whole() {
     );
 }
 
-/// The player's seat is the preferred script with `modifier = { add = 100000 }` beside
-/// it: the marker is the script's own text, so the seat is replaced and cleared whole
-/// like any other.
+/// The player's seat is the 1st Player script with the host's marker beside it: the
+/// marker is the script's own text, so the seat is replaced and cleared whole like any
+/// other.
 #[test]
 fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     let mut session = PAINTED.open();
@@ -123,7 +123,7 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     assert_eq!(session.graph.systems[&1].spawn_script, player(1));
     assert_eq!(session.graph.systems[&1].spawn_weight, Some(0.0));
     assert!(common::text(&session).contains(
-        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } } }"
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 has_country_flag = painted_galaxy_host } } }"
     ));
 
     session
@@ -210,7 +210,7 @@ fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none
     assert!(matches!(error, OpError::EnabledSeatPlayer), "{error}");
     assert_eq!(
         error.to_string(),
-        "an enabled seat has no marker to make it the player's; choose a preferred, Sol or reserved seat"
+        "an enabled seat has no marker to make it the player's; choose a 1st Player, Sol or reserved seat"
     );
     let error = session
         .apply(Op::SetSpawnScripts {
@@ -395,13 +395,70 @@ fn a_plain_weight_is_refused_on_a_scripted_system() {
             "system 1's spawn weight is script; change its spawn kind instead"
         );
     }
-    for letter in ["ab", "A"] {
+    for name in ["ab", "A", "Alpha", "sol"] {
         let error = session
-            .apply(set(10, script(reserved(letter), 0)))
-            .expect_err(letter);
+            .apply(set(10, script(reserved(name), 0)))
+            .expect_err(name);
         assert!(matches!(error, OpError::InvalidSeatLetter(_)), "{error}");
     }
+    assert_eq!(
+        session
+            .apply(set(10, script(reserved("alph"), 0)))
+            .expect_err("alph")
+            .to_string(),
+        "a reserved seat is named by a letter a to z or a Greek letter alpha to omega, not \"alph\""
+    );
     assert!(!session.is_dirty());
+}
+
+#[test]
+fn a_reserved_seat_takes_a_greek_name() {
+    let mut session = PAINTED.open();
+    let result = session
+        .apply(set(1, seat(reserved("omega"), 2)))
+        .expect("reserve omega");
+    assert_eq!(
+        result.entry.description,
+        "Made system 1 a Paint a Galaxy spawn (reserved omega, the player's seat)"
+    );
+    assert_eq!(
+        session.graph.systems[&1].spawn_script,
+        seat(reserved("omega"), 2)
+    );
+    assert!(common::text(&session).contains(
+        "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|omega|RANDOM_MODULO|3|RANDOM_VALUE|2| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_omega } } }"
+    ));
+    let reread = from_scenario_text(common::current(&session));
+    assert_eq!(
+        reread.graph.systems[&1].spawn_script,
+        seat(reserved("omega"), 2)
+    );
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(common::current(&session), PAINTED.bytes());
+}
+
+/// A 1st Player marker without the host flag is still the player's seat. The file
+/// saves unchanged, and only a rewrite of the seat writes the flag.
+#[test]
+fn a_first_player_marker_without_the_host_flag_is_still_the_players_seat() {
+    let legacy = "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 } }";
+    let mut session =
+        PAINTED.open_edited(&[("PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }", legacy)]);
+    let original = common::current(&session);
+    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("legacy.txt");
+    session.save_as(&path).expect("save_as");
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+
+    let result = session.apply(set(1, player(4))).expect("rewrite the seat");
+    assert_eq!(result.inverse, set(1, player(1)));
+    let text = common::text(&session);
+    assert!(!text.contains(legacy));
+    assert!(text.contains(
+        "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|4| modifier = { add = 100000 has_country_flag = painted_galaxy_host } }"
+    ));
 }
 
 /// System 2 of the grammar fixture carries a `has_country_flag` modifier: script this
@@ -527,7 +584,7 @@ fn a_marker_of_another_kinds_shape_is_neither_read_nor_rewritten() {
 }
 
 /// The player's marker beside a foreign modifier is no marker: the block is script and
-/// the seat reads as a plain preferred one.
+/// the seat reads as a plain 1st Player one.
 #[test]
 fn the_players_marker_beside_a_foreign_modifier_is_neither_read_nor_rewritten() {
     let text = "static_galaxy_scenario = {
