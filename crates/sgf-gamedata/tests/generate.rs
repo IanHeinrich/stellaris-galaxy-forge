@@ -1215,3 +1215,67 @@ fn bodies_rolled_from_the_real_install_are_added_to_a_save() {
     }
     assert_eq!(session.system(408).expect("Meissa").planet_count, 7);
 }
+
+fn real_body(gd: &GameData, seed: u64, class: &str) -> BodySpec {
+    let roll = BodyRoll {
+        star_class: "sc_b",
+        class: Some(class),
+        size: None,
+        moon: false,
+        orbit: 170.0,
+        abundance: ABUNDANCE,
+    };
+    roll_body(gd, seed, &roll).expect("a body")
+}
+
+#[test]
+fn a_relic_world_gets_the_relic_deposits_from_the_install() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let relic_deposits = [
+        "d_relic_dense_ruins",
+        "d_collapsed_spire",
+        "d_massive_crevice",
+        "d_shattered_solar_array",
+        "d_flooded_reactor_pits",
+        "d_crumbling_mining_tunnels",
+        "d_relic_metal_boneyard",
+    ];
+    for seed in 0..20 {
+        assert_eq!(real_body(gd, seed, "pc_relic").deposits, relic_deposits);
+    }
+}
+
+#[test]
+fn other_worlds_the_game_never_spawns_get_no_deposits() {
+    let Some(gd) = install() else {
+        return;
+    };
+    for class in ["pc_city", "pc_hive", "pc_machine", "pc_nanotech"] {
+        assert!(
+            gd.planet_classes.get(class).unwrap().spawn_odds <= 0.0,
+            "{class} spawns"
+        );
+        for seed in 0..20 {
+            assert!(real_body(gd, seed, class).deposits.is_empty(), "{class}");
+        }
+    }
+}
+
+#[test]
+fn a_barren_world_still_rolls_minerals_at_its_usual_share() {
+    let Some(gd) = install() else {
+        return;
+    };
+    let with_minerals = (0..SEEDS)
+        .filter(|&seed| {
+            let body = real_body(gd, seed, "pc_barren");
+            body.deposits.iter().any(|d| d.starts_with("d_mineral"))
+        })
+        .count();
+    assert!(
+        (100..=190).contains(&with_minerals),
+        "{with_minerals} of {SEEDS} barren worlds rolled minerals"
+    );
+}

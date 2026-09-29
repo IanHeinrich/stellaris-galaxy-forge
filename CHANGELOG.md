@@ -54,6 +54,8 @@ a release is made.
   system, centred on the planet.
 - Add planet here no longer offers the arkship. Two classes the game
   gives the same name, such as the two Nanite Worlds, show their class key.
+- A relic world added to a system gets the game's relic deposits, and an
+  ecumenopolis, hive or machine world gets none.
 
 ## [0.18.0] - 2026-09-28
 
