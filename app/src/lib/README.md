@@ -27,7 +27,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   class on many systems. `terraform` says what making a body a terraforming
   candidate needs. `planetEdits` builds the ops a planet's page sends for
   its name, size, deposits and modifiers, and the hint of a body's Edit
-  chip. `picker` is what the deposit and modifier pickers share: the
+  chip. `planetModel` is the Model field's rows, usual models first, and
+  the edit a pick sends. `picker` is what the deposit and modifier pickers share: the
   search, the usual rows first, and the target and edit adapter they add
   through, so a source other than a save can plug in its own adapter
   (`store/planetEditAdapter` holds the save's). `depositPicker` groups

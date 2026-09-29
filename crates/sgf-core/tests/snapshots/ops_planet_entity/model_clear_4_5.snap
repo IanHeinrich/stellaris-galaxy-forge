@@ -1,0 +1,26 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Took the model gas_giant_02_entity off planet #1415
+inverse: SetPlanetEntity { planet: 1415, entity: Some("gas_giant_02_entity") }
+
+--- gamestate
++++ gamestate
+@@ -152610,7 +152610,7 @@
+  
+ 				}
+ 			}
+-			binary_flags=74
++			binary_flags=72
+ 			coordinate=
+ 			{
+ 				x=-52.8516
+@@ -152633,7 +152633,6 @@
+ 				starting_deposit=62808000
+ 			}
+ 			entity=3
+-			entity_name="gas_giant_02_entity"
+ 			deposits=
+ 			{
+ 				1397

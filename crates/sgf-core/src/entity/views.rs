@@ -214,6 +214,8 @@ pub struct PlanetPage {
     pub label: String,
     pub class: String,
     pub size: Option<u32>,
+    /// `entity_name`: the model drawn in place of its class's own.
+    pub entity_name: Option<String>,
     /// `orbit`: the radius around the body it orbits.
     pub orbit: Option<f64>,
     /// `coordinate.origin`.

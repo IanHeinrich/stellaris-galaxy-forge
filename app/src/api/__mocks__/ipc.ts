@@ -72,6 +72,7 @@ export const getDepositChoices = command("getDepositChoices");
 export const getDepositTypes = command("getDepositTypes");
 export const getModifierChoices = command("getModifierChoices");
 export const getModifiers = command("getModifiers");
+export const getPlanetModels = command("getPlanetModels");
 export const getColonyTypes = command("getColonyTypes");
 export const getBypasses = command("getBypasses");
 export const getInitializers = command("getInitializers");

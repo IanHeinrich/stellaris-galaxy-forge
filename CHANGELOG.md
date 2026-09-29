@@ -8,6 +8,11 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Change a planet's look from its page, such as giving an ocean world
+  the Ocean Paradise look.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added
