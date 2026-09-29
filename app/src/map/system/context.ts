@@ -4,7 +4,8 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemNode } from "../../generated/SystemNode";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
-import { boundsText, isColony, wormholeLabel } from "../../lib/details/labels";
+import { bypassIconKey } from "../../lib/details/icons";
+import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
@@ -188,6 +189,10 @@ export interface SceneWormhole {
   readonly movable: boolean;
   /** "Wormhole to Sol", as its tooltip names it. */
   readonly name: string;
+  /** "Hraztan Wormhole", its name plate's text. */
+  readonly plateName: string;
+  /** The texture key of the game's map glyph for its kind, shown at the end of its plate. */
+  readonly iconKey: string | null;
 }
 
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
@@ -554,6 +559,8 @@ function sceneWormholes(
   moved: LayoutOverride["wormholes"],
 ): SceneWormhole[] {
   if (!src.sceneLayers.bypasses || !src.details) return NOTHING;
+  const here = src.id === null ? undefined : src.systems.get(src.id);
+  const hereName = here ? src.nodeName(here.name) : "";
   return src.details.wormholes.map((w) => {
     const partner = w.partner === null ? undefined : src.systems.get(w.partner);
     const partnerName =
@@ -567,6 +574,8 @@ function sceneWormholes(
       natural: isNaturalWormhole(w),
       movable: editing.wormholes.has(w.id),
       name: wormholeLabel(w.kind, partnerName),
+      plateName: wormholePlateName(hereName, w.kind),
+      iconKey: bypassIconKey(w.kind, src.bypassKinds),
     };
   });
 }
@@ -617,6 +626,8 @@ export function systemContext(
       preview?.override.wormholes,
       src.systems,
       src.names,
+      src.id,
+      src.bypassKinds,
     ],
     () => sceneWormholes(src, editing, preview?.override.wormholes),
   );

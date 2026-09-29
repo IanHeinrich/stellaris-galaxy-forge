@@ -328,6 +328,11 @@ export function wormholeLabel(kind: string, partner: string | null): string {
   return partner === null ? bypassName(kind) : `${bypassName(kind)} to ${partner}`;
 }
 
+/** A wormhole's name plate in the system view: "Hraztan Wormhole", or its kind alone with no system name. */
+export function wormholePlateName(system: string, kind: string): string {
+  return system === "" ? bypassName(kind) : `${system} ${bypassName(kind)}`;
+}
+
 function bypassIcon(kind: string, label: string, kinds?: BypassKinds): Icon {
   const key = bypassIconKey(kind, kinds);
   return {
