@@ -1,6 +1,6 @@
 //! The editing commands that apply ops as the arguments give them (`move`, `move-nebula`,
 //! `nebula`, `header`, `lane`, `spawn`, `isolate`, `star`, `move-planet`, `planet-size`,
-//! `deposit`, `dig-site`): the ops, then a save.
+//! `planet-class`, `deposit`, `dig-site`): the ops, then a save.
 
 use std::path::Path;
 
@@ -62,6 +62,31 @@ pub fn remove_dig_site(sav: &Path, out: Option<&Path>, planet: u32) -> Run {
         .dig_site
         .ok_or_else(|| format!("planet {planet} has no dig site"))?;
     apply_all(session, out, vec![Op::RemoveDigSite { site: site.id }])
+}
+
+/// `planet-class`: planet `planet` made `class`, with what the install says of its class and
+/// the new one.
+pub fn planet_class(
+    sav: &Path,
+    out: Option<&Path>,
+    planet: u32,
+    class: &str,
+    opts: &LoadOptions,
+) -> Run {
+    let session = Session::open(sav)?;
+    let held = get_planet_page(&session.doc, planet)?.class;
+    let gd = game_data(opts)?;
+    let rule = |class: &str| {
+        gd.planet_class_rule(class)
+            .ok_or_else(|| format!("the install has no planet class {class}"))
+    };
+    let op = Op::SetPlanetClass {
+        planet,
+        from: rule(&held)?,
+        to: rule(class)?,
+        look: None,
+    };
+    apply_all(session, out, vec![op])
 }
 
 /// `nebula add`: a nebula named `name`, else as the app names one, from the install when

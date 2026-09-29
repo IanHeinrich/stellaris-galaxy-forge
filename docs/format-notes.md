@@ -226,6 +226,44 @@ for planets or deposits.
   no refund. District caps aren't in the save. A finished terraform
   retypes the planet's deposits in place, added ones too. So the editor
   writes only the entry and the planet's list, on a colony as elsewhere.
+- When the game removes a planet (`remove_planet`), its entry becomes
+  `<id>=none` in place and its `planet=` line leaves the system. Planet
+  57 of the 4.5 sample is one. At load the game strips a deposit's
+  `deposit_holder` that names a dead planet, and it plays on with a
+  moon whose `moon_of` names one, a parent whose `moons` lists a dead
+  moon, and survey lists and orphaned construction queues that name
+  one (4.5.1). The editor deletes a planet with the tombstone and the
+  line alone. It takes the moons too, and a moon deleted on its own
+  leaves its parent's `moons`.
+- A planet deleted with its colony still standing crashes the game on
+  load. The colony's `carrier` and its pop groups reach the dead planet
+  (4.5.1).
+- `destroy_colony` keeps the planet. It loses `owner`, `controller`,
+  `colonize_date` and `orbital_defence`. The pop groups, jobs and
+  defence armies go, the colony leaves the system's `colonies` and the
+  owner's `owned_planets` and `controlled_colonies`, and the planet
+  leaves `controlled_planets`. The owner's queues at the planet get
+  `owner=4294967295`. The orbital ring's starbase and its `build_queue`
+  become `=none`, and an event then places a ruined ring. When the
+  editor removes a colony, it also tombstones the colony, its districts,
+  zones and buildings, the ring's ship and fleet, and the construction
+  items in the ring's queues, whose `items` list them. It takes the
+  planet's `colony` key and the ring out of the system's `starbases` and
+  `fleet_presence` and the owner's `owned_fleets`. It writes no ruin. A
+  planet's `orbital_defence` can name the system's own starbase instead,
+  such as a fallen empire's citadel (4.5 sample, planet 318); that one
+  stays and the planet only loses the key.
+  Branch offices, faction members, fleets parked at the planet and caches
+  are left to the game. After its own removal the game dropped the first
+  two within a month; left by the editor, they have not been tried in
+  game.
+- A country's `capital` is a colony id. A colony names what it builds in
+  `construction.item_mgr.items` by `planet=<colony>` inside the item's
+  `buildable_*` block, and its queues are the planet's `build_queue` and
+  the colony's `army_build_queue`. A queue lists its items in `items`.
+  The editor leaves a removed colony's `capital`, a species'
+  `home_planet` and the items in queues it leaves without an owner for
+  the game. That has not been tried in game.
 - A system the game spawns by script is a `galactic_object` entry with
   its keys in this order, and the editor writes an added system the same
   way: `coordinate={ x y origin=4294967295 visual_height }`, `name`,
@@ -335,6 +373,16 @@ for planets or deposits.
   a model without the bit and clears the bit when it removes a model.
   A class change in game, a terraform included, drops `entity_name` and
   leaves bit 2 set. Checked in game on 4.5.1.
+- The effect `change_pc` writes `planet_class` and removes
+  `entity_name`, and nothing else. `entity`, `binary_flags` with bit 2,
+  deposits, modifiers, flags and the colony stay as they were. A colony
+  keeps its districts, zones and buildings, and the game recomputes each
+  pop group's `habitability` for the new class by the month tick. The
+  editor's class change writes the same. Checked in game on 4.5.1.
+  It also writes `entity=0` when the index is past the new class's
+  models. The count of models comes from the `entity` blocks named
+  `<model>_01_entity` on in the `.asset` files under `gfx/models`, from
+  every layer. I haven't checked the `entity=0` reset in game.
 - A layout's `add_modifier = { modifier = X days = -1 }` becomes an
   item of the planet's
   `timed_modifier={ items={ { modifier="X" days=-1 } } }`, after

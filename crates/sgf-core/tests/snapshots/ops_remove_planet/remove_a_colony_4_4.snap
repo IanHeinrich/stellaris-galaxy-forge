@@ -1,0 +1,75 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed colony #39 from planet #217, with 1 pop group
+details stale: [137]
+inverse: Restored colony #39 on planet #217
+
+  System: 137
+  Planet: 217
+  Country: 1
+  Colony: 39
+  PopGroup: 1056965561
+  PopJob: 1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 1035 1036 1037 1038 1039
+  District: 16777321
+  Zone: 16777340
+  Building: 16777451
+  ConstructionQueue: 8452 8579
+@@ -38646,8 +38425,4 @@
+ 		sector=1
+ 		index=61
+-		colonies=
+-		{
+-			39 
+-		}
+ 		storm=4294967295
+ 	}
+@@ -101916,8 +101534,6 @@
+ 		217=
+ 		{
+-			colony=39
+ 			planet_class="pc_arid"
+ 			planet_size=16
+-			colonize_date=			"2205.02.06"
+ 			carrier_binary_flags=1
+ 			build_queue=8452
+@@ -101935,7 +101551,5 @@
+ 			orbit=70
+ 			last_bombardment=			"0.01.01"
+-			owner=1
+ 			original_owner=1
+-			controller=1
+ 			planet_orbitals=
+ 			{
+@@ -544945,13 +544559,13 @@
+ 		owned_planets=
+ 		{
+-			1 39 
++			1 
+ 		}
+ 		controlled_colonies=
+ 		{
+-			1 39 
++			1 
+ 		}
+ 		controlled_planets=
+ 		{
+-			28 24 36 33 31 35 34 32 26 216 221 219 217 347 7072 
++			28 24 36 33 31 35 34 32 26 216 221 219 347 7072 
+ 		}
+ 		ship_design_collection=
+@@ -951752,5 +951366,5 @@
+ 			8452=
+ 			{
+-				owner=1
++				owner=4294967295
+ 				location=
+ 				{
+@@ -953169,5 +952783,5 @@
+ 			8579=
+ 			{
+-				owner=1
++				owner=4294967295
+ 				location=
+ 				{

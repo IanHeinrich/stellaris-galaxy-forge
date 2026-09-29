@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #4913 and its moon
+details stale: [448]
+inverse: Restored planet #4913 and its moon
+
+  System: 448
+  Planet: 4913 4914
+@@ -60637,6 +60637,4 @@
+ 		planet=4911
+ 		planet=4912
+-		planet=4913
+-		planet=4914
+ 		planet=4915
+ 		ambient_object=

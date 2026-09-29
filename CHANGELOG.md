@@ -10,6 +10,13 @@ a release is made.
 
 ### Added
 
+- Delete a planet or moon from a save, from the system view's right-click
+  menu or from its page. A planet's moons go with it, and so does any
+  colony on it.
+- Remove a colony and keep its planet with Remove colony on the planet's
+  page. The colony's pops, buildings, defence armies and orbital ring go.
+- Stars, ring worlds and a few other bodies can't be deleted. The menu
+  and the page say why.
 - Add an anomaly to a planet or moon in a save, or remove one, from its
   page. If you have already surveyed the planet, the anomaly is ready to
   research. Otherwise it turns up when a science ship surveys it.
@@ -26,6 +33,11 @@ a release is made.
 - Change a planet's look from its page, such as giving an ocean world
   the Ocean Paradise look.
 - The system view draws a planet with the look you gave it.
+- Change a save planet's class from its page, such as making a barren
+  world an ocean world. The planet takes the new class's look.
+  A colony can move between the habitable classes with ordinary
+  districts, such as continental, ocean and arid. Stars, habitats and
+  ring worlds keep their class.
 - Reserved seats can be named Alpha to Omega as well as A to Z, as in
   Paint a Galaxy.
 - In the system view, a planet's or moon's name shows icons for its

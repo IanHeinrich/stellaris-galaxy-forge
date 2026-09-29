@@ -14,6 +14,7 @@ import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore, type EntityRef } from "./inspectorStore";
 import { useIssuesStore } from "./issuesStore";
+import { resetOpChecks, useOpCheckStore } from "./opCheckStore";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
@@ -85,6 +86,7 @@ export function editPipeline(
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
+      useOpCheckStore.getState().staled(result.details_stale);
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       const mine = session;
       const sent = landed;
@@ -221,6 +223,7 @@ export function editPipeline(
     runEdit,
     newSession() {
       session += 1;
+      resetOpChecks();
     },
   };
 }

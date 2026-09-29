@@ -1,0 +1,81 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Removed colony #6 from planet #77, with 3 pop groups and 5 armies
+details stale: [564]
+inverse: Restored colony #6 on planet #77
+
+  System: 564
+  Planet: 77
+  Country: 16777222
+  Colony: 6
+  PopGroup: 13 163 164
+  PopJob: 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 581 582 583 584
+  District: 24 25 26 27
+  Zone: 19 21 22
+  Building: 30 31 32
+  Army: 81 82 83 84 85
+  ConstructionQueue: 22 23
+@@ -68947,8 +68424,4 @@
+ 		sector=5
+ 		index=43
+-		colonies=
+-		{
+-			6 
+-		}
+ 		storm=4294967295
+ 	}
+@@ -83113,8 +82385,6 @@
+ 		77=
+ 		{
+-			colony=6
+ 			planet_class="pc_ocean"
+ 			planet_size=18
+-			colonize_date=			"2016.05.09"
+ 			carrier_binary_flags=1
+ 			build_queue=22
+@@ -83132,7 +82402,5 @@
+ 			orbit=95
+ 			last_bombardment=			"0.01.01"
+-			owner=16777222
+ 			original_owner=16777222
+-			controller=16777222
+ 			moons=
+ 			{
+@@ -456048,17 +455316,17 @@
+ 		owned_armies=
+ 		{
+-			81 82 83 84 85 
++			
+ 		}
+ 		owned_planets=
+ 		{
+-			6 
++			
+ 		}
+ 		controlled_colonies=
+ 		{
+-			6 
++			
+ 		}
+ 		controlled_planets=
+ 		{
+-			77 74 84 76 79 75 
++			74 84 76 79 75 
+ 		}
+ 		ship_design_collection=
+@@ -620094,5 +619362,5 @@
+ 			22=
+ 			{
+-				owner=16777222
++				owner=4294967295
+ 				location=
+ 				{
+@@ -620105,5 +619373,5 @@
+ 			23=
+ 			{
+-				owner=16777222
++				owner=4294967295
+ 				location=
+ 				{

@@ -518,6 +518,25 @@ pub enum Op {
         planet: u32,
         entity: Option<String>,
     },
+    /// A save planet's class, written as the game's `change_pc` writes one: `planet_class`
+    /// becomes `to`'s class and `entity_name` goes, so the planet takes the new class's own
+    /// model. `entity` becomes 0 when it is past the `models` `to` has, and stays otherwise.
+    /// `binary_flags`, deposits, modifiers and the colony stay as they are. The install
+    /// knows what each class is and the bytes do not, so the caller says, in `from` for the
+    /// class the planet has and `to` for the new one. A star, a class that never changes
+    /// taken from or to, a colony taken from or to a class not open to colonies, a `from`
+    /// that is not the planet's class, a planet with a megastructure and a class it already
+    /// has are refused. `look`, when given, is written in place of that model and index, and
+    /// its index must be below the `models` `to` has: it is what the inverse carries, so that
+    /// undoing a change puts back the look the planet had. Stellaris 4.x save documents only.
+    SetPlanetClass {
+        planet: u32,
+        from: PlanetClassRule,
+        to: PlanetClassRule,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        look: Option<PlanetLook>,
+    },
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
     /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
@@ -597,6 +616,50 @@ pub enum Op {
         #[ts(optional)]
         block: Option<String>,
     },
+    /// The colony on a save planet or moon, as the game's `destroy_colony` leaves it, while
+    /// the planet stays: the planet loses `colony`, `owner`, `controller`, `colonize_date`
+    /// and `orbital_defence`. The colony, its pop groups, jobs, districts, zones and
+    /// buildings, its defence armies and its orbital ring's starbase, ships, fleet, queues
+    /// and the construction items in those queues become tombstones. A system's own
+    /// starbase that `orbital_defence` names stays. The colony leaves its system's
+    /// `colonies`, and the owner's colony, planet, army and fleet lists lose what went, as
+    /// do an occupier's and the armies' owners'. Their queues at the planet are left with no
+    /// owner, as the game leaves them, and the items in them stay. A country's `capital`
+    /// and a species' `home_planet` are left for the game. Refused for an army aboard a
+    /// ship, a ring world segment, and a megastructure on or around the planet. The inverse
+    /// is the
+    /// [`Op::RestoreSaveEntities`] that writes back every entity it rewrote. Stellaris 4.x
+    /// save documents only.
+    RemoveColony {
+        planet: u32,
+    },
+    /// A save planet and its moons, or a moon alone, as the game's `remove_planet` leaves
+    /// it: each body's entry becomes `<id>=none` and its `planet=` line leaves the system.
+    /// A moon deleted alone leaves its parent's `moons`. A colonised body first loses its
+    /// colony as [`Op::RemoveColony`] takes it, and a mining or research station goes with
+    /// the body it works: its fleet and ships become tombstones and leave the system's
+    /// `fleet_presence` and the controller's `owned_fleets` and `controlled_planets`.
+    /// Deposits, survey lists, event targets, fleets in orbit and orphaned construction
+    /// queues are left for the game. A dig site on a deleted body goes as
+    /// [`Op::RemoveDigSite`] takes it, and the body leaves each country's `events.anomalies`
+    /// as [`Op::RemoveAnomaly`] takes it out. A star, an uncolonised body a starbase orbits,
+    /// a ring world segment and a megastructure on or around it are refused, as is any colony
+    /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
+    /// writes back every entity it rewrote, batched with an [`Op::AddDigSite`] per site it
+    /// removed. A body [`Op::AddSaveBody`] added since the file was opened goes as
+    /// [`Op::RemoveAddedBody`] takes it, and is refused while it has moons; its inverse adds
+    /// it back, then its site and anomaly. Stellaris 4.x save documents only.
+    DeleteSavePlanet {
+        planet: u32,
+    },
+    /// Save entities written back whole, each over whatever stands for it now: what
+    /// [`Op::RemoveColony`] and [`Op::DeleteSavePlanet`] invert to. Each text must be one
+    /// statement keyed by its id, the entity or its tombstone. The app never sends it: undo
+    /// reaches it through the bytes. The inverse carries the texts displaced. Save documents only.
+    RestoreSaveEntities {
+        description: String,
+        entities: Vec<SavedEntity>,
+    },
     /// A new planet, or a moon of the planet `spec.moon_of` names, in save system `system`,
     /// written as the game writes a body it spawns: its entry and its deposits' take the
     /// lowest dead slot of their tables one generation on, or the slot past the highest. It
@@ -665,7 +728,8 @@ impl Op {
     /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
     /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
     /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`] and [`Op::SetPlanetEntity`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
+    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`], [`Op::SetPlanetEntity`] and
+    /// [`Op::SetPlanetClass`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
     /// does the planet and moons it renamed, [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
     /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
     /// planet whose anomaly they wrote. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
@@ -693,6 +757,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -700,12 +765,15 @@ impl Op {
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
             | Self::AddSaveBody { .. }
             | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. }
             | Self::AddAnomaly { .. }
-            | Self::RemoveAnomaly { .. } => true,
+            | Self::RemoveAnomaly { .. }
+            | Self::RestoreSaveEntities { .. } => true,
             Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
             _ => false,
         }
@@ -724,6 +792,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -751,10 +820,13 @@ impl Op {
             | Self::RemoveSystems { .. }
             | Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
             | Self::AddSaveBody { .. }
             | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. } => true,
+            | Self::RemoveDigSite { .. }
+            | Self::RestoreSaveEntities { .. } => true,
             Self::Batch { ops, .. } => ops
                 .iter()
                 .all(|op| op.stales_only_bodies() || !op.stales_details()),
@@ -781,6 +853,7 @@ impl Op {
             | Self::SetSaveBodyParent { .. }
             | Self::SetPlanetRing { .. }
             | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
             | Self::AddSaveBelt { .. }
             | Self::RemoveSaveBelt { .. }
             | Self::SetSaveBeltRadius { .. }
@@ -788,12 +861,15 @@ impl Op {
             | Self::SetSaveInnerRadius { .. }
             | Self::MoveSavePlanet { .. }
             | Self::RenameSavePlanet { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
             | Self::AddSaveBody { .. }
             | Self::RemoveAddedBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. }
             | Self::AddAnomaly { .. }
-            | Self::RemoveAnomaly { .. } => false,
+            | Self::RemoveAnomaly { .. }
+            | Self::RestoreSaveEntities { .. } => false,
             Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
             _ => self.stales_details(),
         }
@@ -814,6 +890,40 @@ pub struct InitializerSet {
 pub struct StarBody {
     pub planet: u32,
     pub class: String,
+}
+
+/// What the install says about one planet class, for [`Op::SetPlanetClass`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetClassRule {
+    pub class: String,
+    pub change: ClassChange,
+    /// How many models the install numbers for the class, `<model>_01_entity` on; 0 when
+    /// it names none.
+    pub models: u32,
+}
+
+/// Which planets a class may be given to, or taken from, in [`Op::SetPlanetClass`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum ClassChange {
+    /// None: a star, a habitat, a ring world, an ark and the other classes the game builds
+    /// or scripts its own way.
+    Never,
+    /// Any planet, a colony included: a class colonised with the standard district set.
+    Any,
+    /// A planet with no colony only.
+    Uncolonised,
+}
+
+/// A save planet's model in [`Op::SetPlanetClass`]: its `entity` index and the
+/// `entity_name` it has in place of its class's own, each `None` where the planet has none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PlanetLook {
+    pub entity: Option<u32>,
+    pub entity_name: Option<String>,
 }
 
 /// The body [`Op::AddSaveBody`] writes, every value chosen by the caller.
@@ -900,6 +1010,39 @@ pub struct NebulaFootprint {
 pub struct NebulaCloud {
     pub id: u32,
     pub kind: String,
+}
+
+/// One save entity in [`Op::RestoreSaveEntities`]: the table it stands in, its id, and its
+/// whole `<id>={ … }` statement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SavedEntity {
+    pub table: SavedTable,
+    pub id: u32,
+    pub text: String,
+}
+
+/// The id-keyed save tables [`SavedEntity`] names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum SavedTable {
+    System,
+    Planet,
+    Country,
+    Colony,
+    PopGroup,
+    PopJob,
+    District,
+    Zone,
+    Building,
+    Army,
+    Starbase,
+    Fleet,
+    Ship,
+    /// `construction.queue_mgr.queues`.
+    ConstructionQueue,
+    /// `construction.item_mgr.items`.
+    ConstructionItem,
 }
 
 /// One system's destination in [`Op::MoveSystems`].
@@ -1167,6 +1310,20 @@ pub enum OpError {
     StarModel(u32),
     #[error("planet {planet} {state}")]
     ModelUnchanged { planet: u32, state: String },
+    #[error("planet {0} is a star; its star type is changed on the star's page")]
+    StarPlanetClass(u32),
+    #[error("{0} is a class no planet is changed to or from")]
+    FixedPlanetClass(String),
+    #[error("planet {planet} is a colony, and a colony cannot be changed to or from {class}")]
+    ColonyPlanetClass { planet: u32, class: String },
+    #[error("planet {planet} is {class}, not {from}")]
+    PlanetClassMismatch {
+        planet: u32,
+        class: String,
+        from: String,
+    },
+    #[error("planet {0} is already {1}")]
+    PlanetClassUnchanged(u32, String),
     #[error("system {system} has no belt {index}")]
     UnknownBelt { system: u32, index: usize },
     #[error("belt {index} of system {system} is already that way")]
@@ -1187,6 +1344,15 @@ pub enum OpError {
     HoldsSavePlanet { system: u32, planet: u32 },
     #[error("planet {0} has a megastructure, so it cannot move to another system")]
     MegastructurePlanet(u32),
+    #[error("planet {0} has a megastructure, so it keeps its class")]
+    MegastructureClass(u32),
+    #[error("{class} has {models} models, so planet {planet} cannot take model {entity}")]
+    PlanetModelIndex {
+        planet: u32,
+        entity: u32,
+        class: String,
+        models: u32,
+    },
     #[error(
         "planet {0} was in the save when it was opened: only a body added since then can be taken out again"
     )]
@@ -1199,6 +1365,18 @@ pub enum OpError {
         owner: u32,
         controller: u32,
     },
+    #[error("planet {0} has no colony")]
+    NoColony(u32),
+    #[error("planet {0} is a star: only a planet or moon can be deleted")]
+    StarNotDeleted(u32),
+    #[error("planet {planet} cannot be deleted: {reason}")]
+    PlanetKept { planet: u32, reason: String },
+    #[error("the colony on planet {planet} cannot be removed: {reason}")]
+    ColonyKept { planet: u32, reason: String },
+    #[error("{table:?} {id} does not exist")]
+    UnknownEntity { table: SavedTable, id: u32 },
+    #[error("the text for {table:?} {id} is not one entity with that id")]
+    EntityMismatch { table: SavedTable, id: u32 },
     #[error("country {country}: {reason} at byte {offset}")]
     CountryParse {
         country: u32,
@@ -1229,7 +1407,8 @@ impl OpError {
             | Self::UnknownCountry { .. }
             | Self::UnknownDeposit { .. }
             | Self::UnknownDigSite { .. }
-            | Self::UnknownBelt { .. } => ErrorKind::NotFound,
+            | Self::UnknownBelt { .. }
+            | Self::UnknownEntity { .. } => ErrorKind::NotFound,
             Self::Parse { .. }
             | Self::NebulaParse { .. }
             | Self::HeaderParse { .. }
@@ -1331,6 +1510,11 @@ impl OpError {
             | Self::RingUnchanged { .. }
             | Self::StarModel { .. }
             | Self::ModelUnchanged { .. }
+            | Self::StarPlanetClass { .. }
+            | Self::FixedPlanetClass { .. }
+            | Self::ColonyPlanetClass { .. }
+            | Self::PlanetClassMismatch { .. }
+            | Self::PlanetClassUnchanged { .. }
             | Self::BeltUnchanged { .. }
             | Self::InnerRadiusTooSmall { .. }
             | Self::InnerRadiusUnchanged { .. }
@@ -1339,9 +1523,16 @@ impl OpError {
             | Self::NoBodies { .. }
             | Self::HoldsSavePlanet { .. }
             | Self::MegastructurePlanet { .. }
+            | Self::MegastructureClass { .. }
+            | Self::PlanetModelIndex { .. }
             | Self::BodyNotAdded { .. }
             | Self::BodyHasMoons { .. }
             | Self::PlanetOccupied { .. }
+            | Self::NoColony { .. }
+            | Self::StarNotDeleted { .. }
+            | Self::PlanetKept { .. }
+            | Self::ColonyKept { .. }
+            | Self::EntityMismatch { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,
         }
     }
