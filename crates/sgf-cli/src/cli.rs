@@ -233,6 +233,20 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Add an anomaly to a save planet, or remove the one it has. A planet the player has
+    /// surveyed is listed as found by the player too.
+    Anomaly {
+        sav: PathBuf,
+        planet: u32,
+        /// An anomaly category, as `common/anomalies` names it.
+        #[arg(required_unless_present = "remove")]
+        category: Option<String>,
+        /// Remove the planet's anomaly instead.
+        #[arg(long, conflicts_with = "category")]
+        remove: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Add or remove deposits on the planets of a Stellaris 4.x save.
     Deposit {
         #[command(subcommand)]

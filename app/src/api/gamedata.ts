@@ -4,6 +4,7 @@
  * `app/src-tauri/src/commands/`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { AnomalyChoice } from "../generated/AnomalyChoice";
 import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
@@ -155,6 +156,18 @@ export function getDepositTypes(keys: string[]): Promise<DepositTypeView[]> {
 /** Every modifier a planet's page offers to add, planet features first; empty without game data. */
 export function getModifierChoices(): Promise<ModifierChoice[]> {
   return invoke<ModifierChoice[]>("get_modifier_choices");
+}
+
+/**
+ * Every anomaly category a planet's page offers to add, each usual when it could turn up on a
+ * body of `planetClass` and `size`, a moon when `moon`; empty without game data.
+ */
+export function getAnomalyChoices(
+  planetClass: string | null,
+  size: number | null,
+  moon: boolean,
+): Promise<AnomalyChoice[]> {
+  return invoke<AnomalyChoice[]>("get_anomaly_choices", { class: planetClass, size, moon });
 }
 
 /** Each planet (`pm_*`) or timed modifier in `keys` the game data defines; empty without it. */

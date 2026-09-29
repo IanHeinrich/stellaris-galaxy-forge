@@ -1,12 +1,19 @@
 /**
- * How a planet's page adds and removes deposits and modifiers, whatever the document is.
+ * How a planet's page adds and removes deposits, modifiers and an anomaly, whatever the document
+ * is.
  * `planetEditAdapterFor` is the one place a source is chosen.
  */
 import type { Op } from "../generated/Op";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { PickerTarget, PlanetEditAdapter } from "../lib/details/picker";
 import type { ModifierRow } from "../lib/details/planetPage";
-import { addDepositOp, addModifierOp, removeModifierOp } from "../lib/details/planetEdits";
+import {
+  addAnomalyOp,
+  addDepositOp,
+  addModifierOp,
+  removeAnomalyOp,
+  removeModifierOp,
+} from "../lib/details/planetEdits";
 import { useEditorStore } from "./editorStore";
 
 /**
@@ -21,6 +28,8 @@ function saveEdits(planet: number): PlanetEditAdapter {
     removeDeposit: (ref) => apply({ type: "RemoveSaveDeposit", deposit: ref as number }),
     addModifier: (choice, days) => apply(addModifierOp(planet, choice, days)),
     removeModifier: (ref) => apply(removeModifierOp(planet, ref as ModifierRow)),
+    addAnomaly: (category) => apply(addAnomalyOp(planet, category)),
+    removeAnomaly: () => apply(removeAnomalyOp(planet)),
   };
 }
 
@@ -38,6 +47,7 @@ export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarge
     moon,
     deposits: page.deposits.map((d) => d.kind),
     modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
+    anomaly: page.anomaly?.category ?? null,
     edits: planetEditAdapterFor(page),
   };
 }

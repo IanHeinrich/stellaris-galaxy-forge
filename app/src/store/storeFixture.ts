@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { StoreApi } from "zustand";
 
+import { useAnomalyPickerStore } from "./anomalyPickerStore";
 import { useDepositPickerStore } from "./depositPickerStore";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
@@ -30,6 +31,7 @@ import { useWatchlistStore } from "./watchlistStore";
 import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
+  useAnomalyPickerStore,
   useDepositPickerStore,
   useEditorStore,
   useEntityStore,

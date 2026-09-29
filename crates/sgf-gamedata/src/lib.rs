@@ -6,6 +6,7 @@
 //! Without an install [`load`] fails with [`LoadError::NoInstall`] and the
 //! caller degrades to raw keys.
 
+pub mod anomaly_choices;
 pub mod body_effects;
 pub mod condition;
 pub mod deposit_choices;
@@ -49,6 +50,7 @@ use sgf_core::ops::SystemRadii;
 pub use initializers::Initializers;
 pub use install::layers::Layout;
 pub use loc::localisation::Localisation;
+pub use registries::anomalies::AnomalyCategories;
 pub use registries::asteroid_belts::AsteroidBelts;
 pub use registries::bypasses::Bypasses;
 pub use registries::colony_types::ColonyTypes;
@@ -105,6 +107,8 @@ pub struct GameData {
     pub deposit_categories: Arc<DepositCategories>,
     pub static_modifiers: Arc<StaticModifiers>,
     pub planet_modifiers: Arc<PlanetModifiers>,
+    /// `common/anomalies`: the categories a planet's `anomaly` names.
+    pub anomaly_categories: Arc<AnomalyCategories>,
     pub colony_types: Arc<ColonyTypes>,
     pub asteroid_belts: Arc<AsteroidBelts>,
     pub bypasses: Arc<Bypasses>,
@@ -298,6 +302,7 @@ impl GameData {
                 .filter(|d| !matches!(d, Diagnostic::Override { .. })),
         );
         let planet_modifiers = registry::load(&layout, &vars, &mut diagnostics);
+        let anomaly_categories = registry::load(&layout, &vars, &mut diagnostics);
         let colony_types = registry::load(&layout, &vars, &mut diagnostics);
         let asteroid_belts = registry::load(&layout, &vars, &mut diagnostics);
         let bypasses = registry::load(&layout, &vars, &mut diagnostics);
@@ -346,6 +351,7 @@ impl GameData {
             deposit_categories: Arc::new(deposit_categories),
             static_modifiers: Arc::new(static_modifiers),
             planet_modifiers: Arc::new(planet_modifiers),
+            anomaly_categories: Arc::new(anomaly_categories),
             colony_types: Arc::new(colony_types),
             asteroid_belts: Arc::new(asteroid_belts),
             bypasses: Arc::new(bypasses),

@@ -328,6 +328,26 @@ pub enum Op {
         #[ts(optional)]
         feature: Option<String>,
     },
+    /// A save planet's anomaly, `anomaly="<category>"` written after its `planet_orbitals`
+    /// as given. Without `found_by`, the planet also goes last in the player's
+    /// `events.anomalies` when the player has surveyed it, because the game lists an
+    /// anomaly only when a survey turns it up; with it, in the lists of those countries. A
+    /// system's star is refused, and so are a planet that has an anomaly and a save before
+    /// Stellaris 4.0. The inverse removes what it wrote. Save documents only.
+    AddAnomaly {
+        planet: u32,
+        category: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        found_by: Option<Vec<u32>>,
+    },
+    /// A save planet's anomaly, and the planet from every country's `events.anomalies`,
+    /// the list going with its last planet. A system's star is refused, and so are a planet
+    /// without one and a save before Stellaris 4.0. The inverse adds it back with the countries that had found
+    /// it. Save documents only.
+    RemoveAnomaly {
+        planet: u32,
+    },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
     /// writes both and turns that on; `None` turns it off and mirrors the first two flag
@@ -945,6 +965,12 @@ pub enum OpError {
     ModifierDays,
     #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
     ModifierCopies(u32),
+    #[error("planet {0} is its system's star, which takes no anomaly")]
+    StarAnomaly(u32),
+    #[error("planet {0} already has anomaly {1}")]
+    AnomalyPresent(u32, String),
+    #[error("planet {0} has no anomaly")]
+    AnomalyAbsent(u32),
     #[error("country {0} does not exist")]
     UnknownCountry(u32),
     #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
@@ -1146,6 +1172,9 @@ impl OpError {
             | Self::ModifierAbsent { .. }
             | Self::ModifierDays { .. }
             | Self::ModifierCopies { .. }
+            | Self::StarAnomaly { .. }
+            | Self::AnomalyPresent { .. }
+            | Self::AnomalyAbsent { .. }
             | Self::NoMapColors { .. }
             | Self::MapColorsUnchanged { .. }
             | Self::FlagUnchanged { .. }

@@ -1,6 +1,7 @@
 //! One thin sheet per definition kind: each reads its own `common/` folder
 //! into a [`registry::Registry`] of keys the save and the UI name.
 
+pub mod anomalies;
 pub mod asteroid_belts;
 pub mod bypasses;
 pub mod colony_types;

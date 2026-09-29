@@ -77,7 +77,7 @@ export function pickerSections<R extends PickRow, C extends string>(
 /** A value a source gives each row it lists, and takes back to remove that row. */
 export type RowRef = unknown;
 
-/** How one source adds and removes a body's deposits and modifiers. */
+/** How one source adds and removes a body's deposits, modifiers and anomaly. */
 export interface PlanetEditAdapter {
   /** Whether a modifier it adds can run out after some days; without, every add is permanent. */
   timedModifiers: boolean;
@@ -86,6 +86,9 @@ export interface PlanetEditAdapter {
   /** Adds `choice` for `days`, or for ever when `null`. */
   addModifier(choice: ModifierChoice, days: number | null): Promise<boolean>;
   removeModifier(ref: RowRef): Promise<boolean>;
+  /** Adds the anomaly category `category`. */
+  addAnomaly(category: string): Promise<boolean>;
+  removeAnomaly(): Promise<boolean>;
 }
 
 /** The body a picker adds to: what its choices are read for, and how it is edited. */
@@ -99,5 +102,7 @@ export interface PickerTarget {
   deposits: readonly string[];
   /** The modifiers and planet features it has. */
   modifiers: readonly string[];
+  /** The category of the anomaly it holds; `null` for none. */
+  anomaly: string | null;
   edits: PlanetEditAdapter;
 }

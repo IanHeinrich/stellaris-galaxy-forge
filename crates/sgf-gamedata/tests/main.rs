@@ -2,6 +2,7 @@
 
 mod common;
 
+mod anomaly_choices;
 mod deposit_choices;
 mod deposit_roll;
 mod flags;

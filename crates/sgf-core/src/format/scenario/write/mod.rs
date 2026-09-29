@@ -120,7 +120,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
         | Op::AddPlanetModifier { .. }
-        | Op::RemovePlanetModifier { .. } => Err(OpError::Unsupported {
+        | Op::RemovePlanetModifier { .. }
+        | Op::AddAnomaly { .. }
+        | Op::RemoveAnomaly { .. } => Err(OpError::Unsupported {
             op: op.name(),
             kind: DocumentKind::Scenario,
         }),

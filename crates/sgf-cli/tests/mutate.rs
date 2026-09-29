@@ -1,4 +1,4 @@
-//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`,
+//! The editing commands: `move`, `nebula`, `lane`, `deposit`, `modifier`, `anomaly`,
 //! `rename-planet` and `rename-empire`.
 use crate::common::{SAMPLE, SAMPLE_4_5, SCENARIO, backups, ok, sgf, stdout};
 
@@ -426,6 +426,47 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
         "{}",
         stdout(&timed)
     );
+}
+
+#[test]
+fn anomaly_writes_one_a_later_run_takes_away() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_path = dir.path().join("anomaly.sav");
+    let out_str = out_path.to_str().unwrap();
+
+    let out = sgf(&[
+        "anomaly",
+        SAMPLE_4_5,
+        "3",
+        "asteroid_uninhabitable_category",
+        "-o",
+        out_str,
+    ]);
+    ok(&out);
+    assert!(
+        stdout(&out).contains(
+            "Add anomaly asteroid_uninhabitable_category to planet #3, found by empire 0"
+        ),
+        "{}",
+        stdout(&out)
+    );
+    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
+
+    let removed = sgf(&[
+        "anomaly",
+        out_str,
+        "3",
+        "--remove",
+        "-o",
+        dir.path().join("cleared.sav").to_str().unwrap(),
+    ]);
+    ok(&removed);
+    assert!(
+        stdout(&removed).contains("Remove anomaly asteroid_uninhabitable_category from planet #3"),
+        "{}",
+        stdout(&removed)
+    );
+    assert_eq!(sgf(&["anomaly", SAMPLE_4_5, "3"]).status.code(), Some(2));
 }
 
 #[test]

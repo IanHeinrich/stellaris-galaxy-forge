@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::deposit_choices::{AskedBody, DepositChoice, deposit_choices};
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
@@ -238,6 +239,24 @@ pub fn get_modifier_choices(game_data: State<'_, GameDataState>) -> Vec<Modifier
     game_data
         .loaded()
         .map_or_else(Vec::new, |gd| gd.modifier_choices())
+}
+
+/// Every anomaly category a planet's page offers to add, each usual when its spawn chance is
+/// above zero for a body of `class`, `size` and `moon`; empty without game data.
+#[tauri::command(async)]
+pub fn get_anomaly_choices(
+    game_data: State<'_, GameDataState>,
+    class: Option<String>,
+    size: Option<u32>,
+    moon: bool,
+) -> Vec<AnomalyChoice> {
+    game_data.loaded().map_or_else(Vec::new, |gd| {
+        gd.anomaly_choices(&AskedBody {
+            class: class.as_deref(),
+            size,
+            moon,
+        })
+    })
 }
 
 /// Each planet (`pm_*`) or timed modifier the install defines; empty without game data.

@@ -260,11 +260,13 @@ describe("a colony's page", () => {
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
+      'class="edit-field dp-open"',
       'class="edit-field edit-key-sample"',
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
     expect(html).toContain("+ Add modifier…");
     expect(html).toContain("Add deposit");
+    expect(html).toContain("+ Add anomaly…");
     expect(html.match(/pl-dep-remove/g)).toHaveLength(3);
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -489,6 +491,32 @@ describe("an unowned world's page", () => {
     expect(html).toContain("found by Ti Zru Conservers");
   });
 
+  it("offers a remove button on its anomaly, and no picker while it has one", async () => {
+    await open("save");
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [] } });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain("Anomaly");
+    expect(html).toContain("not found yet");
+    expect(html).not.toContain("+ Add anomaly…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove time_loop_world").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", planet: WORLD }),
+    );
+  });
+
+  it("offers a picker to add an anomaly when it has none", async () => {
+    await open("save");
+    await landPage(OLBERS);
+
+    const html = render(WORLD);
+    expect(html).toContain("+ Add anomaly…");
+    expect(html.indexOf("+ Add modifier…")).toBeLessThan(html.indexOf("+ Add anomaly…"));
+    expect(html.indexOf("+ Add anomaly…")).toBeLessThan(html.indexOf("About"));
+  });
+
   it("marks only a loss of districts of every kind with the blocker", async () => {
     await open("save");
     await landPage(
@@ -664,6 +692,7 @@ describe("a save star body's page", () => {
     expect(html.indexOf("Star type")).toBeLessThan(html.indexOf("Deposits · 1"));
     expect(html.indexOf("Deposits · 1")).toBeLessThan(html.indexOf("About"));
     expect(html).toContain("Energy Credits");
+    expect(html).not.toContain("Add anomaly");
     expect(html).toContain('title="Open the system&#x27;s page"');
     expect(html).toContain("editable · plain text is information");
   });

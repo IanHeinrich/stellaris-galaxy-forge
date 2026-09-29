@@ -8,6 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+### Added
+
+- Add an anomaly to a planet or moon in a save, or remove one, from its
+  page. If you have already surveyed the planet, the anomaly is ready to
+  research. Otherwise it turns up when a science ship surveys it.
+
 ## [0.18.0] - 2026-09-28
 
 ### Added

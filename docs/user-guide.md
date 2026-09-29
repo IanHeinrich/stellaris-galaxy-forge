@@ -171,6 +171,18 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Anomaly section shows a planet's or
+  moon's anomaly. Remove it with the ✕ on its row. When it has none, Add
+  anomaly lists the anomalies you can add. Search by name, or pick a
+  level chip. The ones that can turn up on that body come first, under
+  "Usual for this planet". A planet holds one anomaly, so the list
+  closes after you add one.
+- If you have surveyed the planet, the added anomaly shows in game right
+  away, ready for a science ship to research. If you haven't, it turns up
+  when you survey the planet. Anomalies that run their own script when
+  the game places them, such as precursor ones, aren't offered, because
+  the game wouldn't run that script. The AI's own anomalies aren't
+  offered either.
 - In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
   it a ring or take its ring away.
 - Deposits are shown with the game's own art and the district capacity

@@ -47,6 +47,7 @@ import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { PlanetRow } from "../system/sections/Planets";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
+import { AnomalyPicker } from "./AnomalyPicker";
 import { ModifierPicker } from "./ModifierPicker";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { PlanetSystemField } from "./PlanetSystemField";
@@ -296,22 +297,74 @@ function Orbits({ parent, radius }: { parent: number; radius: number | null }) {
   );
 }
 
-/** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
-function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
-  const named = useNamed([anomaly.category]);
+/** Who has found `anomaly`: "found by …", or "not found yet". */
+function useFinders(anomaly: PlanetPageAnomaly): string {
   const countries = useGalaxyStore((s) => s.countries);
   const finders = anomaly.found_by.map((id) => {
     const country = countries.get(id);
     return country === undefined ? `country #${id}` : templateName(country);
   });
+  return finders.length === 0 ? "not found yet" : `found by ${finders.join(", ")}`;
+}
+
+/** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
+function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
+  const named = useNamed([anomaly.category]);
+  const found = useFinders(anomaly);
   return (
     <PropertyRow label="Anomaly">
       {named(anomaly.category)}
       <span className="muted">
         {" · "}
-        {finders.length === 0 ? "not found yet" : `found by ${finders.join(", ")}`}
+        {found}
       </span>
     </PropertyRow>
+  );
+}
+
+/** The anomaly as the Anomaly section lists it: its name, who found it, and its remove button. */
+function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; target: PickerTarget }) {
+  const named = useNamed([anomaly.category]);
+  const found = useFinders(anomaly);
+  const name = named(anomaly.category);
+  return (
+    <div className="pl-mod">
+      <span className="pl-mod-icon">
+        <Icon keys={[]} glyph="?" />
+      </span>
+      <span>
+        <span className="l1">{name}</span>
+        <span className="l2">{found}</span>
+      </span>
+      <button
+        type="button"
+        className="pl-dep-remove pl-mod-remove"
+        title="Remove this anomaly"
+        aria-label={`Remove ${name}`}
+        onClick={() => void target.edits.removeAnomaly()}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+/** The planet's anomaly with its remove button, or the picker that adds one. */
+function PlanetAnomaly({
+  anomaly,
+  target,
+}: {
+  anomaly: PlanetPageAnomaly | null;
+  target: PickerTarget;
+}) {
+  return (
+    <Section id="planet.anomaly" title="Anomaly">
+      {anomaly === null ? (
+        <AnomalyPicker target={target} />
+      ) : (
+        <AnomalyRowView anomaly={anomaly} target={target} />
+      )}
+    </Section>
   );
 }
 
@@ -417,9 +470,10 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const moveFrom = movable ? page.system : null;
   const planetBody = bodies && !starBody;
   const resizable = planetBody;
-  // A 4.x save: the deposit and modifier ops refuse an older one.
+  // A 4.x save: the deposit, modifier and anomaly ops refuse an older one.
   const depositsEditable = useCanEdit("deposits");
   const modifiersEditable = planetBody && depositsEditable;
+  const anomalyEditable = modifiersEditable;
   const moon = found?.planet.moon ?? false;
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
   const fields: PlanetFields = {
@@ -457,6 +511,7 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
       )}
       <PlanetDeposits page={page} editable={depositsEditable} target={target} />
       <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
+      {anomalyEditable && <PlanetAnomaly anomaly={page.anomaly} target={target} />}
       <Colony page={page} />
       <About page={page} radius={radius} />
       <Moons page={page} />

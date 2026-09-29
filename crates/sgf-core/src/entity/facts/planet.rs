@@ -183,7 +183,7 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
         flags: facts.flags,
         anomaly: read::scalar(node, keys::ANOMALY, src).map(|category| PlanetPageAnomaly {
             category: category.to_owned(),
-            found_by: doc.anomaly_finders(id).to_vec(),
+            found_by: doc.anomaly_finders(id),
         }),
         terraforming: node.find(keys::TERRAFORM_PROCESS, src).is_some(),
         clearing: facts

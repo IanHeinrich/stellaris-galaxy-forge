@@ -349,6 +349,24 @@ for planets or deposits.
   day-one sample, such as `pm_extensive_moon_system`, have only the
   line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
   and `planet_modifier` after `entity`.
+- A planet's anomaly is `anomaly="<category>"`, the category's key in
+  `common/anomalies`, written right after `planet_orbitals`. A country
+  that has found it lists the planet in its `events.anomalies`, a list
+  of planet ids written before `situations`, laid out like `deposits`.
+  A country with none has no `anomalies` at all. The 4.5 sample has 12
+  anomalies, 3 of them found, and the 4.4 sample 19, with 10 found.
+- The game lists an anomaly for a country only when that country's
+  survey turns it up. A key alone on a planet the player has already
+  surveyed is never listed (4.5.1, in a month of play), so the editor
+  lists an added one for the player itself. On a planet the player
+  hasn't surveyed it writes the key alone: planet 2090 of the 4.4 sample
+  is listed by the country that surveyed it after the key was placed.
+- A country's `surveyed_deposit_holders` holds `{ type=0 id=<planet> }`
+  for every planet it has surveyed. A planet's `surveyed_by` names only
+  the first country to survey it. The home system's planets are in the
+  player's list from day one without a `surveyed_by`.
+- Stellaris 3.4 writes `anomaly` the same way but has no
+  `events.anomalies`, so the editor refuses anomaly edits before 4.0.
 - A star-class body other than the star, such as the Great Wound's
   black holes, has `carrier_binary_flags=3`, as the star does. A star
   off centre writes its `orbit` and position like a planet, and the
