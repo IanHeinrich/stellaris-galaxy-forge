@@ -44,8 +44,10 @@ a release is made.
   megastructures, dig site, anomaly and pre-FTL civilisation. Hover an
   icon or a resource to see what it is.
 - The Open screen has a Clear button on the Recent list.
-- A save's system view shows its wormholes. Drag a natural wormhole to
-  move it within its system.
+- A save's system view shows its wormholes as the game draws them, with
+  their names. Drag a natural wormhole to move it within its system.
+  Click one to open its page, which lists where it leads and has its
+  distance and angle to edit.
 
 ### Changed
 

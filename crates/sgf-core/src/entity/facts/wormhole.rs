@@ -62,7 +62,7 @@ fn system_of(doc: &Document, bypass: u32) -> Option<u32> {
             if read::scalar_u32(&row, keys::BYPASS, src) != Some(bypass) {
                 return None;
             }
-            read::origin(&row, src)
+            read::origin(&row, src).filter(|&id| id != crate::NULL_ID)
         })
 }
 

@@ -426,6 +426,11 @@ Drag a natural wormhole to move it. Hold Shift to snap the angle
 to 15° steps. Shroud tunnels show too, but they stay where they are.
 Turn off Bypasses to hide them.
 
+Click a wormhole, or its row under Bypasses on the system's page, to
+open its page in the Inspector. The page links to the system on the
+other side, and you can type a new distance and angle there. The
+selected wormhole has a ring around it in the system view.
+
 #### Delete planets and remove colonies
 
 In a Stellaris 4.x save, you can delete a planet or moon. Right-click it

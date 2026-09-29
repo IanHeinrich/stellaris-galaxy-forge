@@ -172,7 +172,12 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
 /** Every wormhole read cached or out: none is filed under its system, so any edit to a system drops them. */
 function wormholeReads(state: EntityState): EntityAddr[] {
-  const owners = [...state.views.keys(), ...state.sources.keys(), ...state.pending].map(ownerOf);
+  const owners = [
+    ...state.views.keys(),
+    ...state.sources.keys(),
+    ...state.errors.keys(),
+    ...state.pending,
+  ].map(ownerOf);
   const ids = new Set(
     owners.filter((key) => key.startsWith("wormhole:")).map((key) => Number(key.slice(9))),
   );
