@@ -7,6 +7,7 @@ use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
 use sgf_core::format::save::details::SystemDetails;
 use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
+use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
 use sgf_gamedata::install::layers::Layer;
@@ -170,6 +171,13 @@ fn game_data_commands_degrade_without_an_install() {
     let modifier_choices: Vec<Value> =
         invoke(&w, "get_modifier_choices", json!({})).expect("modifier choices");
     assert!(modifier_choices.is_empty());
+    let anomaly_choices: Vec<Value> = invoke(
+        &w,
+        "get_anomaly_choices",
+        json!({ "class": "pc_asteroid", "size": 5, "moon": false }),
+    )
+    .expect("anomaly choices");
+    assert!(anomaly_choices.is_empty());
     let dig_site_choices: Vec<Value> =
         invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");
     assert!(dig_site_choices.is_empty());
@@ -502,6 +510,24 @@ fn game_data_commands_with_the_install() {
         modifier_choices
             .iter()
             .any(|c| c.feature.as_deref() == Some("pm_mineral_poor"))
+    );
+    let anomaly_choices: Vec<AnomalyChoice> = invoke(
+        &w,
+        "get_anomaly_choices",
+        json!({ "class": "pc_asteroid", "size": 5, "moon": false }),
+    )
+    .expect("anomaly choices");
+    let asteroid = anomaly_choices
+        .iter()
+        .find(|c| c.key == "crashed_ship_asteroid_category")
+        .expect("Crashed Ship is offered");
+    assert!(asteroid.usual, "an asteroid is where Crashed Ship turns up");
+    assert_eq!(asteroid.level, Some(3));
+    assert!(
+        anomaly_choices
+            .iter()
+            .all(|c| !c.key.starts_with("AIANOM_")),
+        "the AI's own categories are left out"
     );
     let dig_sites: Vec<DigSiteChoice> =
         invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");

@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Add anomaly asteroid_uninhabitable_category to planet #585
+inverse: RemoveAnomaly { planet: 585 }
+
+--- gamestate
++++ gamestate
+@@ -110113,6 +110113,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			anomaly="asteroid_uninhabitable_category"
+ 			bombardment_damage=0
+ 			entity=2
+ 		}

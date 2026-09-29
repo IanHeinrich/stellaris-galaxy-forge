@@ -4,6 +4,7 @@
  */
 import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
+import type { PlanetPageAnomaly } from "../../generated/PlanetPageAnomaly";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
 export type CommonChip = "All" | "Usual";
@@ -78,7 +79,7 @@ export function pickerSections<R extends PickRow, C extends string>(
 /** A value a source gives each row it lists, and takes back to remove that row. */
 export type RowRef = unknown;
 
-/** How one source adds and removes a body's deposits, modifiers and dig site. */
+/** How one source adds and removes a body's deposits, modifiers, dig site and anomaly. */
 export interface PlanetEditAdapter {
   /** Whether a modifier it adds can run out after some days; without, every add is permanent. */
   timedModifiers: boolean;
@@ -87,6 +88,9 @@ export interface PlanetEditAdapter {
   /** Adds `choice` for `days`, or for ever when `null`. */
   addModifier(choice: ModifierChoice, days: number | null): Promise<boolean>;
   removeModifier(ref: RowRef): Promise<boolean>;
+  /** Adds the anomaly category `category`. */
+  addAnomaly(category: string): Promise<boolean>;
+  removeAnomaly(): Promise<boolean>;
   addDigSite(choice: DigSiteChoice): Promise<boolean>;
   removeDigSite(ref: RowRef): Promise<boolean>;
 }
@@ -102,5 +106,7 @@ export interface PickerTarget {
   deposits: readonly string[];
   /** The modifiers and planet features it has. */
   modifiers: readonly string[];
+  /** The anomaly it holds and who has found it; `null` for none. */
+  anomaly: PlanetPageAnomaly | null;
   edits: PlanetEditAdapter;
 }

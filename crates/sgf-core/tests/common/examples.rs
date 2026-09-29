@@ -413,6 +413,12 @@ pub fn one_of_each() -> Vec<Example> {
             modifier: "mineral_poor".to_owned(),
             feature: Some("pm_mineral_poor".to_owned()),
         }),
+        Example::save_4_5(Op::AddAnomaly {
+            planet: 3,
+            category: "asteroid_uninhabitable_category".to_owned(),
+            found_by: None,
+        }),
+        Example::save_4_5(Op::RemoveAnomaly { planet: 185 }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,
             colors: Some(MapColorPair {

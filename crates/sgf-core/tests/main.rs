@@ -27,6 +27,7 @@ mod op_kinds;
 mod ops_add_body;
 mod ops_add_special_system;
 mod ops_add_system;
+mod ops_anomaly;
 mod ops_belts;
 mod ops_black_hole_names;
 mod ops_bodies;

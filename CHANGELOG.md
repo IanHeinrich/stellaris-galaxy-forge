@@ -10,6 +10,9 @@ a release is made.
 
 ### Added
 
+- Add an anomaly to a planet or moon in a save, or remove one, from its
+  page. If you have already surveyed the planet, the anomaly is ready to
+  research. Otherwise it turns up when a science ship surveys it.
 - Add a planet or moon to a system in a save. In the system view,
   right-click empty space and choose Add planet here, or right-click a
   planet and choose Add moon. Pick a planet class or Random. Its size and

@@ -33,7 +33,10 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { TERRAFORMING_NOTE } from "../../../lib/details/depositWarnings";
+import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
+import { SAVE_CAPABILITIES } from "../../../lib/capabilities";
 import { useDigSitePickerStore } from "../../../store/digSitePickerStore";
 import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
@@ -264,12 +267,14 @@ describe("a colony's page", () => {
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
       'class="edit-field dp-open"',
+      'class="edit-field dp-open"',
       'class="edit-field edit-key-sample"',
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
     expect(html).toContain("+ Add modifier…");
     expect(html).toContain("+ Add dig site…");
     expect(html).toContain("Add deposit");
+    expect(html).toContain("+ Add anomaly…");
     expect(html.match(/pl-dep-remove/g)).toHaveLength(3);
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -487,14 +492,75 @@ describe("an unowned world's page", () => {
     expect(open_).toContain("+ Add deposit…");
   });
 
-  it("names the anomaly waiting on it and who found it", async () => {
+  it("names the anomaly waiting on it and who found it where it cannot be edited", async () => {
     await open("save");
+    useFileSessionStore.setState({ capabilities: { ...SAVE_CAPABILITIES, deposits: false } });
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [EMPIRE] } });
 
     const html = render(WORLD);
     expect(html).toMatch(/<span class="k">Anomaly<\/span><span>time_loop_world/);
     expect(html).toContain("found by Ti Zru Conservers");
+    expect(html).not.toContain("Remove time_loop_world");
+  });
+
+  const TIME_LOOP = {
+    key: "time_loop_world",
+    name: "Time Loop",
+    level: 8,
+    description: "The planet repeats the same day.",
+    usual: false,
+  };
+
+  it("draws an editable anomaly once, in its section, with who found it and the game's description", async () => {
+    useGameDataStore.setState({ status: "ready" });
+    await open("save");
+    useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [EMPIRE] } });
+    useAnomalyPickerStore.setState({ choices: { body: "", list: [TIME_LOOP] } });
+
+    const html = render(WORLD);
+    expect(html).not.toMatch(/<span class="k">Anomaly<\/span>/);
+    expect(html.match(/found by Ti Zru Conservers/g)).toHaveLength(1);
+    expect(html).toContain('<span class="pl-anomaly-desc">The planet repeats the same day.</span>');
+    expect(html.indexOf("Remove time_loop_world")).toBeLessThan(html.indexOf("About"));
+  });
+
+  it("shows no description without game data", async () => {
+    useGameDataStore.setState({ status: "idle" });
+    await open("save");
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [] } });
+    useAnomalyPickerStore.setState({ choices: { body: "", list: [TIME_LOOP] } });
+
+    const html = render(WORLD);
+    expect(html).toContain("not found yet");
+    expect(html).not.toContain("pl-anomaly-desc");
+  });
+
+  it("offers a remove button on its anomaly, and no picker while it has one", async () => {
+    await open("save");
+    await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [] } });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain("Anomaly");
+    expect(html).toContain("not found yet");
+    expect(html).not.toContain("+ Add anomaly…");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove time_loop_world").onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", planet: WORLD }),
+    );
+  });
+
+  it("offers a picker to add an anomaly when it has none", async () => {
+    await open("save");
+    await landPage(OLBERS);
+
+    const html = render(WORLD);
+    expect(html).toContain("+ Add anomaly…");
+    expect(html.indexOf("+ Add modifier…")).toBeLessThan(html.indexOf("+ Add anomaly…"));
+    expect(html.indexOf("+ Add anomaly…")).toBeLessThan(html.indexOf("About"));
   });
 
   it("marks only a loss of districts of every kind with the blocker", async () => {
@@ -806,6 +872,7 @@ describe("a save star body's page", () => {
     expect(html.indexOf("Star type")).toBeLessThan(html.indexOf("Deposits · 1"));
     expect(html.indexOf("Deposits · 1")).toBeLessThan(html.indexOf("About"));
     expect(html).toContain("Energy Credits");
+    expect(html).toContain("+ Add anomaly…");
     expect(html).toContain('title="Open the system&#x27;s page"');
     expect(html).toContain("editable · plain text is information");
     expect(html).not.toContain("Dig site");

@@ -121,6 +121,8 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::RenameSavePlanet { .. }
         | Op::AddPlanetModifier { .. }
         | Op::RemovePlanetModifier { .. }
+        | Op::AddAnomaly { .. }
+        | Op::RemoveAnomaly { .. }
         | Op::AddDigSite { .. }
         | Op::RemoveDigSite { .. } => Err(OpError::Unsupported {
             op: op.name(),

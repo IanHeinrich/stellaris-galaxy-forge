@@ -182,6 +182,20 @@ too.
   planet". With it, the planet can be terraformed once the empire has
   Climate Restoration. Frozen worlds also need Hydrocentric, and toxic
   worlds need Detox.
+- In a Stellaris 4.x save, the Anomaly section shows the anomaly on a
+  planet, moon or star: its name, which empires have found it, and the
+  game's description of it. Remove it with the ✕ on its row. When it
+  has none, Add anomaly lists the anomalies you can add. Search by name,
+  or pick a level chip. The ones that can turn up on that body come
+  first, under "Usual for this planet". Some only turn up on stars, such
+  as the ones around pulsars and black holes. A body holds one anomaly,
+  so the list closes after you add one.
+- If you have surveyed the planet, the added anomaly shows in game right
+  away, ready for a science ship to research. If you haven't, it turns up
+  when you survey the planet. Anomalies that run their own script when
+  the game places them, such as precursor ones, aren't offered, because
+  the game wouldn't run that script. The AI's own anomalies aren't
+  offered either.
 - In a Stellaris 4.x save, the Dig site section shows a planet's
   archaeological site: its stage, its clues, whether a fleet is
   excavating it, and the game's description of it. Remove it with the
@@ -232,8 +246,9 @@ too.
 - Moons are listed below and open their own pages the same way.
 - A colonised planet has a Colony section: its owner, designation, when
   it was colonised, and its pops by species.
-- A planet with an anomaly waiting on it shows an Anomaly row: the
-  anomaly's name, and which empires have found it.
+- In an older save, a planet with an anomaly waiting on it shows an
+  Anomaly row in About: the anomaly's name, and which empires have
+  found it.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.

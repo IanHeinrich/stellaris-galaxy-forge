@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::initializers::Initializer;
 use crate::install::layers::Layout;
 use crate::loc::localisation::Localisation;
+use crate::registries::anomalies::AnomalyCategoryDef;
 use crate::registries::asteroid_belts::AsteroidBeltDef;
 use crate::registries::bypasses::BypassDef;
 use crate::registries::colony_types::ColonyTypeDef;
@@ -42,8 +43,8 @@ pub enum RegistryKind {
     Variables,
     /// The definitions the generator, the planet page and the map read (deposits and their
     /// categories, star and planet classes and their lists, scripted triggers, modifiers,
-    /// colony types, dig site types, ship sizes, defines, random names, precursors). They feed one another
-    /// and are never rebuilt apart: a change rereads all.
+    /// anomaly categories, colony types, dig site types, ship sizes, defines, random names,
+    /// precursors). They feed one another and are never rebuilt apart: a change rereads all.
     Definitions,
 }
 
@@ -60,7 +61,7 @@ const ALL: [RegistryKind; 9] = [
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 23] = [
+const DIRS: [(&str, RegistryKind); 24] = [
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/scripted_effects", RegistryKind::Scripts),
     ("events", RegistryKind::Scripts),
@@ -76,6 +77,7 @@ const DIRS: [(&str, RegistryKind); 23] = [
     (ScriptedTrigger::DIR, RegistryKind::Definitions),
     (StaticModifierDef::DIR, RegistryKind::Definitions),
     (PlanetModifierDef::DIR, RegistryKind::Definitions),
+    (AnomalyCategoryDef::DIR, RegistryKind::Definitions),
     (ColonyTypeDef::DIR, RegistryKind::Definitions),
     (DigSiteTypeDef::DIR, RegistryKind::Definitions),
     (AsteroidBeltDef::DIR, RegistryKind::Definitions),

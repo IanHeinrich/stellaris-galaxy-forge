@@ -1,0 +1,17 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Add anomaly DISTAR_TIME_CAT to planet #584
+inverse: RemoveAnomaly { planet: 584 }
+
+--- gamestate
++++ gamestate
+@@ -110060,6 +110060,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			anomaly="DISTAR_TIME_CAT"
+ 			bombardment_damage=0
+ 			entity=0
+ 			deposits=
