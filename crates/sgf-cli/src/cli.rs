@@ -206,6 +206,20 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Delete a save planet and its moons, or a moon, with any colony on them.
+    DeletePlanet {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Remove the colony on a save planet or moon; the planet stays.
+    RemoveColony {
+        sav: PathBuf,
+        planet: u32,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Rename an empire. Renaming the player's empire also renames the save on the load
     /// screen.
     RenameEmpire {
@@ -225,6 +239,18 @@ pub enum Command {
         /// Take the planet's model off instead, back to its class's own.
         #[arg(long, conflicts_with = "entity")]
         clear: bool,
+        #[command(flatten)]
+        out: OutArg,
+    },
+    /// Change a save planet's class, such as to `pc_ocean`, with the rules the install gives
+    /// each class.
+    PlanetClass {
+        sav: PathBuf,
+        planet: u32,
+        /// The new class, as `common/planet_classes` names it.
+        class: String,
+        #[command(flatten)]
+        install: InstallArg,
         #[command(flatten)]
         out: OutArg,
     },

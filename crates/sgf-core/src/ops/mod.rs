@@ -26,8 +26,9 @@ pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_nam
 pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths, spliced};
 pub use op::{
-    EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud, NebulaFootprint,
-    NewBody, NewSystem, Op, OpError, StarBody, SystemMove,
+    ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud,
+    NebulaFootprint, NewBody, NewSystem, Op, OpError, PlanetClassRule, PlanetLook, SavedEntity,
+    SavedTable, StarBody, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 pub use rules::bodies::{

@@ -192,7 +192,7 @@ fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
 
 /// Take planet `id` out of the country's `events.anomalies`, and the list with it when
 /// nothing else is left in it, as the game writes no empty one.
-fn unlist(edit: &mut Edit, id: u32) -> Result<(), OpError> {
+pub(crate) fn unlist(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let Some(anomalies) = entity
         .find(keys::EVENTS, &edit.buf)

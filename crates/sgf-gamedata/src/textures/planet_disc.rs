@@ -58,6 +58,21 @@ pub(crate) enum Surface {
     Unknown,
 }
 
+impl SurfaceMaps {
+    /// How many models the game numbers for `entity`: `<entity>_01_entity`,
+    /// `<entity>_02_entity` … in a row, else 1 for an entity of that name alone, else 0.
+    pub(crate) fn model_count(&self, entity: &str) -> u32 {
+        let known = |name: &str| self.maps.contains_key(name) || self.meshes.contains_key(name);
+        let numbered = (1..)
+            .take_while(|n| known(&format!("{entity}_{n:02}_entity")))
+            .count();
+        match numbered {
+            0 => u32::from(known(&format!("{entity}_entity")) || known(entity)),
+            n => u32::try_from(n).unwrap_or(u32::MAX),
+        }
+    }
+}
+
 /// The surface of `entity` in `maps`. The game numbers a class's models `<entity>_01_entity`,
 /// `<entity>_02_entity` …; the first one stands for them all. A map an `.asset` names comes
 /// before one a `.mesh` stores, whichever name each is under, and a whole surface before

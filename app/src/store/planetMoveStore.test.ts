@@ -220,11 +220,32 @@ describe("cut and paste", () => {
       planet: EARTH,
       to: BARNARD,
     });
-    expect(await moves().move([EARTH], BARNARD)).toBe(true);
+    expect(await moves().movePlanet(EARTH, BARNARD)).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
     expect(useEditorStore.getState().selection).toEqual([SOL]);
     expect(useInspectorStore.getState().stack).toEqual(stack);
     expect(moves().selection).toBeNull();
+    expect(useSceneStore.getState().bodyFocus).toBeNull();
+  });
+
+  it("follows a planet moved from its page in the system view, centred on it with its page open", async () => {
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    mockedIpc.planetMoveOp.mockResolvedValue({
+      type: "MoveSavePlanet",
+      planet: EARTH,
+      to: BARNARD,
+    });
+    expect(await moves().movePlanet(EARTH, BARNARD)).toBe(true);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: BARNARD });
+    expect(useEditorStore.getState().selection).toEqual([BARNARD]);
+    expect(useInspectorStore.getState().stack.map((entry) => entry.ref)).toEqual([
+      { kind: "system", id: BARNARD },
+      { kind: "planet", id: EARTH },
+    ]);
+    expect(moves().selection).toEqual({ system: BARNARD, ids: [EARTH] });
+    expect(useSceneStore.getState().bodyFocus?.id).toBe(EARTH);
   });
 
   it("keeps the cut when the edit is refused", async () => {

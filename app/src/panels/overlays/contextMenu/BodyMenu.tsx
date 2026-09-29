@@ -1,16 +1,19 @@
 import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
 import { bodyName } from "../../../lib/details/labels";
 import { lockedToName, nextMoonRing, orbitParent } from "../../../lib/details/orbitEdits";
+import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { isStarBody } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { deletePlanet } from "../../../store/planetRemoval";
 import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
+import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
@@ -18,7 +21,7 @@ import { CutItem } from "./PlanetMoveItems";
 
 /**
  * The menu on a body in the system view: its page, the selection's cut, its lock, a new moon of
- * it, its removal, and the way back out.
+ * it, its deletion, and the way back out.
  */
 export function BodyMenu({
   target,
@@ -43,9 +46,11 @@ export function BodyMenu({
     return planet === undefined ? undefined : bodyName(planet, names);
   };
   const name = nameOf(target.id);
+  const deletable = useCanEdit("deposits");
   const placed = layout.bodies.find((b) => b.id === target.id);
   const lockable = placed !== undefined && editing.bodies.get(target.id)?.move === true;
   const planet = details?.planets.find((p) => p.id === target.id);
+  const moon = planet?.moon === true;
   const moonHost =
     canAddBodies &&
     planet !== undefined &&
@@ -81,12 +86,38 @@ export function BodyMenu({
           </MenuItem>
         ))}
       {moonHost && <AddBodyItems label={ADD_MOON_LABEL} moon add={addMoon} />}
-      <MenuItem disabled run={() => undefined}>
-        Remove
-      </MenuItem>
+      {deletable && name !== undefined && (
+        <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
+      )}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>
     </MenuFrame>
+  );
+}
+
+/** Deletes the body with its moons, or says why it cannot: offered once the core has answered. */
+function DeleteItem({
+  system,
+  planet,
+  name,
+  moon,
+}: {
+  system: number;
+  planet: number;
+  name: string;
+  moon: boolean;
+}) {
+  const refusal = useOpCheck(deleteOp(planet), system);
+  return (
+    <MenuItem
+      disabled={refusal !== null}
+      className={refusal ? "hinted" : undefined}
+      title={refusal ?? undefined}
+      run={() => deletePlanet(planet, name, moon)}
+    >
+      {deleteLabel(moon)}
+      {refusal && <span className="muted">{refusal}</span>}
+    </MenuItem>
   );
 }

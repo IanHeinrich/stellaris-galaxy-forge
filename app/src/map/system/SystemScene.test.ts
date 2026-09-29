@@ -13,6 +13,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { useSceneStore } from "../../store/sceneStore";
 import { applyGeometry } from "../../store/systemGeometry";
 import { byId, name, placedNode, systemDetails } from "../../test/builders";
 import { EARTH, SUN, SYSTEM, saveBody, stubTextMeasurement } from "./fixture";
@@ -163,6 +164,25 @@ describe("the system scene's fit", () => {
     shown.show(RENUMBERED, 1);
     shown.tick();
     expect(camera(shown)).toEqual(zoomed);
+  });
+
+  it("centres on a body asked for before its system's record lands", () => {
+    const shown = entered();
+    shown.show(OTHER, 2);
+    useSceneStore.getState().focusBody(NAMED_EARTH.id);
+    shown.tick();
+    detailsLand(OTHER);
+    shown.tick();
+    expect(shown.cam.worldToScreen(90, 0)).toEqual({ x: 400, y: 300 });
+  });
+
+  it("drops a body asked for when another system is entered", () => {
+    const shown = entered();
+    shown.focusBody(NAMED_EARTH.id);
+    shown.show(OTHER, 2);
+    detailsLand(OTHER);
+    shown.tick();
+    expect(camera(shown)).toMatchObject({ x: 0, y: 0 });
   });
 
   it("fits again when another system is entered", () => {

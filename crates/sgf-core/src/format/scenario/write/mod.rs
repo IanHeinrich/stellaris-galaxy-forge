@@ -119,6 +119,9 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::SetStarClass { .. }
         | Op::SetPlanetSize { .. }
         | Op::RenameSavePlanet { .. }
+        | Op::RemoveColony { .. }
+        | Op::DeleteSavePlanet { .. }
+        | Op::RestoreSaveEntities { .. }
         | Op::AddPlanetModifier { .. }
         | Op::RemovePlanetModifier { .. }
         | Op::AddAnomaly { .. }
@@ -149,6 +152,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         | Op::AddSaveBody { .. }
         | Op::RemoveAddedBody { .. }
         | Op::SetPlanetEntity { .. }
+        | Op::SetPlanetClass { .. }
         | Op::AddSaveBelt { .. }
         | Op::RemoveSaveBelt { .. }
         | Op::SetSaveBeltRadius { .. }

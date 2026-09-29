@@ -7,6 +7,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"))
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
+import * as dialog from "@tauri-apps/plugin-dialog";
 import * as ipc from "../../api/ipc";
 import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -38,7 +39,7 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
-import { orbitClasses, orbitSystem, saveBody } from "../../test/builders";
+import { orbitClasses, orbitSystem, planetPage, saveBody } from "../../test/builders";
 import { ContextMenu } from "./ContextMenu";
 import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
@@ -564,7 +565,7 @@ describe("the system view's menus", () => {
     let html = menu();
     expect(html).toContain('<div class="context-menu-header">Earth</div>');
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete planet<\/button>/);
     expect(html).toContain('class="context-menu-separated">Back to galaxy</button>');
 
     useLayoutStore.setState({ tab: "issues" });
@@ -588,6 +589,34 @@ describe("the system view's menus", () => {
     await openWith(SCENARIO_RESULT);
     chrome.openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     expect(menu()).toContain(">Open system view</button>");
+  });
+
+  it("deletes a save body after asking, and offers no deletion on a scenario", async () => {
+    useSceneStore.getState().enterSystem(0);
+    const moon = planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true });
+    useDetailsStore.setState({
+      details: new Map([[0, systemDetails({ id: 0, planets: [moon] })]]),
+    });
+    const body = { kind: "body", system: 0, id: 13 } as const;
+    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
+    expect(menu()).toContain(">Delete moon</button>");
+
+    vi.mocked(ipc.getPlanetPage).mockResolvedValue(planetPage({ id: 13 }));
+    vi.mocked(dialog.confirm).mockResolvedValue(true);
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    menuItem(<BodyMenu target={body} frame={{}} />, "Delete moon").props.onClick();
+    await vi.waitFor(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 13 }),
+    );
+    expect(dialog.confirm).toHaveBeenCalledWith(
+      "Delete Luna? The moon is removed from the save.",
+      expect.objectContaining({ kind: "warning" }),
+    );
+
+    await openWith(SCENARIO_RESULT);
+    useSceneStore.getState().enterSystem(0);
+    useMapChromeStore.getState().openContextMenu({ target: body, x: 0, y: 0 });
+    expect(menu()).not.toContain("Delete");
   });
 });
 

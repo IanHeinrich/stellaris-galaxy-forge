@@ -2,7 +2,7 @@
 //! TypeScript declarations to `app/src/generated/`.
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::SystemRadii;
+use sgf_core::ops::{ClassChange, PlanetClassRule, SystemRadii};
 use ts_rs::TS;
 
 use crate::details;
@@ -556,6 +556,15 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub shattered: Option<bool>,
+    /// `Some(true)` for a class a moon may not have (`can_be_moon = no`); `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub moonless: Option<bool>,
+    /// Which save planets may be changed to or from it.
+    pub change: ClassChange,
+    /// How many models the install numbers for it, `<model>_01_entity` on; 0 when it names
+    /// none.
+    pub models: u32,
 }
 
 /// A modifier that makes a planet a terraforming candidate, from the install's
@@ -770,8 +779,22 @@ impl GameData {
                 draws_as_planet: marker(pc.star && !pc.star_gfx),
                 flat_art: marker(self.flat_art(&pc.key)),
                 shattered: marker(self.shattered(&pc.key)),
+                moonless: marker(!pc.can_be_moon),
+                change: pc.change(),
+                models: self.class_models(&pc.key),
             })
             .collect()
+    }
+
+    /// What changing a save planet's class needs to know of `class`; `None` when the install
+    /// has no such class.
+    pub fn planet_class_rule(&self, class: &str) -> Option<PlanetClassRule> {
+        let def = self.planet_classes.get(class)?;
+        Some(PlanetClassRule {
+            class: def.key.clone(),
+            change: def.change(),
+            models: self.class_models(class),
+        })
     }
 
     /// Every terraforming candidate modifier, in the install's rule order.

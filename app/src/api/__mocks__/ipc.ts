@@ -57,6 +57,7 @@ export const getEntitySchema = command("getEntitySchema");
 export const getPlanetPage = command("getPlanetPage");
 export const planetMoveTargets = command("planetMoveTargets");
 export const planetMoveCheck = command("planetMoveCheck");
+export const checkOp = command("checkOp");
 export const planetMoveOp = command("planetMoveOp");
 export const getScenarioOwners = command("getScenarioOwners");
 export const getScenarioBypasses = command("getScenarioBypasses");
