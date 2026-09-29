@@ -1,5 +1,11 @@
 import { BitmapText, Container, Graphics, TextStyle } from "pixi.js";
-import { type BodyMarks, marked, NO_MARKS, sameMarks } from "../../../lib/details/layout";
+import {
+  type BodyMarks,
+  marked,
+  NO_MARKS,
+  PLATE_PAD_PX,
+  sameMarks,
+} from "../../../lib/details/layout";
 import type { ResourceRow } from "../../../lib/details/resources";
 import type { Names } from "../../../lib/names";
 import { MAP_FONT } from "../../../lib/visual/style";
@@ -15,17 +21,24 @@ import {
 } from "../../layers/details/resources";
 import type { FlagContext } from "../../layers/details/ownerFlag";
 import type { Row } from "../../layers/details/Row";
+import { NAME_STYLE } from "../../layers/nameWidth";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import { bodyTier, drawnDisc } from "../geometry";
 import { pickPlate, type PlatePick } from "../picking";
 import { LabelRow } from "./labelRow";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
-import { NameMarks } from "./nameMarks";
+import { NAME_FRAME, NameMarks } from "./nameMarks";
 import { colonyBarReach, drawPlate, PLATE_PAD_X, PLATE_PAD_Y, type Plate } from "./plate";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
 
 /** The gap between the plate and the row of icons. */
 const RESOURCE_GAP_PX = 2;
+
+/**
+ * A marked body's label is drawn as the galaxy draws a system's name row, at this share of that
+ * row's size, so a moon's reads smaller than its planet's.
+ */
+const MARKED_LABEL_SCALE = { star: 1, planet: 1, moon: 0.85 } as const;
 
 /** One shared instance each: PixiJS keys a stroked dynamic bitmap font by the style object. */
 const STAR_STYLE = new TextStyle({
@@ -61,11 +74,12 @@ const ABBREV_STYLE = new TextStyle({
   fill: 0xd6dde8,
   stroke: { color: 0x000000, width: 2 },
 });
-const RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
+/** A plain body's resource row; a marked body's has the galaxy row's styles. */
+const PLAIN_RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
 
 /**
- * A body's plate with its name, its resource row, or both, in unscaled screen pixels from the
- * box's top-left.
+ * A body's plate with its name, its resource row, or both, in unscaled pixels from the box's
+ * top-left.
  */
 interface Label {
   body: SceneBody;
@@ -75,6 +89,10 @@ interface Label {
   marks: NameMarks | null;
   /** The resources under its plate; null for a body with none, or none shown. */
   resources: LabelRow | null;
+  /** Its resource row's styles; unset for the galaxy row's. */
+  resourceStyles: ResourceStyles | undefined;
+  /** Screen pixels per unscaled pixel at full plate size: 1 for a plain label. */
+  scale: number;
   w: number;
   h: number;
 }
@@ -82,6 +100,11 @@ interface Label {
 function styleOf(body: SceneBody): TextStyle {
   if (body.placement.star) return STAR_STYLE;
   return body.moon ? MOON_STYLE : PLANET_STYLE;
+}
+
+function markedScale(body: SceneBody): number {
+  if (body.placement.star) return MARKED_LABEL_SCALE.star;
+  return body.moon ? MARKED_LABEL_SCALE.moon : MARKED_LABEL_SCALE.planet;
 }
 
 /** Whether `b`'s label reads and ranks as `a`'s does, wherever each stands. */
@@ -125,16 +148,43 @@ function drawResources(
   names: Names,
   tex: Textures,
   rows: readonly ResourceRow[],
+  styles: ResourceStyles | undefined,
 ): ResourceReach {
   row.begin();
-  const reach = resourceIcons(row, names, tex, rows, 0, RESOURCE_STYLES);
+  const reach = resourceIcons(row, names, tex, rows, 0, styles);
   row.end();
   return reach;
 }
 
+/** A body's name, its plate and how far down the plate the name stands. */
+interface Nameplate {
+  plate: Plate;
+  name: BitmapText;
+  nameY: number;
+}
+
+/** The galaxy's name and plate for a marked body; a smaller name on a snug plate for another. */
+function nameplateOf(body: SceneBody, big: boolean): Nameplate {
+  const g = new Graphics();
+  g.label = "plate";
+  const name = new BitmapText({ text: body.name, style: big ? NAME_STYLE : styleOf(body) });
+  name.label = "name";
+  name.anchor.set(0.5, 0);
+  const bar = colonyBarReach(body.colony);
+  if (big) {
+    const w = name.width + 2 * PLATE_PAD_PX + bar;
+    const plate = { g, x: 0, w, h: NAME_FRAME.height, colony: body.colony };
+    return { plate, name, nameY: -NAME_FRAME.y };
+  }
+  const w = name.width + 2 * PLATE_PAD_X + bar;
+  const plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
+  return { plate, name, nameY: PLATE_PAD_Y };
+}
+
 /**
  * One body's label: its name on a plate when `named`, with `marks` about the plate, and under it
- * the resources in `rows`, each icon over its amount.
+ * the resources in `rows`, each icon over its amount. A named body with marks is drawn at its
+ * kind's share of the galaxy's system name row, and a plain one smaller.
  */
 function makeLabel(
   body: SceneBody,
@@ -144,43 +194,43 @@ function makeLabel(
   names: Names,
 ): Label {
   const holder = new Container();
-  let plate: Plate | null = null;
-  let name: BitmapText | null = null;
-  let nameMarks: NameMarks | null = null;
-  if (named) {
-    const g = new Graphics();
-    g.label = "plate";
-    name = new BitmapText({ text: body.name, style: styleOf(body) });
-    name.label = "name";
-    name.anchor.set(0.5, 0);
-    const w = name.width + 2 * PLATE_PAD_X + colonyBarReach(body.colony);
-    plate = { g, x: 0, w, h: name.height + 2 * PLATE_PAD_Y, colony: body.colony };
-    if (marked(marks)) nameMarks = new NameMarks(marks, plate.w, plate.h);
+  const big = named && marked(marks);
+  const nameplate = named ? nameplateOf(body, big) : null;
+  const nameMarks = big && nameplate ? new NameMarks(marks, nameplate.plate.w) : null;
+  if (nameplate) {
     if (nameMarks?.under) holder.addChild(nameMarks.under);
-    holder.addChild(g);
+    holder.addChild(nameplate.plate.g);
     if (nameMarks) holder.addChild(nameMarks.over);
-    holder.addChild(name);
+    holder.addChild(nameplate.name);
   }
 
+  const resourceStyles = big ? undefined : PLAIN_RESOURCE_STYLES;
   let resources: LabelRow | null = null;
   let reach: ResourceReach = { half: 0, height: 0 };
   if (rows.length > 0) {
     resources = new LabelRow("resources");
-    reach = drawResources(resources.row, names, NO_TEXTURES, rows);
+    reach = drawResources(resources.row, names, NO_TEXTURES, rows, resourceStyles);
     holder.addChild(resources.root);
   }
 
+  const plate = nameplate?.plate ?? null;
   const side = nameMarks?.side ?? 0;
+  const top = nameMarks?.above ?? 0;
   const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * reach.half);
-  if (plate && name) {
+  let bottom = 0;
+  if (nameplate && plate) {
     plate.x = (w - plate.w) / 2;
-    name.position.set(w / 2 + colonyBarReach(plate.colony) / 2, PLATE_PAD_Y);
-    nameMarks?.place(plate.x, 0);
+    plate.g.position.set(0, top);
+    const nameX = w / 2 + colonyBarReach(plate.colony) / 2;
+    nameplate.name.position.set(nameX, top + nameplate.nameY);
+    nameMarks?.place(plate.x, top);
+    bottom = top + plate.h;
   }
-  const rowY = plate ? plate.h + RESOURCE_GAP_PX : 0;
+  const rowY = plate ? bottom + RESOURCE_GAP_PX : 0;
   resources?.root.position.set(w / 2, rowY);
-  const h = resources ? rowY + reach.height : (plate?.h ?? 0);
-  return { body, holder, plate, marks: nameMarks, resources, w, h };
+  const h = Math.max(bottom + (nameMarks?.below ?? 0), resources ? rowY + reach.height : 0);
+  const scale = big ? markedScale(body) : 1;
+  return { body, holder, plate, marks: nameMarks, resources, resourceStyles, scale, w, h };
 }
 
 /**
@@ -189,7 +239,8 @@ function makeLabel(
  * or, where that is taken, in a column over its planet's plate. With the Details layer on, the
  * body's resources show under its name, or alone where the Labels layer is off. A colony's name
  * shows its owner's flag on the game's plate, and a body's name the icons of its megastructures,
- * dig sites, anomaly and pre-FTL civilisation, each with its tooltip. The plates shrink a little
+ * dig sites, anomaly and pre-FTL civilisation, each with its tooltip. A name with marks is drawn
+ * the size of the galaxy's system name row, a moon's a little smaller. The plates shrink a little
  * as the view zooms out.
  */
 export class LabelsLayer implements SystemLayer {
@@ -228,7 +279,7 @@ export class LabelsLayer implements SystemLayer {
     const label = this.labels.find((l) => l.body.placement.id === body);
     if (!plate || !label || pickPlate([plate], cam, { x: sx, y: sy }) === null) return null;
     const top = cam.worldToScreen(plate.x, plate.y);
-    const k = plateScaleAt(cam, this.fitRadius);
+    const k = plateScaleAt(cam, this.fitRadius) * label.scale;
     const x = (sx - top.x) / k;
     const y = (sy - top.y) / k;
     return label.marks?.tipAt(x, y) ?? label.resources?.tipAt(x, y) ?? null;
@@ -305,9 +356,10 @@ export class LabelsLayer implements SystemLayer {
   private redress(): void {
     const wanted = new Set<string>();
     const tex = queuedTextures(wanted);
-    for (const { body, marks, resources } of this.labels) {
+    for (const { body, marks, resources, resourceStyles } of this.labels) {
       marks?.dress(tex, body.marks, this.tips);
-      if (resources) drawResources(resources.row, this.tips.names, tex, body.resources);
+      if (!resources) continue;
+      drawResources(resources.row, this.tips.names, tex, body.resources, resourceStyles);
     }
     if (wanted.size > 0) requestTextures(wanted);
   }
@@ -377,8 +429,8 @@ export class LabelsLayer implements SystemLayer {
         x: at.x,
         y: at.y,
         r: drawnDisc(disc, cam.scale, l.body.look) * cam.scale,
-        w: l.w * k,
-        h: l.h * k,
+        w: l.w * k * l.scale,
+        h: l.h * k * l.scale,
       };
     };
     const items = order.map((l) => ({ ...item(l), moons: moonsOfLabel(l).map(item) }));
@@ -387,13 +439,13 @@ export class LabelsLayer implements SystemLayer {
       return { id: box.id, x: at.x, y: at.y, w: box.w, h: box.h };
     });
     const shown = new Map(this.shown.map((plate) => [plate.id, plate]));
-    const scale = cam.childScale(k);
-    for (const { body, holder } of this.labels) {
+    for (const { body, holder, scale } of this.labels) {
       const plate = shown.get(body.placement.id);
       holder.visible = plate !== undefined;
       if (!plate) continue;
+      const size = cam.childScale(k * scale);
       holder.position.set(plate.x, plate.y);
-      holder.scale.set(scale.x, scale.y);
+      holder.scale.set(size.x, size.y);
     }
   }
 

@@ -17,41 +17,38 @@ import { LabelRow } from "./labelRow";
 
 /** The galaxy's name row with its top at 0, in its own pixels. */
 const ROW_Y = rowAt(0);
-/** The galaxy's plate about that row, whose proportions the game plate keeps. */
-const FRAME = plateBox(0, ROW_Y.row);
-/** The flag with its capital's rim, the tallest mark; the icons' discs are centred on the same line. */
-const MARK = flagBox(0, ROW_Y);
+/** The galaxy's plate about that row, whose size a body's name plate takes. */
+export const NAME_FRAME = plateBox(0, ROW_Y.row);
 
 /**
  * The game's plate, the owner's flag and the icons of a body's megastructures, dig sites,
  * anomaly and pre-FTL civilisation about its name plate, drawn as the galaxy's Details layer
- * draws them about a system's name. The flag and the icons are scaled to the plate's height and
- * hang outside it, left and right, so the name stands where it does without them.
+ * draws them about a system's name, at the same size. The flag and the icons hang outside the
+ * plate, left and right, so the name stands where it does along the plate without them.
  */
 export class NameMarks {
   /** How far the marks reach past either side of the plate, in the label's unscaled pixels. */
   readonly side: number;
+  /** How far they reach above the plate's top, and below its bottom. */
+  readonly above: number;
+  readonly below: number;
   /** The game's plate, to stand under the name's own; null for a body that is not a colony. */
   readonly under: NineSliceSprite | null;
   /** The flag and the icons, to stand over the plates. */
   readonly over: Container;
   private readonly row = new LabelRow("marks");
-  /** The label's pixels per galaxy row pixel, for the flag and the icons. */
-  private readonly scale: number;
-  /** The same for the game plate, small enough that its faded ends fit a short name's plate. */
+  /** The game plate's scale, small enough that its faded ends fit a short name's plate. */
   private readonly plateScale: number;
   private readonly flagRight: number;
   private readonly iconX: number;
 
-  /** Room for `marks` about a plate `w` by `h` in the label's unscaled pixels. */
+  /** Room for `marks` about a plate `w` wide and `NAME_FRAME` tall, in the label's unscaled pixels. */
   constructor(
     marks: BodyMarks,
     private readonly w: number,
-    private readonly h: number,
   ) {
-    this.scale = h / MARK.height;
-    this.plateScale = Math.min(h / FRAME.height, w / (2 * PLATE_BORDER_PX));
-    const half = w / (2 * this.scale) - PLATE_PAD_PX;
+    this.plateScale = Math.min(1, w / (2 * PLATE_BORDER_PX));
+    const half = w / 2 - PLATE_PAD_PX;
     const plate = plateBox(half, ROW_Y.row);
     this.flagRight = -half - NAME_ROW.gap;
     this.iconX = half + NAME_ROW.gap;
@@ -63,21 +60,21 @@ export class NameMarks {
     }
     const left = plate.x - Math.min(...boxes.map((b) => b.x));
     const right = Math.max(...boxes.map((b) => b.x + b.width)) - plate.x - plate.width;
-    this.side = Math.max(left, right) * this.scale;
+    this.side = Math.max(left, right);
+    this.above = plate.y - Math.min(...boxes.map((b) => b.y));
+    this.below = Math.max(...boxes.map((b) => b.y + b.height)) - plate.y - plate.height;
     this.under = marks.emblem?.plate ? namePlate() : null;
     if (this.under) {
       this.under.label = "gamePlate";
       this.under.scale.set(this.plateScale);
     }
     this.over = this.row.root;
-    this.over.scale.set(this.scale);
   }
 
   /** Stands the marks about the plate whose top-left corner is at (x, y) in the label. */
   place(x: number, y: number): void {
     this.under?.position.set(x, y);
-    const middle = MARK.y + MARK.height / 2;
-    this.over.position.set(x + this.w / 2, y + this.h / 2 - middle * this.scale);
+    this.over.position.set(x + this.w / 2, y - NAME_FRAME.y);
   }
 
   /**
@@ -93,7 +90,8 @@ export class NameMarks {
       under.visible = Boolean(texture);
       if (texture) {
         const k = this.plateScale;
-        fitPlate(under, texture, { x: 0, y: 0, width: this.w / k, height: this.h / k });
+        const box = { x: 0, y: 0, width: this.w / k, height: NAME_FRAME.height / k };
+        fitPlate(under, texture, box);
       }
     }
     row.begin();

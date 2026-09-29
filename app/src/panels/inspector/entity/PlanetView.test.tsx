@@ -39,6 +39,7 @@ import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
+import { PICKER_HEIGHT } from "./PickerMenu";
 import {
   READING_TARGETS,
   SystemChoice,
@@ -639,6 +640,7 @@ describe("an unowned world's page", () => {
     });
     const html = drawnBy(() => render(WORLD));
     expect(html).toContain('aria-label="Search dig sites"');
+    expect(html).toContain(`<div class="dp" style="height:${PICKER_HEIGHT}px"`);
     expect(html).toContain("Found by surveys");
     expect(html).toContain('aria-pressed="true">Event only</button>');
     expect(html).toContain("Repowered Complex");

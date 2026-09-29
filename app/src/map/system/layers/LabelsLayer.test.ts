@@ -22,7 +22,10 @@ import {
   PRE_FTL_ICON_KEY,
 } from "../../../lib/details/icons";
 import { ACCENT_COLOR } from "../../../lib/visual/style";
+import { NAME_ROW } from "../../../lib/details/layout";
 import type { Camera } from "../../Camera";
+import { DISC_PX } from "../../layers/details/cell";
+import { NAME_STYLE } from "../../layers/nameWidth";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import { countryNode } from "../../../test/builders";
 import { systemContext } from "../context";
@@ -31,6 +34,7 @@ import {
   LUNA,
   MARS,
   SUN,
+  saveBody,
   context,
   drawOps,
   resourceAmounts,
@@ -207,87 +211,6 @@ describe("the system scene's labels layer", () => {
     layer.destroy();
   });
 
-  it("shows a colony's flag on the game's plate and a pre-FTL world's icon with Details on only", async () => {
-    clearTextures();
-    const decoded = new Map<string, Texture>();
-    const textureFor = (key: string) => {
-      if (!decoded.has(key)) decoded.set(key, new Texture());
-      return decoded.get(key)!;
-    };
-    setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
-    fetch.answers = true;
-    const empire = countryNode({
-      id: 9,
-      colors: ["red", "black"],
-      flag_icon: { category: "human", file: "flag_human_9.dds" },
-      flag_background: { category: "backgrounds", file: "00_solid.dds" },
-    });
-    const capital = { ...EARTH, colonised: true, capital: true, owner: empire.id };
-    const natives = { ...MARS, colonised: true, owner: 10, pre_ftl: true };
-    const withDetails = (details: boolean) =>
-      systemContext({
-        ...context({ planets: [SUN, capital, natives] }),
-        sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details },
-        countries: new Map([[empire.id, empire]]),
-      });
-    const width = (layer: LabelsLayer, id: number) =>
-      layer.plates().find((p) => p.id === id)?.w ?? 0;
-    /** Where each shown name stands, in world units. */
-    const names = (layer: LabelsLayer) =>
-      shown(layer).flatMap((holder) =>
-        holder.children.flatMap((c) =>
-          c instanceof BitmapText && c.label === "name"
-            ? [
-                {
-                  text: c.text,
-                  x: holder.position.x + c.x * holder.scale.x,
-                  y: holder.position.y + c.y * holder.scale.y,
-                },
-              ]
-            : [],
-        ),
-      );
-    const sprites = (layer: LabelsLayer) =>
-      parts(layer, "marks").flatMap(function all(c): Sprite[] {
-        const own = c instanceof Sprite && c.visible ? [c] : [];
-        return [...own, ...(c instanceof Container ? c.children.flatMap(all) : [])];
-      });
-
-    const layer = new LabelsLayer();
-    layer.rebuild(withDetails(false));
-    viewport(layer, 2);
-    const plain = { capital: width(layer, capital.id), natives: width(layer, natives.id) };
-    const plainNames = names(layer);
-    expect(parts(layer, "gamePlate")).toHaveLength(0);
-    expect(parts(layer, "marks")).toHaveLength(0);
-
-    layer.rebuild(withDetails(true));
-    expect(width(layer, capital.id)).toBeGreaterThan(plain.capital);
-    expect(width(layer, natives.id)).toBeGreaterThan(plain.natives);
-    const marked = names(layer);
-    expect(marked.map((n) => n.text)).toEqual(plainNames.map((n) => n.text));
-    marked.forEach((n, i) => {
-      expect(n.x).toBeCloseTo(plainNames[i].x);
-      expect(n.y).toBeCloseTo(plainNames[i].y);
-    });
-    const flag = empireFlagKey(empire) ?? "";
-    await vi.waitFor(() => {
-      const shown = sprites(layer).map((s) => s.texture);
-      expect(shown).toContain(textureFor(flag));
-      expect(shown).toContain(textureFor(PRE_FTL_ICON_KEY));
-    });
-    const [plate, ...others] = parts(layer, "gamePlate");
-    expect(others).toHaveLength(0);
-    if (!(plate instanceof NineSliceSprite)) throw new Error("no game plate");
-    expect(plate.visible).toBe(true);
-    expect(plate.texture).toBe(textureFor(CAPITAL_PLATE_KEY));
-
-    layer.rebuild(withDetails(false));
-    expect(parts(layer, "marks")).toHaveLength(0);
-    expect(width(layer, capital.id)).toBe(plain.capital);
-    layer.destroy();
-  });
-
   /** Decodes every texture the layer asks for as a blank one of its own, returned by key. */
   const decodeAll = () => {
     const decoded = new Map<string, Texture>();
@@ -323,6 +246,88 @@ describe("the system scene's labels layer", () => {
       }),
     };
   };
+
+  it("draws a marked body's label at the galaxy row's size, a marked moon's smaller, and a plain body's as before", async () => {
+    clearTextures();
+    const textureFor = decodeAll();
+    const empire = countryNode({
+      id: 9,
+      colors: ["red", "black"],
+      flag_icon: { category: "human", file: "flag_human_9.dds" },
+      flag_background: { category: "backgrounds", file: "00_solid.dds" },
+    });
+    const capital = { ...EARTH, colonised: true, capital: true, owner: empire.id };
+    const natives = { ...MARS, colonised: true, owner: 10, pre_ftl: true };
+    const plainWorld = saveBody(5, "pc_barren", [-150, 0], 150, SUN.id);
+    const withDetails = (details: boolean) =>
+      systemContext({
+        ...context({
+          planets: [SUN, capital, LUNA, natives, plainWorld],
+          sites: [{ id: 60, kind: "site_zroni_ruins", planet: LUNA.id }],
+        }),
+        sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details },
+        countries: new Map([[empire.id, empire]]),
+      });
+    const holderOf = (layer: LabelsLayer, id: number) => {
+      const plate = layer.plates().find((p) => p.id === id);
+      if (!plate) throw new Error(`no plate for ${id}`);
+      return shown(layer).find(
+        (h) => h.position.x === plate.x && h.position.y === plate.y,
+      ) as Container;
+    };
+    const nameSize = (layer: LabelsLayer, id: number) => {
+      const name = holderOf(layer, id).children.find((c) => c.label === "name");
+      if (!(name instanceof BitmapText)) throw new Error(`no name for ${id}`);
+      return name.style.fontSize;
+    };
+    const sprites = (layer: LabelsLayer, id: number) =>
+      holderOf(layer, id)
+        .children.filter((c) => c.label === "marks")
+        .flatMap(function all(c): Sprite[] {
+          const own = c instanceof Sprite && c.visible ? [c] : [];
+          return [...own, ...(c instanceof Container ? c.children.flatMap(all) : [])];
+        });
+
+    const layer = new LabelsLayer();
+    layer.rebuild(withDetails(false));
+    viewport(layer, 4);
+    const plain = [capital, natives, plainWorld].map((p) => nameSize(layer, p.id));
+    expect(parts(layer, "gamePlate")).toHaveLength(0);
+    expect(parts(layer, "marks")).toHaveLength(0);
+
+    layer.rebuild(withDetails(true));
+    viewport(layer, 4);
+    expect(nameSize(layer, capital.id)).toBe(NAME_STYLE.fontSize);
+    expect(nameSize(layer, natives.id)).toBe(NAME_STYLE.fontSize);
+    expect(nameSize(layer, plainWorld.id)).toBe(plain[2]);
+    expect(plain[0]).toBeLessThan(NAME_STYLE.fontSize);
+    const scaleOf = (id: number) => Math.abs(holderOf(layer, id).scale.x);
+    expect(scaleOf(LUNA.id) / scaleOf(capital.id)).toBeCloseTo(0.85);
+    expect(scaleOf(plainWorld.id)).toBeCloseTo(scaleOf(capital.id));
+
+    const flag = textureFor(empireFlagKey(empire) ?? "");
+    const preFtl = textureFor(PRE_FTL_ICON_KEY);
+    await vi.waitFor(() => {
+      expect(sprites(layer, capital.id).map((s) => s.texture)).toContain(flag);
+      expect(sprites(layer, natives.id).map((s) => s.texture)).toContain(preFtl);
+    });
+    const flagSprite = sprites(layer, capital.id).find((s) => s.texture === flag);
+    const icon = sprites(layer, natives.id).find((s) => s.texture === preFtl);
+    expect(flagSprite?.width).toBeCloseTo((DISC_PX * 70) / 60);
+    expect(icon?.width).toBeCloseTo(NAME_ROW.iconPx);
+    expect(sprites(layer, plainWorld.id)).toHaveLength(0);
+    const [plate, ...others] = parts(layer, "gamePlate");
+    expect(others).toHaveLength(0);
+    if (!(plate instanceof NineSliceSprite)) throw new Error("no game plate");
+    expect(plate.visible).toBe(true);
+    expect(plate.texture).toBe(textureFor(CAPITAL_PLATE_KEY));
+
+    layer.rebuild(withDetails(false));
+    viewport(layer, 4);
+    expect(parts(layer, "marks")).toHaveLength(0);
+    expect(nameSize(layer, capital.id)).toBe(plain[0]);
+    layer.destroy();
+  });
 
   it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
     clearTextures();
