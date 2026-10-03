@@ -1,7 +1,7 @@
 import polygonClipping, { type Geom, type MultiPolygon, type Pair } from "polygon-clipping";
 import type { Pt } from "./pt";
 
-/** Multipolygon: polygons → rings (outer only, holes dropped) → unclosed points. */
+/** Multipolygon: polygons → rings (the outer ring, then its holes) → unclosed points. */
 export type Region = Pt[][][];
 
 /** What the territory maths reads of a system; a `SystemNode` is one. */
@@ -49,8 +49,10 @@ const MIN_RING_AREA = 25;
 const DEFAULT_SMOOTHING = 1;
 /** Spacing of the resampled outline before it is relaxed, in world units. */
 const RELAX_STEP = 4;
-/** Gaussian width of the relaxation along the outline, in world units. */
-const RELAX_SIGMA = 10;
+/** Taubin smoothing pairs: a shrinking step by `TAUBIN_LAMBDA`, then a growing one by `TAUBIN_MU`. */
+const RELAX_PASSES = 40;
+const TAUBIN_LAMBDA = 0.6;
+const TAUBIN_MU = -0.63;
 /** Vertices are snapped to this grid before the union so shared edges coincide exactly. */
 const SNAP = 1e-3;
 /** A band severed by many foreign systems stops splitting at this many pieces. */
@@ -63,8 +65,9 @@ const MAX_BAND_PIECES = 64;
  * disc cut back to the bisectors of every system of another or no owner within reach, while
  * same-owner discs overlap freely; each same-owner lane claims a band, severed wherever such a
  * system is nearer than both ends of the lane. Pieces of one country are unioned into a
- * `Region` of hole-free polygons. With `only`, regions are computed for those countries alone;
- * every system of another owner still clips.
+ * `Region`, whose holes are the cells of other owners' and unowned systems it surrounds.
+ * With `only`, regions are computed for those countries alone; every system of another owner
+ * still clips.
  */
 export function countryRegions(
   systems: Iterable<TerritorySystem>,
@@ -105,7 +108,7 @@ export function polygonsOf(pieces: Iterable<Piece>): Geom[] {
   return polygons;
 }
 
-/** The union of `geoms` as outer rings of at least `MIN_RING_AREA`, unclosed; holes and slivers are dropped. */
+/** The union of `geoms` as rings of at least `MIN_RING_AREA`, unclosed; slivers are dropped. */
 export function regionOf(geoms: Geom[], owner: number): Region {
   return toRegion(unionOf(geoms, owner));
 }
@@ -220,35 +223,31 @@ export function smoothRing(ring: Pt[], iterations = DEFAULT_SMOOTHING): Pt[] {
 }
 
 /**
- * Gaussian relaxation of a closed ring: the outline is resampled every `step` units, then
- * each point is replaced by the weighted mean of its neighbours within three `sigma` of
- * outline distance. Notches between overlapping discs and the corners of lane bands wash
- * out; straight runs and gentle arcs keep their shape.
+ * Taubin relaxation of a closed ring: the outline is resampled every `step` units, then each
+ * pass pulls every point towards the middle of its neighbours and pushes it back a little
+ * further. Notches between overlapping discs and the corners of lane bands wash out, while the
+ * outline as a whole does not shrink, so a cell still reaches the bisectors it was cut to.
  */
-export function relaxRing(ring: Pt[], step = RELAX_STEP, sigma = RELAX_SIGMA): Pt[] {
+export function relaxRing(ring: Pt[], step = RELAX_STEP, passes = RELAX_PASSES): Pt[] {
   const pts = resampleRing(ring, step);
   const n = pts.length;
   if (n < 3) return pts;
-  const reach = Math.min(Math.ceil((3 * sigma) / step), Math.floor((n - 1) / 2));
-  const weights: number[] = [];
-  for (let k = -reach; k <= reach; k++) {
-    const d = (k * step) / sigma;
-    weights.push(Math.exp(-0.5 * d * d));
-  }
-  const total = weights.reduce((a, b) => a + b, 0);
-  const out: Pt[] = [];
-  for (let i = 0; i < n; i++) {
-    let x = 0;
-    let y = 0;
-    for (let k = -reach; k <= reach; k++) {
-      const p = pts[(((i + k) % n) + n) % n];
-      const w = weights[k + reach];
-      x += w * p.x;
-      y += w * p.y;
+  let xs = Float64Array.from(pts, (p) => p.x);
+  let ys = Float64Array.from(pts, (p) => p.y);
+  let nextXs = new Float64Array(n);
+  let nextYs = new Float64Array(n);
+  for (let pass = 0; pass < 2 * passes; pass++) {
+    const factor = pass % 2 === 0 ? TAUBIN_LAMBDA : TAUBIN_MU;
+    for (let i = 0; i < n; i++) {
+      const a = i === 0 ? n - 1 : i - 1;
+      const b = i === n - 1 ? 0 : i + 1;
+      nextXs[i] = xs[i] + factor * ((xs[a] + xs[b]) / 2 - xs[i]);
+      nextYs[i] = ys[i] + factor * ((ys[a] + ys[b]) / 2 - ys[i]);
     }
-    out.push({ x: x / total, y: y / total });
+    [xs, nextXs] = [nextXs, xs];
+    [ys, nextYs] = [nextYs, ys];
   }
-  return out;
+  return Array.from(xs, (x, i) => ({ x, y: ys[i] }));
 }
 
 /** Points every `step` units along the ring's outline, starting at its first vertex. */
@@ -529,18 +528,27 @@ export function unionOf(geoms: Geom[], owner: number): MultiPolygon {
   }
 }
 
-/** Outer rings of at least `MIN_RING_AREA`, unclosed; holes and slivers are dropped. */
+/** Rings of at least `MIN_RING_AREA`, unclosed, each outer ring first; slivers are dropped. */
 function toRegion(mp: MultiPolygon): Region {
   const region: Region = [];
   for (const polygon of mp) {
-    if (polygon.length === 0) continue;
-    const outer = polygon[0].map((p) => ({ x: p[0], y: p[1] }));
-    const first = outer[0];
-    const last = outer[outer.length - 1];
-    if (outer.length > 1 && first.x === last.x && first.y === last.y) outer.pop();
-    if (outer.length >= 3 && Math.abs(ringArea(outer)) >= MIN_RING_AREA) region.push([outer]);
+    const rings = polygon.map(toRing);
+    if (rings.length === 0 || !kept(rings[0])) continue;
+    region.push([rings[0], ...rings.slice(1).filter(kept)]);
   }
   return region;
+}
+
+function toRing(ring: Pair[]): Pt[] {
+  const out = ring.map((p) => ({ x: p[0], y: p[1] }));
+  const first = out[0];
+  const last = out[out.length - 1];
+  if (out.length > 1 && first.x === last.x && first.y === last.y) out.pop();
+  return out;
+}
+
+function kept(ring: Pt[]): boolean {
+  return ring.length >= 3 && Math.abs(ringArea(ring)) >= MIN_RING_AREA;
 }
 
 /** Uniform grid of items keyed by the cells their box covers. */

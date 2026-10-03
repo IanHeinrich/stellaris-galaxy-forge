@@ -32,9 +32,11 @@ pub struct CountryNode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub painted_border: Option<String>,
-    /// The colour the map paints the territory's fill in: `flag.colors[5]` under
+    /// The territory's fill as far as the save alone says: `flag.colors[5]` under
     /// `flag.use_map_color=yes`, else the second named flag colour, else the first. `None`
-    /// only for a country with no named colour.
+    /// only for a country with no named colour. Without map colours the game fills with
+    /// whichever of the second and third flag colours has the install's map rgb further from
+    /// the border's, so the app makes that choice once it has the install's colours.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub painted_fill: Option<String>,

@@ -16,6 +16,7 @@ import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/
 import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
 import { EMPIRE_LABEL_MAX_SCALE } from "../../lib/visual/labels";
+import { mixColor } from "../../lib/visual/color";
 import type { OwnerColors } from "../../lib/visual/ownerColors";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
@@ -24,11 +25,20 @@ import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import type { MapLayer } from "./MapLayer";
 
-const FILL_ALPHA = 0.55;
-const EDGE_PX = 6;
-const EDGE_ALPHA = 0.95;
-const HALO_PX = 10;
-const HALO_ALPHA = 0.25;
+/** The game's fill reads about 0.2 deep inside a territory and about 0.45 at its rim. */
+const FILL_ALPHA = 0.3;
+/**
+ * The border band lies inside its own territory, so neighbours' bands sit side by side. The
+ * game's measures about 16 px at every zoom until the camera stops widening it in world units.
+ */
+const BAND_PX = 16;
+const BAND_MAX_WORLD = 8;
+/** The fill colour's bright line just inside the band. */
+const RIM_PX = 2;
+const RIM_ALPHA = 0.8;
+/** The outer quarter of the band is darkened, the seam between two neighbours. */
+const SEAM_SHARE = 0.25;
+const SEAM_DARKEN = 0.25;
 const EMPHASIS_PX = 3;
 const EMPHASIS_GLOW_PX = 18;
 const EMPHASIS_GLOW_ALPHA = 0.3;
@@ -130,6 +140,23 @@ function strokeUnit(camScale: number): number {
 
 function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
+}
+
+/**
+ * Strokes every ring of `region` on the territory's side: inside each outer ring, outside
+ * each hole, so a band never spills into a neighbour.
+ */
+function strokeInside(
+  g: Graphics,
+  region: Region,
+  style: { color: number; width: number; alpha?: number },
+): void {
+  for (const [outer] of region) g.poly(outer, true);
+  g.stroke({ ...style, alignment: 1, join: "round" });
+  const holes = region.flatMap((polygon) => polygon.slice(1));
+  if (holes.length === 0) return;
+  for (const hole of holes) g.poly(hole, true);
+  g.stroke({ ...style, alignment: 0, join: "round" });
 }
 
 /** Whether two owner tables paint the same set of owners, whatever else about them changed. */
@@ -237,6 +264,7 @@ export class OwnersLayer implements MapLayer {
     if (unit !== this.unit) {
       this.unit = unit;
       for (const [id, shape] of this.shapes) {
+        this.drawFill(shape);
         this.drawEdge(shape);
         this.drawEmphasis(id, shape);
       }
@@ -425,27 +453,30 @@ export class OwnersLayer implements MapLayer {
 
   private drawFill({ fill, smoothed, colors }: CountryShape): void {
     fill.clear();
-    for (const polygon of smoothed) {
-      fill.poly(polygon[0], true).fill({ color: colors.fill, alpha: FILL_ALPHA });
+    for (const [outer, ...holes] of smoothed) {
+      fill.poly(outer, true).fill({ color: colors.fill, alpha: FILL_ALPHA });
+      if (holes.length === 0) continue;
+      for (const hole of holes) fill.poly(hole, true);
+      fill.cut();
     }
+    strokeInside(fill, smoothed, {
+      color: colors.fill,
+      width: this.bandWidth() + RIM_PX * this.unit,
+      alpha: RIM_ALPHA,
+    });
+  }
+
+  private bandWidth(): number {
+    return Math.min(BAND_PX * this.unit, BAND_MAX_WORLD);
   }
 
   private drawEdge({ edge, smoothed, colors }: CountryShape): void {
     edge.clear();
-    const color = colors.outline;
-    for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({
-      color,
-      width: HALO_PX * this.unit,
-      alpha: HALO_ALPHA,
-      join: "round",
-    });
-    for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({
-      color,
-      width: EDGE_PX * this.unit,
-      alpha: EDGE_ALPHA,
-      join: "round",
+    const band = this.bandWidth();
+    strokeInside(edge, smoothed, { color: colors.outline, width: band });
+    strokeInside(edge, smoothed, {
+      color: mixColor(colors.outline, 0x000000, SEAM_DARKEN),
+      width: band * SEAM_SHARE,
     });
   }
 
@@ -464,14 +495,14 @@ export class OwnersLayer implements MapLayer {
   private drawEmphasis(id: number, { emphasis, smoothed }: CountryShape): void {
     emphasis.clear();
     if (!this.emphasised.has(id)) return;
-    for (const polygon of smoothed) emphasis.poly(polygon[0], true);
+    for (const ring of smoothed.flat()) emphasis.poly(ring, true);
     emphasis.stroke({
       color: EMPHASIS_COLOR,
       width: EMPHASIS_GLOW_PX * this.unit,
       alpha: EMPHASIS_GLOW_ALPHA,
       join: "round",
     });
-    for (const polygon of smoothed) emphasis.poly(polygon[0], true);
+    for (const ring of smoothed.flat()) emphasis.poly(ring, true);
     emphasis.stroke({
       color: EMPHASIS_COLOR,
       width: EMPHASIS_PX * this.unit,

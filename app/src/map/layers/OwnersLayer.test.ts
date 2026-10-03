@@ -280,4 +280,20 @@ describe("an owner's territory", () => {
     expect(paint(flagged)).toEqual({ edge: 0x808080, fill: 0x000080 });
     expect(paint(chosen)).toEqual({ edge: 0xff0000, fill: 0xffc0cb });
   });
+
+  it("cuts the cell of an unowned system it surrounds out of its fill and bands that hole too", () => {
+    const around = Array.from({ length: 6 }, (_, i) => {
+      const a = (i * Math.PI) / 3;
+      return { ...mapNode(i + 1, 30 * Math.cos(a), `S${i + 1}`), y: 30 * Math.sin(a), owner: 1 };
+    });
+    const layer = new OwnersLayer();
+    layer.rebuild(mapContext([...around, mapNode(7, 0, "Hole")], { countries: COUNTRIES }));
+    const territories = childByLabel(layer.container, "territories");
+    const [fill] = childByLabel(territories, "fills").children as Graphics[];
+    const [edge] = childByLabel(territories, "edges").children as Graphics[];
+    const [filled] = fill.context.instructions;
+    expect(filled.action).toBe("fill");
+    expect((filled.data as { hole?: unknown }).hole).toBeDefined();
+    expect(strokes(edge)).toHaveLength(4);
+  });
 });

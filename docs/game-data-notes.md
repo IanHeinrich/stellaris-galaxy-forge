@@ -336,6 +336,10 @@ less.
   neighbours' bands sit side by side. The band stays 16 to 19 px wide
   on screen while a one-system pocket grows from 90 to 840 px, so it
   gets thinner against the map zooming in and thicker zooming out.
+- An unowned system an empire surrounds is a hole in its territory,
+  with the empire's band round the hole's edge. In the 2330 save of
+  4.5.1, Chinorr Combine has holes round Iswyria, Terebellum, Wollaeus,
+  Hazra and Jolun. None of them has a starbase.
 - `gfx/FX/border.shader` draws all of this from a distance field of the
   borders. Its band is `0.025 + 0.35 * f` wide in field units, with `f`
   the camera distance over 1600, capped at 1. So the band widens in

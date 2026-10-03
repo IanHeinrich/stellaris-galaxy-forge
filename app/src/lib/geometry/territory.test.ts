@@ -7,6 +7,7 @@ import {
   affectedCountries,
   countryRegions,
   relaxRing,
+  ringArea,
   smoothRegion,
   smoothRing,
   type Region,
@@ -127,6 +128,22 @@ describe("countryRegions", () => {
     expect(region).toHaveLength(1);
     expect(region[0]).toHaveLength(1);
     expect(inRegion({ x: 0, y: 0 }, region)).toBe(true);
+  });
+
+  it("leaves a hole round an unowned system the owner surrounds", () => {
+    const ring = Array.from({ length: 6 }, (_, i) => {
+      const a = (i * Math.PI) / 3;
+      return system(i + 1, 30 * Math.cos(a), 30 * Math.sin(a), 10);
+    });
+    const region = countryRegions([...ring, system(7, 0, 0, null)], PARAMS).get(10)!;
+    expect(region).toHaveLength(1);
+    expect(region[0]).toHaveLength(2);
+    expect(inRegion({ x: 0, y: 0 }, region)).toBe(false);
+    expect(inRegion({ x: 30, y: 0 }, region)).toBe(true);
+    expect(Math.abs(ringArea(region[0][1]))).toBeGreaterThan(500);
+    const smoothed = smoothRegion(region);
+    expect(smoothed[0]).toHaveLength(2);
+    expect(inRegion({ x: 0, y: 0 }, smoothed)).toBe(false);
   });
 
   it("keeps a dense cluster of one owner as one solid polygon", () => {
@@ -330,13 +347,28 @@ describe("relaxRing", () => {
   }
 
   it("resamples the outline at the step and keeps a disc a disc", () => {
-    const out = relaxRing(circle(35, 24), 4, 10);
+    const out = relaxRing(circle(35, 24), 4);
     expect(out.length).toBeGreaterThan(24);
     for (const p of out) {
       const r = Math.hypot(p.x, p.y);
-      expect(r).toBeGreaterThan(32);
-      expect(r).toBeLessThan(35.01);
+      expect(r).toBeGreaterThan(34);
+      expect(r).toBeLessThan(36);
     }
+  });
+
+  it("keeps a one-system cell reaching its bisectors, its corners rounded", () => {
+    const cell: Pt[] = [
+      { x: -16, y: -16 },
+      { x: 16, y: -16 },
+      { x: 16, y: 16 },
+      { x: -16, y: 16 },
+    ];
+    const out = relaxRing(cell, 4);
+    expect(Math.abs(ringArea(out))).toBeGreaterThan(0.9 * 32 * 32);
+    const edge = out.filter((p) => Math.abs(p.x) < 2 && p.y > 0);
+    for (const p of edge) expect(p.y).toBeGreaterThan(15);
+    const corner = Math.max(...out.map((p) => Math.hypot(p.x, p.y)));
+    expect(corner).toBeLessThan(16 * Math.SQRT2 - 2);
   });
 
   it("fills the notch where two discs meet", () => {
@@ -349,7 +381,7 @@ describe("relaxRing", () => {
     const ring = union[0].slice(0, -1).map(([x, y]) => ({ x, y }));
     const notchDepth = (pts: Pt[]): number =>
       Math.min(...pts.filter((p) => Math.abs(p.x - 20) < 3 && p.y > 0).map((p) => p.y));
-    expect(notchDepth(relaxRing(ring, 4, 10))).toBeGreaterThan(notchDepth(ring) + 3);
+    expect(notchDepth(relaxRing(ring, 4))).toBeGreaterThan(notchDepth(ring) + 2);
   });
 
   it("leaves a long straight edge straight", () => {
@@ -359,9 +391,9 @@ describe("relaxRing", () => {
       { x: 200, y: 20 },
       { x: 0, y: 20 },
     ];
-    const middle = relaxRing(strip, 4, 10).filter((p) => p.x > 60 && p.x < 140 && p.y < 10);
+    const middle = relaxRing(strip, 4).filter((p) => p.x > 60 && p.x < 140 && p.y < 10);
     expect(middle.length).toBeGreaterThan(0);
-    for (const p of middle) expect(Math.abs(p.y)).toBeLessThan(1e-9);
+    for (const p of middle) expect(Math.abs(p.y)).toBeLessThan(0.01);
   });
 });
 
