@@ -51,7 +51,7 @@ const EDGE = 0.8;
  * where two owners' borders meet, or a border meets open space. Fitted to a corner radius of
  * about 2 world units, as measured at the game's triple junctions.
  */
-const CORNER_BLEND = 0.1;
+const CORNER_BLEND = 0.2;
 /** The most the smooth max and min together raise φ above the hard max. */
 const CORNER_RISE = CORNER_BLEND / 2;
 /**
@@ -129,6 +129,15 @@ interface Tile {
    * edge, from x, from y.
    */
   segments: Map<number, number[]>[];
+  /**
+   * Per padded texel, the band width at which it lies on its nearest owner's band's inner edge;
+   * per cell, whether a band's inner edge can cross it; and per block, the range of those widths
+   * over its cells. Kept from the last full trace while `limited`, as a band trace changes none.
+   */
+  limits: Float32Array;
+  kinds: Uint8Array;
+  ranges: Float32Array;
+  limited: boolean;
 }
 
 /** The contours the field keeps: the territory's outline, and the inner edges of its band and seam. */
@@ -140,6 +149,12 @@ const CLEAR = 0;
 const BANDED = 1;
 const ANY = 2;
 const CONTOURS = [OUTLINE, BAND, SEAM];
+/** What a cell is to the bands: out of their reach, held by one owner, or shared by several. */
+const OUTSIDE = 0;
+const INSIDE = 1;
+const MIXED = 2;
+/** How far, as a share, a width must be from a cell's limits for them to settle its corners' sides. */
+const LIMIT_MARGIN = 1e-4;
 const BANDS = [BAND, SEAM];
 
 /**
@@ -176,8 +191,7 @@ export class InfluenceField {
   private readonly none: number;
   /** How far an owner's influence can change from a block's centre to any texel its cells reach. */
   private readonly drift: number;
-  /** How steeply φ can fall at most, and how steeply it falls round a lone owned system, per world unit. */
-  private readonly steepest: number;
+  /** How steeply φ falls round a lone owned system, per world unit. */
   private readonly lone: number;
   private readonly ownedRadius: number;
   private readonly ownedLane: number;
@@ -201,6 +215,8 @@ export class InfluenceField {
   private readonly padHard = new Float32Array(PAD * PAD);
   private readonly padPhi = new Float32Array(PAD * PAD);
   private readonly padSlope = new Float32Array(PAD * PAD);
+  /** Per contour, per padded texel, the value its nearest owner's contour is traced on. */
+  private readonly padValues = CONTOURS.map(() => new Float64Array(PAD * PAD));
   /** Arrays for a march to remember each owner's φ and slope per texel in. */
   private readonly spare: Float32Array[] = [];
 
@@ -234,8 +250,6 @@ export class InfluenceField {
     );
     // A smooth minimum of distances over radii changes by at most 1/unit per world unit.
     this.drift = ((BLOCK_REACH * TEXEL) / Math.max(unit, 1e-6)) * 1.001 + 0.005;
-    // φ's slope is read from a difference along each axis, which can each reach 2/unit.
-    this.steepest = (2 * Math.SQRT2) / Math.max(unit, 1e-6);
     this.lone = 1 / Math.max(this.ownedRadius, 1e-6);
   }
 
@@ -704,17 +718,8 @@ export class InfluenceField {
     const drawn = this.drawnCodes;
     const outs = contours.map(() => new Map<number, number[]>());
     const widths = contours.map((c) => this.levels[c]);
-    // How far inside its owner's territory, and from any other owner, a texel must be for a
-    // contour to pass it by.
-    // A contour's value is φ plus a depth between these, and φ is at most `CORNER_RISE` above the
-    // hard max and min, so a cell whose hard φ keeps clear of the range on every corner is skipped.
     const lone = this.lone;
     const slopeBlend = lone * SLOPE_BLEND_SHARE;
-    const shallowest = widths.map((w) => Math.min(w * lone, MAX_BAND_DEPTH) - DEPTH_BLEND / 4);
-    const depths = widths.map(
-      (w) => Math.min(w * (this.steepest + slopeBlend / 4), MAX_BAND_DEPTH) + CORNER_RISE,
-    );
-    const deepest = Math.max(...depths);
     const gi0 = tile.ti * TILE;
     const gj0 = tile.tj * TILE;
     const phiOf = (q: number, c: number): number => {
@@ -754,92 +759,221 @@ export class InfluenceField {
     const phiAt = (q: number, c: number): number => {
       const phi = owner[q] === c ? nearestPhi : arraysOf(c)[0];
       let v = phi[q];
-      if (v !== v) phi[q] = v = phiOf(q, c);
+      if (v !== v) v = phi[q] = Math.fround(phiOf(q, c));
       return v;
     };
-    const valueAt = (q: number, c: number, w: number): number => {
-      const v = phiAt(q, c);
-      if (w === 0) return v;
+    const slopeAt = (q: number, c: number, v: number): number => {
       const slope = owner[q] === c ? nearestSlope : arraysOf(c)[1];
       let s = slope[q];
       if (s !== s) {
         const dx = phiAt(q + 1, c) - v;
         const dy = phiAt(q + PAD, c) - v;
-        slope[q] = s = smoothMax(Math.sqrt(dx * dx + dy * dy) / TEXEL, lone, slopeBlend);
+        const steep = Math.sqrt(dx * dx + dy * dy) / TEXEL;
+        s = slope[q] = Math.fround(smoothMax(steep, lone, slopeBlend));
       }
-      return v + smoothMin(w * s, MAX_BAND_DEPTH, DEPTH_BLEND);
+      return s;
     };
-    const hard = this.padHard;
-    const cell = (c: number, i: number, j: number, q: number, low: number, high: number) => {
+    const valueAt = (q: number, c: number, w: number): number => {
+      const v = phiAt(q, c);
+      if (w === 0) return v;
+      return v + smoothMin(w * slopeAt(q, c, v), MAX_BAND_DEPTH, DEPTH_BLEND);
+    };
+    const values = contours.map((_, k) => this.padValues[k].fill(NaN));
+    const valueOf = (q: number, c: number, k: number): number => {
+      if (owner[q] !== c) return valueAt(q, c, widths[k]);
+      const memo = values[k];
+      let v = memo[q];
+      if (v !== v) v = memo[q] = valueAt(q, c, widths[k]);
+      return v;
+    };
+    const cell = (k: number, c: number, i: number, j: number, q: number): void => {
+      const v0 = valueOf(q, c, k);
+      const v1 = valueOf(q + 1, c, k);
+      const v2 = valueOf(q + PAD + 1, c, k);
+      const v3 = valueOf(q + PAD, c, k);
+      const index = (v0 < 0 ? 1 : 0) | (v1 < 0 ? 2 : 0) | (v2 < 0 ? 4 : 0) | (v3 < 0 ? 8 : 0);
+      if (index === 0 || index === 15) return;
+      let cases = CASES[index];
+      if (index === 5 || index === 10) {
+        const joined = v0 + v1 + v2 + v3 < 0;
+        cases = SADDLES[index === 5 ? (joined ? 0 : 1) : joined ? 2 : 3];
+      }
+      const out = outs[k];
+      let list = out.get(c);
+      if (!list) out.set(c, (list = []));
       const gi = gi0 + i;
       const gj = gj0 + j;
-      for (let k = 0; k < contours.length; k++) {
-        if (low > -shallowest[k] || high < -depths[k]) continue;
-        const w = widths[k];
-        const v0 = valueAt(q, c, w);
-        const v1 = valueAt(q + 1, c, w);
-        const v2 = valueAt(q + PAD + 1, c, w);
-        const v3 = valueAt(q + PAD, c, w);
-        const index = (v0 < 0 ? 1 : 0) | (v1 < 0 ? 2 : 0) | (v2 < 0 ? 4 : 0) | (v3 < 0 ? 8 : 0);
-        if (index === 0 || index === 15) continue;
-        let cases = CASES[index];
-        if (index === 5 || index === 10) {
-          const joined = v0 + v1 + v2 + v3 < 0;
-          cases = SADDLES[index === 5 ? (joined ? 0 : 1) : joined ? 2 : 3];
-        }
-        const out = outs[k];
-        let list = out.get(c);
-        if (!list) out.set(c, (list = []));
-        for (let n = 0; n < cases.length; n += 2) {
-          const a = cases[n];
-          list.push(edgeId(a, gi, gj), edgeId(cases[n + 1], gi, gj));
-          if (a === 0) list.push((gi + 0.5 + v0 / (v0 - v1)) * TEXEL, (gj + 0.5) * TEXEL);
-          else if (a === 1) list.push((gi + 1.5) * TEXEL, (gj + 0.5 + v1 / (v1 - v2)) * TEXEL);
-          else if (a === 2) list.push((gi + 0.5 + v3 / (v3 - v2)) * TEXEL, (gj + 1.5) * TEXEL);
-          else list.push((gi + 0.5) * TEXEL, (gj + 0.5 + v0 / (v0 - v3)) * TEXEL);
-        }
+      for (let n = 0; n < cases.length; n += 2) {
+        const a = cases[n];
+        list.push(edgeId(a, gi, gj), edgeId(cases[n + 1], gi, gj));
+        if (a === 0) list.push((gi + 0.5 + v0 / (v0 - v1)) * TEXEL, (gj + 0.5) * TEXEL);
+        else if (a === 1) list.push((gi + 1.5) * TEXEL, (gj + 0.5 + v1 / (v1 - v2)) * TEXEL);
+        else if (a === 2) list.push((gi + 0.5 + v3 / (v3 - v2)) * TEXEL, (gj + 1.5) * TEXEL);
+        else list.push((gi + 0.5) * TEXEL, (gj + 0.5 + v0 / (v0 - v3)) * TEXEL);
       }
     };
+    /** Traces the cell for each drawn owner at its corners, once each. */
+    const shared = (k: number, i: number, j: number, q: number): void => {
+      const a = owner[q];
+      const b = owner[q + 1];
+      const c = owner[q + PAD + 1];
+      const d = owner[q + PAD];
+      if (drawn[a]) cell(k, a, i, j, q);
+      if (drawn[b] && b !== a) cell(k, b, i, j, q);
+      if (drawn[c] && c !== a && c !== b) cell(k, c, i, j, q);
+      if (drawn[d] && d !== a && d !== b && d !== c) cell(k, d, i, j, q);
+    };
+    const hard = this.padHard;
+    const outline = contours[0] === OUTLINE;
+    const banded = contours.length > (outline ? 1 : 0);
+    if (banded && (outline || !tile.limited)) this.limit(tile, phiAt, slopeAt);
+    else if (outline) tile.limited = false;
+    const { limits, kinds, ranges } = tile;
+    const live: number[] = [];
     for (let block = 0; block < BLOCKS * BLOCKS; block++) {
       if (tile.needs[block] === CLEAR) continue;
+      live.length = 0;
+      if (banded) {
+        const low = ranges[2 * block] * (1 - LIMIT_MARGIN);
+        const high = ranges[2 * block + 1] * (1 + LIMIT_MARGIN);
+        for (let k = outline ? 1 : 0; k < contours.length; k++) {
+          if (widths[k] >= low && widths[k] <= high) live.push(k);
+        }
+      }
+      if (live.length === 0 && !outline) continue;
       const i0 = (block % BLOCKS) * BLOCK;
       const j0 = Math.floor(block / BLOCKS) * BLOCK;
       for (let j = j0; j < j0 + BLOCK; j++) {
         for (let i = i0; i < i0 + BLOCK; i++) {
           const q = j * PAD + i;
-          // Past every owner's edge at all four corners, every φ is positive.
-          if (
-            best[q] > EDGE &&
-            best[q + 1] > EDGE &&
-            best[q + PAD] > EDGE &&
-            best[q + PAD + 1] > EDGE
-          ) {
+          // Past every owner's edge at all four corners, every φ is positive; and the outline
+          // keeps clear of a cell whose hard φ is further from 0 than the rounding moves it.
+          const near =
+            best[q] <= EDGE ||
+            best[q + 1] <= EDGE ||
+            best[q + PAD] <= EDGE ||
+            best[q + PAD + 1] <= EDGE;
+          if (outline && near) {
+            const a = owner[q];
+            if (a === owner[q + 1] && a === owner[q + PAD + 1] && a === owner[q + PAD]) {
+              const h0 = hard[q];
+              const h1 = hard[q + 1];
+              const h2 = hard[q + PAD];
+              const h3 = hard[q + PAD + 1];
+              if (
+                drawn[a] &&
+                Math.max(h0, h1, h2, h3) >= -CORNER_RISE &&
+                Math.min(h0, h1, h2, h3) <= DEPTH_BLEND / 4
+              ) {
+                cell(0, a, i, j, q);
+              }
+            } else {
+              shared(0, i, j, q);
+            }
+          }
+          if (live.length === 0) continue;
+          const kind = kinds[j * TILE + i];
+          if (kind === MIXED) {
+            for (const k of live) shared(k, i, j, q);
             continue;
           }
-          const a = owner[q];
-          const b = owner[q + 1];
-          const c = owner[q + PAD + 1];
-          const d = owner[q + PAD];
-          if (a === b && a === c && a === d) {
-            if (!drawn[a]) continue;
-            const h0 = hard[q];
-            const h1 = hard[q + 1];
-            const h2 = hard[q + PAD];
-            const h3 = hard[q + PAD + 1];
-            const high = Math.max(h0, h1, h2, h3);
-            if (high < -deepest) continue;
-            cell(a, i, j, q, Math.min(h0, h1, h2, h3), high);
-            continue;
+          if (kind !== INSIDE) continue;
+          const l0 = limits[q];
+          const l1 = limits[q + 1];
+          const l2 = limits[q + PAD];
+          const l3 = limits[q + PAD + 1];
+          const low = Math.min(l0, l1, l2, l3) * (1 - LIMIT_MARGIN);
+          const high = Math.max(l0, l1, l2, l3) * (1 + LIMIT_MARGIN);
+          for (const k of live) {
+            if (widths[k] >= low && widths[k] <= high) cell(k, owner[q], i, j, q);
           }
-          if (drawn[a]) cell(a, i, j, q, -Infinity, Infinity);
-          if (drawn[b] && b !== a) cell(b, i, j, q, -Infinity, Infinity);
-          if (drawn[c] && c !== a && c !== b) cell(c, i, j, q, -Infinity, Infinity);
-          if (drawn[d] && d !== a && d !== b && d !== c) cell(d, i, j, q, -Infinity, Infinity);
         }
       }
     }
     for (const arrays of memo.values()) this.spare.push(...arrays);
     return outs;
+  }
+
+  /**
+   * Finds, for every cell a band's inner edge can cross, the band width at which each corner
+   * lies on that edge, and each block's range of them, so a new width re-traces only the cells
+   * it falls among.
+   */
+  private limit(
+    tile: Tile,
+    phiAt: (q: number, c: number) => number,
+    slopeAt: (q: number, c: number, v: number) => number,
+  ): void {
+    const { padBest: best, padOwner: owner, padHard: hard, drawnCodes: drawn } = this;
+    if (tile.limits.length === 0) {
+      tile.limits = new Float32Array(PAD * PAD);
+      tile.kinds = new Uint8Array(TILE * TILE);
+    }
+    const { limits, kinds, ranges } = tile;
+    limits.fill(NaN);
+    kinds.fill(OUTSIDE);
+    const limitAt = (q: number, c: number): number => {
+      let l = limits[q];
+      if (l !== l) {
+        const v = phiAt(q, c);
+        const reach = depthReach(-v);
+        l = limits[q] =
+          reach === 0 || reach === Infinity ? reach : Math.fround(reach / slopeAt(q, c, v));
+      }
+      return l;
+    };
+    const deepest = -(MAX_BAND_DEPTH + CORNER_RISE);
+    for (let block = 0; block < BLOCKS * BLOCKS; block++) {
+      let low = Infinity;
+      let high = -Infinity;
+      if (tile.needs[block] !== CLEAR) {
+        const i0 = (block % BLOCKS) * BLOCK;
+        const j0 = Math.floor(block / BLOCKS) * BLOCK;
+        for (let j = j0; j < j0 + BLOCK; j++) {
+          for (let i = i0; i < i0 + BLOCK; i++) {
+            const q = j * PAD + i;
+            if (
+              best[q] > EDGE &&
+              best[q + 1] > EDGE &&
+              best[q + PAD] > EDGE &&
+              best[q + PAD + 1] > EDGE
+            ) {
+              continue;
+            }
+            const a = owner[q];
+            const b = owner[q + 1];
+            const c = owner[q + PAD + 1];
+            const d = owner[q + PAD];
+            if (a !== b || a !== c || a !== d) {
+              if (drawn[a] || drawn[b] || drawn[c] || drawn[d]) {
+                kinds[j * TILE + i] = MIXED;
+                low = -Infinity;
+                high = Infinity;
+              }
+              continue;
+            }
+            if (!drawn[a]) continue;
+            const h0 = hard[q];
+            const h1 = hard[q + 1];
+            const h2 = hard[q + PAD];
+            const h3 = hard[q + PAD + 1];
+            if (Math.max(h0, h1, h2, h3) < deepest || Math.min(h0, h1, h2, h3) > DEPTH_BLEND / 4) {
+              continue;
+            }
+            kinds[j * TILE + i] = INSIDE;
+            const l0 = limitAt(q, a);
+            const l1 = limitAt(q + 1, a);
+            const l2 = limitAt(q + PAD, a);
+            const l3 = limitAt(q + PAD + 1, a);
+            low = Math.min(low, l0, l1, l2, l3);
+            high = Math.max(high, l0, l1, l2, l3);
+          }
+        }
+      }
+      ranges[2 * block] = low;
+      ranges[2 * block + 1] = high;
+    }
+    tile.limited = true;
   }
 
   /** Copies the tile and the first two columns and rows of its neighbours right and below into the pad. */
@@ -899,6 +1033,20 @@ function bilinear(values: Float32Array, a: number, n: number, fx: number, fy: nu
 function smoothMax(a: number, b: number, blend = CORNER_BLEND): number {
   const h = blend - Math.abs(a - b);
   return h > 0 ? Math.max(a, b) + (h * h) / (4 * blend) : Math.max(a, b);
+}
+
+/**
+ * The x at which `smoothMin(x, MAX_BAND_DEPTH, DEPTH_BLEND)` reaches `depth`: 0 when it is not
+ * inside, and infinite when it is deeper than any band reaches.
+ */
+function depthReach(depth: number): number {
+  const m = MAX_BAND_DEPTH;
+  const b = DEPTH_BLEND;
+  if (depth <= 0) return 0;
+  if (depth >= m) return Infinity;
+  if (depth <= m - b) return depth;
+  if (depth < m - b / 4) return m + b - 2 * Math.sqrt(b * b - b * (depth - m + b));
+  return m + b - 2 * Math.sqrt(b * (m - depth));
 }
 
 /** The min of a and b, rounded off likewise. */
@@ -994,6 +1142,10 @@ function newTile(ti: number, tj: number): Tile {
     needs: new Uint8Array(BLOCKS * BLOCKS),
     crossed: 0,
     segments: CONTOURS.map(() => new Map()),
+    limits: new Float32Array(0),
+    kinds: new Uint8Array(0),
+    ranges: new Float32Array(BLOCKS * BLOCKS * 2),
+    limited: false,
   };
 }
 
@@ -1145,8 +1297,21 @@ function nested(rings: Pt[][]): Region {
  */
 export function bandOf(territory: Region, inner: Region): Region {
   const rings = territory.flat();
-  for (const ring of inner.flat()) rings.push([...ring].reverse());
+  for (const ring of trimmedInner(territory, inner).flat()) rings.push([...ring].reverse());
   return grouped(rings);
+}
+
+/**
+ * The inner part without the holes that hold none of the territory's own. Where the field runs
+ * shallow in a sparse middle, the band's inner edge can close round a patch that is no hole of
+ * the territory, and the game draws no band there.
+ */
+export function trimmedInner(territory: Region, inner: Region): Region {
+  const holes = territory.flatMap((polygon) => polygon.slice(1));
+  return inner.map(([outer, ...rest]) => [
+    outer,
+    ...rest.filter((ring) => holes.some((hole) => inRing(hole[0], ring))),
+  ]);
 }
 
 /** Anticlockwise rings as outer rings, each clockwise one a hole in the smallest that holds it. */

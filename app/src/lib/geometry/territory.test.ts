@@ -120,22 +120,22 @@ describe("countryRegions", () => {
 
   it("gives two touching countries the same vertices along their border and no overlap", () => {
     const west = [system(1, 0, -30, 10, [2]), system(2, 0, 0, 10, [1, 3]), system(3, 0, 30, 10)];
-    const east = [system(4, 44, -30, 20, [5]), system(5, 44, 0, 20, [4, 6]), system(6, 44, 30, 20)];
+    const east = [system(4, 40, -30, 20, [5]), system(5, 40, 0, 20, [4, 6]), system(6, 40, 30, 20)];
     const regions = countryRegions([...west, ...east], PARAMS);
     const a = regions.get(10)!;
     const b = regions.get(20)!;
     const theirs = new Set(b.flat(2).map((p) => `${p.x},${p.y}`));
-    const shared = a.flat(2).filter((p) => p.x > 15 && p.x < 29 && Math.abs(p.y) < 30);
+    const shared = a.flat(2).filter((p) => p.x > 13 && p.x < 27 && Math.abs(p.y) < 30);
     expect(shared.length).toBeGreaterThan(5);
     for (const p of shared) expect(theirs.has(`${p.x},${p.y}`)).toBe(true);
-    for (let x = 0; x <= 44; x += 0.7) {
+    for (let x = 0; x <= 40; x += 0.7) {
       for (let y = -40; y <= 40; y += 3.1) {
         const p = { x, y };
         expect(Number(inRegion(p, a)) + Number(inRegion(p, b))).toBeLessThanOrEqual(1);
       }
     }
-    expect(inRegion({ x: 21, y: 0 }, a)).toBe(true);
-    expect(inRegion({ x: 23, y: 0 }, b)).toBe(true);
+    expect(inRegion({ x: 19, y: 0 }, a)).toBe(true);
+    expect(inRegion({ x: 21, y: 0 }, b)).toBe(true);
   });
 
   it("draws only the countries asked for, while every owner claims its space", () => {
@@ -157,8 +157,8 @@ describe("countryRegions", () => {
     });
     expect(corner.x).toBeLessThan(21.5);
     const radius = cornerRadius(ring, corner);
-    expect(radius).toBeGreaterThan(2);
-    expect(radius).toBeLessThan(3.5);
+    expect(radius).toBeGreaterThan(5);
+    expect(radius).toBeLessThan(6);
   });
 
   it("joins two lobes' bands across the neck between them", () => {
@@ -182,6 +182,30 @@ describe("countryRegions", () => {
     expect(inRegion({ x: 25, y: 0 }, inner)).toBe(true);
     expect(inRegion({ x: 25, y: 15 }, band)).toBe(true);
     expect(inRegion({ x: 25, y: -15 }, band)).toBe(true);
+  });
+
+  it("draws no band round the shallow middle of a sparse ring, but keeps it round a real hole", () => {
+    const ring = (centre: SystemNode[]) =>
+      Array.from({ length: 10 }, (_, i) => {
+        const a = (i * Math.PI) / 5;
+        return system(i + 1, 40 * Math.cos(a), 40 * Math.sin(a), 10, [((i + 1) % 10) + 1]);
+      }).concat(centre);
+    const sparse = new InfluenceField(PARAMS, null, 5.9, 5.9 / 4);
+    sparse.reset(ring([]));
+    const outline = sparse.region(10);
+    expect(outline).toEqual([[outline[0][0]]]);
+    expect(sparse.inner(10)[0].length).toBeGreaterThan(1);
+    for (const inner of [sparse.inner(10), sparse.seamInner(10)]) {
+      const band = bandOf(outline, inner);
+      expect(band).toHaveLength(1);
+      expect(inRegion({ x: 0, y: 0 }, band)).toBe(false);
+    }
+    const holed = new InfluenceField(PARAMS, null, 5.9, 5.9 / 4);
+    holed.reset(ring([system(11, 0, 0, null)]));
+    const territory = holed.region(10);
+    expect(territory[0]).toHaveLength(2);
+    const { maxX } = box(territory[0][1]);
+    expect(inRegion({ x: maxX + 1, y: 0 }, bandOf(territory, holed.inner(10)))).toBe(true);
   });
 
   it("keeps the band and its seam inside the territory at the widest band", () => {

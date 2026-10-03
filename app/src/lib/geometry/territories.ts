@@ -2,6 +2,7 @@ import { scanPiece, type PieceScan } from "./labelFit";
 import {
   bandOf,
   InfluenceField,
+  trimmedInner,
   type Region,
   type TerritoryParams,
   type TerritorySystem,
@@ -56,6 +57,8 @@ export type Reply =
 export class Territories {
   private field: InfluenceField | null = null;
   private widths: BandWidths = NO_BAND;
+  /** Each country's outline as last answered, which a band request leaves as it is. */
+  private regions = new Map<number, Region>();
 
   reset(
     systems: Iterable<TerritorySystem>,
@@ -64,6 +67,7 @@ export class Territories {
     widths: BandWidths = NO_BAND,
   ): Map<number, Shape> {
     this.widths = widths;
+    this.regions = new Map();
     this.field = new InfluenceField(params, new Set(bordered), widths.band, widths.seam);
     this.field.reset(systems);
     return this.shapesOf(this.field.drawnOwners()).shapes;
@@ -83,7 +87,8 @@ export class Territories {
     if (!field) return out;
     this.widths = widths;
     for (const owner of field.setBand(widths.band, widths.seam)) {
-      out.set(owner, this.bandingOf(owner, field.region(owner)));
+      const region = this.regions.get(owner) ?? field.region(owner);
+      out.set(owner, this.bandingOf(owner, region));
     }
     return out;
   }
@@ -108,8 +113,11 @@ export class Territories {
     const removed: number[] = [];
     for (const owner of owners) {
       const region = field.region(owner);
-      if (region.length === 0) removed.push(owner);
-      else {
+      if (region.length === 0) {
+        removed.push(owner);
+        this.regions.delete(owner);
+      } else {
+        this.regions.set(owner, region);
         const scans = region.map((piece) => scanPiece(piece));
         shapes.set(owner, { smoothed: region, scans, ...this.bandingOf(owner, region) });
       }
@@ -120,7 +128,7 @@ export class Territories {
   /** None while the field traces no band. */
   private bandingOf(owner: number, region: Region): Banding {
     const field = this.field as InfluenceField;
-    const inner = field.inner(owner);
+    const inner = trimmedInner(region, field.inner(owner));
     const seamInner = field.seamInner(owner);
     return {
       band: this.widths.band > 0 ? bandOf(region, inner) : [],

@@ -410,11 +410,15 @@ less.
   shallowest. A band of fixed width in world units fits the first and
   not the second.
 - Corners are round where two empires' borders meet, or a border meets
-  open space. The editor rounds the max and min in φ over 0.1 of
-  influence, which gives a corner of about 2.7 world units radius where
-  two empires and an unowned system meet. I measured about 2 world
-  units at the game's triple junctions, but the game's corners look
-  softer than the editor's, so I have kept the larger radius.
+  open space. The editor rounds the max and min in φ over 0.2 of
+  influence, which gives a corner of about 5.5 world units radius where
+  two empires and an unowned system meet. A tighter radius read as a
+  point beside the game's zoomed-out band. Two neighbours both near the
+  edge of their influence then leave a hairline gap between them.
+- A sparse ring of one empire's systems can leave the band's inner
+  edge closing round a patch that is still territory. The editor drops
+  any such band piece unless it surrounds a real hole, as the game
+  shows no band there.
 
 ## Empire names on the map
 
