@@ -17,6 +17,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, placedNode } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { DEFAULT_SYSTEM_HEIGHT } from "../generated/constants";
 
 const ERASE: BrushSettings = {
   tool: "erase",
@@ -27,6 +28,14 @@ const ERASE: BrushSettings = {
   eraseSpecials: false,
   symmetry: { kind: "off" },
   beta: 1,
+  height: {
+    mode: "raise",
+    value: 0,
+    raise: 10,
+    smooth: 0.5,
+    ripple: { height: 40, spacing: 30, fade: 60 },
+    flipped: false,
+  },
 };
 
 beforeEach(async () => {
@@ -399,6 +408,35 @@ describe("joining islands", () => {
       ],
     });
     expect(await editor().joinIslands()).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("a height stroke", () => {
+  it("sends every system it moved, written absolute, as one edit", async () => {
+    await openFixtureSave();
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    const result = stroke({ tool: "height", size: 24, height: { ...ERASE.height, raise: 10 } }, [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 0, y: 0 },
+    ]);
+    if (result.kind !== "height") throw new Error(result.kind);
+    await editor().sculptHeights(result.heights);
+
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "SetSystemHeights",
+      heights: [
+        { id: 0, height: DEFAULT_SYSTEM_HEIGHT + 10 },
+        { id: 1, height: DEFAULT_SYSTEM_HEIGHT + 10 },
+      ],
+    });
+  });
+
+  it("sends nothing for a stroke that moved nothing", async () => {
+    await openFixtureSave();
+    expect(await editor().sculptHeights(new Map())).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

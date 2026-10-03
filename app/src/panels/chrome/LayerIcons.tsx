@@ -24,6 +24,17 @@ function FilledGlyph({ children }: { children: ReactNode }) {
   );
 }
 
+/** A star on a drop line over a small hexagon: a height above the plane. */
+export function HeightMark() {
+  return (
+    <>
+      <circle cx="8" cy="3.6" r="2" fill="currentColor" stroke="none" />
+      <path d="M8 6.2v4.4" />
+      <path d="M8 10.8 10.2 12v2.4L8 15.6l-2.2-1.2V12Z" />
+    </>
+  );
+}
+
 function glyphOf(id: LayerId): ReactNode {
   switch (id) {
     case "lanes":
@@ -65,9 +76,7 @@ function glyphOf(id: LayerId): ReactNode {
     case "heights":
       return (
         <LayerGlyph>
-          <circle cx="8" cy="3.6" r="2" fill="currentColor" stroke="none" />
-          <path d="M8 6.2v4.4" />
-          <path d="M8 10.8 10.2 12v2.4L8 15.6l-2.2-1.2V12Z" />
+          <HeightMark />
         </LayerGlyph>
       );
     case "owners":

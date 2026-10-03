@@ -561,8 +561,10 @@ button.master.init[aria-pressed="true"] {
   left: 8px;
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  max-width: calc(100% - 16px);
   padding: 4px 8px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -618,6 +620,59 @@ button.master.init[aria-pressed="true"] {
 
 .tool-option input[type="number"] {
   width: 52px;
+}
+
+.tool-value {
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-segmented,
+.tool-chips {
+  display: flex;
+  gap: 2px;
+}
+
+.tool-segmented button,
+.tool-chips button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.tool-segmented button[aria-checked="true"],
+.tool-chips button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--bg-elevated);
+  border-color: var(--accent-dim);
+}
+
+.ripple-profile {
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.ripple-profile path {
+  fill: none;
+}
+
+.ripple-axis {
+  stroke: var(--border);
+}
+
+.ripple-fade {
+  stroke: var(--fg-muted);
+  stroke-dasharray: 3 2;
+}
+
+.ripple-curve {
+  stroke-width: 1.5;
+}
+
+.tool-hint {
+  flex-basis: 100%;
+  font-size: 11.5px;
 }
 
 .menu-file {

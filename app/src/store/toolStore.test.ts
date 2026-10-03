@@ -293,3 +293,19 @@ describe("brush keys", () => {
     expect(resizeNebula(1)).toBe(false);
   });
 });
+
+describe("the height brush's ripple", () => {
+  it("keeps a Dome one hump as the brush grows, and clamps a slider to its range", () => {
+    tools().setSize(40);
+    tools().pickRipplePreset("dome");
+    expect(tools().ripple.spacing).toBe(160);
+    tools().setSize(100);
+    expect(tools().ripple.spacing).toBe(400);
+
+    tools().setRipple({ spacing: 1000 });
+    expect(tools().ripple.spacing).toBe(200);
+    expect(tools().ripplePreset).toBeNull();
+    tools().setSize(40);
+    expect(tools().ripple.spacing).toBe(200);
+  });
+});

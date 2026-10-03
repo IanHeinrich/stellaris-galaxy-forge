@@ -7,6 +7,7 @@ import type { HistoryView } from "../generated/HistoryView";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
+import type { HeightPreview } from "../lib/height";
 import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SearchResult } from "../generated/SearchResult";
@@ -143,6 +144,8 @@ export interface EditorState {
   setSelectedHeights(change: HeightChange, value: number): Promise<boolean>;
   /** Puts every selected system that is not flat back on the game's default plane, in one op. */
   flattenSelected(): Promise<boolean>;
+  /** Sets each system in `heights` to the shown height it gives, in one op: a height brush stroke. */
+  sculptHeights(heights: HeightPreview): Promise<boolean>;
   /** Moves the nebula at `index` (file order) to a world position. Nothing else moves. */
   moveNebula(index: number, x: number, y: number): Promise<void>;
   /**

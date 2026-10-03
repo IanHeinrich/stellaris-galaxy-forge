@@ -1,4 +1,5 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
+import { HeightSculpt, type HeightBrush } from "./heightBrush";
 import {
   laneSegments,
   meshWithin,
@@ -24,6 +25,7 @@ import { SegmentIndex, segmentsCross, type Segment } from "../geometry/segments"
 import { seeded } from "../random";
 import type { SpatialGrid } from "../spatialGrid";
 import { counted } from "../text";
+import type { HeightPreview } from "../height";
 import type { SystemNode } from "../../generated/SystemNode";
 
 export interface BrushSettings {
@@ -37,19 +39,22 @@ export interface BrushSettings {
   symmetry: Symmetry;
   /** The β of the lanes a paint or connect stroke adds. */
   beta: number;
+  /** What a height stroke does. */
+  height: HeightBrush;
 }
 
 /**
  * What a stroke does so far. A paint stroke's new points carry provisional ids -1..-n in
  * `points` order, and its lanes may join them to existing systems by their real ids. A
  * connect stroke's pairs join systems it swept; `sparse` is true when the lane density is the
- * only reason it added none.
+ * only reason it added none. A height stroke's heights are the shown heights it would give.
  */
 export type StrokeResult =
   | { kind: "paint"; points: Pt[]; pairs: Pair[] }
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
-  | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean };
+  | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
+  | { kind: "height"; heights: HeightPreview };
 
 /** A new lane is at most this many spacings long. */
 const LANE_REACH = 3;
@@ -326,11 +331,29 @@ class CutStroke implements Strategy {
   }
 }
 
+class HeightStroke implements Strategy {
+  private readonly sculpt: HeightSculpt;
+
+  constructor(private readonly ground: StrokeGround) {
+    const { settings, r, systems, grid } = ground;
+    this.sculpt = new HeightSculpt(settings.height, r, systems, grid);
+  }
+
+  add(stamps: readonly Pt[]): void {
+    this.sculpt.add(this.ground.images(stamps));
+  }
+
+  result(): StrokeResult {
+    return { kind: "height", heights: this.sculpt.heights() };
+  }
+}
+
 const STRATEGIES: Record<StrokeKind, (ground: StrokeGround, seed: number) => Strategy> = {
   paint: (ground, seed) => new PaintStroke(ground, seed),
   erase: (ground) => new EraseStroke(ground),
   connect: (ground) => new ConnectStroke(ground),
   cut: (ground) => new CutStroke(ground),
+  height: (ground) => new HeightStroke(ground),
 };
 
 /**
@@ -379,5 +402,7 @@ export function strokeLabel(result: StrokeResult): string {
       return result.sparse
         ? "+0 lanes · raise lane density"
         : `+${counted(result.pairs.length, "lane")}`;
+    case "height":
+      return `↕ ${counted(result.heights.size, "system")}`;
   }
 }

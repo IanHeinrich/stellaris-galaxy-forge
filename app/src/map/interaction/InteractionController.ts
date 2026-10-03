@@ -8,7 +8,7 @@ import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import { useToolStore } from "../../store/toolStore";
+import { useToolStore, type ToolState } from "../../store/toolStore";
 import type { Camera } from "../Camera";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { MapLayer } from "../layers/MapLayer";
@@ -58,7 +58,19 @@ function models(): Record<Tool, MapModel> & { select: GestureModel } {
     erase: brush("erase"),
     connect: brush("connect"),
     cut: brush("cut"),
+    height: brush("height"),
   };
+}
+
+/** Whether any of the height brush's options moved, which change what it previews. */
+function heightOptionsChanged(state: ToolState, previous: ToolState): boolean {
+  return (
+    state.heightMode !== previous.heightMode ||
+    state.heightValue !== previous.heightValue ||
+    state.raiseStrength !== previous.raiseStrength ||
+    state.smoothStrength !== previous.smoothStrength ||
+    state.ripple !== previous.ripple
+  );
 }
 
 /**
@@ -137,7 +149,11 @@ export class InteractionController {
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
         if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
-        if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
+        if (
+          state.size !== previous.size ||
+          state.symmetry !== previous.symmetry ||
+          heightOptionsChanged(state, previous)
+        ) {
           this.brushes.drawCursor();
         }
       }),
@@ -238,8 +254,8 @@ export class InteractionController {
         this.hover(null);
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
-      hoverBrush: (tool, x, y) => this.brushes.hover(tool, x, y),
-      beginStroke: (tool, x, y) => this.brushes.begin(tool, x, y),
+      hoverBrush: (tool, x, y, flipped) => this.brushes.hover(tool, x, y, flipped),
+      beginStroke: (tool, x, y, flipped) => this.brushes.begin(tool, x, y, flipped),
       extendStroke: (x, y) => this.brushes.extend(x, y),
       commitStroke: () => this.brushes.commit(),
       cancelStroke: () => this.brushes.cancel(),

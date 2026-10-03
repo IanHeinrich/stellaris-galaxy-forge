@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand";
 import type { Op } from "../generated/Op";
-import { absoluteHeight, isFlat, relativeHeight } from "../lib/height";
+import { absoluteHeight, isFlat, relativeHeight, type HeightPreview } from "../lib/height";
 import { systems } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 
@@ -9,19 +9,19 @@ export type HeightChange = "set" | "raise" | "lower";
 
 type HeightActions = Pick<
   EditorState,
-  "setSystemHeight" | "setSelectedHeights" | "flattenSelected"
+  "setSystemHeight" | "setSelectedHeights" | "flattenSelected" | "sculptHeights"
 >;
 
 /**
  * One op setting each of `ids` to the shown height `to` makes of its own, null when none of them
  * would move. Heights are written absolute; a system with no height stands on the plane.
  */
-function heightsOp(ids: readonly number[], to: (relative: number) => number): Op | null {
-  const heights = ids.flatMap((id) => {
+function heightsOp(ids: Iterable<number>, to: (relative: number, id: number) => number): Op | null {
+  const heights = [...ids].flatMap((id) => {
     const system = systems().get(id);
     if (!system) return [];
     const from = relativeHeight(system.height);
-    const next = to(from);
+    const next = to(from, id);
     return isFlat(next - from) ? [] : [{ id, height: absoluteHeight(next) }];
   });
   return heights.length === 0 ? null : { type: "SetSystemHeights", heights };
@@ -50,6 +50,13 @@ export function heightActions(get: StoreApi<EditorState>["getState"]): HeightAct
 
     flattenSelected() {
       return get().applyOp(() => heightsOp(get().selection, () => 0));
+    },
+
+    sculptHeights(heights: HeightPreview) {
+      if (heights.size === 0) return Promise.resolve(false);
+      return get().applyOp(() =>
+        heightsOp(heights.keys(), (relative, id) => heights.get(id) ?? relative),
+      );
     },
   };
 }

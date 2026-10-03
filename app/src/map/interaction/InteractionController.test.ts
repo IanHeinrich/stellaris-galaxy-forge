@@ -13,8 +13,9 @@ import { ACCENT_COLOR, REFUSED_COLOR } from "../../lib/visual/style";
 import { run, type CommandEffects } from "../../store/commands";
 import { useEditorStore } from "../../store/editorStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import { useHeightPreviewStore } from "../../store/heightPreviewStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { useToolStore } from "../../store/toolStore";
+import { tiltTakes, useToolStore } from "../../store/toolStore";
 import { lanesTo } from "../../test/builders";
 import { Camera } from "../Camera";
 import { HighlightsLayer } from "../layers/HighlightsLayer";
@@ -441,5 +442,64 @@ describe("the tilted map", () => {
 
     useToolStore.getState().setTilt(0);
     expect(useToolStore.getState().setTool("connect")).toBe(true);
+  });
+});
+
+describe("the height brush", () => {
+  /** Two flat systems 15 apart, a 100-wide Ripple brush and a stroke that settles at once. */
+  function sculpting(mode: "ripple" | "raise" = "ripple") {
+    useHeightPreviewStore.setState({ preview: new Map() });
+    const sculptHeights = vi.fn(async () => true);
+    useEditorStore.setState({ sculptHeights });
+    useToolStore.setState({ tool: "height", size: 100, heightMode: mode, raiseStrength: 10 });
+    const map = mapOver([systemNode({ id: 1 }), systemNode({ id: 2, x: 15 })]);
+    const brush = (label: string) =>
+      map.highlights.brush.container.getChildByLabel(label) as Graphics;
+    const centre = map.cam.worldToScreen(0, 0);
+    return { ...map, sculptHeights, brush, centre };
+  }
+  const previewed = () => useHeightPreviewStore.getState().preview;
+
+  it("previews a ripple's rings and heights under the pointer, and drops them when it leaves", () => {
+    const { surface, brush, centre } = sculpting();
+    surface.fire("pointermove", centre.x, centre.y);
+    expect(strokes(brush("brushRings")).length).toBeGreaterThan(0);
+    expect(previewed().get(1)).toBe(40);
+    expect(previewed().get(2)).toBeLessThan(0);
+
+    surface.fire("pointerleave", centre.x, centre.y);
+    expect(previewed().size).toBe(0);
+    expect(strokes(brush("brushRings"))).toHaveLength(0);
+  });
+
+  it("sends one edit for a ripple click, centred on the press however the pointer moves", async () => {
+    const { surface, sculptHeights, centre } = sculpting();
+    surface.fire("pointerdown", centre.x, centre.y);
+    surface.fire("pointermove", centre.x + 200, centre.y);
+    surface.fire("pointerup", centre.x + 200, centre.y);
+
+    expect(sculptHeights).toHaveBeenCalledTimes(1);
+    const sent = sculptHeights.mock.calls[0] as unknown as [Map<number, number>];
+    expect(sent[0].get(1)).toBe(40);
+    await vi.waitFor(() => expect(previewed().get(1)).toBeUndefined());
+  });
+
+  it("strokes while the map leans, as one edit", () => {
+    const { cam, surface, sculptHeights } = sculpting("raise");
+    cam.setTilt(30);
+    controller!.setTilted(true);
+    useToolStore.getState().setTilt(30);
+    expect(tiltTakes("height")).toBe(true);
+
+    const from = cam.worldToScreen(0, 0);
+    const to = cam.worldToScreen(15, 0);
+    surface.fire("pointerdown", from.x, from.y);
+    surface.fire("pointermove", to.x, to.y);
+    surface.fire("pointerup", to.x, to.y);
+
+    expect(sculptHeights).toHaveBeenCalledTimes(1);
+    const sent = sculptHeights.mock.calls[0] as unknown as [Map<number, number>];
+    expect([...sent[0].keys()]).toEqual([1, 2]);
+    expect(sent[0].get(1)).toBe(10);
   });
 });

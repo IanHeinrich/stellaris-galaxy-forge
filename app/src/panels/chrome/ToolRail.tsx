@@ -5,8 +5,9 @@ import { TOOLS, toolRequires, type Tool } from "../../lib/tools";
 import { redo, undo } from "../../store/commands";
 import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
 import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
-import { useToolStore } from "../../store/toolStore";
+import { tiltTakes, useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
+import { HeightMark } from "./LayerIcons";
 import { SymmetryControl } from "./SymmetryControl";
 import "./chrome.css";
 
@@ -50,6 +51,11 @@ const ICONS: Record<Tool, ReactNode> = {
       <path d="M5.2 10.6 11 2.5M10.8 10.6 5 2.5" />
     </RailGlyph>
   ),
+  height: (
+    <RailGlyph>
+      <HeightMark />
+    </RailGlyph>
+  ),
 };
 
 /** A button's tooltip: what it does, then its key. */
@@ -57,11 +63,20 @@ function titled(what: string, key: string): string {
   return `${what} (${key})`;
 }
 
+/** A tool's tooltip, saying why it waits while the map leans. */
+function toolTitle(label: string, key: string, leaning: boolean): string {
+  return leaning
+    ? `${titled(label, key)}: lay the map flat to edit hyperlanes`
+    : titled(label, key);
+}
+
 /** The map's tools down its left edge, the symmetry after them, and undo and redo at the foot (ADR 0005). */
 export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
   const capabilities = useFileSessionStore(documentCapabilities);
+  // Read so the rail redraws as the map leans; `tiltTakes` reads it from the store.
+  useToolStore((s) => s.tilt);
   const symmetryShown = useCanEdit("symmetry");
   const undoEntry = useEditorStore(nextUndo);
   const redoEntry = useEditorStore(nextRedo);
@@ -69,19 +84,23 @@ export function ToolRail() {
   return (
     <div className="tool-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
       <div className="tool-rail-group" role="group" aria-label="Tools">
-        {TOOLS.filter((t) => supports(capabilities, toolRequires(t.id))).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className="icon"
-            aria-pressed={tool === t.id}
-            aria-label={t.label}
-            title={titled(t.label, shortcutLabel(toolAction(t.id)))}
-            onClick={() => setTool(t.id)}
-          >
-            {ICONS[t.id]}
-          </button>
-        ))}
+        {TOOLS.filter((t) => supports(capabilities, toolRequires(t.id))).map((t) => {
+          const leaning = !tiltTakes(t.id);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              className="icon"
+              disabled={leaning}
+              aria-pressed={tool === t.id}
+              aria-label={t.label}
+              title={toolTitle(t.label, shortcutLabel(toolAction(t.id)), leaning)}
+              onClick={() => setTool(t.id)}
+            >
+              {ICONS[t.id]}
+            </button>
+          );
+        })}
       </div>
       {symmetryShown && (
         <div className="tool-rail-group tool-rail-symmetry" role="group" aria-label="Symmetry">
