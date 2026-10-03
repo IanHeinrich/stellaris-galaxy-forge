@@ -1,4 +1,4 @@
-import { Territories, type Reply, type Request } from "./territories";
+import { Territories, type BandWidths, type Reply, type Request } from "./territories";
 import type { TerritoryParams, TerritorySystem } from "./territory";
 
 /**
@@ -10,9 +10,12 @@ export interface TerritoryClient {
     systems: Iterable<TerritorySystem>,
     params: TerritoryParams,
     bordered: Iterable<number>,
+    widths: BandWidths,
     epoch: number,
   ): void;
   apply(changed: TerritorySystem[], removed: number[], epoch: number): void;
+  /** Re-traces every band for new widths; the bands shown stay until the answer comes. */
+  band(widths: BandWidths, epoch: number): void;
   onReply(cb: (reply: Reply) => void): void;
   destroy(): void;
 }
@@ -26,13 +29,19 @@ export class InlineTerritoryClient implements TerritoryClient {
     systems: Iterable<TerritorySystem>,
     params: TerritoryParams,
     bordered: Iterable<number>,
+    widths: BandWidths,
     epoch: number,
   ): void {
-    this.send({ kind: "reset", epoch, systems: [...systems], params, bordered: [...bordered] });
+    const request = { systems: [...systems], params, bordered: [...bordered], widths };
+    this.send({ kind: "reset", epoch, ...request });
   }
 
   apply(changed: TerritorySystem[], removed: number[], epoch: number): void {
     this.send({ kind: "apply", epoch, changed, removed });
+  }
+
+  band(widths: BandWidths, epoch: number): void {
+    this.send({ kind: "band", epoch, widths });
   }
 
   send(request: Request): void {
@@ -48,7 +57,8 @@ export class InlineTerritoryClient implements TerritoryClient {
 
 /**
  * Computes in a module worker, one request in flight at a time. A reset makes everything
- * queued before it moot and drops it; applies queued after one wait behind it. Should the
+ * queued before it moot and drops it; applies queued after one wait behind it. A band request
+ * replaces any band request still queued, so a zoom re-traces only for its latest step. Should the
  * worker fail before it has ever answered, the rest of the session computes inline.
  */
 export class WorkerTerritoryClient implements TerritoryClient {
@@ -84,14 +94,19 @@ export class WorkerTerritoryClient implements TerritoryClient {
     systems: Iterable<TerritorySystem>,
     params: TerritoryParams,
     bordered: Iterable<number>,
+    widths: BandWidths,
     epoch: number,
   ): void {
-    const projected = Array.from(systems, project);
-    this.post({ kind: "reset", epoch, systems: projected, params, bordered: [...bordered] });
+    const request = { systems: Array.from(systems, project), params, bordered: [...bordered] };
+    this.post({ kind: "reset", epoch, ...request, widths });
   }
 
   apply(changed: TerritorySystem[], removed: number[], epoch: number): void {
     this.post({ kind: "apply", epoch, changed: changed.map(project), removed });
+  }
+
+  band(widths: BandWidths, epoch: number): void {
+    this.post({ kind: "band", epoch, widths });
   }
 
   onReply(cb: (reply: Reply) => void): void {
@@ -113,7 +128,10 @@ export class WorkerTerritoryClient implements TerritoryClient {
       return;
     }
     if (request.kind === "reset") this.queue = [request];
-    else this.queue.push(request);
+    else if (request.kind === "band") {
+      this.queue = this.queue.filter((queued) => queued.kind !== "band");
+      this.queue.push(request);
+    } else this.queue.push(request);
     this.postNext();
   }
 

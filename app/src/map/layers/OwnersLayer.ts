@@ -11,7 +11,7 @@ import {
   type PieceScan,
 } from "../../lib/geometry/labelFit";
 import type { Region, TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
-import type { Reply, Shape } from "../../lib/geometry/territories";
+import type { Banding, BandWidths, Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
@@ -37,6 +37,7 @@ const FILL_ALPHA_FAR = 0.67;
 /**
  * The border band lies inside its own territory, so neighbours' bands sit side by side. The
  * game's widens in world units as the camera pulls back, from about 2.3 close up to 5.4 zoomed out.
+ * These are its widths where the field falls as steeply as round a lone system.
  */
 const BAND_NEAR_WORLD = 1.6;
 const BAND_FAR_WORLD = 5.9;
@@ -49,7 +50,7 @@ const BAND_SATURATION = 0.6;
 /** A faint hairline of the fill colour just inside the band, 1 px at every zoom. */
 const RIM_PX = 1;
 const RIM_ALPHA = 0.5;
-/** The outer quarter of the band is darkened, the seam between two neighbours. */
+/** The outer quarter of the band is darkened, the seam between two neighbours: a band of its own. */
 const SEAM_SHARE = 0.25;
 const SEAM_DARKEN = 0.25;
 const EMPHASIS_PX = 3;
@@ -141,15 +142,19 @@ interface CountryShape {
   smoothed: Region;
   /** Each piece of the outline, scanned for room for its label. */
   scans: PieceScan[];
+  /** The band, its seam, and the part of the territory inside the band, from the client. */
+  band: Region;
+  seam: Region;
+  inner: Region;
   colors: OwnerColors;
   fill: Graphics;
   edge: Graphics;
   emphasis: Graphics;
-  /** The stroke unit the edge and emphasis were last drawn at. */
+  /** The stroke unit the rim and emphasis were last drawn at. */
   unit: number;
   /** The outline's bounds in world units: min x, min y, max x, max y. */
   bounds: number[];
-  /** The outline's points, every ring counted: what a restroke costs. */
+  /** The outline's and the band's points, every ring counted: what a restroke costs. */
   points: number;
   /** One badge per piece: the game labels every separate piece of a country. */
   badges: Container;
@@ -174,10 +179,7 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/**
- * Strokes every ring of `region` on the territory's side: inside each outer ring, outside
- * each hole, so a band never spills into a neighbour.
- */
+/** Strokes every ring of `region` on its inside: inside each outer ring, outside each hole. */
 function strokeInside(
   g: Graphics,
   region: Region,
@@ -189,6 +191,16 @@ function strokeInside(
   if (holes.length === 0) return;
   for (const hole of holes) g.poly(hole, true);
   g.stroke({ ...style, alignment: 0, join: "round" });
+}
+
+/** Fills every polygon of `region`, its holes cut out. */
+function fillRegion(g: Graphics, region: Region, style: { color: number; alpha?: number }): void {
+  for (const [outer, ...holes] of region) {
+    g.poly(outer, true).fill(style);
+    if (holes.length === 0) continue;
+    for (const hole of holes) g.poly(hole, true);
+    g.cut();
+  }
 }
 
 /** `color` at `share` of its saturation, its hue and brightness kept. */
@@ -209,6 +221,15 @@ function boundsOf(region: Region): number[] {
     }
   }
   return bounds;
+}
+
+/** Every point of the shape's outline and band: what drawing its edge costs. */
+function pointsOf({ smoothed, band, seam, inner }: Omit<CountryShape, "points">): number {
+  let n = 0;
+  for (const region of [smoothed, band, seam, inner]) {
+    for (const ring of region.flat()) n += ring.length;
+  }
+  return n;
 }
 
 /** Whether two owner tables paint the same set of owners, whatever else about them changed. */
@@ -244,6 +265,8 @@ export class OwnersLayer implements MapLayer {
   private readonly shapes = new Map<number, CountryShape>();
   private readonly emblemKeys = new Map<number, string>();
   private unit = 1;
+  /** The band widths last asked of the client. */
+  private widths: BandWidths = { band: 0, seam: 0 };
   private view: number[] = [-Infinity, -Infinity, Infinity, Infinity];
   private restroking = false;
   private fade = 1;
@@ -320,6 +343,11 @@ export class OwnersLayer implements MapLayer {
     const unit = strokeUnit(cam.scale);
     if (unit !== this.unit) {
       this.unit = unit;
+      const widths = this.bandWidths();
+      if (widths.band !== this.widths.band || widths.seam !== this.widths.seam) {
+        this.widths = widths;
+        this.client.band(widths, this.epoch);
+      }
       if (!this.restroking && this.shapes.size > 0) {
         this.restroking = true;
         Ticker.shared.add(this.restrokeTick, this);
@@ -398,12 +426,20 @@ export class OwnersLayer implements MapLayer {
     this.epoch++;
     this.owners = this.hiddenTakenOff(this.ctx.owners);
     const systems = [...this.ctx.systems.values()].map((s) => this.territorySystem(s));
-    this.client.reset(systems, this.params(), this.ctx.table.keys(), this.epoch);
+    this.widths = this.bandWidths();
+    this.client.reset(systems, this.params(), this.ctx.table.keys(), this.widths, this.epoch);
   }
 
-  /** A reset answers for the whole galaxy, an apply for the countries it touched. */
+  /**
+   * A reset answers for the whole galaxy, an apply for the countries it touched, and a band
+   * request for the countries whose band it changed.
+   */
   private onReply(reply: Reply): void {
     if (this.destroyed || reply.epoch < this.epoch) return;
+    if (reply.kind === "band") {
+      for (const [id, banding] of reply.bands) this.reband(id, banding);
+      return;
+    }
     if (reply.kind === "reset") {
       const kept = new Set(reply.shapes.map(([id]) => id));
       for (const id of [...this.shapes.keys()]) if (!kept.has(id)) this.remove(id);
@@ -414,7 +450,15 @@ export class OwnersLayer implements MapLayer {
     this.layoutLabels();
   }
 
-  private show(id: number, { smoothed, scans }: Shape): void {
+  private reband(id: number, banding: Banding): void {
+    const shape = this.shapes.get(id);
+    if (!shape) return;
+    Object.assign(shape, banding);
+    shape.points = pointsOf(shape);
+    this.drawEdge(shape);
+  }
+
+  private show(id: number, { smoothed, scans, band, seam, inner }: Shape): void {
     let shape = this.shapes.get(id);
     if (!shape) {
       const badges = new Container();
@@ -422,6 +466,9 @@ export class OwnersLayer implements MapLayer {
       shape = {
         smoothed: [],
         scans: [],
+        band: [],
+        seam: [],
+        inner: [],
         colors: { outline: 0, fill: 0 },
         fill: new Graphics(),
         edge: new Graphics(),
@@ -441,8 +488,11 @@ export class OwnersLayer implements MapLayer {
     }
     shape.smoothed = smoothed;
     shape.scans = scans;
+    shape.band = band;
+    shape.seam = seam;
+    shape.inner = inner;
     shape.bounds = boundsOf(smoothed);
-    shape.points = smoothed.flat().reduce((n, ring) => n + ring.length, 0);
+    shape.points = pointsOf(shape);
     this.matchPieces(shape);
     this.retext(id, shape);
     this.placeEmblem(id, shape);
@@ -520,35 +570,31 @@ export class OwnersLayer implements MapLayer {
 
   private drawFill({ fill, smoothed, colors }: CountryShape): void {
     fill.clear();
-    for (const [outer, ...holes] of smoothed) {
-      fill.poly(outer, true).fill({ color: colors.fill });
-      if (holes.length === 0) continue;
-      for (const hole of holes) fill.poly(hole, true);
-      fill.cut();
-    }
+    fillRegion(fill, smoothed, { color: colors.fill });
   }
 
-  private bandWidth(): number {
-    return BAND_NEAR_WORLD + (BAND_FAR_WORLD - BAND_NEAR_WORLD) * cameraFar(this.unit);
+  private bandWidths(): BandWidths {
+    const band = BAND_NEAR_WORLD + (BAND_FAR_WORLD - BAND_NEAR_WORLD) * cameraFar(this.unit);
+    return { band, seam: band * SEAM_SHARE };
   }
 
-  /** The fill colour's hairline, the band over all but its inner pixel, and the band's darker outer quarter. */
+  /**
+   * The band and its darker seam, both regions inside the territory, and the fill colour's
+   * hairline just inside the band.
+   */
   private drawEdge(shape: CountryShape): void {
-    const { edge, smoothed, colors } = shape;
+    const { edge, colors } = shape;
     edge.clear();
     shape.unit = this.unit;
-    const band = this.bandWidth();
     const color = desaturate(colors.outline, BAND_SATURATION);
-    strokeInside(edge, smoothed, {
+    fillRegion(edge, shape.band, { color, alpha: BAND_ALPHA });
+    const seam = mixColor(color, 0x000000, SEAM_DARKEN);
+    fillRegion(edge, shape.seam, { color: seam, alpha: BAND_ALPHA });
+    if (shape.inner.length === 0) return;
+    strokeInside(edge, shape.inner, {
       color: colors.fill,
-      width: band + RIM_PX * this.unit,
+      width: RIM_PX * this.unit,
       alpha: RIM_ALPHA,
-    });
-    strokeInside(edge, smoothed, { color, width: band, alpha: BAND_ALPHA });
-    strokeInside(edge, smoothed, {
-      color: mixColor(color, 0x000000, SEAM_DARKEN),
-      width: band * SEAM_SHARE,
-      alpha: BAND_ALPHA,
     });
   }
 

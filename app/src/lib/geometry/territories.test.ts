@@ -20,7 +20,8 @@ function galaxy(): SystemNode[] {
 function direct(systems: SystemNode[], bordered = BORDERED): Map<number, Shape> {
   const shapes = new Map<number, Shape>();
   for (const [id, region] of countryRegions(systems, PARAMS, new Set(bordered))) {
-    shapes.set(id, { smoothed: region, scans: region.map((polygon) => scanPiece(polygon)) });
+    const scans = region.map((polygon) => scanPiece(polygon));
+    shapes.set(id, { smoothed: region, scans, band: [], seam: [], inner: [] });
   }
   return shapes;
 }

@@ -386,6 +386,29 @@ less.
   world units as the camera rises and stops widening at 1600. The
   shader also darkens the outer quarter of the band by up to a quarter,
   more so the further out the camera is.
+- The band's inner edge comes from the influence field too. Take φ as
+  the owner's influence less the nearest other owner's, or less the
+  0.80 edge, whichever is larger, so φ is 0 on the outline and negative
+  inside. The inner edge is where φ = −W·max(|∇φ|, 1/r), with r the
+  35 of `BORDER_SYSTEM_RADIUS` and W the band width in world units.
+  Where φ falls at least as steeply as round a lone system, the band is
+  W wide. Where it falls slower, as across a neck between two lobes of
+  one empire, the band covers a fixed range of φ instead. It widens
+  there, and the two lobes' bands meet in an X. A piece too narrow to
+  have an inner part is all band.
+- W is 1.6 + 4.3·f world units, with f the shader's camera factor
+  above. Close up on Chinorr Combine in the 2330 save, the band measured
+  2.55 world units across 31 places, all within 4% of each other. Round
+  a Sirgogg hole zoomed out, the band is about 5 world units where |∇φ|
+  is 0.03 to 0.05 a world unit, and 9 to 10 where the field is
+  shallowest. A band of fixed width in world units fits the first and
+  not the second.
+- Corners are round where two empires' borders meet, or a border meets
+  open space. The editor rounds the max and min in φ over 0.1 of
+  influence, which gives a corner of about 2.7 world units radius where
+  two empires and an unowned system meet. I measured about 2 world
+  units at the game's triple junctions, but the game's corners look
+  softer than the editor's, so I have kept the larger radius.
 
 ## Empire names on the map
 

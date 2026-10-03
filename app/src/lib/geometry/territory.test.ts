@@ -50,6 +50,39 @@ function box(ring: Pt[]): { minX: number; minY: number; maxX: number; maxY: numb
   };
 }
 
+/**
+ * The tightest radius the ring bends through within `win` of `c`: the circle through points
+ * a world unit either side of each point, the ring resampled every 0.2 world units.
+ */
+function cornerRadius(ring: Pt[], c: Pt, win = 6): number {
+  const pts: Pt[] = [];
+  ring.forEach((a, i) => {
+    const b = ring[(i + 1) % ring.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    for (let t = 0; t < len; t += 0.2) {
+      pts.push({ x: a.x + ((b.x - a.x) * t) / len, y: a.y + ((b.y - a.y) * t) / len });
+    }
+  });
+  const n = pts.length;
+  let tightest = Infinity;
+  pts.forEach((b, i) => {
+    if (Math.hypot(b.x - c.x, b.y - c.y) > win) return;
+    const a = pts[(i - 5 + n) % n];
+    const d = pts[(i + 5) % n];
+    const sides = Math.hypot(b.x - a.x, b.y - a.y) * Math.hypot(d.x - b.x, d.y - b.y);
+    const area = Math.abs((b.x - a.x) * (d.y - a.y) - (b.y - a.y) * (d.x - a.x)) / 2;
+    if (area > 1e-9)
+      tightest = Math.min(tightest, (sides * Math.hypot(d.x - a.x, d.y - a.y)) / (4 * area));
+  });
+  return tightest;
+}
+
+/** Every vertex of `part` lies inside `outline`, or is one of its own vertices. */
+function within(part: Region, outline: Region): boolean {
+  const own = new Set(outline.flat(2).map((p) => `${p.x},${p.y}`));
+  return part.flat(2).every((p) => own.has(`${p.x},${p.y}`) || inRegion(p, outline));
+}
+
 describe("countryRegions", () => {
   it("leaves an off-centre oval hole round an unowned system its neighbours crowd unevenly", () => {
     const region = countryRegions(
@@ -122,9 +155,10 @@ describe("countryRegions", () => {
       x: 0,
       y: -Infinity,
     });
-    const near = ring.filter((p) => Math.hypot(p.x - corner.x, p.y - corner.y) < 4);
-    expect(near.length).toBeGreaterThan(4);
     expect(corner.x).toBeLessThan(21.5);
+    const radius = cornerRadius(ring, corner);
+    expect(radius).toBeGreaterThan(2);
+    expect(radius).toBeLessThan(3.5);
   });
 
   it("joins two lobes' bands across the neck between them", () => {
@@ -136,5 +170,35 @@ describe("countryRegions", () => {
     expect(inRegion({ x: 29, y: 0 }, band)).toBe(true);
     expect(inRegion({ x: 0, y: 0 }, band)).toBe(false);
     expect(inRegion({ x: 58, y: 0 }, band)).toBe(false);
+  });
+
+  it("merges two lobes' bands into one region that the inner part shows through at a waist", () => {
+    const field = new InfluenceField(PARAMS, null, 5.9);
+    field.reset([system(1, 0, 0, 10), system(2, 50, 0, 10)]);
+    const inner = field.inner(10);
+    const band = bandOf(field.region(10), inner);
+    expect(inner).toHaveLength(1);
+    expect(band).toHaveLength(1);
+    expect(inRegion({ x: 25, y: 0 }, inner)).toBe(true);
+    expect(inRegion({ x: 25, y: 15 }, band)).toBe(true);
+    expect(inRegion({ x: 25, y: -15 }, band)).toBe(true);
+  });
+
+  it("keeps the band and its seam inside the territory at the widest band", () => {
+    const scenes = [
+      [system(1, 0, 0, 10), system(2, 58, 0, 10)],
+      [system(1, 0, 0, 10)],
+      [system(1, 0, 0, 10), system(2, 30, 0, 20), system(3, -30, 0, 30)],
+    ];
+    for (const scene of scenes) {
+      const field = new InfluenceField(PARAMS, null, 5.9, 5.9 / 4);
+      field.reset(scene);
+      const outline = field.region(10);
+      expect(outline.length).toBeGreaterThan(0);
+      for (const inner of [field.inner(10), field.seamInner(10)]) {
+        expect(within(inner, outline)).toBe(true);
+        expect(within(bandOf(outline, inner), outline)).toBe(true);
+      }
+    }
   });
 });

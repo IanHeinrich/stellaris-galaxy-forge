@@ -58,8 +58,22 @@ function paintOf(layer: OwnersLayer): { fill: number | undefined; edge: number |
   const [edge] = childByLabel(territories, "edges").children as Graphics[];
   return {
     fill: drawOps(fill).find((op) => op.action === "fill")?.color,
-    edge: strokes(edge)[1]?.color,
+    edge: drawOps(edge).find((op) => op.action === "fill")?.color,
   };
+}
+
+/** The area of the first hole cut out of the edge's first filled region: the band's inner part. */
+function innerArea(edge: Graphics): number {
+  const [band] = edge.context.instructions;
+  const hole = (band.data as { hole?: { shapePath: { shapePrimitives: { shape: unknown }[] } } })
+    .hole;
+  const points = (hole?.shapePath.shapePrimitives[0]?.shape as { points?: number[] })?.points;
+  if (!points) return 0;
+  let sum = 0;
+  for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
+    sum += (points[j] + points[i]) * (points[j + 1] - points[i + 1]);
+  }
+  return Math.abs(sum / 2);
 }
 
 /** Every shown piece badge, across the countries. */
@@ -282,23 +296,24 @@ describe("an owner's territory", () => {
     expect(paint(chosen)).toEqual({ edge: 0xff6666, fill: 0xffc0cb });
   });
 
-  it("restrokes its band over later frames when a zoom changes the stroke width", () => {
+  it("narrows its band when the camera closes in, and restrokes the rim over later frames", () => {
     vi.stubGlobal("requestAnimationFrame", () => 0);
     vi.stubGlobal("cancelAnimationFrame", () => undefined);
     const layer = new OwnersLayer();
     layer.rebuild(mapContext([OWNED], { countries: COUNTRIES }));
     const territories = childByLabel(layer.container, "territories");
     const [edge] = childByLabel(territories, "edges").children as Graphics[];
-    const bandWidth = (): number =>
-      (edge.context.instructions[1].data as { style: { width: number } }).style.width;
-    const before = bandWidth();
+    const rimWidth = (): number =>
+      (edge.context.instructions[2].data as { style: { width: number } }).style.width;
+    const inner = innerArea(edge);
+    const rim = rimWidth();
+    expect(inner).toBeGreaterThan(0);
     const camera = new Camera();
     camera.scale = 4;
     layer.onViewport(camera);
-    expect(bandWidth()).toBe(before);
+    expect(innerArea(edge)).toBeGreaterThan(inner);
     Ticker.shared.update(performance.now() + 1000);
-    expect(bandWidth()).toBeLessThan(before);
-    expect(bandWidth() * 4).toBeGreaterThan(before);
+    expect(rimWidth()).toBeLessThan(rim);
     layer.destroy();
     vi.unstubAllGlobals();
   });
@@ -316,6 +331,9 @@ describe("an owner's territory", () => {
     const [filled] = fill.context.instructions;
     expect(filled.action).toBe("fill");
     expect((filled.data as { hole?: unknown }).hole).toBeDefined();
-    expect(strokes(edge)).toHaveLength(6);
+    const bands = edge.context.instructions.filter((op) => op.action === "fill");
+    expect(bands).toHaveLength(4);
+    for (const band of bands) expect((band.data as { hole?: unknown }).hole).toBeDefined();
+    expect(strokes(edge)).toHaveLength(2);
   });
 });
