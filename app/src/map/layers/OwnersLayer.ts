@@ -3,13 +3,19 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SystemNode } from "../../generated/SystemNode";
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
-import { fitLabel, type PieceScan } from "../../lib/geometry/labelFit";
+import {
+  placeLabels,
+  type LabelFit,
+  type LabelRequest,
+  type LabelShape,
+  type PieceScan,
+} from "../../lib/geometry/labelFit";
 import type { Region, TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
 import type { Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
-import { labelTier } from "../../lib/visual/labels";
+import { EMPIRE_LABEL_MAX_SCALE } from "../../lib/visual/labels";
 import type { OwnerColors } from "../../lib/visual/ownerColors";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
@@ -34,7 +40,13 @@ const LABEL_FONT_PX = 32;
 /** The game draws names pale and a little see-through, with a soft dark glow and no shadow. */
 const NAME_COLOR = 0xeef1f6;
 const NAME_ALPHA = 0.85;
-const NAME_GLOW = { color: 0x000000, alpha: 0.45, blur: 6, distance: 0, angle: 0 };
+const NAME_GLOW = {
+  color: 0x000000,
+  alpha: 0.45,
+  blur: 6,
+  distance: 0,
+  angle: 0,
+};
 /** A name's tracking in the fallback face, which is narrower than the game's. */
 const FALLBACK_SPACING = 3;
 const GAME_SPACING = 1;
@@ -66,10 +78,13 @@ const GLYPH_STYLE = new TextStyle({
  */
 const LABEL_MAX_SIZE = 44;
 /**
- * The game writes a name at least `MAPNAME_BORDER_MIN_SIZE` wide, overflowing a piece too small
- * for it; for a short name that floor stops at this size.
+ * The narrowest a name is written is this share of `MAPNAME_BORDER_MIN_SIZE`, overflowing a
+ * piece too small for it: in game screenshots the names on one-system pockets are half as wide
+ * as that define read in world units.
  */
-const LABEL_FLOOR_MAX_SIZE = 12;
+const NAME_MIN_WIDTH_SHARE = 0.5;
+/** For a short name the floor stops at this font size. */
+const LABEL_FLOOR_MAX_SIZE = 6;
 /** The emblem is a square this many font sizes tall, sitting on the name's cap height. */
 const EMBLEM_SIZE = 3.2;
 /** Flat white and see-through, as the game shows a territory's flag symbol. */
@@ -97,6 +112,8 @@ interface CountryShape {
   /** One badge per piece: the game labels every separate piece of a country. */
   badges: Container;
   pieces: PieceBadge[];
+  /** Whether the badges show an emblem or a clan's glyph above the name. */
+  art: boolean;
 }
 
 /** World units per screen pixel for the strokes, capped and snapped. */
@@ -184,9 +201,13 @@ export class OwnersLayer implements MapLayer {
     }
     if (ctx.table !== prev.table || ctx.special !== prev.special) {
       for (const [id, shape] of this.shapes) this.placeEmblem(id, shape);
+      this.layoutLabels();
     }
     if (ctx.table === prev.table && ctx.countryTypes !== prev.countryTypes) this.refreshEmphasis();
-    if (ctx.hiddenCountries !== prev.hiddenCountries) this.refreshHidden();
+    if (ctx.hiddenCountries !== prev.hiddenCountries) {
+      this.refreshHidden();
+      this.layoutLabels();
+    }
   }
 
   /** The delta's systems, and any whose composed owner it changed without touching them. */
@@ -215,7 +236,7 @@ export class OwnersLayer implements MapLayer {
         this.drawEmphasis(id, shape);
       }
     }
-    if (this.shown) this.fadeTowards(labelTier(cam.scale) === "none" ? 1 : 0);
+    if (this.shown) this.fadeTowards(cam.scale < EMPIRE_LABEL_MAX_SCALE ? 1 : 0);
   }
 
   /** The countries' territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
@@ -268,7 +289,13 @@ export class OwnersLayer implements MapLayer {
   }
 
   private territorySystem(s: SystemNode): TerritorySystem {
-    return { id: s.id, x: s.x, y: s.y, owner: this.owners.get(s.id) ?? null, lanes: s.lanes };
+    return {
+      id: s.id,
+      x: s.x,
+      y: s.y,
+      owner: this.owners.get(s.id) ?? null,
+      lanes: s.lanes,
+    };
   }
 
   /** Every owner in the table gets a territory; the other owners' systems only clip. */
@@ -289,6 +316,7 @@ export class OwnersLayer implements MapLayer {
       for (const id of reply.removed) this.remove(id);
     }
     for (const [id, shape] of reply.shapes) this.show(id, shape);
+    this.layoutLabels();
   }
 
   private show(id: number, { smoothed, scans }: Shape): void {
@@ -305,6 +333,7 @@ export class OwnersLayer implements MapLayer {
         emphasis: new Graphics(),
         badges,
         pieces: [],
+        art: false,
       };
       this.fills.addChild(shape.fill);
       this.edges.addChild(shape.edge);
@@ -400,9 +429,19 @@ export class OwnersLayer implements MapLayer {
     edge.clear();
     const color = colors.outline;
     for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({ color, width: HALO_PX * this.unit, alpha: HALO_ALPHA, join: "round" });
+    edge.stroke({
+      color,
+      width: HALO_PX * this.unit,
+      alpha: HALO_ALPHA,
+      join: "round",
+    });
     for (const polygon of smoothed) edge.poly(polygon[0], true);
-    edge.stroke({ color, width: EDGE_PX * this.unit, alpha: EDGE_ALPHA, join: "round" });
+    edge.stroke({
+      color,
+      width: EDGE_PX * this.unit,
+      alpha: EDGE_ALPHA,
+      join: "round",
+    });
   }
 
   /** Clans and fallen empires are marked by their borders while the special layer shows their kind. */
@@ -428,7 +467,11 @@ export class OwnersLayer implements MapLayer {
       join: "round",
     });
     for (const polygon of smoothed) emphasis.poly(polygon[0], true);
-    emphasis.stroke({ color: EMPHASIS_COLOR, width: EMPHASIS_PX * this.unit, join: "round" });
+    emphasis.stroke({
+      color: EMPHASIS_COLOR,
+      width: EMPHASIS_PX * this.unit,
+      join: "round",
+    });
   }
 
   private placeEmblem(id: number, shape: CountryShape): void {
@@ -441,54 +484,67 @@ export class OwnersLayer implements MapLayer {
     else this.emblemKeys.set(id, key);
     const texture = key === null ? null : getTexture(key);
     if (key !== null && texture === undefined) requestTextures([key]);
-    const art = clan || Boolean(texture);
-    shape.scans.forEach((scan, i) => {
-      const piece = shape.pieces[i];
+    shape.art = clan || Boolean(texture);
+    for (const piece of shape.pieces) {
       piece.label.tint = clan ? entry.colors.outline : 0xffffff;
       piece.emblem.visible = !clan && Boolean(texture);
       piece.glyph.visible = clan;
       if (clan) piece.glyph.tint = entry.colors.outline;
       if (texture) piece.emblem.texture = texture;
-      this.placePiece(piece, scan, art);
-    });
+    }
   }
 
   /**
-   * The piece's emblem over its name, as large as fits inside the piece up to the cap. A piece
-   * too small for the game's narrowest name gets that size where it has most room, and overflows.
+   * Every shown piece's emblem over its name, as large as fits inside the piece up to the cap,
+   * with no two empires' labels overlapping. A piece too small for the game's narrowest name
+   * gets that size and overflows; a label crowded out even at half that size is left out.
    */
-  private placePiece(piece: PieceBadge, scan: PieceScan, art: boolean): void {
-    const { badge, emblem, glyph, label } = piece;
+  private layoutLabels(): void {
+    const requests: LabelRequest[] = [];
+    const pieces: PieceBadge[] = [];
+    for (const shape of this.shapes.values()) {
+      shape.scans.forEach((scan, i) => {
+        const piece = shape.pieces[i];
+        const request = shape.badges.visible ? this.requestOf(piece, scan, shape.art) : null;
+        if (request === null) {
+          piece.badge.visible = false;
+          return;
+        }
+        requests.push(request);
+        pieces.push(piece);
+      });
+    }
+    placeLabels(requests).forEach((fit, k) => this.placePiece(pieces[k], requests[k].shape, fit));
+  }
+
+  /**
+   * The piece's label per unit of font size, from the cap down to the smallest font size the
+   * name takes.
+   */
+  private requestOf({ label }: PieceBadge, scan: PieceScan, art: boolean): LabelRequest | null {
     label.scale.set(1, 1);
-    const nameWidth = label.width / LABEL_FONT_PX;
-    const nameHeight = label.height / LABEL_FONT_PX;
-    const artHeight = art ? EMBLEM_SIZE : 0;
-    const blockHeight = nameHeight + artHeight;
-    const blockWidth = Math.max(nameWidth, artHeight);
-    const floor = Math.min(
-      LABEL_FLOOR_MAX_SIZE,
-      this.ctx.border.name_min_width / Math.max(nameWidth, Number.EPSILON),
-    );
-    const fit =
-      blockHeight > 0 && blockWidth > 0
-        ? fitLabel(
-            scan,
-            blockWidth / blockHeight,
-            LABEL_MAX_SIZE * blockHeight,
-            floor * blockHeight,
-          )
-        : null;
+    const shape = {
+      nameWidth: label.width / LABEL_FONT_PX,
+      nameHeight: label.height / LABEL_FONT_PX,
+      emblem: art ? EMBLEM_SIZE : 0,
+    };
+    if (!(shape.nameWidth > 0 && shape.nameHeight > 0)) return null;
+    const narrowest = this.ctx.border.name_min_width * NAME_MIN_WIDTH_SHARE;
+    const floor = Math.min(LABEL_FLOOR_MAX_SIZE, narrowest / shape.nameWidth);
+    return { scan, shape, maxScale: LABEL_MAX_SIZE, minScale: floor };
+  }
+
+  private placePiece(piece: PieceBadge, shape: LabelShape, fit: LabelFit | null): void {
+    const { badge, emblem, glyph, label } = piece;
     badge.visible = fit !== null;
     if (fit === null) return;
-    const size = fit.height / blockHeight;
     badge.position.set(fit.x, fit.y);
-    const ratio = size / LABEL_FONT_PX;
+    const ratio = fit.scale / LABEL_FONT_PX;
     label.scale.set(SAVE_X_SIGN * ratio, SAVE_Y_SIGN * ratio);
-    const top = -fit.height / 2;
-    const diameter = artHeight * size;
-    label.position.set(0, SAVE_Y_SIGN * (top + diameter));
-    if (!art) return;
-    const centre = SAVE_Y_SIGN * (top + diameter / 2);
+    label.position.set(0, 0);
+    const diameter = shape.emblem * fit.scale;
+    if (diameter === 0) return;
+    const centre = SAVE_Y_SIGN * (-diameter / 2);
     glyph.position.set(0, centre);
     emblem.position.set(0, centre);
     const k = diameter / GLYPH_FONT_PX;
@@ -506,15 +562,19 @@ export class OwnersLayer implements MapLayer {
       for (const piece of shape.pieces) piece.label.style = this.labelStyle;
       this.placeEmblem(id, shape);
     }
+    this.layoutLabels();
   }
 
   private onTexturesLanded(keys: string[]): void {
     const settled = new Set(keys);
+    let landed = false;
     for (const [id, key] of this.emblemKeys) {
       if (!settled.has(key)) continue;
       const shape = this.shapes.get(id);
       if (shape) this.placeEmblem(id, shape);
+      landed ||= shape !== undefined;
     }
+    if (landed) this.layoutLabels();
   }
 
   private retext(id: number, shape: CountryShape): void {

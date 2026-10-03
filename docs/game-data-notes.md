@@ -349,17 +349,30 @@ less.
   `MAPNAME_NEBULA_SCALE = 0.8` and `MAPNAME_SECTOR_SCALE = 3`.
   `BORDER_MIN_SIZE_FOR_SYMBOL = 16` is commented "the border blob must
   be able to fit a square of x pixels" to show a symbol. The defines
-  don't say what unit `MAPNAME_BORDER_MIN_SIZE` is in. The editor reads
-  it as the narrowest a name is written, in world units: in game
-  screenshots the smallest names, on one-system pockets, are about 100
-  to 120 units wide. Nothing in the defines sets the emblem's colour or
-  alpha.
+  don't say what unit `MAPNAME_BORDER_MIN_SIZE` is in. Side by side
+  with the editor at the same zoom, the game writes the names on
+  one-system pockets about half as wide as 100 world units: "Chimm
+  Enterprises" about 150 px against 280 px, "Caravansary Caravan
+  Coalition" about 140 px against 280 px. So the editor writes a name
+  at least half of `MAPNAME_BORDER_MIN_SIZE` wide, in world units.
+  `GALAXY_SPACE_SCALE_MULT = 2.0` in `NCamera` may be why, but that is
+  a guess. Large names already matched: "Qix'Lufran Combine" is about
+  560 px in the game and 585 px in the editor. Nothing in the defines
+  sets the emblem's colour or alpha.
+- `NCamera` shows star names from `GALAXY_SHOW_STARNAME_ZOOM = 800`
+  and fades empire names at 600, so empire names last until the camera
+  is a third closer than where star names appear.
 - From screenshots of one save in game and in the editor: every
   separate piece of an empire's territory gets its own emblem and name,
-  however small. A vassal is labelled as its own country. The name runs
-  along the widest band of its piece and stays inside it, except on a
-  piece too small for the narrowest name, where it overflows. The emblem
-  sits centred directly above the name, flat white and partly
+  however small. A vassal is labelled as its own country. The label is
+  a T: a wide, short name, with the emblem centred on top of it. The
+  name runs along the widest band of its piece, and the emblem rises
+  into the room above its middle. "Hissman Consciousness" runs across
+  the thin middle band of its territory with the emblem in the taller
+  area above, not in the lower lobe where a solid box of name and
+  emblem would fit best. A label stays inside its piece, except on a
+  piece too small for the narrowest name, where it overflows. No two
+  empires' labels overlap. The emblem is flat white and partly
   see-through, about three to four times the name's cap height. Names
   are in world units, so they grow and shrink with the zoom.
 
