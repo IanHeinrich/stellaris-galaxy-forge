@@ -262,7 +262,8 @@ export class OwnersLayer implements MapLayer {
   private readonly fills = new Container({ label: "fills" });
   private readonly edges = new Container({ label: "edges" });
   private readonly emphases = new Container({ label: "emphases" });
-  private readonly badges = new Container({ label: "badges" });
+  /** The empire names and emblems, above the lanes and stars as in the game. */
+  readonly overlay = new Container({ label: "badges" });
   private emphasised = new Set<number>();
   private shownKinds: ReadonlySet<SpecialKind> = new Set();
   private ctx: RenderContext = EMPTY_CONTEXT;
@@ -291,7 +292,7 @@ export class OwnersLayer implements MapLayer {
 
   constructor(private readonly client: TerritoryClient = new InlineTerritoryClient()) {
     this.territories.addChild(this.fills, this.edges);
-    this.container.addChild(this.territories, this.emphases, this.badges);
+    this.container.addChild(this.territories, this.emphases);
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
     this.unsubscribeFont = onMapNameFont(() => this.onFontChanged());
     client.onReply((reply) => this.onReply(reply));
@@ -389,11 +390,12 @@ export class OwnersLayer implements MapLayer {
     Ticker.shared.remove(this.fadeTick, this);
     Ticker.shared.remove(this.restrokeTick, this);
     this.container.destroy({ children: true });
+    this.overlay.destroy({ children: true });
   }
 
   private applyVisibility(): void {
     this.territories.visible = this.shown || this.clansShown;
-    this.badges.visible = this.shown && this.fade > 0;
+    this.overlay.visible = this.shown && this.fade > 0;
     this.container.visible = this.shown || this.clansShown || this.emphasised.size > 0;
     this.refreshHidden();
   }
@@ -491,7 +493,7 @@ export class OwnersLayer implements MapLayer {
       this.fills.addChild(shape.fill);
       this.edges.addChild(shape.edge);
       this.emphases.addChild(shape.emphasis);
-      this.badges.addChild(badges);
+      this.overlay.addChild(badges);
       this.shapes.set(id, shape);
     }
     shape.smoothed = smoothed;
@@ -788,7 +790,7 @@ export class OwnersLayer implements MapLayer {
     const step = ticker.deltaMS / (out ? FADE_OUT_MS : FADE_IN_MS);
     const wasShown = this.fade > 0;
     this.fade = clamp(this.fade + (out ? -step : step), 0, 1);
-    this.badges.alpha = smoothstep(this.fade);
+    this.overlay.alpha = smoothstep(this.fade);
     if (this.fade > 0 !== wasShown) this.applyVisibility();
     if (this.fade === this.fadeTarget) {
       this.fading = false;

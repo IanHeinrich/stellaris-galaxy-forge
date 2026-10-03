@@ -91,6 +91,7 @@ export class GalaxyScene implements Scene, MapView {
       this.layers.push(layer);
       this.root.addChild(layer.container);
     }
+    for (const layer of this.layers) if (layer.overlay) this.root.addChild(layer.overlay);
     this.layers.push(this.highlights);
     this.root.addChild(this.highlights.container);
     for (const layer of this.layers) layer.rebuild(this.ctx);

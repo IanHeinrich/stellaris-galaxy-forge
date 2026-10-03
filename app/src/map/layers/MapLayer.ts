@@ -31,6 +31,8 @@ export function sameDragged(
 export interface MapLayer {
   readonly id: LayerId;
   readonly container: Container;
+  /** Drawn above every layer's container, under the highlights. */
+  readonly overlay?: Container;
   /** Re-derives what the layer draws; called for every context the controller assembles. */
   rebuild(ctx: RenderContext): void;
   applyDelta(d: GalaxyDelta): void;

@@ -78,7 +78,7 @@ function innerArea(edge: Graphics): number {
 
 /** Every shown piece badge, across the countries. */
 function pieceBadges(layer: OwnersLayer): Container[] {
-  return (childByLabel(layer.container, "badges").children as Container[])
+  return (layer.overlay.children as Container[])
     .filter((country) => country.visible)
     .flatMap((country) => (country.children as Container[]).filter((piece) => piece.visible));
 }
