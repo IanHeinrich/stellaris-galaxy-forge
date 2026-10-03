@@ -1,13 +1,14 @@
 import type { Graphics } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
+import type { BypassLink } from "../../generated/BypassLink";
 import type { SystemNode } from "../../generated/SystemNode";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import { Camera } from "../Camera";
 import { DrawnPositions, LIFT_SCALE } from "../drawnPositions";
 import { EMPTY_CONTEXT } from "../RenderContext";
-import { LanesLayer, PREVENTED_LANE } from "./LanesLayer";
+import { LanesLayer, PREVENTED_LANE, RELAY_LANE_PX } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
-import { childByLabel, type DrawOp, mapContext, mapNode, strokes } from "./fixture";
+import { childByLabel, type DrawOp, mapContext, mapNode, strokes, viewport } from "./fixture";
 
 /** Every tile's graphics, the prevented pairs' under the lanes'. */
 function tileGraphics(layer: MapLayer): Graphics[] {
@@ -180,7 +181,7 @@ describe("a height preview on a tilted map", () => {
 
     positions.setPreview(new Map([[2, 50]]));
 
-    expect(cleared.filter((spy) => spy.mock.calls.length > 0)).toHaveLength(3);
+    expect(cleared.filter((spy) => spy.mock.calls.length > 0)).toHaveLength(4);
     const lifted = -50 * LIFT_SCALE * Math.tan(Math.PI / 6);
     const lane = laneStrokes(layer)
       .flatMap((s) => s.segments)
@@ -195,5 +196,69 @@ describe("a height preview on a tilted map", () => {
     const cleared = tileGraphics(layer).map((g) => vi.spyOn(g, "clear"));
     positions.setPreview(new Map([[2, 50]]));
     expect(cleared.every((spy) => spy.mock.calls.length === 0)).toBe(true);
+  });
+});
+
+describe("a lane between two Hyper Relays", () => {
+  /** Relays stand in 10 and 11; 12, past 11, has none. */
+  const RELAYED: SystemNode[] = [
+    { ...mapNode(10, 0, "Relay A"), lanes: [{ to: 11, length: 20, bridge: false, stale: false }] },
+    {
+      ...mapNode(11, 20, "Relay B"),
+      lanes: [
+        { to: 10, length: 20, bridge: false, stale: false },
+        { to: 12, length: 20, bridge: false, stale: false },
+      ],
+    },
+    { ...mapNode(12, 40, "Plain"), lanes: [{ to: 11, length: 20, bridge: false, stale: false }] },
+  ];
+  const RELAYS: BypassLink[] = [
+    { type: "other", system: 10, kind: "relay_bypass" },
+    { type: "other", system: 11, kind: "relay_bypass" },
+  ];
+
+  function strokeOf(layer: MapLayer, segment: number[]): DrawOp {
+    const found = laneStrokes(layer).find((s) =>
+      s.segments.some((seg) => seg.join() === segment.join()),
+    );
+    if (!found) throw new Error(`no stroke along ${segment.join()}`);
+    return found;
+  }
+
+  it("is drawn wider than a lane with a relay at one end only", () => {
+    const layer = new LanesLayer();
+    layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
+
+    const relay = strokeOf(layer, [0, 0, 20, 0]);
+    const single = strokeOf(layer, [20, 0, 40, 0]);
+    expect(single.pixelLine).toBe(true);
+    expect(relay.pixelLine).toBeFalsy();
+    expect(relay.width).toBe(RELAY_LANE_PX);
+    expect(relay.width!).toBeGreaterThan(single.width!);
+    expect(relay.segments).toEqual([[0, 0, 20, 0]]);
+  });
+
+  it("stays the same width on screen as the map zooms", () => {
+    const layer = new LanesLayer();
+    layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
+    for (const scale of [0.3, 4, 12]) {
+      viewport(layer, scale);
+      expect(strokeOf(layer, [0, 0, 20, 0]).width! * scale).toBeCloseTo(RELAY_LANE_PX, 0);
+    }
+  });
+
+  it("keeps its width under a wayline", () => {
+    const layer = new LanesLayer();
+    layer.rebuild(
+      mapContext(RELAYED, { bypasses: RELAYS, waylines: [{ a: 10, b: 11, network: 1 }] }),
+    );
+    expect(strokeOf(layer, [0, 0, 20, 0]).width).toBe(RELAY_LANE_PX);
+  });
+
+  it("goes back to a hairline once an end no longer holds a relay", () => {
+    const layer = new LanesLayer();
+    layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
+    layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS.slice(1) }));
+    expect(strokeOf(layer, [0, 0, 20, 0]).pixelLine).toBe(true);
   });
 });

@@ -612,6 +612,16 @@ for planets or deposits.
   derives one between two stations of a network when a hyperlane or a
   bypass joins their systems. So cutting the lane ends the wayline, and
   nothing else needs editing.
+- A Hyper Relay is in the save twice. Its `megastructures` row has
+  `type="hyper_relay"` (or `hyper_relay_restored`) and `bypass=<id>`,
+  and its `bypasses` row has `type="relay_bypass"`,
+  `owner={ type=6 id=<megastructure> }` and `connections`. The system
+  lists both, in `megastructures={ … }` and `bypasses={ … }`. A
+  `hyper_relay_ruined` has no bypass. In one late 3.14 save, 534 relays
+  each list exactly the relays in their lane neighbours as
+  `connections`, and 708 of its 1134 lanes run between two relays.
+  Neither sample has a relay. `has_access_to_relay_network=yes` on a
+  system is something else: the 4.4 sample sets it on 20 systems.
 
 ## Global flags
 

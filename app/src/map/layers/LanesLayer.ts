@@ -1,4 +1,5 @@
 import { Container, Graphics } from "pixi.js";
+import type { BypassLink } from "../../generated/BypassLink";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import { pairKey } from "../../lib/geometry/pairs";
@@ -28,6 +29,13 @@ export const PREVENTED_LANE: LaneStyle = { color: 0x3b5b8a, alpha: 0.3 };
 /** World units of ink and of gap in a prevented pair's dashes. */
 const DASH = 2;
 const GAP = 2;
+
+/** The bypass a Hyper Relay stands in the save as. */
+const RELAY_BYPASS = "relay_bypass";
+/** A lane between two relays, in pixels: the game's `HYPERLANE_THICKNESS_RELAY` is twice its default. */
+export const RELAY_LANE_PX = 2;
+/** Widths a relay lane is restroked at per doubling of zoom, so a zoom seldom redraws it. */
+const RELAY_STEPS = 8;
 
 /** Pixels per world unit at which the lanes start easing from the far look to the near one. */
 const EASE_FROM_SCALE = 1;
@@ -67,6 +75,21 @@ export function tinted(style: LaneStyle, tint: number, t: number): LaneStyle {
   return mixStyle(style, { color: tint, alpha: style.alpha }, t);
 }
 
+/** The systems holding a Hyper Relay. */
+function relaySystems(bypasses: readonly BypassLink[]): ReadonlySet<number> {
+  const ids = new Set<number>();
+  for (const link of bypasses) {
+    if (link.type === "other" && link.kind === RELAY_BYPASS) ids.add(link.system);
+  }
+  return ids;
+}
+
+function sameMembers(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
+
 /** World units per side of the tiles the lanes are drawn in, so an edit redraws only its own. */
 const TILE = 200;
 
@@ -83,6 +106,7 @@ interface Tile {
   readonly entries: Set<LaneEntry>;
   readonly prevented: Graphics;
   readonly lanes: Graphics;
+  readonly relays: Graphics;
   readonly bridges: Graphics;
 }
 
@@ -92,7 +116,8 @@ function tileOf(x: number, y: number): number {
 
 /**
  * Every undirected lane once, as hairlines that stay 1px at any zoom, drawn in tiles: a delta
- * or a drag redraws only the tiles holding a lane of a system it touches.
+ * or a drag redraws only the tiles holding a lane of a system it touches. A lane between two
+ * Hyper Relays stays `RELAY_LANE_PX` wide instead, under any wayline band laid over it.
  */
 export class LanesLayer implements MapLayer {
   readonly id = "lanes" as const;
@@ -100,23 +125,34 @@ export class LanesLayer implements MapLayer {
   /** The prevented pairs' dashes under every tile's lanes, and the bridges over them. */
   private readonly preventedLayer = new Container({ label: "prevented" });
   private readonly lanesLayer = new Container({ label: "lanes" });
+  private readonly relaysLayer = new Container({ label: "relays" });
   private readonly bridgesLayer = new Container({ label: "bridges" });
   private readonly tiles = new Map<number, Tile>();
   private readonly table = new LaneTable<LaneEntry>();
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
+  private bypasses = EMPTY_CONTEXT.bypasses;
+  private relays: ReadonlySet<number> = new Set();
   private dragged: ReadonlyMap<number, MoveGhost> = NO_DRAG;
   private ease = 0;
+  private relayStep = 0;
 
   constructor(private readonly drawn = new DrawnPositions()) {
-    this.container.addChild(this.preventedLayer, this.lanesLayer, this.bridgesLayer);
+    this.container.addChild(
+      this.preventedLayer,
+      this.lanesLayer,
+      this.relaysLayer,
+      this.bridgesLayer,
+    );
   }
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
     this.galaxy = ctx.galaxy;
     this.systems = ctx.systems;
+    const relaid = this.readRelays(ctx.bypasses);
     if (loaded) this.refile();
+    else if (relaid) for (const tile of this.tiles.keys()) this.drawTile(tile);
   }
 
   applyDelta(d: GalaxyDelta): void {
@@ -147,9 +183,15 @@ export class LanesLayer implements MapLayer {
 
   onViewport(cam: Camera): void {
     const ease = laneEase(cam.scale);
-    if (ease === this.ease) return;
-    this.ease = ease;
-    for (const tile of this.tiles.keys()) this.drawTile(tile);
+    const relayStep = Math.round(Math.log2(cam.scale) * RELAY_STEPS);
+    if (ease !== this.ease) {
+      this.ease = ease;
+      this.relayStep = relayStep;
+      for (const tile of this.tiles.keys()) this.drawTile(tile);
+    } else if (relayStep !== this.relayStep) {
+      this.relayStep = relayStep;
+      for (const tile of this.tiles.values()) this.drawRelays(tile);
+    }
   }
 
   /** Redraws only the tiles holding a lane of a system drawn somewhere else now. */
@@ -170,11 +212,22 @@ export class LanesLayer implements MapLayer {
   private refile(): void {
     this.preventedLayer.removeChildren().forEach((c) => c.destroy());
     this.lanesLayer.removeChildren().forEach((c) => c.destroy());
+    this.relaysLayer.removeChildren().forEach((c) => c.destroy());
     this.bridgesLayer.removeChildren().forEach((c) => c.destroy());
     this.tiles.clear();
     this.table.clear();
     for (const s of this.systems.values()) this.derive(s);
     for (const tile of this.tiles.keys()) this.drawTile(tile);
+  }
+
+  /** Reads which systems hold a relay from `bypasses`; true when that changed. */
+  private readRelays(bypasses: readonly BypassLink[]): boolean {
+    if (bypasses === this.bypasses) return false;
+    this.bypasses = bypasses;
+    const relays = relaySystems(bypasses);
+    const changed = !sameMembers(relays, this.relays);
+    this.relays = relays;
+    return changed;
   }
 
   /**
@@ -215,11 +268,13 @@ export class LanesLayer implements MapLayer {
         entries: new Set(),
         prevented: new Graphics(),
         lanes: new Graphics(),
+        relays: new Graphics(),
         bridges: new Graphics(),
       };
       this.tiles.set(key, tile);
       this.preventedLayer.addChild(tile.prevented);
       this.lanesLayer.addChild(tile.lanes);
+      this.relaysLayer.addChild(tile.relays);
       this.bridgesLayer.addChild(tile.bridges);
     }
     return tile;
@@ -232,6 +287,7 @@ export class LanesLayer implements MapLayer {
       this.tiles.delete(key);
       tile.prevented.destroy();
       tile.lanes.destroy();
+      tile.relays.destroy();
       tile.bridges.destroy();
       return;
     }
@@ -239,28 +295,63 @@ export class LanesLayer implements MapLayer {
     tile.lanes.clear();
     tile.bridges.clear();
     this.drawPrevented(tile);
-    const laneStyle = mixStyle(LANE_FAR, LANE_NEAR, this.ease);
-    const bridgeStyle = mixStyle(BRIDGE_FAR, BRIDGE_NEAR, this.ease);
     for (const kind of ["lane", "bridge"] as const) {
       const g = kind === "bridge" ? tile.bridges : tile.lanes;
+      const style = this.styleOf(kind);
       for (const faded of [false, true]) {
-        let any = false;
-        for (const entry of tile.entries) {
-          if (entry.kind !== kind || this.faded(entry) !== faded) continue;
-          const a = this.systems.get(entry.ends[0]);
-          const b = this.systems.get(entry.ends[1]);
-          if (!a || !b) continue;
-          const from = this.drawn.at(a);
-          const to = this.drawn.at(b);
-          g.moveTo(from.x, from.y).lineTo(to.x, to.y);
-          any = true;
-        }
-        const style = kind === "bridge" ? bridgeStyle : laneStyle;
+        const any = this.trace(g, tile, (e) => e.kind === kind && !this.relayed(e), faded);
         if (any) {
           g.stroke({ ...style, alpha: faded ? ORIGIN_LANE_ALPHA : style.alpha, pixelLine: true });
         }
       }
     }
+    this.drawRelays(tile);
+  }
+
+  /** The tile's relay lanes, at the width that keeps them `RELAY_LANE_PX` on screen. */
+  private drawRelays(tile: Tile): void {
+    const g = tile.relays;
+    g.clear();
+    const width = RELAY_LANE_PX / 2 ** (this.relayStep / RELAY_STEPS);
+    for (const kind of ["lane", "bridge"] as const) {
+      const style = this.styleOf(kind);
+      for (const faded of [false, true]) {
+        const any = this.trace(g, tile, (e) => e.kind === kind && this.relayed(e), faded);
+        if (any) g.stroke({ ...style, alpha: faded ? ORIGIN_LANE_ALPHA : style.alpha, width });
+      }
+    }
+  }
+
+  private styleOf(kind: "lane" | "bridge"): LaneStyle {
+    return kind === "bridge"
+      ? mixStyle(BRIDGE_FAR, BRIDGE_NEAR, this.ease)
+      : mixStyle(LANE_FAR, LANE_NEAR, this.ease);
+  }
+
+  /** Lays the path of each of the tile's entries `which` picks, dimmed or not; true for any. */
+  private trace(
+    g: Graphics,
+    tile: Tile,
+    which: (entry: LaneEntry) => boolean,
+    faded: boolean,
+  ): boolean {
+    let any = false;
+    for (const entry of tile.entries) {
+      if (!which(entry) || this.faded(entry) !== faded) continue;
+      const a = this.systems.get(entry.ends[0]);
+      const b = this.systems.get(entry.ends[1]);
+      if (!a || !b) continue;
+      const from = this.drawn.at(a);
+      const to = this.drawn.at(b);
+      g.moveTo(from.x, from.y).lineTo(to.x, to.y);
+      any = true;
+    }
+    return any;
+  }
+
+  /** A lane with a Hyper Relay at both ends. */
+  private relayed(entry: LaneEntry): boolean {
+    return entry.ends.every((id) => this.relays.has(id));
   }
 
   /** The tile's prevented pairs, a dragged system's dimmed as its lanes are. */
