@@ -13,7 +13,7 @@ fn reads_resolves_and_strips_markup() {
     let gd = common::cached_fixture();
     assert_eq!(gd.loc.language, "english");
     assert!(!gd.loc.fell_back);
-    assert_eq!(gd.loc.len(), 50);
+    assert_eq!(gd.loc.len(), 60);
     assert_eq!(gd.loc.raw("sc_sun"), Some("$pc_sun_star$"));
     let looped = gd
         .loc
@@ -115,6 +115,7 @@ fn later_layers_win_and_replace_files_win_over_all() {
         names(&normal),
         [
             "a_l_english.yml",
+            "name_system_l_english.yml",
             "misc_pf.yml",
             "one_l_english.yml",
             "two_bare_l_english.yml"
@@ -378,4 +379,97 @@ fn a_doubled_dollar_is_not_a_placeholder() {
         vec![("fmt", plain("$$ $ORD$")), ("num", literal("2"))],
     );
     assert_eq!(loc.resolve_template(&seq), "$2ORD$");
+}
+
+fn adjective_of(loc: &Localisation, noun: NameTemplate) -> String {
+    loc.resolve_template(&template(
+        "%ADJECTIVE%",
+        vec![("adjective", noun), ("1", plain("Consciousness"))],
+    ))
+}
+
+#[test]
+fn an_adjective_follows_the_longest_ending_pattern_of_its_noun() {
+    let loc = &common::cached_fixture().loc;
+    let adjective = |key: &str| adjective_of(loc, plain(key));
+    assert_eq!(adjective("SPEC_Hissma"), "Hissman Consciousness");
+    assert_eq!(adjective("SPEC_Centauri"), "Centaurian Consciousness");
+    assert_eq!(adjective("SPEC_Ganvius"), "Ganvian Consciousness");
+    assert_eq!(adjective("SPEC_Cyggan"), "Cyggan Consciousness");
+    assert_eq!(adjective_of(loc, literal("Dorr")), "Dorr Consciousness");
+    assert_eq!(adjective_of(loc, literal("Dors")), "Dorsian Consciousness");
+}
+
+#[test]
+fn an_adjective_entry_of_its_own_wins_over_the_patterns() {
+    let loc = &common::cached_fixture().loc;
+    assert_eq!(
+        adjective_of(loc, plain("SPEC_Mishar")),
+        "Mishish Consciousness"
+    );
+}
+
+#[test]
+fn a_noun_no_pattern_matches_takes_the_zero_letter_pattern_when_the_install_has_one() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/scripted_variables/00_fx.txt", ""),
+        (
+            "localisation/english/name_system_l_english.yml",
+            "l_english:\n adj_format:0 \"adj $1$\"\n adj_NN:0 \"*oid $1$\"\n adj_NNa:0 \"*an $1$\"\n",
+        ),
+        ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ]);
+    assert_eq!(
+        adjective_of(&gd.loc, literal("Hissma")),
+        "Hissman Consciousness"
+    );
+    assert_eq!(
+        adjective_of(&gd.loc, literal("Zel")),
+        "Zeloid Consciousness"
+    );
+}
+
+#[test]
+fn the_real_install_turns_a_species_into_its_adjective() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let adjective = |key: &str| adjective_of(&gd.loc, plain(key));
+    assert_eq!(adjective("SPEC_Hissma"), "Hissman Consciousness");
+    assert_eq!(adjective("SPEC_Caloctora"), "Caloctoran Consciousness");
+    assert_eq!(adjective("SPEC_Cyggan"), "Cyggan Consciousness");
+    assert_eq!(
+        adjective_of(&gd.loc, literal("Ganvius")),
+        "Ganvian Consciousness"
+    );
+    assert_eq!(
+        adjective_of(&gd.loc, literal("Centauri")),
+        "Centaurian Consciousness"
+    );
+}
+
+#[test]
+fn the_sample_save_names_its_adjective_empires_by_the_real_patterns() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_5();
+    let names: Vec<String> = session
+        .graph
+        .countries
+        .iter()
+        .filter(|c| c.name.key.starts_with("%ADJ"))
+        .map(|c| gd.loc.resolve_template(&c.name))
+        .collect();
+    for expected in [
+        "Hissman Consciousness",
+        "Nagyarian Allied Nations",
+        "Qix'Lufran Combine",
+        "Chimm Enterprises",
+    ] {
+        assert!(
+            names.iter().any(|n| n == expected),
+            "{expected} in {names:?}"
+        );
+    }
 }
