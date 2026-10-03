@@ -13,6 +13,14 @@ const MAX_DEPTH: usize = 8;
 const SEQUENTIAL_KEY: &str = "%SEQ%";
 /// The game's ship prefix: the acronym of the name its `base` variable holds.
 const ACRONYM_KEY: &str = "%ACRONYM%";
+/// The game's species or empire adjective: `adjective` names the noun, `1` the word it
+/// qualifies.
+const ADJECTIVE_KEY: &str = "%ADJECTIVE%";
+/// `adj_NN<ending>` turns a noun into an adjective by its last letters, and `adj_format`
+/// places an adjective that has no `$1$` slot.
+const ADJECTIVE_PATTERN: &str = "adj_NN";
+const ADJECTIVE_FORMAT: &str = "adj_format";
+const ADJECTIVE_SLOT: &str = "$1$";
 
 const ROMAN: [(i64, &str); 13] = [
     (1000, "M"),
@@ -56,15 +64,24 @@ impl Localisation {
             return variable(template, "base")
                 .map_or_else(String::new, |base| acronym(&self.resolve(base, depth + 1)));
         }
-        let entry = format_key(&template.key)
-            .map(str::to_owned)
-            .or_else(|| self.get(&template.key))
-            .unwrap_or_else(|| display_name(&template.key));
+        let adjective = (template.key == ADJECTIVE_KEY).then(|| variable(template, "adjective"));
+        let entry = match adjective {
+            Some(Some(noun)) if depth < MAX_DEPTH => self.adjective(noun, depth + 1),
+            Some(_) => ADJECTIVE_SLOT.to_owned(),
+            None => format_key(&template.key)
+                .map(str::to_owned)
+                .or_else(|| self.get(&template.key))
+                .unwrap_or_else(|| display_name(&template.key)),
+        };
         if depth >= MAX_DEPTH {
             return collapse(&fill(&entry, |_| String::new()));
         }
         let text = self.restore_slots(&entry, template);
-        let mut consumed: Vec<&str> = Vec::new();
+        let mut consumed: Vec<&str> = if adjective.is_some() {
+            vec!["adjective"]
+        } else {
+            Vec::new()
+        };
         let filled = fill(&text, |name| match variable(template, name) {
             Some(value) => {
                 consumed.push(name);
@@ -84,6 +101,45 @@ impl Localisation {
                 .collect::<Vec<_>>()
                 .join(" "),
         )
+    }
+
+    /// The adjective for `noun`, with its `$1$` slot: the noun's own `_adj` entry when it
+    /// has one, else the noun through the install's `adj_NN` ending patterns.
+    fn adjective(&self, noun: &NameTemplate, depth: usize) -> String {
+        if !noun.literal && noun.variables.is_empty() {
+            let explicit = self
+                .get(&format!("{}_adj", noun.key))
+                .filter(|text| !text.is_empty());
+            if let Some(text) = explicit {
+                return self.with_adjective_slot(text);
+            }
+        }
+        self.adjectivize(&self.resolve(noun, depth))
+    }
+
+    /// The pattern for the noun's last two letters, else its last letter, else the
+    /// zero-letter one. The matched ending is dropped and the rest takes the `*`. A noun
+    /// no pattern matches stays as it is.
+    fn adjectivize(&self, noun: &str) -> String {
+        let letters: Vec<char> = noun.chars().collect();
+        for ending_len in [2, 1, 0] {
+            let Some(split) = letters.len().checked_sub(ending_len) else {
+                continue;
+            };
+            let ending = letters[split..].iter().collect::<String>().to_lowercase();
+            if let Some(pattern) = self.raw(&format!("{ADJECTIVE_PATTERN}{ending}")) {
+                return pattern.replace('*', &letters[..split].iter().collect::<String>());
+            }
+        }
+        self.with_adjective_slot(noun.to_owned())
+    }
+
+    fn with_adjective_slot(&self, adjective: String) -> String {
+        if adjective.contains(ADJECTIVE_SLOT) {
+            return adjective;
+        }
+        let format = self.raw(ADJECTIVE_FORMAT).unwrap_or("adj $1$");
+        format.replacen("adj", &adjective, 1)
     }
 
     /// A `$NAME$` slot whose name is itself a localisation key (`NAME`, `PLANET`, `SYSTEM`)
@@ -118,7 +174,6 @@ impl Localisation {
 /// Format keys the game resolves in code rather than through localisation.
 fn format_key(key: &str) -> Option<&'static str> {
     match key {
-        "%ADJECTIVE%" => Some("$adjective$ $1$"),
         "%ADJ%" => Some("$1$"),
         _ => None,
     }

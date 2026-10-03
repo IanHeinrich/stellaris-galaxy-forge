@@ -1,0 +1,11 @@
+﻿l_english:
+ adj_format:0 "adj $1$"
+ adj_NNi:0 "*ian $1$"
+ adj_NNa:0 "*an $1$"
+ adj_NNus:0 "*an $1$"
+ adj_NNs:0 "*sian $1$"
+ SPEC_Mishar:0 "Mishar"
+ SPEC_Mishar_adj:0 "Mishish"
+ SPEC_Hissma:0 "Hissma"
+ SPEC_Ganvius:0 "Ganvius"
+ SPEC_Centauri:0 "Centauri"
