@@ -8,11 +8,6 @@ a release is made.
 
 ## [Unreleased]
 
-### Fixed
-
-- Empire names built from a species name use the game's adjective, so
-  the Hissma are the "Hissman Consciousness", as in game.
-
 ## [0.19.0] - 2026-09-29
 
 ### Added
