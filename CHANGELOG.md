@@ -8,6 +8,24 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-04
+
+### Added
+
+- Added system heights to saves. Raise or lower systems in the Inspector,
+  or paint them with the new Height brush (H).
+- Added a Tilt slider to view the map at an angle like the game's
+  camera. You can still edit while tilted.
+- Added a Heights layer that marks raised and sunk stars.
+
+### Fixed
+
+- Fixed the way empire borders are drawn, and empire name placement, to
+  be more like the game.
+- Fixed hyperlanes between two Hyper Relays to be thicker, as in game.
+- Fixed empire names built from a species name to use the game's
+  adjective, such as "Hissman Consciousness".
+
 ## [0.19.0] - 2026-09-29
 
 ### Added
