@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { Territories, type Shape } from "./territories";
-import { scanRing } from "./labelFit";
+import { scanPiece } from "./labelFit";
 import { countryRegions, ringArea, smoothRegion } from "./territory";
 import { buildGalaxy } from "./territory.fixture";
 
@@ -21,7 +21,7 @@ function direct(systems: SystemNode[], bordered = BORDERED): Map<number, Shape> 
   const shapes = new Map<number, Shape>();
   for (const [id, region] of countryRegions(systems, PARAMS, new Set(bordered))) {
     const smoothed = smoothRegion(region);
-    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanRing(polygon[0])) });
+    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanPiece(polygon)) });
   }
   return shapes;
 }

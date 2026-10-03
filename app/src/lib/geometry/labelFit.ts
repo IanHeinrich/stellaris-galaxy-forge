@@ -1,7 +1,7 @@
 import type { Pt } from "./pt";
 
 /** Horizontal lines a territory piece is sampled along to place its name. */
-export const SCAN_ROWS = 24;
+export const SCAN_ROWS = 48;
 /**
  * How far either end of a name may run past the edge of its stretch, in units of scale (font
  * sizes), about half a letter: in the game the first letter of a name centred on its territory
@@ -10,6 +10,22 @@ export const SCAN_ROWS = 24;
 const NAME_SPILL = 0.5;
 /** The share of the emblem's width and height that may poke past the piece. */
 const EMBLEM_OVERHANG = 0.1;
+/**
+ * How far above and below the centre of area, as a share of the piece's height, a label looks
+ * for the row where it comes out largest before it settles for the nearest row that fits.
+ */
+const WINDOW = 0.15;
+/** Heights within this share of each other count as the same size. */
+const TIE = 0.05;
+/** Rank of a scale, `TIE` wide, larger first. */
+function rankOf(scale: number): number {
+  return Math.floor(Math.log(scale) / Math.log(1 + TIE));
+}
+/**
+ * How far a label keeps from a hole's edge, in world units. A hole is an unclaimed system, and
+ * the game keeps its labels well clear of one: Chinorr Combine's emblem sits below its holes.
+ */
+const HOLE_CLEARANCE = 25;
 /** The step a label's scale is tried down by while it does not fit. */
 const SCALE_STEP = 0.95;
 
@@ -26,6 +42,15 @@ export interface PieceScan {
   /** The piece's centre of area: a label's x, and where a tiny piece's emblem sits. */
   cx: number;
   cy: number;
+  /** Each hole as a circle round its middle, which no label may come near. */
+  holes: Hole[];
+}
+
+/** A hole of a piece: its middle and the radius that takes in all of it. */
+export interface Hole {
+  x: number;
+  y: number;
+  r: number;
 }
 
 /**
@@ -39,55 +64,101 @@ export interface LabelFit {
   inside: boolean;
 }
 
-/** The ring sampled along `rows` lines spread evenly over its height, the ends inset by half a step. */
-export function scanRing(ring: readonly Pt[], rows = SCAN_ROWS): PieceScan {
+/**
+ * A piece, its outer ring followed by its holes, sampled along `rows` lines spread evenly over
+ * its height, the ends inset by half a step. A line's stretches stop at the edges of holes.
+ */
+export function scanPiece(rings: readonly (readonly Pt[])[], rows = SCAN_ROWS): PieceScan {
+  const outer = rings[0] ?? [];
   let minY = Infinity;
   let maxY = -Infinity;
-  for (const p of ring) {
+  for (const p of outer) {
     if (p.y < minY) minY = p.y;
     if (p.y > maxY) maxY = p.y;
   }
   const step = (maxY - minY) / rows;
   const y0 = minY + step / 2;
   const crossings: number[][] = Array.from({ length: rows }, () => []);
-  const { cx, cy } = centreOfArea(ring);
-  if (!(step > 0)) return { y0, step: 0, rows: [], cx, cy };
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[j];
-    const b = ring[i];
-    if (a.y === b.y) continue;
-    const lo = Math.min(a.y, b.y);
-    const hi = Math.max(a.y, b.y);
-    const first = Math.max(0, Math.ceil((lo - y0) / step));
-    const last = Math.min(rows - 1, Math.floor((hi - y0) / step));
-    for (let r = first; r <= last; r++) {
-      const y = y0 + r * step;
-      if (y < lo || y >= hi) continue;
-      crossings[r].push(a.x + ((y - a.y) / (b.y - a.y)) * (b.x - a.x));
+  const { cx, cy } = centreOfArea(rings);
+  const holes = rings.slice(1).map(holeOf);
+  if (!(step > 0)) return { y0, step: 0, rows: [], cx, cy, holes };
+  for (const ring of rings) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j];
+      const b = ring[i];
+      if (a.y === b.y) continue;
+      const lo = Math.min(a.y, b.y);
+      const hi = Math.max(a.y, b.y);
+      const first = Math.max(0, Math.ceil((lo - y0) / step));
+      const last = Math.min(rows - 1, Math.floor((hi - y0) / step));
+      for (let r = first; r <= last; r++) {
+        const y = y0 + r * step;
+        if (y < lo || y >= hi) continue;
+        crossings[r].push(a.x + ((y - a.y) / (b.y - a.y)) * (b.x - a.x));
+      }
     }
   }
   for (const row of crossings) row.sort((p, q) => p - q);
-  return { y0, step, rows: crossings, cx, cy };
+  return { y0, step, rows: crossings, cx, cy, holes };
 }
 
-/** The centroid of the ring's area; the mean of its points when it has none. */
-function centreOfArea(ring: readonly Pt[]): { cx: number; cy: number } {
+/** The circle round a hole's ring: the middle of its box, out to its farthest point. */
+function holeOf(ring: readonly Pt[]): Hole {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of ring) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const x = (minX + maxX) / 2;
+  const y = (minY + maxY) / 2;
+  const r = ring.reduce((far, p) => Math.max(far, Math.hypot(p.x - x, p.y - y)), 0);
+  return { x, y, r };
+}
+
+/** A piece with no holes: `scanPiece` of the one ring. */
+export function scanRing(ring: readonly Pt[], rows = SCAN_ROWS): PieceScan {
+  return scanPiece([ring], rows);
+}
+
+/**
+ * The centroid of the piece's area, its holes taken out; the mean of the outer ring's points
+ * when it has none.
+ */
+function centreOfArea(rings: readonly (readonly Pt[])[]): {
+  cx: number;
+  cy: number;
+} {
   let area = 0;
   let sx = 0;
   let sy = 0;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[j];
-    const b = ring[i];
-    const cross = a.x * b.y - b.x * a.y;
-    area += cross;
-    sx += (a.x + b.x) * cross;
-    sy += (a.y + b.y) * cross;
-  }
+  rings.forEach((ring, k) => {
+    let a2 = 0;
+    let rx = 0;
+    let ry = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[j];
+      const b = ring[i];
+      const cross = a.x * b.y - b.x * a.y;
+      a2 += cross;
+      rx += (a.x + b.x) * cross;
+      ry += (a.y + b.y) * cross;
+    }
+    const sign = (k === 0 ? 1 : -1) * Math.sign(a2);
+    area += sign * a2;
+    sx += sign * rx;
+    sy += sign * ry;
+  });
   if (area !== 0) return { cx: sx / (3 * area), cy: sy / (3 * area) };
-  const n = Math.max(ring.length, 1);
+  const outer = rings[0] ?? [];
+  const n = Math.max(outer.length, 1);
   return {
-    cx: ring.reduce((s, p) => s + p.x, 0) / n,
-    cy: ring.reduce((s, p) => s + p.y, 0) / n,
+    cx: outer.reduce((s, p) => s + p.x, 0) / n,
+    cy: outer.reduce((s, p) => s + p.y, 0) / n,
   };
 }
 
@@ -218,13 +289,21 @@ function emblemFits(scan: PieceScan, x: number, side: number, top: number): bool
   return false;
 }
 
+/** Whether `rect` keeps `HOLE_CLEARANCE` clear of every hole of the piece. */
+function clearOfHoles(scan: PieceScan, rect: Rect): boolean {
+  return scan.holes.every((h) => {
+    const dx = Math.max(rect.x0 - h.x, 0, h.x - rect.x1);
+    const dy = Math.max(rect.y0 - h.y, 0, h.y - rect.y1);
+    return Math.hypot(dx, dy) >= h.r + HOLE_CLEARANCE;
+  });
+}
+
 /**
  * The largest label, from `maxScale` down to `minScale`, whose name bar lies on the row at `y`
- * within its stretch, either end at most `NAME_SPILL` past the edge, with the emblem mostly
- * inside above it. The name is as wide as the whole stretch allows and sits on the centre of
- * area's x, slid sideways only as far as it must to fit. On the anchor row (`centred`) the
- * stretch must hold the centre's x; on another row it is the stretch nearest it. Null when even
- * `minScale` does not fit.
+ * within the stretch nearest the centre of area's x, either end at most `NAME_SPILL` past the
+ * edge, with the emblem mostly inside above it and the whole label clear of the holes. The name
+ * is as wide as the whole stretch allows and sits on the centre's x, slid sideways only as far
+ * as it must to fit. Null when even `minScale` does not fit.
  */
 function fitAt(
   scan: PieceScan,
@@ -232,12 +311,11 @@ function fitAt(
   y: number,
   maxScale: number,
   minScale: number,
-  centred: boolean,
 ): Spot | null {
   for (let scale = maxScale; scale >= minScale; scale *= SCALE_STEP) {
     const half = (shape.nameHeight * scale) / 2;
     const room = stretchesOver(scan, y - half, y + half);
-    const stretch = room && stretchAt(room, scan.cx, !centred);
+    const stretch = room && stretchAt(room, scan.cx, true);
     if (!stretch) continue;
     const [a, b] = stretch;
     const reach = (shape.nameWidth / 2 - NAME_SPILL) * scale;
@@ -245,19 +323,20 @@ function fitAt(
     const x = Math.min(b - reach, Math.max(a + reach, scan.cx));
     const top = y - half + shape.drop * scale;
     if (shape.emblem > 0 && !emblemFits(scan, x, shape.emblem * scale, top)) continue;
-    return { x, y, scale, hang: false };
+    const spot = { x, y, scale, hang: false };
+    const rects = rectsOf(shape, placed(shape, spot, scale));
+    if (!rects.every((rect) => clearOfHoles(scan, rect))) continue;
+    return spot;
   }
   return null;
 }
 
 /**
- * Where a label of `shape` may go in the scanned piece, best first. The game centres a label on
- * its piece: the name bar's row is halfway down the piece, under the centre of area's x, and the
- * label takes the largest scale that fits there, smaller rather than moved. Only when that row
- * does not reach the centre's x, or the label there would be under `minScale`, do the other rows
- * follow, nearest first. A piece
- * too small for the floor anywhere hangs its name under an emblem on the centre of area; that
- * place comes last for every piece, for a crowded label.
+ * Where a label of `shape` may go in the scanned piece, best first. The game puts a label near
+ * its piece's centre of area: of the rows within `WINDOW` of the centre, the one where the label
+ * comes out largest, the nearest of near ties. The rows further out follow, nearest first. A
+ * piece too small for the floor anywhere hangs its name under an emblem on the centre of area;
+ * that place comes last for every piece, for a crowded label.
  */
 function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number, minScale: number): Spot[] {
   const { rows, step, y0, cx, cy } = scan;
@@ -269,11 +348,19 @@ function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number, minScale:
     if (!clash) spots.push(spot);
   };
   if (rows.length > 0) {
-    const anchor = y0 + ((rows.length - 1) / 2) * step;
-    add(fitAt(scan, shape, anchor, maxScale, minScale, true));
-    const others = rows.map((_, i) => y0 + i * step);
-    others.sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor) || a - b);
-    for (const y of others) add(fitAt(scan, shape, y, maxScale, minScale, false));
+    const reach = WINDOW * rows.length * step;
+    const fits = rows.flatMap(
+      (_, i) => fitAt(scan, shape, y0 + i * step, maxScale, minScale) ?? [],
+    );
+    const near = (s: Spot) => Math.abs(s.y - cy) <= reach;
+    fits.sort(
+      (a, b) =>
+        Number(near(b)) - Number(near(a)) ||
+        (near(a) ? rankOf(b.scale) - rankOf(a.scale) : 0) ||
+        Math.abs(a.y - cy) - Math.abs(b.y - cy) ||
+        a.y - b.y,
+    );
+    for (const spot of fits) add(spot);
   }
   spots.push({ x: cx, y: cy, scale: 0, hang: shape.emblem > 0 });
   return spots;

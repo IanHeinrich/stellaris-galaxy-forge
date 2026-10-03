@@ -331,7 +331,7 @@ less.
   ([format-notes.md](format-notes.md)).
 - From screenshots of a 4.5.1 save, each territory has, from the
   inside out, a see-through fill that brightens towards its edge, a
-  line about 2 px wide of the fill colour, and a solid band in the
+  line about 2 px wide of the fill colour, and a band in the
   border colour. The band lies inside the territory, so two
   neighbours' bands sit side by side. The band stays 16 to 19 px wide
   on screen while a one-system pocket grows from 90 to 840 px, so it
@@ -339,7 +339,21 @@ less.
 - An unowned system an empire surrounds is a hole in its territory,
   with the empire's band round the hole's edge. In the 2330 save of
   4.5.1, Chinorr Combine has holes round Iswyria, Terebellum, Wollaeus,
-  Hazra and Jolun. None of them has a starbase.
+  Hazra and Jolun. None of them has a starbase. Each hole is a disc of
+  about 6.5 world units cut back to the bisectors of the system's
+  neighbours, as an owned system's disc is. That is far smaller than
+  `BORDER_SYSTEM_RADIUS` or `BORDER_OWNERLESS_SYSTEM_RADIUS`.
+- The bands show no tint of the fill under them, so they are close to
+  opaque, but they are not their `map` rgb. Chimm's `black` (27) band
+  reads 59 and Hissman's `dark_grey` (62) reads 86. Chinorr's
+  `red_orange` (224 64 64) reads about 190 115 118, and Sirgogg's
+  `green` (46 102 41) about 38 70 41. Coloured bands lose about 40% of
+  their saturation. No one rule fits every empire, which may come from
+  `COUNTRY_BORDER_COLOR_RANDOM_SATURATION_OFFSETS` and `_VALUE_OFFSETS`
+  in `NGraphics`.
+- The fill colour's line along the inside of the band is a hairline,
+  1 px at every zoom. Over Chimm's fill it reads about half way between
+  the fill and the `map` rgb.
 - `gfx/FX/border.shader` draws all of this from a distance field of the
   borders. Its band is `0.025 + 0.35 * f` wide in field units, with `f`
   the camera distance over 1600, capped at 1. So the band widens in

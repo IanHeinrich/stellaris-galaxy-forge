@@ -57,6 +57,12 @@ const TAUBIN_MU = -0.63;
 const SNAP = 1e-3;
 /** A band severed by many foreign systems stops splitting at this many pieces. */
 const MAX_BAND_PIECES = 64;
+/**
+ * The reach of the hole an owner leaves round an unowned system it surrounds, in world units:
+ * a disc cut back to the bisectors of its neighbours, as an owned system's is. Fitted to the
+ * game's holes in a 4.5.1 save; the defines' 30 and 35 are far larger.
+ */
+const HOLE_RADIUS = 6.5;
 
 /**
  * The territory of every country, after the game: a point is a country's when its nearest
@@ -65,7 +71,8 @@ const MAX_BAND_PIECES = 64;
  * disc cut back to the bisectors of every system of another or no owner within reach, while
  * same-owner discs overlap freely; each same-owner lane claims a band, severed wherever such a
  * system is nearer than both ends of the lane. Pieces of one country are unioned into a
- * `Region`, whose holes are the cells of other owners' and unowned systems it surrounds.
+ * `Region`, whose holes are the cells of other owners' systems it surrounds, and a small disc
+ * round each unowned system it surrounds.
  * With `only`, regions are computed for those countries alone; every system of another owner
  * still clips.
  */
@@ -74,9 +81,11 @@ export function countryRegions(
   params: TerritoryParams,
   only?: ReadonlySet<number>,
 ): Map<number, Region> {
+  const all = [...systems];
+  const index = new SystemIndex(all, params);
   const regions = new Map<number, Region>();
-  for (const [owner, pieces] of countryPieces(systems, params, only)) {
-    const region = regionOf(polygonsOf(pieces.values()), owner);
+  for (const [owner, pieces] of countryPieces(all, params, only)) {
+    const region = index.roundHoles(regionOf(polygonsOf(pieces.values()), owner));
     if (region.length > 0) regions.set(owner, region);
   }
   return regions;
@@ -171,6 +180,48 @@ export class SystemIndex {
       if (f.owner !== l.owner) foreign.push(f);
     });
     return { rings: snapped(severBand(band, l, foreign)), x, y };
+  }
+
+  /**
+   * The region with each hole that holds unowned systems alone shrunk to a disc round each of
+   * them, as the game leaves it; a hole round another owner's system stays its whole cell.
+   */
+  roundHoles(region: Region): Region {
+    return region.map(([outer, ...holes]) => [
+      outer,
+      ...holes.flatMap((hole) => this.roundHole(hole)),
+    ]);
+  }
+
+  private roundHole(hole: Pt[]): Pt[][] {
+    const inside = this.systemsIn(hole);
+    if (inside.length === 0 || inside.some((s) => s.owner !== null)) return [hole];
+    const discs: Geom[] = inside.map((s) => [this.holeDisc(s)]);
+    const [first, ...rest] = discs;
+    const merged = rest.length === 0 ? [first as Pair[][]] : polygonClipping.union(first, ...rest);
+    return toRegion(merged).map(([ring]) => ring);
+  }
+
+  private systemsIn(ring: Pt[]): TerritorySystem[] {
+    const xs = ring.map((p) => p.x);
+    const ys = ring.map((p) => p.y);
+    const found: TerritorySystem[] = [];
+    this.grid.forEachIn(Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys), (s) => {
+      if (inRing(s, ring)) found.push(s);
+    });
+    return found;
+  }
+
+  /** The hole round the unowned `s`: a small disc cut back to the bisectors of every other system. */
+  private holeDisc(s: TerritorySystem): Pair[] {
+    const reach = 2 * HOLE_RADIUS;
+    let disc = ngon(s.x, s.y, HOLE_RADIUS, this.params.segments ?? DEFAULT_SEGMENTS);
+    this.grid.forEachIn(s.x - reach, s.y - reach, s.x + reach, s.y + reach, (f) => {
+      const d2 = dist2(s.x, s.y, f.x, f.y);
+      if (f.id !== s.id && d2 < reach * reach && d2 > EPS2)
+        disc = keepNearer(disc, s.x, s.y, f.x, f.y);
+    });
+    return disc;
   }
 
   /** Whether a system at (`x`, `y`) is among the ones `band(l)` is severed by. */
@@ -492,6 +543,19 @@ function closestOnSegment(
   if (len2 === 0) return [ax, ay];
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
   return [ax + dx * t, ay + dy * t];
+}
+
+/** Whether `p` lies inside `ring`, by the even-odd rule. */
+function inRing(p: { x: number; y: number }, ring: Pt[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i];
+    const b = ring[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 function dist2(ax: number, ay: number, bx: number, by: number): number {

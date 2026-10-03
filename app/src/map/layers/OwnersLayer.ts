@@ -32,10 +32,16 @@ const FILL_ALPHA = 0.3;
  * game's measures about 16 px at every zoom until the camera stops widening it in world units.
  */
 const BAND_PX = 16;
-const BAND_MAX_WORLD = 8;
-/** The fill colour's bright line just inside the band. */
-const RIM_PX = 2;
-const RIM_ALPHA = 0.8;
+const BAND_MAX_WORLD = 6.8;
+/**
+ * The game's bands keep their hue and brightness at about 60% of the saturation, and are close
+ * to opaque: a grey band shows no tint of the blue fill under it.
+ */
+const BAND_ALPHA = 0.9;
+const BAND_SATURATION = 0.6;
+/** A faint hairline of the fill colour just inside the band, 1 px at every zoom. */
+const RIM_PX = 1;
+const RIM_ALPHA = 0.5;
 /** The outer quarter of the band is darkened, the seam between two neighbours. */
 const SEAM_SHARE = 0.25;
 const SEAM_DARKEN = 0.25;
@@ -44,8 +50,16 @@ const EMPHASIS_GLOW_PX = 18;
 const EMPHASIS_GLOW_ALPHA = 0.3;
 /** Strokes hold their screen width until a pixel spans this many world units, then stop growing. */
 const STROKE_MAX_UNIT = 2;
-/** The stroke width is snapped to steps of √2 so zooming redraws it rarely. */
-const STROKE_STEPS_PER_OCTAVE = 2;
+/**
+ * The stroke width is snapped to 16 steps a doubling: between steps the bands zoom with the
+ * map, and a step of about 4% is too small to see.
+ */
+const STROKE_STEPS_PER_OCTAVE = 16;
+/**
+ * Restroking every territory of a late-game galaxy costs about 15 ms of tessellation, so it is
+ * spread over frames: about 3000 outline points, some 4 ms, a frame.
+ */
+const RESTROKE_POINTS_PER_FRAME = 3000;
 const LABEL_FONT_PX = 32;
 /** The game draws names pale and a little see-through, with a soft dark glow and no shadow. */
 const NAME_COLOR = 0xeef1f6;
@@ -124,6 +138,12 @@ interface CountryShape {
   fill: Graphics;
   edge: Graphics;
   emphasis: Graphics;
+  /** The stroke unit the edge and emphasis were last drawn at. */
+  unit: number;
+  /** The outline's bounds in world units: min x, min y, max x, max y. */
+  bounds: number[];
+  /** The outline's points, every ring counted: what a restroke costs. */
+  points: number;
   /** One badge per piece: the game labels every separate piece of a country. */
   badges: Container;
   pieces: PieceBadge[];
@@ -159,6 +179,26 @@ function strokeInside(
   g.stroke({ ...style, alignment: 0, join: "round" });
 }
 
+/** `color` at `share` of its saturation, its hue and brightness kept. */
+function desaturate(color: number, share: number): number {
+  const value = Math.max((color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff);
+  return mixColor(color, (value << 16) | (value << 8) | value, 1 - share);
+}
+
+/** The world bounds of every outer ring of `region`: min x, min y, max x, max y. */
+function boundsOf(region: Region): number[] {
+  const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [outer] of region) {
+    for (const p of outer) {
+      bounds[0] = Math.min(bounds[0], p.x);
+      bounds[1] = Math.min(bounds[1], p.y);
+      bounds[2] = Math.max(bounds[2], p.x);
+      bounds[3] = Math.max(bounds[3], p.y);
+    }
+  }
+  return bounds;
+}
+
 /** Whether two owner tables paint the same set of owners, whatever else about them changed. */
 function sameOwners(a: ReadonlyMap<number, unknown>, b: ReadonlyMap<number, unknown>): boolean {
   if (a.size !== b.size) return false;
@@ -192,6 +232,8 @@ export class OwnersLayer implements MapLayer {
   private readonly shapes = new Map<number, CountryShape>();
   private readonly emblemKeys = new Map<number, string>();
   private unit = 1;
+  private view: number[] = [-Infinity, -Infinity, Infinity, Infinity];
+  private restroking = false;
   private fade = 1;
   private fadeTarget = 1;
   private fading = false;
@@ -260,13 +302,13 @@ export class OwnersLayer implements MapLayer {
   }
 
   onViewport(cam: Camera): void {
+    this.view = cam.worldBounds();
     const unit = strokeUnit(cam.scale);
     if (unit !== this.unit) {
       this.unit = unit;
-      for (const [id, shape] of this.shapes) {
-        this.drawFill(shape);
-        this.drawEdge(shape);
-        this.drawEmphasis(id, shape);
+      if (!this.restroking && this.shapes.size > 0) {
+        this.restroking = true;
+        Ticker.shared.add(this.restrokeTick, this);
       }
     }
     if (this.shown) this.fadeTowards(cam.scale < EMPIRE_LABEL_MAX_SCALE ? 1 : 0);
@@ -295,6 +337,7 @@ export class OwnersLayer implements MapLayer {
     this.unsubscribeTextures();
     this.unsubscribeFont();
     Ticker.shared.remove(this.fadeTick, this);
+    Ticker.shared.remove(this.restrokeTick, this);
     this.container.destroy({ children: true });
   }
 
@@ -364,6 +407,9 @@ export class OwnersLayer implements MapLayer {
         fill: new Graphics(),
         edge: new Graphics(),
         emphasis: new Graphics(),
+        unit: 0,
+        bounds: [0, 0, 0, 0],
+        points: 0,
         badges,
         pieces: [],
         art: false,
@@ -376,6 +422,8 @@ export class OwnersLayer implements MapLayer {
     }
     shape.smoothed = smoothed;
     shape.scans = scans;
+    shape.bounds = boundsOf(smoothed);
+    shape.points = smoothed.flat().reduce((n, ring) => n + ring.length, 0);
     this.matchPieces(shape);
     this.retext(id, shape);
     this.placeEmblem(id, shape);
@@ -459,25 +507,54 @@ export class OwnersLayer implements MapLayer {
       for (const hole of holes) fill.poly(hole, true);
       fill.cut();
     }
-    strokeInside(fill, smoothed, {
-      color: colors.fill,
-      width: this.bandWidth() + RIM_PX * this.unit,
-      alpha: RIM_ALPHA,
-    });
   }
 
   private bandWidth(): number {
     return Math.min(BAND_PX * this.unit, BAND_MAX_WORLD);
   }
 
-  private drawEdge({ edge, smoothed, colors }: CountryShape): void {
+  /** The fill colour's hairline, the band over all but its inner pixel, and the band's darker outer quarter. */
+  private drawEdge(shape: CountryShape): void {
+    const { edge, smoothed, colors } = shape;
     edge.clear();
+    shape.unit = this.unit;
     const band = this.bandWidth();
-    strokeInside(edge, smoothed, { color: colors.outline, width: band });
+    const color = desaturate(colors.outline, BAND_SATURATION);
     strokeInside(edge, smoothed, {
-      color: mixColor(colors.outline, 0x000000, SEAM_DARKEN),
-      width: band * SEAM_SHARE,
+      color: colors.fill,
+      width: band + RIM_PX * this.unit,
+      alpha: RIM_ALPHA,
     });
+    strokeInside(edge, smoothed, { color, width: band, alpha: BAND_ALPHA });
+    strokeInside(edge, smoothed, {
+      color: mixColor(color, 0x000000, SEAM_DARKEN),
+      width: band * SEAM_SHARE,
+      alpha: BAND_ALPHA,
+    });
+  }
+
+  /**
+   * Restrokes the territories drawn at another unit than the camera's, those in view first,
+   * until the frame's budget is spent; the rest wait for the next frame. The cost is counted
+   * in outline points, because the strokes are tessellated when the frame renders.
+   */
+  private restrokeTick(): void {
+    let spent = 0;
+    const stale = [...this.shapes].filter(([, shape]) => shape.unit !== this.unit);
+    stale.sort(([, a], [, b]) => Number(this.inView(b)) - Number(this.inView(a)));
+    for (const [id, shape] of stale) {
+      if (spent > 0 && spent + shape.points > RESTROKE_POINTS_PER_FRAME) return;
+      this.drawEdge(shape);
+      this.drawEmphasis(id, shape);
+      spent += shape.points;
+    }
+    this.restroking = false;
+    Ticker.shared.remove(this.restrokeTick, this);
+  }
+
+  private inView({ bounds }: CountryShape): boolean {
+    const [minX, minY, maxX, maxY] = this.view;
+    return bounds[0] <= maxX && bounds[2] >= minX && bounds[1] <= maxY && bounds[3] >= minY;
   }
 
   /** Clans and fallen empires are marked by their borders while the special layer shows their kind. */

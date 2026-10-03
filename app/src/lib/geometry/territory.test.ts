@@ -140,10 +140,23 @@ describe("countryRegions", () => {
     expect(region[0]).toHaveLength(2);
     expect(inRegion({ x: 0, y: 0 }, region)).toBe(false);
     expect(inRegion({ x: 30, y: 0 }, region)).toBe(true);
-    expect(Math.abs(ringArea(region[0][1]))).toBeGreaterThan(500);
+    const hole = region[0][1];
+    for (const p of hole) expect(Math.hypot(p.x, p.y)).toBeCloseTo(6.5, 0);
     const smoothed = smoothRegion(region);
     expect(smoothed[0]).toHaveLength(2);
     expect(inRegion({ x: 0, y: 0 }, smoothed)).toBe(false);
+  });
+
+  it("cuts an unowned system's hole back to the bisector of a near neighbour", () => {
+    const ring = Array.from({ length: 6 }, (_, i) => {
+      const a = (i * Math.PI) / 3;
+      return system(i + 1, 30 * Math.cos(a), 30 * Math.sin(a), 10);
+    });
+    const near = system(8, 8, 0, 10);
+    const region = countryRegions([...ring, near, system(7, 0, 0, null)], PARAMS).get(10)!;
+    const hole = region[0][1];
+    expect(Math.max(...hole.map((p) => p.x))).toBeCloseTo(4, 5);
+    expect(Math.min(...hole.map((p) => p.x))).toBeCloseTo(-6.5, 0);
   });
 
   it("keeps a dense cluster of one owner as one solid polygon", () => {

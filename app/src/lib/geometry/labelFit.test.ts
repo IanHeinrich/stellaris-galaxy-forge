@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fitLabel, placeLabels, scanRing, type LabelFit, type LabelShape } from "./labelFit";
+import {
+  fitLabel,
+  placeLabels,
+  scanPiece,
+  scanRing,
+  type LabelFit,
+  type LabelShape,
+} from "./labelFit";
 import type { Pt } from "./pt";
 
 const ring = (...xy: number[]): Pt[] => {
@@ -69,6 +76,16 @@ describe("scanRing", () => {
     expect(scan.cx).toBeCloseTo(20);
     expect(scan.cy).toBeCloseTo(10);
   });
+
+  it("stops a line's stretches at a hole and takes the hole out of the centre of area", () => {
+    const scan = scanPiece([rect(0, 0, 100, 100), rect(10, 40, 30, 60)], 10);
+    expect(scan.rows[5]).toEqual([0, 10, 30, 100]);
+    expect(scan.cx).toBeGreaterThan(50);
+    expect(scan.cy).toBeCloseTo(50);
+    expect(scan.holes).toHaveLength(1);
+    expect(scan.holes[0].x).toBeCloseTo(20);
+    expect(scan.holes[0].y).toBeCloseTo(50);
+  });
 });
 
 /**
@@ -116,13 +133,36 @@ describe("fitLabel", () => {
     expect(fit.inside).toBe(true);
   });
 
-  it("keeps the name on the middle row, smaller, rather than move it to a wider lobe", () => {
+  it("keeps the name near the centre of area, smaller, rather than move it to a wider base", () => {
     const tower = ring(100, 0, 300, 0, 300, 300, 400, 300, 400, 400, 0, 400, 0, 300, 100, 300);
-    const fit = fitLabel(scanRing(tower, 48), T, 100, 5);
-    expect(barMiddle(T, fit)).toBeCloseTo(200, -1);
+    const scan = scanRing(tower, 48);
+    const fit = fitLabel(scan, T, 100, 5);
+    expect(Math.abs(barMiddle(T, fit) - scan.cy)).toBeLessThanOrEqual(0.15 * 400);
+    expect(barMiddle(T, fit)).toBeLessThan(300);
     expect(fit.x).toBeCloseTo(200, 0);
     expect(fit.scale * T.nameWidth).toBeLessThan(230);
     expect(labelInside(tower, trimmed(T), fit)).toBe(true);
+  });
+
+  it("takes the row near the centre where the name comes out largest", () => {
+    const notched = ring(0, 0, 400, 0, 400, 400, 0, 400, 0, 220, 150, 220, 150, 180, 0, 180);
+    const scan = scanRing(notched, 48);
+    const fit = fitLabel(scan, BAR, 100, 5);
+    const row = barMiddle(BAR, fit);
+    expect(Math.abs(row - scan.cy)).toBeLessThanOrEqual(0.15 * 400);
+    expect(Math.abs(row - 200)).toBeGreaterThan(20);
+    expect(fit.scale * BAR.nameWidth).toBeGreaterThan(350);
+  });
+
+  it("keeps the label clear of a hole", () => {
+    const hole = rect(180, 180, 220, 220);
+    const scan = scanPiece([rect(0, 0, 400, 400), hole], 48);
+    const fit = fitLabel(scan, T, 100, 5);
+    for (const [x0, y0, x1, y1] of rectsOf(T, fit)) {
+      const dx = Math.max(x0 - 200, 0, 200 - x1);
+      const dy = Math.max(y0 - 200, 0, 200 - y1);
+      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(Math.hypot(20, 20) + 25 - 1e-9);
+    }
   });
 
   it("slides the name off the centre just far enough to use the whole stretch", () => {

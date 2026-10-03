@@ -1,5 +1,5 @@
 import type { Geom, MultiPolygon } from "polygon-clipping";
-import { scanRing, type PieceScan } from "./labelFit";
+import { scanPiece, type PieceScan } from "./labelFit";
 import type { Pt } from "./pt";
 import {
   affectedCountries,
@@ -61,11 +61,12 @@ export class Territories {
     this.params = params;
     this.bordered = new Set(bordered);
     this.tiled = new Map();
+    const index = new SystemIndex(this.systems.values(), params);
     const regions = new Map<number, Region>();
     for (const [owner, pieces] of countryPieces(this.systems.values(), params, this.bordered)) {
       const tiled = this.tiledOf(owner);
       for (const [key, piece] of pieces) tiled.set(key, piece);
-      const region = tiled.region(owner);
+      const region = index.roundHoles(tiled.region(owner));
       if (region.length > 0) regions.set(owner, region);
     }
     return shapesOf(regions);
@@ -99,7 +100,7 @@ export class Territories {
     for (const owner of affected) {
       const tiled = this.tiledOf(owner);
       tiled.refresh(index, owned.get(owner) ?? [], moved);
-      const region = tiled.region(owner);
+      const region = index.roundHoles(tiled.region(owner));
       if (region.length > 0) regions.set(owner, region);
       else emptied.push(owner);
     }
@@ -207,7 +208,7 @@ function shapesOf(regions: ReadonlyMap<number, Region>): Map<number, Shape> {
   const shapes = new Map<number, Shape>();
   for (const [id, region] of regions) {
     const smoothed = smoothRegion(region);
-    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanRing(polygon[0])) });
+    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanPiece(polygon)) });
   }
   return shapes;
 }

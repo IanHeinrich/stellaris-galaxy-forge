@@ -1,5 +1,5 @@
-import { BitmapText, type Container, Graphics } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { BitmapText, type Container, Graphics, Ticker } from "pixi.js";
+import { describe, expect, it, vi } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { MapColor } from "../../generated/MapColor";
 import type { SystemNode } from "../../generated/SystemNode";
@@ -8,6 +8,7 @@ import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { countryNode } from "../../test/builders";
+import { Camera } from "../Camera";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
 import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
 import { layerIdsFor, layersFor } from "./registry";
@@ -50,14 +51,14 @@ const PALETTE = new Map<string, MapColor>(
   ].map(([name, map]) => [name, { name, map, flag: map, ship: map }]),
 );
 
-/** The colours the one country's territory is filled and outlined in. */
+/** The colours the one country's territory is filled in and banded in. */
 function paintOf(layer: OwnersLayer): { fill: number | undefined; edge: number | undefined } {
   const territories = childByLabel(layer.container, "territories");
   const [fill] = childByLabel(territories, "fills").children as Graphics[];
   const [edge] = childByLabel(territories, "edges").children as Graphics[];
   return {
     fill: drawOps(fill).find((op) => op.action === "fill")?.color,
-    edge: strokes(edge)[0]?.color,
+    edge: strokes(edge)[1]?.color,
   };
 }
 
@@ -278,7 +279,27 @@ describe("an owner's territory", () => {
       return paintOf(layer);
     };
     expect(paint(flagged)).toEqual({ edge: 0x808080, fill: 0x000080 });
-    expect(paint(chosen)).toEqual({ edge: 0xff0000, fill: 0xffc0cb });
+    expect(paint(chosen)).toEqual({ edge: 0xff6666, fill: 0xffc0cb });
+  });
+
+  it("restrokes its band over later frames when a zoom changes the stroke width", () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    const layer = new OwnersLayer();
+    layer.rebuild(mapContext([OWNED], { countries: COUNTRIES }));
+    const territories = childByLabel(layer.container, "territories");
+    const [edge] = childByLabel(territories, "edges").children as Graphics[];
+    const bandWidth = (): number =>
+      (edge.context.instructions[1].data as { style: { width: number } }).style.width;
+    const before = bandWidth();
+    const camera = new Camera();
+    camera.scale = 4;
+    layer.onViewport(camera);
+    expect(bandWidth()).toBe(before);
+    Ticker.shared.update(performance.now() + 1000);
+    expect(bandWidth()).toBeCloseTo(16 / 4, 5);
+    layer.destroy();
+    vi.unstubAllGlobals();
   });
 
   it("cuts the cell of an unowned system it surrounds out of its fill and bands that hole too", () => {
@@ -294,6 +315,6 @@ describe("an owner's territory", () => {
     const [filled] = fill.context.instructions;
     expect(filled.action).toBe("fill");
     expect((filled.data as { hole?: unknown }).hole).toBeDefined();
-    expect(strokes(edge)).toHaveLength(4);
+    expect(strokes(edge)).toHaveLength(6);
   });
 });
