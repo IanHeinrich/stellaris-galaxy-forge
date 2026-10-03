@@ -41,8 +41,11 @@ const BLOCK = 8;
 const BLOCKS = TILE / BLOCK;
 /** The smooth-min's softness, fitted to the holes and corridors of the game's borders. */
 const SOFTNESS = 0.155;
-/** The influence a territory ends at: the border shader's 0.47 of the 1.88 reach. */
-const EDGE = 0.88;
+/**
+ * The influence a territory ends at, measured on the game's open-space edges and holes: 0.79 close
+ * up to 0.82 zoomed out, a world unit apart, so one level serves every zoom.
+ */
+const EDGE = 0.8;
 /** Rings smaller than this, in world units², are slivers and are dropped. */
 const MIN_RING_AREA = 25;
 /** An outline point this close to the line through the points kept either side of it is dropped. */

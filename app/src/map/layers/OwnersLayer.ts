@@ -25,14 +25,21 @@ import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import type { MapLayer } from "./MapLayer";
 
-/** The game's fill reads about 0.2 deep inside a territory and about 0.45 at its rim. */
-const FILL_ALPHA = 0.3;
+/**
+ * The game's camera distance per unit of map scale: its 35° field of view over a 1440 px tall
+ * screen. The border shader blends by this distance over 1600, saturating when zoomed out.
+ */
+const CAMERA_DISTANCE_PER_SCALE = 720 / Math.tan((17.5 * Math.PI) / 180);
+const CAMERA_DISTANCE_FULL = 1600;
+/** The game's fill deepens as the camera pulls back: about 0.27 close up and 0.64 zoomed out. */
+const FILL_ALPHA_NEAR = 0.18;
+const FILL_ALPHA_FAR = 0.67;
 /**
  * The border band lies inside its own territory, so neighbours' bands sit side by side. The
- * game's measures about 16 px at every zoom until the camera stops widening it in world units.
+ * game's widens in world units as the camera pulls back, from about 2.3 close up to 5.4 zoomed out.
  */
-const BAND_PX = 16;
-const BAND_MAX_WORLD = 6.8;
+const BAND_NEAR_WORLD = 1.6;
+const BAND_FAR_WORLD = 5.9;
 /**
  * The game's bands keep their hue and brightness at about 60% of the saturation, and are close
  * to opaque: a grey band shows no tint of the blue fill under it.
@@ -156,6 +163,11 @@ function strokeUnit(camScale: number): number {
   const wanted = Math.min(STROKE_MAX_UNIT, 1 / camScale);
   const step = Math.round(Math.log2(wanted) * STROKE_STEPS_PER_OCTAVE);
   return Math.pow(2, step / STROKE_STEPS_PER_OCTAVE);
+}
+
+/** The border shader's camera-distance factor at `unitsPerPixel`: 0 close up, 1 zoomed out. */
+function cameraFar(unitsPerPixel: number): number {
+  return Math.min(1, (CAMERA_DISTANCE_PER_SCALE * unitsPerPixel) / CAMERA_DISTANCE_FULL);
 }
 
 function smoothstep(t: number): number {
@@ -303,6 +315,8 @@ export class OwnersLayer implements MapLayer {
 
   onViewport(cam: Camera): void {
     this.view = cam.worldBounds();
+    const far = cameraFar(1 / cam.scale);
+    this.fills.alpha = FILL_ALPHA_NEAR + (FILL_ALPHA_FAR - FILL_ALPHA_NEAR) * far;
     const unit = strokeUnit(cam.scale);
     if (unit !== this.unit) {
       this.unit = unit;
@@ -507,7 +521,7 @@ export class OwnersLayer implements MapLayer {
   private drawFill({ fill, smoothed, colors }: CountryShape): void {
     fill.clear();
     for (const [outer, ...holes] of smoothed) {
-      fill.poly(outer, true).fill({ color: colors.fill, alpha: FILL_ALPHA });
+      fill.poly(outer, true).fill({ color: colors.fill });
       if (holes.length === 0) continue;
       for (const hole of holes) fill.poly(hole, true);
       fill.cut();
@@ -515,7 +529,7 @@ export class OwnersLayer implements MapLayer {
   }
 
   private bandWidth(): number {
-    return Math.min(BAND_PX * this.unit, BAND_MAX_WORLD);
+    return BAND_NEAR_WORLD + (BAND_FAR_WORLD - BAND_NEAR_WORLD) * cameraFar(this.unit);
   }
 
   /** The fill colour's hairline, the band over all but its inner pixel, and the band's darker outer quarter. */

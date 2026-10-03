@@ -327,8 +327,16 @@ less.
   sources, with k = 0.155. All unowned sources count as one owner. The
   point goes to the owner with the lowest value. It is that owner's
   territory if the owner is a country that draws borders and the value
-  is at most 0.88, which is the border shader's 0.47 times the 1.88
-  reach. k was fitted to screenshots of the 2330 save of 4.5.1.
+  is at most 0.80. k and that level were fitted to screenshots of the
+  2330 save of 4.5.1. Open-space edges and holes measure 0.79 close up
+  and 0.82 zoomed out, about a world unit apart, so the editor keeps one
+  level. The border shader's `vMid` of 0.47 to 0.53 times the 1.88 reach
+  would give 0.88 to 1.0, which the screenshots do not show.
+- The fill deepens as the camera pulls back. Measured against the `map`
+  rgb, it is about 0.27 opaque close up and 0.64 zoomed right out. The
+  band widens in world units the same way, from about 2.3 to 5.4, so it
+  is about 16 px wide close up and 7 px zoomed out. The shader blends
+  both by camera distance over 1600.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
   empire colour, and the map uses the `map` rgb. The map outlines a
   territory in the country's first flag colour. It fills it with the

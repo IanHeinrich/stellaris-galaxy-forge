@@ -297,7 +297,8 @@ describe("an owner's territory", () => {
     layer.onViewport(camera);
     expect(bandWidth()).toBe(before);
     Ticker.shared.update(performance.now() + 1000);
-    expect(bandWidth()).toBeCloseTo(16 / 4, 5);
+    expect(bandWidth()).toBeLessThan(before);
+    expect(bandWidth() * 4).toBeGreaterThan(before);
     layer.destroy();
     vi.unstubAllGlobals();
   });
