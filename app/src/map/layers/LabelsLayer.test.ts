@@ -139,8 +139,10 @@ describe("pinned and hovered labels", () => {
 });
 
 describe("the ranking behind the labels", () => {
+  /** Positions are laid out for a zoom of 4 and scaled so they land in the same pixels at `CLOSE`. */
+  const K = 4 / CLOSE;
   const laned = (id: number, x: number, text: string, lanes: number) => ({
-    ...mapNode(id, x, text),
+    ...mapNode(id, x * K, text),
     lanes: Array.from({ length: lanes }, (_, i) => ({
       to: 10000 + i,
       length: 0,
@@ -166,13 +168,15 @@ describe("the ranking behind the labels", () => {
   });
 
   it("ranks a system a delta gives lanes among the hubs", () => {
-    const many = Array.from({ length: 450 }, (_, i) => mapNode(i, -99 + i * 0.4, `System ${i}`));
+    const many = Array.from({ length: 450 }, (_, i) =>
+      mapNode(i, (-99 + i * 0.4) * K, `System ${i}`),
+    );
     const layer = new LabelsLayer();
     layer.rebuild(mapContext(many, { kind: "save" }));
     viewport(layer, CLOSE);
     expect(drawnText(layer.container)).not.toContain("System 449");
 
-    const hub = laned(449, many[449].x, "System 449", 3);
+    const hub = laned(449, many[449].x / K, "System 449", 3);
     layer.rebuild(mapContext([...many.slice(0, 449), hub], { kind: "save" }));
     layer.applyDelta({ systems: [hub] });
     viewport(layer, CLOSE);

@@ -164,9 +164,9 @@ function row(firstId: number, x0: number, count: number, gap = 60): SystemNode[]
 }
 
 describe("an owner's label", () => {
-  it("shrinks inside its piece when a names update lengthens the text", () => {
+  it("shrinks to its piece when a names update lengthens the text", () => {
     const layer = new OwnersLayer();
-    const nodes = row(1, 0, 8);
+    const nodes = row(1, 0, 5);
     let text = "Short";
     const over = { countries: COUNTRIES, hiddenOwners: new Set<number>() };
     layer.rebuild(
@@ -185,7 +185,7 @@ describe("an owner's label", () => {
     expect(Math.abs(long.scale.y)).toBeLessThan(shortScale);
     const region = countryRegions(nodes, PARAMS, new Set([COUNTRY.id])).get(COUNTRY.id)!;
     const xs = region[0][0].map((p) => p.x);
-    expect(long.width).toBeLessThan(Math.max(...xs) - Math.min(...xs));
+    expect(long.width).toBeLessThanOrEqual((Math.max(...xs) - Math.min(...xs)) / 0.88);
   });
 
   it("labels each separate piece of a territory with its own name", () => {

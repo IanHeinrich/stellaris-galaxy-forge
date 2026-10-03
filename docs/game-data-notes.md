@@ -362,19 +362,37 @@ less.
 - `NCamera` shows star names from `GALAXY_SHOW_STARNAME_ZOOM = 800`
   and fades empire names at 600, so empire names last until the camera
   is a third closer than where star names appear.
-- From screenshots of one save in game and in the editor: every
-  separate piece of an empire's territory gets its own emblem and name,
-  however small. A vassal is labelled as its own country. The label is
-  a T: a wide, short name, with the emblem centred on top of it. The
-  name runs along the widest band of its piece, and the emblem rises
-  into the room above its middle. "Hissman Consciousness" runs across
-  the thin middle band of its territory with the emblem in the taller
-  area above, not in the lower lobe where a solid box of name and
-  emblem would fit best. A label stays inside its piece, except on a
-  piece too small for the narrowest name, where it overflows. No two
-  empires' labels overlap. The emblem is flat white and partly
-  see-through, about three to four times the name's cap height. Names
-  are in world units, so they grow and shrink with the zoom.
+- From top-down screenshots of one save (a 4.5.1 game in 2330) in game
+  and in the editor: every separate piece of an empire's territory gets
+  its own emblem and name, however small. A vassal is labelled as its
+  own country. The label is a T: a wide, short name, with the emblem
+  centred on top of it.
+- The name sits on the row through the piece's centre of area, centred
+  on the centre itself rather than on the middle of that row. Its size
+  is whatever fits there, so a narrow middle gets a small name even when
+  a wider part of the piece lies elsewhere. An end of the name may reach
+  over the border by about half a letter: the "H" of "Hissman
+  Consciousness" and the "T" of "Test Empire" both do, by about 1–2% of
+  the name's length. The game moves a label off the centre
+  only when the centre lies outside the piece or the room there is
+  below the narrowest name.
+- Measured as a share of each piece's height from the top, in the game
+  and against the editor's territories for the same save:
+
+  | Territory | Game name row | Centre of area | Centre of its systems |
+  |---|---|---|---|
+  | Hissman Consciousness | 0.49 | 0.54 | 0.55 |
+  | Test Empire | 0.56 | 0.54 | 0.60 |
+  | The Chosen, north-west piece | about 0.45 | 0.38 | 0.40 |
+
+  The two centres are equally close, so the editor uses the centre of
+  area, which needs nothing but the outline.
+- A piece too small for the narrowest name, such as a one-system Chimm
+  Enterprises pocket, has its emblem on its centre with the name hanging
+  below it, overflowing onto the next territory. No two empires' labels
+  overlap. The emblem is flat white and partly see-through, about three
+  to four times the name's cap height. Names are in world units, so
+  they grow and shrink with the zoom.
 
 ## System radii
 

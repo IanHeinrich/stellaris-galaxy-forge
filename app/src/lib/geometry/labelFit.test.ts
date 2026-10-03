@@ -48,9 +48,9 @@ function overlap(a: number[][], b: number[][]): boolean {
 }
 
 /** A name six times as wide as it is tall, with no emblem: one solid box. */
-const BAR: LabelShape = { nameWidth: 6, nameHeight: 1, emblem: 0 };
+const BAR: LabelShape = { nameWidth: 6, nameHeight: 1, emblem: 0, drop: 0 };
 /** A long name with an emblem three name-heights square on top of it. */
-const T: LabelShape = { nameWidth: 10, nameHeight: 1, emblem: 3 };
+const T: LabelShape = { nameWidth: 10, nameHeight: 1, emblem: 3, drop: 0.3 };
 
 describe("scanRing", () => {
   it("lists each line's stretches inside the ring, left to right", () => {
@@ -71,56 +71,68 @@ describe("scanRing", () => {
   });
 });
 
+/** The name with half a letter (half a font size) off each end, which may run past the piece. */
+const trimmed = (shape: LabelShape): LabelShape => ({ ...shape, nameWidth: shape.nameWidth - 1 });
+
+/** The middle of a fitted label's name bar. */
+const barMiddle = (shape: LabelShape, fit: LabelFit) => fit.y + (shape.nameHeight * fit.scale) / 2;
+
 describe("fitLabel", () => {
-  it("fits a long thin piece's name to its width, smaller than the cap and inside it", () => {
+  it("sizes a long thin piece's name to its width, centred on it and inside it", () => {
     const strip = rect(0, 0, 300, 120);
-    const fit = fitLabel(scanRing(strip), BAR, 100, 5)!;
+    const fit = fitLabel(scanRing(strip), BAR, 100, 5);
     expect(fit.inside).toBe(true);
-    expect(fit.scale).toBeLessThan(100);
-    expect(fit.scale).toBeGreaterThan(40);
-    expect(labelInside(strip, BAR, fit)).toBe(true);
+    expect(fit.x).toBeCloseTo(150, 0);
+    expect(barMiddle(BAR, fit)).toBeCloseTo(60, -1);
+    expect(fit.scale * BAR.nameWidth).toBeGreaterThan(280);
   });
 
-  it("gives a tiny piece the floor size, centred on it and overflowing", () => {
+  it("lets a centred name run a little past a narrow stretch rather than move it", () => {
+    const fit = fitLabel(scanRing(rect(0, 0, 100, 400)), BAR, 100, 5);
+    const width = fit.scale * BAR.nameWidth;
+    expect(width).toBeGreaterThan(100);
+    expect(width).toBeLessThanOrEqual(100 + fit.scale + 1e-9);
+    expect(barMiddle(BAR, fit)).toBeCloseTo(200, -1);
+  });
+
+  it("hangs a tiny piece's name under an emblem on its centre, at the floor size", () => {
     const pocket = rect(0, 0, 30, 20);
-    const fit = fitLabel(scanRing(pocket), BAR, 100, 12)!;
+    const fit = fitLabel(scanRing(pocket), T, 100, 12);
     expect(fit.inside).toBe(false);
     expect(fit.scale).toBe(12);
-    expect(fit.x).toBeCloseTo(15, 0);
-    expect(fit.y + fit.scale / 2).toBeCloseTo(10, 0);
+    expect(fit.x).toBeCloseTo(15);
+    expect(fit.y - (T.emblem / 2 - T.drop) * fit.scale).toBeCloseTo(10);
   });
 
   it("stops a big compact piece's name at the cap", () => {
-    const fit = fitLabel(scanRing(rect(0, 0, 2000, 2000)), T, 60, 5)!;
+    const fit = fitLabel(scanRing(rect(0, 0, 2000, 2000)), T, 60, 5);
     expect(fit.scale).toBe(60);
     expect(fit.inside).toBe(true);
   });
 
-  it("puts the name in an L's wide arm, not at the corner", () => {
-    const l = ring(0, 0, 400, 0, 400, 60, 60, 60, 60, 400, 0, 400);
-    const fit = fitLabel(scanRing(l, 48), BAR, 100, 5)!;
-    expect(fit.y).toBeLessThan(60);
-    expect(fit.x).toBeGreaterThan(120);
-    expect(labelInside(l, BAR, fit)).toBe(true);
+  it("keeps the name on the centre's row, smaller, rather than move it to a wider lobe", () => {
+    const tower = ring(100, 0, 300, 0, 300, 300, 400, 300, 400, 400, 0, 400, 0, 300, 100, 300);
+    const fit = fitLabel(scanRing(tower, 48), T, 100, 5);
+    expect(barMiddle(T, fit)).toBeCloseTo(230, -1);
+    expect(fit.x).toBeCloseTo(200, 0);
+    expect(fit.scale * T.nameWidth).toBeLessThan(230);
+    expect(labelInside(tower, trimmed(T), fit)).toBe(true);
   });
 
-  it("puts the name in a dumbbell's wide lobe, not at the narrow join", () => {
-    const lobe = ring(
-      ...[0, 0, 100, 0, 100, 45, 160, 45, 160, 0, 460, 0, 460, 100],
-      ...[160, 100, 160, 55, 100, 55, 100, 100, 0, 100],
-    );
-    const fit = fitLabel(scanRing(lobe, 40), BAR, 100, 5)!;
-    expect(fit.x).toBeGreaterThan(160);
-    expect(labelInside(lobe, BAR, fit)).toBe(true);
+  it("centres the name on the piece's centre, not on the middle of its row", () => {
+    const piece = ring(0, 0, 100, 0, 100, 100, 400, 100, 400, 200, 100, 200, 100, 300, 0, 300);
+    const fit = fitLabel(scanRing(piece, 48), BAR, 100, 5);
+    expect(fit.x).toBeCloseTo(150, 0);
+    expect(fit.scale * BAR.nameWidth).toBeLessThanOrEqual(300 + fit.scale + 1e-9);
+    expect(fit.scale * BAR.nameWidth).toBeGreaterThan(250);
   });
 
-  it("runs a long name along a thin band and raises its emblem into the room above", () => {
-    const piece = ring(150, 0, 250, 0, 250, 100, 400, 100, 400, 130, 0, 130, 0, 100, 150, 100);
-    const fit = fitLabel(scanRing(piece, 48), T, 100, 5)!;
-    expect(fit.y).toBeGreaterThanOrEqual(100);
-    expect(fit.x).toBeCloseTo(200, -1);
-    expect(fit.scale).toBeGreaterThan(20);
-    expect(labelInside(piece, T, fit)).toBe(true);
+  it("moves to the nearest room inside when the centre lies outside the piece", () => {
+    const c = ring(0, 0, 300, 0, 300, 100, 100, 100, 100, 200, 300, 200, 300, 300, 0, 300);
+    const fit = fitLabel(scanRing(c, 48), BAR, 100, 5);
+    expect(fit.inside).toBe(true);
+    expect(labelInside(c, trimmed(BAR), fit)).toBe(true);
+    expect(fit.x).toBeLessThan(100);
   });
 });
 

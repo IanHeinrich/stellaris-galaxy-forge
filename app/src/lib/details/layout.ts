@@ -4,7 +4,7 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { isMarauder } from "../countryKinds";
 import type { Names } from "../names";
-import { EMPIRE_LABEL_MAX_SCALE } from "../visual/labels";
+import { DETAIL_SCALE } from "../visual/labels";
 import { STAR_BASE_PX, starDiameterPx } from "../visual/starSize";
 import { empireFlagKey } from "./fleets";
 import { CAPITAL_PLATE_KEY, PLATE_KEY } from "./icons";
@@ -17,11 +17,8 @@ import {
   sameSlots,
 } from "./nameIcons";
 
-/**
- * Zoom (pixels per world unit) at which system details pop in: two wheel steps past where empire
- * names start to fade, so the names are gone before the rows arrive.
- */
-export const DETAILS_MIN_SCALE = EMPIRE_LABEL_MAX_SCALE * 1.2;
+/** Zoom (pixels per world unit) at which system details pop in: a wheel notch after the names. */
+export const DETAILS_MIN_SCALE = DETAIL_SCALE * 1.1;
 
 /** Gap between the star's on-screen edge and the top of its name row, in screen pixels. */
 const STAR_LABEL_GAP_PX = 4;

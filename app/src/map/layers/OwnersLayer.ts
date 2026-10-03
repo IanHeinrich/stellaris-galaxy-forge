@@ -87,6 +87,11 @@ const NAME_MIN_WIDTH_SHARE = 0.5;
 const LABEL_FLOOR_MAX_SIZE = 6;
 /** The emblem is a square this many font sizes tall, sitting on the name's cap height. */
 const EMBLEM_SIZE = 3.2;
+/**
+ * How far, in font sizes, the emblem's square reaches down into the name's line, whose top
+ * stands clear of the letters: in the game the emblem nearly touches the top of the name.
+ */
+const EMBLEM_DROP = 0.3;
 /** Flat white and see-through, as the game shows a territory's flag symbol. */
 const EMBLEM_ALPHA = 0.7;
 const FADE_MS = 450;
@@ -527,6 +532,7 @@ export class OwnersLayer implements MapLayer {
       nameWidth: label.width / LABEL_FONT_PX,
       nameHeight: label.height / LABEL_FONT_PX,
       emblem: art ? EMBLEM_SIZE : 0,
+      drop: art ? EMBLEM_DROP : 0,
     };
     if (!(shape.nameWidth > 0 && shape.nameHeight > 0)) return null;
     const narrowest = this.ctx.border.name_min_width * NAME_MIN_WIDTH_SHARE;
@@ -544,7 +550,7 @@ export class OwnersLayer implements MapLayer {
     label.position.set(0, 0);
     const diameter = shape.emblem * fit.scale;
     if (diameter === 0) return;
-    const centre = SAVE_Y_SIGN * (-diameter / 2);
+    const centre = SAVE_Y_SIGN * (shape.drop * fit.scale - diameter / 2);
     glyph.position.set(0, centre);
     emblem.position.set(0, centre);
     const k = diameter / GLYPH_FONT_PX;

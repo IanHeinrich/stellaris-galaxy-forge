@@ -2,15 +2,16 @@ import type { Pt } from "./pt";
 
 /** Horizontal lines a territory piece is sampled along to place its name. */
 export const SCAN_ROWS = 24;
-/** The part of a stretch's width kept clear of the piece's edge on each side. */
-const SIDE_MARGIN = 0.04;
-/** Blocks within this fraction of each other's height share a rank. */
-const TIE = 0.02;
 /**
- * A label at least this share of the largest that fits is as good, and the one nearest the
- * piece's centre of area wins; this settles big pieces, where many spots reach the cap.
+ * How far either end of a name may run past the edge of its stretch, in units of scale (font
+ * sizes), about half a letter: in the game the first letter of a name centred on its territory
+ * can reach over the border.
  */
-const NEAR_BEST = 0.95;
+const NAME_SPILL = 0.5;
+/** The share of the emblem's width and height that may poke past the piece. */
+const EMBLEM_OVERHANG = 0.1;
+/** The step a label's scale is tried down by while it does not fit. */
+const SCALE_STEP = 0.95;
 
 /**
  * One territory piece cut by evenly spaced horizontal lines: what a label needs to find room
@@ -22,7 +23,7 @@ export interface PieceScan {
   step: number;
   /** Each line's stretches inside the piece, as sorted `[left, right, left, right, …]`. */
   rows: number[][];
-  /** The piece's centre of area, which the game centres a label on when it has room there. */
+  /** The piece's centre of area, which the game centres a label on. */
   cx: number;
   cy: number;
 }
@@ -113,6 +114,8 @@ export interface LabelShape {
   nameWidth: number;
   nameHeight: number;
   emblem: number;
+  /** How far the emblem reaches down into the top of the name's line, above its letters. */
+  drop: number;
 }
 
 /** A piece's label to place: its scan, its shape, and the scales it may take. */
@@ -123,11 +126,16 @@ export interface LabelRequest {
   minScale: number;
 }
 
-/** A label at (`x`, `y`), the top middle of its name bar, at `scale`. */
+/**
+ * A place for a label. With `hang` false, (`x`, `y`) is the middle of the name bar; with
+ * `hang` true it is the emblem's centre and the name hangs below it. `scale` is the largest
+ * that fits there, 0 for a piece too small for the floor.
+ */
 interface Spot {
   x: number;
   y: number;
   scale: number;
+  hang: boolean;
 }
 
 interface Rect {
@@ -137,25 +145,29 @@ interface Rect {
   y1: number;
 }
 
-/** How many separate spots in its piece a crowded label tries before it shrinks. */
+/** How many places in its piece a crowded label tries before it shrinks. */
 const SPOTS = 12;
-/** A label that does not fit its emblem shrinks by this step at a time; so does a crowded one. */
+/** A crowded label shrinks by this step at a time. */
 const SHRINK_STEP = 0.85;
 /** The share of its floor a crowded label may shrink to before it is left out. */
 const SHRINK_LIMIT = 0.5;
 
-/** Scales within `TIE` of each other share a rank. */
-function rankOf(scale: number): number {
-  return scale > 0 ? Math.floor(Math.log(scale) / Math.log(1 + TIE)) : -Infinity;
+/** The label of `shape` placed at `spot` at `scale`. */
+function placed(shape: LabelShape, spot: Spot, scale: number): LabelFit {
+  const top = spot.hang
+    ? spot.y + ((shape.emblem / 2 - shape.drop) * scale)
+    : spot.y - (shape.nameHeight * scale) / 2;
+  return { x: spot.x, y: top, scale, inside: scale <= spot.scale };
 }
 
-/** The name bar and the emblem square of a label at `spot`. */
-function rectsOf(shape: LabelShape, { x, y, scale }: Spot): Rect[] {
+/** The name bar and the emblem square of a placed label. */
+function rectsOf(shape: LabelShape, { x, y, scale }: LabelFit): Rect[] {
   const w = (shape.nameWidth * scale) / 2;
   const bar = { x0: x - w, y0: y, x1: x + w, y1: y + shape.nameHeight * scale };
   if (shape.emblem <= 0) return [bar];
   const e = shape.emblem * scale;
-  return [bar, { x0: x - e / 2, y0: y - e, x1: x + e / 2, y1: y }];
+  const bottom = y + shape.drop * scale;
+  return [bar, { x0: x - e / 2, y0: bottom - e, x1: x + e / 2, y1: bottom }];
 }
 
 function overlaps(a: Rect, b: Rect): boolean {
@@ -163,152 +175,150 @@ function overlaps(a: Rect, b: Rect): boolean {
 }
 
 /**
- * Where along `[lo, hi]` the middle of a bar `width` wide may sit with an emblem `side` wide
- * centred on it fitting the stretches of every line from `top - side` to `top`, nearest `cx`;
- * null when there is no such place. An emblem reaching past the piece's first line does not fit.
+ * The stretches every line from `top` to `bottom` has in common, or the nearest line's when
+ * none lies between; null when the band reaches past the piece's first or last line by more
+ * than half a step.
  */
-function emblemX(
-  scan: PieceScan,
-  lo: number,
-  hi: number,
-  width: number,
-  side: number,
-  top: number,
-): number | null {
-  const { rows, step, y0, cx } = scan;
-  let allowed = [lo + width / 2, hi - width / 2];
-  if (allowed[0] > allowed[1]) return null;
-  if (side > 0) {
-    const first = Math.ceil((top - side - y0) / step);
-    const last = Math.floor((top - y0) / step);
-    if (first < 0) return null;
-    let room = [lo, hi];
-    for (let r = first; r <= last && room.length > 0; r++) room = intersect(room, rows[r]);
-    const centres: number[] = [];
-    for (let k = 0; k + 1 < room.length; k += 2) {
-      const a = Math.max(room[k] + side / 2, allowed[0]);
-      const b = Math.min(room[k + 1] - side / 2, allowed[1]);
-      if (a <= b) centres.push(a, b);
+function stretchesOver(scan: PieceScan, top: number, bottom: number): number[] | null {
+  const { rows, step, y0 } = scan;
+  if (top < y0 - step / 2 || bottom > y0 + (rows.length - 0.5) * step) return null;
+  const first = Math.max(0, Math.ceil((top - y0) / step));
+  const last = Math.min(rows.length - 1, Math.floor((bottom - y0) / step));
+  if (first > last) {
+    const nearest = ((top + bottom) / 2 - y0) / step;
+    return rows[Math.min(rows.length - 1, Math.max(0, Math.round(nearest)))];
+  }
+  let room = rows[first];
+  for (let r = first + 1; r <= last && room.length > 0; r++) room = intersect(room, rows[r]);
+  return room;
+}
+
+/** The stretch holding `x`, or with `nearest` the one closest to it; null when there is none. */
+function stretchAt(room: readonly number[], x: number, nearest: boolean): [number, number] | null {
+  let best: [number, number] | null = null;
+  let gap = Infinity;
+  for (let k = 0; k + 1 < room.length; k += 2) {
+    const d = x < room[k] ? room[k] - x : x > room[k + 1] ? x - room[k + 1] : 0;
+    if (d < gap) {
+      gap = d;
+      best = [room[k], room[k + 1]];
     }
-    allowed = centres;
   }
-  let best: number | null = null;
-  for (let k = 0; k + 1 < allowed.length; k += 2) {
-    const x = Math.min(allowed[k + 1], Math.max(allowed[k], cx));
-    if (best === null || Math.abs(x - cx) < Math.abs(best - cx)) best = x;
+  return gap === 0 || nearest ? best : null;
+}
+
+/** Whether an emblem `side` wide, centred on `x` and resting on `top`, lies mostly inside. */
+function emblemFits(scan: PieceScan, x: number, side: number, top: number): boolean {
+  const inset = (side * (1 - EMBLEM_OVERHANG)) / 2;
+  const room = stretchesOver(scan, top - 2 * inset, top);
+  if (room === null) return false;
+  for (let k = 0; k + 1 < room.length; k += 2) {
+    if (room[k] <= x - inset && x + inset <= room[k + 1]) return true;
   }
-  return best;
+  return false;
 }
 
 /**
- * Up to `SPOTS` places in the scanned piece for a label of `shape`, best first. The name bar
- * fits the stretches of the lines it spans and the emblem those of the lines above its middle,
- * so a long name runs along a thin band while its emblem rises into the room above. Spots whose
- * scale, capped at `maxScale`, is at least `NEAR_BEST` of the largest come first, nearest the
- * piece's centre of area first; the rest follow, largest first. A spot that overlaps a better
- * one is skipped.
+ * The largest label, from `maxScale` down to `minScale`, whose name bar is centred on the row
+ * at `y`, with neither end of the name more than `NAME_SPILL` past the edge of its stretch and
+ * the emblem mostly inside above it. On the centre of area's row (`centred`) the name is
+ * centred on the centre itself, which must lie in the piece; on another row it is centred on
+ * the stretch nearest the centre. Null when even `minScale` does not fit.
  */
-function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number): Spot[] {
+function fitAt(
+  scan: PieceScan,
+  shape: LabelShape,
+  y: number,
+  maxScale: number,
+  minScale: number,
+  centred: boolean,
+): Spot | null {
+  for (let scale = maxScale; scale >= minScale; scale *= SCALE_STEP) {
+    const half = (shape.nameHeight * scale) / 2;
+    const room = stretchesOver(scan, y - half, y + half);
+    const stretch = room && stretchAt(room, scan.cx, !centred);
+    if (!stretch) continue;
+    const [a, b] = stretch;
+    const x = centred ? scan.cx : (a + b) / 2;
+    const reach = (shape.nameWidth / 2 - NAME_SPILL) * scale;
+    if (x - reach < a || x + reach > b) continue;
+    const top = y - half + shape.drop * scale;
+    if (shape.emblem > 0 && !emblemFits(scan, x, shape.emblem * scale, top)) continue;
+    return { x, y, scale, hang: false };
+  }
+  return null;
+}
+
+/**
+ * Where a label of `shape` may go in the scanned piece, best first. The game centres a label on
+ * its piece: the name bar's row is the centre of area's, and the label takes the largest scale
+ * that fits there, smaller rather than moved. Only when the centre lies outside the piece, or
+ * the label there would be under `minScale`, do the other rows follow, nearest first. A piece
+ * too small for the floor anywhere hangs its name under an emblem on the centre of area; that
+ * place comes last for every piece, for a crowded label.
+ */
+function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number, minScale: number): Spot[] {
   const { rows, step, y0, cx, cy } = scan;
-  const all: Spot[] = [];
-  let largest = 0;
-  for (let i = 0; i < rows.length; i++) {
-    let spans = rows[i];
-    for (let j = i + 1; j < rows.length && spans.length > 0; j++) {
-      spans = intersect(spans, rows[j]);
-      const tall = (j - i) * step;
-      for (let k = 0; k + 1 < spans.length; k += 2) {
-        const margin = (spans[k + 1] - spans[k]) * SIDE_MARGIN;
-        const lo = spans[k] + margin;
-        const hi = spans[k + 1] - margin;
-        const fits = Math.min(tall / shape.nameHeight, (hi - lo) / shape.nameWidth, maxScale);
-        for (let scale = fits; scale > fits * SHRINK_LIMIT; scale *= SHRINK_STEP) {
-          const top = y0 + i * step + (tall - shape.nameHeight * scale) / 2;
-          const nameWidth = shape.nameWidth * scale;
-          const x = emblemX(scan, lo, hi, nameWidth, shape.emblem * scale, top);
-          if (x === null) continue;
-          all.push({ x, y: top, scale });
-          largest = Math.max(largest, scale);
-          break;
-        }
-      }
-    }
-  }
-  const centreOf = (s: Spot) => s.y + (shape.nameHeight * s.scale) / 2;
-  const near = (s: Spot) => (s.scale >= largest * NEAR_BEST ? 0 : 1);
-  const off = (s: Spot) => Math.hypot(s.x - cx, centreOf(s) - cy);
-  all.sort(
-    (a, b) =>
-      near(a) - near(b) ||
-      (near(a) === 0 ? 0 : rankOf(b.scale) - rankOf(a.scale)) ||
-      off(a) - off(b) ||
-      a.x - b.x,
-  );
   const spots: Spot[] = [];
-  for (const spot of all) {
-    if (spots.length === SPOTS) break;
-    const [bar] = rectsOf(shape, spot);
-    if (!spots.some((s) => overlaps(bar, rectsOf(shape, s)[0]))) spots.push(spot);
+  const add = (spot: Spot | null) => {
+    if (spot === null || spots.length >= SPOTS) return;
+    const [bar] = rectsOf(shape, placed(shape, spot, spot.scale));
+    const clash = spots.some((s) => overlaps(bar, rectsOf(shape, placed(shape, s, s.scale))[0]));
+    if (!clash) spots.push(spot);
+  };
+  if (rows.length > 0) {
+    add(fitAt(scan, shape, cy, maxScale, minScale, true));
+    const others = rows.map((_, i) => y0 + i * step);
+    others.sort((a, b) => Math.abs(a - cy) - Math.abs(b - cy) || a - b);
+    for (const y of others) add(fitAt(scan, shape, y, maxScale, minScale, false));
   }
+  spots.push({ x: cx, y: cy, scale: 0, hang: shape.emblem > 0 });
   return spots;
 }
 
-/** `spot` at `scale`, its name bar's middle kept where it was. */
-function rescaled(shape: LabelShape, spot: Spot, scale: number): Spot {
-  if (scale === spot.scale) return spot;
-  const middle = spot.y + (shape.nameHeight * spot.scale) / 2;
-  return { x: spot.x, y: middle - (shape.nameHeight * scale) / 2, scale };
-}
-
 /**
- * The largest label of `shape` that fits inside the scanned piece, no larger than `maxScale`.
- * A label that would come out smaller than `minScale` takes that scale at the same place and
- * overflows. Null for a piece with no height.
+ * The label of `shape` the scanned piece takes on its own: centred on the piece, as large as
+ * fits there up to `maxScale`. A piece with no room for `minScale` takes that scale with the
+ * emblem on its centre and the name hanging below, overflowing.
  */
 export function fitLabel(
   scan: PieceScan,
   shape: LabelShape,
   maxScale: number,
   minScale: number,
-): LabelFit | null {
-  const [best] = spotsIn(scan, shape, maxScale);
-  if (best === undefined) return null;
-  if (best.scale >= minScale) return { ...best, inside: true };
-  return { ...rescaled(shape, best, minScale), inside: false };
+): LabelFit {
+  const [best] = spotsIn(scan, shape, maxScale, minScale);
+  return placed(shape, best, Math.max(best.scale, minScale));
 }
 
 /**
  * Every label fitted to its piece with no two overlapping. The largest go first, each at its
- * best spot. A label that would overlap one already placed tries its piece's other spots, then
- * shrinks step by step at each of them down to half its floor, and is left out (null) if it
- * still finds no clear room. The same requests always give the same placements.
+ * best place. A label that would overlap one already placed tries its piece's other places,
+ * then shrinks step by step at each of them down to half its floor, and is left out (null) if
+ * it still finds no clear room. The same requests always give the same placements.
  */
 export function placeLabels(requests: readonly LabelRequest[]): (LabelFit | null)[] {
-  const spots = requests.map((r) => spotsIn(r.scan, r.shape, r.maxScale));
-  const planned = requests.map((r, i) => Math.max(spots[i][0]?.scale ?? 0, r.minScale));
-  const order = requests
-    .map((_, i) => i)
-    .filter((i) => spots[i].length > 0)
-    .sort(
-      (a, b) =>
-        planned[b] * requests[b].shape.nameWidth - planned[a] * requests[a].shape.nameWidth ||
-        a - b,
-    );
-  const placed: Rect[] = [];
+  const spots = requests.map((r) => spotsIn(r.scan, r.shape, r.maxScale, r.minScale));
+  const planned = requests.map((r, i) => Math.max(spots[i][0].scale, r.minScale));
+  const width = (i: number) => planned[i] * requests[i].shape.nameWidth;
+  const order = requests.map((_, i) => i).sort((a, b) => width(b) - width(a) || a - b);
+  const taken: Rect[] = [];
   const out: (LabelFit | null)[] = requests.map(() => null);
   for (const i of order) {
     const { shape, minScale } = requests[i];
     const tryAt = (spot: Spot, scale: number): boolean => {
-      const at = rescaled(shape, spot, scale);
-      const rects = rectsOf(shape, at);
-      if (rects.some((r) => placed.some((p) => overlaps(r, p)))) return false;
-      placed.push(...rects);
-      out[i] = { ...at, inside: scale <= spot.scale };
+      const fit = placed(shape, spot, scale);
+      const rects = rectsOf(shape, fit);
+      if (rects.some((r) => taken.some((t) => overlaps(r, t)))) return false;
+      taken.push(...rects);
+      out[i] = fit;
       return true;
     };
     if (spots[i].some((spot) => tryAt(spot, Math.max(spot.scale, minScale)))) continue;
     for (let s = planned[i] * SHRINK_STEP; s >= minScale * SHRINK_LIMIT; s *= SHRINK_STEP) {
-      if (spots[i].some((spot) => tryAt(spot, Math.min(s, Math.max(spot.scale, minScale))))) break;
+      if (spots[i].some((spot) => tryAt(spot, Math.min(s, Math.max(spot.scale, minScale))))) {
+        break;
+      }
     }
   }
   return out;
