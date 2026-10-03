@@ -28,6 +28,10 @@ export class LaneTable<E extends Tabled> {
     return this.entries.has(key);
   }
 
+  get(key: string): E | undefined {
+    return this.entries.get(key);
+  }
+
   add(entry: E): void {
     this.entries.set(entry.key, entry);
     for (const end of entry.ends) addTo(this.byId, end, entry);

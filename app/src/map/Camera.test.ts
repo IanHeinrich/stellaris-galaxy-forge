@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../lib/geometry/geometry";
 import { seeded } from "../lib/random";
 import { Camera } from "./Camera";
-import { FLAT_TILT, liftedY } from "./tilt";
+import { FLAT_TILT } from "./tilt";
 
 describe("Camera", () => {
   it("applies the axis signs once between world and screen and round-trips", () => {
@@ -103,7 +103,6 @@ describe("the tilted camera", () => {
     const flat = tilted(0);
     expect(flat.tilt).toBe(FLAT_TILT);
     expect(flat.worldToScreen(12, 30).y).toBe(300 + SAVE_Y_SIGN * 10 * 2);
-    expect(liftedY(30, 80, flat.tilt)).toBe(30);
   });
 
   it("squashes the plane about the centre of view and leaves x alone", () => {
@@ -119,17 +118,6 @@ describe("the tilted camera", () => {
     expect(t.y + 30 * t.scaleY).toBeCloseTo(s.y);
     const cs = cam.childScale(3);
     expect(cs.y * t.scaleY).toBeCloseTo(3);
-  });
-
-  it("lifts a system above the plane by half its height times the sine, as the game does", () => {
-    const cam = tilted(30);
-    const plane = cam.worldToScreen(12, 30);
-    const above = cam.worldToScreen(12, liftedY(30, 40, cam.tilt));
-    const below = cam.worldToScreen(12, liftedY(30, -40, cam.tilt));
-    const rise = 40 * 0.5 * Math.sin(Math.PI / 6) * cam.scale;
-    expect(above.x).toBeCloseTo(plane.x);
-    expect(plane.y - above.y).toBeCloseTo(rise);
-    expect(below.y - plane.y).toBeCloseTo(rise);
   });
 
   it("keeps the tilt between flat and its steepest", () => {

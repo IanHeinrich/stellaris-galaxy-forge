@@ -6,7 +6,7 @@ import { systemNode } from "../../test/builders";
 import { HeightsLayer, heightText } from "./HeightsLayer";
 import { layerIdsFor } from "./registry";
 import { Camera } from "../Camera";
-import { liftedY } from "../tilt";
+import { DrawnPositions } from "../drawnPositions";
 import {
   childByLabel,
   drawnText,
@@ -18,11 +18,16 @@ import {
 
 stubTextMeasurement();
 
-function drawn(heights: Array<number | undefined>, scale = 1): HeightsLayer {
+function drawn(
+  heights: Array<number | undefined>,
+  scale = 1,
+  positions = new DrawnPositions(),
+): HeightsLayer {
   const nodes = heights.map((height, id) =>
     systemNode({ id, x: id * 10, ...(height === undefined ? {} : { height }) }),
   );
-  const layer = new HeightsLayer();
+  const layer = new HeightsLayer(positions);
+  positions.onChange((change) => layer.onDrawn(change));
   layer.rebuild(mapContext(nodes, { kind: "save" }));
   viewport(layer, scale);
   return layer;
@@ -65,18 +70,19 @@ describe("the heights layer", () => {
 
 describe("the heights layer on a tilted map", () => {
   it("drops a line to a hexagon on the plane under each lifted system, and none when flat", () => {
-    const layer = drawn([undefined, absoluteHeight(40)]);
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    const positions = new DrawnPositions(cam);
+    const layer = drawn([undefined, absoluteHeight(40)], 1, positions);
     const plane = childByLabel(layer.container, "plane") as Graphics;
     expect(strokes(plane)).toEqual([]);
 
-    const cam = new Camera();
-    cam.setViewport(800, 600);
-    cam.setTilt(30);
+    positions.setTilt(30);
     layer.onViewport(cam);
     expect(strokes(plane).map((op) => op.segments.length)).toEqual([1, 1]);
-    expect(rings(layer)[0].y).toBeCloseTo(liftedY(0, 40, cam.tilt));
+    expect(rings(layer)[0].y).toBeCloseTo(-40 * 0.5 * Math.tan(Math.PI / 6));
 
-    cam.setTilt(0);
+    positions.setTilt(0);
     layer.onViewport(cam);
     expect(strokes(plane)).toEqual([]);
     expect(rings(layer)[0].y).toBe(0);
@@ -85,20 +91,21 @@ describe("the heights layer on a tilted map", () => {
 
 describe("the heights layer under a height preview", () => {
   it("rings and writes a previewed system at the previewed height, and its own again after", () => {
-    const layer = drawn([undefined, absoluteHeight(40)], 4);
+    const positions = new DrawnPositions();
+    const layer = drawn([undefined, absoluteHeight(40)], 4, positions);
     const preview = childByLabel(layer.container, "previewRings");
 
-    layer.setHeightPreview(new Map([[0, -15]]), new Set([0]));
+    positions.setPreview(new Map([[0, -15]]));
     expect(preview.children).toHaveLength(1);
     expect(strokes(preview.children[0] as Graphics)[0].color).toBe(heightTint(-15));
     expect(drawnText(childByLabel(layer.container, "values")).sort()).toEqual(["+40", "−15"]);
 
-    layer.setHeightPreview(new Map([[1, 0]]), new Set([0, 1]));
+    positions.setPreview(new Map([[1, 0]]));
     expect(preview.children).toHaveLength(0);
     expect(rings(layer)).toHaveLength(0);
     expect(drawnText(childByLabel(layer.container, "values"))).toEqual([]);
 
-    layer.setHeightPreview(new Map(), new Set([1]));
+    positions.setPreview(new Map());
     expect(rings(layer)).toHaveLength(1);
     expect(drawnText(childByLabel(layer.container, "values"))).toEqual(["+40"]);
   });

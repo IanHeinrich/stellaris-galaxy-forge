@@ -13,9 +13,7 @@ import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
 import type { Segment } from "../../lib/geometry/segments";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import type { SystemNode } from "../../generated/SystemNode";
-import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
-import { FLAT_TILT, isTilted, liftedPoint, movedAny, type Tilt } from "../tilt";
+import { DrawnPositions, movedAny, type DrawnChange } from "../drawnPositions";
 import {
   ACCENT_COLOR,
   ALLOWED_COLOR,
@@ -153,7 +151,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
   readonly brush = new BrushOverlay();
-  readonly laneDrag = new LaneDragOverlay();
+  readonly laneDrag: LaneDragOverlay;
   /** The axis or spokes of the symmetry edits repeat under. */
   readonly guide = new SymmetryGuide(mapReach(EMPTY_CONTEXT.kind, EMPTY_CONTEXT.radius));
   private readonly feZoneDrag = new FeZoneDragOverlay();
@@ -174,16 +172,13 @@ export class HighlightsLayer implements MapLayer {
   private hoverEdge: MapEdge | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
-  private tilt: Tilt = FLAT_TILT;
-  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
-  /** Where a system draws: lifted by its height, or the one previewed, while the map leans. */
-  private readonly lifted = (s: SystemNode): Pt => liftedPoint(s, this.tilt, this.preview);
   private markerK = 1;
   private portCapable = false;
   private readonly scale = { x: 1, y: 1 };
   private readonly pixelScale = { x: 1, y: 1 };
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
+    this.laneDrag = new LaneDragOverlay(drawn.at);
     this.container.addChild(
       this.coreRing,
       this.guide.graphics,
@@ -224,7 +219,7 @@ export class HighlightsLayer implements MapLayer {
     }
     this.guide.setReach(mapReach(ctx.kind, ctx.radius));
     if (!loaded) return;
-    this.added.place(this.systems, this.lifted);
+    this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
     this.placeSelection();
     this.placeMatched();
@@ -238,7 +233,7 @@ export class HighlightsLayer implements MapLayer {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
     if (touches(d, this.searched)) this.placeSearched();
-    this.added.place(this.systems, this.lifted);
+    this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
     this.placeAll();
     this.drawPreviews();
@@ -255,17 +250,6 @@ export class HighlightsLayer implements MapLayer {
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
-    if (cam.tilt !== this.tilt) {
-      this.tilt = cam.tilt;
-      this.placeSelection();
-      this.placeMatched();
-      this.placeSearched();
-      this.placeHover();
-      this.place(this.cutRing, this.cutSource);
-      this.laneDrag.setHover(isTilted(this.tilt) ? null : this.hoverId);
-      this.added.place(this.systems, this.lifted);
-      this.drawLanes();
-    }
     const portCapable = portsAt(cam.scale);
     if (cam.scale !== this.camScale || portCapable !== this.portCapable) {
       this.camScale = cam.scale;
@@ -288,19 +272,18 @@ export class HighlightsLayer implements MapLayer {
     this.added.destroy();
   }
 
-  /** While the map leans, re-places only the rings and lines of the systems whose preview moved. */
-  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
-    this.preview = preview;
-    if (!isTilted(this.tilt)) return;
-    if (movedAny(changed, this.selection)) this.placeSelection();
-    if (movedAny(changed, this.matched)) this.placeMatched();
-    if (movedAny(changed, this.searched)) this.placeSearched();
-    this.placeHover();
-    this.place(this.cutRing, this.cutSource);
-    const lane = this.selectedLane;
-    if (lane && (changed.has(lane.a) || changed.has(lane.b))) this.drawLanes();
-    if ([...changed].some((id) => this.systems.get(id)?.added)) {
-      this.added.place(this.systems, this.lifted);
+  /** Re-places only the rings and lines of the systems drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    if (movedAny(moved, this.selection)) this.placeSelection();
+    if (movedAny(moved, this.matched)) this.placeMatched();
+    if (movedAny(moved, this.searched)) this.placeSearched();
+    this.placeAll();
+    this.drawPreviews();
+    this.drawLanes();
+    this.laneDrag.redraw();
+    if ([...moved].some((id) => this.systems.get(id)?.added)) {
+      this.added.place(this.systems, this.drawn.at);
     }
   }
 
@@ -313,7 +296,7 @@ export class HighlightsLayer implements MapLayer {
   setHover(id: number | null): void {
     if (id === this.hoverId) return;
     this.hoverId = id;
-    this.laneDrag.setHover(isTilted(this.tilt) ? null : id);
+    this.laneDrag.setHover(id);
     this.placeHover();
   }
 
@@ -402,17 +385,17 @@ export class HighlightsLayer implements MapLayer {
     const dimmed: Pt[] = [];
     for (const id of this.selection) {
       const s = this.systems.get(id);
-      if (s) (this.dragged.has(id) ? dimmed : bright).push(this.lifted(s));
+      if (s) (this.dragged.has(id) ? dimmed : bright).push(this.drawn.at(s));
     }
     this.selectionRings.place(bright, dimmed);
   }
 
   private placeMatched(): void {
-    this.matchedRings.place(pointsOf(this.systems, this.matched, this.tilt, this.preview));
+    this.matchedRings.place(pointsOf(this.systems, this.matched, this.drawn.at));
   }
 
   private placeSearched(): void {
-    this.searchedRings.place(pointsOf(this.systems, this.searched, this.tilt, this.preview));
+    this.searchedRings.place(pointsOf(this.systems, this.searched, this.drawn.at));
   }
 
   /** The hover ring, unless the selection already rings that system, and the port ring. */
@@ -426,17 +409,17 @@ export class HighlightsLayer implements MapLayer {
     this.placeHover();
     this.place(this.cutRing, this.cutSource);
     this.ghostRings.place(this.ghosts);
-    this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
+    this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? [], this.drawn.at));
     const covered = this.feZoneDrag.preview?.blocked;
     this.leavingRings.place([
-      ...pointsOf(this.systems, this.nebula?.leaving ?? []),
+      ...pointsOf(this.systems, this.nebula?.leaving ?? [], this.drawn.at),
       ...(covered ? [covered] : []),
     ]);
   }
 
   private place(g: Graphics, id: number | null): void {
     const s = id === null ? undefined : this.systems.get(id);
-    this.placeAt(g, s && this.lifted(s));
+    this.placeAt(g, s && this.drawn.at(s));
   }
 
   private placeAt(g: Graphics, at: Pt | null | undefined): void {
@@ -451,11 +434,11 @@ export class HighlightsLayer implements MapLayer {
   private drawPreviews(): void {
     const g = this.previewLines;
     g.clear();
-    const segments = ghostLaneSegments(this.systems, this.ghosts);
+    const segments = ghostLaneSegments(this.systems, this.ghosts, this.drawn.at);
     for (const [a, b] of this.lanePreview ?? []) {
       const from = this.systems.get(a);
       const to = this.systems.get(b);
-      if (from && to) segments.push([from, to]);
+      if (from && to) segments.push([this.drawn.at(from), this.drawn.at(to)]);
     }
     for (const [a, b] of segments) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (segments.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
@@ -506,7 +489,7 @@ export class HighlightsLayer implements MapLayer {
     const g = this.laneLines;
     g.clear();
     this.midpoint.visible = false;
-    const selected = this.liftSegment(this.endpoints(this.selectedLane));
+    const selected = this.endpoints(this.selectedLane);
     if (selected) {
       g.moveTo(selected.a.x, selected.a.y)
         .lineTo(selected.b.x, selected.b.y)
@@ -516,7 +499,7 @@ export class HighlightsLayer implements MapLayer {
           width: SELECTED_LANE.widthPx / this.camScale,
         });
     }
-    const hovered = this.liftSegment(edgeEnds(this.systems, this.hoverEdge));
+    const hovered = edgeEnds(this.systems, this.hoverEdge, this.drawn.at);
     const hoveredIsSelected =
       this.hoverEdge?.kind === "lane" && sameLane(this.hoverEdge.lane, this.selectedLane);
     if (hovered && !hoveredIsSelected) {
@@ -536,14 +519,7 @@ export class HighlightsLayer implements MapLayer {
     }
   }
 
-  /** A lane between two systems where they draw; a zone link stays on the plane. */
-  private liftSegment(segment: Segment | null): Segment | null {
-    if (!segment || !isTilted(this.tilt)) return segment;
-    const lift = (p: Pt): Pt => ("id" in p ? this.lifted(p as SystemNode) : p);
-    return { a: lift(segment.a), b: lift(segment.b) };
-  }
-
   private endpoints(lane: LaneRef | null): Segment | null {
-    return edgeEnds(this.systems, lane && { kind: "lane", lane });
+    return edgeEnds(this.systems, lane && { kind: "lane", lane }, this.drawn.at);
   }
 }

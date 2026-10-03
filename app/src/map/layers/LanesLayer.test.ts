@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import { Camera } from "../Camera";
+import { DrawnPositions, LIFT_SCALE } from "../drawnPositions";
 import { EMPTY_CONTEXT } from "../RenderContext";
-import { liftedY } from "../tilt";
 import { LanesLayer, PREVENTED_LANE } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
 import { childByLabel, type DrawOp, mapContext, mapNode, strokes } from "./fixture";
@@ -42,8 +42,9 @@ const SIRIUS: SystemNode = {
   lanes: [{ to: 2, length: 20, bridge: false, stale: false }],
 };
 
-function drawn(nodes: readonly SystemNode[]): MapLayer {
-  const layer = new LanesLayer();
+function drawn(nodes: readonly SystemNode[], positions = new DrawnPositions()): MapLayer {
+  const layer = new LanesLayer(positions);
+  positions.onChange((change) => layer.onDrawn?.(change));
   layer.rebuild(mapContext(nodes));
   return layer;
 }
@@ -169,24 +170,30 @@ describe("a height preview on a tilted map", () => {
       { ...BARNARD, id: 4, x: 1000, lanes: [{ to: 5, length: 20, bridge: false, stale: false }] },
       { ...SIRIUS, id: 5, x: 1020, lanes: [{ to: 4, length: 20, bridge: false, stale: false }] },
     ];
-    const layer = drawn([BARNARD, SIRIUS, ...far]);
     const cam = new Camera();
     cam.setViewport(800, 600);
-    cam.setTilt(30);
+    const positions = new DrawnPositions(cam);
+    const layer = drawn([BARNARD, SIRIUS, ...far], positions);
+    positions.setTilt(30);
     layer.onViewport(cam, EMPTY_CONTEXT);
     const cleared = tileGraphics(layer).map((g) => vi.spyOn(g, "clear"));
 
-    layer.setHeightPreview!(new Map([[2, 50]]), new Set([2]));
+    positions.setPreview(new Map([[2, 50]]));
 
     expect(cleared.filter((spy) => spy.mock.calls.length > 0)).toHaveLength(3);
-    const lifted = liftedY(0, 50, cam.tilt);
-    expect(laneStrokes(layer).flatMap((s) => s.segments)).toContainEqual([40, lifted, 60, 0]);
+    const lifted = -50 * LIFT_SCALE * Math.tan(Math.PI / 6);
+    const lane = laneStrokes(layer)
+      .flatMap((s) => s.segments)
+      .find((segment) => segment[0] === 40);
+    expect(lane?.[1]).toBeCloseTo(lifted);
+    expect(lane?.slice(2)).toEqual([60, 0]);
   });
 
   it("redraws nothing while the map lies flat", () => {
-    const layer = drawn([BARNARD, SIRIUS]);
+    const positions = new DrawnPositions();
+    const layer = drawn([BARNARD, SIRIUS], positions);
     const cleared = tileGraphics(layer).map((g) => vi.spyOn(g, "clear"));
-    layer.setHeightPreview!(new Map([[2, 50]]), new Set([2]));
+    positions.setPreview(new Map([[2, 50]]));
     expect(cleared.every((spy) => spy.mock.calls.length === 0)).toBe(true);
   });
 });

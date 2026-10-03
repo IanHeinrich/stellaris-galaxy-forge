@@ -6,13 +6,14 @@ import {
   heightTint,
   isFlat,
   NO_HEIGHT_PREVIEW,
+  relativeHeight,
   type HeightPreview,
 } from "../../lib/height";
 import { labelTier } from "../../lib/visual/labels";
 import { MAP_FONT, RING_RADIUS } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, isTilted, liftedY, systemHeight, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 
@@ -90,11 +91,11 @@ export class HeightsLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   /** Every system off the plane at its stored height. */
   private stored = new Map<number, Lifted>();
+  /** The preview drawn last, so a change can tell the systems that entered or left it. */
   private preview: HeightPreview = NO_HEIGHT_PREVIEW;
   /** The previewed systems off the plane at the height the preview shows, by id. */
   private readonly previewed = new Map<number, Lifted>();
   private readonly previewMarks = new Map<number, Graphics>();
-  private tilt: Tilt = FLAT_TILT;
   private camScale = -1;
   private visible = true;
   /** Whether values are written at this zoom, and how far up and right of the star they sit. */
@@ -104,7 +105,7 @@ export class HeightsLayer implements MapLayer {
   private readonly valueScale = { x: 1, y: 1 };
   private readonly bounds = [0, 0, 0, 0];
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(
       this.plane,
       this.previewPlane,
@@ -120,7 +121,7 @@ export class HeightsLayer implements MapLayer {
     this.systems = ctx.systems;
     this.stored = new Map();
     for (const node of ctx.systems.values()) {
-      const entry = liftedOf(node, systemHeight(node));
+      const entry = liftedOf(node, relativeHeight(node.height));
       if (entry) this.stored.set(node.id, entry);
     }
     this.readPreview();
@@ -134,16 +135,17 @@ export class HeightsLayer implements MapLayer {
     // A delta comes with a fresh context, and `rebuild` reads the heights from that.
   }
 
-  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
-    const entered = [...changed].some((id) => this.preview.has(id) !== preview.has(id));
-    this.preview = preview;
+  /** A new lean moves every ring and drop; a preview redraws only its own systems. */
+  onDrawn({ heights, leaned }: DrawnChange): void {
+    const preview = this.drawn.preview;
+    const entered = [...heights].some((id) => this.preview.has(id) !== preview.has(id));
     this.readPreview();
-    if (entered) {
+    if (leaned || entered) {
       this.placeRings();
       this.drawPlane();
     }
     this.drawPreview();
-    for (const id of changed) this.placeValue(id);
+    for (const id of heights) this.placeValue(id);
   }
 
   onViewport(cam: Camera): void {
@@ -151,13 +153,11 @@ export class HeightsLayer implements MapLayer {
     for (const batch of this.batches.values()) batch.setScale(this.scale);
     for (const mark of this.previewMarks.values()) mark.scale.set(this.scale.x, this.scale.y);
     cam.childScale(1, this.valueScale);
-    const tilted = cam.tilt !== this.tilt;
-    const zoomed = cam.scale !== this.camScale;
-    this.tilt = cam.tilt;
-    this.camScale = cam.scale;
-    if (tilted) this.placeRings();
-    if (tilted || (zoomed && isTilted(this.tilt))) this.drawPlane();
-    if (tilted || zoomed) this.drawPreview();
+    if (cam.scale !== this.camScale) {
+      this.camScale = cam.scale;
+      this.drawPlane();
+      this.drawPreview();
+    }
     this.placeValues(cam);
   }
 
@@ -172,6 +172,7 @@ export class HeightsLayer implements MapLayer {
   }
 
   private readPreview(): void {
+    this.preview = this.drawn.preview;
     this.previewed.clear();
     for (const [id, height] of this.preview) {
       const node = this.systems.get(id);
@@ -194,7 +195,7 @@ export class HeightsLayer implements MapLayer {
   }
 
   private at(entry: Lifted): Pt {
-    return { x: entry.node.x, y: liftedY(entry.node.y, entry.height, this.tilt) };
+    return this.drawn.at(entry.node);
   }
 
   /** One batch per tint and weight, each ringing its systems where they draw. */
@@ -232,7 +233,7 @@ export class HeightsLayer implements MapLayer {
   /** The tilted map's drop lines and the hexagons on the plane they fall to, by tint. */
   private drawPlane(): void {
     this.plane.clear();
-    if (!isTilted(this.tilt) || this.camScale <= 0) return;
+    if (!this.drawn.leans || this.camScale <= 0) return;
     const tints = new Set<number>();
     for (const entry of this.settled()) tints.add(entry.tint);
     for (const tint of tints) this.drawDrops(this.plane, this.settled(), tint);
@@ -244,7 +245,7 @@ export class HeightsLayer implements MapLayer {
     const ofTint = [...entries].filter((entry) => entry.tint === tint);
     for (const entry of ofTint) {
       const { x, y } = entry.node;
-      g.moveTo(x, y).lineTo(x, liftedY(y, entry.height, this.tilt));
+      g.moveTo(x, y).lineTo(x, this.drawn.y(entry.node));
     }
     g.stroke({ color: tint, alpha: DROP_ALPHA, pixelLine: true });
     for (const entry of ofTint) {
@@ -279,7 +280,7 @@ export class HeightsLayer implements MapLayer {
       mark.scale.set(this.scale.x, this.scale.y);
     }
     this.previewPlane.clear();
-    if (!isTilted(this.tilt) || this.camScale <= 0) return;
+    if (!this.drawn.leans || this.camScale <= 0) return;
     for (const entry of this.previewed.values()) {
       this.drawDrops(this.previewPlane, [entry], entry.tint);
     }

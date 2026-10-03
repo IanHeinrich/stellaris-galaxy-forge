@@ -10,6 +10,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useToolStore, type ToolState } from "../../store/toolStore";
 import type { Camera } from "../Camera";
+import type { DrawnPositions } from "../drawnPositions";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { MapLayer } from "../layers/MapLayer";
 import {
@@ -22,9 +23,7 @@ import {
 } from "../picking";
 import type { MapEdge } from "../picking/edges";
 import { PickIndex } from "../picking/pickIndex";
-import { LiftedGrid } from "../picking/liftedGrid";
 import { trackGalaxy } from "../picking/trackGalaxy";
-import type { HeightPreview } from "../../lib/height";
 import { AddedTooltip } from "./addedTooltip";
 import { BrushModel } from "./BrushModel";
 import { BrushStrokes } from "./brushStrokes";
@@ -84,12 +83,8 @@ export class InteractionController {
   private readonly feZones: FeZoneDrag;
   private readonly moves: MoveDrag;
   private model: MapModel = this.models.select;
-  /** Whether the map leans, which keeps systems where they are and lanes as they are. */
-  private tilted = false;
-  /** Where the leaning map draws each system, which is where a pointer finds it. */
-  private readonly lifted = new LiftedGrid();
-  /** The pointer where it lands among the lifted systems, rewritten per pick. */
-  private readonly liftedAt: Pt = { x: 0, y: 0 };
+  /** The pointer in pick space, where systems and lanes are found as they draw; rewritten per pick. */
+  private readonly pickAt: Pt = { x: 0, y: 0 };
   private readonly intent: MapIntent;
   private readonly pointer: PointerBridge<MapInput>;
   private readonly addedTip = new AddedTooltip();
@@ -103,7 +98,7 @@ export class InteractionController {
   private readonly gesture = new GestureReporter();
   /** The pointer in world units, rewritten per event rather than allocated. */
   private readonly at: Pt = { x: 0, y: 0 };
-  private readonly index = new PickIndex();
+  private readonly index: PickIndex;
   private readonly cleanups: Array<() => void> = [];
   /** The key listeners, which only the active scene's controller holds, as it holds the pointer. */
   private readonly keyListeners: Array<() => void> = [];
@@ -112,12 +107,14 @@ export class InteractionController {
     private readonly canvas: HTMLCanvasElement,
     private readonly cam: Camera,
     private readonly highlights: HighlightsLayer,
-    layers: readonly MapLayer[] = [],
+    layers: readonly MapLayer[],
+    private readonly drawn: DrawnPositions,
   ) {
-    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide);
+    this.index = new PickIndex(drawn);
+    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide, drawn);
     this.nebulae = new NebulaDrag(cam, highlights);
     this.feZones = new FeZoneDrag(cam, highlights);
-    this.moves = new MoveDrag(layers);
+    this.moves = new MoveDrag(layers, drawn);
     this.intent = this.buildIntent();
     this.pointer = new PointerBridge(
       canvas,
@@ -146,6 +143,10 @@ export class InteractionController {
     this.brushes.drawGuide();
     this.cleanups.push(
       trackGalaxy(this.index),
+      drawn.onChange(({ moved, leaned }) => {
+        if (leaned) this.index.build(useGalaxyStore.getState().systems);
+        else this.index.moved(moved);
+      }),
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
         if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
@@ -194,7 +195,8 @@ export class InteractionController {
       selectInRect: (x0, y0, x1, y1, mode) => {
         const ids: number[] = [];
         for (const s of systems().values()) {
-          if (this.lifted.drawsIn(s, x0, y0, x1, y1)) ids.push(s.id);
+          const y = this.drawn.y(s);
+          if (s.x >= x0 && s.x <= x1 && y >= y0 && y <= y1) ids.push(s.id);
         }
         void editor().setSelection(ids, mode);
       },
@@ -271,24 +273,6 @@ export class InteractionController {
     this.canvas.style.cursor = this.model.cursor();
   }
 
-  /**
-   * While the map leans, systems are picked where they draw, and a drag from one box-selects
-   * instead of moving it; lanes are neither picked nor drawn.
-   */
-  setTilted(on: boolean): void {
-    this.lifted.setTilt(this.cam.tilt);
-    if (on === this.tilted) return;
-    this.dropDrag();
-    this.hover(null);
-    this.tilted = on;
-    this.models.select.tilted = on;
-  }
-
-  /** The heights the inspector previews, which move where the leaning map draws those systems. */
-  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
-    this.lifted.setPreview(preview, changed);
-  }
-
   private dropDrag(): void {
     this.pointer.drop();
     this.laneFrom = null;
@@ -317,7 +301,6 @@ export class InteractionController {
   dispose(): void {
     this.unbind();
     for (const c of this.cleanups.splice(0)) c();
-    this.lifted.dispose();
     this.canvas.style.cursor = "";
     this.hoverEdge = null;
     this.gesture.dispose();
@@ -350,17 +333,21 @@ export class InteractionController {
     return this.model === this.models.select ? this.pick(input, w) : input;
   }
 
-  /** What is under the pointer; a brush reads only where the pointer is, so it never asks. */
+  /**
+   * What is under the pointer: systems and lanes where they draw, zones and nebulae on the
+   * plane. A brush reads only where the pointer is, so it never asks.
+   */
   private pick(input: MapInput, w: Pt): MapInput {
-    if (this.tilted) return this.pickTilted(input, w);
-    const { grid, systems, nebulae } = useGalaxyStore.getState();
-    const picked = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
+    const { systems, nebulae } = useGalaxyStore.getState();
+    const grid = this.drawn.pickGrid();
+    const at = this.drawn.toPick(w, this.pickAt);
+    const picked = grid ? pickSystem(grid, this.cam, at) : { system: null, zone: null };
     const system = picked.system;
     const layers = useMapChromeStore.getState().layers;
     const zones = layers.feZones && getPaintLayer();
     const { edge, midpointHit } =
       system === null
-        ? pickEdge(this.index, systems, this.cam, w, this.hoverEdge, zones)
+        ? pickEdge(this.index, this.cam, at, this.hoverEdge, zones)
         : { edge: null, midpointHit: false };
     const feZone =
       zones && system === null && edge === null ? pickFeZone(this.index, this.cam, w) : null;
@@ -370,7 +357,9 @@ export class InteractionController {
         : null;
     const rightClick = input.kind === "down" && input.button === 2;
     const prevented =
-      rightClick && system === null && edge === null ? pickPrevented(systems, this.cam, w) : null;
+      rightClick && system === null && edge === null
+        ? pickPrevented(systems, this.cam, at, this.drawn.pickAt)
+        : null;
     return {
       ...input,
       system,
@@ -381,21 +370,10 @@ export class InteractionController {
       snap:
         this.laneFrom === null || !grid
           ? null
-          : snapTarget(grid, this.index, systems, this.cam, w, this.laneFrom, zones),
+          : snapTarget(grid, this.index, systems, this.cam, at, this.laneFrom, zones, w),
       nebula,
       prevented,
     };
-  }
-
-  /** The leaning map's pick: a system where it draws, or a nebula on the plane; never a lane or a port. */
-  private pickTilted(input: MapInput, w: Pt): MapInput {
-    const grid = this.lifted.query(w, this.liftedAt);
-    const system = pickSystem(grid, this.cam, this.liftedAt).system;
-    const nebula =
-      system === null && useMapChromeStore.getState().layers.nebulae
-        ? pickNebula(useGalaxyStore.getState().nebulae, this.cam, w, editor().selectedNebula)
-        : null;
-    return { ...input, system, zone: system === null ? null : "star", nebula };
   }
 
   /** What the pointer rests on, or nothing while it pans or drags. */

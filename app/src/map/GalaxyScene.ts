@@ -4,6 +4,7 @@ import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../lib/height";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { Camera } from "./Camera";
+import { DrawnPositions } from "./drawnPositions";
 import { InteractionController } from "./interaction/InteractionController";
 import { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
@@ -11,7 +12,6 @@ import { layersFor } from "./layers/registry";
 import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
 import type { Scene } from "./Scene";
 import { selectionFrame } from "./selectionFrame";
-import { previewChanges, systemY } from "./tilt";
 import { bindViewState, dressLayers, type MapView } from "./viewState";
 
 const FOCUS_SCALE = 4;
@@ -24,18 +24,19 @@ const FOCUS_MS = 350;
  */
 export class GalaxyScene implements Scene, MapView {
   readonly cam = new Camera();
+  /** Where every system draws, which the layers and the InteractionController all read. */
+  readonly drawn = new DrawnPositions(this.cam);
   /** Mutated in place, never replaced: the InteractionController holds this same array. */
   readonly layers: MapLayer[] = [];
   /** Outside the capability-driven set: the InteractionController holds this one instance. */
-  readonly highlights = new HighlightsLayer();
+  readonly highlights = new HighlightsLayer(this.drawn);
   readonly root = new Container();
   private readonly interaction: InteractionController;
   private readonly cleanups: Array<() => void> = [];
   private ctx: RenderContext = EMPTY_CONTEXT;
   private appliedRev = -1;
-  /** The height preview the stores hold, and the one the layers were last handed. */
+  /** The height preview the stores hold, which the next frame shows. */
   private wantedPreview: HeightPreview = NO_HEIGHT_PREVIEW;
-  private shownPreview: HeightPreview = NO_HEIGHT_PREVIEW;
 
   constructor(
     private readonly renderer: Renderer,
@@ -46,8 +47,19 @@ export class GalaxyScene implements Scene, MapView {
 
     this.rebuild();
     this.fit();
-    this.interaction = new InteractionController(canvas, this.cam, this.highlights, this.layers);
+    this.interaction = new InteractionController(
+      canvas,
+      this.cam,
+      this.highlights,
+      this.layers,
+      this.drawn,
+    );
     this.cleanups.push(() => this.interaction.dispose());
+    this.cleanups.push(
+      this.drawn.onChange((change) => {
+        for (const layer of this.layers) layer.onDrawn?.(change);
+      }),
+    );
     this.cleanups.push(bindViewState(this));
   }
 
@@ -75,14 +87,13 @@ export class GalaxyScene implements Scene, MapView {
       if (layer !== this.highlights) layer.destroy();
     }
     for (const entry of entries) {
-      const layer = entry.create(this.renderer);
+      const layer = entry.create(this.renderer, this.drawn);
       this.layers.push(layer);
       this.root.addChild(layer.container);
     }
     this.layers.push(this.highlights);
     this.root.addChild(this.highlights.container);
     for (const layer of this.layers) layer.rebuild(this.ctx);
-    this.shownPreview = NO_HEIGHT_PREVIEW;
     dressLayers(this);
   }
 
@@ -107,10 +118,9 @@ export class GalaxyScene implements Scene, MapView {
     this.invalidate();
   }
 
-  /** Leans the plane; while it leans, systems stay where they are and lanes take no edits. */
+  /** Leans the plane, lifting each system by its height. */
   setTilt(degrees: number): void {
-    this.cam.setTilt(degrees);
-    this.interaction.setTilted(this.cam.tilt.degrees > 0);
+    this.drawn.setTilt(degrees);
   }
 
   /** Shows `preview` from the next frame, however many times it changes before then. */
@@ -127,9 +137,7 @@ export class GalaxyScene implements Scene, MapView {
   fitSelection(): void {
     const { selection, selectedNebula } = useEditorStore.getState();
     const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
-    const frame = selectionFrame(this.ctx.systems, selection, nebula, (s) =>
-      systemY(s, this.cam.tilt, this.shownPreview),
-    );
+    const frame = selectionFrame(this.ctx.systems, selection, nebula, (s) => this.drawn.y(s));
     if (!frame) {
       this.fit();
       return;
@@ -138,7 +146,7 @@ export class GalaxyScene implements Scene, MapView {
     const { width, height } = this.renderer;
     const scale = Math.min(
       this.cam.fitScale((maxX - minX) / 2, width, width),
-      this.cam.fitScale(((maxY - minY) * this.cam.tilt.cos) / 2, height, height),
+      this.cam.fitScale(((maxY - minY) * this.cam.squash) / 2, height, height),
       FOCUS_SCALE,
     );
     this.cam.easeTo((minX + maxX) / 2, (minY + maxY) / 2, scale, FOCUS_MS);
@@ -147,8 +155,7 @@ export class GalaxyScene implements Scene, MapView {
   focusOn(id: number): void {
     const s = this.ctx.systems.get(id);
     if (!s) return;
-    const y = systemY(s, this.cam.tilt, this.shownPreview);
-    this.cam.easeTo(s.x, y, Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
+    this.cam.easeTo(s.x, this.drawn.y(s), Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
   }
 
   panTo(x: number, y: number): void {
@@ -156,18 +163,9 @@ export class GalaxyScene implements Scene, MapView {
   }
 
   tick(): void {
-    this.showPreview();
+    this.drawn.setPreview(this.wantedPreview);
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
     for (const layer of this.layers) layer.onViewport(this.cam, this.ctx);
-  }
-
-  /** Hands the layers the preview the stores hold, naming only the systems it moved. */
-  private showPreview(): void {
-    if (this.wantedPreview === this.shownPreview) return;
-    const changed = previewChanges(this.shownPreview, this.wantedPreview);
-    this.shownPreview = this.wantedPreview;
-    for (const layer of this.layers) layer.setHeightPreview?.(this.shownPreview, changed);
-    this.interaction.setHeightPreview(this.shownPreview, changed);
   }
 }

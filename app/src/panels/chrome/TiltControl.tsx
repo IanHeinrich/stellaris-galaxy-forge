@@ -4,7 +4,6 @@ import {
   GAME_DEFAULT_TILT,
   GAME_TILT_RANGE,
   settledTilt,
-  TILT_HINT,
   TILT_MAX_DEGREES,
   tiltAvailable,
 } from "../../lib/visual/tilt";
@@ -34,7 +33,7 @@ const TRACK_MARKS = {
 
 /**
  * The Tilt slider at the map's bottom right, with the game's own camera range shaded on its track
- * and its default angle marked, and the hint of what the leaning map leaves out.
+ * and its default angle marked.
  */
 export function TiltControl() {
   const shown = useTiltShown();
@@ -44,11 +43,6 @@ export function TiltControl() {
   const settle = () => setTilt(settledTilt(useToolStore.getState().tilt));
   return (
     <div className="tilt-control">
-      {tilt > 0 && (
-        <div className="tilt-hint" role="status">
-          {TILT_HINT}
-        </div>
-      )}
       <label className="tilt-slider" title="Double-click to lay the map flat">
         Tilt
         <span className="tilt-track" style={TRACK_MARKS}>

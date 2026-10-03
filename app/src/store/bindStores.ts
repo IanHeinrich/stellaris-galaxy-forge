@@ -23,7 +23,7 @@ import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
-import { symmetryAllowed, SYMMETRY_OFF, tiltTakes, toolAllowed, useToolStore } from "./toolStore";
+import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
@@ -190,10 +190,6 @@ function followTool(): void {
     if (tool !== "select" && !toolAllowed(tool, currentBarMode())) {
       useToolStore.setState({ tool: "select" });
     }
-  });
-  useToolStore.subscribe((state, previous) => {
-    if (state.tilt === previous.tilt) return;
-    if (!tiltTakes(state.tool)) useToolStore.setState({ tool: "select" });
   });
 }
 

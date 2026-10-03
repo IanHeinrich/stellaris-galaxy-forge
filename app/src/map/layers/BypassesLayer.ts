@@ -10,7 +10,7 @@ import { useLGateStore } from "../../store/lgateStore";
 import { OwnedTooltip } from "../ownedTooltip";
 import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, liftedPoint, systemY, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { Badge, badgeTexture, otherSide, BADGE_RING_RADIUS } from "./badge";
 import { dashedLine } from "./dashes";
 import { markerScale, type MapLayer } from "./MapLayer";
@@ -93,7 +93,6 @@ export class BypassesLayer implements MapLayer {
   private readonly scale = { x: 1, y: 1 };
   private readonly badgeScale = { x: 1, y: 1 };
   private ringScale = 1;
-  private tilt: Tilt = FLAT_TILT;
   private tier = labelTier(0);
   private detailsShown = true;
   private hovered: Badged | null = null;
@@ -101,7 +100,7 @@ export class BypassesLayer implements MapLayer {
   private readonly badgeTip = new OwnedTooltip();
   private readonly markerTip = new OwnedTooltip();
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.lines, this.markerLayer, this.badgeLayer);
   }
 
@@ -164,12 +163,13 @@ export class BypassesLayer implements MapLayer {
       this.showOverlays();
       this.placeBadges();
     }
-    if (cam.tilt !== this.tilt) {
-      this.tilt = cam.tilt;
-      this.placeMarkers();
-      this.placeBadges();
-      this.drawLines();
-    }
+  }
+
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    this.placeMarkers();
+    this.placeBadges();
+    this.drawLines();
   }
 
   setVisible(v: boolean): void {
@@ -195,7 +195,7 @@ export class BypassesLayer implements MapLayer {
     for (const { link, g } of this.markers) {
       const s = this.systems.get(link.system);
       g.visible = s !== undefined;
-      if (s) g.position.set(s.x, systemY(s, this.tilt));
+      if (s) g.position.set(s.x, this.drawn.y(s));
     }
   }
 
@@ -228,7 +228,7 @@ export class BypassesLayer implements MapLayer {
       const s = this.systems.get(link.system);
       badge.root.visible = s !== undefined;
       if (!s) continue;
-      badge.root.position.set(s.x, systemY(s, this.tilt));
+      badge.root.position.set(s.x, this.drawn.y(s));
       badge.setScale(this.badgeScale, this.ringScale);
       badge.setLabel(geo, style.label);
       badge.setIcon(style.icon === null ? null : badgeTexture(style.icon), geo.icon, style.color);
@@ -289,13 +289,7 @@ export class BypassesLayer implements MapLayer {
       const sa = this.systems.get(a);
       const sb = this.systems.get(b);
       if (!sa || !sb) continue;
-      dashedLine(
-        g,
-        liftedPoint(sa, this.tilt),
-        liftedPoint(sb, this.tilt),
-        WORMHOLE.dash,
-        WORMHOLE.gap,
-      );
+      dashedLine(g, this.drawn.at(sa), this.drawn.at(sb), WORMHOLE.dash, WORMHOLE.gap);
       any = true;
     }
     if (any) g.stroke({ color: WORMHOLE.color, alpha: WORMHOLE.alpha, pixelLine: true });

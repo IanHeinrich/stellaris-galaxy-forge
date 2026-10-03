@@ -7,7 +7,7 @@ import { titleCase } from "../../lib/text";
 import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, systemY, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { destroyChildren } from "./destroyChildren";
 import { markerScale, type MapLayer } from "./MapLayer";
 import { RING_RADIUS } from "../../lib/visual/style";
@@ -54,9 +54,10 @@ export class IssuesLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   private issues = new Map<number, AppIssue>();
   private readonly scale = { x: 1, y: 1 };
-  private tilt: Tilt = FLAT_TILT;
   private hovered: number | null = null;
   private readonly tip = new OwnedTooltip();
+
+  constructor(private readonly drawn = new DrawnPositions()) {}
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -67,7 +68,7 @@ export class IssuesLayer implements MapLayer {
 
   applyDelta(d: GalaxyDelta): void {
     this.remove(d.removed ?? []);
-    for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, systemY(s, this.tilt));
+    for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, this.drawn.y(s));
   }
 
   setIssues(issues: readonly AppIssue[]): void {
@@ -78,9 +79,13 @@ export class IssuesLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const g of this.rings.values()) g.scale.set(this.scale.x, this.scale.y);
-    if (cam.tilt === this.tilt) return;
-    this.tilt = cam.tilt;
-    this.place();
+  }
+
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const s = this.systems.get(id);
+      if (s) this.rings.get(id)?.position.set(s.x, this.drawn.y(s));
+    }
   }
 
   setVisible(v: boolean): void {
@@ -105,7 +110,7 @@ export class IssuesLayer implements MapLayer {
         this.container.addChild(ring);
       }
       draw(ring, issue.severity);
-      ring.position.set(s.x, systemY(s, this.tilt));
+      ring.position.set(s.x, this.drawn.y(s));
     }
   }
 

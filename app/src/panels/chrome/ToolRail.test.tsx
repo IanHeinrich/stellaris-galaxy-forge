@@ -232,16 +232,12 @@ describe("the height brush", () => {
     expect(rail()).not.toContain("Height brush");
   });
 
-  it("stays offered while the map leans, where Connect and Cut wait for it to lie flat", () => {
+  it("stays offered with Connect and Cut while the map leans", () => {
     useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
     useToolStore.setState({ tilt: 30 });
-    expect(button("Cut lanes")).toContain("disabled");
-    expect(button("Cut lanes")).toContain("lay the map flat to edit hyperlanes");
-    expect(button("Connect lanes")).toContain("disabled");
-    expect(button("Height brush")).not.toContain("disabled");
-
-    useToolStore.setState({ tilt: 0 });
-    expect(button("Cut lanes")).not.toContain("disabled");
+    for (const label of ["Cut lanes", "Connect lanes", "Height brush"]) {
+      expect(button(label)).not.toContain("disabled");
+    }
   });
 
   it("gives each mode its own controls and a line on how to use it", () => {

@@ -56,6 +56,16 @@ export type StrokeResult =
   | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
   | { kind: "height"; heights: HeightPreview };
 
+/**
+ * Where the map draws each system and a grid over those points: where an erase, connect or cut
+ * stroke finds the systems and lanes it sweeps. New lanes are still laid between the systems'
+ * own positions.
+ */
+export interface SweptGround {
+  readonly systems: ReadonlyMap<number, SystemNode>;
+  readonly grid: SpatialGrid;
+}
+
 /** A new lane is at most this many spacings long. */
 const LANE_REACH = 3;
 
@@ -82,11 +92,13 @@ function medianNearest(points: readonly MeshPoint[]): number {
 class StrokeGround {
   readonly r: number;
   private laneIndex: SegmentIndex<MeshPoint> | null = null;
+  private sweptLaneIndex: SegmentIndex<MeshPoint> | null = null;
 
   constructor(
     readonly settings: BrushSettings,
     readonly systems: ReadonlyMap<number, SystemNode>,
     readonly grid: SpatialGrid,
+    readonly swept: SweptGround,
   ) {
     this.r = settings.size / 2;
   }
@@ -102,11 +114,14 @@ class StrokeGround {
 
   /** The existing lanes whose bounding box comes within `d` of some point. */
   lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
-    if (!this.laneIndex) {
-      this.laneIndex = new SegmentIndex();
-      for (const { a, b } of laneSegments(this.systems.values())) this.laneIndex.add(a, b);
-    }
+    this.laneIndex ??= segmentIndex(this.systems);
     return this.laneIndex.near(points, d);
+  }
+
+  /** The same, between where the map draws their ends. */
+  sweptLanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
+    this.sweptLaneIndex ??= segmentIndex(this.swept.systems);
+    return this.sweptLaneIndex.near(points, d);
   }
 
   /** The existing systems within `d` of some point. */
@@ -179,6 +194,12 @@ class StrokeGround {
     const s = this.systems.get(id);
     return s ? counterpartAt(this.grid, s, sym, m) : null;
   }
+}
+
+function segmentIndex(systems: ReadonlyMap<number, SystemNode>): SegmentIndex<MeshPoint> {
+  const index = new SegmentIndex<MeshPoint>();
+  for (const { a, b } of laneSegments(systems.values())) index.add(a, b);
+  return index;
 }
 
 /** One kind of stroke: what its stamps take in, and what it would do so far. */
@@ -255,8 +276,8 @@ class EraseStroke implements Strategy {
   constructor(private readonly ground: StrokeGround) {}
 
   add(stamps: readonly Pt[]): void {
-    const { r, grid, settings } = this.ground;
-    const swept = sweptSystems(this.ground.images(stamps), r, grid, {
+    const { r, swept: ground, settings } = this.ground;
+    const swept = sweptSystems(this.ground.images(stamps), r, ground.grid, {
       includeSpecials: settings.eraseSpecials,
     });
     for (const id of swept.doomed) this.doomed.add(id);
@@ -275,9 +296,11 @@ class ConnectStroke implements Strategy {
   constructor(private readonly ground: StrokeGround) {}
 
   add(stamps: readonly Pt[]): void {
-    const { r, grid } = this.ground;
+    const { r, swept } = this.ground;
     // Connecting adds lanes only, so it takes special systems too.
-    const reached = sweptSystems(this.ground.images(stamps), r, grid, { includeSpecials: true });
+    const reached = sweptSystems(this.ground.images(stamps), r, swept.grid, {
+      includeSpecials: true,
+    });
     for (const id of reached.doomed) this.swept.add(id);
   }
 
@@ -323,7 +346,9 @@ class CutStroke implements Strategy {
   add(stamps: readonly Pt[]): void {
     const all = this.ground.images(stamps);
     const r = this.ground.r;
-    for (const [a, b] of sweptLanes(all, r, this.ground.lanesNear(all, r))) this.cut.add(a, b);
+    for (const [a, b] of sweptLanes(all, r, this.ground.sweptLanesNear(all, r))) {
+      this.cut.add(a, b);
+    }
   }
 
   result(): StrokeResult {
@@ -370,8 +395,9 @@ export class BrushStroke {
     systems: ReadonlyMap<number, SystemNode>,
     grid: SpatialGrid,
     seed: number,
+    swept: SweptGround = { systems, grid },
   ) {
-    const ground = new StrokeGround(settings, systems, grid);
+    const ground = new StrokeGround(settings, systems, grid, swept);
     this.r = ground.r;
     const kind = BRUSH_TOOLS[settings.tool].stroke(settings.eraseTarget);
     this.strategy = STRATEGIES[kind](ground, seed);

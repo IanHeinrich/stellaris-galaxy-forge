@@ -20,6 +20,7 @@ import {
   type StrokeResult,
 } from "../../lib/brush/brushStroke";
 import type { Camera } from "../Camera";
+import type { DrawnPositions } from "../drawnPositions";
 import type { BrushOverlay, BrushPreview } from "../layers/highlights/BrushOverlay";
 import type { SymmetryGuide } from "../layers/highlights/SymmetryGuide";
 import type { Systems } from "../RenderContext";
@@ -60,7 +61,7 @@ function dropsOnce(settings: BrushSettings): boolean {
   return settings.tool === "height" && settings.height.mode === "ripple";
 }
 
-/** Where what a stroke would do lies on the map; a negative id is the stroke's own point. */
+/** Where what a stroke would do draws, `systems` where they draw; a negative id is the stroke's own point. */
 function previewOf(result: StrokeResult, systems: Systems): BrushPreview {
   const empty: BrushPreview = { points: [], lanes: [], doomed: [], kept: [], cut: [], swept: [] };
   const at = (ids: readonly number[]) => ids.flatMap((id) => systems.get(id) ?? []);
@@ -131,6 +132,7 @@ export class BrushStrokes {
     private readonly cam: Camera,
     private readonly overlay: BrushOverlay,
     private readonly guide: SymmetryGuide,
+    private readonly drawn: DrawnPositions,
   ) {
     this.preview = new SettlingPreview(() => overlay.setPreview(null));
   }
@@ -178,12 +180,13 @@ export class BrushStrokes {
 
   begin(tool: BrushTool, x: number, y: number, flipped: boolean): void {
     const { systems, grid } = useGalaxyStore.getState();
-    if (!grid) return;
+    const swept = this.drawn.sweptSystems();
+    if (!grid || !swept) return;
     this.preview.update();
     this.tool = tool;
     this.flipped = flipped;
     const settings = settingsFor(tool, flipped);
-    this.stroke = new BrushStroke(settings, systems, grid, newSeed());
+    this.stroke = new BrushStroke(settings, systems, grid, newSeed(), swept);
     this.anchored = dropsOnce(settings);
     this.hold(settings.symmetry);
     this.last = null;
@@ -279,7 +282,8 @@ export class BrushStrokes {
 
   private draw(result: StrokeResult): void {
     if (result.kind === "height") this.showHeights(result.heights);
-    this.overlay.setPreview(previewOf(result, useGalaxyStore.getState().systems));
+    const drawn = this.drawn.sweptSystems()?.systems ?? useGalaxyStore.getState().systems;
+    this.overlay.setPreview(previewOf(result, drawn));
     const at = this.at;
     if (!at) {
       this.preview.update();

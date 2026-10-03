@@ -9,7 +9,7 @@ import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, liftedPoint, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { Badge, BADGE_RING_RADIUS } from "./badge";
 import { evenDashedLine } from "./dashes";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -51,12 +51,11 @@ export class WaylinesLayer implements MapLayer {
   private dragged: ReadonlyMap<number, MoveGhost> = NO_DRAG;
   private readonly badgeScale = { x: 1, y: 1 };
   private ringScale = 1;
-  private tilt: Tilt = FLAT_TILT;
   private tier = labelTier(0);
   private hovered: Waystation | null = null;
   private readonly tip = new OwnedTooltip();
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.bands, this.badgeLayer);
   }
 
@@ -101,11 +100,12 @@ export class WaylinesLayer implements MapLayer {
       this.tier = tier;
       this.place();
     }
-    if (cam.tilt !== this.tilt) {
-      this.tilt = cam.tilt;
-      this.place();
-      this.draw();
-    }
+  }
+
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    this.place();
+    this.draw();
   }
 
   setVisible(v: boolean): void {
@@ -137,10 +137,10 @@ export class WaylinesLayer implements MapLayer {
     return badge;
   }
 
-  /** Where a system is drawn: its ghost while it is dragged, else where it stands, lifted as the map leans. */
+  /** Where a system is drawn: its ghost while it is dragged, else where it stands. */
   private point(id: number): { x: number; y: number } | undefined {
     const s = this.systems.get(id);
-    return this.dragged.get(id) ?? (s && liftedPoint(s, this.tilt));
+    return this.dragged.get(id) ?? (s && this.drawn.at(s));
   }
 
   /** The station's own level, a plain waystation until the system's details have been read. */

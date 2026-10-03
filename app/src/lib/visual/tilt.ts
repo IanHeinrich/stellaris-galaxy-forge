@@ -29,6 +29,3 @@ export function tiltAvailable(capabilities: Capabilities): boolean {
 export function shownTilt(degrees: number, capabilities: Capabilities): number {
   return tiltAvailable(capabilities) ? clampTilt(degrees) : 0;
 }
-
-/** What the map says while it leans and refuses moves and lane edits. */
-export const TILT_HINT = "Tilted: moving systems and editing hyperlanes return at 0°";

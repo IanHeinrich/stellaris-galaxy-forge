@@ -6,8 +6,7 @@ import type { Camera } from "../Camera";
 import { compareImportance, labelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
-import { FLAT_TILT, highestHeight, isTilted, liftReach, systemY, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { dimmedByInitializer, initializerLabel } from "../../lib/initializer/initializerLabels";
 import { FILTERED_ALPHA, GHOST_ALPHA, INITIALIZER_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -61,10 +60,6 @@ export class LabelsLayer implements MapLayer {
   /** Gap between the star and the top of the name row, shared by every label this frame. */
   private offsetY = nameRowY(1);
   private lastRev = -1;
-  private tilt: Tilt = FLAT_TILT;
-  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
-  /** The largest height off the plane, so a lifted star near the edge of view keeps its name. */
-  private highest = 0;
   private visible = true;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private pinned: ReadonlySet<number> = new Set();
@@ -81,7 +76,7 @@ export class LabelsLayer implements MapLayer {
     if (this.pinned.has(s.id)) this.pinnedInView.add(s.id);
   };
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.plates);
     this.unsubscribe.push(onTextures(() => this.schedulePlates()));
   }
@@ -91,8 +86,6 @@ export class LabelsLayer implements MapLayer {
     this.ctx = ctx;
     this.systems = ctx.systems;
     this.grid = ctx.grid;
-    if (ctx.systems !== prev.systems)
-      this.highest = highestHeight(ctx.systems.values(), this.preview);
     if (ctx.galaxy !== prev.galaxy) {
       this.releaseAll();
       this.reorder();
@@ -127,8 +120,6 @@ export class LabelsLayer implements MapLayer {
     if (!this.visible) return;
     if (cam.rev === this.lastRev) return;
     this.lastRev = cam.rev;
-    const tilted = cam.tilt !== this.tilt;
-    this.tilt = cam.tilt;
     const tier = labelTier(cam.scale);
     if (tier === "none" && !this.keepsNames) {
       this.labelling = false;
@@ -139,7 +130,7 @@ export class LabelsLayer implements MapLayer {
     this.offsetY = nameRowY(cam.scale);
     cam.childScale(1, this.scale);
     const pad = VIEW_PAD_PX / cam.scale;
-    const lift = liftReach(this.highest, this.tilt);
+    const lift = this.drawn.reach();
     const b = cam.worldBounds(this.bounds);
     const { order, inView, wanted } = this;
     inView.clear();
@@ -168,7 +159,7 @@ export class LabelsLayer implements MapLayer {
     }
     for (const id of wanted) this.show(id);
     if (this.hovered !== null) this.show(this.hovered);
-    if (this.namesDirty || tilted) {
+    if (this.namesDirty) {
       for (const [id, label] of this.shown) {
         const s = this.systems.get(id);
         if (s) this.assign(label, s);
@@ -179,12 +170,9 @@ export class LabelsLayer implements MapLayer {
     this.placePlates();
   }
 
-  /** While the map leans, moves only the names of the systems whose previewed height moved. */
-  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
-    this.preview = preview;
-    for (const height of preview.values()) this.highest = Math.max(this.highest, Math.abs(height));
-    if (!isTilted(this.tilt)) return;
-    for (const id of changed) {
+  /** Moves only the names of the systems drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
       const label = this.shown.get(id);
       const s = this.systems.get(id);
       if (!label || !s) continue;
@@ -322,7 +310,7 @@ export class LabelsLayer implements MapLayer {
       label.position.set(ghost.x, ghost.y);
       label.alpha = GHOST_ALPHA;
     } else {
-      label.position.set(s.x, systemY(s, this.tilt, this.preview));
+      label.position.set(s.x, this.drawn.y(s));
       label.alpha = named ? (filtered ? FILTERED_ALPHA : 1) : INITIALIZER_ALPHA;
     }
   }

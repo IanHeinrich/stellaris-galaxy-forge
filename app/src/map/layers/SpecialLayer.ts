@@ -10,7 +10,7 @@ import type { Camera } from "../Camera";
 import { labelTier, type LabelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, liftedPoint, type Tilt } from "../tilt";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import {
   type BadgeGeometry,
   badgeGeometry,
@@ -60,11 +60,10 @@ export class SpecialLayer implements MapLayer {
   private readonly tip = new OwnedTooltip();
   private readonly pxScale = { x: 1, y: 1 };
   private ringScale = 1;
-  private tilt: Tilt = FLAT_TILT;
   private tier: LabelTier = "none";
   private readonly unsubscribeTextures: () => void;
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.eventMode = "passive";
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
   }
@@ -115,10 +114,16 @@ export class SpecialLayer implements MapLayer {
     this.ringScale = markerScale(cam.scale);
     for (const badge of this.badges.values()) badge.setScale(this.pxScale, this.ringScale);
     const tier = labelTier(cam.scale);
-    if (tier !== this.tier || cam.tilt !== this.tilt) {
+    if (tier !== this.tier) {
       this.tier = tier;
-      this.tilt = cam.tilt;
       this.replaceAll();
+    }
+  }
+
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const s = this.systems.get(id);
+      if (s) this.place(s);
     }
   }
 
@@ -174,7 +179,7 @@ export class SpecialLayer implements MapLayer {
       this.badges.set(s.id, badge);
     }
     const ghost = this.ghosts.get(s.id);
-    const at = ghost ?? liftedPoint(s, this.tilt);
+    const at = ghost ?? this.drawn.at(s);
     badge.root.position.set(at.x, at.y);
     badge.root.alpha = ghost ? GHOST_ALPHA : 1;
     badge.setScale(this.pxScale, this.ringScale);

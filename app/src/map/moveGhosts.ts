@@ -1,7 +1,7 @@
 import type { SystemNode } from "../generated/SystemNode";
 import type { Pt } from "../lib/geometry/pt";
 
-/** A system's previewed destination while it is being dragged. */
+/** A system's previewed destination while it is being dragged, where it draws there. */
 export interface MoveGhost {
   id: number;
   x: number;
@@ -10,11 +10,12 @@ export interface MoveGhost {
 
 /**
  * Where each lane touching a ghost is previewed: between two ghosts once when both ends move,
- * otherwise from the ghost to the unmoved neighbour's real position.
+ * otherwise from the ghost to where `at` draws the unmoved neighbour.
  */
 export function ghostLaneSegments(
   systems: ReadonlyMap<number, SystemNode>,
   ghosts: readonly MoveGhost[],
+  at: (s: SystemNode) => Pt = (s) => s,
 ): Array<[Pt, Pt]> {
   const ghostOf = new Map(ghosts.map((g) => [g.id, g]));
   const segments: Array<[Pt, Pt]> = [];
@@ -28,7 +29,7 @@ export function ghostLaneSegments(
         continue;
       }
       const n = systems.get(lane.to);
-      if (n) segments.push([g, n]);
+      if (n) segments.push([g, at(n)]);
     }
   }
   return segments;

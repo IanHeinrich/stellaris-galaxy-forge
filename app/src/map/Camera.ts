@@ -59,6 +59,11 @@ export class Camera {
     this.rev++;
   }
 
+  /** How much the lean squashes world y on screen: 1 while the map lies flat. */
+  get squash(): number {
+    return this.tilt.cos;
+  }
+
   /** Screen pixels per world unit along y on the plane, which the tilt squashes. */
   private get yScale(): number {
     return this.scale * this.tilt.cos;

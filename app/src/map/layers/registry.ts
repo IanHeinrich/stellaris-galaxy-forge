@@ -2,6 +2,7 @@ import type { Renderer } from "pixi.js";
 import type { Capabilities } from "../../generated/Capabilities";
 import { supports } from "../../lib/capabilities";
 import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
+import type { DrawnPositions } from "../drawnPositions";
 import { SCENE_ONLY_IDS, type LayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
@@ -25,7 +26,7 @@ import { WaylinesLayer } from "./WaylinesLayer";
 export interface LayerEntry {
   readonly id: LayerId;
   /** A menu-only toggle leaves this out: it steers what another layer draws, not a layer of its own. */
-  create?(renderer: Renderer): MapLayer;
+  create?(renderer: Renderer, drawn: DrawnPositions): MapLayer;
   /** A layer without one draws for every document. */
   readonly requires?: keyof Capabilities;
   /** The menus leave the layer out until the install has been read. */
@@ -34,7 +35,7 @@ export interface LayerEntry {
 
 /** An entry the map instantiates, as opposed to a menu-only toggle. */
 export interface DrawnLayerEntry extends LayerEntry {
-  create(renderer: Renderer): MapLayer;
+  create(renderer: Renderer, drawn: DrawnPositions): MapLayer;
 }
 
 /**
@@ -46,35 +47,39 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "lCluster", create: () => new LClusterLayer() },
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
   { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
-  { id: "lanes", create: () => new LanesLayer() },
+  { id: "lanes", create: (_renderer, drawn) => new LanesLayer(drawn) },
   {
     id: "owners",
     requires: "empires",
     create: () => new OwnersLayer(new WorkerTerritoryClient()),
   },
-  { id: "waylines", requires: "waylines", create: () => new WaylinesLayer() },
+  { id: "waylines", requires: "waylines", create: (_renderer, drawn) => new WaylinesLayer(drawn) },
   { id: "claims", requires: "create_systems" },
   { id: "marauders", requires: "create_systems" },
   { id: "day_one_bypasses", requires: "create_systems" },
-  { id: "bypasses", create: () => new BypassesLayer() },
-  { id: "heights", requires: "system_heights", create: () => new HeightsLayer() },
-  { id: "systems", create: (renderer) => new SystemsLayer(renderer) },
+  { id: "bypasses", create: (_renderer, drawn) => new BypassesLayer(drawn) },
+  {
+    id: "heights",
+    requires: "system_heights",
+    create: (_renderer, drawn) => new HeightsLayer(drawn),
+  },
+  { id: "systems", create: (renderer, drawn) => new SystemsLayer(renderer, drawn) },
   { id: "classes" },
   {
     id: "precursors",
     requires: "precursors",
     requiresGameData: true,
-    create: () => new PrecursorsLayer(),
+    create: (_renderer, drawn) => new PrecursorsLayer(drawn),
   },
-  { id: "issues", create: () => new IssuesLayer() },
-  { id: "watchlist", create: () => new WatchlistLayer() },
-  { id: "labels", create: () => new LabelsLayer() },
+  { id: "issues", create: (_renderer, drawn) => new IssuesLayer(drawn) },
+  { id: "watchlist", create: (_renderer, drawn) => new WatchlistLayer(drawn) },
+  { id: "labels", create: (_renderer, drawn) => new LabelsLayer(drawn) },
   { id: "initializers", requires: "create_systems" },
   { id: "spawns", requires: "create_systems", create: () => new SpawnsLayer() },
-  { id: "details", create: () => new DetailsLayer() },
+  { id: "details", create: (_renderer, drawn) => new DetailsLayer(drawn) },
   ...SCENE_ONLY_IDS.map((id) => ({ id })),
   { id: "colonies" },
-  { id: "special", requires: "special", create: () => new SpecialLayer() },
+  { id: "special", requires: "special", create: (_renderer, drawn) => new SpecialLayer(drawn) },
 ];
 
 /** Every entry the open document can answer for, drawn or menu-only, in draw order. */
