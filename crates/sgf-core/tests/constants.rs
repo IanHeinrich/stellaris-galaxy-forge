@@ -3,6 +3,7 @@
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
+use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
 use sgf_core::export::policy::LCLUSTER_PREFIX;
 use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
 use sgf_core::format::scenario::fe_zone::{
@@ -108,6 +109,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How far a body's point may stray from its stored orbit for the stored value to be drawn.",
         "STORED_ORBIT_SLACK",
         STORED_ORBIT_SLACK.to_string(),
+    );
+    constant(
+        "The height above the galactic plane the game gives every system it generates.",
+        "DEFAULT_SYSTEM_HEIGHT",
+        DEFAULT_SYSTEM_HEIGHT.to_string(),
     );
     let names: Vec<String> = RESERVED_SEAT_NAMES
         .iter()

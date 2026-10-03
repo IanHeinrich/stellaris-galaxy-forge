@@ -1,8 +1,10 @@
 import { Container, type Renderer } from "pixi.js";
 import { documentCapabilities } from "../lib/capabilities";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../lib/height";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { Camera } from "./Camera";
+import { DrawnPositions } from "./drawnPositions";
 import { InteractionController } from "./interaction/InteractionController";
 import { HighlightsLayer } from "./layers/HighlightsLayer";
 import type { MapLayer } from "./layers/MapLayer";
@@ -22,15 +24,19 @@ const FOCUS_MS = 350;
  */
 export class GalaxyScene implements Scene, MapView {
   readonly cam = new Camera();
+  /** Where every system draws, which the layers and the InteractionController all read. */
+  readonly drawn = new DrawnPositions(this.cam);
   /** Mutated in place, never replaced: the InteractionController holds this same array. */
   readonly layers: MapLayer[] = [];
   /** Outside the capability-driven set: the InteractionController holds this one instance. */
-  readonly highlights = new HighlightsLayer();
+  readonly highlights = new HighlightsLayer(this.drawn);
   readonly root = new Container();
   private readonly interaction: InteractionController;
   private readonly cleanups: Array<() => void> = [];
   private ctx: RenderContext = EMPTY_CONTEXT;
   private appliedRev = -1;
+  /** The height preview the stores hold, which the next frame shows. */
+  private wantedPreview: HeightPreview = NO_HEIGHT_PREVIEW;
 
   constructor(
     private readonly renderer: Renderer,
@@ -41,9 +47,20 @@ export class GalaxyScene implements Scene, MapView {
 
     this.rebuild();
     this.fit();
-    this.cleanups.push(bindViewState(this));
-    this.interaction = new InteractionController(canvas, this.cam, this.highlights, this.layers);
+    this.interaction = new InteractionController(
+      canvas,
+      this.cam,
+      this.highlights,
+      this.layers,
+      this.drawn,
+    );
     this.cleanups.push(() => this.interaction.dispose());
+    this.cleanups.push(
+      this.drawn.onChange((change) => {
+        for (const layer of this.layers) layer.onDrawn?.(change);
+      }),
+    );
+    this.cleanups.push(bindViewState(this));
   }
 
   activate(): void {
@@ -70,7 +87,7 @@ export class GalaxyScene implements Scene, MapView {
       if (layer !== this.highlights) layer.destroy();
     }
     for (const entry of entries) {
-      const layer = entry.create(this.renderer);
+      const layer = entry.create(this.renderer, this.drawn);
       this.layers.push(layer);
       this.root.addChild(layer.container);
     }
@@ -101,6 +118,16 @@ export class GalaxyScene implements Scene, MapView {
     this.invalidate();
   }
 
+  /** Leans the plane, lifting each system by its height. */
+  setTilt(degrees: number): void {
+    this.drawn.setTilt(degrees);
+  }
+
+  /** Shows `preview` from the next frame, however many times it changes before then. */
+  previewHeights(preview: HeightPreview): void {
+    this.wantedPreview = preview;
+  }
+
   /** Makes the next tick hand the camera to the layers again. */
   invalidate(): void {
     this.appliedRev = -1;
@@ -110,7 +137,7 @@ export class GalaxyScene implements Scene, MapView {
   fitSelection(): void {
     const { selection, selectedNebula } = useEditorStore.getState();
     const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
-    const frame = selectionFrame(this.ctx.systems, selection, nebula);
+    const frame = selectionFrame(this.ctx.systems, selection, nebula, (s) => this.drawn.y(s));
     if (!frame) {
       this.fit();
       return;
@@ -119,7 +146,7 @@ export class GalaxyScene implements Scene, MapView {
     const { width, height } = this.renderer;
     const scale = Math.min(
       this.cam.fitScale((maxX - minX) / 2, width, width),
-      this.cam.fitScale((maxY - minY) / 2, height, height),
+      this.cam.fitScale(((maxY - minY) * this.cam.squash) / 2, height, height),
       FOCUS_SCALE,
     );
     this.cam.easeTo((minX + maxX) / 2, (minY + maxY) / 2, scale, FOCUS_MS);
@@ -128,7 +155,7 @@ export class GalaxyScene implements Scene, MapView {
   focusOn(id: number): void {
     const s = this.ctx.systems.get(id);
     if (!s) return;
-    this.cam.easeTo(s.x, s.y, Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
+    this.cam.easeTo(s.x, this.drawn.y(s), Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
   }
 
   panTo(x: number, y: number): void {
@@ -136,6 +163,7 @@ export class GalaxyScene implements Scene, MapView {
   }
 
   tick(): void {
+    this.drawn.setPreview(this.wantedPreview);
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
     for (const layer of this.layers) layer.onViewport(this.cam, this.ctx);

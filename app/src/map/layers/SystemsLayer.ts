@@ -3,6 +3,7 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
 import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
@@ -92,10 +93,14 @@ export class SystemsLayer implements MapLayer {
   private faded = new Set<number>();
   private readonly previews: Sprite[] = [];
   private lastScale = -1;
+  private squash = 1;
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly unsubTextures: () => void;
 
-  constructor(private readonly renderer: Renderer) {
+  constructor(
+    private readonly renderer: Renderer,
+    private readonly drawn = new DrawnPositions(),
+  ) {
     this.glow = acquireGlow(renderer);
     this.ring = ringTexture(renderer);
     this.clusters = new StarClusters(this.container, this.glow);
@@ -197,9 +202,27 @@ export class SystemsLayer implements MapLayer {
   }
 
   onViewport(cam: Camera): void {
-    if (cam.scale === this.lastScale) return;
+    if (cam.scale === this.lastScale && cam.squash === this.squash) return;
     this.lastScale = cam.scale;
+    this.squash = cam.squash;
     for (const id of this.sprites.keys()) this.rescale(id);
+  }
+
+  /** Moves only the stars drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      this.lift(id);
+      this.rescale(id);
+    }
+  }
+
+  /** Moves system `id`'s star and ring to where it draws. */
+  private lift(id: number): void {
+    const s = this.nodes.get(id);
+    const sprite = this.sprites.get(id);
+    if (!s || !sprite) return;
+    sprite.position.set(s.x, this.drawn.y(s));
+    this.rings.get(id)?.position.set(s.x, sprite.y);
   }
 
   private rescale(id: number): void {
@@ -212,14 +235,15 @@ export class SystemsLayer implements MapLayer {
       const k = this.gameTextured.has(id)
         ? starScale(size, camScale, sprite.texture.width)
         : (size * factor * 2) / sprite.texture.width;
-      sprite.scale.set(k, k);
+      sprite.scale.set(k, k / this.squash);
     }
     const ring = this.rings.get(id);
     if (ring) {
       const k = ((size * factor * 2) / ring.texture.width) * GLYPH_RING_SCALE;
-      ring.scale.set(k, k);
+      ring.scale.set(k, k / this.squash);
     }
-    this.clusters.rescale(id, camScale);
+    const node = this.nodes.get(id);
+    if (node) this.clusters.rescale(id, camScale, this.squash, this.drawn.y(node));
   }
 
   setVisible(v: boolean): void {
@@ -242,7 +266,7 @@ export class SystemsLayer implements MapLayer {
       this.sprites.set(s.id, sprite);
       this.container.addChild(sprite);
     }
-    sprite.position.set(s.x, s.y);
+    sprite.position.set(s.x, this.drawn.y(s));
 
     const starClass = this.ctx.starTints
       ? effectiveStarClass(s, this.ctx.initializerClasses.get(s.initializer), this.ctx.kind)
@@ -286,7 +310,7 @@ export class SystemsLayer implements MapLayer {
         ring = undefined;
       }
     }
-    ring?.position.set(s.x, s.y);
+    ring?.position.set(s.x, sprite.y);
     const art = resolved && tex ? resolved : null;
     sprite.renderable = !this.clusters.place(s, art, this.ctx.planetClasses, this.ctx.starClasses);
     this.rescale(s.id);

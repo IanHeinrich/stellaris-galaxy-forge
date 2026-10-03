@@ -7,6 +7,7 @@ import { titleCase } from "../../lib/text";
 import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { destroyChildren } from "./destroyChildren";
 import { markerScale, type MapLayer } from "./MapLayer";
 import { RING_RADIUS } from "../../lib/visual/style";
@@ -56,6 +57,8 @@ export class IssuesLayer implements MapLayer {
   private hovered: number | null = null;
   private readonly tip = new OwnedTooltip();
 
+  constructor(private readonly drawn = new DrawnPositions()) {}
+
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
     this.galaxy = ctx.galaxy;
@@ -65,7 +68,7 @@ export class IssuesLayer implements MapLayer {
 
   applyDelta(d: GalaxyDelta): void {
     this.remove(d.removed ?? []);
-    for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, s.y);
+    for (const s of d.systems) this.rings.get(s.id)?.position.set(s.x, this.drawn.y(s));
   }
 
   setIssues(issues: readonly AppIssue[]): void {
@@ -76,6 +79,13 @@ export class IssuesLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const g of this.rings.values()) g.scale.set(this.scale.x, this.scale.y);
+  }
+
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const s = this.systems.get(id);
+      if (s) this.rings.get(id)?.position.set(s.x, this.drawn.y(s));
+    }
   }
 
   setVisible(v: boolean): void {
@@ -100,7 +110,7 @@ export class IssuesLayer implements MapLayer {
         this.container.addChild(ring);
       }
       draw(ring, issue.severity);
-      ring.position.set(s.x, s.y);
+      ring.position.set(s.x, this.drawn.y(s));
     }
   }
 

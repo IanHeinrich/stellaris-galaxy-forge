@@ -1,9 +1,18 @@
 import { create } from "zustand";
 import type { EraseTarget } from "../lib/brush/brushTools";
+import {
+  presetShape,
+  type HeightBrush,
+  type HeightMode,
+  type RipplePreset,
+  type RippleShape,
+} from "../lib/brush/heightBrush";
 import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
+import { roundHeight } from "../lib/height";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
+import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
@@ -27,6 +36,22 @@ const SPACING_LOG_SPAN = SPACING_LOG_MAX - SPACING_LOG_MIN;
 /** Spacing rounded to one decimal place. */
 function roundSpacing(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+/** The height brush's controls: Set's height, Raise's and Smooth's strength, and a ripple's shape. */
+export const HEIGHT_SET_RANGE = { min: -200, max: 200, step: 0.1 } as const;
+export const RAISE_RANGE = { min: 1, max: 50 } as const;
+export const SMOOTH_RANGE = { min: 1, max: 100 } as const;
+/** The ripple's sliders, wide enough for a Dome or Crater at the largest brush. */
+export const RIPPLE_RANGES: Record<keyof RippleShape, { min: number; max: number }> = {
+  height: { min: -100, max: 100 },
+  spacing: { min: 5, max: presetShape("dome", SIZE_RANGE.max).spacing },
+  fade: { min: 10, max: presetShape("dome", SIZE_RANGE.max).fade },
+};
+
+/** Whether a preset's shape follows the brush size, so a resize keeps it one hump or bowl. */
+function followsSize(preset: RipplePreset | null): boolean {
+  return preset === "dome" || preset === "crater";
 }
 
 /** The most systems one paint brush circle may hold, so a large brush cannot flood the map. */
@@ -77,8 +102,19 @@ export interface ToolState {
   symmetry: Symmetry;
   /** The symmetry Shift+M turns back on: the last one picked. */
   lastSymmetry: ActiveSymmetry;
+  /** The tilt view's angle in degrees, 0 for the flat map; a view setting, never saved. */
+  tilt: number;
   /** Whether the rail's symmetry flyout is open. */
   symmetryMenu: boolean;
+  heightMode: HeightMode;
+  /** Set's height, as the editor shows it. */
+  heightValue: number;
+  raiseStrength: number;
+  /** Smooth's strength, in percent. */
+  smoothStrength: number;
+  ripple: RippleShape;
+  /** The preset the ripple is, or null once a slider has moved it off one. */
+  ripplePreset: RipplePreset | null;
   /**
    * Switches tool, refusing one the open document cannot take; true when `tool` is now current.
    * Callers check `toolAllowed` first: this does not know which bar is shown.
@@ -95,6 +131,14 @@ export interface ToolState {
   /** Shift+M: turns symmetry off, or back on as it last was. */
   toggleSymmetry(): void;
   setSymmetryMenu(open: boolean): void;
+  setTilt(degrees: number): void;
+  setHeightMode(mode: HeightMode): void;
+  setHeightValue(value: number): void;
+  setRaiseStrength(strength: number): void;
+  setSmoothStrength(strength: number): void;
+  /** Moves one or more of the ripple's sliders, which leaves any preset. */
+  setRipple(change: Partial<RippleShape>): void;
+  pickRipplePreset(preset: RipplePreset): void;
 }
 
 function clamp(value: number, range: { min: number; max: number }): number {
@@ -129,6 +173,19 @@ function storedNumber(
   return clamp(field.read(), range);
 }
 
+/** The height brush as the options stand, `flipped` while Alt is held. */
+export function heightBrush(flipped: boolean): HeightBrush {
+  const t = useToolStore.getState();
+  return {
+    mode: t.heightMode,
+    value: t.heightValue,
+    raise: t.raiseStrength,
+    smooth: t.smoothStrength / 100,
+    ripple: t.ripple,
+    flipped,
+  };
+}
+
 /** Whether `tool` can be picked on the bar `mode`; where the bar hides the tools only Select works. */
 export function toolAllowed(tool: Tool, mode: BarMode): boolean {
   if (tool !== "select" && !barShows(mode, "tools")) return false;
@@ -157,6 +214,13 @@ export const useToolStore = create<ToolState>((set, get) => ({
   symmetry: SYMMETRY.read(),
   lastSymmetry: storedLastSymmetry(),
   symmetryMenu: false,
+  tilt: 0,
+  heightMode: "raise",
+  heightValue: 20,
+  raiseStrength: 10,
+  smoothStrength: 50,
+  ripple: presetShape("ripples", SIZE_RANGE.fallback),
+  ripplePreset: "ripples",
 
   setTool(tool) {
     if (!documentTakes(tool)) return false;
@@ -168,6 +232,10 @@ export const useToolStore = create<ToolState>((set, get) => ({
     const clamped = clamp(Math.round(size), SIZE_RANGE);
     set({ size: clamped });
     SIZE.save(clamped);
+    const { ripplePreset } = get();
+    if (ripplePreset !== null && followsSize(ripplePreset)) {
+      set({ ripple: presetShape(ripplePreset, clamped) });
+    }
   },
 
   stepSize(dir) {
@@ -207,6 +275,40 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   setSymmetryMenu(symmetryMenu) {
     if (get().symmetryMenu !== symmetryMenu) set({ symmetryMenu });
+  },
+
+  setTilt(degrees) {
+    const tilt = clampTilt(degrees);
+    if (get().tilt !== tilt) set({ tilt });
+  },
+
+  setHeightMode(heightMode) {
+    set({ heightMode });
+  },
+
+  setHeightValue(value) {
+    set({ heightValue: clamp(roundHeight(value), HEIGHT_SET_RANGE) });
+  },
+
+  setRaiseStrength(strength) {
+    set({ raiseStrength: clamp(Math.round(strength), RAISE_RANGE) });
+  },
+
+  setSmoothStrength(strength) {
+    set({ smoothStrength: clamp(Math.round(strength), SMOOTH_RANGE) });
+  },
+
+  setRipple(change) {
+    const ripple = { ...get().ripple };
+    for (const key of Object.keys(change) as Array<keyof RippleShape>) {
+      const value = change[key];
+      if (value !== undefined) ripple[key] = clamp(Math.round(value), RIPPLE_RANGES[key]);
+    }
+    set({ ripple, ripplePreset: null });
+  },
+
+  pickRipplePreset(preset) {
+    set({ ripple: presetShape(preset, get().size), ripplePreset: preset });
   },
 
   toggleSymmetry() {

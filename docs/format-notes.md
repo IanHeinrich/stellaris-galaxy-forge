@@ -156,6 +156,24 @@ for planets or deposits.
   objects, wormhole endpoints and megastructures. Only
   `galactic_object`, `nebula` and `clusters` are absolute, with
   `origin=4294967295`.
+- A system's height above the galactic plane is `visual_height`, the
+  last key of its `coordinate`. Galaxy generation writes `3.65056` on
+  every system, and systems spawned later by script have `4.31213` (one
+  in the 4.5 sample has `5.11847`). 3.x saves leave the key out of most
+  systems: the 3.4 sample has none. The game draws the value. A star
+  set to 150 or 1000 rises above the plane, its lanes run to it in 3D,
+  its name and icons move with it, and a line drops from it to a small
+  hexagon on the plane. Negative values sink the star. Edited values
+  survive an in-game save and a month of play unchanged (4.5.1). An
+  exact `visual_height=0` does not: the game replaced it on load with
+  `-4.57298`, so 0 reads as unset and an edit writes `0.00001` instead.
+- The galaxy map draws `visual_height` at half scale: a star with 100
+  stands 50 units above the plane, in the units of `x` and `y`. The
+  plane hexagons sit at height 0. The camera starts 33° from straight
+  down, and right-dragging moves it between the `GALAXY_MIN_PITCH` and
+  `GALAXY_MAX_PITCH` defines (30° to 85° above the plane). Zooming does
+  not change the angle. These come from fitting a camera to a 4.5.1
+  screenshot of 23 points with known positions, to within 1.5 pixels.
 - Moving a system changes its own `x`/`y` and the `length` of each of
   its lanes, on both ends. Nothing inside the system moves. The game
   keeps the moved system's lanes, still joined to the old neighbours.
@@ -667,6 +685,10 @@ for planets or deposits.
   `x = { min max }`. Ids are quoted decimal strings.
   They are arbitrary and non-contiguous, unlike the save's contiguous
   `galactic_object` ids.
+- `position = { x y z }` parses, but the game ignores `z`. A scenario
+  with `z` from -50 to 1000 on 780 systems started a game whose day-one
+  save has `visual_height=3.65056` on every system (4.5.1). Height can
+  only be edited in a save.
 - Positions are absolute. They are integers in practice, and decimals
   are legal. There is no per-system `radius`, and the orientation
   matches the save's `coordinate`.

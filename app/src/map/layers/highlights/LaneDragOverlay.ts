@@ -1,4 +1,5 @@
 import { Graphics } from "pixi.js";
+import type { SystemNode } from "../../../generated/SystemNode";
 import { toRing } from "../../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../../lib/feZone";
 import type { Pt } from "../../../lib/geometry/pt";
@@ -42,6 +43,9 @@ export class LaneDragOverlay {
   private markerK = 1;
   private portCapable = false;
 
+  /** `at` is where a system draws, which the rings and rubber lines start from. */
+  constructor(private readonly at: (s: SystemNode) => Pt = (s) => s) {}
+
   setSystems(systems: Systems): void {
     this.systems = systems;
     this.redraw();
@@ -83,10 +87,15 @@ export class LaneDragOverlay {
     this.redraw();
   }
 
-  private redraw(): void {
+  redraw(): void {
     this.drawPort();
     this.drawTarget();
     this.drawLines();
+  }
+
+  private drawnAt(id: number): Pt | undefined {
+    const s = this.systems.get(id);
+    return s && this.at(s);
   }
 
   /** The centre of the ring `anchor` anchors, or undefined when it anchors none. */
@@ -107,9 +116,10 @@ export class LaneDragOverlay {
       g.stroke({ color: PORT_RING.color, width: PORT_RING.width / this.camScale });
       return;
     }
-    const star =
+    const hovered =
       this.portCapable && this.hoverId !== null ? this.systems.get(this.hoverId) : undefined;
-    if (!star) return;
+    if (!hovered) return;
+    const star = this.at(hovered);
     const r = (((PORT_INNER + PORT_OUTER) / 2) * this.markerK) / this.camScale;
     dashedCircle(g, star.x, star.y, r, PORT_RING.dashes);
     g.stroke({ color: PORT_RING.color, width: (PORT_RING.width * this.markerK) / this.camScale });
@@ -122,7 +132,7 @@ export class LaneDragOverlay {
     const t = this.rubber?.target;
     if (!t) return;
     const style = t.valid ? TARGET_VALID : TARGET_INVALID;
-    const at = t.kind === "system" ? this.systems.get(t.id) : this.zoneCentre(t.anchor);
+    const at = t.kind === "system" ? this.drawnAt(t.id) : this.zoneCentre(t.anchor);
     if (!at) return;
     const radius =
       t.kind === "system"
@@ -151,7 +161,7 @@ export class LaneDragOverlay {
     const r = this.rubber;
     if (!r) return [];
     const target = r.target;
-    const targetSystem = target?.kind === "system" ? this.systems.get(target.id) : undefined;
+    const targetSystem = target?.kind === "system" ? this.drawnAt(target.id) : undefined;
     const targetZone = target?.kind === "feZone" ? this.zoneCentre(target.anchor) : undefined;
     const end = targetSystem ?? { x: r.x, y: r.y };
     if (r.from.kind === "feZone") {
@@ -161,7 +171,7 @@ export class LaneDragOverlay {
     }
     const segments: Segment[] = [];
     for (const id of r.from.ids) {
-      const from = this.systems.get(id);
+      const from = this.drawnAt(id);
       if (!from) continue;
       const segment = targetZone ? toRing(from, targetZone) : { a: from, b: end };
       if (segment) segments.push(segment);

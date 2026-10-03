@@ -1,4 +1,5 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
+import { HeightSculpt, type HeightBrush, type HeightsOver } from "./heightBrush";
 import {
   laneSegments,
   meshWithin,
@@ -24,6 +25,7 @@ import { SegmentIndex, segmentsCross, type Segment } from "../geometry/segments"
 import { seeded } from "../random";
 import type { SpatialGrid } from "../spatialGrid";
 import { counted } from "../text";
+import type { HeightPreview } from "../height";
 import type { SystemNode } from "../../generated/SystemNode";
 
 export interface BrushSettings {
@@ -37,19 +39,33 @@ export interface BrushSettings {
   symmetry: Symmetry;
   /** The β of the lanes a paint or connect stroke adds. */
   beta: number;
+  /** What a height stroke does. */
+  height: HeightBrush;
 }
 
 /**
  * What a stroke does so far. A paint stroke's new points carry provisional ids -1..-n in
  * `points` order, and its lanes may join them to existing systems by their real ids. A
  * connect stroke's pairs join systems it swept; `sparse` is true when the lane density is the
- * only reason it added none.
+ * only reason it added none. A height stroke's heights are the shown heights it would give the
+ * galaxy it began on, and `over` works them out again from the heights an edit finds.
  */
 export type StrokeResult =
   | { kind: "paint"; points: Pt[]; pairs: Pair[] }
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
-  | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean };
+  | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
+  | { kind: "height"; heights: HeightPreview; over: HeightsOver };
+
+/**
+ * Where the map draws each system and a grid over those points: where an erase, connect or cut
+ * stroke finds the systems and lanes it sweeps. New lanes are still laid between the systems'
+ * own positions.
+ */
+export interface SweptGround {
+  readonly systems: ReadonlyMap<number, SystemNode>;
+  readonly grid: SpatialGrid;
+}
 
 /** A new lane is at most this many spacings long. */
 const LANE_REACH = 3;
@@ -77,11 +93,13 @@ function medianNearest(points: readonly MeshPoint[]): number {
 class StrokeGround {
   readonly r: number;
   private laneIndex: SegmentIndex<MeshPoint> | null = null;
+  private sweptLaneIndex: SegmentIndex<MeshPoint> | null = null;
 
   constructor(
     readonly settings: BrushSettings,
     readonly systems: ReadonlyMap<number, SystemNode>,
     readonly grid: SpatialGrid,
+    readonly swept: SweptGround,
   ) {
     this.r = settings.size / 2;
   }
@@ -97,11 +115,14 @@ class StrokeGround {
 
   /** The existing lanes whose bounding box comes within `d` of some point. */
   lanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
-    if (!this.laneIndex) {
-      this.laneIndex = new SegmentIndex();
-      for (const { a, b } of laneSegments(this.systems.values())) this.laneIndex.add(a, b);
-    }
+    this.laneIndex ??= segmentIndex(this.systems);
     return this.laneIndex.near(points, d);
+  }
+
+  /** The same, between where the map draws their ends. */
+  sweptLanesNear(points: readonly Pt[], d: number): Array<Segment<MeshPoint>> {
+    this.sweptLaneIndex ??= segmentIndex(this.swept.systems);
+    return this.sweptLaneIndex.near(points, d);
   }
 
   /** The existing systems within `d` of some point. */
@@ -174,6 +195,12 @@ class StrokeGround {
     const s = this.systems.get(id);
     return s ? counterpartAt(this.grid, s, sym, m) : null;
   }
+}
+
+function segmentIndex(systems: ReadonlyMap<number, SystemNode>): SegmentIndex<MeshPoint> {
+  const index = new SegmentIndex<MeshPoint>();
+  for (const { a, b } of laneSegments(systems.values())) index.add(a, b);
+  return index;
 }
 
 /** One kind of stroke: what its stamps take in, and what it would do so far. */
@@ -250,8 +277,8 @@ class EraseStroke implements Strategy {
   constructor(private readonly ground: StrokeGround) {}
 
   add(stamps: readonly Pt[]): void {
-    const { r, grid, settings } = this.ground;
-    const swept = sweptSystems(this.ground.images(stamps), r, grid, {
+    const { r, swept: ground, settings } = this.ground;
+    const swept = sweptSystems(this.ground.images(stamps), r, ground.grid, {
       includeSpecials: settings.eraseSpecials,
     });
     for (const id of swept.doomed) this.doomed.add(id);
@@ -270,9 +297,11 @@ class ConnectStroke implements Strategy {
   constructor(private readonly ground: StrokeGround) {}
 
   add(stamps: readonly Pt[]): void {
-    const { r, grid } = this.ground;
+    const { r, swept } = this.ground;
     // Connecting adds lanes only, so it takes special systems too.
-    const reached = sweptSystems(this.ground.images(stamps), r, grid, { includeSpecials: true });
+    const reached = sweptSystems(this.ground.images(stamps), r, swept.grid, {
+      includeSpecials: true,
+    });
     for (const id of reached.doomed) this.swept.add(id);
   }
 
@@ -318,11 +347,35 @@ class CutStroke implements Strategy {
   add(stamps: readonly Pt[]): void {
     const all = this.ground.images(stamps);
     const r = this.ground.r;
-    for (const [a, b] of sweptLanes(all, r, this.ground.lanesNear(all, r))) this.cut.add(a, b);
+    for (const [a, b] of sweptLanes(all, r, this.ground.sweptLanesNear(all, r))) {
+      this.cut.add(a, b);
+    }
   }
 
   result(): StrokeResult {
     return { kind: "cut", lanes: this.cut.sorted() };
+  }
+}
+
+class HeightStroke implements Strategy {
+  private readonly sculpt: HeightSculpt;
+
+  constructor(private readonly ground: StrokeGround) {
+    const { settings, r, systems, grid } = ground;
+    this.sculpt = new HeightSculpt(settings.height, r, systems, grid);
+  }
+
+  add(stamps: readonly Pt[]): void {
+    this.sculpt.add(this.ground.images(stamps));
+  }
+
+  result(): StrokeResult {
+    const sculpt = this.sculpt;
+    return {
+      kind: "height",
+      heights: sculpt.heights(),
+      over: (systems) => sculpt.heights(systems),
+    };
   }
 }
 
@@ -331,6 +384,7 @@ const STRATEGIES: Record<StrokeKind, (ground: StrokeGround, seed: number) => Str
   erase: (ground) => new EraseStroke(ground),
   connect: (ground) => new ConnectStroke(ground),
   cut: (ground) => new CutStroke(ground),
+  height: (ground) => new HeightStroke(ground),
 };
 
 /**
@@ -347,8 +401,9 @@ export class BrushStroke {
     systems: ReadonlyMap<number, SystemNode>,
     grid: SpatialGrid,
     seed: number,
+    swept: SweptGround = { systems, grid },
   ) {
-    const ground = new StrokeGround(settings, systems, grid);
+    const ground = new StrokeGround(settings, systems, grid, swept);
     this.r = ground.r;
     const kind = BRUSH_TOOLS[settings.tool].stroke(settings.eraseTarget);
     this.strategy = STRATEGIES[kind](ground, seed);
@@ -379,5 +434,7 @@ export function strokeLabel(result: StrokeResult): string {
       return result.sparse
         ? "+0 lanes · raise lane density"
         : `+${counted(result.pairs.length, "lane")}`;
+    case "height":
+      return `↕ ${counted(result.heights.size, "system")}`;
   }
 }

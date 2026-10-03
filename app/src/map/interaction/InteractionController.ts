@@ -8,8 +8,9 @@ import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import { getPaintLayer } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useInspectorStore } from "../../store/inspectorStore";
-import { useToolStore } from "../../store/toolStore";
+import { useToolStore, type ToolState } from "../../store/toolStore";
 import type { Camera } from "../Camera";
+import type { DrawnPositions } from "../drawnPositions";
 import type { HighlightsLayer } from "../layers/HighlightsLayer";
 import type { MapLayer } from "../layers/MapLayer";
 import {
@@ -47,7 +48,7 @@ function expandSection(id: string): void {
 }
 
 /** One control model per tool, the brushes each reading the erase target at the press. */
-function models(): Record<Tool, MapModel> {
+function models(): Record<Tool, MapModel> & { select: GestureModel } {
   const eraseTarget = () => useToolStore.getState().eraseTarget;
   const brush = (tool: BrushTool) => new BrushModel(tool, eraseTarget);
   return {
@@ -56,7 +57,19 @@ function models(): Record<Tool, MapModel> {
     erase: brush("erase"),
     connect: brush("connect"),
     cut: brush("cut"),
+    height: brush("height"),
   };
+}
+
+/** Whether any of the height brush's options moved, which change what it previews. */
+function heightOptionsChanged(state: ToolState, previous: ToolState): boolean {
+  return (
+    state.heightMode !== previous.heightMode ||
+    state.heightValue !== previous.heightValue ||
+    state.raiseStrength !== previous.raiseStrength ||
+    state.smoothStrength !== previous.smoothStrength ||
+    state.ripple !== previous.ripple
+  );
 }
 
 /**
@@ -70,6 +83,8 @@ export class InteractionController {
   private readonly feZones: FeZoneDrag;
   private readonly moves: MoveDrag;
   private model: MapModel = this.models.select;
+  /** The pointer in pick space, where systems and lanes are found as they draw; rewritten per pick. */
+  private readonly pickAt: Pt = { x: 0, y: 0 };
   private readonly intent: MapIntent;
   private readonly pointer: PointerBridge<MapInput>;
   private readonly addedTip = new AddedTooltip();
@@ -83,7 +98,7 @@ export class InteractionController {
   private readonly gesture = new GestureReporter();
   /** The pointer in world units, rewritten per event rather than allocated. */
   private readonly at: Pt = { x: 0, y: 0 };
-  private readonly index = new PickIndex();
+  private readonly index: PickIndex;
   private readonly cleanups: Array<() => void> = [];
   /** The key listeners, which only the active scene's controller holds, as it holds the pointer. */
   private readonly keyListeners: Array<() => void> = [];
@@ -92,12 +107,14 @@ export class InteractionController {
     private readonly canvas: HTMLCanvasElement,
     private readonly cam: Camera,
     private readonly highlights: HighlightsLayer,
-    layers: readonly MapLayer[] = [],
+    layers: readonly MapLayer[],
+    private readonly drawn: DrawnPositions,
   ) {
-    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide);
+    this.index = new PickIndex(drawn);
+    this.brushes = new BrushStrokes(cam, highlights.brush, highlights.guide, drawn);
     this.nebulae = new NebulaDrag(cam, highlights);
     this.feZones = new FeZoneDrag(cam, highlights);
-    this.moves = new MoveDrag(layers);
+    this.moves = new MoveDrag(layers, drawn);
     this.intent = this.buildIntent();
     this.pointer = new PointerBridge(
       canvas,
@@ -126,10 +143,18 @@ export class InteractionController {
     this.brushes.drawGuide();
     this.cleanups.push(
       trackGalaxy(this.index),
+      drawn.onChange(({ moved, leaned }) => {
+        if (leaned) this.index.build(useGalaxyStore.getState().systems);
+        else this.index.moved(moved);
+      }),
       useToolStore.subscribe((state, previous) => {
         if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
         if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
-        if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
+        if (
+          state.size !== previous.size ||
+          state.symmetry !== previous.symmetry ||
+          heightOptionsChanged(state, previous)
+        ) {
           this.brushes.drawCursor();
         }
       }),
@@ -170,7 +195,8 @@ export class InteractionController {
       selectInRect: (x0, y0, x1, y1, mode) => {
         const ids: number[] = [];
         for (const s of systems().values()) {
-          if (s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1) ids.push(s.id);
+          const y = this.drawn.y(s);
+          if (s.x >= x0 && s.x <= x1 && y >= y0 && y <= y1) ids.push(s.id);
         }
         void editor().setSelection(ids, mode);
       },
@@ -230,8 +256,8 @@ export class InteractionController {
         this.hover(null);
         useMapChromeStore.getState().openContextMenu({ target, x, y });
       },
-      hoverBrush: (tool, x, y) => this.brushes.hover(tool, x, y),
-      beginStroke: (tool, x, y) => this.brushes.begin(tool, x, y),
+      hoverBrush: (tool, x, y, flipped) => this.brushes.hover(tool, x, y, flipped),
+      beginStroke: (tool, x, y, flipped) => this.brushes.begin(tool, x, y, flipped),
       extendStroke: (x, y) => this.brushes.extend(x, y),
       commitStroke: () => this.brushes.commit(),
       cancelStroke: () => this.brushes.cancel(),
@@ -307,16 +333,21 @@ export class InteractionController {
     return this.model === this.models.select ? this.pick(input, w) : input;
   }
 
-  /** What is under the pointer; a brush reads only where the pointer is, so it never asks. */
+  /**
+   * What is under the pointer: systems and lanes where they draw, zones and nebulae on the
+   * plane. A brush reads only where the pointer is, so it never asks.
+   */
   private pick(input: MapInput, w: Pt): MapInput {
-    const { grid, systems, nebulae } = useGalaxyStore.getState();
-    const picked = grid ? pickSystem(grid, this.cam, w) : { system: null, zone: null };
+    const { systems, nebulae } = useGalaxyStore.getState();
+    const grid = this.drawn.pickGrid();
+    const at = this.drawn.toPick(w, this.pickAt);
+    const picked = grid ? pickSystem(grid, this.cam, at) : { system: null, zone: null };
     const system = picked.system;
     const layers = useMapChromeStore.getState().layers;
     const zones = layers.feZones && getPaintLayer();
     const { edge, midpointHit } =
       system === null
-        ? pickEdge(this.index, systems, this.cam, w, this.hoverEdge, zones)
+        ? pickEdge(this.index, this.cam, at, this.hoverEdge, zones)
         : { edge: null, midpointHit: false };
     const feZone =
       zones && system === null && edge === null ? pickFeZone(this.index, this.cam, w) : null;
@@ -326,7 +357,9 @@ export class InteractionController {
         : null;
     const rightClick = input.kind === "down" && input.button === 2;
     const prevented =
-      rightClick && system === null && edge === null ? pickPrevented(systems, this.cam, w) : null;
+      rightClick && system === null && edge === null
+        ? pickPrevented(systems, this.cam, at, this.drawn.pickAt)
+        : null;
     return {
       ...input,
       system,
@@ -337,7 +370,7 @@ export class InteractionController {
       snap:
         this.laneFrom === null || !grid
           ? null
-          : snapTarget(grid, this.index, systems, this.cam, w, this.laneFrom, zones),
+          : snapTarget(grid, this.index, systems, this.cam, at, this.laneFrom, zones, w),
       nebula,
       prevented,
     };

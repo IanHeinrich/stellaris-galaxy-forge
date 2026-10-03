@@ -1,5 +1,6 @@
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../lib/geometry/geometry";
 import type { Pt } from "../lib/geometry/pt";
+import { FLAT_TILT, tiltOf, type Tilt } from "./tilt";
 
 export interface WorldTransform {
   x: number;
@@ -33,6 +34,8 @@ export class Camera {
   maxScale = MAX_SCALE;
   /** Bumped on every change so the renderer knows when to re-apply the transform. */
   rev = 0;
+  /** How far the plane leans away: world y is squashed by its cosine about the centre of view. */
+  tilt: Tilt = FLAT_TILT;
 
   private readonly xSign = SAVE_X_SIGN;
   private readonly ySign = SAVE_Y_SIGN;
@@ -48,31 +51,52 @@ export class Camera {
     this.rev++;
   }
 
+  /** Leans the plane `degrees` away from the viewer; 0 is the flat map. */
+  setTilt(degrees: number): void {
+    const tilt = tiltOf(degrees);
+    if (tilt.degrees === this.tilt.degrees) return;
+    this.tilt = tilt;
+    this.rev++;
+  }
+
+  /** How much the lean squashes world y on screen: 1 while the map lies flat. */
+  get squash(): number {
+    return this.tilt.cos;
+  }
+
+  /** Screen pixels per world unit along y on the plane, which the tilt squashes. */
+  private get yScale(): number {
+    return this.scale * this.tilt.cos;
+  }
+
   worldToScreen(wx: number, wy: number, out: Pt = { x: 0, y: 0 }): Pt {
     out.x = this.xSign * (wx - this.x) * this.scale + this.width / 2;
-    out.y = this.ySign * (wy - this.y) * this.scale + this.height / 2;
+    out.y = this.ySign * (wy - this.y) * this.yScale + this.height / 2;
     return out;
   }
 
   screenToWorld(sx: number, sy: number, out: Pt = { x: 0, y: 0 }): Pt {
     out.x = (this.xSign * (sx - this.width / 2)) / this.scale + this.x;
-    out.y = (this.ySign * (sy - this.height / 2)) / this.scale + this.y;
+    out.y = (this.ySign * (sy - this.height / 2)) / this.yScale + this.y;
     return out;
   }
 
   /** Position and scale for a container holding world-unit children. */
   worldTransform(out: WorldTransform = { x: 0, y: 0, scaleX: 1, scaleY: 1 }): WorldTransform {
     out.x = this.width / 2 - this.xSign * this.x * this.scale;
-    out.y = this.height / 2 - this.ySign * this.y * this.scale;
+    out.y = this.height / 2 - this.ySign * this.y * this.yScale;
     out.scaleX = this.xSign * this.scale;
-    out.scaleY = this.ySign * this.scale;
+    out.scaleY = this.ySign * this.yScale;
     return out;
   }
 
-  /** Local scale that makes a child of the world container `px` per unit big and upright on screen. */
+  /**
+   * Local scale that makes a child of the world container `px` per unit big and upright on
+   * screen, unsquashed by the tilt.
+   */
   childScale(px: number, out: Pt = { x: 0, y: 0 }): Pt {
     out.x = (this.xSign * px) / this.scale;
-    out.y = (this.ySign * px) / this.scale;
+    out.y = (this.ySign * px) / this.yScale;
     return out;
   }
 

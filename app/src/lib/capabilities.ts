@@ -20,6 +20,7 @@ export const SAVE_CAPABILITIES: Capabilities = {
   lgate: true,
   symmetry: false,
   wormhole_pairs: true,
+  system_heights: true,
 };
 
 /** What a static galaxy scenario supports: scripted empires and system statements, no lengths. */
@@ -42,6 +43,7 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   lgate: false,
   symmetry: true,
   wormhole_pairs: false,
+  system_heights: false,
 };
 
 /** The file session, as a capability read sees it. */

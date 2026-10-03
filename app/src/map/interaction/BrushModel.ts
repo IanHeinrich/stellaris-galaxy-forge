@@ -3,7 +3,8 @@ import type { MapInput, MapIntent, MapModel } from "./MapIntent";
 
 /**
  * A brush (ADR 0005): the left button lays one stroke from press to release, the middle button
- * pans, and a bare pointer carries the brush circle. `Alt` held at the press inverts the stroke.
+ * pans, and a bare pointer carries the brush circle. `Alt` held at the press inverts the stroke:
+ * it picks the inverse brush, or flips a brush that has none.
  */
 export class BrushModel implements MapModel {
   private stroke: BrushTool | null = null;
@@ -23,7 +24,7 @@ export class BrushModel implements MapModel {
       case "move":
         if (this.panning) return "pan";
         if (this.stroke) intent.extendStroke(input.wx, input.wy);
-        else intent.hoverBrush(this.toolAt(input), input.wx, input.wy);
+        else intent.hoverBrush(this.toolAt(input), input.wx, input.wy, this.flippedAt(input));
         return "consumed";
       case "up":
         this.up(input, intent);
@@ -50,14 +51,19 @@ export class BrushModel implements MapModel {
   }
 
   private toolAt(input: MapInput): BrushTool {
-    return input.alt ? BRUSH_TOOLS[this.tool].inverse(this.eraseTarget()) : this.tool;
+    return (input.alt && BRUSH_TOOLS[this.tool].inverse(this.eraseTarget())) || this.tool;
+  }
+
+  /** Whether Alt flips the brush itself, which has no inverse brush to turn into. */
+  private flippedAt(input: MapInput): boolean {
+    return input.alt && BRUSH_TOOLS[this.tool].inverse(this.eraseTarget()) === null;
   }
 
   private down(input: MapInput, intent: MapIntent): void {
     if (this.busy()) return;
     if (input.button === 0) {
       this.stroke = this.toolAt(input);
-      intent.beginStroke(this.stroke, input.wx, input.wy);
+      intent.beginStroke(this.stroke, input.wx, input.wy, this.flippedAt(input));
     } else if (input.button === 1) {
       this.panning = true;
       intent.endBrush();
@@ -73,6 +79,6 @@ export class BrushModel implements MapModel {
     } else {
       return;
     }
-    intent.hoverBrush(this.toolAt(input), input.wx, input.wy);
+    intent.hoverBrush(this.toolAt(input), input.wx, input.wy, this.flippedAt(input));
   }
 }

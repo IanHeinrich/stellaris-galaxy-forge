@@ -1,0 +1,36 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the height of 3 systems
+inverse: SetSystemHeights { heights: [SystemHeight { id: 0, height: Some(3.65056) }, SystemHeight { id: 408, height: Some(3.65056) }, SystemHeight { id: 593, height: Some(5.11847) }] }
+
+--- gamestate
++++ gamestate
+@@ -28830,7 +28830,7 @@
+ 			y=119.15
+ 			origin=4294967295
+ 			randomized=yes
+-			visual_height=3.65056
++			visual_height=12.5
+ 		}
+ 		name=
+ 		{
+@@ -57809,7 +57809,7 @@
+ 			y=-111.67
+ 			origin=4294967295
+ 			randomized=yes
+-			visual_height=3.65056
++			visual_height=0.00001
+ 		}
+ 		name=
+ 		{
+@@ -70891,7 +70891,7 @@
+ 			x=365.50186
+ 			y=-423.52114
+ 			origin=4294967295
+-			visual_height=5.11847
++			visual_height=-2.25
+ 		}
+ 		name=
+ 		{

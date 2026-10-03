@@ -23,7 +23,7 @@ use crate::format::save::write::{
     add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
     lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
     planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
-    rename_system, replace_system, star_class, wormhole, wormhole_pair,
+    rename_system, replace_system, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -300,6 +300,7 @@ impl Format for Save {
             Op::SetSaveInnerRadius { system, radius } => {
                 belts::plan_inner_radius(plan, s, *system, *radius)
             }
+            Op::SetSystemHeights { heights } => system_height::plan_set(plan, s, heights),
             // A save adds, renames and rerolls a system through the save ops, which write the
             // bodies and names a scenario statement leaves out. Its initializers, spawns,
             // fallen empire zones and wormholes are the game's to set, and it has neither a
@@ -389,6 +390,7 @@ impl Format for Save {
             lgate: true,
             symmetry: false,
             wormhole_pairs: check_version(doc).is_ok(),
+            system_heights: true,
         }
     }
 }

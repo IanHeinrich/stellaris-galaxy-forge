@@ -6,6 +6,7 @@ import type { Camera } from "../Camera";
 import { compareImportance, labelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { dimmedByInitializer, initializerLabel } from "../../lib/initializer/initializerLabels";
 import { FILTERED_ALPHA, GHOST_ALPHA, INITIALIZER_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -75,7 +76,7 @@ export class LabelsLayer implements MapLayer {
     if (this.pinned.has(s.id)) this.pinnedInView.add(s.id);
   };
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.plates);
     this.unsubscribe.push(onTextures(() => this.schedulePlates()));
   }
@@ -129,12 +130,14 @@ export class LabelsLayer implements MapLayer {
     this.offsetY = nameRowY(cam.scale);
     cam.childScale(1, this.scale);
     const pad = VIEW_PAD_PX / cam.scale;
+    const lift = this.drawn.reach();
     const b = cam.worldBounds(this.bounds);
     const { order, inView, wanted } = this;
     inView.clear();
     wanted.clear();
     this.pinnedInView.clear();
-    this.grid.forEachIn(b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad, this.markInView);
+    const [minX, minY, maxX, maxY] = [b[0] - pad, b[1] - pad - lift, b[2] + pad, b[3] + pad + lift];
+    this.grid.forEachIn(minX, minY, maxX, maxY, this.markInView);
 
     for (const id of this.topPinned()) {
       const s = this.systems.get(id);
@@ -165,6 +168,17 @@ export class LabelsLayer implements MapLayer {
     }
     for (const label of this.shown.values()) this.fit(label);
     this.placePlates();
+  }
+
+  /** Moves only the names of the systems drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const label = this.shown.get(id);
+      const s = this.systems.get(id);
+      if (!label || !s) continue;
+      this.style(label, s);
+      this.placePlate(id, label);
+    }
   }
 
   /** Systems whose label is placed before any other, whatever their rank, while in view. */
@@ -296,7 +310,7 @@ export class LabelsLayer implements MapLayer {
       label.position.set(ghost.x, ghost.y);
       label.alpha = GHOST_ALPHA;
     } else {
-      label.position.set(s.x, s.y);
+      label.position.set(s.x, this.drawn.y(s));
       label.alpha = named ? (filtered ? FILTERED_ALPHA : 1) : INITIALIZER_ALPHA;
     }
   }

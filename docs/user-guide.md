@@ -150,6 +150,34 @@ this session, select it and press Delete, or right-click it and pick
 - With nothing selected, the Inspector can reveal which L-Gate outcome
   the save rolled. You can change it until a gate opens.
 
+### System heights
+
+In a save, each system can sit above or below the galaxy plane. The
+game shows a raised star with a line down to the plane, and its
+hyperlanes follow it. Stars start flat, at 0.
+
+- A system's Overview tab has a Height slider under Position. The map
+  follows the slider as you drag, and the edit lands when you let go.
+  Flat puts it back at 0.
+- With several systems selected, the Inspector shows a strip of their
+  heights. Set to, Raise by and Lower by change them all, and Flatten
+  puts them back at 0.
+- The Height brush (H) on the tool strip has four modes. Set gives
+  everything under the brush one height. Raise lifts the middle most
+  and the edge least, and Alt lowers instead. Smooth evens out the
+  systems under it. Ripple drops rings of crests and troughs where you
+  let go. The Ripples, Waves, Dome and Crater presets are a starting
+  point, and the graph shows the shape before you click.
+- The Heights layer is on by default. A raised star has an amber ring
+  and a sunk one a blue ring. Flat stars look as before.
+- The Tilt slider at the bottom right tilts the map so you can see the
+  heights. The Stellaris mark is the game's own camera angle.
+  Double-click the slider to lay the map flat. Everything works while
+  tilted, including moving systems and editing lanes.
+
+Scenarios have no heights. The game ignores a height in a scenario, so
+these tools are hidden there.
+
 ### Planet, moon, star and asteroid pages
 
 Click a body in a system's Planets list, or a moon in a body's own Moons
@@ -700,6 +728,7 @@ I haven't tested Ironman saves.
 | --- | --- |
 | V, C, X | Select, Connect lanes, Cut lanes |
 | B, E | Paint systems, Erase systems |
+| H | Height brush, in a save |
 | Shift+M | Symmetry on or off, in a scenario |
 | `[` `]` | Brush size, or nebula radius |
 | Alt | Swap the brush while held |

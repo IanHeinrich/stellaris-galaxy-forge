@@ -8,6 +8,7 @@ import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { LaneTable } from "../laneTable";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import { evenDashedLine } from "./dashes";
 import { sameDragged, type DragState, type MapLayer } from "./MapLayer";
@@ -107,7 +108,7 @@ export class LanesLayer implements MapLayer {
   private dragged: ReadonlyMap<number, MoveGhost> = NO_DRAG;
   private ease = 0;
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.preventedLayer, this.lanesLayer, this.bridgesLayer);
   }
 
@@ -149,6 +150,13 @@ export class LanesLayer implements MapLayer {
     if (ease === this.ease) return;
     this.ease = ease;
     for (const tile of this.tiles.keys()) this.drawTile(tile);
+  }
+
+  /** Redraws only the tiles holding a lane of a system drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    const dirty = new Set<number>();
+    for (const id of moved) for (const entry of this.table.of(id)) dirty.add(entry.tile);
+    for (const tile of dirty) this.drawTile(tile);
   }
 
   setVisible(v: boolean): void {
@@ -242,7 +250,9 @@ export class LanesLayer implements MapLayer {
           const a = this.systems.get(entry.ends[0]);
           const b = this.systems.get(entry.ends[1]);
           if (!a || !b) continue;
-          g.moveTo(a.x, a.y).lineTo(b.x, b.y);
+          const from = this.drawn.at(a);
+          const to = this.drawn.at(b);
+          g.moveTo(from.x, from.y).lineTo(to.x, to.y);
           any = true;
         }
         const style = kind === "bridge" ? bridgeStyle : laneStyle;
@@ -263,7 +273,7 @@ export class LanesLayer implements MapLayer {
         const a = this.systems.get(entry.ends[0]);
         const b = this.systems.get(entry.ends[1]);
         if (!a || !b) continue;
-        evenDashedLine(g, a, b, DASH, GAP);
+        evenDashedLine(g, this.drawn.at(a), this.drawn.at(b), DASH, GAP);
         any = true;
       }
       if (any) {

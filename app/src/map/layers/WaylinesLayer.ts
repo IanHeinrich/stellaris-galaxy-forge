@@ -9,6 +9,7 @@ import { OwnedTooltip } from "../ownedTooltip";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { Badge, BADGE_RING_RADIUS } from "./badge";
 import { evenDashedLine } from "./dashes";
 import { markerScale, type DragState, type MapLayer } from "./MapLayer";
@@ -54,7 +55,7 @@ export class WaylinesLayer implements MapLayer {
   private hovered: Waystation | null = null;
   private readonly tip = new OwnedTooltip();
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.bands, this.badgeLayer);
   }
 
@@ -101,6 +102,12 @@ export class WaylinesLayer implements MapLayer {
     }
   }
 
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    this.place();
+    this.draw();
+  }
+
   setVisible(v: boolean): void {
     this.container.visible = v;
   }
@@ -132,7 +139,8 @@ export class WaylinesLayer implements MapLayer {
 
   /** Where a system is drawn: its ghost while it is dragged, else where it stands. */
   private point(id: number): { x: number; y: number } | undefined {
-    return this.dragged.get(id) ?? this.systems.get(id);
+    const s = this.systems.get(id);
+    return this.dragged.get(id) ?? (s && this.drawn.at(s));
   }
 
   /** The station's own level, a plain waystation until the system's details have been read. */

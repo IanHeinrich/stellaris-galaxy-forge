@@ -17,6 +17,7 @@ const ENTRIES: Record<Tool, Omit<ToolEntry, "id">> = {
   erase: { key: "e", label: "Erase systems" },
   connect: { key: "c", label: "Connect lanes" },
   cut: { key: "x", label: "Cut lanes" },
+  height: { key: "h", label: "Height brush" },
 };
 
 /** The tools in the rail's order. */

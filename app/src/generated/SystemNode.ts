@@ -8,7 +8,13 @@ import type { SpawnModifier } from "./SpawnModifier";
 import type { SpawnScript } from "./SpawnScript";
 import type { SystemBody } from "./SystemBody";
 
-export type SystemNode = { id: number, name: NameTemplate, x: number, y: number, star_class: string, lanes: Array<Lane>, 
+export type SystemNode = { id: number, name: NameTemplate, x: number, y: number, 
+/**
+ * A save system's `coordinate.visual_height`, how far above or below the galactic
+ * plane the map draws its star: 3.65056 for a system the game's galaxy generation placed. `None` where
+ * the save writes none, as 3.x saves do, and for a scenario, whose `z` the game ignores.
+ */
+height?: number, star_class: string, lanes: Array<Lane>, 
 /**
  * Index into `Galaxy::nebulae`.
  */

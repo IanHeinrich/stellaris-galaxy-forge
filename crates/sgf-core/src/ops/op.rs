@@ -147,7 +147,7 @@ pub enum Op {
     /// with a wormhole pair, whether removed or renumbered, is refused. The
     /// inverse adds the system again, read back as a spec, at the end of the list, which
     /// joins it to the nebula it stands in; then its bridges, the lane lengths that are not
-    /// `floor(distance)` and its nebula footprint are put back. The bytes come back exactly
+    /// `floor(distance)`, its nebula footprint and its height are put back. The bytes come back exactly
     /// only for the last system added, with nothing written to its neighbours since. A
     /// lane's entry on the other end comes back last in that system's list. A system taken
     /// from among the added ones comes back at the next id, its bodies and deposits one
@@ -752,6 +752,16 @@ pub enum Op {
     RemoveDigSite {
         site: u32,
     },
+    /// Each save system's `coordinate.visual_height`, how far above or below the galactic
+    /// plane the map draws its star; `None` takes the key out. A system without one, as
+    /// 3.x saves write them, gets it last in its `coordinate` block. A height that would be
+    /// written as 0 is written as 0.00001, because the game reads 0 as unset and puts a
+    /// height of its own in its place. An empty list, an id listed twice and a height that
+    /// is not a finite number are refused. The inverse carries the heights displaced,
+    /// `None` where there was none. Save documents only.
+    SetSystemHeights {
+        heights: Vec<SystemHeight>,
+    },
     /// Several ops as one edit and one undo step, applied in order; a refused member
     /// leaves the document as it was before the first. Not nested.
     Batch {
@@ -1107,6 +1117,15 @@ pub struct SystemMove {
     pub id: u32,
     pub x: f64,
     pub y: f64,
+}
+
+/// One system's height in [`Op::SetSystemHeights`]: its `coordinate.visual_height`, or
+/// `None` for none.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemHeight {
+    pub id: u32,
+    pub height: Option<f64>,
 }
 
 /// One lane to add in [`Op::AddLanePairs`].

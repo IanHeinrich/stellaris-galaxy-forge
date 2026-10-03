@@ -13,6 +13,7 @@ import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
 import type { Segment } from "../../lib/geometry/segments";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, movedAny, type DrawnChange } from "../drawnPositions";
 import {
   ACCENT_COLOR,
   ALLOWED_COLOR,
@@ -150,7 +151,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly added = new AddedMarks();
   /** The brush circle and what a held stroke would do. */
   readonly brush = new BrushOverlay();
-  readonly laneDrag = new LaneDragOverlay();
+  readonly laneDrag: LaneDragOverlay;
   /** The axis or spokes of the symmetry edits repeat under. */
   readonly guide = new SymmetryGuide(mapReach(EMPTY_CONTEXT.kind, EMPTY_CONTEXT.radius));
   private readonly feZoneDrag = new FeZoneDragOverlay();
@@ -176,7 +177,8 @@ export class HighlightsLayer implements MapLayer {
   private readonly scale = { x: 1, y: 1 };
   private readonly pixelScale = { x: 1, y: 1 };
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
+    this.laneDrag = new LaneDragOverlay(drawn.at);
     this.container.addChild(
       this.coreRing,
       this.guide.graphics,
@@ -217,7 +219,7 @@ export class HighlightsLayer implements MapLayer {
     }
     this.guide.setReach(mapReach(ctx.kind, ctx.radius));
     if (!loaded) return;
-    this.added.place(this.systems);
+    this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
     this.placeSelection();
     this.placeMatched();
@@ -231,7 +233,7 @@ export class HighlightsLayer implements MapLayer {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
     if (touches(d, this.searched)) this.placeSearched();
-    this.added.place(this.systems);
+    this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
     this.placeAll();
     this.drawPreviews();
@@ -268,6 +270,21 @@ export class HighlightsLayer implements MapLayer {
     this.container.destroy({ children: true });
     for (const rings of this.batches()) rings.destroy();
     this.added.destroy();
+  }
+
+  /** Re-places only the rings and lines of the systems drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    if (movedAny(moved, this.selection)) this.placeSelection();
+    if (movedAny(moved, this.matched)) this.placeMatched();
+    if (movedAny(moved, this.searched)) this.placeSearched();
+    this.placeAll();
+    this.drawPreviews();
+    this.drawLanes();
+    this.laneDrag.redraw();
+    if ([...moved].some((id) => this.systems.get(id)?.added)) {
+      this.added.place(this.systems, this.drawn.at);
+    }
   }
 
   setSelection(ids: readonly number[]): void {
@@ -368,17 +385,17 @@ export class HighlightsLayer implements MapLayer {
     const dimmed: Pt[] = [];
     for (const id of this.selection) {
       const s = this.systems.get(id);
-      if (s) (this.dragged.has(id) ? dimmed : bright).push(s);
+      if (s) (this.dragged.has(id) ? dimmed : bright).push(this.drawn.at(s));
     }
     this.selectionRings.place(bright, dimmed);
   }
 
   private placeMatched(): void {
-    this.matchedRings.place(pointsOf(this.systems, this.matched));
+    this.matchedRings.place(pointsOf(this.systems, this.matched, this.drawn.at));
   }
 
   private placeSearched(): void {
-    this.searchedRings.place(pointsOf(this.systems, this.searched));
+    this.searchedRings.place(pointsOf(this.systems, this.searched, this.drawn.at));
   }
 
   /** The hover ring, unless the selection already rings that system, and the port ring. */
@@ -392,16 +409,17 @@ export class HighlightsLayer implements MapLayer {
     this.placeHover();
     this.place(this.cutRing, this.cutSource);
     this.ghostRings.place(this.ghosts);
-    this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? []));
+    this.joiningRings.place(pointsOf(this.systems, this.nebula?.joining ?? [], this.drawn.at));
     const covered = this.feZoneDrag.preview?.blocked;
     this.leavingRings.place([
-      ...pointsOf(this.systems, this.nebula?.leaving ?? []),
+      ...pointsOf(this.systems, this.nebula?.leaving ?? [], this.drawn.at),
       ...(covered ? [covered] : []),
     ]);
   }
 
   private place(g: Graphics, id: number | null): void {
-    this.placeAt(g, id === null ? undefined : this.systems.get(id));
+    const s = id === null ? undefined : this.systems.get(id);
+    this.placeAt(g, s && this.drawn.at(s));
   }
 
   private placeAt(g: Graphics, at: Pt | null | undefined): void {
@@ -416,11 +434,11 @@ export class HighlightsLayer implements MapLayer {
   private drawPreviews(): void {
     const g = this.previewLines;
     g.clear();
-    const segments = ghostLaneSegments(this.systems, this.ghosts);
+    const segments = ghostLaneSegments(this.systems, this.ghosts, this.drawn.at);
     for (const [a, b] of this.lanePreview ?? []) {
       const from = this.systems.get(a);
       const to = this.systems.get(b);
-      if (from && to) segments.push([from, to]);
+      if (from && to) segments.push([this.drawn.at(from), this.drawn.at(to)]);
     }
     for (const [a, b] of segments) g.moveTo(a.x, a.y).lineTo(b.x, b.y);
     if (segments.length > 0) g.stroke({ ...GHOST_LANE, pixelLine: true });
@@ -481,7 +499,7 @@ export class HighlightsLayer implements MapLayer {
           width: SELECTED_LANE.widthPx / this.camScale,
         });
     }
-    const hovered = edgeEnds(this.systems, this.hoverEdge);
+    const hovered = edgeEnds(this.systems, this.hoverEdge, this.drawn.at);
     const hoveredIsSelected =
       this.hoverEdge?.kind === "lane" && sameLane(this.hoverEdge.lane, this.selectedLane);
     if (hovered && !hoveredIsSelected) {
@@ -502,6 +520,6 @@ export class HighlightsLayer implements MapLayer {
   }
 
   private endpoints(lane: LaneRef | null): Segment | null {
-    return edgeEnds(this.systems, lane && { kind: "lane", lane });
+    return edgeEnds(this.systems, lane && { kind: "lane", lane }, this.drawn.at);
   }
 }

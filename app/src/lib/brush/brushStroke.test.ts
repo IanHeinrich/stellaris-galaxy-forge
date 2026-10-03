@@ -39,6 +39,14 @@ const PAINT: BrushSettings = {
   eraseSpecials: false,
   symmetry: { kind: "off" },
   beta: MESH_BETA.gabriel,
+  height: {
+    mode: "raise",
+    value: 0,
+    raise: 10,
+    smooth: 0.5,
+    ripple: { height: 40, spacing: 30, fade: 60 },
+    flipped: false,
+  },
 };
 const ERASE: BrushSettings = { ...PAINT, tool: "erase", size: 20 };
 

@@ -1,4 +1,5 @@
 import { Container, Graphics, GraphicsContext } from "pixi.js";
+import type { SystemNode } from "../../../generated/SystemNode";
 import type { Pt } from "../../../lib/geometry/pt";
 import { ALLOWED_COLOR, PLATE_COLOR } from "../../../lib/visual/style";
 import type { Systems } from "../../RenderContext";
@@ -25,7 +26,8 @@ export class AddedMarks {
   private readonly marks = new Map<number, Graphics>();
   private readonly scale: Pt = { x: 1, y: 1 };
 
-  place(systems: Systems): void {
+  /** Marks every added system of `systems` where `at` says it draws. */
+  place(systems: Systems, at: (s: SystemNode) => Pt = (s) => s): void {
     const doomed = new Set<Container>();
     for (const [id, mark] of this.marks) {
       if (systems.get(id)?.added) continue;
@@ -42,7 +44,8 @@ export class AddedMarks {
         this.marks.set(s.id, mark);
         this.container.addChild(mark);
       }
-      mark.position.set(s.x, s.y);
+      const { x, y } = at(s);
+      mark.position.set(x, y);
     }
   }
 

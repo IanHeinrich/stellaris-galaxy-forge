@@ -1,18 +1,23 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { SpecialKind } from "../generated/SpecialKind";
+import type { HeightPreview } from "../lib/height";
 import type { AppIssue } from "../lib/issues";
+import { documentCapabilities } from "../lib/capabilities";
 import type { GalaxyLayers } from "../lib/visual/layerIds";
+import { shownTilt } from "../lib/visual/tilt";
 import { watchRings, type WatchRings } from "../lib/watchlist";
 import { useDetailsStore } from "../store/detailsStore";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
+import { useHeightPreviewStore } from "../store/heightPreviewStore";
 import { useIssuesStore } from "../store/issuesStore";
 import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
+import { useToolStore } from "../store/toolStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { follows, type Binding, type Store } from "./follows";
 import type { HighlightsLayer } from "./layers/HighlightsLayer";
@@ -35,6 +40,10 @@ export interface MapView {
   fitSelection(): void;
   focusOn(id: number): void;
   panTo(x: number, y: number): void;
+  /** Leans the map `degrees` away from the viewer, or lays it flat at 0. */
+  setTilt(degrees: number): void;
+  /** Shows the heights the inspector previews, from the next frame. */
+  previewHeights(preview: HeightPreview): void;
   /** Makes the next tick hand the camera to the layers again. */
   invalidate(): void;
 }
@@ -110,6 +119,13 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     "layers",
   ),
   follows(useMapChromeStore, [(s) => s.layers], (_s, view) => view.refreshContext()),
+  follows(useToolStore, [(s) => s.tilt], (_s, view) => applyTilt(view), "bind"),
+  follows(
+    useHeightPreviewStore,
+    [(s) => s.preview],
+    (s, view) => view.previewHeights(s.preview),
+    "bind",
+  ),
   follows(
     useMapChromeStore,
     [(s) => s.lanePreview],
@@ -157,7 +173,10 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     (s, view) => setLGateRevealed(view, s.revealed),
     "layers",
   ),
-  follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => view.syncLayers()),
+  follows(useFileSessionStore, [(s) => s.capabilities], (_s, view) => {
+    view.syncLayers();
+    applyTilt(view);
+  }),
   follows(useFileSessionStore, [(s) => s.kind], (_s, view) => {
     view.refreshContext();
     applyLayerVisibility(view, useMapChromeStore.getState().layers);
@@ -252,4 +271,10 @@ function applyLayerVisibility(view: MapView, layers: GalaxyLayers): void {
     layer.setClansShown?.(layers.marauders ?? true);
   }
   view.invalidate();
+}
+
+/** The tilt the slider asks for, where the open document lets the map lean. */
+function applyTilt(view: MapView): void {
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  view.setTilt(shownTilt(useToolStore.getState().tilt, capabilities));
 }

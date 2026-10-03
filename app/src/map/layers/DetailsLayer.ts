@@ -25,6 +25,7 @@ import { nameHalf } from "./nameWidth";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { onTextures, requestTextures } from "../../lib/visual/textures";
 import { queuedTextures, rowY, type RowY } from "./details/cell";
@@ -83,7 +84,7 @@ export class DetailsLayer implements MapLayer {
     if (this.inView.length < MAX_ROWS) this.inView.push(s.id);
   };
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.eventMode = "passive";
     this.unsubscribe.push(
       onTextures(() => {
@@ -154,6 +155,15 @@ export class DetailsLayer implements MapLayer {
     else this.releaseAll();
   }
 
+  /** Moves only the rows of the systems drawn somewhere else now. */
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const row = this.shown.get(id);
+      const s = this.systems.get(id);
+      if (row && s) this.place(row, s);
+    }
+  }
+
   setDragState(drag: DragState | null): void {
     this.ghosts = drag?.byId ?? new Map();
     for (const [id, row] of this.shown) {
@@ -182,9 +192,10 @@ export class DetailsLayer implements MapLayer {
       return;
     }
     const pad = CULL_MARGIN_PX / cam.scale;
+    const lift = this.drawn.reach();
     const b = cam.worldBounds(this.bounds);
     this.inView.length = 0;
-    this.grid.forEachIn(b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad, this.collect);
+    this.grid.forEachIn(b[0] - pad, b[1] - pad - lift, b[2] + pad, b[3] + pad + lift, this.collect);
     const details = this.ctx.details;
     this.ctx.requestDetails(this.inView);
 
@@ -219,7 +230,8 @@ export class DetailsLayer implements MapLayer {
 
   private place(row: Row, s: SystemNode): void {
     const ghost = this.ghosts.get(s.id);
-    row.root.position.set(ghost?.x ?? s.x, ghost?.y ?? s.y);
+    const at = ghost ?? this.drawn.at(s);
+    row.root.position.set(at.x, at.y);
     row.root.alpha = ghost ? GHOST_ALPHA : 1;
   }
 

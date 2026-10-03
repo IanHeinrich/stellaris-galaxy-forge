@@ -55,6 +55,9 @@ pub(super) fn extract(
         name: read::name(node, src),
         x,
         y,
+        height: node
+            .find(keys::COORDINATE, src)
+            .and_then(|coordinate| read::scalar_f64(coordinate, keys::VISUAL_HEIGHT, src)),
         star_class: read::text(node, keys::STAR_CLASS, src),
         lanes,
         nebula: None,

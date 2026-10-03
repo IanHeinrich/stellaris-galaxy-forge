@@ -8,14 +8,10 @@ import {
   type MoveOp,
   type MovePlan,
 } from "../../store/symmetricEdits";
+import type { DrawnPositions } from "../drawnPositions";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import type { MoveGhost } from "../moveGhosts";
 import { SettlingPreview } from "./settlingPreview";
-
-function dragState(ghosts: MoveGhost[]): DragState | null {
-  if (ghosts.length === 0) return null;
-  return { ghosts, byId: new Map(ghosts.map((g) => [g.id, g])) };
-}
 
 /** The systems of `ids` the galaxy holds, each offset by (dx, dy). */
 function groupGhosts(ids: readonly number[], dx: number, dy: number): MoveGhost[] {
@@ -29,13 +25,16 @@ function groupGhosts(ids: readonly number[], dx: number, dy: number): MoveGhost[
 /**
  * The move side of `MapIntent`: one system or a group dragged, with the counterparts symmetry
  * carries found once when the drag starts, shown as ghosts on `layers` until the edit it sends
- * settles.
+ * settles. A move is a place on the plane; each ghost draws where its system would draw there.
  */
 export class MoveDrag {
   private readonly preview: SettlingPreview;
   private plan: MovePlan | null = null;
 
-  constructor(private readonly layers: readonly MapLayer[]) {
+  constructor(
+    private readonly layers: readonly MapLayer[],
+    private readonly drawn: DrawnPositions,
+  ) {
     this.preview = new SettlingPreview(() => this.show([]));
   }
 
@@ -78,7 +77,17 @@ export class MoveDrag {
   }
 
   private show(ghosts: MoveGhost[]): void {
-    const drag = dragState(ghosts);
+    const drag = this.dragState(ghosts);
     for (const layer of this.layers) layer.setDragState?.(drag);
+  }
+
+  private dragState(moves: MoveGhost[]): DragState | null {
+    if (moves.length === 0) return null;
+    const systems = useGalaxyStore.getState().systems;
+    const ghosts = moves.map((g) => {
+      const s = systems.get(g.id);
+      return s ? { id: g.id, ...this.drawn.atPoint(s, g) } : g;
+    });
+    return { ghosts, byId: new Map(ghosts.map((g) => [g.id, g])) };
   }
 }

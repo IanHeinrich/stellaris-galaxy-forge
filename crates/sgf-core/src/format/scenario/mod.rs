@@ -141,6 +141,7 @@ impl Format for Scenario {
             lgate: false,
             symmetry: true,
             wormhole_pairs: false,
+            system_heights: false,
         }
     }
 }
@@ -297,6 +298,7 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         name: name(node, src),
         x,
         y,
+        height: None,
         star_class: String::new(),
         lanes: Vec::new(),
         nebula: None,

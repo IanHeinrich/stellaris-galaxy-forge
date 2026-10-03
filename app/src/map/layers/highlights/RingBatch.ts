@@ -1,6 +1,7 @@
 import { Container, Graphics, GraphicsContext } from "pixi.js";
 import type { Pt } from "../../../lib/geometry/pt";
 import { ORIGIN_ALPHA } from "../../../lib/visual/style";
+import type { SystemNode } from "../../../generated/SystemNode";
 import type { Systems } from "../../RenderContext";
 import { destroyChildren } from "../destroyChildren";
 
@@ -80,12 +81,16 @@ export class RingBatch {
   }
 }
 
-/** The systems of `ids` the map holds, skipping the rest. */
-export function pointsOf(systems: Systems, ids: Iterable<number>): Pt[] {
+/** Where the systems of `ids` the map holds draw, as `at` says, skipping the rest. */
+export function pointsOf(
+  systems: Systems,
+  ids: Iterable<number>,
+  at: (s: SystemNode) => Pt = (s) => s,
+): Pt[] {
   const points: Pt[] = [];
   for (const id of ids) {
     const s = systems.get(id);
-    if (s) points.push(s);
+    if (s) points.push(at(s));
   }
   return points;
 }

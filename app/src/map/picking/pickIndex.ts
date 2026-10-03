@@ -4,6 +4,7 @@ import { linkSegment, takesCustomLinks } from "../../lib/feLinks";
 import { distToSegmentSq } from "../../lib/geometry/geometry";
 import { pairKey, pairOf } from "../../lib/geometry/pairs";
 import type { Pt } from "../../lib/geometry/pt";
+import type { Segment } from "../../lib/geometry/segments";
 import { cellKey } from "../../lib/spatialGrid";
 import type { LaneRef } from "../../store/editorStore";
 import { LaneTable } from "../laneTable";
@@ -44,10 +45,25 @@ function linkKey(anchor: number, system: number): string {
   return `link:${anchor}:${system}`;
 }
 
+function edgeKey(edge: MapEdge): string {
+  return edge.kind === "lane"
+    ? laneKey(edge.lane.a, edge.lane.b)
+    : linkKey(edge.anchor, edge.system);
+}
+
+/** Where the pointer finds a system, and a point on the plane. */
+export interface PickPlace {
+  pickAt(s: SystemNode): Pt;
+  toPick(p: Pt): Pt;
+}
+
+const ON_THE_PLANE: PickPlace = { pickAt: (s) => s, toPick: (p) => p };
+
 /**
  * What pointer picking needs beyond the system grid: every lane and zone link as a segment
- * filed under the cells it crosses, and the systems that anchor a zone. Built once per galaxy
- * and patched per delta, so a pick visits only the cells around the pointer.
+ * filed under the cells it crosses, where `place` says the pointer finds its ends, and the
+ * systems that anchor a zone. Built once per galaxy and patched per delta, so a pick visits only
+ * the cells around the pointer.
  */
 export class PickIndex {
   private readonly cells = new Map<number, Entry[]>();
@@ -65,6 +81,8 @@ export class PickIndex {
   private minCy = Infinity;
   private maxCx = -Infinity;
   private maxCy = -Infinity;
+
+  constructor(private readonly place: PickPlace = ON_THE_PLANE) {}
 
   build(systems: Systems): void {
     this.cells.clear();
@@ -95,6 +113,17 @@ export class PickIndex {
       const s = systems.get(id);
       if (s) this.derive(s);
     }
+  }
+
+  /** Files again what `ids` are ends of, after the pointer finds them somewhere else. */
+  moved(ids: Iterable<number>): void {
+    const systems = [...ids].flatMap((id) => this.systems.get(id) ?? []);
+    if (systems.length > 0) this.apply({ systems }, this.systems);
+  }
+
+  /** Where `edge` lies as the pointer finds it, or null when it is not filed. */
+  segment(edge: MapEdge): Segment | null {
+    return this.table.get(edgeKey(edge)) ?? null;
   }
 
   /** The systems whose zone ring can be under the pointer. */
@@ -174,7 +203,14 @@ export class PickIndex {
       if (this.table.has(key)) continue;
       const ref = laneRef(s.id, b.id);
       const [a, z] = ref.a === s.id ? [s, b] : [b, s];
-      this.file({ key, edge: { kind: "lane", lane: ref }, a, b: z, ends: [s.id, b.id], cells: [] });
+      this.file({
+        key,
+        edge: { kind: "lane", lane: ref },
+        a: this.place.pickAt(a),
+        b: this.place.pickAt(z),
+        ends: [s.id, b.id],
+        cells: [],
+      });
     }
     for (const linkId of s.fe_link.to) {
       for (const anchor of this.takers.get(linkId) ?? []) this.fileLink(anchor, s.id);
@@ -196,8 +232,8 @@ export class PickIndex {
     this.file({
       key,
       edge: { kind: "feLink", anchor: anchorId, system: systemId },
-      a: segment.a,
-      b: segment.b,
+      a: this.place.toPick(segment.a),
+      b: this.place.toPick(segment.b),
       ends: [anchorId, systemId],
       cells: [],
     });
