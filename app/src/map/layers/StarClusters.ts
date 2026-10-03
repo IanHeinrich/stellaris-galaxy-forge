@@ -65,19 +65,24 @@ export class StarClusters {
     return true;
   }
 
-  /** Sizes and places system `id`'s stars for the zoom `camScale`. */
-  rescale(id: number, camScale: number): void {
+  /**
+   * Sizes and places system `id`'s stars for the zoom `camScale` about `y`, where the system
+   * draws, upright on a screen that squashes world y by `squash`.
+   */
+  rescale(id: number, camScale: number, squash = 1, y?: number): void {
     const cluster = this.clusters.get(id);
     if (!cluster) return;
     const footprint = starDiameterPx(STAR_BASE_PX, camScale);
+    const centre = y ?? cluster.node.y;
     cluster.sprites.forEach((star, i) => {
       const place = cluster.stars[i];
       const width = star.texture.width;
       const px = Math.min(width, footprint * place.diameter * place.texture.scale);
-      star.scale.set(px / (camScale * width));
+      const k = px / (camScale * width);
+      star.scale.set(k, k / squash);
       star.position.set(
         cluster.node.x + (place.dx * footprint) / camScale,
-        cluster.node.y + (place.dy * footprint) / camScale,
+        centre + (place.dy * footprint) / (camScale * squash),
       );
     });
   }

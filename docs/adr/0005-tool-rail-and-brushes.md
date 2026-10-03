@@ -23,6 +23,7 @@ also a key:
 | `E` | Erase systems, on a scenario only |
 | `C` | Connect lanes brush |
 | `X` | Cut lanes brush |
+| `H` | Height brush, on a save only |
 | `M` | Symmetry on and off |
 
 `[` and `]` shrink and grow the brush. `Alt` inverts a brush: the model reads it at each input, so the circle
@@ -45,7 +46,8 @@ model behind the same `MapIntent` interface.
 
 - The brush model is tested without a canvas, as the gesture model is.
 - The rail takes a strip of the map's width whenever a document is open.
-- A brush on a save is limited to lanes: Paint and Erase need `create_systems`, which only a scenario has.
+- A brush on a save is limited to lanes and heights: Paint and Erase need `create_systems`, which only a
+  scenario has, and the Height brush needs `system_heights`, which only a save has.
 - Symmetry and the brush settings persist per machine; the tool itself does not.
 
 ## Amendment: symmetry is a global mode
@@ -60,3 +62,10 @@ Every single edit goes through one store helper, `symmetricOp`, which widens the
 edit goes through `symmetricSeat` instead, which builds each counterpart's seat from that counterpart. A drag
 finds its counterparts once when it starts and reuses them for the preview and the commit. A counterpart is the
 system within 0.5 map units of the image, found through the spatial grid.
+
+## Amendment: the Height brush
+
+The Height brush (`H`) sets, raises, ripples or smooths the heights of the systems under it. A ripple
+drops once: it follows the pointer while the button is held and lands where it is let go. A stroke finds its
+systems in the galaxy as it began, and works out their heights from the galaxy its op is applied to, so two
+strokes sent before the first lands add up.

@@ -9,6 +9,7 @@ import { editor, openFixtureSave, openFixtureScenario, sessionError } from "./ed
 import { canDelete, deletableSelection, useEditorStore } from "./editorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
+import { DEFAULT_SYSTEM_HEIGHT } from "../generated/constants";
 import { mockedIpc } from "../test/ipc";
 
 beforeEach(() => openFixtureScenario());
@@ -214,6 +215,90 @@ describe("deleting a selection of systems", () => {
     expect(canDelete(editor())).toBe(false);
     await editor().deleteSelection();
     expect(mockedIpc.confirm).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+});
+
+describe("system heights", () => {
+  /** Systems 0, 1 and 2 of the save: flat with no height key, 50 above the plane, 20 below it. */
+  async function withHeights(): Promise<void> {
+    await openFixtureSave();
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        SYSTEMS[0],
+        { ...SYSTEMS[1], height: DEFAULT_SYSTEM_HEIGHT + 50 },
+        { ...SYSTEMS[2], height: DEFAULT_SYSTEM_HEIGHT - 20 },
+      ],
+    });
+    await editor().setSelection([0, 1, 2], "replace");
+  }
+
+  /** The heights the one op sent wrote, as `[id, absolute height]` pairs. */
+  function sentHeights(): Array<[number, number]> {
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
+    const op = mockedIpc.applyOp.mock.calls[0][0];
+    if (op.type !== "SetSystemHeights") throw new Error(`sent ${op.type}`);
+    return op.heights.map((h): [number, number] => [h.id, h.height ?? Number.NaN]);
+  }
+
+  function expectHeights(expected: Array<[number, number]>): void {
+    const sent = sentHeights();
+    expect(sent.map(([id]) => id)).toEqual(expected.map(([id]) => id));
+    sent.forEach(([, height], i) => expect(height).toBeCloseTo(expected[i][1], 5));
+  }
+
+  beforeEach(withHeights);
+
+  it("sets one system to a shown height, written absolute", async () => {
+    await editor().setSystemHeight(0, 30);
+    expectHeights([[0, DEFAULT_SYSTEM_HEIGHT + 30]]);
+  });
+
+  it("puts a system back on the plane with the game's default height", async () => {
+    await editor().setSystemHeight(1, 0);
+    expectHeights([[1, DEFAULT_SYSTEM_HEIGHT]]);
+  });
+
+  it("sends nothing for a height a system already has", async () => {
+    expect(await editor().setSystemHeight(0, 0)).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("sets every selected system to one height in one op, leaving out the ones already there", async () => {
+    await editor().setSelectedHeights("set", 50);
+    expectHeights([
+      [0, DEFAULT_SYSTEM_HEIGHT + 50],
+      [2, DEFAULT_SYSTEM_HEIGHT + 50],
+    ]);
+  });
+
+  it("raises and lowers each selected system from its own height, a missing one from flat", async () => {
+    await editor().setSelectedHeights("raise", 10);
+    expectHeights([
+      [0, DEFAULT_SYSTEM_HEIGHT + 10],
+      [1, DEFAULT_SYSTEM_HEIGHT + 60],
+      [2, DEFAULT_SYSTEM_HEIGHT - 10],
+    ]);
+
+    await withHeights();
+    await editor().setSelectedHeights("lower", 5);
+    expectHeights([
+      [0, DEFAULT_SYSTEM_HEIGHT - 5],
+      [1, DEFAULT_SYSTEM_HEIGHT + 45],
+      [2, DEFAULT_SYSTEM_HEIGHT - 25],
+    ]);
+  });
+
+  it("flattens only the selected systems off the plane, in one op", async () => {
+    await editor().flattenSelected();
+    expectHeights([
+      [1, DEFAULT_SYSTEM_HEIGHT],
+      [2, DEFAULT_SYSTEM_HEIGHT],
+    ]);
+
+    await withHeights();
+    await editor().setSelection([0], "replace");
+    expect(await editor().flattenSelected()).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

@@ -63,19 +63,19 @@ describe("picking", () => {
   });
 
   it("picks a lane within its radius and flags the midpoint button", () => {
-    const { systems, index } = world([node(1, 0, 0, [2]), node(2, 100, 0, [1])]);
+    const { index } = world([node(1, 0, 0, [2]), node(2, 100, 0, [1])]);
     const cam = camera(1);
     const lane = { kind: "lane", lane: { a: 1, b: 2 } };
 
-    expect(pickEdge(index, systems, cam, { x: 50, y: 2 }, null, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 50, y: 2 }, null, true)).toEqual({
       edge: lane,
       midpointHit: true,
     });
-    expect(pickEdge(index, systems, cam, { x: 20, y: 2 }, null, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 20, y: 2 }, null, true)).toEqual({
       edge: lane,
       midpointHit: false,
     });
-    expect(pickEdge(index, systems, cam, { x: 20, y: 10 }, null, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 20, y: 10 }, null, true)).toEqual({
       edge: null,
       midpointHit: false,
     });
@@ -85,24 +85,24 @@ describe("picking", () => {
     // S1's ring lies east at 40, so the link from S2 runs from (200, 0) to the ring at (-10, 0).
     const anchor = zoneAnchor(1, 0, 0, 5);
     const linked = feLinkedNode(2, 200, 0, 5);
-    const { systems, index } = world([anchor, linked]);
+    const { index } = world([anchor, linked]);
     const cam = camera(1);
     const link = { kind: "feLink", anchor: 1, system: 2 };
 
-    expect(pickEdge(index, systems, cam, { x: 95, y: 3 }, null, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 95, y: 3 }, null, true)).toEqual({
       edge: link,
       midpointHit: true,
     });
-    expect(pickEdge(index, systems, cam, { x: 150, y: 3 }, null, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 150, y: 3 }, null, true)).toEqual({
       edge: link,
       midpointHit: false,
     });
-    expect(pickEdge(index, systems, cam, { x: 150, y: 3 }, null, false).edge).toBeNull();
-    expect(pickEdge(index, systems, cam, { x: -20, y: 0 }, null, true).edge).toBeNull();
+    expect(pickEdge(index, cam, { x: 150, y: 3 }, null, false).edge).toBeNull();
+    expect(pickEdge(index, cam, { x: -20, y: 0 }, null, true).edge).toBeNull();
   });
 
   it("keeps the sticky edge while the point is on its midpoint button", () => {
-    const { systems, index } = world([
+    const { index } = world([
       node(1, 0, 0, [2]),
       node(2, 100, 0, [1]),
       node(3, 40, 4, [4]),
@@ -111,11 +111,11 @@ describe("picking", () => {
     const cam = camera(1);
     const far = { kind: "lane", lane: { a: 1, b: 2 } } as const;
 
-    expect(pickEdge(index, systems, cam, { x: 50, y: 3 }, null, true).edge).toEqual({
+    expect(pickEdge(index, cam, { x: 50, y: 3 }, null, true).edge).toEqual({
       kind: "lane",
       lane: { a: 3, b: 4 },
     });
-    expect(pickEdge(index, systems, cam, { x: 50, y: 3 }, far, true)).toEqual({
+    expect(pickEdge(index, cam, { x: 50, y: 3 }, far, true)).toEqual({
       edge: far,
       midpointHit: true,
     });

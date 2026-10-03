@@ -23,7 +23,7 @@ import {
 } from "./layerGroups";
 
 /** Layers only a save can answer for, which a scenario's groups therefore leave out. */
-const SAVE_ONLY: readonly LayerId[] = ["waylines", "precursors"];
+const SAVE_ONLY: readonly LayerId[] = ["waylines", "precursors", "heights"];
 
 describe("layer groups", () => {
   it("assigns every layer a scenario can draw to exactly one of its three groups", () => {

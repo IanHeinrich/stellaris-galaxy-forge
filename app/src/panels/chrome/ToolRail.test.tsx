@@ -221,3 +221,57 @@ describe("the brush options", () => {
     expect(options()).toContain('type="checkbox" disabled=""');
   });
 });
+
+describe("the height brush", () => {
+  const options = () => renderToStaticMarkup(<ToolOptions />);
+
+  it("is offered with its key on a save, never on a scenario", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    expect(button("Height brush")).toContain('title="Height brush (H)"');
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    expect(rail()).not.toContain("Height brush");
+  });
+
+  it("stays offered with Connect and Cut while the map leans", () => {
+    useFileSessionStore.setState({ capabilities: OPEN_RESULT.capabilities });
+    useToolStore.setState({ tilt: 30 });
+    for (const label of ["Cut lanes", "Connect lanes", "Height brush"]) {
+      expect(button(label)).not.toContain("disabled");
+    }
+  });
+
+  it("gives each mode its own controls and a line on how to use it", () => {
+    useToolStore.setState({ tool: "height", heightMode: "set", heightValue: 12.5 });
+    const set = options();
+    expect(set).toMatch(/>Set<.*>Raise<.*>Ripple<.*>Smooth</);
+    expect(set).toContain('role="radio" aria-checked="true">Set<');
+    expect(set).toContain('aria-label="Brush size"');
+    expect(set).toContain(
+      'aria-label="Height to set, 0 on the game&#x27;s default plane" value="12.5"',
+    );
+    expect(set).toContain("Click or drag to set every system under the brush to this height.");
+
+    useToolStore.setState({ heightMode: "raise", raiseStrength: 7 });
+    expect(options()).toMatch(/aria-label="Strength" value="7"/);
+    expect(options()).toContain("Click or drag to lift systems, most at the centre. Alt lowers.");
+
+    useToolStore.setState({ heightMode: "smooth", smoothStrength: 40 });
+    expect(options()).toContain("40%");
+    expect(options()).toContain("Drag to even out bumps between neighbours.");
+  });
+
+  it("offers the ripple presets and its profile, and a moved slider leaves the preset", () => {
+    useToolStore.setState({ tool: "height", heightMode: "ripple" });
+    useToolStore.getState().pickRipplePreset("waves");
+    const html = options();
+    expect(html).toMatch(/>Ripples<.*>Waves<.*>Dome<.*>Crater</);
+    expect(html).toContain('aria-pressed="true">Waves<');
+    expect(html).toContain('class="ripple-profile"');
+    expect(html).toMatch(/aria-label="Wave spacing" value="90"/);
+    expect(html).toMatch(/aria-label="Fade out" value="250"/);
+
+    useToolStore.getState().setRipple({ height: 30 });
+    expect(useToolStore.getState().ripplePreset).toBeNull();
+    expect(options()).not.toContain('aria-pressed="true"');
+  });
+});

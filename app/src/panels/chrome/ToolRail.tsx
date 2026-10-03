@@ -7,6 +7,7 @@ import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
 import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
 import { useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
+import { HeightMark } from "./LayerIcons";
 import { SymmetryControl } from "./SymmetryControl";
 import "./chrome.css";
 
@@ -48,6 +49,11 @@ const ICONS: Record<Tool, ReactNode> = {
       <circle cx="4" cy="12" r="1.8" />
       <circle cx="12" cy="12" r="1.8" />
       <path d="M5.2 10.6 11 2.5M10.8 10.6 5 2.5" />
+    </RailGlyph>
+  ),
+  height: (
+    <RailGlyph>
+      <HeightMark />
     </RailGlyph>
   ),
 };

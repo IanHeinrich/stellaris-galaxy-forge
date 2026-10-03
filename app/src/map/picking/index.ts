@@ -9,7 +9,7 @@ import type { Camera } from "../Camera";
 import type { LaneSource, LaneTarget } from "../interaction/MapIntent";
 import { linkRefusal } from "../../lib/feLinks";
 import { FE_ZONE_RADIUS, feZoneCentre } from "../../lib/feZone";
-import { edgeEnds, type MapEdge } from "./edges";
+import type { MapEdge } from "./edges";
 import { laneRef, type PickIndex } from "./pickIndex";
 import {
   LANE_PICK_RADIUS_PX,
@@ -184,36 +184,43 @@ export function pickSystem(grid: SpatialGrid, cam: Camera, at: Pt): SystemPick {
 }
 
 /**
- * The edge under a world point, a lane before a zone's link and links only while `links`;
- * `sticky` keeps the hovered edge while the point is on its button.
+ * The edge under a point in the index's space, a lane before a zone's link and links only while
+ * `links`; `sticky` keeps the hovered edge while the point is on its button.
  */
 export function pickEdge(
   index: PickIndex,
-  systems: Systems,
   cam: Camera,
   at: Pt,
   sticky: MapEdge | null,
   links: boolean,
 ): EdgePick {
-  if (sticky && nearMidpoint(cam, edgeEnds(systems, sticky), at)) {
+  if (sticky && nearMidpoint(cam, index.segment(sticky), at)) {
     return { edge: sticky, midpointHit: true };
   }
   const edge = index.nearestEdge(at.x, at.y, LANE_PICK_RADIUS_PX / cam.scale, links);
-  return { edge, midpointHit: edge !== null && nearMidpoint(cam, edgeEnds(systems, edge), at) };
+  return { edge, midpointHit: edge !== null && nearMidpoint(cam, index.segment(edge), at) };
 }
 
 /**
- * The pair the scenario keeps from a lane whose dash lies under a world point, the nearest where
- * two do. Only a right-click asks, so it scans every pair rather than keep an index of them.
+ * The pair the scenario keeps from a lane whose dash lies under a point, the nearest where two
+ * do, with each system where `place` puts it. Only a right-click asks, so it scans every pair
+ * rather than keep an index of them.
  */
-export function pickPrevented(systems: Systems, cam: Camera, at: Pt): LaneRef | null {
+export function pickPrevented(
+  systems: Systems,
+  cam: Camera,
+  at: Pt,
+  place: (s: SystemNode) => Pt = (s) => s,
+): LaneRef | null {
   let best: LaneRef | null = null;
   let bestD2 = (LANE_PICK_RADIUS_PX / cam.scale) ** 2;
   for (const s of systems.values()) {
     for (const to of s.prevented) {
       const b = systems.get(to);
       if (!b) continue;
-      const d2 = distToSegmentSq(at.x, at.y, s.x, s.y, b.x, b.y);
+      const p = place(s);
+      const q = place(b);
+      const d2 = distToSegmentSq(at.x, at.y, p.x, p.y, q.x, q.y);
       if (d2 < bestD2) {
         bestD2 = d2;
         best = laneRef(s.id, to);
@@ -246,9 +253,10 @@ function idSet(ids: readonly number[]): ReadonlySet<number> {
 }
 
 /**
- * What a lane drag from `from` would snap to: the nearest system inside the snap radius or,
- * for a drag from systems while `zones` show, the zone whose ring line is; and whether the
- * lane or link could be added.
+ * What a lane drag from `from` would snap to: the nearest system of `grid` inside the snap
+ * radius of `at`, in the grid's space, or, for a drag from systems while `zones` show, the zone
+ * whose ring line passes near `plane`, the same point on the plane; and whether the lane or
+ * link could be added.
  */
 export function snapTarget(
   grid: SpatialGrid,
@@ -258,12 +266,14 @@ export function snapTarget(
   at: Pt,
   from: LaneSource,
   zones: boolean,
+  plane: Pt = at,
 ): LaneTarget | null {
   const reach = SNAP_RADIUS_PX / cam.scale;
-  const s = nearestOutside(grid, at, reach, from.kind === "systems" ? idSet(from.ids) : NO_IDS);
+  const near = nearestOutside(grid, at, reach, from.kind === "systems" ? idSet(from.ids) : NO_IDS);
+  const s = near && systems.get(near.id);
   if (s) return { kind: "system", id: s.id, valid: canConnect(systems, from, s) };
   if (from.kind !== "systems" || !zones) return null;
-  const anchor = nearestRing(index, at, reach);
+  const anchor = nearestRing(index, plane, reach);
   if (!anchor) return null;
   const valid = from.ids.some((id) => {
     const system = systems.get(id);

@@ -73,6 +73,12 @@ pub struct SystemNode {
     pub name: NameTemplate,
     pub x: f64,
     pub y: f64,
+    /// A save system's `coordinate.visual_height`, how far above or below the galactic
+    /// plane the map draws its star: 3.65056 for a system the game's galaxy generation placed. `None` where
+    /// the save writes none, as 3.x saves do, and for a scenario, whose `z` the game ignores.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub height: Option<f64>,
     pub star_class: String,
     pub lanes: Vec<Lane>,
     /// Index into `Galaxy::nebulae`.

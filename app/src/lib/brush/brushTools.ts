@@ -1,18 +1,18 @@
 import type { Capabilities } from "../../generated/Capabilities";
 
-export type BrushTool = "paint" | "erase" | "connect" | "cut";
+export type BrushTool = "paint" | "erase" | "connect" | "cut" | "height";
 
 /** What the erase brush takes: systems with their lanes, or only lanes. */
 export type EraseTarget = "systems" | "lanes";
 
-/** What one stroke does: lays systems, removes them, or adds or cuts lanes. */
-export type StrokeKind = "paint" | "erase" | "connect" | "cut";
+/** What one stroke does: lays systems, removes them, adds or cuts lanes, or moves heights. */
+export type StrokeKind = "paint" | "erase" | "connect" | "cut" | "height";
 
 export interface BrushToolSpec {
   /** What a stroke of the tool does, given the erase target. */
   stroke(target: EraseTarget): StrokeKind;
-  /** The tool Alt turns this one into, given the erase target. */
-  inverse(target: EraseTarget): BrushTool;
+  /** The tool Alt turns this one into, given the erase target; null where Alt flips the brush itself. */
+  inverse(target: EraseTarget): BrushTool | null;
   /** Whether its strokes add to the galaxy, drawn in the accent rather than the refusal red. */
   adds: boolean;
   /** What the open document must support for the tool to be offered. */
@@ -44,5 +44,11 @@ export const BRUSH_TOOLS: Record<BrushTool, BrushToolSpec> = {
     inverse: () => "connect",
     adds: false,
     requires: null,
+  },
+  height: {
+    stroke: () => "height",
+    inverse: () => null,
+    adds: true,
+    requires: "system_heights",
   },
 };

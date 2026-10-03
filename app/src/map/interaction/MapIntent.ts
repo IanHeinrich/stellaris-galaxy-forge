@@ -100,10 +100,13 @@ export interface MapIntent {
   /** Drops the previewed ring, whether or not the drag changed anything. */
   endFeZone(): void;
   contextMenu(target: ContextTarget, sx: number, sy: number): void;
-  /** The brush circle follows the pointer, drawn for the tool a press there would use. */
-  hoverBrush(tool: BrushTool, x: number, y: number): void;
-  /** A stroke of `tool` starts at the pointer. */
-  beginStroke(tool: BrushTool, x: number, y: number): void;
+  /**
+   * The brush circle follows the pointer, drawn for the tool a press there would use; `flipped`
+   * while Alt flips a brush that has no inverse.
+   */
+  hoverBrush(tool: BrushTool, x: number, y: number, flipped: boolean): void;
+  /** A stroke of `tool` starts at the pointer, `flipped` as `hoverBrush` has it. */
+  beginStroke(tool: BrushTool, x: number, y: number, flipped: boolean): void;
   /** The stroke reaches on to the pointer. */
   extendStroke(x: number, y: number): void;
   /** Sends the stroke as one edit. */

@@ -20,7 +20,10 @@ import {
   effectiveSpacing,
   MAX_SYSTEMS_PER_BRUSH,
   minSpacingFor,
+  RIPPLE_RANGES,
+  SIZE_RANGE,
 } from "./toolStore";
+import { RIPPLE_PRESETS } from "../lib/brush/heightBrush";
 
 const tools = () => useToolStore.getState();
 
@@ -291,5 +294,40 @@ describe("brush keys", () => {
     run("selectTool", false, effects);
     expect(resizeBrush(1)).toBe(false);
     expect(resizeNebula(1)).toBe(false);
+  });
+});
+
+describe("the height brush's ripple", () => {
+  it("keeps a Dome one hump as the brush grows, and clamps a slider to its range", () => {
+    tools().setSize(40);
+    tools().pickRipplePreset("dome");
+    expect(tools().ripple.spacing).toBe(160);
+    tools().setSize(100);
+    expect(tools().ripple.spacing).toBe(400);
+
+    tools().setRipple({ spacing: 5000 });
+    expect(tools().ripple.spacing).toBe(RIPPLE_RANGES.spacing.max);
+    expect(tools().ripplePreset).toBeNull();
+    tools().setSize(40);
+    expect(tools().ripple.spacing).toBe(RIPPLE_RANGES.spacing.max);
+  });
+
+  it("gives every preset a shape its sliders can show, at any brush size", () => {
+    for (const size of [SIZE_RANGE.min, SIZE_RANGE.fallback, SIZE_RANGE.max]) {
+      tools().setSize(size);
+      for (const preset of RIPPLE_PRESETS) {
+        tools().pickRipplePreset(preset);
+        for (const key of ["height", "spacing", "fade"] as const) {
+          const value = tools().ripple[key];
+          expect(value).toBeGreaterThanOrEqual(RIPPLE_RANGES[key].min);
+          expect(value).toBeLessThanOrEqual(RIPPLE_RANGES[key].max);
+        }
+      }
+    }
+  });
+
+  it("sets Set's height to the 0.1, as every other height is", () => {
+    tools().setHeightValue(12.34);
+    expect(tools().heightValue).toBe(12.3);
   });
 });

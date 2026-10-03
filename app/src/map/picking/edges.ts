@@ -1,5 +1,7 @@
 import { isLinked, linkSegment, takesCustomLinks } from "../../lib/feLinks";
+import type { Pt } from "../../lib/geometry/pt";
 import type { Segment } from "../../lib/geometry/segments";
+import type { SystemNode } from "../../generated/SystemNode";
 import type { LaneRef } from "../../store/editorStore";
 import type { Systems } from "../RenderContext";
 
@@ -7,13 +9,20 @@ import type { Systems } from "../RenderContext";
 export type MapEdge =
   { kind: "lane"; lane: LaneRef } | { kind: "feLink"; anchor: number; system: number };
 
-/** Where `edge` is drawn, or null when the file no longer has it. */
-export function edgeEnds(systems: Systems, edge: MapEdge | null): Segment | null {
+/**
+ * Where `edge` is drawn, a lane between where `at` draws its ends and a link on the plane, or
+ * null when the file no longer has it.
+ */
+export function edgeEnds(
+  systems: Systems,
+  edge: MapEdge | null,
+  at: (s: SystemNode) => Pt = (s) => s,
+): Segment | null {
   if (!edge) return null;
   if (edge.kind === "lane") {
     const a = systems.get(edge.lane.a);
     const b = systems.get(edge.lane.b);
-    return a && b && a.lanes.some((l) => l.to === b.id) ? { a, b } : null;
+    return a && b && a.lanes.some((l) => l.to === b.id) ? { a: at(a), b: at(b) } : null;
   }
   const anchor = systems.get(edge.anchor);
   const system = systems.get(edge.system);

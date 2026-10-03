@@ -127,6 +127,8 @@ pub struct Capabilities {
     pub symmetry: bool,
     /// A natural wormhole pair can be added between two systems and taken out.
     pub wormhole_pairs: bool,
+    /// A system's height above or below the galactic plane can be changed.
+    pub system_heights: bool,
 }
 
 impl Capabilities {

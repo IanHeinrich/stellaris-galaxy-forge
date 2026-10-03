@@ -181,7 +181,14 @@ describe("keys", () => {
     expect(shortcutLabel("saveAs")).toBe("Ctrl+Shift+S");
     expect(shortcutLabel("fitSelection")).toBe("Shift+F");
     expect(shortcutLabel("clearSelection")).toBe("Esc");
-    expect(TOOLS.map((t) => shortcutLabel(toolAction(t.id)))).toEqual(["V", "B", "E", "C", "X"]);
+    expect(TOOLS.map((t) => shortcutLabel(toolAction(t.id)))).toEqual([
+      "V",
+      "B",
+      "E",
+      "C",
+      "X",
+      "H",
+    ]);
     for (const t of TOOLS) expect(keyAction(press(t.key), false)).toBe(toolAction(t.id));
   });
 });

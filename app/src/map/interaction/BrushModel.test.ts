@@ -15,12 +15,12 @@ describe("BrushModel", () => {
     expect(model.busy()).toBe(false);
     expect(model.cursor()).toBe("crosshair");
     expect(intent.calls).toEqual([
-      ["hoverBrush", "paint", 5, 5],
-      ["beginStroke", "paint", 10, 10],
+      ["hoverBrush", "paint", 5, 5, false],
+      ["beginStroke", "paint", 10, 10, false],
       ["extendStroke", 30, 30],
       ["extendStroke", 40, 45],
       ["commitStroke"],
-      ["hoverBrush", "paint", 40, 45],
+      ["hoverBrush", "paint", 40, 45, false],
     ]);
   });
 
@@ -34,11 +34,11 @@ describe("BrushModel", () => {
     model.reset(intent);
     model.handle(at("up", 10, 10), intent);
     expect(intent.calls).toEqual([
-      ["beginStroke", "erase", 10, 10],
+      ["beginStroke", "erase", 10, 10, false],
       ["extendStroke", 30, 30],
       ["cancelStroke"],
       ["endBrush"],
-      ["beginStroke", "erase", 10, 10],
+      ["beginStroke", "erase", 10, 10, false],
       ["cancelStroke"],
       ["endBrush"],
     ]);
@@ -50,9 +50,9 @@ describe("BrushModel", () => {
     new BrushModel("erase").handle(at("down", 10, 10, { alt: true }), intent);
     new BrushModel("erase").handle(at("move", 12, 12, { alt: true }), intent);
     expect(intent.calls).toEqual([
-      ["beginStroke", "erase", 10, 10],
-      ["beginStroke", "paint", 10, 10],
-      ["hoverBrush", "paint", 12, 12],
+      ["beginStroke", "erase", 10, 10, false],
+      ["beginStroke", "paint", 10, 10, false],
+      ["hoverBrush", "paint", 12, 12, false],
     ]);
   });
 
@@ -64,7 +64,7 @@ describe("BrushModel", () => {
     expect(model.cursor()).toBe("grabbing");
     model.handle(at("up", 30, 30, { button: 1 }), intent);
     expect(model.busy()).toBe(false);
-    expect(intent.calls).toEqual([["endBrush"], ["hoverBrush", "paint", 30, 30]]);
+    expect(intent.calls).toEqual([["endBrush"], ["hoverBrush", "paint", 30, 30, false]]);
   });
 
   it("the lane brushes stroke as the others do, and Alt turns Connect and Cut into each other", () => {
@@ -77,13 +77,13 @@ describe("BrushModel", () => {
     new BrushModel("cut").handle(at("move", 12, 12), intent);
     new BrushModel("cut").handle(at("move", 12, 12, { alt: true }), intent);
     expect(intent.calls).toEqual([
-      ["beginStroke", "connect", 10, 10],
+      ["beginStroke", "connect", 10, 10, false],
       ["commitStroke"],
-      ["hoverBrush", "connect", 10, 10],
-      ["beginStroke", "cut", 10, 10],
-      ["beginStroke", "connect", 10, 10],
-      ["hoverBrush", "cut", 12, 12],
-      ["hoverBrush", "connect", 12, 12],
+      ["hoverBrush", "connect", 10, 10, false],
+      ["beginStroke", "cut", 10, 10, false],
+      ["beginStroke", "connect", 10, 10, false],
+      ["hoverBrush", "cut", 12, 12, false],
+      ["hoverBrush", "connect", 12, 12, false],
     ]);
   });
 
@@ -97,11 +97,25 @@ describe("BrushModel", () => {
     target = "systems";
     erase.handle(at("down", 10, 10, { alt: true }), intent);
     expect(intent.calls).toEqual([
-      ["hoverBrush", "connect", 12, 12],
-      ["beginStroke", "connect", 10, 10],
+      ["hoverBrush", "connect", 12, 12, false],
+      ["beginStroke", "connect", 10, 10, false],
       ["commitStroke"],
-      ["hoverBrush", "connect", 10, 10],
-      ["beginStroke", "paint", 10, 10],
+      ["hoverBrush", "connect", 10, 10, false],
+      ["beginStroke", "paint", 10, 10, false],
+    ]);
+  });
+
+  it("Alt flips the height brush, which has no inverse brush to turn into", () => {
+    const intent = recorder();
+    const height = new BrushModel("height");
+    height.handle(at("move", 12, 12, { alt: true }), intent);
+    height.handle(at("down", 10, 10, { alt: true }), intent);
+    height.handle(at("up", 10, 10), intent);
+    expect(intent.calls).toEqual([
+      ["hoverBrush", "height", 12, 12, true],
+      ["beginStroke", "height", 10, 10, true],
+      ["commitStroke"],
+      ["hoverBrush", "height", 10, 10, false],
     ]);
   });
 });

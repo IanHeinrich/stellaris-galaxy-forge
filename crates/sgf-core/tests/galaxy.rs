@@ -571,3 +571,42 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
         "a save is the galaxy the game already built"
     );
 }
+
+/// Hyper Relays in Sol and its neighbour 471, written as a late game writes them: each a
+/// `relay_bypass` row its system lists. The map reads both ends' links to draw the lane
+/// between them thicker.
+#[test]
+fn a_hyper_relay_projects_as_a_relay_bypass_on_its_system() {
+    let session = common::open_edited(|gamestate| {
+        let systems = gamestate.find("\ngalactic_object=").expect("the systems");
+        for (system, bypass) in [(471, 27), (217, 28)] {
+            let entry = format!("\n\t{system}=\n\t{{\n");
+            let at = systems + gamestate[systems..].find(&entry).expect("the system") + entry.len();
+            gamestate.insert_str(
+                at,
+                &format!("\t\tbypasses=\n\t\t{{\n\t\t\t{bypass} \n\t\t}}\n"),
+            );
+        }
+        let table = gamestate.find("\nbypasses=\n{\n").expect("the bypasses");
+        let end = table + gamestate[table..].find("\n}\n").expect("the table's end") + 1;
+        for (bypass, other) in [(27, 28), (28, 27)] {
+            gamestate.insert_str(
+                end,
+                &format!(
+                    "\t{bypass}=\n\t{{\n\t\ttype=\"relay_bypass\"\n\t\tactive=yes\n\t\tconnections=\n\t\t{{\n\t\t\t{other} \n\t\t}}\n\t}}\n"
+                ),
+            );
+        }
+    });
+    let relays: Vec<u32> = session
+        .graph
+        .bypasses
+        .iter()
+        .filter_map(|link| match link {
+            BypassLink::Other { system, kind } if kind == "relay_bypass" => Some(*system),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(relays, [217, 471]);
+    assert!(session.graph.lane(217, 471).is_some());
+}

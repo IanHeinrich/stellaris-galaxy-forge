@@ -172,6 +172,11 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 kind: DocumentKind::Scenario,
             })
         }
+        // The game ignores the `z` of a scenario position and gives each star its own height.
+        Op::SetSystemHeights { .. } => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
         Op::Batch { .. } => Err(OpError::NestedBatch),
     }
 }

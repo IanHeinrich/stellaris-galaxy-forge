@@ -68,6 +68,9 @@ export interface DrawOp {
   action: string;
   color: number | undefined;
   alpha: number | undefined;
+  /** A stroke's width in world units; a `pixelLine` stroke is one pixel whatever it says. */
+  width: number | undefined;
+  pixelLine: boolean | undefined;
   /** The path's steps in order: `"moveTo"`, `"circle"`, `"roundRect"`, … */
   steps: string[];
   /** One `[ax, ay, bx, by, …]` per straight the path lays down. */
@@ -80,7 +83,7 @@ interface PathStep {
 }
 
 interface DrawData {
-  style?: { color?: number; alpha?: number };
+  style?: { color?: number; alpha?: number; width?: number; pixelLine?: boolean };
   path?: { instructions: PathStep[] };
 }
 
@@ -99,6 +102,8 @@ export function drawOps(graphics: Graphics): DrawOp[] {
       action: instruction.action,
       color: style?.color,
       alpha: style?.alpha,
+      width: style?.width,
+      pixelLine: style?.pixelLine,
       steps: steps.map((step) => step.action),
       segments,
     };

@@ -2,7 +2,7 @@
 
 <one or two sentences>
 
-- [ ] `CHANGELOG.md` has an entry under Unreleased, or this PR carries the `skip-changelog` label
+- [ ] A `changelog.d/` file describes the change, or this PR carries the `skip-changelog` label
 - [ ] A bug fix comes with a test that fails without the fix
 - [ ] A change to what the map or panels draw has been looked at in the running app
 
@@ -59,3 +59,4 @@ Tick the ones this change touches; the game is the oracle for anything it reads.
 - [ ] A natural wormhole moved in the system view loads with its ring at the new point, a fleet flies to that point and jumps through, and it stays put after a save and reload
 - [ ] A wormhole pair added in a save loads with a wormhole in both systems and on the galaxy map, a science ship explores it, a fleet jumps through, and it stays after a save and reload
 - [ ] A wormhole pair removed in a save loads with no wormhole in either system or on the galaxy map, and the game runs on for a few years without a crash
+- [ ] In one 4.5 save the app wrote: a system raised, one sunk, a ripple of about 50 systems from the Height brush, and a system set back to flat. Each star sits at its height on the galaxy map with its lanes following, the flat one sits on the plane, and all hold after a month and a save and reload. A 3.x save given a height loads with that star raised

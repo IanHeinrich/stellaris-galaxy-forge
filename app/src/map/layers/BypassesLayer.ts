@@ -10,6 +10,7 @@ import { useLGateStore } from "../../store/lgateStore";
 import { OwnedTooltip } from "../ownedTooltip";
 import { lgateOutcomeLine } from "../../lib/lgate";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { Badge, badgeTexture, otherSide, BADGE_RING_RADIUS } from "./badge";
 import { dashedLine } from "./dashes";
 import { markerScale, type MapLayer } from "./MapLayer";
@@ -99,7 +100,7 @@ export class BypassesLayer implements MapLayer {
   private readonly badgeTip = new OwnedTooltip();
   private readonly markerTip = new OwnedTooltip();
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.addChild(this.lines, this.markerLayer, this.badgeLayer);
   }
 
@@ -164,6 +165,13 @@ export class BypassesLayer implements MapLayer {
     }
   }
 
+  onDrawn({ moved }: DrawnChange): void {
+    if (moved.size === 0) return;
+    this.placeMarkers();
+    this.placeBadges();
+    this.drawLines();
+  }
+
   setVisible(v: boolean): void {
     this.container.visible = v;
   }
@@ -187,7 +195,7 @@ export class BypassesLayer implements MapLayer {
     for (const { link, g } of this.markers) {
       const s = this.systems.get(link.system);
       g.visible = s !== undefined;
-      if (s) g.position.set(s.x, s.y);
+      if (s) g.position.set(s.x, this.drawn.y(s));
     }
   }
 
@@ -220,7 +228,7 @@ export class BypassesLayer implements MapLayer {
       const s = this.systems.get(link.system);
       badge.root.visible = s !== undefined;
       if (!s) continue;
-      badge.root.position.set(s.x, s.y);
+      badge.root.position.set(s.x, this.drawn.y(s));
       badge.setScale(this.badgeScale, this.ringScale);
       badge.setLabel(geo, style.label);
       badge.setIcon(style.icon === null ? null : badgeTexture(style.icon), geo.icon, style.color);
@@ -281,7 +289,7 @@ export class BypassesLayer implements MapLayer {
       const sa = this.systems.get(a);
       const sb = this.systems.get(b);
       if (!sa || !sb) continue;
-      dashedLine(g, sa, sb, WORMHOLE.dash, WORMHOLE.gap);
+      dashedLine(g, this.drawn.at(sa), this.drawn.at(sb), WORMHOLE.dash, WORMHOLE.gap);
       any = true;
     }
     if (any) g.stroke({ color: WORMHOLE.color, alpha: WORMHOLE.alpha, pixelLine: true });

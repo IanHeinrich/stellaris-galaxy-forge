@@ -38,8 +38,8 @@ pub(super) fn extract(
     let mut lanes = Vec::new();
     if let Some(hyperlane) = node.find(keys::HYPERLANE, src) {
         for entry in hyperlane.children() {
-            let to = read::required(entry, keys::TO, src).map_err(&field)?;
-            let length = read::required(entry, keys::LENGTH, src).map_err(&field)?;
+            let to = read::required(entry, keys::TO, src).map_err(field)?;
+            let length = read::required(entry, keys::LENGTH, src).map_err(field)?;
             let bridge = read::scalar(entry, keys::BRIDGE, src) == Some("yes");
             lanes.push(Lane {
                 to,
@@ -55,6 +55,9 @@ pub(super) fn extract(
         name: read::name(node, src),
         x,
         y,
+        height: node
+            .find(keys::COORDINATE, src)
+            .and_then(|coordinate| read::scalar_f64(coordinate, keys::VISUAL_HEIGHT, src)),
         star_class: read::text(node, keys::STAR_CLASS, src),
         lanes,
         nebula: None,

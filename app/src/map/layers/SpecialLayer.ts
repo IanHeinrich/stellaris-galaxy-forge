@@ -10,6 +10,7 @@ import type { Camera } from "../Camera";
 import { labelTier, type LabelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import {
   type BadgeGeometry,
   badgeGeometry,
@@ -62,7 +63,7 @@ export class SpecialLayer implements MapLayer {
   private tier: LabelTier = "none";
   private readonly unsubscribeTextures: () => void;
 
-  constructor() {
+  constructor(private readonly drawn = new DrawnPositions()) {
     this.container.eventMode = "passive";
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
   }
@@ -119,6 +120,13 @@ export class SpecialLayer implements MapLayer {
     }
   }
 
+  onDrawn({ moved }: DrawnChange): void {
+    for (const id of moved) {
+      const s = this.systems.get(id);
+      if (s) this.place(s);
+    }
+  }
+
   setVisible(v: boolean): void {
     this.container.visible = v;
   }
@@ -171,7 +179,7 @@ export class SpecialLayer implements MapLayer {
       this.badges.set(s.id, badge);
     }
     const ghost = this.ghosts.get(s.id);
-    const at = ghost ?? s;
+    const at = ghost ?? this.drawn.at(s);
     badge.root.position.set(at.x, at.y);
     badge.root.alpha = ghost ? GHOST_ALPHA : 1;
     badge.setScale(this.pxScale, this.ringScale);

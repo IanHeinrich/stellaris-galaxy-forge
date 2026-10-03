@@ -18,6 +18,7 @@ import { DrillLink, Swatch } from "../parts";
 import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
+import { HeightRow } from "./SystemHeight";
 import { useStarClassLabel } from "./useStarNames";
 import { renameSystemOp } from "./systemName";
 import { shortcutLabel } from "../../../lib/keys";
@@ -54,6 +55,7 @@ function PositionBlock({ system }: { system: SystemNode }) {
           onCommit={(y) => move(system.x, y)}
         />
       </EditRow>
+      <HeightRow key={system.id} system={system} />
     </EditBlock>
   );
 }

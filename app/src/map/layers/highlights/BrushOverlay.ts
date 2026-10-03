@@ -1,8 +1,10 @@
 import { Container, Graphics } from "pixi.js";
 import { BRUSH_TOOLS, type BrushTool } from "../../../lib/brush/brushTools";
+import type { RippleRing } from "../../../lib/brush/heightBrush";
 import type { Pt } from "../../../lib/geometry/pt";
 import type { Segment } from "../../../lib/geometry/segments";
 import { images, type Symmetry } from "../../../lib/geometry/symmetry";
+import { heightTint } from "../../../lib/height";
 import { ACCENT_COLOR, CAUTION_COLOR, REFUSED_COLOR } from "../../../lib/visual/style";
 import { dashedCircle } from "../dashes";
 
@@ -13,6 +15,8 @@ const RING_PX = 7;
 const CUT_PX = 3;
 /** The copies of the brush circle a symmetric stroke also lays, fainter than the one at the pointer. */
 const IMAGE_ALPHA = 0.45;
+/** A ripple's faintest and strongest ring. */
+const RING_ALPHA = { min: 0.2, max: 0.9 };
 
 /** The brush circle at the pointer, `r` its world radius, with a copy at each image under `symmetry`. */
 export interface BrushCursor {
@@ -21,6 +25,8 @@ export interface BrushCursor {
   y: number;
   r: number;
   symmetry: Symmetry;
+  /** The rings of the ripple a click would drop, about the centre; none for any other brush. */
+  rings?: readonly RippleRing[];
 }
 
 /** What a held stroke would do, in world positions. */
@@ -46,16 +52,18 @@ export class BrushOverlay {
   private readonly lines = new Graphics({ label: "brushLines" });
   private readonly marks = new Graphics({ label: "brushMarks" });
   private readonly circle = new Graphics({ label: "brushCircle" });
+  private readonly rings = new Graphics({ label: "brushRings" });
   private preview: BrushPreview | null = null;
   private camScale = 1;
 
   constructor() {
-    this.container.addChild(this.lines, this.marks, this.circle);
+    this.container.addChild(this.lines, this.marks, this.rings, this.circle);
   }
 
   setCursor(cursor: BrushCursor | null): void {
     const g = this.circle;
     g.clear();
+    this.drawRings(cursor);
     if (!cursor) return;
     dashedCircle(g, cursor.x, cursor.y, cursor.r, DASHES);
     const color = BRUSH_TOOLS[cursor.tool].adds ? ACCENT_COLOR : REFUSED_COLOR;
@@ -63,6 +71,19 @@ export class BrushOverlay {
     const copies = images(cursor, cursor.symmetry).slice(1);
     for (const p of copies) dashedCircle(g, p.x, p.y, cursor.r, DASHES);
     if (copies.length > 0) g.stroke({ color, alpha: IMAGE_ALPHA, pixelLine: true });
+  }
+
+  /** A ripple's crests as solid amber rings and its troughs as dashed blue ones, as strong as they rise or sink. */
+  private drawRings(cursor: BrushCursor | null): void {
+    const g = this.rings;
+    g.clear();
+    if (!cursor) return;
+    for (const ring of cursor.rings ?? []) {
+      if (ring.crest) g.circle(cursor.x, cursor.y, ring.r);
+      else dashedCircle(g, cursor.x, cursor.y, ring.r, DASHES);
+      const alpha = RING_ALPHA.min + (RING_ALPHA.max - RING_ALPHA.min) * ring.strength;
+      g.stroke({ color: heightTint(ring.crest ? 1 : -1), alpha, pixelLine: true });
+    }
   }
 
   setPreview(preview: BrushPreview | null): void {

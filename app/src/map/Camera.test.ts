@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../lib/geometry/geometry";
 import { seeded } from "../lib/random";
 import { Camera } from "./Camera";
+import { FLAT_TILT } from "./tilt";
 
 describe("Camera", () => {
   it("applies the axis signs once between world and screen and round-trips", () => {
@@ -84,5 +85,43 @@ describe("Camera", () => {
     expect(cam.x).toBeCloseTo(40);
     expect(cam.y).toBeCloseTo(-20);
     expect(cam.scale).toBeCloseTo(5);
+  });
+});
+
+describe("the tilted camera", () => {
+  function tilted(degrees: number): Camera {
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    cam.x = 10;
+    cam.y = 20;
+    cam.scale = 2;
+    cam.setTilt(degrees);
+    return cam;
+  }
+
+  it("draws exactly as before at 0°", () => {
+    const flat = tilted(0);
+    expect(flat.tilt).toBe(FLAT_TILT);
+    expect(flat.worldToScreen(12, 30).y).toBe(300 + SAVE_Y_SIGN * 10 * 2);
+  });
+
+  it("squashes the plane about the centre of view and leaves x alone", () => {
+    const cam = tilted(60);
+    const s = cam.worldToScreen(12, 30);
+    expect(s.x).toBeCloseTo(400 + SAVE_X_SIGN * 2 * 2);
+    expect(s.y).toBeCloseTo(300 + SAVE_Y_SIGN * 10 * 2 * 0.5);
+    expect(cam.worldToScreen(10, 20).y).toBeCloseTo(300);
+    const w = cam.screenToWorld(s.x, s.y);
+    expect(w.y).toBeCloseTo(30);
+
+    const t = cam.worldTransform();
+    expect(t.y + 30 * t.scaleY).toBeCloseTo(s.y);
+    const cs = cam.childScale(3);
+    expect(cs.y * t.scaleY).toBeCloseTo(3);
+  });
+
+  it("keeps the tilt between flat and its steepest", () => {
+    expect(tilted(90).tilt.degrees).toBe(60);
+    expect(tilted(-5).tilt).toBe(FLAT_TILT);
   });
 });

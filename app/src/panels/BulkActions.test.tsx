@@ -6,8 +6,11 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../test/zustandSnapshot"));
 
+import { DEFAULT_SYSTEM_HEIGHT } from "../generated/constants";
+import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { bindStores } from "../store/bindStores";
 import { useEditorStore } from "../store/editorStore";
+import { useFileSessionStore } from "../store/fileSessionStore";
 import { SYSTEMS } from "../store/fixture";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { open, resetStores } from "./inspector/inspectorFixture";
@@ -82,5 +85,46 @@ describe("the marauder clan button", () => {
     expect(clanButton(await selectOn("scenario", [0, 1]))).toBeNull();
     expect(clanButton(await selectOn("scenario", [0, 1, 2, 3]))).toBeNull();
     expect(clanButton(await selectOn("save", [0, 1, 2]))).toBeNull();
+  });
+});
+
+describe("the height group", () => {
+  /** A save with systems 0, 1 and 2 selected: flat with no height, 50 above the plane, 20 below. */
+  async function selectHeights(heights = true): Promise<void> {
+    await open("save");
+    useFileSessionStore.setState({
+      capabilities: { ...SAVE_CAPABILITIES, system_heights: heights },
+    });
+    useGalaxyStore.getState().applyDelta({
+      systems: [
+        SYSTEMS[0],
+        { ...SYSTEMS[1], height: DEFAULT_SYSTEM_HEIGHT + 50 },
+        { ...SYSTEMS[2], height: DEFAULT_SYSTEM_HEIGHT - 20 },
+      ],
+    });
+    await useEditorStore.getState().setSelection([0, 1, 2], "replace");
+  }
+
+  const dots = (html: string) =>
+    [...html.matchAll(/<circle class="height-dot"[^>]*fill="([^"]*)"/g)].map((m) => m[1]);
+
+  it("places one dot per selected system, tinted by its height, and counts the ones to flatten", async () => {
+    await selectHeights();
+    const html = renderToStaticMarkup(<BulkActions />);
+    expect(dots(html)).toEqual(["#c8c6bd", "#ef9f27", "#378add"]);
+    expect(html).toContain('role="group" aria-label="Height"');
+    expect(html).toContain('aria-pressed="true" class="on">Set to</button>');
+    expect(html).toContain(">Raise by</button>");
+    expect(html).toContain(">Lower by</button>");
+    expect(html).toContain('<button type="button">Flatten (2)</button>');
+    expect(html).toContain("Back to the game&#x27;s default height");
+  });
+
+  it("is absent where the document takes no heights, and from the right-click menu", async () => {
+    await selectHeights(false);
+    expect(renderToStaticMarkup(<BulkActions />)).not.toContain("height-dot");
+
+    await selectHeights();
+    expect(renderToStaticMarkup(<BulkActions itemRole="menuitem" />)).not.toContain("height-dot");
   });
 });

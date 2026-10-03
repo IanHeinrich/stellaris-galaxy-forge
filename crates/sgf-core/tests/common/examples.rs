@@ -3,7 +3,7 @@
 use sgf_core::format::scenario::FeLinkFlags;
 use sgf_core::ops::{
     ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint,
-    NewBody, Op, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemMove,
+    NewBody, Op, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -579,6 +579,12 @@ pub fn one_of_each() -> Vec<Example> {
             difficulty: 1,
         }),
         Example::save(Op::RemoveDigSite { site: 0 }),
+        Example::save(Op::SetSystemHeights {
+            heights: vec![SystemHeight {
+                id: 0,
+                height: Some(10.0),
+            }],
+        }),
         Example::each(
             Op::Batch {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
