@@ -2,7 +2,7 @@ import { BitmapText, Container, Graphics, Sprite, TextStyle, Ticker } from "pixi
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SystemNode } from "../../generated/SystemNode";
-import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
+import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
 import {
   placeLabels,
   type LabelFit,
@@ -15,7 +15,7 @@ import type { Banding, BandWidths, Reply, Shape } from "../../lib/geometry/terri
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
-import { empireLabelAlpha } from "../../lib/visual/labels";
+import { EMPIRE_LABEL_MAX_SCALE } from "../../lib/visual/labels";
 import { mixColor } from "../../lib/visual/color";
 import type { OwnerColors } from "../../lib/visual/ownerColors";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
@@ -126,6 +126,13 @@ const EMBLEM_SIZE = 3.2;
 const EMBLEM_DROP = 0.3;
 /** Flat white and see-through, as the game shows a territory's flag symbol. */
 const EMBLEM_ALPHA = 0.7;
+/**
+ * As in the game, empire names wait a moment once the camera closes past the threshold, then fade
+ * out slowly. Zooming back out before then cancels the fade; after it they fade back in quickly.
+ */
+const FADE_OUT_DELAY_MS = 1500;
+const FADE_OUT_MS = 1200;
+const FADE_IN_MS = 450;
 
 /** One territory piece's emblem and name. */
 interface PieceBadge {
@@ -167,6 +174,10 @@ function strokeUnit(camScale: number): number {
   const wanted = Math.min(STROKE_MAX_UNIT, 1 / camScale);
   const step = Math.round(Math.log2(wanted) * STROKE_STEPS_PER_OCTAVE);
   return Math.pow(2, step / STROKE_STEPS_PER_OCTAVE);
+}
+
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
 }
 
 /** The border shader's camera-distance factor at `unitsPerPixel`: 0 close up, 1 zoomed out. */
@@ -238,8 +249,8 @@ function sameOwners(a: ReadonlyMap<number, unknown>, b: ReadonlyMap<number, unkn
  * The game's territories: each owner's region from the composed ownership, its corners rounded,
  * filled with its second flag colour and outlined with its first in a chunky screen-stable
  * stroke over a soft halo. Each separate piece of a region shows the empire's flag symbol over
- * its name, in world units, in the widest room the piece has; they fade out with zoom as system
- * names appear. A marauder clan's badge shows a skull in place of a flag. The regions
+ * its name, in world units, in the widest room the piece has; they fade out a moment after
+ * system names appear. A marauder clan's badge shows a skull in place of a flag. The regions
  * come from the client, a beat later when it is a worker; a delta recomputes only the owners it
  * can have changed.
  */
@@ -265,6 +276,10 @@ export class OwnersLayer implements MapLayer {
   private view: number[] = [-Infinity, -Infinity, Infinity, Infinity];
   private restroking = false;
   private fade = 1;
+  private fadeTarget = 1;
+  /** How long the names have waited to fade out since the camera passed the threshold. */
+  private fadeWaited = 0;
+  private fading = false;
   private shown = true;
   private clansShown = true;
   /** Bumped with every reset so a reply to an earlier galaxy is told apart and dropped. */
@@ -346,7 +361,7 @@ export class OwnersLayer implements MapLayer {
         Ticker.shared.add(this.restrokeTick, this);
       }
     }
-    this.setFade(empireLabelAlpha(cam.scale));
+    if (this.shown) this.fadeTowards(cam.scale < EMPIRE_LABEL_MAX_SCALE ? 1 : 0);
   }
 
   /** The countries' territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
@@ -371,6 +386,7 @@ export class OwnersLayer implements MapLayer {
     this.client.destroy();
     this.unsubscribeTextures();
     this.unsubscribeFont();
+    Ticker.shared.remove(this.fadeTick, this);
     Ticker.shared.remove(this.restrokeTick, this);
     this.container.destroy({ children: true });
   }
@@ -753,11 +769,30 @@ export class OwnersLayer implements MapLayer {
     for (const piece of shape.pieces) if (piece.label.text !== text) piece.label.text = text;
   }
 
-  private setFade(fade: number): void {
-    if (fade === this.fade) return;
-    const crossed = fade > 0 !== this.fade > 0;
-    this.fade = fade;
-    this.badges.alpha = fade;
-    if (crossed) this.applyVisibility();
+  private fadeTowards(target: number): void {
+    if (target === this.fadeTarget) return;
+    this.fadeTarget = target;
+    this.fadeWaited = 0;
+    if (!this.fading) {
+      this.fading = true;
+      Ticker.shared.add(this.fadeTick, this);
+    }
+  }
+
+  private fadeTick(ticker: Ticker): void {
+    const out = this.fadeTarget < this.fade;
+    if (out && this.fadeWaited < FADE_OUT_DELAY_MS) {
+      this.fadeWaited += ticker.deltaMS;
+      return;
+    }
+    const step = ticker.deltaMS / (out ? FADE_OUT_MS : FADE_IN_MS);
+    const wasShown = this.fade > 0;
+    this.fade = clamp(this.fade + (out ? -step : step), 0, 1);
+    this.badges.alpha = smoothstep(this.fade);
+    if (this.fade > 0 !== wasShown) this.applyVisibility();
+    if (this.fade === this.fadeTarget) {
+      this.fading = false;
+      Ticker.shared.remove(this.fadeTick, this);
+    }
   }
 }

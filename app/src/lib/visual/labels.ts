@@ -2,33 +2,15 @@ import type { SystemNode } from "../../generated/SystemNode";
 
 export type LabelTier = "none" | "some";
 
-/** One notch of the mouse wheel: the zoom factor `MapController` applies per 100 px. */
-const WHEEL_NOTCH = 1.1;
-
 /**
- * Pixels per world unit up to which empire names and emblems show. The game keeps them until
- * the camera is a third closer than where star names used to appear here
- * (`BORDER_NAMES_FADEOUT_ZOOM` 600 against `GALAXY_SHOW_STARNAME_ZOOM` 800, from 3).
+ * Pixels per world unit past which empire names and emblems fade out. The game's threshold is a
+ * third closer than its star names' (`BORDER_NAMES_FADEOUT_ZOOM` 600 against
+ * `GALAXY_SHOW_STARNAME_ZOOM` 800, from 3).
  */
 export const EMPIRE_LABEL_MAX_SCALE = (3 * 800) / 600;
 
-/** Pixels per world unit at which system names and details pop in, as empire names start to fade. */
+/** Pixels per world unit at which system names and details pop in, as empire names begin to fade. */
 export const DETAIL_SCALE = EMPIRE_LABEL_MAX_SCALE;
-
-/** Pixels per world unit at which empire names and emblems have faded out, two notches in from the names. */
-export const EMPIRE_LABEL_GONE_SCALE = DETAIL_SCALE * WHEEL_NOTCH * WHEEL_NOTCH;
-
-/**
- * How opaque empire names and emblems are at a zoom. The game fades them over a few wheel
- * notches, so they still show faintly beside the system names and details as those appear.
- */
-export function empireLabelAlpha(scale: number): number {
-  const t =
-    Math.log(scale / EMPIRE_LABEL_MAX_SCALE) /
-    Math.log(EMPIRE_LABEL_GONE_SCALE / EMPIRE_LABEL_MAX_SCALE);
-  const x = Math.min(1, Math.max(0, t));
-  return 1 - x * x * (3 - 2 * x);
-}
 
 /** Zoom from which a system's ring shows lane ports; grabbing them any further out is too fiddly. */
 export const PORT_MIN_SCALE = 0.9;
