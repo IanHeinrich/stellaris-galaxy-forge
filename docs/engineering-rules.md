@@ -151,12 +151,13 @@ because the file dialog already asked about overwriting it.
   and updates the root `Cargo.toml`, `Cargo.lock`, `app/package.json` and
   `app/package-lock.json`. Never edit the version by hand in any of
   those files.
-- `CHANGELOG.md` follows Keep a Changelog. Every PR adds an entry under
-  `## [Unreleased]`, or carries the `skip-changelog` label; the required
-  `Changelog entry` check enforces this. The changelog is for the people
-  who use the editor, so an entry describes what they can now see or do.
-  Tooling, tests, refactors and anything else that leaves the app
-  unchanged take the label instead.
+- `CHANGELOG.md` follows Keep a Changelog. Every PR adds a file under
+  `changelog.d/` (`changelog.d/README.md` says how), or carries the
+  `skip-changelog` label; the required `Changelog entry` check enforces
+  this. Separate files keep open PRs from conflicting in `CHANGELOG.md`.
+  The changelog is for the people who use the editor, so an entry
+  describes what they can now see or do. Tooling, tests, refactors and
+  anything else that leaves the app unchanged take the label instead.
 - The changelog is written in a small subset of Markdown, because the
   update dialog and the Workshop change note each parse it: `###`
   headings, `- ` bullets at the start of a line, one nested level of
@@ -164,10 +165,14 @@ because the file dialog already asked about overwriting it.
   bullet. Inline, only `code`, `**bold**` and `[links](url)`. Anything
   else shows as plain text. Both parsers' tests read the real
   `CHANGELOG.md`.
-- To release: `bash scripts/version.sh bump minor` (or
-  `patch`/`major`), then `bash scripts/changelog.sh release
-  $(cat VERSION)`, which renames Unreleased to `## [x.y.z] - YYYY-MM-DD`
-  and opens a fresh Unreleased. Review the diff, then open it as a PR.
+- To release: bump the version with `bash scripts/version.sh bump minor`
+  (or `patch`/`major`). Run `bash scripts/changelog.sh collect`, which
+  folds the `changelog.d/` files into `## [Unreleased]`, grouped by kind,
+  and deletes them. Collect is the point to rewrite the Unreleased
+  section into the release notes. Then run `bash scripts/changelog.sh
+  release $(cat VERSION)`, which collects any file still left and renames
+  Unreleased to `## [x.y.z] - YYYY-MM-DD` with a fresh Unreleased above it.
+  Review the diff, then open it as a PR.
 - Merging that PR to `main` runs the checks and the three platform
   builds side by side, and only once all of them pass tags `v<x.y.z>` and
   publishes a GitHub Release whose notes are that changelog section.

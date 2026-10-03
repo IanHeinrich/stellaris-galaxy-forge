@@ -2,7 +2,7 @@
 
 <one or two sentences>
 
-- [ ] `CHANGELOG.md` has an entry under Unreleased, or this PR carries the `skip-changelog` label
+- [ ] A `changelog.d/` file describes the change, or this PR carries the `skip-changelog` label
 - [ ] A bug fix comes with a test that fails without the fix
 - [ ] A change to what the map or panels draw has been looked at in the running app
 
