@@ -9,6 +9,7 @@ import {
 } from "../lib/brush/heightBrush";
 import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
+import { roundHeight } from "../lib/height";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
 import { clampTilt } from "../lib/visual/tilt";
@@ -38,13 +39,14 @@ function roundSpacing(value: number): number {
 }
 
 /** The height brush's controls: Set's height, Raise's and Smooth's strength, and a ripple's shape. */
-export const HEIGHT_SET_RANGE = { min: -200, max: 200, step: 0.5 } as const;
+export const HEIGHT_SET_RANGE = { min: -200, max: 200, step: 0.1 } as const;
 export const RAISE_RANGE = { min: 1, max: 50 } as const;
 export const SMOOTH_RANGE = { min: 1, max: 100 } as const;
+/** The ripple's sliders, wide enough for a Dome or Crater at the largest brush. */
 export const RIPPLE_RANGES: Record<keyof RippleShape, { min: number; max: number }> = {
   height: { min: -100, max: 100 },
-  spacing: { min: 5, max: 200 },
-  fade: { min: 10, max: 400 },
+  spacing: { min: 5, max: presetShape("dome", SIZE_RANGE.max).spacing },
+  fade: { min: 10, max: presetShape("dome", SIZE_RANGE.max).fade },
 };
 
 /** Whether a preset's shape follows the brush size, so a resize keeps it one hump or bowl. */
@@ -285,7 +287,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   },
 
   setHeightValue(value) {
-    set({ heightValue: clamp(Math.round(value * 2) / 2, HEIGHT_SET_RANGE) });
+    set({ heightValue: clamp(roundHeight(value), HEIGHT_SET_RANGE) });
   },
 
   setRaiseStrength(strength) {

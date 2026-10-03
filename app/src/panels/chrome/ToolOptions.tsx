@@ -200,10 +200,10 @@ const MODE_LABELS: Record<HeightMode, string> = {
 };
 
 const MODE_HINTS: Record<HeightMode, string> = {
-  set: "Click or drag to set every star under the brush to this height.",
-  raise: "Click or drag to lift stars, most at the centre. Alt lowers.",
+  set: "Click or drag to set every system under the brush to this height.",
+  raise: "Click or drag to lift systems, most at the centre. Alt lowers.",
   ripple:
-    "Click to drop a ripple. Rings preview on the map before you click. Alt flips crests and troughs.",
+    "Click to drop a ripple, or hold the button and let go where it should land. Rings preview on the map first. Alt flips crests and troughs.",
   smooth: "Drag to even out bumps between neighbours.",
 };
 

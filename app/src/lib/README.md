@@ -10,11 +10,13 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
   images about the centre, and `joinIslands.ts` the fewest short edges that
   join separate components.
-- `lib/brush/`: what a brush stroke does, without a canvas: the four brushes
+- `lib/brush/`: what a brush stroke does, without a canvas: the five brushes
   and what Alt turns each into (`brushTools`), where painted systems land
   (`sample`, `grid`, `symmetricSpacing`), what a stroke sweeps (`stroke`,
   `sweep`, and `special` for the systems an eraser spares), the lanes it adds
-  (`lanes`) and the stroke as a whole (`brushStroke`).
+  (`lanes`), what the Height brush does to the heights under it, and a
+  ripple's rings and presets (`heightBrush`), and the stroke as a whole
+  (`brushStroke`).
 - `lib/initializer/`: what the game's initializers are: how they group, how
   they are searched, the rows they read as and the labels the legend shows.
 - `lib/details/`: one system's own detail: where its name row and plate sit

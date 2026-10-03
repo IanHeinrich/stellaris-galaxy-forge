@@ -45,6 +45,14 @@ interface Lifted {
   readonly tint: number;
 }
 
+/** The stored systems of one tint and weight: their rings, and their drops while tilted. */
+interface Group {
+  readonly tint: number;
+  readonly entries: Lifted[];
+  readonly batch: RingBatch;
+  readonly drops: Graphics;
+}
+
 /** A height as the map writes it beside the ring: signed, to one decimal, or two near flat. */
 export function heightText(relative: number): string {
   const places = Math.abs(relative) < FINE_BELOW ? 100 : 10;
@@ -69,22 +77,26 @@ function liftedOf(node: SystemNode, height: number): Lifted | null {
   return isFlat(height) ? null : { node, height, tint: heightTint(height) };
 }
 
+function groupKey(entry: Lifted): string {
+  return `${entry.tint}:${levelOf(entry.height)}`;
+}
+
 /**
  * A save's system heights: a ring round every system off the plane, amber above and blue below,
  * heavier the further it is, and its signed height beside it once names show. While the map is
  * tilted each lifted system also drops a line to a hexagon on the plane under it. A system on
- * the plane draws nothing. A system whose height the inspector previews is drawn on its own,
- * so a slider drag redraws that system and nothing else.
+ * the plane draws nothing. A system whose height is previewed is drawn on its own, so a change
+ * of preview redraws the systems it changed and the group of rings each one left or rejoined.
  */
 export class HeightsLayer implements MapLayer {
   readonly id = "heights" as const;
   readonly container = new Container();
-  private readonly plane = new Graphics({ label: "plane" });
+  private readonly plane = new Container({ label: "plane" });
   private readonly rings = new Container({ label: "rings" });
   private readonly previewPlane = new Graphics({ label: "previewPlane" });
   private readonly previewRings = new Container({ label: "previewRings" });
   private readonly values = new Container({ label: "values" });
-  private readonly batches = new Map<string, RingBatch>();
+  private readonly groups = new Map<string, Group>();
   private readonly shown = new Map<number, BitmapText>();
   private readonly free: BitmapText[] = [];
   private galaxy = EMPTY_CONTEXT.galaxy;
@@ -124,9 +136,10 @@ export class HeightsLayer implements MapLayer {
       const entry = liftedOf(node, relativeHeight(node.height));
       if (entry) this.stored.set(node.id, entry);
     }
-    this.readPreview();
-    this.placeRings();
-    this.drawPlane();
+    this.preview = this.drawn.preview;
+    this.previewed.clear();
+    for (const id of this.preview.keys()) this.readPreview(id);
+    this.regroup();
     this.drawPreview();
     this.releaseValues();
   }
@@ -135,27 +148,29 @@ export class HeightsLayer implements MapLayer {
     // A delta comes with a fresh context, and `rebuild` reads the heights from that.
   }
 
-  /** A new lean moves every ring and drop; a preview redraws only its own systems. */
+  /** A new lean moves every ring and drop; a preview redraws only what it changed. */
   onDrawn({ heights, leaned }: DrawnChange): void {
-    const preview = this.drawn.preview;
-    const entered = [...heights].some((id) => this.preview.has(id) !== preview.has(id));
-    this.readPreview();
-    if (leaned || entered) {
-      this.placeRings();
-      this.drawPlane();
+    const before = this.preview;
+    this.preview = this.drawn.preview;
+    const regrouped = new Set<string>();
+    for (const id of heights) {
+      this.readPreview(id);
+      const stored = this.stored.get(id);
+      if (stored && before.has(id) !== this.preview.has(id)) regrouped.add(groupKey(stored));
     }
-    this.drawPreview();
+    for (const key of leaned ? this.groups.keys() : regrouped) this.drawGroup(key);
+    this.drawPreview(leaned ? undefined : heights);
     for (const id of heights) this.placeValue(id);
   }
 
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
-    for (const batch of this.batches.values()) batch.setScale(this.scale);
+    for (const { batch } of this.groups.values()) batch.setScale(this.scale);
     for (const mark of this.previewMarks.values()) mark.scale.set(this.scale.x, this.scale.y);
     cam.childScale(1, this.valueScale);
     if (cam.scale !== this.camScale) {
       this.camScale = cam.scale;
-      this.drawPlane();
+      for (const group of this.groups.values()) this.drawDrops(group);
       this.drawPreview();
     }
     this.placeValues(cam);
@@ -168,17 +183,16 @@ export class HeightsLayer implements MapLayer {
 
   destroy(): void {
     this.container.destroy({ children: true });
-    for (const batch of this.batches.values()) batch.destroy();
+    for (const { batch } of this.groups.values()) batch.destroy();
   }
 
-  private readPreview(): void {
-    this.preview = this.drawn.preview;
-    this.previewed.clear();
-    for (const [id, height] of this.preview) {
-      const node = this.systems.get(id);
-      const entry = node && liftedOf(node, height);
-      if (entry) this.previewed.set(id, entry);
-    }
+  /** Reads the height the preview shows for system `id`, kept while it is off the plane. */
+  private readPreview(id: number): void {
+    const height = this.preview.get(id);
+    const node = height === undefined ? undefined : this.systems.get(id);
+    const entry = node && height !== undefined ? liftedOf(node, height) : null;
+    if (entry) this.previewed.set(id, entry);
+    else this.previewed.delete(id);
   }
 
   /** The system off the plane as the map shows it now, previewed or stored; null on the plane. */
@@ -187,9 +201,9 @@ export class HeightsLayer implements MapLayer {
     return this.stored.get(id) ?? null;
   }
 
-  /** The stored entries the batches and the plane draw: every one the preview leaves alone. */
-  private *settled(): Iterable<Lifted> {
-    for (const entry of this.stored.values()) {
+  /** The stored entries the rings and the plane draw: every one the preview leaves alone. */
+  private *settled(entries: Iterable<Lifted> = this.stored.values()): Iterable<Lifted> {
+    for (const entry of entries) {
       if (!this.preview.has(entry.node.id)) yield entry;
     }
   }
@@ -198,57 +212,67 @@ export class HeightsLayer implements MapLayer {
     return this.drawn.at(entry.node);
   }
 
-  /** One batch per tint and weight, each ringing its systems where they draw. */
-  private placeRings(): void {
-    const wanted = new Map<string, { spec: RingSpec; points: Pt[] }>();
-    for (const entry of this.settled()) {
-      const level = levelOf(entry.height);
-      const key = `${entry.tint}:${level}`;
-      let group = wanted.get(key);
-      if (!group) {
-        group = { spec: ringSpec(entry.tint, level), points: [] };
-        wanted.set(key, group);
-      }
-      group.points.push(this.at(entry));
+  /** Sorts the stored entries into a group per tint and weight, and draws every group. */
+  private regroup(): void {
+    const wanted = new Map<string, Lifted[]>();
+    for (const entry of this.stored.values()) {
+      const key = groupKey(entry);
+      const entries = wanted.get(key);
+      if (entries) entries.push(entry);
+      else wanted.set(key, [entry]);
     }
-    for (const [key, batch] of this.batches) {
+    for (const [key, group] of this.groups) {
       if (wanted.has(key)) continue;
-      this.rings.removeChild(batch.container);
-      batch.container.destroy({ children: true });
-      batch.destroy();
-      this.batches.delete(key);
+      this.rings.removeChild(group.batch.container);
+      this.plane.removeChild(group.drops);
+      group.batch.container.destroy({ children: true });
+      group.batch.destroy();
+      group.drops.destroy();
+      this.groups.delete(key);
     }
-    for (const [key, { spec, points }] of wanted) {
-      let batch = this.batches.get(key);
-      if (!batch) {
-        batch = new RingBatch(spec, `height.${key}`);
+    for (const [key, entries] of wanted) {
+      let group = this.groups.get(key);
+      if (group) {
+        group.entries.splice(0, group.entries.length, ...entries);
+      } else {
+        const tint = entries[0].tint;
+        const batch = new RingBatch(ringSpec(tint, levelOf(entries[0].height)), `height.${key}`);
         batch.setScale(this.scale);
-        this.batches.set(key, batch);
+        group = { tint, entries, batch, drops: new Graphics({ label: `plane.${key}` }) };
+        this.groups.set(key, group);
         this.rings.addChild(batch.container);
+        this.plane.addChild(group.drops);
       }
-      batch.place(points);
+      this.drawGroup(key);
     }
   }
 
-  /** The tilted map's drop lines and the hexagons on the plane they fall to, by tint. */
-  private drawPlane(): void {
-    this.plane.clear();
-    if (!this.drawn.leans || this.camScale <= 0) return;
-    const tints = new Set<number>();
-    for (const entry of this.settled()) tints.add(entry.tint);
-    for (const tint of tints) this.drawDrops(this.plane, this.settled(), tint);
+  /** One group's rings where its systems draw, and their drops; a previewed system is left out. */
+  private drawGroup(key: string): void {
+    const group = this.groups.get(key);
+    if (!group) return;
+    group.batch.place([...this.settled(group.entries)].map((entry) => this.at(entry)));
+    this.drawDrops(group);
   }
 
-  /** The lines and hexagons of `entries` of one tint, stroked as two paths. */
-  private drawDrops(g: Graphics, entries: Iterable<Lifted>, tint: number): void {
+  /** The tilted map's drop lines from a group's systems, and the hexagons on the plane they fall to. */
+  private drawDrops(group: Group): void {
+    group.drops.clear();
+    if (!this.drawn.leans || this.camScale <= 0) return;
+    this.drawLines(group.drops, this.settled(group.entries), group.tint);
+  }
+
+  /** The lines and hexagons of `entries`, all of one tint, stroked as two paths. */
+  private drawLines(g: Graphics, entries: Iterable<Lifted>, tint: number): void {
     const r = HEX_PX / this.camScale;
-    const ofTint = [...entries].filter((entry) => entry.tint === tint);
-    for (const entry of ofTint) {
+    const drawn = [...entries];
+    if (drawn.length === 0) return;
+    for (const entry of drawn) {
       const { x, y } = entry.node;
       g.moveTo(x, y).lineTo(x, this.drawn.y(entry.node));
     }
     g.stroke({ color: tint, alpha: DROP_ALPHA, pixelLine: true });
-    for (const entry of ofTint) {
+    for (const entry of drawn) {
       const { x, y } = entry.node;
       g.moveTo(x + r, y);
       for (let k = 1; k <= 6; k++) {
@@ -259,31 +283,47 @@ export class HeightsLayer implements MapLayer {
     g.stroke({ color: tint, alpha: HEX_ALPHA, width: 1, pixelLine: true });
   }
 
-  /** Each previewed system's ring, and its drop line while tilted, at the height it previews. */
-  private drawPreview(): void {
-    for (const [id, mark] of this.previewMarks) {
-      if (this.previewed.has(id)) continue;
-      mark.destroy();
-      this.previewMarks.delete(id);
-    }
-    for (const [id, entry] of this.previewed) {
-      let mark = this.previewMarks.get(id);
-      if (!mark) {
-        mark = new Graphics({ label: `preview.${id}` });
-        this.previewMarks.set(id, mark);
-        this.previewRings.addChild(mark);
+  /**
+   * The ring of each previewed system among `ids`, or of every one without them, at the height
+   * it previews, and every previewed system's drop line while tilted.
+   */
+  private drawPreview(ids?: Iterable<number>): void {
+    if (ids === undefined) {
+      for (const id of this.previewMarks.keys()) {
+        if (!this.previewed.has(id)) this.dropMark(id);
       }
-      const spec = ringSpec(entry.tint, levelOf(entry.height));
-      mark.clear().circle(0, 0, spec.radius).stroke(spec);
-      const { x, y } = this.at(entry);
-      mark.position.set(x, y);
-      mark.scale.set(this.scale.x, this.scale.y);
+    }
+    for (const id of ids ?? this.previewed.keys()) {
+      const entry = this.previewed.get(id);
+      if (entry) this.drawMark(id, entry);
+      else this.dropMark(id);
     }
     this.previewPlane.clear();
     if (!this.drawn.leans || this.camScale <= 0) return;
     for (const entry of this.previewed.values()) {
-      this.drawDrops(this.previewPlane, [entry], entry.tint);
+      this.drawLines(this.previewPlane, [entry], entry.tint);
     }
+  }
+
+  private drawMark(id: number, entry: Lifted): void {
+    let mark = this.previewMarks.get(id);
+    if (!mark) {
+      mark = new Graphics({ label: `preview.${id}` });
+      this.previewMarks.set(id, mark);
+      this.previewRings.addChild(mark);
+    }
+    const spec = ringSpec(entry.tint, levelOf(entry.height));
+    mark.clear().circle(0, 0, spec.radius).stroke(spec);
+    const { x, y } = this.at(entry);
+    mark.position.set(x, y);
+    mark.scale.set(this.scale.x, this.scale.y);
+  }
+
+  private dropMark(id: number): void {
+    const mark = this.previewMarks.get(id);
+    if (!mark) return;
+    mark.destroy();
+    this.previewMarks.delete(id);
   }
 
   /** Each lifted system's signed height up and right of its ring, while names show. */

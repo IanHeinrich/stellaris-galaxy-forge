@@ -1,5 +1,5 @@
 import { BRUSH_TOOLS, type BrushTool, type EraseTarget, type StrokeKind } from "./brushTools";
-import { HeightSculpt, type HeightBrush } from "./heightBrush";
+import { HeightSculpt, type HeightBrush, type HeightsOver } from "./heightBrush";
 import {
   laneSegments,
   meshWithin,
@@ -47,14 +47,15 @@ export interface BrushSettings {
  * What a stroke does so far. A paint stroke's new points carry provisional ids -1..-n in
  * `points` order, and its lanes may join them to existing systems by their real ids. A
  * connect stroke's pairs join systems it swept; `sparse` is true when the lane density is the
- * only reason it added none. A height stroke's heights are the shown heights it would give.
+ * only reason it added none. A height stroke's heights are the shown heights it would give the
+ * galaxy it began on, and `over` works them out again from the heights an edit finds.
  */
 export type StrokeResult =
   | { kind: "paint"; points: Pt[]; pairs: Pair[] }
   | { kind: "erase"; doomed: number[]; kept: number[] }
   | { kind: "cut"; lanes: Pair[] }
   | { kind: "connect"; swept: number[]; pairs: Pair[]; sparse: boolean }
-  | { kind: "height"; heights: HeightPreview };
+  | { kind: "height"; heights: HeightPreview; over: HeightsOver };
 
 /**
  * Where the map draws each system and a grid over those points: where an erase, connect or cut
@@ -369,7 +370,12 @@ class HeightStroke implements Strategy {
   }
 
   result(): StrokeResult {
-    return { kind: "height", heights: this.sculpt.heights() };
+    const sculpt = this.sculpt;
+    return {
+      kind: "height",
+      heights: sculpt.heights(),
+      over: (systems) => sculpt.heights(systems),
+    };
   }
 }
 

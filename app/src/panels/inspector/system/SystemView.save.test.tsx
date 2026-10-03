@@ -507,6 +507,15 @@ describe("the height row", () => {
     useHeightPreviewStore.getState().clear();
   });
 
+  it("shows the stored height while the height brush previews the system", async () => {
+    await overviewAt(DEFAULT_SYSTEM_HEIGHT + 50);
+    useHeightPreviewStore.getState().showBrush(new Map([[SYSTEM, 99]]));
+    const html = overview();
+    expect(html).toContain(`aria-valuetext="50" value="${heightToSlider(50)}"`);
+    expect(html).toContain('aria-label="Height" value="50.00"');
+    useHeightPreviewStore.getState().showBrush(new Map());
+  });
+
   it("is hidden where the document takes no heights", async () => {
     const html = await overviewAt(DEFAULT_SYSTEM_HEIGHT + 50, false);
     expect(html).toContain('role="group" aria-label="Position"');

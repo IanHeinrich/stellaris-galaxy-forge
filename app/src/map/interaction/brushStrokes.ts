@@ -4,7 +4,7 @@ import { provisionalIndex } from "../../lib/brush/lanes";
 import type { Pair } from "../../lib/geometry/pairs";
 import { stampsAlong } from "../../lib/brush/stroke";
 import type { Pt } from "../../lib/geometry/pt";
-import type { HeightPreview } from "../../lib/height";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
 import { newSeed } from "../../lib/random";
 import type { Segment } from "../../lib/geometry/segments";
 import { copies, type Symmetry } from "../../lib/geometry/symmetry";
@@ -56,7 +56,7 @@ function ringsAt(at: BrushAt, r: number): RippleRing[] {
   return rippleRings(r, flippedShape(t.ripple, at.flipped));
 }
 
-/** Whether a stroke of `settings` stays where it was pressed: a ripple drops once, on the click. */
+/** Whether a stroke of `settings` drops once, where the button is let go: a ripple does. */
 function dropsOnce(settings: BrushSettings): boolean {
   return settings.tool === "height" && settings.height.mode === "ripple";
 }
@@ -101,7 +101,7 @@ function send(result: StrokeResult): Promise<boolean> {
     case "connect":
       return editor.connectStroke(result.pairs);
     case "height":
-      return editor.sculptHeights(result.heights);
+      return editor.sculptHeights(result.over);
   }
 }
 
@@ -109,7 +109,7 @@ function send(result: StrokeResult): Promise<boolean> {
  * The brush's side of `MapIntent`: the circle at the pointer, one stroke at a time previewed at
  * most once per frame, and the edit it sends on release, whose preview stays until it settles.
  * The height brush previews through the map's height preview, under the resting pointer as well
- * as during a stroke.
+ * as during a stroke, and a held ripple follows the pointer until it is let go.
  */
 export class BrushStrokes {
   private stroke: BrushStroke | null = null;
@@ -117,15 +117,15 @@ export class BrushStrokes {
   private held: Symmetry | null = null;
   private tool: BrushTool = "paint";
   private flipped = false;
-  /** Whether the held stroke stays where it was pressed, whatever the pointer does. */
-  private anchored = false;
+  /** Lays the held ripple afresh where the pointer is now; null for any other stroke. */
+  private redrop: (() => BrushStroke) | null = null;
   private last: Pt | null = null;
   private at: BrushAt | null = null;
   private frame = 0;
-  /** Whether the map's height preview is this brush's, so only its own is ever cleared. */
-  private showsHeights = false;
   /** Whether a height edit is on its way, whose preview stays until it lands. */
   private settling = false;
+  /** The latest height edit sent, so only its landing takes the preview down. */
+  private sent = 0;
   private readonly preview: SettlingPreview;
 
   constructor(
@@ -186,20 +186,25 @@ export class BrushStrokes {
     this.tool = tool;
     this.flipped = flipped;
     const settings = settingsFor(tool, flipped);
-    this.stroke = new BrushStroke(settings, systems, grid, newSeed(), swept);
-    this.anchored = dropsOnce(settings);
+    const seed = newSeed();
+    const stroke = () => new BrushStroke(settings, systems, grid, seed, swept);
+    this.stroke = stroke();
+    this.redrop = dropsOnce(settings) ? stroke : null;
     this.hold(settings.symmetry);
     this.last = null;
     this.extend(x, y);
   }
 
   extend(x: number, y: number): void {
-    if (this.anchored && this.last !== null) return;
     this.hover(this.tool, x, y, this.flipped);
-    const stroke = this.stroke;
-    if (!stroke) return;
+    if (!this.stroke) return;
     const next = { x, y };
-    stroke.add(stampsAlong(this.last, next, stroke.r));
+    if (this.redrop) {
+      this.stroke = this.redrop();
+      this.stroke.add([next]);
+    } else {
+      this.stroke.add(stampsAlong(this.last, next, this.stroke.r));
+    }
     this.last = next;
     this.requestFrame();
   }
@@ -209,6 +214,7 @@ export class BrushStrokes {
     if (!stroke) return;
     this.stopFrame();
     this.stroke = null;
+    this.redrop = null;
     this.hold(null);
     const result = stroke.result();
     this.draw(result);
@@ -219,6 +225,7 @@ export class BrushStrokes {
 
   cancel(): void {
     this.stroke = null;
+    this.redrop = null;
     this.hold(null);
     this.stopFrame();
     this.preview.drop();
@@ -258,21 +265,22 @@ export class BrushStrokes {
   }
 
   private showHeights(heights: HeightPreview): void {
-    if (!this.showsHeights && heights.size === 0) return;
-    this.showsHeights = true;
-    useHeightPreviewStore.setState({ preview: heights });
+    useHeightPreviewStore.getState().showBrush(heights);
   }
 
   private clearHeights(): void {
-    if (!this.showsHeights) return;
-    this.showsHeights = false;
-    useHeightPreviewStore.getState().clear();
+    this.showHeights(NO_HEIGHT_PREVIEW);
   }
 
-  /** Keeps a height stroke's preview until its edit lands, then previews under the pointer again. */
+  /**
+   * Keeps a height stroke's preview until its edit lands, unless a newer stroke has been sent by
+   * then, then previews under the pointer again.
+   */
   private settleHeights(sent: Promise<boolean>): void {
+    const mine = ++this.sent;
     this.settling = true;
     void sent.finally(() => {
+      if (mine !== this.sent) return;
       this.settling = false;
       if (this.stroke) return;
       this.clearHeights();

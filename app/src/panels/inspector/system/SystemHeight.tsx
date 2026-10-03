@@ -68,7 +68,7 @@ const previews = () => useHeightPreviewStore.getState();
 export function HeightRow({ system }: { system: SystemNode }) {
   const editable = useCanEdit("system_heights");
   const setSystemHeight = useEditorStore((s) => s.setSystemHeight);
-  const previewed = useHeightPreviewStore((s) => s.preview.get(system.id));
+  const previewed = useHeightPreviewStore((s) => s.inspector.get(system.id));
   /** Set by Escape until the pointer or key lets go, so the rest of that drag shows nothing. */
   const cancelled = useRef(false);
   /** Set once a release has sent the preview, so a second release sends nothing. */
@@ -86,7 +86,7 @@ export function HeightRow({ system }: { system: SystemNode }) {
   const release = () => {
     cancelled.current = false;
     if (released.current) return;
-    const value = previews().preview.get(id);
+    const value = previews().inspector.get(id);
     if (value === undefined) return;
     released.current = true;
     if (isFlat(value - relative)) previews().clear(id);
@@ -106,7 +106,7 @@ export function HeightRow({ system }: { system: SystemNode }) {
     const direction = keyDirection(e.key);
     if (direction === 0) return;
     e.preventDefault();
-    const from = previews().preview.get(id) ?? relative;
+    const from = previews().inspector.get(id) ?? relative;
     show(from + direction * (e.shiftKey ? SHIFT_KEY_STEP : KEY_STEP));
   };
   const commit = (value: number) => {

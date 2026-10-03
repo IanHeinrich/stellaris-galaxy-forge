@@ -1,9 +1,10 @@
 import { Graphics } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { absoluteHeight, heightTint } from "../../lib/height";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { systemNode } from "../../test/builders";
 import { HeightsLayer, heightText } from "./HeightsLayer";
+import { RingBatch } from "./highlights/RingBatch";
 import { layerIdsFor } from "./registry";
 import { Camera } from "../Camera";
 import { DrawnPositions } from "../drawnPositions";
@@ -38,6 +39,10 @@ function rings(layer: HeightsLayer): Graphics[] {
     .children.flatMap((batch) => batch.children)
     .filter((ring): ring is Graphics => ring instanceof Graphics && ring.visible);
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("the heights layer", () => {
   it("draws nothing for a save whose systems lie on the plane", () => {
@@ -74,17 +79,18 @@ describe("the heights layer on a tilted map", () => {
     cam.setViewport(800, 600);
     const positions = new DrawnPositions(cam);
     const layer = drawn([undefined, absoluteHeight(40)], 1, positions);
-    const plane = childByLabel(layer.container, "plane") as Graphics;
-    expect(strokes(plane)).toEqual([]);
+    const plane = () =>
+      childByLabel(layer.container, "plane").children.flatMap((g) => strokes(g as Graphics));
+    expect(plane()).toEqual([]);
 
     positions.setTilt(30);
     layer.onViewport(cam);
-    expect(strokes(plane).map((op) => op.segments.length)).toEqual([1, 1]);
+    expect(plane().map((op) => op.segments.length)).toEqual([1, 1]);
     expect(rings(layer)[0].y).toBeCloseTo(-40 * 0.5 * Math.tan(Math.PI / 6));
 
     positions.setTilt(0);
     layer.onViewport(cam);
-    expect(strokes(plane)).toEqual([]);
+    expect(plane()).toEqual([]);
     expect(rings(layer)[0].y).toBe(0);
   });
 });
@@ -108,6 +114,53 @@ describe("the heights layer under a height preview", () => {
     positions.setPreview(new Map());
     expect(rings(layer)).toHaveLength(1);
     expect(drawnText(childByLabel(layer.container, "values"))).toEqual(["+40"]);
+  });
+
+  it("redraws only the systems whose previewed height changed", () => {
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    const positions = new DrawnPositions(cam);
+    const layer = drawn(
+      [undefined, absoluteHeight(40), absoluteHeight(-22), absoluteHeight(80), undefined],
+      4,
+      positions,
+    );
+    positions.setTilt(30);
+    layer.onViewport(cam);
+    const place = vi.spyOn(RingBatch.prototype, "place");
+    const planes = (childByLabel(layer.container, "plane").children as Graphics[]).map((g) =>
+      vi.spyOn(g, "clear"),
+    );
+
+    positions.setPreview(
+      new Map([
+        [0, 5],
+        [4, 6],
+      ]),
+    );
+    expect(place).not.toHaveBeenCalled();
+    for (const clear of planes) expect(clear).not.toHaveBeenCalled();
+    const marks = childByLabel(layer.container, "previewRings").children as Graphics[];
+    const kept = vi.spyOn(marks[0], "clear");
+
+    positions.setPreview(
+      new Map([
+        [0, 5],
+        [4, 7],
+      ]),
+    );
+    expect(kept).not.toHaveBeenCalled();
+
+    positions.setPreview(
+      new Map([
+        [0, 5],
+        [4, 7],
+        [1, 30],
+      ]),
+    );
+    expect(place).toHaveBeenCalledTimes(1);
+    expect(planes.filter((clear) => clear.mock.calls.length > 0)).toHaveLength(1);
+    expect(rings(layer)).toHaveLength(2);
   });
 
   it("writes a height just off the plane to two decimals, never as 0", () => {

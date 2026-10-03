@@ -19,6 +19,7 @@ beforeEach(async () => {
   await openFixtureSave();
   await editor().setSelection([0], "replace");
   previews().clear();
+  previews().showBrush(new Map());
 });
 
 describe("a height preview", () => {
@@ -56,6 +57,41 @@ describe("a height preview", () => {
     );
     await sent;
     expect(previews().preview.size).toBe(0);
+  });
+
+  it("keeps the brush's heights and the inspector's apart, each clearing only its own", () => {
+    previews().showBrush(new Map([[0, 9]]));
+    expect(previews().inspector.get(0)).toBeUndefined();
+    expect(previews().preview.get(0)).toBe(9);
+
+    previews().show(0, 30);
+    previews().show(1, 4);
+    expect(previews().inspector.get(0)).toBe(30);
+    expect([...previews().preview].sort()).toEqual([
+      [0, 30],
+      [1, 4],
+    ]);
+
+    previews().clear();
+    expect([...previews().preview]).toEqual([[0, 9]]);
+    previews().show(1, 4);
+    previews().showBrush(new Map());
+    expect([...previews().preview]).toEqual([[1, 4]]);
+  });
+
+  it("sends the inspector's own height, whatever the brush previews", async () => {
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    previews().showBrush(new Map([[0, 9]]));
+    expect(await previews().commit(0)).toBe(false);
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+
+    previews().show(0, 30);
+    await previews().commit(0);
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual({
+      type: "SetSystemHeights",
+      heights: [{ id: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],
+    });
+    expect(previews().preview.get(0)).toBe(9);
   });
 
   it("is dropped when the selection changes", async () => {

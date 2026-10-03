@@ -1,6 +1,6 @@
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Pt } from "../geometry/pt";
-import { isFlat, relativeHeight, roundHeight } from "../height";
+import { isFlat, relativeHeight } from "../height";
 import type { SpatialGrid } from "../spatialGrid";
 
 /** What a height stroke does to the systems under it. */
@@ -119,10 +119,18 @@ function reachOf(brush: HeightBrush, d: number, r: number): number {
   }
 }
 
+/** The heights a stroke gives the systems it moves, worked out from the heights in `systems`. */
+export type HeightsOver = (systems: ReadonlyMap<number, SystemNode>) => Map<number, number>;
+
+/** A height to the five decimals the save writes. */
+function written(relative: number): number {
+  return Math.round(relative * 1e5) / 1e5 || 0;
+}
+
 /**
- * One height stroke over a galaxy fixed at its start. Each system counts once however often the
- * stroke passes it, at the strongest reach it met, so dragging back and forth does not stack. A
- * ripple drops where the first stamps land and ignores the rest.
+ * One height stroke, which finds the systems under it in a galaxy fixed at its start. Each system
+ * counts once however often the stroke passes it, at the strongest reach it met, so dragging back
+ * and forth does not stack. A ripple drops where the first stamps land and ignores the rest.
  */
 export class HeightSculpt {
   private readonly reach = new Map<number, number>();
@@ -151,20 +159,28 @@ export class HeightSculpt {
     }
   }
 
-  /** The height each system the stroke moves would show, to the 0.1; systems it leaves are left out. */
-  heights(): Map<number, number> {
+  /**
+   * The height each system the stroke moves would show, applied to the heights in `systems`;
+   * systems it leaves are left out.
+   */
+  heights(systems: ReadonlyMap<number, SystemNode> = this.systems): Map<number, number> {
     const out = new Map<number, number>();
     for (const [id, w] of this.reach) {
-      const s = this.systems.get(id);
+      const s = systems.get(id);
       if (!s) continue;
       const from = relativeHeight(s.height);
-      const to = roundHeight(this.applied(s, from, w));
+      const to = written(this.applied(s, from, w, systems));
       if (!isFlat(to - from)) out.set(id, to);
     }
     return out;
   }
 
-  private applied(s: SystemNode, from: number, w: number): number {
+  private applied(
+    s: SystemNode,
+    from: number,
+    w: number,
+    systems: ReadonlyMap<number, SystemNode>,
+  ): number {
     const { mode, value, raise, smooth, flipped } = this.brush;
     switch (mode) {
       case "set":
@@ -174,19 +190,19 @@ export class HeightSculpt {
       case "ripple":
         return from + w;
       case "smooth": {
-        const mean = this.neighbourMean(s);
+        const mean = this.neighbourMean(s, systems);
         return mean === null ? from : from + (mean - from) * smooth * w;
       }
     }
   }
 
   /** The mean height of the systems near `s`, itself left out; null when it has none. */
-  private neighbourMean(s: SystemNode): number | null {
+  private neighbourMean(s: SystemNode, systems: ReadonlyMap<number, SystemNode>): number | null {
     let sum = 0;
     let count = 0;
     this.grid.forEachWithin(s.x, s.y, smoothReach(this.r), (n) => {
       if (n.id === s.id) return;
-      sum += relativeHeight(this.systems.get(n.id)?.height ?? n.height);
+      sum += relativeHeight(systems.get(n.id)?.height ?? n.height);
       count++;
     });
     return count === 0 ? null : sum / count;

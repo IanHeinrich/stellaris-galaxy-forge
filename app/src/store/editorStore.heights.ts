@@ -1,6 +1,7 @@
 import type { StoreApi } from "zustand";
 import type { Op } from "../generated/Op";
-import { absoluteHeight, isFlat, relativeHeight, type HeightPreview } from "../lib/height";
+import type { HeightsOver } from "../lib/brush/heightBrush";
+import { absoluteHeight, isFlat, relativeHeight } from "../lib/height";
 import { systems } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 
@@ -52,11 +53,11 @@ export function heightActions(get: StoreApi<EditorState>["getState"]): HeightAct
       return get().applyOp(() => heightsOp(get().selection, () => 0));
     },
 
-    sculptHeights(heights: HeightPreview) {
-      if (heights.size === 0) return Promise.resolve(false);
-      return get().applyOp(() =>
-        heightsOp(heights.keys(), (relative, id) => heights.get(id) ?? relative),
-      );
+    sculptHeights(over: HeightsOver) {
+      return get().applyOp(() => {
+        const heights = over(systems());
+        return heightsOp(heights.keys(), (relative, id) => heights.get(id) ?? relative);
+      });
     },
   };
 }

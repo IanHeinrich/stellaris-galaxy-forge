@@ -115,11 +115,30 @@ describe("a height stroke", () => {
     expect(flipped.heights().get(1)).toBe(-40);
   });
 
+  it("moves a system at the brush's rim a little with the stroke, never snapped against it", () => {
+    const s = sculpt({}, row([19.98], [3.12]));
+    s.add([{ x: 0, y: 0 }]);
+    expect(s.heights().get(1)).toBeGreaterThan(3.12);
+    expect(s.heights().get(1)).toBeCloseTo(3.14, 2);
+  });
+
+  it("works out a stroke's heights from the heights it is applied to", () => {
+    const s = sculpt({}, row([0]));
+    s.add([{ x: 0, y: 0 }]);
+    const raised = row([0], [10]);
+    expect(s.heights(new Map(raised.map((n) => [n.id, n]))).get(1)).toBe(20);
+    expect(s.heights().get(1)).toBe(10);
+  });
+
   it("smooths a system toward the mean of its neighbours", () => {
     const s = sculpt({ mode: "smooth", smooth: 0.5 }, row([0, 20, -20], [40, 10, 0]), 60);
     s.add([{ x: 0, y: 0 }]);
     const heights = s.heights();
     expect(heights.get(1)).toBe(40 + (5 - 40) * 0.5);
     expect(heights.get(2)).toBeGreaterThan(10);
+
+    const gentle = sculpt({ mode: "smooth", smooth: 0.001 }, row([0, 20, -20], [40, 10, 0]), 60);
+    gentle.add([{ x: 0, y: 0 }]);
+    expect(gentle.heights().get(1)).toBeCloseTo(40 - 35 * 0.001, 5);
   });
 });

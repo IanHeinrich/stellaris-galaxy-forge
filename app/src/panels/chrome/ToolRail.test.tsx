@@ -249,11 +249,11 @@ describe("the height brush", () => {
     expect(set).toContain(
       'aria-label="Height to set, 0 on the game&#x27;s default plane" value="12.5"',
     );
-    expect(set).toContain("Click or drag to set every star under the brush to this height.");
+    expect(set).toContain("Click or drag to set every system under the brush to this height.");
 
     useToolStore.setState({ heightMode: "raise", raiseStrength: 7 });
     expect(options()).toMatch(/aria-label="Strength" value="7"/);
-    expect(options()).toContain("Alt lowers.");
+    expect(options()).toContain("Click or drag to lift systems, most at the centre. Alt lowers.");
 
     useToolStore.setState({ heightMode: "smooth", smoothStrength: 40 });
     expect(options()).toContain("40%");

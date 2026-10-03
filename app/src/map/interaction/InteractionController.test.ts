@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OPEN_RESULT } from "../../store/fixture";
+import { editResult, OPEN_RESULT } from "../../store/fixture";
 import { name, systemNode } from "../../test/builders";
 
 vi.mock("../../api/ipc");
@@ -22,6 +22,8 @@ import { HighlightsLayer } from "../layers/HighlightsLayer";
 import { strokes } from "../layers/fixture";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import { absoluteHeight } from "../../lib/height";
+import type { HeightsOver } from "../../lib/brush/heightBrush";
+import { mockedIpc } from "../../test/ipc";
 import { DrawnPositions } from "../drawnPositions";
 import { InteractionController } from "./InteractionController";
 
@@ -495,11 +497,18 @@ describe("the tilted map", () => {
   });
 });
 
+/** A promise and the way to settle it, for an answer a test holds back. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
 describe("the height brush", () => {
   /** Two flat systems 15 apart, a 100-wide Ripple brush and a stroke that settles at once. */
   function sculpting(mode: "ripple" | "raise" = "ripple") {
-    useHeightPreviewStore.setState({ preview: new Map() });
-    const sculptHeights = vi.fn(async () => true);
+    useHeightPreviewStore.setState({ ...useHeightPreviewStore.getInitialState() });
+    const sculptHeights = vi.fn<(over: HeightsOver) => Promise<boolean>>(async () => true);
     useEditorStore.setState({ sculptHeights });
     useToolStore.setState({ tool: "height", size: 100, heightMode: mode, raiseStrength: 10 });
     const map = mapOver([systemNode({ id: 1 }), systemNode({ id: 2, x: 15 })]);
@@ -509,6 +518,14 @@ describe("the height brush", () => {
     return { ...map, sculptHeights, brush, centre };
   }
   const previewed = () => useHeightPreviewStore.getState().preview;
+  /** The heights the `n`th sculpt sent would give the galaxy as it stands. */
+  const sculpted = (sculptHeights: ReturnType<typeof sculpting>["sculptHeights"], n = 0) =>
+    sculptHeights.mock.calls[n][0](useGalaxyStore.getState().systems);
+  /** Where the ripple's first crest is centred, in world units. */
+  const crestCentre = (rings: Graphics) =>
+    strokes(rings)
+      .find((op) => op.steps.includes("circle"))
+      ?.segments[0].slice(0, 2);
 
   it("previews a ripple's rings and heights under the pointer, and drops them when it leaves", () => {
     const { surface, brush, centre } = sculpting();
@@ -522,16 +539,30 @@ describe("the height brush", () => {
     expect(strokes(brush("brushRings"))).toHaveLength(0);
   });
 
-  it("sends one edit for a ripple click, centred on the press however the pointer moves", async () => {
+  it("drops a ripple click where it was clicked, as one edit", () => {
     const { surface, sculptHeights, centre } = sculpting();
     surface.fire("pointerdown", centre.x, centre.y);
-    surface.fire("pointermove", centre.x + 200, centre.y);
-    surface.fire("pointerup", centre.x + 200, centre.y);
+    surface.fire("pointerup", centre.x, centre.y);
 
     expect(sculptHeights).toHaveBeenCalledTimes(1);
-    const sent = sculptHeights.mock.calls[0] as unknown as [Map<number, number>];
-    expect(sent[0].get(1)).toBe(40);
-    await vi.waitFor(() => expect(previewed().get(1)).toBeUndefined());
+    expect(sculpted(sculptHeights).get(1)).toBe(40);
+  });
+
+  it("moves a held ripple with the pointer, and drops it where the button is let go", () => {
+    const { cam, surface, sculptHeights, brush, centre } = sculpting();
+    const second = cam.worldToScreen(15, 0);
+    surface.fire("pointerdown", centre.x, centre.y);
+    surface.fire("pointermove", second.x, second.y);
+
+    expect(crestCentre(brush("brushRings"))?.[0]).toBeCloseTo(15);
+    expect(previewed().get(2)).toBe(40);
+    expect(previewed().get(1)).toBeLessThan(0);
+    expect(sculptHeights).not.toHaveBeenCalled();
+
+    surface.fire("pointerup", second.x, second.y);
+    expect(sculptHeights).toHaveBeenCalledTimes(1);
+    expect(sculpted(sculptHeights).get(2)).toBe(40);
+    expect(sculpted(sculptHeights).get(1)).toBeLessThan(0);
   });
 
   it("strokes while the map leans, as one edit", () => {
@@ -545,8 +576,77 @@ describe("the height brush", () => {
     surface.fire("pointerup", to.x, to.y);
 
     expect(sculptHeights).toHaveBeenCalledTimes(1);
-    const sent = sculptHeights.mock.calls[0] as unknown as [Map<number, number>];
-    expect([...sent[0].keys()]).toEqual([1, 2]);
-    expect(sent[0].get(1)).toBe(10);
+    const sent = sculpted(sculptHeights);
+    expect([...sent.keys()]).toEqual([1, 2]);
+    expect(sent.get(1)).toBe(10);
+  });
+
+  it("raises twice for two clicks sent before the first has landed", async () => {
+    const { surface, centre } = sculpting("raise");
+    useEditorStore.setState({ sculptHeights: useEditorStore.getInitialState().sculptHeights });
+    const first = deferred<ReturnType<typeof editResult>>();
+    mockedIpc.applyOp.mockReset();
+    mockedIpc.applyOp.mockReturnValueOnce(first.promise).mockResolvedValueOnce(editResult());
+
+    for (let i = 0; i < 2; i++) {
+      surface.fire("pointerdown", centre.x, centre.y);
+      surface.fire("pointerup", centre.x, centre.y);
+    }
+    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
+    expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        heights: expect.arrayContaining([{ id: 1, height: absoluteHeight(10) }]),
+      }),
+    );
+
+    const raised = useGalaxyStore.getState().systems.get(1)!;
+    first.resolve(editResult({ delta: { systems: [{ ...raised, height: absoluteHeight(10) }] } }));
+    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2));
+    expect(mockedIpc.applyOp.mock.calls[1][0]).toEqual(
+      expect.objectContaining({
+        heights: expect.arrayContaining([{ id: 1, height: absoluteHeight(20) }]),
+      }),
+    );
+  });
+
+  it("keeps a stroke's preview until its own edit lands, not the one before it", async () => {
+    const { cam, surface, sculptHeights, centre } = sculpting();
+    const first = deferred<boolean>();
+    const second = deferred<boolean>();
+    sculptHeights.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const far = cam.worldToScreen(15, 0);
+
+    surface.fire("pointerdown", centre.x, centre.y);
+    surface.fire("pointerup", centre.x, centre.y);
+    surface.fire("pointerdown", far.x, far.y);
+    surface.fire("pointerup", far.x, far.y);
+    surface.fire("pointerleave", far.x, far.y);
+    expect(previewed().get(2)).toBe(40);
+
+    first.resolve(true);
+    await first.promise;
+    await Promise.resolve();
+    expect(previewed().get(2)).toBe(40);
+
+    second.resolve(true);
+    await vi.waitFor(() => expect(previewed().size).toBe(0));
+  });
+
+  it("publishes a preview only when it changes, and nothing over empty space", () => {
+    const { cam, surface, centre } = sculpting("raise");
+    const published = vi.fn();
+    const unsubscribe = useHeightPreviewStore.subscribe(published);
+
+    surface.fire("pointermove", centre.x, centre.y);
+    surface.fire("pointermove", centre.x, centre.y);
+    expect(published).toHaveBeenCalledTimes(1);
+
+    for (let x = 300; x < 400; x += 20) {
+      const empty = cam.worldToScreen(x, 0);
+      surface.fire("pointermove", empty.x, empty.y);
+    }
+    expect(published).toHaveBeenCalledTimes(2);
+    expect(previewed().size).toBe(0);
+    unsubscribe();
   });
 });

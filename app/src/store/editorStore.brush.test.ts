@@ -422,7 +422,7 @@ describe("a height stroke", () => {
       { x: 0, y: 0 },
     ]);
     if (result.kind !== "height") throw new Error(result.kind);
-    await editor().sculptHeights(result.heights);
+    await editor().sculptHeights(result.over);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
@@ -436,7 +436,7 @@ describe("a height stroke", () => {
 
   it("sends nothing for a stroke that moved nothing", async () => {
     await openFixtureSave();
-    expect(await editor().sculptHeights(new Map())).toBe(false);
+    expect(await editor().sculptHeights(() => new Map())).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
