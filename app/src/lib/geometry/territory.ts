@@ -46,6 +46,19 @@ const SOFTNESS = 0.155;
  * up to 0.82 zoomed out, a world unit apart, so one level serves every zoom.
  */
 const EDGE = 0.8;
+/**
+ * How far the smooth max and min that round a territory's corners blend, in influence units:
+ * where two owners' borders meet, or a border meets open space. Fitted to a corner radius of
+ * about 2 world units, as measured at the game's triple junctions.
+ */
+const CORNER_BLEND = 0.1;
+/** The most the smooth max and min together raise φ above the hard max. */
+const CORNER_RISE = CORNER_BLEND / 2;
+/**
+ * The furthest inside the outline the band's inner edge runs, in influence units. It bounds
+ * how near a border the field must be measured texel by texel.
+ */
+const MAX_BAND_DEPTH = 0.3;
 /** Rings smaller than this, in world units², are slivers and are dropped. */
 const MIN_RING_AREA = 25;
 /** An outline point this close to the line through the points kept either side of it is dropped. */
@@ -69,7 +82,8 @@ const TEXEL_OFFSET = 2 ** 20;
 const TEXEL_SPAN = 2 ** 21;
 const TILE_OFFSET = 2 ** 14;
 const TILE_SPAN = 2 ** 15;
-const PAD = TILE + 1;
+/** A tile and two texels of its neighbours right and below: a corner's slope reads one further. */
+const PAD = TILE + 2;
 
 /** A system or a lane, and how its influence falls off. */
 interface Source {
@@ -94,13 +108,22 @@ interface Tile {
   tj: number;
   sources: Source[];
   sorted: boolean;
-  /** Per texel: the lowest influence distance, its owner's code, and the lowest of any other owner. */
+  /** Per texel: the three lowest influence distances, and the owner codes of the first two. */
   best: Float32Array;
   owner: Uint16Array;
   second: Float32Array;
-  /** Per owner code, the outline segments whose cells start in this tile: from edge, to edge, from x, from y. */
-  segments: Map<number, number[]>;
+  runner: Uint16Array;
+  third: Float32Array;
+  /**
+   * Per contour, per owner code, the segments whose cells start in this tile: from edge, to
+   * edge, from x, from y.
+   */
+  segments: Map<number, number[]>[];
 }
+
+/** The contours the field keeps: the territory's outline, and the inner edge of its band. */
+const OUTLINE = 0;
+const BAND = 1;
 
 /**
  * The game's territories as an influence field over the galaxy. Each owned system, each lane
@@ -109,8 +132,12 @@ interface Tile {
  * An owner's influence distance is the smooth minimum −k·ln Σ exp(−s/k) over its sources, all
  * unowned sources counting as one owner. A texel belongs to the owner nearest by that measure,
  * as territory when it is a drawn country and nearer than `EDGE`. Outlines are traced per owner
- * on the texels by marching squares. The field is kept in tiles, so an edit recomputes only the
- * tiles its sources reach.
+ * on the texels by marching squares, on φ = max(D − D_other, D − `EDGE`) with the max, and the
+ * min over the other owners, smoothed so corners come out round. The band's inner edge is where
+ * φ = −w·max(|∇φ|, 1/radius) for a band w world units wide: w inside the outline where φ falls
+ * at least as steeply as round a lone system, and a fixed range of φ where it falls slower, so
+ * the band widens where the field is shallow and two lobes' bands cross where they meet. The
+ * field is kept in tiles, so an edit recomputes only the tiles its sources reach.
  */
 export class InfluenceField {
   private readonly systems = new Map<number, TerritorySystem>();
@@ -119,8 +146,10 @@ export class InfluenceField {
   private readonly points = new Map<number, Source>();
   private readonly lanes = new Map<string, Source>();
   private readonly tiles = new Map<number, Tile>();
-  /** The tiles holding segments of each owner code. */
-  private readonly outlined = new Map<number, Set<number>>();
+  /** Per contour, the tiles holding segments of each owner code. */
+  private readonly outlined = [new Map<number, Set<number>>(), new Map<number, Set<number>>()];
+  /** Per contour, the band width it runs at in world units: 0 for the outline. */
+  private readonly levels = [0, 0];
   private readonly codes = new Map<number, number>();
   private readonly ownerOf: number[] = [NaN, NaN];
   private drawnCodes = new Uint8Array(64);
@@ -129,6 +158,11 @@ export class InfluenceField {
   private readonly none: number;
   /** How far a block's centre must be from a border for the block to be skipped. */
   private readonly margin: number;
+  /** The same inside its owner's territory, where the deepest band and the rounding count too. */
+  private readonly deepMargin: number;
+  /** How steeply φ can fall at most, and how steeply it falls round a lone owned system, per world unit. */
+  private readonly steepest: number;
+  private readonly lone: number;
   private readonly ownedRadius: number;
   private readonly ownedLane: number;
   private readonly ownerlessRadius: number;
@@ -139,16 +173,27 @@ export class InfluenceField {
   private readonly acc = new Float64Array(BLOCK * BLOCK);
   private readonly outBest = new Float32Array(BLOCK * BLOCK);
   private readonly outSecond = new Float32Array(BLOCK * BLOCK);
+  private readonly outThird = new Float32Array(BLOCK * BLOCK);
   private readonly outOwner = new Uint16Array(BLOCK * BLOCK);
+  private readonly outRunner = new Uint16Array(BLOCK * BLOCK);
   private readonly padBest = new Float32Array(PAD * PAD);
   private readonly padSecond = new Float32Array(PAD * PAD);
+  private readonly padThird = new Float32Array(PAD * PAD);
   private readonly padOwner = new Uint16Array(PAD * PAD);
+  private readonly padRunner = new Uint16Array(PAD * PAD);
+  /** Arrays for a march to remember each owner's contour value per texel in. */
+  private readonly spare: Float32Array[] = [];
 
-  /** With `drawn`, only those owners are outlined; without, every country is. */
+  /**
+   * With `drawn`, only those owners are outlined; without, every country is. `band` is the
+   * band's width in world units where the field falls as steeply as round a lone system.
+   */
   constructor(
     params: TerritoryParams,
     private readonly drawn: ReadonlySet<number> | null = null,
+    band = 0,
   ) {
+    this.levels[BAND] = Math.max(band, 0);
     this.ownedRadius = params.radius;
     this.ownedLane = 2 * params.laneHalfWidth;
     this.ownerlessRadius = params.ownerlessRadius ?? VANILLA_OWNERLESS_RADIUS;
@@ -166,6 +211,9 @@ export class InfluenceField {
     );
     // φ is the difference of two smooth minima, each changing by at most 1/unit per world unit.
     this.margin = ((2 * BLOCK_REACH * TEXEL) / Math.max(unit, 1e-6)) * 1.001 + 0.01;
+    this.deepMargin = this.margin + MAX_BAND_DEPTH + CORNER_RISE;
+    this.steepest = 2 / Math.max(unit, 1e-6);
+    this.lone = 1 / Math.max(this.ownedRadius, 1e-6);
   }
 
   reset(systems: Iterable<TerritorySystem>): void {
@@ -173,10 +221,27 @@ export class InfluenceField {
     const dirty = new Set<number>();
     for (const s of this.systems.values()) this.addSources(s, dirty);
     for (const key of dirty) this.raster(this.tiles.get(key) as Tile);
-    for (const key of dirty) this.trace(key);
+    for (const key of dirty) {
+      this.trace(key, OUTLINE);
+      this.trace(key, BAND);
+    }
   }
 
-  /** Applies moved, re-owned, re-laned and new systems and removed ones; the drawn owners whose outline changed. */
+  /** Re-contours the band's inner edge for a band `width` world units wide; the drawn owners whose band changed. */
+  setBand(width: number): Set<number> {
+    const out = new Set<number>();
+    const clamped = Math.max(width, 0);
+    if (clamped === this.levels[BAND]) return out;
+    this.levels[BAND] = clamped;
+    for (const key of this.tiles.keys()) {
+      for (const code of this.trace(key, BAND)) {
+        if (this.drawnCodes[code]) out.add(this.ownerOf[code]);
+      }
+    }
+    return out;
+  }
+
+  /** Applies moved, re-owned, re-laned and new systems and removed ones; the drawn owners whose outline or band changed. */
   update(changed: readonly TerritorySystem[], removed: readonly number[]): Set<number> {
     const dirty = new Set<number>();
     const touched = [...changed.map((s) => s.id), ...removed];
@@ -195,7 +260,10 @@ export class InfluenceField {
       }
     }
     const codes = new Set<number>();
-    for (const key of traced) for (const code of this.trace(key)) codes.add(code);
+    for (const key of traced) {
+      for (const code of this.trace(key, OUTLINE)) codes.add(code);
+      for (const code of this.trace(key, BAND)) codes.add(code);
+    }
     const out = new Set<number>();
     for (const code of codes) if (this.drawnCodes[code]) out.add(this.ownerOf[code]);
     return out;
@@ -204,7 +272,7 @@ export class InfluenceField {
   /** Every drawn owner with an outline. */
   drawnOwners(): number[] {
     const out: number[] = [];
-    for (const [code, keys] of this.outlined) {
+    for (const [code, keys] of this.outlined[OUTLINE]) {
       if (keys.size > 0 && this.drawnCodes[code]) out.push(this.ownerOf[code]);
     }
     return out;
@@ -212,13 +280,22 @@ export class InfluenceField {
 
   /** The owner's territory, its rings stitched from every tile's segments. */
   region(owner: number): Region {
+    return this.contoured(owner, OUTLINE);
+  }
+
+  /** The part of the owner's territory inside its band. */
+  inner(owner: number): Region {
+    return this.contoured(owner, BAND);
+  }
+
+  private contoured(owner: number, contour: number): Region {
     const code = this.codes.get(owner);
-    const keys = code === undefined ? undefined : this.outlined.get(code);
+    const keys = code === undefined ? undefined : this.outlined[contour].get(code);
     if (code === undefined || !keys || keys.size === 0) return [];
     const parts: number[][] = [];
     let count = 0;
     for (const key of keys) {
-      const part = (this.tiles.get(key) as Tile).segments.get(code) as number[];
+      const part = (this.tiles.get(key) as Tile).segments[contour].get(code) as number[];
       parts.push(part);
       count += part.length / 4;
     }
@@ -422,33 +499,53 @@ export class InfluenceField {
         const first = (bj * BLOCK * TILE + bi * BLOCK) | 0;
         this.measure(near, cx, cy, 1);
         if (this.clear(this.outBest[0], this.outOwner[0], this.outSecond[0])) {
-          fillBlock(tile, first, this.outBest[0], this.outOwner[0], this.outSecond[0]);
+          this.fillBlock(tile, first);
           continue;
         }
         this.measure(near, x0, y0, BLOCK);
         for (let j = 0; j < BLOCK; j++) {
           const row = first + j * TILE;
-          tile.best.set(this.outBest.subarray(j * BLOCK, j * BLOCK + BLOCK), row);
-          tile.second.set(this.outSecond.subarray(j * BLOCK, j * BLOCK + BLOCK), row);
-          tile.owner.set(this.outOwner.subarray(j * BLOCK, j * BLOCK + BLOCK), row);
+          const from = j * BLOCK;
+          tile.best.set(this.outBest.subarray(from, from + BLOCK), row);
+          tile.second.set(this.outSecond.subarray(from, from + BLOCK), row);
+          tile.third.set(this.outThird.subarray(from, from + BLOCK), row);
+          tile.owner.set(this.outOwner.subarray(from, from + BLOCK), row);
+          tile.runner.set(this.outRunner.subarray(from, from + BLOCK), row);
         }
       }
     }
   }
 
-  /** Whether no border can pass within `BLOCK_REACH` of a point with these values. */
+  /** Whether no outline or band edge can pass within `BLOCK_REACH` of a point with these values. */
   private clear(best: number, owner: number, second: number): boolean {
-    if (this.drawnCodes[owner]) return second - best > this.margin && EDGE - best > this.margin;
+    if (best - EDGE > this.margin) return true;
+    if (this.drawnCodes[owner]) {
+      return second - best > this.deepMargin && EDGE - best > this.deepMargin;
+    }
     return Math.max(second - best, second - EDGE) > this.margin;
   }
 
-  /** The best and second-best influence over an n×n grid of texels from (x0, y0), into the `out` arrays. */
+  /** Fills the block from `first` with the values measured at its centre. */
+  private fillBlock(tile: Tile, first: number): void {
+    for (let j = 0; j < BLOCK; j++) {
+      const row = first + j * TILE;
+      tile.best.fill(this.outBest[0], row, row + BLOCK);
+      tile.second.fill(this.outSecond[0], row, row + BLOCK);
+      tile.third.fill(this.outThird[0], row, row + BLOCK);
+      tile.owner.fill(this.outOwner[0], row, row + BLOCK);
+      tile.runner.fill(this.outRunner[0], row, row + BLOCK);
+    }
+  }
+
+  /** The three best influences over an n×n grid of texels from (x0, y0), into the `out` arrays. */
   private measure(list: Source[], x0: number, y0: number, n: number): void {
-    const { acc, table, outBest, outSecond, outOwner } = this;
+    const { acc, table, outBest, outSecond, outThird, outOwner, outRunner } = this;
     const cells = n * n;
     outBest.fill(this.none, 0, cells);
     outSecond.fill(this.none, 0, cells);
+    outThird.fill(this.none, 0, cells);
     outOwner.fill(NO_ONE, 0, cells);
+    outRunner.fill(NO_ONE, 0, cells);
     let g = 0;
     while (g < list.length) {
       const code = list[g].code;
@@ -476,54 +573,106 @@ export class InfluenceField {
         if (a <= 0) continue;
         const v = -SOFTNESS * Math.log(a);
         if (v < outBest[q]) {
+          outThird[q] = outSecond[q];
           outSecond[q] = outBest[q];
+          outRunner[q] = outOwner[q];
           outBest[q] = v;
           outOwner[q] = code;
         } else if (v < outSecond[q]) {
+          outThird[q] = outSecond[q];
           outSecond[q] = v;
+          outRunner[q] = code;
+        } else if (v < outThird[q]) {
+          outThird[q] = v;
         }
       }
     }
   }
 
-  /** Re-traces the tile's cells; the owner codes whose segments there changed. */
-  private trace(key: number): number[] {
+  /** Re-traces the tile's cells on one contour; the owner codes whose segments there changed. */
+  private trace(key: number, contour: number): number[] {
     const tile = this.tiles.get(key) as Tile;
-    const segments = this.march(tile, key);
+    const segments =
+      contour === BAND && this.levels[BAND] === 0
+        ? new Map<number, number[]>()
+        : this.march(tile, key, this.levels[contour]);
+    const outlined = this.outlined[contour];
+    const before = tile.segments[contour];
     const changed: number[] = [];
-    for (const [code, old] of tile.segments) {
+    for (const [code, old] of before) {
       if (!sameNumbers(old, segments.get(code))) changed.push(code);
-      if (!segments.has(code)) this.outlined.get(code)?.delete(key);
+      if (!segments.has(code)) outlined.get(code)?.delete(key);
     }
     for (const [code] of segments) {
-      if (!tile.segments.has(code)) changed.push(code);
-      let set = this.outlined.get(code);
-      if (!set) this.outlined.set(code, (set = new Set()));
+      if (!before.has(code)) changed.push(code);
+      let set = outlined.get(code);
+      if (!set) outlined.set(code, (set = new Set()));
       set.add(key);
     }
-    tile.segments = segments;
+    tile.segments[contour] = segments;
     return changed;
   }
 
-  /** Marching squares over the cells whose top-left texel is in the tile, for each drawn owner. */
-  private march(tile: Tile, key: number): Map<number, number[]> {
+  /**
+   * Marching squares over the cells whose top-left texel is in the tile, for each drawn owner,
+   * on the outline, or with a band `width` on the band's inner edge.
+   */
+  private march(tile: Tile, key: number, width: number): Map<number, number[]> {
     const best = this.padBest;
     const second = this.padSecond;
+    const third = this.padThird;
     const owner = this.padOwner;
+    const runner = this.padRunner;
     this.pad(tile, key);
     const drawn = this.drawnCodes;
     const out = new Map<number, number[]>();
     const gi0 = tile.ti * TILE;
     const gj0 = tile.tj * TILE;
-    const phi = (q: number, c: number): number =>
-      owner[q] === c
-        ? Math.max(best[q] - second[q], best[q] - EDGE)
-        : Math.max(second[q] - best[q], second[q] - EDGE);
+    const lone = this.lone;
+    const depth = Math.min(width * this.steepest, MAX_BAND_DEPTH);
+    const inside = EDGE - depth - CORNER_RISE;
+    const apart = depth + CORNER_RISE;
+    const phi = (q: number, c: number): number => {
+      let d: number;
+      let other: number;
+      if (owner[q] === c) {
+        d = best[q];
+        other = smoothMin(second[q], third[q]);
+      } else if (runner[q] === c) {
+        d = second[q];
+        other = smoothMin(best[q], third[q]);
+      } else {
+        d = third[q];
+        other = smoothMin(best[q], second[q]);
+      }
+      return smoothMax(d - other, d - EDGE);
+    };
+    const contour = (q: number, c: number): number => {
+      const v = phi(q, c);
+      if (width === 0) return v;
+      const dx = phi(q + 1, c) - v;
+      const dy = phi(q + PAD, c) - v;
+      const slope = Math.sqrt(dx * dx + dy * dy) / TEXEL;
+      return v + Math.min(width * Math.max(slope, lone), MAX_BAND_DEPTH);
+    };
+    const memo = new Map<number, Float32Array>();
+    const known = (q: number, c: number): number => {
+      let values = memo.get(c);
+      if (!values) {
+        values = this.spare.pop() ?? new Float32Array(PAD * PAD);
+        values.fill(NaN);
+        memo.set(c, values);
+      }
+      let v = values[q];
+      if (Number.isNaN(v)) values[q] = v = contour(q, c);
+      return v;
+    };
+    const deep = (q: number): boolean => best[q] < inside && second[q] - best[q] > apart;
     const cell = (c: number, i: number, j: number, q: number): void => {
-      const v0 = phi(q, c);
-      const v1 = phi(q + 1, c);
-      const v2 = phi(q + PAD + 1, c);
-      const v3 = phi(q + PAD, c);
+      const v0 = known(q, c);
+      const v1 = known(q + 1, c);
+      const v2 = known(q + PAD + 1, c);
+      const v3 = known(q + PAD, c);
       const index = (v0 < 0 ? 1 : 0) | (v1 < 0 ? 2 : 0) | (v2 < 0 ? 4 : 0) | (v3 < 0 ? 8 : 0);
       if (index === 0 || index === 15) return;
       let cases = CASES[index];
@@ -553,14 +702,7 @@ export class InfluenceField {
         const d = owner[q + PAD];
         if (a === b && a === c && a === d) {
           if (!drawn[a]) continue;
-          if (
-            best[q] < EDGE &&
-            best[q + 1] < EDGE &&
-            best[q + PAD] < EDGE &&
-            best[q + PAD + 1] < EDGE
-          ) {
-            continue;
-          }
+          if (deep(q) && deep(q + 1) && deep(q + PAD) && deep(q + PAD + 1)) continue;
           cell(a, i, j, q);
           continue;
         }
@@ -570,37 +712,53 @@ export class InfluenceField {
         if (drawn[d] && d !== a && d !== b && d !== c) cell(d, i, j, q);
       }
     }
+    for (const values of memo.values()) this.spare.push(values);
     return out;
   }
 
-  /** Copies the tile and the first column, row and texel of its neighbours right and below into the pad. */
+  /** Copies the tile and the first two columns and rows of its neighbours right and below into the pad. */
   private pad(tile: Tile, key: number): void {
-    const { padBest, padSecond, padOwner } = this;
-    for (let j = 0; j < TILE; j++) {
-      padBest.set(tile.best.subarray(j * TILE, j * TILE + TILE), j * PAD);
-      padSecond.set(tile.second.subarray(j * TILE, j * TILE + TILE), j * PAD);
-      padOwner.set(tile.owner.subarray(j * TILE, j * TILE + TILE), j * PAD);
-    }
+    const layers: [Float32Array | Uint16Array, keyof Layers, number][] = [
+      [this.padBest, "best", this.none],
+      [this.padSecond, "second", this.none],
+      [this.padThird, "third", this.none],
+      [this.padOwner, "owner", NO_ONE],
+      [this.padRunner, "runner", NO_ONE],
+    ];
     const right = this.tiles.get(key + 1);
-    for (let j = 0; j < TILE; j++) {
-      const q = j * PAD + TILE;
-      padBest[q] = right ? right.best[j * TILE] : this.none;
-      padSecond[q] = right ? right.second[j * TILE] : this.none;
-      padOwner[q] = right ? right.owner[j * TILE] : NO_ONE;
-    }
     const below = this.tiles.get(key + TILE_SPAN);
-    for (let i = 0; i < TILE; i++) {
-      const q = TILE * PAD + i;
-      padBest[q] = below ? below.best[i] : this.none;
-      padSecond[q] = below ? below.second[i] : this.none;
-      padOwner[q] = below ? below.owner[i] : NO_ONE;
-    }
     const corner = this.tiles.get(key + TILE_SPAN + 1);
-    const q = PAD * PAD - 1;
-    padBest[q] = corner ? corner.best[0] : this.none;
-    padSecond[q] = corner ? corner.second[0] : this.none;
-    padOwner[q] = corner ? corner.owner[0] : NO_ONE;
+    for (const [pad, name, empty] of layers) {
+      const own = tile[name];
+      for (let j = 0; j < TILE; j++) {
+        pad.set(own.subarray(j * TILE, j * TILE + TILE), j * PAD);
+        for (let i = TILE; i < PAD; i++) {
+          pad[j * PAD + i] = right ? right[name][j * TILE + i - TILE] : empty;
+        }
+      }
+      for (let j = TILE; j < PAD; j++) {
+        const row = (j - TILE) * TILE;
+        for (let i = 0; i < TILE; i++) pad[j * PAD + i] = below ? below[name][row + i] : empty;
+        for (let i = TILE; i < PAD; i++) {
+          pad[j * PAD + i] = corner ? corner[name][row + i - TILE] : empty;
+        }
+      }
+    }
   }
+}
+
+type Layers = Pick<Tile, "best" | "second" | "third" | "owner" | "runner">;
+
+/** The max of a and b, rounded off where they are within `CORNER_BLEND` of each other. */
+function smoothMax(a: number, b: number): number {
+  const h = CORNER_BLEND - Math.abs(a - b);
+  return h > 0 ? Math.max(a, b) + (h * h) / (4 * CORNER_BLEND) : Math.max(a, b);
+}
+
+/** The min of a and b, rounded off likewise. */
+function smoothMin(a: number, b: number): number {
+  const h = CORNER_BLEND - Math.abs(a - b);
+  return h > 0 ? Math.min(a, b) - (h * h) / (4 * CORNER_BLEND) : Math.min(a, b);
 }
 
 /**
@@ -685,17 +843,10 @@ function newTile(ti: number, tj: number): Tile {
     best: new Float32Array(TILE * TILE),
     owner: new Uint16Array(TILE * TILE),
     second: new Float32Array(TILE * TILE),
-    segments: new Map(),
+    runner: new Uint16Array(TILE * TILE),
+    third: new Float32Array(TILE * TILE),
+    segments: [new Map(), new Map()],
   };
-}
-
-function fillBlock(tile: Tile, first: number, best: number, owner: number, second: number): void {
-  for (let j = 0; j < BLOCK; j++) {
-    const row = first + j * TILE;
-    tile.best.fill(best, row, row + BLOCK);
-    tile.owner.fill(owner, row, row + BLOCK);
-    tile.second.fill(second, row, row + BLOCK);
-  }
 }
 
 /** By owner, then by place, so a tile sums its sources in the same order however it got them. */
@@ -835,10 +986,26 @@ function thin(chain: number[], xs: number[], ys: number[], keep: Uint8Array): vo
  * anticlockwise and holes clockwise, as the map expects.
  */
 function nested(rings: Pt[][]): Region {
+  for (const ring of rings) ring.reverse();
+  return grouped(rings);
+}
+
+/**
+ * The territory less its inner part: the band, as polygons with holes. The inner region's
+ * rings are turned round, so its outer rings become the band's holes and its holes, which
+ * hold the territory's own, become outer rings of the band.
+ */
+export function bandOf(territory: Region, inner: Region): Region {
+  const rings = territory.flat();
+  for (const ring of inner.flat()) rings.push([...ring].reverse());
+  return grouped(rings);
+}
+
+/** Anticlockwise rings as outer rings, each clockwise one a hole in the smallest that holds it. */
+function grouped(rings: Pt[][]): Region {
   const outers: { ring: Pt[]; area: number; box: number[] }[] = [];
   const holes: Pt[][] = [];
   for (const ring of rings) {
-    ring.reverse();
     const area = ringArea(ring);
     if (area < 0) outers.push({ ring, area: -area, box: boxOf(ring) });
     else holes.push(ring);

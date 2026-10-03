@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { placedNode } from "../../test/builders";
 import type { Pt } from "./pt";
-import { countryRegions, type Region } from "./territory";
+import { bandOf, countryRegions, InfluenceField, type Region } from "./territory";
 
 const PARAMS = { radius: 35, laneHalfWidth: 10 };
 
@@ -113,5 +113,28 @@ describe("countryRegions", () => {
     expect(countryRegions([system(1, 0, 0, null)], PARAMS).size).toBe(0);
     const same = countryRegions([system(1, 5, 5, 10, [2]), system(2, 5, 5, 10, [1])], PARAMS);
     expect(same.get(10)).toHaveLength(1);
+  });
+
+  it("rounds the corner where two countries and an unowned system meet", () => {
+    const nodes = [system(1, 0, 0, 10), system(2, 44, 0, 20), system(3, 22, 36, null)];
+    const ring = countryRegions(nodes, PARAMS).get(10)![0][0];
+    const corner = ring.reduce((a, b) => (Math.abs(b.x - 22) < 2 && b.y > a.y ? b : a), {
+      x: 0,
+      y: -Infinity,
+    });
+    const near = ring.filter((p) => Math.hypot(p.x - corner.x, p.y - corner.y) < 4);
+    expect(near.length).toBeGreaterThan(4);
+    expect(corner.x).toBeLessThan(21.5);
+  });
+
+  it("joins two lobes' bands across the neck between them", () => {
+    const field = new InfluenceField(PARAMS, null, 5);
+    field.reset([system(1, 0, 0, 10), system(2, 58, 0, 10)]);
+    const band = bandOf(field.region(10), field.inner(10));
+    expect(band).toHaveLength(1);
+    expect(band[0]).toHaveLength(3);
+    expect(inRegion({ x: 29, y: 0 }, band)).toBe(true);
+    expect(inRegion({ x: 0, y: 0 }, band)).toBe(false);
+    expect(inRegion({ x: 58, y: 0 }, band)).toBe(false);
   });
 });
