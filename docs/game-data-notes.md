@@ -313,11 +313,35 @@ less.
 - `BORDER_SYSTEM_RADIUS = 35` and `BORDER_HYPERLANE_THICKNESS = 20` are
   in `common/defines/00_defines.txt`.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
-  empire colour. The map fills a territory with the country's second
-  flag colour and outlines it with the first. An empire with
-  `flag.use_map_color=yes` (4.5) is painted in its fifth and sixth
-  `colors` entries instead, the map border and fill
+  empire colour, and the map uses the `map` rgb. The map outlines a
+  territory in the country's first flag colour. It fills it with the
+  second or the third, whichever has the `map` rgb further from the
+  first's. The comment above `randomizable_combo` in the same file says
+  the fill is "the most visually distinct secondary swatch relative to
+  slot0". Side by side with the game on a 4.5.1 save, straight-line
+  distance in rgb picks the fill of all ten empires on screen that
+  have no map colours of their own.
+  Chimm Enterprises (`black` `red_orange` `orange`) fills in `orange`.
+  Qix'Lufran Combine (`turquoise` `dark_brown` `black`) fills in
+  `black`. The Chosen (`burgundy` `purple` `black`) fills in `purple`.
+  Comparing brightness instead gets the Sirgogg and Nagyarian fills
+  wrong, and comparing the `flag` rgb gets the Vissanan fill wrong.
+- An empire with `flag.use_map_color=yes` (4.5) is painted in its
+  fifth and sixth `colors` entries instead, the map border and fill
   ([format-notes.md](format-notes.md)).
+- From screenshots of a 4.5.1 save, each territory has, from the
+  inside out, a see-through fill that brightens towards its edge, a
+  line about 2 px wide of the fill colour, and a solid band in the
+  border colour. The band lies inside the territory, so two
+  neighbours' bands sit side by side. The band stays 16 to 19 px wide
+  on screen while a one-system pocket grows from 90 to 840 px, so it
+  gets thinner against the map zooming in and thicker zooming out.
+- `gfx/FX/border.shader` draws all of this from a distance field of the
+  borders. Its band is `0.025 + 0.35 * f` wide in field units, with `f`
+  the camera distance over 1600, capped at 1. So the band widens in
+  world units as the camera rises and stops widening at 1600. The
+  shader also darkens the outer quarter of the band by up to a quarter,
+  more so the further out the camera is.
 
 ## Empire names on the map
 

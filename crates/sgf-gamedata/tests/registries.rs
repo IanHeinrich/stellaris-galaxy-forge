@@ -73,6 +73,17 @@ fn colors_read_rgb_and_hsv() {
     assert_eq!(teal.ship, [71, 179, 179]);
 }
 
+/// The map paints territories in each swatch's `map` rgb, which differs from its `flag` rgb.
+#[test]
+fn the_install_gives_a_colour_a_map_rgb_of_its_own() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let orange = gd.colors.entries.get("orange").expect("orange");
+    assert_eq!(orange.flag, [215, 100, 35]);
+    assert_eq!(orange.map, [237, 118, 25]);
+}
+
 /// The first `flag` (or any other duplicated colour key) wins, as `Def::scalar` reads every
 /// other field of the same definition.
 #[test]
