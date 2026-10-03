@@ -1,5 +1,4 @@
 import polygonClipping, { type Geom, type MultiPolygon, type Pair } from "polygon-clipping";
-import polylabel from "polylabel";
 import type { Pt } from "./pt";
 
 /** Multipolygon: polygons → rings (outer only, holes dropped) → unclosed points. */
@@ -23,19 +22,6 @@ export interface TerritoryParams {
   segments?: number;
 }
 
-export interface LabelAnchor {
-  x: number;
-  y: number;
-  /** Distance from the anchor to the nearest edge of its polygon. */
-  inradius: number;
-  /** Square root of the polygon's area: its extent regardless of shape. */
-  extent: number;
-  /** Bounding-box width of the polygon, in world units. */
-  width: number;
-  /** Bounding-box height of the polygon, in world units. */
-  height: number;
-}
-
 /** A lane both ends of which share an owner; `key` is its end ids as `min-max`. */
 export interface Lane {
   key: string;
@@ -56,7 +42,6 @@ export interface Piece {
 export type Pieces = Map<string, Piece>;
 
 const DEFAULT_SEGMENTS = 16;
-const LABEL_PRECISION = 1;
 const EPS2 = 1e-12;
 const CELL_OFFSET = 1 << 15;
 /** Rings smaller than this, in world units², are slivers of the union and are dropped. */
@@ -290,48 +275,6 @@ function resampleRing(ring: Pt[], step: number): Pt[] {
 /** Each ring relaxed, then Chaikin-rounded `iterations` times. */
 export function smoothRegion(region: Region, iterations = DEFAULT_SMOOTHING): Region {
   return region.map((polygon) => polygon.map((ring) => smoothRing(relaxRing(ring), iterations)));
-}
-
-/** The pole of inaccessibility of the region's largest polygon, or null for an empty region. */
-export function regionLabelAnchor(region: Region): LabelAnchor | null {
-  let best: Pt[][] | null = null;
-  let bestArea = -1;
-  for (const polygon of region) {
-    if (polygon.length === 0 || polygon[0].length < 3) continue;
-    const area = Math.abs(ringArea(polygon[0]));
-    if (area > bestArea) {
-      bestArea = area;
-      best = polygon;
-    }
-  }
-  if (best === null) return null;
-  const pole = polylabel(
-    best.map((ring) => ring.map((p): Pair => [p.x, p.y])),
-    LABEL_PRECISION,
-  );
-  const box = bounds(best[0]);
-  return {
-    x: pole[0],
-    y: pole[1],
-    inradius: pole.distance,
-    extent: Math.sqrt(bestArea),
-    width: box.maxX - box.minX,
-    height: box.maxY - box.minY,
-  };
-}
-
-function bounds(points: Pt[]): { minX: number; minY: number; maxX: number; maxY: number } {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const p of points) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  }
-  return { minX, minY, maxX, maxY };
 }
 
 /**

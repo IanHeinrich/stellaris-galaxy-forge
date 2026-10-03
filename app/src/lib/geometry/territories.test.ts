@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { Territories, type Shape } from "./territories";
-import { countryRegions, regionLabelAnchor, ringArea, smoothRegion } from "./territory";
+import { scanRing } from "./labelFit";
+import { countryRegions, ringArea, smoothRegion } from "./territory";
 import { buildGalaxy } from "./territory.fixture";
 
 const PARAMS = { radius: 35, laneHalfWidth: 10 };
@@ -19,7 +20,8 @@ function galaxy(): SystemNode[] {
 function direct(systems: SystemNode[], bordered = BORDERED): Map<number, Shape> {
   const shapes = new Map<number, Shape>();
   for (const [id, region] of countryRegions(systems, PARAMS, new Set(bordered))) {
-    shapes.set(id, { smoothed: smoothRegion(region), anchor: regionLabelAnchor(region) });
+    const smoothed = smoothRegion(region);
+    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanRing(polygon[0])) });
   }
   return shapes;
 }
@@ -44,16 +46,15 @@ function expectSameShape(got: Shape, want: Shape): void {
     for (let k = 0; k < w.length; k++) farthest = Math.max(farthest, Math.sqrt(dist2(g[k], w[k])));
     expect(farthest).toBeLessThan(VERTEX_TOLERANCE);
   }
-  expect(got.anchor === null).toBe(want.anchor === null);
-  if (got.anchor && want.anchor) {
-    for (const k of ["x", "y", "inradius", "extent", "width", "height"] as const) {
-      expect(Math.abs(got.anchor[k] - want.anchor[k])).toBeLessThan(VERTEX_TOLERANCE);
-    }
+  expect(got.scans).toHaveLength(want.scans.length);
+  for (let i = 0; i < want.scans.length; i++) {
+    expect(Math.abs(got.scans[i].y0 - want.scans[i].y0)).toBeLessThan(VERTEX_TOLERANCE);
+    expect(got.scans[i].rows.map((r) => r.length)).toEqual(want.scans[i].rows.map((r) => r.length));
   }
 }
 
 describe("Territories", () => {
-  it("resets to every bordered country's smoothed region and anchor", () => {
+  it("resets to every bordered country's smoothed region and its pieces' scans", () => {
     const shapes = new Territories().reset(galaxy(), PARAMS, BORDERED);
     expect([...shapes.keys()].sort()).toEqual([10, 20, 30]);
     expect(shapes).toEqual(direct(galaxy()));

@@ -49,6 +49,7 @@ export const VANILLA_BORDER: BorderDefines = {
   system_radius: 35,
   hyperlane_thickness: 20,
   moon_scale: VANILLA_MOON_SCALE,
+  name_min_width: 100,
 };
 
 /**

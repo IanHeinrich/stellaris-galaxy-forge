@@ -1,10 +1,10 @@
 import { describe, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
+import { scanRing } from "./labelFit";
 import { Territories } from "./territories";
 import {
   affectedCountries,
   countryRegions,
-  regionLabelAnchor,
   smoothRegion,
   type Region,
   type TerritoryParams,
@@ -50,7 +50,7 @@ function runBench(
 }
 
 describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () => {
-  it("times countryRegions, affectedCountries, Territories, smoothRegion and regionLabelAnchor", () => {
+  it("times countryRegions, affectedCountries, Territories, smoothRegion and scanRing", () => {
     const { systems, laneCount, sizes } = buildGalaxy();
     const largestCountry = sizes[0].country;
     const largestOnly = new Set([largestCountry]);
@@ -74,6 +74,7 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
 
     const allRegions = countryRegions(systems, PARAMS);
     const regionList: Region[] = [...allRegions.values()];
+    const smoothedList: Region[] = regionList.map((region) => smoothRegion(region));
 
     const model = new Territories();
 
@@ -122,9 +123,9 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
         BENCH_OPTIONS,
       ),
       runBench(
-        "regionLabelAnchor over every region",
+        "scanRing over every piece of every smoothed region",
         () => {
-          for (const region of regionList) regionLabelAnchor(region);
+          for (const region of smoothedList) for (const polygon of region) scanRing(polygon[0]);
         },
         BENCH_OPTIONS,
       ),

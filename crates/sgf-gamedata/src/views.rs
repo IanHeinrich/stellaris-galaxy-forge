@@ -688,6 +688,8 @@ pub struct BorderDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
     pub moon_scale: f64,
+    /// The narrowest an empire's name is written on the map, in world units.
+    pub name_min_width: f64,
 }
 
 impl From<&BorderDefinesData> for BorderDefines {
@@ -696,6 +698,7 @@ impl From<&BorderDefinesData> for BorderDefines {
             system_radius: b.system_radius,
             hyperlane_thickness: b.hyperlane_thickness,
             moon_scale: b.moon_scale,
+            name_min_width: b.name_min_width,
         }
     }
 }

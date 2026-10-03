@@ -1,15 +1,14 @@
 import type { Geom, MultiPolygon } from "polygon-clipping";
+import { scanRing, type PieceScan } from "./labelFit";
 import type { Pt } from "./pt";
 import {
   affectedCountries,
   countryPieces,
   polygonsOf,
-  regionLabelAnchor,
   regionOf,
   smoothRegion,
   SystemIndex,
   unionOf,
-  type LabelAnchor,
   type Piece,
   type Region,
   type TerritoryParams,
@@ -19,10 +18,10 @@ import {
 /** Side of the tiles a country's pieces are unioned in, in disc radii. */
 const TILE_RADII = 4;
 
-/** What the map draws of one country: its rounded outline and where its badge sits. */
+/** What the map draws of one country: its rounded outline, and each piece of it scanned for its label. */
 export interface Shape {
   smoothed: Region;
-  anchor: LabelAnchor | null;
+  scans: PieceScan[];
 }
 
 export type Request =
@@ -207,7 +206,8 @@ class TiledPieces {
 function shapesOf(regions: ReadonlyMap<number, Region>): Map<number, Shape> {
   const shapes = new Map<number, Shape>();
   for (const [id, region] of regions) {
-    shapes.set(id, { smoothed: smoothRegion(region), anchor: regionLabelAnchor(region) });
+    const smoothed = smoothRegion(region);
+    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanRing(polygon[0])) });
   }
   return shapes;
 }

@@ -13,6 +13,7 @@ pub mod deposit_choices;
 pub mod deposit_roll;
 pub mod details;
 pub mod dig_site_choices;
+pub mod fonts;
 pub mod generate;
 pub mod initializers;
 pub mod install;

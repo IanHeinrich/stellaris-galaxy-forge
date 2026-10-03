@@ -1,5 +1,5 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
-//! borders and moons, and the `NGameplay` ones that set how many deposits a new body rolls
+//! borders, their names and moons, and the `NGameplay` ones that set how many deposits a new body rolls
 //! and how far out a system's inner and outer radii lie.
 
 use sgf_core::cst::Node;
@@ -14,6 +14,9 @@ pub struct BorderDefines {
     /// `NGraphics.MOON_SCALE`: how much smaller the map draws a moon than a planet of the same
     /// `planet_size`.
     pub moon_scale: f64,
+    /// `NGraphics.MAPNAME_BORDER_MIN_SIZE`: the narrowest an empire's name is written on the
+    /// map, in world units, however small its territory.
+    pub name_min_width: f64,
 }
 
 impl Default for BorderDefines {
@@ -22,6 +25,7 @@ impl Default for BorderDefines {
             system_radius: 35.0,
             hyperlane_thickness: 20.0,
             moon_scale: 0.7,
+            name_min_width: 100.0,
         }
     }
 }
@@ -40,6 +44,9 @@ impl BorderDefines {
                 }
                 if let Some(scale) = field(graphics, "MOON_SCALE", src) {
                     out.moon_scale = scale;
+                }
+                if let Some(width) = field(graphics, "MAPNAME_BORDER_MIN_SIZE", src) {
+                    out.name_min_width = width;
                 }
             }
         }

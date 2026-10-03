@@ -27,6 +27,7 @@ import type { FlagParts } from "../generated/FlagParts";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
+import { setMapNameFont } from "../lib/visual/mapFont";
 import { clearTextures } from "../lib/visual/textures";
 import { useDetailsStore } from "./detailsStore";
 import { useScriptsStore } from "./scriptsStore";
@@ -287,6 +288,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       });
       watchChanges();
       clearTextures();
+      void refreshMapFont();
       await refetch(claimTail());
     } catch (e) {
       set({ ...unloaded(), status: "error", error: ipc.errorMessage(e) });
@@ -312,6 +314,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       });
       watchChanges();
       clearTextures();
+      void refreshMapFont();
       await refetch(claimTail());
     } catch (e) {
       set({ ...unloaded(), status: "error", error: ipc.errorMessage(e) });
@@ -328,6 +331,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
       set({ ...unloaded(), error: ipc.errorMessage(e) });
     }
     clearTextures();
+    void setMapNameFont(null);
     useDetailsStore.getState().clear();
     useScriptsStore.getState().clear();
     await get().refreshSpecial();
@@ -389,6 +393,12 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
 
 /** The one subscription to the watcher's events, held while game data is loaded. */
 let changes: Promise<() => void> | null = null;
+
+/** The game's map font for empire names, or the fallback when the install gives none. */
+async function refreshMapFont(): Promise<void> {
+  const font = await ipc.getMapFont().catch(() => null);
+  await setMapNameFont(font);
+}
 
 function watchChanges(): void {
   changes ??= onGameDataChanged((changed) => void gameDataChanged(changed)).catch((e: unknown) => {

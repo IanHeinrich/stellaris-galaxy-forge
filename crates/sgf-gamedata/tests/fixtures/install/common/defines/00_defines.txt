@@ -2,4 +2,5 @@ NGraphics = {
 	BORDER_SYSTEM_RADIUS = 40.0 # fixture value, not the game's default
 	BORDER_HYPERLANE_THICKNESS = 15.0
 	MOON_SCALE = 0.65
+	MAPNAME_BORDER_MIN_SIZE = 80 # narrowest name
 }

@@ -319,6 +319,50 @@ less.
   `colors` entries instead, the map border and fill
   ([format-notes.md](format-notes.md)).
 
+## Empire names on the map
+
+- The map writes empire, sector and nebula names in the bitmap fonts
+  `map_name_border`, `map_name_sector` and `map_name_nebula`, defined in
+  `interface/fonts.gfx`. All three use `path = "gfx/fonts/orbitron"`
+  with `color = 0xffffffff`. Russian and Polish switch to `cg_34`, and
+  Chinese, Japanese and Korean to TrueType header fonts.
+- `gfx/fonts/orbitron.fnt` is a BMFont text file over `orbitron.tga`, a
+  512x512 RGBA atlas rendered at 36 px. Its `info` line says
+  `face="Orbitron"`. `fonts/fonts.asset` maps the face `Orbitron` to
+  `gfx/fonts/Orbitron-Regular.ttf`, so the same face ships as TrueType.
+  The editor follows that chain (`.gfx`, `.fnt`, `.asset`) through the
+  install and enabled mods, and loads the TrueType file as a web font.
+  Without an install it falls back to a light system face.
+- The atlas has white glyphs with a dark, half-transparent halo baked
+  round them. That halo is the soft glow round a name.
+- `gfx/FX/mapname.shader` draws the names alpha-blended with no tint.
+  Its `IS_NEBULA` guard is commented out, so the `vColor.a *= 0.25`
+  inside it applies to every map name.
+- `NCamera` in `common/defines/00_defines.txt` fades names and flags
+  out as the camera rises: `BORDER_NAMES_FADEOUT_ZOOM = 600`,
+  `BORDER_FLAG_FADEOUT_ZOOM = 600`, each with a `_SPEED` of 4.0.
+  `NEBULA_NAMES_FADEOUT_ZOOM` is 250. The galaxy zoom steps are
+  `{ 100 200 400 600 900 1500 3000 }`.
+- `NGraphics` sizes them: `BORDER_FLAG_SCALE = 0.6`,
+  `MAPNAME_BORDER_SCALE = 1.0`, `MAPNAME_BORDER_MIN_SIZE = 100`,
+  `MAPNAME_BORDER_OFFSET_MUL = 0.75`, `MAPNAME_BORDER_OFFSET_ADD = 4.0`,
+  `MAPNAME_NEBULA_SCALE = 0.8` and `MAPNAME_SECTOR_SCALE = 3`.
+  `BORDER_MIN_SIZE_FOR_SYMBOL = 16` is commented "the border blob must
+  be able to fit a square of x pixels" to show a symbol. The defines
+  don't say what unit `MAPNAME_BORDER_MIN_SIZE` is in. The editor reads
+  it as the narrowest a name is written, in world units: in game
+  screenshots the smallest names, on one-system pockets, are about 100
+  to 120 units wide. Nothing in the defines sets the emblem's colour or
+  alpha.
+- From screenshots of one save in game and in the editor: every
+  separate piece of an empire's territory gets its own emblem and name,
+  however small. A vassal is labelled as its own country. The name runs
+  along the widest band of its piece and stays inside it, except on a
+  piece too small for the narrowest name, where it overflows. The emblem
+  sits centred directly above the name, flat white and partly
+  see-through, about three to four times the name's cap height. Names
+  are in world units, so they grow and shrink with the zoom.
+
 ## System radii
 
 `NGameplay` in `common/defines` sets how far out a system's inner and

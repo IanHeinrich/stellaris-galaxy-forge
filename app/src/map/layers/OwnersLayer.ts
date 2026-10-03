@@ -3,12 +3,8 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SystemNode } from "../../generated/SystemNode";
 import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
-import type {
-  LabelAnchor,
-  Region,
-  TerritoryParams,
-  TerritorySystem,
-} from "../../lib/geometry/territory";
+import { fitLabel, type PieceScan } from "../../lib/geometry/labelFit";
+import type { Region, TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
 import type { Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
@@ -17,6 +13,7 @@ import { labelTier } from "../../lib/visual/labels";
 import type { OwnerColors } from "../../lib/visual/ownerColors";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
 import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
+import { hasGameMapFont, mapNameFamily, onMapNameFont } from "../../lib/visual/mapFont";
 import { MAP_FONT } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
 import type { MapLayer } from "./MapLayer";
@@ -34,14 +31,27 @@ const STROKE_MAX_UNIT = 2;
 /** The stroke width is snapped to steps of √2 so zooming redraws it rarely. */
 const STROKE_STEPS_PER_OCTAVE = 2;
 const LABEL_FONT_PX = 32;
-/** One shared instance: PixiJS keys a stroked dynamic bitmap font by the style object. */
-const LABEL_STYLE = new TextStyle({
-  fontFamily: MAP_FONT,
-  fontSize: LABEL_FONT_PX,
-  fill: 0xffffff,
-  stroke: { color: 0x000000, width: 4, alpha: 0.6 },
-});
-const LABEL_ALPHA = 0.9;
+/** The game draws names pale and a little see-through, with a soft dark glow and no shadow. */
+const NAME_COLOR = 0xeef1f6;
+const NAME_ALPHA = 0.85;
+const NAME_GLOW = { color: 0x000000, alpha: 0.45, blur: 6, distance: 0, angle: 0 };
+/** A name's tracking in the fallback face, which is narrower than the game's. */
+const FALLBACK_SPACING = 3;
+const GAME_SPACING = 1;
+
+/** A new style for every face change: PixiJS keys a dynamic bitmap font by the style object. */
+function nameStyle(): TextStyle {
+  const game = hasGameMapFont();
+  return new TextStyle({
+    fontFamily: mapNameFamily(),
+    fontSize: LABEL_FONT_PX,
+    fontWeight: game ? "normal" : "300",
+    letterSpacing: game ? GAME_SPACING : FALLBACK_SPACING,
+    fill: NAME_COLOR,
+    dropShadow: NAME_GLOW,
+  });
+}
+
 /** The glyph that stands where a marauder clan's flag would: the game's clans fly none. */
 export const CLAN_GLYPH = "☠";
 const GLYPH_FONT_PX = 32;
@@ -51,38 +61,42 @@ const GLYPH_STYLE = new TextStyle({
   fill: 0xffffff,
 });
 /**
- * Name height and emblem diameter grow with the region's extent (√area, world units) faster
- * than in proportion, as the game's do: a one-system empire reads small, a wide one large.
+ * Name sizes are font sizes in world units, so names zoom with the map. A name never grows past
+ * the cap however large its piece is.
  */
-const LABEL_SIZE_RATIO = 0.27;
-const LABEL_SIZE_OFFSET = 5;
-const LABEL_MIN_SIZE = 8;
-const LABEL_MAX_SIZE = 70;
-const LABEL_GAP_RATIO = 0.15;
-/** The rendered name's width is capped to this fraction of the region's bounding-box width. */
-const LABEL_WIDTH_RATIO = 0.9;
-const EMBLEM_ALPHA = 0.55;
-const EMBLEM_SIZE_RATIO = 0.6;
-const EMBLEM_SIZE_OFFSET = 17;
-const EMBLEM_MIN_SIZE = 12;
-const EMBLEM_MAX_SIZE = 180;
-/** The emblem's diameter is capped to this fraction of the region's narrower bounding-box side. */
-const EMBLEM_WIDTH_RATIO = 0.35;
+const LABEL_MAX_SIZE = 44;
+/**
+ * The game writes a name at least `MAPNAME_BORDER_MIN_SIZE` wide, overflowing a piece too small
+ * for it; for a short name that floor stops at this size.
+ */
+const LABEL_FLOOR_MAX_SIZE = 12;
+/** The emblem is a square this many font sizes tall, sitting on the name's cap height. */
+const EMBLEM_SIZE = 3.2;
+/** Flat white and see-through, as the game shows a territory's flag symbol. */
+const EMBLEM_ALPHA = 0.7;
 const FADE_MS = 450;
 
-interface CountryShape {
-  /** The drawn outline: the country's region with its corners rounded off. */
-  smoothed: Region;
-  anchor: LabelAnchor | null;
-  colors: OwnerColors;
-  fill: Graphics;
-  edge: Graphics;
-  emphasis: Graphics;
+/** One territory piece's emblem and name. */
+interface PieceBadge {
   badge: Container;
   emblem: Sprite;
   /** A clan's emblem, in the outline colour like its name; hidden for a country. */
   glyph: BitmapText;
   label: BitmapText;
+}
+
+interface CountryShape {
+  /** The drawn outline: the country's region with its corners rounded off. */
+  smoothed: Region;
+  /** Each piece of the outline, scanned for room for its label. */
+  scans: PieceScan[];
+  colors: OwnerColors;
+  fill: Graphics;
+  edge: Graphics;
+  emphasis: Graphics;
+  /** One badge per piece: the game labels every separate piece of a country. */
+  badges: Container;
+  pieces: PieceBadge[];
 }
 
 /** World units per screen pixel for the strokes, capped and snapped. */
@@ -106,9 +120,9 @@ function sameOwners(a: ReadonlyMap<number, unknown>, b: ReadonlyMap<number, unkn
 /**
  * The game's territories: each owner's region from the composed ownership, its corners rounded,
  * filled with its second flag colour and outlined with its first in a chunky screen-stable
- * stroke over a soft halo. At the region's pole of inaccessibility an empire's flag symbol and
- * name sit in world units, sized to the region; they fade in while system names are hidden and
- * out as they appear. A marauder clan's badge carries a skull in place of a flag. The regions
+ * stroke over a soft halo. Each separate piece of a region shows the empire's flag symbol over
+ * its name, in world units, in the widest room the piece has; they fade in while system names
+ * are hidden and out as they appear. A marauder clan's badge shows a skull in place of a flag. The regions
  * come from the client, a beat later when it is a worker; a delta recomputes only the owners it
  * can have changed.
  */
@@ -138,11 +152,14 @@ export class OwnersLayer implements MapLayer {
   private epoch = 0;
   private destroyed = false;
   private readonly unsubscribeTextures: () => void;
+  private readonly unsubscribeFont: () => void;
+  private labelStyle = nameStyle();
 
   constructor(private readonly client: TerritoryClient = new InlineTerritoryClient()) {
     this.territories.addChild(this.fills, this.edges);
     this.container.addChild(this.territories, this.emphases, this.badges);
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
+    this.unsubscribeFont = onMapNameFont(() => this.onFontChanged());
     client.onReply((reply) => this.onReply(reply));
   }
 
@@ -222,6 +239,7 @@ export class OwnersLayer implements MapLayer {
     this.destroyed = true;
     this.client.destroy();
     this.unsubscribeTextures();
+    this.unsubscribeFont();
     Ticker.shared.remove(this.fadeTick, this);
     this.container.destroy({ children: true });
   }
@@ -273,12 +291,47 @@ export class OwnersLayer implements MapLayer {
     for (const [id, shape] of reply.shapes) this.show(id, shape);
   }
 
-  private show(id: number, { smoothed, anchor }: Shape): void {
+  private show(id: number, { smoothed, scans }: Shape): void {
     let shape = this.shapes.get(id);
     if (!shape) {
-      const label = new BitmapText({ text: "", style: LABEL_STYLE });
+      const badges = new Container();
+      badges.visible = false;
+      shape = {
+        smoothed: [],
+        scans: [],
+        colors: { outline: 0, fill: 0 },
+        fill: new Graphics(),
+        edge: new Graphics(),
+        emphasis: new Graphics(),
+        badges,
+        pieces: [],
+      };
+      this.fills.addChild(shape.fill);
+      this.edges.addChild(shape.edge);
+      this.emphases.addChild(shape.emphasis);
+      this.badges.addChild(badges);
+      this.shapes.set(id, shape);
+    }
+    shape.smoothed = smoothed;
+    shape.scans = scans;
+    this.matchPieces(shape);
+    this.retext(id, shape);
+    this.placeEmblem(id, shape);
+    this.paint(id, shape);
+    this.drawEmphasis(id, shape);
+    this.applyHidden(id, shape);
+  }
+
+  /** As many piece badges as the country has pieces. */
+  private matchPieces(shape: CountryShape): void {
+    while (shape.pieces.length > shape.scans.length) {
+      shape.pieces.pop()?.badge.destroy({ children: true });
+    }
+    while (shape.pieces.length < shape.scans.length) {
+      const text = shape.pieces[0]?.label.text ?? "";
+      const label = new BitmapText({ text, style: this.labelStyle });
       label.anchor.set(0.5, 0);
-      label.alpha = LABEL_ALPHA;
+      label.alpha = NAME_ALPHA;
       const emblem = new Sprite();
       emblem.anchor.set(0.5, 0.5);
       emblem.alpha = EMBLEM_ALPHA;
@@ -289,32 +342,9 @@ export class OwnersLayer implements MapLayer {
       glyph.visible = false;
       const badge = new Container();
       badge.addChild(emblem, glyph, label);
-      badge.visible = false;
-      shape = {
-        smoothed: [],
-        anchor: null,
-        colors: { outline: 0, fill: 0 },
-        fill: new Graphics(),
-        edge: new Graphics(),
-        emphasis: new Graphics(),
-        badge,
-        emblem,
-        glyph,
-        label,
-      };
-      this.fills.addChild(shape.fill);
-      this.edges.addChild(shape.edge);
-      this.emphases.addChild(shape.emphasis);
-      this.badges.addChild(badge);
-      this.shapes.set(id, shape);
-      this.retext(id, shape);
+      shape.badges.addChild(badge);
+      shape.pieces.push({ badge, emblem, glyph, label });
     }
-    shape.smoothed = smoothed;
-    shape.anchor = anchor;
-    this.placeEmblem(id, shape);
-    this.paint(id, shape);
-    this.drawEmphasis(id, shape);
-    this.applyHidden(id, shape);
   }
 
   /** The eye in the Empires list: a hidden country keeps its shape but paints nothing. */
@@ -328,16 +358,16 @@ export class OwnersLayer implements MapLayer {
     shape.fill.visible = painted;
     shape.edge.visible = painted;
     shape.emphasis.visible = listed;
-    shape.badge.visible = listed && this.badged(id, shape);
+    shape.badges.visible = listed && this.badged(id);
   }
 
   private isClan(id: number): boolean {
     return this.ctx.table.get(id)?.kind === "marauder_clan";
   }
 
-  /** Every owner in the table carries its emblem and name where its region has room for them. */
-  private badged(id: number, shape: CountryShape): boolean {
-    return shape.anchor !== null && this.ctx.table.has(id);
+  /** Every owner in the table shows its emblem and name on each piece of its region. */
+  private badged(id: number): boolean {
+    return this.ctx.table.has(id);
   }
 
   private remove(id: number): void {
@@ -346,7 +376,7 @@ export class OwnersLayer implements MapLayer {
     shape.fill.destroy();
     shape.edge.destroy();
     shape.emphasis.destroy();
-    shape.badge.destroy({ children: true });
+    shape.badges.destroy({ children: true });
     this.shapes.delete(id);
     this.emblemKeys.delete(id);
   }
@@ -402,65 +432,80 @@ export class OwnersLayer implements MapLayer {
   }
 
   private placeEmblem(id: number, shape: CountryShape): void {
-    const { badge, emblem, glyph, label, anchor } = shape;
-    badge.visible = this.badged(id, shape) && !this.ctx.hiddenCountries.has(id);
-    if (anchor === null || !badge.visible) return;
+    shape.badges.visible = this.badged(id) && !this.ctx.hiddenCountries.has(id);
+    if (!shape.badges.visible) return;
     const entry = this.ctx.table.get(id);
     const clan = entry?.kind === "marauder_clan";
-    label.tint = clan ? entry.colors.outline : 0xffffff;
     const key = clan ? null : symbolKey(entry?.country?.flag_icon);
     if (key === null) this.emblemKeys.delete(id);
     else this.emblemKeys.set(id, key);
     const texture = key === null ? null : getTexture(key);
     if (key !== null && texture === undefined) requestTextures([key]);
-    badge.position.set(anchor.x, anchor.y);
-    let size = clamp(
-      anchor.extent * LABEL_SIZE_RATIO - LABEL_SIZE_OFFSET,
-      LABEL_MIN_SIZE,
-      LABEL_MAX_SIZE,
-    );
+    const art = clan || Boolean(texture);
+    shape.scans.forEach((scan, i) => {
+      const piece = shape.pieces[i];
+      piece.label.tint = clan ? entry.colors.outline : 0xffffff;
+      piece.emblem.visible = !clan && Boolean(texture);
+      piece.glyph.visible = clan;
+      if (clan) piece.glyph.tint = entry.colors.outline;
+      if (texture) piece.emblem.texture = texture;
+      this.placePiece(piece, scan, art);
+    });
+  }
+
+  /**
+   * The piece's emblem over its name, as large as fits inside the piece up to the cap. A piece
+   * too small for the game's narrowest name gets that size where it has most room, and overflows.
+   */
+  private placePiece(piece: PieceBadge, scan: PieceScan, art: boolean): void {
+    const { badge, emblem, glyph, label } = piece;
     label.scale.set(1, 1);
-    const textWidth = label.width;
-    if (textWidth > 0) {
-      const maxByWidth = (LABEL_WIDTH_RATIO * anchor.width * LABEL_FONT_PX) / textWidth;
-      size = Math.max(LABEL_MIN_SIZE, Math.min(size, maxByWidth));
-    }
+    const nameWidth = label.width / LABEL_FONT_PX;
+    const nameHeight = label.height / LABEL_FONT_PX;
+    const artHeight = art ? EMBLEM_SIZE : 0;
+    const blockHeight = nameHeight + artHeight;
+    const blockWidth = Math.max(nameWidth, artHeight);
+    const floor = Math.min(
+      LABEL_FLOOR_MAX_SIZE,
+      this.ctx.border.name_min_width / Math.max(nameWidth, Number.EPSILON),
+    );
+    const fit =
+      blockHeight > 0 && blockWidth > 0
+        ? fitLabel(
+            scan,
+            blockWidth / blockHeight,
+            LABEL_MAX_SIZE * blockHeight,
+            floor * blockHeight,
+          )
+        : null;
+    badge.visible = fit !== null;
+    if (fit === null) return;
+    const size = fit.height / blockHeight;
+    badge.position.set(fit.x, fit.y);
     const ratio = size / LABEL_FONT_PX;
     label.scale.set(SAVE_X_SIGN * ratio, SAVE_Y_SIGN * ratio);
-    emblem.visible = !clan && Boolean(texture);
-    glyph.visible = clan;
-    const art = clan ? glyph : texture ? emblem : null;
-    if (art === null) {
-      label.position.set(0, SAVE_Y_SIGN * (-size / 2));
-      return;
-    }
-    const diameter = Math.max(
-      EMBLEM_MIN_SIZE,
-      Math.min(
-        clamp(
-          anchor.extent * EMBLEM_SIZE_RATIO - EMBLEM_SIZE_OFFSET,
-          EMBLEM_MIN_SIZE,
-          EMBLEM_MAX_SIZE,
-        ),
-        EMBLEM_WIDTH_RATIO * Math.min(anchor.width, anchor.height),
-      ),
+    const top = -fit.height / 2;
+    const diameter = artHeight * size;
+    label.position.set(0, SAVE_Y_SIGN * (top + diameter));
+    if (!art) return;
+    const centre = SAVE_Y_SIGN * (top + diameter / 2);
+    glyph.position.set(0, centre);
+    emblem.position.set(0, centre);
+    const k = diameter / GLYPH_FONT_PX;
+    glyph.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
+    emblem.scale.set(
+      (SAVE_X_SIGN * diameter) / (emblem.texture.width || 1),
+      (SAVE_Y_SIGN * diameter) / (emblem.texture.height || 1),
     );
-    if (clan) {
-      glyph.tint = entry.colors.outline;
-      const k = diameter / GLYPH_FONT_PX;
-      glyph.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
-    } else if (texture) {
-      emblem.texture = texture;
-      emblem.scale.set(
-        (SAVE_X_SIGN * diameter) / (texture.width || 1),
-        (SAVE_Y_SIGN * diameter) / (texture.height || 1),
-      );
+  }
+
+  /** Every name redrawn in the face that just loaded or dropped, and refitted to its piece. */
+  private onFontChanged(): void {
+    this.labelStyle = nameStyle();
+    for (const [id, shape] of this.shapes) {
+      for (const piece of shape.pieces) piece.label.style = this.labelStyle;
+      this.placeEmblem(id, shape);
     }
-    // The emblem and name together sit centred on the anchor.
-    const gap = size * LABEL_GAP_RATIO;
-    const total = diameter + gap + size;
-    art.position.set(0, SAVE_Y_SIGN * (diameter / 2 - total / 2));
-    label.position.set(0, SAVE_Y_SIGN * (diameter + gap - total / 2));
   }
 
   private onTexturesLanded(keys: string[]): void {
@@ -472,11 +517,9 @@ export class OwnersLayer implements MapLayer {
     }
   }
 
-  private retext(id: number, shape: CountryShape): boolean {
+  private retext(id: number, shape: CountryShape): void {
     const text = this.ctx.table.get(id)?.label ?? "";
-    if (shape.label.text === text) return false;
-    shape.label.text = text;
-    return true;
+    for (const piece of shape.pieces) if (piece.label.text !== text) piece.label.text = text;
   }
 
   private fadeTowards(target: number): void {

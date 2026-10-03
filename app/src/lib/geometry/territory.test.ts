@@ -6,7 +6,6 @@ import type { Pt } from "./pt";
 import {
   affectedCountries,
   countryRegions,
-  regionLabelAnchor,
   relaxRing,
   smoothRegion,
   smoothRing,
@@ -363,50 +362,6 @@ describe("relaxRing", () => {
     const middle = relaxRing(strip, 4, 10).filter((p) => p.x > 60 && p.x < 140 && p.y < 10);
     expect(middle.length).toBeGreaterThan(0);
     for (const p of middle) expect(Math.abs(p.y)).toBeLessThan(1e-9);
-  });
-});
-
-describe("regionLabelAnchor", () => {
-  it("centres a single disc with the disc's radius as inradius", () => {
-    const region = countryRegions([system(1, 100, -50, 10)], PARAMS).get(10)!;
-    const anchor = regionLabelAnchor(region)!;
-    expect(anchor.x).toBeCloseTo(100, 0);
-    expect(anchor.y).toBeCloseTo(-50, 0);
-    expect(Math.abs(anchor.inradius - 35)).toBeLessThan(1);
-    expect(anchor.extent).toBeCloseTo(Math.sqrt(Math.PI * 35 * 35), -1);
-    expect(anchor.width).toBeGreaterThan(68);
-    expect(anchor.width).toBeLessThan(72);
-    expect(anchor.height).toBeGreaterThan(68);
-    expect(anchor.height).toBeLessThan(72);
-  });
-
-  it("is null for an empty region", () => {
-    expect(regionLabelAnchor([])).toBeNull();
-  });
-
-  it("spans a laned pair by the distance between them plus two radii", () => {
-    const distance = 150;
-    const region = countryRegions(
-      [system(1, 0, 0, 10, [2]), system(2, distance, 0, 10, [1])],
-      PARAMS,
-    ).get(10)!;
-    const anchor = regionLabelAnchor(region)!;
-    expect(anchor.width).toBeGreaterThan(distance + 2 * PARAMS.radius - 2);
-    expect(anchor.width).toBeLessThan(distance + 2 * PARAMS.radius + 2);
-    expect(anchor.height).toBeGreaterThan(68);
-    expect(anchor.height).toBeLessThan(72);
-  });
-
-  it("picks the largest polygon", () => {
-    const region = countryRegions(
-      [system(1, 0, 0, 10), system(2, 300, 0, 10, [3]), system(3, 340, 0, 10, [2])],
-      PARAMS,
-    ).get(10)!;
-    expect(region).toHaveLength(2);
-    const anchor = regionLabelAnchor(region)!;
-    expect(anchor.x).toBeGreaterThan(265);
-    expect(anchor.x).toBeLessThan(375);
-    expect(Math.abs(anchor.inradius - 35)).toBeLessThan(1);
   });
 });
 
