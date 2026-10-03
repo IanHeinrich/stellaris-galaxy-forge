@@ -367,26 +367,33 @@ less.
   its own emblem and name, however small. A vassal is labelled as its
   own country. The label is a T: a wide, short name, with the emblem
   centred on top of it.
-- The name sits on the row through the piece's centre of area, centred
-  on the centre itself rather than on the middle of that row. Its size
-  is whatever fits there, so a narrow middle gets a small name even when
-  a wider part of the piece lies elsewhere. An end of the name may reach
-  over the border by about half a letter: the "H" of "Hissman
-  Consciousness" and the "T" of "Test Empire" both do, by about 1–2% of
-  the name's length. The game moves a label off the centre
-  only when the centre lies outside the piece or the room there is
+- The name sits halfway down its piece, under the piece's centre of
+  area. It is as wide as the piece's width at that row allows, so a
+  narrow middle gets a small name even when a wider part of the piece
+  lies elsewhere. If the centre is nearer one edge, the name slides
+  away from it just far enough to use the whole width. An end of the
+  name may reach over the border by about half a letter: the "H" of
+  "Hissman Consciousness" and the "T" of "Test Empire" both do, by
+  about 1–2% of the name's length. The game moves a label off that row
+  only when the row doesn't reach the centre's x, or the room there is
   below the narrowest name.
-- Measured as a share of each piece's height from the top, in the game
-  and against the editor's territories for the same save:
+- The table compares candidate rows for the name with the game's, each
+  measured as a share of the territory's height from the top. The game's
+  rows come from top-down screenshots of a 4.5.1 game in 2330. The
+  candidates come from the editor's territories for the same save.
+  "+ label" centres the whole emblem-and-name label on the point
+  instead of the name.
 
-  | Territory | Game name row | Centre of area | Centre of its systems |
-  |---|---|---|---|
-  | Hissman Consciousness | 0.49 | 0.54 | 0.55 |
-  | Test Empire | 0.56 | 0.54 | 0.60 |
-  | The Chosen, north-west piece | about 0.45 | 0.38 | 0.40 |
+  | Territory | Game | Box middle | Centre of area | + label | Pole | + label | Hull centre | + label |
+  |---|---|---|---|---|---|---|---|---|
+  | Hissman Consciousness | 0.49 | 0.50 | 0.54 | 0.59 | 0.80 | 0.85 | 0.53 | 0.58 |
+  | Test Empire | 0.56 | 0.50 | 0.54 | 0.56 | 0.83 | 0.85 | 0.53 | 0.55 |
+  | The Chosen, north-west piece | 0.68 | 0.50 | 0.38 | 0.44 | 0.53 | 0.60 | 0.38 | 0.45 |
 
-  The two centres are equally close, so the editor uses the centre of
-  area, which needs nothing but the outline.
+  The box middle has the smallest total miss, and it is what the editor
+  uses. None of the candidates explains The Chosen. Chinorr Combine is
+  left out because the game leaves holes in its territory for unclaimed
+  systems, which the editor's territories don't have yet.
 - A piece too small for the narrowest name, such as a one-system Chimm
   Enterprises pocket, has its emblem on its centre with the name hanging
   below it, overflowing onto the next territory. No two empires' labels

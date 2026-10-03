@@ -23,7 +23,7 @@ export interface PieceScan {
   step: number;
   /** Each line's stretches inside the piece, as sorted `[left, right, left, right, …]`. */
   rows: number[][];
-  /** The piece's centre of area, which the game centres a label on. */
+  /** The piece's centre of area: a label's x, and where a tiny piece's emblem sits. */
   cx: number;
   cy: number;
 }
@@ -155,7 +155,7 @@ const SHRINK_LIMIT = 0.5;
 /** The label of `shape` placed at `spot` at `scale`. */
 function placed(shape: LabelShape, spot: Spot, scale: number): LabelFit {
   const top = spot.hang
-    ? spot.y + ((shape.emblem / 2 - shape.drop) * scale)
+    ? spot.y + (shape.emblem / 2 - shape.drop) * scale
     : spot.y - (shape.nameHeight * scale) / 2;
   return { x: spot.x, y: top, scale, inside: scale <= spot.scale };
 }
@@ -219,11 +219,12 @@ function emblemFits(scan: PieceScan, x: number, side: number, top: number): bool
 }
 
 /**
- * The largest label, from `maxScale` down to `minScale`, whose name bar is centred on the row
- * at `y`, with neither end of the name more than `NAME_SPILL` past the edge of its stretch and
- * the emblem mostly inside above it. On the centre of area's row (`centred`) the name is
- * centred on the centre itself, which must lie in the piece; on another row it is centred on
- * the stretch nearest the centre. Null when even `minScale` does not fit.
+ * The largest label, from `maxScale` down to `minScale`, whose name bar lies on the row at `y`
+ * within its stretch, either end at most `NAME_SPILL` past the edge, with the emblem mostly
+ * inside above it. The name is as wide as the whole stretch allows and sits on the centre of
+ * area's x, slid sideways only as far as it must to fit. On the anchor row (`centred`) the
+ * stretch must hold the centre's x; on another row it is the stretch nearest it. Null when even
+ * `minScale` does not fit.
  */
 function fitAt(
   scan: PieceScan,
@@ -239,9 +240,9 @@ function fitAt(
     const stretch = room && stretchAt(room, scan.cx, !centred);
     if (!stretch) continue;
     const [a, b] = stretch;
-    const x = centred ? scan.cx : (a + b) / 2;
     const reach = (shape.nameWidth / 2 - NAME_SPILL) * scale;
-    if (x - reach < a || x + reach > b) continue;
+    if (2 * reach > b - a) continue;
+    const x = Math.min(b - reach, Math.max(a + reach, scan.cx));
     const top = y - half + shape.drop * scale;
     if (shape.emblem > 0 && !emblemFits(scan, x, shape.emblem * scale, top)) continue;
     return { x, y, scale, hang: false };
@@ -251,9 +252,10 @@ function fitAt(
 
 /**
  * Where a label of `shape` may go in the scanned piece, best first. The game centres a label on
- * its piece: the name bar's row is the centre of area's, and the label takes the largest scale
- * that fits there, smaller rather than moved. Only when the centre lies outside the piece, or
- * the label there would be under `minScale`, do the other rows follow, nearest first. A piece
+ * its piece: the name bar's row is halfway down the piece, under the centre of area's x, and the
+ * label takes the largest scale that fits there, smaller rather than moved. Only when that row
+ * does not reach the centre's x, or the label there would be under `minScale`, do the other rows
+ * follow, nearest first. A piece
  * too small for the floor anywhere hangs its name under an emblem on the centre of area; that
  * place comes last for every piece, for a crowded label.
  */
@@ -267,9 +269,10 @@ function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number, minScale:
     if (!clash) spots.push(spot);
   };
   if (rows.length > 0) {
-    add(fitAt(scan, shape, cy, maxScale, minScale, true));
+    const anchor = y0 + ((rows.length - 1) / 2) * step;
+    add(fitAt(scan, shape, anchor, maxScale, minScale, true));
     const others = rows.map((_, i) => y0 + i * step);
-    others.sort((a, b) => Math.abs(a - cy) - Math.abs(b - cy) || a - b);
+    others.sort((a, b) => Math.abs(a - anchor) - Math.abs(b - anchor) || a - b);
     for (const y of others) add(fitAt(scan, shape, y, maxScale, minScale, false));
   }
   spots.push({ x: cx, y: cy, scale: 0, hang: shape.emblem > 0 });

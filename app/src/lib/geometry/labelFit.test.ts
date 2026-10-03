@@ -71,8 +71,14 @@ describe("scanRing", () => {
   });
 });
 
-/** The name with half a letter (half a font size) off each end, which may run past the piece. */
-const trimmed = (shape: LabelShape): LabelShape => ({ ...shape, nameWidth: shape.nameWidth - 1 });
+/**
+ * The name with half a letter (half a font size) off each end, which may run past the piece,
+ * and a hair more so an end that just touches the edge counts as inside.
+ */
+const trimmed = (shape: LabelShape): LabelShape => ({
+  ...shape,
+  nameWidth: shape.nameWidth - 1.02,
+});
 
 /** The middle of a fitted label's name bar. */
 const barMiddle = (shape: LabelShape, fit: LabelFit) => fit.y + (shape.nameHeight * fit.scale) / 2;
@@ -110,21 +116,24 @@ describe("fitLabel", () => {
     expect(fit.inside).toBe(true);
   });
 
-  it("keeps the name on the centre's row, smaller, rather than move it to a wider lobe", () => {
+  it("keeps the name on the middle row, smaller, rather than move it to a wider lobe", () => {
     const tower = ring(100, 0, 300, 0, 300, 300, 400, 300, 400, 400, 0, 400, 0, 300, 100, 300);
     const fit = fitLabel(scanRing(tower, 48), T, 100, 5);
-    expect(barMiddle(T, fit)).toBeCloseTo(230, -1);
+    expect(barMiddle(T, fit)).toBeCloseTo(200, -1);
     expect(fit.x).toBeCloseTo(200, 0);
     expect(fit.scale * T.nameWidth).toBeLessThan(230);
     expect(labelInside(tower, trimmed(T), fit)).toBe(true);
   });
 
-  it("centres the name on the piece's centre, not on the middle of its row", () => {
+  it("slides the name off the centre just far enough to use the whole stretch", () => {
     const piece = ring(0, 0, 100, 0, 100, 100, 400, 100, 400, 200, 100, 200, 100, 300, 0, 300);
-    const fit = fitLabel(scanRing(piece, 48), BAR, 100, 5);
-    expect(fit.x).toBeCloseTo(150, 0);
-    expect(fit.scale * BAR.nameWidth).toBeLessThanOrEqual(300 + fit.scale + 1e-9);
-    expect(fit.scale * BAR.nameWidth).toBeGreaterThan(250);
+    const scan = scanRing(piece, 48);
+    const fit = fitLabel(scan, BAR, 100, 5);
+    const half = (fit.scale * BAR.nameWidth) / 2;
+    expect(scan.cx).toBeLessThan(fit.x);
+    expect(fit.x - half).toBeCloseTo(-fit.scale / 2, 0);
+    expect(fit.x + half).toBeLessThanOrEqual(400 + fit.scale / 2 + 1e-9);
+    expect(2 * half).toBeGreaterThan(380);
   });
 
   it("moves to the nearest room inside when the centre lies outside the piece", () => {
