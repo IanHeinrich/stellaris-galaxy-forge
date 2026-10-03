@@ -130,8 +130,8 @@ const EMBLEM_ALPHA = 0.7;
  * As in the game, empire names wait a moment once the camera closes past the threshold, then fade
  * out slowly. Zooming back out before then cancels the fade; after it they fade back in quickly.
  */
-const FADE_OUT_DELAY_MS = 1500;
-const FADE_OUT_MS = 1200;
+const FADE_OUT_DELAY_MS = 1200;
+const FADE_OUT_MS = 800;
 const FADE_IN_MS = 450;
 
 /** One territory piece's emblem and name. */
