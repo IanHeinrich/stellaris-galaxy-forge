@@ -15,6 +15,21 @@ export const EMPIRE_LABEL_MAX_SCALE = (3 * 800) / 600;
 /** Pixels per world unit at which system names pop in: a wheel notch after empire names go. */
 export const DETAIL_SCALE = EMPIRE_LABEL_MAX_SCALE * WHEEL_NOTCH;
 
+/** Pixels per world unit at which empire names and emblems have faded out, two notches past the names. */
+export const EMPIRE_LABEL_GONE_SCALE = DETAIL_SCALE * WHEEL_NOTCH * WHEEL_NOTCH;
+
+/**
+ * How opaque empire names and emblems are at a zoom. The game fades them over a few wheel
+ * notches, so they still show faintly beside the system names and details as those appear.
+ */
+export function empireLabelAlpha(scale: number): number {
+  const t =
+    Math.log(scale / EMPIRE_LABEL_MAX_SCALE) /
+    Math.log(EMPIRE_LABEL_GONE_SCALE / EMPIRE_LABEL_MAX_SCALE);
+  const x = Math.min(1, Math.max(0, t));
+  return 1 - x * x * (3 - 2 * x);
+}
+
 /** Zoom from which a system's ring shows lane ports; grabbing them any further out is too fiddly. */
 export const PORT_MIN_SCALE = 0.9;
 
