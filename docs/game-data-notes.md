@@ -140,7 +140,9 @@ YAML**.
 - A lane between two Hyper Relays is drawn twice as thick.
   `common/defines/00_defines.txt` has `HYPERLANE_THICKNESS_DEFAULT = 1.0`
   and `HYPERLANE_THICKNESS_RELAY = 2.0`. A wayline's band lies over it
-  and the lane under the band stays thick. `hyper_relay` and
+  and the lane under the band stays thick. The editor draws it 3.5 px
+  against its 1 px lanes, since twice a hairline barely shows.
+  `hyper_relay` and
   `hyper_relay_restored` in `common/megastructures/14_hyper_relay.txt`
   set `bypass_type = relay_bypass`, and `hyper_relay_ruined` sets none.
 - A planet class's surface map takes three steps to find. The class

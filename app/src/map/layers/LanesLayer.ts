@@ -32,8 +32,11 @@ const GAP = 2;
 
 /** The bypass a Hyper Relay stands in the save as. */
 const RELAY_BYPASS = "relay_bypass";
-/** A lane between two relays, in pixels: the game's `HYPERLANE_THICKNESS_RELAY` is twice its default. */
-export const RELAY_LANE_PX = 2;
+/**
+ * A lane between two relays, in pixels. The game's `HYPERLANE_THICKNESS_RELAY` is only twice its
+ * default, but its lanes are wider than this map's hairlines, so twice a hairline barely shows.
+ */
+export const RELAY_LANE_PX = 3.5;
 /** Widths a relay lane is restroked at per doubling of zoom, so a zoom seldom redraws it. */
 const RELAY_STEPS = 8;
 
