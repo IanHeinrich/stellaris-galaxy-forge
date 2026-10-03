@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::as_u32;
 use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::system::SPAWNED_SYSTEM_HEIGHT;
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::galaxy::bypasses::natural_wormholes;
@@ -32,7 +33,9 @@ use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::{check_version, entity, system_statement};
 use crate::keys;
 use crate::ops::rules::each_once;
-use crate::ops::{Edit, LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject};
+use crate::ops::{
+    Edit, LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemHeight,
+};
 use crate::overlay::Anchor;
 use crate::plural;
 use crate::projections::galaxy::lane_length;
@@ -456,9 +459,10 @@ fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>)
 /// the ids that then follow the last one, with its lanes to the systems that stay (at
 /// their new ids) and to the ones re-added before it. The spec's lanes run up to the
 /// first bridge, and an `AddLanes` after the add writes the rest in order, bridges
-/// included. A `SetLaneLengths` puts back each length that is not `floor(distance)`, and a
-/// `SetNebulaFootprints` each footprint, the join the add makes aside. What this leaves
-/// different from the bytes removed is listed on [`Op::RemoveSystem`].
+/// included. A `SetLaneLengths` puts back each length that is not `floor(distance)`, a
+/// `SetNebulaFootprints` each footprint, the join the add makes aside, and a
+/// `SetSystemHeights` each height other than the one a spawned system is written with.
+/// What this leaves different from the bytes removed is listed on [`Op::RemoveSystem`].
 fn restoring(
     s: &Session,
     removed: &BTreeSet<u32>,
@@ -476,6 +480,7 @@ fn restoring(
     let mut ops = Vec::with_capacity(removed.len());
     let mut lengths = Vec::new();
     let mut dressed = Vec::new();
+    let mut heights = Vec::new();
     for &id in removed {
         let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
         let again = readded[&id];
@@ -514,6 +519,12 @@ fn restoring(
                 to: rest,
             });
         }
+        if system.height != Some(SPAWNED_SYSTEM_HEIGHT) {
+            heights.push(SystemHeight {
+                id: again,
+                height: system.height,
+            });
+        }
         if let Some(footprints) = &mut footprints {
             let footprint = footprints.read(id)?.footprint;
             if !is_bare(&footprint) {
@@ -531,6 +542,9 @@ fn restoring(
         ops.push(Op::SetNebulaFootprints {
             footprints: dressed,
         });
+    }
+    if !heights.is_empty() {
+        ops.push(Op::SetSystemHeights { heights });
     }
     Ok(match ops.len() {
         1 => ops.remove(0),

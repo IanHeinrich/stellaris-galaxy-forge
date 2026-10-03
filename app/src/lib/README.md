@@ -60,6 +60,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `addSystem` (where a system may be added, and the Special menu's marks),
   `addBody` (the words of the Add planet and Add moon menus, and which
   bodies may take a moon),
+  `height` (a system's height as the editor shows it, 0 on the game's default
+  plane, and the colour it reads as),
   `precursors` (each system's precursor flags, matched against the install's
   definitions and grouped into the legend the map draws) and `planetMove`
   (moving save planets between systems: where a click in the system view

@@ -39,6 +39,7 @@ pub(crate) mod rename_planet;
 pub(crate) mod rename_system;
 pub(crate) mod replace_system;
 pub(crate) mod star_class;
+pub(crate) mod system_height;
 pub(crate) mod timed_modifiers;
 pub(crate) mod wormhole;
 pub(crate) mod wormhole_pair;

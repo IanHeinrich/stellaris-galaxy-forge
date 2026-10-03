@@ -33,6 +33,7 @@ import type { InputKind, LaneSource, MapInput, MapIntent, MapModel } from "./Map
 import { MoveDrag } from "./moveDrag";
 import { NebulaDrag } from "./nebulaDrag";
 import { PointerBridge } from "./pointerBridge";
+import { ViewOnlyModel } from "./ViewOnlyModel";
 import { groupOf } from "./press";
 
 const editor = () => useEditorStore.getState();
@@ -70,6 +71,8 @@ export class InteractionController {
   private readonly feZones: FeZoneDrag;
   private readonly moves: MoveDrag;
   private model: MapModel = this.models.select;
+  /** Takes the pointer while the map is tilted, which pans and does nothing else. */
+  private readonly viewOnly = new ViewOnlyModel();
   private readonly intent: MapIntent;
   private readonly pointer: PointerBridge<MapInput>;
   private readonly addedTip = new AddedTooltip();
@@ -127,7 +130,9 @@ export class InteractionController {
     this.cleanups.push(
       trackGalaxy(this.index),
       useToolStore.subscribe((state, previous) => {
-        if (state.tool !== previous.tool) this.swapModel(this.models[state.tool]);
+        if (state.tool !== previous.tool && this.model !== this.viewOnly) {
+          this.swapModel(this.models[state.tool]);
+        }
         if (state.symmetry !== previous.symmetry) this.brushes.drawGuide();
         if (state.size !== previous.size || state.symmetry !== previous.symmetry) {
           this.brushes.drawCursor();
@@ -245,6 +250,12 @@ export class InteractionController {
     this.hover(null);
     this.model = next;
     this.canvas.style.cursor = this.model.cursor();
+  }
+
+  /** While the map is tilted it only pans: picking, selecting, dragging and brushing wait for it to lie flat. */
+  setViewOnly(on: boolean): void {
+    if (on === (this.model === this.viewOnly)) return;
+    this.swapModel(on ? this.viewOnly : this.models[useToolStore.getState().tool]);
   }
 
   private dropDrag(): void {

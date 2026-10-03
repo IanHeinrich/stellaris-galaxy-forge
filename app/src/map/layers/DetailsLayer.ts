@@ -25,6 +25,7 @@ import { nameHalf } from "./nameWidth";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { FLAT_TILT, systemY, type Tilt } from "../tilt";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { onTextures, requestTextures } from "../../lib/visual/textures";
 import { queuedTextures, rowY, type RowY } from "./details/cell";
@@ -74,6 +75,7 @@ export class DetailsLayer implements MapLayer {
   private readonly tex = queuedTextures(this.keys);
   private ghosts: ReadonlyMap<number, MoveGhost> = new Map();
   private cam: Camera | null = null;
+  private tilt: Tilt = FLAT_TILT;
   private visible = true;
   /** Bumped whenever anything a row is drawn from moves, so its layout no longer stands. */
   private layoutRev = 0;
@@ -177,6 +179,7 @@ export class DetailsLayer implements MapLayer {
   }
 
   private refresh(cam: Camera): void {
+    this.tilt = cam.tilt;
     if (cam.scale < DETAILS_MIN_SCALE) {
       this.releaseAll();
       return;
@@ -219,7 +222,7 @@ export class DetailsLayer implements MapLayer {
 
   private place(row: Row, s: SystemNode): void {
     const ghost = this.ghosts.get(s.id);
-    row.root.position.set(ghost?.x ?? s.x, ghost?.y ?? s.y);
+    row.root.position.set(ghost?.x ?? s.x, ghost?.y ?? systemY(s, this.tilt));
     row.root.alpha = ghost ? GHOST_ALPHA : 1;
   }
 

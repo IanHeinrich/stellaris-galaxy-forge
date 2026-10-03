@@ -67,6 +67,7 @@ mod ops_spawn_read;
 mod ops_spawn_refusals;
 mod ops_spawn_weight;
 mod ops_star_class;
+mod ops_system_height;
 mod ops_wormhole_pair;
 mod overlay;
 mod planet_page;

@@ -13,6 +13,7 @@ import type { FeZonePreview } from "../feZonePreview";
 import type { NebulaPreview } from "../nebulaPreview";
 import type { Segment } from "../../lib/geometry/segments";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { FLAT_TILT, liftedPoint, type Tilt } from "../tilt";
 import {
   ACCENT_COLOR,
   ALLOWED_COLOR,
@@ -171,6 +172,7 @@ export class HighlightsLayer implements MapLayer {
   private hoverEdge: MapEdge | null = null;
   private selectedLane: LaneRef | null = null;
   private camScale = 1;
+  private tilt: Tilt = FLAT_TILT;
   private markerK = 1;
   private portCapable = false;
   private readonly scale = { x: 1, y: 1 };
@@ -248,6 +250,14 @@ export class HighlightsLayer implements MapLayer {
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
     this.origin.scale.set(this.pixelScale.x, this.pixelScale.y);
+    if (cam.tilt !== this.tilt) {
+      this.tilt = cam.tilt;
+      this.placeSelection();
+      this.placeMatched();
+      this.placeSearched();
+      this.placeHover();
+      this.place(this.cutRing, this.cutSource);
+    }
     const portCapable = portsAt(cam.scale);
     if (cam.scale !== this.camScale || portCapable !== this.portCapable) {
       this.camScale = cam.scale;
@@ -368,17 +378,17 @@ export class HighlightsLayer implements MapLayer {
     const dimmed: Pt[] = [];
     for (const id of this.selection) {
       const s = this.systems.get(id);
-      if (s) (this.dragged.has(id) ? dimmed : bright).push(s);
+      if (s) (this.dragged.has(id) ? dimmed : bright).push(liftedPoint(s, this.tilt));
     }
     this.selectionRings.place(bright, dimmed);
   }
 
   private placeMatched(): void {
-    this.matchedRings.place(pointsOf(this.systems, this.matched));
+    this.matchedRings.place(pointsOf(this.systems, this.matched, this.tilt));
   }
 
   private placeSearched(): void {
-    this.searchedRings.place(pointsOf(this.systems, this.searched));
+    this.searchedRings.place(pointsOf(this.systems, this.searched, this.tilt));
   }
 
   /** The hover ring, unless the selection already rings that system, and the port ring. */
@@ -401,7 +411,8 @@ export class HighlightsLayer implements MapLayer {
   }
 
   private place(g: Graphics, id: number | null): void {
-    this.placeAt(g, id === null ? undefined : this.systems.get(id));
+    const s = id === null ? undefined : this.systems.get(id);
+    this.placeAt(g, s && liftedPoint(s, this.tilt));
   }
 
   private placeAt(g: Graphics, at: Pt | null | undefined): void {

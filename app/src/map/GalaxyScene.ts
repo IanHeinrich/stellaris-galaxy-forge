@@ -41,9 +41,9 @@ export class GalaxyScene implements Scene, MapView {
 
     this.rebuild();
     this.fit();
-    this.cleanups.push(bindViewState(this));
     this.interaction = new InteractionController(canvas, this.cam, this.highlights, this.layers);
     this.cleanups.push(() => this.interaction.dispose());
+    this.cleanups.push(bindViewState(this));
   }
 
   activate(): void {
@@ -99,6 +99,12 @@ export class GalaxyScene implements Scene, MapView {
     if (this.ctx.radius === 0) return;
     this.cam.fit(this.ctx.radius, this.renderer.width, this.renderer.height);
     this.invalidate();
+  }
+
+  /** Leans the plane; while it leans the map only pans and zooms. */
+  setTilt(degrees: number): void {
+    this.cam.setTilt(degrees);
+    this.interaction.setViewOnly(this.cam.tilt.degrees > 0);
   }
 
   /** Makes the next tick hand the camera to the layers again. */

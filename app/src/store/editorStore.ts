@@ -19,6 +19,7 @@ import { addSystemActions } from "./editorStore.addSystem";
 import { editPipeline, runAdd, systems, type OpSource } from "./editorEdits";
 import { brushActions } from "./editorStore.brush";
 import { feZoneActions } from "./editorStore.feZones";
+import { heightActions, type HeightChange } from "./editorStore.heights";
 import { laneActions } from "./editorStore.lanes";
 import { marauderActions } from "./editorStore.marauders";
 import { nebulaActions } from "./editorStore.nebulae";
@@ -36,6 +37,7 @@ export { canDelete, deletableSelection, deletableSystems } from "./editorStore.r
 export { NEEDS_A_SYSTEM, NOTHING_TO_FIT } from "./editorStore.feZones";
 export { CONNECT_ALL_MAX } from "./editorStore.lanes";
 export { DEFAULT_NEBULA_RADIUS } from "./editorStore.nebulae";
+export type { HeightChange } from "./editorStore.heights";
 
 export interface Focus {
   id: number;
@@ -132,6 +134,15 @@ export interface EditorState {
   deleteSelection(): Promise<void>;
   /** Moves every selected system by a world offset in one op. */
   nudgeSelection(dx: number, dy: number): Promise<void>;
+  /** Sets system `id` to the height the editor shows, 0 on the game's default plane, in one op. */
+  setSystemHeight(id: number, relative: number): Promise<boolean>;
+  /**
+   * Sets every selected system to the shown height `value`, or raises or lowers each one's own
+   * by it, in one op; a system with no height starts from flat.
+   */
+  setSelectedHeights(change: HeightChange, value: number): Promise<boolean>;
+  /** Puts every selected system that is not flat back on the game's default plane, in one op. */
+  flattenSelected(): Promise<boolean>;
   /** Moves the nebula at `index` (file order) to a world position. Nothing else moves. */
   moveNebula(index: number, x: number, y: number): Promise<void>;
   /**
@@ -332,6 +343,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...searchActions(set, get),
     ...addSystemActions(set, get, edits.runEdit),
     ...removeActions(set, get, edits.runEdit),
+    ...heightActions(get),
 
     async select(id) {
       await selectSystems(id === null ? [] : [id]);

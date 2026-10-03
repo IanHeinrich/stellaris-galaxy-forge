@@ -72,4 +72,8 @@ symmetry: boolean,
 /**
  * A natural wormhole pair can be added between two systems and taken out.
  */
-wormhole_pairs: boolean, };
+wormhole_pairs: boolean, 
+/**
+ * A system's height above or below the galactic plane can be changed.
+ */
+system_heights: boolean, };

@@ -6,6 +6,7 @@ import { SCENE_ONLY_IDS, type LayerId } from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
 import { FeZonesLayer } from "./FeZonesLayer";
+import { HeightsLayer } from "./HeightsLayer";
 import { LClusterLayer, MapBorderLayer } from "./GuideLayers";
 import { IssuesLayer } from "./IssuesLayer";
 import { LabelsLayer } from "./LabelsLayer";
@@ -56,6 +57,7 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "marauders", requires: "create_systems" },
   { id: "day_one_bypasses", requires: "create_systems" },
   { id: "bypasses", create: () => new BypassesLayer() },
+  { id: "heights", requires: "system_heights", create: () => new HeightsLayer() },
   { id: "systems", create: (renderer) => new SystemsLayer(renderer) },
   { id: "classes" },
   {

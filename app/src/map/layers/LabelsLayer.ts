@@ -6,6 +6,7 @@ import type { Camera } from "../Camera";
 import { compareImportance, labelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { FLAT_TILT, systemY, type Tilt } from "../tilt";
 import { dimmedByInitializer, initializerLabel } from "../../lib/initializer/initializerLabels";
 import { FILTERED_ALPHA, GHOST_ALPHA, INITIALIZER_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -59,6 +60,7 @@ export class LabelsLayer implements MapLayer {
   /** Gap between the star and the top of the name row, shared by every label this frame. */
   private offsetY = nameRowY(1);
   private lastRev = -1;
+  private tilt: Tilt = FLAT_TILT;
   private visible = true;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private pinned: ReadonlySet<number> = new Set();
@@ -119,6 +121,8 @@ export class LabelsLayer implements MapLayer {
     if (!this.visible) return;
     if (cam.rev === this.lastRev) return;
     this.lastRev = cam.rev;
+    const tilted = cam.tilt !== this.tilt;
+    this.tilt = cam.tilt;
     const tier = labelTier(cam.scale);
     if (tier === "none" && !this.keepsNames) {
       this.labelling = false;
@@ -156,7 +160,7 @@ export class LabelsLayer implements MapLayer {
     }
     for (const id of wanted) this.show(id);
     if (this.hovered !== null) this.show(this.hovered);
-    if (this.namesDirty) {
+    if (this.namesDirty || tilted) {
       for (const [id, label] of this.shown) {
         const s = this.systems.get(id);
         if (s) this.assign(label, s);
@@ -296,7 +300,7 @@ export class LabelsLayer implements MapLayer {
       label.position.set(ghost.x, ghost.y);
       label.alpha = GHOST_ALPHA;
     } else {
-      label.position.set(s.x, s.y);
+      label.position.set(s.x, systemY(s, this.tilt));
       label.alpha = named ? (filtered ? FILTERED_ALPHA : 1) : INITIALIZER_ALPHA;
     }
   }

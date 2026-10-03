@@ -3,6 +3,7 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import { WATCH_COLOURS, type WatchRings } from "../../lib/watchlist";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
+import { FLAT_TILT, type Tilt } from "../tilt";
 import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 import { RING_RADIUS, WATCH_RING_STEP } from "../../lib/visual/style";
@@ -34,6 +35,7 @@ export class WatchlistLayer implements MapLayer {
   private systems: Systems = EMPTY_CONTEXT.systems;
   private rings: readonly WatchRings[] = [];
   private readonly scale = { x: 1, y: 1 };
+  private tilt: Tilt = FLAT_TILT;
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -55,6 +57,9 @@ export class WatchlistLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const batch of this.batches.values()) batch.setScale(this.scale);
+    if (cam.tilt === this.tilt) return;
+    this.tilt = cam.tilt;
+    this.place();
   }
 
   setVisible(v: boolean): void {
@@ -83,7 +88,7 @@ export class WatchlistLayer implements MapLayer {
         this.batches.set(key, batch);
         this.container.addChild(batch.container);
       }
-      batch.place(pointsOf(this.systems, rings.systems));
+      batch.place(pointsOf(this.systems, rings.systems, this.tilt));
     }
   }
 }

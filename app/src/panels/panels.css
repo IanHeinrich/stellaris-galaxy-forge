@@ -487,3 +487,72 @@
   line-height: 1.4;
   color: var(--warn);
 }
+
+.height-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.height-strip {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+}
+
+.height-strip-axis,
+.height-strip-zero {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.height-strip-zero {
+  stroke: var(--fg-muted);
+}
+
+.height-strip text {
+  font-size: 9px;
+  fill: var(--fg-muted);
+}
+
+.height-group .height-changes {
+  display: flex;
+}
+
+.height-group .height-changes button {
+  flex: 1;
+  width: auto;
+  text-align: center;
+  border-radius: 0;
+}
+
+.height-group .height-changes button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.height-group .height-changes button:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.height-group .height-changes button.on {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--accent-bg);
+}
+
+.height-apply {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.height-group .height-apply button {
+  flex: 1;
+  width: auto;
+  text-align: center;
+}
+
+.height-hint {
+  font-size: 11px;
+}

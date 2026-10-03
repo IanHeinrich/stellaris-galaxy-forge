@@ -358,3 +358,27 @@ describe("a deactivated controller", () => {
     expect(useEditorStore.getState().selection).toEqual([1]);
   });
 });
+
+describe("the tilted map", () => {
+  it("only pans while tilted, and selects again once it lies flat", async () => {
+    const { cam, surface } = mapOver([systemNode({ id: 1, x: 40 })]);
+    const star = cam.worldToScreen(40, 0);
+
+    controller?.setViewOnly(true);
+    surface.fire("pointerdown", star.x, star.y);
+    surface.fire("pointerup", star.x, star.y);
+    surface.fire("pointerdown", 1, 1);
+    surface.fire("pointermove", 799, 599);
+    surface.fire("pointerup", 799, 599);
+    expect(useEditorStore.getState().selection).toEqual([]);
+    expect(cam.x).not.toBe(0);
+
+    useToolStore.setState({ tool: "paint" });
+    controller?.setViewOnly(false);
+    useToolStore.setState({ tool: "select" });
+    const again = cam.worldToScreen(40, 0);
+    surface.fire("pointerdown", again.x, again.y);
+    surface.fire("pointerup", again.x, again.y);
+    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([1]));
+  });
+});

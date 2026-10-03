@@ -3,6 +3,7 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { FLAT_TILT, systemY, type Tilt } from "../tilt";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
 import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
@@ -92,6 +93,7 @@ export class SystemsLayer implements MapLayer {
   private faded = new Set<number>();
   private readonly previews: Sprite[] = [];
   private lastScale = -1;
+  private tilt: Tilt = FLAT_TILT;
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly unsubTextures: () => void;
 
@@ -197,9 +199,23 @@ export class SystemsLayer implements MapLayer {
   }
 
   onViewport(cam: Camera): void {
-    if (cam.scale === this.lastScale) return;
+    if (cam.scale === this.lastScale && cam.tilt === this.tilt) return;
+    const tilted = cam.tilt !== this.tilt;
     this.lastScale = cam.scale;
-    for (const id of this.sprites.keys()) this.rescale(id);
+    this.tilt = cam.tilt;
+    for (const id of this.sprites.keys()) {
+      if (tilted) this.lift(id);
+      this.rescale(id);
+    }
+  }
+
+  /** Moves system `id`'s star and ring to where the tilt draws it. */
+  private lift(id: number): void {
+    const s = this.nodes.get(id);
+    const sprite = this.sprites.get(id);
+    if (!s || !sprite) return;
+    sprite.position.set(s.x, systemY(s, this.tilt));
+    this.rings.get(id)?.position.set(s.x, sprite.y);
   }
 
   private rescale(id: number): void {
@@ -212,14 +228,14 @@ export class SystemsLayer implements MapLayer {
       const k = this.gameTextured.has(id)
         ? starScale(size, camScale, sprite.texture.width)
         : (size * factor * 2) / sprite.texture.width;
-      sprite.scale.set(k, k);
+      sprite.scale.set(k, k / this.tilt.cos);
     }
     const ring = this.rings.get(id);
     if (ring) {
       const k = ((size * factor * 2) / ring.texture.width) * GLYPH_RING_SCALE;
-      ring.scale.set(k, k);
+      ring.scale.set(k, k / this.tilt.cos);
     }
-    this.clusters.rescale(id, camScale);
+    this.clusters.rescale(id, camScale, this.tilt);
   }
 
   setVisible(v: boolean): void {
@@ -242,7 +258,7 @@ export class SystemsLayer implements MapLayer {
       this.sprites.set(s.id, sprite);
       this.container.addChild(sprite);
     }
-    sprite.position.set(s.x, s.y);
+    sprite.position.set(s.x, systemY(s, this.tilt));
 
     const starClass = this.ctx.starTints
       ? effectiveStarClass(s, this.ctx.initializerClasses.get(s.initializer), this.ctx.kind)
@@ -286,7 +302,7 @@ export class SystemsLayer implements MapLayer {
         ring = undefined;
       }
     }
-    ring?.position.set(s.x, s.y);
+    ring?.position.set(s.x, sprite.y);
     const art = resolved && tex ? resolved : null;
     sprite.renderable = !this.clusters.place(s, art, this.ctx.planetClasses, this.ctx.starClasses);
     this.rescale(s.id);

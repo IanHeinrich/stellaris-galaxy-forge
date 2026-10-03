@@ -4,6 +4,7 @@ import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
+import { clampTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
@@ -77,6 +78,8 @@ export interface ToolState {
   symmetry: Symmetry;
   /** The symmetry Shift+M turns back on: the last one picked. */
   lastSymmetry: ActiveSymmetry;
+  /** The tilt view's angle in degrees, 0 for the flat map; a view setting, never saved. */
+  tilt: number;
   /** Whether the rail's symmetry flyout is open. */
   symmetryMenu: boolean;
   /**
@@ -95,6 +98,7 @@ export interface ToolState {
   /** Shift+M: turns symmetry off, or back on as it last was. */
   toggleSymmetry(): void;
   setSymmetryMenu(open: boolean): void;
+  setTilt(degrees: number): void;
 }
 
 function clamp(value: number, range: { min: number; max: number }): number {
@@ -157,6 +161,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   symmetry: SYMMETRY.read(),
   lastSymmetry: storedLastSymmetry(),
   symmetryMenu: false,
+  tilt: 0,
 
   setTool(tool) {
     if (!documentTakes(tool)) return false;
@@ -207,6 +212,11 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   setSymmetryMenu(symmetryMenu) {
     if (get().symmetryMenu !== symmetryMenu) set({ symmetryMenu });
+  },
+
+  setTilt(degrees) {
+    const tilt = clampTilt(degrees);
+    if (get().tilt !== tilt) set({ tilt });
   },
 
   toggleSymmetry() {

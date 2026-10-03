@@ -1,10 +1,10 @@
 //! What the graph says about where a system stands: that it exists and that the
 //! destination is a place. Both formats' move writers start here and differ only in the
-//! bytes they then splice.
+//! bytes they then splice. A save's height writer starts here too.
 
 use crate::emit::coord;
 use crate::ops::rules::each_once;
-use crate::ops::{Op, OpError, SystemMove};
+use crate::ops::{Op, OpError, SystemHeight, SystemMove};
 use crate::projections::galaxy::GalaxyGraph;
 
 /// Where a system stands and where it is going, with the name a description calls it by.
@@ -77,4 +77,30 @@ pub(crate) fn decide_moves(
         });
     }
     Ok(origin)
+}
+
+/// What the graph says about setting `heights` as one: every system exists, is listed once
+/// and is given a finite height or none. Returns the heights that put them back, in the
+/// order given.
+pub(crate) fn decide_heights(
+    graph: &GalaxyGraph,
+    heights: &[SystemHeight],
+) -> Result<Vec<SystemHeight>, OpError> {
+    each_once(heights, |h| h.id)?;
+    heights
+        .iter()
+        .map(|h| {
+            if h.height.is_some_and(|height| !height.is_finite()) {
+                return Err(OpError::NotFinite);
+            }
+            let system = graph
+                .systems
+                .get(&h.id)
+                .ok_or(OpError::UnknownSystem(h.id))?;
+            Ok(SystemHeight {
+                id: h.id,
+                height: system.height,
+            })
+        })
+        .collect()
 }

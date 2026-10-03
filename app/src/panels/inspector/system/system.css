@@ -448,3 +448,19 @@ button.ins-danger:hover:not(:disabled) {
   align-items: center;
   gap: 6px;
 }
+
+.ins-height {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ins-height input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.ins-height .height-icon {
+  flex: none;
+}

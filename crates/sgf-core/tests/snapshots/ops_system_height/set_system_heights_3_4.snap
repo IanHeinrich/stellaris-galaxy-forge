@@ -1,0 +1,25 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Set the height of 2 systems
+inverse: SetSystemHeights { heights: [SystemHeight { id: 0, height: None }, SystemHeight { id: 1, height: None }] }
+
+--- gamestate
++++ gamestate
+@@ -36519,6 +36519,7 @@
+ 			y=179.15
+ 			origin=4294967295
+ 			randomized=yes
++			visual_height=7.5
+ 		}
+ 		type=star
+ 		name={
+@@ -36609,6 +36610,7 @@
+ 			y=-188.89
+ 			origin=4294967295
+ 			randomized=yes
++			visual_height=-3
+ 		}
+ 		type=star
+ 		name={

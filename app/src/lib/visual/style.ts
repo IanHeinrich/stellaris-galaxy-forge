@@ -61,6 +61,8 @@ export const SEARCHED_COLOR = 0xf472b6;
  * stroke clears its neighbours'; the kinds that share a radius are named under it.
  */
 export const RING_RADIUS = {
+  /** A system's height above or below the plane, tinted by which. */
+  height: 7,
   hover: 9,
   selection: 11,
   /** The browser's matches and a lane drag's target. */

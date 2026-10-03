@@ -6,6 +6,7 @@ import { singleStarClasses } from "../../lib/details/starBody";
 import { starCluster, type ClusterStar } from "../../lib/visual/starCluster";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
+import { FLAT_TILT, systemY, type Tilt } from "../tilt";
 
 /** Game star art sits on opaque black; drawn additively, black reads as transparent. */
 export const STAR_ART_BLEND: BLEND_MODES = "add";
@@ -65,19 +66,21 @@ export class StarClusters {
     return true;
   }
 
-  /** Sizes and places system `id`'s stars for the zoom `camScale`. */
-  rescale(id: number, camScale: number): void {
+  /** Sizes and places system `id`'s stars for the zoom `camScale`, upright and lifted under `tilt`. */
+  rescale(id: number, camScale: number, tilt: Tilt = FLAT_TILT): void {
     const cluster = this.clusters.get(id);
     if (!cluster) return;
     const footprint = starDiameterPx(STAR_BASE_PX, camScale);
+    const y = systemY(cluster.node, tilt);
     cluster.sprites.forEach((star, i) => {
       const place = cluster.stars[i];
       const width = star.texture.width;
       const px = Math.min(width, footprint * place.diameter * place.texture.scale);
-      star.scale.set(px / (camScale * width));
+      const k = px / (camScale * width);
+      star.scale.set(k, k / tilt.cos);
       star.position.set(
         cluster.node.x + (place.dx * footprint) / camScale,
-        cluster.node.y + (place.dy * footprint) / camScale,
+        y + (place.dy * footprint) / (camScale * tilt.cos),
       );
     });
   }

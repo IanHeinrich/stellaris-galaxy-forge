@@ -2,6 +2,7 @@ import { Container, Graphics, GraphicsContext } from "pixi.js";
 import type { Pt } from "../../../lib/geometry/pt";
 import { ORIGIN_ALPHA } from "../../../lib/visual/style";
 import type { Systems } from "../../RenderContext";
+import { FLAT_TILT, liftedPoint, type Tilt } from "../../tilt";
 import { destroyChildren } from "../destroyChildren";
 
 /** One kind of ring: its colour, its radius in marker units, and its stroke. */
@@ -80,12 +81,12 @@ export class RingBatch {
   }
 }
 
-/** The systems of `ids` the map holds, skipping the rest. */
-export function pointsOf(systems: Systems, ids: Iterable<number>): Pt[] {
+/** Where the systems of `ids` the map holds draw under `tilt`, skipping the rest. */
+export function pointsOf(systems: Systems, ids: Iterable<number>, tilt: Tilt = FLAT_TILT): Pt[] {
   const points: Pt[] = [];
   for (const id of ids) {
     const s = systems.get(id);
-    if (s) points.push(s);
+    if (s) points.push(liftedPoint(s, tilt));
   }
   return points;
 }

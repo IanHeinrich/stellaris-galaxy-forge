@@ -51,10 +51,13 @@ pub struct NebulaSection<'a> {
     pub members: &'a [u32],
 }
 
-/// `randomized` and `visual_height` as the generator writes them on every cloud; a new
-/// section copies them rather than inventing a shape the game has not been seen to write.
+/// `randomized` as the game's galaxy generation writes it on every cloud, beside a
+/// `visual_height` of [`DEFAULT_SYSTEM_HEIGHT`]; a new section copies them rather than
+/// inventing a shape the game has not been seen to write.
 const NEBULA_RANDOMIZED: &str = "yes";
-const NEBULA_VISUAL_HEIGHT: &str = "3.65056";
+
+/// The `visual_height` the game's galaxy generation gives every system and nebula it places.
+pub const DEFAULT_SYSTEM_HEIGHT: f64 = 3.65056;
 
 /// A whole `nebula={…}` section in the game's shape. `indent` is the `nebula` key's own
 /// indentation; the section ends with the newline that separates it from what follows.
@@ -66,7 +69,7 @@ pub fn nebula_section(indent: &[u8], n: &NebulaSection<'_>) -> Vec<u8> {
     w.pair(2, keys::Y, &coord(n.y));
     w.pair(2, keys::ORIGIN, &crate::NULL_ID.to_string());
     w.pair(2, keys::RANDOMIZED, NEBULA_RANDOMIZED);
-    w.pair(2, keys::VISUAL_HEIGHT, NEBULA_VISUAL_HEIGHT);
+    w.pair(2, keys::VISUAL_HEIGHT, &coord(DEFAULT_SYSTEM_HEIGHT));
     w.close(1);
     w.open(1, keys::NAME);
     w.pair(2, keys::KEY, &quoted(n.name));
