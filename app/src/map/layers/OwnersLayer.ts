@@ -349,9 +349,14 @@ export class OwnersLayer implements MapLayer {
   }
 
   private params(): TerritoryParams {
+    const border = this.ctx.border;
     return {
-      radius: this.ctx.border.system_radius,
-      laneHalfWidth: this.ctx.border.hyperlane_thickness / 2,
+      radius: border.system_radius,
+      laneHalfWidth: border.hyperlane_thickness / 2,
+      ownerlessRadius: border.ownerless_system_radius,
+      ownerlessLaneThickness: border.ownerless_hyperlane_thickness,
+      reachFactor: border.influence_max_distance_factor,
+      ownerlessReachFactor: border.ownerless_influence_max_distance_factor,
     };
   }
 

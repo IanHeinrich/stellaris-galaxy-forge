@@ -3,7 +3,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { Territories, type Shape } from "./territories";
 import { scanPiece } from "./labelFit";
-import { countryRegions, ringArea, smoothRegion } from "./territory";
+import { countryRegions } from "./territory";
 import { buildGalaxy } from "./territory.fixture";
 
 const PARAMS = { radius: 35, laneHalfWidth: 10 };
@@ -20,37 +20,13 @@ function galaxy(): SystemNode[] {
 function direct(systems: SystemNode[], bordered = BORDERED): Map<number, Shape> {
   const shapes = new Map<number, Shape>();
   for (const [id, region] of countryRegions(systems, PARAMS, new Set(bordered))) {
-    const smoothed = smoothRegion(region);
-    shapes.set(id, { smoothed, scans: smoothed.map((polygon) => scanPiece(polygon)) });
+    shapes.set(id, { smoothed: region, scans: region.map((polygon) => scanPiece(polygon)) });
   }
   return shapes;
 }
 
 function dist2(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-}
-
-/** The two-level union of the tiles lands each vertex within rounding of the flat union's. */
-const VERTEX_TOLERANCE = 1e-9;
-const AREA_TOLERANCE = 1e-6;
-
-function expectSameShape(got: Shape, want: Shape): void {
-  expect(got.smoothed).toHaveLength(want.smoothed.length);
-  for (let i = 0; i < want.smoothed.length; i++) {
-    const g = got.smoothed[i][0];
-    const w = want.smoothed[i][0];
-    expect(g).toHaveLength(w.length);
-    const area = Math.abs(ringArea(w));
-    expect(Math.abs(Math.abs(ringArea(g)) - area) / area).toBeLessThan(AREA_TOLERANCE);
-    let farthest = 0;
-    for (let k = 0; k < w.length; k++) farthest = Math.max(farthest, Math.sqrt(dist2(g[k], w[k])));
-    expect(farthest).toBeLessThan(VERTEX_TOLERANCE);
-  }
-  expect(got.scans).toHaveLength(want.scans.length);
-  for (let i = 0; i < want.scans.length; i++) {
-    expect(Math.abs(got.scans[i].y0 - want.scans[i].y0)).toBeLessThan(VERTEX_TOLERANCE);
-    expect(got.scans[i].rows.map((r) => r.length)).toEqual(want.scans[i].rows.map((r) => r.length));
-  }
 }
 
 describe("Territories", () => {
@@ -80,7 +56,7 @@ describe("Territories", () => {
     expect(removed).toEqual([20]);
   });
 
-  it("matches countryRegions after moves inside, across a border, a removal and a change of owner", () => {
+  it("matches a rebuild after moves inside, across a border, a removal and a change of owner", () => {
     const { systems, sizes } = buildGalaxy();
     const bordered = sizes.map((s) => s.country);
     const [largest, second] = [sizes[0].country, sizes[1].country];
@@ -110,9 +86,7 @@ describe("Territories", () => {
     const defector = systems.find((s) => s.owner === second) as SystemNode;
     step([{ ...defector, owner: largest }], []);
 
-    const compared = sizes.slice(0, 4).map((s) => s.country);
-    const fresh = direct(galaxy, compared);
-    for (const country of compared) expectSameShape(latest.get(country)!, fresh.get(country)!);
+    expect(latest).toEqual(direct(galaxy, bordered));
   });
 
   it("answers an apply before any reset with nothing", () => {

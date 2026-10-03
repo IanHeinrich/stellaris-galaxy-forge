@@ -2,13 +2,7 @@ import { describe, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { scanRing } from "./labelFit";
 import { Territories } from "./territories";
-import {
-  affectedCountries,
-  countryRegions,
-  smoothRegion,
-  type Region,
-  type TerritoryParams,
-} from "./territory";
+import { countryRegions, type Region, type TerritoryParams } from "./territory";
 import { buildGalaxy } from "./territory.fixture";
 
 const PARAMS: TerritoryParams = { radius: 35, laneHalfWidth: 10 };
@@ -50,7 +44,7 @@ function runBench(
 }
 
 describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () => {
-  it("times countryRegions, affectedCountries, Territories, smoothRegion and scanRing", () => {
+  it("times countryRegions, Territories and scanRing", () => {
     const { systems, laneCount, sizes } = buildGalaxy();
     const largestCountry = sizes[0].country;
     const largestOnly = new Set([largestCountry]);
@@ -64,17 +58,11 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
           .join(", ")}`,
     );
 
-    const beforeMap = new Map(systems.map((s) => [s.id, s]));
     const movedSource = systems.find((s) => s.owner === largestCountry);
     if (!movedSource) throw new Error("territory bench: no system found in the largest country");
     const movedSystem: SystemNode = { ...movedSource, x: movedSource.x + MOVE_DISTANCE };
-    const afterMap = new Map(beforeMap);
-    afterMap.set(movedSystem.id, movedSystem);
-    const systemsAfterMove = systems.map((s) => (s.id === movedSystem.id ? movedSystem : s));
 
-    const allRegions = countryRegions(systems, PARAMS);
-    const regionList: Region[] = [...allRegions.values()];
-    const smoothedList: Region[] = regionList.map((region) => smoothRegion(region));
+    const regionList: Region[] = [...countryRegions(systems, PARAMS).values()];
 
     const model = new Territories();
 
@@ -94,14 +82,6 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
         BENCH_OPTIONS,
       ),
       runBench(
-        "affectedCountries + countryRegions after moving one system",
-        () => {
-          const affected = affectedCountries([movedSystem], beforeMap, afterMap, PARAMS);
-          countryRegions(systemsAfterMove, PARAMS, affected);
-        },
-        BENCH_OPTIONS,
-      ),
-      runBench(
         "Territories.reset over the whole galaxy",
         () => {
           new Territories().reset(systems, PARAMS, bordered);
@@ -116,16 +96,9 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
         { ...BENCH_OPTIONS, setup: () => model.reset(systems, PARAMS, bordered) },
       ),
       runBench(
-        "smoothRegion over every region",
+        "scanRing over every piece of every region",
         () => {
-          for (const region of regionList) smoothRegion(region);
-        },
-        BENCH_OPTIONS,
-      ),
-      runBench(
-        "scanRing over every piece of every smoothed region",
-        () => {
-          for (const region of smoothedList) for (const polygon of region) scanRing(polygon[0]);
+          for (const region of regionList) for (const polygon of region) scanRing(polygon[0]);
         },
         BENCH_OPTIONS,
       ),

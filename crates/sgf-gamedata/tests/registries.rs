@@ -273,6 +273,13 @@ fn defines_survive_trailing_comments() {
     let gd = common::cached_fixture();
     assert_eq!(gd.border.system_radius, 40.0);
     assert_eq!(gd.border.hyperlane_thickness, 15.0);
+    assert_eq!(gd.border.influence_max_distance_factor, 1.5);
+    assert_eq!(gd.border.ownerless_system_radius, 28.0);
+    assert_eq!(
+        gd.border.ownerless_hyperlane_thickness, 20.0,
+        "absent, so vanilla's"
+    );
+    assert_eq!(gd.border.ownerless_influence_max_distance_factor, 1.88);
     assert_eq!(gd.border.moon_scale, 0.65);
     assert_eq!(gd.border.name_min_width, 80.0);
 }
@@ -665,6 +672,10 @@ fn vanilla_registries() {
 
     assert_eq!(gd.border.system_radius, 35.0);
     assert_eq!(gd.border.hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.influence_max_distance_factor, 1.88);
+    assert_eq!(gd.border.ownerless_system_radius, 30.0);
+    assert_eq!(gd.border.ownerless_hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.ownerless_influence_max_distance_factor, 1.88);
     assert_eq!(gd.border.moon_scale, 0.7);
     assert_eq!(gd.border.name_min_width, 100.0);
 

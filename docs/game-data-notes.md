@@ -310,8 +310,25 @@ less.
 - `is_space_critter = yes` marks the fauna types (`tiyanki`, `amoeba`,
   `crystal`, `cloud`, …) and every `guardian*` type. The marauder types
   are `dormant_marauders`, `awakened_marauders` and `ruined_marauders`.
-- `BORDER_SYSTEM_RADIUS = 35` and `BORDER_HYPERLANE_THICKNESS = 20` are
-  in `common/defines/00_defines.txt`.
+- `NGraphics` in `common/defines/00_defines.txt` sets how far borders
+  reach: `BORDER_SYSTEM_RADIUS = 35`, `BORDER_HYPERLANE_THICKNESS = 20`,
+  `BORDER_OWNERLESS_SYSTEM_RADIUS = 30` and
+  `BORDER_OWNERLESS_HYPERLANE_THICKNESS = 20`.
+  `BORDER_INFLUENCE_MAX_DISTANCE_FACTOR` and
+  `BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR` are both 1.88.
+- Territories come from an influence field. Every owned system, every
+  lane whose two ends have the same owner, every unowned system and
+  every lane between two unowned systems is a source. A lane between
+  two owners, or between an owned and an unowned system, is not. At a
+  point, a source gives s = d / r, where d is the distance to the system
+  or lane and r is its radius or thickness from the defines above. A
+  source reaches no further than r times its max distance factor.
+- Each owner's influence at a point is −k·ln Σ exp(−s/k) over its
+  sources, with k = 0.155. All unowned sources count as one owner. The
+  point goes to the owner with the lowest value. It is that owner's
+  territory if the owner is a country that draws borders and the value
+  is at most 0.88, which is the border shader's 0.47 times the 1.88
+  reach. k was fitted to screenshots of the 2330 save of 4.5.1.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
   empire colour, and the map uses the `map` rgb. The map outlines a
   territory in the country's first flag colour. It fills it with the
@@ -339,10 +356,11 @@ less.
 - An unowned system an empire surrounds is a hole in its territory,
   with the empire's band round the hole's edge. In the 2330 save of
   4.5.1, Chinorr Combine has holes round Iswyria, Terebellum, Wollaeus,
-  Hazra and Jolun. None of them has a starbase. Each hole is a disc of
-  about 6.5 world units cut back to the bisectors of the system's
-  neighbours, as an owned system's disc is. That is far smaller than
-  `BORDER_SYSTEM_RADIUS` or `BORDER_OWNERLESS_SYSTEM_RADIUS`.
+  Hazra and Jolun. None of them has a starbase. Each hole is an
+  irregular oval, pushed away from the empire's nearer systems, so the
+  star sits off-centre. The holes, the enclaves of one empire inside
+  another, the rounded one-system pockets and the corridors along lanes
+  all come out of the influence field. None of them is a special case.
 - The bands show no tint of the fill under them, so they are close to
   opaque, but they are not their `map` rgb. Chimm's `black` (27) band
   reads 59 and Hissman's `dark_grey` (62) reads 86. Chinorr's
