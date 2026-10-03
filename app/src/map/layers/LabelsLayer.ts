@@ -6,7 +6,8 @@ import type { Camera } from "../Camera";
 import { compareImportance, labelTier } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, systemY, type Tilt } from "../tilt";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
+import { FLAT_TILT, highestHeight, isTilted, liftReach, systemY, type Tilt } from "../tilt";
 import { dimmedByInitializer, initializerLabel } from "../../lib/initializer/initializerLabels";
 import { FILTERED_ALPHA, GHOST_ALPHA, INITIALIZER_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -61,6 +62,9 @@ export class LabelsLayer implements MapLayer {
   private offsetY = nameRowY(1);
   private lastRev = -1;
   private tilt: Tilt = FLAT_TILT;
+  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
+  /** The largest height off the plane, so a lifted star near the edge of view keeps its name. */
+  private highest = 0;
   private visible = true;
   private ghosts: ReadonlyMap<number, MoveGhost> = NO_GHOSTS;
   private pinned: ReadonlySet<number> = new Set();
@@ -87,6 +91,8 @@ export class LabelsLayer implements MapLayer {
     this.ctx = ctx;
     this.systems = ctx.systems;
     this.grid = ctx.grid;
+    if (ctx.systems !== prev.systems)
+      this.highest = highestHeight(ctx.systems.values(), this.preview);
     if (ctx.galaxy !== prev.galaxy) {
       this.releaseAll();
       this.reorder();
@@ -133,12 +139,14 @@ export class LabelsLayer implements MapLayer {
     this.offsetY = nameRowY(cam.scale);
     cam.childScale(1, this.scale);
     const pad = VIEW_PAD_PX / cam.scale;
+    const lift = liftReach(this.highest, this.tilt);
     const b = cam.worldBounds(this.bounds);
     const { order, inView, wanted } = this;
     inView.clear();
     wanted.clear();
     this.pinnedInView.clear();
-    this.grid.forEachIn(b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad, this.markInView);
+    const [minX, minY, maxX, maxY] = [b[0] - pad, b[1] - pad - lift, b[2] + pad, b[3] + pad + lift];
+    this.grid.forEachIn(minX, minY, maxX, maxY, this.markInView);
 
     for (const id of this.topPinned()) {
       const s = this.systems.get(id);
@@ -169,6 +177,20 @@ export class LabelsLayer implements MapLayer {
     }
     for (const label of this.shown.values()) this.fit(label);
     this.placePlates();
+  }
+
+  /** While the map leans, moves only the names of the systems whose previewed height moved. */
+  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
+    this.preview = preview;
+    for (const height of preview.values()) this.highest = Math.max(this.highest, Math.abs(height));
+    if (!isTilted(this.tilt)) return;
+    for (const id of changed) {
+      const label = this.shown.get(id);
+      const s = this.systems.get(id);
+      if (!label || !s) continue;
+      this.style(label, s);
+      this.placePlate(id, label);
+    }
   }
 
   /** Systems whose label is placed before any other, whatever their rank, while in view. */
@@ -300,7 +322,7 @@ export class LabelsLayer implements MapLayer {
       label.position.set(ghost.x, ghost.y);
       label.alpha = GHOST_ALPHA;
     } else {
-      label.position.set(s.x, systemY(s, this.tilt));
+      label.position.set(s.x, systemY(s, this.tilt, this.preview));
       label.alpha = named ? (filtered ? FILTERED_ALPHA : 1) : INITIALIZER_ALPHA;
     }
   }

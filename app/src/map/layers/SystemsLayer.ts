@@ -3,7 +3,8 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { FLAT_TILT, systemY, type Tilt } from "../tilt";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
+import { FLAT_TILT, isTilted, systemY, type Tilt } from "../tilt";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
 import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
@@ -94,6 +95,7 @@ export class SystemsLayer implements MapLayer {
   private readonly previews: Sprite[] = [];
   private lastScale = -1;
   private tilt: Tilt = FLAT_TILT;
+  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly unsubTextures: () => void;
 
@@ -209,12 +211,22 @@ export class SystemsLayer implements MapLayer {
     }
   }
 
+  /** While the map leans, lifts only the stars whose previewed height moved. */
+  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
+    this.preview = preview;
+    if (!isTilted(this.tilt)) return;
+    for (const id of changed) {
+      this.lift(id);
+      this.rescale(id);
+    }
+  }
+
   /** Moves system `id`'s star and ring to where the tilt draws it. */
   private lift(id: number): void {
     const s = this.nodes.get(id);
     const sprite = this.sprites.get(id);
     if (!s || !sprite) return;
-    sprite.position.set(s.x, systemY(s, this.tilt));
+    sprite.position.set(s.x, systemY(s, this.tilt, this.preview));
     this.rings.get(id)?.position.set(s.x, sprite.y);
   }
 
@@ -235,7 +247,7 @@ export class SystemsLayer implements MapLayer {
       const k = ((size * factor * 2) / ring.texture.width) * GLYPH_RING_SCALE;
       ring.scale.set(k, k / this.tilt.cos);
     }
-    this.clusters.rescale(id, camScale, this.tilt);
+    this.clusters.rescale(id, camScale, this.tilt, this.preview);
   }
 
   setVisible(v: boolean): void {
@@ -258,7 +270,7 @@ export class SystemsLayer implements MapLayer {
       this.sprites.set(s.id, sprite);
       this.container.addChild(sprite);
     }
-    sprite.position.set(s.x, systemY(s, this.tilt));
+    sprite.position.set(s.x, systemY(s, this.tilt, this.preview));
 
     const starClass = this.ctx.starTints
       ? effectiveStarClass(s, this.ctx.initializerClasses.get(s.initializer), this.ctx.kind)

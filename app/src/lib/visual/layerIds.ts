@@ -120,11 +120,11 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
       "lanes",
       "systems",
       "classes",
-      "heights",
       "labels",
       "details",
       "orbitRadii",
       "colonies",
+      "heights",
     ],
   },
   {

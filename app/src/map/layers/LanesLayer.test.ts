@@ -2,6 +2,9 @@ import type { Graphics } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
+import { Camera } from "../Camera";
+import { EMPTY_CONTEXT } from "../RenderContext";
+import { liftedY } from "../tilt";
 import { LanesLayer, PREVENTED_LANE } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
 import { childByLabel, type DrawOp, mapContext, mapNode, strokes } from "./fixture";
@@ -157,5 +160,33 @@ describe("a tile whose lanes are all gone", () => {
     layer.rebuild(mapContext([]));
     layer.applyDelta({ systems: [], removed: [BARNARD.id, SIRIUS.id] });
     expect(tileGraphics(layer)).toEqual([]);
+  });
+});
+
+describe("a height preview on a tilted map", () => {
+  it("redraws only the tiles holding a lane of the previewed system, at its previewed lift", () => {
+    const far: SystemNode[] = [
+      { ...BARNARD, id: 4, x: 1000, lanes: [{ to: 5, length: 20, bridge: false, stale: false }] },
+      { ...SIRIUS, id: 5, x: 1020, lanes: [{ to: 4, length: 20, bridge: false, stale: false }] },
+    ];
+    const layer = drawn([BARNARD, SIRIUS, ...far]);
+    const cam = new Camera();
+    cam.setViewport(800, 600);
+    cam.setTilt(30);
+    layer.onViewport(cam, EMPTY_CONTEXT);
+    const cleared = tileGraphics(layer).map((g) => vi.spyOn(g, "clear"));
+
+    layer.setHeightPreview!(new Map([[2, 50]]), new Set([2]));
+
+    expect(cleared.filter((spy) => spy.mock.calls.length > 0)).toHaveLength(3);
+    const lifted = liftedY(0, 50, cam.tilt);
+    expect(laneStrokes(layer).flatMap((s) => s.segments)).toContainEqual([40, lifted, 60, 0]);
+  });
+
+  it("redraws nothing while the map lies flat", () => {
+    const layer = drawn([BARNARD, SIRIUS]);
+    const cleared = tileGraphics(layer).map((g) => vi.spyOn(g, "clear"));
+    layer.setHeightPreview!(new Map([[2, 50]]), new Set([2]));
+    expect(cleared.every((spy) => spy.mock.calls.length === 0)).toBe(true);
   });
 });

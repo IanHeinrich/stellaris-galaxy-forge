@@ -20,6 +20,8 @@ import { Camera } from "../Camera";
 import { HighlightsLayer } from "../layers/HighlightsLayer";
 import { strokes } from "../layers/fixture";
 import type { DragState, MapLayer } from "../layers/MapLayer";
+import { absoluteHeight } from "../../lib/height";
+import { liftedY } from "../tilt";
 import { InteractionController } from "./InteractionController";
 
 type Listener = (e: PointerEvent) => void;
@@ -360,25 +362,84 @@ describe("a deactivated controller", () => {
 });
 
 describe("the tilted map", () => {
-  it("only pans while tilted, and selects again once it lies flat", async () => {
-    const { cam, surface } = mapOver([systemNode({ id: 1, x: 40 })]);
-    const star = cam.worldToScreen(40, 0);
+  /** A system 100 above the plane at x 40, a flat one at x -40, and the map leant 30°. */
+  function leaning() {
+    const drags: Array<DragState | null> = [];
+    const layer = { setDragState: (d: DragState | null) => drags.push(d) } as unknown as MapLayer;
+    const map = mapOver(
+      [systemNode({ id: 1, x: 40, height: absoluteHeight(100) }), systemNode({ id: 2, x: -40 })],
+      [layer],
+    );
+    map.cam.setTilt(30);
+    controller!.setTilted(true);
+    const drawn = map.cam.worldToScreen(40, liftedY(0, 100, map.cam.tilt));
+    const plane = map.cam.worldToScreen(40, 0);
+    return { ...map, drags, drawn, plane };
+  }
 
-    controller?.setViewOnly(true);
-    surface.fire("pointerdown", star.x, star.y);
-    surface.fire("pointerup", star.x, star.y);
-    surface.fire("pointerdown", 1, 1);
-    surface.fire("pointermove", 799, 599);
-    surface.fire("pointerup", 799, 599);
-    expect(useEditorStore.getState().selection).toEqual([]);
-    expect(cam.x).not.toBe(0);
+  it("selects a lifted system where its star is drawn, not where it stands on the plane", async () => {
+    const { surface, drawn, plane } = leaning();
+    expect(plane.y - drawn.y).toBeGreaterThan(20);
 
-    useToolStore.setState({ tool: "paint" });
-    controller?.setViewOnly(false);
-    useToolStore.setState({ tool: "select" });
-    const again = cam.worldToScreen(40, 0);
-    surface.fire("pointerdown", again.x, again.y);
-    surface.fire("pointerup", again.x, again.y);
+    surface.fire("pointermove", drawn.x, drawn.y);
+    expect(useEditorStore.getState().hover).toBe(1);
+    surface.fire("pointerdown", drawn.x, drawn.y);
+    surface.fire("pointerup", drawn.x, drawn.y);
     await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([1]));
+
+    surface.fire("pointerdown", plane.x, plane.y);
+    surface.fire("pointerup", plane.x, plane.y);
+    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([]));
+  });
+
+  it("follows a previewed height when picking", async () => {
+    const { cam, surface, drawn } = leaning();
+    const preview = new Map([[1, 200]]);
+    controller!.setHeightPreview(preview, new Set([1]));
+    const raised = cam.worldToScreen(40, liftedY(0, 200, cam.tilt));
+
+    surface.fire("pointermove", drawn.x, drawn.y);
+    expect(useEditorStore.getState().hover).toBeNull();
+    surface.fire("pointermove", raised.x, raised.y);
+    expect(useEditorStore.getState().hover).toBe(1);
+  });
+
+  it("box-selects from a drag on a system instead of moving it", async () => {
+    const { cam, surface, drags, drawn } = leaning();
+    const flat = cam.worldToScreen(-40, 0);
+    const sx = Math.sign(drawn.x - flat.x);
+    const sy = Math.sign(drawn.y - flat.y);
+    const from = { x: drawn.x + 4 * sx, y: drawn.y + 4 * sy };
+    const to = { x: flat.x - 20 * sx, y: flat.y - 20 * sy };
+
+    surface.fire("pointerdown", from.x, from.y);
+    surface.fire("pointermove", to.x, to.y);
+    surface.fire("pointerup", to.x, to.y);
+
+    expect(drags.filter((d) => d !== null)).toEqual([]);
+    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([1, 2]));
+  });
+
+  it("moves a dragged system again once it lies flat", () => {
+    const { cam, surface, drags } = leaning();
+    cam.setTilt(0);
+    controller!.setTilted(false);
+    const star = cam.worldToScreen(40, 0);
+    const to = cam.worldToScreen(60, 20);
+
+    surface.fire("pointerdown", star.x, star.y);
+    surface.fire("pointermove", to.x, to.y);
+
+    expect(drags[drags.length - 1]?.ghosts.map((g) => g.id)).toEqual([1]);
+  });
+
+  it("refuses the Connect and Cut tools while it leans", () => {
+    useToolStore.setState({ tool: "connect" });
+    useToolStore.getState().setTilt(30);
+    expect(useToolStore.getState().setTool("cut")).toBe(false);
+    expect(useToolStore.getState().setTool("select")).toBe(true);
+
+    useToolStore.getState().setTilt(0);
+    expect(useToolStore.getState().setTool("connect")).toBe(true);
   });
 });

@@ -4,7 +4,8 @@ import type { LaneMode } from "../lib/brush/lanes";
 import { isSymmetry, type ActiveSymmetry, type Symmetry } from "../lib/geometry/symmetry";
 import { toolRequires, type Tool } from "../lib/tools";
 import { barShows, type BarMode } from "../lib/visual/barMode";
-import { clampTilt } from "../lib/visual/tilt";
+import { documentCapabilities } from "../lib/capabilities";
+import { clampTilt, shownTilt } from "../lib/visual/tilt";
 import { canEdit, useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { isBoolean, isFiniteNumber, prefField, type PrefField } from "./prefs";
@@ -136,7 +137,21 @@ function storedNumber(
 /** Whether `tool` can be picked on the bar `mode`; where the bar hides the tools only Select works. */
 export function toolAllowed(tool: Tool, mode: BarMode): boolean {
   if (tool !== "select" && !barShows(mode, "tools")) return false;
-  return documentTakes(tool);
+  return documentTakes(tool) && tiltTakes(tool);
+}
+
+/** The tools that edit hyperlanes, which wait while the map leans. */
+const LANE_TOOLS: ReadonlySet<Tool> = new Set(["connect", "cut"]);
+
+/** Whether the galaxy map leans now: a tilt is set, on a save. */
+export function mapTilted(): boolean {
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  return shownTilt(useToolStore.getState().tilt, capabilities) > 0;
+}
+
+/** Whether `tool` works on the map as it leans now: every tool but the lane tools does. */
+export function tiltTakes(tool: Tool): boolean {
+  return !LANE_TOOLS.has(tool) || !mapTilted();
 }
 
 /** Whether the open document can take `tool`. */
@@ -164,7 +179,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   tilt: 0,
 
   setTool(tool) {
-    if (!documentTakes(tool)) return false;
+    if (!documentTakes(tool) || !tiltTakes(tool)) return false;
     if (get().tool !== tool) set({ tool });
     return true;
   },

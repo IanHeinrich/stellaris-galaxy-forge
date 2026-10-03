@@ -17,6 +17,7 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useGeneratorStore } from "../../../store/generatorStore";
+import { useHeightPreviewStore } from "../../../store/heightPreviewStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import {
@@ -31,6 +32,7 @@ import {
   SYSTEM,
 } from "../inspectorFixture";
 import { mockedIpc } from "../../../test/ipc";
+import { heightToSlider } from "../../../lib/height";
 import { HEIGHT_HINT } from "./SystemHeight";
 
 bindStores();
@@ -482,8 +484,9 @@ describe("the height row", () => {
   it("shows the height above the plane under the position, with what 0 means", async () => {
     const html = await overviewAt(DEFAULT_SYSTEM_HEIGHT + 50);
     expect(html).toMatch(
-      /<input type="range" min="-200" max="200" step="1" aria-label="Height slider" value="50"/,
+      /<input type="range" min="-1" max="1" step="any" aria-label="Height slider"/,
     );
+    expect(html).toContain(`value="${heightToSlider(50)}"`);
     expect(html).toContain('aria-label="Height" value="50.00"');
     expect(flatButton(html)).not.toContain("disabled");
     expect(html).toContain(HEIGHT_HINT.replace("'", "&#x27;"));
@@ -491,8 +494,17 @@ describe("the height row", () => {
 
   it("reads a system with no height as flat, its Flat button disabled", async () => {
     const html = await overviewAt();
-    expect(html).toContain('aria-label="Height slider" value="0"');
+    expect(html).toContain('aria-label="Height slider" aria-valuetext="0" value="0"');
     expect(flatButton(html)).toContain("disabled");
+  });
+
+  it("shows a previewed height while the slider is held, to one decimal", async () => {
+    await overviewAt(DEFAULT_SYSTEM_HEIGHT + 50);
+    useHeightPreviewStore.getState().show(SYSTEM, 12.3);
+    const html = overview();
+    expect(html).toContain(`aria-valuetext="12.3" value="${heightToSlider(12.3)}"`);
+    expect(html).toContain('aria-label="Height" value="12.3"');
+    useHeightPreviewStore.getState().clear();
   });
 
   it("is hidden where the document takes no heights", async () => {

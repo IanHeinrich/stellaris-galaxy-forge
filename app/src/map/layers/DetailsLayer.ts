@@ -25,7 +25,8 @@ import { nameHalf } from "./nameWidth";
 import type { Camera } from "../Camera";
 import type { MoveGhost } from "../moveGhosts";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { FLAT_TILT, systemY, type Tilt } from "../tilt";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
+import { FLAT_TILT, highestHeight, isTilted, liftReach, systemY, type Tilt } from "../tilt";
 import { GHOST_ALPHA } from "../../lib/visual/style";
 import { onTextures, requestTextures } from "../../lib/visual/textures";
 import { queuedTextures, rowY, type RowY } from "./details/cell";
@@ -76,6 +77,9 @@ export class DetailsLayer implements MapLayer {
   private ghosts: ReadonlyMap<number, MoveGhost> = new Map();
   private cam: Camera | null = null;
   private tilt: Tilt = FLAT_TILT;
+  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
+  /** The largest height off the plane, so a lifted star near the edge of view keeps its row. */
+  private highest = 0;
   private visible = true;
   /** Bumped whenever anything a row is drawn from moves, so its layout no longer stands. */
   private layoutRev = 0;
@@ -101,6 +105,9 @@ export class DetailsLayer implements MapLayer {
     this.layoutRev++;
     if (ctx.gameDataReady && !prev.gameDataReady && ctx.resourceIcons.size === 0) {
       ctx.requestResourceIcons();
+    }
+    if (ctx.systems !== this.systems) {
+      this.highest = highestHeight(ctx.systems.values(), this.preview);
     }
     this.systems = ctx.systems;
     this.grid = ctx.grid;
@@ -156,6 +163,18 @@ export class DetailsLayer implements MapLayer {
     else this.releaseAll();
   }
 
+  /** While the map leans, moves only the rows of the systems whose previewed height moved. */
+  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
+    this.preview = preview;
+    for (const height of preview.values()) this.highest = Math.max(this.highest, Math.abs(height));
+    if (!isTilted(this.tilt)) return;
+    for (const id of changed) {
+      const row = this.shown.get(id);
+      const s = this.systems.get(id);
+      if (row && s) this.place(row, s);
+    }
+  }
+
   setDragState(drag: DragState | null): void {
     this.ghosts = drag?.byId ?? new Map();
     for (const [id, row] of this.shown) {
@@ -185,9 +204,10 @@ export class DetailsLayer implements MapLayer {
       return;
     }
     const pad = CULL_MARGIN_PX / cam.scale;
+    const lift = liftReach(this.highest, this.tilt);
     const b = cam.worldBounds(this.bounds);
     this.inView.length = 0;
-    this.grid.forEachIn(b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad, this.collect);
+    this.grid.forEachIn(b[0] - pad, b[1] - pad - lift, b[2] + pad, b[3] + pad + lift, this.collect);
     const details = this.ctx.details;
     this.ctx.requestDetails(this.inView);
 
@@ -222,7 +242,7 @@ export class DetailsLayer implements MapLayer {
 
   private place(row: Row, s: SystemNode): void {
     const ghost = this.ghosts.get(s.id);
-    row.root.position.set(ghost?.x ?? s.x, ghost?.y ?? systemY(s, this.tilt));
+    row.root.position.set(ghost?.x ?? s.x, ghost?.y ?? systemY(s, this.tilt, this.preview));
     row.root.alpha = ghost ? GHOST_ALPHA : 1;
   }
 

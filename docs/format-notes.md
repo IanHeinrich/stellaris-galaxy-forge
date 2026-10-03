@@ -167,6 +167,13 @@ for planets or deposits.
   survive an in-game save and a month of play unchanged (4.5.1). An
   exact `visual_height=0` does not: the game replaced it on load with
   `-4.57298`, so 0 reads as unset and an edit writes `0.00001` instead.
+- The galaxy map draws `visual_height` at half scale: a star with 100
+  stands 50 units above the plane, in the units of `x` and `y`. The
+  plane hexagons sit at height 0. The camera starts 33° from straight
+  down, and right-dragging moves it between the `GALAXY_MIN_PITCH` and
+  `GALAXY_MAX_PITCH` defines (30° to 85° above the plane). Zooming does
+  not change the angle. These come from fitting a camera to a 4.5.1
+  screenshot of 23 points with known positions, to within 1.5 pixels.
 - Moving a system changes its own `x`/`y` and the `length` of each of
   its lanes, on both ends. Nothing inside the system moves. The game
   keeps the moved system's lanes, still joined to the old neighbours.

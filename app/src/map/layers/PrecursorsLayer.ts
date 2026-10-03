@@ -5,6 +5,7 @@ import { NO_PRECURSOR_COLOR, precursorColor } from "../../lib/visual/precursorCo
 import { RING_RADIUS } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { FLAT_TILT, liftedPoint, type Tilt } from "../tilt";
 import { RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 
@@ -43,6 +44,7 @@ export class PrecursorsLayer implements MapLayer {
   private readonly batches = new Map<string, RingBatch>();
   private ctx: RenderContext = EMPTY_CONTEXT;
   private readonly scale = { x: 1, y: 1 };
+  private tilt: Tilt = FLAT_TILT;
 
   rebuild(ctx: RenderContext): void {
     const previous = this.ctx;
@@ -64,6 +66,9 @@ export class PrecursorsLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     for (const batch of this.batches.values()) batch.setScale(this.scale);
+    if (cam.tilt === this.tilt) return;
+    this.tilt = cam.tilt;
+    this.place();
   }
 
   setVisible(v: boolean): void {
@@ -92,14 +97,14 @@ export class PrecursorsLayer implements MapLayer {
     for (const system of systems.values()) {
       const keys = precursors.bySystem.get(system.id);
       if (!keys) {
-        if (!hidden.has(NO_PRECURSOR)) add("none", () => NONE_RING, system);
+        if (!hidden.has(NO_PRECURSOR)) add("none", () => NONE_RING, liftedPoint(system, this.tilt));
         continue;
       }
       const shown = keys.filter((key) => !hidden.has(key));
       shown.forEach((key, slot) => {
         const color = precursorColor(colors.get(key) ?? 0);
         const batchKey = `${key}:${color}:${slot}/${shown.length}`;
-        add(batchKey, () => specOf(color, slot, shown.length), system);
+        add(batchKey, () => specOf(color, slot, shown.length), liftedPoint(system, this.tilt));
       });
     }
     return wanted;

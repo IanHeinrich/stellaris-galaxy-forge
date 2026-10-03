@@ -7,6 +7,7 @@ import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
+import { useHeightPreviewStore } from "./heightPreviewStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
   noteDuplicateNames,
@@ -22,7 +23,7 @@ import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
-import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
+import { symmetryAllowed, SYMMETRY_OFF, tiltTakes, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
@@ -55,10 +56,27 @@ export function bindStores(): void {
   followRollWithin();
   followNotes();
   followTool();
+  followTilt();
   followScene();
   followSymmetry();
   followWatchlist();
   followPlanetMove();
+  followHeightPreview();
+}
+
+// A height preview belongs to the system the inspector shows and to the document as it stands:
+// another selection, an edit, undo or redo, or another document drops it.
+function followHeightPreview(): void {
+  const clear = () => useHeightPreviewStore.getState().clear();
+  useEditorStore.subscribe((state, previous) => {
+    if (state.selection !== previous.selection) clear();
+  });
+  useGalaxyStore.subscribe((state, previous) => {
+    if (state.version !== previous.version || state.galaxy !== previous.galaxy) clear();
+  });
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status !== previous.status) clear();
+  });
 }
 
 // A body selection and a cut belong to the open document. The selection belongs to one system,
@@ -172,6 +190,17 @@ function followTool(): void {
     if (tool !== "select" && !toolAllowed(tool, currentBarMode())) {
       useToolStore.setState({ tool: "select" });
     }
+  });
+  useToolStore.subscribe((state, previous) => {
+    if (state.tilt === previous.tilt) return;
+    if (!tiltTakes(state.tool)) useToolStore.setState({ tool: "select" });
+  });
+}
+
+// The tilt is a view of one document: another document, or none, starts flat.
+function followTilt(): void {
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status !== previous.status) useToolStore.getState().setTilt(0);
   });
 }
 

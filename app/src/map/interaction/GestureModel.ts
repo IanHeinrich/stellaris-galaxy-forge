@@ -43,13 +43,15 @@ function nebulaCursor(pick: NebulaPick): string {
 /** No modes: what is under the pointer at press decides what a drag does. */
 export class GestureModel implements MapModel {
   private press: Press | null = null;
+  /** While the map leans, a drag from a system box-selects instead of moving it or drawing a lane. */
+  tilted = false;
   private drag: Drag | null = null;
   private idle = "";
   /** The last plain click on a system, which a second one soon after on the same system doubles. */
   private lastClick: (Tap & { system: number }) | null = null;
 
   handle(input: MapInput, intent: MapIntent): "consumed" | "pan" {
-    this.idle = idleCursor(input);
+    this.idle = this.tilted && input.system !== null ? "pointer" : idleCursor(input);
     switch (input.kind) {
       case "down":
         this.down(input, intent);
@@ -142,7 +144,7 @@ export class GestureModel implements MapModel {
     if (!press) return "consumed";
     if (!this.drag) {
       if (!pastThreshold(press, input)) return "consumed";
-      this.drag = dragFrom(press);
+      this.drag = dragFrom(press, this.tilted);
     }
     switch (this.drag.kind) {
       case "pan":
@@ -245,9 +247,10 @@ export class GestureModel implements MapModel {
   }
 }
 
-function dragFrom(press: Press): Drag {
-  const from = laneSourceOf(press);
+function dragFrom(press: Press, tilted: boolean): Drag {
+  const from = tilted ? null : laneSourceOf(press);
   if (from) return { kind: "lane", from, target: null };
+  if (tilted && press.system !== null) return { kind: "marquee" };
   if (press.system === null) {
     if (press.shift) return press.edge ? { kind: "none" } : { kind: "marquee" };
     if (press.feZone) return { kind: "feZone", anchor: press.feZone.anchor };

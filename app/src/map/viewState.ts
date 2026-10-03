@@ -1,5 +1,6 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { SpecialKind } from "../generated/SpecialKind";
+import type { HeightPreview } from "../lib/height";
 import type { AppIssue } from "../lib/issues";
 import { documentCapabilities } from "../lib/capabilities";
 import type { GalaxyLayers } from "../lib/visual/layerIds";
@@ -10,6 +11,7 @@ import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
+import { useHeightPreviewStore } from "../store/heightPreviewStore";
 import { useIssuesStore } from "../store/issuesStore";
 import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
@@ -40,6 +42,8 @@ export interface MapView {
   panTo(x: number, y: number): void;
   /** Leans the map `degrees` away from the viewer, or lays it flat at 0. */
   setTilt(degrees: number): void;
+  /** Shows the heights the inspector previews, from the next frame. */
+  previewHeights(preview: HeightPreview): void;
   /** Makes the next tick hand the camera to the layers again. */
   invalidate(): void;
 }
@@ -115,8 +119,13 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     "layers",
   ),
   follows(useMapChromeStore, [(s) => s.layers], (_s, view) => view.refreshContext()),
-  follows(useMapChromeStore, [(s) => s.layers], (_s, view) => applyTilt(view), "bind"),
-  follows(useToolStore, [(s) => s.tilt], (_s, view) => applyTilt(view)),
+  follows(useToolStore, [(s) => s.tilt], (_s, view) => applyTilt(view), "bind"),
+  follows(
+    useHeightPreviewStore,
+    [(s) => s.preview],
+    (s, view) => view.previewHeights(s.preview),
+    "bind",
+  ),
   follows(
     useMapChromeStore,
     [(s) => s.lanePreview],
@@ -264,9 +273,8 @@ function applyLayerVisibility(view: MapView, layers: GalaxyLayers): void {
   view.invalidate();
 }
 
-/** The tilt the slider asks for, where the open document and the Heights layer let the map lean. */
+/** The tilt the slider asks for, where the open document lets the map lean. */
 function applyTilt(view: MapView): void {
-  const { layers } = useMapChromeStore.getState();
   const capabilities = documentCapabilities(useFileSessionStore.getState());
-  view.setTilt(shownTilt(useToolStore.getState().tilt, layers.heights, capabilities));
+  view.setTilt(shownTilt(useToolStore.getState().tilt, capabilities));
 }

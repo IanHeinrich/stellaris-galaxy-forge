@@ -270,11 +270,7 @@ function BulkHeight({ ids }: { ids: readonly number[] }) {
           value={value}
           onCommit={setValue}
         />
-        <button
-          type="button"
-          disabled={change !== "set" && value === 0}
-          onClick={() => void setSelectedHeights(change, value)}
-        >
+        <button type="button" onClick={() => void setSelectedHeights(change, value)}>
           Apply
         </button>
       </div>

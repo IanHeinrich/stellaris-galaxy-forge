@@ -1,6 +1,6 @@
 import { Graphics } from "pixi.js";
 import { describe, expect, it } from "vitest";
-import { absoluteHeight } from "../../lib/height";
+import { absoluteHeight, heightTint } from "../../lib/height";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { systemNode } from "../../test/builders";
 import { HeightsLayer, heightText } from "./HeightsLayer";
@@ -80,5 +80,31 @@ describe("the heights layer on a tilted map", () => {
     layer.onViewport(cam);
     expect(strokes(plane)).toEqual([]);
     expect(rings(layer)[0].y).toBe(0);
+  });
+});
+
+describe("the heights layer under a height preview", () => {
+  it("rings and writes a previewed system at the previewed height, and its own again after", () => {
+    const layer = drawn([undefined, absoluteHeight(40)], 4);
+    const preview = childByLabel(layer.container, "previewRings");
+
+    layer.setHeightPreview(new Map([[0, -15]]), new Set([0]));
+    expect(preview.children).toHaveLength(1);
+    expect(strokes(preview.children[0] as Graphics)[0].color).toBe(heightTint(-15));
+    expect(drawnText(childByLabel(layer.container, "values")).sort()).toEqual(["+40", "−15"]);
+
+    layer.setHeightPreview(new Map([[1, 0]]), new Set([0, 1]));
+    expect(preview.children).toHaveLength(0);
+    expect(rings(layer)).toHaveLength(0);
+    expect(drawnText(childByLabel(layer.container, "values"))).toEqual([]);
+
+    layer.setHeightPreview(new Map(), new Set([1]));
+    expect(rings(layer)).toHaveLength(1);
+    expect(drawnText(childByLabel(layer.container, "values"))).toEqual(["+40"]);
+  });
+
+  it("writes a height just off the plane to two decimals, never as 0", () => {
+    expect(heightText(0.02)).toBe("+0.02");
+    expect(heightText(-0.04)).toBe("−0.04");
   });
 });

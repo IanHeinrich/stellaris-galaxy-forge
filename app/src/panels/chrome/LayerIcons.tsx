@@ -62,6 +62,14 @@ function glyphOf(id: LayerId): ReactNode {
           <path d="M4.6 3.2h7.2l-1.9 2.5 1.9 2.5H4.6Z" />
         </LayerGlyph>
       );
+    case "heights":
+      return (
+        <LayerGlyph>
+          <circle cx="8" cy="3.6" r="2" fill="currentColor" stroke="none" />
+          <path d="M8 6.2v4.4" />
+          <path d="M8 10.8 10.2 12v2.4L8 15.6l-2.2-1.2V12Z" />
+        </LayerGlyph>
+      );
     case "owners":
       return (
         <LayerGlyph>

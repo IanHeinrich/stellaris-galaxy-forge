@@ -451,6 +451,14 @@ button.ins-danger:hover:not(:disabled) {
 
 .ins-height {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.ins-height-track,
+.ins-height-value {
+  display: flex;
   align-items: center;
   gap: 6px;
 }

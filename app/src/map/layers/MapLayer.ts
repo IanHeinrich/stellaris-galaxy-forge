@@ -2,6 +2,7 @@ import type { Container } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { Camera } from "../Camera";
+import type { HeightPreview } from "../../lib/height";
 import type { AppIssue } from "../../lib/issues";
 import type { LayerId } from "../../lib/visual/layerIds";
 import type { WatchRings } from "../../lib/watchlist";
@@ -57,6 +58,11 @@ export interface MapLayer {
   setClansShown?(shown: boolean): void;
   /** Whether the L-Cluster guide's chip shows the L-Gate outcome, for `LClusterLayer`. */
   setLGateRevealed?(revealed: boolean): void;
+  /**
+   * The heights the inspector's slider shows before they are an edit; `changed` names the systems
+   * whose shown height moved since the last call, so a layer redraws only what they touch.
+   */
+  setHeightPreview?(preview: HeightPreview, changed: ReadonlySet<number>): void;
   destroy(): void;
 }
 

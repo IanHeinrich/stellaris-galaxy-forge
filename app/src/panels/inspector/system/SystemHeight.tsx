@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { SystemNode } from "../../../generated/SystemNode";
-import { heightStrength, heightTint, isFlat, relativeHeight } from "../../../lib/height";
+import {
+  heightStrength,
+  heightTint,
+  heightToSlider,
+  isFlat,
+  relativeHeight,
+  roundHeight,
+  sliderToHeight,
+} from "../../../lib/height";
 import { toCss } from "../../../lib/visual/ownerColors";
 import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
+import { useHeightPreviewStore } from "../../../store/heightPreviewStore";
 import { EditNote, EditRow, TextField } from "../../EditField";
-
-/** How far the slider reaches either side of the plane; the field takes any height. */
-const SLIDER_REACH = 200;
 
 export const HEIGHT_HINT = "0 is flat. Above 0 rises above the galaxy plane, below 0 sinks.";
 
@@ -41,63 +47,113 @@ function HeightIcon({ relative }: { relative: number }) {
   );
 }
 
-function sliderValue(relative: number): number {
-  return Math.max(-SLIDER_REACH, Math.min(SLIDER_REACH, Math.round(relative)));
+/** How far one arrow key moves the slider's height, and with Shift held. */
+const KEY_STEP = 1;
+const SHIFT_KEY_STEP = 10;
+
+/** Which way an arrow key moves the height: up and right raise it, down and left lower it. */
+function keyDirection(key: string): number {
+  if (key === "ArrowRight" || key === "ArrowUp") return 1;
+  if (key === "ArrowLeft" || key === "ArrowDown") return -1;
+  return 0;
 }
 
+const previews = () => useHeightPreviewStore.getState();
+
 /**
- * A save system's height under its position: a slider that sends one edit when it is let go, a
- * field and a Flat button. Hidden where the document has no heights.
+ * A save system's height under its position: a slider across the row whose middle moves in
+ * fractions of a unit, which the map follows while it is held and which sends one edit when it is
+ * let go, then a field and a Flat button. Hidden where the document has no heights.
  */
 export function HeightRow({ system }: { system: SystemNode }) {
   const editable = useCanEdit("system_heights");
   const setSystemHeight = useEditorStore((s) => s.setSystemHeight);
-  const [drag, setDrag] = useState<number | null>(null);
+  const previewed = useHeightPreviewStore((s) => s.preview.get(system.id));
+  /** Set by Escape until the pointer or key lets go, so the rest of that drag shows nothing. */
+  const cancelled = useRef(false);
+  /** Set once a release has sent the preview, so a second release sends nothing. */
+  const released = useRef(false);
+  const id = system.id;
+  useEffect(() => () => previews().clear(id), [id]);
   if (!editable) return null;
   const relative = relativeHeight(system.height);
-  const shown = drag ?? relative;
-  const commit = (value: number) => void setSystemHeight(system.id, value);
+  const shown = previewed ?? relative;
+  const show = (value: number) => {
+    if (cancelled.current) return;
+    released.current = false;
+    previews().show(id, roundHeight(value));
+  };
   const release = () => {
-    if (drag === null) return;
-    const value = drag;
-    if (value === sliderValue(relative)) {
-      setDrag(null);
+    cancelled.current = false;
+    if (released.current) return;
+    const value = previews().preview.get(id);
+    if (value === undefined) return;
+    released.current = true;
+    if (isFlat(value - relative)) previews().clear(id);
+    else void previews().commit(id);
+  };
+  const cancel = () => {
+    cancelled.current = true;
+    previews().clear(id);
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
       return;
     }
-    void setSystemHeight(system.id, value).finally(() => setDrag((d) => (d === value ? null : d)));
+    const direction = keyDirection(e.key);
+    if (direction === 0) return;
+    e.preventDefault();
+    const from = previews().preview.get(id) ?? relative;
+    show(from + direction * (e.shiftKey ? SHIFT_KEY_STEP : KEY_STEP));
+  };
+  const commit = (value: number) => {
+    previews().clear(id);
+    void setSystemHeight(id, value);
   };
   return (
     <>
       <EditRow label="Height">
         <span className="ins-height">
-          <HeightIcon relative={shown} />
-          <input
-            type="range"
-            min={-SLIDER_REACH}
-            max={SLIDER_REACH}
-            step={1}
-            aria-label="Height slider"
-            value={sliderValue(shown)}
-            onChange={(e) => setDrag(Number(e.target.value))}
-            onPointerUp={release}
-            onKeyUp={release}
-          />
-          <TextField
-            kind="number"
-            className="coord"
-            label="Height"
-            value={relative}
-            decimals={2}
-            onCommit={commit}
-          />
-          <button
-            type="button"
-            disabled={isFlat(relative)}
-            title="Back to the game's default height"
-            onClick={() => commit(0)}
-          >
-            Flat
-          </button>
+          <span className="ins-height-track">
+            <HeightIcon relative={shown} />
+            <input
+              type="range"
+              min={-1}
+              max={1}
+              step="any"
+              aria-label="Height slider"
+              aria-valuetext={String(roundHeight(shown))}
+              value={heightToSlider(shown)}
+              onChange={(e) => show(sliderToHeight(Number(e.target.value)))}
+              onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+              onPointerUp={release}
+              onPointerCancel={cancel}
+              onKeyDown={onKeyDown}
+              onKeyUp={release}
+              onBlur={release}
+            />
+          </span>
+          <span className="ins-height-value">
+            <TextField
+              kind="number"
+              className="coord"
+              label="Height"
+              value={shown}
+              decimals={previewed === undefined ? 2 : 1}
+              onCommit={commit}
+            />
+            <button
+              type="button"
+              disabled={isFlat(shown)}
+              title="Back to the game's default height"
+              onClick={() => commit(0)}
+            >
+              Flat
+            </button>
+          </span>
         </span>
       </EditRow>
       <EditNote>{HEIGHT_HINT}</EditNote>

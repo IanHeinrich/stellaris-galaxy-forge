@@ -2,6 +2,7 @@ import { Container, Graphics, GraphicsContext } from "pixi.js";
 import type { Pt } from "../../../lib/geometry/pt";
 import { ORIGIN_ALPHA } from "../../../lib/visual/style";
 import type { Systems } from "../../RenderContext";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../../../lib/height";
 import { FLAT_TILT, liftedPoint, type Tilt } from "../../tilt";
 import { destroyChildren } from "../destroyChildren";
 
@@ -81,12 +82,17 @@ export class RingBatch {
   }
 }
 
-/** Where the systems of `ids` the map holds draw under `tilt`, skipping the rest. */
-export function pointsOf(systems: Systems, ids: Iterable<number>, tilt: Tilt = FLAT_TILT): Pt[] {
+/** Where the systems of `ids` the map holds draw under `tilt` and `preview`, skipping the rest. */
+export function pointsOf(
+  systems: Systems,
+  ids: Iterable<number>,
+  tilt: Tilt = FLAT_TILT,
+  preview: HeightPreview = NO_HEIGHT_PREVIEW,
+): Pt[] {
   const points: Pt[] = [];
   for (const id of ids) {
     const s = systems.get(id);
-    if (s) points.push(liftedPoint(s, tilt));
+    if (s) points.push(liftedPoint(s, tilt, preview));
   }
   return points;
 }

@@ -1,5 +1,6 @@
 import { Container, type Renderer } from "pixi.js";
 import { documentCapabilities } from "../lib/capabilities";
+import { NO_HEIGHT_PREVIEW, type HeightPreview } from "../lib/height";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { Camera } from "./Camera";
@@ -10,6 +11,7 @@ import { layersFor } from "./layers/registry";
 import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
 import type { Scene } from "./Scene";
 import { selectionFrame } from "./selectionFrame";
+import { previewChanges, systemY } from "./tilt";
 import { bindViewState, dressLayers, type MapView } from "./viewState";
 
 const FOCUS_SCALE = 4;
@@ -31,6 +33,9 @@ export class GalaxyScene implements Scene, MapView {
   private readonly cleanups: Array<() => void> = [];
   private ctx: RenderContext = EMPTY_CONTEXT;
   private appliedRev = -1;
+  /** The height preview the stores hold, and the one the layers were last handed. */
+  private wantedPreview: HeightPreview = NO_HEIGHT_PREVIEW;
+  private shownPreview: HeightPreview = NO_HEIGHT_PREVIEW;
 
   constructor(
     private readonly renderer: Renderer,
@@ -77,6 +82,7 @@ export class GalaxyScene implements Scene, MapView {
     this.layers.push(this.highlights);
     this.root.addChild(this.highlights.container);
     for (const layer of this.layers) layer.rebuild(this.ctx);
+    this.shownPreview = NO_HEIGHT_PREVIEW;
     dressLayers(this);
   }
 
@@ -101,10 +107,15 @@ export class GalaxyScene implements Scene, MapView {
     this.invalidate();
   }
 
-  /** Leans the plane; while it leans the map only pans and zooms. */
+  /** Leans the plane; while it leans, systems stay where they are and lanes take no edits. */
   setTilt(degrees: number): void {
     this.cam.setTilt(degrees);
-    this.interaction.setViewOnly(this.cam.tilt.degrees > 0);
+    this.interaction.setTilted(this.cam.tilt.degrees > 0);
+  }
+
+  /** Shows `preview` from the next frame, however many times it changes before then. */
+  previewHeights(preview: HeightPreview): void {
+    this.wantedPreview = preview;
   }
 
   /** Makes the next tick hand the camera to the layers again. */
@@ -116,7 +127,9 @@ export class GalaxyScene implements Scene, MapView {
   fitSelection(): void {
     const { selection, selectedNebula } = useEditorStore.getState();
     const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
-    const frame = selectionFrame(this.ctx.systems, selection, nebula);
+    const frame = selectionFrame(this.ctx.systems, selection, nebula, (s) =>
+      systemY(s, this.cam.tilt, this.shownPreview),
+    );
     if (!frame) {
       this.fit();
       return;
@@ -125,7 +138,7 @@ export class GalaxyScene implements Scene, MapView {
     const { width, height } = this.renderer;
     const scale = Math.min(
       this.cam.fitScale((maxX - minX) / 2, width, width),
-      this.cam.fitScale((maxY - minY) / 2, height, height),
+      this.cam.fitScale(((maxY - minY) * this.cam.tilt.cos) / 2, height, height),
       FOCUS_SCALE,
     );
     this.cam.easeTo((minX + maxX) / 2, (minY + maxY) / 2, scale, FOCUS_MS);
@@ -134,7 +147,8 @@ export class GalaxyScene implements Scene, MapView {
   focusOn(id: number): void {
     const s = this.ctx.systems.get(id);
     if (!s) return;
-    this.cam.easeTo(s.x, s.y, Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
+    const y = systemY(s, this.cam.tilt, this.shownPreview);
+    this.cam.easeTo(s.x, y, Math.max(this.cam.scale, FOCUS_SCALE), FOCUS_MS);
   }
 
   panTo(x: number, y: number): void {
@@ -142,8 +156,18 @@ export class GalaxyScene implements Scene, MapView {
   }
 
   tick(): void {
+    this.showPreview();
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;
     for (const layer of this.layers) layer.onViewport(this.cam, this.ctx);
+  }
+
+  /** Hands the layers the preview the stores hold, naming only the systems it moved. */
+  private showPreview(): void {
+    if (this.wantedPreview === this.shownPreview) return;
+    const changed = previewChanges(this.shownPreview, this.wantedPreview);
+    this.shownPreview = this.wantedPreview;
+    for (const layer of this.layers) layer.setHeightPreview?.(this.shownPreview, changed);
+    this.interaction.setHeightPreview(this.shownPreview, changed);
   }
 }

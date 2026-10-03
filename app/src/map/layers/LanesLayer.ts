@@ -8,8 +8,8 @@ import { DETAIL_SCALE } from "../../lib/visual/labels";
 import type { MoveGhost } from "../moveGhosts";
 import { LaneTable } from "../laneTable";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
-import { isFlat } from "../../lib/height";
-import { FLAT_TILT, liftedPoint, systemHeight, type Tilt } from "../tilt";
+import { isFlat, NO_HEIGHT_PREVIEW, type HeightPreview } from "../../lib/height";
+import { FLAT_TILT, isTilted, liftedPoint, systemHeight, type Tilt } from "../tilt";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import { evenDashedLine } from "./dashes";
 import { sameDragged, type DragState, type MapLayer } from "./MapLayer";
@@ -109,6 +109,7 @@ export class LanesLayer implements MapLayer {
   private dragged: ReadonlyMap<number, MoveGhost> = NO_DRAG;
   private ease = 0;
   private tilt: Tilt = FLAT_TILT;
+  private preview: HeightPreview = NO_HEIGHT_PREVIEW;
 
   constructor() {
     this.container.addChild(this.preventedLayer, this.lanesLayer, this.bridgesLayer);
@@ -159,6 +160,15 @@ export class LanesLayer implements MapLayer {
     }
   }
 
+  /** While the map leans, redraws only the tiles holding a lane of a system whose preview moved. */
+  setHeightPreview(preview: HeightPreview, changed: ReadonlySet<number>): void {
+    this.preview = preview;
+    if (!isTilted(this.tilt)) return;
+    const dirty = new Set<number>();
+    for (const id of changed) for (const entry of this.table.of(id)) dirty.add(entry.tile);
+    for (const tile of dirty) this.drawTile(tile);
+  }
+
   /** The tiles holding a lane or prevented pair with an end off the plane, which a tilt moves. */
   private liftedTiles(): Set<number> {
     const lifted = new Set<number>();
@@ -175,7 +185,7 @@ export class LanesLayer implements MapLayer {
 
   private offPlane(id: number): boolean {
     const s = this.systems.get(id);
-    return s !== undefined && !isFlat(systemHeight(s));
+    return s !== undefined && !isFlat(systemHeight(s, this.preview));
   }
 
   setVisible(v: boolean): void {
@@ -269,8 +279,8 @@ export class LanesLayer implements MapLayer {
           const a = this.systems.get(entry.ends[0]);
           const b = this.systems.get(entry.ends[1]);
           if (!a || !b) continue;
-          const from = liftedPoint(a, this.tilt);
-          const to = liftedPoint(b, this.tilt);
+          const from = liftedPoint(a, this.tilt, this.preview);
+          const to = liftedPoint(b, this.tilt, this.preview);
           g.moveTo(from.x, from.y).lineTo(to.x, to.y);
           any = true;
         }
@@ -292,7 +302,13 @@ export class LanesLayer implements MapLayer {
         const a = this.systems.get(entry.ends[0]);
         const b = this.systems.get(entry.ends[1]);
         if (!a || !b) continue;
-        evenDashedLine(g, liftedPoint(a, this.tilt), liftedPoint(b, this.tilt), DASH, GAP);
+        evenDashedLine(
+          g,
+          liftedPoint(a, this.tilt, this.preview),
+          liftedPoint(b, this.tilt, this.preview),
+          DASH,
+          GAP,
+        );
         any = true;
       }
       if (any) {
