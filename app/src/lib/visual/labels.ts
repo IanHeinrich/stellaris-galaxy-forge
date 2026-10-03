@@ -12,10 +12,10 @@ const WHEEL_NOTCH = 1.1;
  */
 export const EMPIRE_LABEL_MAX_SCALE = (3 * 800) / 600;
 
-/** Pixels per world unit at which system names pop in: a wheel notch after empire names go. */
-export const DETAIL_SCALE = EMPIRE_LABEL_MAX_SCALE * WHEEL_NOTCH;
+/** Pixels per world unit at which system names and details pop in, as empire names start to fade. */
+export const DETAIL_SCALE = EMPIRE_LABEL_MAX_SCALE;
 
-/** Pixels per world unit at which empire names and emblems have faded out, two notches past the names. */
+/** Pixels per world unit at which empire names and emblems have faded out, two notches in from the names. */
 export const EMPIRE_LABEL_GONE_SCALE = DETAIL_SCALE * WHEEL_NOTCH * WHEEL_NOTCH;
 
 /**
