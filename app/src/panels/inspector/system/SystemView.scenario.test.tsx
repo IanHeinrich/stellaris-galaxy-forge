@@ -932,3 +932,32 @@ describe("the head of a scenario system", () => {
     expect(save).not.toContain("chip src");
   });
 });
+
+describe("a Paint a Galaxy scenario system's wormhole pair", () => {
+  /** Opens the scenario under the Paint a Galaxy layer with `paired` given wormhole pair 2. */
+  async function openPaired(paired: number[]): Promise<void> {
+    await open("scenario");
+    useFileSessionStore.setState({ painted: true });
+    const systems = new Map(useGalaxyStore.getState().systems);
+    for (const id of paired) systems.set(id, { ...systems.get(id)!, wormhole_pair: 2 });
+    useGalaxyStore.setState({ systems });
+  }
+
+  it("names the pair and its other end, and says how the mod opens it", async () => {
+    await openPaired([SYSTEM, 3]);
+
+    const html = overview();
+    expect(sections(html)).toContain("Wormhole pair");
+    expect(html).toContain("Wormhole pair 2 with ");
+    expect(html).toContain("Sirius");
+    expect(html).toContain("The Paint a Galaxy mod opens a wormhole");
+  });
+
+  it("says when the file names no other end", async () => {
+    await openPaired([SYSTEM]);
+
+    const html = overview();
+    expect(sections(html)).toContain("Wormhole pair");
+    expect(html).toContain("Wormhole pair 2, partner missing");
+  });
+});
