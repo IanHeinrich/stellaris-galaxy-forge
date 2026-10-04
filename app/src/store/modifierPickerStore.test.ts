@@ -59,8 +59,8 @@ describe("the modifier picker", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     await useModifierPickerStore.getState().add(ROW);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-      type: "AddPlanetModifier",
-      planet: 40,
+      type: "AddBodyModifier",
+      body: 40,
       modifier: "mineral_poor",
       days: [360],
       feature: "pm_mineral_poor",

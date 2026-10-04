@@ -16,14 +16,14 @@ use common::{current, findings, open, open_3_4, open_4_5, open_edited, text};
 const GENERATION: u32 = 1 << 24;
 
 fn add(planet: u32, kind: &str) -> Op {
-    Op::AddSaveDeposit {
-        planet,
+    Op::AddDeposit {
+        body: planet,
         kind: kind.to_owned(),
     }
 }
 
 fn remove(deposit: u32) -> Op {
-    Op::RemoveSaveDeposit { deposit }
+    Op::RemoveDeposit { deposit }
 }
 
 /// The deposits planet `id`'s page lists, as (id, type).
@@ -172,12 +172,12 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
         let listed = details(&session, case.system, case.planet);
         assert_ne!(edited, before, "{}: the page", case.name);
         match &case.op {
-            Op::AddSaveDeposit { kind, .. } => {
+            Op::AddDeposit { kind, .. } => {
                 assert_eq!(edited.len(), before.len() + 1, "{}", case.name);
                 assert_eq!(&edited.last().unwrap().1, kind, "{}", case.name);
                 assert!(listed.iter().any(|(k, _)| k == kind), "{listed:?}");
             }
-            Op::RemoveSaveDeposit { deposit } => {
+            Op::RemoveDeposit { deposit } => {
                 assert_eq!(edited.len() + 1, before.len(), "{}", case.name);
                 assert!(edited.iter().all(|(id, _)| id != deposit), "{}", case.name);
             }
@@ -329,14 +329,16 @@ fn a_removed_deposits_slot_is_taken_next_and_given_back_as_its_tombstone() {
     session.apply(remove(26)).expect("remove");
     let removed = text(&session);
     session
-        .apply(Op::AddSaveSystem { spec: dorellion() })
+        .apply(Op::AddSystemFromSpec { spec: dorellion() })
         .expect("add");
     assert!(text(&session).contains(&format!(
         "
 	{reused}=
 "
     )));
-    session.apply(Op::RemoveSystem { id: 791 }).expect("remove");
+    session
+        .apply(Op::RemoveSystem { system: 791 })
+        .expect("remove");
     assert_eq!(text(&session), removed);
 }
 
@@ -349,7 +351,7 @@ fn with_system() -> [(Session, SystemSpec, u32); 2] {
 fn removing_an_added_system_takes_the_deposits_added_to_it() {
     for (mut session, spec, id) in with_system() {
         session
-            .apply(Op::AddSaveSystem { spec })
+            .apply(Op::AddSystemFromSpec { spec })
             .expect("add the system");
         let bodies: Vec<u32> = session
             .details()
@@ -370,9 +372,9 @@ fn removing_an_added_system_takes_the_deposits_added_to_it() {
             remove(first_star_deposit),
         );
 
-        let removed = round_trip_step(&mut session, "the system", Op::RemoveSystem { id });
+        let removed = round_trip_step(&mut session, "the system", Op::RemoveSystem { system: id });
         assert_eq!(current(&session), session.doc.original(), "{id}");
-        let Op::AddSaveSystem { spec } = removed.inverse else {
+        let Op::AddSystemFromSpec { spec } = removed.inverse else {
             panic!("{:?}", removed.inverse);
         };
         assert_eq!(spec.star.deposits, ["d_energy_2"]);
@@ -399,7 +401,7 @@ fn a_deposit_type_is_checked_the_same_way_by_both_ops() {
         let on_planet = refused(&mut open_4_5(), add(3, kind));
         let mut spec = mura();
         spec.planets[0].deposits = vec![kind.to_owned()];
-        let in_system = refused(&mut open_4_5(), Op::AddSaveSystem { spec });
+        let in_system = refused(&mut open_4_5(), Op::AddSystemFromSpec { spec });
         assert_eq!(on_planet.to_string(), in_system.to_string());
         assert!(
             matches!(

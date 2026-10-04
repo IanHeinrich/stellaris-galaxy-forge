@@ -80,7 +80,7 @@ describe("a save system's belts", () => {
     drawnButton("Remove belt 2").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-        type: "RemoveSaveBelt",
+        type: "RemoveBelt",
         system: BELTED.id,
         index: 1,
       }),

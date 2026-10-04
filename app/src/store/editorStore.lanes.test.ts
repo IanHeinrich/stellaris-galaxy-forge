@@ -70,7 +70,7 @@ describe("bulk lane actions", () => {
         what: "isolateSelected sends IsolateSystems with only the systems that have lanes",
         ids: [4, 5],
         run: (s) => s.isolateSelected(),
-        op: { type: "IsolateSystems", ids: [4] },
+        op: { type: "IsolateSystems", systems: [4] },
       },
     ];
 
@@ -198,6 +198,6 @@ describe("preventing and allowing lanes", () => {
     });
 
     await editor().allowLanesToSelected(5);
-    expect(sent()).toEqual({ type: "UnpreventLane", a: 2, b: 5 });
+    expect(sent()).toEqual({ type: "AllowLane", a: 2, b: 5 });
   });
 });

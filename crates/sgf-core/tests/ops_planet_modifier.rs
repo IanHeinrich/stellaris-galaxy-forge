@@ -18,8 +18,8 @@ const MOONS: &str = "extensive_moon_system";
 const PM_MOONS: &str = "pm_extensive_moon_system";
 
 fn add(planet: u32, modifier: &str, days: &[i32]) -> Op {
-    Op::AddPlanetModifier {
-        planet,
+    Op::AddBodyModifier {
+        body: planet,
         modifier: modifier.to_owned(),
         days: days.to_vec(),
         feature: None,
@@ -27,8 +27,8 @@ fn add(planet: u32, modifier: &str, days: &[i32]) -> Op {
 }
 
 fn add_feature(planet: u32, modifier: &str, days: &[i32], feature: &str) -> Op {
-    Op::AddPlanetModifier {
-        planet,
+    Op::AddBodyModifier {
+        body: planet,
         modifier: modifier.to_owned(),
         days: days.to_vec(),
         feature: Some(feature.to_owned()),
@@ -36,8 +36,8 @@ fn add_feature(planet: u32, modifier: &str, days: &[i32], feature: &str) -> Op {
 }
 
 fn remove(planet: u32, modifier: &str, feature: Option<&str>) -> Op {
-    Op::RemovePlanetModifier {
-        planet,
+    Op::RemoveBodyModifier {
+        body: planet,
         modifier: modifier.to_owned(),
         feature: feature.map(str::to_owned),
     }
@@ -63,7 +63,7 @@ fn features(session: &Session, id: u32) -> Vec<String> {
 /// Round-trip and snapshot `op`, which adds `modifier` for `days`, and check the page lists
 /// it last.
 fn mark(session: &mut Session, planet: u32, op: Op, snapshot: &str) -> OpResult {
-    let Op::AddPlanetModifier { modifier, days, .. } = &op else {
+    let Op::AddBodyModifier { modifier, days, .. } = &op else {
         panic!("{op:?} adds nothing");
     };
     let mut expected = page(session, planet);

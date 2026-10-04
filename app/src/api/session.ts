@@ -278,9 +278,9 @@ export function removeAddedSystems(ids: number[]): Promise<EditResult> {
 }
 
 /**
- * The entries of one `SetFeZones` that replaces the automatic fallen empire zones with `count`
- * of the Paint a Galaxy mod's candidates, spread across the map; empty when the zones already
- * stand as asked. Zones the user placed stay.
+ * One `SetFeZone` entry per system, applied as one `Batch`, that replaces the automatic
+ * fallen empire zones with `count` of the Paint a Galaxy mod's candidates, spread across the
+ * map; empty when the zones already stand as asked. Zones the user placed stay.
  */
 export function feZoneFit(count: number): Promise<Array<[number, FeZone | null]>> {
   return invoke<Array<[number, FeZone | null]>>("fe_zone_fit", { count });

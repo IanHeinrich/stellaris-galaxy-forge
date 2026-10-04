@@ -41,6 +41,55 @@ renames the game's version aside as the backup; Save As picks another
 file; Cancel writes nothing. A save to a different path is not checked,
 because the file dialog already asked about overwriting it.
 
+### Naming ops
+
+An op is a verb and a subject, in the game's words: `MoveBody`,
+`SetBeltRadius`, `RenameSystem`, `AddDeposit`. The name never says which
+kind of document takes it. Each op's row in `ops/op.rs` lists the kinds
+that accept it, and the session refuses it for any other kind before the
+format sees it.
+
+- Verbs. `Set` replaces one value. `Add` and `Remove` are each other's
+  inverse. `Delete` takes out something the document held when it was
+  opened, and its inverse writes back what it rewrote. `Move` sets a
+  position. `Rename` sets a name. `Prevent` and `Allow` are the
+  scenario's lane pair. `Isolate` takes every lane off a system,
+  `Normalise` sets a lane length to the one the game writes, and
+  `Replace` rolls an added system again.
+- Subjects: `System`, `SystemHeight`, `StarClass`, `Lane`,
+  `LaneLength`, `Nebula`, `NebulaRadius`, `NebulaTurbulent`,
+  `NebulaFootprint`, `Body` (a planet, moon or star in a system's list),
+  `BodySize`, `BodyClass`, `BodyModel`, `BodyRing`, `BodyParent`,
+  `BodyModifier`, `Belt`, `BeltRadius`, `BeltKind`, `InnerRadius`,
+  `Wormhole`, `WormholePair`, `WormholeEnds`, `Deposit`, `Anomaly`,
+  `DigSite`, `Colony`, `Entities`, `Empire`, `EmpireFlag`,
+  `EmpireMapColors`, `LGateOutcome`, `Initializer`, `SpawnWeight`,
+  `SpawnScript`, `HeaderField`, `HeaderKeys`, `HeaderList`, `FeZone`,
+  `FeLinks` and `FeLinkFlags`. A new subject takes the word the game or
+  the player uses, and joins this list.
+- Two kinds share an op when it carries the same thing for both. When
+  what it carries differs, the name says what it carries
+  (`AddSystemFromSpec`), not who sends it.
+- Fields. An id is named for what it addresses: `system`, `body`,
+  `country`, `nebula`. Never `id` or `planet`. A place in a list is
+  `index`. A position is `at`, absolute. Radii and angles are in game
+  units. A choice between shapes is an enum, not an `Option` beside a
+  flag. A field that only the inverse fills is optional, and its doc says
+  so.
+- One op does one thing. Several things as one undo step are a `Batch`. A
+  plural op exists only when the group has a rule the singular doesn't,
+  and its doc states that rule.
+- An op that only appears as an inverse is not exported to the app, and
+  the core refuses it from outside.
+- The description shows in the undo list and the CLI. It is one sentence
+  in the past tense, in the player's words. It names the thing by name
+  and id as `wormhole::named` does ("Renamed Ferragon II (#99) to Kel"),
+  and counts with `plural` ("Deleted planet #99 and its 2 moons").
+- The variant's doc says what it writes, what it refuses and what its
+  inverse is. Which kinds accept it is in its row, not in the doc.
+- A refusal uses the shared error variants (`Unchanged`, `Parse`,
+  `StarRefused`) unless a caller acts on that one refusal.
+
 ## Layout
 
 - `crates/sgf-core`: archive I/O, index scan, lexer/CST, overlay,

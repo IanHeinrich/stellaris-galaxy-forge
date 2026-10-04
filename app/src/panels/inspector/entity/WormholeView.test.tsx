@@ -74,7 +74,7 @@ describe("a wormhole's page", () => {
     distance.onCommit(300);
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-        type: "MoveSaveWormhole",
+        type: "MoveWormhole",
         wormhole: WORMHOLE.id,
         radius: 300,
         angle: 90,

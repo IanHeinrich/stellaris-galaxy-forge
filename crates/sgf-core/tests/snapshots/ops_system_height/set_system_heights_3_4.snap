@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the height of 2 systems
-inverse: SetSystemHeights { heights: [SystemHeight { id: 0, height: None }, SystemHeight { id: 1, height: None }] }
+inverse: SetSystemHeights { heights: [SystemHeight { system: 0, height: None }, SystemHeight { system: 1, height: None }] }
 
 --- gamestate
 +++ gamestate

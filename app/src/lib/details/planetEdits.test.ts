@@ -33,9 +33,9 @@ const HOLY_WORLD = choice("holy_planet", "Holy World");
 describe("a planet page's edits", () => {
   it("renames to the trimmed text, and not to nothing or the same name", () => {
     expect(renamePlanetOp(5, "Olbers II", "  Nova Terra ")).toEqual({
-      type: "RenameSavePlanet",
-      planet: 5,
-      name: "Nova Terra",
+      type: "RenameBody",
+      body: 5,
+      name: { Literal: "Nova Terra" },
     });
     expect(renamePlanetOp(5, "Olbers II", "   ")).toBeNull();
     expect(renamePlanetOp(5, "Olbers II", "Olbers II")).toBeNull();
@@ -50,7 +50,7 @@ describe("a planet page's edits", () => {
       ],
     });
     expect(removeDepositOp(page, "d_minerals_2", null)).toEqual({
-      type: "RemoveSaveDeposit",
+      type: "RemoveDeposit",
       deposit: 3,
     });
     expect(removeDepositOp(page, "d_massive_glacier", null)).toBeNull();
@@ -73,15 +73,15 @@ describe("a planet page's edits", () => {
 describe("the modifier edits", () => {
   it("adds a feature with its line, for ever unless days are set", () => {
     expect(addModifierOp(7, MINERAL_POOR, null)).toEqual({
-      type: "AddPlanetModifier",
-      planet: 7,
+      type: "AddBodyModifier",
+      body: 7,
       modifier: "mineral_poor",
       days: [-1],
       feature: "pm_mineral_poor",
     });
     expect(addModifierOp(7, HOLY_WORLD, 360)).toEqual({
-      type: "AddPlanetModifier",
-      planet: 7,
+      type: "AddBodyModifier",
+      body: 7,
       modifier: "holy_planet",
       days: [360],
     });
@@ -99,14 +99,14 @@ describe("the modifier edits", () => {
     const views = new Map([["pm_mineral_poor", MINERAL_POOR.view]]);
     const [feature, timed] = modifierRows(page, views);
     expect(removeModifierOp(7, feature)).toEqual({
-      type: "RemovePlanetModifier",
-      planet: 7,
+      type: "RemoveBodyModifier",
+      body: 7,
       modifier: "mineral_poor",
       feature: "pm_mineral_poor",
     });
     expect(removeModifierOp(7, timed)).toEqual({
-      type: "RemovePlanetModifier",
-      planet: 7,
+      type: "RemoveBodyModifier",
+      body: 7,
       modifier: "holy_planet",
     });
   });

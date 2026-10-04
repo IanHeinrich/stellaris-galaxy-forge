@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Remove modifier harvested_resources_mining from planet #40
-inverse: AddPlanetModifier { planet: 40, modifier: "harvested_resources_mining", days: [3426], feature: None }
+inverse: AddBodyModifier { body: 40, modifier: "harvested_resources_mining", days: [3426], feature: None }
 
 --- gamestate
 +++ gamestate

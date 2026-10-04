@@ -52,7 +52,7 @@ pub(crate) fn plan_rename(
             country,
             name: old_name,
             value,
-            custom_name: written.marked.then_some(false),
+            custom_name: !written.marked,
         },
     })
 }

@@ -4,7 +4,7 @@ expression: value
 ---
 Added 3 systems
 touched: [4000, 4001, 4002]
-inverse: RemoveSystems { ids: [4000, 4001, 4002] }
+inverse: RemoveSystems { systems: [4000, 4001, 4002] }
 warning system_isolated: system 4000 has no hyperlanes
 warning system_isolated: system 4001 has no hyperlanes
 warning system_isolated: system 4002 has no hyperlanes

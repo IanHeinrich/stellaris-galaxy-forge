@@ -2,7 +2,7 @@
 import type { ClassChange } from "./ClassChange";
 
 /**
- * What the install says about one planet class, for [`Op::SetPlanetClass`].
+ * What the install says about one planet class, for [`Op::SetBodyClass`].
  */
 export type PlanetClassRule = { class: string, change: ClassChange, 
 /**

@@ -4,7 +4,7 @@ use sgf_core::ops::{LanePair, NewSystem, Op};
 
 pub fn new_system(id: u32, x: f64, y: f64) -> NewSystem {
     NewSystem {
-        id,
+        system: id,
         x,
         y,
         name: None,
@@ -68,7 +68,7 @@ pub fn paint(systems: Vec<NewSystem>, lanes: Vec<LanePair>) -> Op {
 pub fn erase(ids: Vec<u32>) -> Op {
     Op::Batch {
         description: format!("Erased {} systems", ids.len()),
-        ops: vec![Op::RemoveSystems { ids }],
+        ops: vec![Op::RemoveSystems { systems: ids }],
     }
 }
 

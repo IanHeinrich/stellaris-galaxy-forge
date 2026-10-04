@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { create } from "zustand";
-import type { InitializerSet } from "../generated/InitializerSet";
 import type { InitializerView } from "../generated/InitializerView";
 import type { Op } from "../generated/Op";
 import {
@@ -12,6 +11,7 @@ import {
 import { isEmpireSpawn, modRefs } from "../lib/initializer/initializerGroups";
 import { buildIndex, search, type SearchEntry } from "../lib/initializer/initializerSearch";
 import { initializerCounts } from "../lib/initializer/initializerLabels";
+import { initializersOp } from "../lib/systemsBatch";
 import { withTrackedSystems } from "./editorEdits";
 import { useEditorStore } from "./editorStore";
 import { useGalaxyStore, type Systems } from "./galaxyStore";
@@ -177,12 +177,7 @@ export function spawnWeightFor(key: string | null): number | null {
  * spawn point carries is its own op: assigning an initializer leaves whatever weight stands.
  */
 function assignOp(targets: readonly number[], initializer: string | null): Op {
-  return targets.length === 1
-    ? { type: "SetInitializer", id: targets[0], initializer }
-    : {
-        type: "SetInitializers",
-        entries: targets.map((id): InitializerSet => ({ id, initializer })),
-      };
+  return initializersOp(targets.map((id) => [id, initializer] as const));
 }
 
 /** The map draws the random initializer under the empty key. */

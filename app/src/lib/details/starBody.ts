@@ -142,16 +142,16 @@ export function setStarTypeOp(
   const next = bodies.map((b) => (b.id === body ? planetClass : b.class));
   return {
     type: "SetStarClass",
-    id: system.id,
+    system: system.id,
     class: classForBodies(next, system.star_class, starClasses) ?? system.star_class,
-    bodies: [{ planet: body, class: planetClass }],
+    bodies: [{ body, class: planetClass }],
   };
 }
 
 /** The edit that gives planet `id` `size`, or `null` for a size under 1, fractional or unchanged. */
 export function setPlanetSizeOp(id: number, current: number, size: number): Op | null {
   if (!Number.isInteger(size) || size < 1 || size === current) return null;
-  return { type: "SetPlanetSize", id, size };
+  return { type: "SetBodySize", body: id, size };
 }
 
 /**

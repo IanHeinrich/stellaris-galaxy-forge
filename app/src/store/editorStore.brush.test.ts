@@ -54,7 +54,7 @@ describe("a paint stroke", () => {
       [-1, 3],
     ]);
     const added = (id: number, p: { x: number; y: number }) => ({
-      id,
+      system: id,
       x: p.x,
       y: p.y,
       name: null,
@@ -101,14 +101,14 @@ describe("an erase stroke", () => {
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 1 system",
-      ops: [{ type: "RemoveSystems", ids: [0] }],
+      ops: [{ type: "RemoveSystems", systems: [0] }],
     });
 
     await editor().eraseStroke([0, 1]);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "Batch",
       description: "Erased 2 systems",
-      ops: [{ type: "RemoveSystems", ids: [0, 1] }],
+      ops: [{ type: "RemoveSystems", systems: [0, 1] }],
     });
   });
 
@@ -212,8 +212,8 @@ function expectSymmetric(
   const { systems, lanes } = sent;
   const count = systems.length / copies;
   expect(Number.isInteger(count) && count > 0).toBe(true);
-  const first = systems[0].id;
-  systems.forEach((s, i) => expect(s.id).toBe(first + i));
+  const first = systems[0].system;
+  systems.forEach((s, i) => expect(s.system).toBe(first + i));
   for (let i = 0; i < systems.length; i++) {
     const next = systems[(i + count) % systems.length];
     const want = turn(systems[i]);
@@ -276,7 +276,7 @@ describe("a symmetric paint stroke", () => {
     expectSymmetric(sent, 2, mirrorX);
     for (const s of sent.systems) expect(Math.abs(2 * s.y)).toBeGreaterThanOrEqual(20);
     const half = sent.systems.length / 2;
-    const first = sent.systems[0].id;
+    const first = sent.systems[0].system;
     const copyOf = (id: number) => Math.floor((id - first) / half);
     expect(sent.lanes.some(([a, b]) => copyOf(a) !== copyOf(b))).toBe(true);
   });
@@ -428,8 +428,8 @@ describe("a height stroke", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetSystemHeights",
       heights: [
-        { id: 0, height: DEFAULT_SYSTEM_HEIGHT + 10 },
-        { id: 1, height: DEFAULT_SYSTEM_HEIGHT + 10 },
+        { system: 0, height: DEFAULT_SYSTEM_HEIGHT + 10 },
+        { system: 1, height: DEFAULT_SYSTEM_HEIGHT + 10 },
       ],
     });
   });

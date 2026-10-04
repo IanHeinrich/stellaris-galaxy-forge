@@ -15,11 +15,11 @@ use common::examples::{ADDED_BODY, meissa_v};
 use common::{current, open, open_3_4, open_4_5, text};
 
 fn delete(planet: u32) -> Op {
-    Op::DeleteSavePlanet { planet }
+    Op::DeleteBody { body: planet }
 }
 
 fn remove_colony(planet: u32) -> Op {
-    Op::RemoveColony { planet }
+    Op::RemoveColony { body: planet }
 }
 
 /// The description, the entities the inverse writes back grouped by table, and the diff:
@@ -29,7 +29,7 @@ fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
         Op::Batch { ops, .. } => (&ops[0], &ops[1..]),
         restore => (restore, &[][..]),
     };
-    let Op::RestoreSaveEntities {
+    let Op::RestoreEntities {
         description,
         entities,
     } = restore
@@ -326,7 +326,7 @@ fn the_inverse_writes_back_every_entity() {
         let before = current(&session);
         let result = session.apply(case.op.clone()).expect(case.name);
         let sited = matches!(result.inverse, Op::Batch { .. });
-        session.apply(result.inverse).expect(case.name);
+        session.apply_inverse(result.inverse).expect(case.name);
         if !sited {
             assert_eq!(current(&session), before, "{}", case.name);
         }
@@ -352,12 +352,12 @@ fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
     assert_eq!(
         ops[1],
         Op::AddDigSite {
-            planet: 703,
+            body: 703,
             site_type: "site_lost_moments".to_owned(),
             difficulty: 1,
         }
     );
-    session.apply(result.inverse).expect("the inverse");
+    session.apply_inverse(result.inverse).expect("the inverse");
     let after = get_planet_page(&session.doc, 703)
         .expect("the planet")
         .dig_site;
@@ -379,7 +379,7 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
             .map(|p| p.id)
             .collect();
         match case.op {
-            Op::DeleteSavePlanet { planet } => {
+            Op::DeleteBody { body: planet } => {
                 assert!(
                     get_planet_page(&reopened.doc, planet).is_err(),
                     "{}",
@@ -388,7 +388,7 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
                 assert!(!listed.contains(&planet), "{}", case.name);
                 assert!(!common::planet_ids(&reopened, case.system).contains(&planet));
             }
-            Op::RemoveColony { planet } => {
+            Op::RemoveColony { body: planet } => {
                 let page = get_planet_page(&reopened.doc, planet).expect(case.name);
                 assert_eq!(page.colony, None, "{}", case.name);
                 assert_eq!(page.owner, None, "{}", case.name);
@@ -476,7 +476,7 @@ fn what_is_refused() {
 fn a_restore_names_its_entities_by_id() {
     let mut session = open_4_5();
     let result = session.apply(delete(23)).expect("delete");
-    let Op::RestoreSaveEntities {
+    let Op::RestoreEntities {
         description,
         mut entities,
     } = result.inverse
@@ -485,7 +485,7 @@ fn a_restore_names_its_entities_by_id() {
     };
     entities[0].id += 1;
     let error = session
-        .apply(Op::RestoreSaveEntities {
+        .apply_inverse(Op::RestoreEntities {
             description,
             entities,
         })
@@ -497,7 +497,7 @@ fn a_restore_names_its_entities_by_id() {
 fn a_restore_takes_one_statement_per_text() {
     let mut session = open_4_5();
     let before = current(&session);
-    let two = Op::RestoreSaveEntities {
+    let two = Op::RestoreEntities {
         description: "Two".to_owned(),
         entities: vec![SavedEntity {
             table: SavedTable::Planet,
@@ -505,7 +505,7 @@ fn a_restore_takes_one_statement_per_text() {
             text: "23=none\n24=none".to_owned(),
         }],
     };
-    let error = session.apply(two).expect_err("two statements");
+    let error = session.apply_inverse(two).expect_err("two statements");
     assert!(matches!(error, OpError::EntityMismatch { .. }), "{error}");
     assert_eq!(current(&session), before);
 }
@@ -516,19 +516,19 @@ fn the_inverse_of_the_inverse_deletes_again() {
         let mut session = (case.session)();
         let result = session.apply(case.op.clone()).expect(case.name);
         let edited = current(&session);
-        let restored = session.apply(result.inverse).expect(case.name);
-        session.apply(restored.inverse).expect(case.name);
+        let restored = session.apply_inverse(result.inverse).expect(case.name);
+        session.apply_inverse(restored.inverse).expect(case.name);
         assert_eq!(current(&session), edited, "{}", case.name);
     }
 }
 
-/// A body added since the file was opened goes as `RemoveAddedBody` takes it, its anomaly
+/// A body added since the file was opened goes as `RemoveBody` takes it, its anomaly
 /// with it: the file is as it was before the add, undo puts the body back, and so does the
 /// inverse.
 #[test]
 fn an_added_body_is_deleted_as_its_removal_takes_it() {
     let found = Op::AddAnomaly {
-        planet: ADDED_BODY,
+        body: ADDED_BODY,
         category: "asteroid_uninhabitable_category".to_owned(),
         found_by: Some(vec![0]),
     };
@@ -559,8 +559,8 @@ fn a_planet_whose_class_changed_is_deleted() {
         change,
         models: 3,
     };
-    let ocean = |planet| Op::SetPlanetClass {
-        planet,
+    let ocean = |planet| Op::SetBodyClass {
+        body: planet,
         from: rule("pc_barren", ClassChange::Uncolonised),
         to: rule("pc_ocean", ClassChange::Any),
         look: None,
@@ -581,7 +581,7 @@ fn a_planet_whose_class_changed_is_deleted() {
             format!("Deleted planet #{planet}{moons}")
         );
         assert!(get_planet_page(&session.doc, planet).is_err(), "{planet}");
-        session.apply(result.inverse).expect("the inverse");
+        session.apply_inverse(result.inverse).expect("the inverse");
         assert_eq!(current(&session), changed, "{planet}");
         let page = get_planet_page(&session.doc, planet).expect("the planet");
         assert_eq!(page.class, "pc_ocean");

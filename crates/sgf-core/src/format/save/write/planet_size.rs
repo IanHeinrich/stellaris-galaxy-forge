@@ -31,6 +31,9 @@ pub(crate) fn plan_set(
     edit.set_scalar(&[keys::PLANET_SIZE], size.to_string())?;
     Ok(Planned {
         description: format!("Set the size of planet #{id} from {old} to {size}"),
-        inverse: Op::SetPlanetSize { id, size: old },
+        inverse: Op::SetBodySize {
+            body: id,
+            size: old,
+        },
     })
 }

@@ -1,4 +1,4 @@
-//! `RenameSaveSystem`, for the systems [`super::add_system`] wrote since the file was
+//! `RenameSystem`, for the systems [`super::add_system`] wrote since the file was
 //! opened: the name in the system's entry, and in its star's, planets' and moons', which
 //! carry it as the text of their `NAME` or `PARENT` variable, or as the whole name of a
 //! star named by its class. A body with a fixed name of its own keeps it. The old name goes
@@ -37,7 +37,7 @@ pub(crate) fn plan_rename(
     swap_name(plan, s, id, &old, name)?;
     Ok(Planned {
         description: format!("Renamed {old} (#{id}) to {name}"),
-        inverse: Op::RenameSaveSystem {
+        inverse: Op::RenameSystem {
             system: id,
             name: old,
         },

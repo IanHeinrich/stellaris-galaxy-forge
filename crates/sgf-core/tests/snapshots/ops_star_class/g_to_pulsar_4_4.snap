@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the star class of Grugmora (#1) from sc_g to sc_pulsar
-inverse: SetStarClass { id: 1, class: "sc_g", bodies: [StarBody { planet: 748, class: "pc_g_star" }] }
+inverse: SetStarClass { system: 1, class: "sc_g", bodies: [StarBody { body: 748, class: "pc_g_star" }] }
 
 --- gamestate
 +++ gamestate

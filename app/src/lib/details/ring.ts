@@ -23,5 +23,5 @@ export function hasRingCheckbox(
 
 /** The edit that gives planet `planet` a ring, or takes it off. */
 export function setPlanetRingOp(planet: number, ring: boolean): Op {
-  return { type: "SetPlanetRing", planet, ring };
+  return { type: "SetBodyRing", body: planet, ring };
 }

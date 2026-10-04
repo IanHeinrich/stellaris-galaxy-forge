@@ -211,27 +211,8 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
     .await
 }
 
-/// Refuse an op the app never sends: [`Op::RestoreSaveEntities`], which writes whole entities
-/// as given and is reached only through undo, alone or in a batch.
-fn sent_by_the_app(op: &Op) -> Result<(), SgfError> {
-    let restores = match op {
-        Op::Batch { ops, .. } => ops
-            .iter()
-            .any(|op| matches!(op, Op::RestoreSaveEntities { .. })),
-        op => matches!(op, Op::RestoreSaveEntities { .. }),
-    };
-    if restores {
-        return Err(SgfError::new(
-            ErrorKind::Op,
-            "RestoreSaveEntities is only an inverse: undo writes it back",
-        ));
-    }
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResult, SgfError> {
-    sent_by_the_app(&op)?;
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
@@ -246,8 +227,8 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
 /// caller sent: the core takes the rules as given, since only the install knows them.
 fn with_install_class_rules(op: Op, gd: Option<&GameData>) -> Result<Op, SgfError> {
     match op {
-        Op::SetPlanetClass {
-            planet,
+        Op::SetBodyClass {
+            body: planet,
             from,
             to,
             look,
@@ -261,8 +242,8 @@ fn with_install_class_rules(op: Op, gd: Option<&GameData>) -> Result<Op, SgfErro
                     )
                 })
             };
-            Ok(Op::SetPlanetClass {
-                planet,
+            Ok(Op::SetBodyClass {
+                body: planet,
                 from: rule(&from)?,
                 to: rule(&to)?,
                 look,
@@ -282,7 +263,7 @@ fn with_install_class_rules(op: Op, gd: Option<&GameData>) -> Result<Op, SgfErro
 /// Why `op` would be refused, or `None` when it would apply. The session is left as it was.
 #[tauri::command]
 pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<String>, SgfError> {
-    sent_by_the_app(&op)?;
+    op.check_sendable()?;
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;

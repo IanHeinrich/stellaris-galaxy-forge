@@ -1,4 +1,4 @@
-//! `AddSaveSystem`: a new `galactic_object` entry with its belts, its bodies in
+//! `AddSystemFromSpec`: a new `galactic_object` entry with its belts, its bodies in
 //! `planets.planet`, their deposits in `deposit`, its lanes on both ends, the system
 //! counter raised, a capped layout counted, the name taken out of the pool of unused star
 //! or black hole names and each asteroid's out of the pool of asteroid names. A system
@@ -82,7 +82,7 @@ pub(crate) fn plan_add(
             bodies(spec, written.ids.len()),
             plural(lanes.len(), "lane")
         ),
-        inverse: Op::RemoveSystem { id },
+        inverse: Op::RemoveSystem { system: id },
     })
 }
 
@@ -95,10 +95,10 @@ pub(crate) fn plan_join(
 ) -> Result<Option<Planned>, OpError> {
     let id = alloc::system_counter(&s.doc)?.last;
     let (x, y) = (rounded(spec.x), rounded(spec.y));
-    let (joined, _) = plan_membership(plan, s, &[SystemMove { id, x, y }])?;
+    let (joined, _) = plan_membership(plan, s, &[SystemMove { system: id, x, y }])?;
     Ok((!joined.is_empty()).then(|| Planned {
         description: String::new(),
-        inverse: Op::RemoveSystem { id },
+        inverse: Op::RemoveSystem { system: id },
     }))
 }
 

@@ -16,8 +16,8 @@ use common::{
 };
 
 fn move_planet(planet: u32, to: u32) -> Op {
-    Op::MoveSavePlanet {
-        planet,
+    Op::MoveBodyToSystem {
+        body: planet,
         to,
         at: None,
     }
@@ -59,8 +59,8 @@ fn a_neutral_planet_with_moons_moves_to_an_unowned_system() {
     assert!(
         matches!(
             ops[0],
-            Op::MoveSavePlanet {
-                planet: 99,
+            Op::MoveBodyToSystem {
+                body: 99,
                 to: 140,
                 at: Some(_)
             }
@@ -248,12 +248,12 @@ fn a_system_without_bodies_is_refused() {
 fn an_added_system_holding_a_planet_from_the_save_is_not_removed() {
     let mut session = open_4_5();
     session
-        .apply(Op::AddSaveSystem { spec: mura() })
+        .apply(Op::AddSystemFromSpec { spec: mura() })
         .expect("add Mura");
     session.apply(move_planet(99, 601)).expect("move 99 in");
     for op in [
-        Op::RemoveSystem { id: 601 },
-        Op::RemoveSystems { ids: vec![601] },
+        Op::RemoveSystem { system: 601 },
+        Op::RemoveSystems { systems: vec![601] },
     ] {
         let error = session.apply(op).expect_err("it holds 99");
         assert_eq!(
@@ -376,8 +376,8 @@ fn a_planet_of_a_companion_star_and_a_moon_without_its_planet_move() {
 /// and 101 keep their places about it.
 #[test]
 fn a_planet_goes_where_it_is_placed() {
-    let place = |radius, angle| Op::MoveSavePlanet {
-        planet: 99,
+    let place = |radius, angle| Op::MoveBodyToSystem {
+        body: 99,
         to: 216,
         at: Some(OrbitPlacement { radius, angle }),
     };
@@ -407,8 +407,8 @@ fn a_planet_goes_where_it_is_placed() {
     assert!(
         matches!(
             result.inverse,
-            Op::MoveSavePlanet {
-                planet: 99,
+            Op::MoveBodyToSystem {
+                body: 99,
                 to: 140,
                 at: Some(_)
             }
@@ -694,7 +694,7 @@ fn a_station_that_is_gone_or_elsewhere_stays_out_of_the_move() {
 fn a_renumbered_system_takes_its_stations_along() {
     let mut session = open_4_5();
     for spec in [mura(), dorellion()] {
-        session.apply(Op::AddSaveSystem { spec }).expect("add");
+        session.apply(Op::AddSystemFromSpec { spec }).expect("add");
     }
     session.apply(move_planet(10, 602)).expect("move 10");
     assert!(fleets(&session, 602).contains(&364));
@@ -702,7 +702,7 @@ fn a_renumbered_system_takes_its_stations_along() {
     assert!(text(&session).contains("origin=602\n"));
 
     session
-        .apply(Op::RemoveSystem { id: 601 })
+        .apply(Op::RemoveSystem { system: 601 })
         .expect("remove 601");
     let after = text(&session);
     assert!(

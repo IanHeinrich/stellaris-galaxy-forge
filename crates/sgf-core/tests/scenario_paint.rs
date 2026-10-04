@@ -2,6 +2,7 @@
 //! spawn reads as, what the script op writes for each kind, and that the plain ops keep
 //! their hands off a scripted weight.
 
+use crate::common::batch::{spawn_scripts, spawn_weights};
 use sgf_core::export::{self, ScenarioProfile};
 use sgf_core::format::scenario::is_painted;
 use sgf_core::ops::{Op, OpError};
@@ -36,7 +37,7 @@ fn reserved(letter: &str) -> PaintSpawnKind {
 }
 
 fn set(id: u32, script: Option<SpawnScript>) -> Op {
-    Op::SetSpawnScript { id, script }
+    Op::SetSpawnScript { system: id, script }
 }
 
 #[test]
@@ -145,7 +146,10 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     session.undo().expect("undo").expect("an op to undo");
 
     let result = session
-        .apply(Op::SetSpawnWeight { id: 1, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 1,
+            base: None,
+        })
         .expect("clear the weight of the player's seat");
     assert_eq!(session.graph.systems[&1].spawn_script, None);
     assert_eq!(session.graph.systems[&1].spawn_weight, None);
@@ -213,12 +217,10 @@ fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none
         "an enabled seat has no marker to make it the player's; choose a 1st Player, Sol or reserved seat"
     );
     let error = session
-        .apply(Op::SetSpawnScripts {
-            entries: vec![
-                (10, script(PaintSpawnKind::Sol, 0)),
-                (1, seat(PaintSpawnKind::Enabled, 4)),
-            ],
-        })
+        .apply(spawn_scripts(vec![
+            (10, script(PaintSpawnKind::Sol, 0)),
+            (1, seat(PaintSpawnKind::Enabled, 4)),
+        ]))
         .expect_err("an enabled seat is nobody's");
     assert!(matches!(error, OpError::EnabledSeatPlayer), "{error}");
     assert!(!session.is_dirty());
@@ -366,9 +368,7 @@ fn several_scripts_are_one_undo_step() {
     snapshot_step(
         &mut PAINTED.open(),
         "scripts",
-        Op::SetSpawnScripts {
-            entries: entries.clone(),
-        },
+        spawn_scripts(entries.clone()),
     );
 }
 
@@ -377,12 +377,10 @@ fn a_plain_weight_is_refused_on_a_scripted_system() {
     let mut session = PAINTED.open();
     for op in [
         Op::SetSpawnWeight {
-            id: 1,
+            system: 1,
             base: Some(1.0),
         },
-        Op::SetSpawnWeights {
-            entries: vec![(10, Some(1.0)), (1, Some(1.0))],
-        },
+        spawn_weights(vec![(10, Some(1.0)), (1, Some(1.0))]),
     ] {
         let name = op.name();
         let error = session.apply(op).expect_err(name);
@@ -509,7 +507,10 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
 
     // Taking the base alone would leave `add` and the modifier, a block no op puts back.
     let error = session
-        .apply(Op::SetSpawnWeight { id: 7, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 7,
+            base: None,
+        })
         .expect_err("clear the base");
     assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
     assert_eq!(common::current(&session), text.as_bytes());
@@ -538,7 +539,10 @@ fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
 
     // The base alone is the editor's to clear, and the modifier stays.
     let result = session
-        .apply(Op::SetSpawnWeight { id: 7, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 7,
+            base: None,
+        })
         .expect("clear the base");
     assert!(
         common::current(&session)
@@ -571,7 +575,10 @@ fn a_marker_of_another_kinds_shape_is_neither_read_nor_rewritten() {
     for op in [
         set(7, None),
         set(7, seat(PaintSpawnKind::Sol, 0)),
-        Op::SetSpawnWeight { id: 7, base: None },
+        Op::SetSpawnWeight {
+            system: 7,
+            base: None,
+        },
     ] {
         let name = op.name();
         let error = session.apply(op).expect_err(name);
@@ -605,7 +612,10 @@ fn the_players_marker_beside_a_foreign_modifier_is_neither_read_nor_rewritten() 
     for op in [
         set(7, None),
         set(7, player(7)),
-        Op::SetSpawnWeight { id: 7, base: None },
+        Op::SetSpawnWeight {
+            system: 7,
+            base: None,
+        },
     ] {
         let name = op.name();
         let error = session.apply(op).expect_err(name);
@@ -623,7 +633,10 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     let result = snapshot_step(
         &mut session,
         "clear_weight_2",
-        Op::SetSpawnWeight { id: 2, base: None },
+        Op::SetSpawnWeight {
+            system: 2,
+            base: None,
+        },
     );
     let system = &session.graph.systems[&2];
     assert_eq!(system.spawn_script, None);
@@ -641,9 +654,18 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
 
     let mut session = PAINTED.open();
     let result = session
-        .apply(Op::SetSpawnWeight { id: 10, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 10,
+            base: None,
+        })
         .expect("nothing to clear");
-    assert_eq!(result.inverse, Op::SetSpawnWeight { id: 10, base: None });
+    assert_eq!(
+        result.inverse,
+        Op::SetSpawnWeight {
+            system: 10,
+            base: None
+        }
+    );
 }
 
 /// Clearing a scripted seat among plain weights inverts to a batch: the script comes
@@ -655,7 +677,7 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
     let result = snapshot_step(
         &mut session,
         "clear_weights_2_and_10",
-        Op::SetSpawnWeights { entries },
+        spawn_weights(entries),
     );
     assert_eq!(session.graph.systems[&2].spawn_script, None);
     assert_eq!(session.graph.systems[&10].spawn_weight, Some(1.0));
@@ -664,8 +686,11 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
         Op::Batch {
             description: "Set the spawn weight of 2 systems".to_owned(),
             ops: vec![
+                Op::SetSpawnWeight {
+                    system: 10,
+                    base: None
+                },
                 set(2, script(reserved("a"), 2)),
-                Op::SetSpawnWeight { id: 10, base: None },
             ],
         }
     );
@@ -684,11 +709,12 @@ fn a_scripted_seat_cleared_inside_a_batch_inverts_to_one_flat_batch() {
         .apply(Op::Batch {
             description: "Clear and weigh".to_owned(),
             ops: vec![
-                Op::SetSpawnWeights {
-                    entries: vec![(2, None)],
+                Op::SetSpawnWeight {
+                    system: 2,
+                    base: None,
                 },
                 Op::SetSpawnWeight {
-                    id: 10,
+                    system: 10,
                     base: Some(1.0),
                 },
             ],
@@ -699,7 +725,10 @@ fn a_scripted_seat_cleared_inside_a_batch_inverts_to_one_flat_batch() {
         Op::Batch {
             description: "Clear and weigh".to_owned(),
             ops: vec![
-                Op::SetSpawnWeight { id: 10, base: None },
+                Op::SetSpawnWeight {
+                    system: 10,
+                    base: None
+                },
                 set(2, script(reserved("a"), 2)),
             ],
         }
@@ -747,7 +776,7 @@ fn removing_painted_systems_inverts_to_their_statements_and_lanes() {
 #[test]
 fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     let add = |spawn_weight, spawn_script| Op::AddSystem {
-        id: None,
+        system: None,
         x: 60.0,
         y: 10.0,
         name: Some("New Seat".to_owned()),
@@ -771,7 +800,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     assert_eq!(result.details_stale, vec![14]);
 
     let removed = session
-        .apply(Op::RemoveSystem { id: 14 })
+        .apply(Op::RemoveSystem { system: 14 })
         .expect("remove the seat");
     session.apply(removed.inverse).expect("put the seat back");
     assert_eq!(
@@ -798,7 +827,7 @@ fn the_grammar_fixture_still_takes_a_plain_base_and_a_script_on_its_own_line() {
     let mut session = GRAMMAR.open();
     session
         .apply(Op::SetSpawnWeight {
-            id: 1,
+            system: 1,
             base: Some(2.0),
         })
         .expect("plain weight");

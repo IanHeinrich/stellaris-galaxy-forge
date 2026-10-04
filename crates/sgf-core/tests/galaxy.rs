@@ -526,7 +526,7 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     let mut session = PAINTED.open();
     let result = session
         .apply(Op::MoveSystem {
-            id: 10,
+            system: 10,
             x: -392.0,
             y: -392.0,
         })
@@ -545,7 +545,7 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     let id = plain.graph.order[0];
     let result = plain
         .apply(Op::MoveSystem {
-            id,
+            system: id,
             x: -400.0,
             y: -380.0,
         })
@@ -561,7 +561,7 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     let id = save.graph.order[0];
     let result = save
         .apply(Op::MoveSystem {
-            id,
+            system: id,
             x: -392.0,
             y: -392.0,
         })

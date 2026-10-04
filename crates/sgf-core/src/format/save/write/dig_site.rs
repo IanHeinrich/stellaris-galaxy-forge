@@ -71,7 +71,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, site: u32) -> Result<Pla
             found.kind
         ),
         inverse: Op::AddDigSite {
-            planet,
+            body: planet,
             site_type: found.kind,
             difficulty: found.difficulty,
         },

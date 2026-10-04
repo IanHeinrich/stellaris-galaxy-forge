@@ -29,18 +29,18 @@ pub(crate) fn plan_set(
     let old_class = read::text(entity, keys::STAR_CLASS, &edit.buf);
     let mut seen = BTreeSet::new();
     for body in bodies {
-        if !seen.insert(body.planet) {
-            return Err(OpError::DuplicatePlanet(body.planet));
+        if !seen.insert(body.body) {
+            return Err(OpError::DuplicatePlanet(body.body));
         }
-        if !listed.contains(&body.planet) {
+        if !listed.contains(&body.body) {
             return Err(OpError::NotABody {
-                planet: body.planet,
+                planet: body.body,
                 system: id,
             });
         }
         check_text("a planet class", &body.class, Form::Bare).map_err(|error| {
             OpError::OnPlanet {
-                planet: body.planet,
+                planet: body.body,
                 error: Box::new(error),
             }
         })?;
@@ -51,13 +51,13 @@ pub(crate) fn plan_set(
 
     let mut old_bodies = Vec::with_capacity(bodies.len());
     for body in bodies {
-        let edit = plan.edit_planet(&s.doc, body.planet, id)?;
+        let edit = plan.edit_planet(&s.doc, body.body, id)?;
         let old = read::text(edit.entity()?, keys::PLANET_CLASS, &edit.buf);
         if old != body.class {
             edit.set_scalar(&[keys::PLANET_CLASS], quoted(&body.class))?;
         }
         old_bodies.push(StarBody {
-            planet: body.planet,
+            body: body.body,
             class: old,
         });
     }
@@ -74,7 +74,7 @@ pub(crate) fn plan_set(
             system.display_name()
         ),
         inverse: Op::SetStarClass {
-            id,
+            system: id,
             class: old_class,
             bodies: old_bodies,
         },

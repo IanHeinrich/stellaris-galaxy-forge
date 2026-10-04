@@ -24,7 +24,7 @@ const LOST_MOMENTS: &str = "site_lost_moments";
 
 fn add(planet: u32, site_type: &str, difficulty: i32) -> Op {
     Op::AddDigSite {
-        planet,
+        body: planet,
         site_type: site_type.to_owned(),
         difficulty,
     }

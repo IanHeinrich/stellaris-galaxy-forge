@@ -1,5 +1,5 @@
-//! `AddSaveBelt`, `RemoveSaveBelt`, `SetSaveBeltRadius`, `SetSaveBeltKind` and
-//! `SetSaveInnerRadius`: a save system's `asteroid_belts` and its `inner_radius`. A belt
+//! `AddBelt`, `RemoveBelt`, `SetBeltRadius`, `SetBeltKind` and
+//! `SetInnerRadius`: a save system's `asteroid_belts` and its `inner_radius`. A belt
 //! reaches its radius, so one added or moved past the system's reach grows the inner radius
 //! as a body does.
 
@@ -50,7 +50,7 @@ pub(crate) fn plan_add(
         "Added a belt ({kind}) at radius {} to system #{system}",
         number(radius)
     );
-    let inverse = Op::RemoveSaveBelt { system, index };
+    let inverse = Op::RemoveBelt { system, index };
     bodies::grow(plan, s, system, &before, radius, description, inverse)
 }
 
@@ -85,7 +85,7 @@ pub(crate) fn plan_remove(
             "Removed the belt at radius {} from system #{system}",
             number(radius)
         ),
-        inverse: Op::AddSaveBelt {
+        inverse: Op::AddBelt {
             system,
             kind,
             radius,
@@ -128,7 +128,7 @@ pub(crate) fn plan_set_radius(
         number(old),
         number(radius)
     );
-    let inverse = Op::SetSaveBeltRadius {
+    let inverse = Op::SetBeltRadius {
         system,
         index,
         radius: old,
@@ -170,7 +170,7 @@ pub(crate) fn plan_set_kind(
             "Set the belt at radius {} in system #{system} from {old_kind} to {kind}",
             number(radius)
         ),
-        inverse: Op::SetSaveBeltKind {
+        inverse: Op::SetBeltKind {
             system,
             index,
             kind: old_kind,
@@ -216,7 +216,7 @@ pub(crate) fn plan_inner_radius(
             number(current),
             number(radius)
         ),
-        inverse: Op::SetSaveInnerRadius {
+        inverse: Op::SetInnerRadius {
             system,
             radius: current,
         },

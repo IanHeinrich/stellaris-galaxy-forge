@@ -80,8 +80,8 @@ pub fn planet_class(
         gd.planet_class_rule(class)
             .ok_or_else(|| format!("the install has no planet class {class}"))
     };
-    let op = Op::SetPlanetClass {
-        planet,
+    let op = Op::SetBodyClass {
+        body: planet,
         from: rule(&held)?,
         to: rule(class)?,
         look: None,

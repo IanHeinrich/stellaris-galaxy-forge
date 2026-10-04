@@ -87,7 +87,7 @@ fn raw_details_changed(
 fn assert_refused(mut session: Session, op: &Op, kind: DocumentKind) {
     let message = format!("{} is not supported for a {kind} document", op.name());
     assert_eq!(session.check_op(op), Some(message.clone()), "{}", op.name());
-    let error = session.apply(op.clone()).expect_err("refused");
+    let error = session.apply_inverse(op.clone()).expect_err("refused");
     assert!(
         matches!(&error, OpError::Unsupported { op: name, kind: k } if *name == op.name() && *k == kind),
         "{}: {error:?}",
@@ -116,7 +116,7 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
         match &example.save {
             Some(op) => {
                 (example.open_save)()
-                    .apply(op.clone())
+                    .apply_inverse(op.clone())
                     .unwrap_or_else(|e| panic!("{name}: {e}"));
             }
             None => assert_refused(examples::save(), example.op(), DocumentKind::Save),
@@ -124,7 +124,7 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
         match &example.scenario {
             Some(op) => {
                 examples::scenario()
-                    .apply(op.clone())
+                    .apply_inverse(op.clone())
                     .unwrap_or_else(|e| panic!("{name}: {e}"));
             }
             None => assert_refused(examples::scenario(), example.op(), DocumentKind::Scenario),
@@ -138,12 +138,12 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         description: "Moved and renamed system 0".to_owned(),
         ops: vec![
             Op::MoveSystem {
-                id: 0,
+                system: 0,
                 x: -150.0,
                 y: 60.0,
             },
-            Op::SetSystemName {
-                id: 0,
+            Op::RenameSystem {
+                system: 0,
                 name: "Renamed".to_owned(),
             },
         ],
@@ -162,7 +162,9 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
         session.warm_details().expect("build details");
         let before = session.graph.clone();
         let before_raw = raw_details(&session);
-        let result = session.apply(op).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let result = session
+            .apply_inverse(op)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
         let mut changed: BTreeSet<u32> = details_changed(&before, &session.graph)
             .into_iter()
             .collect();
@@ -195,8 +197,8 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
     let mut session = GRAMMAR.open();
 
     let set = session
-        .apply(Op::SetInitializer {
-            id: 16,
+        .apply_inverse(Op::SetInitializer {
+            system: 16,
             initializer: Some("sol_system_initializer".into()),
         })
         .expect("set the initializer");
@@ -208,8 +210,8 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
     );
 
     let added = session
-        .apply(Op::AddSystem {
-            id: Some(77),
+        .apply_inverse(Op::AddSystem {
+            system: Some(77),
             x: 10.0,
             y: 10.0,
             name: Some("Fresh".into()),
@@ -221,7 +223,7 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
     assert_eq!(added.details_stale, [77]);
 
     let removed = session
-        .apply(Op::RemoveSystem { id: 16 })
+        .apply_inverse(Op::RemoveSystem { system: 16 })
         .expect("remove system 16");
     assert_eq!(
         removed.details_stale,
@@ -235,8 +237,8 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
     assert_eq!(redone.details_stale, [16]);
 
     let moved = session
-        .apply(Op::MoveSystem {
-            id: 2,
+        .apply_inverse(Op::MoveSystem {
+            system: 2,
             x: 1.0,
             y: 2.0,
         })
@@ -246,8 +248,8 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
         "a move leaves the initializer alone"
     );
     let named = session
-        .apply(Op::SetSystemName {
-            id: 2,
+        .apply_inverse(Op::RenameSystem {
+            system: 2,
             name: "Renamed".into(),
         })
         .expect("rename");
@@ -264,7 +266,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
         };
         let name = op.name();
         let mut session = common::open_3_4();
-        let applied = session.apply(op.clone());
+        let applied = session.apply_inverse(op.clone());
         if op.reach().whole_entries {
             let error = applied.expect_err(name);
             assert!(
@@ -316,7 +318,7 @@ fn an_op_that_rebuilds_the_details_keeps_the_overlap_findings() {
     let at = planet.at.expect("587 has a point");
     let centre = (0.0, 0.0);
     session
-        .apply(Op::MoveSaveBody {
+        .apply_inverse(Op::MoveBody {
             system: 1,
             body: 588,
             radius: bodies::drawn_radius(at, centre, planet.orbit),
@@ -325,7 +327,9 @@ fn an_op_that_rebuilds_the_details_keeps_the_overlap_findings() {
         .expect("move 588 onto 587");
     let overlaps = |issues: &[Issue]| common::coded(issues, IssueCode::BodiesOverlap).len();
 
-    let added = session.apply(examples::meissa_v()).expect("add Meissa V");
+    let added = session
+        .apply_inverse(examples::meissa_v())
+        .expect("add Meissa V");
     assert_eq!(overlaps(&added.issues), 1, "{:?}", added.issues);
     let undone = session.undo().expect("undo").expect("something to undo");
     assert_eq!(overlaps(&undone.issues), 1, "{:?}", undone.issues);

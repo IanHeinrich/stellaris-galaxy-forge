@@ -1,7 +1,7 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use sgf_core::ops::Op;
+use sgf_core::ops::{NewName, Op};
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
 
@@ -67,9 +67,11 @@ fn run(cli: Cli) -> commands::Run {
             output,
             check,
         }) => commands::roundtrip::run(&input, &output, check),
-        Some(Command::Move { sav, id, x, y, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::MoveSystem { id, x, y })
-        }
+        Some(Command::Move { sav, id, x, y, out }) => commands::mutate::run(
+            &sav,
+            out.path.as_deref(),
+            Op::MoveSystem { system: id, x, y },
+        ),
         Some(Command::MoveNebula {
             sav,
             index,
@@ -124,9 +126,7 @@ fn run(cli: Cli) -> commands::Run {
                 index,
                 name,
                 out,
-            } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::SetNebulaName { index, name })
-            }
+            } => commands::mutate::run(&sav, out.path.as_deref(), Op::RenameNebula { index, name }),
         },
         Some(Command::Header { command }) => match command {
             HeaderCommand::Set {
@@ -163,7 +163,7 @@ fn run(cli: Cli) -> commands::Run {
                 commands::mutate::run(&sav, out.path.as_deref(), Op::PreventLane { a, b })
             }
             LaneCommand::Allow { sav, a, b, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::UnpreventLane { a, b })
+                commands::mutate::run(&sav, out.path.as_deref(), Op::AllowLane { a, b })
             }
             LaneCommand::Normalise { sav, a, b, out } => {
                 commands::mutate::run(&sav, out.path.as_deref(), Op::NormaliseLaneLength { a, b })
@@ -185,13 +185,13 @@ fn run(cli: Cli) -> commands::Run {
                 &sav,
                 out.path.as_deref(),
                 Op::SetSpawnWeight {
-                    id,
+                    system: id,
                     base: commands::mutate::spawn_base(&base)?,
                 },
             ),
         },
         Some(Command::Isolate { sav, id, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::IsolateSystem { id })
+            commands::mutate::run(&sav, out.path.as_deref(), Op::IsolateSystem { system: id })
         }
         Some(Command::Star {
             sav,
@@ -202,7 +202,11 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::SetStarClass { id, class, bodies },
+            Op::SetStarClass {
+                system: id,
+                class,
+                bodies,
+            },
         ),
         Some(Command::MovePlanet {
             sav,
@@ -214,8 +218,8 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::MoveSavePlanet {
-                planet,
+            Op::MoveBodyToSystem {
+                body: planet,
                 to: system,
                 at: radius
                     .zip(angle)
@@ -230,7 +234,7 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::SetPlanetSize { id: planet, size },
+            Op::SetBodySize { body: planet, size },
         ),
         Some(Command::RenamePlanet {
             sav,
@@ -240,17 +244,16 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::RenameSavePlanet {
-                planet,
-                name,
-                block: None,
+            Op::RenameBody {
+                body: planet,
+                name: NewName::Literal(name),
             },
         ),
         Some(Command::DeletePlanet { sav, planet, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::DeleteSavePlanet { planet })
+            commands::mutate::run(&sav, out.path.as_deref(), Op::DeleteBody { body: planet })
         }
         Some(Command::RemoveColony { sav, planet, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveColony { planet })
+            commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveColony { body: planet })
         }
         Some(Command::RenameEmpire {
             sav,
@@ -264,7 +267,7 @@ fn run(cli: Cli) -> commands::Run {
                 country,
                 name,
                 value: None,
-                custom_name: None,
+                custom_name: true,
             },
         ),
         Some(Command::Model {
@@ -276,7 +279,10 @@ fn run(cli: Cli) -> commands::Run {
         }) => commands::mutate::run(
             &sav,
             out.path.as_deref(),
-            Op::SetPlanetEntity { planet, entity },
+            Op::SetBodyModel {
+                body: planet,
+                entity,
+            },
         ),
         Some(Command::PlanetClass {
             sav,
@@ -303,13 +309,13 @@ fn run(cli: Cli) -> commands::Run {
             &sav,
             out.path.as_deref(),
             match remove {
-                true => Op::RemovePlanetModifier {
-                    planet,
+                true => Op::RemoveBodyModifier {
+                    body: planet,
                     modifier,
                     feature,
                 },
-                false => Op::AddPlanetModifier {
-                    planet,
+                false => Op::AddBodyModifier {
+                    body: planet,
                     modifier,
                     days: vec![days.unwrap_or(-1)],
                     feature,
@@ -327,11 +333,11 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             match category.filter(|_| !remove) {
                 Some(category) => Op::AddAnomaly {
-                    planet,
+                    body: planet,
                     category,
                     found_by: None,
                 },
-                None => Op::RemoveAnomaly { planet },
+                None => Op::RemoveAnomaly { body: planet },
             },
         ),
         Some(Command::DigSite {
@@ -346,7 +352,7 @@ fn run(cli: Cli) -> commands::Run {
                 &sav,
                 out.path.as_deref(),
                 Op::AddDigSite {
-                    planet,
+                    body: planet,
                     site_type,
                     difficulty,
                 },
@@ -366,14 +372,14 @@ fn run(cli: Cli) -> commands::Run {
                 let ops = planets
                     .into_iter()
                     .zip(kinds)
-                    .map(|(planet, kind)| Op::AddSaveDeposit { planet, kind })
+                    .map(|(planet, kind)| Op::AddDeposit { body: planet, kind })
                     .collect();
                 commands::mutate::run_all(&sav, out.path.as_deref(), ops)
             }
             DepositCommand::Remove { sav, deposits, out } => {
                 let ops = deposits
                     .into_iter()
-                    .map(|deposit| Op::RemoveSaveDeposit { deposit })
+                    .map(|deposit| Op::RemoveDeposit { deposit })
                     .collect();
                 commands::mutate::run_all(&sav, out.path.as_deref(), ops)
             }

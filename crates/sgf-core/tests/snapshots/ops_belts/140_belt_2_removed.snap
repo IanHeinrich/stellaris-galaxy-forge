@@ -3,4 +3,4 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Removed the belt at radius 150 from system #140
-inverse: AddSaveBelt { system: 140, kind: "rocky_asteroid_belt", radius: 150.0 }
+inverse: AddBelt { system: 140, kind: "rocky_asteroid_belt", radius: 150.0 }

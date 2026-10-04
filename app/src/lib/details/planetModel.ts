@@ -57,5 +57,5 @@ export function modelRows(
 export function setPlanetModelOp(planet: number, current: string | null, key: string): Op | null {
   const entity = key === DEFAULT_MODEL ? null : key;
   if (entity === current) return null;
-  return { type: "SetPlanetEntity", planet, entity };
+  return { type: "SetBodyModel", body: planet, entity };
 }

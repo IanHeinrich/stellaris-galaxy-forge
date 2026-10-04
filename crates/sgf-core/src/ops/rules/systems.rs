@@ -31,7 +31,7 @@ impl Move {
 
     pub fn inverse(&self) -> Op {
         Op::MoveSystem {
-            id: self.id,
+            system: self.id,
             x: self.from.0,
             y: self.from.1,
         }
@@ -60,7 +60,7 @@ pub(crate) fn decide_moves(
     graph: &GalaxyGraph,
     moves: &[SystemMove],
 ) -> Result<Vec<SystemMove>, OpError> {
-    each_once(moves, |m| m.id)?;
+    each_once(moves, |m| m.system)?;
     let mut origin = Vec::with_capacity(moves.len());
     for m in moves {
         if !m.x.is_finite() || !m.y.is_finite() {
@@ -68,10 +68,10 @@ pub(crate) fn decide_moves(
         }
         let system = graph
             .systems
-            .get(&m.id)
-            .ok_or(OpError::UnknownSystem(m.id))?;
+            .get(&m.system)
+            .ok_or(OpError::UnknownSystem(m.system))?;
         origin.push(SystemMove {
-            id: m.id,
+            system: m.system,
             x: system.x,
             y: system.y,
         });
@@ -86,7 +86,7 @@ pub(crate) fn decide_heights(
     graph: &GalaxyGraph,
     heights: &[SystemHeight],
 ) -> Result<Vec<SystemHeight>, OpError> {
-    each_once(heights, |h| h.id)?;
+    each_once(heights, |h| h.system)?;
     heights
         .iter()
         .map(|h| {
@@ -95,10 +95,10 @@ pub(crate) fn decide_heights(
             }
             let system = graph
                 .systems
-                .get(&h.id)
-                .ok_or(OpError::UnknownSystem(h.id))?;
+                .get(&h.system)
+                .ok_or(OpError::UnknownSystem(h.system))?;
             Ok(SystemHeight {
-                id: h.id,
+                system: h.system,
                 height: system.height,
             })
         })

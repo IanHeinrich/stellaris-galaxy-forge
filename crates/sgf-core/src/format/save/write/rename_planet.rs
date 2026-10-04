@@ -1,4 +1,4 @@
-//! `RenameSavePlanet`: a save body's `name`, and the copy of it its moons hold as the
+//! `RenameBody`: a save body's `name`, and the copy of it its moons hold as the
 //! value of a `PARENT` variable. The game writes a moon's name as `SUBPLANET_NAME_FORMAT`
 //! over its planet's whole name, so a moon of a renamed planet would still read the old
 //! one. A moon whose copy already differs from its planet's name keeps it.
@@ -16,7 +16,7 @@ use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::check_name;
-use crate::ops::{Op, OpError, Plan, Planned};
+use crate::ops::{NewName, Op, OpError, Plan, Planned};
 use crate::projections::name::{NameTemplate, variable_values};
 use crate::projections::read;
 use crate::session::Session;
@@ -25,12 +25,11 @@ pub(crate) fn plan_rename(
     plan: &mut Plan,
     s: &Session,
     id: u32,
-    name: &str,
-    block: Option<&str>,
+    name: &NewName,
 ) -> Result<Planned, OpError> {
-    let new = match block {
-        Some(block) => Block::parse(block)?,
-        None => {
+    let new = match name {
+        NewName::Block { value, .. } => Block::parse(value)?,
+        NewName::Literal(name) => {
             check_name(name)?;
             Block::literal(name)
         }
@@ -52,25 +51,27 @@ pub(crate) fn plan_rename(
     let old_text = edit.text(value).to_owned();
     let written = new.at(&edit.indent(value.start));
     if written == old_text {
-        return Err(OpError::PlanetNameUnchanged(id, name.to_owned()));
+        return Err(OpError::PlanetNameUnchanged(id, name.shown().to_owned()));
     }
     edit.replace_span(value, written);
 
     rename_copies(plan, &s.doc, id, moons, &old, &new)?;
-    let description = match block {
-        None => format!("Renamed planet #{id} to {name}"),
-        Some(_) => format!("Put back the name of planet #{id}"),
+    let description = match name {
+        NewName::Literal(name) => format!("Renamed planet #{id} to {name}"),
+        NewName::Block { .. } => format!("Put back the name of planet #{id}"),
     };
     Ok(Planned {
         description,
-        inverse: Op::RenameSavePlanet {
-            planet: id,
-            name: if old.literal {
-                old.key.clone()
-            } else {
-                old.stand_in()
+        inverse: Op::RenameBody {
+            body: id,
+            name: NewName::Block {
+                value: old_text,
+                name: if old.literal {
+                    old.key.clone()
+                } else {
+                    old.stand_in()
+                },
             },
-            block: Some(old_text),
         },
     })
 }

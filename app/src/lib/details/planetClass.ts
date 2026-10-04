@@ -72,5 +72,5 @@ export function setPlanetClassOp(
   const from = planetClasses.get(current);
   const to = planetClasses.get(key);
   if (from === undefined || to === undefined || key === current) return null;
-  return { type: "SetPlanetClass", planet, from: rule(from), to: rule(to) };
+  return { type: "SetBodyClass", body: planet, from: rule(from), to: rule(to) };
 }

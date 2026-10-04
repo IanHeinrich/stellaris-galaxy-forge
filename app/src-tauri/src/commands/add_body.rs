@@ -14,7 +14,7 @@ use crate::views::{AddedBody, BodyClassPick};
 const ONLY_A_SAVE_ADDS: &str = "only a save takes an added planet";
 
 /// Roll a body from `seed` and add it to system `system` of the open save as one
-/// `AddSaveBody`, `radius` from what it orbits at `angle` degrees: a moon of `parent` when
+/// `AddBody`, `radius` from what it orbits at `angle` degrees: a moon of `parent` when
 /// given, else a planet. It is of `class` when given and a class drawn at its orbit when not,
 /// of `size` when given and one drawn from its class's range when not, with the deposits it
 /// rolls at the save's Resource Abundance.
@@ -44,7 +44,7 @@ pub async fn add_body<R: Runtime>(
             radius,
         )
         .map_err(refusal)?;
-        let result = session.apply(Op::AddSaveBody {
+        let result = session.apply(Op::AddBody {
             system,
             spec: NewBody {
                 class: body.class,
@@ -106,7 +106,7 @@ fn tell_apart(picks: &mut [BodyClassPick]) {
 /// The body an add's inverse takes out again.
 fn added(inverse: &Op) -> Option<u32> {
     match inverse {
-        Op::RemoveAddedBody { planet } => Some(*planet),
+        Op::RemoveBody { body: planet } => Some(*planet),
         Op::Batch { ops, .. } => ops.iter().find_map(added),
         _ => None,
     }

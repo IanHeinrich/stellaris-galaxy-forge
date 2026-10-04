@@ -56,7 +56,7 @@ export function nebulaActions(
     },
 
     async setNebulaName(index, name) {
-      await get().applyOp({ type: "SetNebulaName", index, name });
+      await get().applyOp({ type: "RenameNebula", index, name });
     },
 
     async removeNebula(index) {

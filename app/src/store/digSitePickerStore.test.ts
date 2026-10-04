@@ -54,7 +54,7 @@ describe("the dig site picker", () => {
     await useDigSitePickerStore.getState().add(ROW);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "AddDigSite",
-      planet: 585,
+      body: 585,
       site_type: "site_lost_moments",
       difficulty: 1,
     });

@@ -1,4 +1,4 @@
-//! `MoveSaveWormhole`: where a save's natural wormhole stands in its system.
+//! `MoveWormhole`: where a save's natural wormhole stands in its system.
 
 use crate::emit::coord;
 use crate::format::save::galaxy::bypasses::natural_wormholes;
@@ -60,7 +60,7 @@ pub(crate) fn plan_move(
     );
     Ok(Planned {
         description,
-        inverse: Op::MoveSaveWormhole {
+        inverse: Op::MoveWormhole {
             wormhole,
             radius: old_radius,
             angle: old_angle,

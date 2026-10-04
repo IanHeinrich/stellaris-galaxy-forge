@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; set the inner radius of system #216 from 230 to 291.02
-inverse: Batch { description: "Undo of \"Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; set the inner radius of system #216 from 230 to 291.02\"", ops: [MoveSavePlanet { planet: 99, to: 140, at: Some(OrbitPlacement { radius: 145.067951161, angle: 65.775205382 }) }, SetSaveInnerRadius { system: 216, radius: 230.0 }] }
+inverse: Batch { description: "Undo of \"Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; set the inner radius of system #216 from 230 to 291.02\"", ops: [MoveBodyToSystem { body: 99, to: 140, at: Some(OrbitPlacement { radius: 145.067951161, angle: 65.775205382 }) }, SetInnerRadius { system: 216, radius: 230.0 }] }
 
 --- gamestate
 +++ gamestate

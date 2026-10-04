@@ -57,8 +57,8 @@ fn planet_moves_are_queried_and_applied() {
     .expect("the op");
     assert_eq!(
         op,
-        Op::MoveSavePlanet {
-            planet: 99,
+        Op::MoveBodyToSystem {
+            body: 99,
             to: 216,
             at: None
         }

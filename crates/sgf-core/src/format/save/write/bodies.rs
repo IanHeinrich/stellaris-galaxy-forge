@@ -1,9 +1,10 @@
-//! `MoveSaveBody` and `SetSaveBodyParent`: where a save planet or moon stands in its
+//! `MoveBody` and `SetBodyParent`: where a save planet or moon stands in its
 //! system, and what it orbits.
 
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::move_system::splice_coordinate;
@@ -14,7 +15,7 @@ use crate::ops::rules::bodies::{
     Body, centre, check_parent, check_placement, descendants, drawn_radius, movable, moved_reach,
     normalised, placed, system_reach,
 };
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, Parent, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
@@ -23,6 +24,8 @@ pub(crate) struct Stored {
     /// It holds the moon bit of `binary_flags`: a planet orbiting a star names it as
     /// `moon_of` without the bit.
     pub(crate) moon: bool,
+    /// Its class is a star's.
+    star_class: bool,
     orbit: String,
     x: String,
     y: String,
@@ -60,7 +63,7 @@ pub(crate) fn plan_move(
         number(normalised(angle)),
         carrying(&before, body, label),
     );
-    let inverse = Op::MoveSaveBody {
+    let inverse = Op::MoveBody {
         system,
         body,
         radius: inverse.0,
@@ -70,18 +73,19 @@ pub(crate) fn plan_move(
     grow(plan, s, system, &before, reach, description, inverse)
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn plan_parent(
     plan: &mut Plan,
     s: &Session,
     system: u32,
     body: u32,
-    parent: Option<u32>,
-    star: bool,
+    parent: Parent,
     radius: f64,
     angle: f64,
 ) -> Result<Planned, OpError> {
     let stored = frame_of(s, system, body, radius, angle)?;
+    let parent = parent.body();
+    let primary = listed(&s.doc, system)?.first().copied();
+    let star = parent.is_some_and(|p| Some(p) != primary && is_star(&stored, p));
     let before: Vec<Body> = stored.iter().map(|b| b.body).collect();
     let is_moon = |id| stored.iter().any(|b| b.body.id == id && b.moon);
     check_parent(&before, system, body, parent, star, is_moon)?;
@@ -114,11 +118,10 @@ pub(crate) fn plan_parent(
     let (_, (radius, angle)) = where_it_was(&before, &old);
     // A moon of a missing planet, or a planet of the star at the centre, gets that body back
     // as its parent: undo replays bytes, and this inverse is not one to apply.
-    let inverse = Op::SetSaveBodyParent {
+    let inverse = Op::SetBodyParent {
         system,
         body,
-        parent: old.parent,
-        star: old.parent.is_some() && kind == "planet",
+        parent: old.parent.into(),
         radius,
         angle,
     };
@@ -187,10 +190,18 @@ fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
             orbit,
         },
         moon: read::scalar_u32(node, keys::BINARY_FLAGS, src).is_some_and(|f| f & MOON_FLAG != 0),
+        star_class: is_star_class(&read::text(node, keys::PLANET_CLASS, src)),
         orbit: read::text(node, keys::ORBIT, src),
         x: axis(keys::X),
         y: axis(keys::Y),
     })
+}
+
+/// Whether body `id` is of a star's class without the moon bit.
+fn is_star(stored: &[Stored], id: u32) -> bool {
+    stored
+        .iter()
+        .any(|b| b.body.id == id && b.star_class && !b.moon)
 }
 
 /// "moon" for a body holding the moon bit, else "planet".
@@ -362,7 +373,7 @@ fn grow_by(
             description: format!("Undo of \"{description}\""),
             ops: vec![
                 inverse,
-                Op::SetSaveInnerRadius {
+                Op::SetInnerRadius {
                     system,
                     radius: current,
                 },

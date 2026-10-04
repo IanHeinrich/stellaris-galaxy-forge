@@ -1,4 +1,4 @@
-//! `AddSaveDeposit` and `RemoveSaveDeposit`: one entry of the top-level `deposit` table
+//! `AddDeposit` and `RemoveDeposit`: one entry of the top-level `deposit` table
 //! and its id in the `deposits` list of the planet holding it. Nothing else is written, on a
 //! colony too: a station working a removed deposit is left standing, and the game itself
 //! demolishes districts over a lowered cap, removes what needed the deposit and drops the
@@ -46,7 +46,7 @@ pub(crate) fn plan_add(
     list(plan.edit_planet(&s.doc, planet, system)?, id)?;
     Ok(Planned {
         description: format!("Added {kind} (#{id}) to planet #{planet}"),
-        inverse: Op::RemoveSaveDeposit { deposit: id },
+        inverse: Op::RemoveDeposit { deposit: id },
     })
 }
 
@@ -64,8 +64,8 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<
     unlist(plan.edit_planet(&s.doc, planet, system)?, deposit)?;
     Ok(Planned {
         description: format!("Removed {} (#{deposit}) from planet #{planet}", held.kind),
-        inverse: Op::AddSaveDeposit {
-            planet,
+        inverse: Op::AddDeposit {
+            body: planet,
             kind: held.kind,
         },
     })

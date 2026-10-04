@@ -26,7 +26,7 @@ function saveEdits(planet: number): PlanetEditAdapter {
   return {
     timedModifiers: true,
     addDeposit: (key) => apply(addDepositOp(planet, key)),
-    removeDeposit: (ref) => apply({ type: "RemoveSaveDeposit", deposit: ref as number }),
+    removeDeposit: (ref) => apply({ type: "RemoveDeposit", deposit: ref as number }),
     addModifier: (choice, days) => apply(addModifierOp(planet, choice, days)),
     removeModifier: (ref) => apply(removeModifierOp(planet, ref as ModifierRow)),
     addAnomaly: (category) => apply(addAnomalyOp(planet, category)),

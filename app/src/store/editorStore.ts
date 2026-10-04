@@ -438,7 +438,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       await get().applySymmetric(() => {
         const moves = get().selection.flatMap((id) => {
           const s = systems().get(id);
-          return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
+          return s ? [{ system: id, x: s.x + dx, y: s.y + dy }] : [];
         });
         if (moves.length === 0) return null;
         return moves.length === 1
@@ -452,7 +452,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       const paint = getPaintLayer() && spawnWeight !== null;
       const op = (): Op => ({
         type: "AddSystem",
-        id: null,
+        system: null,
         x,
         y,
         name: null,
@@ -475,7 +475,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     async linkWormholePair(a, b) {
       if (canEdit("wormhole_pairs")) {
-        const linked = await get().applyOp({ type: "AddSaveWormholePair", a, b });
+        const linked = await get().applyOp({ type: "AddWormholePair", a, b });
         if (linked) useMapChromeStore.getState().setLayerQuietly("bypasses", true);
         return linked;
       }
@@ -492,7 +492,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     async unlinkWormholePair(a, b) {
       if (canEdit("wormhole_pairs")) {
         if (wormholePartnerOf(useGalaxyStore.getState().bypasses, a) !== b) return false;
-        return get().applyOp({ type: "RemoveSaveWormholePair", a, b });
+        return get().applyOp({ type: "RemoveWormholePair", a, b });
       }
       if (sharedWormholePair(systems(), a, b) === null) return false;
       return get().applyOp({ type: "SetWormholePair", a, b, pair: null });

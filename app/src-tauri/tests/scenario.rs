@@ -63,7 +63,7 @@ fn a_scenario_systems_details_come_from_its_initializer() {
         "apply_op",
         json!({ "op": {
             "type": "SetInitializer",
-            "id": 16,
+            "system": 16,
             "initializer": "unique_system_initializer_02",
             "spawn_weight": null,
         } }),
@@ -76,7 +76,7 @@ fn a_scenario_systems_details_come_from_its_initializer() {
         "apply_op",
         json!({ "op": {
             "type": "SetInitializer",
-            "id": 9,
+            "system": 9,
             "initializer": "basic_init_02",
             "spawn_weight": null,
         } }),
@@ -137,7 +137,7 @@ fn a_scenario_systems_details_come_from_its_initializer() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 16, "x": 1.0, "y": 2.0 } }),
+        json!({ "op": { "type": "MoveSystem", "system": 16, "x": 1.0, "y": 2.0 } }),
     )
     .expect("move system 16");
     assert!(
@@ -231,7 +231,7 @@ fn a_scenario_systems_colonies_name_their_territory_and_asking_again_answers_the
         "apply_op",
         json!({ "op": {
             "type": "SetInitializer",
-            "id": 9,
+            "system": 9,
             "initializer": "com_sol_system",
             "spawn_weight": null,
         } }),

@@ -29,11 +29,11 @@ fn black_hole(name: &str) -> SystemSpec {
 }
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 fn rename(system: u32, name: &str) -> Op {
-    Op::RenameSaveSystem {
+    Op::RenameSystem {
         system,
         name: name.to_owned(),
     }
@@ -78,7 +78,11 @@ fn a_new_system_takes_its_name_from_the_black_hole_pool_and_a_removal_gives_it_b
     round_trip_step(&mut session, "add a namesake", add(twin));
     assert_eq!(holes_free(&session), left, "the pool held it once");
 
-    round_trip_step(&mut session, "remove one", Op::RemoveSystem { id: ADDED });
+    round_trip_step(
+        &mut session,
+        "remove one",
+        Op::RemoveSystem { system: ADDED },
+    );
     assert_eq!(
         black_holes(&session, &name),
         0,
@@ -88,7 +92,7 @@ fn a_new_system_takes_its_name_from_the_black_hole_pool_and_a_removal_gives_it_b
     round_trip_step(
         &mut session,
         "remove the other",
-        Op::RemoveSystem { id: ADDED },
+        Op::RemoveSystem { system: ADDED },
     );
     assert_eq!(black_holes(&session, &name), 1);
     assert_eq!(holes_free(&session), holes);
@@ -126,7 +130,7 @@ fn a_rename_puts_the_old_name_back_in_its_pool_and_takes_the_new_one_from_its_ow
     round_trip_step(&mut session, "rename back", rename(ADDED, &first));
     assert_eq!(black_holes(&session, &first), 0);
     session
-        .apply(Op::RemoveSystem { id: ADDED })
+        .apply(Op::RemoveSystem { system: ADDED })
         .expect("remove the system");
     assert_eq!(current(&session), session.doc.original());
 }
@@ -143,7 +147,7 @@ fn a_system_named_from_the_star_pool_can_take_a_black_hole_name() {
     assert_eq!(stars(&session, &spike.name), 1);
     assert_eq!(black_holes(&session, &name), 0);
 
-    round_trip_step(&mut session, "remove", Op::RemoveSystem { id: ADDED });
+    round_trip_step(&mut session, "remove", Op::RemoveSystem { system: ADDED });
     assert_eq!(black_holes(&session, &name), 1);
     assert_eq!(current(&session), session.doc.original());
 }
@@ -160,6 +164,6 @@ fn the_diffs_a_black_hole_name_writes() {
     );
     common::snapshot(
         "remove_black_hole_pooled",
-        &step_report(&mut session, Op::RemoveSystem { id: ADDED }),
+        &step_report(&mut session, Op::RemoveSystem { system: ADDED }),
     );
 }

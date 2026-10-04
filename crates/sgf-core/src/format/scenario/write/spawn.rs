@@ -9,7 +9,6 @@ use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
-use crate::ops::rules::{bulk_description, each_once};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
@@ -23,54 +22,13 @@ pub(super) fn set_weight(
     let (description, previous, script) = write_weight(plan, s, id, base)?;
     let inverse = match script {
         Some(script) => Op::SetSpawnScript {
-            id,
+            system: id,
             script: Some(script),
         },
         None => Op::SetSpawnWeight {
-            id,
+            system: id,
             base: previous.1,
         },
-    };
-    Ok(Planned {
-        description,
-        inverse,
-    })
-}
-
-pub(super) fn set_weights(
-    plan: &mut Plan,
-    s: &Session,
-    entries: &[(u32, Option<f64>)],
-) -> Result<Planned, OpError> {
-    each_once(entries, |&(id, _)| id)?;
-    let mut one = String::new();
-    let mut previous = Vec::with_capacity(entries.len());
-    let mut scripts = Vec::with_capacity(entries.len());
-    for &(id, base) in entries {
-        let (description, was, script) = write_weight(plan, s, id, base)?;
-        one = description;
-        previous.push(was);
-        scripts.push(script);
-    }
-    let description = bulk_description(entries.len(), one, "Set the spawn weight of");
-    let inverse = if scripts.iter().all(Option::is_none) {
-        Op::SetSpawnWeights { entries: previous }
-    } else {
-        let ops = previous
-            .into_iter()
-            .zip(scripts)
-            .map(|((id, base), script)| match script {
-                Some(script) => Op::SetSpawnScript {
-                    id,
-                    script: Some(script),
-                },
-                None => Op::SetSpawnWeight { id, base },
-            })
-            .collect();
-        Op::Batch {
-            description: description.clone(),
-            ops,
-        }
     };
     Ok(Planned {
         description,
@@ -88,28 +46,9 @@ pub(super) fn set_script(
     Ok(Planned {
         description,
         inverse: Op::SetSpawnScript {
-            id,
+            system: id,
             script: previous.1,
         },
-    })
-}
-
-pub(super) fn set_scripts(
-    plan: &mut Plan,
-    s: &Session,
-    entries: &[(u32, Option<SpawnScript>)],
-) -> Result<Planned, OpError> {
-    each_once(entries, |&(id, _)| id)?;
-    let mut one = String::new();
-    let mut previous = Vec::with_capacity(entries.len());
-    for (id, script) in entries {
-        let (description, was) = write_script(plan, s, *id, script.as_ref())?;
-        one = description;
-        previous.push(was);
-    }
-    Ok(Planned {
-        description: bulk_description(entries.len(), one, "Set the scripted spawn of"),
-        inverse: Op::SetSpawnScripts { entries: previous },
     })
 }
 

@@ -1,4 +1,4 @@
-//! `RestoreSaveEntities`, the inverse of an op that rewrites whole save entities, and what
+//! `RestoreEntities`, the inverse of an op that rewrites whole save entities, and what
 //! such an op uses to find an entity, keep it for the inverse and leave its tombstone.
 
 use std::collections::BTreeMap;
@@ -93,7 +93,7 @@ impl Saved {
     }
 
     pub(crate) fn inverse(self, description: String) -> Op {
-        Op::RestoreSaveEntities {
+        Op::RestoreEntities {
             description,
             entities: self
                 .0

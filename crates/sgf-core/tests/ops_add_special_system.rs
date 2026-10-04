@@ -25,7 +25,7 @@ fn opened(sample: &Sample) -> (Session, SystemSpec, u32) {
 }
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 fn named(name: &str, body: BodySpec) -> BodySpec {
@@ -316,7 +316,11 @@ fn all_of_them_added_and_removed_together_give_back_the_file_as_opened() {
             round_trip_step(&mut session, label, add(spec));
             ids.push(id + ids.len() as u32);
         }
-        let result = round_trip_step(&mut session, "remove all", Op::RemoveSystems { ids });
+        let result = round_trip_step(
+            &mut session,
+            "remove all",
+            Op::RemoveSystems { systems: ids },
+        );
         assert_eq!(current(&session), session.doc.original(), "{id}");
         session.apply(result.inverse).expect("add them back");
         for (i, (label, special)) in SPECIALS.into_iter().enumerate() {
@@ -480,13 +484,17 @@ fn two_capped_systems_of_one_layout_each_count_and_uncount_one() {
         }
         let count = |session: &Session| initializer_counts(&session.doc)["trappist_initializer"];
         assert_eq!(count(&session), before + 2);
-        let result = round_trip_step(&mut session, "remove one", Op::RemoveSystem { id });
+        let result = round_trip_step(&mut session, "remove one", Op::RemoveSystem { system: id });
         assert_eq!(count(&session), before + 1);
-        let Op::AddSaveSystem { spec } = &result.inverse else {
+        let Op::AddSystemFromSpec { spec } = &result.inverse else {
             panic!("{:?}", result.inverse);
         };
         assert!(spec.capped);
-        round_trip_step(&mut session, "remove the other", Op::RemoveSystem { id });
+        round_trip_step(
+            &mut session,
+            "remove the other",
+            Op::RemoveSystem { system: id },
+        );
         assert_eq!(initializer_counts(&session.doc), opened);
         assert_eq!(current(&session), session.doc.original());
     }
@@ -524,7 +532,7 @@ fn a_layout_added_capped_and_uncapped_in_one_session_is_refused() {
             .expect("add another layout");
         let written = current(&session);
         let error = session
-            .apply(Op::ReplaceSaveSystem {
+            .apply(Op::ReplaceSystemFromSpec {
                 system: id + 1,
                 spec: SystemSpec {
                     name: "Sgf_Plain".to_owned(),
@@ -536,7 +544,7 @@ fn a_layout_added_capped_and_uncapped_in_one_session_is_refused() {
         assert_eq!(current(&session), written, "a refusal writes nothing");
 
         session
-            .apply(Op::ReplaceSaveSystem {
+            .apply(Op::ReplaceSystemFromSpec {
                 system: id,
                 spec: SystemSpec {
                     capped: false,
@@ -555,7 +563,9 @@ fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
         assert!(!opened.is_empty());
         session.apply(add(black_hole(&at))).expect("add");
         assert_eq!(initializer_counts(&session.doc), opened, "special_init_01");
-        session.apply(Op::RemoveSystem { id }).expect("remove");
+        session
+            .apply(Op::RemoveSystem { system: id })
+            .expect("remove");
 
         let mut changed = opened.clone();
         for (i, spec) in [larionessi(&at), larionessi(&at)].into_iter().enumerate() {
@@ -574,11 +584,13 @@ fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
                 && counter.ends_with("\t\t\"unique_system_initializer_02\"\n\t}"),
             "{counter}"
         );
-        session.apply(Op::RemoveSystem { id }).expect("remove one");
+        session
+            .apply(Op::RemoveSystem { system: id })
+            .expect("remove one");
         changed.insert("unique_system_initializer_02".to_owned(), 1);
         assert_eq!(initializer_counts(&session.doc), changed);
         session
-            .apply(Op::RemoveSystem { id })
+            .apply(Op::RemoveSystem { system: id })
             .expect("remove the other");
         assert_eq!(initializer_counts(&session.doc), opened);
         assert_eq!(current(&session), session.doc.original());
@@ -603,12 +615,12 @@ fn each_special_layout_reads_back_exactly_for_a_reroll_and_a_removal() {
             let result = round_trip_step(
                 &mut session,
                 "reroll plain",
-                Op::ReplaceSaveSystem {
+                Op::ReplaceSystemFromSpec {
                     system: id,
                     spec: plain,
                 },
             );
-            let Op::ReplaceSaveSystem { spec: back, .. } = &result.inverse else {
+            let Op::ReplaceSystemFromSpec { spec: back, .. } = &result.inverse else {
                 panic!("{:?}", result.inverse);
             };
             assert_eq!(
@@ -631,14 +643,14 @@ fn each_special_layout_reads_back_exactly_for_a_reroll_and_a_removal() {
                 ..special(&at)
             };
             session
-                .apply(Op::ReplaceSaveSystem {
+                .apply(Op::ReplaceSystemFromSpec {
                     system: id,
                     spec: again,
                 })
                 .expect("reroll as itself");
             assert_eq!(current(&session), added, "{}: as itself", spec.initializer);
             assert_eq!(initializer_counts(&session.doc), counted, "{label} on {id}");
-            let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { id });
+            let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
             assert_eq!(current(&session), session.doc.original(), "{label} on {id}");
             assert_eq!(result.inverse, add(special(&at)), "{label} on {id}");
         }
@@ -671,7 +683,7 @@ fn a_rename_leaves_fixed_names_alone_and_renames_a_star_named_by_class() {
         round_trip_step(&mut session, "trappist", add(spec));
         let opened = names(&session, id);
 
-        let rename = |system: u32, name: &str| Op::RenameSaveSystem {
+        let rename = |system: u32, name: &str| Op::RenameSystem {
             system,
             name: name.to_owned(),
         };
@@ -700,8 +712,8 @@ fn a_rename_leaves_fixed_names_alone_and_renames_a_star_named_by_class() {
         assert_eq!(trappist[0].1, "Sgf_Trappist");
         assert_eq!(trappist[1].2[0], "Sgf_Trappist");
 
-        let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { id: id + 1 });
-        let Op::AddSaveSystem { spec } = &result.inverse else {
+        let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id + 1 });
+        let Op::AddSystemFromSpec { spec } = &result.inverse else {
             panic!("{:?}", result.inverse);
         };
         assert!(spec.star_named_by_class && spec.capped);
@@ -839,20 +851,20 @@ fn a_unique_system_carries_its_flag_dated_day_one_as_the_games_own_do() {
 
     let mut session = open_4_5();
     round_trip_step(&mut session, "add", add(zevox(&at)));
-    let removed = round_trip_step(&mut session, "remove", Op::RemoveSystem { id });
+    let removed = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
     assert_eq!(removed.inverse, add(zevox(&at)), "the flag reads back");
     session.undo().expect("undo the removal").expect("a step");
     let rolled = round_trip_step(
         &mut session,
         "reroll",
-        Op::ReplaceSaveSystem {
+        Op::ReplaceSystemFromSpec {
             system: id,
             spec: rerolled(mura()),
         },
     );
     assert_eq!(
         rolled.inverse,
-        Op::ReplaceSaveSystem {
+        Op::ReplaceSystemFromSpec {
             system: id,
             spec: zevox(&at),
         },

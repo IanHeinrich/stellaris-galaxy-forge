@@ -819,7 +819,7 @@ fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
         std::fs::write(file, text).expect("an install file");
     }
     let far_belt = json!({ "op": {
-        "type": "AddSaveBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
+        "type": "AddBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
     } });
     let grown = |w: &_| {
         let result: sgf_core::views::EditResult =

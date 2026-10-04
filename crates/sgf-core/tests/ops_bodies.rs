@@ -3,6 +3,7 @@
 //! refused.
 
 use sgf_core::format::save::details::{Bounds, HeuristicResolver, RawPlanet};
+use sgf_core::ops::Parent;
 use sgf_core::ops::rules::bodies::{Body, system_reach};
 use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
 use sgf_core::session::Session;
@@ -12,7 +13,7 @@ use common::diff::{round_trip, snapshot_step};
 use common::{current, open, open_3_4, open_4_5, text};
 
 fn move_body(system: u32, body: u32, radius: f64, angle: f64) -> Op {
-    Op::MoveSaveBody {
+    Op::MoveBody {
         system,
         body,
         radius,
@@ -21,22 +22,20 @@ fn move_body(system: u32, body: u32, radius: f64, angle: f64) -> Op {
 }
 
 fn set_parent(system: u32, body: u32, parent: Option<u32>, radius: f64, angle: f64) -> Op {
-    Op::SetSaveBodyParent {
+    Op::SetBodyParent {
         system,
         body,
-        parent,
-        star: false,
+        parent: parent.into(),
         radius,
         angle,
     }
 }
 
 fn orbit_star(system: u32, body: u32, star: u32, radius: f64, angle: f64) -> Op {
-    Op::SetSaveBodyParent {
+    Op::SetBodyParent {
         system,
         body,
-        parent: Some(star),
-        star: true,
+        parent: Parent::Body(star),
         radius,
         angle,
     }
@@ -106,7 +105,7 @@ fn a_planet_moved_along_its_ring_takes_its_moon_with_it() {
         result.entry.description,
         "Moved planet #585 from orbit 65.02 at 28.2° to orbit 65.02 at 100°, with its moon #586"
     );
-    let Op::MoveSaveBody {
+    let Op::MoveBody {
         system: 1,
         body: 585,
         radius: back,
@@ -142,12 +141,12 @@ fn a_planet_moved_past_the_inner_radius_grows_it() {
         panic!("a batch, not {:?}", result.inverse);
     };
     assert!(
-        matches!(ops[..], [Op::MoveSaveBody { body: 585, .. }, _]),
+        matches!(ops[..], [Op::MoveBody { body: 585, .. }, _]),
         "{ops:?}"
     );
     assert_eq!(
         ops[1],
-        Op::SetSaveInnerRadius {
+        Op::SetInnerRadius {
             system: 1,
             radius: 186.71
         }
@@ -190,7 +189,7 @@ fn a_body_moved_outside_the_inner_radius_inside_a_belt_past_it_grows_it() {
 
     let mut session = open_4_5();
     let result = session
-        .apply(Op::AddSaveBelt {
+        .apply(Op::AddBelt {
             system: 14,
             kind: "rocky_asteroid_belt".to_owned(),
             radius: 200.0,
@@ -279,9 +278,9 @@ fn a_planet_made_a_moon_of_a_higher_id() {
         result.entry.description,
         "Made planet #588 a moon of planet #589"
     );
-    let Op::SetSaveBodyParent {
+    let Op::SetBodyParent {
         body: 588,
-        parent: None,
+        parent: Parent::Centre,
         ..
     } = result.inverse
     else {
@@ -325,9 +324,9 @@ fn a_moon_detached_from_its_planet() {
     assert!(
         matches!(
             result.inverse,
-            Op::SetSaveBodyParent {
+            Op::SetBodyParent {
                 body: 590,
-                parent: Some(589),
+                parent: Parent::Body(589),
                 ..
             }
         ),
@@ -485,7 +484,7 @@ fn body_edits_are_refused() {
         ),
         (
             orbit_star(1, 588, 584, 20.0, 0.0),
-            "planet 584 stands at the system's centre: to make planet 588 orbit it, give it no parent",
+            "planet 584 is the system's primary body: to make planet 588 a planet, give it no parent",
         ),
     ];
     for (op, message) in refusals {
@@ -633,10 +632,9 @@ fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);
     };
-    let Op::SetSaveBodyParent {
+    let Op::SetBodyParent {
         body: 330,
-        parent: None,
-        star: false,
+        parent: Parent::Centre,
         radius,
         angle,
         ..
@@ -687,9 +685,8 @@ fn a_companion_stars_planet_made_a_planet_of_the_centre() {
     assert!(
         matches!(
             result.inverse,
-            Op::SetSaveBodyParent {
-                parent: Some(327),
-                star: true,
+            Op::SetBodyParent {
+                parent: Parent::Body(327),
                 ..
             }
         ),
@@ -724,10 +721,6 @@ fn what_a_star_parent_refuses() {
             "planet 330 has moons, so it cannot become a moon",
         ),
         (
-            set_parent(278, 330, Some(327), 90.0, 0.0),
-            "planet 330 has moons, so it cannot become a moon",
-        ),
-        (
             orbit_star(278, 328, 327, 90.0, 0.0),
             "planet 328 already has that parent",
         ),
@@ -743,7 +736,7 @@ fn what_a_star_parent_refuses() {
         ),
         (
             orbit_star(76, 1271, 1270, 40.0, 0.0),
-            "planet 1270 stands at the system's centre: to make planet 1271 orbit it, give it no parent",
+            "planet 1270 is the system's primary body: to make planet 1271 a planet, give it no parent",
         ),
     ] {
         let error = session.apply(op).expect_err(message);
@@ -774,7 +767,7 @@ fn a_session_with_other_radii_sizes_systems_by_them() {
     let mut session = open_4_5();
     session.set_radii(radii);
     let error = session
-        .apply(Op::SetSaveInnerRadius {
+        .apply(Op::SetInnerRadius {
             system: 1,
             radius: 165.0,
         })

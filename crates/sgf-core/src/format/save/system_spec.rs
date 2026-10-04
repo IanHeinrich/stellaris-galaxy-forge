@@ -1,5 +1,5 @@
 //! What a new save system is made of, fully resolved: every class, size, orbit and deposit
-//! is chosen by the caller, and [`crate::ops::Op::AddSaveSystem`] writes it as given.
+//! is chosen by the caller, and [`crate::ops::Op::AddSystemFromSpec`] writes it as given.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

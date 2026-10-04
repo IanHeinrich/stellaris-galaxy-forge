@@ -46,7 +46,7 @@ bindStores();
 /** One applied edit, so the session is dirty. */
 export async function edit(): Promise<void> {
   mockedIpc.applyOp.mockResolvedValueOnce(editResult());
-  await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+  await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
 }
 
 /** What the launcher says of the Paint a Galaxy mod, taken the way the store asks the shell. */

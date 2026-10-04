@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Remove anomaly AIANOM_RESEARCHDEPO_CAT from planet #185
-inverse: AddAnomaly { planet: 185, category: "AIANOM_RESEARCHDEPO_CAT", found_by: Some([16777221]) }
+inverse: AddAnomaly { body: 185, category: "AIANOM_RESEARCHDEPO_CAT", found_by: Some([16777221]) }
 
 --- gamestate
 +++ gamestate

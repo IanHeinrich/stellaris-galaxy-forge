@@ -128,7 +128,7 @@ describe("Shift+Arrow", () => {
     nudgeSelected({ dx: 0, dy: -SAVE_Y_SIGN });
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "MoveSaveBody",
+      type: "MoveBody",
       system: SYSTEM,
       body: LONE,
       radius: 101,

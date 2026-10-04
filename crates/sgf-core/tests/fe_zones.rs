@@ -2,6 +2,7 @@
 //! refusals that stop a zone landing on a system and the issues that say when a move
 //! put one there), and Paint a Galaxy's own rule for the zones it places by itself.
 
+use crate::common::batch::fe_zones;
 use sgf_core::format::scenario::fe_zone::{
     self, FE_ZONE_DISTANCES, FeDirection, FeKind, FeZone, Site,
 };
@@ -11,7 +12,6 @@ use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode};
 
 use crate::common;
-use common::Refused;
 use common::coded;
 use common::diff::snapshot_step;
 use common::fixture::{PAINTED, from_scenario_text};
@@ -45,11 +45,11 @@ fn automatic(direction: FeDirection) -> FeZone {
 }
 
 fn set_zone(id: u32, zone: Option<FeZone>) -> Op {
-    Op::SetFeZone { id, zone }
+    Op::SetFeZone { system: id, zone }
 }
 
 fn move_system(id: u32, x: f64, y: f64) -> Op {
-    Op::MoveSystem { id, x, y }
+    Op::MoveSystem { system: id, x, y }
 }
 
 fn site(id: u32, x: f64, y: f64) -> Site<'static> {
@@ -87,9 +87,7 @@ fn a_zone_whose_ring_holds_a_system_or_lies_off_the_map_is_refused() {
         "Fallen empire zone from #11 is blocked by Sol: the mod needs the ring empty"
     );
     let error = session
-        .apply(Op::SetFeZones {
-            entries: vec![(9, None), (11, Some(over_sol))],
-        })
+        .apply(fe_zones(vec![(9, None), (11, Some(over_sol))]))
         .expect_err("one refused entry refuses the op");
     assert!(matches!(error, OpError::FeZoneBlocked { .. }), "{error}");
     assert!(!session.is_dirty());
@@ -291,13 +289,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     let mut ids: Vec<u32> = entries.iter().map(|(id, _)| *id).collect();
     ids.dedup();
     assert_eq!(ids.len(), entries.len());
-    snapshot_step(
-        &mut PAINTED.open(),
-        "recompute",
-        Op::SetFeZones {
-            entries: entries.clone(),
-        },
-    );
+    snapshot_step(&mut PAINTED.open(), "recompute", fe_zones(entries.clone()));
 
     let session = open_with_automatic_9();
     let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
@@ -311,9 +303,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
 
     let mut session = PAINTED.open();
     let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
-    session
-        .apply(Op::SetFeZones { entries })
-        .expect("fit applies");
+    session.apply(fe_zones(entries)).expect("fit applies");
     assert!(
         placement::fit(&placement::sites(&session.graph), usize::MAX).is_empty(),
         "a second pass has nothing left to change"
@@ -324,9 +314,10 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
 fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
     let mut session = PAINTED.open();
     session
-        .apply(Op::SetFeZones {
-            entries: placement::fit(&placement::sites(&session.graph), usize::MAX),
-        })
+        .apply(fe_zones(placement::fit(
+            &placement::sites(&session.graph),
+            usize::MAX,
+        )))
         .expect("fill the map with automatic zones");
     let sites = placement::sites(&session.graph);
     let cleared = placement::fit(&sites, 0);
@@ -484,27 +475,7 @@ fn several_zones_are_one_undo_step() {
             Some(zone(FeDirection::Ne, FeKind::Xenophobe, 200, false)),
         ),
     ];
-    snapshot_step(
-        &mut PAINTED.open(),
-        "zones",
-        Op::SetFeZones {
-            entries: entries.clone(),
-        },
-    );
-
-    let mut session = PAINTED.open();
-    let cases: [Refused<_>; 2] = [
-        (vec![], |e| matches!(e, OpError::NoEntries)),
-        (vec![(9, None), (9, None)], |e| {
-            matches!(e, OpError::DuplicateSystem(9))
-        }),
-    ];
-    for (entries, expected) in cases {
-        let label = format!("{entries:?}");
-        let error = session.apply(Op::SetFeZones { entries }).expect_err(&label);
-        assert!(expected(&error), "{label}: {error:?}");
-    }
-    assert!(!session.is_dirty());
+    snapshot_step(&mut PAINTED.open(), "zones", fe_zones(entries.clone()));
 }
 
 #[test]

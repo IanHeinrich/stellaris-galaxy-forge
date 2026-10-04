@@ -2,6 +2,7 @@
 //! place: after apply, undo and redo they equal the details a fresh build reads.
 
 use sgf_core::format::save::details::DetailsProjection;
+use sgf_core::ops::Parent;
 use sgf_core::ops::{DetailsReach, Op};
 use sgf_core::session::Session;
 
@@ -50,7 +51,7 @@ fn refreshed_in_place(op: Op, system: u32) -> Session {
 #[test]
 fn a_move_that_grows_the_inner_radius_is_read_in_place() {
     let session = refreshed_in_place(
-        Op::MoveSaveBody {
+        Op::MoveBody {
             system: 1,
             body: 585,
             radius: 180.0,
@@ -65,11 +66,10 @@ fn a_move_that_grows_the_inner_radius_is_read_in_place() {
 #[test]
 fn a_planet_made_a_moon_is_read_in_place() {
     refreshed_in_place(
-        Op::SetSaveBodyParent {
+        Op::SetBodyParent {
             system: 1,
             body: 588,
-            parent: Some(589),
-            star: false,
+            parent: Parent::Body(589),
             radius: 20.0,
             angle: 90.0,
         },
@@ -80,11 +80,10 @@ fn a_planet_made_a_moon_is_read_in_place() {
 #[test]
 fn a_moon_made_a_planet_is_read_in_place() {
     refreshed_in_place(
-        Op::SetSaveBodyParent {
+        Op::SetBodyParent {
             system: 1,
             body: 590,
-            parent: None,
-            star: false,
+            parent: Parent::Centre,
             radius: 100.0,
             angle: 200.0,
         },
@@ -95,7 +94,7 @@ fn a_moon_made_a_planet_is_read_in_place() {
 #[test]
 fn a_belt_added_is_read_in_place() {
     refreshed_in_place(
-        Op::AddSaveBelt {
+        Op::AddBelt {
             system: 140,
             kind: "rocky_asteroid_belt".to_owned(),
             radius: 150.0,
@@ -107,7 +106,7 @@ fn a_belt_added_is_read_in_place() {
 #[test]
 fn a_belt_removed_is_read_in_place() {
     refreshed_in_place(
-        Op::RemoveSaveBelt {
+        Op::RemoveBelt {
             system: 140,
             index: 0,
         },
@@ -118,7 +117,7 @@ fn a_belt_removed_is_read_in_place() {
 #[test]
 fn a_belts_radius_set_is_read_in_place() {
     refreshed_in_place(
-        Op::SetSaveBeltRadius {
+        Op::SetBeltRadius {
             system: 140,
             index: 0,
             radius: 55.0,
@@ -130,7 +129,7 @@ fn a_belts_radius_set_is_read_in_place() {
 #[test]
 fn a_belts_kind_set_is_read_in_place() {
     refreshed_in_place(
-        Op::SetSaveBeltKind {
+        Op::SetBeltKind {
             system: 140,
             index: 0,
             kind: "icy_asteroid_belt".to_owned(),
@@ -142,7 +141,7 @@ fn a_belts_kind_set_is_read_in_place() {
 #[test]
 fn the_inner_radius_set_is_read_in_place() {
     refreshed_in_place(
-        Op::SetSaveInnerRadius {
+        Op::SetInnerRadius {
             system: 1,
             radius: 200.0,
         },

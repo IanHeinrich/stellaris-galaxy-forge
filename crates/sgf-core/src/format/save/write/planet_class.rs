@@ -95,8 +95,8 @@ pub(crate) fn plan_set(
     }
     Ok(Planned {
         description: format!("Set the class of planet #{id} from {class} to {}", to.class),
-        inverse: Op::SetPlanetClass {
-            planet: id,
+        inverse: Op::SetBodyClass {
+            body: id,
             from: to.clone(),
             to: from.clone(),
             look: Some(held),

@@ -286,9 +286,9 @@ describe("a colony's page", () => {
     nameField.onCommit(" Nova Terra ");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "RenameSavePlanet",
-        planet: WORLD,
-        name: "Nova Terra",
+        type: "RenameBody",
+        body: WORLD,
+        name: { Literal: "Nova Terra" },
       }),
     );
     expect(html).toContain("Colony");
@@ -338,8 +338,8 @@ describe("a colony's removal and a planet's deletion", () => {
     expect(html).toContain(">Delete planet</button>");
     expect(html.indexOf("Remove colony")).toBeLessThan(html.indexOf("About"));
     expect(html.indexOf("About")).toBeLessThan(html.indexOf("Delete planet"));
-    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "RemoveColony", planet: WORLD });
-    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: WORLD });
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "RemoveColony", body: WORLD });
+    expect(mockedIpc.checkOp).toHaveBeenCalledWith({ type: "DeleteBody", body: WORLD });
   });
 
   it("shows why the core refuses, and disables the action", async () => {
@@ -442,7 +442,7 @@ describe("an unowned world's page", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove d_active_volcano").onClick();
     await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveSaveDeposit", deposit: 3 }),
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDeposit", deposit: 3 }),
     );
   });
 
@@ -459,8 +459,8 @@ describe("an unowned world's page", () => {
     drawnButton("Remove pm_abundant_geothermal_activity").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "RemovePlanetModifier",
-        planet: WORLD,
+        type: "RemoveBodyModifier",
+        body: WORLD,
         modifier: "abundant_geothermal_activity",
         feature: "pm_abundant_geothermal_activity",
       }),
@@ -526,8 +526,8 @@ describe("an unowned world's page", () => {
     drawnButton("Add +3 Energy").onClick();
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "AddSaveDeposit",
-        planet: WORLD,
+        type: "AddDeposit",
+        body: WORLD,
         kind: "d_energy_3",
       }),
     );
@@ -612,7 +612,7 @@ describe("an unowned world's page", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove time_loop_world").onClick();
     await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", planet: WORLD }),
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", body: WORLD }),
     );
   });
 
@@ -787,7 +787,7 @@ describe("an unowned world's page", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "AddDigSite",
-        planet: WORLD,
+        body: WORLD,
         site_type: "site_repowered_complex",
         difficulty: 2,
       }),
@@ -1114,9 +1114,9 @@ describe("a body's orbit", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "SetSaveBodyParent",
+          type: "SetBodyParent",
           body: LONE,
-          parent: PLANET,
+          parent: { Body: PLANET },
           radius: 25,
         }),
       ),
@@ -1160,10 +1160,9 @@ describe("a body's orbit", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "SetSaveBodyParent",
+          type: "SetBodyParent",
           body: PLANET,
-          parent: 8,
-          star: true,
+          parent: { Body: 8 },
           radius: 30,
         }),
       ),
@@ -1189,9 +1188,9 @@ describe("a body's orbit", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "SetSaveBodyParent",
+          type: "SetBodyParent",
           body: 58,
-          parent: null,
+          parent: "Centre",
           radius: expect.closeTo(Math.hypot(100, 20), 6),
           angle: expect.closeTo((Math.atan2(20, 100) * 180) / Math.PI, 6),
         }),
@@ -1245,8 +1244,8 @@ describe("a body's ring", () => {
     drawnField(ToggleField, "Ring").onChange(false);
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetPlanetRing",
-        planet: PLANET,
+        type: "SetBodyRing",
+        body: PLANET,
         ring: false,
       }),
     );
@@ -1307,8 +1306,8 @@ describe("a planet's model", () => {
     field.onPick("ocean_paradise_planet_01_entity");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetPlanetEntity",
-        planet: WORLD,
+        type: "SetBodyModel",
+        body: WORLD,
         entity: "ocean_paradise_planet_01_entity",
       }),
     );
@@ -1324,8 +1323,8 @@ describe("a planet's model", () => {
     field.onPick("");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetPlanetEntity",
-        planet: WORLD,
+        type: "SetBodyModel",
+        body: WORLD,
         entity: null,
       }),
     );
@@ -1385,8 +1384,8 @@ describe("a planet's class", () => {
     field.onPick("pc_barren");
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetPlanetClass",
-        planet: WORLD,
+        type: "SetBodyClass",
+        body: WORLD,
         from: { class: "pc_arctic", change: "any", models: 3 },
         to: { class: "pc_barren", change: "uncolonised", models: 3 },
       }),
@@ -1457,7 +1456,7 @@ describe("the System field", () => {
     await vi.waitFor(() => expect(field(read)).toContain("station will change ownership to"));
 
     mockedIpc.applyOp.mockResolvedValue(editResult({ history: { undo: [], redo: [] } }));
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 3, x: 1, y: 1 });
     expect(field(read)).not.toContain("station will change ownership to");
   });
 

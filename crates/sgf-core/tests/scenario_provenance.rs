@@ -24,7 +24,7 @@ fn nudge() -> Op {
 
 fn move_system(id: u32) -> Op {
     Op::MoveSystem {
-        id,
+        system: id,
         x: 12.5,
         y: -40.0,
     }
@@ -111,7 +111,7 @@ fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
     let once = std::fs::read(&path).unwrap();
     session
         .apply(Op::MoveSystem {
-            id: 1,
+            system: 1,
             x: 5.0,
             y: 5.0,
         })
@@ -386,7 +386,7 @@ fn a_new_scenario_starts_with_a_bare_line_that_saving_keeps() {
         let mut reopened = Session::open(&path).expect("reopen");
         reopened
             .apply(Op::AddSystem {
-                id: None,
+                system: None,
                 x: 20.0,
                 y: -30.5,
                 name: Some("Alderaan".to_owned()),

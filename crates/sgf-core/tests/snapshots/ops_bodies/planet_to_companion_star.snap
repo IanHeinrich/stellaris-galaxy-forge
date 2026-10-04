@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Made planet #330 a planet of star #327, with its moon #331; set the inner radius of system #278 from 330 to 360.02
-inverse: Batch { description: "Undo of \"Made planet #330 a planet of star #327, with its moon #331; set the inner radius of system #278 from 330 to 360.02\"", ops: [SetSaveBodyParent { system: 278, body: 330, parent: None, star: false, radius: 45.196947089, angle: 89.582989244 }, SetSaveInnerRadius { system: 278, radius: 330.0 }] }
+inverse: Batch { description: "Undo of \"Made planet #330 a planet of star #327, with its moon #331; set the inner radius of system #278 from 330 to 360.02\"", ops: [SetBodyParent { system: 278, body: 330, parent: Centre, radius: 45.196947089, angle: 89.582989244 }, SetInnerRadius { system: 278, radius: 330.0 }] }
 
 --- gamestate
 +++ gamestate

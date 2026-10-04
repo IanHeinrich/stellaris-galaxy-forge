@@ -19,7 +19,7 @@ const ONLY_A_SAVE_ADDS: &str = "only a save has systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
 
 /// Roll a system at (`x`, `y`) from `seed`, around `star_class` when given, named from the
-/// save's pool of unused star names, and add it to the open save as one `AddSaveSystem`.
+/// save's pool of unused star names, and add it to the open save as one `AddSystemFromSpec`.
 #[tauri::command]
 pub async fn add_random_system<R: Runtime>(
     app: AppHandle<R>,
@@ -32,7 +32,7 @@ pub async fn add_random_system<R: Runtime>(
 }
 
 /// Build a system of the special layout `layout` at (`x`, `y`) from `seed`, and add it to the
-/// open save as one `AddSaveSystem`. It takes the layout's fixed name unless a system of the
+/// open save as one `AddSystemFromSpec`. It takes the layout's fixed name unless a system of the
 /// save holds it, and a name from the pool otherwise. A capped layout the galaxy already has
 /// is placed all the same.
 #[tauri::command]
@@ -47,7 +47,7 @@ pub async fn add_special_system<R: Runtime>(
 }
 
 /// Roll the added save system `system` again from `seed`, keeping its name, position and lanes:
-/// one `ReplaceSaveSystem`. With `keep_special`, a system of a Special menu layout is built from
+/// one `ReplaceSystemFromSpec`. With `keep_special`, a system of a Special menu layout is built from
 /// that layout again. Otherwise it is rolled around `star_class` when given, a random class
 /// when not.
 #[tauri::command]
@@ -65,7 +65,7 @@ pub async fn reroll_system<R: Runtime>(
         let spec = Pick::of_added(session, &gd, system, keep_special, star_class)
             .and_then(|pick| generate::reroll(&gd, session, seed, system, &pick))
             .map_err(refusal)?;
-        let result = session.apply(Op::ReplaceSaveSystem { system, spec })?;
+        let result = session.apply(Op::ReplaceSystemFromSpec { system, spec })?;
         Ok(session.edit_result(result))
     })
     .await
@@ -84,7 +84,7 @@ pub async fn remove_added_systems<R: Runtime>(
         if added.is_empty() {
             return Err(SgfError::new(ErrorKind::Op, NONE_ADDED));
         }
-        let result = session.apply(Op::RemoveSystems { ids: added })?;
+        let result = session.apply(Op::RemoveSystems { systems: added })?;
         Ok(session.edit_result(result))
     })
     .await
@@ -125,7 +125,7 @@ pub(crate) fn game_data<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<GameData>,
         .ok_or_else(|| SgfError::new(ErrorKind::Op, NEEDS_GAME_DATA))
 }
 
-/// Add the system `pick` gives at `at` from `seed` to the open save, as one `AddSaveSystem`.
+/// Add the system `pick` gives at `at` from `seed` to the open save, as one `AddSystemFromSpec`.
 async fn add<R: Runtime>(
     app: AppHandle<R>,
     seed: u64,
@@ -136,7 +136,7 @@ async fn add<R: Runtime>(
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), DocumentKind::Save, ONLY_A_SAVE_ROLLS)?;
         let spec = generate::for_save(&gd, session, seed, at, &pick).map_err(refusal)?;
-        let result = session.apply(Op::AddSaveSystem { spec })?;
+        let result = session.apply(Op::AddSystemFromSpec { spec })?;
         Ok(session.edit_result(result))
     })
     .await

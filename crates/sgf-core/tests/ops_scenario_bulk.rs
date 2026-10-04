@@ -84,9 +84,9 @@ fn a_paint_stroke_adds_500_systems_and_their_lanes_as_one_step() {
     assert_eq!(session.graph.systems.len(), systems_before + 500);
     for system in &systems {
         assert!(
-            session.graph.systems.contains_key(&system.id),
+            session.graph.systems.contains_key(&system.system),
             "{}",
-            system.id
+            system.system
         );
     }
     for lane in &lanes {
@@ -157,7 +157,9 @@ fn an_erase_stroke_removes_200_systems_and_every_lane_naming_one_as_one_step() {
 
     let removed = EXPORTED
         .open()
-        .apply(Op::RemoveSystems { ids: ids.clone() })
+        .apply(Op::RemoveSystems {
+            systems: ids.clone(),
+        })
         .expect("remove the stroke's systems alone");
     assert!(
         removed
@@ -218,7 +220,10 @@ fn erasing_a_linked_cluster_in_either_order_restores_every_lane_on_undo() {
             EXPORTED.open(),
             Op::Batch {
                 description: "Removed a linked cluster one system at a time".to_owned(),
-                ops: order.iter().map(|&id| Op::RemoveSystem { id }).collect(),
+                ops: order
+                    .iter()
+                    .map(|&id| Op::RemoveSystem { system: id })
+                    .collect(),
             },
         );
     }

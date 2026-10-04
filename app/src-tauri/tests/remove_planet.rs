@@ -14,32 +14,28 @@ fn deletes_are_checked_and_applied() {
     let check = |op: Op| -> Option<String> {
         invoke(&w, "check_op", json!({ "op": op })).expect("dry run")
     };
-    assert_eq!(check(Op::DeleteSavePlanet { planet: 99 }), None);
+    assert_eq!(check(Op::DeleteBody { body: 99 }), None);
     assert_eq!(
-        check(Op::DeleteSavePlanet { planet: 0 }).as_deref(),
+        check(Op::DeleteBody { body: 0 }).as_deref(),
         Some("planet 0 is a star: only a planet or moon can be deleted")
     );
     assert_eq!(
-        check(Op::DeleteSavePlanet { planet: 2445 }).as_deref(),
+        check(Op::DeleteBody { body: 2445 }).as_deref(),
         Some(
             "planet 2445 cannot be deleted: it is a ring world segment, which has not been tried in game"
         )
     );
-    assert_eq!(check(Op::RemoveColony { planet: 517 }), None);
+    assert_eq!(check(Op::RemoveColony { body: 517 }), None);
 
-    let applied: EditResult = invoke(
-        &w,
-        "apply_op",
-        json!({ "op": Op::DeleteSavePlanet { planet: 99 } }),
-    )
-    .expect("apply");
+    let applied: EditResult =
+        invoke(&w, "apply_op", json!({ "op": Op::DeleteBody { body: 99 } })).expect("apply");
     assert_eq!(
         applied.entry.description,
         "Deleted planet #99 and its 2 moons"
     );
     assert_eq!(applied.details_stale, [140]);
     assert_eq!(
-        check(Op::DeleteSavePlanet { planet: 99 }).as_deref(),
+        check(Op::DeleteBody { body: 99 }).as_deref(),
         Some("planet 99 does not exist")
     );
 }
@@ -49,7 +45,7 @@ fn deletes_are_checked_and_applied() {
 #[test]
 fn a_restore_and_a_batch_are_refused() {
     let w = opened(SAMPLE_45);
-    let restore = Op::RestoreSaveEntities {
+    let restore = Op::RestoreEntities {
         description: "Restored planet #23".to_owned(),
         entities: Vec::new(),
     };
@@ -66,10 +62,7 @@ fn a_restore_and_a_batch_are_refused() {
 
     let batch = Op::Batch {
         description: "Deleted two".to_owned(),
-        ops: vec![
-            Op::DeleteSavePlanet { planet: 23 },
-            Op::DeleteSavePlanet { planet: 99 },
-        ],
+        ops: vec![Op::DeleteBody { body: 23 }, Op::DeleteBody { body: 99 }],
     };
     let checked: Option<String> = invoke(&w, "check_op", json!({ "op": batch })).expect("check");
     assert_eq!(

@@ -627,7 +627,7 @@ fn a_fit_keeps_an_automatic_zone_that_systems_are_linked_to() {
 
     session
         .apply(Op::MoveSystem {
-            id: 7,
+            system: 7,
             x: 10.0,
             y: -210.0,
         })

@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Renamed planet #140 to Nova Terra
-inverse: RenameSavePlanet { planet: 140, name: "PLANET_NAME_FORMAT", block: Some("{\n\t\t\t\tkey=\"PLANET_NAME_FORMAT\"\n\t\t\t\tvariables=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"PARENT\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"Shuckon\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"NUMERAL\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"I\"\n\t\t\t\t\t\t\tliteral=yes\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}") }
+inverse: RenameBody { body: 140, name: Block { value: "{\n\t\t\t\tkey=\"PLANET_NAME_FORMAT\"\n\t\t\t\tvariables=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"PARENT\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"Shuckon\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"NUMERAL\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"I\"\n\t\t\t\t\t\t\tliteral=yes\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}", name: "PLANET_NAME_FORMAT" } }
 
 --- gamestate
 +++ gamestate

@@ -1,4 +1,4 @@
-//! `ReplaceSaveSystem`, for the systems [`super::add_system`] wrote since the file was
+//! `ReplaceSystemFromSpec`, for the systems [`super::add_system`] wrote since the file was
 //! opened, in two steps. The first takes the old bodies out as a removal does, which
 //! frees their slots and asteroid names and uncounts its layout. The second writes the new
 //! bodies as an add does, taking the lowest free slots, counts the new layout, and
@@ -45,7 +45,7 @@ pub(crate) fn plan_strip(
             lanes.push(lane.to);
         }
     }
-    let inverse = Op::ReplaceSaveSystem {
+    let inverse = Op::ReplaceSystemFromSpec {
         system: id,
         spec: spec_of(s, id, lanes)?,
     };
@@ -102,7 +102,7 @@ pub(crate) fn plan_fill(
     }
     Ok(Planned {
         description: String::new(),
-        inverse: Op::RemoveSystem { id },
+        inverse: Op::RemoveSystem { system: id },
     })
 }
 

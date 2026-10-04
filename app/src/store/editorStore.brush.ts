@@ -107,7 +107,7 @@ function addLanes(pairs: readonly Pair[], description: string): Op {
 
 function newSystem(id: number, p: Pt): NewSystem {
   return {
-    id,
+    system: id,
     x: p.x,
     y: p.y,
     name: null,

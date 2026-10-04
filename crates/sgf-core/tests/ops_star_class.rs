@@ -13,12 +13,12 @@ use common::{current, open, open_4_5, reprojected};
 
 fn set(id: u32, class: &str, bodies: &[(u32, &str)]) -> Op {
     Op::SetStarClass {
-        id,
+        system: id,
         class: class.to_owned(),
         bodies: bodies
             .iter()
             .map(|&(planet, class)| StarBody {
-                planet,
+                body: planet,
                 class: class.to_owned(),
             })
             .collect(),
@@ -38,7 +38,12 @@ fn body_class(session: &Session, id: u32, planet: u32) -> String {
 /// Round-trip and snapshot `op` on system `id`, and check the projection, the map delta and
 /// the details read the new class and body classes.
 fn change(session: &mut Session, op: Op, snapshot: &str) -> OpResult {
-    let Op::SetStarClass { id, class, bodies } = op.clone() else {
+    let Op::SetStarClass {
+        system: id,
+        class,
+        bodies,
+    } = op.clone()
+    else {
         unreachable!("a star class op")
     };
     let result = snapshot_step(session, snapshot, op);
@@ -53,7 +58,7 @@ fn change(session: &mut Session, op: Op, snapshot: &str) -> OpResult {
     assert_eq!(delta.star_class, class, "{snapshot}: reaches the app");
     for body in &bodies {
         assert_eq!(
-            body_class(session, id, body.planet),
+            body_class(session, id, body.body),
             body.class,
             "{snapshot}: details"
         );

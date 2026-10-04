@@ -52,8 +52,8 @@ pub(crate) fn plan_set(
     };
     Ok(Planned {
         description,
-        inverse: Op::SetPlanetEntity {
-            planet: id,
+        inverse: Op::SetBodyModel {
+            body: id,
             entity: held,
         },
     })

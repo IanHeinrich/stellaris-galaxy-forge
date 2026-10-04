@@ -177,7 +177,7 @@ fn delete_all_and_undo(session: &mut Session) {
     let count = ids.len();
     let op = Op::Batch {
         description: format!("Deleted {count} systems"),
-        ops: vec![Op::RemoveSystems { ids }],
+        ops: vec![Op::RemoveSystems { systems: ids }],
     };
     println!("delete all: op JSON {} B", to_json(&op).len());
 

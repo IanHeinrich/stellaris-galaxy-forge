@@ -8,7 +8,7 @@ inverse: Restored planet #703
 
   System: 12
   Planet: 703
-  then AddDigSite { planet: 703, site_type: "site_lost_moments", difficulty: 1 }
+  then AddDigSite { body: 703, site_type: "site_lost_moments", difficulty: 1 }
 
 --- gamestate
 +++ gamestate

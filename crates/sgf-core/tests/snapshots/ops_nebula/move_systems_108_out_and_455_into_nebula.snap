@@ -5,7 +5,7 @@ expression: value
 ---
 Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma
 touched: [108, 164, 181, 438, 455, 484, 753]
-inverse: Batch { description: "Undo of \"Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma\"", ops: [MoveSystems { moves: [SystemMove { id: 455, x: 100.07, y: -134.13 }, SystemMove { id: 108, x: 83.2, y: -118.95 }] }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 108, cloud: Some(NebulaCloud { id: 1055, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
+inverse: Batch { description: "Undo of \"Moved 2 systems; updated 16 lane lengths; Ascensions End left Phantom Streak Miasma; Mihil joined Phantom Streak Miasma\"", ops: [MoveSystems { moves: [SystemMove { system: 455, x: 100.07, y: -134.13 }, SystemMove { system: 108, x: 83.2, y: -118.95 }] }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 108, cloud: Some(NebulaCloud { id: 1055, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
 … and 3 other issues
 
 --- nebula

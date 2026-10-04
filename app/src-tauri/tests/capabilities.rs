@@ -1,16 +1,17 @@
-//! The capability sets `app/src/lib/capabilities.ts` holds, against what the commands report.
+//! The capability sets the core writes into `app/src/generated/constants.ts`, against what the
+//! commands report.
 use serde_json::{Map, Value};
 
 use crate::common::{SAMPLE_45, SCENARIO, open, webview};
 
-const CAPABILITIES_TS: &str = include_str!("../../src/lib/capabilities.ts");
+const CAPABILITIES_TS: &str = include_str!("../../src/generated/constants.ts");
 
 /// The `export const <name>: Capabilities = { … };` literal in the TS file, as JSON.
 fn ts_set(name: &str) -> Value {
     let head = format!("export const {name}: Capabilities = {{");
     let start = CAPABILITIES_TS
         .find(&head)
-        .unwrap_or_else(|| panic!("capabilities.ts has no {name}"))
+        .unwrap_or_else(|| panic!("constants.ts has no {name}"))
         + head.len();
     let body = &CAPABILITIES_TS[start..];
     let body = &body[..body.find("};").expect("the literal closes")];

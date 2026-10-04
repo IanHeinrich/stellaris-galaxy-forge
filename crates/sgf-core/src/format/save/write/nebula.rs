@@ -69,7 +69,7 @@ pub(crate) fn plan_membership(
     let mut subjects: Vec<Prospect> = moves
         .iter()
         .map(|m| Prospect {
-            id: m.id,
+            id: m.system,
             x: m.x,
             y: m.y,
         })

@@ -34,7 +34,7 @@ export function removeActions(
         const result = await runEdit(async () => {
           const now = tracked.flatMap((t) => t.id ?? []);
           if (now.length === 0) return null;
-          if (one) return ipc.applyOp({ type: "RemoveSystem", id: now[0] });
+          if (one) return ipc.applyOp({ type: "RemoveSystem", system: now[0] });
           return save ? ipc.removeAddedSystems(now) : ipc.applyOp(removeAll(now, description));
         });
         return result !== null;
@@ -107,7 +107,7 @@ export function removeAll(ids: readonly number[], description: string): Op {
   return {
     type: "Batch",
     description,
-    ops: [{ type: "RemoveSystems", ids: [...ids] }],
+    ops: [{ type: "RemoveSystems", systems: [...ids] }],
   };
 }
 

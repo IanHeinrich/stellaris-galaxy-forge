@@ -105,9 +105,9 @@ describe("setStarTypeOp", () => {
   it("changes the one body and keeps the class when no class has the stars it leaves", () => {
     expect(setStarTypeOp(binary, pair, 41, "pc_g_star", CLASSES)).toEqual({
       type: "SetStarClass",
-      id: 4,
+      system: 4,
       class: "sc_binary_2",
-      bodies: [{ planet: 41, class: "pc_g_star" }],
+      bodies: [{ body: 41, class: "pc_g_star" }],
     });
   });
 
@@ -115,7 +115,7 @@ describe("setStarTypeOp", () => {
     const single = { id: 7, star_class: "sc_g" };
     expect(
       setStarTypeOp(single, [{ id: 70, class: "pc_g_star" }], 70, "pc_black_hole", CLASSES),
-    ).toMatchObject({ class: "sc_black_hole", bodies: [{ planet: 70, class: "pc_black_hole" }] });
+    ).toMatchObject({ class: "sc_black_hole", bodies: [{ body: 70, class: "pc_black_hole" }] });
 
     const mixed = [
       { id: 41, class: "pc_g_star" },
@@ -143,8 +143,8 @@ describe("setStarTypeOp", () => {
 
 describe("setPlanetSizeOp", () => {
   it("sets a whole size of at least 1", () => {
-    expect(setPlanetSizeOp(10, 20, 35)).toEqual({ type: "SetPlanetSize", id: 10, size: 35 });
-    expect(setPlanetSizeOp(10, 20, 1)).toEqual({ type: "SetPlanetSize", id: 10, size: 1 });
+    expect(setPlanetSizeOp(10, 20, 35)).toEqual({ type: "SetBodySize", body: 10, size: 35 });
+    expect(setPlanetSizeOp(10, 20, 1)).toEqual({ type: "SetBodySize", body: 10, size: 1 });
   });
 
   it("sends nothing for a size the core refuses or a fraction", () => {

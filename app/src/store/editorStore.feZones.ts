@@ -12,6 +12,7 @@ import {
   NO_FREE_DIRECTION,
   snapFeZone,
 } from "../lib/feZone";
+import { feZoneOps } from "../lib/systemsBatch";
 import { nearestSystem, refuseOr, systems, type RunEdit } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -66,7 +67,7 @@ export function feZoneActions(
 
   return {
     async setFeZone(id, zone) {
-      return get().applyOp({ type: "SetFeZone", id, zone });
+      return get().applyOp({ type: "SetFeZone", system: id, zone });
     },
 
     async addFeZone(id) {
@@ -131,7 +132,7 @@ export function feZoneActions(
         return ipc.applyOp({
           type: "Batch",
           description: RECOMPUTE_FE_ZONES,
-          ops: [{ type: "SetFeZones", entries }],
+          ops: feZoneOps(entries),
         });
       });
       if (fitted !== null) useMapChromeStore.getState().setLayerQuietly("feZones", true);

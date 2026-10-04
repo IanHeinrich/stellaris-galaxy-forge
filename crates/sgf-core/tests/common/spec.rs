@@ -1,4 +1,4 @@
-//! The system the in-game spike added to each sample save, as an `AddSaveSystem` spec: a
+//! The system the in-game spike added to each sample save, as an `AddSystemFromSpec` spec: a
 //! G star and six planets, the fourth a gas giant with two moons.
 use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
 use sgf_core::session::Session;

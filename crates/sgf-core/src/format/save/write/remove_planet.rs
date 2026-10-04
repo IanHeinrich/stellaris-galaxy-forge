@@ -1,11 +1,11 @@
-//! `RemoveColony` and `DeleteSavePlanet`, which invert to `RestoreSaveEntities`.
+//! `RemoveColony` and `DeleteBody`, which invert to `RestoreEntities`.
 //!
 //! A deleted body is left as the game's `remove_planet` leaves one: `<id>=none` in its slot
 //! and no `planet=` line in its system. Deposits, survey lists, fleets in orbit and orphaned
 //! construction queues are the game's to tidy, which it does at load or lets stand. A dig
 //! site on a deleted body goes as `RemoveDigSite` takes one: its entry alone. The body
 //! leaves each country's `events.anomalies` as `RemoveAnomaly` takes one out. A body added
-//! since the file was opened goes as `RemoveAddedBody` takes it, its slots given back.
+//! since the file was opened goes as `RemoveBody` takes it, its slots given back.
 //!
 //! A colony goes as the game's `destroy_colony` takes it: the planet loses its owner,
 //! controller, colonisation date and orbital defence; the colony, its pops, jobs,
@@ -159,7 +159,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     })
 }
 
-/// A body added since the file was opened goes as [`Op::RemoveAddedBody`] takes it, its
+/// A body added since the file was opened goes as [`Op::RemoveBody`] takes it, its
 /// slots given back, once its dig site and its place in the finders' anomaly lists have
 /// gone. The inverse adds the body back, then its site and anomaly.
 fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
@@ -179,7 +179,7 @@ fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planne
     let label = if moon { "moon" } else { "planet" };
     let dug = dug(sites.len());
     let found = category.map(|category| Op::AddAnomaly {
-        planet,
+        body: planet,
         category,
         found_by: Some(finders),
     });
@@ -207,7 +207,7 @@ fn sites_on(s: &Session, planets: &[u32]) -> Result<Vec<(Anchor, DigSite)>, OpEr
 fn site_adds(sites: Vec<(Anchor, DigSite)>) -> impl Iterator<Item = Op> {
     sites.into_iter().filter_map(|(_, site)| {
         Some(Op::AddDigSite {
-            planet: site.planet?,
+            body: site.planet?,
             site_type: site.kind,
             difficulty: site.difficulty,
         })

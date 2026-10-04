@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
 Set system 2 spawn weight to 5
-inverse: SetSpawnWeight { id: 2, base: None }
+inverse: SetSpawnWeight { system: 2, base: None }
 
 --- scenario
 +++ scenario

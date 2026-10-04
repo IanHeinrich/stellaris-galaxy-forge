@@ -13,7 +13,7 @@ fn heights(entries: &[(u32, Option<f64>)]) -> Op {
     Op::SetSystemHeights {
         heights: entries
             .iter()
-            .map(|&(id, height)| SystemHeight { id, height })
+            .map(|&(id, height)| SystemHeight { system: id, height })
             .collect(),
     }
 }
@@ -96,7 +96,7 @@ fn a_3_4_system_gets_the_height_it_lacked_and_the_inverse_takes_it_out() {
 fn removing_an_added_system_inverts_to_the_height_it_was_given() {
     let mut session = open();
     session
-        .apply(Op::AddSaveSystem {
+        .apply(Op::AddSystemFromSpec {
             spec: spec::dorellion(),
         })
         .expect("add Dorellion");
@@ -104,7 +104,7 @@ fn removing_an_added_system_inverts_to_the_height_it_was_given() {
         .apply(heights(&[(791, Some(20.0))]))
         .expect("set its height");
     let removed = session
-        .apply(Op::RemoveSystem { id: 791 })
+        .apply(Op::RemoveSystem { system: 791 })
         .expect("remove it");
     session.apply(removed.inverse).expect("add it back");
     assert_eq!(session.graph.systems[&791].height, Some(20.0));

@@ -510,7 +510,7 @@ fn restoring(
         let plain = lanes.iter().take_while(|&&(_, bridge)| !bridge).count();
         let rest = lanes.split_off(plain);
         let spec_lanes = lanes.into_iter().map(|(to, _)| to).collect();
-        ops.push(Op::AddSaveSystem {
+        ops.push(Op::AddSystemFromSpec {
             spec: spec_of(s, id, spec_lanes)?,
         });
         if !rest.is_empty() {
@@ -521,7 +521,7 @@ fn restoring(
         }
         if system.height != Some(SPAWNED_SYSTEM_HEIGHT) {
             heights.push(SystemHeight {
-                id: again,
+                system: again,
                 height: system.height,
             });
         }

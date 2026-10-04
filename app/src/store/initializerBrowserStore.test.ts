@@ -152,7 +152,7 @@ describe("assign", () => {
     browser().highlight(HOME.name);
     await browser().assign();
     expect(appliedOps()).toEqual([
-      { type: "SetInitializer", id: 2, initializer: "empire_init_01" },
+      { type: "SetInitializer", system: 2, initializer: "empire_init_01" },
     ]);
 
     browser().openFor([2]);
@@ -160,7 +160,7 @@ describe("assign", () => {
     await browser().assign();
     expect(appliedOps()[1]).toEqual({
       type: "SetInitializer",
-      id: 2,
+      system: 2,
       initializer: "sol_system",
     });
   });
@@ -169,21 +169,22 @@ describe("assign", () => {
     browser().openFor([2]);
     browser().highlight(RANDOM_KEY);
     await browser().assign();
-    expect(appliedOps()).toEqual([{ type: "SetInitializer", id: 2, initializer: null }]);
+    expect(appliedOps()).toEqual([{ type: "SetInitializer", system: 2, initializer: null }]);
     expect(browser().recent).toEqual([]);
   });
 
-  it("sends one SetInitializers for several targets", async () => {
+  it("sends one Batch of SetInitializer for several targets", async () => {
     browser().openFor([0, 2, 3]);
     browser().highlight(SOL.name);
     await browser().assign();
     expect(appliedOps()).toEqual([
       {
-        type: "SetInitializers",
-        entries: [
-          { id: 0, initializer: "sol_system" },
-          { id: 2, initializer: "sol_system" },
-          { id: 3, initializer: "sol_system" },
+        type: "Batch",
+        description: "Set initializer of 3 systems",
+        ops: [
+          { type: "SetInitializer", system: 0, initializer: "sol_system" },
+          { type: "SetInitializer", system: 2, initializer: "sol_system" },
+          { type: "SetInitializer", system: 3, initializer: "sol_system" },
         ],
       },
     ]);
@@ -270,7 +271,7 @@ describe("create mode", () => {
     expect(appliedOps()).toEqual([
       {
         type: "AddSystem",
-        id: null,
+        system: null,
         x: 10,
         y: -4,
         name: null,
@@ -290,7 +291,7 @@ describe("create mode", () => {
     expect(appliedOps()).toEqual([
       {
         type: "AddSystem",
-        id: null,
+        system: null,
         x: 1,
         y: 2,
         name: null,

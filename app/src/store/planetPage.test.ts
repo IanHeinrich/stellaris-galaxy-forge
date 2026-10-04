@@ -19,7 +19,7 @@ const WORLD = 3;
 const ALPHA = 1;
 const SOL = 0;
 
-const RETYPE: Op = { type: "SetStarClass", id: ALPHA, class: "sc_a", bodies: [] };
+const RETYPE: Op = { type: "SetStarClass", system: ALPHA, class: "sc_a", bodies: [] };
 /** What the backend says a star-type edit, or its undo, rewrote: the system, never the planet. */
 const ALPHA_EDITED = editResult({ touched_entities: [{ kind: "system", id: ALPHA }] });
 

@@ -185,7 +185,7 @@ describe("what a deposit edit on a colony costs", () => {
     });
     expect(removalTarget(page, "d_mountain_range", null)?.id).toBe(1);
     expect(removeDepositOp(page, "d_mountain_range", null)).toEqual({
-      type: "RemoveSaveDeposit",
+      type: "RemoveDeposit",
       deposit: 1,
     });
     const cleared = { ...page, deposits: page.deposits.slice(1) };

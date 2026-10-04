@@ -55,8 +55,8 @@ describe("the classes a planet may take", () => {
 
   it("sends both classes' rules, and nothing for the class it has", () => {
     expect(setPlanetClassOp(585, "pc_barren", "pc_ocean", CLASSES)).toEqual({
-      type: "SetPlanetClass",
-      planet: 585,
+      type: "SetBodyClass",
+      body: 585,
       from: { class: "pc_barren", change: "uncolonised", models: 3 },
       to: { class: "pc_ocean", change: "any", models: 3 },
     });

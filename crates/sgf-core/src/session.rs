@@ -134,8 +134,15 @@ impl Session {
     /// Apply `op`, record it for undo and validate. The document is unchanged on error, and
     /// an op the document's kind does not take is refused before its format sees it. Built
     /// details are brought up to date before validating, so a finding that reads them (an
-    /// overlap) is current.
+    /// overlap) is current. An op that is only an inverse is refused, alone or in a batch.
     pub fn apply(&mut self, op: Op) -> Result<OpResult, OpError> {
+        op.check_sendable()?;
+        self.apply_inverse(op)
+    }
+
+    /// Apply `op` as [`Self::apply`] does, taking an op that is only an inverse too: the
+    /// inverse an earlier op returned.
+    pub fn apply_inverse(&mut self, op: Op) -> Result<OpResult, OpError> {
         let before = Derived::of(&self.graph);
         let applied = ops::apply(self, op)?;
         let mut result = result(
@@ -388,7 +395,7 @@ impl Session {
         move_planet::targets(self, planets)
     }
 
-    /// The op that moves `planets` to system `to`: one [`Op::MoveSavePlanet`] per planet
+    /// The op that moves `planets` to system `to`: one [`Op::MoveBodyToSystem`] per planet
     /// [`Self::planet_move_targets`] keeps, in order, the first at `at` when given, batched
     /// when there are several. Refused when it keeps none.
     pub fn planet_move_op(
@@ -421,6 +428,9 @@ impl Session {
             return Some("a batch cannot be checked: check each of its ops".to_owned());
         }
         if let Err(error) = op.check_kind(self.kind()) {
+            return Some(error.to_string());
+        }
+        if let Err(error) = op.check_sendable() {
             return Some(error.to_string());
         }
         if op.reach().follow_up {
@@ -633,7 +643,11 @@ fn details_stale(kind: DocumentKind, op: &Op, subjects: &[Subject]) -> Vec<u32> 
     if !reach.stales() {
         return Vec::new();
     }
-    let bodies_only = kind == DocumentKind::Save && reach == DetailsReach::Bodies;
+    if kind == DocumentKind::Scenario && reach == DetailsReach::SaveBodies {
+        return Vec::new();
+    }
+    let bodies_only = kind == DocumentKind::Save
+        && matches!(reach, DetailsReach::Bodies | DetailsReach::SaveBodies);
     let mut ids: Vec<u32> = subjects
         .iter()
         .filter_map(|s| match *s {

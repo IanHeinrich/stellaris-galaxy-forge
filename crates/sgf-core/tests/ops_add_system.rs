@@ -25,7 +25,7 @@ use common::{
 const GENERATION: u32 = 1 << 24;
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 /// The planets the details list for system `id`, as (planet, class, deposit keys).
@@ -421,7 +421,11 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
             .expect("a system to link");
         let x = spec.x + 3.0;
         let steps = [
-            Op::MoveSystem { id, x, y: spec.y },
+            Op::MoveSystem {
+                system: id,
+                x,
+                y: spec.y,
+            },
             Op::AddLane {
                 a: far,
                 b: id,
@@ -429,14 +433,17 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
             },
             Op::RemoveLane { a: id, b: home },
             Op::SetStarClass {
-                id,
+                system: id,
                 class: "sc_m".to_owned(),
                 bodies: vec![StarBody {
-                    planet: star,
+                    body: star,
                     class: "pc_m_star".to_owned(),
                 }],
             },
-            Op::SetPlanetSize { id: star, size: 30 },
+            Op::SetBodySize {
+                body: star,
+                size: 30,
+            },
         ];
         for op in steps {
             let label = format!("{op:?}");
@@ -732,7 +739,9 @@ fn a_spent_asteroid_pool_names_asteroids_again() {
         "the one suffix leaves the pool"
     );
 
-    session.apply(Op::RemoveSystem { id: 791 }).expect("remove");
+    session
+        .apply(Op::RemoveSystem { system: 791 })
+        .expect("remove");
     assert_eq!(current(&session), session.doc.original());
 }
 

@@ -193,9 +193,9 @@ describe("setStarClassOp", () => {
     );
     expect(op).toEqual({
       type: "SetStarClass",
-      id: 1,
+      system: 1,
       class: "sc_black_hole",
-      bodies: [{ planet: 10, class: "pc_black_hole" }],
+      bodies: [{ body: 10, class: "pc_black_hole" }],
     });
   });
 
@@ -212,8 +212,8 @@ describe("setStarClassOp", () => {
     );
     expect(op).toMatchObject({
       bodies: [
-        { planet: 20, class: "pc_g_star" },
-        { planet: 21, class: "pc_m_star" },
+        { body: 20, class: "pc_g_star" },
+        { body: 21, class: "pc_m_star" },
       ],
     });
   });
@@ -228,8 +228,8 @@ describe("setStarClassOp", () => {
     );
     expect(op).toMatchObject({
       bodies: [
-        { planet: 30, class: "pc_m_star" },
-        { planet: 31, class: "pc_g_star" },
+        { body: 30, class: "pc_m_star" },
+        { body: 31, class: "pc_g_star" },
       ],
     });
   });
@@ -244,8 +244,8 @@ describe("setStarClassOp", () => {
     );
     expect(op).toMatchObject({
       bodies: [
-        { planet: 40, class: "pc_b_star" },
-        { planet: 41, class: "pc_neutron_star" },
+        { body: 40, class: "pc_b_star" },
+        { body: 41, class: "pc_neutron_star" },
       ],
     });
   });
@@ -263,8 +263,8 @@ describe("setStarClassOp", () => {
     );
     expect(op).toMatchObject({
       bodies: [
-        { planet: 50, class: "pc_g_star" },
-        { planet: 51, class: "pc_m_star" },
+        { body: 50, class: "pc_g_star" },
+        { body: 51, class: "pc_m_star" },
       ],
     });
   });
@@ -312,15 +312,15 @@ describe("a bulk star class edit", () => {
       ops: [
         {
           type: "SetStarClass",
-          id: 1,
+          system: 1,
           class: "sc_black_hole",
-          bodies: [{ planet: 10, class: "pc_black_hole" }],
+          bodies: [{ body: 10, class: "pc_black_hole" }],
         },
         {
           type: "SetStarClass",
-          id: 2,
+          system: 2,
           class: "sc_black_hole",
-          bodies: [{ planet: 20, class: "pc_black_hole" }],
+          bodies: [{ body: 20, class: "pc_black_hole" }],
         },
       ],
     });

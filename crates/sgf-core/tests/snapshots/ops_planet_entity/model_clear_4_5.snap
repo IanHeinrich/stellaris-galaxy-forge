@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Took the model gas_giant_02_entity off planet #1415
-inverse: SetPlanetEntity { planet: 1415, entity: Some("gas_giant_02_entity") }
+inverse: SetBodyModel { body: 1415, entity: Some("gas_giant_02_entity") }
 
 --- gamestate
 +++ gamestate

@@ -74,8 +74,8 @@ pub(crate) fn plan_add(
     }
     Ok(Planned {
         description: add_description(id, modifier, days, written),
-        inverse: Op::RemovePlanetModifier {
-            planet: id,
+        inverse: Op::RemoveBodyModifier {
+            body: id,
             modifier: modifier.to_owned(),
             feature: written.map(str::to_owned),
         },
@@ -126,8 +126,8 @@ pub(crate) fn plan_remove(
     };
     Ok(Planned {
         description,
-        inverse: Op::AddPlanetModifier {
-            planet: id,
+        inverse: Op::AddBodyModifier {
+            body: id,
             modifier: modifier.to_owned(),
             days,
             feature: taken.map(str::to_owned),

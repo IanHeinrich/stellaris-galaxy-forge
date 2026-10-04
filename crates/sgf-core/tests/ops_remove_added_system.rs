@@ -23,11 +23,11 @@ const IN_NYTHRAN_EXPANSE: (f64, f64) = (-330.0, -75.0);
 const PHARGIS: u32 = 171;
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 fn remove(id: u32) -> Op {
-    Op::RemoveSystem { id }
+    Op::RemoveSystem { system: id }
 }
 
 /// The second of three: a small system at the sample's first spot, linked to the spike
@@ -182,7 +182,7 @@ fn a_system_the_file_held_is_refused() {
         session.save_as(&path).expect("save");
         let error = session
             .apply(Op::RemoveSystems {
-                ids: vec![first, home],
+                systems: vec![first, home],
             })
             .expect_err("one of them was in the file");
         assert!(
@@ -419,7 +419,7 @@ fn removing_two_at_once_renumbers_what_follows_both() {
         &mut session,
         "remove two",
         Op::RemoveSystems {
-            ids: vec![first + 2, first],
+            systems: vec![first + 2, first],
         },
     );
     assert_eq!(
@@ -457,19 +457,22 @@ fn a_moved_and_restyled_system_comes_out_whole() {
         let star = planet_ids(session, first)[0];
         let steps = [
             Op::MoveSystem {
-                id: first,
+                system: first,
                 x: spike.x + 3.0,
                 y: spike.y,
             },
             Op::SetStarClass {
-                id: first,
+                system: first,
                 class: "sc_m".to_owned(),
                 bodies: vec![sgf_core::ops::StarBody {
-                    planet: star,
+                    body: star,
                     class: "pc_m_star".to_owned(),
                 }],
             },
-            Op::SetPlanetSize { id: star, size: 30 },
+            Op::SetBodySize {
+                body: star,
+                size: 30,
+            },
         ];
         for op in steps {
             round_trip_step(session, &format!("{op:?}"), op);
@@ -494,12 +497,12 @@ fn nebula_member_lines_follow_the_renumbering() {
         Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: middle,
+                    system: middle,
                     x: x + 3.0,
                     y,
                 },
                 SystemMove {
-                    id: last,
+                    system: last,
                     x: x - 3.0,
                     y,
                 },
@@ -617,7 +620,7 @@ fn a_belted_system_comes_out_whole_and_its_removal_adds_it_back() {
         let both = current(session);
 
         let result = round_trip_step(session, "remove the first", remove(first));
-        let Op::AddSaveSystem { spec } = &result.inverse else {
+        let Op::AddSystemFromSpec { spec } = &result.inverse else {
             panic!("{:?}", result.inverse);
         };
         assert_eq!(without_angles(spec), without_angles(&spike));

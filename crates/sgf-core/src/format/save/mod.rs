@@ -150,17 +150,17 @@ impl Format for Save {
             check_version(&s.doc)?;
         }
         match op {
-            Op::MoveSystem { id, x, y } => move_system::plan(plan, s, *id, *x, *y),
+            Op::MoveSystem { system, x, y } => move_system::plan(plan, s, *system, *x, *y),
             Op::AddLane { a, b, bridge } => lanes::plan_add(plan, s, *a, *b, *bridge),
             Op::AddLanes { from, to } => lanes::plan_add_many(plan, s, *from, to),
             Op::RemoveLane { a, b } => lanes::plan_remove(plan, s, *a, *b),
             Op::RemoveLanes { from, to } => lanes::plan_remove_many(plan, s, *from, to),
             Op::SetLaneLength { a, b, length } => lanes::plan_set_length(plan, s, *a, *b, *length),
-            Op::IsolateSystem { id } => lanes::plan_isolate(plan, s, *id),
+            Op::IsolateSystem { system } => lanes::plan_isolate(plan, s, *system),
             Op::MoveSystems { moves } => bulk::plan_move_many(plan, s, moves),
             Op::AddLanePairs { lanes } => bulk::plan_add_pairs(plan, s, lanes),
             Op::RemoveLanePairs { lanes } => bulk::plan_remove_pairs(plan, s, lanes),
-            Op::IsolateSystems { ids } => bulk::plan_isolate_many(plan, s, ids),
+            Op::IsolateSystems { systems } => bulk::plan_isolate_many(plan, s, systems),
             Op::SetLaneLengths { lanes } => bulk::plan_set_lengths(plan, s, lanes),
             Op::NormaliseLaneLength { a, b } => lanes::plan_normalise_length(plan, s, *a, *b),
             Op::NormaliseLaneLengths { systems } => bulk::plan_normalise_lengths(plan, s, systems),
@@ -172,29 +172,31 @@ impl Format for Save {
             Op::SetNebulaRadius { index, radius } => {
                 nebula::plan_set_radius(plan, s, *index, *radius)
             }
-            Op::SetNebulaName { index, name } => nebula::plan_set_name(plan, s, *index, name),
+            Op::RenameNebula { index, name } => nebula::plan_set_name(plan, s, *index, name),
             Op::SetLGateOutcome { outcome } => lgate::plan_set_outcome(plan, s, *outcome),
-            Op::SetStarClass { id, class, bodies } => {
-                star_class::plan_set(plan, s, *id, class, bodies)
-            }
-            Op::SetPlanetSize { id, size } => planet_size::plan_set(plan, s, *id, *size),
-            Op::AddPlanetModifier {
-                planet,
+            Op::SetStarClass {
+                system,
+                class,
+                bodies,
+            } => star_class::plan_set(plan, s, *system, class, bodies),
+            Op::SetBodySize { body, size } => planet_size::plan_set(plan, s, *body, *size),
+            Op::AddBodyModifier {
+                body,
                 modifier,
                 days,
                 feature,
-            } => planet_modifier::plan_add(plan, s, *planet, modifier, days, feature.as_deref()),
-            Op::RemovePlanetModifier {
-                planet,
+            } => planet_modifier::plan_add(plan, s, *body, modifier, days, feature.as_deref()),
+            Op::RemoveBodyModifier {
+                body,
                 modifier,
                 feature,
-            } => planet_modifier::plan_remove(plan, s, *planet, modifier, feature.as_deref()),
+            } => planet_modifier::plan_remove(plan, s, *body, modifier, feature.as_deref()),
             Op::AddAnomaly {
-                planet,
+                body,
                 category,
                 found_by,
-            } => anomaly::plan_add(plan, s, *planet, category, found_by.as_deref()),
-            Op::RemoveAnomaly { planet } => anomaly::plan_remove(plan, s, *planet),
+            } => anomaly::plan_add(plan, s, *body, category, found_by.as_deref()),
+            Op::RemoveAnomaly { body } => anomaly::plan_remove(plan, s, *body),
             Op::SetEmpireMapColors { country, colors } => {
                 map_colors::plan_set(plan, s, *country, colors.as_ref())
             }
@@ -204,101 +206,87 @@ impl Format for Save {
                 name,
                 value,
                 custom_name,
-            } => empire_name::plan_rename(
-                plan,
-                s,
-                *country,
-                name,
-                value.as_deref(),
-                custom_name.unwrap_or(true),
-            ),
-            Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
-            Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
-            Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
+            } => empire_name::plan_rename(plan, s, *country, name, value.as_deref(), *custom_name),
+            Op::AddSystemFromSpec { spec } => add_system::plan_add(plan, s, spec),
+            Op::AddDeposit { body, kind } => deposits::plan_add(plan, s, *body, kind),
+            Op::RemoveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::AddDigSite {
-                planet,
+                body,
                 site_type,
                 difficulty,
-            } => dig_site::plan_add(plan, s, *planet, site_type, *difficulty),
+            } => dig_site::plan_add(plan, s, *body, site_type, *difficulty),
             Op::RemoveDigSite { site } => dig_site::plan_remove(plan, s, *site),
-            Op::RemoveSystem { id } => remove_system::plan_remove(plan, s, &[*id]),
-            Op::RemoveSystems { ids } => remove_system::plan_remove(plan, s, ids),
-            Op::ReplaceSaveSystem { system, spec } => {
+            Op::RemoveSystem { system } => remove_system::plan_remove(plan, s, &[*system]),
+            Op::RemoveSystems { systems } => remove_system::plan_remove(plan, s, systems),
+            Op::ReplaceSystemFromSpec { system, spec } => {
                 replace_system::plan_strip(plan, s, *system, spec)
             }
-            Op::RenameSaveSystem { system, name } => {
-                rename_system::plan_rename(plan, s, *system, name)
-            }
+            Op::RenameSystem { system, name } => rename_system::plan_rename(plan, s, *system, name),
             Op::SetNebulaTurbulent { nebula, turbulent } => {
                 nebula::plan_set_turbulent(plan, s, *nebula, *turbulent)
             }
             Op::SetNebulaFootprints { footprints } => {
                 nebula::plan_set_footprints(plan, s, footprints)
             }
-            Op::MoveSaveBody {
+            Op::MoveBody {
                 system,
                 body,
                 radius,
                 angle,
             } => bodies::plan_move(plan, s, *system, *body, *radius, *angle),
-            Op::MoveSavePlanet { planet, to, at } => {
-                move_planet::plan_move(plan, s, *planet, *to, *at)
+            Op::MoveBodyToSystem { body, to, at } => {
+                move_planet::plan_move(plan, s, *body, *to, *at)
             }
-            Op::RenameSavePlanet {
-                planet,
-                name,
-                block,
-            } => rename_planet::plan_rename(plan, s, *planet, name, block.as_deref()),
-            Op::AddSaveBody { system, spec, at } => add_body::plan_add(plan, s, *system, spec, *at),
-            Op::RemoveAddedBody { planet } => add_body::plan_remove(plan, s, *planet),
-            Op::SetSaveBodyParent {
+            Op::RenameBody { body, name } => rename_planet::plan_rename(plan, s, *body, name),
+            Op::AddBody { system, spec, at } => add_body::plan_add(plan, s, *system, spec, *at),
+            Op::RemoveBody { body } => add_body::plan_remove(plan, s, *body),
+            Op::SetBodyParent {
                 system,
                 body,
                 parent,
-                star,
                 radius,
                 angle,
-            } => bodies::plan_parent(plan, s, *system, *body, *parent, *star, *radius, *angle),
-            Op::MoveSaveWormhole {
+            } => bodies::plan_parent(plan, s, *system, *body, *parent, *radius, *angle),
+            Op::MoveWormhole {
                 wormhole,
                 radius,
                 angle,
             } => wormhole::plan_move(plan, s, *wormhole, *radius, *angle),
-            Op::AddSaveWormholePair { a, b, at } => wormhole_pair::plan_add(plan, s, *a, *b, *at),
-            Op::RemoveSaveWormholePair { a, b } => wormhole_pair::plan_remove(plan, s, *a, *b),
-            Op::SetPlanetRing { planet, ring } => planet_ring::plan_set(plan, s, *planet, *ring),
-            Op::RemoveColony { planet } => remove_planet::plan_remove_colony(plan, s, *planet),
-            Op::DeleteSavePlanet { planet } => remove_planet::plan_delete(plan, s, *planet),
-            Op::RestoreSaveEntities {
+            Op::AddWormholePair { a, b, at } => wormhole_pair::plan_add(plan, s, *a, *b, *at),
+            Op::RemoveWormholePair { a, b } => wormhole_pair::plan_remove(plan, s, *a, *b),
+            Op::SetBodyRing { body, ring } => planet_ring::plan_set(plan, s, *body, *ring),
+            Op::RemoveColony { body } => remove_planet::plan_remove_colony(plan, s, *body),
+            Op::DeleteBody { body } => remove_planet::plan_delete(plan, s, *body),
+            Op::RestoreEntities {
                 description,
                 entities,
             } => restore::plan_restore(plan, s, description, entities),
-            Op::SetPlanetEntity { planet, entity } => {
-                planet_entity::plan_set(plan, s, *planet, entity.as_deref())
+            Op::SetBodyModel { body, entity } => {
+                planet_entity::plan_set(plan, s, *body, entity.as_deref())
             }
-            Op::SetPlanetClass {
-                planet,
+            Op::SetBodyClass {
+                body,
                 from,
                 to,
                 look,
-            } => planet_class::plan_set(plan, s, *planet, from, to, look.as_ref()),
-            Op::AddSaveBelt {
+            } => planet_class::plan_set(plan, s, *body, from, to, look.as_ref()),
+            Op::AddBelt {
                 system,
                 kind,
                 radius,
             } => belts::plan_add(plan, s, *system, kind, *radius),
-            Op::RemoveSaveBelt { system, index } => belts::plan_remove(plan, s, *system, *index),
-            Op::SetSaveBeltRadius {
+            Op::RemoveBelt { system, index } => belts::plan_remove(plan, s, *system, *index),
+            Op::SetBeltRadius {
                 system,
                 index,
                 radius,
             } => belts::plan_set_radius(plan, s, *system, *index, *radius),
-            Op::SetSaveBeltKind {
+            Op::SetBeltKind {
                 system,
                 index,
                 kind,
             } => belts::plan_set_kind(plan, s, *system, *index, kind),
-            Op::SetSaveInnerRadius { system, radius } => {
+            Op::SetInnerRadius { system, radius } => {
                 belts::plan_inner_radius(plan, s, *system, *radius)
             }
             Op::SetSystemHeights { heights } => system_height::plan_set(plan, s, heights),
@@ -312,8 +300,8 @@ impl Format for Save {
 
     fn follow_up(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Option<Planned>, OpError> {
         match op {
-            Op::AddSaveSystem { spec } => add_system::plan_join(plan, s, spec),
-            Op::ReplaceSaveSystem { system, spec } => {
+            Op::AddSystemFromSpec { spec } => add_system::plan_join(plan, s, spec),
+            Op::ReplaceSystemFromSpec { system, spec } => {
                 replace_system::plan_fill(plan, s, *system, spec).map(Some)
             }
             _ => Ok(None),

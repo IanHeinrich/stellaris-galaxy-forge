@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Add anomaly asteroid_uninhabitable_category to planet #3, found by empire 0
-inverse: RemoveAnomaly { planet: 3 }
+inverse: RemoveAnomaly { body: 3 }
 
 --- gamestate
 +++ gamestate

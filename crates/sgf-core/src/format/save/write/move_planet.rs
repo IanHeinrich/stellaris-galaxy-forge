@@ -1,4 +1,4 @@
-//! `MoveSavePlanet`: a save planet and its moons taken from one system into another. The
+//! `MoveBodyToSystem`: a save planet and its moons taken from one system into another. The
 //! `planet=` lines move between the two `galactic_object` entities, and each body's
 //! `coordinate` takes the new `origin`. A moon moved on its own leaves its parent's `moons`
 //! and becomes a planet. The colony of each colonised body moves between
@@ -165,8 +165,8 @@ pub(crate) fn plan_move(
     };
     // Undo replays bytes: this inverse puts the planet back at its old point in its old
     // system, not at its old place in the lists nor under the body it orbited.
-    let inverse = Op::MoveSavePlanet {
-        planet,
+    let inverse = Op::MoveBodyToSystem {
+        body: planet,
         to: from,
         at: Some(was),
     };
@@ -299,7 +299,7 @@ pub(crate) fn check(
     }
 }
 
-/// One [`Op::MoveSavePlanet`] per planet of the normalised set, the first at `at`.
+/// One [`Op::MoveBodyToSystem`] per planet of the normalised set, the first at `at`.
 fn member_ops(
     s: &Session,
     planets: &[u32],
@@ -313,8 +313,8 @@ fn member_ops(
     Ok(planets
         .iter()
         .enumerate()
-        .map(|(i, &planet)| Op::MoveSavePlanet {
-            planet,
+        .map(|(i, &planet)| Op::MoveBodyToSystem {
+            body: planet,
             to,
             at: if i == 0 { at } else { None },
         })
@@ -354,7 +354,7 @@ fn supported(s: &Session) -> Result<(), OpError> {
     match s.kind() {
         DocumentKind::Save => check_version(&s.doc),
         kind => Err(OpError::Unsupported {
-            op: "MoveSavePlanet",
+            op: "MoveBodyToSystem",
             kind,
         }),
     }

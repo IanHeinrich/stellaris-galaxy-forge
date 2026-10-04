@@ -4,7 +4,7 @@ expression: value
 ---
 Moved 2 systems; updated 10 lane lengths; Tar Valemm joined Nythran Expanse; Phargis left Nythran Expanse
 touched: [64, 169, 171, 444, 518, 536]
-inverse: Batch { description: "Undo of \"Moved 2 systems; updated 10 lane lengths; Tar Valemm joined Nythran Expanse; Phargis left Nythran Expanse\"", ops: [MoveSystems { moves: [SystemMove { id: 171, x: -321.41, y: -83.9 }, SystemMove { id: 64, x: -374.3, y: -78.48 }] }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 171, cloud: Some(NebulaCloud { id: 335, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
+inverse: Batch { description: "Undo of \"Moved 2 systems; updated 10 lane lengths; Tar Valemm joined Nythran Expanse; Phargis left Nythran Expanse\"", ops: [MoveSystems { moves: [SystemMove { system: 171, x: -321.41, y: -83.9 }, SystemMove { system: 64, x: -374.3, y: -78.48 }] }, SetNebulaFootprints { footprints: [NebulaFootprint { system: 171, cloud: Some(NebulaCloud { id: 335, kind: "nebula_4" }), cloaking: true, turbulent: false }] }] }
 … and 3 other issues
 
 --- gamestate

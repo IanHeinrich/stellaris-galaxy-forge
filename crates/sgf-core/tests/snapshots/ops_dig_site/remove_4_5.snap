@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Remove dig site site_tiyanki_graveyard (#1) from planet #1019
-inverse: AddDigSite { planet: 1019, site_type: "site_tiyanki_graveyard", difficulty: 3 }
+inverse: AddDigSite { body: 1019, site_type: "site_tiyanki_graveyard", difficulty: 3 }
 
 --- gamestate
 +++ gamestate

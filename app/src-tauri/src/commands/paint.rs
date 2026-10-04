@@ -24,7 +24,7 @@ pub async fn set_fe_links<R: Runtime>(
     apply_op(app, Op::SetFeLinks { anchor, linked }).await
 }
 
-/// The entries of one `SetFeZones` op that replace the open scenario's automatic
+/// One `SetFeZone` entry per system, applied as one `Batch`, that replace the open scenario's automatic
 /// fallen empire zones with `count` of the ones Paint a Galaxy's own rule would place
 /// now, spread over the map; the zones the map author placed by hand are not among
 /// them. The app applies the op.

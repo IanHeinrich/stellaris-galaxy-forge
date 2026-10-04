@@ -46,8 +46,8 @@ const MOVE: Op = {
   type: "Batch",
   description: "Moved 2 planets to Alpha Centauri",
   ops: [
-    { type: "MoveSavePlanet", planet: EARTH, to: CENTAURI },
-    { type: "MoveSavePlanet", planet: MARS, to: CENTAURI },
+    { type: "MoveBodyToSystem", body: EARTH, to: CENTAURI },
+    { type: "MoveBodyToSystem", body: MARS, to: CENTAURI },
   ],
 };
 
@@ -216,8 +216,8 @@ describe("cut and paste", () => {
     useInspectorStore.getState().openPage(bodyEntryOf(true, SOL, EARTH, "Earth"));
     const stack = useInspectorStore.getState().stack;
     mockedIpc.planetMoveOp.mockResolvedValue({
-      type: "MoveSavePlanet",
-      planet: EARTH,
+      type: "MoveBodyToSystem",
+      body: EARTH,
       to: BARNARD,
     });
     expect(await moves().movePlanet(EARTH, BARNARD)).toBe(true);
@@ -233,8 +233,8 @@ describe("cut and paste", () => {
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
     useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
     mockedIpc.planetMoveOp.mockResolvedValue({
-      type: "MoveSavePlanet",
-      planet: EARTH,
+      type: "MoveBodyToSystem",
+      body: EARTH,
       to: BARNARD,
     });
     expect(await moves().movePlanet(EARTH, BARNARD)).toBe(true);
@@ -328,7 +328,7 @@ describe("after an edit", () => {
     mockedIpc.planetMoveCheck.mockResolvedValue({ refusal: "x", warnings: [] });
     await moves().checkPaste(SOL);
     mockedIpc.planetMoveTargets.mockClear();
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 3, x: 1, y: 1 });
     await settle();
     expect(mockedIpc.planetMoveTargets).toHaveBeenCalledWith([EARTH, MARS]);
     expect(moves().checks.size).toBe(0);
@@ -341,7 +341,7 @@ describe("after an edit", () => {
     mockedIpc.planetMoveTargets.mockResolvedValue(
       targets([EARTH, MARS], { systems: [{ system: SOL, warnings: [] }] }),
     );
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 3, x: 1, y: 1 });
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 3, x: 1, y: 1 });
     await settle();
     expect(moves().cut).toBeNull();
   });

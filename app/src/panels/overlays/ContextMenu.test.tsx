@@ -606,7 +606,7 @@ describe("the system view's menus", () => {
     vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
     menuItem(<BodyMenu target={body} frame={{}} />, "Delete moon").props.onClick();
     await vi.waitFor(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 13 }),
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteBody", body: 13 }),
     );
     expect(dialog.confirm).toHaveBeenCalledWith(
       "Delete Luna? The moon is removed from the save.",
@@ -684,11 +684,9 @@ describe("a belt's handle in the system view", () => {
     expect(html.indexOf("Remove belt")).toBeLessThan(html.indexOf("Back to galaxy"));
     menuItem(<BeltMenu target={target} frame={{}} />, "Remove belt").props.onClick();
     await vi.waitFor(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveSaveBelt", system: 0, index: 0 }),
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveBelt", system: 0, index: 0 }),
     );
-    const removes = vi
-      .mocked(ipc.applyOp)
-      .mock.calls.filter(([op]) => op.type === "RemoveSaveBelt");
+    const removes = vi.mocked(ipc.applyOp).mock.calls.filter(([op]) => op.type === "RemoveBelt");
     expect(removes).toHaveLength(1);
   });
 
@@ -723,7 +721,7 @@ describe("the system view's empty space", () => {
     ).props.onClick();
     await vi.waitFor(() =>
       expect(ipc.applyOp).toHaveBeenCalledWith({
-        type: "AddSaveBelt",
+        type: "AddBelt",
         system: 0,
         kind: "icy_asteroid_belt",
         radius: 150,

@@ -10,7 +10,7 @@ use common::diff::{round_trip, snapshot_step};
 use common::{current, open_4_5};
 
 fn add_belt(system: u32, kind: &str, radius: f64) -> Op {
-    Op::AddSaveBelt {
+    Op::AddBelt {
         system,
         kind: kind.to_owned(),
         radius,
@@ -18,11 +18,11 @@ fn add_belt(system: u32, kind: &str, radius: f64) -> Op {
 }
 
 fn remove_belt(system: u32, index: usize) -> Op {
-    Op::RemoveSaveBelt { system, index }
+    Op::RemoveBelt { system, index }
 }
 
 fn set_belt_radius(system: u32, index: usize, radius: f64) -> Op {
-    Op::SetSaveBeltRadius {
+    Op::SetBeltRadius {
         system,
         index,
         radius,
@@ -30,7 +30,7 @@ fn set_belt_radius(system: u32, index: usize, radius: f64) -> Op {
 }
 
 fn set_belt_kind(system: u32, index: usize, kind: &str) -> Op {
-    Op::SetSaveBeltKind {
+    Op::SetBeltKind {
         system,
         index,
         kind: kind.to_owned(),
@@ -38,7 +38,7 @@ fn set_belt_kind(system: u32, index: usize, kind: &str) -> Op {
 }
 
 fn set_inner_radius(system: u32, radius: f64) -> Op {
-    Op::SetSaveInnerRadius { system, radius }
+    Op::SetInnerRadius { system, radius }
 }
 
 /// System `id`'s own `galactic_object` entry, as the session's bytes now hold it.
@@ -238,7 +238,7 @@ fn a_grown_below_rule_systems_inverse_batch_reapplies_as_an_op() {
     let at = far.at.expect("a point");
     let angle = at.1.atan2(at.0).to_degrees();
     let grown = session
-        .apply(Op::MoveSaveBody {
+        .apply(Op::MoveBody {
             system: 148,
             body: 1944,
             radius: 300.0,
@@ -252,8 +252,8 @@ fn a_grown_below_rule_systems_inverse_batch_reapplies_as_an_op() {
         matches!(
             ops[..],
             [
-                Op::MoveSaveBody { body: 1944, .. },
-                Op::SetSaveInnerRadius {
+                Op::MoveBody { body: 1944, .. },
+                Op::SetInnerRadius {
                     system: 148,
                     radius: 155.0
                 }
@@ -273,7 +273,7 @@ fn a_grown_below_rule_systems_inverse_batch_reapplies_as_an_op() {
 
 /// System 8's belt sits at 270, with its eleven asteroids scattered within
 /// [`BELT_SCATTER`] of it. Moving the belt to 280 is one `Batch` of the belt's own radius
-/// and a `MoveSaveBody` per asteroid, each by the same step, its angle kept.
+/// and a `MoveBody` per asteroid, each by the same step, its angle kept.
 #[test]
 fn a_belts_radius_move_takes_its_scattered_asteroids_with_it() {
     let mut session = open_4_5();
@@ -294,7 +294,7 @@ fn a_belts_radius_move_takes_its_scattered_asteroids_with_it() {
             continue;
         }
         let angle = at.1.atan2(at.0).to_degrees();
-        ops.push(Op::MoveSaveBody {
+        ops.push(Op::MoveBody {
             system: 8,
             body: p.id,
             radius: radius + step,
@@ -400,12 +400,12 @@ fn a_belt_moved_past_the_inner_radius_grows_it() {
         matches!(
             ops[..],
             [
-                Op::SetSaveBeltRadius {
+                Op::SetBeltRadius {
                     system: 140,
                     index: 1,
                     radius: 90.0
                 },
-                Op::SetSaveInnerRadius { system: 140, .. }
+                Op::SetInnerRadius { system: 140, .. }
             ]
         ),
         "{ops:?}"

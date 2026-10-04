@@ -149,7 +149,7 @@ export function addSystemActions(
         const result = await runEdit(async () => {
           const system = addedNow(tracked);
           if (!system) return null;
-          return ipc.applyOp({ type: "RenameSaveSystem", system: system.id, name: text });
+          return ipc.applyOp({ type: "RenameSystem", system: system.id, name: text });
         });
         return result !== null;
       });

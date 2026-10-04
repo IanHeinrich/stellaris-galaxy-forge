@@ -31,8 +31,8 @@ pub(crate) fn plan_set(
     };
     Ok(Planned {
         description,
-        inverse: Op::SetPlanetRing {
-            planet: id,
+        inverse: Op::SetBodyRing {
+            body: id,
             ring: held,
         },
     })

@@ -30,8 +30,8 @@ fn rule(class: &str) -> PlanetClassRule {
 }
 
 fn set(planet: u32, from: &str, to: &str) -> Op {
-    Op::SetPlanetClass {
-        planet,
+    Op::SetBodyClass {
+        body: planet,
         from: rule(from),
         to: rule(to),
         look: None,
@@ -192,8 +192,8 @@ fn a_colony_made_nuked_takes_its_one_model() {
 }
 
 fn with_look(look: PlanetLook) -> Op {
-    Op::SetPlanetClass {
-        planet: 585,
+    Op::SetBodyClass {
+        body: 585,
         from: rule("pc_barren"),
         to: rule("pc_ocean"),
         look: Some(look),
@@ -258,8 +258,8 @@ fn a_planet_with_a_megastructure_keeps_its_class() {
         models: 3,
     };
     let error = session
-        .apply(Op::SetPlanetClass {
-            planet: 936,
+        .apply(Op::SetBodyClass {
+            body: 936,
             from: held,
             to: rule("pc_barren"),
             look: None,

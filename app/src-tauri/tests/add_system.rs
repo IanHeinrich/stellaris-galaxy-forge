@@ -132,7 +132,7 @@ fn add_reroll_rename_delete_and_undo() {
     let renamed: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "RenameSaveSystem", "system": system.id, "name": "Dorellion" } }),
+        json!({ "op": { "type": "RenameSystem", "system": system.id, "name": "Dorellion" } }),
     )
     .expect("rename it");
     assert_eq!(added(&renamed).name.key, "Dorellion");
@@ -140,7 +140,7 @@ fn add_reroll_rename_delete_and_undo() {
     let deleted: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "RemoveSystem", "id": system.id } }),
+        json!({ "op": { "type": "RemoveSystem", "system": system.id } }),
     )
     .expect("delete it");
     assert_eq!(deleted.delta.removed, [system.id]);

@@ -62,7 +62,7 @@ describe("a selected nebula", () => {
     await useEditorStore.getState().setNebulaName(0, "Sea of Ghosts");
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "SetNebulaName",
+      type: "RenameNebula",
       index: 0,
       name: "Sea of Ghosts",
     });

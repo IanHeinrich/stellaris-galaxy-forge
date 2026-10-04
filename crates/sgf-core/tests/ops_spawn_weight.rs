@@ -1,6 +1,7 @@
 //! The base spawn weight on the grammar fixture: what each op writes into a system
 //! statement, and that undo puts the file back byte for byte.
 
+use crate::common::batch::spawn_weights;
 use sgf_core::ops::Op;
 
 use crate::common;
@@ -14,14 +15,14 @@ fn setting_the_weight_of_2_rewrites_the_base_beside_its_modifier() {
         "set_weight_2",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 2,
+            system: 2,
             base: Some(5.0),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 2,
+            system: 2,
             base: Some(5.0),
         },
     );
@@ -33,14 +34,14 @@ fn setting_the_weight_of_512_writes_a_base_into_its_modifier_only_block() {
         "set_weight_512",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 512,
+            system: 512,
             base: Some(2.5),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 512,
+            system: 512,
             base: Some(2.5),
         },
     );
@@ -52,14 +53,14 @@ fn setting_the_weight_of_1_writes_the_block_after_its_initializer() {
         "set_weight_1",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 1,
+            system: 1,
             base: Some(1.0),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 1,
+            system: 1,
             base: Some(1.0),
         },
     );
@@ -71,14 +72,14 @@ fn setting_the_weight_of_111_writes_the_block_after_its_position() {
         "set_weight_111",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 111,
+            system: 111,
             base: Some(3.0),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 111,
+            system: 111,
             base: Some(3.0),
         },
     );
@@ -90,14 +91,14 @@ fn setting_the_weight_of_3018_rewrites_the_base_on_its_own_line() {
         "set_weight_3018",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: Some(4.0),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: Some(4.0),
         },
     );
@@ -109,14 +110,14 @@ fn a_weight_of_zero_is_written_because_a_modifier_can_still_make_it_a_start() {
         "set_weight_zero_3018",
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: Some(0.0),
         },
     );
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: Some(0.0),
         },
     );
@@ -124,7 +125,7 @@ fn a_weight_of_zero_is_written_because_a_modifier_can_still_make_it_a_start() {
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 512,
+            system: 512,
             base: Some(0.0),
         },
     );
@@ -136,11 +137,14 @@ fn a_weight_of_zero_is_written_because_a_modifier_can_still_make_it_a_start() {
 fn a_base_cleared_and_written_again_stands_apart_from_the_modifier_beside_it() {
     let mut session = GRAMMAR.open();
     session
-        .apply(Op::SetSpawnWeight { id: 2, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 2,
+            base: None,
+        })
         .expect("clear");
     let result = session
         .apply(Op::SetSpawnWeight {
-            id: 2,
+            system: 2,
             base: Some(5.0),
         })
         .expect("set");
@@ -155,13 +159,13 @@ fn a_base_cleared_and_written_again_stands_apart_from_the_modifier_beside_it() {
 
     session
         .apply(Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: None,
         })
         .expect("clear the whole block");
     session
         .apply(Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: Some(2.0),
         })
         .expect("write it back");
@@ -177,12 +181,21 @@ fn a_base_cleared_and_written_again_stands_apart_from_the_modifier_beside_it() {
 fn clearing_the_weight_of_2_leaves_the_modifier_standing() {
     let mut session = GRAMMAR.open();
     let result = session
-        .apply(Op::SetSpawnWeight { id: 2, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 2,
+            base: None,
+        })
         .expect("clear");
     assert_eq!(session.graph.systems[&2].spawn_weight, None);
     assert_eq!(session.graph.systems[&2].spawn_modifiers.len(), 1);
     common::snapshot("clear_weight_2", &plain_report(&session, &result));
-    round_trip(GRAMMAR.open(), Op::SetSpawnWeight { id: 2, base: None });
+    round_trip(
+        GRAMMAR.open(),
+        Op::SetSpawnWeight {
+            system: 2,
+            base: None,
+        },
+    );
 }
 
 #[test]
@@ -190,7 +203,7 @@ fn clearing_the_weight_of_3018_removes_the_whole_block() {
     let mut session = GRAMMAR.open();
     let result = session
         .apply(Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: None,
         })
         .expect("clear");
@@ -199,7 +212,7 @@ fn clearing_the_weight_of_3018_removes_the_whole_block() {
     round_trip(
         GRAMMAR.open(),
         Op::SetSpawnWeight {
-            id: 3018,
+            system: 3018,
             base: None,
         },
     );
@@ -209,7 +222,10 @@ fn clearing_the_weight_of_3018_removes_the_whole_block() {
 fn clearing_the_weight_of_a_system_that_has_none_writes_nothing() {
     let mut session = GRAMMAR.open();
     session
-        .apply(Op::SetSpawnWeight { id: 9, base: None })
+        .apply(Op::SetSpawnWeight {
+            system: 9,
+            base: None,
+        })
         .expect("clear");
     assert_eq!(current(&session), GRAMMAR.bytes());
 }
@@ -220,9 +236,7 @@ fn several_weights_are_one_undo_step() {
     plain_snapshot(
         "set_weights",
         GRAMMAR.open(),
-        Op::SetSpawnWeights {
-            entries: entries.clone(),
-        },
+        spawn_weights(entries.clone()),
     );
-    round_trip(GRAMMAR.open(), Op::SetSpawnWeights { entries });
+    round_trip(GRAMMAR.open(), spawn_weights(entries));
 }

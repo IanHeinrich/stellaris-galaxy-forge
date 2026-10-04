@@ -1,4 +1,4 @@
-//! `AddSaveWormholePair` and `RemoveSaveWormholePair`: a natural wormhole pair written
+//! `AddWormholePair` and `RemoveWormholePair`: a natural wormhole pair written
 //! with only what the game does not fill in on load, and taken out whole.
 //!
 //! An add writes one `natural_wormholes` entry and one `bypasses` entry per end, each at
@@ -17,7 +17,7 @@ use crate::format::save::write::id_list::{Emptied, Place, append, unlist};
 use crate::format::save::write::wormhole::{WORMHOLE, named};
 use crate::keys;
 use crate::ops::rules::bodies::point;
-use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
+use crate::ops::{Emitted, Op, OpError, PairPoints, Plan, Planned, Subject};
 use crate::session::Session;
 
 /// How far past its system's `inner_radius` the game puts a wormhole it spawns without a
@@ -32,7 +32,7 @@ pub(crate) fn plan_add(
     s: &Session,
     a: u32,
     b: u32,
-    at: Option<((f64, f64), (f64, f64))>,
+    at: Option<PairPoints>,
 ) -> Result<Planned, OpError> {
     if a == b {
         return Err(OpError::WormholeSelf(a));
@@ -42,7 +42,10 @@ pub(crate) fn plan_add(
             return Err(OpError::UnknownSystem(system));
         }
     }
-    if let Some(((xa, ya), (xb, yb))) = at
+    if let Some(PairPoints {
+        a: (xa, ya),
+        b: (xb, yb),
+    }) = at
         && ![xa, ya, xb, yb].iter().all(|v| v.is_finite())
     {
         return Err(OpError::NotFinite);
@@ -58,7 +61,7 @@ pub(crate) fn plan_add(
     }
 
     let (first, second) = match at {
-        Some(points) => points,
+        Some(points) => (points.a, points.b),
         None => (
             outside(plan, s, a, FIRST_ANGLE)?,
             outside(plan, s, b, SECOND_ANGLE)?,
@@ -101,7 +104,7 @@ pub(crate) fn plan_add(
             named(s, a),
             named(s, b)
         ),
-        inverse: Op::RemoveSaveWormholePair { a, b },
+        inverse: Op::RemoveWormholePair { a, b },
     })
 }
 
@@ -144,10 +147,13 @@ pub(crate) fn plan_remove(
             named(s, a),
             named(s, b)
         ),
-        inverse: Op::AddSaveWormholePair {
+        inverse: Op::AddWormholePair {
             a,
             b,
-            at: Some((first.at, second.at)),
+            at: Some(PairPoints {
+                a: first.at,
+                b: second.at,
+            }),
         },
     })
 }

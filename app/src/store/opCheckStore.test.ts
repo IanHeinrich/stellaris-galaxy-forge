@@ -5,7 +5,7 @@ vi.mock("../api/ipc");
 import { mockedIpc } from "../test/ipc";
 import { resetOpChecks, useOpCheckStore } from "./opCheckStore";
 
-const KEY = JSON.stringify({ type: "DeleteSavePlanet", planet: 99 });
+const KEY = JSON.stringify({ type: "DeleteBody", body: 99 });
 const store = () => useOpCheckStore.getState();
 
 beforeEach(() => {

@@ -58,7 +58,7 @@ describe("the anomaly picker", () => {
     await useAnomalyPickerStore.getState().add(ROW);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
       type: "AddAnomaly",
-      planet: 40,
+      body: 40,
       category: "asteroid_uninhabitable_category",
     });
     expect(useAnomalyPickerStore.getState().target).toBeNull();

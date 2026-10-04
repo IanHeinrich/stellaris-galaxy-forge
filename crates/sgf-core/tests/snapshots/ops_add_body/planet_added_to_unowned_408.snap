@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added planet #16777273 to system #408 (pc_barren, size 10) at orbit 45 at 300°, with 1 deposit
-inverse: RemoveAddedBody { planet: 16777273 }
+inverse: RemoveBody { body: 16777273 }
 
 --- gamestate
 +++ gamestate

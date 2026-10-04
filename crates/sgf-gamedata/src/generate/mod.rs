@@ -1,6 +1,6 @@
 //! A random star system rolled from the install's own rules: the initializer, star class,
 //! planet classes, rings, asteroid belts and deposits a fresh galaxy would draw, as the
-//! spec [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class or layout,
+//! spec [`sgf_core::ops::Op::AddSystemFromSpec`] writes. The same seed, star class or layout,
 //! abundance and install give the same spec.
 
 use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};

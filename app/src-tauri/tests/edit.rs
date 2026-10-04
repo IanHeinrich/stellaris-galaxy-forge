@@ -16,7 +16,7 @@ fn edit_undo_redo() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "MoveSystem", "id": 0, "x": 1.0, "y": 1.0 } })
+            json!({ "op": { "type": "MoveSystem", "system": 0, "x": 1.0, "y": 1.0 } })
         )),
         ErrorKind::NoSession,
         "apply_op before any open"
@@ -50,7 +50,7 @@ fn edit_undo_redo() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 0, "x": -150.0, "y": 60.0 } }),
+        json!({ "op": { "type": "MoveSystem", "system": 0, "x": -150.0, "y": 60.0 } }),
     )
     .expect("move system 0");
     assert!(moved.dirty, "move dirties the session");
@@ -120,7 +120,7 @@ fn edit_undo_redo() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "MoveSystem", "id": 999999, "x": 0.0, "y": 0.0 } })
+            json!({ "op": { "type": "MoveSystem", "system": 999999, "x": 0.0, "y": 0.0 } })
         )),
         ErrorKind::NotFound,
         "system 999999 does not exist"
@@ -181,7 +181,7 @@ fn edit_undo_redo() {
     let isolated: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "IsolateSystem", "id": 0 } }),
+        json!({ "op": { "type": "IsolateSystem", "system": 0 } }),
     )
     .expect("isolate system 0");
     assert!(
@@ -226,7 +226,7 @@ fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSaveBody", "system": 1, "body": 588, "radius": radius, "angle": angle } }),
+        json!({ "op": { "type": "MoveBody", "system": 1, "body": 588, "radius": radius, "angle": angle } }),
     )
     .expect("move 588 onto 587");
     assert!(
@@ -261,7 +261,7 @@ fn a_wormhole_pair_added_and_undone_sends_the_bypass_links() {
     let added: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "AddSaveWormholePair", "a": 1, "b": 140 } }),
+        json!({ "op": { "type": "AddWormholePair", "a": 1, "b": 140 } }),
     )
     .expect("add the pair");
     let links = added.delta.bypasses.expect("the delta lists the links");
@@ -276,8 +276,8 @@ fn a_wormhole_pair_added_and_undone_sends_the_bypass_links() {
 
 fn class_op(from: &str, from_change: &str, to: &str, to_change: &str) -> serde_json::Value {
     json!({
-        "type": "SetPlanetClass",
-        "planet": 585,
+        "type": "SetBodyClass",
+        "body": 585,
         "from": { "class": from, "change": from_change, "models": 3 },
         "to": { "class": to, "change": to_change, "models": 3 },
     })

@@ -192,20 +192,20 @@ fn add_and_remove(session: &mut Session, name: &str) -> Option<(u128, u128)> {
             lanes: vec![0],
             ..dorellion()
         };
-        match session.apply(Op::AddSaveSystem { spec: spec.clone() }) {
+        match session.apply(Op::AddSystemFromSpec { spec: spec.clone() }) {
             Ok(_) => {
                 session.undo().expect("undo the probe").expect("the probe");
-                round_trip_step(session, name, Op::AddSaveSystem { spec: spec.clone() });
+                round_trip_step(session, name, Op::AddSystemFromSpec { spec: spec.clone() });
                 session.undo().expect("undo the add").expect("the add");
                 let t = Instant::now();
                 session
-                    .apply(Op::AddSaveSystem { spec })
+                    .apply(Op::AddSystemFromSpec { spec })
                     .unwrap_or_else(|e| panic!("{name}: add: {e}"));
                 let add_ms = t.elapsed().as_millis();
                 let added = common::current(session);
                 let t = Instant::now();
                 session
-                    .apply(Op::RemoveSystem { id })
+                    .apply(Op::RemoveSystem { system: id })
                     .unwrap_or_else(|e| panic!("{name}: remove: {e}"));
                 let remove_ms = t.elapsed().as_millis();
                 assert!(

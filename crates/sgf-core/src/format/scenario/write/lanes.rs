@@ -265,7 +265,7 @@ pub(super) fn prevent_lane(
     );
     Ok(Planned {
         description: format!("Prevented lane {a} <-> {b}"),
-        inverse: Op::UnpreventLane { a, b },
+        inverse: Op::AllowLane { a, b },
     })
 }
 

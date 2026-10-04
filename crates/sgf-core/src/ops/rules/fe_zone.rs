@@ -107,8 +107,8 @@ pub fn candidate_count(sites: &[Site<'_>]) -> usize {
     candidates(&placed_only(sites)).len()
 }
 
-/// The entries of one `SetFeZones` that replace every automatic zone with `count` of
-/// what [`candidates`] places once those zones are gone: `None` for each automatic
+/// One [`crate::ops::Op::SetFeZone`] entry per system, applied as one batch, that replace
+/// every automatic zone with `count` of what [`candidates`] places once those zones are gone: `None` for each automatic
 /// zone, then the chosen candidates, an anchor that loses one and gains one being a
 /// single entry. The candidates kept are spread over the map by farthest-point
 /// sampling from the zones the map author placed by hand, or from the edge of the map

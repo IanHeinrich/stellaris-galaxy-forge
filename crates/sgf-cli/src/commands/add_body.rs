@@ -33,7 +33,7 @@ pub fn given(sav: &Path, out: Option<&Path>, body: Body) -> Run {
         deposits: body.deposits,
         ring: body.ring,
     };
-    let op = Op::AddSaveBody {
+    let op = Op::AddBody {
         system: body.system,
         spec,
         at: body.at,
@@ -56,7 +56,7 @@ pub fn rolled(sav: &Path, out: Option<&Path>, body: Body, seed: u64, opts: &Load
         body.size,
         body.at.radius,
     )?;
-    let op = Op::AddSaveBody {
+    let op = Op::AddBody {
         system: body.system,
         spec: NewBody {
             class: rolled.class,

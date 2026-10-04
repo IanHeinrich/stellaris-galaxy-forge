@@ -48,7 +48,7 @@ describe("a height preview", () => {
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
     expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual({
       type: "SetSystemHeights",
-      heights: [{ id: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],
+      heights: [{ system: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],
     });
     expect(previews().preview.get(0)).toBe(30);
 
@@ -89,7 +89,7 @@ describe("a height preview", () => {
     await previews().commit(0);
     expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual({
       type: "SetSystemHeights",
-      heights: [{ id: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],
+      heights: [{ system: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],
     });
     expect(previews().preview.get(0)).toBe(9);
   });

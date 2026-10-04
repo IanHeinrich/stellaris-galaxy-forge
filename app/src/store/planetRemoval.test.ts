@@ -86,7 +86,7 @@ describe("deleting a planet", () => {
       expect.stringContaining("Its colony goes with it"),
       expect.objectContaining({ title: "Terra", kind: "warning" }),
     );
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 1207 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "DeleteBody", body: 1207 });
     expect(labels()).toEqual(["Sol"]);
   });
 
@@ -143,7 +143,7 @@ describe("removing a colony", () => {
 
     expect(await removeColony(1207, "Terra")).toBe(true);
 
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveColony", planet: 1207 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveColony", body: 1207 });
     expect(labels()).toEqual(["Sol", "Terra"]);
   });
 

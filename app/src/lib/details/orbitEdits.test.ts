@@ -176,29 +176,27 @@ describe("the adapter a document gets", () => {
 describe("the op each intent makes", () => {
   it("moves a body, its angle turned into [0, 360)", () => {
     expect(op(move(LONE, 110, -30))).toEqual({
-      op: { type: "MoveSaveBody", system: SYSTEM, body: LONE, radius: 110, angle: 330 },
+      op: { type: "MoveBody", system: SYSTEM, body: LONE, radius: 110, angle: 330 },
     });
   });
 
   it("makes a planet a moon, and a moon a planet", () => {
     expect(op(reparent(LONE, PLANET, 25, 0))).toEqual({
       op: {
-        type: "SetSaveBodyParent",
+        type: "SetBodyParent",
         system: SYSTEM,
         body: LONE,
-        parent: PLANET,
-        star: false,
+        parent: { Body: PLANET },
         radius: 25,
         angle: 0,
       },
     });
     expect(op(reparent(MOON, null, 140, 10))).toEqual({
       op: {
-        type: "SetSaveBodyParent",
+        type: "SetBodyParent",
         system: SYSTEM,
         body: MOON,
-        parent: null,
-        star: false,
+        parent: "Centre",
         radius: 140,
         angle: 10,
       },
@@ -212,31 +210,31 @@ describe("the op each intent makes", () => {
   it("takes the star at the centre for the centre", () => {
     expect(op(reparent(LONE, STAR, 110, 90))).toEqual(op(move(LONE, 110, 90)));
     expect(op(reparent(MOON, STAR, 140, 10))).toMatchObject({
-      op: { type: "SetSaveBodyParent", body: MOON, parent: null, star: false },
+      op: { type: "SetBodyParent", body: MOON, parent: "Centre" },
     });
   });
 
   it("adds, retypes and removes a belt, and sets the inner radius", () => {
     const addBelt = { kind: "addBelt", system: SYSTEM, beltKind: "icy_asteroid_belt", radius: 90 };
     expect(op(addBelt as GeometryIntent)).toEqual({
-      op: { type: "AddSaveBelt", system: SYSTEM, kind: "icy_asteroid_belt", radius: 90 },
+      op: { type: "AddBelt", system: SYSTEM, kind: "icy_asteroid_belt", radius: 90 },
     });
     expect(
       op({ kind: "setBeltKind", system: SYSTEM, index: 1, beltKind: "rocky_asteroid_belt" }),
     ).toEqual({
-      op: { type: "SetSaveBeltKind", system: SYSTEM, index: 1, kind: "rocky_asteroid_belt" },
+      op: { type: "SetBeltKind", system: SYSTEM, index: 1, kind: "rocky_asteroid_belt" },
     });
     expect(op({ kind: "removeBelt", system: SYSTEM, index: 0 })).toEqual({
-      op: { type: "RemoveSaveBelt", system: SYSTEM, index: 0 },
+      op: { type: "RemoveBelt", system: SYSTEM, index: 0 },
     });
     expect(op({ kind: "innerRadius", system: SYSTEM, radius: 250 })).toEqual({
-      op: { type: "SetSaveInnerRadius", system: SYSTEM, radius: 250 },
+      op: { type: "SetInnerRadius", system: SYSTEM, radius: 250 },
     });
   });
 
   it("moves a belt with no asteroids near it alone", () => {
     expect(op({ kind: "setBeltRadius", system: SYSTEM, index: 1, radius: 180 })).toEqual({
-      op: { type: "SetSaveBeltRadius", system: SYSTEM, index: 1, radius: 180 },
+      op: { type: "SetBeltRadius", system: SYSTEM, index: 1, radius: 180 },
     });
   });
 
@@ -246,9 +244,9 @@ describe("the op each intent makes", () => {
         type: "Batch",
         description: "Moved the belt at radius 120 in system #140 to 130, with 1 asteroid",
         ops: [
-          { type: "SetSaveBeltRadius", system: SYSTEM, index: 0, radius: 130 },
+          { type: "SetBeltRadius", system: SYSTEM, index: 0, radius: 130 },
           {
-            type: "MoveSaveBody",
+            type: "MoveBody",
             system: SYSTEM,
             body: ASTEROID,
             radius: expect.closeTo(134, 9),
@@ -294,7 +292,7 @@ describe("the op each intent makes", () => {
     const orphan = orbitSystem({ planets: [saveBody(58, "pc_barren", [100, 20], 10, 6, 57)] });
     expect(op(move(58, 12, 0), frameOf(orphan))).toEqual({ refused: GEOMETRY_REASONS.noOrbit });
     expect(op(reparent(58, null, 102, 11), frameOf(orphan))).toMatchObject({
-      op: { type: "SetSaveBodyParent", parent: null },
+      op: { type: "SetBodyParent", parent: "Centre" },
     });
   });
 });
@@ -334,10 +332,10 @@ describe("the stars of a binary system", () => {
 
   it("are moved by the save's move, and refused a parent", () => {
     expect(op(move(COMPANION, 250, 90), frame)).toEqual({
-      op: { type: "MoveSaveBody", system: SYSTEM, body: COMPANION, radius: 250, angle: 90 },
+      op: { type: "MoveBody", system: SYSTEM, body: COMPANION, radius: 250, angle: 90 },
     });
     expect(op(reparent(STAR, null, 20, 10), frame)).toMatchObject({
-      op: { type: "MoveSaveBody", body: STAR, radius: 20 },
+      op: { type: "MoveBody", body: STAR, radius: 20 },
     });
     expect(op(reparent(COMPANION, LONE), frame)).toEqual({ refused: GEOMETRY_REASONS.starMoon });
   });
@@ -345,11 +343,10 @@ describe("the stars of a binary system", () => {
   it("take a planet, with its moons, as a star's planet", () => {
     const toStar = (body: number) => ({
       op: {
-        type: "SetSaveBodyParent",
+        type: "SetBodyParent",
         system: SYSTEM,
         body,
-        parent: COMPANION,
-        star: true,
+        parent: { Body: COMPANION },
         radius: 70,
         angle: 10,
       },
@@ -369,13 +366,13 @@ describe("the stars of a binary system", () => {
       detachTo: null,
     });
     expect(op(reparent(LONE, ITS_PLANET, 15, 0), frame)).toMatchObject({
-      op: { type: "SetSaveBodyParent", parent: ITS_PLANET, star: false },
+      op: { type: "SetBodyParent", parent: { Body: ITS_PLANET } },
     });
     expect(op(reparent(PLANET, ITS_PLANET, 15, 0), frame)).toEqual({
       refused: GEOMETRY_REASONS.hasMoons,
     });
     expect(op(reparent(ITS_PLANET, null, 200, 0), frame)).toMatchObject({
-      op: { type: "SetSaveBodyParent", parent: null, star: false },
+      op: { type: "SetBodyParent", parent: "Centre" },
     });
   });
 
@@ -384,7 +381,7 @@ describe("the stars of a binary system", () => {
     const withMoon = frameOf({ ...details, planets: [...details.planets, moon] });
     expect(SAVE_GEOMETRY.editing(withMoon).bodies.get(10)?.detachTo).toBe(COMPANION);
     expect(op(reparent(10, COMPANION, 70, 10), withMoon)).toMatchObject({
-      op: { type: "SetSaveBodyParent", parent: COMPANION, star: true },
+      op: { type: "SetBodyParent", parent: { Body: COMPANION } },
     });
   });
 });
@@ -404,7 +401,7 @@ describe("a planet whose save names the star at the centre as its parent", () =>
       moonRing: 15,
     });
     expect(op(reparent(NAMED, null, 150, 90), frame)).toEqual(op(move(NAMED, 150, 90), frame));
-    expect(op(move(NAMED, 150, 90), frame)).toMatchObject({ op: { type: "MoveSaveBody" } });
+    expect(op(move(NAMED, 150, 90), frame)).toMatchObject({ op: { type: "MoveBody" } });
   });
 });
 
@@ -626,13 +623,13 @@ describe("helpers", () => {
   }
 
   it("carries a belt's asteroid on from the orbit it stores, not where it is drawn", () => {
-    expect(carried(124, 124.3, 130)).toMatchObject({ type: "MoveSaveBody", body: 6, radius: 134 });
+    expect(carried(124, 124.3, 130)).toMatchObject({ type: "MoveBody", body: 6, radius: 134 });
   });
 
   it("carries an asteroid stored off any whole orbit by the belt's own step", () => {
     const moved = carried(124.3, 124.3, 120.3);
-    expect(moved).toMatchObject({ type: "MoveSaveBody", body: 6 });
-    expect(moved?.type === "MoveSaveBody" && moved.radius).toBeCloseTo(124.6);
+    expect(moved).toMatchObject({ type: "MoveBody", body: 6 });
+    expect(moved?.type === "MoveBody" && moved.radius).toBeCloseTo(124.6);
   });
 
   it("reads a body's orbit about its parent, and none for a star", () => {
@@ -717,7 +714,7 @@ describe("a save's wormholes", () => {
   it("move a natural wormhole about the centre, and keep a shroud tunnel where it is", () => {
     expect(SAVE_GEOMETRY.editing(frame).wormholes).toEqual(new Set([30]));
     expect(op(moveTo(30, 150, 405), frame)).toEqual({
-      op: { type: "MoveSaveWormhole", wormhole: 30, radius: 150, angle: 45 },
+      op: { type: "MoveWormhole", wormhole: 30, radius: 150, angle: 45 },
     });
     expect(SAVE_GEOMETRY.preview(moveTo(30, 100, 0), frame).wormholes?.get(30)).toEqual({
       x: 100,

@@ -24,16 +24,16 @@ pub(crate) fn plan_set(
     let mut one = String::new();
     for (new, old) in heights.iter().zip(&restore) {
         let text = new.height.map(height_text);
-        write_height(plan.edit(&s.doc, new.id)?, text.as_deref())?;
-        let name = s.graph.systems[&new.id].display_name();
+        write_height(plan.edit(&s.doc, new.system)?, text.as_deref())?;
+        let name = s.graph.systems[&new.system].display_name();
         one = match (old.height, &text) {
             (Some(old), Some(text)) => format!(
                 "Set the height of {name} (#{}) from {} to {text}",
-                new.id,
+                new.system,
                 coord(old)
             ),
-            (None, Some(text)) => format!("Set the height of {name} (#{}) to {text}", new.id),
-            (_, None) => format!("Cleared the height of {name} (#{})", new.id),
+            (None, Some(text)) => format!("Set the height of {name} (#{}) to {text}", new.system),
+            (_, None) => format!("Cleared the height of {name} (#{})", new.system),
         };
     }
     Ok(Planned {

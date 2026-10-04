@@ -56,7 +56,7 @@ fn system_of(doc: &Document, bypass: u32) -> Option<u32> {
     })
 }
 
-/// Distance and angle are about the star, as `MoveSaveWormhole` takes them.
+/// Distance and angle are about the star, as `MoveWormhole` takes them.
 pub(crate) fn sheet(facts: &WormholeFacts) -> Sheet {
     let mut sheet = Sheet::default();
     if !facts.kind.is_empty() {

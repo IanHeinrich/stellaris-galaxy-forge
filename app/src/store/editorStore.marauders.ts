@@ -17,6 +17,7 @@ import {
   type BaseSite,
 } from "../lib/marauder";
 import { nextSystemId } from "../lib/paint";
+import { initializersOp } from "../lib/systemsBatch";
 import { refuseOr, systems } from "./editorEdits";
 import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -71,14 +72,11 @@ export function marauderActions(
           const clan = freeClan();
           if (clan === null) return null;
           const [second, third] = [...bases].sort((a, b) => a - b);
-          return {
-            type: "SetInitializers",
-            entries: [
-              { id: home, initializer: homeInitializer(clan) },
-              { id: second, initializer: baseInitializer(clan, 2) },
-              { id: third, initializer: baseInitializer(clan, 3) },
-            ],
-          };
+          return initializersOp([
+            [home, homeInitializer(clan)],
+            [second, baseInitializer(clan, 2)],
+            [third, baseInitializer(clan, 3)],
+          ]);
         }),
       );
       if (applied) useMapChromeStore.getState().setLayerQuietly("marauders", true);
@@ -88,8 +86,8 @@ export function marauderActions(
     async removeMarauderClan(clan) {
       if (clanSystems(clan, systems()).length === 0) return false;
       return get().applyOp(() => {
-        const entries = clanSystems(clan, systems()).map((id) => ({ id, initializer: null }));
-        return entries.length === 0 ? null : { type: "SetInitializers", entries };
+        const entries = clanSystems(clan, systems()).map((id) => [id, null] as const);
+        return entries.length === 0 ? null : initializersOp(entries);
       });
     },
 
@@ -101,14 +99,12 @@ export function marauderActions(
         get().applyOp(() => {
           const now = systems().get(home);
           if (!now) return null;
-          const entries = [
-            { id: home, initializer: homeInitializer(to) },
-            ...basesBeside(now, systems()).map((base) => ({
-              id: base.id,
-              initializer: baseInitializer(to, baseSite(base)),
-            })),
-          ];
-          return { type: "SetInitializers", entries };
+          return initializersOp([
+            [home, homeInitializer(to)],
+            ...basesBeside(now, systems()).map(
+              (base) => [base.id, baseInitializer(to, baseSite(base))] as const,
+            ),
+          ]);
         }),
       );
     },
@@ -139,7 +135,7 @@ export function marauderActions(
 function addSystem(id: number, point: { x: number; y: number }, initializer: string): Op {
   return {
     type: "AddSystem",
-    id,
+    system: id,
     x: point.x,
     y: point.y,
     name: null,

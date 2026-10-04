@@ -34,7 +34,7 @@ function InitializerEditor({ system }: { system: SystemNode }) {
           onCommit={(value) =>
             applyOp({
               type: "SetInitializer",
-              id: system.id,
+              system: system.id,
               initializer: value.trim() === "" ? null : value.trim(),
             })
           }

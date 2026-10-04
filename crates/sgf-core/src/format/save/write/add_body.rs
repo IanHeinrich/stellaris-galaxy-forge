@@ -1,4 +1,4 @@
-//! `AddSaveBody` and `RemoveAddedBody`: one planet or moon added to a save system, and
+//! `AddBody` and `RemoveBody`: one planet or moon added to a save system, and
 //! taken out again. The body's entry and its deposits' take slots as
 //! [`super::add_system`] gives them, the system lists it after its last `planet=` line, a
 //! moon's planet lists it in `moons`, and the inner radius grows when the body lies past it.
@@ -126,7 +126,7 @@ pub(crate) fn plan_add(
         number(at.radius),
         number(angle),
     );
-    let inverse = Op::RemoveAddedBody { planet: id };
+    let inverse = Op::RemoveBody { body: id };
     grow_past(plan, s, system, reach(&after, &added), description, inverse)
 }
 
@@ -149,7 +149,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         .parent
         .filter(|&p| stored.iter().any(|b| b.body.id == p));
     let moon_of = parent.filter(|_| own.moon);
-    let inverse = Op::AddSaveBody {
+    let inverse = Op::AddBody {
         system,
         spec: spec_of(&s.doc, &node, src, moon_of),
         at: placement(&stored, &own.body, moon_of),

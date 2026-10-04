@@ -68,8 +68,8 @@ describe("the deposit picker", () => {
     // Asking again for the held amount, as Enter in the search does, confirms it.
     await store.add(row, row.amounts[0], warnings);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "AddSaveDeposit",
-      planet: 40,
+      type: "AddDeposit",
+      body: 40,
       kind: "d_energy_1",
     });
     expect(useDepositPickerStore.getState()).toMatchObject({
@@ -97,8 +97,8 @@ describe("the deposit picker", () => {
     await store.add(row, row.amounts[1]);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "AddSaveDeposit",
-      planet: 40,
+      type: "AddDeposit",
+      body: 40,
       kind: "d_energy_3",
     });
     const state = useDepositPickerStore.getState();

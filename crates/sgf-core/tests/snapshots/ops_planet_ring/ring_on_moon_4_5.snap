@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Gave planet #586 a ring
-inverse: SetPlanetRing { planet: 586, ring: false }
+inverse: SetBodyRing { body: 586, ring: false }
 
 --- gamestate
 +++ gamestate

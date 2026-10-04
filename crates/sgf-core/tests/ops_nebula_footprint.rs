@@ -78,12 +78,12 @@ fn nebula_ops_dress_the_systems_they_take_in_and_undress_the_ones_they_let_go() 
             Op::MoveSystems {
                 moves: vec![
                     SystemMove {
-                        id: 171,
+                        system: 171,
                         x: -250.0,
                         y: -20.0,
                     },
                     SystemMove {
-                        id: 64,
+                        system: 64,
                         x: -340.0,
                         y: -60.0,
                     },
@@ -221,7 +221,7 @@ fn an_inverse_applied_after_a_later_op_puts_back_the_clouds_it_took() {
         name: None,
     };
     let out = |id: u32| Op::MoveSystem {
-        id,
+        system: id,
         x: -420.0,
         y: -200.0,
     };
@@ -278,7 +278,10 @@ fn a_game_cloud_comes_back_as_the_file_held_it_after_its_star_changed() {
     round_trip_step(
         &mut session,
         "resize Dristmak's star",
-        Op::SetPlanetSize { id: 571, size: 20 },
+        Op::SetBodySize {
+            body: 571,
+            size: 20,
+        },
     );
     let resized = text(&current(&session));
     let removed = round_trip_step(
@@ -303,12 +306,16 @@ fn a_game_cloud_comes_back_as_the_file_held_it_after_its_star_changed() {
 fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     let mut session = open_4_5();
     let original = session.doc.original().to_vec();
-    round_trip_step(&mut session, "add Mura", Op::AddSaveSystem { spec: mura() });
+    round_trip_step(
+        &mut session,
+        "add Mura",
+        Op::AddSystemFromSpec { spec: mura() },
+    );
     round_trip_step(
         &mut session,
         "move Mura into Nythran Expanse",
         Op::MoveSystem {
-            id: MURA,
+            system: MURA,
             x: -330.0,
             y: -75.0,
         },
@@ -319,10 +326,14 @@ fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     let rolled = round_trip_step(
         &mut session,
         "reroll Mura",
-        Op::ReplaceSaveSystem { system: MURA, spec },
+        Op::ReplaceSystemFromSpec { system: MURA, spec },
     );
     common::snapshot("footprint_reroll", &report(&session, &rolled));
-    round_trip_step(&mut session, "remove Mura", Op::RemoveSystem { id: MURA });
+    round_trip_step(
+        &mut session,
+        "remove Mura",
+        Op::RemoveSystem { system: MURA },
+    );
     assert!(
         current(&session) == original,
         "removing Mura left something behind"
@@ -337,7 +348,11 @@ fn a_system_added_inside_a_nebula_joins_it() {
     let original = session.doc.original().to_vec();
     let mut spec = mura();
     (spec.x, spec.y) = IN_NYTHRAN_EXPANSE;
-    let added = round_trip_step(&mut session, "add Mura inside", Op::AddSaveSystem { spec });
+    let added = round_trip_step(
+        &mut session,
+        "add Mura inside",
+        Op::AddSystemFromSpec { spec },
+    );
     assert_eq!(session.graph.systems[&MURA].nebula, Some(NYTHRAN_EXPANSE));
     let diff = common::diff::unified_diff(&session, None);
     assert!(
@@ -378,7 +393,7 @@ fn a_3_4_save_moves_members_and_writes_no_clouds() {
         &mut session,
         "move in",
         Op::MoveSystem {
-            id: outsider,
+            system: outsider,
             x: nebula.x,
             y: nebula.y,
         },

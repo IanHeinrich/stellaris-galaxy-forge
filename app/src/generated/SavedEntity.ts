@@ -2,7 +2,7 @@
 import type { SavedTable } from "./SavedTable";
 
 /**
- * One save entity in [`Op::RestoreSaveEntities`]: the table it stands in, its id, and its
+ * One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
  * whole `<id>={ … }` statement.
  */
 export type SavedEntity = { table: SavedTable, id: number, text: string, };

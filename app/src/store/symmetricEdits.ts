@@ -15,6 +15,7 @@ import {
   type Symmetry,
 } from "../lib/geometry/symmetry";
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
+import { initializersOp, spawnScriptsOp, spawnWeightsOp } from "../lib/systemsBatch";
 import { counted } from "../lib/text";
 import { isPrevented, linked, useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
@@ -92,15 +93,15 @@ export function movePlan(ids: readonly number[]): MovePlan {
 
 /** Every system `plan` carries, each moved by its copy's image of its lead's move in `moves`. */
 export function plannedMoves(plan: MovePlan, moves: readonly SystemMove[]): SystemMove[] {
-  const byId = new Map(moves.map((m) => [m.id, m]));
+  const byId = new Map(moves.map((m) => [m.system, m]));
   return plan.orbits.flatMap(({ lead, members }) => {
     const to = byId.get(lead.id);
     if (!to) return [];
     const d = { x: to.x - lead.x, y: to.y - lead.y };
     return members.map((m) => {
-      if (m === lead) return { id: m.id, x: to.x, y: to.y };
+      if (m === lead) return { system: m.id, x: to.x, y: to.y };
       const e = imageOf(d, plan.symmetry, m.k);
-      return { id: m.id, x: m.x + e.x, y: m.y + e.y };
+      return { system: m.id, x: m.x + e.x, y: m.y + e.y };
     });
   });
 }
@@ -169,22 +170,14 @@ function sameSeat(
   return { paint_a_galaxy: { ...script.paint_a_galaxy, random_value: own } };
 }
 
-const initializers = (all: Array<[number, string | null]>): Op => ({
-  type: "SetInitializers",
-  entries: all.map(([id, initializer]) => ({ id, initializer })),
-});
-const weights = (all: Array<[number, number | null]>): Op => ({
-  type: "SetSpawnWeights",
-  entries: all,
-});
-const scripts = (all: Array<[number, SpawnScript | null]>): Op => ({
-  type: "SetSpawnScripts",
-  entries: all,
-});
+const initializers = (all: Array<[number, string | null]>): Op => initializersOp(all);
+const weights = (all: Array<[number, number | null]>): Op => spawnWeightsOp(all);
+const scripts = (all: Array<[number, SpawnScript | null]>): Op => spawnScriptsOp(all);
 
 /** `op` widened alone, or as one Batch named `description` when symmetry adds to it. */
 function widened(op: Op, grew: boolean, wide: Op, description: string): Op {
-  return grew ? { type: "Batch", description, ops: [wide] } : op;
+  if (!grew) return op;
+  return { type: "Batch", description, ops: wide.type === "Batch" ? wide.ops : [wide] };
 }
 
 function addSystems(op: Extract<Op, { type: "AddSystem" }>): Op {
@@ -196,10 +189,10 @@ function addSystems(op: Extract<Op, { type: "AddSystem" }>): Op {
     if (apart && !grid?.nearestSystem(p.x, p.y, COUNTERPART_REACH)) kept.push(p);
   }
   if (kept.length === 1) return op;
-  const first = op.id ?? nextSystemId(all.values());
+  const first = op.system ?? nextSystemId(all.values());
   const { name, initializer, spawn_weight, spawn_script } = op;
   const systems = kept.map((p, i): NewSystem => ({
-    id: first + i,
+    system: first + i,
     x: p.x,
     y: p.y,
     name,
@@ -217,12 +210,12 @@ function addSystems(op: Extract<Op, { type: "AddSystem" }>): Op {
 export type MoveOp = Extract<Op, { type: "MoveSystem" | "MoveSystems" }>;
 
 function movesOf(op: MoveOp): SystemMove[] {
-  return op.type === "MoveSystem" ? [{ id: op.id, x: op.x, y: op.y }] : op.moves;
+  return op.type === "MoveSystem" ? [{ system: op.system, x: op.x, y: op.y }] : op.moves;
 }
 
 /** The ids `op` moves, in its order: the first of each orbit leads it. */
 export function movedIds(op: MoveOp): number[] {
-  return movesOf(op).map((m) => m.id);
+  return movesOf(op).map((m) => m.system);
 }
 
 /** `op` with the moves `plan` makes of it, as one Batch when that carries more systems. */
@@ -299,7 +292,7 @@ function preventDescription(prevent: readonly Pair[], cut: number): string {
  */
 export function allowOp(pairs: readonly Pair[]): Op | null {
   const all = counterpartPairs(pairs, barred).filter(([a, b]) => barred(a, b));
-  const ops = all.map(([a, b]): Op => ({ type: "UnpreventLane", a, b }));
+  const ops = all.map(([a, b]): Op => ({ type: "AllowLane", a, b }));
   return oneEdit(ops, `Allowed ${counted(all.length, "lane")}`);
 }
 
@@ -308,13 +301,13 @@ function isolate(op: Op, ids: readonly number[]): Op {
   const all = symmetricIds(ids).filter(
     (id) => asked.has(id) || (useGalaxyStore.getState().systems.get(id)?.lanes.length ?? 0) > 0,
   );
-  const wide: Op = { type: "IsolateSystems", ids: all };
+  const wide: Op = { type: "IsolateSystems", systems: all };
   return widened(op, all.length > ids.length, wide, `Isolated ${counted(all.length, "system")}`);
 }
 
 function remove(op: Op, ids: readonly number[]): Op {
   const all = symmetricIds(ids);
-  const wide: Op = { type: "RemoveSystems", ids: all };
+  const wide: Op = { type: "RemoveSystems", systems: all };
   return widened(op, all.length > ids.length, wide, `Deleted ${counted(all.length, "system")}`);
 }
 
@@ -360,22 +353,13 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
       op.to.map((to): Pair => [op.from, to]),
     ),
   RemoveLanePairs: (op) => cutLanes(op, op.lanes),
-  IsolateSystem: (op) => isolate(op, [op.id]),
-  IsolateSystems: (op) => isolate(op, op.ids),
-  RemoveSystem: (op) => remove(op, [op.id]),
-  RemoveSystems: (op) => remove(op, op.ids),
-  SetInitializer: (op) => entriesOp(op, [[op.id, op.initializer]], initializers, "initializer"),
-  SetInitializers: (op) =>
-    entriesOp(
-      op,
-      op.entries.map((e) => [e.id, e.initializer] as const),
-      initializers,
-      "initializer",
-    ),
-  SetSpawnWeight: (op) => entriesOp(op, [[op.id, op.base]], weights, "spawn weight"),
-  SetSpawnWeights: (op) => entriesOp(op, op.entries, weights, "spawn weight"),
-  SetSpawnScript: (op) => entriesOp(op, [[op.id, op.script]], scripts, "seat", sameSeat),
-  SetSpawnScripts: (op) => entriesOp(op, op.entries, scripts, "seat", sameSeat),
+  IsolateSystem: (op) => isolate(op, [op.system]),
+  IsolateSystems: (op) => isolate(op, op.systems),
+  RemoveSystem: (op) => remove(op, [op.system]),
+  RemoveSystems: (op) => remove(op, op.systems),
+  SetInitializer: (op) => entriesOp(op, [[op.system, op.initializer]], initializers, "initializer"),
+  SetSpawnWeight: (op) => entriesOp(op, [[op.system, op.base]], weights, "spawn weight"),
+  SetSpawnScript: (op) => entriesOp(op, [[op.system, op.script]], scripts, "seat", sameSeat),
   SetLaneLength: null,
   SetLaneLengths: null,
   NormaliseLaneLength: null,
@@ -384,25 +368,23 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   AddNebula: null,
   RemoveNebula: null,
   SetNebulaRadius: null,
-  SetNebulaName: null,
+  RenameNebula: null,
   AddSystems: null,
-  SetSystemName: null,
   SetHeaderField: null,
   SetHeaderKeys: null,
   SetHeaderList: null,
   SetFeZone: null,
-  SetFeZones: null,
   SetWormholePair: null,
   SetWormholeEnds: null,
   SetFeLinks: null,
   SetFeLinkFlags: null,
   PreventLane: (op) => preventOp([[op.a, op.b]], false) ?? op,
-  UnpreventLane: (op) => allowOp([[op.a, op.b]]) ?? op,
+  AllowLane: (op) => allowOp([[op.a, op.b]]) ?? op,
   SetLGateOutcome: null,
   SetStarClass: null,
-  SetPlanetSize: null,
-  AddPlanetModifier: null,
-  RemovePlanetModifier: null,
+  SetBodySize: null,
+  AddBodyModifier: null,
+  RemoveBodyModifier: null,
   AddAnomaly: null,
   RemoveAnomaly: null,
   AddDigSite: null,
@@ -410,36 +392,61 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetEmpireMapColors: null,
   SetEmpireFlag: null,
   RenameEmpire: null,
-  AddSaveSystem: null,
-  AddSaveDeposit: null,
-  RemoveSaveDeposit: null,
-  ReplaceSaveSystem: null,
-  RenameSaveSystem: null,
+  AddSystemFromSpec: null,
+  AddDeposit: null,
+  RemoveDeposit: null,
+  ReplaceSystemFromSpec: null,
+  RenameSystem: null,
   SetNebulaTurbulent: null,
   SetNebulaFootprints: null,
-  MoveSaveBody: null,
-  SetSaveBodyParent: null,
-  MoveSaveWormhole: null,
-  AddSaveWormholePair: null,
-  RemoveSaveWormholePair: null,
-  SetPlanetRing: null,
-  SetPlanetEntity: null,
-  SetPlanetClass: null,
-  AddSaveBelt: null,
-  RemoveSaveBelt: null,
-  SetSaveBeltRadius: null,
-  SetSaveBeltKind: null,
-  SetSaveInnerRadius: null,
+  MoveBody: null,
+  SetBodyParent: null,
+  MoveWormhole: null,
+  AddWormholePair: null,
+  RemoveWormholePair: null,
+  SetBodyRing: null,
+  SetBodyModel: null,
+  SetBodyClass: null,
+  AddBelt: null,
+  RemoveBelt: null,
+  SetBeltRadius: null,
+  SetBeltKind: null,
+  SetInnerRadius: null,
   SetSystemHeights: null,
-  MoveSavePlanet: null,
-  RenameSavePlanet: null,
+  MoveBodyToSystem: null,
+  RenameBody: null,
   RemoveColony: null,
-  DeleteSavePlanet: null,
-  RestoreSaveEntities: null,
-  AddSaveBody: null,
-  RemoveAddedBody: null,
-  Batch: null,
+  DeleteBody: null,
+  AddBody: null,
+  RemoveBody: null,
+  Batch: widenBatch,
 };
+
+/**
+ * A batch of one entry op per system, initializers, weights or seats, widened as the op for
+ * one system is: one member per system, a counterpart the batch already sets keeping its own
+ * value. Any other batch is left as it is.
+ */
+function widenBatch(op: Extract<Op, { type: "Batch" }>): Op {
+  const members = <T extends Op["type"]>(type: T) =>
+    op.ops.every((m) => m.type === type) ? (op.ops as Array<Extract<Op, { type: T }>>) : null;
+  const initializerOps = members("SetInitializer");
+  if (initializerOps) {
+    const entries = initializerOps.map((m) => [m.system, m.initializer] as const);
+    return entriesOp(op, entries, initializers, "initializer");
+  }
+  const weightOps = members("SetSpawnWeight");
+  if (weightOps) {
+    const entries = weightOps.map((m) => [m.system, m.base] as const);
+    return entriesOp(op, entries, weights, "spawn weight");
+  }
+  const scriptOps = members("SetSpawnScript");
+  if (scriptOps) {
+    const entries = scriptOps.map((m) => [m.system, m.script] as const);
+    return entriesOp(op, entries, scripts, "seat", sameSeat);
+  }
+  return op;
+}
 
 /** `op` as the global symmetry makes it; an op symmetry adds nothing to is returned as it is. */
 export function symmetricOp(op: Op): Op {
@@ -458,7 +465,7 @@ export function symmetricSeat(
 ): Op | null {
   const script = seat(system);
   if (script === undefined) return null;
-  const op: Op = { type: "SetSpawnScript", id: system.id, script };
+  const op: Op = { type: "SetSpawnScript", system: system.id, script };
   if (copies(symmetry()) === 1 || reservedSeat(script)) return op;
   return entriesOp(op, [[system.id, script]], scripts, "seat", (_, counterpart) =>
     seat(counterpart),

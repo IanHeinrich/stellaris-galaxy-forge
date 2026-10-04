@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Add fallen empire zone to Void
-inverse: SetFeZone { id: 10, zone: None }
+inverse: SetFeZone { system: 10, zone: None }
 
 --- scenario
 +++ scenario

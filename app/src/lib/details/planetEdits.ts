@@ -28,18 +28,18 @@ export const COLONY_SIZE =
 export function renamePlanetOp(id: number, current: string, text: string): Op | null {
   const name = text.trim();
   if (name === "" || name === current) return null;
-  return { type: "RenameSavePlanet", planet: id, name };
+  return { type: "RenameBody", body: id, name: { Literal: name } };
 }
 
 export function addDepositOp(planet: number, kind: string): Op {
-  return { type: "AddSaveDeposit", planet, kind };
+  return { type: "AddDeposit", body: planet, kind };
 }
 
 /** The edit that adds `choice` to planet `planet` for `days`, or for ever when `null`. */
 export function addModifierOp(planet: number, choice: ModifierChoice, days: number | null): Op {
   return {
-    type: "AddPlanetModifier",
-    planet,
+    type: "AddBodyModifier",
+    body: planet,
     modifier: choice.modifier,
     days: [days ?? PERMANENT],
     ...(choice.feature === null ? {} : { feature: choice.feature }),
@@ -49,8 +49,8 @@ export function addModifierOp(planet: number, choice: ModifierChoice, days: numb
 /** The edit that takes a row of the page's Modifiers list off planet `planet`. */
 export function removeModifierOp(planet: number, row: ModifierRow): Op {
   return {
-    type: "RemovePlanetModifier",
-    planet,
+    type: "RemoveBodyModifier",
+    body: planet,
     modifier: row.modifier,
     ...(row.feature ? { feature: row.key } : {}),
   };
@@ -58,17 +58,17 @@ export function removeModifierOp(planet: number, row: ModifierRow): Op {
 
 /** The edit that adds an anomaly of category `category` to planet `planet`. */
 export function addAnomalyOp(planet: number, category: string): Op {
-  return { type: "AddAnomaly", planet, category };
+  return { type: "AddAnomaly", body: planet, category };
 }
 
 /** The edit that takes planet `planet`'s anomaly off it. */
 export function removeAnomalyOp(planet: number): Op {
-  return { type: "RemoveAnomaly", planet };
+  return { type: "RemoveAnomaly", body: planet };
 }
 
 /** The edit that puts a dig site of `choice`'s type on planet `planet`, at its first stage. */
 export function addDigSiteOp(planet: number, choice: DigSiteChoice): Op {
-  return { type: "AddDigSite", planet, site_type: choice.key, difficulty: choice.difficulty };
+  return { type: "AddDigSite", body: planet, site_type: choice.key, difficulty: choice.difficulty };
 }
 
 /**
@@ -81,7 +81,7 @@ export function removeDepositOp(
   swapType: string | null,
 ): Op | null {
   const target = removalTarget(page, kind, swapType);
-  return target === null ? null : { type: "RemoveSaveDeposit", deposit: target.id };
+  return target === null ? null : { type: "RemoveDeposit", deposit: target.id };
 }
 
 /** One effect of a deposit type as the picker words it: a lost district as what it blocks. */

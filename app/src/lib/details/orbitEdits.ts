@@ -684,7 +684,7 @@ function same(a: number, b: number): boolean {
 function moveOp(system: number, body: BodyPlacement, radius: number, angle: number): GeometryOp {
   if (!body.ring) return { refused: GEOMETRY_REASONS.noOrbit };
   if (same(body.ring.radius, radius) && angleGap(body.angle, angle) < SAME) return null;
-  return { op: { type: "MoveSaveBody", system, body: body.id, radius, angle: wrapDegrees(angle) } };
+  return { op: { type: "MoveBody", system, body: body.id, radius, angle: wrapDegrees(angle) } };
 }
 
 /** Whether `id` is `body` or orbits it, however far down. */
@@ -721,7 +721,6 @@ function reparentOp(
   const editing = saveEditing(frame).bodies;
   const own = editing.get(body.id);
   if (!own?.reparent) return { refused: own?.reason ?? GEOMETRY_REASONS.hasMoons };
-  let star = false;
   if (parent !== null) {
     if (under(layout, parent, body.id)) return { refused: GEOMETRY_REASONS.itself };
     const host = layout.bodies.find((b) => b.id === parent);
@@ -734,15 +733,13 @@ function reparentOp(
       };
     }
     if (!host.star && !own.asMoon) return { refused: GEOMETRY_REASONS.hasMoons };
-    star = host.star;
   }
   return {
     op: {
-      type: "SetSaveBodyParent",
+      type: "SetBodyParent",
       system,
       body: body.id,
-      parent,
-      star,
+      parent: parent === null ? "Centre" : { Body: parent },
       radius,
       angle: wrapDegrees(angle),
     },
@@ -756,12 +753,12 @@ function beltRadiusOp(
   const { system, index, radius } = intent;
   const belt = frame.layout.belts[index];
   if (!belt || same(belt.radius, radius)) return null;
-  const op: Op = { type: "SetSaveBeltRadius", system, index, radius };
+  const op: Op = { type: "SetBeltRadius", system, index, radius };
   const carried = [...carriedAsteroids(frame, belt.radius, radius)];
   if (carried.some(([, to]) => !(to.radius > 0))) return { refused: GEOMETRY_REASONS.asteroidPast };
   if (carried.length === 0) return { op };
   const moves: Op[] = carried.map(([body, to]) => ({
-    type: "MoveSaveBody",
+    type: "MoveBody",
     system,
     body,
     radius: to.radius,
@@ -785,7 +782,7 @@ function wormholeOp(
   const { x, y } = wormhole;
   const unmoved = same(Math.hypot(x, y), radius) && angleGap(saveAngle(0, 0, x, y), angle) < SAME;
   if (unmoved) return null;
-  return { op: { type: "MoveSaveWormhole", wormhole: id, radius, angle: wrapDegrees(angle) } };
+  return { op: { type: "MoveWormhole", wormhole: id, radius, angle: wrapDegrees(angle) } };
 }
 
 /** The class of body `id`, as the details give it. */
@@ -817,7 +814,7 @@ function saveOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {
     case "addBelt":
       return {
         op: {
-          type: "AddSaveBelt",
+          type: "AddBelt",
           system: intent.system,
           kind: intent.beltKind,
           radius: intent.radius,
@@ -829,17 +826,17 @@ function saveOp(intent: GeometryIntent, frame: GeometryFrame): GeometryOp {
       const belt = layout.belts[intent.index];
       if (!belt || belt.kind === intent.beltKind) return null;
       const { system, index, beltKind: kind } = intent;
-      return { op: { type: "SetSaveBeltKind", system, index, kind } };
+      return { op: { type: "SetBeltKind", system, index, kind } };
     }
     case "removeBelt": {
       if (!layout.belts[intent.index]) return null;
-      return { op: { type: "RemoveSaveBelt", system: intent.system, index: intent.index } };
+      return { op: { type: "RemoveBelt", system: intent.system, index: intent.index } };
     }
     case "innerRadius": {
       if (same(layout.innerRadius, intent.radius)) return null;
       const least = innerFloorOf(frame);
       if (intent.radius < least) return { refused: innerTooSmall(least) };
-      return { op: { type: "SetSaveInnerRadius", system: intent.system, radius: intent.radius } };
+      return { op: { type: "SetInnerRadius", system: intent.system, radius: intent.radius } };
     }
     case "moveWormhole":
       return wormholeOp(intent, frame);

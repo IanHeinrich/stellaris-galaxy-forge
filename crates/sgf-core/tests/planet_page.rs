@@ -101,7 +101,10 @@ fn a_terraforming_planet_says_so() {
 fn the_page_reads_the_bytes_an_op_wrote() {
     let mut session = common::open();
     session
-        .apply(Op::SetPlanetSize { id: 731, size: 20 })
+        .apply(Op::SetBodySize {
+            body: 731,
+            size: 20,
+        })
         .expect("resize Nekkar I");
     assert_eq!(page(&session.doc, 731).size, Some(20));
     session.undo().expect("undo").expect("an op to undo");

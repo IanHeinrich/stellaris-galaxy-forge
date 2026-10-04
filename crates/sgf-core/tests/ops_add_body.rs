@@ -30,7 +30,7 @@ fn moon(class: &str, size: u32, of: u32) -> NewBody {
 }
 
 fn add(system: u32, spec: NewBody, radius: f64, angle: f64) -> Op {
-    Op::AddSaveBody {
+    Op::AddBody {
         system,
         spec,
         at: OrbitPlacement { radius, angle },
@@ -44,7 +44,7 @@ fn added(result: &OpResult) -> u32 {
         inverse => inverse,
     };
     match removal {
-        Op::RemoveAddedBody { planet } => *planet,
+        Op::RemoveBody { body: planet } => *planet,
         other => panic!("a removal, not {other:?}"),
     }
 }
@@ -115,7 +115,7 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
              with 1 deposit"
         )
     );
-    assert_eq!(result.inverse, Op::RemoveAddedBody { planet: id });
+    assert_eq!(result.inverse, Op::RemoveBody { body: id });
     let entry = planet_entry(&session, id);
     assert!(entry.contains("key=\"Meissa\""), "{entry}");
     assert_eq!(numerals(&entry), ["V"]);
@@ -140,7 +140,7 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
             "Added moon #{a} of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°"
         )
     );
-    assert_eq!(first.inverse, Op::RemoveAddedBody { planet: a });
+    assert_eq!(first.inverse, Op::RemoveBody { body: a });
     assert!(
         text(&session).contains("\t\tinner_radius=175\n\t\touter_radius=275\n"),
         "the radii stay"
@@ -277,7 +277,7 @@ fn adds_and_removals_are_refused() {
             "radius 0 is invalid: a body's orbit must be greater than zero",
         ),
         (
-            Op::RemoveAddedBody { planet: 138 },
+            Op::RemoveBody { body: 138 },
             "planet 138 was in the save when it was opened: only a body added since then can be taken out again",
         ),
     ];
@@ -293,7 +293,7 @@ fn adds_and_removals_are_refused() {
         .apply(add(408, moon("pc_barren", 5, id), 15.0, 0.0))
         .expect("a moon of it");
     let error = session
-        .apply(Op::RemoveAddedBody { planet: id })
+        .apply(Op::RemoveBody { body: id })
         .expect_err("it has a moon");
     assert!(
         matches!(error, OpError::BodyHasMoons(p) if p == id),

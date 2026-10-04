@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
 Set the spawn weight of 3 systems
-inverse: SetSpawnWeights { entries: [(2, Some(0.0)), (512, None), (1, None)] }
+inverse: Batch { description: "Set the spawn weight of 3 systems", ops: [SetSpawnWeight { system: 1, base: None }, SetSpawnWeight { system: 512, base: None }, SetSpawnWeight { system: 2, base: Some(0.0) }] }
 
 --- scenario
 +++ scenario

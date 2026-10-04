@@ -293,7 +293,7 @@ fn a_batch_is_refused_whole_when_a_later_member_fails() {
 }
 
 // The rollback in `apply_one` at ops/mod.rs (around line 103) only runs for an op with
-// a `follow_up` second step: `Op::AddSaveSystem` and `Op::ReplaceSaveSystem`.
+// a `follow_up` second step: `Op::AddSystemFromSpec` and `Op::ReplaceSystemFromSpec`.
 // `Op::SetEmpireFlag` has no follow-up, so no batch built from flag ops alone can reach
 // it; reaching it for real needs an add/replace-system follow-up that itself fails,
 // which is unrelated to flag coverage and is not attempted here.

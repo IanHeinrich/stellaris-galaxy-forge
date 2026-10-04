@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the inner radius of system #1 from 186.71 to 160
-inverse: SetSaveInnerRadius { system: 1, radius: 186.71 }
+inverse: SetInnerRadius { system: 1, radius: 186.71 }
 
 --- gamestate
 +++ gamestate

@@ -5,7 +5,7 @@ expression: value
 ---
 Added Mura (#601) at (-292.23404, -137.62265) with 9 bodies and 1 lane
 touched: [169, 601]
-inverse: RemoveSystem { id: 601 }
+inverse: RemoveSystem { system: 601 }
 … and 3 other issues
 
 --- gamestate

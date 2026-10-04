@@ -12,11 +12,11 @@ use common::examples::save_with_added;
 use common::{current, open, open_4_5};
 
 fn add(a: u32, b: u32) -> Op {
-    Op::AddSaveWormholePair { a, b, at: None }
+    Op::AddWormholePair { a, b, at: None }
 }
 
 fn remove(a: u32, b: u32) -> Op {
-    Op::RemoveSaveWormholePair { a, b }
+    Op::RemoveWormholePair { a, b }
 }
 
 fn wormholes(session: &Session, system: u32) -> Vec<WormholeSummary> {
@@ -78,7 +78,7 @@ fn the_edit_result_reports_the_bypass_links_only_when_they_change() {
     let mut session = open_4_5();
     let moved = session
         .apply(Op::MoveSystem {
-            id: 1,
+            system: 1,
             x: -150.0,
             y: 60.0,
         })
@@ -113,7 +113,7 @@ fn an_added_pair_removed_gives_back_the_bytes_as_opened() {
     assert!(wormholes(&session, 1).is_empty() && wormholes(&session, 140).is_empty());
     assert!(matches!(
         removed.inverse,
-        Op::AddSaveWormholePair {
+        Op::AddWormholePair {
             a: 140,
             b: 1,
             at: Some(_)
@@ -197,7 +197,7 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
     let mut session = save_with_added();
     session.apply(add(791, 0)).expect("the add");
     let error = session
-        .apply(Op::RemoveSystem { id: 791 })
+        .apply(Op::RemoveSystem { system: 791 })
         .expect_err("a wormhole in the way");
     assert_eq!(
         error.to_string(),
@@ -205,7 +205,7 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
     );
     session.apply(remove(0, 791)).expect("the removal");
     session
-        .apply(Op::RemoveSystem { id: 791 })
+        .apply(Op::RemoveSystem { system: 791 })
         .expect("then the system goes");
 }
 
