@@ -118,11 +118,11 @@ because the file dialog already asked about overwriting it.
   runs on Ubuntu: the script tests, `bash scripts/version.sh check`, fmt,
   clippy, and the app's lint, Vitest and build. The `Test` jobs run on
   Windows, Ubuntu and macOS. Shard 0 of each runs everything except
-  sgf-core's integration tests, and on Ubuntu checks the diff of
-  `app/src/generated/`. The other shards run those integration tests, which
-  take most of the time, split by `bash scripts/test-shard.sh <index>
-  <count>`. `Checks (<os>)` reports passed only when `Lint` and every
-  `Test` job passed.
+  sgf-core's integration tests. The other shards run those integration
+  tests, which take most of the time, split by `bash scripts/test-shard.sh
+  <index> <count>`. Every Ubuntu `Test` job checks the diff of
+  `app/src/generated/`. `Checks (<os>)` reports passed only when `Lint`
+  and every `Test` job passed.
   A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
   `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
   skips the build, and `ci-docs.yml` reports the required checks as

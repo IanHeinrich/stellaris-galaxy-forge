@@ -101,24 +101,25 @@ jobs:
       - name: Version file agrees with the manifests
         if: matrix.shard == 0
         run: bash scripts/version.sh check
-      - name: Rust tests outside sgf-core
+      # Every crate's unit tests in one build, so sgf-core's builds alongside the others. The
+      # corpus binaries skip without their variables; clippy already builds them.
+      - name: Unit tests
         if: matrix.shard == 0
-        run: cargo test --workspace --exclude sgf-core
-      - name: sgf-core unit, doc and corpus tests
+        run: cargo test --workspace --lib --bins
+      - name: Integration and doc tests outside sgf-core
         if: matrix.shard == 0
         run: |
-          cargo test -p sgf-core --lib --test corpus --test scenario_corpus
-          cargo test -p sgf-core --doc
-      - name: sgf-core constants
-        if: matrix.shard == 0
-        run: cargo test -p sgf-core --test integration -- "constants::"
-      - name: Generated TypeScript types are up to date
-        if: matrix.shard == 0 && matrix.os == 'ubuntu-latest'
-        run: git diff --exit-code app/src/generated
+          cargo test --workspace --exclude sgf-core --test integration
+          cargo test --workspace --doc
 
       - name: sgf-core integration tests
         if: matrix.shard != 0
         run: bash scripts/test-shard.sh ${{ matrix.shard }} ${{ matrix.count }}
+
+      # Shard 0 writes the ts-rs types and the shard holding constants:: writes constants.ts.
+      - name: Generated TypeScript types are up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: git diff --exit-code app/src/generated
 
   checks:
     name: Checks (${{ matrix.os }})
