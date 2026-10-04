@@ -3,8 +3,7 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import type { SaveMeta } from "../generated/SaveMeta";
 import { PREF_KEYS } from "./prefKeys";
 import { prefField } from "./prefs";
-import { counted } from "../lib/text";
-import { versionShort } from "../lib/version";
+import { DOCUMENT_KINDS, isDocumentKind } from "../lib/documentKinds";
 
 /** One document recently opened, either kind, for the Open screen and the File menu. */
 export interface RecentDoc {
@@ -29,22 +28,12 @@ const RECENTS_CAP = 10;
 
 const RECENTS = prefField<unknown[]>(PREF_KEYS.recents, [], Array.isArray);
 
-/** A save's empire, date and version; a scenario's system count when one is given. */
 export function recentSubtitle(
   kind: DocumentKind,
   meta: SaveMeta | null,
   galaxySystems?: number,
 ): string {
-  if (kind === "save") {
-    if (meta === null) return "";
-    return [meta.name, meta.date, versionShort(meta.version)].filter(Boolean).join(" · ");
-  }
-  if (typeof galaxySystems !== "number") return "";
-  return counted(galaxySystems, "system");
-}
-
-function isDocumentKind(value: unknown): value is DocumentKind {
-  return value === "save" || value === "scenario";
+  return DOCUMENT_KINDS[kind].recentSubtitle(meta, galaxySystems);
 }
 
 function isRecentDoc(value: unknown): value is RecentDoc {

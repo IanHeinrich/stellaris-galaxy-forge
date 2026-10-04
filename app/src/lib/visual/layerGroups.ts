@@ -1,5 +1,6 @@
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
+import { DOCUMENT_KINDS, type GroupLayout } from "../documentKinds";
 import { KIND_ORDER } from "../special";
 import {
   LAYER_IDS,
@@ -126,9 +127,14 @@ const SAVE_GROUPS: readonly Group[] = [
   },
 ];
 
-/** The groups the open document's layers fall into; the only place the kind is consulted. */
+const GROUPS: Readonly<Record<GroupLayout, readonly Group[]>> = {
+  single: SAVE_GROUPS,
+  by_source: SCENARIO_GROUPS,
+};
+
+/** The groups the open document's layers fall into; a save's before any document opens. */
 export function groupsFor(kind: DocumentKind | null): readonly Group[] {
-  return kind === "scenario" ? SCENARIO_GROUPS : SAVE_GROUPS;
+  return GROUPS[DOCUMENT_KINDS[kind ?? "save"].groups];
 }
 
 /** How much of a group the map draws, for the one button that switches all of it. */

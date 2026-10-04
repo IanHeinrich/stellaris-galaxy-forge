@@ -77,7 +77,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - The rows a screen lists, as pure functions of what has been read:
   `openRows` for the Open screen, `browserRows` for the dock's lists.
 - The editor's own vocabulary: `tools` (the rail's tools), `keys` (every key
-  binding), `capabilities` (what the open document can take), `flagKey` (the
+  binding), `capabilities` (what the open document can take), `documentKinds`
+  (what differs between a save and a scenario in data: the label, file filter,
+  bar, default layers and the rest, one row per kind so a new kind fails to
+  compile until it has one), `flagKey` (the
   texture key of an empire's flag), `paths` and `random` (a seeded sequence,
   and fresh seeds).
   `menuAim` keeps a submenu open while the pointer heads for it, `watchlist`
@@ -90,7 +93,9 @@ the core's tests write. `guides`, `addSystem` and `feZone` re-export what they
 use of it.
 
 `lib/visual/` is how it looks: colours, fonts, textures, layer ids and badge
-styles, shared by the map and the panels so both draw the same thing.
+styles, shared by the map and the panels so both draw the same thing. The
+colour and icon key of each special kind sit with its label in `lib/special.ts`,
+and `specialStyle` reads them.
 `color` mixes two colours. `barMode` is which bar the chrome shows (a
 save's, a scenario's or a system's) and which layer buttons, controls and
 number keys each offers. It stays beside `layerIds` because most of what it

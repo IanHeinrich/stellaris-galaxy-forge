@@ -2,6 +2,7 @@ import type { DocumentKind } from "../generated/DocumentKind";
 import type { Guide } from "../generated/Guide";
 import type { SystemNode } from "../generated/SystemNode";
 import { L_CLUSTER, LCLUSTER_PREFIX } from "../generated/constants";
+import { DOCUMENT_KINDS, type LClusterGuide, type MapEdge } from "./documentKinds";
 
 /** Half the side of the square a scenario's coordinates must fall in, in world units. */
 export const SCENARIO_HALF_EXTENT = 500;
@@ -11,10 +12,17 @@ export type MapExtent = { shape: "circle"; radius: number } | { shape: "square";
 
 const SCENARIO_SQUARE: MapExtent = { shape: "square", half: SCENARIO_HALF_EXTENT };
 
+const GALAXY_CIRCLE = (radius: number): MapExtent | null =>
+  radius > 0 ? { shape: "circle", radius } : null;
+
+const EXTENTS: Readonly<Record<MapEdge, (radius: number) => MapExtent | null>> = {
+  galaxy_radius: GALAXY_CIRCLE,
+  scenario_square: () => SCENARIO_SQUARE,
+};
+
 /** The edge of the map: a save's galaxy radius, null when it records none, else the scenario square. */
 export function mapExtent(kind: DocumentKind | null, radius: number): MapExtent | null {
-  if (kind !== "save") return SCENARIO_SQUARE;
-  return radius > 0 ? { shape: "circle", radius } : null;
+  return kind === null ? SCENARIO_SQUARE : EXTENTS[DOCUMENT_KINDS[kind].mapEdge](radius);
 }
 
 /** How far from the origin the map reaches: its circle's radius, or out to its square's corners. */
@@ -42,7 +50,10 @@ export function isLClusterSystem(system: SystemNode): boolean {
  * circle about the systems marked as the cluster, falling back to the fixed one when it has none.
  */
 export function lClusterGuide(kind: DocumentKind | null, systems: Iterable<SystemNode>): Guide {
-  if (kind !== "save") return L_CLUSTER;
+  return kind === null ? L_CLUSTER : L_CLUSTER_GUIDES[DOCUMENT_KINDS[kind].lCluster](systems);
+}
+
+function markedClusterGuide(systems: Iterable<SystemNode>): Guide {
   const members = [...systems].filter(isLClusterSystem);
   if (members.length === 0) return L_CLUSTER;
   const xs = members.map((s) => s.x);
@@ -52,3 +63,9 @@ export function lClusterGuide(kind: DocumentKind | null, systems: Iterable<Syste
   const reach = Math.max(...members.map((s) => Math.hypot(s.x - x, s.y - y)));
   return { x, y, radius: Math.max(L_CLUSTER_MIN_RADIUS, reach + L_CLUSTER_MARGIN) };
 }
+
+const L_CLUSTER_GUIDES: Readonly<Record<LClusterGuide, (systems: Iterable<SystemNode>) => Guide>> =
+  {
+    marked_systems: markedClusterGuide,
+    fixed: () => L_CLUSTER,
+  };

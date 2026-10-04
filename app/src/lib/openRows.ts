@@ -4,6 +4,7 @@ import type { PaintModView } from "../generated/PaintModView";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioSource } from "../generated/ScenarioSource";
+import type { DocumentKind } from "../generated/DocumentKind";
 import type { Setting } from "../generated/Setting";
 import type { OpenMode } from "../store/fileSessionStore";
 import type { RecentDoc } from "../store/recentsStore";
@@ -142,8 +143,13 @@ export function saveStem(name: string): string {
 
 /** What a recent document is called: a save by the name it was given, a scenario by its own. */
 export function recentTitle(doc: RecentDoc): string {
-  return doc.kind === "save" ? saveStem(fileName(doc.path)) : doc.title || fileName(doc.path);
+  return RECENT_TITLES[doc.kind](doc);
 }
+
+const RECENT_TITLES: Readonly<Record<DocumentKind, (doc: RecentDoc) => string>> = {
+  save: (doc) => saveStem(fileName(doc.path)),
+  scenario: (doc) => doc.title || fileName(doc.path),
+};
 
 function saveRow(file: SaveFile): SaveRow {
   const autosave = file.file_name.toLowerCase().startsWith("autosave");

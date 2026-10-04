@@ -6,6 +6,7 @@ import type { GalaxySettings } from "../../generated/GalaxySettings";
 import type { SaveFile } from "../../generated/SaveFile";
 import type { SaveMeta } from "../../generated/SaveMeta";
 import type { ScenarioListing } from "../../generated/ScenarioListing";
+import { DOCUMENT_KINDS } from "../../lib/documentKinds";
 import { displayNameIn, readableKey } from "../../lib/names";
 import {
   countText,
@@ -415,7 +416,7 @@ function RecentDetails({ doc, missing }: { doc: RecentDoc; missing: boolean }) {
       <Block title="File">
         <Facts
           facts={[
-            ["Kind", doc.kind === "save" ? "Save" : "Scenario"],
+            ["Kind", DOCUMENT_KINDS[doc.kind].label],
             ["Opened", formatWhen(doc.openedAt / 1000)],
             ...whereFacts(doc.path),
           ]}

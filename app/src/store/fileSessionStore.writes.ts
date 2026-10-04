@@ -3,6 +3,7 @@ import { isSgfError } from "../api/errors";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import type { SaveResult } from "../generated/SaveResult";
+import { DOCUMENT_KINDS } from "../lib/documentKinds";
 import { paintLayer, scenarioHeaderName } from "../lib/paint";
 import { fileName, isUnder, joinPath } from "../lib/paths";
 import type { FileSessionState } from "./fileSessionStore";
@@ -15,8 +16,8 @@ import {
 import { useGalaxyStore } from "./galaxyStore";
 import { paintScenariosDir, usePaintModStore } from "./paintModStore";
 
-export const SAVE_FILTER = { name: "Stellaris save", extensions: ["sav"] };
-export const SCENARIO_FILTER = { name: "Stellaris static galaxy scenario", extensions: ["txt"] };
+export const SAVE_FILTER = DOCUMENT_KINDS.save.fileFilter;
+export const SCENARIO_FILTER = DOCUMENT_KINDS.scenario.fileFilter;
 
 type WriteActions = Pick<
   FileSessionState,
@@ -68,7 +69,7 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     async saveAs(defaultPath) {
       const { status, saving, changedOnDiskPrompt, kind, path, title } = get();
       if (status !== "ready" || saving || changedOnDiskPrompt !== null) return;
-      const filter = kind === "scenario" ? SCENARIO_FILTER : SAVE_FILTER;
+      const filter = DOCUMENT_KINDS[kind ?? "save"].fileFilter;
       const forPaintMod = paintLayer(get(), usePaintModStore.getState().paintMod);
       await saveTo(
         defaultPath ?? path ?? newFilePath(title, filter.extensions[0], forPaintMod),

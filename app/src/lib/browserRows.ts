@@ -11,7 +11,7 @@ import {
   type CountryTypes,
 } from "./countryKinds";
 import { supersededCountry, systemsOf, type Ownership } from "./ownership";
-import { kindLabel } from "./special";
+import { kindLabel, POINT_KINDS, pointLabel, type PointKind } from "./special";
 import { counted, titleCase } from "./text";
 
 export { issueTitle };
@@ -163,31 +163,6 @@ export function specialSystemOfCountry(
   return where;
 }
 
-/** The kinds the Points of interest tab lists: the country-shaped ones live in Empires. */
-export const POINT_KINDS = [
-  "leviathan",
-  "enclave",
-  "landmark",
-  "holy_world",
-  "contingency",
-  "horizon_signal",
-  "cutholoid",
-  "unique",
-] as const;
-
-export type PointKind = (typeof POINT_KINDS)[number];
-
-const POINT_LABELS: Record<PointKind, string> = {
-  leviathan: "Leviathans",
-  enclave: "Enclaves",
-  landmark: "Galactic landmarks",
-  holy_world: "Holy worlds",
-  contingency: "Contingency hubs",
-  horizon_signal: "Horizon Signal",
-  cutholoid: "Hidden Cutholoids",
-  unique: "Scripted systems",
-};
-
 /** Kinds whose row reads as the system first, with what stands there as the subline. */
 const NAME_FIRST: ReadonlySet<PointKind> = new Set(["landmark", "unique"]);
 
@@ -283,7 +258,7 @@ export function pointGroups(
     return [
       {
         key: kind,
-        label: POINT_LABELS[kind],
+        label: pointLabel(kind),
         kind,
         count: entries.length,
         rows: scripted ? [] : entries.map((e) => e.row),
