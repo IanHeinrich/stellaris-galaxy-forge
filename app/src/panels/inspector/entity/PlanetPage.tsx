@@ -1,66 +1,50 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ComponentType } from "react";
 import type { PlanetPage } from "../../../generated/PlanetPage";
-import type { PlanetPageAnomaly } from "../../../generated/PlanetPageAnomaly";
-import type { PlanetPageMoon } from "../../../generated/PlanetPageMoon";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
 import { findPlanet, isStarBody } from "../../../lib/details/starBody";
-import {
-  daysLeft,
-  modifierRows,
-  planetDataKeys,
-  type ModifierRow,
-} from "../../../lib/details/planetPage";
-import type { PickerTarget, PlanetEditAdapter } from "../../../lib/details/picker";
+import { planetDataKeys } from "../../../lib/details/planetPage";
+import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
-import { bodyEditHint, COLONY_SIZE } from "../../../lib/details/planetEdits";
+import { COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
-import { templateName } from "../../../lib/names";
-import { counted, thousands } from "../../../lib/text";
+import { counted } from "../../../lib/text";
 import { bodyOrbit } from "../../../lib/details/orbitIntent";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
-import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
-import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
-import { planetPickerTarget, type SaveRowRefs } from "../../../store/planetEditAdapter";
+import type { Entry } from "../../../store/inspectorStore";
+import { planetPickerTarget } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
 import { useNamed } from "../../useNamed";
-import { Icon } from "../../parts";
-import {
-  DrillLink,
-  DrillRow,
-  Empty,
-  LinkRow,
-  Properties,
-  PropertyRow,
-  Section,
-  Swatch,
-} from "../parts";
+import { DrillLink, Empty, LinkRow, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
-import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
-import { PlanetRow } from "../system/sections/Planets";
+import { PlanetIcon } from "../system/sections/bodies";
 import { EntityView } from "./EntityView";
 import { OrbitBlock } from "./OrbitBlock";
-import { AnomalyPicker } from "./AnomalyPicker";
-import { ModifierPicker } from "./ModifierPicker";
+import { openBody } from "./openBody";
+import { AnomalyRow, PlanetAnomaly } from "./PlanetAnomaly";
+import { CountryRow, PlanetColony } from "./PlanetColony";
 import { PlanetDigSite } from "./PlanetDigSite";
 import { PlanetDeposits } from "./PlanetDeposits";
 import { PlanetClassField } from "./PlanetClassField";
-import { DeletePlanetAction, RemoveColonyAction } from "./PlanetRemoval";
+import { PlanetModifiers } from "./PlanetModifiers";
+import { PlanetMoons } from "./PlanetMoons";
+import { DeletePlanetAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
+import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useBodyName } from "./useBodyName";
-import { useSingleStarClasses } from "./useBodyClasses";
+import { useSingleStarClasses } from "./useStarClasses";
 import "./entity.css";
-import { useOpenEntity, usePlanetPage } from "./useEntity";
+import { usePlanetPage } from "./useEntity";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations and class names. */
 function usePlanetData(page: PlanetPage): void {
@@ -169,152 +153,10 @@ function PlanetBlock({
   );
 }
 
-function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() => void) | null }) {
-  const view = row.view;
-  const line = [
-    ...(view?.effects.map((e) => e.text) ?? []),
-    ...(row.days === null ? [] : [daysLeft(row.days)]),
-  ].join(" · ");
-  return (
-    <div className="pl-mod">
-      <span className="pl-mod-icon">
-        <Icon keys={view?.icon == null ? [] : [view.icon]} glyph="◆" />
-        {view?.icon_frame != null && <Icon className="pl-mod-frame" keys={[view.icon_frame]} />}
-      </span>
-      <span>
-        <span className={view === undefined ? "l1 mono" : "l1"}>{view?.name ?? row.key}</span>
-        {line !== "" && <span className="l2">{line}</span>}
-      </span>
-      {onRemove !== null && (
-        <button
-          type="button"
-          className="pl-dep-remove pl-mod-remove"
-          title={row.feature ? "Remove this planet feature" : "Remove this modifier"}
-          aria-label={`Remove ${view?.name ?? row.key}`}
-          onClick={onRemove}
-        >
-          ✕
-        </button>
-      )}
-    </div>
-  );
-}
-
-/**
- * The planet's modifiers; where `editable`, each with its remove button and the picker below,
- * both through `target`'s adapter.
- */
-function PlanetModifiers({
-  page,
-  editable,
-  target,
-}: {
-  page: PlanetPage;
-  editable: boolean;
-  target: PickerTarget<SaveRowRefs>;
-}) {
-  const views = usePlanetDataStore((s) => s.modifiers);
-  const rows = modifierRows(page, views);
-  if (rows.length === 0 && !editable) return null;
-  return (
-    <Section id="planet.modifiers" title="Modifiers" count={rows.length}>
-      {rows.map((row) => (
-        <ModifierRowView
-          key={row.key}
-          row={row}
-          onRemove={editable ? () => void target.edits.removeModifier(row) : null}
-        />
-      ))}
-      {editable && <ModifierPicker target={target} />}
-    </Section>
-  );
-}
-
-/** A row naming a country, whose name opens its page. */
-function CountryRow({ label, id }: { label: string; id: number }) {
-  const opener = useOpenEntity();
-  const country = useGalaxyStore((s) => s.countries.get(id));
-  const name = country === undefined ? `country #${id}` : templateName(country);
-  return (
-    <PropertyRow label={label}>
-      <span className="pl-country">
-        <Swatch owner={id} />
-        <DrillLink
-          requires={capabilityFor("country")}
-          title="Open the empire's page"
-          onOpen={() => opener.open({ kind: "country", id }, name)}
-        >
-          {name}
-        </DrillLink>
-      </span>
-    </PropertyRow>
-  );
-}
-
-/** The colony's facts, and its removal through `edits` when `removable` names the body. */
-function Colony({
-  page,
-  removable,
-  edits,
-}: {
-  page: PlanetPage;
-  removable: string | null;
-  edits: PlanetEditAdapter;
-}) {
-  const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
-  const opener = useOpenEntity();
-  const colony = page.colony;
-  if (colony === null || page.owner === null) return null;
-  const designation = colony.final_designation ?? colony.designation;
-  const type = designation === null ? undefined : colonyTypes.get(designation);
-  const split = colony.species.map(
-    (s) =>
-      `${s.name.key === "" ? `species #${s.id}` : templateName({ name: s.name, name_key: s.name.key })} ${thousands(s.pops)}`,
-  );
-  return (
-    <Section id="planet.colony" title="Colony">
-      <Properties>
-        <CountryRow label="Owner" id={page.owner} />
-        {designation !== null && (
-          <PropertyRow label="Designation">
-            <span className="pl-designation">
-              {type?.icon != null && <Icon className="gi" keys={[type.icon]} />}
-              {type?.name ?? designation}
-            </span>
-          </PropertyRow>
-        )}
-        {colony.colonised !== null && (
-          <PropertyRow label="Colonised">{colony.colonised}</PropertyRow>
-        )}
-        <PropertyRow label="Pops">{[thousands(colony.pops), ...split].join(" · ")}</PropertyRow>
-        <LinkRow
-          label="Colony"
-          requires={capabilityFor("colony")}
-          title="Open the colony's page"
-          onOpen={() => opener.open({ kind: "colony", id: colony.id }, `Colony #${colony.id}`)}
-        >
-          #{colony.id}
-        </LinkRow>
-      </Properties>
-      {removable !== null && <RemoveColonyAction page={page} name={removable} edits={edits} />}
-    </Section>
-  );
-}
-
 /** Planet `id` as the read systems list it, or null while none does. */
 function useFoundPlanet(id: number) {
   const details = useDetailsStore((s) => s.details);
   return useMemo(() => findPlanet(details, id), [details, id]);
-}
-
-/**
- * Opens body `id` of system `system` as the system view opens it; one outside any system opens as
- * a planet.
- */
-function openBody(system: number | null, id: number, label: string): void {
-  const entry: Entry =
-    system === null ? { ref: { kind: "planet", id }, label } : bodyEntry(system, id, label);
-  useInspectorStore.getState().open(entry);
 }
 
 function Orbits({
@@ -341,95 +183,11 @@ function Orbits({
   );
 }
 
-/** Who has found `anomaly`: "found by …", or "not found yet". */
-function useFinders(anomaly: PlanetPageAnomaly): string {
-  const countries = useGalaxyStore((s) => s.countries);
-  const finders = anomaly.found_by.map((id) => {
-    const country = countries.get(id);
-    return country === undefined ? `country #${id}` : templateName(country);
-  });
-  return finders.length === 0 ? "not found yet" : `found by ${finders.join(", ")}`;
-}
-
-/** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
-function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
-  const named = useNamed([anomaly.category]);
-  const found = useFinders(anomaly);
-  return (
-    <PropertyRow label="Anomaly">
-      {named(anomaly.category)}
-      <span className="muted">
-        {" · "}
-        {found}
-      </span>
-    </PropertyRow>
-  );
-}
-
-/**
- * The anomaly as the Anomaly section lists it: its name, who found it, the game's description of
- * it once the anomaly choices are read, and its remove button.
- */
-function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; target: PickerTarget }) {
-  const named = useNamed([anomaly.category]);
-  const found = useFinders(anomaly);
-  const name = named(anomaly.category);
-  const ready = useGameDataStore((s) => s.status === "ready");
-  const description = useAnomalyPickerStore(
-    (s) => s.choices?.list.find((c) => c.key === anomaly.category)?.description ?? null,
-  );
-  useEffect(() => {
-    if (ready) useAnomalyPickerStore.getState().load(target);
-  }, [ready, target]);
-  return (
-    <div className="pl-mod">
-      <span className="pl-mod-icon">
-        <Icon keys={[]} glyph="?" />
-      </span>
-      <span>
-        <span className="l1">{name}</span>
-        <span className="l2">{found}</span>
-        {ready && description !== null && <span className="pl-anomaly-desc">{description}</span>}
-      </span>
-      <button
-        type="button"
-        className="pl-dep-remove pl-mod-remove"
-        title="Remove this anomaly"
-        aria-label={`Remove ${name}`}
-        onClick={() => void target.edits.removeAnomaly()}
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
-/** The body's anomaly as `target` holds it, with its remove button, or the picker that adds one. */
-function PlanetAnomaly({ target }: { target: PickerTarget }) {
-  return (
-    <Section id="planet.anomaly" title="Anomaly">
-      {target.anomaly === null ? (
-        <AnomalyPicker target={target} />
-      ) : (
-        <AnomalyRowView anomaly={target.anomaly} target={target} />
-      )}
-    </Section>
-  );
-}
-
 /**
  * What the page only shows; `radius` is the body's orbit where no Orbit block edits it, and the
  * anomaly shows here where no Anomaly section edits it.
  */
-function About({
-  page,
-  radius,
-  anomalyEditable,
-}: {
-  page: PlanetPage;
-  radius: number | null;
-  anomalyEditable: boolean;
-}) {
+function About({ page, offers, radius }: PlanetSectionProps) {
   const systemName = useGalaxyStore((s) => s.systemName);
   const system = page.system;
   const occupied = page.controller !== null && page.controller !== page.owner;
@@ -444,7 +202,7 @@ function About({
         )}
         {page.parent !== null && <Orbits system={system} parent={page.parent} radius={radius} />}
         {page.surveyed_by !== null && <CountryRow label="Surveyed by" id={page.surveyed_by} />}
-        {page.anomaly !== null && !anomalyEditable && <AnomalyRow anomaly={page.anomaly} />}
+        {page.anomaly !== null && !offers.anomaly && <AnomalyRow anomaly={page.anomaly} />}
         {occupied && page.controller !== null && (
           <CountryRow label="Controller" id={page.controller} />
         )}
@@ -454,57 +212,31 @@ function About({
   );
 }
 
-/** A moon of system `system` that no read system lists: its class and size, opening its own page. */
-function MoonFallbackRow({ system, moon }: { system: number | null; moon: PlanetPageMoon }) {
+/** The page's Delete, where the page offers removal. */
+function DeleteSection({ page, offers, target }: PlanetSectionProps) {
   const names = useGameDataStore((s) => s.names);
-  const classes = useGameDataStore((s) => s.planetClasses);
-  const named = templateName(moon);
-  const name = bodyName(moon, names);
+  if (!offers.pageRemoval) return null;
   return (
-    <DrillRow requires={capabilityFor("planet")} onOpen={() => openBody(system, moon.id, name)}>
-      <PlanetIcon
-        planetClass={moon.class}
-        sprite={classes.get(moon.class)?.icon_sprite}
-        seed={moon.id}
-      />
-      <span>
-        <span className="l1">{name}</span>
-        <span className="l2">
-          {named !== "" && bodyClassName(moon.class, names)}
-          {moon.size !== null && <PlanetSize size={moon.size} />}
-        </span>
-      </span>
-    </DrillRow>
+    <DeletePlanetAction
+      page={page}
+      name={bodyName(page, names)}
+      moon={target.moon}
+      edits={target.edits}
+    />
   );
 }
 
-function Moons({ page }: { page: PlanetPage }) {
-  const read = useDetailsStore((s) =>
-    page.system === null ? undefined : s.details.get(page.system),
-  );
-  const planetClasses = useGameDataStore((s) => s.planetClasses);
-  const starClasses = useGameDataStore((s) => s.starClasses);
-  const bodies = useCanEdit("bodies");
-  if (page.moons.length === 0) return null;
-  return (
-    <Section id="planet.moons" title="Moons" count={page.moons.length}>
-      {page.moons.map((moon) => {
-        const summary = read?.planets.find((p) => p.id === moon.id);
-        if (read === undefined || summary === undefined) {
-          return <MoonFallbackRow key={moon.id} system={page.system} moon={moon} />;
-        }
-        return (
-          <PlanetRow
-            key={moon.id}
-            planet={{ ...summary, moon: false }}
-            details={read}
-            editHint={bodyEditHint(summary.class, bodies, planetClasses, starClasses)}
-          />
-        );
-      })}
-    </Section>
-  );
-}
+/** What the page lists below its fields, in order; each leaves itself out where it has nothing to show. */
+const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionProps> }[] = [
+  { id: "deposits", Component: PlanetDeposits },
+  { id: "modifiers", Component: PlanetModifiers },
+  { id: "anomaly", Component: PlanetAnomaly },
+  { id: "digSite", Component: PlanetDigSite },
+  { id: "colony", Component: PlanetColony },
+  { id: "about", Component: About },
+  { id: "moons", Component: PlanetMoons },
+  { id: "delete", Component: DeleteSection },
+];
 
 /**
  * A save body's Overview: a star's own fields first, then what the body is, holds and carries,
@@ -569,16 +301,9 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
           )}
         </Properties>
       )}
-      <PlanetDeposits page={page} editable={offers.deposits} target={target} />
-      <PlanetModifiers page={page} editable={offers.modifiers} target={target} />
-      {offers.anomaly && <PlanetAnomaly target={target} />}
-      <PlanetDigSite site={page.dig_site} editable={offers.digSite} target={target} />
-      <Colony page={page} removable={offers.pageRemoval ? name : null} edits={target.edits} />
-      <About page={page} radius={radius} anomalyEditable={offers.anomaly} />
-      <Moons page={page} />
-      {offers.pageRemoval && (
-        <DeletePlanetAction page={page} name={name} moon={moon} edits={target.edits} />
-      )}
+      {SECTIONS.map(({ id, Component }) => (
+        <Component key={id} page={page} offers={offers} target={target} radius={radius} />
+      ))}
       {(starBlock || hasFields(fields) || editsAny || orbitable) && <EditKey />}
     </>
   );

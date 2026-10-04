@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { EditRow } from "./EditField";
-import { gridPlace, gridStep, groupItems } from "./gridKeys";
+import { gridPlace, gridStep } from "./gridKeys";
+import { groupItems } from "./tileGroups";
 import { IconPicker } from "./IconPicker";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { useTextureUrl } from "./useTextureUrl";

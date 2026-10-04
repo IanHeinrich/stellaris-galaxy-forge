@@ -10,7 +10,7 @@ import type { IconPickerItem } from "../../IconPicker";
 import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { useNamed } from "../../useNamed";
-import { useSingleStarClasses } from "./useBodyClasses";
+import { useSingleStarClasses } from "./useStarClasses";
 
 const NO_CHOICE = "The game data has no other star type";
 const NO_SIZE = "The save gives this body no size";

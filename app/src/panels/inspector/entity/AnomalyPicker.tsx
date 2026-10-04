@@ -1,18 +1,16 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ANOMALY_CHIPS,
   anomalyPickRows,
   anomalySections,
+  type AnomalyChip,
   type AnomalyPickRow,
 } from "../../../lib/details/anomalyPicker";
-import type { PickerTarget } from "../../../lib/details/picker";
+import type { AnomalyChoice } from "../../../generated/AnomalyChoice";
 import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { Icon } from "../../parts";
-import { PickerMenu, PickerOpener, type PickerItem } from "./PickerMenu";
-
-export const ANOMALY_PICKER_NEEDS_GAME_DATA = "Adding an anomaly needs the game data";
-export const READING_ANOMALIES = "Reading the anomalies…";
-export const NO_ANOMALY_MATCHES = "No anomaly matches";
+import type { PickerItem } from "./PickerMenu";
+import type { PickerKind } from "./PlanetPicker";
 
 /** A category's row: its level, and one Add button. */
 function anomalyItem(row: AnomalyPickRow): PickerItem {
@@ -26,41 +24,30 @@ function anomalyItem(row: AnomalyPickRow): PickerItem {
   };
 }
 
-/** The open picker, with the level chips and one row per category. */
-function AnomalyMenu({ target }: { target: PickerTarget }) {
-  const query = useAnomalyPickerStore((s) => s.query);
-  const chip = useAnomalyPickerStore((s) => s.chip);
-  const choices = useAnomalyPickerStore((s) => s.choices);
-  useEffect(() => useAnomalyPickerStore.getState().open(target), [target]);
-  const rows = useMemo(() => (choices === null ? null : anomalyPickRows(choices.list)), [choices]);
-  return (
-    <PickerMenu
-      usePicker={useAnomalyPickerStore}
-      name="Add an anomaly"
-      searchName="Search anomalies"
-      placeholder="Search name"
-      chips={ANOMALY_CHIPS}
-      chipsName="Anomaly levels"
-      sections={rows === null ? null : anomalySections(rows, chip, query)}
-      reading={READING_ANOMALIES}
-      noneMatch={NO_ANOMALY_MATCHES}
-      idPrefix={`ap-row-${target.key}`}
-      item={anomalyItem}
-      onAdd={(row) => void useAnomalyPickerStore.getState().add(row)}
-    />
-  );
-}
-
-/** The picker's button, and the picker below it while open. */
-export function AnomalyPicker({ target }: { target: PickerTarget }) {
-  const open = useAnomalyPickerStore((s) => s.target?.key === target.key);
-  if (open) return <AnomalyMenu target={target} />;
-  return (
-    <PickerOpener
-      label="+ Add anomaly…"
-      title="Add an anomaly for a science ship to research. If you have surveyed the planet, it shows at once."
-      needsGameData={ANOMALY_PICKER_NEEDS_GAME_DATA}
-      onOpen={() => useAnomalyPickerStore.getState().open(target)}
-    />
-  );
-}
+/** The anomaly picker, with the level chips and one row per category. */
+export const ANOMALY_PICKER: PickerKind<AnomalyPickRow, AnomalyChip, AnomalyChoice> = {
+  store: useAnomalyPickerStore,
+  words: {
+    name: "Add an anomaly",
+    searchName: "Search anomalies",
+    placeholder: "Search name",
+    chipsName: "Anomaly levels",
+    reading: "Reading the anomalies…",
+    noneMatch: "No anomaly matches",
+    opener: {
+      label: "+ Add anomaly…",
+      title:
+        "Add an anomaly for a science ship to research. If you have surveyed the planet, it shows at once.",
+      needsGameData: "Adding an anomaly needs the game data",
+    },
+  },
+  chips: ANOMALY_CHIPS,
+  idPrefix: (target) => `ap-row-${target.key}`,
+  useIsOpen: (target) => useAnomalyPickerStore((s) => s.target?.key === target.key),
+  open: (target) => useAnomalyPickerStore.getState().open(target),
+  useRows: (choices) =>
+    useMemo(() => (choices === null ? null : anomalyPickRows(choices.list)), [choices]),
+  sections: anomalySections,
+  item: anomalyItem,
+  onAdd: (row) => void useAnomalyPickerStore.getState().add(row),
+};
