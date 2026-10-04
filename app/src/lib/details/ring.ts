@@ -1,5 +1,4 @@
-/** Whether a save body's page offers its ring, and the edit that gives or takes one. */
-import type { Op } from "../../generated/Op";
+/** Whether a save body's page offers its ring. */
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
 import { isStarBody } from "./starBody";
@@ -19,9 +18,4 @@ export function hasRingCheckbox(
   }
   const view = planetClasses.get(planetClass);
   return view?.asteroid !== true && view?.ringworld !== true;
-}
-
-/** The edit that gives planet `planet` a ring, or takes it off. */
-export function setPlanetRingOp(planet: number, ring: boolean): Op {
-  return { type: "SetBodyRing", body: planet, ring };
 }
