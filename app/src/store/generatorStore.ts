@@ -57,9 +57,9 @@ export const useGeneratorStore = create<GeneratorState>((set, get) => {
       asked = true;
       const mine = generation;
       ipc.getGeneratorStarClasses().then(
-        (pairs) => {
+        (picks) => {
           if (mine !== generation) return;
-          set({ starClasses: pairs.map(([key, label]) => ({ key, label })) });
+          set({ starClasses: picks.map(({ key, name }) => ({ key, label: name })) });
         },
         (e: unknown) => {
           if (mine === generation) asked = false;

@@ -15,21 +15,25 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use crate::archive;
 use crate::document::{self, Document, SaveOutcome};
 use crate::entity::views::{EntityAddr, EntityKind};
 use crate::format::save::details::DetailsProjection;
 use crate::format::save::write::move_planet;
-use crate::format::scenario::effect;
+use crate::format::scenario::{effect, is_painted};
 use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
 use crate::ops::{self, Applied, DetailsReach, Op, OpError, Plan, Subject, SystemRadii};
-use crate::projections::galaxy::{BypassLink, GalaxyGraph, ProjectionError, SystemNode, Wayline};
+use crate::projections::galaxy::{
+    BypassLink, GalaxyGraph, ProjectionError, StarClasses, SystemNode, Wayline, draw_scenario_stars,
+};
 use crate::search;
 use crate::validate::{self, Issue, validate};
 use crate::views::{
-    DocumentKind, EditResult, ErrorKind, GalaxyDelta, HistoryEntry, HistoryView, OrbitPlacement,
-    PlanetMoveCheck, PlanetMoveTargets, SaveResult, SearchResult, SgfError,
+    Capabilities, DocumentKind, EditResult, ErrorKind, GalaxyDelta, GalaxyView, HistoryEntry,
+    HistoryView, OpenResult, OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SaveResult,
+    SearchResult, SgfError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -89,6 +93,9 @@ pub struct Session {
     /// How the geometry ops size a system; the vanilla values until the shell sets the
     /// install's.
     radii: SystemRadii,
+    /// What the loaded install says of stars; what is known without one until the shell
+    /// sets the install's.
+    stars: Arc<StarClasses>,
 }
 
 impl Session {
@@ -118,6 +125,7 @@ impl Session {
             history: History::new(),
             saved_at,
             radii: SystemRadii::VANILLA,
+            stars: Arc::default(),
         })
     }
 
@@ -129,6 +137,31 @@ impl Session {
     /// Size systems by `radii` from the next op on, as the loaded install's defines give them.
     pub fn set_radii(&mut self, radii: SystemRadii) {
         self.radii = radii;
+    }
+
+    /// What the loaded install says of stars.
+    pub fn star_classes(&self) -> &Arc<StarClasses> {
+        &self.stars
+    }
+
+    /// Take `classes` as the install's word on stars: which bodies are stars, and the star
+    /// each scenario system is drawn as. Details built from other star bodies are dropped,
+    /// and the next [`Self::details`] builds them again.
+    pub fn set_star_classes(&mut self, classes: StarClasses) {
+        if *self.stars == classes {
+            return;
+        }
+        if self.stars.bodies != classes.bodies {
+            self.details.take();
+        }
+        self.stars = Arc::new(classes);
+        self.draw_stars();
+    }
+
+    /// Give a scenario's systems the star their initializer draws, which an op that
+    /// rewrote a system leaves unset.
+    fn draw_stars(&mut self) {
+        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
     }
 
     /// Apply `op`, record it for undo and validate. The document is unchanged on error, and
@@ -145,6 +178,7 @@ impl Session {
     pub fn apply_inverse(&mut self, op: Op) -> Result<OpResult, OpError> {
         let before = Derived::of(&self.graph);
         let applied = ops::apply(self, op)?;
+        self.draw_stars();
         let mut result = result(
             &self.graph,
             self.history.undo_len() + 1,
@@ -171,6 +205,7 @@ impl Session {
         let Some(applied) = self.history.undo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
+        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
         let mut result = result(&self.graph, seq, applied, &before, true, Vec::new());
         let in_place = in_place(&applied.op);
         self.update_details(in_place, &result);
@@ -186,11 +221,32 @@ impl Session {
         let Some(applied) = self.history.redo(&mut self.doc, &mut self.graph)? else {
             return Ok(None);
         };
+        draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
         let mut result = result(&self.graph, seq, applied, &before, false, Vec::new());
         let in_place = in_place(&applied.op);
         self.update_details(in_place, &result);
         result.issues = self.validate();
         Ok(Some(result))
+    }
+
+    /// What opening the document reports to the app: where it is, what it is, its galaxy,
+    /// its issues and what it supports.
+    pub fn open_result(&self) -> Result<OpenResult, SgfError> {
+        let (meta, painted) = match self.kind() {
+            DocumentKind::Save => (Some(archive::parse_meta(self.doc.meta())?), false),
+            DocumentKind::Scenario => (None, is_painted(self.doc.original())),
+        };
+        Ok(OpenResult {
+            path: self.path.as_ref().map(|p| p.to_string_lossy().into_owned()),
+            cloud: self.path.as_deref().is_some_and(library::is_cloud_save),
+            kind: self.kind(),
+            painted,
+            title: self.title(),
+            meta,
+            galaxy: GalaxyView::from(&self.graph),
+            issues: self.validate(),
+            capabilities: Capabilities::of(&self.doc),
+        })
     }
 
     /// What `apply_op`, `undo` and `redo` report to the app.
@@ -349,7 +405,11 @@ impl Session {
         if let Some(details) = self.details.get() {
             return Ok(Arc::clone(details));
         }
-        let built = Arc::new(DetailsProjection::build(&self.doc, &self.graph)?);
+        let built = Arc::new(DetailsProjection::build(
+            &self.doc,
+            &self.graph,
+            Arc::clone(&self.stars),
+        )?);
         Ok(Arc::clone(self.details.get_or_init(|| built)))
     }
 
@@ -612,6 +672,13 @@ fn result(
         bypasses: (graph.bypasses != before.bypasses).then(|| graph.bypasses.clone()),
         renumbered,
         issues,
+    }
+}
+
+/// [`Session::draw_stars`] on the fields an undo or redo leaves free while it holds the op.
+fn draw_scenario_stars_of(kind: DocumentKind, graph: &mut GalaxyGraph, stars: &StarClasses) {
+    if kind == DocumentKind::Scenario {
+        draw_scenario_stars(&mut graph.systems, stars);
     }
 }
 

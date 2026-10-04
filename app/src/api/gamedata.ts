@@ -9,16 +9,16 @@ import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
-import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositChoice } from "../generated/DepositChoice";
+import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositView } from "../generated/DepositView";
+import type { DigSiteChoice } from "../generated/DigSiteChoice";
 import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
-import type { DigSiteChoice } from "../generated/DigSiteChoice";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
@@ -31,10 +31,11 @@ import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { ShipSizeView } from "../generated/ShipSizeView";
 import type { SpecialSystems } from "../generated/SpecialSystems";
+import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
+import type { StarClassPick } from "../generated/StarClassPick";
 import type { StarClassView } from "../generated/StarClassView";
 import type { SystemScripts } from "../generated/SystemScripts";
 import type { TerraformCandidateView } from "../generated/TerraformCandidateView";
-import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
 
 /**
@@ -119,11 +120,11 @@ export function getStarClasses(): Promise<StarClassView[]> {
 }
 
 /**
- * The star classes a rolled system can have, as `[key, localised name]`, in the order the
+ * The star classes a rolled system can have, each with its localised name, in the order the
  * install's layouts name them; empty without game data.
  */
-export function getGeneratorStarClasses(): Promise<Array<[string, string]>> {
-  return invoke<Array<[string, string]>>("get_generator_star_classes");
+export function getGeneratorStarClasses(): Promise<StarClassPick[]> {
+  return invoke<StarClassPick[]>("get_generator_star_classes");
 }
 
 /**

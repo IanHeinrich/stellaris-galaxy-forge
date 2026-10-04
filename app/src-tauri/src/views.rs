@@ -8,17 +8,6 @@ use serde::{Deserialize, Serialize};
 use sgf_core::views::EditResult;
 use ts_rs::TS;
 
-/// A class a body added to a save may take, named as the game names it, with the sizes a
-/// random one of it is drawn from.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct BodyClassPick {
-    pub key: String,
-    pub name: String,
-    pub min_size: u32,
-    pub max_size: u32,
-}
-
 /// What adding a body answers with: the edit, and the id the new body took.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]

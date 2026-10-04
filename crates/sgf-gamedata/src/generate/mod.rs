@@ -21,7 +21,10 @@ use crate::rng::Rng;
 
 mod save;
 
-pub use save::{ForSaveError, Pick, added_among, body_for_save, for_save, reroll, settle_name};
+pub use save::{
+    BodyAsk, ClassRulesError, ForSaveError, Pick, added_among, body_for_save, for_save, reroll,
+    settle_name,
+};
 
 /// Separates the deposit draw from the system draw of the same seed.
 const DEPOSIT_STREAM: u64 = 0x6465_706F;

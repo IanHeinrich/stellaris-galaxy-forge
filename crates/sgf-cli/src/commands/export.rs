@@ -137,7 +137,7 @@ fn print_report(report: &ExportReport) {
 
 /// Write an empty scenario: the header and nothing else.
 pub fn create(name: &str, core_radius: f64, out: &Path, profile: Profile) -> Run {
-    let mut session = export::new_scenario(name, core_radius, profile.core())?;
+    let mut session = export::new_scenario(name, 0.0, core_radius, profile.core())?;
     let outcome = session.save_as(out)?;
     println!("new scenario \"{}\"", session.title());
     println!("wrote {}", outcome.path.display());

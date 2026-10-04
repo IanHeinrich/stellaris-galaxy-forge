@@ -46,27 +46,14 @@ pub fn given(sav: &Path, out: Option<&Path>, body: Body) -> Run {
 pub fn rolled(sav: &Path, out: Option<&Path>, body: Body, seed: u64, opts: &LoadOptions) -> Run {
     let gd = game_data(opts)?;
     let session = Session::open(sav)?;
-    let rolled = generate::body_for_save(
-        &gd,
-        &session,
-        seed,
-        body.system,
-        body.moon_of,
-        body.class.as_deref(),
-        body.size,
-        body.at.radius,
-    )?;
-    let op = Op::AddBody {
+    let ask = generate::BodyAsk {
         system: body.system,
-        spec: NewBody {
-            class: rolled.class,
-            size: rolled.size,
-            moon_of: body.moon_of,
-            name: body.name,
-            deposits: rolled.deposits,
-            ring: rolled.ring,
-        },
+        parent: body.moon_of,
+        class: body.class,
+        size: body.size,
         at: body.at,
+        name: body.name,
     };
+    let op = generate::body_for_save(&gd, &session, seed, ask)?;
     mutate::apply_all(session, out, vec![op])
 }

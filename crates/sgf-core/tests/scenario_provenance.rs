@@ -376,7 +376,8 @@ fn a_save_exports_with_the_line_on_top_under_both_profiles() {
 #[test]
 fn a_new_scenario_starts_with_a_bare_line_that_saving_keeps() {
     for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
-        let mut session = export::new_scenario("sgf_test", 0.0, profile).expect("new scenario");
+        let mut session =
+            export::new_scenario("sgf_test", 0.0, 0.0, profile).expect("new scenario");
         let bare = format!("{}\n", forge());
         assert!(common::text(&session).starts_with(&bare));
 

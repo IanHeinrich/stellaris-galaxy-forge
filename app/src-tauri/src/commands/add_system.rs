@@ -1,19 +1,17 @@
 //! Rolling a star system from the install's rules and writing it into the open save, and
 //! deleting the systems added this session.
 
-use std::sync::Arc;
-
 use sgf_core::ops::Op;
-use sgf_core::views::{DocumentKind, EditResult, ErrorKind, SgfError};
-use sgf_gamedata::GameData;
-use sgf_gamedata::generate::{self, ForSaveError, Pick};
+use sgf_core::views::{EditResult, ErrorKind, SgfError};
+use sgf_gamedata::generate::{self, Pick};
+use sgf_gamedata::picks::StarClassPick;
 use sgf_gamedata::summary::{self, AddSystemPicks};
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 
-use super::{require, with_session};
+use super::{game_data, is_save, require, with_session};
 use crate::state::GameDataState;
 
-const NEEDS_GAME_DATA: &str = "load game data to add a system";
+const ADD_A_SYSTEM: &str = "add a system";
 const ONLY_A_SAVE_ROLLS: &str = "only a save takes a rolled system";
 const ONLY_A_SAVE_ADDS: &str = "only a save has systems added this session";
 const NONE_ADDED: &str = "none of these systems was added this session";
@@ -58,13 +56,12 @@ pub async fn reroll_system<R: Runtime>(
     star_class: Option<String>,
     keep_special: Option<bool>,
 ) -> Result<EditResult, SgfError> {
-    let gd = game_data(&app)?;
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), DocumentKind::Save, ONLY_A_SAVE_ROLLS)?;
+        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
         let keep_special = keep_special.unwrap_or(false);
         let spec = Pick::of_added(session, &gd, system, keep_special, star_class)
-            .and_then(|pick| generate::reroll(&gd, session, seed, system, &pick))
-            .map_err(refusal)?;
+            .and_then(|pick| generate::reroll(&gd, session, seed, system, &pick))?;
         let result = session.apply(Op::ReplaceSystemFromSpec { system, spec })?;
         Ok(session.edit_result(result))
     })
@@ -79,7 +76,7 @@ pub async fn remove_added_systems<R: Runtime>(
     ids: Vec<u32>,
 ) -> Result<EditResult, SgfError> {
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), DocumentKind::Save, ONLY_A_SAVE_ADDS)?;
+        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
         let added = generate::added_among(session, ids);
         if added.is_empty() {
             return Err(SgfError::new(ErrorKind::Op, NONE_ADDED));
@@ -96,9 +93,9 @@ pub async fn remove_added_systems<R: Runtime>(
 pub async fn get_add_system_picks<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<AddSystemPicks, SgfError> {
-    let gd = game_data(&app)?;
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), DocumentKind::Save, ONLY_A_SAVE_ROLLS)?;
+        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
         Ok(summary::add_system_picks(&gd, session))
     })
     .await
@@ -107,22 +104,10 @@ pub async fn get_add_system_picks<R: Runtime>(
 /// The star classes a rolled system can have, each with its localised name, in the order the
 /// install's layouts name them; empty without game data.
 #[tauri::command(async)]
-pub fn get_generator_star_classes(game_data: State<'_, GameDataState>) -> Vec<(String, String)> {
-    game_data.loaded().map_or_else(Vec::new, |gd| {
-        generate::star_classes(&gd)
-            .into_iter()
-            .map(|key| {
-                let name = gd.loc.get(&key).unwrap_or_else(|| key.clone());
-                (key, name)
-            })
-            .collect()
-    })
-}
-
-pub(crate) fn game_data<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<GameData>, SgfError> {
-    app.state::<GameDataState>()
+pub fn get_generator_star_classes(game_data: State<'_, GameDataState>) -> Vec<StarClassPick> {
+    game_data
         .loaded()
-        .ok_or_else(|| SgfError::new(ErrorKind::Op, NEEDS_GAME_DATA))
+        .map_or_else(Vec::new, |gd| gd.star_class_picks())
 }
 
 /// Add the system `pick` gives at `at` from `seed` to the open save, as one `AddSystemFromSpec`.
@@ -132,19 +117,12 @@ async fn add<R: Runtime>(
     at: (f64, f64),
     pick: Pick,
 ) -> Result<EditResult, SgfError> {
-    let gd = game_data(&app)?;
+    let gd = game_data(&app, ADD_A_SYSTEM)?;
     with_session(app, move |mut guard| {
-        let session = require(guard.as_mut(), DocumentKind::Save, ONLY_A_SAVE_ROLLS)?;
-        let spec = generate::for_save(&gd, session, seed, at, &pick).map_err(refusal)?;
+        let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ROLLS)?;
+        let spec = generate::for_save(&gd, session, seed, at, &pick)?;
         let result = session.apply(Op::AddSystemFromSpec { spec })?;
         Ok(session.edit_result(result))
     })
     .await
-}
-
-fn refusal(e: ForSaveError) -> SgfError {
-    match e {
-        ForSaveError::NoSystem(id) => SgfError::not_found(format!("system {id}")),
-        e => SgfError::new(ErrorKind::Op, e.to_string()),
-    }
 }

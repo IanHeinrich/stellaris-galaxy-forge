@@ -575,6 +575,11 @@ impl SgfError {
     pub fn not_found(what: impl std::fmt::Display) -> Self {
         Self::new(ErrorKind::NotFound, format!("{what} not found"))
     }
+
+    /// No game data is loaded, and `action` needs it.
+    pub fn no_game_data(action: &str) -> Self {
+        Self::new(ErrorKind::Op, format!("load game data to {action}"))
+    }
 }
 
 impl From<archive::Error> for SgfError {

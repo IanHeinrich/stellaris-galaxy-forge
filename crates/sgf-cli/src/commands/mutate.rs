@@ -5,11 +5,11 @@
 use std::path::Path;
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::{Op, OpError, SystemSpec};
+use sgf_core::ops::{ClassChange, Op, OpError, PlanetClassRule, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::validate::Issue;
 
-use sgf_gamedata::{LoadOptions, naming};
+use sgf_gamedata::{GameData, LoadOptions, naming};
 
 use super::{Outcome, Run, game_data, print_issues};
 
@@ -76,16 +76,18 @@ pub fn planet_class(
     let session = Session::open(sav)?;
     let held = get_planet_page(&session.doc, planet)?.class;
     let gd = game_data(opts)?;
-    let rule = |class: &str| {
-        gd.planet_class_rule(class)
-            .ok_or_else(|| format!("the install has no planet class {class}"))
+    let named = |class: &str| PlanetClassRule {
+        class: class.to_owned(),
+        change: ClassChange::Never,
+        models: 0,
     };
     let op = Op::SetBodyClass {
         body: planet,
-        from: rule(&held)?,
-        to: rule(class)?,
+        from: named(&held),
+        to: named(class),
         look: None,
     };
+    let op = GameData::with_class_rules(Some(&gd), op)?;
     apply_all(session, out, vec![op])
 }
 
