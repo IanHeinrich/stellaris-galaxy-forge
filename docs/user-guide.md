@@ -752,12 +752,11 @@ the check at start on or off.
 
 ## Command line
 
-The `sgf` tool makes the same edits from a terminal. It is on the
+The `sgf` tool reads saves and scenarios from a terminal and applies
+edits to them. It is on the
 [Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases)
-beside the app. Editing commands save in place with the same backup as
-the app, or write elsewhere with `-o <file>`. System ids are the numbers
-shown as `#123` in the app. `sgf --help` lists every command, and
-`sgf <command> --help` its options.
+beside the app. System ids are the numbers shown as `#123` in the app.
+`sgf --help` lists every command, and `sgf <command> --help` its options.
 
 - Read a file: `inspect`, `validate`, `details`, `special`,
   `special-layouts`, `gamedata`. `special-layouts` lists the layouts a
@@ -765,15 +764,34 @@ shown as `#123` in the app. `sgf --help` lists every command, and
   use each. `shape` and `roundtrip` check a save's structure: `shape`
   lists every key path with its count, and `roundtrip` writes the save
   out unchanged.
-- Edit the galaxy: `move`, `isolate`, `lane`, `nebula`, `move-nebula`,
-  `star`, `planet-size`, `modifier`, `dig-site`, `deposit`, `add-system`.
-  `deposit add` and `deposit remove` change a planet's deposits.
-  `add-system` adds systems from a JSON spec you write, or rolls one from
-  the install's own rules with `--generate`, a special layout included
-  with `--layout`.
-- Edit a scenario: `header`, `spawn`, `lane prevent` and `lane allow`.
 - Make a scenario: `export-scenario <sav> <out>` and
   `new-scenario <name> <out>`. Add `--profile paint-a-galaxy` to write
   it for Paint a Galaxy.
+- Edit a save or scenario: `apply <file> <edit.json>...`.
+- Edit with what the install says: `add-system` and `add-body` roll a
+  system or a body from the install's rules. `planet-class` changes a
+  planet's class and `nebula add` names a new nebula the way the app
+  does.
 
-For example, `sgf move game.sav 123 -150 80` moves system 123.
+### Edit files
+
+Each edit file holds one change as JSON. `type` is the name of one of
+the edits the app makes, and the other fields are its values. This file
+moves system 123:
+
+```json
+{ "type": "MoveSystem", "system": 123, "x": -150, "y": 80 }
+```
+
+`sgf apply game.sav move.json` applies it. Give several files and they
+apply in the order listed. A `Batch` holds a list of edits under `ops`
+and applies them as one step.
+
+`apply` saves in place with the same backup as the app, or writes
+elsewhere with `-o <file>`. If an edit is refused, `apply` names the
+file and the edit, and writes nothing. The edits and their fields are the
+`Op` enum in `crates/sgf-core/src/ops/op.rs`.
+
+`add-system --print-spec` prints a rolled system as JSON.
+Put it under `spec` in an `AddSystemFromSpec` edit to add the system
+after you change it.

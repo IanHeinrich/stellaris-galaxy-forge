@@ -1,54 +1,7 @@
-//! `sgf add-system`, from specs and generated.
+//! `sgf add-system`, rolled from the install's rules.
 use std::path::Path;
 
-use crate::common::{DORELLION, MURA, SAMPLE_4_5, fixture, ok, sgf, stdout, without_install};
-
-#[test]
-fn add_system_writes_the_spec_and_the_new_system_reads_back() {
-    let dir = tempfile::tempdir().unwrap();
-    let out_path = dir.path().join("added.sav");
-    let out_str = out_path.to_str().unwrap();
-
-    let out = sgf(&["add-system", SAMPLE_4_5, "--spec", MURA, "-o", out_str]);
-    ok(&out);
-    let text = stdout(&out);
-    assert!(
-        text.contains("Added Mura #601 at (-292.23404, -137.62265) with 9 bodies and 1 lane"),
-        "{text}"
-    );
-    assert!(text.contains(&format!("wrote {out_str}")), "{text}");
-
-    let details = sgf(&["details", out_str, "601"]);
-    assert_eq!(details.status.code(), Some(0), "{}", stdout(&details));
-    assert!(
-        stdout(&details).contains("planets: 9"),
-        "{}",
-        stdout(&details)
-    );
-    assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
-}
-
-#[test]
-fn add_system_refuses_a_3_x_save_without_writing() {
-    let dir = tempfile::tempdir().unwrap();
-    let out_path = dir.path().join("added.sav");
-    let old = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
-    let out = sgf(&[
-        "add-system",
-        old,
-        "--spec",
-        DORELLION,
-        "-o",
-        out_path.to_str().unwrap(),
-    ]);
-    assert_eq!(out.status.code(), Some(1));
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("Stellaris 4.0 or later"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(!out_path.exists());
-}
+use crate::common::{SAMPLE_4_5, ok, sgf, stdout, without_install};
 
 /// `--then-remove` reaches the app's bulk delete: it removes the systems among its ids the
 /// command added, as one step, and leaves the file's own alone.
@@ -57,27 +10,30 @@ fn add_system_then_remove_removes_only_the_systems_it_added() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("removed.sav");
     let out_str = out_path.to_str().unwrap();
-    let (tau_ceti, fellix) = (fixture("tau_ceti"), fixture("fellix"));
-    let out = sgf(&[
-        "add-system",
-        SAMPLE_4_5,
-        "--spec",
-        MURA,
-        "--spec",
-        &tau_ceti,
-        "--spec",
-        &fellix,
-        "--then-remove",
-        "602",
-        "--then-remove",
-        "0",
-        "-o",
-        out_str,
-    ]);
+    let run = |extra: &[&str]| {
+        let mut args = vec![
+            "add-system",
+            SAMPLE_4_5,
+            "--seed",
+            "11",
+            "--at",
+            "-292.23404,-137.62265",
+            "--lane",
+            "169",
+        ];
+        args.extend_from_slice(extra);
+        args.extend_from_slice(&["-o", out_str]);
+        sgf(&args)
+    };
+    let out = run(&["--then-remove", "601", "--then-remove", "0"]);
+    if without_install(&out) {
+        return;
+    }
     ok(&out);
     let text = stdout(&out);
+    assert!(text.contains("Added "), "{text}");
     assert!(
-        text.contains("Removed Tau Ceti #602 and 3 lanes; renumbered 603 to 602"),
+        text.contains("Removed ") && text.contains(" #601 "),
         "{text}"
     );
     assert!(
@@ -85,25 +41,16 @@ fn add_system_then_remove_removes_only_the_systems_it_added() {
         "the file's own system stays: {text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
+    std::fs::remove_file(&out_path).unwrap();
 
-    let never = dir.path().join("never.sav");
-    let refused = sgf(&[
-        "add-system",
-        SAMPLE_4_5,
-        "--spec",
-        MURA,
-        "--then-remove",
-        "0",
-        "-o",
-        never.to_str().unwrap(),
-    ]);
+    let refused = run(&["--then-remove", "0"]);
     assert_eq!(refused.status.code(), Some(1));
     let err = String::from_utf8_lossy(&refused.stderr);
     assert!(
         err.contains("none of the systems --then-remove names"),
         "{err}"
     );
-    assert!(!never.exists());
+    assert!(!out_path.exists());
 }
 
 #[test]
@@ -116,7 +63,6 @@ fn add_system_generates_a_system_from_a_seed_and_writes_it() {
         let mut args: Vec<String> = [
             "add-system",
             SAMPLE_4_5,
-            "--generate",
             "--seed",
             "11",
             "--at",
@@ -199,7 +145,6 @@ fn add_system_rolls_deposits_at_the_abundance_the_save_was_set_up_with() {
         let mut args = vec![
             "add-system",
             sav.to_str().unwrap(),
-            "--generate",
             "--seed",
             "55",
             "--at",
@@ -255,20 +200,14 @@ fn add_system_rolls_deposits_at_the_abundance_the_save_was_set_up_with() {
 }
 
 #[test]
-fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
+fn add_system_needs_its_seed_and_place_and_refuses_clashing_options() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("refused.sav");
     let out = out_path.to_str().unwrap();
-    let spec = MURA;
     for args in [
-        &["--spec", spec, "--generate", "--seed", "1", "--at", "0,0"][..],
-        &["--generate", "--at", "0,0"],
-        &["--generate", "--seed", "1"],
-        &["--spec", spec, "--seed", "1"],
-        &["--spec", spec, "--lane", "169"],
-        &["--spec", spec, "--star-class", "sc_g"],
+        &["--at", "0,0"][..],
+        &["--seed", "1"],
         &[
-            "--generate",
             "--seed",
             "1",
             "--at",
@@ -278,7 +217,6 @@ fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
             "601",
         ],
         &[
-            "--generate",
             "--seed",
             "1",
             "--at",
@@ -287,8 +225,17 @@ fn add_system_takes_specs_or_a_generate_with_its_seed_and_place() {
             "--then-reroll",
             "2",
         ],
-        &["--spec", spec, "--then-reroll", "2"],
-        &["--generate", "--seed", "1", "--at", "0,0", "--keep-special"],
+        &[
+            "--seed",
+            "1",
+            "--at",
+            "0,0",
+            "--star-class",
+            "sc_g",
+            "--layout",
+            "trappist_initializer",
+        ],
+        &["--seed", "1", "--at", "0,0", "--keep-special"],
     ] {
         let mut command = vec!["add-system", SAMPLE_4_5];
         command.extend_from_slice(args);
@@ -308,7 +255,6 @@ fn add_system_generates_around_the_star_class_asked_for() {
         let mut args = vec![
             "add-system",
             SAMPLE_4_5,
-            "--generate",
             "--seed",
             "11",
             "--at",
@@ -361,7 +307,6 @@ fn add_system_generates_the_special_layout_asked_for() {
         let mut args = vec![
             "add-system",
             SAMPLE_4_5,
-            "--generate",
             "--seed",
             "4",
             "--at",
@@ -392,7 +337,6 @@ fn add_system_generates_the_special_layout_asked_for() {
     let again = sgf(&[
         "add-system",
         out_str,
-        "--generate",
         "--seed",
         "4",
         "--at",
@@ -428,7 +372,6 @@ fn add_system_then_reroll_keeps_the_name_and_with_keep_special_the_layout() {
         let mut args = vec![
             "add-system",
             SAMPLE_4_5,
-            "--generate",
             "--seed",
             "5",
             "--at",

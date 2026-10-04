@@ -1,8 +1,7 @@
-//! `sgf add-system`: systems from JSON specs, or one rolled from the install's rules, added
-//! to a save; then, as the app allows for a system added in the same session, rolled again
-//! or removed.
+//! `sgf add-system`: a system rolled from the install's rules and added to a save; then, as
+//! the app allows for a system added in the same session, rolled again or removed.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use sgf_core::ops::{BodySpec, Op, SystemSpec};
 use sgf_core::session::Session;
@@ -29,22 +28,6 @@ pub struct Generate {
     pub then_reroll: Option<u64>,
     /// On the roll again, build a Special menu layout's system from that layout again.
     pub keep_special: bool,
-}
-
-/// Add the system each spec file holds, in order, then remove those of `then_remove` it added.
-pub fn from_specs(sav: &Path, out: Option<&Path>, specs: &[PathBuf], then_remove: &[u32]) -> Run {
-    let mut session = Session::open(sav)?;
-    let ops = specs
-        .iter()
-        .map(|path| {
-            Ok(Op::AddSystemFromSpec {
-                spec: mutate::system_spec(path)?,
-            })
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let mut issues = mutate::apply(&mut session, ops)?;
-    remove_added(&mut session, then_remove, &mut issues)?;
-    mutate::save(session, out, &issues)
 }
 
 /// Add the system `generating` rolls, then roll it again and remove those of `then_remove`

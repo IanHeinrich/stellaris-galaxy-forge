@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use sgf_core::ops::StarBody;
 use sgf_gamedata::LoadOptions;
 
 #[derive(Parser)]
@@ -60,15 +59,9 @@ pub enum Command {
     },
     /// Check a save or scenario and print every issue; exits 1 if any is an error.
     Validate { doc: PathBuf },
-    /// Print a system's planets, deposits, starbase and fleet presence; exits 1 if unknown.
-    Details {
-        sav: PathBuf,
-        #[arg(required_unless_present = "all", conflicts_with = "all")]
-        id: Option<u32>,
-        /// One line per system that has anything to show.
-        #[arg(long)]
-        all: bool,
-    },
+    /// Print a system's planets, deposits, starbase and fleet presence, and exit 1 if it is
+    /// unknown. Without an id, print one line per system that has anything to show.
+    Details { sav: PathBuf, id: Option<u32> },
     /// Write the save's galaxy as a static galaxy scenario script; the save is untouched.
     ExportScenario {
         sav: PathBuf,
@@ -116,131 +109,23 @@ pub enum Command {
         #[arg(long)]
         check: bool,
     },
-    /// Move a system to (x, y), updating the length of every lane on both ends.
-    Move {
+    /// Apply the edits that files hold to a save or scenario, in the order given, then save.
+    ///
+    /// Each file holds one op as JSON, such as {"type":"MoveSystem","system":0,"x":-150,"y":60},
+    /// or a {"type":"Batch","description":"...","ops":[...]} of several that apply as one. A
+    /// refused op names its file and writes nothing.
+    #[command(verbatim_doc_comment)]
+    Apply {
         sav: PathBuf,
-        id: u32,
-        #[arg(allow_negative_numbers = true)]
-        x: f64,
-        #[arg(allow_negative_numbers = true)]
-        y: f64,
+        #[arg(required = true, value_name = "EDIT")]
+        edits: Vec<PathBuf>,
         #[command(flatten)]
         out: OutArg,
     },
-    /// Move a nebula's centre (by its index in file order) to (x, y). Its systems and
-    /// lanes stay where they are.
-    MoveNebula {
-        sav: PathBuf,
-        index: usize,
-        #[arg(allow_negative_numbers = true)]
-        x: f64,
-        #[arg(allow_negative_numbers = true)]
-        y: f64,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Add, remove, resize or rename a nebula.
+    /// Add a nebula to a save or scenario.
     Nebula {
         #[command(subcommand)]
         command: NebulaCommand,
-    },
-    /// Set or clear one key of a static galaxy scenario's header.
-    Header {
-        #[command(subcommand)]
-        command: HeaderCommand,
-    },
-    /// Add, remove or re-measure a hyperlane between two systems.
-    Lane {
-        #[command(subcommand)]
-        command: LaneCommand,
-    },
-    /// Set a scenario system's spawn weight, or hold it for a human player or the AI.
-    Spawn {
-        #[command(subcommand)]
-        command: SpawnCommand,
-    },
-    /// Remove every hyperlane of a system.
-    Isolate {
-        sav: PathBuf,
-        id: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Set a save system's star class and the planet class of each star body named.
-    Star {
-        sav: PathBuf,
-        id: u32,
-        class: String,
-        /// A star body and its new planet class, as `<planet>=<class>`; repeat per body.
-        #[arg(long = "body", value_parser = parse_star_body, required = true)]
-        bodies: Vec<StarBody>,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Move a save planet and its moons to another system: to `--radius` from its centre
-    /// at `--angle` degrees, or else to the next free outer orbit.
-    MovePlanet {
-        sav: PathBuf,
-        planet: u32,
-        system: u32,
-        #[arg(long, requires = "angle")]
-        radius: Option<f64>,
-        #[arg(long, requires = "radius", allow_negative_numbers = true)]
-        angle: Option<f64>,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Set a save planet's size, star bodies included.
-    PlanetSize {
-        sav: PathBuf,
-        planet: u32,
-        size: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Rename a save planet or moon; its moons that name it by its old name follow.
-    RenamePlanet {
-        sav: PathBuf,
-        planet: u32,
-        name: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Delete a save planet and its moons, or a moon, with any colony on them.
-    DeletePlanet {
-        sav: PathBuf,
-        planet: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Remove the colony on a save planet or moon; the planet stays.
-    RemoveColony {
-        sav: PathBuf,
-        planet: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Rename an empire. Renaming the player's empire also renames the save on the load
-    /// screen.
-    RenameEmpire {
-        sav: PathBuf,
-        country: u32,
-        name: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Give a save planet a model, such as `ocean_paradise_planet_01_entity`, or clear it.
-    Model {
-        sav: PathBuf,
-        planet: u32,
-        /// The model's entity, as `gfx/models/planets` names it.
-        #[arg(required_unless_present = "clear")]
-        entity: Option<String>,
-        /// Take the planet's model off instead, back to its class's own.
-        #[arg(long, conflicts_with = "entity")]
-        clear: bool,
-        #[command(flatten)]
-        out: OutArg,
     },
     /// Change a save planet's class, such as to `pc_ocean`, with the rules the install gives
     /// each class.
@@ -254,130 +139,47 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Add a modifier to a save planet, such as `terraforming_candidate`, or remove it.
-    Modifier {
-        sav: PathBuf,
-        planet: u32,
-        /// A static modifier, as `common/static_modifiers` names it.
-        modifier: String,
-        /// How many days it lasts; it never expires unless given.
-        #[arg(long, conflicts_with = "remove", value_parser = clap::value_parser!(i32).range(1..))]
-        days: Option<i32>,
-        /// The planet feature (`pm_*`) that applies the modifier, written or removed with it.
-        #[arg(long)]
-        feature: Option<String>,
-        /// Remove the modifier instead, however long it has left.
-        #[arg(long)]
-        remove: bool,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Add an anomaly to a save planet, or remove the one it has. A planet the player has
-    /// surveyed is listed as found by the player too.
-    Anomaly {
-        sav: PathBuf,
-        planet: u32,
-        /// An anomaly category, as `common/anomalies` names it.
-        #[arg(required_unless_present = "remove")]
-        category: Option<String>,
-        /// Remove the planet's anomaly instead.
-        #[arg(long, conflicts_with = "category")]
-        remove: bool,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Add an archaeological dig site to a planet of a Stellaris 4.x save, or remove the one
-    /// it has.
-    DigSite {
-        sav: PathBuf,
-        planet: u32,
-        /// The site type, as `common/archaeological_site_types` names it.
-        #[arg(required_unless_present = "remove", conflicts_with = "remove")]
-        site_type: Option<String>,
-        /// The difficulty of the type's first stage.
-        #[arg(long, required_unless_present = "remove", conflicts_with = "remove")]
-        difficulty: Option<i32>,
-        /// Remove the planet's dig site instead, and any excavation under way there.
-        #[arg(long)]
-        remove: bool,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Add or remove deposits on the planets of a Stellaris 4.x save.
-    Deposit {
-        #[command(subcommand)]
-        command: DepositCommand,
-    },
-    /// Add star systems with their bodies, deposits and lanes to a Stellaris 4.x save.
-    ///
-    /// Each spec is JSON, every value chosen: a G star with one planet and a lane to 169,
-    /// {"name":"Mura","x":-292.2,"y":-137.6,"star_class":"sc_g","initializer":"basic_init_01",
-    ///  "star":{"class":"pc_g_star","size":25,"orbit":0,"angle":0,"entity":0,"deposits":["d_energy_5"]},
-    ///  "planets":[{"class":"pc_molten","size":12,"orbit":65,"angle":30,"entity":1}],
-    ///  "lanes":[169]}
-    /// A planet takes `moons`, a list of bodies whose orbit is measured from it.
-    /// Several specs are added in order, so a later one can name an earlier one's id in
-    /// its lanes.
-    ///
-    /// With --generate the system is rolled from the install's own rules instead:
-    ///   sgf add-system game.sav --generate --seed 7 --at -310,-95 --lane 169 -o out.sav
-    /// and --star-class sc_g rolls it around that star, or --layout trappist_initializer
-    /// builds that layout (`sgf special-layouts` lists the special ones). --then-reroll 8
-    /// rolls it again from seed 8, keeping its name, position and lanes.
+    /// Roll a star system from the install's rules and add it to a Stellaris 4.x save:
+    ///   sgf add-system game.sav --seed 7 --at -310,-95 --lane 169 -o out.sav
+    /// --star-class sc_g rolls it around that star, or --layout trappist_initializer builds
+    /// that layout (`sgf special-layouts` lists the special ones). --then-reroll 8 rolls it
+    /// again from seed 8, keeping its name, position and lanes. --print-spec prints the
+    /// system as JSON, which an `AddSystemFromSpec` edit file for `sgf apply` holds as its
+    /// `spec`.
     #[command(verbatim_doc_comment)]
     AddSystem {
         sav: PathBuf,
-        /// A system to add, as JSON; repeat for more.
-        #[arg(
-            long,
-            required_unless_present = "generate",
-            conflicts_with = "generate"
-        )]
-        spec: Vec<PathBuf>,
         /// Remove this system again before saving if this command added it, as the app
         /// deletes a system added in the same session; the systems added after it take the
         /// ids below. Repeat for more; the file's own systems among them are left alone.
         #[arg(long, value_name = "ID")]
         then_remove: Vec<u32>,
-        /// Roll a random system from the install's initializers and classes.
+        /// What the system is rolled from; the same seed gives the same system.
         #[arg(long)]
-        generate: bool,
-        /// What the generated system is rolled from; the same seed gives the same system.
-        #[arg(long, conflicts_with = "spec", required_if_eq("generate", "true"))]
-        seed: Option<u64>,
-        /// Where the generated system stands, as `X,Y`.
-        #[arg(
-            long,
-            value_parser = point,
-            allow_hyphen_values = true,
-            conflicts_with = "spec",
-            required_if_eq("generate", "true")
-        )]
-        at: Option<(f64, f64)>,
-        /// A system the generated one is joined to by a hyperlane; repeatable.
-        #[arg(long = "lane", conflicts_with = "spec")]
+        seed: u64,
+        /// Where the system stands, as `X,Y`.
+        #[arg(long, value_parser = point, allow_hyphen_values = true)]
+        at: (f64, f64),
+        /// A system the new one is joined to by a hyperlane; repeatable.
+        #[arg(long = "lane")]
         lanes: Vec<u32>,
-        /// The generated system's name; one left in the save's pool of star names otherwise,
-        /// or one of the install's star names no system of the save holds.
-        #[arg(long, conflicts_with = "spec")]
+        /// The system's name; one left in the save's pool of star names otherwise, or one of
+        /// the install's star names no system of the save holds.
+        #[arg(long)]
         name: Option<String>,
-        /// The generated system's star class (`sc_g`), drawn among the layouts that make it.
-        #[arg(long, conflicts_with_all = ["spec", "layout"])]
+        /// The system's star class (`sc_g`), drawn among the layouts that make it.
+        #[arg(long, conflicts_with = "layout")]
         star_class: Option<String>,
-        /// The initializer to build the generated system from, plain or special.
-        #[arg(long, conflicts_with = "spec")]
+        /// The initializer to build the system from, plain or special.
+        #[arg(long)]
         layout: Option<String>,
-        /// Print the generated spec as JSON and write nothing, so it takes no --then-remove
-        /// or --then-reroll.
-        #[arg(
-            long,
-            conflicts_with = "spec",
-            conflicts_with_all = ["then_remove", "then_reroll"]
-        )]
+        /// Print the spec as JSON and write nothing, so it takes no --then-remove or
+        /// --then-reroll.
+        #[arg(long, conflicts_with_all = ["then_remove", "then_reroll"])]
         print_spec: bool,
-        /// Roll the generated system again from this seed before saving, around
-        /// --star-class when given, keeping its name, position and lanes.
-        #[arg(long, value_name = "SEED", conflicts_with = "spec")]
+        /// Roll the system again from this seed before saving, around --star-class when
+        /// given, keeping its name, position and lanes.
+        #[arg(long, value_name = "SEED")]
         then_reroll: Option<u64>,
         /// On --then-reroll, build a system of a Special menu layout from that layout again.
         #[arg(long, requires = "then_reroll")]
@@ -387,20 +189,19 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Add a planet, or a moon of --moon-of, to a system of a Stellaris 4.x save, --radius
-    /// from what it orbits at --angle degrees. Give its --class and --size, or --roll it from
-    /// the install's rules with --seed, keeping the class and size given:
-    ///   sgf add-body game.sav 408 --class pc_desert --size 12 --radius 170 --angle 200
-    ///   sgf add-body game.sav 408 --moon-of 138 --radius 15 --angle 90 --roll --seed 7
+    /// Roll a planet, or a moon of --moon-of, from the install's rules and add it to a system
+    /// of a Stellaris 4.x save, --radius from what it orbits at --angle degrees. Its deposits
+    /// are drawn, and so are the --class and --size left out:
+    ///   sgf add-body game.sav 408 --moon-of 138 --radius 15 --angle 90 --seed 7
     #[command(verbatim_doc_comment)]
     AddBody {
         sav: PathBuf,
         system: u32,
-        /// A planet class (`pc_desert`); drawn at the body's orbit with --roll when not given.
-        #[arg(long, required_unless_present = "roll")]
+        /// A planet class (`pc_desert`); drawn at the body's orbit when not given.
+        #[arg(long)]
         class: Option<String>,
-        /// Drawn from the class's range with --roll when not given.
-        #[arg(long, required_unless_present = "roll")]
+        /// Drawn from the class's range when not given.
+        #[arg(long)]
         size: Option<u32>,
         /// The planet a new moon orbits.
         #[arg(long)]
@@ -412,18 +213,9 @@ pub enum Command {
         /// A name written as typed; the next free numeral or letter otherwise.
         #[arg(long)]
         name: Option<String>,
-        /// A deposit the body holds (`d_minerals_2`); repeatable.
-        #[arg(long = "deposit", conflicts_with = "roll")]
-        deposits: Vec<String>,
-        /// Draw it with a ring.
-        #[arg(long, conflicts_with = "roll")]
-        ring: bool,
-        /// Roll the body from the install's rules, its deposits included.
-        #[arg(long, requires = "seed")]
-        roll: bool,
-        /// What --roll draws from; the same seed gives the same body.
-        #[arg(long, requires = "roll")]
-        seed: Option<u64>,
+        /// What the body is rolled from; the same seed gives the same body.
+        #[arg(long)]
+        seed: u64,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]
@@ -499,98 +291,6 @@ pub enum NebulaCommand {
         #[command(flatten)]
         out: OutArg,
     },
-    /// Remove the nebula at `index` in file order; the ones after it renumber.
-    Remove {
-        sav: PathBuf,
-        index: usize,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Set the radius of the nebula at `index` in file order, about its fixed centre.
-    Radius {
-        sav: PathBuf,
-        index: usize,
-        #[arg(allow_negative_numbers = true)]
-        radius: f64,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Make the nebula at `index` in file order turbulent, or calm with `--calm`.
-    Turbulent {
-        sav: PathBuf,
-        index: usize,
-        /// Calm the nebula instead.
-        #[arg(long)]
-        calm: bool,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Rename the nebula at `index` in file order.
-    Name {
-        sav: PathBuf,
-        index: usize,
-        name: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum DepositCommand {
-    /// Add a deposit of a type to a planet; repeat `--planet` and `--type` for more, the
-    /// nth type going to the nth planet.
-    Add {
-        sav: PathBuf,
-        #[arg(long = "planet", value_name = "ID", required = true)]
-        planets: Vec<u32>,
-        /// The deposit's type, such as `d_minerals_3`.
-        #[arg(long = "type", value_name = "TYPE", required = true)]
-        kinds: Vec<String>,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Remove a deposit from the planet holding it; repeat `--deposit` for more.
-    Remove {
-        sav: PathBuf,
-        #[arg(long = "deposit", value_name = "ID", required = true)]
-        deposits: Vec<u32>,
-        #[command(flatten)]
-        out: OutArg,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum HeaderCommand {
-    /// Write `value` as the raw text right of `=`, inserting the key when the header
-    /// lacks it; a block such as `{ min = 1 max = 2 }` is written as it stands.
-    Set {
-        sav: PathBuf,
-        key: String,
-        #[arg(allow_negative_numbers = true)]
-        value: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Remove the header's first statement of `key`.
-    Unset {
-        sav: PathBuf,
-        key: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum SpawnCommand {
-    /// Write `spawn_weight = { base = N }`, or remove the base with `none`.
-    Weight {
-        sav: PathBuf,
-        id: u32,
-        /// The weight the generator places an empire by, or `none` to clear it.
-        base: String,
-        #[command(flatten)]
-        out: OutArg,
-    },
 }
 
 /// Whose conventions `sgf export-scenario` and `sgf new-scenario` write in.
@@ -598,77 +298,6 @@ pub enum SpawnCommand {
 pub enum Profile {
     Plain,
     PaintAGalaxy,
-}
-
-#[derive(Subcommand)]
-pub enum LaneCommand {
-    /// Add a lane whose length is the floor of the distance, as the generator writes it.
-    Add {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        /// Mark the lane `bridge=yes` on both ends.
-        #[arg(long)]
-        bridge: bool,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Remove every entry of the lane on both ends.
-    Remove {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Bar the generator from linking two systems: one `prevent_hyperlane` statement.
-    Prevent {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Remove every `prevent_hyperlane` statement naming the two systems.
-    Allow {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Rewrite the lane's `length` on both ends to the floor of the distance it spans.
-    Normalise {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        #[command(flatten)]
-        out: OutArg,
-    },
-    /// Set the lane's `length` on both ends.
-    Length {
-        sav: PathBuf,
-        a: u32,
-        b: u32,
-        #[arg(allow_negative_numbers = true)]
-        length: f64,
-        #[command(flatten)]
-        out: OutArg,
-    },
-}
-
-/// `<planet>=<class>`, one `--body` of the `star` command.
-fn parse_star_body(text: &str) -> Result<StarBody, String> {
-    let (planet, class) = text
-        .split_once('=')
-        .ok_or_else(|| format!("{text} is not <planet>=<class>"))?;
-    let planet = planet
-        .parse()
-        .map_err(|_| format!("{planet} is not a planet id"))?;
-    Ok(StarBody {
-        body: planet,
-        class: class.to_owned(),
-    })
 }
 
 /// `X,Y`, the `--at` of a generated system.

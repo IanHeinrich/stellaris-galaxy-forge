@@ -1,33 +1,25 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use sgf_core::ops::{NewName, Op};
+
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
+use sgf_gamedata::generate::BodyAsk;
 
 mod cli;
 mod commands;
 
-use cli::{Cli, Command, DepositCommand, HeaderCommand, LaneCommand, NebulaCommand, SpawnCommand};
+use cli::{Cli, Command, NebulaCommand};
 use commands::Outcome;
 
-/// Clap's derived parser and `run`'s match over every command outgrow Windows' 1 MB main
-/// thread stack in a debug build.
-const STACK_BYTES: usize = 8 << 20;
-
 fn main() -> ExitCode {
-    std::thread::Builder::new()
-        .stack_size(STACK_BYTES)
-        .spawn(|| match run(Cli::parse()) {
-            Ok(outcome) => outcome.into(),
-            Err(e) => {
-                eprintln!("error: {e}");
-                ExitCode::FAILURE
-            }
-        })
-        .expect("spawn the main thread")
-        .join()
-        .unwrap_or(ExitCode::FAILURE)
+    match run(Cli::parse()) {
+        Ok(outcome) => outcome.into(),
+        Err(e) => {
+            eprintln!("error: {e}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn run(cli: Cli) -> commands::Run {
@@ -38,7 +30,7 @@ fn run(cli: Cli) -> commands::Run {
         }
         Some(Command::Inspect { sav, galaxy }) => commands::inspect::run(&sav, galaxy),
         Some(Command::Validate { doc }) => commands::validate::run(&doc),
-        Some(Command::Details { sav, id, all: _ }) => commands::details::run(&sav, id),
+        Some(Command::Details { sav, id }) => commands::details::run(&sav, id),
         Some(Command::ExportScenario {
             sav,
             out,
@@ -67,222 +59,26 @@ fn run(cli: Cli) -> commands::Run {
             output,
             check,
         }) => commands::roundtrip::run(&input, &output, check),
-        Some(Command::Move { sav, id, x, y, out }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::MoveSystem { system: id, x, y },
-        ),
-        Some(Command::MoveNebula {
-            sav,
-            index,
-            x,
-            y,
-            out,
-        }) => commands::mutate::run(&sav, out.path.as_deref(), Op::MoveNebula { index, x, y }),
-        Some(Command::Nebula { command }) => match command {
-            NebulaCommand::Add {
-                sav,
-                x,
-                y,
-                radius,
-                name,
-                install,
-                out,
-            } => commands::mutate::add_nebula(
-                &sav,
-                out.path.as_deref(),
-                (x, y, radius),
-                name,
-                &install.options(),
-            ),
-            NebulaCommand::Remove { sav, index, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveNebula { index })
-            }
-            NebulaCommand::Radius {
-                sav,
-                index,
-                radius,
-                out,
-            } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetNebulaRadius { index, radius },
-            ),
-            NebulaCommand::Turbulent {
-                sav,
-                index,
-                calm,
-                out,
-            } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetNebulaTurbulent {
-                    nebula: index,
-                    turbulent: !calm,
-                },
-            ),
-            NebulaCommand::Name {
-                sav,
-                index,
-                name,
-                out,
-            } => commands::mutate::run(&sav, out.path.as_deref(), Op::RenameNebula { index, name }),
-        },
-        Some(Command::Header { command }) => match command {
-            HeaderCommand::Set {
-                sav,
-                key,
-                value,
-                out,
-            } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetHeaderField {
-                    key,
-                    value: Some(value),
-                },
-            ),
-            HeaderCommand::Unset { sav, key, out } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetHeaderField { key, value: None },
-            ),
-        },
-        Some(Command::Lane { command }) => match command {
-            LaneCommand::Add {
-                sav,
-                a,
-                b,
-                bridge,
-                out,
-            } => commands::mutate::run(&sav, out.path.as_deref(), Op::AddLane { a, b, bridge }),
-            LaneCommand::Remove { sav, a, b, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveLane { a, b })
-            }
-            LaneCommand::Prevent { sav, a, b, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::PreventLane { a, b })
-            }
-            LaneCommand::Allow { sav, a, b, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::AllowLane { a, b })
-            }
-            LaneCommand::Normalise { sav, a, b, out } => {
-                commands::mutate::run(&sav, out.path.as_deref(), Op::NormaliseLaneLength { a, b })
-            }
-            LaneCommand::Length {
-                sav,
-                a,
-                b,
-                length,
-                out,
-            } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetLaneLength { a, b, length },
-            ),
-        },
-        Some(Command::Spawn { command }) => match command {
-            SpawnCommand::Weight { sav, id, base, out } => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::SetSpawnWeight {
-                    system: id,
-                    base: commands::mutate::spawn_base(&base)?,
-                },
-            ),
-        },
-        Some(Command::Isolate { sav, id, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::IsolateSystem { system: id })
+        Some(Command::Apply { sav, edits, out }) => {
+            commands::apply::run(&sav, out.path.as_deref(), &edits)
         }
-        Some(Command::Star {
-            sav,
-            id,
-            class,
-            bodies,
-            out,
-        }) => commands::mutate::run(
+        Some(Command::Nebula {
+            command:
+                NebulaCommand::Add {
+                    sav,
+                    x,
+                    y,
+                    radius,
+                    name,
+                    install,
+                    out,
+                },
+        }) => commands::mutate::add_nebula(
             &sav,
             out.path.as_deref(),
-            Op::SetStarClass {
-                system: id,
-                class,
-                bodies,
-            },
-        ),
-        Some(Command::MovePlanet {
-            sav,
-            planet,
-            system,
-            radius,
-            angle,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::MoveBodyToSystem {
-                body: planet,
-                to: system,
-                at: radius
-                    .zip(angle)
-                    .map(|(radius, angle)| OrbitPlacement { radius, angle }),
-            },
-        ),
-        Some(Command::PlanetSize {
-            sav,
-            planet,
-            size,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::SetBodySize { body: planet, size },
-        ),
-        Some(Command::RenamePlanet {
-            sav,
-            planet,
+            (x, y, radius),
             name,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::RenameBody {
-                body: planet,
-                name: NewName::Literal(name),
-            },
-        ),
-        Some(Command::DeletePlanet { sav, planet, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::DeleteBody { body: planet })
-        }
-        Some(Command::RemoveColony { sav, planet, out }) => {
-            commands::mutate::run(&sav, out.path.as_deref(), Op::RemoveColony { body: planet })
-        }
-        Some(Command::RenameEmpire {
-            sav,
-            country,
-            name,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::RenameEmpire {
-                country,
-                name,
-                value: None,
-                custom_name: true,
-            },
-        ),
-        Some(Command::Model {
-            sav,
-            planet,
-            entity,
-            clear: _,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            Op::SetBodyModel {
-                body: planet,
-                entity,
-            },
+            &install.options(),
         ),
         Some(Command::PlanetClass {
             sav,
@@ -297,98 +93,9 @@ fn run(cli: Cli) -> commands::Run {
             &class,
             &install.options(),
         ),
-        Some(Command::Modifier {
-            sav,
-            planet,
-            modifier,
-            days,
-            feature,
-            remove,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            match remove {
-                true => Op::RemoveBodyModifier {
-                    body: planet,
-                    modifier,
-                    feature,
-                },
-                false => Op::AddBodyModifier {
-                    body: planet,
-                    modifier,
-                    days: vec![days.unwrap_or(-1)],
-                    feature,
-                },
-            },
-        ),
-        Some(Command::Anomaly {
-            sav,
-            planet,
-            category,
-            remove,
-            out,
-        }) => commands::mutate::run(
-            &sav,
-            out.path.as_deref(),
-            match category.filter(|_| !remove) {
-                Some(category) => Op::AddAnomaly {
-                    body: planet,
-                    category,
-                    found_by: None,
-                },
-                None => Op::RemoveAnomaly { body: planet },
-            },
-        ),
-        Some(Command::DigSite {
-            sav,
-            planet,
-            site_type,
-            difficulty,
-            remove,
-            out,
-        }) => match (site_type, difficulty) {
-            (Some(site_type), Some(difficulty)) if !remove => commands::mutate::run(
-                &sav,
-                out.path.as_deref(),
-                Op::AddDigSite {
-                    body: planet,
-                    site_type,
-                    difficulty,
-                },
-            ),
-            _ => commands::mutate::remove_dig_site(&sav, out.path.as_deref(), planet),
-        },
-        Some(Command::Deposit { command }) => match command {
-            DepositCommand::Add {
-                sav,
-                planets,
-                kinds,
-                out,
-            } => {
-                if planets.len() != kinds.len() {
-                    return Err("each --planet takes one --type".into());
-                }
-                let ops = planets
-                    .into_iter()
-                    .zip(kinds)
-                    .map(|(planet, kind)| Op::AddDeposit { body: planet, kind })
-                    .collect();
-                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
-            }
-            DepositCommand::Remove { sav, deposits, out } => {
-                let ops = deposits
-                    .into_iter()
-                    .map(|deposit| Op::RemoveDeposit { deposit })
-                    .collect();
-                commands::mutate::run_all(&sav, out.path.as_deref(), ops)
-            }
-        },
         Some(Command::AddSystem {
             sav,
-            spec,
             then_remove,
-            generate,
             seed,
             at,
             lanes,
@@ -400,28 +107,23 @@ fn run(cli: Cli) -> commands::Run {
             keep_special,
             install,
             out,
-        }) => match generate {
-            false => {
-                commands::add_system::from_specs(&sav, out.path.as_deref(), &spec, &then_remove)
-            }
-            true => commands::add_system::generated(
-                &sav,
-                out.path.as_deref(),
-                commands::add_system::Generate {
-                    seed: seed.expect("clap requires --seed with --generate"),
-                    at: at.expect("clap requires --at with --generate"),
-                    lanes,
-                    name,
-                    star_class,
-                    layout,
-                    print_spec,
-                    then_reroll,
-                    keep_special,
-                },
-                &then_remove,
-                &install.options(),
-            ),
-        },
+        }) => commands::add_system::generated(
+            &sav,
+            out.path.as_deref(),
+            commands::add_system::Generate {
+                seed,
+                at,
+                lanes,
+                name,
+                star_class,
+                layout,
+                print_spec,
+                then_reroll,
+                keep_special,
+            },
+            &then_remove,
+            &install.options(),
+        ),
         Some(Command::AddBody {
             sav,
             system,
@@ -431,34 +133,23 @@ fn run(cli: Cli) -> commands::Run {
             radius,
             angle,
             name,
-            deposits,
-            ring,
-            roll,
             seed,
             install,
             out,
-        }) => {
-            let body = commands::add_body::Body {
+        }) => commands::add_body::run(
+            &sav,
+            out.path.as_deref(),
+            BodyAsk {
                 system,
+                parent: moon_of,
                 class,
                 size,
-                moon_of,
                 at: OrbitPlacement { radius, angle },
                 name,
-                deposits,
-                ring,
-            };
-            match roll.then_some(seed).flatten() {
-                Some(seed) => commands::add_body::rolled(
-                    &sav,
-                    out.path.as_deref(),
-                    body,
-                    seed,
-                    &install.options(),
-                ),
-                None => commands::add_body::given(&sav, out.path.as_deref(), body),
-            }
-        }
+            },
+            seed,
+            &install.options(),
+        ),
         Some(Command::Synth {
             systems,
             seed,
