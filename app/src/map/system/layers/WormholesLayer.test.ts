@@ -24,7 +24,7 @@ describe("the system scene's wormholes layer", () => {
     expect(ctx.wormholes.map((w) => w.name)).toEqual(["Wormhole to S8", "Shroud Tunnel"]);
 
     const plain = natural.scale.y;
-    layer.setHighlighted({ ...NO_HIGHLIGHT, hoverWormhole: WORMHOLE.id });
+    layer.setHighlighted({ ...NO_HIGHLIGHT, hover: { kind: "wormhole", id: WORMHOLE.id } });
     expect(natural.scale.y).toBeGreaterThan(plain);
 
     layer.rebuild(systemContext({ ...ctx, sceneLayers: { ...ctx.sceneLayers, bypasses: false } }));

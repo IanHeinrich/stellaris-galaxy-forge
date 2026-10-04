@@ -10,7 +10,7 @@ import {
 } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { dashedCircle, dashedLine } from "../../layers/dashes";
-import { sameHandle, type DragMarks, type HandleRef } from "../bodyDrag";
+import { sameHandle, type DragMarks } from "../bodyDrag";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBody, type SystemContext } from "../context";
 import {
   drawnDisc,
@@ -20,6 +20,7 @@ import {
   SELECTED_GAP_PX,
   SELECTED_WIDTH_PX,
 } from "../geometry";
+import { handleOf, idOf, sameTarget } from "../picking";
 import { HANDLE_RADIUS_PX } from "./HandlesLayer";
 import { HOVER_GROW as WORMHOLE_HOVER_GROW } from "./WormholesLayer";
 import { plateScaleAt } from "./labelSlots";
@@ -100,18 +101,33 @@ function hubReach(body: SceneBody, cam: Camera): number {
 }
 
 /**
- * The hover ring, the selection rings and the highlighted lane's arrow, and a line from what the
- * selected body orbits out to it, labelled with its radius. The moons of a planet selected to move
- * have a fainter ring, and cut bodies a dashed outline. A lone cut planet's paste shows as a ghost.
- * A scenario body's turn from the body before it shows as two rays from its ring's centre with the
- * stretch of ring between them lit. What a scenario body is measured from is marked in a colour of
- * its own: the body it turns from, with a ray through it where the turn starts, and the orbit it
- * steps out from, with the step's stretch of the radius line labelled. Its ranged orbit shows as a
- * faint band between its radii.
+ * Traces on `g` a circle `gap` screen pixels past `body`'s drawn disc, in `dashes` dashes when
+ * given; returns its radius.
  */
-export class HighlightLayer implements SystemLayer {
-  readonly container = new Container();
-  private readonly g = new Graphics();
+function ringRound(
+  g: Graphics,
+  body: SceneBody,
+  cam: Camera,
+  gap: number,
+  dashes?: number,
+): number {
+  const { x, y, disc } = body.placement;
+  const px = 1 / cam.scale;
+  const r = drawnDisc(disc, cam.scale, body.look) + gap * px;
+  if (dashes === undefined) g.circle(x, y, r);
+  else dashedCircle(g, x, y, r, dashes);
+  return r;
+}
+
+/**
+ * What the selected body is placed by: a line from what it orbits out to it, labelled with its
+ * radius. A scenario body's turn from the body before it shows as two rays from its ring's centre
+ * with the stretch of ring between them lit. What a scenario body is measured from is marked in a
+ * colour of its own: the body it turns from, with a ray through it where the turn starts, and the
+ * orbit it steps out from, with the step's stretch of the radius line labelled. Its ranged orbit
+ * shows as a faint band between its radii.
+ */
+export class WalkMarks {
   readonly radiusLine = new Graphics();
   readonly turnRayMin = new Graphics();
   readonly turnRayMax = new Graphics();
@@ -121,18 +137,24 @@ export class HighlightLayer implements SystemLayer {
   readonly baseCircle = new Graphics();
   readonly stepLine = new Graphics();
   readonly band = new Graphics();
-  readonly dragMarks = new Graphics();
-  readonly cutRings = new Graphics();
-  readonly pasteGhost = new Graphics();
-  readonly wormholeRing = new Graphics();
-  private readonly tags = new TagCache<TagSlot>(this.container);
+  /** The marks bottom to top, for the layer to add. */
+  readonly parts: readonly Graphics[] = [
+    this.band,
+    this.baseCircle,
+    this.anchorRay,
+    this.turnArc,
+    this.turnRayMin,
+    this.turnRayMax,
+    this.radiusLine,
+    this.stepLine,
+    this.anchorRing,
+  ];
+  private readonly tags: TagCache<TagSlot>;
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
-  private ref: SceneHighlight = NO_HIGHLIGHT;
-  private hoveredHandle: HandleRef | null = null;
-  private cam: Camera | null = null;
-  private drawnRev = -1;
 
-  constructor() {
+  /** Its plates go on `plates`, over everything the layer draws. */
+  constructor(plates: Container) {
+    this.tags = new TagCache<TagSlot>(plates);
     this.radiusLine.label = "radius-line";
     this.turnRayMin.label = "turn-ray-min";
     this.turnRayMax.label = "turn-ray-max";
@@ -142,101 +164,16 @@ export class HighlightLayer implements SystemLayer {
     this.baseCircle.label = "base-circle";
     this.stepLine.label = "step-line";
     this.band.label = "orbit-band";
-    this.dragMarks.label = "drag";
-    this.cutRings.label = "cut";
-    this.pasteGhost.label = "paste-ghost";
-    this.wormholeRing.label = "wormhole-ring";
-    this.container.addChild(
-      this.pasteGhost,
-      this.dragMarks,
-      this.cutRings,
-      this.band,
-      this.baseCircle,
-      this.anchorRay,
-      this.turnArc,
-      this.turnRayMin,
-      this.turnRayMax,
-      this.radiusLine,
-      this.stepLine,
-      this.anchorRing,
-      this.wormholeRing,
-      this.g,
-    );
   }
 
-  rebuild(ctx: SystemContext): void {
+  /** The marks of body `selected`, or none; `linked` is the body a panel's link points at. */
+  draw(ctx: SystemContext, cam: Camera, selected: number | null, linked: number | null): void {
     this.ctx = ctx;
-    this.redraw();
-  }
-
-  setHighlighted(ref: SceneHighlight): void {
-    this.ref = ref;
-    this.redraw();
-  }
-
-  /** Marks the handle under the pointer, or none. */
-  hoverHandle(handle: HandleRef | null): void {
-    if (sameHandle(handle, this.hoveredHandle)) return;
-    this.hoveredHandle = handle;
-    this.redraw();
-  }
-
-  onViewport(cam: Camera): void {
-    this.cam = cam;
-    if (cam.rev === this.drawnRev) return;
-    this.redraw();
-  }
-
-  private redraw(): void {
-    const cam = this.cam;
-    const g = this.g.clear();
-    if (!cam) return;
-    this.drawnRev = cam.rev;
-    const id = this.ref.selectedBody;
-    const selected = id === null ? undefined : this.ctx.bodyById.get(id);
-    this.drawRadius(cam, selected);
-    this.drawTurn(cam, selected);
-    this.drawAnchor(cam, selected);
-    this.drawBand(selected);
-    this.drawDrag(cam, this.ctx.drag);
-    this.drawPasteGhost(cam, this.ref.pasteGhost);
-    const cut = this.drawCut(cam);
-    const px = 1 / cam.scale;
-    const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
-      const body = id === null ? undefined : this.ctx.bodyById.get(id);
-      if (!body) return;
-      const { x, y, disc } = body.placement;
-      g.circle(x, y, drawnDisc(disc, cam.scale, body.look) + gap * px).stroke({
-        color,
-        alpha,
-        width: width * px,
-      });
-    };
-    ring(this.ref.hoverBody, HOVER_GAP_PX, RING_WIDTH_PX, HOVER_COLOR, HOVER_ALPHA);
-    const selectedIds = new Set(this.ref.selectedBodies);
-    if (this.ref.selectedBody !== null) selectedIds.add(this.ref.selectedBody);
-    for (const selectedId of selectedIds) {
-      if (!cut.has(selectedId)) {
-        ring(selectedId, SELECTED_GAP_PX, SELECTED_WIDTH_PX, ACCENT_COLOR, 1);
-      }
-    }
-    this.ringWormhole(cam);
-    for (const moon of this.movingMoons(this.ref.selectedBodies)) {
-      if (!selectedIds.has(moon) && !cut.has(moon)) {
-        ring(moon, HOVER_GAP_PX, RING_WIDTH_PX, ACCENT_COLOR, COMES_ALONG_ALPHA);
-      }
-    }
-    for (const exit of this.ctx.exits) {
-      if (exit.neighbour === this.ref.lane) {
-        g.poly(exitTriangle(exit, cam.scale, LANE_GROW_PX)).fill({ color: ACCENT_COLOR });
-      } else if (exit.neighbour === this.ref.hoverExit) {
-        g.poly(exitTriangle(exit, cam.scale, 1)).stroke({
-          color: HOVER_COLOR,
-          alpha: HOVER_ALPHA,
-          width: RING_WIDTH_PX * px,
-        });
-      }
-    }
+    const body = selected === null ? undefined : ctx.bodyById.get(selected);
+    this.drawRadius(cam, body);
+    this.drawTurn(cam, body);
+    this.drawAnchor(cam, body, linked);
+    this.drawBand(body);
   }
 
   /**
@@ -339,7 +276,7 @@ export class HighlightLayer implements SystemLayer {
    * the turn starts. A body with no anchor, the first of its walk or one after a body at the
    * centre, has neither.
    */
-  private drawAnchor(cam: Camera, body: SceneBody | undefined): void {
+  private drawAnchor(cam: Camera, body: SceneBody | undefined, linked: number | null): void {
     const outline = this.anchorRing.clear();
     const ray = this.anchorRay.clear();
     const turn = body?.placement.turn;
@@ -348,14 +285,13 @@ export class HighlightLayer implements SystemLayer {
     const anchor = this.ctx.bodyById.get(turn.anchor);
     if (!anchor) return;
     const px = 1 / cam.scale;
-    const { x, y, disc } = anchor.placement;
-    const r = drawnDisc(disc, cam.scale, anchor.look) + SELECTED_GAP_PX * px;
-    const linked = this.ref.linkedBody === turn.anchor;
-    dashedCircle(outline, x, y, r, ANCHOR_DASHES);
+    const { x, y } = anchor.placement;
+    const r = ringRound(outline, anchor, cam, SELECTED_GAP_PX, ANCHOR_DASHES);
+    const lit = linked === turn.anchor;
     outline.stroke({
       color: BASE_COLOR,
-      alpha: linked ? 1 : ANCHOR_ALPHA,
-      width: (linked ? LINKED_ANCHOR_WIDTH_PX : ANCHOR_WIDTH_PX) * px,
+      alpha: lit ? 1 : ANCHOR_ALPHA,
+      width: (lit ? LINKED_ANCHOR_WIDTH_PX : ANCHOR_WIDTH_PX) * px,
     });
     const reach = Math.max(ring.radius, Math.hypot(x - ring.cx, y - ring.cy) + r);
     const near = hubReach(body, cam);
@@ -370,6 +306,147 @@ export class HighlightLayer implements SystemLayer {
     ray.stroke({ color: BASE_COLOR, alpha: BASE_ALPHA, pixelLine: true });
   }
 
+  /** The stretch of radii the selected scenario body's orbit may be rolled within. */
+  private drawBand(body: SceneBody | undefined): void {
+    const band = this.band.clear();
+    const ring = body?.placement.ring;
+    const range = body?.placement.band;
+    if (!ring || !range) return;
+    band.circle(ring.cx, ring.cy, range.outer).fill({ color: ACCENT_COLOR, alpha: BAND_ALPHA });
+    if (range.inner > 0) band.circle(ring.cx, ring.cy, range.inner).cut();
+  }
+
+  private stand(tag: RadiusTag, cam: Camera, id: number, sx: number, sy: number): void {
+    const k = plateScaleAt(cam, this.ctx.layout.fitRadius);
+    standTag(tag, cam, tagBox(id, tag, sx, sy, k), k);
+  }
+
+  /** The plate in `slot` reading `text`, hidden until it is stood. */
+  private tagFor(slot: TagSlot, text: string | null): RadiusTag | null {
+    return this.tags.get(slot, text, slot);
+  }
+}
+
+/**
+ * The hover ring, the selection rings and the highlighted lane's arrow, and the selected body's
+ * walk marks. The moons of a planet selected to move have a fainter ring, and cut bodies a dashed
+ * outline. A lone cut planet's paste shows as a ghost. A change of highlight draws again only the
+ * marks it touches.
+ */
+export class HighlightLayer implements SystemLayer {
+  readonly container = new Container();
+  private readonly g = new Graphics();
+  readonly walk = new WalkMarks(this.container);
+  readonly dragMarks = new Graphics();
+  readonly cutRings = new Graphics();
+  readonly pasteGhost = new Graphics();
+  readonly wormholeRing = new Graphics();
+  private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
+  private ref: SceneHighlight = NO_HIGHLIGHT;
+  /** The cut bodies and the moons that go with them, as last outlined. */
+  private cut: ReadonlySet<number> = new Set();
+  private cam: Camera | null = null;
+  private drawnRev = -1;
+
+  constructor() {
+    this.dragMarks.label = "drag";
+    this.cutRings.label = "cut";
+    this.pasteGhost.label = "paste-ghost";
+    this.wormholeRing.label = "wormhole-ring";
+    this.container.addChild(
+      this.pasteGhost,
+      this.dragMarks,
+      this.cutRings,
+      ...this.walk.parts,
+      this.wormholeRing,
+      this.g,
+    );
+  }
+
+  rebuild(ctx: SystemContext): void {
+    this.ctx = ctx;
+    this.redraw(null);
+  }
+
+  setHighlighted(ref: SceneHighlight): void {
+    const was = this.ref;
+    this.ref = ref;
+    this.redraw(was);
+  }
+
+  onViewport(cam: Camera): void {
+    this.cam = cam;
+    if (cam.rev === this.drawnRev) return;
+    this.redraw(null);
+  }
+
+  /** Draws everything again, or, after a change of highlight from `was`, what it touches. */
+  private redraw(was: SceneHighlight | null): void {
+    const cam = this.cam;
+    if (!cam) return;
+    const ref = this.ref;
+    const before = was ?? ref;
+    const all = was === null || cam.rev !== this.drawnRev;
+    this.drawnRev = cam.rev;
+    const changed = (...keys: Array<keyof SceneHighlight>) =>
+      all || keys.some((key) => before[key] !== ref[key]);
+    const hoverMoved = all || !sameTarget(before.hover, ref.hover);
+    if (changed("selectedBody", "linkedBody")) {
+      this.walk.draw(this.ctx, cam, ref.selectedBody, ref.linkedBody);
+    }
+    if (all || !sameHandle(handleOf(before.hover), handleOf(ref.hover))) {
+      this.drawDrag(cam, this.ctx.drag);
+    }
+    if (changed("pasteGhost")) this.drawPasteGhost(cam, ref.pasteGhost);
+    const cutMoved = changed("cutBodies");
+    if (cutMoved) this.drawCut(cam);
+    if (hoverMoved || cutMoved || changed("selectedBody", "selectedBodies", "lane")) {
+      this.drawRings(cam);
+    }
+    if (hoverMoved || changed("selectedWormhole")) this.ringWormhole(cam);
+  }
+
+  /**
+   * The hover ring, the selection rings and those of the moons that come along, none on a cut
+   * body, and the highlighted lane's arrow and the hovered one.
+   */
+  private drawRings(cam: Camera): void {
+    const g = this.g.clear();
+    const px = 1 / cam.scale;
+    const cut = this.cut;
+    const ring = (id: number | null, gap: number, width: number, color: number, alpha: number) => {
+      const body = id === null ? undefined : this.ctx.bodyById.get(id);
+      if (!body) return;
+      ringRound(g, body, cam, gap);
+      g.stroke({ color, alpha, width: width * px });
+    };
+    ring(idOf(this.ref.hover, "body"), HOVER_GAP_PX, RING_WIDTH_PX, HOVER_COLOR, HOVER_ALPHA);
+    const selectedIds = new Set(this.ref.selectedBodies);
+    if (this.ref.selectedBody !== null) selectedIds.add(this.ref.selectedBody);
+    for (const selectedId of selectedIds) {
+      if (!cut.has(selectedId)) {
+        ring(selectedId, SELECTED_GAP_PX, SELECTED_WIDTH_PX, ACCENT_COLOR, 1);
+      }
+    }
+    for (const moon of this.movingMoons(this.ref.selectedBodies)) {
+      if (!selectedIds.has(moon) && !cut.has(moon)) {
+        ring(moon, HOVER_GAP_PX, RING_WIDTH_PX, ACCENT_COLOR, COMES_ALONG_ALPHA);
+      }
+    }
+    const hoverExit = idOf(this.ref.hover, "exit");
+    for (const exit of this.ctx.exits) {
+      if (exit.neighbour === this.ref.lane) {
+        g.poly(exitTriangle(exit, cam.scale, LANE_GROW_PX)).fill({ color: ACCENT_COLOR });
+      } else if (exit.neighbour === hoverExit) {
+        g.poly(exitTriangle(exit, cam.scale, 1)).stroke({
+          color: HOVER_COLOR,
+          alpha: HOVER_ALPHA,
+          width: RING_WIDTH_PX * px,
+        });
+      }
+    }
+  }
+
   /**
    * What a drag marks: a faint disc where the body stood, the ring it lands on, the body it shares
    * that ring with or stands on, a host or a refusing body ringed, and the handle held or hovered.
@@ -382,9 +459,8 @@ export class HighlightLayer implements SystemLayer {
     const around = (id: number | null, color: number, alpha: number) => {
       const found = scene(id);
       if (!found) return;
-      const body = found.placement;
-      const r = drawnDisc(body.disc, cam.scale, found.look) + SELECTED_GAP_PX * px;
-      g.circle(body.x, body.y, r).stroke({ color, alpha, width: TARGET_WIDTH_PX * px });
+      ringRound(g, found, cam, SELECTED_GAP_PX);
+      g.stroke({ color, alpha, width: TARGET_WIDTH_PX * px });
     };
     if (drag?.ghost) {
       const { x, y, disc } = drag.ghost;
@@ -408,7 +484,7 @@ export class HighlightLayer implements SystemLayer {
     if (drag?.tone === "overlap") around(drag.other, CAUTION_COLOR, 1);
     if (drag?.tone === "refused") around(drag.other, REFUSED_COLOR, 1);
     around(drag?.host ?? null, ACCENT_COLOR, 1);
-    const held = drag?.handle ?? this.hoveredHandle;
+    const held = drag?.handle ?? handleOf(this.ref.hover);
     const handles = held ? this.ctx.handles.filter((h) => sameHandle(h.ref, held)) : [];
     for (const handle of handles) {
       g.circle(handle.x, handle.y, (HANDLE_RADIUS_PX + HANDLE_GROW_PX) * px)
@@ -424,7 +500,7 @@ export class HighlightLayer implements SystemLayer {
     const hole = id === null ? undefined : this.ctx.wormholes.find((w) => w.id === id);
     if (!hole) return;
     const px = 1 / cam.scale;
-    const grow = id === this.ref.hoverWormhole ? WORMHOLE_HOVER_GROW : 1;
+    const grow = id === idOf(this.ref.hover, "wormhole") ? WORMHOLE_HOVER_GROW : 1;
     const r = drawnWormhole(cam.scale) * grow + SELECTED_GAP_PX * px;
     g.circle(hole.x, hole.y, r).stroke({
       color: ACCENT_COLOR,
@@ -442,20 +518,17 @@ export class HighlightLayer implements SystemLayer {
     );
   }
 
-  /** A dashed outline round each cut body and each moon that goes with it; returns them all. */
-  private drawCut(cam: Camera): ReadonlySet<number> {
+  /** A dashed outline round each cut body and each moon that goes with it. */
+  private drawCut(cam: Camera): void {
     const g = this.cutRings.clear();
     const cut = new Set([...this.ref.cutBodies, ...this.movingMoons(this.ref.cutBodies)]);
+    this.cut = cut;
     const px = 1 / cam.scale;
     for (const id of cut) {
       const found = this.ctx.bodyById.get(id);
-      if (!found) continue;
-      const body = found.placement;
-      const r = drawnDisc(body.disc, cam.scale, found.look) + SELECTED_GAP_PX * px;
-      dashedCircle(g, body.x, body.y, r, CUT_DASHES);
+      if (found) ringRound(g, found, cam, SELECTED_GAP_PX, CUT_DASHES);
     }
     if (cut.size > 0) g.stroke({ color: CUT_COLOR, alpha: CUT_ALPHA, width: RING_WIDTH_PX * px });
-    return cut;
   }
 
   /** The orbit a lone cut planet would be pasted on, dashed, and its faint disc where it lands. */
@@ -468,26 +541,6 @@ export class HighlightLayer implements SystemLayer {
     g.circle(ghost.x, ghost.y, drawnDisc(ghost.disc, cam.scale))
       .fill({ color: HOVER_COLOR, alpha: GHOST_ALPHA / 2 })
       .stroke({ color: ACCENT_COLOR, alpha: PASTE_RING_ALPHA, width });
-  }
-
-  /** The stretch of radii the selected scenario body's orbit may be rolled within. */
-  private drawBand(body: SceneBody | undefined): void {
-    const band = this.band.clear();
-    const ring = body?.placement.ring;
-    const range = body?.placement.band;
-    if (!ring || !range) return;
-    band.circle(ring.cx, ring.cy, range.outer).fill({ color: ACCENT_COLOR, alpha: BAND_ALPHA });
-    if (range.inner > 0) band.circle(ring.cx, ring.cy, range.inner).cut();
-  }
-
-  private stand(tag: RadiusTag, cam: Camera, id: number, sx: number, sy: number): void {
-    const k = plateScaleAt(cam, this.ctx.layout.fitRadius);
-    standTag(tag, cam, tagBox(id, tag, sx, sy, k), k);
-  }
-
-  /** The plate in `slot` reading `text`, hidden until it is stood. */
-  private tagFor(slot: TagSlot, text: string | null): RadiusTag | null {
-    return this.tags.get(slot, text, slot);
   }
 
   destroy(): void {

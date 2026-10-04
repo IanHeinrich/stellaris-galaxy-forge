@@ -144,10 +144,7 @@ export function sceneAt(
     scale: 1,
     time: (clock += DEFAULT_TIME_STEP_MS),
     system: SCENE_SYSTEM,
-    body: null,
-    wormhole: null,
-    handle: null,
-    exit: null,
+    target: null,
     draggable: false,
     ...extra,
   };

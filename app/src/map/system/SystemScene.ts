@@ -22,7 +22,7 @@ import {
 import { documentSubject, readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
-import { pickPlate } from "./picking";
+import { pickPlate, type SceneTarget } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
@@ -37,14 +37,14 @@ import { RolledLayer } from "./layers/RolledLayer";
 import { WormholesLayer } from "./layers/WormholesLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
-import { SystemInteraction, type SceneTarget } from "./SystemInteraction";
+import { SystemInteraction, type InteractionScene } from "./SystemInteraction";
 
 /**
  * One system's bodies, orbits, belts, wormholes and hyperlane exits, drawn about its centre with a
  * camera of its own. The host retargets it to the system the scene store shows; nothing here is
  * React state.
  */
-export class SystemScene implements Scene, SceneView, SceneTarget {
+export class SystemScene implements Scene, SceneView, InteractionScene {
   readonly cam = new Camera();
   readonly root = new Container();
   private readonly layers: SystemLayer[];
@@ -114,7 +114,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
       this.focusPending = null;
     } else if (id !== this.id) {
       this.interaction.dropExit();
-      this.setHighlight({ lane: null, hoverExit: null });
+      const { hover } = this.highlight;
+      this.setHighlight({ lane: null, hover: hover?.kind === "exit" ? null : hover });
     }
     this.id = id;
     this.showMove();
@@ -135,7 +136,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
   deactivate(): void {
     this.shown = false;
     this.interaction.deactivate();
-    this.setHighlight({ hoverBody: null, hoverExit: null, hoverWormhole: null, lane: null });
+    this.setHighlight({ hover: null, lane: null });
     useMapChromeStore.getState().setSceneHint(null);
   }
 
@@ -246,14 +247,8 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     });
   }
 
-  hover(
-    body: number | null,
-    exit: number | null,
-    handle: HandleRef | null,
-    wormhole: number | null,
-  ): void {
-    this.setHighlight({ hoverBody: body, hoverExit: exit, hoverWormhole: wormhole });
-    this.highlights.hoverHandle(handle);
+  hover(target: SceneTarget | null): void {
+    this.setHighlight({ hover: target });
   }
 
   revealHandles(owner: HandleRef | null): void {

@@ -13,11 +13,11 @@ import {
 import { isCentreStar, orbitParent, overlapOf } from "../../lib/details/orbitReach";
 import { near, polar, polarAbout, wrapDegrees, type BodyPlacement } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
-import type { SceneWormhole, SystemContext } from "./context";
+import type { SystemContext } from "./context";
 import { drawnDisc } from "./geometry";
 
 /** Within this many screen pixels of another ring about the same centre, a drag takes its radius. */
-const SHARED_SNAP_PX = 6;
+export const SHARED_SNAP_PX = 6;
 /** How far past its drawn disc, in screen pixels, a body takes a dragged one as its moon. */
 const CAPTURE_PAST_PX = 10;
 /** The least reach, in screen pixels, at which a body takes a dragged one as its moon. */
@@ -73,6 +73,17 @@ export interface DragMarks {
   readonly wormhole: number | null;
 }
 
+/** A drag that marks nothing yet, for each drag to add its own marks to. */
+export const NO_MARKS: DragMarks = Object.freeze({
+  body: null,
+  ghost: null,
+  tone: "own",
+  other: null,
+  host: null,
+  handle: null,
+  wormhole: null,
+});
+
 /** The text at the pointer while something is dragged. */
 export interface DragReadout {
   readonly text: string;
@@ -113,10 +124,10 @@ export interface Drag {
   move(pointer: DragPointer): DragStep;
 }
 
-const ORIGIN: Pt = { x: 0, y: 0 };
+export const ORIGIN: Pt = { x: 0, y: 0 };
 
 /** `angle` in whole degrees, or in Shift's steps. */
-function snapAngle(angle: number, shift: boolean): number {
+export function snapAngle(angle: number, shift: boolean): number {
   const step = shift ? SHIFT_STEP_DEG : 1;
   return wrapDegrees(Math.round(angle / step) * step);
 }
@@ -125,17 +136,19 @@ function whole(value: number): string {
   return String(Math.round(value));
 }
 
-function degrees(angle: number): string {
+export function degrees(angle: number): string {
   return `${Math.round(angle) % 360}°`;
 }
 
-/** A belt kind as a readout names it: `rocky_asteroid_belt` is "rocky". */
-export function beltLabel(kind: string): string {
-  return kind.replace(/_asteroid_belt$|_belt$/, "").replace(/_/g, " ");
+/** A readout's change from `from` to `to` in whole units, or `to` alone where they round alike. */
+export function change(from: number, to: number): string {
+  const was = whole(from);
+  const now = whole(to);
+  return was === now ? now : `${was} → ${now}`;
 }
 
 /** The ring nearest `radius` among `rings`, within `within` world units, or null. */
-function nearestRing(
+export function nearestRing(
   rings: readonly { id: number | null; radius: number }[],
   radius: number,
   within: number,
@@ -436,16 +449,7 @@ export class BodyDrag implements Drag {
     const { x, y, disc } = this.body;
     const step: DragStep = {
       intent,
-      marks: {
-        body,
-        ghost: { x, y, disc },
-        tone: "own",
-        other: null,
-        host: null,
-        handle: null,
-        wormhole: null,
-        ...marks,
-      },
+      marks: { ...NO_MARKS, body, ghost: { x, y, disc }, ...marks },
       readout,
       hint,
       changed: refused === undefined && (reparents || !same),
@@ -486,9 +490,8 @@ export class BodyDrag implements Drag {
   }
 
   private orbitText({ parent, radius, angle }: Landing): string {
-    const from = whole(this.body.ring.radius);
-    const to = whole(radius);
-    const orbit = from === to || parent !== this.body.parent ? to : `${from} → ${to}`;
+    const from = this.body.ring.radius;
+    const orbit = parent !== this.body.parent ? whole(radius) : change(from, radius);
     return `orbit ${orbit} · ${degrees(angle)}`;
   }
 
@@ -552,125 +555,5 @@ export class BodyDrag implements Drag {
     const angle = snapAngle(polarAbout(this.held(pointer), centre).angle, pointer.shift);
     const landing = { parent, angle, ...this.radiusAbout(parent, centre, pointer) };
     return this.marked(landing, DRAG_HINTS.toPlanet, "planet · ");
-  }
-}
-
-/**
- * A natural wormhole dragged freely about the centre, in whole units and degrees, or Shift's steps.
- * Nothing takes it and it takes nothing.
- */
-export class WormholeDrag implements Drag {
-  private constructor(
-    private readonly system: number,
-    private readonly wormhole: SceneWormhole,
-    /** From the pointer to the wormhole's point, as it was grabbed. */
-    private readonly grab: Pt,
-  ) {}
-
-  /** The drag of wormhole `id`, pressed at `from`, or null when it may not move. */
-  static start(frame: WormholeFrame, id: number, from: Pt): WormholeDrag | null {
-    const wormhole = frame.wormholes.find((w) => w.id === id);
-    if (frame.id === null || !wormhole?.movable) return null;
-    return new WormholeDrag(frame.id, wormhole, { x: wormhole.x - from.x, y: wormhole.y - from.y });
-  }
-
-  move(pointer: DragPointer): DragStep {
-    const at = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
-    const radius = Math.max(1, Math.round(Math.hypot(at.x, at.y)));
-    const angle = snapAngle(polarAbout(at, ORIGIN).angle, pointer.shift);
-    const id = this.wormhole.id;
-    const was = polarAbout(this.wormhole, ORIGIN);
-    const from = whole(was.radius);
-    const to = whole(radius);
-    const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);
-    return {
-      intent: { kind: "moveWormhole", system: this.system, wormhole: id, radius, angle },
-      marks: {
-        body: null,
-        ghost: null,
-        tone: "own",
-        other: null,
-        host: null,
-        handle: null,
-        wormhole: id,
-      },
-      readout: { text: `r ${from === to ? to : `${from} → ${to}`} · ${degrees(angle)}` },
-      hint: DRAG_HINTS.wormhole,
-      changed: !same,
-    };
-  }
-}
-
-/** What a wormhole's drag reads of the scene as it starts. */
-export type WormholeFrame = Pick<SystemContext, "id" | "wormholes">;
-
-/** A belt's or the inner radius's handle dragged out or in about the centre, in whole units. */
-export class HandleDrag implements Drag {
-  private constructor(
-    private readonly frame: DragFrame,
-    private readonly system: number,
-    private readonly handle: HandleRef,
-    private readonly radius: number,
-    /** From the pointer's distance to the handle's radius, as it was grabbed. */
-    private readonly grab: number,
-  ) {}
-
-  /** The drag of `handle`, pressed at `from`, or null when it may not be edited. */
-  static start(frame: DragFrame, handle: HandleRef, from: Pt): HandleDrag | null {
-    const { editing, layout } = frame;
-    if (frame.id === null) return null;
-    let radius: number;
-    if (handle.kind === "belt") {
-      const belt = layout.belts[handle.index];
-      if (!editing.belts || !belt) return null;
-      radius = belt.radius;
-    } else {
-      if (!editing.innerRadius) return null;
-      radius = layout.innerRadius;
-    }
-    const grab = radius - Math.hypot(from.x, from.y);
-    return new HandleDrag(frame, frame.id, handle, radius, grab);
-  }
-
-  move(pointer: DragPointer): DragStep {
-    const distance = Math.hypot(pointer.wx, pointer.wy) + this.grab;
-    const marks: DragMarks = {
-      body: null,
-      ghost: null,
-      tone: "own",
-      other: null,
-      host: null,
-      handle: this.handle,
-      wormhole: null,
-    };
-    const system = this.system;
-    const from = whole(this.radius);
-    if (this.handle.kind === "innerRadius") {
-      const radius = Math.max(this.frame.editing.innerFloor, Math.round(distance));
-      const to = whole(radius);
-      return {
-        intent: { kind: "innerRadius", system, radius },
-        marks,
-        readout: { text: from === to ? `Inner radius ${to}` : `Inner radius ${from} → ${to}` },
-        hint: DRAG_HINTS.innerRadius,
-        changed: !near(radius, this.radius),
-      };
-    }
-    const index = this.handle.index;
-    const rings = this.frame.layout.bodies.flatMap((b) =>
-      b.ring && b.ring.cx === 0 && b.ring.cy === 0 ? [{ id: b.id, radius: b.ring.radius }] : [],
-    );
-    const shared = nearestRing(rings, distance, SHARED_SNAP_PX / pointer.scale);
-    const radius = shared?.radius ?? Math.max(1, Math.round(distance));
-    const to = whole(radius);
-    const kind = beltLabel(this.frame.layout.belts[index]?.kind ?? "");
-    const r = from === to ? `r ${to}` : `r ${from} → ${to}`;
-    return {
-      intent: { kind: "setBeltRadius", system, index, radius },
-      marks: shared ? { ...marks, tone: "shared", other: shared.id } : marks,
-      readout: { text: `Belt · ${kind} · ${r}` },
-      hint: DRAG_HINTS.belt,
-      changed: !near(radius, this.radius),
-    };
   }
 }

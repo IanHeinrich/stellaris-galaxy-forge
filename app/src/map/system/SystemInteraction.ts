@@ -1,8 +1,8 @@
-import { bodyName } from "../../lib/details/labels";
+import { beltLabel, bodyName } from "../../lib/details/labels";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
-import { getTexture, requestTextures } from "../../lib/visual/textures";
+import { requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { planetsCanMove } from "../../store/planetMoveStore";
@@ -10,19 +10,19 @@ import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
 import { PointerBridge } from "../interaction/pointerBridge";
-import type { Textures } from "../layers/details/cell";
+import { queuedTextures } from "../layers/details/cell";
 import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
-import { beltLabel, sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
+import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
 import type { SystemContext } from "./context";
-import { handleOwnerAt, pickBody, pickExit, pickHandle, pickWormhole } from "./picking";
+import { handleOwnerAt, idOf, pickTarget, sameTarget, type SceneTarget } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
 
 /** What the scene's pointer controller reads from the scene and asks of it. */
-export interface SceneTarget {
+export interface InteractionScene {
   /** What the scene shows, a preview included. */
   context(): SystemContext;
   /** What the scene shows without a preview, which a drag starts from. */
@@ -31,12 +31,7 @@ export interface SceneTarget {
   plateAt(sx: number, sy: number): number | null;
   /** The tooltip of the mark or resource icon under the screen point on `body`'s name plate, or null. */
   markTipAt(body: number, sx: number, sy: number): Tip | null;
-  hover(
-    body: number | null,
-    exit: number | null,
-    handle: HandleRef | null,
-    wormhole: number | null,
-  ): void;
+  hover(target: SceneTarget | null): void;
   /** Shows the handles of one band, the one the pointer is over or the one dragged, or none. */
   revealHandles(owner: HandleRef | null): void;
   selectLane(neighbour: number | null): void;
@@ -48,59 +43,64 @@ export interface SceneTarget {
   holding(): boolean;
 }
 
-/** The icon textures the tooltip's lines draw, each asked for the first time it is wanted. */
-const TEXTURES: Textures = {
-  texture(key) {
-    const texture = getTexture(key);
-    if (texture === undefined) requestTextures([key]);
-    return texture;
-  },
-  resolve(keys) {
-    for (const key of keys) {
-      const texture = this.texture(key);
-      if (texture !== null) return texture;
-    }
-    return null;
-  },
-};
-
 /** The tooltip for what the pointer rests on, without its place, or null for nothing. */
 function tipFor(
   ctx: SystemContext,
-  body: number | null,
-  exit: number | null,
-  handle: HandleRef | null,
-  wormhole: number | null,
+  target: SceneTarget | null,
 ): Omit<MapTooltip, "x" | "y"> | null {
-  if (body !== null) {
-    const planet = ctx.bodyById.get(body)?.planet;
-    if (!planet) return null;
-    return {
-      title: bodyName(planet, ctx.names),
-      lines: planetLines(ctx, TEXTURES, [planet]),
-    };
+  if (target === null) return null;
+  switch (target.kind) {
+    case "body": {
+      const planet = ctx.bodyById.get(target.id)?.planet;
+      if (!planet) return null;
+      const queued = new Set<string>();
+      const lines = planetLines(ctx, queuedTextures(queued), [planet]);
+      if (queued.size > 0) requestTextures(queued);
+      return { title: bodyName(planet, ctx.names), lines };
+    }
+    case "wormhole": {
+      const hole = ctx.wormholes.find((w) => w.id === target.id);
+      if (!hole) return null;
+      const hint = hole.movable
+        ? DRAG_HINTS.movableWormhole
+        : hole.natural
+          ? null
+          : GEOMETRY_REASONS.lockedWormhole;
+      return { title: hole.name, lines: hint === null ? [] : [hint] };
+    }
+    case "handle": {
+      const held = ctx.handles.find((h) => sameHandle(h.ref, target.ref));
+      if (!held) return null;
+      const r = `r ${Math.round(held.radius)}`;
+      const kind = held.beltKind;
+      return {
+        title: kind === null ? `Inner radius · ${r}` : `Belt · ${beltLabel(kind)} · ${r}`,
+        lines: [],
+      };
+    }
+    case "exit": {
+      const lane = ctx.exits.find((e) => e.neighbour === target.id);
+      if (!lane) return null;
+      return { title: lane.name, lines: [{ label: "Lane length", value: String(lane.length) }] };
+    }
   }
-  const hole = wormhole === null ? undefined : ctx.wormholes.find((w) => w.id === wormhole);
-  if (hole) {
-    const hint = hole.movable
-      ? DRAG_HINTS.movableWormhole
-      : hole.natural
-        ? null
-        : GEOMETRY_REASONS.lockedWormhole;
-    return { title: hole.name, lines: hint === null ? [] : [hint] };
+}
+
+/** Whether a left drag from `target` moves something: a body or wormhole that can move, or a handle. */
+function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
+  if (target === null) return false;
+  switch (target.kind) {
+    case "body": {
+      const own = ctx.editing.bodies.get(target.id);
+      return own?.move === true || own?.detachOnly === true;
+    }
+    case "wormhole":
+      return ctx.wormholes.some((hole) => hole.id === target.id && hole.movable);
+    case "handle":
+      return true;
+    case "exit":
+      return false;
   }
-  const held = handle === null ? undefined : ctx.handles.find((h) => sameHandle(h.ref, handle));
-  if (held) {
-    const r = `r ${Math.round(held.radius)}`;
-    const kind = held.beltKind;
-    return {
-      title: kind === null ? `Inner radius · ${r}` : `Belt · ${beltLabel(kind)} · ${r}`,
-      lines: [],
-    };
-  }
-  const lane = exit === null ? undefined : ctx.exits.find((e) => e.neighbour === exit);
-  if (!lane) return null;
-  return { title: lane.name, lines: [{ label: "Lane length", value: String(lane.length) }] };
 }
 
 /**
@@ -116,15 +116,12 @@ export class SystemInteraction {
   private readonly pointer: PointerBridge<SystemInput>;
   /** The last hover and its tooltip, kept while the pointer stays on it and the context stands. */
   private hovered: {
-    body: number | null;
-    exit: number | null;
-    handle: HandleRef | null;
-    wormhole: number | null;
+    target: SceneTarget | null;
     ctx: SystemContext | null;
     tip: Omit<MapTooltip, "x" | "y"> | null;
     sx: number;
     sy: number;
-  } = { body: null, exit: null, handle: null, wormhole: null, ctx: null, tip: null, sx: 0, sy: 0 };
+  } = { target: null, ctx: null, tip: null, sx: 0, sy: 0 };
   private readonly at: Pt = { x: 0, y: 0 };
   /** The last move the pointer made, which a change of Shift or Ctrl feeds to the model again. */
   private lastMove: SystemInput | null = null;
@@ -137,17 +134,16 @@ export class SystemInteraction {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly cam: Camera,
-    private readonly scene: SceneTarget,
+    private readonly scene: InteractionScene,
   ) {
     this.intent = {
-      hover: (body, exit, handle, wormhole, sx, sy) =>
-        this.hover(body, exit, handle, sx, sy, wormhole),
+      hover: (target, sx, sy) => this.hover(target, sx, sy),
       selectLane: (neighbour) => this.scene.selectLane(neighbour),
       enterSystem: (id) => {
         if (canEnterSystem()) useSceneStore.getState().enterSystem(id);
       },
       contextMenu: (target, x, y) => {
-        this.hover(null, null, null, x, y);
+        this.hover(null, x, y);
         if (target.kind === "body" && !this.selected(target.id)) {
           this.selectAlone(target.system, target.id);
         }
@@ -178,7 +174,7 @@ export class SystemInteraction {
       {
         left: () => {
           if (this.model.busy()) return;
-          this.hover(null, null, null, 0, 0);
+          this.hover(null, 0, 0);
           this.scene.revealHandles(null);
         },
       },
@@ -195,7 +191,7 @@ export class SystemInteraction {
     this.pointer.unbind();
     this.model.cancel(this.intent);
     this.model.reset();
-    this.hover(null, null, null, 0, 0);
+    this.hover(null, 0, 0);
     this.scene.revealHandles(null);
     this.canvas.style.cursor = "";
   }
@@ -209,15 +205,13 @@ export class SystemInteraction {
 
   /** Forgets the arrow the pointer rests on, whose neighbour an edit has renumbered. */
   dropExit(): void {
-    if (this.hovered.exit !== null) this.hover(null, null, null, 0, 0);
+    if (this.hovered.target?.kind === "exit") this.hover(null, 0, 0);
   }
 
   /** Builds the tooltip shown again from the scene's new context, where the pointer rests. */
   contextChanged(): void {
-    const { body, exit, handle, wormhole, sx, sy } = this.hovered;
-    if (body !== null || exit !== null || handle !== null || wormhole !== null) {
-      this.hover(body, exit, handle, sx, sy, wormhole);
-    }
+    const { target, sx, sy } = this.hovered;
+    if (target !== null) this.hover(target, sx, sy);
   }
 
   /** Esc drops a gesture and goes no further; Shift or Ctrl going down or up moves a drag again. */
@@ -315,27 +309,17 @@ export class SystemInteraction {
     return useSceneStore.getState().bodySelection?.ids.includes(id) === true;
   }
 
-  private hover(
-    body: number | null,
-    exit: number | null,
-    handle: HandleRef | null,
-    sx: number,
-    sy: number,
-    wormhole: number | null = null,
-  ): void {
+  private hover(target: SceneTarget | null, sx: number, sy: number): void {
     const last = this.hovered;
     const ctx = this.scene.context();
-    const moved =
-      body !== last.body ||
-      exit !== last.exit ||
-      wormhole !== last.wormhole ||
-      !sameHandle(handle, last.handle);
+    const moved = !sameTarget(target, last.target);
     if (moved) {
-      this.scene.hover(body, exit, handle, wormhole);
+      this.scene.hover(target);
       this.dropRefusal();
     }
-    const own = moved || ctx !== last.ctx ? tipFor(ctx, body, exit, handle, wormhole) : last.tip;
-    this.hovered = { body, exit, handle, wormhole, ctx, tip: own, sx, sy };
+    const own = moved || ctx !== last.ctx ? tipFor(ctx, target) : last.tip;
+    this.hovered = { target, ctx, tip: own, sx, sy };
+    const body = idOf(target, "body");
     const tip = (body === null ? null : this.scene.markTipAt(body, sx, sy)) ?? own;
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
@@ -344,18 +328,10 @@ export class SystemInteraction {
   private input(kind: InputKind, e: PointerEvent): SystemInput {
     const ctx = this.scene.context();
     const w = this.cam.screenToWorld(e.offsetX, e.offsetY, this.at);
-    // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
-    const body = pickBody(ctx.bodies, this.cam, w) ?? this.scene.plateAt(e.offsetX, e.offsetY);
-    const wormhole = body === null ? pickWormhole(ctx.wormholes, this.cam, w) : null;
     const shown = ctx.drag?.handle ?? handleOwnerAt(ctx, this.cam, w);
     this.scene.revealHandles(shown);
-    const free = body === null && wormhole === null;
-    const handle = free ? pickHandle(ctx.handles, this.cam, w, shown) : null;
-    const own = body === null ? undefined : ctx.editing.bodies.get(body);
-    const movable =
-      own?.move === true ||
-      own?.detachOnly === true ||
-      ctx.wormholes.some((hole) => hole.id === wormhole && hole.movable);
+    const plateAt = () => this.scene.plateAt(e.offsetX, e.offsetY);
+    const target = pickTarget(ctx, this.cam, w, plateAt, shown);
     const input: SystemInput = {
       kind,
       sx: e.offsetX,
@@ -367,12 +343,9 @@ export class SystemInteraction {
       ctrl: e.ctrlKey === true || e.metaKey === true,
       scale: this.cam.scale,
       time: e.timeStamp,
-      system: ctx.id ?? -1,
-      body,
-      wormhole,
-      handle,
-      exit: free && handle === null ? pickExit(ctx.exits, this.cam, w) : null,
-      draggable: !this.scene.holding() && (movable || handle !== null),
+      system: ctx.id,
+      target,
+      draggable: !this.scene.holding() && movable(ctx, target),
     };
     if (kind === "down") this.pressToggles = input.shift || input.ctrl;
     if (kind === "move") {
