@@ -105,79 +105,11 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
         Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
         Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
-        // A scenario's lanes carry no length: the game measures them from the two ends.
-        Op::SetLaneLength { .. }
-        | Op::SetLaneLengths { .. }
-        | Op::NormaliseLaneLength { .. }
-        | Op::NormaliseLaneLengths { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
-        // A scenario holds no global flags: the game rolls the outcome once it starts. Its
-        // stars are drawn by the generator from the initializer, and it holds no planets.
-        Op::SetLGateOutcome { .. }
-        | Op::SetStarClass { .. }
-        | Op::SetPlanetSize { .. }
-        | Op::RenameSavePlanet { .. }
-        | Op::RemoveColony { .. }
-        | Op::DeleteSavePlanet { .. }
-        | Op::RestoreSaveEntities { .. }
-        | Op::AddPlanetModifier { .. }
-        | Op::RemovePlanetModifier { .. }
-        | Op::AddAnomaly { .. }
-        | Op::RemoveAnomaly { .. }
-        | Op::AddDigSite { .. }
-        | Op::RemoveDigSite { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
-        // A scenario's empires are created when the game starts, so it holds no countries,
-        // and its systems are statements `AddSystem` writes, with no bodies of their own.
-        Op::SetEmpireMapColors { .. }
-        | Op::SetEmpireFlag { .. }
-        | Op::RenameEmpire { .. }
-        | Op::AddSaveSystem { .. }
-        | Op::AddSaveDeposit { .. }
-        | Op::RemoveSaveDeposit { .. }
-        | Op::ReplaceSaveSystem { .. }
-        | Op::RenameSaveSystem { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
-        // A scenario's bodies and belts come from its initializers, which the game data holds,
-        // and its wormholes are placed when the game starts.
-        Op::MoveSaveBody { .. }
-        | Op::MoveSaveWormhole { .. }
-        | Op::AddSaveWormholePair { .. }
-        | Op::RemoveSaveWormholePair { .. }
-        | Op::MoveSavePlanet { .. }
-        | Op::SetSaveBodyParent { .. }
-        | Op::SetPlanetRing { .. }
-        | Op::AddSaveBody { .. }
-        | Op::RemoveAddedBody { .. }
-        | Op::SetPlanetEntity { .. }
-        | Op::SetPlanetClass { .. }
-        | Op::AddSaveBelt { .. }
-        | Op::RemoveSaveBelt { .. }
-        | Op::SetSaveBeltRadius { .. }
-        | Op::SetSaveBeltKind { .. }
-        | Op::SetSaveInnerRadius { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
-        // The game dresses a scenario's nebula members when it starts.
-        Op::SetNebulaTurbulent { .. } | Op::SetNebulaFootprints { .. } => {
-            Err(OpError::Unsupported {
-                op: op.name(),
-                kind: DocumentKind::Scenario,
-            })
-        }
-        // The game ignores the `z` of a scenario position and gives each star its own height.
-        Op::SetSystemHeights { .. } => Err(OpError::Unsupported {
-            op: op.name(),
-            kind: DocumentKind::Scenario,
-        }),
         Op::Batch { .. } => Err(OpError::NestedBatch),
+        _ => Err(OpError::Unsupported {
+            op: op.name(),
+            kind: DocumentKind::Scenario,
+        }),
     }
 }
 

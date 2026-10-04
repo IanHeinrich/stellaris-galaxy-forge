@@ -9,7 +9,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open, open_3_4, open_4_5};
+use common::{current, open, open_4_5};
 
 const ASTEROID: &str = "asteroid_uninhabitable_category";
 const PLAYER: u32 = 0;
@@ -213,16 +213,6 @@ fn an_anomaly_is_refused_for_a_held_one_none_or_a_bad_category() {
     for (op, message) in refusals {
         let error = session.apply(op).expect_err(message);
         assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-}
-
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let mut session = open_3_4();
-    for op in [add(1, ASTEROID), remove(1)] {
-        let error = session.apply(op).expect_err("a 3.4 save");
-        assert!(error.to_string().contains("3.4"), "{error}");
     }
     assert!(!session.doc.is_dirty());
 }

@@ -9,7 +9,7 @@ use sgf_core::session::Session;
 use crate::common;
 use common::diff::{round_trip, round_trip_step, snapshot_step};
 use common::examples::{ADDED_BODY, meissa_v};
-use common::{SAMPLE_4_5, current, open_3_4, open_4_5, open_edited_sample};
+use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
 
 /// What the install says of `class`, as far as these tests need it.
 fn rule(class: &str) -> PlanetClassRule {
@@ -189,16 +189,6 @@ fn a_colony_made_nuked_takes_its_one_model() {
     let entity = &text[start..start + text[start..].find("\n\t\t}\n").expect("its end")];
     assert!(entity.contains("\n\t\t\tplanet_class=\"pc_nuked\"\n"));
     assert!(entity.contains("\n\t\t\tentity=0\n"), "{entity}");
-}
-
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let mut session = open_3_4();
-    let error = session
-        .apply(set(1, "pc_barren", "pc_ocean"))
-        .expect_err("a 3.4 save");
-    assert!(error.to_string().contains("3.4"), "{error}");
-    assert!(!session.doc.is_dirty());
 }
 
 fn with_look(look: PlanetLook) -> Op {

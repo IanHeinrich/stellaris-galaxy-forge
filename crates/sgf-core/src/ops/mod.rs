@@ -26,9 +26,9 @@ pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_nam
 pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths, spliced};
 pub use op::{
-    ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaCloud,
-    NebulaFootprint, NewBody, NewSystem, Op, OpError, PlanetClassRule, PlanetLook, SavedEntity,
-    SavedTable, StarBody, SystemHeight, SystemMove,
+    ClassChange, DetailsReach, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair,
+    NebulaCloud, NebulaFootprint, NewBody, NewSystem, Op, OpError, OpReach, PlanetClassRule,
+    PlanetLook, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 pub use rules::bodies::{
@@ -88,13 +88,17 @@ pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
 }
 
 fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+    op.check_kind(session.kind())?;
     let mut plan = Plan::new();
     let planned = session.format().write(&mut plan, session, &op)?;
     let first = plan.commit(session, op, planned)?;
     let mut plan = Plan::new();
     let second = match session.format().follow_up(&mut plan, session, &first.op) {
         Ok(None) => return Ok(first),
-        Ok(Some(planned)) => plan.commit(session, first.op.clone(), planned),
+        Ok(Some(planned)) => {
+            debug_assert!(first.op.reach().follow_up, "{}", first.op.name());
+            plan.commit(session, first.op.clone(), planned)
+        }
         Err(e) => Err(e),
     };
     match second {

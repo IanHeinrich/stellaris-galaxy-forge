@@ -776,167 +776,237 @@ impl Op {
         self.into()
     }
 
-    /// Whether this op leaves the details of the systems it touched stale. The
-    /// projection is keyed by the systems the graph holds, so an op that adds or removes
-    /// one stales it, and a scenario system's planets and resources come from its
-    /// initializer, so an op that writes one stales it too, a scripted seat included
-    /// because it may bring an initializer with it. A save's details list a star's
-    /// bodies, whose classes [`Op::SetStarClass`] writes, whose sizes [`Op::SetPlanetSize`]
-    /// does and whose deposits [`Op::AddSaveDeposit`] and [`Op::RemoveSaveDeposit`] do, and
-    /// a save system an op adds brings its bodies with it, and [`Op::AddPlanetModifier`],
-    /// [`Op::RemovePlanetModifier`], [`Op::SetPlanetRing`], [`Op::SetPlanetEntity`] and
-    /// [`Op::SetPlanetClass`] stale the one planet they wrote, as [`Op::RenameSavePlanet`]
-    /// does the planet and moons it renamed, [`Op::AddDigSite`] and [`Op::RemoveDigSite`]
-    /// the planet whose site they wrote, and [`Op::AddAnomaly`] and [`Op::RemoveAnomaly`] the
-    /// planet whose anomaly they wrote. [`Op::AddSaveBody`] and [`Op::RemoveAddedBody`]
-    /// change which bodies a system lists. [`Op::MoveSaveWormhole`] stales the system whose
-    /// wormhole it moved, and [`Op::AddSaveWormholePair`] and [`Op::RemoveSaveWormholePair`]
-    /// the two systems whose wormholes they wrote.
-    pub fn stales_details(&self) -> bool {
+    /// What the op reaches beyond the bytes it writes: the document kinds that take it, the
+    /// details it stales, whether it reclassifies, whether it needs a 4.x save and whether it
+    /// takes a second step.
+    pub fn reach(&self) -> OpReach {
+        use DetailsReach::{Bodies, InPlace, Rebuild};
         match self {
+            Self::MoveSystem { .. }
+            | Self::AddLane { .. }
+            | Self::AddLanes { .. }
+            | Self::RemoveLane { .. }
+            | Self::RemoveLanes { .. }
+            | Self::IsolateSystem { .. }
+            | Self::MoveSystems { .. }
+            | Self::AddLanePairs { .. }
+            | Self::RemoveLanePairs { .. }
+            | Self::IsolateSystems { .. }
+            | Self::MoveNebula { .. }
+            | Self::AddNebula { .. }
+            | Self::RemoveNebula { .. }
+            | Self::SetNebulaRadius { .. }
+            | Self::SetNebulaName { .. } => OpReach::of(BOTH),
+            Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
+                OpReach::of(BOTH).details(Bodies).reclassifies()
+            }
+            // A scenario's lanes carry no length: the game measures them from the two ends.
+            // It holds no global flags, countries or planets either: the game rolls the
+            // outcome and creates the empires when it starts, and its stars and bodies come
+            // from the initializers. The game ignores the `z` of a scenario position.
+            Self::SetLaneLength { .. }
+            | Self::SetLaneLengths { .. }
+            | Self::NormaliseLaneLength { .. }
+            | Self::NormaliseLaneLengths { .. }
+            | Self::SetLGateOutcome { .. }
+            | Self::SetEmpireMapColors { .. }
+            | Self::SetEmpireFlag { .. }
+            | Self::RenameEmpire { .. }
+            | Self::SetSystemHeights { .. } => OpReach::of(SAVE),
             Self::SetStarClass { .. }
             | Self::SetPlanetSize { .. }
-            | Self::AddPlanetModifier { .. }
+            | Self::RenameSavePlanet { .. } => OpReach::of(SAVE).details(InPlace),
+            Self::AddSaveSystem { .. } => OpReach::of(SAVE)
+                .details(Bodies)
+                .reclassifies()
+                .whole_entries()
+                .follow_up(),
+            Self::ReplaceSaveSystem { .. } => {
+                OpReach::of(SAVE).details(Bodies).reclassifies().follow_up()
+            }
+            Self::RenameSaveSystem { .. } => OpReach::of(SAVE).details(Bodies).reclassifies(),
+            // The game dresses a scenario's nebula members itself when it starts.
+            Self::SetNebulaTurbulent { .. } | Self::SetNebulaFootprints { .. } => {
+                OpReach::of(SAVE).whole_entries()
+            }
+            Self::AddPlanetModifier { .. }
             | Self::RemovePlanetModifier { .. }
-            | Self::AddSaveDeposit { .. }
+            | Self::AddAnomaly { .. }
+            | Self::RemoveAnomaly { .. }
+            | Self::MoveSaveBody { .. }
+            | Self::SetSaveBodyParent { .. }
+            | Self::MoveSaveWormhole { .. }
+            | Self::SetPlanetRing { .. }
+            | Self::SetPlanetEntity { .. }
+            | Self::SetPlanetClass { .. }
+            | Self::AddSaveBelt { .. }
+            | Self::RemoveSaveBelt { .. }
+            | Self::SetSaveBeltRadius { .. }
+            | Self::SetSaveBeltKind { .. }
+            | Self::SetSaveInnerRadius { .. } => OpReach::of(SAVE).details(InPlace).whole_entries(),
+            Self::AddSaveDeposit { .. }
             | Self::RemoveSaveDeposit { .. }
-            | Self::AddSaveSystem { .. }
-            | Self::ReplaceSaveSystem { .. }
-            | Self::RenameSaveSystem { .. }
-            | Self::AddSystem { .. }
-            | Self::RemoveSystem { .. }
+            | Self::RemoveColony { .. }
+            | Self::DeleteSavePlanet { .. }
+            | Self::RestoreSaveEntities { .. }
+            | Self::AddSaveBody { .. }
+            | Self::RemoveAddedBody { .. }
+            | Self::AddDigSite { .. }
+            | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
+            Self::AddSaveWormholePair { .. }
+            | Self::RemoveSaveWormholePair { .. }
+            | Self::MoveSavePlanet { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            // A save's initializers, spawns, fallen empire zones and wormholes are the game's
+            // to set, and it has neither a scenario header nor a generator to prevent a lane
+            // from. It adds and names a system through the save ops, which write the bodies a
+            // scenario statement leaves out.
+            Self::SetHeaderField { .. }
+            | Self::SetHeaderKeys { .. }
+            | Self::SetHeaderList { .. }
+            | Self::SetSpawnWeight { .. }
+            | Self::SetSpawnWeights { .. }
+            | Self::SetFeZone { .. }
+            | Self::SetFeZones { .. }
+            | Self::SetFeLinks { .. }
+            | Self::SetFeLinkFlags { .. }
+            | Self::PreventLane { .. }
+            | Self::UnpreventLane { .. } => OpReach::of(SCENARIO),
+            Self::SetSystemName { .. }
+            | Self::SetWormholePair { .. }
+            | Self::SetWormholeEnds { .. } => OpReach::of(SCENARIO).reclassifies(),
+            // A scripted seat may bring an initializer with it.
+            Self::AddSystem { .. }
             | Self::AddSystems { .. }
-            | Self::RemoveSystems { .. }
             | Self::SetInitializer { .. }
             | Self::SetInitializers { .. }
             | Self::SetSpawnScript { .. }
-            | Self::SetSpawnScripts { .. }
-            | Self::MoveSaveBody { .. }
-            | Self::SetSaveBodyParent { .. }
-            | Self::MoveSaveWormhole { .. }
-            | Self::AddSaveWormholePair { .. }
-            | Self::RemoveSaveWormholePair { .. }
-            | Self::SetPlanetRing { .. }
-            | Self::SetPlanetEntity { .. }
-            | Self::SetPlanetClass { .. }
-            | Self::AddSaveBelt { .. }
-            | Self::RemoveSaveBelt { .. }
-            | Self::SetSaveBeltRadius { .. }
-            | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. }
-            | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. }
-            | Self::RemoveColony { .. }
-            | Self::DeleteSavePlanet { .. }
-            | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. }
-            | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. }
-            | Self::AddAnomaly { .. }
-            | Self::RemoveAnomaly { .. }
-            | Self::RestoreSaveEntities { .. } => true,
-            Self::Batch { ops, .. } => ops.iter().any(Self::stales_details),
-            _ => false,
-        }
-    }
-
-    /// Whether the details this op stales come up to date by rereading, in place, the
-    /// planets it rewrote and the belts, inner radius and wormhole points of the systems it
-    /// rewrote, without building the projection again.
-    pub fn refreshes_details_in_place(&self) -> bool {
-        match self {
-            Self::SetStarClass { .. }
-            | Self::SetPlanetSize { .. }
-            | Self::AddPlanetModifier { .. }
-            | Self::RemovePlanetModifier { .. }
-            | Self::MoveSaveBody { .. }
-            | Self::SetSaveBodyParent { .. }
-            | Self::MoveSaveWormhole { .. }
-            | Self::SetPlanetRing { .. }
-            | Self::SetPlanetEntity { .. }
-            | Self::SetPlanetClass { .. }
-            | Self::AddSaveBelt { .. }
-            | Self::RemoveSaveBelt { .. }
-            | Self::SetSaveBeltRadius { .. }
-            | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. }
-            | Self::RenameSavePlanet { .. }
-            | Self::AddAnomaly { .. }
-            | Self::RemoveAnomaly { .. } => true,
+            | Self::SetSpawnScripts { .. } => OpReach::of(SCENARIO).details(Rebuild).reclassifies(),
             Self::Batch { ops, .. } => ops
                 .iter()
-                .all(|op| op.refreshes_details_in_place() || !op.stales_details()),
-            _ => false,
+                .map(Self::reach)
+                .fold(OpReach::of(BOTH), OpReach::with),
         }
     }
 
-    /// Whether, in a save, the details this op stales are only those of the systems whose
-    /// bodies it wrote: a save system's lanes rewrite its neighbours, whose details stand
-    /// as they were. A scenario's systems have no bodies, so there it stales them all.
-    pub fn stales_only_bodies(&self) -> bool {
-        match self {
-            Self::AddSaveSystem { .. }
-            | Self::ReplaceSaveSystem { .. }
-            | Self::RenameSaveSystem { .. }
-            | Self::RemoveSystem { .. }
-            | Self::RemoveSystems { .. }
-            | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. }
-            | Self::RemoveColony { .. }
-            | Self::DeleteSavePlanet { .. }
-            | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. }
-            | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. }
-            | Self::RestoreSaveEntities { .. } => true,
-            Self::Batch { ops, .. } => ops
-                .iter()
-                .all(|op| op.stales_only_bodies() || !op.stales_details()),
-            _ => false,
+    /// Refuse the op before any format sees it when `kind` does not take it.
+    pub(crate) fn check_kind(&self, kind: DocumentKind) -> Result<(), OpError> {
+        if self.reach().kinds.contains(&kind) {
+            Ok(())
+        } else {
+            Err(OpError::Unsupported {
+                op: self.name(),
+                kind,
+            })
+        }
+    }
+}
+
+const BOTH: &[DocumentKind] = &[DocumentKind::Save, DocumentKind::Scenario];
+const SAVE: &[DocumentKind] = &[DocumentKind::Save];
+const SCENARIO: &[DocumentKind] = &[DocumentKind::Scenario];
+const NEITHER: &[DocumentKind] = &[];
+
+fn shared_kinds(a: &'static [DocumentKind], b: &'static [DocumentKind]) -> &'static [DocumentKind] {
+    match (
+        a.contains(&DocumentKind::Save) && b.contains(&DocumentKind::Save),
+        a.contains(&DocumentKind::Scenario) && b.contains(&DocumentKind::Scenario),
+    ) {
+        (true, true) => BOTH,
+        (true, false) => SAVE,
+        (false, true) => SCENARIO,
+        (false, false) => NEITHER,
+    }
+}
+
+/// One op's row: see [`Op::reach`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OpReach {
+    /// The document kinds that take the op.
+    pub kinds: &'static [DocumentKind],
+    pub details: DetailsReach,
+    /// Whether the op can move how the systems it touched are classified: the initializer a
+    /// classification is read from, the name it is labelled by, or the star flags the
+    /// scripts place a wormhole by.
+    pub reclassifies: bool,
+    /// Whether the op writes whole entries, which only a 4.x save lays out as it does.
+    pub whole_entries: bool,
+    /// Whether the op has a second step, planned once its first is committed.
+    pub follow_up: bool,
+}
+
+impl OpReach {
+    const fn of(kinds: &'static [DocumentKind]) -> Self {
+        Self {
+            kinds,
+            details: DetailsReach::Untouched,
+            reclassifies: false,
+            whole_entries: false,
+            follow_up: false,
         }
     }
 
-    /// Whether this op can have moved how the systems it touched are classified: the
-    /// initializer a classification is read from, the name it is labelled by, or the
-    /// star flags the scripts place a wormhole by.
-    pub fn reclassifies(&self) -> bool {
-        match self {
-            Self::SetSystemName { .. }
-            | Self::RenameSaveSystem { .. }
-            | Self::SetWormholePair { .. }
-            | Self::SetWormholeEnds { .. } => true,
-            Self::SetStarClass { .. }
-            | Self::SetPlanetSize { .. }
-            | Self::AddPlanetModifier { .. }
-            | Self::RemovePlanetModifier { .. }
-            | Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. }
-            | Self::MoveSaveBody { .. }
-            | Self::SetSaveBodyParent { .. }
-            | Self::MoveSaveWormhole { .. }
-            | Self::AddSaveWormholePair { .. }
-            | Self::RemoveSaveWormholePair { .. }
-            | Self::SetPlanetRing { .. }
-            | Self::SetPlanetEntity { .. }
-            | Self::SetPlanetClass { .. }
-            | Self::AddSaveBelt { .. }
-            | Self::RemoveSaveBelt { .. }
-            | Self::SetSaveBeltRadius { .. }
-            | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. }
-            | Self::MoveSavePlanet { .. }
-            | Self::RenameSavePlanet { .. }
-            | Self::RemoveColony { .. }
-            | Self::DeleteSavePlanet { .. }
-            | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. }
-            | Self::AddDigSite { .. }
-            | Self::RemoveDigSite { .. }
-            | Self::AddAnomaly { .. }
-            | Self::RemoveAnomaly { .. }
-            | Self::RestoreSaveEntities { .. } => false,
-            Self::Batch { ops, .. } => ops.iter().any(Self::reclassifies),
-            _ => self.stales_details(),
+    const fn details(self, details: DetailsReach) -> Self {
+        Self { details, ..self }
+    }
+
+    const fn reclassifies(self) -> Self {
+        Self {
+            reclassifies: true,
+            ..self
+        }
+    }
+
+    const fn whole_entries(self) -> Self {
+        Self {
+            whole_entries: true,
+            ..self
+        }
+    }
+
+    const fn follow_up(self) -> Self {
+        Self {
+            follow_up: true,
+            ..self
+        }
+    }
+
+    /// A batch's row with `member` added to it.
+    fn with(self, member: Self) -> Self {
+        Self {
+            kinds: shared_kinds(self.kinds, member.kinds),
+            details: self.details.with(member.details),
+            reclassifies: self.reclassifies || member.reclassifies,
+            whole_entries: self.whole_entries || member.whole_entries,
+            follow_up: self.follow_up || member.follow_up,
+        }
+    }
+}
+
+/// Which systems' details an op leaves stale, and how they come up to date.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetailsReach {
+    Untouched,
+    /// The systems it rewrote, read again in place: the planets it rewrote and the belts,
+    /// inner radius and wormhole points of the systems it rewrote.
+    InPlace,
+    /// In a save, only the systems whose bodies it wrote, since a save system's lanes
+    /// rewrite its neighbours; in a scenario, whose systems have no bodies, every system it
+    /// rewrote. The projection is built again.
+    Bodies,
+    /// Every system it rewrote, with the projection built again.
+    Rebuild,
+}
+
+impl DetailsReach {
+    pub fn stales(self) -> bool {
+        self != Self::Untouched
+    }
+
+    fn with(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Untouched, reach) | (reach, Self::Untouched) => reach,
+            (a, b) if a == b => a,
+            _ => Self::Rebuild,
         }
     }
 }

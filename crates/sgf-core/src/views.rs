@@ -85,8 +85,9 @@ impl From<&GalaxyGraph> for GalaxyView {
 }
 
 /// What the open document supports, so the app shows only the layers, tabs and ops it
-/// can answer for. Each format fills it, and the app reads these flags, not the kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// can answer for. Each format fills it, and the app reads these flags, not the kind. The
+/// default supports nothing, so a format names only what it has.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct Capabilities {
     /// Countries: the owners layer, the empire colouring and the owner fields.
@@ -112,7 +113,7 @@ pub struct Capabilities {
     /// Systems can be added to the save, and the ones added this session rerolled, renamed
     /// and deleted.
     pub added_systems: bool,
-    /// A body's star class and planet size can be changed.
+    /// A body's star class, planet size and name can be changed.
     pub bodies: bool,
     /// A planet's deposits can be added and removed.
     pub deposits: bool,
@@ -129,6 +130,33 @@ pub struct Capabilities {
     pub wormhole_pairs: bool,
     /// A system's height above or below the galactic plane can be changed.
     pub system_heights: bool,
+    /// Planets can be selected in the system view and moved into another system.
+    pub planet_moves: bool,
+    /// A system's bodies are rolled from its initializer, not read from the document: the
+    /// system view rolls them and a body opens the rolled body's page.
+    pub rolled_layout: bool,
+    /// Planets and moons can be added to a system.
+    pub add_bodies: bool,
+    /// A planet or moon can be deleted, and a colony removed from it.
+    pub remove_bodies: bool,
+    /// A planet's class and model can be changed.
+    pub planet_classes: bool,
+    /// A planet's timed modifiers and features can be added and removed.
+    pub modifiers: bool,
+    /// A body's anomaly can be added and removed.
+    pub anomalies: bool,
+    /// A planet's dig site can be added and removed.
+    pub dig_sites: bool,
+    /// Any system can be renamed from its header.
+    pub rename_systems: bool,
+    /// The document has a header of its own: the galaxy's name, sizes and core radius.
+    pub header: bool,
+    /// Empires are seated by the scripts the systems name: the territories, day-one claims
+    /// and marauder clans the game data resolves.
+    pub scripted_owners: bool,
+    /// Systems name the initializers and scripts that generate them: the initializer
+    /// labels, the scripts tab and the initializer a system opens.
+    pub scripts: bool,
 }
 
 impl Capabilities {

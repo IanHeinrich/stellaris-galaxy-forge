@@ -3,11 +3,10 @@
 //! Every edit goes through [`Session::apply`], which runs the op, records it for
 //! undo and validates the projection. Undo and redo replay recorded bytes.
 //!
-//! The details projection is built on first use and dropped by an op that stales it
-//! (`Op::stales_details`), unless all the op staled can be read again in place: the planets
-//! it rewrote, and the belts and inner radius of the systems it rewrote. A scenario has no details sections at all:
-//! its systems' planets and resources come from the initializer, which the app resolves
-//! through game data.
+//! The details projection is built on first use. An op that stales it (`Op::reach`) has
+//! what it staled read again in place when it can, and otherwise the projection is built
+//! again. A scenario has no details sections at all: its systems' planets and resources come
+//! from the initializer, which the app resolves through game data.
 
 use std::cell::OnceCell;
 use std::collections::HashSet;
@@ -24,7 +23,7 @@ use crate::format::scenario::effect;
 use crate::format::{self, Format};
 use crate::library;
 use crate::ops::history::History;
-use crate::ops::{self, Applied, Op, OpError, Plan, Subject, SystemRadii};
+use crate::ops::{self, Applied, DetailsReach, Op, OpError, Plan, Subject, SystemRadii};
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, ProjectionError, SystemNode, Wayline};
 use crate::search;
 use crate::validate::{self, Issue, validate};
@@ -62,7 +61,7 @@ pub struct OpResult {
     pub touched: Vec<u32>,
     /// The systems whose details the op left stale, ascending.
     pub details_stale: Vec<u32>,
-    /// See [`Op::reclassifies`].
+    /// See [`crate::ops::OpReach::reclassifies`].
     pub reclassifies: bool,
     /// The whole wayline list when the op changed it, `None` when it stands as before.
     pub waylines: Option<Vec<Wayline>>,
@@ -132,9 +131,10 @@ impl Session {
         self.radii = radii;
     }
 
-    /// Apply `op`, record it for undo and validate. The document is unchanged on error.
-    /// The details are brought up to date before validating, so a finding that reads them
-    /// (an overlap) is current.
+    /// Apply `op`, record it for undo and validate. The document is unchanged on error, and
+    /// an op the document's kind does not take is refused before its format sees it. Built
+    /// details are brought up to date before validating, so a finding that reads them (an
+    /// overlap) is current.
     pub fn apply(&mut self, op: Op) -> Result<OpResult, OpError> {
         let before = Derived::of(&self.graph);
         let applied = ops::apply(self, op)?;
@@ -149,7 +149,7 @@ impl Session {
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
-        let in_place = applied.op.refreshes_details_in_place();
+        let in_place = in_place(&applied.op);
         self.history.push(applied);
         self.update_details(in_place, &result);
         result.issues = self.validate();
@@ -165,7 +165,7 @@ impl Session {
             return Ok(None);
         };
         let mut result = result(&self.graph, seq, applied, &before, true, Vec::new());
-        let in_place = applied.op.refreshes_details_in_place();
+        let in_place = in_place(&applied.op);
         self.update_details(in_place, &result);
         result.issues = self.validate();
         Ok(Some(result))
@@ -180,7 +180,7 @@ impl Session {
             return Ok(None);
         };
         let mut result = result(&self.graph, seq, applied, &before, false, Vec::new());
-        let in_place = applied.op.refreshes_details_in_place();
+        let in_place = in_place(&applied.op);
         self.update_details(in_place, &result);
         result.issues = self.validate();
         Ok(Some(result))
@@ -188,6 +188,7 @@ impl Session {
 
     /// What `apply_op`, `undo` and `redo` report to the app.
     pub fn edit_result(&self, result: OpResult) -> EditResult {
+        let touched_entities = touched_entities(&result.touched, &result.subjects);
         EditResult {
             entry: result.entry,
             delta: self.delta(
@@ -199,11 +200,7 @@ impl Session {
             issues: result.issues,
             history: self.history(),
             dirty: self.is_dirty(),
-            touched_entities: result
-                .touched
-                .iter()
-                .map(|&id| EntityAddr::new(EntityKind::System, id))
-                .collect(),
+            touched_entities,
             details_stale: result.details_stale,
             reclassifies: result.reclassifies,
             title: self.title(),
@@ -268,27 +265,31 @@ impl Session {
     }
 
     /// Bring a built details projection up to date with `result`: reread the planets and
-    /// systems it rewrote when `in_place` says that is enough, else drop the projection.
+    /// systems it rewrote when `in_place` says that is enough, else build it again.
     fn update_details(&mut self, in_place: bool, result: &OpResult) {
         if result.details_stale.is_empty() {
             return;
         }
-        let Some(details) = self.details.get_mut().filter(|_| in_place) else {
-            self.details.take();
+        let Some(details) = self.details.get_mut() else {
             return;
         };
-        let planets = result.subjects.iter().filter_map(|s| match *s {
-            Subject::Planet { id, system } => Some((id, system)),
-            _ => None,
-        });
-        let systems = result.subjects.iter().filter_map(|s| s.system());
-        let details = Arc::make_mut(details);
-        let refreshed = details
-            .refresh_planets(&self.doc, planets)
-            .and_then(|()| details.refresh_systems(&self.doc, systems));
-        if refreshed.is_err() {
-            self.details.take();
+        if in_place {
+            let planets = result.subjects.iter().filter_map(|s| match *s {
+                Subject::Planet { id, system } => Some((id, system)),
+                _ => None,
+            });
+            let systems = result.subjects.iter().filter_map(|s| s.system());
+            let details = Arc::make_mut(details);
+            let refreshed = details
+                .refresh_planets(&self.doc, planets)
+                .and_then(|()| details.refresh_systems(&self.doc, systems));
+            if refreshed.is_ok() {
+                return;
+            }
         }
+        self.details.take();
+        // A projection that fails to build is left unbuilt, as on open.
+        let _ = self.details();
     }
 
     /// What the document kind holds, so the app shows only what it can answer for.
@@ -413,10 +414,20 @@ impl Session {
 
     /// Why `op` would be refused, or `None` when it would apply. Nothing is written: the op
     /// is planned against the session and dropped. A batch is refused, since its members
-    /// after the first would be planned against a session none of them had changed.
+    /// after the first would be planned against a session none of them had changed, and so
+    /// is an op with a second step, which is planned against its first.
     pub fn check_op(&self, op: &Op) -> Option<String> {
         if matches!(op, Op::Batch { .. }) {
             return Some("a batch cannot be checked: check each of its ops".to_owned());
+        }
+        if let Err(error) = op.check_kind(self.kind()) {
+            return Some(error.to_string());
+        }
+        if op.reach().follow_up {
+            return Some(format!(
+                "{} cannot be checked: its second step needs its first applied",
+                op.name()
+            ));
         }
         self.format()
             .write(&mut Plan::new(), self, op)
@@ -579,7 +590,7 @@ fn result(
     }
     OpResult {
         details_stale,
-        reclassifies: applied.op.reclassifies(),
+        reclassifies: applied.op.reach().reclassifies,
         entry: HistoryEntry {
             seq,
             description: applied.description.clone(),
@@ -594,15 +605,35 @@ fn result(
     }
 }
 
+/// Whether the details `op` stales come up to date by rereading them in place.
+fn in_place(op: &Op) -> bool {
+    op.reach().details == DetailsReach::InPlace
+}
+
+/// The entities an edit rewrote, as the app addresses them: its `systems`, then the planets
+/// and countries among its `subjects`.
+fn touched_entities(systems: &[u32], subjects: &[Subject]) -> Vec<EntityAddr> {
+    let systems = systems
+        .iter()
+        .map(|&id| EntityAddr::new(EntityKind::System, id));
+    let others = subjects.iter().filter_map(|subject| match *subject {
+        Subject::Planet { id, .. } => Some(EntityAddr::new(EntityKind::Planet, id)),
+        Subject::Country(id) => Some(EntityAddr::new(EntityKind::Country, id)),
+        _ => None,
+    });
+    systems.chain(others).collect()
+}
+
 /// The systems `op` left the details of stale, ascending: those it rewrote and those
 /// whose bodies it rewrote, or in a save only the latter when that is all it stales (see
-/// [`Op::stales_only_bodies`]). The lane statements it also rewrote name no system of
+/// [`DetailsReach::Bodies`]). The lane statements it also rewrote name no system of
 /// their own.
 fn details_stale(kind: DocumentKind, op: &Op, subjects: &[Subject]) -> Vec<u32> {
-    if !op.stales_details() {
+    let reach = op.reach().details;
+    if !reach.stales() {
         return Vec::new();
     }
-    let bodies_only = kind == DocumentKind::Save && op.stales_only_bodies();
+    let bodies_only = kind == DocumentKind::Save && reach == DetailsReach::Bodies;
     let mut ids: Vec<u32> = subjects
         .iter()
         .filter_map(|s| match *s {
