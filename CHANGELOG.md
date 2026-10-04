@@ -8,6 +8,38 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-10-04
+
+### Changed
+
+- The scenario planet page in the Inspector now has the same layout as a
+  save planet's, with deposits grouped by type and an About section.
+- The undo list now names each system by its name and number.
+- The command line now applies edits from JSON files with `sgf apply`,
+  which replaces the one-edit commands such as `sgf move` and `sgf lane`.
+  `sgf add-system` and `sgf add-body` no longer need `--generate` or
+  `--roll`.
+
+### Fixed
+
+- Fixed planets orbiting the second star of a binary system being treated
+  as moons. They can now have moons and use the planet-only classes.
+- Fixed the system view letting you drag a moon onto a habitat or another
+  moon. It now refuses, as Add moon does.
+- Fixed modded asteroids showing as round planets in the system view.
+- Fixed anomaly descriptions losing words on the planet page and in Add
+  anomaly.
+- Fixed an empire's Data tab not updating after you rename it or change
+  its flag.
+- Fixed planet sizes missing from a scenario system's Planets list and
+  Initializer section, and from the initializer browser.
+- Fixed changes to a mod's deposits, anomalies, terraforming, game rules
+  or galaxy settings not showing until you restarted the app.
+- Fixed a save renamed to `.txt` opening as a scenario. It now opens as a
+  save.
+- Fixed the map freezing with mods that set the empire name width to zero
+  or less.
+
 ## [0.20.0] - 2026-10-04
 
 ### Added
