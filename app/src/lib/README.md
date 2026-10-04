@@ -7,7 +7,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
   territories between edits, `territories.worker.ts` runs it off the UI thread
   and `territoryClient.ts` is how the map talks to either. `territory.ts` is
-  the influence field the territories are traced from, `contour.ts` turns the
+  the influence field the territories are traced from. It measures each tile
+  in `influenceRaster.ts` and traces it in `influenceMarch.ts`, from the
+  sources in `influenceSources.ts`, the tile layout in `influenceTiles.ts` and
+  the rounding in `influenceSmoothing.ts`. `contour.ts` turns the
   traced segments into rings, and `polygon.ts` holds the ring helpers: area,
   point in ring, and nesting rings into polygons with holes. `pairs.ts` and
   `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
