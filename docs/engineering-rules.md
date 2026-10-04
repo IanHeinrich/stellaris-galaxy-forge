@@ -171,7 +171,9 @@ format sees it.
   tests, which take most of the time, split by `bash scripts/test-shard.sh
   <index> <count>`. Every Ubuntu `Test` job checks the diff of
   `app/src/generated/`. `Checks (<os>)` reports passed only when `Lint`
-  and every `Test` job passed.
+  and every `Test` job passed. The `Test` jobs compile through sccache,
+  so a job whose workspace library sources match an earlier run on `main`
+  or on the same PR reuses those libraries instead of rebuilding them.
   A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
   `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
   skips the build, and `ci-docs.yml` reports the required checks as
