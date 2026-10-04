@@ -14,7 +14,6 @@ const saved = (drag: DragMarks | null = null): SystemContext => {
   const ctx = systemContext({
     ...NO_SOURCES,
     id: 140,
-    kind: "save",
     details: orbitSystem(),
     planetClasses: orbitClasses(),
     geometry: SAVE_GEOMETRY,

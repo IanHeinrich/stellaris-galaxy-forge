@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
-vi.mock("../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
+vi.mock("../../api/gamedata", () => ({ getTextures: () => Promise.resolve([]) }));
 vi.mock("../../store/systemGeometry", async (original) => ({
   ...(await original<typeof import("../../store/systemGeometry")>()),
   applyGeometry: vi.fn(() => Promise.resolve(true)),

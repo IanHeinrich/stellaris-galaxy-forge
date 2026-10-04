@@ -6,7 +6,7 @@ use crate::common;
 use sgf_core::format::save::details::DetailsResolver;
 use sgf_core::ops::SystemRadii;
 use sgf_gamedata::registries::asteroid_belts::BeltLook;
-use sgf_gamedata::views::{GameDataSummary, ShipSizeView, TerraformCandidateView};
+use sgf_gamedata::views::{GameDataSummary, MapColor, ShipSizeView, TerraformCandidateView};
 
 #[test]
 fn sprites_resolve() {
@@ -601,6 +601,11 @@ fn vanilla_registries() {
 
     let blue = gd.colors.entries.get("blue").expect("blue");
     assert_eq!(blue.map, [46, 63, 153]);
+    assert_eq!(
+        MapColor::from(blue).map,
+        "#2e3f99",
+        "the view writes it as hex"
+    );
 
     let continental = gd
         .planet_classes

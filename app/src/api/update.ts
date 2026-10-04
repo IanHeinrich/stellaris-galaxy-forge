@@ -1,13 +1,12 @@
 /**
- * In-app updates: what the endpoint offers, and replacing the running copy with it. Command
- * names here match `app/src-tauri/src/commands/update.rs`.
+ * In-app updates: what the endpoint offers, and replacing the running copy with it.
+ * Command and argument names match `app/src-tauri/src/commands/update.rs`.
  */
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import type { UpdateCheck } from "../generated/UpdateCheck";
 
-/** Where a check would send the user, known without one; mirrors `RELEASES_URL` on the Rust side, which allows it. */
-export const RELEASES_URL = "https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest";
+export { RELEASES_URL } from "../generated/shell";
 
 /** Ask the endpoint what it offers, and park what it answers for `installUpdate`. */
 export function checkForUpdate(): Promise<UpdateCheck> {

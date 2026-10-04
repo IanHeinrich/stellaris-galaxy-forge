@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
-import type { PlanetPage } from "../../../generated/PlanetPage";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
 import { formatAmount, resourceAbbrev } from "../../../lib/details/resources";
 import {
@@ -17,17 +16,18 @@ import {
   TERRAFORMING_NOTE,
   warningNameKeys,
 } from "../../../lib/details/depositWarnings";
-import type { PickerTarget } from "../../../lib/details/picker";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import type { SaveRowRefs } from "../../../store/planetEditAdapter";
 import { Icon } from "../../parts";
 import { DrillLink, Section } from "../parts";
-import { DepositPicker } from "./DepositPicker";
+import { ConfirmLine } from "./ConfirmLine";
+import { DEPOSIT_PICKERS } from "./DepositPicker";
+import { PlanetPicker } from "./PlanetPicker";
+import type { PlanetSectionProps } from "./planetSection";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
@@ -50,19 +50,13 @@ interface Removal {
 function RemovalConfirm({ removal }: { removal: Removal | null }) {
   if (removal === null || !removal.confirming) return null;
   return (
-    <div className="pl-dep-confirm" role="alert">
-      {removal.warnings.map((warning) => (
-        <span key={warning}>{warning}</span>
-      ))}
-      <span className="pl-dep-confirm-actions">
-        <button type="button" className="dp-amount" onClick={removal.confirm}>
-          Remove anyway
-        </button>
-        <button type="button" className="dp-amount" onClick={removal.cancel}>
-          Cancel
-        </button>
-      </span>
-    </div>
+    <ConfirmLine
+      className="pl-dep-confirm"
+      warnings={removal.warnings}
+      confirmLabel="Remove anyway"
+      onConfirm={removal.confirm}
+      onCancel={removal.cancel}
+    />
   );
 }
 
@@ -242,18 +236,11 @@ function DepositRow({
 
 /**
  * A body's deposits: the district caps they add up to, one row per type, and the blockers apart.
- * Where `editable`, each row can lose one of its deposits and a picker adds one, both through
- * `target`'s adapter.
+ * Where the page offers deposits, each row can lose one of its deposits and a picker adds one,
+ * both through `target`'s adapter.
  */
-export function PlanetDeposits({
-  page,
-  editable,
-  target,
-}: {
-  page: PlanetPage;
-  editable: boolean;
-  target: PickerTarget<SaveRowRefs>;
-}) {
+export function PlanetDeposits({ page, offers, target }: PlanetSectionProps) {
+  const editable = offers.deposits;
   const views = usePlanetDataStore((s) => s.depositTypes);
   const ready = useGameDataStore((s) => s.status === "ready");
   const names = useGameDataStore((s) => s.names);
@@ -302,7 +289,9 @@ export function PlanetDeposits({
           removal={removal(g)}
         />
       ))}
-      {editable && <DepositPicker target={target} mode="deposits" warnings={addWarningsFor} />}
+      {editable && (
+        <PlanetPicker kind={DEPOSIT_PICKERS.deposits} target={target} extra={addWarningsFor} />
+      )}
       {(blockers.length > 0 || editable) && (
         <>
           <div className="pl-sub-head">
@@ -319,7 +308,9 @@ export function PlanetDeposits({
           ))}
         </>
       )}
-      {editable && <DepositPicker target={target} mode="blockers" warnings={addWarningsFor} />}
+      {editable && (
+        <PlanetPicker kind={DEPOSIT_PICKERS.blockers} target={target} extra={addWarningsFor} />
+      )}
     </Section>
   );
 }

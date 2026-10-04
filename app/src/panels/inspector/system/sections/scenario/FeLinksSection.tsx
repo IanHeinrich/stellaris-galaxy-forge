@@ -2,7 +2,7 @@ import type { SystemNode } from "../../../../../generated/SystemNode";
 import { linkedAnchors } from "../../../../../lib/feLinks";
 import { useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
+import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
 
@@ -16,14 +16,13 @@ export const FE_LINKS_INTRO =
  * none; an anchor's own links are in its Fallen empire zone section.
  */
 export function FeLinksSection({ system }: { system: SystemNode }) {
-  const editable = useCanEdit("create_systems");
   const paint = usePaintLayer();
   const systems = useGalaxyStore((s) => s.systems);
   const select = useEditorStore((s) => s.select);
   const unlinkFromFeZone = useEditorStore((s) => s.unlinkFromFeZone);
   const anchors = system.fe_zone === null ? linkedAnchors(system, systems) : [];
   const names = useSystemNames(anchors.map((a) => a.id));
-  if (!editable || !paint || anchors.length === 0) return null;
+  if (!paint || anchors.length === 0) return null;
   return (
     <Section id="system.feLinks" title="Fallen empire links">
       {anchors.map((a, i) => (

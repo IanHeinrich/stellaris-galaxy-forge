@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import type { Bounds } from "../../../generated/Bounds";
 import type { WormholeSummary } from "../../../generated/WormholeSummary";
 import { bypassIconKey } from "../../../lib/details/icons";
 import { bypassName, wormholePlateName } from "../../../lib/details/labels";
@@ -7,21 +8,20 @@ import {
   wormholeFieldIntent,
   wormholePlace,
 } from "../../../lib/details/orbitIntent";
+import { rounded } from "../../../lib/details/orbits";
 import { openSystem } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
-import { applyGeometryFrom, useSystemGeometry } from "../../../store/systemGeometry";
-import { EditBlock, EditKey, EditNote, EditRow, TextField } from "../../EditField";
+import { useSystemGeometry } from "../../../store/systemGeometry";
+import { EditBlock, EditKey } from "../../EditField";
 import { Icon } from "../../parts";
 import { Empty, LinkRow, Properties, PropertyRow } from "../parts";
+import { RadiusAngleFields } from "../RadiusAngleFields";
+import { useGeometryEdit } from "../useGeometryEdit";
 import { EntityView } from "./EntityView";
 import "./entity.css";
-
-function rounded(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 function Head({ hole, name }: { hole: WormholeSummary; name: string }) {
   const kinds = useGameDataStore((s) => s.bypasses);
@@ -37,45 +37,24 @@ function Head({ hole, name }: { hole: WormholeSummary; name: string }) {
 
 /** Where a natural wormhole stands about the star, as fields; each commit is one move. */
 function PositionBlock({ system, hole }: { system: number; hole: WormholeSummary }) {
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const { send, note } = useGeometryEdit(system);
   const { radius, angle } = wormholePlace(hole);
-  const commit = (field: "radius" | "angle", typed: number) => {
-    setRefusal(null);
-    void applyGeometryFrom(
-      system,
-      ({ frame }) => {
-        const now = frame.details?.wormholes.find((w) => w.id === hole.id);
-        return now ? wormholeFieldIntent(system, now, field, typed) : null;
-      },
-      setRefusal,
-    );
-  };
+  const commit = (field: "radius" | "angle", { min: typed }: Bounds) =>
+    send(({ frame }) => {
+      const now = frame.details?.wormholes.find((w) => w.id === hole.id);
+      return now ? wormholeFieldIntent(system, now, field, typed) : null;
+    });
   return (
     <EditBlock title="Position">
-      <EditRow label="Distance">
-        <TextField
-          kind="number"
-          label="Distance"
-          title="How far it stands from the star"
-          value={rounded(radius)}
-          onCommit={(typed) => commit("radius", typed)}
-        />
-      </EditRow>
-      <EditRow label="Angle">
-        <TextField
-          kind="number"
-          label="Angle"
-          title="Where it stands about the star, in degrees"
-          value={rounded(angle)}
-          display={String(Math.round(angle) % 360)}
-          onCommit={(typed) => commit("angle", typed)}
-        />
-      </EditRow>
-      {refusal !== null && (
-        <EditNote>
-          <span className="warn">{refusal}</span>
-        </EditNote>
-      )}
+      <RadiusAngleFields
+        radius={radius}
+        angle={angle}
+        radiusLabel="Distance"
+        radiusTitle="How far it stands from the star"
+        angleTitle="Where it stands about the star, in degrees"
+        onCommit={commit}
+      />
+      {note()}
     </EditBlock>
   );
 }

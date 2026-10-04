@@ -7,7 +7,7 @@ import { systemsOf, type Ownership } from "../../lib/ownership";
 import { ownerColor, toCss } from "../../lib/visual/ownerColors";
 import { rowLookups, type EmpireRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
-import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
+import { useCanEdit } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
@@ -158,7 +158,7 @@ const TERRITORY_NEEDS_GAME_DATA =
  * station or fleet stands in. A scenario lists the territories its scripts hand out instead.
  */
 export function Empires() {
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const scripted = useCanEdit("scripted_owners");
   const mapColors = useCanEdit("map_colors");
   const ready = useGameDataStore((s) => s.status === "ready");
   const countries = useGalaxyStore((s) => s.countries);
@@ -180,10 +180,10 @@ export function Empires() {
   );
   const summary = scenarioOwners ? territorySummary(scenarioOwners) : null;
 
-  if (groups.length === 0) return <div className="muted">{emptyText(scenario, ready)}</div>;
+  if (groups.length === 0) return <div className="muted">{emptyText(scripted, ready)}</div>;
   return (
     <div className="browser">
-      {scenario && <div className="browser-note src">{TERRITORY_NOTE}</div>}
+      {scripted && <div className="browser-note src">{TERRITORY_NOTE}</div>}
       {groups.map((group) => (
         <Group
           key={group.key}
@@ -204,7 +204,7 @@ export function Empires() {
           ))}
         </Group>
       ))}
-      {scenario && summary !== null && <div className="browser-note">{summary}</div>}
+      {scripted && summary !== null && <div className="browser-note">{summary}</div>}
     </div>
   );
 }
@@ -220,7 +220,7 @@ function territorySummary(owners: ScenarioOwners): string | null {
 }
 
 /** Why the list is empty: a save with no empires, a scenario with no scripted owners, or no game data. */
-function emptyText(scenario: boolean, ready: boolean): string {
-  if (!scenario) return "No empires in this save.";
+function emptyText(scripted: boolean, ready: boolean): string {
+  if (!scripted) return "No empires in this save.";
   return ready ? TERRITORY_NONE : TERRITORY_NEEDS_GAME_DATA;
 }

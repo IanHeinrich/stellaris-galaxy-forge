@@ -2,7 +2,8 @@ import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
 import { seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
-import { bypassLinks, randomBypassLine } from "../../../lib/scenarioBypasses";
+import { randomBypassLine } from "../../../lib/scenarioBypasses";
+import { useShownBypasses } from "../../../store/bypassSelectors";
 import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit, useFileSessionStore, usePaintLayer } from "../../../store/fileSessionStore";
 import { useGalaxyVersion } from "../../../store/browserRows";
@@ -147,6 +148,8 @@ export function GalaxyView() {
   const meta = useFileSessionStore((s) => s.meta);
   const title = useFileSessionStore((s) => s.title);
   const kind = useFileSessionStore((s) => s.kind);
+  const ownHeader = useCanEdit("header");
+  const scripted = useCanEdit("scripts");
   const lgateEditable = useCanEdit("lgate");
   const path = useFileSessionStore((s) => s.path);
   const cloud = useFileSessionStore((s) => s.cloud);
@@ -161,14 +164,12 @@ export function GalaxyView() {
   const countries = useGalaxyStore((s) => s.countries);
   const nebulae = useGalaxyStore((s) => s.nebulae);
   const lgate = useGalaxyStore((s) => s.lgate);
-  const links = useGalaxyStore((s) => s.bypasses);
+  const bypasses = useShownBypasses().length;
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const paint = usePaintLayer();
   useGalaxyVersion();
 
-  const scenario = kind === "scenario";
-  const bypasses = scenario ? bypassLinks(placed, true, true).length : links.length;
-  const random = scenario ? randomBypassLine(placed) : null;
+  const random = scripted ? randomBypassLine(placed) : null;
   const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
   const components = galaxyIslandCount(systems);
   if (galaxy === null) return <Empty>Open a save to look at its galaxy.</Empty>;
@@ -214,7 +215,7 @@ export function GalaxyView() {
               {KALEIDOSCOPE_VALUE}
             </PropertyRow>
           )}
-          {kind === "scenario" && (
+          {ownHeader && (
             <PropertyRow
               label="Core radius"
               title="Where the scenario's core sits, as its text states it"
@@ -224,7 +225,7 @@ export function GalaxyView() {
           )}
         </Properties>
       </Section>
-      {kind === "scenario" && (
+      {ownHeader && (
         <>
           <GameSetupSection
             header={header}

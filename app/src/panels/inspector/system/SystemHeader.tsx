@@ -5,7 +5,7 @@ import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
+import { useCanEdit } from "../../../store/fileSessionStore";
 import { useCountryName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -79,7 +79,7 @@ function NameText({ system }: { system: SystemNode }) {
  */
 function HeadName({ system }: { system: SystemNode }) {
   const applyOp = useApplyOp();
-  const editable = useCanEdit("create_systems");
+  const editable = useCanEdit("rename_systems");
   const unnamed = system.name.key === "";
   if (!editable) {
     return (
@@ -132,14 +132,15 @@ export function Header({ detail }: { detail: SystemDetail }) {
     (s) => s.scenarioOwners?.owners.find((o) => o.system === system.id) ?? null,
   );
   const claimedBy = scenarioOwner?.claimed_by ?? null;
-  // A scenario says what stands here on the initializer's own line; a save has only this head.
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  // Where systems name their initializers, the initializer's line shows what stands here.
+  const scripted = useCanEdit("scripts");
+  const rolled = useCanEdit("rolled_layout");
   const details = useDetailsStore((s) => s.details.get(system.id));
   const capital = details?.planets.some((p) => p.capital && p.owner === system.owner) ?? false;
   const planets = details?.planets.length ?? system.planet_count;
   const starClass = names.get(system.star_class) ?? system.star_class;
   const multiple = useStarClassLabel(system, starClass);
-  const starLabel = scenario ? starClass : multiple;
+  const starLabel = rolled ? starClass : multiple;
   const kinds = special?.kinds ?? [];
   return (
     <>
@@ -159,7 +160,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
         {starLabel !== "" && `${starLabel} · `}
         {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
-      {!scenario && starLabel !== "" && (
+      {!rolled && starLabel !== "" && (
         <StarMismatchNote system={system} planets={details?.planets} label={starLabel} />
       )}
       {ownerId !== null && (
@@ -187,7 +188,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
           />
         </div>
       )}
-      {!scenario && (kinds.length > 0 || system.added) && (
+      {!scripted && (kinds.length > 0 || system.added) && (
         <div className="ins-chips">
           {system.added && (
             <Chip added title={ADDED_CHIP_TITLE}>

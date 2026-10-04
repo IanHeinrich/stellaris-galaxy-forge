@@ -1,51 +1,20 @@
-//! Game-data IPC commands end to end, through the mock runtime, on the real sample save.
+//! The game-data IPC commands end to end, through the mock runtime: each one answers empty
+//! without game data and with data once the install is loaded. What the data says is the
+//! gamedata crate's to test.
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 use sgf_app_lib::state::GameDataState;
 use sgf_app_lib::watch;
-use sgf_core::format::save::details::SystemDetails;
-use sgf_core::views::{ErrorKind, OpenResult, SearchHit, SearchKind, SearchResult};
-use sgf_gamedata::anomaly_choices::AnomalyChoice;
-use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
-use sgf_gamedata::dig_site_choices::DigSiteChoice;
+use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::install::layers::Layer;
-use sgf_gamedata::modifier_choices::ModifierChoice;
-use sgf_gamedata::planet_models::PlanetModelChoice;
-use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
-use sgf_gamedata::scripts::LGateModTouch;
-use sgf_gamedata::special::{SpecialKind, SpecialSystem, SpecialSystems};
 use sgf_gamedata::textures::TextureView;
-use sgf_gamedata::views::{
-    CountryTypeView, DepositView, FlagParts, GameDataSummary, InitializerView, MapColor,
-    PaintModView, PrecursorView, ResourceIcon, StarClassView, TerraformCandidateView,
-};
+use sgf_gamedata::views::{FlagParts, GameDataSummary, InitializerView, PaintModView};
 use tauri::Manager;
 
 use crate::common;
-use common::{SAMPLE, have_install, install_version, invoke, kind, webview};
-
-fn special_count(result: &SpecialSystems, kind: SpecialKind) -> u32 {
-    result
-        .counts
-        .iter()
-        .find(|c| c.kind == kind)
-        .map(|c| c.count)
-        .unwrap_or(0)
-}
-
-fn assert_sample_special_counts(result: &SpecialSystems) {
-    let expected = [
-        (SpecialKind::Leviathan, 6),
-        (SpecialKind::Enclave, 14),
-        (SpecialKind::Marauder, 6),
-        (SpecialKind::Landmark, 11),
-    ];
-    for (kind, n) in expected {
-        assert_eq!(special_count(result, kind), n, "{kind:?}");
-    }
-}
+use common::{SAMPLE, SAMPLE_45, have_install, install_version, invoke, kind, webview};
 
 /// `%ADJECTIVE% Protectors` as the save writes it: a format key over two variables.
 fn cyggan_protectors() -> Value {
@@ -65,72 +34,66 @@ fn cyggan_protectors() -> Value {
     })
 }
 
-/// An enclave whose country an event spawns: no initializer creates one.
-fn shroudwalker_enclave(result: &SpecialSystems) -> &SpecialSystem {
-    result
-        .systems
-        .iter()
-        .find(|s| s.initializer == "shroudwalker_enclave_init_01")
-        .expect("the shroudwalker enclave")
-}
-
-fn resource(details: &SystemDetails, name: &str) -> Option<f64> {
-    details
-        .resources
-        .iter()
-        .find(|r| r.resource == name)
-        .map(|r| r.amount)
+/// The commands that answer with a list, with arguments that make the list non-empty once the
+/// install is loaded.
+fn list_commands() -> Vec<(&'static str, Value)> {
+    vec![
+        ("get_star_classes", json!({})),
+        ("get_deposits", json!({})),
+        (
+            "get_deposit_choices",
+            json!({ "class": "pc_arctic", "size": 15, "moon": false, "deposits": [] }),
+        ),
+        (
+            "get_deposit_types",
+            json!({ "keys": ["d_massive_glacier"] }),
+        ),
+        ("get_modifier_choices", json!({})),
+        (
+            "get_anomaly_choices",
+            json!({ "class": "pc_asteroid", "size": 5, "moon": false }),
+        ),
+        ("get_dig_site_choices", json!({})),
+        ("get_planet_models", json!({})),
+        (
+            "get_modifiers",
+            json!({ "keys": ["pm_abundant_geothermal_activity"] }),
+        ),
+        ("get_colony_types", json!({ "keys": ["col_fe_colony"] })),
+        ("get_bypasses", json!({})),
+        ("get_initializers", json!({})),
+        ("get_galaxy_shapes", json!({})),
+        ("get_precursors", json!({})),
+        ("get_map_colors", json!({})),
+        ("get_planet_classes", json!({})),
+        ("get_terraform_candidates", json!({})),
+        ("get_starbase_levels", json!({})),
+        ("get_ship_sizes", json!({})),
+        ("get_country_types", json!({})),
+        ("get_resource_icons", json!({})),
+    ]
 }
 
 #[test]
 fn game_data_commands_degrade_without_an_install() {
     let w = webview();
+    common::open(&w, SAMPLE);
 
-    invoke::<Vec<String>>(&w, "save_dirs", json!({})).expect("save dirs");
-    let paint: Option<PaintModView> =
-        invoke(&w, "paint_mod", json!({})).expect("the launcher's files, or none");
-    if let Some(dir) = paint.and_then(|p| p.scenarios_dir) {
-        assert!(dir.ends_with("setup_scenarios"), "{dir}");
+    for (command, args) in list_commands() {
+        let list: Vec<Value> = invoke(&w, command, args)
+            .unwrap_or_else(|e| panic!("{command} refused: {}", e.message));
+        assert!(list.is_empty(), "{command}: {list:?}");
     }
-
-    assert_eq!(
-        kind(invoke::<SpecialSystems>(
-            &w,
-            "get_special_systems",
-            json!({})
-        )),
-        ErrorKind::NoSession
-    );
-    assert_eq!(
-        kind(invoke::<Vec<SystemDetails>>(
-            &w,
-            "get_system_details",
-            json!({ "ids": [217] })
-        )),
-        ErrorKind::NoSession
-    );
-
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
-
-    let special: SpecialSystems =
-        invoke(&w, "get_special_systems", json!({})).expect("special systems");
-    assert!(!special.with_game_data);
-    assert_sample_special_counts(&special);
-    // The classifier builds the details projection itself, so a system named only by the
-    // country standing in it is named on the first call.
-    let shroudwalkers = shroudwalker_enclave(&special);
-    assert_eq!(shroudwalkers.countries.len(), 1);
-    assert_eq!(shroudwalkers.countries[0].country_type, "enclave");
-    assert_eq!(shroudwalkers.label, "Covenant of the Shroud");
-
-    invoke::<Vec<sgf_core::validate::Issue>>(&w, "warm_details", json!({})).expect("warm details");
-    let special: SpecialSystems =
-        invoke(&w, "get_special_systems", json!({})).expect("special systems");
-    assert_sample_special_counts(&special);
-    assert_eq!(
-        shroudwalker_enclave(&special).label,
-        "Covenant of the Shroud"
-    );
+    let lgate_mods: Vec<Value> =
+        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    assert!(lgate_mods.is_empty());
+    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
+    assert!(flag_parts.emblems.is_empty() && flag_parts.backgrounds.is_empty());
+    let source: Option<String> =
+        invoke(&w, "get_map_color_source", json!({})).expect("map colour source");
+    assert_eq!(source, None);
+    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
+    assert_eq!(font, None);
 
     let names: HashMap<String, String> =
         invoke(&w, "get_names", json!({ "keys": ["NAME_Sol"] })).expect("names");
@@ -142,71 +105,6 @@ fn game_data_commands_degrade_without_an_install() {
     )
     .expect("names resolve without game data");
     assert_eq!(resolved, ["SPEC_Cyggan Protectors"], "the save's stand-in");
-    let star_classes: Vec<StarClassView> =
-        invoke(&w, "get_star_classes", json!({})).expect("star classes");
-    assert!(star_classes.is_empty());
-    let deposits: Vec<DepositView> = invoke(&w, "get_deposits", json!({})).expect("deposits");
-    assert!(deposits.is_empty());
-    let choices: Vec<DepositChoice> = invoke(
-        &w,
-        "get_deposit_choices",
-        json!({ "class": "pc_arctic", "size": 15, "moon": false, "deposits": [] }),
-    )
-    .expect("deposit choices");
-    assert!(choices.is_empty());
-    let deposit_types: Vec<DepositTypeView> = invoke(
-        &w,
-        "get_deposit_types",
-        json!({ "keys": ["d_massive_glacier"] }),
-    )
-    .expect("deposit types");
-    assert!(deposit_types.is_empty());
-    let modifiers: Vec<ModifierView> = invoke(
-        &w,
-        "get_modifiers",
-        json!({ "keys": ["pm_abundant_geothermal_activity"] }),
-    )
-    .expect("modifiers");
-    assert!(modifiers.is_empty());
-    let modifier_choices: Vec<Value> =
-        invoke(&w, "get_modifier_choices", json!({})).expect("modifier choices");
-    assert!(modifier_choices.is_empty());
-    let anomaly_choices: Vec<Value> = invoke(
-        &w,
-        "get_anomaly_choices",
-        json!({ "class": "pc_asteroid", "size": 5, "moon": false }),
-    )
-    .expect("anomaly choices");
-    assert!(anomaly_choices.is_empty());
-    let dig_site_choices: Vec<Value> =
-        invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");
-    assert!(dig_site_choices.is_empty());
-    let planet_models: Vec<Value> =
-        invoke(&w, "get_planet_models", json!({})).expect("planet models");
-    assert!(planet_models.is_empty());
-    let colony_types: Vec<ColonyTypeView> =
-        invoke(&w, "get_colony_types", json!({ "keys": ["col_fe_colony"] })).expect("colony types");
-    assert!(colony_types.is_empty());
-    let initializers: Vec<InitializerView> =
-        invoke(&w, "get_initializers", json!({})).expect("initializers");
-    assert!(initializers.is_empty());
-    let precursors: Vec<PrecursorView> =
-        invoke(&w, "get_precursors", json!({})).expect("precursors");
-    assert!(precursors.is_empty());
-    let colors: Vec<MapColor> = invoke(&w, "get_map_colors", json!({})).expect("map colors");
-    assert!(colors.is_empty());
-    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
-    assert!(flag_parts.emblems.is_empty());
-    assert!(flag_parts.backgrounds.is_empty());
-    let country_types: Vec<CountryTypeView> =
-        invoke(&w, "get_country_types", json!({})).expect("country types");
-    assert!(country_types.is_empty());
-    let icons: Vec<ResourceIcon> =
-        invoke(&w, "get_resource_icons", json!({})).expect("resource icons");
-    assert!(icons.is_empty());
-    let lgate_mods: Vec<LGateModTouch> =
-        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
-    assert!(lgate_mods.is_empty());
 
     let textures: Vec<TextureView> = invoke(
         &w,
@@ -220,33 +118,12 @@ fn game_data_commands_degrade_without_an_install() {
         assert_eq!(t.png_base64, None);
     }
     assert_eq!(textures[0].key, "star_class:g_star");
-    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
-    assert_eq!(font, None);
 
-    let details: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [217, 9999] })).expect("details");
-    assert_eq!(details.len(), 1, "unknown ids are skipped");
-    let sol = &details[0];
-    assert_eq!(sol.id, 217);
-    assert!(!sol.with_game_data);
-    assert_eq!(resource(sol, "energy"), Some(13.0));
-    assert_eq!(resource(sol, "minerals"), Some(13.0));
-    assert_eq!(resource(sol, "engineering"), Some(5.0));
-    let luna = sol.planets.iter().find(|p| p.id == 4).expect("Luna");
-    assert_eq!(luna.parent, Some(3));
-    let layout = luna.layout.as_ref().expect("a save body's layout");
-    assert_eq!(
-        layout.orbit.as_ref().map(|b| (b.min, b.max)),
-        Some((12.0, 12.0))
-    );
-    assert_eq!(sol.inner_radius, Some(320.0));
-    assert_eq!(sol.belts.len(), 2);
-
-    let hits = invoke::<SearchResult>(&w, "search", json!({ "query": "sol", "limit": 5 }))
-        .expect("search")
-        .hits;
-    assert_eq!(hits[0].id, 217, "{hits:?}");
-    assert_eq!(hits[0].name_key, "NAME_Sol");
+    let paint: Option<PaintModView> =
+        invoke(&w, "paint_mod", json!({})).expect("the launcher's files, or none");
+    if let Some(dir) = paint.and_then(|p| p.scenarios_dir) {
+        assert!(dir.ends_with("setup_scenarios"), "{dir}");
+    }
 
     let summary: Option<GameDataSummary> =
         invoke(&w, "game_data_summary", json!({})).expect("summary");
@@ -267,66 +144,69 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(summary, None, "a failed load leaves nothing loaded");
 }
 
-/// A planet model is offered under its own name, for the classes that use it.
 #[test]
-fn a_planet_model_is_offered_for_the_classes_that_use_it() {
-    if !have_install() {
+fn game_data_commands_answer_with_the_install() {
+    let Some((w, _)) = common::with_game_data(SAMPLE) else {
         return;
-    }
-    let w = webview();
-    // Vanilla only: a mod in the playset may add classes that use the same model.
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
-    let planet_models: Vec<PlanetModelChoice> =
-        invoke(&w, "get_planet_models", json!({})).expect("planet models");
-    let paradise = planet_models
-        .iter()
-        .find(|m| m.entity == "ocean_paradise_planet_01_entity")
-        .expect("Ocean Paradise is offered");
-    assert_eq!(
-        (paradise.label.as_str(), paradise.classes.as_slice()),
-        ("Ocean Paradise", &["pc_ocean".to_owned()][..])
-    );
-}
-
-/// The class a scenario system is drawn as until the game generates the galaxy: its
-/// initializer's star class, and a G star for one that draws from a random list.
-#[test]
-fn an_initializer_lists_the_star_class_a_scenario_system_is_drawn_as() {
-    if !have_install() {
-        return;
-    }
-    let w = webview();
-    // Vanilla only: a mod in the playset may shadow the files that define these.
-    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
-        .expect("load game data");
-    let initializers: Vec<InitializerView> =
-        invoke(&w, "get_initializers", json!({})).expect("initializers");
-    let drawn_as = |name: &str| {
-        let view = initializers
-            .iter()
-            .find(|i| i.name == name)
-            .unwrap_or_else(|| panic!("{name} is not in the install"));
-        (view.class.as_deref(), view.star_class.as_str())
     };
-    assert_eq!(
-        drawn_as("star_lifting_system"),
-        (Some("sc_pulsar"), "sc_pulsar")
+
+    for (command, args) in list_commands() {
+        let list: Vec<Value> = invoke(&w, command, args)
+            .unwrap_or_else(|e| panic!("{command} refused: {}", e.message));
+        assert!(!list.is_empty(), "{command} answered empty");
+    }
+    invoke::<Vec<Value>>(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
+    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
+    assert!(!flag_parts.emblems.is_empty() && !flag_parts.backgrounds.is_empty());
+    invoke::<Option<String>>(&w, "get_map_color_source", json!({})).expect("map colour source");
+    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
+    assert!(
+        font.is_some_and(|f| !f.is_empty()),
+        "the install's map font"
     );
-    assert_eq!(
-        drawn_as("relic_system_1"),
-        (Some("rl_binary_stars"), "sc_g"),
-        "the raw class stays for the initializer browser"
+
+    let names: HashMap<String, String> = invoke(
+        &w,
+        "get_names",
+        json!({ "keys": ["NAME_Sol", "NAME_no_such_key"] }),
+    )
+    .expect("names");
+    assert_eq!(names.get("NAME_Sol").map(String::as_str), Some("Sol"));
+    assert_eq!(names.len(), 1, "only the keys that resolved: {names:?}");
+    let resolved: Vec<String> = invoke(
+        &w,
+        "resolve_names",
+        json!({ "names": [cyggan_protectors()] }),
+    )
+    .expect("resolve names");
+    assert_eq!(resolved, ["Cyggan Protectors"]);
+
+    let textures: Vec<TextureView> = invoke(
+        &w,
+        "get_textures",
+        json!({ "keys": ["star_class:g_star", "nonsense"] }),
+    )
+    .expect("textures");
+    assert_eq!(textures.len(), 2);
+    assert_eq!(textures[0].error, None, "{:?}", textures[0].error);
+    assert!(textures[0].width > 0 && textures[0].height > 0);
+    assert!(
+        textures[0]
+            .png_base64
+            .as_deref()
+            .is_some_and(|b| b.starts_with("iVBORw0KGgo")),
+        "base64 PNG"
     );
+    assert!(textures[1].error.is_some());
 }
 
 #[test]
-fn game_data_commands_with_the_install() {
+fn game_data_loads_reports_unloads_and_survives_a_failed_load() {
     if !have_install() {
         return;
     }
     let w = webview();
-    invoke::<OpenResult>(&w, "open_save", json!({ "path": SAMPLE })).expect("open");
+    common::open(&w, SAMPLE);
 
     let summary: GameDataSummary = invoke(&w, "load_game_data", json!({})).expect("load game data");
     assert_eq!(summary.version, install_version());
@@ -336,8 +216,9 @@ fn game_data_commands_with_the_install() {
         "the install, and a root per loaded mod"
     );
     assert_eq!(summary.watch.reason, None, "every root is watched");
-    // A mod in the playset may shadow whole vanilla files, so only a floor is safe.
-    assert!(summary.initializers >= 100, "{}", summary.initializers);
+    let initializers: Vec<InitializerView> =
+        invoke(&w, "get_initializers", json!({})).expect("initializers");
+    assert_eq!(initializers.len(), summary.initializers as usize);
     let again: Option<GameDataSummary> =
         invoke(&w, "game_data_summary", json!({})).expect("summary");
     assert_eq!(again.as_ref(), Some(&summary));
@@ -357,373 +238,6 @@ fn game_data_commands_with_the_install() {
         "a failed load leaves the data loaded and the watcher running"
     );
 
-    let names: HashMap<String, String> = invoke(
-        &w,
-        "get_names",
-        json!({ "keys": ["NAME_Sol", "NAME_Voidwyrm", "NAME_no_such_key"] }),
-    )
-    .expect("names");
-    assert_eq!(names.get("NAME_Sol").map(String::as_str), Some("Sol"));
-    assert_eq!(
-        names.get("NAME_Voidwyrm").map(String::as_str),
-        Some("Voidwyrm")
-    );
-    assert_eq!(names.len(), 2, "{names:?}");
-
-    let sol_iii = json!({
-        "key": "PLANET_NAME_FORMAT",
-        "literal": false,
-        "variables": [
-            { "name": "PARENT", "value": { "key": "NAME_Sol", "literal": false, "variables": [] } },
-            { "name": "NUMERAL", "value": { "key": "III", "literal": true, "variables": [] } },
-        ],
-    });
-    let resolved: Vec<String> = invoke(
-        &w,
-        "resolve_names",
-        json!({ "names": [sol_iii, cyggan_protectors()] }),
-    )
-    .expect("resolve names");
-    assert_eq!(resolved, ["Sol III", "Cyggan Protectors"]);
-
-    let star_classes: Vec<StarClassView> =
-        invoke(&w, "get_star_classes", json!({})).expect("star classes");
-    let black_hole = star_classes
-        .iter()
-        .find(|s| s.key == "sc_black_hole")
-        .expect("sc_black_hole");
-    assert_eq!(black_hole.texture_key, "star_class:black_hole");
-    let deposits: Vec<DepositView> = invoke(&w, "get_deposits", json!({})).expect("deposits");
-    let energy_3 = deposits
-        .iter()
-        .find(|d| d.key == "d_energy_3")
-        .expect("d_energy_3");
-    assert_eq!(energy_3.produces, vec![("energy".to_owned(), 3.0)]);
-    let choices = |class: &str, moon: bool| -> Vec<DepositChoice> {
-        invoke(
-            &w,
-            "get_deposit_choices",
-            json!({ "class": class, "size": 15, "moon": moon, "deposits": [] }),
-        )
-        .expect("deposit choices")
-    };
-    let find = |choices: &[DepositChoice], key: &str| -> Option<DepositChoice> {
-        choices.iter().find(|c| c.key == key).cloned()
-    };
-    let classless: Vec<DepositChoice> = invoke(
-        &w,
-        "get_deposit_choices",
-        json!({ "class": null, "size": null, "moon": false, "deposits": [] }),
-    )
-    .expect("deposit choices of no class");
-    assert!(!classless.is_empty() && classless.iter().all(|c| !c.usual));
-    let unsized_arctic: Vec<DepositChoice> = invoke(
-        &w,
-        "get_deposit_choices",
-        json!({ "class": "pc_arctic", "size": null, "moon": false, "deposits": [] }),
-    )
-    .expect("deposit choices of no size");
-    assert!(find(&unsized_arctic, "d_massive_glacier").is_some_and(|c| c.usual));
-    let arctic = choices("pc_arctic", false);
-    let glacier = find(&arctic, "d_massive_glacier").expect("the glacier");
-    assert!(glacier.usual);
-    assert_eq!(glacier.category, DepositCategory::Blockers);
-    let energy_3 = find(&arctic, "d_energy_3").expect("+3 energy");
-    assert!(
-        !energy_3.usual,
-        "every type is offered; an orbital one does not fit a world the game colonises"
-    );
-    assert_eq!(
-        (energy_3.family.as_str(), energy_3.amount, energy_3.category),
-        ("yields:energy", Some(3.0), DepositCategory::Energy)
-    );
-    assert!(find(&arctic, "d_null_deposit").is_none());
-    let dark_matter = find(&arctic, "d_dark_matter_deposit_10").expect("+10 dark matter");
-    assert_eq!(dark_matter.family, "yields:sr_dark_matter");
-    // Every orbital or habitat deposit of one resource is one row with one button per amount,
-    // whatever its key: the three Minor Artifacts stems, and Nanites of seven stems.
-    let amounts = |family: &str| -> Vec<f64> {
-        let mut amounts: Vec<f64> = arctic
-            .iter()
-            .filter(|c| c.family == family)
-            .filter_map(|c| c.amount)
-            .collect();
-        amounts.sort_by(f64::total_cmp);
-        amounts
-    };
-    assert_eq!(amounts("yields:minor_artifacts"), [1.0, 2.0, 3.0]);
-    let nanites = amounts("yields:nanites");
-    assert!(nanites.len() >= 5, "{nanites:?}");
-    assert!(
-        nanites.windows(2).all(|w| w[0] < w[1]),
-        "one button per amount: {nanites:?}"
-    );
-    assert!(
-        find(&arctic, "d_exotic_mountain").is_some_and(|c| c.family == "d_exotic_mountain"),
-        "a named feature keeps its own row"
-    );
-    assert_eq!(
-        dark_matter.category,
-        DepositCategory::Special,
-        "no roll places it"
-    );
-    let barren = choices("pc_barren", true);
-    assert!(find(&barren, "d_minerals_3").expect("+3 minerals").usual);
-    assert!(
-        !find(&barren, "d_massive_glacier")
-            .expect("the glacier")
-            .usual
-    );
-    let deposit_types: Vec<DepositTypeView> = invoke(
-        &w,
-        "get_deposit_types",
-        json!({ "keys": ["d_massive_glacier", "d_no_such_deposit", "d_energy_3"] }),
-    )
-    .expect("deposit types");
-    let keys: Vec<&str> = deposit_types.iter().map(|d| d.key.as_str()).collect();
-    assert_eq!(
-        keys,
-        ["d_massive_glacier", "d_energy_3"],
-        "unknown keys are left out"
-    );
-    let glacier = &deposit_types[0];
-    assert!(glacier.blocker && !glacier.orbital);
-    assert!(glacier.clearing.is_some());
-    let energy_3 = &deposit_types[1];
-    assert!(energy_3.orbital && energy_3.clearing.is_none());
-    assert_eq!(energy_3.yields[0].resource, "energy");
-    assert_eq!(energy_3.yields[0].amount, 3.0);
-    let modifiers: Vec<ModifierView> = invoke(
-        &w,
-        "get_modifiers",
-        json!({ "keys": ["pm_abundant_geothermal_activity", "abundant_geothermal_activity"] }),
-    )
-    .expect("modifiers");
-    assert_eq!(modifiers.len(), 2, "{modifiers:?}");
-    assert_eq!(
-        modifiers[0].static_modifier.as_deref(),
-        Some("abundant_geothermal_activity")
-    );
-    assert_eq!(modifiers[0].name, modifiers[1].name);
-    assert!(!modifiers[1].effects.is_empty());
-    let colony_types: Vec<ColonyTypeView> = invoke(
-        &w,
-        "get_colony_types",
-        json!({ "keys": ["col_fe_colony", "col_no_such_designation"] }),
-    )
-    .expect("colony types");
-    assert_eq!(colony_types.len(), 1);
-    assert_eq!(colony_types[0].key, "col_fe_colony");
-    assert!(colony_types[0].icon.is_some());
-    let initializers: Vec<InitializerView> =
-        invoke(&w, "get_initializers", json!({})).expect("initializers");
-    assert_eq!(initializers.len(), summary.initializers as usize);
-    let colors: Vec<MapColor> = invoke(&w, "get_map_colors", json!({})).expect("map colors");
-    assert!(colors.iter().any(|c| c.name == "blue"), "{colors:?}");
-    let flag_parts: FlagParts = invoke(&w, "get_flag_parts", json!({})).expect("flag parts");
-    assert!(!flag_parts.emblems.is_empty());
-    assert!(!flag_parts.backgrounds.is_empty());
-    assert!(
-        !invoke::<Vec<Value>>(&w, "get_planet_classes", json!({}))
-            .expect("planet classes")
-            .is_empty()
-    );
-    let modifier_choices: Vec<ModifierChoice> =
-        invoke(&w, "get_modifier_choices", json!({})).expect("modifier choices");
-    assert!(
-        modifier_choices
-            .iter()
-            .any(|c| c.feature.as_deref() == Some("pm_mineral_poor"))
-    );
-    let anomaly_choices: Vec<AnomalyChoice> = invoke(
-        &w,
-        "get_anomaly_choices",
-        json!({ "class": "pc_asteroid", "size": 5, "moon": false }),
-    )
-    .expect("anomaly choices");
-    let asteroid = anomaly_choices
-        .iter()
-        .find(|c| c.key == "crashed_ship_asteroid_category")
-        .expect("Crashed Ship is offered");
-    assert!(asteroid.usual, "an asteroid is where Crashed Ship turns up");
-    assert_eq!(asteroid.level, Some(3));
-    assert!(
-        anomaly_choices
-            .iter()
-            .all(|c| !c.key.starts_with("AIANOM_")),
-        "the AI's own categories are left out"
-    );
-    let dig_sites: Vec<DigSiteChoice> =
-        invoke(&w, "get_dig_site_choices", json!({})).expect("dig site choices");
-    let lost = dig_sites
-        .iter()
-        .find(|c| c.key == "site_lost_moments")
-        .expect("Never Forget is offered");
-    assert_eq!((lost.name.as_str(), lost.difficulty), ("Never Forget", 1));
-    let library = dig_sites
-        .iter()
-        .find(|c| c.key == "site_the_library")
-        .expect("the Library's stages are listed");
-    assert!(!library.offered);
-    let candidates: Vec<TerraformCandidateView> =
-        invoke(&w, "get_terraform_candidates", json!({})).expect("terraform candidates");
-    assert_eq!(
-        candidates
-            .first()
-            .map(|c| (c.modifier.as_str(), c.requires.as_slice())),
-        Some((
-            "terraforming_candidate",
-            &["Climate Restoration".to_owned()][..]
-        ))
-    );
-    assert!(
-        !invoke::<Vec<Value>>(&w, "get_starbase_levels", json!({}))
-            .expect("starbase levels")
-            .is_empty()
-    );
-    assert!(
-        !invoke::<Vec<Value>>(&w, "get_ship_sizes", json!({}))
-            .expect("ship sizes")
-            .is_empty()
-    );
-    let country_types: Vec<CountryTypeView> =
-        invoke(&w, "get_country_types", json!({})).expect("country types");
-    assert!(
-        country_types
-            .windows(2)
-            .all(|pair| pair[0].name < pair[1].name)
-    );
-    let country_type = |name: &str| {
-        country_types
-            .iter()
-            .find(|c| c.name == name)
-            .unwrap_or_else(|| panic!("no country type {name}"))
-    };
-    assert!(!country_type("enclave").generate_borders);
-    assert!(country_type("dormant_marauders").generate_borders);
-    assert!(country_type("default").playable);
-    assert!(country_type("amoeba").is_space_critter);
-    assert!(country_type("guardian_dragon").leviathan);
-    let icons: Vec<ResourceIcon> =
-        invoke(&w, "get_resource_icons", json!({})).expect("resource icons");
-    let sprite = |resource: &str| {
-        icons
-            .iter()
-            .find(|i| i.resource == resource)
-            .map(|i| i.sprite.as_str())
-    };
-    assert_eq!(sprite("energy"), Some("GFX_resource_energy"));
-    assert_eq!(sprite("physics_research"), Some("GFX_resource_physics"));
-    assert!(sprite("sr_zro").is_some(), "{icons:?}");
-    assert!(sprite("volatile_motes").is_some(), "{icons:?}");
-
-    let textures: Vec<TextureView> = invoke(
-        &w,
-        "get_textures",
-        json!({ "keys": ["star_class:g_star", "sprite:GFX_resource_energy", "nonsense"] }),
-    )
-    .expect("textures");
-    assert_eq!(textures.len(), 3);
-    assert_eq!(textures[0].error, None, "{:?}", textures[0].error);
-    assert_eq!((textures[0].width, textures[0].height), (128, 128));
-    assert!(
-        textures[0]
-            .png_base64
-            .as_deref()
-            .is_some_and(|b| b.starts_with("iVBORw0KGgo")),
-        "base64 PNG"
-    );
-    assert_eq!(textures[1].error, None, "{:?}", textures[1].error);
-    // A mod may ship its own icon at another size; vanilla's is 18 px square.
-    assert!(textures[1].width > 0 && textures[1].width == textures[1].height);
-    assert!(textures[2].error.is_some());
-    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
-    assert!(
-        font.is_some_and(|f| !f.is_empty()),
-        "the install's map font"
-    );
-
-    let details: Vec<SystemDetails> =
-        invoke(&w, "get_system_details", json!({ "ids": [217] })).expect("details");
-    assert_eq!(details.len(), 1);
-    let sol = &details[0];
-    assert!(sol.with_game_data);
-    assert_eq!(resource(sol, "energy"), Some(13.0), "{:?}", sol.resources);
-    let earth = sol.planets.iter().find(|p| p.id == 3).expect("Earth");
-    assert_eq!(earth.habitable, Some(true));
-
-    // The dragon's system carries a random name, so the localised match is checked on
-    // the Custodian Nexus, whose loc text shares no word with its key.
-    let hits = invoke::<SearchResult>(
-        &w,
-        "search",
-        json!({ "query": "central processing", "limit": 5 }),
-    )
-    .expect("search")
-    .hits;
-    let systems: Vec<&SearchHit> = hits
-        .iter()
-        .filter(|h| matches!(h.kind, SearchKind::System))
-        .collect();
-    assert_eq!(systems.len(), 1, "{hits:?}");
-    assert_eq!(systems[0].name_key, "NAME_Custodian_Nexus");
-    let by_key = invoke::<SearchResult>(
-        &w,
-        "search",
-        json!({ "query": "custodian nexus", "limit": 5 }),
-    )
-    .expect("search")
-    .hits;
-    let by_key_systems: Vec<&SearchHit> = by_key
-        .iter()
-        .filter(|h| matches!(h.kind, SearchKind::System))
-        .collect();
-    assert_eq!(by_key_systems, systems, "the key still matches");
-    let hits = invoke::<SearchResult>(&w, "search", json!({ "query": "sol", "limit": 5 }))
-        .expect("search")
-        .hits;
-    assert_eq!(hits[0].id, 217);
-    assert_eq!(hits[0].name_key, "NAME_Sol");
-
-    // No flag or key says "leviathan"; the special kind game data gives the lairs does.
-    let lairs = invoke::<SearchResult>(&w, "search", json!({ "query": "leviathan", "limit": 50 }))
-        .expect("search");
-    assert!(
-        lairs
-            .hits
-            .iter()
-            .any(|h| h.matched_on.as_deref() == Some("Leviathan")),
-        "{:?}",
-        lairs.hits
-    );
-
-    let special: SpecialSystems =
-        invoke(&w, "get_special_systems", json!({})).expect("special systems");
-    assert!(special.with_game_data);
-    assert_sample_special_counts(&special);
-    let dragon = special
-        .systems
-        .iter()
-        .find(|s| s.initializer == "guardians_init_dragon")
-        .expect("the dragon's system");
-    assert_eq!(dragon.primary, SpecialKind::Leviathan);
-    assert_eq!(dragon.label, "Voidwyrm");
-
-    // A mod may retune icon_scale, so vanilla's is read back from a mods-free load.
-    let vanilla: GameDataSummary =
-        invoke(&w, "load_game_data", json!({ "mods": false })).expect("vanilla load");
-    assert_eq!(vanilla.version, install_version());
-    let star_classes: Vec<StarClassView> =
-        invoke(&w, "get_star_classes", json!({})).expect("star classes");
-    let black_hole = star_classes
-        .iter()
-        .find(|s| s.key == "sc_black_hole")
-        .expect("sc_black_hole");
-    assert_eq!(black_hole.icon_scale, 2.0);
-    let lgate_mods: Vec<LGateModTouch> =
-        invoke(&w, "get_lgate_outcome_mods", json!({})).expect("lgate outcome mods");
-    assert!(lgate_mods.is_empty(), "the base game alone: {lgate_mods:?}");
-
     invoke::<()>(&w, "unload_game_data", json!({})).expect("unload");
     invoke::<()>(&w, "resume_auto_reload", json!({})).expect("resume with the watcher stopped");
     let summary: Option<GameDataSummary> =
@@ -732,6 +246,43 @@ fn game_data_commands_with_the_install() {
     let names: HashMap<String, String> =
         invoke(&w, "get_names", json!({ "keys": ["NAME_Sol"] })).expect("names");
     assert!(names.is_empty());
+}
+
+/// The shell opens a link or a file only from the lists it holds, and refuses the rest before
+/// anything is handed to the system.
+#[test]
+fn a_link_or_a_file_outside_the_apps_lists_is_not_opened() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<()>(
+            &w,
+            "open_url",
+            json!({ "url": "https://example.com/" })
+        )),
+        ErrorKind::NotFound
+    );
+    assert_eq!(
+        kind(invoke::<()>(
+            &w,
+            "open_script",
+            json!({ "path": SAMPLE, "reveal": false })
+        )),
+        ErrorKind::Op,
+        "no game data, no script index"
+    );
+
+    let Some((w, _)) = common::with_game_data(SAMPLE) else {
+        return;
+    };
+    assert_eq!(
+        kind(invoke::<()>(
+            &w,
+            "open_script",
+            json!({ "path": SAMPLE, "reveal": false })
+        )),
+        ErrorKind::NotFound,
+        "a save is not a file of the loaded game data"
+    );
 }
 
 /// A root the watcher cannot hold is named in the summary instead of being counted out.
@@ -772,46 +323,6 @@ fn a_root_that_cannot_be_watched_is_named_in_the_summary() {
     assert!(reason.contains("no-such-mod"), "{reason}");
 }
 
-#[test]
-fn precursors_come_from_the_install_and_search_finds_their_regions() {
-    let Some((w, _)) = common::with_game_data(common::SAMPLE_45) else {
-        return;
-    };
-    let precursors: Vec<PrecursorView> =
-        invoke(&w, "get_precursors", json!({})).expect("precursors");
-    let names: Vec<&str> = precursors.iter().map(|p| p.name.as_str()).collect();
-    assert_eq!(
-        names,
-        [
-            "Vultaum",
-            "Yuht",
-            "First League",
-            "Irassian",
-            "Cybrex",
-            "Baol",
-            "Zroni",
-            "Inetian Traders",
-            "adAkkaria",
-        ]
-    );
-
-    for (query, count) in [
-        ("vultaum", 82),
-        ("yuht", 88),
-        ("first league", 82),
-        ("irassian", 85),
-        ("cybrex", 90),
-        ("zroni", 85),
-        ("adakkaria", 73),
-    ] {
-        let hits = invoke::<SearchResult>(&w, "search", json!({ "query": query, "limit": 1000 }))
-            .expect("search")
-            .hits;
-        let systems = hits.iter().filter(|h| h.kind == SearchKind::System).count();
-        assert_eq!(systems, count, "{query}");
-    }
-}
-
 /// An install whose defines put a system's inner radius 50 past its outermost belt: a belt
 /// added far out grows the inner radius by that offset, whether the game data loaded after
 /// the save opened or before.
@@ -834,12 +345,11 @@ fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
         "type": "AddBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
     } });
     let grown = |w: &_| {
-        let result: sgf_core::views::EditResult =
-            invoke(w, "apply_op", far_belt.clone()).expect("the belt");
+        let result: EditResult = invoke(w, "apply_op", far_belt.clone()).expect("the belt");
         result.entry.description
     };
 
-    let w = common::opened(common::SAMPLE_45);
+    let w = common::opened(SAMPLE_45);
     invoke::<Value>(
         &w,
         "load_game_data",
@@ -849,7 +359,7 @@ fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
     let description = grown(&w);
     assert!(description.ends_with(" to 1050"), "{description}");
 
-    common::open(&w, common::SAMPLE_45);
+    common::open(&w, SAMPLE_45);
     let description = grown(&w);
     assert!(description.ends_with(" to 1050"), "{description}");
 }

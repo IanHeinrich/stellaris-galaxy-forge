@@ -3,12 +3,15 @@
 
 use serde_json::json;
 use sgf_core::format::save::details::SystemDetails;
-use sgf_core::views::EditResult;
+use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
+use sgf_gamedata::special::{SpecialKind, SpecialSystems};
 use sgf_gamedata::views::{GameDataSummary, SystemRoll};
 
 use crate::common;
-use common::{PAINTED, SAMPLE, SCENARIO, have_install, invoke, open, opened, webview};
+use common::{
+    PAINTED, SAMPLE, SCENARIO, have_install, invoke, kind, open, opened, webview, with_game_data,
+};
 
 #[test]
 fn a_painted_scenarios_wormhole_pairs_are_drawn_without_game_data_and_follow_the_op() {
@@ -312,4 +315,86 @@ fn a_systems_example_roll_is_empty_on_a_save_and_shows_placeholders_where_the_ga
     )
     .expect("the same roll again");
     assert_eq!(again, roll);
+}
+
+fn special_count(result: &SpecialSystems, kind: SpecialKind) -> u32 {
+    result
+        .counts
+        .iter()
+        .find(|c| c.kind == kind)
+        .map_or(0, |c| c.count)
+}
+
+/// The special systems of the sample save are classified from its flags and initializers
+/// whether or not game data is loaded, and the answer says which it was.
+#[test]
+fn special_systems_are_classified_with_and_without_game_data() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<SpecialSystems>(
+            &w,
+            "get_special_systems",
+            json!({})
+        )),
+        ErrorKind::NoSession
+    );
+    open(&w, SAMPLE);
+    let counts = |result: &SpecialSystems| {
+        [
+            SpecialKind::Leviathan,
+            SpecialKind::Enclave,
+            SpecialKind::Marauder,
+            SpecialKind::Landmark,
+        ]
+        .map(|kind| special_count(result, kind))
+    };
+    let without: SpecialSystems =
+        invoke(&w, "get_special_systems", json!({})).expect("special systems");
+    assert!(!without.with_game_data);
+    assert_eq!(counts(&without), [6, 14, 6, 11]);
+    // A system named only by the country standing in it is named on the first call.
+    let enclave = without
+        .systems
+        .iter()
+        .find(|s| s.initializer == "shroudwalker_enclave_init_01")
+        .expect("the shroudwalker enclave");
+    assert_eq!(enclave.label, "Covenant of the Shroud");
+
+    let Some((w, _)) = with_game_data(SAMPLE) else {
+        return;
+    };
+    let with: SpecialSystems =
+        invoke(&w, "get_special_systems", json!({})).expect("special systems");
+    assert!(with.with_game_data);
+    assert_eq!(counts(&with), counts(&without));
+}
+
+/// A save keeps its details itself, so they come with or without game data, and the answer
+/// says which; an id that is no system is skipped.
+#[test]
+fn a_saves_system_details_come_with_and_without_game_data() {
+    let w = webview();
+    assert_eq!(
+        kind(invoke::<Vec<SystemDetails>>(
+            &w,
+            "get_system_details",
+            json!({ "ids": [217] })
+        )),
+        ErrorKind::NoSession
+    );
+    open(&w, SAMPLE);
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [217, 9999] })).expect("details");
+    assert_eq!(details.len(), 1, "unknown ids are skipped");
+    assert_eq!(details[0].id, 217);
+    assert!(!details[0].with_game_data);
+    assert!(!details[0].planets.is_empty());
+
+    let Some((w, _)) = with_game_data(SAMPLE) else {
+        return;
+    };
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [217] })).expect("details");
+    assert_eq!(details.len(), 1);
+    assert!(details[0].with_game_data);
 }

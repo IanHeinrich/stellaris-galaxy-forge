@@ -2,8 +2,8 @@ import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
-import type { SystemNode } from "../../generated/SystemNode";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
+import { geometryOf } from "../../lib/details/geometry";
 import { bypassIconKey } from "../../lib/details/icons";
 import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
@@ -28,7 +28,7 @@ import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/detail
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
-import { effectiveStarClass } from "../../lib/visual/starGlyphs";
+import { drawnStarClass } from "../../lib/visual/starGlyphs";
 import type { EntityRef } from "../../store/inspectorStore";
 import type { DragMarks, HandleRef } from "./bodyDrag";
 import { bodyLook, type BodyLook } from "./look";
@@ -207,7 +207,6 @@ export interface ScenePreview {
  * nothing it is drawn from changed.
  */
 export interface SystemContext extends SystemSources {
-  readonly node: SystemNode | null;
   readonly layout: SystemLayout;
   readonly bodies: readonly SceneBody[];
   /** Each body by its placement's id. */
@@ -350,20 +349,19 @@ function freshArt(
 /** How far apart the stars of a system still loading stand, in discs of the largest. */
 const CLUSTER_SPREAD = 4;
 
-/** The star class a system is drawn as when its source gives it none. */
-function systemStar(src: SystemSources, node: SystemNode | null): string {
-  if (!node) return "";
-  return effectiveStarClass(node, src.initializerClasses.get(node.initializer), src.kind);
+/** The system's star class, for a star that names none of its own; none outside a galaxy. */
+function systemStar(src: SystemSources): string {
+  return src.node ? drawnStarClass(src.node) : "";
 }
 
 /**
  * The stars the galaxy lists for a system, drawn about the centre until its own record lands:
  * with none listed, every star of its star class.
  */
-function galaxyStars(src: SystemSources, node: SystemNode | null): SceneBody[] {
+function galaxyStars(src: SystemSources): SceneBody[] {
   const isStar = (c: string) => isStarBody(c, src.planetClasses, src.starClasses);
-  const listed = (node?.bodies ?? []).filter((b) => isStar(b.class));
-  const system = systemStar(src, node);
+  const listed = (src.node?.bodies ?? []).filter((b) => isStar(b.class));
+  const system = systemStar(src);
   const keys = src.starClasses.get(system)?.planet_keys ?? [];
   const stars =
     listed.length > 0
@@ -451,16 +449,13 @@ function readoutOf(
   return { hub: discs.get(pointKey(ring.cx, ring.cy)) ?? 0, text: boundsText(radius) };
 }
 
-function sceneBodies(
-  src: SystemSources,
-  node: SystemNode | null,
-  layout: SystemLayout,
-): SceneBody[] {
-  const noBodies = src.kind === "scenario" && src.details?.planets.length === 0;
+function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   const details = src.details;
-  if (details === null || noBodies) return galaxyStars(src, node);
+  if (details === null || (src.rolledLayout && details.planets.length === 0)) {
+    return galaxyStars(src);
+  }
   const planets = new Map(details.planets.map((p) => [p.id, p]));
-  const system = systemStar(src, node);
+  const system = systemStar(src);
   const discs = discsByPoint(layout.bodies);
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
@@ -495,23 +490,20 @@ function sceneBodies(
   });
 }
 
-function sceneExits(src: SystemSources, node: SystemNode | null, radius: number): Exit[] {
+function sceneExits(src: SystemSources, radius: number): Exit[] {
+  const { node } = src;
   if (!node) return NOTHING;
-  return node.lanes.flatMap((lane) => {
-    const other = src.systems.get(lane.to);
-    if (!other) return [];
+  return src.neighbours.map(({ node: other, length }) => {
     const { dx, dy, rotation } = exitBearing(node, other);
-    return [
-      {
-        neighbour: other.id,
-        name: src.nodeName(other.name),
-        length: lane.length,
-        dx,
-        dy,
-        rotation,
-        radius,
-      },
-    ];
+    return {
+      neighbour: other.id,
+      name: src.nodeName(other.name),
+      length,
+      dx,
+      dy,
+      rotation,
+      radius,
+    };
   });
 }
 
@@ -536,7 +528,6 @@ const lastById = lastOf<ReadonlyMap<number, SceneBody>>();
 const lastBelts = lastOf<readonly SceneBelt[]>();
 const lastExits = lastOf<readonly Exit[]>();
 const lastRolled = lastOf<readonly RolledPlanet[]>();
-const lastEditing = lastOf<SceneEditing>();
 const lastHandles = lastOf<readonly SceneHandle[]>();
 const lastWormholes = lastOf<readonly SceneWormhole[]>();
 
@@ -573,8 +564,7 @@ function sceneWormholes(
   moved: LayoutOverride["wormholes"],
 ): SceneWormhole[] {
   if (!src.sceneLayers.bypasses || !src.details) return NOTHING;
-  const here = src.id === null ? undefined : src.systems.get(src.id);
-  const hereName = here ? src.nodeName(here.name) : "";
+  const hereName = src.node ? src.nodeName(src.node.name) : "";
   return src.details.wormholes.map((w) => {
     const partner = w.partner === null ? undefined : src.systems.get(w.partner);
     const partnerName =
@@ -602,35 +592,25 @@ export function systemContext(
   src: SystemSources,
   preview: ScenePreview | null = null,
 ): SystemContext {
-  const node = src.id === null ? null : (src.systems.get(src.id) ?? null);
-  const base = systemLayout(src.details, src.roll, src.planetClasses, src.moonScale);
+  const { layout: base, editing } = geometryOf({ ...src, adapter: src.geometry });
   const layout = preview
     ? systemLayout(src.details, src.roll, src.planetClasses, src.moonScale, preview.override)
     : base;
-  const editing = lastEditing([src.geometry, base, src.details, src.planetClasses, src.radii], () =>
-    src.geometry.editing({
-      layout: base,
-      details: src.details,
-      planetClasses: src.planetClasses,
-      radii: src.radii,
-    }),
-  );
   const bodies = lastBodies(
     [
       layout,
-      node,
+      src.node,
       src.details,
-      src.kind,
+      src.rolledLayout,
       src.planetClasses,
       src.starClasses,
-      src.initializerClasses,
       src.names,
       src.gameDataReady,
       src.ownership,
       src.countries,
       src.resourceIcons,
     ],
-    () => sceneBodies(src, node, layout),
+    () => sceneBodies(src, layout),
   );
   const wormholes = lastWormholes(
     [
@@ -640,24 +620,23 @@ export function systemContext(
       preview?.override.wormholes,
       src.systems,
       src.names,
-      src.id,
+      src.node,
       src.bypassKinds,
     ],
     () => sceneWormholes(src, editing, preview?.override.wormholes),
   );
   return Object.freeze({
     ...src,
-    node,
     layout,
     bodies,
     bodyById: lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b]))),
     belts: lastBelts([layout.belts, src.beltKinds], () =>
       layout.belts.map((belt) => sceneBelt(belt, src.beltKinds)),
     ),
-    exits: lastExits([node, src.systems, src.names, layout.innerRadius], () =>
-      sceneExits(src, node, layout.innerRadius),
+    exits: lastExits([src.node, src.neighbours, src.names, layout.innerRadius], () =>
+      sceneExits(src, layout.innerRadius),
     ),
-    inNebula: node?.nebula != null,
+    inNebula: src.node?.nebula != null,
     rolled: lastRolled([src.roll, src.planetClasses], () =>
       src.roll?.rolls_planets ? placeholderPlanets(src.roll, src.planetClasses) : NOTHING,
     ),

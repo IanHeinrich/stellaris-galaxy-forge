@@ -1,6 +1,6 @@
 import { shortcutLabel } from "../../lib/keys";
 import { movingLabel } from "../../lib/planetMove";
-import { useCut } from "../usePlanetMove";
+import { useCut } from "../useCut";
 import "./chrome.css";
 
 /**

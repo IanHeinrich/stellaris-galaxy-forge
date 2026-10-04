@@ -14,7 +14,7 @@ import {
   usePlanetMoveStore,
 } from "../../../store/planetMoveStore";
 import { useSceneStore } from "../../../store/sceneStore";
-import { useCut, useMovedPlanets, useWarningNames } from "../../usePlanetMove";
+import { useCut, useMovedPlanets, useWarningNames } from "../../useCut";
 import { MenuItem } from "./MenuItem";
 
 /**

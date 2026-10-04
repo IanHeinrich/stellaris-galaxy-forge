@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StarClassView } from "../../generated/StarClassView";
-import { RANDOM_STAR_CLASS, effectiveStarClass, starTextureKey } from "./starGlyphs";
+import { drawnStarClass, starTextureKey } from "./starGlyphs";
 
 const CLASSES = new Map<string, StarClassView>([
   [
@@ -29,24 +29,12 @@ describe("starTextureKey", () => {
   });
 });
 
-describe("effectiveStarClass", () => {
-  it("keeps a class the document writes itself", () => {
-    expect(effectiveStarClass({ star_class: "sc_m" }, "sc_b", "scenario")).toBe("sc_m");
+describe("drawnStarClass", () => {
+  it("keeps the class the system is given", () => {
+    expect(drawnStarClass({ star_class: "sc_black_hole" })).toBe("sc_black_hole");
   });
 
-  it("takes the initializer's class when the system has none", () => {
-    expect(effectiveStarClass({ star_class: "" }, "sc_black_hole", "scenario")).toBe(
-      "sc_black_hole",
-    );
-  });
-
-  it("takes the class the core resolved for a random list, and the stand-in for an unknown initializer", () => {
-    expect(effectiveStarClass({ star_class: "" }, "sc_g", "scenario")).toBe("sc_g");
-    expect(effectiveStarClass({ star_class: "" }, undefined, "scenario")).toBe(RANDOM_STAR_CLASS);
-  });
-
-  it("leaves a save's classless system classless", () => {
-    expect(effectiveStarClass({ star_class: "" }, undefined, "save")).toBe("");
-    expect(effectiveStarClass({ star_class: "" }, "sc_g", "save")).toBe("sc_g");
+  it("draws a system given none, whose star the game picks, as a yellow star", () => {
+    expect(drawnStarClass({ star_class: "" })).toBe("sc_g");
   });
 });

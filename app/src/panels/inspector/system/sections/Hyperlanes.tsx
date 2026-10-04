@@ -11,9 +11,10 @@ import {
 } from "../../../../lib/details/labels";
 import { bypassSource, bypassSourceTitle, bypassesOf } from "../../../../lib/scenarioBypasses";
 import { displayName } from "../../../../lib/names";
+import { useShownBypasses } from "../../../../store/bypassSelectors";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useEditorStore } from "../../../../store/editorStore";
-import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
+import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { useGalaxyVersion, useSystemName } from "../../../../store/browserRows";
 import { useGalaxyStore } from "../../../../store/galaxyStore";
@@ -268,22 +269,17 @@ function WormholeRow({ system, hole }: { system: number; hole: WormholeSummary }
 }
 
 /**
- * The bypasses of the open system: the ones the save writes, or the ones a scenario's
- * initializers and day-one scripts place, which a scenario shows only where there are any.
+ * The bypasses of the open system: the ones the document shows, or, where its systems name the
+ * scripts that place them, each endpoint with what placed it, shown only where there are any.
  */
 export function BypassSection({ system }: { system: number }) {
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const links = useGalaxyStore((s) => s.bypasses);
+  const scripted = useCanEdit("scripts");
+  const shown = useShownBypasses();
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const kinds = useGameDataStore((s) => s.bypasses);
   const holes = useDetailsStore((s) => s.details.get(system)?.wormholes) ?? NO_WORMHOLES;
-  const listed = new Set(holes.map((hole) => hole.kind));
-  const others = links.filter((b) =>
-    b.type === "wormhole" ? !listed.has("wormhole") : b.type !== "other" || !listed.has(b.kind),
-  );
-  const icons = bypassIcons(others, system, kinds);
-  const bypasses = bypassesOf(placed, system);
-  if (scenario) {
+  if (scripted) {
+    const bypasses = bypassesOf(placed, system);
     if (bypasses.length === 0) return null;
     return (
       <Section id="system.bypasses" title="Bypasses" count={bypasses.length}>
@@ -293,6 +289,7 @@ export function BypassSection({ system }: { system: number }) {
       </Section>
     );
   }
+  const icons = bypassIcons(shown, system, kinds, holes);
   return (
     <Section id="system.bypasses" title="Bypasses" count={holes.length + icons.length}>
       {holes.length + icons.length === 0 ? (

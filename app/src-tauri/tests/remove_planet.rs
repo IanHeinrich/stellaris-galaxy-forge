@@ -7,7 +7,8 @@ use sgf_core::views::{EditResult, ErrorKind};
 use crate::common::{SAMPLE_45, invoke, kind, opened};
 
 /// Gas giant 99 of system 140 has two bare moons; 0 is a star; colony 18 on planet 517 is
-/// a fallen empire's; 2445 is a ring world segment.
+/// a fallen empire's; 2445 is a ring world segment. The dry run answers the core's refusal
+/// as it stands, or nothing when the op would apply.
 #[test]
 fn deletes_are_checked_and_applied() {
     let w = opened(SAMPLE_45);
@@ -15,28 +16,23 @@ fn deletes_are_checked_and_applied() {
         invoke(&w, "check_op", json!({ "op": op })).expect("dry run")
     };
     assert_eq!(check(Op::DeleteBody { body: 99 }), None);
-    assert_eq!(
-        check(Op::DeleteBody { body: 0 }).as_deref(),
-        Some("planet 0 is a star: only a planet or moon can be deleted")
-    );
-    assert_eq!(
-        check(Op::DeleteBody { body: 2445 }).as_deref(),
-        Some(
-            "planet 2445 cannot be deleted: it is a ring world segment, which has not been tried in game"
-        )
-    );
     assert_eq!(check(Op::RemoveColony { body: 517 }), None);
+    for refused in [0, 2445] {
+        let reason = check(Op::DeleteBody { body: refused });
+        assert!(
+            reason.is_some_and(|r| !r.is_empty()),
+            "planet {refused} is refused with a reason"
+        );
+    }
 
     let applied: EditResult =
         invoke(&w, "apply_op", json!({ "op": Op::DeleteBody { body: 99 } })).expect("apply");
-    assert_eq!(
-        applied.entry.description,
-        "Deleted planet #99 and its 2 moons"
-    );
+    assert!(applied.dirty);
+    assert_eq!(applied.history.undo.len(), 1);
     assert_eq!(applied.details_stale, [140]);
-    assert_eq!(
-        check(Op::DeleteBody { body: 99 }).as_deref(),
-        Some("planet 99 does not exist")
+    assert!(
+        check(Op::DeleteBody { body: 99 }).is_some(),
+        "the planet is gone, so a second delete is refused"
     );
 }
 
@@ -65,8 +61,8 @@ fn a_restore_and_a_batch_are_refused() {
         ops: vec![Op::DeleteBody { body: 23 }, Op::DeleteBody { body: 99 }],
     };
     let checked: Option<String> = invoke(&w, "check_op", json!({ "op": batch })).expect("check");
-    assert_eq!(
-        checked.as_deref(),
-        Some("a batch cannot be checked: check each of its ops")
+    assert!(
+        checked.is_some(),
+        "a batch is answered with a reason, not checked op by op"
     );
 }

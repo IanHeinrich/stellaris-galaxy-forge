@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import type { SystemNode } from "../../../../generated/SystemNode";
 import { displayName } from "../../../../lib/names";
 import { kindLabel } from "../../../../lib/special";
-import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
+import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
@@ -66,27 +66,26 @@ export function InitializerSection({
   const special = useGameDataStore((s) => s.special.get(system.id));
   const ready = useGameDataStore((s) => s.status === "ready");
   const initializers = useGameDataStore((s) => s.initializers);
-  // Only a scenario names the file its systems are generated from; a save has none to open.
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const scripted = useCanEdit("scripts");
   const editable = useCanEdit("create_systems");
   const unknown = ready && special?.initializer_known === false;
   const countries = special?.countries ?? [];
   const kinds = special?.kinds ?? [];
   const source = useMemo(
     () =>
-      scenario ? (initializers?.find((e) => e.name === system.initializer)?.source ?? null) : null,
-    [scenario, initializers, system.initializer],
+      scripted ? (initializers?.find((e) => e.name === system.initializer)?.source ?? null) : null,
+    [scripted, initializers, system.initializer],
   );
 
   // Reading the install again once game data is ready is what fills the list in.
   useEffect(() => {
-    if (scenario) void useGameDataStore.getState().loadInitializers();
-  }, [scenario, ready]);
+    if (scripted) void useGameDataStore.getState().loadInitializers();
+  }, [scripted, ready]);
 
   const known = initializers?.some((e) => e.name === system.initializer) ?? false;
-  const derived = scenario && (countries.length > 0 || (spawn && known));
+  const derived = scripted && (countries.length > 0 || (spawn && known));
   const seat =
-    scenario &&
+    scripted &&
     (system.spawn_script !== null ||
       (system.spawn_weight ?? 0) > 0 ||
       system.spawn_design !== null);
@@ -94,7 +93,7 @@ export function InitializerSection({
     <Section id="system.initializer" title="Initializer" startClosed={!editable}>
       <div className="ins-flags mono ins-init-line">
         {system.initializer || (editable ? "Random (no initializer)" : "—")}
-        {scenario &&
+        {scripted &&
           kinds.map((k) => (
             <span key={k} className="ins-kind" title={kindHover(system, k)}>
               · {kindLabel(k)}

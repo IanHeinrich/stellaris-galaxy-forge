@@ -1,73 +1,18 @@
 /**
- * The save session: opening a file, reading it back and editing it. Command names and argument
- * names here match `app/src-tauri/src/commands/`.
+ * The open document's lifecycle: opening, saving, undoing and applying edits.
+ * Command and argument names match `app/src-tauri/src/commands/session.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
-import type { AddedBody } from "../generated/AddedBody";
-import type { AddSystemPicks } from "../generated/AddSystemPicks";
-import type { CampaignListing } from "../generated/CampaignListing";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { EditResult } from "../generated/EditResult";
-import type { EntityAddr } from "../generated/EntityAddr";
-import type { EntityKind } from "../generated/EntityKind";
-import type { EntitySchema } from "../generated/EntitySchema";
-import type { EntitySource } from "../generated/EntitySource";
-import type { EntityView } from "../generated/EntityView";
 import type { ExportReport } from "../generated/ExportReport";
-import type { Issue } from "../generated/Issue";
 import type { ExportResult } from "../generated/ExportResult";
-import type { FeZone } from "../generated/FeZone";
 import type { GalaxyView } from "../generated/GalaxyView";
-import type { GalaxySettings } from "../generated/GalaxySettings";
+import type { Issue } from "../generated/Issue";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
-import type { OrbitPlacement } from "../generated/OrbitPlacement";
-import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
-import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
-import type { PlanetPage } from "../generated/PlanetPage";
-import type { SaveFile } from "../generated/SaveFile";
 import type { SaveResult } from "../generated/SaveResult";
-import type { ScenarioListings } from "../generated/ScenarioListings";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
-import type { SearchResult } from "../generated/SearchResult";
-import type { SystemDetail } from "../generated/SystemDetail";
-import type { SystemDetails } from "../generated/SystemDetails";
-import type { SystemRoll } from "../generated/SystemRoll";
-
-/** The Stellaris save directories that exist on this machine. */
-export function saveDirs(): Promise<string[]> {
-  return invoke<string[]>("save_dirs");
-}
-
-/** Every campaign folder under the Stellaris save directories, with the header of its newest save. */
-export function listCampaigns(): Promise<CampaignListing[]> {
-  return invoke<CampaignListing[]>("list_campaigns");
-}
-
-/** The saves in one campaign folder, newest first. */
-export function listCampaignSaves(dir: string): Promise<SaveFile[]> {
-  return invoke<SaveFile[]>("list_campaign_saves", { dir });
-}
-
-/** Every static galaxy scenario the install and its mods hold, with what went wrong finding them. */
-export function listScenarios(): Promise<ScenarioListings> {
-  return invoke<ScenarioListings>("list_scenarios");
-}
-
-/** Whether the scenario file at `path` is for Paint a Galaxy, as its listing would say. */
-export function scenarioPainted(path: string): Promise<boolean> {
-  return invoke<boolean>("scenario_painted", { path });
-}
-
-/** The setup screen the save at `path` was started with, read without opening it. */
-export function saveDetails(path: string): Promise<GalaxySettings> {
-  return invoke<GalaxySettings>("save_details", { path });
-}
-
-/** The paths among `paths` that are not a file on disk. */
-export function missingPaths(paths: string[]): Promise<string[]> {
-  return invoke<string[]>("missing_paths", { paths });
-}
 
 /** Which kind of document the file at `path` holds, read from its bytes, whatever its extension. */
 export function documentKind(path: string): Promise<DocumentKind> {
@@ -109,81 +54,9 @@ export function getGalaxy(): Promise<GalaxyView> {
   return invoke<GalaxyView>("get_galaxy");
 }
 
-/** One system with its neighbours resolved. Rejects with `SgfError` when no save is open or `id` is unknown. */
-export function getSystem(id: number): Promise<SystemDetail> {
-  return invoke<SystemDetail>("get_system", { id });
-}
-
-/**
- * What matches `query` by id, name or what a system holds, best first, at most `limit` of each
- * kind, with every system the matches locate.
- */
-export function search(query: string, limit = 20): Promise<SearchResult> {
-  return invoke<SearchResult>("search", { query, limit });
-}
-
 /** Build the details projection so search also finds planets and fleets. */
 export function warmDetails(): Promise<Issue[]> {
   return invoke<Issue[]>("warm_details");
-}
-
-/** Planets, deposits, starbase and fleets of the given systems; unknown ids are skipped. */
-export function getSystemDetails(ids: number[]): Promise<SystemDetails[]> {
-  return invoke<SystemDetails[]>("get_system_details", { ids });
-}
-
-/**
- * Roll `roll` of a scenario system: where each body its details list lands, or placeholder planets
- * inside `within` when the game rolls its planets. Empty on a save.
- */
-export function getSystemRoll(id: number, roll: number, within: number): Promise<SystemRoll> {
-  return invoke<SystemRoll>("get_system_roll", { id, roll, within });
-}
-
-/** One level of an entity: the children at `path`, each flagged when an op changed it. */
-export function getEntity(addr: EntityAddr, path: string[] = []): Promise<EntityView> {
-  return invoke<EntityView>("get_entity", { addr, path });
-}
-
-/** An entity's current bytes with the ranges an op changed. */
-export function getEntitySource(addr: EntityAddr): Promise<EntitySource> {
-  return invoke<EntitySource>("get_entity_source", { addr });
-}
-
-/** A save body's own Overview. Rejects with `not_found` on a scenario or for an absent planet. */
-export function getPlanetPage(id: number): Promise<PlanetPage> {
-  return invoke<PlanetPage>("get_planet_page", { id });
-}
-
-/** Where the save planets may move together, and which of them cannot move. */
-export function planetMoveTargets(planets: number[]): Promise<PlanetMoveTargets> {
-  return invoke<PlanetMoveTargets>("planet_move_targets", { planets });
-}
-
-/**
- * Why moving `planets` to system `to` would be refused, or else the colonies and stations it takes
- * into another country's system.
- */
-export function planetMoveCheck(
-  planets: number[],
-  to: number,
-  at: OrbitPlacement | null = null,
-): Promise<PlanetMoveCheck> {
-  return invoke<PlanetMoveCheck>("planet_move_check", { planets, to, at });
-}
-
-/** The op that moves `planets` to system `to`, the first at `at` when given, for `applyOp`. */
-export function planetMoveOp(
-  planets: number[],
-  to: number,
-  at: OrbitPlacement | null = null,
-): Promise<Op> {
-  return invoke<Op>("planet_move_op", { planets, to, at });
-}
-
-/** The labelled fields of a kind; keys outside it render raw. */
-export function getEntitySchema(kind: EntityKind): Promise<EntitySchema> {
-  return invoke<EntitySchema>("get_entity_schema", { kind });
 }
 
 /** Why `op` would be refused, or null when it would apply; the session is left as it was. */
@@ -194,135 +67,6 @@ export function checkOp(op: Op): Promise<string | null> {
 /** Apply one edit to the session. Rejects with `SgfError` (kind `op`) when a precondition fails. */
 export function applyOp(op: Op): Promise<EditResult> {
   return invoke<EditResult>("apply_op", { op });
-}
-
-/**
- * Roll a system at (x, y) from `seed`, around `starClass` when given, and add it to the open save
- * as one edit. Rejects with `SgfError` (kind `op`) without game data, on a scenario, or when the
- * core refuses the spot.
- */
-export function addRandomSystem(
-  seed: number,
-  x: number,
-  y: number,
-  starClass: string | null,
-): Promise<EditResult> {
-  return invoke<EditResult>("add_random_system", { seed, x, y, starClass });
-}
-
-/**
- * Roll a body from `seed` and add it to system `system` of the open save as one edit, `radius`
- * from what it orbits at `angle` degrees: a moon of `parent`, or a planet for null. It is of
- * `planetClass` and `size` when given, else drawn as the game draws them, with the deposits it
- * rolls. Answers with the edit and the new body's id; refused without game data.
- */
-export function addBody(
-  system: number,
-  parent: number | null,
-  planetClass: string | null,
-  size: number | null,
-  radius: number,
-  angle: number,
-  seed: number,
-): Promise<AddedBody> {
-  return invoke<AddedBody>("add_body", {
-    system,
-    parent,
-    class: planetClass,
-    size,
-    radius,
-    angle,
-    seed,
-  });
-}
-
-/**
- * Add a nebula at (x, y) with `radius` as one edit, named from `seed` out of the save's pool of
- * unused nebula names, else the install's lists when game data is loaded, else "New Nebula",
- * numbered when taken.
- */
-export function addNebula(seed: number, x: number, y: number, radius: number): Promise<EditResult> {
-  return invoke<EditResult>("add_nebula", { seed, x, y, radius });
-}
-
-/**
- * Build a system of the special layout `layout` at (x, y) from `seed` and add it to the open save
- * as one edit. It takes the layout's fixed name unless the save already has it. A capped layout
- * the galaxy already holds is placed all the same.
- */
-export function addSpecialSystem(
-  seed: number,
-  x: number,
-  y: number,
-  layout: string,
-): Promise<EditResult> {
-  return invoke<EditResult>("add_special_system", { seed, x, y, layout });
-}
-
-/**
- * Roll the added save system `system` again from `seed`, keeping its name, position and lanes, as
- * one edit. With `keepSpecial`, a system of a Special menu layout is built from that layout again;
- * otherwise it is rolled around `starClass` when given.
- */
-export function rerollSystem(
-  system: number,
-  seed: number,
-  starClass: string | null,
-  keepSpecial: boolean,
-): Promise<EditResult> {
-  return invoke<EditResult>("reroll_system", { system, seed, starClass, keepSpecial });
-}
-
-/**
- * What the Add system menu offers for the open save, each pick with what it can produce. Rejects
- * without game data or on a scenario.
- */
-export function getAddSystemPicks(): Promise<AddSystemPicks> {
-  return invoke<AddSystemPicks>("get_add_system_picks");
-}
-
-/**
- * Delete the systems among `ids` added to the open save this session as one edit, leaving the
- * file's own. Rejects with `SgfError` (kind `op`) on a scenario or when none of them was added.
- */
-export function removeAddedSystems(ids: number[]): Promise<EditResult> {
-  return invoke<EditResult>("remove_added_systems", { ids });
-}
-
-/**
- * One `SetFeZone` entry per system, applied as one `Batch`, that replaces the automatic
- * fallen empire zones with `count` of the Paint a Galaxy mod's candidates, spread across the
- * map; empty when the zones already stand as asked. Zones the user placed stay.
- */
-export function feZoneFit(count: number): Promise<Array<[number, FeZone | null]>> {
-  return invoke<Array<[number, FeZone | null]>>("fe_zone_fit", { count });
-}
-
-/** The most zones `feZoneFit` accepts on the open scenario. */
-export function feZoneCandidateCount(): Promise<number> {
-  return invoke<number>("fe_zone_candidate_count");
-}
-
-/**
- * Link `linked` and no other system to the fallen empire zone `anchor` anchors, as one
- * `SetFeLinks`; empty, the zone goes back to the mod's own rule. Rejects with `SgfError` (kind
- * `op`) when `anchor` anchors no zone.
- */
-export function setFeLinks(anchor: number, linked: number[]): Promise<EditResult> {
-  return invoke<EditResult>("set_fe_links", { anchor, linked });
-}
-
-/**
- * The five empire-count header keys and the values Paint a Galaxy's formulas give the open
- * scenario's seats, for one `SetHeaderKeys`. Rejects with `SgfError` (kind `op`) on a save.
- */
-export function headerEmpireCounts(): Promise<Array<[string, string]>> {
-  return invoke<Array<[string, string]>>("header_empire_counts");
-}
-
-/** Every other scenario in the directory of `path`, as file name and header name. */
-export function siblingScenarioNames(path: string): Promise<Array<[string, string]>> {
-  return invoke<Array<[string, string]>>("sibling_scenario_names", { path });
 }
 
 /** Undo the last edit; resolves null when there is nothing to undo. */
@@ -354,9 +98,4 @@ export function save(force = false): Promise<SaveResult> {
  */
 export function saveAs(path: string, force = false): Promise<SaveResult> {
   return invoke<SaveResult>("save_as", { path, force });
-}
-
-/** True when `path` is under a Steam Cloud directory, where Steam may overwrite the file with its cloud copy. */
-export function isCloudSave(path: string): Promise<boolean> {
-  return invoke<boolean>("is_cloud_save", { path });
 }
