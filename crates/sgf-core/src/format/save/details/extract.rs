@@ -12,7 +12,9 @@ use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
+use crate::entity::facts::planet::{BodyRole, PlanetFacts};
 use crate::entity::views::EntityKind;
+use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes, row};
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
@@ -41,6 +43,8 @@ pub struct RawSystemDetails {
     pub inner_radius: Option<f64>,
     /// The system's `natural_wormholes` entries, in file order.
     pub wormholes: Vec<WormholeSummary>,
+    /// The first body the system lists, which it is centred on.
+    pub primary: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +56,9 @@ pub struct RawPlanet {
     pub colonised: bool,
     pub capital: bool,
     pub owner: Option<u32>,
+    /// The role is [`BodyRole::Moon`].
     pub moon: bool,
+    pub role: BodyRole,
     pub pre_ftl: bool,
     pub size: Option<u32>,
     /// `orbit`: the radius around the star, or around the planet a moon orbits.
@@ -301,7 +307,6 @@ pub(super) fn planets(
             continue;
         };
         let planet = facts::planet::read(&node, src);
-        let placement = placement(&node, src);
         let Some((origin, details)) = planet
             .origin
             .and_then(|o| Some((o, by_system.get_mut(&o)?)))
@@ -309,42 +314,24 @@ pub(super) fn planets(
             continue;
         };
         planet_system.insert(id, origin);
-        let capital = planet
+        let mut raw = raw_planet(id, &planet, &node, src, details.primary == Some(id));
+        raw.capital = planet
             .colony
             .is_some_and(|c| countries.capitals.contains(&c));
-        let mut deposits: Vec<(String, u32)> = Vec::new();
+        raw.pre_ftl = planet
+            .owner
+            .is_some_and(|o| countries.primitives.contains(&o));
         for kind in planet.deposits.iter().filter_map(|d| deposit_kind.get(d)) {
-            match deposits.iter_mut().find(|(k, _)| k == kind) {
+            match raw.deposits.iter_mut().find(|(k, _)| k == kind) {
                 Some((_, count)) => *count += 1,
-                None => deposits.push((kind.clone(), 1)),
+                None => raw.deposits.push((kind.clone(), 1)),
             }
         }
-        details.planets.push(RawPlanet {
-            id,
-            class: planet.class,
-            name: planet.name,
-            name_key: planet.name_key,
-            colonised: planet.owner.is_some(),
-            capital,
-            owner: planet.owner,
-            moon: planet.moon_of.is_some(),
-            pre_ftl: planet
-                .owner
-                .is_some_and(|o| countries.primitives.contains(&o)),
-            size: planet.size,
-            orbit: placement.orbit,
-            parent: planet.moon_of,
-            at: placement.at,
-            ring: placement.ring,
-            deposits,
-            pops: planet
-                .colony
-                .and_then(|c| colony_pops.get(&c).copied())
-                .unwrap_or(0),
-            permanent_modifiers: permanent_modifiers(&node, src),
-            anomaly: planet.anomaly,
-            entity_name: planet.entity_name,
-        });
+        raw.pops = planet
+            .colony
+            .and_then(|c| colony_pops.get(&c).copied())
+            .unwrap_or(0);
+        details.planets.push(raw);
     }
     Ok(planet_system)
 }
@@ -371,41 +358,47 @@ fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Where a planet's entry puts it, and whether it has a ring.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct Placement {
-    pub orbit: Option<f64>,
-    pub at: Option<(f64, f64)>,
-    pub ring: bool,
-}
-
-fn placement(node: &Node, src: &[u8]) -> Placement {
-    let flags = read::scalar_u32(node, keys::BINARY_FLAGS, src).unwrap_or(0);
-    Placement {
+/// Planet `id` as its entity `node` reads, `planet` being its facts and `primary` whether
+/// its system lists it first. What other tables say of it, its capital, pre-FTL owner,
+/// deposits and pops, is left empty.
+fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], primary: bool) -> RawPlanet {
+    let role = planet.role(primary);
+    RawPlanet {
+        id,
+        class: planet.class.clone(),
+        name: planet.name.clone(),
+        name_key: planet.name_key.clone(),
+        colonised: planet.colonised(),
+        capital: false,
+        owner: planet.owner,
+        moon: role == BodyRole::Moon,
+        role,
+        pre_ftl: false,
+        size: planet.size,
         orbit: read::scalar_f64(node, keys::ORBIT, src),
+        parent: planet.moon_of,
         at: read::coordinate(node, src).ok(),
-        ring: flags & RING_FLAG != 0,
+        ring: planet.binary_flags & RING_FLAG != 0,
+        deposits: Vec::new(),
+        pops: 0,
+        permanent_modifiers: permanent_modifiers(node, src),
+        anomaly: planet.anomaly.clone(),
+        entity_name: planet.entity_name.clone(),
     }
 }
 
-/// What planet `id` now says about itself, with its permanent `timed_modifier` names and
-/// where it stands; `None` when the save holds no such planet.
-pub(super) fn planet_facts(
+/// Planet `id` as its entity now reads, `primary` saying whether its system lists it first,
+/// with what other tables say of it left empty; `None` when the save holds no such planet.
+pub(super) fn planet(
     doc: &Document,
     id: u32,
-) -> Result<Option<(facts::planet::PlanetFacts, Vec<String>, Placement)>, ProjectionError> {
+    primary: bool,
+) -> Result<Option<RawPlanet>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
-    Ok(
-        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.map(|(node, src)| {
-            (
-                facts::planet::read(&node, src),
-                permanent_modifiers(&node, src),
-                placement(&node, src),
-            )
-        }),
-    )
+    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
+        .map(|(node, src)| raw_planet(id, &facts::planet::read(&node, src), &node, src, primary)))
 }
 
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may
@@ -664,4 +657,5 @@ pub(super) fn wormholes(
 fn read_geometry(details: &mut RawSystemDetails, node: &Node, src: &[u8]) {
     details.inner_radius = read::scalar_f64(node, keys::INNER_RADIUS, src);
     details.belts = read_spec::belts_in(node, src).unwrap_or_default();
+    details.primary = planet_ids(node, src).first().copied();
 }

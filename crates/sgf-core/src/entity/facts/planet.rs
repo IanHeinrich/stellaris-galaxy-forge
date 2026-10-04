@@ -3,8 +3,12 @@
 //! 4.x moved pops, districts and buildings into `colony`, so the planet names its colony
 //! and the pop count is read from there; everything else is on the planet.
 
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::system::MOON_FLAG;
 use crate::entity::facts::{Sheet, count, other, reference, statement_at, system};
 use crate::entity::views::{
     EntityAddr, EntityKind, PlanetPage, PlanetPageAnomaly, PlanetPageClearing, PlanetPageColony,
@@ -34,6 +38,8 @@ pub(crate) struct PlanetFacts {
     pub deposits: Vec<u32>,
     pub orbitals: u32,
     pub flags: u32,
+    /// `binary_flags`, zero when the entity writes none.
+    pub binary_flags: u32,
     /// `anomaly`: the category of the anomaly the planet holds.
     pub anomaly: Option<String>,
     /// `entity_name`: the model the planet is drawn as, in place of its class's.
@@ -55,8 +61,56 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
         deposits: read::ids(node, keys::DEPOSITS, src),
         orbitals: count(node, keys::PLANET_ORBITALS, src),
         flags: count(node, keys::FLAGS, src),
+        binary_flags: read::scalar_u32(node, keys::BINARY_FLAGS, src).unwrap_or(0),
         anomaly: read::scalar(node, keys::ANOMALY, src).map(str::to_owned),
         entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+    }
+}
+
+/// What a body is in its system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum BodyRole {
+    /// The first body the system lists, which the system is centred on.
+    Primary,
+    /// Any other star: a companion star, or a black hole or pulsar among the planets.
+    Star,
+    Planet,
+    /// A body with the moon bit of `binary_flags`. A planet of a companion star names that
+    /// star as `moon_of` without the bit, and is a planet.
+    Moon,
+}
+
+/// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
+/// and the black hole and pulsar classes are stars without it. `star` is the class an
+/// initializer writes for a system's own star.
+pub(crate) fn is_star_class(class: &str) -> bool {
+    class.ends_with("_star") || matches!(class, "star" | "pc_black_hole" | "pc_pulsar")
+}
+
+impl PlanetFacts {
+    /// Whether the planet holds a colony.
+    pub(crate) fn colonised(&self) -> bool {
+        self.colony.is_some()
+    }
+
+    /// Whether the entity holds the moon bit of `binary_flags`.
+    pub(crate) fn moon(&self) -> bool {
+        self.binary_flags & MOON_FLAG != 0
+    }
+
+    /// The body's role, `primary` saying whether its system lists it first.
+    pub(crate) fn role(&self, primary: bool) -> BodyRole {
+        if primary {
+            BodyRole::Primary
+        } else if self.moon() {
+            BodyRole::Moon
+        } else if is_star_class(&self.class) {
+            BodyRole::Star
+        } else {
+            BodyRole::Planet
+        }
     }
 }
 

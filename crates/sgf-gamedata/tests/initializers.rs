@@ -1282,10 +1282,10 @@ fn an_initializer_placing_its_bodies_only_through_an_inline_script_rolls_its_pla
     }
 }
 
-/// A save's star bodies are drawn as the star class whose only star they are, and a body
-/// orbits a planet unless its parent is a star.
+/// A save's star bodies are drawn as the star class whose only star they are. Which bodies
+/// are moons stays as the save says.
 #[test]
-fn a_save_bodys_star_class_and_moon_come_from_the_install() {
+fn a_save_bodys_star_class_comes_from_the_install_and_its_moons_from_the_save() {
     let (_dir, gd) = common::hand_written(&[
         (
             "common/star_classes/00_stars.txt",
@@ -1312,10 +1312,6 @@ fn a_save_bodys_star_class_and_moon_come_from_the_install() {
         .map(|p| p.id)
         .collect();
     assert!(!moons.is_empty(), "Sol has moons");
-    let star = sol.planets[0].id;
-    let about_the_star = &mut sol.planets[1];
-    about_the_star.parent = Some(star);
-    about_the_star.moon = true;
     gd.resolve_save_bodies(&mut sol, &system.star_class);
 
     assert_eq!(sol.planets[0].class, "pc_g_star");
@@ -1326,12 +1322,11 @@ fn a_save_bodys_star_class_and_moon_come_from_the_install() {
     );
     assert!(sol.planets[1..].iter().all(|p| p.star_class.is_none()));
     assert!(sol.planets.iter().all(|p| p.drawn == Some(false)));
-    assert!(!sol.planets[1].moon, "a body about the star is no moon");
     let now: Vec<u32> = sol
         .planets
         .iter()
         .filter(|p| p.moon)
         .map(|p| p.id)
         .collect();
-    assert_eq!(now, moons, "Sol's moons orbit planets");
+    assert_eq!(now, moons, "Sol's moons are the save's");
 }

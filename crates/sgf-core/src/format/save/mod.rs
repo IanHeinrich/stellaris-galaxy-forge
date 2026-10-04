@@ -6,6 +6,7 @@ pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod dig_sites;
 pub(crate) mod galaxy;
+pub(crate) mod planet_extras;
 pub(crate) mod read_spec;
 pub mod system_spec;
 pub(crate) mod write;

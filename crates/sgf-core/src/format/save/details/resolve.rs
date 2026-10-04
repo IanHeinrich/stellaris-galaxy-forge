@@ -8,11 +8,11 @@ use ts_rs::TS;
 
 use crate::as_u32;
 use crate::format::save::details::{
-    ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawSystemDetails,
+    ArchaeologySite, BodyRole, FleetSummary, MegastructureSummary, RawPlanet, RawSystemDetails,
     WormholeSummary,
 };
 use crate::format::save::system_spec::BeltSpec;
-use crate::ops::rules::bodies;
+use crate::projections::geometry;
 use crate::projections::name::NameTemplate;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -111,9 +111,9 @@ pub struct PlanetSummary {
     pub capital: bool,
     pub habitable: Option<bool>,
     pub owner: Option<u32>,
-    /// Orbits a planet: its parent is a body other than a star, or one the system does not
-    /// list. Without game data a save's is any body with a `moon_of`.
+    /// Orbits a planet: the role is [`BodyRole::Moon`].
     pub moon: bool,
+    pub role: BodyRole,
     /// Owned by a `primitive` country.
     pub pre_ftl: bool,
     /// `planet_size`, the game's tile count.
@@ -271,6 +271,7 @@ pub(super) fn resolve(
             habitable: resolver.planet_habitable(&p.class),
             owner: p.owner,
             moon: p.moon,
+            role: p.role,
             pre_ftl: p.pre_ftl,
             size: p.size,
             orbit: p.orbit,
@@ -341,7 +342,7 @@ fn layout(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> BodyLayout {
 }
 
 /// The radius the body is drawn at about its parent's point, or about the centre without
-/// a parent (see [`bodies::drawn_radius`]). The stored `orbit` stands in when the body or
+/// a parent (see [`geometry::drawn_radius`]). The stored `orbit` stands in when the body or
 /// its parent has no point.
 fn drawn_radius(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> Option<f64> {
     let centre = match planet.parent {
@@ -351,7 +352,7 @@ fn drawn_radius(planet: &RawPlanet, points: &HashMap<u32, (f64, f64)>) -> Option
     let (Some(at), Some(centre)) = (planet.at, centre) else {
         return planet.orbit;
     };
-    Some(bodies::drawn_radius(at, centre, planet.orbit))
+    Some(geometry::drawn_radius(at, centre, planet.orbit))
 }
 
 /// Adds `amount` to the row for `resource`, appending one in first-seen order.
