@@ -170,29 +170,29 @@ stellaris-galaxy-forge/
 ```mermaid
 flowchart TB
   subgraph disk[On disk]
-    Sav[(.sav: zip of gamestate and meta)]
-    Txt[(scenario .txt)]
+    Sav[(".sav: zip of<br/>gamestate and meta")]
+    Txt[("scenario .txt")]
   end
   subgraph session[Session, in memory]
-    Bytes[Original bytes: read once, never modified]
-    Index[Index: the span of every top-level statement and every id-keyed block]
-    Graph[Galaxy graph: systems, lanes, nebulae, countries]
-    Details[Details projection: planets, fleets, starbases, built on first use]
-    Overlay[Overlay: replacement and inserted bytes, keyed to original offsets]
-    History[History: every applied edit with its inverse and description]
+    Bytes["Original bytes:<br/>read once, never modified"]
+    Index["Index: the span of every<br/>top-level statement and<br/>every id-keyed block"]
+    Graph["Galaxy graph: systems,<br/>lanes, nebulae, countries"]
+    Details["Details projection: planets,<br/>fleets, starbases,<br/>built on first use"]
+    Overlay["Overlay: replacement and<br/>inserted bytes, keyed<br/>to original offsets"]
+    History["History: every applied edit<br/>with its inverse<br/>and description"]
   end
-  Sav & Txt -->|one linear scan| Bytes --> Index
+  Sav & Txt -->|"one linear scan"| Bytes --> Index
   Index --> Graph
   Index --> Details
-  Apply[Apply an edit] -->|decides the change on| Graph
-  Apply -->|writes patches into| Overlay
-  Apply -->|pushes the inverse onto| History
-  Overlay -->|re-read touched statements| Graph
-  Bytes & Overlay -->|spliced in one pass, backup first| Save[Save] --> Sav & Txt
-  UI[React panels and PixiJS map] -->|edits over IPC| Tauri[Tauri commands] --> Apply
-  CLI[sgf command line] --> Apply
+  Apply["Apply an edit"] -->|"decides the<br/>change on"| Graph
+  Apply -->|"writes<br/>patches into"| Overlay
+  Apply -->|"pushes the<br/>inverse onto"| History
+  Overlay -->|"re-read touched<br/>statements"| Graph
+  Bytes & Overlay -->|"spliced in one pass,<br/>backup first"| Save["Save"] --> Sav & Txt
+  UI["React panels<br/>and PixiJS map"] -->|"edits over IPC"| Tauri["Tauri commands"] --> Apply
+  CLI["sgf command line"] --> Apply
   subgraph gamedata[sgf-gamedata]
-    Install[Your install and mods: definitions, names, art]
+    Install["Your install and mods:<br/>definitions, names, art"]
   end
   Install --> UI
   Install --> Details
