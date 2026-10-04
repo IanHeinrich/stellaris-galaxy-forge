@@ -1,13 +1,12 @@
 //! Rolling a random system from an install's rules: the ranges, random lists and class
-//! fields it reads, on a hand-written install and on the real one, and the spec it rolls
-//! added to the 4.5 sample save.
+//! fields it reads, on a hand-written install and on the real one, the spec it rolls
+//! added to the 4.5 sample save, and the bodies a seed rolls, pinned by snapshot.
 
 use crate::common;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::Arc;
 
-use sgf_core::ops::{BeltSpec, BodySpec, NewBody, Op, SystemSpec, free_star_names};
+use sgf_core::ops::{BeltSpec, BodySpec, NewBody, Op, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
@@ -18,17 +17,14 @@ use sgf_gamedata::generate::{
 };
 use sgf_gamedata::install::script::Range;
 use sgf_gamedata::layouts::{SaveFacts, plain_initializers, special_initializers};
-use sgf_gamedata::naming::{pick_system_name, pick_unused};
+use sgf_gamedata::naming::pick_unused;
 
-/// Free ground beside the player's home system 169, where the spike's system stood.
-const SPOT: (f64, f64) = (-292.23404, -137.62265);
 const SEEDS: u64 = 1000;
-/// The Resource Abundance both sample saves were generated with.
-const ABUNDANCE: f64 = 2.0;
 
-use common::INSTALL;
+use common::layouts::{self, by_name};
+use common::{ABUNDANCE, INSTALL, SPOT};
 
-const FILES: [(&str, &str); 8] = [
+const FILES: [(&str, &str); 6] = [
     (
         "common/scripted_variables/00_fx.txt",
         "@fx_min = 60\n@fx_max = 100\n@fx_odds = 0.5\n@fx_moon = 10\n",
@@ -73,14 +69,6 @@ const FILES: [(&str, &str); 8] = [
          fx_conditional = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = { base = 5 }\n\tplanet = { count = 1 class = star orbit_distance = 0 }\n}\n",
     ),
     ("localisation/english/fx_l_english.yml", "l_english:\n"),
-    (
-        "common/random_names/base/00_names.txt",
-        "asteroid_prefix = {\n\tZz\n}\nstar_names = {\n\t### REAL ###\n\t\"Fx_Alpha\"\n\tFx_Beta\n}\n",
-    ),
-    (
-        "common/random_names/01_more.txt",
-        "star_names = {\n\tFx_Beta\n\tFx_Gamma\n}\n",
-    ),
 ];
 
 fn hand_written() -> (tempfile::TempDir, GameData) {
@@ -232,11 +220,6 @@ fn check_rocks(spec: &SystemSpec, seed: u64) {
     );
 }
 
-/// `None`, and the test returns, when this machine has no Stellaris install.
-fn install() -> Option<&'static GameData> {
-    INSTALL.as_ref()
-}
-
 fn specs(gd: &GameData) -> Vec<SystemSpec> {
     (0..SEEDS)
         .map(|seed| generate(gd, seed, "Gen", SPOT, None, ABUNDANCE).expect("a system"))
@@ -256,7 +239,7 @@ fn within(size: u32, range: Range) -> bool {
 
 #[test]
 fn the_real_install_rolls_its_plain_single_star_initializers() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let plain: BTreeSet<&str> = plain_initializers(gd)
@@ -298,7 +281,7 @@ fn the_real_install_rolls_its_plain_single_star_initializers() {
 
 #[test]
 fn every_rolled_body_is_a_real_class_of_a_size_and_orbit_it_allows() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     for (seed, spec) in specs(gd).iter().enumerate() {
@@ -389,7 +372,7 @@ fn check_moons(gd: &GameData, seed: usize, planet: &BodySpec, fixed: Option<Rang
 
 #[test]
 fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let mut drawn: BTreeMap<String, usize> = BTreeMap::new();
@@ -438,7 +421,7 @@ fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
 
 #[test]
 fn star_classes_come_up_about_as_often_as_their_odds() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let mut drawn: BTreeMap<String, f64> = BTreeMap::new();
@@ -574,14 +557,8 @@ fn a_star_class_draws_each_layout_as_often_as_it_rolls_that_class() {
 }
 
 #[test]
-fn a_hand_written_install_lists_its_star_names_once_each_in_file_order() {
-    let (_dir, gd) = hand_written();
-    assert_eq!(*gd.star_names, ["Fx_Beta", "Fx_Gamma", "Fx_Alpha"]);
-}
-
-#[test]
 fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let classes = star_classes(gd);
@@ -623,98 +600,6 @@ fn the_real_install_rolls_each_class_it_lists_and_refuses_the_others() {
     let error =
         generate(gd, 1, "Gen", SPOT, Some("sc_binary_1"), ABUNDANCE).expect_err("no layout");
     assert_eq!(error, GenerateError::NoLayoutFor("sc_binary_1".to_owned()));
-}
-
-/// The 4.5 sample with its pool of unused star names holding `pool` instead.
-fn with_star_pool(pool: &str) -> Session {
-    common::open_4_5_edited(|text| {
-        let head = "\tstar_names=\n\t{\n";
-        let start = text.find(head).expect("the pool") + head.len();
-        let end = start + text[start..].find("\t}\n").expect("its end");
-        text.replace_range(start..end, pool);
-    })
-}
-
-fn star_pool(bytes: &[u8]) -> String {
-    let text = String::from_utf8_lossy(bytes);
-    let start = text.find("\tstar_names=").expect("the pool");
-    let end = start + text[start..].find("\t}\n").expect("its end");
-    text[start..end].to_owned()
-}
-
-#[test]
-fn the_real_installs_star_names_hold_the_sample_pool() {
-    let Some(gd) = install() else {
-        return;
-    };
-    let session = common::open_4_5();
-    let pool = free_star_names(&session.doc);
-    assert!(
-        pool.iter().all(|name| gd.star_names.contains(name)),
-        "the pool is the install's list less the names the galaxy took"
-    );
-}
-
-#[test]
-fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
-    let (_dir, gd) = hand_written();
-    let gd = &gd;
-    let session = common::open_4_5();
-    let pool = free_star_names(&session.doc);
-    let name = pick_system_name(&session, gd, 5).expect("a name");
-    assert!(pool.contains(&name));
-
-    let mut session = with_star_pool("");
-    assert!(free_star_names(&session.doc).is_empty());
-    let used: Vec<String> = session
-        .graph
-        .systems
-        .values()
-        .map(|s| s.name.key.clone())
-        .collect();
-    let name = pick_system_name(&session, gd, 5).expect("a name from the install");
-    assert!(
-        gd.star_names.contains(&name) && !used.contains(&name),
-        "{name}"
-    );
-    assert_eq!(pick_system_name(&session, gd, 5), Some(name.clone()));
-
-    let mut spec = generate(gd, 5, &name, SPOT, None, ABUNDANCE).unwrap();
-    spec.lanes = vec![169];
-    session
-        .apply(Op::AddSystemFromSpec { spec })
-        .expect("the op takes a name the pool lacks");
-    let current: Vec<u8> = session.doc.pieces().flatten().copied().collect();
-    assert_eq!(
-        star_pool(&current),
-        star_pool(session.doc.original()),
-        "nothing taken from the pool"
-    );
-    assert_eq!(session.system(601).unwrap().name.key, name);
-
-    let mut spent = gd.clone();
-    spent.star_names = Arc::new(used);
-    assert_eq!(pick_system_name(&session, &spent, 5), None);
-}
-
-#[test]
-fn a_pooled_name_a_system_holds_is_passed_over_and_one_listed_twice_counts_once() {
-    let (_dir, gd) = hand_written();
-    let gd = &gd;
-    let session = with_star_pool("\t\t\"Sgf_Twice\"\n\t\t\"Sgf_Twice\"\n\t\t\"Dristmak\"\n");
-    assert_eq!(session.system(0).unwrap().name.key, "Dristmak");
-    assert_eq!(free_star_names(&session.doc).len(), 3);
-    for seed in 0..20 {
-        assert_eq!(
-            pick_system_name(&session, gd, seed).as_deref(),
-            Some("Sgf_Twice"),
-            "seed {seed}"
-        );
-    }
-    let session = with_star_pool("\t\t\"Dristmak\"\n");
-    let name = pick_system_name(&session, gd, 3).expect("a name from the install");
-    assert_ne!(name, "Dristmak");
-    assert!(gd.star_names.contains(&name));
 }
 
 const INITIALIZERS: &str = "common/solar_system_initializers/00_fx.txt";
@@ -1147,7 +1032,7 @@ fn an_artificial_planet_is_never_offered_or_rolled() {
 
 #[test]
 fn the_real_install_offers_no_arkship_but_keeps_its_other_special_worlds() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     for moon in [false, true] {
@@ -1200,7 +1085,7 @@ fn a_lone_body_keeps_the_class_and_size_asked_for() {
 /// of Meissa IV, each with the deposits it rolled.
 #[test]
 fn bodies_rolled_from_the_real_install_are_added_to_a_save() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let mut session = common::open_4_5();
@@ -1268,7 +1153,7 @@ fn real_body(gd: &GameData, seed: u64, class: &str) -> BodySpec {
 
 #[test]
 fn a_relic_world_gets_the_relic_deposits_from_the_install() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let relic_deposits = [
@@ -1287,7 +1172,7 @@ fn a_relic_world_gets_the_relic_deposits_from_the_install() {
 
 #[test]
 fn other_worlds_the_game_never_spawns_get_no_deposits() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     for class in ["pc_city", "pc_hive", "pc_machine", "pc_nanotech"] {
@@ -1303,7 +1188,7 @@ fn other_worlds_the_game_never_spawns_get_no_deposits() {
 
 #[test]
 fn a_barren_world_still_rolls_minerals_at_its_usual_share() {
-    let Some(gd) = install() else {
+    let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let with_minerals = (0..SEEDS)
@@ -1316,4 +1201,130 @@ fn a_barren_world_still_rolls_minerals_at_its_usual_share() {
         (100..=190).contains(&with_minerals),
         "{with_minerals} of {SEEDS} barren worlds rolled minerals"
     );
+}
+
+/// `spec` as the snapshot `name` under `snapshots/generate`: the system on the first line,
+/// then its belts, then one line per body, each moon under its planet. Every field is
+/// named, so a new one fails to compile until it is rendered. A snapshot of the real
+/// install changes when a game update changes the layouts, classes or deposits it reads.
+fn pinned(name: &str, spec: &SystemSpec) {
+    let SystemSpec {
+        name: system,
+        x,
+        y,
+        star_class,
+        initializer,
+        capped,
+        star_named_by_class,
+        star,
+        planets,
+        belts,
+        flags,
+        lanes,
+    } = spec;
+    let mut out = format!("{system} at {x} {y} {star_class} {initializer}");
+    if *capped {
+        out.push_str(" capped");
+    }
+    if *star_named_by_class {
+        out.push_str(" star_named_by_class");
+    }
+    if !flags.is_empty() {
+        out.push_str(&format!(" flags {flags:?}"));
+    }
+    if !lanes.is_empty() {
+        out.push_str(&format!(" lanes {lanes:?}"));
+    }
+    out.push('\n');
+    for BeltSpec { kind, inner_radius } in belts {
+        out.push_str(&format!("belt {kind} {inner_radius}\n"));
+    }
+    body_line(&mut out, "", star);
+    for planet in planets {
+        body_line(&mut out, "  ", planet);
+    }
+    insta::with_settings!({snapshot_path => "snapshots/generate", prepend_module_to_snapshot => false}, {
+        insta::assert_snapshot!(name, out);
+    });
+}
+
+/// `body` on a line of its own below `indent`, then its moons one level further in.
+fn body_line(out: &mut String, indent: &str, body: &BodySpec) {
+    let BodySpec {
+        class,
+        size,
+        orbit,
+        angle,
+        entity,
+        deposits,
+        moons,
+        asteroid,
+        name,
+        entity_name,
+        modifiers,
+        ring,
+        star,
+    } = body;
+    let mut line = format!("{indent}{class} {size} orbit {orbit} angle {angle}");
+    if *entity != 0 {
+        line.push_str(&format!(" entity {entity}"));
+    }
+    if !deposits.is_empty() {
+        line.push_str(&format!(" deposits {deposits:?}"));
+    }
+    for (set, word) in [(star, "star"), (asteroid, "asteroid"), (ring, "ring")] {
+        if *set {
+            line.push(' ');
+            line.push_str(word);
+        }
+    }
+    if let Some(name) = name {
+        line.push_str(&format!(" name {name}"));
+    }
+    if let Some(entity) = entity_name {
+        line.push_str(&format!(" entity_name {entity}"));
+    }
+    if !modifiers.is_empty() {
+        line.push_str(&format!(" modifiers {modifiers:?}"));
+    }
+    out.push_str(&line);
+    out.push('\n');
+    for moon in moons {
+        body_line(out, &format!("{indent}  "), moon);
+    }
+}
+
+#[test]
+fn a_hand_written_install_rolls_the_same_bodies_for_a_seed_as_before() {
+    let (_dir, gd) = layouts::hand_written();
+    for seed in [1, 2] {
+        let spec = generate(&gd, seed, "Fx", (1.0, 2.0), None, ABUNDANCE).unwrap();
+        pinned(&format!("fx_random_{seed}"), &spec);
+    }
+    let spec = by_name(&gd, 1, "Fx", (1.0, 2.0), "fx_haven").unwrap();
+    pinned("fx_haven_1", &spec);
+    let spec = generate(&gd, 3, "Fx", (1.0, 2.0), Some("sc_hole"), ABUNDANCE).unwrap();
+    pinned("fx_hole_3", &spec);
+}
+
+#[test]
+fn the_real_install_rolls_the_same_bodies_for_a_seed_as_before() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for seed in [1, 5] {
+        let spec = generate(gd, seed, "Gen", SPOT, None, ABUNDANCE).unwrap();
+        pinned(&format!("random_{seed}"), &spec);
+    }
+    let spec = generate(gd, 1, "Gen", SPOT, Some("sc_pulsar"), ABUNDANCE).unwrap();
+    pinned("pulsar_1", &spec);
+    for (layout, seed) in [
+        ("trappist_initializer", 1),
+        ("previously_terraformed_planet_system_initializer", 1),
+        ("wenkwort_initializer", 3),
+        ("debris_belt_initializer", 3),
+    ] {
+        let spec = by_name(gd, seed, "Gen", SPOT, layout).unwrap();
+        pinned(&format!("{layout}_{seed}"), &spec);
+    }
 }

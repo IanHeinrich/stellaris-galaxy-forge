@@ -1,5 +1,5 @@
 ---
-source: crates/sgf-gamedata/tests/special_layouts.rs
+source: crates/sgf-gamedata/tests/generate.rs
 expression: out
 ---
 NAME_Trappist at -292.23404 -137.62265 sc_m trappist_initializer capped star_named_by_class

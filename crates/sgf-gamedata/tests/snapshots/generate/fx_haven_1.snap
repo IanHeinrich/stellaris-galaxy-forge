@@ -1,5 +1,5 @@
 ---
-source: crates/sgf-gamedata/tests/special_layouts.rs
+source: crates/sgf-gamedata/tests/generate.rs
 expression: out
 ---
 NAME_Fx_Haven at 1 2 sc_sun fx_haven capped star_named_by_class flags ["fx_haven", "unique_system"]

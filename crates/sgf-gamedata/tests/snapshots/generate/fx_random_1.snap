@@ -1,5 +1,5 @@
 ---
-source: crates/sgf-gamedata/tests/special_layouts.rs
+source: crates/sgf-gamedata/tests/generate.rs
 expression: out
 ---
 Fx at 1 2 sc_sun fx_plain

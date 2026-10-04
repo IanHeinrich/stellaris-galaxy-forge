@@ -1,16 +1,19 @@
-//! Naming a new nebula: from the save's pool of unused nebula names first, then from the
-//! install's lists less the names the document's nebulae hold, then from no one. On a
-//! hand-written install, the real one and the 4.5 sample save and a scenario.
+//! Naming a new system or nebula: from the save's pool of unused names first, then from the
+//! install's lists less the names the document holds, then from no one. On a hand-written
+//! install, the real one and the 4.5 sample save and a scenario.
 
 use crate::common;
 
 use std::sync::Arc;
 
 use sgf_core::document::Document;
-use sgf_core::ops::free_nebula_names;
+use sgf_core::ops::{Op, free_nebula_names, free_star_names};
 use sgf_core::session::Session;
 use sgf_gamedata::GameData;
-use sgf_gamedata::naming::{pick_nebula_name, pick_pooled_nebula_name};
+use sgf_gamedata::generate::generate;
+use sgf_gamedata::naming::{pick_nebula_name, pick_pooled_nebula_name, pick_system_name};
+
+use common::{ABUNDANCE, SPOT};
 
 const SCENARIO: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -30,6 +33,40 @@ fn install_naming(nebulae: &[&str]) -> (tempfile::TempDir, GameData) {
         ("common/random_names/base/00_names.txt", &base),
         ("common/random_names/01_more.txt", &more),
         ("localisation/english/fx_l_english.yml", "l_english:\n"),
+    ])
+}
+
+/// An install whose star names come from two files, the first with a comment line, and whose
+/// one plain layout the generator can roll.
+fn install_with_stars() -> (tempfile::TempDir, GameData) {
+    common::hand_written(&[
+        (
+            "common/random_names/base/00_names.txt",
+            "asteroid_prefix = {\n\tZz\n}\nstar_names = {\n\t### REAL ###\n\t\"Fx_Alpha\"\n\tFx_Beta\n}\n",
+        ),
+        (
+            "common/random_names/01_more.txt",
+            "star_names = {\n\tFx_Beta\n\tFx_Gamma\n}\n",
+        ),
+        (
+            "common/star_classes/00_stars.txt",
+            "sc_sun = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 30\n}\n",
+        ),
+        (
+            "common/star_classes/randomizers/00_lists.txt",
+            "rl_single = {\n\tstars = { sc_sun }\n}\n",
+        ),
+        (
+            "common/planet_classes/00_planets.txt",
+            "pc_sun_star = {\n\tstar = yes\n\tplanet_size = { min = 20 max = 30 }\n}\n\
+             pc_rock = {\n\tmin_distance_from_sun = 0\n\tmax_distance_from_sun = 1000\n\tspawn_odds = 10\n\tplanet_size = { min = 10 max = 20 }\n\tmoon_size = { min = 5 max = 8 }\n}\n",
+        ),
+        (
+            "common/solar_system_initializers/00_fx.txt",
+            "fx_plain = {\n\tclass = rl_single\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+             \tplanet = { class = star orbit_distance = 0 }\n\
+             \tplanet = { count = { min = 2 max = 4 } orbit_distance = 20 }\n}\n",
+        ),
     ])
 }
 
@@ -113,4 +150,102 @@ fn the_real_install_lists_every_name_the_sample_pool_holds() {
     {
         assert!(gd.nebula_names.contains(name), "{name}");
     }
+}
+
+#[test]
+fn a_hand_written_install_lists_its_star_names_once_each_in_file_order() {
+    let (_dir, gd) = install_with_stars();
+    assert_eq!(*gd.star_names, ["Fx_Beta", "Fx_Gamma", "Fx_Alpha"]);
+}
+
+/// The 4.5 sample with its pool of unused star names holding `pool` instead.
+fn with_star_pool(pool: &str) -> Session {
+    common::open_4_5_edited(|text| {
+        let head = "\tstar_names=\n\t{\n";
+        let start = text.find(head).expect("the pool") + head.len();
+        let end = start + text[start..].find("\t}\n").expect("its end");
+        text.replace_range(start..end, pool);
+    })
+}
+
+fn star_pool(bytes: &[u8]) -> String {
+    let text = String::from_utf8_lossy(bytes);
+    let start = text.find("\tstar_names=").expect("the pool");
+    let end = start + text[start..].find("\t}\n").expect("its end");
+    text[start..end].to_owned()
+}
+
+#[test]
+fn the_real_installs_star_names_hold_the_sample_pool() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let session = common::open_4_5();
+    let pool = free_star_names(&session.doc);
+    assert!(
+        pool.iter().all(|name| gd.star_names.contains(name)),
+        "the pool is the install's list less the names the galaxy took"
+    );
+}
+
+#[test]
+fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
+    let (_dir, gd) = install_with_stars();
+    let gd = &gd;
+    let session = common::open_4_5();
+    let pool = free_star_names(&session.doc);
+    let name = pick_system_name(&session, gd, 5).expect("a name");
+    assert!(pool.contains(&name));
+
+    let mut session = with_star_pool("");
+    assert!(free_star_names(&session.doc).is_empty());
+    let used: Vec<String> = session
+        .graph
+        .systems
+        .values()
+        .map(|s| s.name.key.clone())
+        .collect();
+    let name = pick_system_name(&session, gd, 5).expect("a name from the install");
+    assert!(
+        gd.star_names.contains(&name) && !used.contains(&name),
+        "{name}"
+    );
+    assert_eq!(pick_system_name(&session, gd, 5), Some(name.clone()));
+
+    let mut spec = generate(gd, 5, &name, SPOT, None, ABUNDANCE).unwrap();
+    spec.lanes = vec![169];
+    session
+        .apply(Op::AddSystemFromSpec { spec })
+        .expect("the op takes a name the pool lacks");
+    let current: Vec<u8> = session.doc.pieces().flatten().copied().collect();
+    assert_eq!(
+        star_pool(&current),
+        star_pool(session.doc.original()),
+        "nothing taken from the pool"
+    );
+    assert_eq!(session.system(601).unwrap().name.key, name);
+
+    let mut spent = gd.clone();
+    spent.star_names = Arc::new(used);
+    assert_eq!(pick_system_name(&session, &spent, 5), None);
+}
+
+#[test]
+fn a_pooled_name_a_system_holds_is_passed_over_and_one_listed_twice_counts_once() {
+    let (_dir, gd) = install_with_stars();
+    let gd = &gd;
+    let session = with_star_pool("\t\t\"Sgf_Twice\"\n\t\t\"Sgf_Twice\"\n\t\t\"Dristmak\"\n");
+    assert_eq!(session.system(0).unwrap().name.key, "Dristmak");
+    assert_eq!(free_star_names(&session.doc).len(), 3);
+    for seed in 0..20 {
+        assert_eq!(
+            pick_system_name(&session, gd, seed).as_deref(),
+            Some("Sgf_Twice"),
+            "seed {seed}"
+        );
+    }
+    let session = with_star_pool("\t\t\"Dristmak\"\n");
+    let name = pick_system_name(&session, gd, 3).expect("a name from the install");
+    assert_ne!(name, "Dristmak");
+    assert!(gd.star_names.contains(&name));
 }

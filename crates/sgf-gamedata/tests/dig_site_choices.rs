@@ -3,6 +3,7 @@
 //! it offers and what one says.
 
 use crate::common;
+use common::by_key;
 
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
 
@@ -33,13 +34,6 @@ const FILES: [(&str, &str); 3] = [
     ),
 ];
 
-fn choice<'a>(choices: &'a [DigSiteChoice], key: &str) -> &'a DigSiteChoice {
-    choices
-        .iter()
-        .find(|c| c.key == key)
-        .unwrap_or_else(|| panic!("{key} is offered"))
-}
-
 #[test]
 fn each_type_starts_at_its_first_stage_and_says_whether_a_survey_finds_it() {
     let (_dir, gd) = common::hand_written(&FILES);
@@ -58,7 +52,7 @@ fn each_type_starts_at_its_first_stage_and_says_whether_a_survey_finds_it() {
         "random has no stage"
     );
     assert_eq!(
-        choice(&choices, "site_fx_rolled"),
+        by_key(&choices, "site_fx_rolled"),
         &DigSiteChoice {
             key: "site_fx_rolled".to_owned(),
             name: "Rolled Ruins".to_owned(),
@@ -69,7 +63,7 @@ fn each_type_starts_at_its_first_stage_and_says_whether_a_survey_finds_it() {
             offered: true,
         }
     );
-    let event = choice(&choices, "site_fx_event");
+    let event = by_key(&choices, "site_fx_event");
     assert_eq!(
         (event.difficulty, event.rolled),
         (2, false),
@@ -82,17 +76,17 @@ fn each_type_starts_at_its_first_stage_and_says_whether_a_survey_finds_it() {
         "the first triggered desc"
     );
     assert_eq!(
-        choice(&choices, "site_fx_variable").description.as_deref(),
+        by_key(&choices, "site_fx_variable").description.as_deref(),
         Some("Named for its key."),
         "no desc, so <key>_desc"
     );
-    assert_eq!(choice(&choices, "site_fx_created").description, None);
-    assert!(!choice(&choices, "site_fx_unweighted").rolled);
-    assert!(choice(&choices, "site_fx_variable").rolled);
+    assert_eq!(by_key(&choices, "site_fx_created").description, None);
+    assert!(!by_key(&choices, "site_fx_unweighted").rolled);
+    assert!(by_key(&choices, "site_fx_variable").rolled);
 
-    let created = choice(&choices, "site_fx_created");
+    let created = by_key(&choices, "site_fx_created");
     assert_eq!((created.stages, created.offered), (1, false), "on_create");
-    let unreadable = choice(&choices, "site_fx_unreadable");
+    let unreadable = by_key(&choices, "site_fx_unreadable");
     assert_eq!(
         (unreadable.stages, unreadable.difficulty, unreadable.offered),
         (2, 0, false),
@@ -128,20 +122,20 @@ fn the_install_offers_every_site_type_but_the_two_with_on_create() {
         ["site_percussive_maintenance", "site_the_library"]
     );
     assert_eq!(
-        choice(&choices, "site_bury_the_hatchet").difficulty,
+        by_key(&choices, "site_bury_the_hatchet").difficulty,
         -1,
         "a first stage below 1 is the game's own"
     );
-    assert!(choice(&choices, "site_the_library").stages > 0);
-    let lost = choice(&choices, "site_lost_moments");
+    assert!(by_key(&choices, "site_the_library").stages > 0);
+    let lost = by_key(&choices, "site_lost_moments");
     assert_eq!(
         (lost.name.as_str(), lost.difficulty, lost.rolled),
         ("Never Forget", 1, true)
     );
-    let repowered = choice(&choices, "site_repowered_complex");
+    let repowered = by_key(&choices, "site_repowered_complex");
     assert_eq!((repowered.difficulty, repowered.rolled), (2, false));
-    assert_eq!(choice(&choices, "site_krazura_dig").difficulty, 3);
-    let shanty = choice(&choices, "site_space_shanty_dig");
+    assert_eq!(by_key(&choices, "site_krazura_dig").difficulty, 3);
+    let shanty = by_key(&choices, "site_space_shanty_dig");
     assert!(
         shanty.description.as_deref().is_some_and(
             |text| text.starts_with("We have found the wreckage of an archaic spaceship")
@@ -149,7 +143,7 @@ fn the_install_offers_every_site_type_but_the_two_with_on_create() {
         "the first of its triggered descs: {:?}",
         shanty.description
     );
-    let shallash = choice(&choices, "site_ruins_of_shallash");
+    let shallash = by_key(&choices, "site_ruins_of_shallash");
     assert!(
         shallash
             .description

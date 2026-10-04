@@ -5,6 +5,7 @@ mod common;
 mod anomaly_choices;
 mod deposit_choices;
 mod deposit_roll;
+mod details;
 mod dig_site_choices;
 mod flags;
 mod fonts;
@@ -28,7 +29,9 @@ mod scripts_lgate;
 mod scripts_owners;
 mod scripts_rows;
 mod special;
+mod special_generation;
 mod special_layouts;
+mod special_menu;
 mod star_discs;
 mod textures;
 

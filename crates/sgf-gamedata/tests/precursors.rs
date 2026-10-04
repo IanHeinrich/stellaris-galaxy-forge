@@ -17,31 +17,22 @@ fn keys(gd: &GameData) -> Vec<String> {
 
 #[test]
 fn precursors_are_listed_in_file_order_and_a_later_file_overrides_by_key() {
-    let dir = tempfile::tempdir().expect("temp dir");
-    let install = dir.path();
-    let english = install.join("localisation").join("english");
-    fs::create_dir_all(&english).unwrap();
-    fs::write(
-        english.join("precursors_l_english.yml"),
-        "\u{feff}l_english:\n precursor_1:0 \"$VULTAUM$\"\n VULTAUM:0 \"Vultaum\"\n",
-    )
-    .unwrap();
-    let common_dir = install.join("common").join("precursor_civilizations");
-    fs::create_dir_all(&common_dir).unwrap();
-    let first = common_dir.join("00_precursors.txt");
-    fs::write(
-        &first,
-        "@size = 100\nprecursor_1 = {\n\tsize = @size\n}\nprecursor_2 = {\n}\nprecursor_3 = {\n}\n",
-    )
-    .unwrap();
-    let later = common_dir.join("01_more.txt");
-    fs::write(
-        &later,
-        "precursor_extra = {\n}\nprecursor_2 = {\n\tsize = 50\n}\n",
-    )
-    .unwrap();
-
-    let gd = common::load_tree(install, None, false);
+    let (dir, gd) = common::hand_written(&[
+        (
+            "localisation/english/precursors_l_english.yml",
+            "\u{feff}l_english:\n precursor_1:0 \"$VULTAUM$\"\n VULTAUM:0 \"Vultaum\"\n",
+        ),
+        (
+            "common/precursor_civilizations/00_precursors.txt",
+            "@size = 100\nprecursor_1 = {\n\tsize = @size\n}\nprecursor_2 = {\n}\nprecursor_3 = {\n}\n",
+        ),
+        (
+            "common/precursor_civilizations/01_more.txt",
+            "precursor_extra = {\n}\nprecursor_2 = {\n\tsize = 50\n}\n",
+        ),
+    ]);
+    let install = dir.path().join("install");
+    let precursors_dir = install.join("common").join("precursor_civilizations");
     assert_eq!(
         keys(&gd),
         [
@@ -62,15 +53,15 @@ fn precursors_are_listed_in_file_order_and_a_later_file_overrides_by_key() {
     assert!(
         gd.diagnostics.contains(&Diagnostic::Override {
             key: "precursor_2".to_owned(),
-            from: first.clone(),
-            to: later.clone(),
+            from: precursors_dir.join("00_precursors.txt"),
+            to: precursors_dir.join("01_more.txt"),
         }),
         "{:?}",
         gd.diagnostics
     );
 
-    fs::remove_dir_all(&common_dir).unwrap();
-    assert!(keys(&common::load_tree(install, None, false)).is_empty());
+    fs::remove_dir_all(&precursors_dir).unwrap();
+    assert!(keys(&common::load_tree(&install, None, false)).is_empty());
 }
 
 #[test]
