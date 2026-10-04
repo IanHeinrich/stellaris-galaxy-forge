@@ -46,13 +46,43 @@ function mapColor(
   return map === undefined ? undefined : parseHex(map);
 }
 
+function distance(a: number, b: number): number {
+  const channel = (shift: number): number => ((a >> shift) & 0xff) - ((b >> shift) & 0xff);
+  return Math.hypot(channel(16), channel(8), channel(0));
+}
+
+/**
+ * The game fills a territory with whichever of the secondary and tertiary flag colours has the
+ * map colour furthest from the border's, the secondary on a tie. Independent map colours fill
+ * with the chosen one.
+ */
+function fillColor(
+  country: CountryNode | undefined,
+  border: number | undefined,
+  palette: ReadonlyMap<string, MapColor>,
+): number | undefined {
+  const painted = mapColor(country?.painted_fill, palette);
+  if (!country || border === undefined || (country.use_map_color && country.fill_color)) {
+    return painted;
+  }
+  let best: number | undefined;
+  for (const name of country.colors.slice(1, 3)) {
+    const candidate = mapColor(name, palette);
+    if (candidate === undefined) continue;
+    if (best === undefined || distance(candidate, border) > distance(best, border)) {
+      best = candidate;
+    }
+  }
+  return best ?? painted;
+}
+
 export function ownerColors(
   country: CountryNode | undefined,
   index: number,
   palette: ReadonlyMap<string, MapColor>,
 ): OwnerColors {
   const border = mapColor(country?.painted_border, palette);
-  const fill = mapColor(country?.painted_fill, palette);
+  const fill = fillColor(country, border, palette);
   const fallback = paletteColor(index);
   return { outline: border ?? fallback, fill: fill ?? darken(fallback, FILL_DARKEN) };
 }

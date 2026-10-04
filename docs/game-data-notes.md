@@ -140,7 +140,9 @@ YAML**.
 - A lane between two Hyper Relays is drawn twice as thick.
   `common/defines/00_defines.txt` has `HYPERLANE_THICKNESS_DEFAULT = 1.0`
   and `HYPERLANE_THICKNESS_RELAY = 2.0`. A wayline's band lies over it
-  and the lane under the band stays thick. `hyper_relay` and
+  and the lane under the band stays thick. The editor draws it 3.5 px
+  against its 1 px lanes, since twice a hairline barely shows.
+  `hyper_relay` and
   `hyper_relay_restored` in `common/megastructures/14_hyper_relay.txt`
   set `bypass_type = relay_bypass`, and `hyper_relay_ruined` sets none.
 - A planet class's surface map takes three steps to find. The class
@@ -316,14 +318,191 @@ less.
 - `is_space_critter = yes` marks the fauna types (`tiyanki`, `amoeba`,
   `crystal`, `cloud`, …) and every `guardian*` type. The marauder types
   are `dormant_marauders`, `awakened_marauders` and `ruined_marauders`.
-- `BORDER_SYSTEM_RADIUS = 35` and `BORDER_HYPERLANE_THICKNESS = 20` are
-  in `common/defines/00_defines.txt`.
+- `NGraphics` in `common/defines/00_defines.txt` sets how far borders
+  reach: `BORDER_SYSTEM_RADIUS = 35`, `BORDER_HYPERLANE_THICKNESS = 20`,
+  `BORDER_OWNERLESS_SYSTEM_RADIUS = 30` and
+  `BORDER_OWNERLESS_HYPERLANE_THICKNESS = 20`.
+  `BORDER_INFLUENCE_MAX_DISTANCE_FACTOR` and
+  `BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR` are both 1.88.
+- Territories come from an influence field. Every owned system, every
+  lane whose two ends have the same owner, every unowned system and
+  every lane between two unowned systems is a source. A lane between
+  two owners, or between an owned and an unowned system, is not. At a
+  point, a source gives s = d / r, where d is the distance to the system
+  or lane and r is its radius or thickness from the defines above. A
+  source reaches no further than r times its max distance factor.
+- Each owner's influence at a point is −k·ln Σ exp(−s/k) over its
+  sources, with k = 0.155. All unowned sources count as one owner. The
+  point goes to the owner with the lowest value. It is that owner's
+  territory if the owner is a country that draws borders and the value
+  is at most 0.80. k and that level were fitted to screenshots of the
+  2330 save of 4.5.1. Open-space edges and holes measure 0.79 close up
+  and 0.82 zoomed out, about a world unit apart, so the editor keeps one
+  level. The border shader's `vMid` of 0.47 to 0.53 times the 1.88 reach
+  would give 0.88 to 1.0, which the screenshots do not show.
+- The fill deepens as the camera pulls back. Measured against the `map`
+  rgb, it is about 0.27 opaque close up and 0.64 zoomed right out. The
+  band widens in world units the same way, from about 2.3 to 5.4, so it
+  is about 16 px wide close up and 7 px zoomed out. The shader blends
+  both by camera distance over 1600.
 - `flags/colors.txt` names the `flag`, `map` and `ship` rgb of each
-  empire colour. The map fills a territory with the country's second
-  flag colour and outlines it with the first. An empire with
-  `flag.use_map_color=yes` (4.5) is painted in its fifth and sixth
-  `colors` entries instead, the map border and fill
+  empire colour, and the map uses the `map` rgb. The map outlines a
+  territory in the country's first flag colour. It fills it with the
+  second or the third, whichever has the `map` rgb further from the
+  first's. The comment above `randomizable_combo` in the same file says
+  the fill is "the most visually distinct secondary swatch relative to
+  slot0". Side by side with the game on a 4.5.1 save, straight-line
+  distance in rgb picks the fill of all ten empires on screen that
+  have no map colours of their own.
+  Chimm Enterprises (`black` `red_orange` `orange`) fills in `orange`.
+  Qix'Lufran Combine (`turquoise` `dark_brown` `black`) fills in
+  `black`. The Chosen (`burgundy` `purple` `black`) fills in `purple`.
+  Comparing brightness instead gets the Sirgogg and Nagyarian fills
+  wrong, and comparing the `flag` rgb gets the Vissanan fill wrong.
+- An empire with `flag.use_map_color=yes` (4.5) is painted in its
+  fifth and sixth `colors` entries instead, the map border and fill
   ([format-notes.md](format-notes.md)).
+- From screenshots of a 4.5.1 save, each territory has, from the
+  inside out, a see-through fill that brightens towards its edge, a
+  line about 2 px wide of the fill colour, and a band in the
+  border colour. The band lies inside the territory, so two
+  neighbours' bands sit side by side. The band stays 16 to 19 px wide
+  on screen while a one-system pocket grows from 90 to 840 px, so it
+  gets thinner against the map zooming in and thicker zooming out.
+- An unowned system an empire surrounds is a hole in its territory,
+  with the empire's band round the hole's edge. In the 2330 save of
+  4.5.1, Chinorr Combine has holes round Iswyria, Terebellum, Wollaeus,
+  Hazra and Jolun. None of them has a starbase. Each hole is an
+  irregular oval, pushed away from the empire's nearer systems, so the
+  star sits off-centre. The holes, the enclaves of one empire inside
+  another, the rounded one-system pockets and the corridors along lanes
+  all come out of the influence field. None of them is a special case.
+- The bands show no tint of the fill under them, so they are close to
+  opaque, but they are not their `map` rgb. Chimm's `black` (27) band
+  reads 59 and Hissman's `dark_grey` (62) reads 86. Chinorr's
+  `red_orange` (224 64 64) reads about 190 115 118, and Sirgogg's
+  `green` (46 102 41) about 38 70 41. Coloured bands lose about 40% of
+  their saturation. No one rule fits every empire, which may come from
+  `COUNTRY_BORDER_COLOR_RANDOM_SATURATION_OFFSETS` and `_VALUE_OFFSETS`
+  in `NGraphics`.
+- The fill colour's line along the inside of the band is a hairline,
+  1 px at every zoom. Over Chimm's fill it reads about half way between
+  the fill and the `map` rgb.
+- `gfx/FX/border.shader` draws all of this from a distance field of the
+  borders. Its band is `0.025 + 0.35 * f` wide in field units, with `f`
+  the camera distance over 1600, capped at 1. So the band widens in
+  world units as the camera rises and stops widening at 1600. The
+  shader also darkens the outer quarter of the band by up to a quarter,
+  more so the further out the camera is.
+- The band's inner edge comes from the influence field too. Take φ as
+  the owner's influence less the nearest other owner's, or less the
+  0.80 edge, whichever is larger, so φ is 0 on the outline and negative
+  inside. The inner edge is where φ = −W·max(|∇φ|, 1/r), with r the
+  35 of `BORDER_SYSTEM_RADIUS` and W the band width in world units.
+  Where φ falls at least as steeply as round a lone system, the band is
+  W wide. Where it falls slower, as across a neck between two lobes of
+  one empire, the band covers a fixed range of φ instead. It widens
+  there, and the two lobes' bands meet in an X. A piece too narrow to
+  have an inner part is all band.
+- W is 1.6 + 4.3·f world units, with f the shader's camera factor
+  above. Close up on Chinorr Combine in the 2330 save, the band measured
+  2.55 world units across 31 places, all within 4% of each other. Round
+  a Sirgogg hole zoomed out, the band is about 5 world units where |∇φ|
+  is 0.03 to 0.05 a world unit, and 9 to 10 where the field is
+  shallowest. A band of fixed width in world units fits the first and
+  not the second.
+- Corners are round where two empires' borders meet, or a border meets
+  open space. The editor rounds the max and min in φ over 0.2 of
+  influence, which gives a corner of about 5.5 world units radius where
+  two empires and an unowned system meet. A tighter radius read as a
+  point beside the game's zoomed-out band. Two neighbours both near the
+  edge of their influence then leave a hairline gap between them.
+- A sparse ring of one empire's systems can leave the band's inner
+  edge closing round a patch that is still territory. The editor drops
+  any such band piece unless it surrounds a real hole, as the game
+  shows no band there.
+
+## Empire names on the map
+
+- The map writes empire, sector and nebula names in the bitmap fonts
+  `map_name_border`, `map_name_sector` and `map_name_nebula`, defined in
+  `interface/fonts.gfx`. All three use `path = "gfx/fonts/orbitron"`
+  with `color = 0xffffffff`. Russian and Polish switch to `cg_34`, and
+  Chinese, Japanese and Korean to TrueType header fonts.
+- `gfx/fonts/orbitron.fnt` is a BMFont text file over `orbitron.tga`, a
+  512x512 RGBA atlas rendered at 36 px. Its `info` line says
+  `face="Orbitron"`. `fonts/fonts.asset` maps the face `Orbitron` to
+  `gfx/fonts/Orbitron-Regular.ttf`, so the same face ships as TrueType.
+  The editor follows that chain (`.gfx`, `.fnt`, `.asset`) through the
+  install and enabled mods, and loads the TrueType file as a web font.
+  Without an install it falls back to a light system face.
+- The atlas has white glyphs with a dark, half-transparent halo baked
+  round them. That halo is the soft glow round a name.
+- `gfx/FX/mapname.shader` draws the names alpha-blended with no tint.
+  Its `IS_NEBULA` guard is commented out, so the `vColor.a *= 0.25`
+  inside it applies to every map name.
+- `NCamera` in `common/defines/00_defines.txt` fades names and flags
+  out as the camera rises: `BORDER_NAMES_FADEOUT_ZOOM = 600`,
+  `BORDER_FLAG_FADEOUT_ZOOM = 600`, each with a `_SPEED` of 4.0.
+  `NEBULA_NAMES_FADEOUT_ZOOM` is 250. The galaxy zoom steps are
+  `{ 100 200 400 600 900 1500 3000 }`.
+- `NGraphics` sizes them: `BORDER_FLAG_SCALE = 0.6`,
+  `MAPNAME_BORDER_SCALE = 1.0`, `MAPNAME_BORDER_MIN_SIZE = 100`,
+  `MAPNAME_BORDER_OFFSET_MUL = 0.75`, `MAPNAME_BORDER_OFFSET_ADD = 4.0`,
+  `MAPNAME_NEBULA_SCALE = 0.8` and `MAPNAME_SECTOR_SCALE = 3`.
+  `BORDER_MIN_SIZE_FOR_SYMBOL = 16` is commented "the border blob must
+  be able to fit a square of x pixels" to show a symbol. The defines
+  don't say what unit `MAPNAME_BORDER_MIN_SIZE` is in. Side by side
+  with the editor at the same zoom, the game writes the names on
+  one-system pockets about half as wide as 100 world units: "Chimm
+  Enterprises" about 150 px against 280 px, "Caravansary Caravan
+  Coalition" about 140 px against 280 px. So the editor writes a name
+  at least half of `MAPNAME_BORDER_MIN_SIZE` wide, in world units.
+  `GALAXY_SPACE_SCALE_MULT = 2.0` in `NCamera` may be why, but that is
+  a guess. Large names already matched: "Qix'Lufran Combine" is about
+  560 px in the game and 585 px in the editor. Nothing in the defines
+  sets the emblem's colour or alpha.
+- `NCamera` shows star names from `GALAXY_SHOW_STARNAME_ZOOM = 800`
+  and fades empire names at 600, so empire names last until the camera
+  is a third closer than where star names appear.
+- From top-down screenshots of one save (a 4.5.1 game in 2330) in game
+  and in the editor: every separate piece of an empire's territory gets
+  its own emblem and name, however small. A vassal is labelled as its
+  own country. The label is a T: a wide, short name, with the emblem
+  centred on top of it.
+- The name sits halfway down its piece, under the piece's centre of
+  area. It is as wide as the piece's width at that row allows, so a
+  narrow middle gets a small name even when a wider part of the piece
+  lies elsewhere. If the centre is nearer one edge, the name slides
+  away from it just far enough to use the whole width. An end of the
+  name may reach over the border by about half a letter: the "H" of
+  "Hissman Consciousness" and the "T" of "Test Empire" both do, by
+  about 1–2% of the name's length. The game moves a label off that row
+  only when the row doesn't reach the centre's x, or the room there is
+  below the narrowest name.
+- The table compares candidate rows for the name with the game's, each
+  measured as a share of the territory's height from the top. The game's
+  rows come from top-down screenshots of a 4.5.1 game in 2330. The
+  candidates come from the editor's territories for the same save.
+  "+ label" centres the whole emblem-and-name label on the point
+  instead of the name.
+
+  | Territory | Game | Box middle | Centre of area | + label | Pole | + label | Hull centre | + label |
+  |---|---|---|---|---|---|---|---|---|
+  | Hissman Consciousness | 0.49 | 0.50 | 0.54 | 0.59 | 0.80 | 0.85 | 0.53 | 0.58 |
+  | Test Empire | 0.56 | 0.50 | 0.54 | 0.56 | 0.83 | 0.85 | 0.53 | 0.55 |
+  | The Chosen, north-west piece | 0.68 | 0.50 | 0.38 | 0.44 | 0.53 | 0.60 | 0.38 | 0.45 |
+
+  The box middle has the smallest total miss, and it is what the editor
+  uses. None of the candidates explains The Chosen. Chinorr Combine is
+  left out because the game leaves holes in its territory for unclaimed
+  systems, which the editor's territories don't have yet.
+- A piece too small for the narrowest name, such as a one-system Chimm
+  Enterprises pocket, has its emblem on its centre with the name hanging
+  below it, overflowing onto the next territory. No two empires' labels
+  overlap. The emblem is flat white and partly see-through, about three
+  to four times the name's cap height. Names are in world units, so
+  they grow and shrink with the zoom.
 
 ## System radii
 

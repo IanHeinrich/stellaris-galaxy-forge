@@ -221,6 +221,14 @@ export function getPrecursors(): Promise<PrecursorView[]> {
   return invoke<PrecursorView[]>("get_precursors");
 }
 
+/**
+ * The font file the game writes empire names on the map in, as base64; null without game data
+ * or when the install names no TrueType file for it.
+ */
+export function getMapFont(): Promise<string | null> {
+  return invoke<string | null>("get_map_font");
+}
+
 /** Every named map colour of the loaded game data; empty without it. */
 export function getMapColors(): Promise<MapColor[]> {
   return invoke<MapColor[]>("get_map_colors");

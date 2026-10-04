@@ -17,7 +17,7 @@ import {
   sameSlots,
 } from "./nameIcons";
 
-/** Zoom (pixels per world unit) at which system details pop in, shared with the star art tier. */
+/** Zoom (pixels per world unit) at which system details pop in, with the names. */
 export const DETAILS_MIN_SCALE = DETAIL_SCALE;
 
 /** Gap between the star's on-screen edge and the top of its name row, in screen pixels. */

@@ -73,6 +73,17 @@ fn colors_read_rgb_and_hsv() {
     assert_eq!(teal.ship, [71, 179, 179]);
 }
 
+/// The map paints territories in each swatch's `map` rgb, which differs from its `flag` rgb.
+#[test]
+fn the_install_gives_a_colour_a_map_rgb_of_its_own() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let orange = gd.colors.entries.get("orange").expect("orange");
+    assert_eq!(orange.flag, [215, 100, 35]);
+    assert_eq!(orange.map, [237, 118, 25]);
+}
+
 /// The first `flag` (or any other duplicated colour key) wins, as `Def::scalar` reads every
 /// other field of the same definition.
 #[test]
@@ -262,7 +273,15 @@ fn defines_survive_trailing_comments() {
     let gd = common::cached_fixture();
     assert_eq!(gd.border.system_radius, 40.0);
     assert_eq!(gd.border.hyperlane_thickness, 15.0);
+    assert_eq!(gd.border.influence_max_distance_factor, 1.5);
+    assert_eq!(gd.border.ownerless_system_radius, 28.0);
+    assert_eq!(
+        gd.border.ownerless_hyperlane_thickness, 20.0,
+        "absent, so vanilla's"
+    );
+    assert_eq!(gd.border.ownerless_influence_max_distance_factor, 1.88);
     assert_eq!(gd.border.moon_scale, 0.65);
+    assert_eq!(gd.border.name_min_width, 80.0);
 }
 
 #[test]
@@ -653,7 +672,12 @@ fn vanilla_registries() {
 
     assert_eq!(gd.border.system_radius, 35.0);
     assert_eq!(gd.border.hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.influence_max_distance_factor, 1.88);
+    assert_eq!(gd.border.ownerless_system_radius, 30.0);
+    assert_eq!(gd.border.ownerless_hyperlane_thickness, 20.0);
+    assert_eq!(gd.border.ownerless_influence_max_distance_factor, 1.88);
     assert_eq!(gd.border.moon_scale, 0.7);
+    assert_eq!(gd.border.name_min_width, 100.0);
 
     assert_eq!(
         gd.sprites.resolve("GFX_planet_type_continental", None),

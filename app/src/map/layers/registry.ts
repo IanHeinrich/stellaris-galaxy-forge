@@ -47,12 +47,12 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
   { id: "lCluster", create: () => new LClusterLayer() },
   { id: "nebulae", requires: "nebulae", create: () => new NebulaeLayer() },
   { id: "feZones", requires: "create_systems", create: () => new FeZonesLayer() },
-  { id: "lanes", create: (_renderer, drawn) => new LanesLayer(drawn) },
   {
     id: "owners",
     requires: "empires",
     create: () => new OwnersLayer(new WorkerTerritoryClient()),
   },
+  { id: "lanes", create: (_renderer, drawn) => new LanesLayer(drawn) },
   { id: "waylines", requires: "waylines", create: (_renderer, drawn) => new WaylinesLayer(drawn) },
   { id: "claims", requires: "create_systems" },
   { id: "marauders", requires: "create_systems" },

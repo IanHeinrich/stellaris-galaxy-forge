@@ -48,7 +48,12 @@ export type Systems = ReadonlyMap<number, SystemNode>;
 export const VANILLA_BORDER: BorderDefines = {
   system_radius: 35,
   hyperlane_thickness: 20,
+  influence_max_distance_factor: 1.88,
+  ownerless_system_radius: 30,
+  ownerless_hyperlane_thickness: 20,
+  ownerless_influence_max_distance_factor: 1.88,
   moon_scale: VANILLA_MOON_SCALE,
+  name_min_width: 100,
 };
 
 /**

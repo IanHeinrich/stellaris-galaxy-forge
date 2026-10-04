@@ -220,6 +220,8 @@ fn game_data_commands_degrade_without_an_install() {
         assert_eq!(t.png_base64, None);
     }
     assert_eq!(textures[0].key, "star_class:g_star");
+    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
+    assert_eq!(font, None);
 
     let details: Vec<SystemDetails> =
         invoke(&w, "get_system_details", json!({ "ids": [217, 9999] })).expect("details");
@@ -623,6 +625,11 @@ fn game_data_commands_with_the_install() {
     // A mod may ship its own icon at another size; vanilla's is 18 px square.
     assert!(textures[1].width > 0 && textures[1].width == textures[1].height);
     assert!(textures[2].error.is_some());
+    let font: Option<String> = invoke(&w, "get_map_font", json!({})).expect("map font");
+    assert!(
+        font.is_some_and(|f| !f.is_empty()),
+        "the install's map font"
+    );
 
     let details: Vec<SystemDetails> =
         invoke(&w, "get_system_details", json!({ "ids": [217] })).expect("details");

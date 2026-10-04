@@ -84,6 +84,7 @@ export const getBypasses = command("getBypasses");
 export const getInitializers = command("getInitializers");
 export const getGalaxyShapes = command("getGalaxyShapes");
 export const getPrecursors = command("getPrecursors");
+export const getMapFont = command("getMapFont");
 export const getMapColors = command("getMapColors");
 export const getMapColorSource = command("getMapColorSource");
 export const getFlagParts = command("getFlagParts");

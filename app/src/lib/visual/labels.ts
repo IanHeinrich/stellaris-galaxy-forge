@@ -2,8 +2,15 @@ import type { SystemNode } from "../../generated/SystemNode";
 
 export type LabelTier = "none" | "some";
 
-/** Pixels per world unit at which system names and the details bar pop in together. */
-export const DETAIL_SCALE = 3;
+/**
+ * Pixels per world unit past which empire names and emblems fade out. The game's threshold is a
+ * third closer than its star names' (`BORDER_NAMES_FADEOUT_ZOOM` 600 against
+ * `GALAXY_SHOW_STARNAME_ZOOM` 800, from 3).
+ */
+export const EMPIRE_LABEL_MAX_SCALE = (3 * 800) / 600;
+
+/** Pixels per world unit at which system names and details pop in, as empire names begin to fade. */
+export const DETAIL_SCALE = EMPIRE_LABEL_MAX_SCALE;
 
 /** Zoom from which a system's ring shows lane ports; grabbing them any further out is too fiddly. */
 export const PORT_MIN_SCALE = 0.9;

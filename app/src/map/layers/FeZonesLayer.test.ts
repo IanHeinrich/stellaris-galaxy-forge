@@ -273,9 +273,9 @@ describe("the fallen empire zones layer", () => {
     const clear = vi.spyOn(linksAt(layer, -40)!, "clear");
     viewport(layer, 1.01);
     expect(clear).not.toHaveBeenCalled();
-    viewport(layer, 2);
+    viewport(layer, 1.8);
     expect(clear).toHaveBeenCalledTimes(1);
-    viewport(layer, 2.01);
+    viewport(layer, 1.81);
     expect(clear).toHaveBeenCalledTimes(1);
   });
 

@@ -402,6 +402,18 @@ pub fn get_lgate_outcome_mods(game_data: State<'_, GameDataState>) -> Vec<LGateM
         .map_or_else(Vec::new, |gd| gd.lgate_outcome_mods())
 }
 
+/// The font file the map writes empire names in, as base64. `None` without game data, or when
+/// the install names no TrueType file for it.
+#[tauri::command]
+pub async fn get_map_font<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, SgfError> {
+    let gd = app.state::<GameDataState>().loaded();
+    tauri::async_runtime::spawn_blocking(move || {
+        gd.and_then(|gd| sgf_gamedata::fonts::map_name_font_base64(&gd.layout))
+    })
+    .await
+    .map_err(io_error)
+}
+
 /// One view per key, in order; a key that fails carries its error instead of failing the call.
 #[tauri::command]
 pub async fn get_textures<R: Runtime>(

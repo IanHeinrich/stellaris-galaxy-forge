@@ -1,6 +1,7 @@
 import { Graphics } from "pixi.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { absoluteHeight, heightTint } from "../../lib/height";
+import { DETAIL_SCALE } from "../../lib/visual/labels";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { systemNode } from "../../test/builders";
 import { HeightsLayer, heightText } from "./HeightsLayer";
@@ -46,7 +47,7 @@ afterEach(() => {
 
 describe("the heights layer", () => {
   it("draws nothing for a save whose systems lie on the plane", () => {
-    const layer = drawn([undefined, absoluteHeight(0), absoluteHeight(0.004)], 4);
+    const layer = drawn([undefined, absoluteHeight(0), absoluteHeight(0.004)], DETAIL_SCALE);
     expect(rings(layer)).toEqual([]);
     expect(drawnText(childByLabel(layer.container, "values"))).toEqual([]);
   });
@@ -57,7 +58,7 @@ describe("the heights layer", () => {
     expect(rings(far)).toHaveLength(2);
     expect(drawnText(childByLabel(far.container, "values"))).toEqual([]);
 
-    const near = drawn([undefined, absoluteHeight(40), absoluteHeight(-22)], 4);
+    const near = drawn([undefined, absoluteHeight(40), absoluteHeight(-22)], DETAIL_SCALE);
     expect(drawnText(childByLabel(near.container, "values"))).toEqual(["+40", "−22"]);
   });
 
@@ -98,7 +99,7 @@ describe("the heights layer on a tilted map", () => {
 describe("the heights layer under a height preview", () => {
   it("rings and writes a previewed system at the previewed height, and its own again after", () => {
     const positions = new DrawnPositions();
-    const layer = drawn([undefined, absoluteHeight(40)], 4, positions);
+    const layer = drawn([undefined, absoluteHeight(40)], DETAIL_SCALE, positions);
     const preview = childByLabel(layer.container, "previewRings");
 
     positions.setPreview(new Map([[0, -15]]));

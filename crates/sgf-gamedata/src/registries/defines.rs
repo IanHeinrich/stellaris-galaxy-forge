@@ -1,5 +1,5 @@
 //! `common/defines`: the `NGraphics` constants the map uses to draw territory
-//! borders and moons, and the `NGameplay` ones that set how many deposits a new body rolls
+//! borders, their names and moons, and the `NGameplay` ones that set how many deposits a new body rolls
 //! and how far out a system's inner and outer radii lie.
 
 use sgf_core::cst::Node;
@@ -11,9 +11,23 @@ use crate::install::script::ParsedDir;
 pub struct BorderDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
+    /// `NGraphics.BORDER_INFLUENCE_MAX_DISTANCE_FACTOR`: how far an owned system or lane
+    /// reaches, in multiples of its radius or thickness.
+    pub influence_max_distance_factor: f64,
+    /// `NGraphics.BORDER_OWNERLESS_SYSTEM_RADIUS`: an unowned system's radius.
+    pub ownerless_system_radius: f64,
+    /// `NGraphics.BORDER_OWNERLESS_HYPERLANE_THICKNESS`: the thickness of a lane between two
+    /// unowned systems.
+    pub ownerless_hyperlane_thickness: f64,
+    /// `NGraphics.BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR`: how far an unowned system or
+    /// lane reaches.
+    pub ownerless_influence_max_distance_factor: f64,
     /// `NGraphics.MOON_SCALE`: how much smaller the map draws a moon than a planet of the same
     /// `planet_size`.
     pub moon_scale: f64,
+    /// `NGraphics.MAPNAME_BORDER_MIN_SIZE`: the narrowest an empire's name is written on the
+    /// map, in world units, however small its territory.
+    pub name_min_width: f64,
 }
 
 impl Default for BorderDefines {
@@ -21,7 +35,12 @@ impl Default for BorderDefines {
         Self {
             system_radius: 35.0,
             hyperlane_thickness: 20.0,
+            influence_max_distance_factor: 1.88,
+            ownerless_system_radius: 30.0,
+            ownerless_hyperlane_thickness: 20.0,
+            ownerless_influence_max_distance_factor: 1.88,
             moon_scale: 0.7,
+            name_min_width: 100.0,
         }
     }
 }
@@ -32,14 +51,31 @@ impl BorderDefines {
         let mut out = Self::default();
         for (root, src) in files.roots() {
             for graphics in root.find_all("NGraphics", src) {
-                if let Some(radius) = field(graphics, "BORDER_SYSTEM_RADIUS", src) {
-                    out.system_radius = radius;
-                }
-                if let Some(thickness) = field(graphics, "BORDER_HYPERLANE_THICKNESS", src) {
-                    out.hyperlane_thickness = thickness;
-                }
-                if let Some(scale) = field(graphics, "MOON_SCALE", src) {
-                    out.moon_scale = scale;
+                for (target, key) in [
+                    (&mut out.system_radius, "BORDER_SYSTEM_RADIUS"),
+                    (&mut out.hyperlane_thickness, "BORDER_HYPERLANE_THICKNESS"),
+                    (
+                        &mut out.influence_max_distance_factor,
+                        "BORDER_INFLUENCE_MAX_DISTANCE_FACTOR",
+                    ),
+                    (
+                        &mut out.ownerless_system_radius,
+                        "BORDER_OWNERLESS_SYSTEM_RADIUS",
+                    ),
+                    (
+                        &mut out.ownerless_hyperlane_thickness,
+                        "BORDER_OWNERLESS_HYPERLANE_THICKNESS",
+                    ),
+                    (
+                        &mut out.ownerless_influence_max_distance_factor,
+                        "BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR",
+                    ),
+                    (&mut out.moon_scale, "MOON_SCALE"),
+                    (&mut out.name_min_width, "MAPNAME_BORDER_MIN_SIZE"),
+                ] {
+                    if let Some(n) = field(graphics, key, src) {
+                        *target = n;
+                    }
                 }
             }
         }

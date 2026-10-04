@@ -1,13 +1,14 @@
-import { BitmapText, type Container, Graphics } from "pixi.js";
-import { describe, expect, it } from "vitest";
+import { BitmapText, type Container, Graphics, Ticker } from "pixi.js";
+import { describe, expect, it, vi } from "vitest";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { MapColor } from "../../generated/MapColor";
 import type { SystemNode } from "../../generated/SystemNode";
-import { countryRegions, regionLabelAnchor } from "../../lib/geometry/territory";
+import { countryRegions } from "../../lib/geometry/territory";
 import { SAVE_CAPABILITIES } from "../../lib/capabilities";
 import { MARAUDER_COLORS, ownerColors } from "../../lib/visual/ownerColors";
 import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { countryNode } from "../../test/builders";
+import { Camera } from "../Camera";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
 import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
 import { layerIdsFor, layersFor } from "./registry";
@@ -50,24 +51,45 @@ const PALETTE = new Map<string, MapColor>(
   ].map(([name, map]) => [name, { name, map, flag: map, ship: map }]),
 );
 
-/** The colours the one country's territory is filled and outlined in. */
+/** The colours the one country's territory is filled in and banded in. */
 function paintOf(layer: OwnersLayer): { fill: number | undefined; edge: number | undefined } {
   const territories = childByLabel(layer.container, "territories");
   const [fill] = childByLabel(territories, "fills").children as Graphics[];
   const [edge] = childByLabel(territories, "edges").children as Graphics[];
   return {
     fill: drawOps(fill).find((op) => op.action === "fill")?.color,
-    edge: strokes(edge)[0]?.color,
+    edge: drawOps(edge).find((op) => op.action === "fill")?.color,
   };
 }
 
-/** The one shown badge's label. */
-function labelOf(layer: OwnersLayer): BitmapText {
-  const badges = childByLabel(layer.container, "badges").children as Container[];
-  const badge = badges.find((b) => b.visible);
-  const label = badge?.children.find((c): c is BitmapText => c instanceof BitmapText && c.visible);
-  if (!label) throw new Error("no label drawn");
-  return label;
+/** The area of the first hole cut out of the edge's first filled region: the band's inner part. */
+function innerArea(edge: Graphics): number {
+  const [band] = edge.context.instructions;
+  const hole = (band.data as { hole?: { shapePath: { shapePrimitives: { shape: unknown }[] } } })
+    .hole;
+  const points = (hole?.shapePath.shapePrimitives[0]?.shape as { points?: number[] })?.points;
+  if (!points) return 0;
+  let sum = 0;
+  for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
+    sum += (points[j] + points[i]) * (points[j + 1] - points[i + 1]);
+  }
+  return Math.abs(sum / 2);
+}
+
+/** Every shown piece badge, across the countries. */
+function pieceBadges(layer: OwnersLayer): Container[] {
+  return (layer.overlay.children as Container[])
+    .filter((country) => country.visible)
+    .flatMap((country) => (country.children as Container[]).filter((piece) => piece.visible));
+}
+
+/** The labels of the shown piece badges. */
+function labelsOf(layer: OwnersLayer): BitmapText[] {
+  return pieceBadges(layer).flatMap((badge) =>
+    badge.children.filter(
+      (c): c is BitmapText => c instanceof BitmapText && c.visible && c.text !== CLAN_GLYPH,
+    ),
+  );
 }
 
 /** The fill colour of every territory the layer paints, in the order it holds them. */
@@ -79,13 +101,11 @@ function fillColors(layer: OwnersLayer): number[] {
 
 /** The shown badges, each as the texts its visible children draw. */
 function badgesShown(layer: OwnersLayer): string[][] {
-  return (childByLabel(layer.container, "badges").children as Container[])
-    .filter((c) => c.visible)
-    .map((badge) =>
-      badge.children
-        .filter((c): c is BitmapText => c instanceof BitmapText && c.visible)
-        .map((c) => c.text),
-    );
+  return pieceBadges(layer).map((badge) =>
+    badge.children
+      .filter((c): c is BitmapText => c instanceof BitmapText && c.visible)
+      .map((c) => c.text),
+  );
 }
 
 /** The fill of the clan's territory, by its colour; undefined once there is none shown. */
@@ -149,28 +169,51 @@ function scenarioContext(
   });
 }
 
+/** A row of `count` laned systems of the one country, `gap` apart along x from `x0`. */
+function row(firstId: number, x0: number, count: number, gap = 60): SystemNode[] {
+  return Array.from({ length: count }, (_, i) => {
+    const id = firstId + i;
+    const lanes = [id - 1, id + 1].filter((to) => to >= firstId && to < firstId + count);
+    return { ...scenarioNode(id, x0 + i * gap, 0, ...lanes), owner: COUNTRY.id };
+  });
+}
+
 describe("an owner's label", () => {
-  it("re-fits its scale to the width cap when a names update lengthens the text", () => {
+  it("shrinks to its piece when a names update lengthens the text", () => {
     const layer = new OwnersLayer();
-    let text = "S";
+    const nodes = row(1, 0, 5);
+    let text = "Short";
     const over = { countries: COUNTRIES, hiddenOwners: new Set<number>() };
     layer.rebuild(
-      mapContext([OWNED], { ...over, countryName: () => text, names: new Map([["a", "1"]]) }),
+      mapContext(nodes, { ...over, countryName: () => text, names: new Map([["a", "1"]]) }),
     );
-    expect(labelOf(layer).text).toBe("S");
+    const [short] = labelsOf(layer);
+    expect(short.text).toBe("Short");
+    const shortScale = Math.abs(short.scale.y);
 
-    const region = countryRegions([OWNED], PARAMS, new Set([COUNTRY.id])).get(COUNTRY.id);
-    const anchor = region && regionLabelAnchor(region);
-    if (!anchor) throw new Error("no region drawn");
-
-    text = "S".repeat(100);
+    text = "A much longer empire name than before, long enough to run past the size cap";
     layer.rebuild(
-      mapContext([OWNED], { ...over, countryName: () => text, names: new Map([["a", "2"]]) }),
+      mapContext(nodes, { ...over, countryName: () => text, names: new Map([["a", "2"]]) }),
     );
+    const [long] = labelsOf(layer);
+    expect(long.text).toBe(text);
+    expect(Math.abs(long.scale.y)).toBeLessThan(shortScale);
+    const region = countryRegions(nodes, PARAMS, new Set([COUNTRY.id])).get(COUNTRY.id)!;
+    const xs = region[0][0].map((p) => p.x);
+    expect(long.width).toBeLessThanOrEqual((Math.max(...xs) - Math.min(...xs)) / 0.88);
+  });
 
-    const label = labelOf(layer);
-    expect(label.text).toBe(text);
-    expect(label.width).toBeLessThanOrEqual(anchor.width * 0.9 + 0.5);
+  it("labels each separate piece of a territory with its own name", () => {
+    const layer = new OwnersLayer();
+    const nodes = [...row(1, 0, 3), ...row(10, 1000, 2)];
+    layer.rebuild(mapContext(nodes, { countries: COUNTRIES, countryName: () => "Twice" }));
+    const labels = labelsOf(layer);
+    expect(labels.map((l) => l.text)).toEqual(["Twice", "Twice"]);
+    const xs = pieceBadges(layer)
+      .map((b) => b.position.x)
+      .sort((a, b) => a - b);
+    expect(xs[0]).toBeLessThan(200);
+    expect(xs[1]).toBeGreaterThan(900);
   });
 });
 
@@ -186,8 +229,8 @@ describe("a scenario's territories", () => {
     expect(badges).toHaveLength(2);
     expect(badges).toContainEqual([CLAN_GLYPH, "Marauder clan 1"]);
     expect(badges).toContainEqual(["Scripted"]);
-    const texts = childByLabel(layer.container, "badges")
-      .children.flatMap((b) => (b as Container).children)
+    const texts = pieceBadges(layer)
+      .flatMap((b) => b.children)
       .filter((c): c is BitmapText => c instanceof BitmapText && c.visible);
     const tintOf = (text: string) => texts.find((c) => c.text === text)?.tint;
     expect(tintOf(CLAN_GLYPH)).toBe(MARAUDER_COLORS.outline);
@@ -250,6 +293,47 @@ describe("an owner's territory", () => {
       return paintOf(layer);
     };
     expect(paint(flagged)).toEqual({ edge: 0x808080, fill: 0x000080 });
-    expect(paint(chosen)).toEqual({ edge: 0xff0000, fill: 0xffc0cb });
+    expect(paint(chosen)).toEqual({ edge: 0xff6666, fill: 0xffc0cb });
+  });
+
+  it("narrows its band when the camera closes in, and restrokes the rim over later frames", () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+    const layer = new OwnersLayer();
+    layer.rebuild(mapContext([OWNED], { countries: COUNTRIES }));
+    const territories = childByLabel(layer.container, "territories");
+    const [edge] = childByLabel(territories, "edges").children as Graphics[];
+    const rimWidth = (): number =>
+      (edge.context.instructions[2].data as { style: { width: number } }).style.width;
+    const inner = innerArea(edge);
+    const rim = rimWidth();
+    expect(inner).toBeGreaterThan(0);
+    const camera = new Camera();
+    camera.scale = 4;
+    layer.onViewport(camera);
+    expect(innerArea(edge)).toBeGreaterThan(inner);
+    Ticker.shared.update(performance.now() + 1000);
+    expect(rimWidth()).toBeLessThan(rim);
+    layer.destroy();
+    vi.unstubAllGlobals();
+  });
+
+  it("cuts the cell of an unowned system it surrounds out of its fill and bands that hole too", () => {
+    const around = Array.from({ length: 6 }, (_, i) => {
+      const a = (i * Math.PI) / 3;
+      return { ...mapNode(i + 1, 30 * Math.cos(a), `S${i + 1}`), y: 30 * Math.sin(a), owner: 1 };
+    });
+    const layer = new OwnersLayer();
+    layer.rebuild(mapContext([...around, mapNode(7, 0, "Hole")], { countries: COUNTRIES }));
+    const territories = childByLabel(layer.container, "territories");
+    const [fill] = childByLabel(territories, "fills").children as Graphics[];
+    const [edge] = childByLabel(territories, "edges").children as Graphics[];
+    const [filled] = fill.context.instructions;
+    expect(filled.action).toBe("fill");
+    expect((filled.data as { hole?: unknown }).hole).toBeDefined();
+    const bands = edge.context.instructions.filter((op) => op.action === "fill");
+    expect(bands).toHaveLength(4);
+    for (const band of bands) expect((band.data as { hole?: unknown }).hole).toBeDefined();
+    expect(strokes(edge)).toHaveLength(2);
   });
 });
