@@ -1,11 +1,21 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GalaxySettings } from "../../generated/GalaxySettings";
-import { gameDataSummary, paintModView, saveMeta, scenarioSummary } from "../../test/builders";
+import {
+  campaignRow,
+  DIR,
+  gameDataSummary,
+  paintModView,
+  saveFile,
+  saveMeta,
+  saveRow,
+  scenarioListing,
+  scenarioRow,
+  scenarioSummary,
+} from "../../test/builders";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 
@@ -13,14 +23,6 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { PAINT_MOD_OFF_BREAKS, SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { detailsKey, useOpenScreenStore } from "../../store/openScreenStore";
-import {
-  DIR,
-  campaignRow,
-  saveFile,
-  saveRow,
-  scenarioListing,
-  scenarioRow,
-} from "../../test/openRows";
 import { shown } from "../../test/elements";
 import { useTextureUrl } from "../useTextureUrl";
 import { OpenDetails } from "./OpenDetails";

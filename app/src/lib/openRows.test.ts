@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { CampaignListing } from "../generated/CampaignListing";
-import type { SaveFile } from "../generated/SaveFile";
-import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { RecentDoc } from "../store/recentsStore";
-import { saveMeta } from "../test/builders";
-import { CAMPAIGN, saveFile, scenarioListing } from "../test/openRows";
+import {
+  TERRAN,
+  VOID,
+  campaignListing,
+  campaignSave,
+  modScenario,
+  saveMeta,
+} from "../test/builders";
 import {
   footerOpens,
   navigableRows,
@@ -17,19 +20,6 @@ import {
   type Row,
   type Section,
 } from "./openRows";
-
-function campaign(over: Partial<CampaignListing> = {}): CampaignListing {
-  return { ...CAMPAIGN, files: 2, meta: null, ...over };
-}
-
-function save(over: Partial<SaveFile> = {}): SaveFile {
-  const meta = saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" });
-  return saveFile({ meta, ...over });
-}
-
-function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
-  return scenarioListing({ source: "mod", mod_name: "A Mod", ...over });
-}
 
 const RECENT: RecentDoc = {
   kind: "save",
@@ -51,15 +41,7 @@ const RECENTS: RecentDoc[] = [
   },
 ];
 
-const TERRAN = campaign();
-const VOID = campaign({
-  dir: "C:/saves/void",
-  name: "void_2",
-  empire: "Void Compact",
-  newest: 100,
-});
-
-const B_SCENARIO = scenario({ path: "C:/mods/b.txt", name: "b_galaxy", mod_name: "Other Mod" });
+const B_SCENARIO = modScenario({ path: "C:/mods/b.txt", name: "b_galaxy", mod_name: "Other Mod" });
 
 function lists(over: Partial<OpenLists> = {}): OpenLists {
   return {
@@ -67,10 +49,10 @@ function lists(over: Partial<OpenLists> = {}): OpenLists {
     tab: "all",
     campaigns: [TERRAN, VOID],
     campaignsError: null,
-    scenarios: [scenario(), B_SCENARIO],
+    scenarios: [modScenario(), B_SCENARIO],
     scenariosError: null,
     scenarioNotices: [],
-    files: { [TERRAN.dir]: [save()] },
+    files: { [TERRAN.dir]: [campaignSave()] },
     fileErrors: {},
     expanded: TERRAN.dir,
     loadingDir: null,
@@ -95,7 +77,10 @@ describe("filter", () => {
   it("keeps only what every section matches, across name, campaign, file and mod", () => {
     const terran = sections({ filter: "terran" });
     expect(rowKeys(terran, "recent")).toEqual([`recent:${RECENT.path}`]);
-    expect(rowKeys(terran, "saves")).toEqual([`campaign:${TERRAN.dir}`, `save:${save().path}`]);
+    expect(rowKeys(terran, "saves")).toEqual([
+      `campaign:${TERRAN.dir}`,
+      `save:${campaignSave().path}`,
+    ]);
     expect(rowKeys(terran, "scenarios")).toEqual([]);
 
     const other = sections({ filter: "other mod" });
@@ -105,7 +90,10 @@ describe("filter", () => {
 
   it("opens a collapsed campaign that holds a matching save", () => {
     const collapsed = sections({ expanded: null, filter: "2206.11.16.sav" });
-    expect(rowKeys(collapsed, "saves")).toEqual([`campaign:${TERRAN.dir}`, `save:${save().path}`]);
+    expect(rowKeys(collapsed, "saves")).toEqual([
+      `campaign:${TERRAN.dir}`,
+      `save:${campaignSave().path}`,
+    ]);
   });
 
   it("walks every row of every section in one list, and lists no action rows", () => {
@@ -176,7 +164,7 @@ describe("the recent list on the All tab", () => {
 
 describe("rows", () => {
   it("titles a save with the name it was given and puts its game date under it", () => {
-    const named = save({ path: "C:/saves/terran/my run.sav", file_name: "my run.sav" });
+    const named = campaignSave({ path: "C:/saves/terran/my run.sav", file_name: "my run.sav" });
     const all = sections({ files: { [TERRAN.dir]: [named] } });
     expect(rowOf<"save">(all, `save:${named.path}`)).toMatchObject({
       title: "my run",
@@ -186,13 +174,13 @@ describe("rows", () => {
   });
 
   it("shows the date once for a save the game named, and the name alone when the header is unread", () => {
-    const unread = save({
+    const unread = campaignSave({
       path: "C:/saves/terran/broken.sav",
       file_name: "broken.sav",
       meta: null,
     });
-    const all = sections({ files: { [TERRAN.dir]: [save(), unread] } });
-    expect(rowOf<"save">(all, `save:${save().path}`)).toMatchObject({
+    const all = sections({ files: { [TERRAN.dir]: [campaignSave(), unread] } });
+    expect(rowOf<"save">(all, `save:${campaignSave().path}`)).toMatchObject({
       title: "2206.11.16",
       sub: null,
     });
@@ -203,7 +191,7 @@ describe("rows", () => {
   });
 
   it("tags an autosave and titles it with its date", () => {
-    const autosave = save({
+    const autosave = campaignSave({
       path: "C:/saves/terran/autosave_2207.01.01.sav",
       file_name: "autosave_2207.01.01.sav",
       meta: saveMeta({ date: "2207.01.01" }),
@@ -217,11 +205,11 @@ describe("rows", () => {
   });
 
   it("says one save, one system, and the newest save's version and date under a campaign", () => {
-    const one = campaign({
+    const one = campaignListing({
       files: 1,
       meta: saveMeta({ date: "2210.02.03", version: "Cygnus v4.5.0" }),
     });
-    const small = scenario({ path: "C:/mods/tiny.txt", systems: 1 });
+    const small = modScenario({ path: "C:/mods/tiny.txt", systems: 1 });
     const all = sections({ campaigns: [one, VOID], scenarios: [small, B_SCENARIO] });
     expect(rowOf<"campaign">(all, `campaign:${one.dir}`)).toMatchObject({
       count: "1 save",
@@ -238,7 +226,7 @@ describe("rows", () => {
 });
 
 describe("selection", () => {
-  const SAVE_KEY = `save:${save().path}`;
+  const SAVE_KEY = `save:${campaignSave().path}`;
   const walk = (over: Partial<OpenLists>) => navigableRows(openSections(lists(over), RECENTS));
 
   it("stays on the row it names when a campaign above it collapses", () => {
@@ -305,8 +293,8 @@ describe("a press on a row", () => {
 describe("the footer's targets", () => {
   const targets = (over: Partial<OpenLists>, key: string) =>
     footerOpens(rowOf(sections(over), key), lists(over));
-  const saved = save().path;
-  const listed = scenario().path;
+  const saved = campaignSave().path;
+  const listed = modScenario().path;
 
   it("opens a save as a save or as a scenario, and anything else as it is", () => {
     expect(targets({}, `save:${saved}`)).toEqual({
@@ -333,13 +321,13 @@ describe("the footer's targets", () => {
   });
 
   it("opens nothing for a scenario that failed to read or a campaign whose saves are unread", () => {
-    const broken = { scenarios: [scenario({ error: "bad brace" })] };
+    const broken = { scenarios: [modScenario({ error: "bad brace" })] };
     expect(targets(broken, `scenario:${listed}`).open).toBeNull();
     expect(targets({ files: {} }, `campaign:${TERRAN.dir}`).open).toBeNull();
   });
 
   it("offers Paint a Galaxy only for a scenario not already for the mod", () => {
-    const painted = { scenarios: [scenario({ painted: true })] };
+    const painted = { scenarios: [modScenario({ painted: true })] };
     expect(targets(painted, `scenario:${listed}`).forPaint).toBeNull();
   });
 });

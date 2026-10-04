@@ -4,7 +4,6 @@ import { countryNode, OPEN_RESULT, planetPage } from "../../store/fixture";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { bindStores } from "../../store/bindStores";

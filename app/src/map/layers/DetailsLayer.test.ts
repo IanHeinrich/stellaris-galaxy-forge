@@ -1,17 +1,7 @@
 import { DrawnPositions } from "../drawnPositions";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-/** The texture fetch, which answers with nothing, or once a test asks, that no key can render. */
-const fetch = vi.hoisted(() => ({ fails: false }));
-
-vi.mock("../../api/gamedata", () => ({
-  getTextures: (keys: string[]) =>
-    Promise.resolve(
-      fetch.fails
-        ? keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: "none" }))
-        : [],
-    ),
-}));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { BitmapText, type Container } from "pixi.js";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -19,6 +9,7 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { DETAILS_MIN_SCALE } from "../../lib/details/layout";
 import { clearTextures } from "../../lib/visual/textures";
 import { planetSummary } from "../../test/builders";
+import { resetTextureFetch, textureFetch } from "../../test/textures";
 import { DetailsLayer } from "./DetailsLayer";
 import { mapContext, stubTextMeasurement, mapNode, viewport } from "./fixture";
 
@@ -53,7 +44,7 @@ function details(s: SystemNode): SystemDetails {
 const DETAILS = new Map(NODES.map((s) => [s.id, details(s)]));
 
 afterEach(() => {
-  fetch.fails = false;
+  resetTextureFetch();
   clearTextures();
   vi.restoreAllMocks();
 });
@@ -115,7 +106,8 @@ describe("the details layer's rows", () => {
 
   it("draws a system's megastructure, dig site and pre-FTL icons right of its name, and never an anomaly", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    fetch.fails = true;
+    textureFetch.mode = "views";
+    textureFetch.fails = () => true;
     const natives = planetSummary({
       id: 7,
       colonised: true,

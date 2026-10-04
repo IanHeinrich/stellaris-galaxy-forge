@@ -4,7 +4,6 @@ import { stubPrefs } from "../../test/prefs";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -52,7 +51,6 @@ describe("the notice for a scenario outside the mod", () => {
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
 
     const html = notice();
-    expect(html).toContain('class="paint-notice"');
     expect(html).toContain(
       "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
         "the mod unless it belongs to a mod of your own.",

@@ -6,7 +6,6 @@ import type { SystemNode } from "../generated/SystemNode";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import {
   addedNode,

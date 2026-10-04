@@ -6,7 +6,6 @@ import type { UpdateView } from "../generated/UpdateView";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { onUpdateProgress } from "../api/events";

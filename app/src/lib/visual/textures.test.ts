@@ -2,11 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Texture } from "pixi.js";
 import type { TextureView } from "../../generated/TextureView";
 
-vi.mock("../../api/gamedata", () => ({
-  getTextures: vi.fn(),
-}));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import * as api from "../../api/gamedata";
+import { resetTextureFetch, textureFetch, textureView } from "../../test/textures";
 import {
   clearTextures,
   getTexture,
@@ -22,18 +21,14 @@ function fakeTexture(key: string): Texture {
   return { label: key, destroy: vi.fn() } as unknown as Texture;
 }
 
-function viewOf(key: string): TextureView {
-  return key.startsWith("bad:")
-    ? { key, width: 0, height: 0, png_base64: null, error: "no such sprite" }
-    : { key, width: 16, height: 16, png_base64: "AAAA", error: null };
-}
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   clearTextures();
   setTextureDecoder(async (view) => fakeTexture(view.key));
-  getTextures.mockImplementation(async (keys) => keys.map(viewOf));
+  resetTextureFetch();
+  textureFetch.mode = "views";
+  textureFetch.fails = (key) => key.startsWith("bad:");
 });
 
 afterEach(() => {
@@ -114,7 +109,7 @@ describe("clearTextures", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(texture.destroy).toHaveBeenCalledTimes(1);
 
-    finish([viewOf("flag:1")]);
+    finish([textureView("flag:1")]);
     await vi.advanceTimersByTimeAsync(0);
     expect(getTexture("flag:1")).toBeUndefined();
 

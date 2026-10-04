@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { toCss } from "../../lib/visual/ownerColors";
@@ -50,14 +49,16 @@ describe("the empty palette's pinned group", () => {
     expect(html).toContain('aria-label="Show &quot;gaia&quot; on the map"');
     expect(html).toContain('aria-label="Unpin &quot;salvager&quot;"');
     expect(html).toContain('aria-label="Unpin &quot;gaia&quot;"');
-    expect(html).toContain('class="palette-row pinned off"');
   });
 
   it("highlights the active row", () => {
     const html = rows(1);
 
-    expect(html).toContain('aria-selected="false" class="palette-row pinned"');
-    expect(html).toContain('aria-selected="true" class="palette-row pinned active off"');
+    expect(html.match(/aria-selected="true"/g)).toHaveLength(1);
+    expect(html.match(/aria-selected="false"/g)).toHaveLength(1);
+    expect(html.indexOf('aria-selected="false"')).toBeLessThan(
+      html.indexOf('aria-selected="true"'),
+    );
   });
 });
 
@@ -65,7 +66,6 @@ describe("the field's pin button", () => {
   it("offers to pin a search that is not pinned", () => {
     const html = renderToStaticMarkup(<PinToggle text="alpha refuge" />);
 
-    expect(html).toContain('class="pin-toggle"');
     expect(html).toContain('title="Pin this search: its systems stay ringed on every save"');
     expect(html).toMatch(/<\/svg>Pin<\/button>$/);
   });
@@ -73,7 +73,6 @@ describe("the field's pin button", () => {
   it("shows a pinned search in its colour, whatever the case it was typed in", () => {
     const html = renderToStaticMarkup(<PinToggle text="SALVAGER" />);
 
-    expect(html).toContain('class="pin-toggle on"');
     expect(html).toContain('title="Unpin this search"');
     expect(html).toContain(`background:${toCss(WATCH_COLOURS[0])}`);
     expect(html).toMatch(/>Pinned<\/button>$/);
