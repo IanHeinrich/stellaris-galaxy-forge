@@ -35,10 +35,14 @@ export function recordingCanvas(): Surface {
 }
 
 /**
- * Stands a window in that keeps its key listeners, and returns the way to press a key on it: the
- * spy it gives back says whether the press was kept from the app. Undo it with `unstubAllGlobals`.
+ * Stands a window in that keeps its key and blur listeners, and returns the way to press a key or
+ * blur on it: the spy it gives back says whether the press was kept from the app. Undo it with
+ * `unstubAllGlobals`.
  */
-export function stubWindowKeys(): (type: "keydown" | "keyup", name: string) => () => boolean {
+export function stubWindowKeys(): (
+  type: "keydown" | "keyup" | "blur",
+  name: string,
+) => () => boolean {
   const listeners = new Map<string, (e: KeyboardEvent) => void>();
   vi.stubGlobal("window", {
     addEventListener: (type: string, fn: (e: KeyboardEvent) => void) =>

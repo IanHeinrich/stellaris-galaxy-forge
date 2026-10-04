@@ -5,7 +5,14 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import type { WormholeSummary } from "../../generated/WormholeSummary";
-import { bodyLayout, byId, placedNode, planetSummary, systemDetails } from "../../test/builders";
+import {
+  bodyLayout,
+  byId,
+  placedNode,
+  planetSummary,
+  saveBody,
+  systemDetails,
+} from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { Camera } from "../Camera";
 import type { HandleRef } from "./bodyDrag";
@@ -89,23 +96,10 @@ export const SYSTEM = 5;
 
 export const fixed = (value: number): Bounds => ({ min: value, max: value });
 
-/** A save body at `at`, a moon where it orbits a body other than the star, body 1. */
-export function saveBody(
-  id: number,
-  planetClass: string,
-  at: [number, number],
-  orbit: number,
-  parent: number | null = null,
-): PlanetSummary {
-  const layout = bodyLayout({ orbit: fixed(orbit), at, size: fixed(16) });
-  const moon = parent !== null && parent !== 1;
-  return planetSummary({ id, class: planetClass, parent, moon, orbit, layout });
-}
-
-export const SUN = saveBody(1, "pc_g_star", [0, 0], 0);
-export const EARTH = saveBody(2, "pc_continental", [90, 0], 90, 1);
-export const LUNA = saveBody(3, "pc_barren", [102, 0], 12, 2);
-export const MARS = saveBody(4, "pc_arid", [0, 130], 130, 1);
+export const SUN = saveBody(1, "pc_g_star", [0, 0], 0, 16);
+export const EARTH = saveBody(2, "pc_continental", [90, 0], 90, 16, SUN);
+export const LUNA = saveBody(3, "pc_barren", [102, 0], 12, 16, EARTH);
+export const MARS = saveBody(4, "pc_arid", [0, 130], 130, 16, SUN);
 
 export const RADII_SHOWN = { ...NO_SOURCES.sceneLayers, orbitRadii: true };
 

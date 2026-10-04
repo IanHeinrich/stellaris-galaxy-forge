@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
-vi.mock("../../api/gamedata", () => ({ getTextures: () => new Promise(() => {}) }));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { BitmapText, Container } from "pixi.js";
 import type { BodyLayout } from "../../generated/BodyLayout";
@@ -26,6 +26,7 @@ import {
   systemDetails,
 } from "../../test/builders";
 import { systemRoll } from "../../test/rolls";
+import { textureFetch } from "../../test/textures";
 import { systemContext } from "./context";
 import {
   blankSceneTextures,
@@ -55,6 +56,8 @@ import {
   type SceneSubject,
   type SystemSources,
 } from "./sources";
+
+textureFetch.mode = "never";
 
 stubTextMeasurement();
 

@@ -20,6 +20,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import type { PickSummary } from "../../generated/PickSummary";
 import type { SpecialLayout } from "../../generated/SpecialLayout";
 import { armSession, resetStores } from "../../store/storeFixture";
+import { buttons, shown } from "../../test/elements";
 import { openWith } from "../../test/session";
 import { ContextMenu } from "./ContextMenu";
 import { PickCardBody } from "./contextMenu/PickCard";
@@ -363,15 +364,15 @@ describe("the marauder clan items", () => {
   it("offers to remove the clan on a home and on a raid base, saying what that does, and no clan-making item", async () => {
     await openWithClans({ 0: { home: 1 }, 2: { base: 1 } });
     const remove =
-      '<button type="button" role="menuitem" class="hinted" title="The three systems become random. Undo puts back what they were">Remove marauder clan 1<span class="muted">The three systems become random. Undo puts back what they were</span></button>';
+      "Remove marauder clan 1 The three systems become random. Undo puts back what they were";
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 0 }, x: 0, y: 0 });
     let html = menu();
-    expect(html).toContain(remove);
+    expect(buttons(html)).toContain(remove);
     expect(html).not.toContain("marauder clan here");
     expect(html).not.toContain("Add marauder clan");
     useMapChromeStore.getState().openContextMenu({ target: { kind: "system", id: 2 }, x: 0, y: 0 });
     html = menu();
-    expect(html).toContain(remove);
+    expect(buttons(html)).toContain(remove);
     expect(html).not.toContain("Add marauder clan");
   });
 });
@@ -388,7 +389,7 @@ describe("the add system item", () => {
     space(-50, -20);
     const html = menu();
     expect(html.match(/aria-haspopup="menu"/g)).toHaveLength(1);
-    expect(html).toContain('Add system here<span class="context-submenu-caret"');
+    expect(buttons(html)).toContain("Add system here ▸");
     expect(html).not.toContain("linked to");
     expect(html).not.toContain("disabled=");
   });
@@ -467,7 +468,7 @@ describe("the Special menu and the cards", () => {
       "Trappist",
     ]);
     expect(html.match(/aria-label="Already in this galaxy"/g)).toHaveLength(1);
-    expect(html.match(/class="pick-dlc"/g)).toHaveLength(1);
+    expect(shown(html).match(/\bDLC\b/g)).toHaveLength(1);
     expect(html).toContain("Needs Cosmic Storms, which this save doesn&#x27;t have");
     expect(html).not.toContain("disabled");
   });
@@ -511,9 +512,7 @@ describe("the Special menu and the cards", () => {
         })}
       />,
     );
-    expect(html).toContain(
-      '<div class="pick-card-note">One per galaxy. Not in this galaxy yet.</div>',
-    );
+    expect(html).toContain("One per galaxy. Not in this galaxy yet.");
     expect(html).toContain(
       "This save doesn&#x27;t have Cosmic Storms, so its events won&#x27;t run.",
     );

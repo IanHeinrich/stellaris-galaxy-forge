@@ -9,10 +9,10 @@ import {
   context,
   drawOps,
   fixed,
-  saveBody,
   scenarioBody,
   viewport,
 } from "../fixture";
+import { saveBody } from "../../../test/builders";
 import { OrbitsLayer } from "./OrbitsLayer";
 
 /** The radii of the dashed arcs `g` strokes. */
@@ -50,9 +50,9 @@ describe("the system scene's orbits layer", () => {
 
   it("strokes an orbit bodies share once, within a pixel, so it shows no brighter than the rest", () => {
     const layer = new OrbitsLayer();
-    const twin = saveBody(5, "pc_barren", [0, -130], 130, 1);
+    const twin = saveBody(5, "pc_barren", [0, -130], 130, 16, SUN);
     // The save's orbits of bodies on one ring differ by a fraction of a unit.
-    const near = saveBody(6, "pc_barren", [-130.3, 0], 130.3, 1);
+    const near = saveBody(6, "pc_barren", [-130.3, 0], 130.3, 16, SUN);
     layer.rebuild(context({ planets: [SUN, EARTH, MARS, twin, near] }));
     viewport(layer, 2);
     expect(circleRadii(layer.rings)).toEqual([90, 130]);

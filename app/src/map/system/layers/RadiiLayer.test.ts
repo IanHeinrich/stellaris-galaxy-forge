@@ -12,11 +12,11 @@ import {
   context,
   fixed,
   plateTexts,
-  saveBody,
   scenarioBody,
   stubTextMeasurement,
   viewport,
 } from "../fixture";
+import { saveBody } from "../../../test/builders";
 import { drawnDisc, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
 import { RadiiLayer } from "./RadiiLayer";
 
@@ -88,7 +88,7 @@ describe("the system scene's radius labels", () => {
     const toward = alone.cam.screenToWorld(middle.x, middle.y);
     const angle = Math.atan2(toward.y, toward.x);
     const spot = { x: 90 * Math.cos(angle), y: 90 * Math.sin(angle) };
-    const blocker = saveBody(9, "pc_barren", [spot.x, spot.y], 90, 1);
+    const blocker = saveBody(9, "pc_barren", [spot.x, spot.y], 90, 16, SUN);
 
     const { ctx, cam, box } = labelOn([SUN, EARTH, blocker]);
     if (!box) throw new Error("the label is left out");
@@ -106,7 +106,7 @@ describe("the system scene's radius labels", () => {
   it("leaves out a ring's label with no clear spot near, drawing no plate at all", () => {
     const crowd = Array.from({ length: 72 }, (_, i) => {
       const a = (i * 5 * Math.PI) / 180;
-      return saveBody(10 + i, "pc_barren", [90 * Math.cos(a), 90 * Math.sin(a)], 90, 1);
+      return saveBody(10 + i, "pc_barren", [90 * Math.cos(a), 90 * Math.sin(a)], 90, 16, SUN);
     });
     const layer = new RadiiLayer();
     layer.rebuild(

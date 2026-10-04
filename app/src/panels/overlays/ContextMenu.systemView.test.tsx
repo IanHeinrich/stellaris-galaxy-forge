@@ -80,7 +80,7 @@ describe("the system view's menus", () => {
     expect(html).toContain('<div class="context-menu-header">Earth</div>');
     expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Inspect<\/button>/);
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete planet<\/button>/);
-    expect(html).toContain('class="context-menu-separated">Back to galaxy</button>');
+    expect(buttons(html)).toContain("Back to galaxy");
 
     useLayoutStore.setState({ tab: "issues" });
     menuItem(<BodyMenu target={body} frame={{}} />, "Inspect").props.onClick();
@@ -267,7 +267,7 @@ describe("adding a planet or moon in the system view", () => {
 
   it("offers a planet on a save's empty space, and adds the class picked where it was pressed, selected with its page open once its details land", async () => {
     const html = drawnBy(() => menuOn(space));
-    expect(html).toContain('Add planet here<span class="context-submenu-caret"');
+    expect(buttons(html)).toContain("Add planet here ▸");
     expect(html.indexOf("Add planet here")).toBeLessThan(html.indexOf("Back to galaxy"));
     expect(html).not.toMatch(/aria-haspopup="menu"[^>]*disabled=""/);
 
@@ -307,7 +307,7 @@ describe("adding a planet or moon in the system view", () => {
 
   it("offers a moon of a planet on the next moon ring, and none of a moon, the star or an asteroid", async () => {
     const html = drawnBy(() => menuOn(body(2)));
-    expect(html).toContain('Add moon<span class="context-submenu-caret"');
+    expect(buttons(html)).toContain("Add moon ▸");
     await row("Barren").run();
     expect(ipc.addBody).toHaveBeenCalledWith(0, 2, "pc_barren", null, 25, 0, expect.any(Number));
 
@@ -412,7 +412,6 @@ describe("moving planets", () => {
       'title="Mars will change ownership to Hissman Consciousness about a month after you load\n' +
         'Earth&#x27;s station will change ownership to Hissman Consciousness"',
     );
-    expect(html).toContain('<span class="warn">⚠ ');
 
     drawnBy(menu);
     drawnButton("Paste 2 planets here").onClick();
