@@ -1,5 +1,10 @@
+import type { CampaignListing } from "../generated/CampaignListing";
+import type { SaveFile } from "../generated/SaveFile";
+import type { ScenarioListing } from "../generated/ScenarioListing";
+import type { CampaignRow, SaveRow, ScenarioRow } from "../lib/openRows";
 import type { BeltKindView } from "../generated/BeltKindView";
 import type { BodyLayout } from "../generated/BodyLayout";
+import type { BodyRole } from "../generated/BodyRole";
 import type { CountryNode } from "../generated/CountryNode";
 import type { ExportReport } from "../generated/ExportReport";
 import type { FleetSummary } from "../generated/FleetSummary";
@@ -19,6 +24,7 @@ import type { StarClassView } from "../generated/StarClassView";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
+import { isStarBody } from "../lib/details/starBody";
 import { newFeZone } from "../lib/feZone";
 
 /** A plain localisation key as a name template, which is what the save writes for most nodes. */
@@ -229,21 +235,40 @@ export function bodyLayout(over: Partial<BodyLayout> = {}): BodyLayout {
   };
 }
 
-/** A save body: at `at`, `orbit` from its parent, of `size`, a moon wherever it has a parent. */
+/**
+ * A save body as the core describes it: at `at`, `orbit` from its parent, of `size`. A star
+ * with no parent at the centre is the primary and any other star is a star. A body about a
+ * planet, given by id or by the planet itself, is a moon. A planet about a star is a planet
+ * with a `parent`, whose `moon` bit stays off.
+ */
 export function saveBody(
   id: number,
   planetClass: string,
   at: [number, number],
   orbit: number,
   size: number,
-  parent: number | null = null,
+  parent: PlanetSummary | number | null = null,
 ): PlanetSummary {
   const layout = bodyLayout({
     orbit: { min: orbit, max: orbit },
     at,
     size: { min: size, max: size },
   });
-  return planetSummary({ id, class: planetClass, parent, moon: parent !== null, orbit, layout });
+  const parentId = typeof parent === "object" && parent !== null ? parent.id : parent;
+  const aboutAStar =
+    typeof parent === "object" &&
+    parent !== null &&
+    (parent.role === "primary" || parent.role === "star");
+  const star = isStarBody(planetClass, new Map(), new Map());
+  const moon = !star && parentId !== null && !aboutAStar;
+  const role: BodyRole = star
+    ? parentId === null && orbit === 0
+      ? "primary"
+      : "star"
+    : moon
+      ? "moon"
+      : "planet";
+  return planetSummary({ id, class: planetClass, parent: parentId, moon, role, orbit, layout });
 }
 
 /** Where a body `orbit` out at `angle` degrees from `from` stands, as the save writes its point. */
@@ -298,6 +323,37 @@ export function orbitClasses(): Map<string, PlanetClassView> {
     ...worlds.map((key): [string, PlanetClassView] => [key, planetClassView(key, false)]),
     ["pc_asteroid", { ...planetClassView("pc_asteroid", false), asteroid: true }],
   ]);
+}
+
+/** Every planet named `P<id>`, so a menu or a lock label can say which one it means. */
+export function namedPlanets(planets: PlanetSummary[]): PlanetSummary[] {
+  return planets.map((p) => ({ ...p, name: name(`P${p.id}`), name_key: `P${p.id}` }));
+}
+
+/** System 0, Sol, with one icy belt at 80 and nothing else. */
+export function solWithBelt(): SystemDetails {
+  return systemDetails({ id: 0, belts: [{ kind: "icy_asteroid_belt", inner_radius: 80 }] });
+}
+
+/**
+ * The star classes the game rolls, as `class key -> its star bodies`, and the planet classes of
+ * those bodies and of any `worlds` beside them: what the game data store holds for a star class
+ * picker.
+ */
+export function starClassesOf(
+  stars: Record<string, string[]>,
+  worlds: string[] = [],
+): { starClasses: Map<string, StarClassView>; planetClasses: Map<string, PlanetClassView> } {
+  const bodies = [...new Set(Object.values(stars).flat())];
+  return {
+    starClasses: new Map(
+      Object.entries(stars).map(([key, keys]) => [key, starClassView(key, ...keys)]),
+    ),
+    planetClasses: new Map([
+      ...bodies.map((key): [string, PlanetClassView] => [key, planetClassView(key)]),
+      ...worlds.map((key): [string, PlanetClassView] => [key, planetClassView(key, false)]),
+    ]),
+  };
 }
 
 /** The one `FleetSummary` builder: one ownerless military ship with no power. */
@@ -501,4 +557,111 @@ export function planetPage(over: Partial<PlanetPage> = {}): PlanetPage {
     dig_site: null,
     ...over,
   };
+}
+
+/** The campaign folder every Open screen test lists. */
+export const DIR = "C:/saves/terran";
+
+export function saveFile(over: Partial<SaveFile> = {}): SaveFile {
+  return {
+    path: `${DIR}/2206.11.16.sav`,
+    campaign: "terran_1",
+    file_name: "2206.11.16.sav",
+    meta: saveMeta({ name: "Terran Federation", planets: 1, fleets: 7 }),
+    modified: 200,
+    size: 4096,
+    cloud: false,
+    ...over,
+  };
+}
+
+export function saveRow(over: Partial<SaveRow> = {}): SaveRow {
+  return {
+    kind: "save",
+    key: "save:1",
+    file: saveFile(),
+    empire: "Terran Federation",
+    title: "2206.11.16",
+    sub: null,
+    autosave: false,
+    ...over,
+  };
+}
+
+export function scenarioListing(over: Partial<ScenarioListing> = {}): ScenarioListing {
+  return {
+    path: "C:/mods/a/map/setup_scenarios/a.txt",
+    name: "a_galaxy",
+    systems: 100,
+    source: "install",
+    mod_name: null,
+    enabled: true,
+    shadowed_by: null,
+    modified: 10,
+    size: 1024,
+    error: null,
+    summary: scenarioSummary(),
+    painted: false,
+    ...over,
+  };
+}
+
+export function scenarioRow(over: Partial<ScenarioRow> = {}): ScenarioRow {
+  return {
+    kind: "scenario",
+    key: "scenario:1",
+    listing: scenarioListing(),
+    group: "Install",
+    subtitle: "100 systems · Stellaris",
+    disabled: false,
+    ...over,
+  };
+}
+
+export const CAMPAIGN: CampaignListing = {
+  dir: DIR,
+  name: "terran_1",
+  empire: "Terran Federation",
+  files: 3,
+  newest: 200,
+  meta: saveMeta({ name: "Terran Federation", date: "2206.11.16" }),
+  cloud: false,
+};
+
+export function campaignRow(): CampaignRow {
+  return {
+    kind: "campaign",
+    key: `campaign:${DIR}`,
+    campaign: CAMPAIGN,
+    empire: "Terran Federation",
+    subtitle: "v4.4.6 · 2206.11.16",
+    count: "3 saves",
+    expanded: true,
+    loading: false,
+    error: null,
+  };
+}
+
+/** The terran campaign as the lists show it: two files and no header of its own. */
+export function campaignListing(over: Partial<CampaignListing> = {}): CampaignListing {
+  return { ...CAMPAIGN, files: 2, meta: null, ...over };
+}
+
+export const TERRAN = campaignListing();
+export const VOID = campaignListing({
+  dir: "C:/saves/void",
+  name: "void_2",
+  empire: "Void Compact",
+  newest: 100,
+});
+
+/** A terran save whose header says four planets and a blue empire. */
+export function campaignSave(over: Partial<SaveFile> = {}): SaveFile {
+  const meta = saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" });
+  return saveFile({ meta, ...over });
+}
+
+/** A scenario a mod lists. */
+export function modScenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
+  return scenarioListing({ source: "mod", mod_name: "A Mod", ...over });
 }

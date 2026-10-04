@@ -23,59 +23,16 @@ import { strokes } from "../layers/fixture";
 import type { DragState, MapLayer } from "../layers/MapLayer";
 import { absoluteHeight } from "../../lib/height";
 import type { HeightsOver } from "../../lib/brush/heightBrush";
+import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
 import { mockedIpc } from "../../test/ipc";
 import { DrawnPositions } from "../drawnPositions";
 import { InteractionController } from "./InteractionController";
 
-type Listener = (e: PointerEvent) => void;
-
-type Surface = HTMLCanvasElement & {
-  fire(type: string, x: number, y: number, button?: number): void;
-};
-
-/** A canvas that records its listeners, so a test can press, drag and release on it. */
-function canvas(): Surface {
-  const listeners = new Map<string, Listener>();
-  return {
-    style: {},
-    addEventListener: (type: string, fn: Listener) => listeners.set(type, fn),
-    removeEventListener: (type: string) => listeners.delete(type),
-    setPointerCapture: () => undefined,
-    hasPointerCapture: () => false,
-    releasePointerCapture: () => undefined,
-    fire(type: string, x: number, y: number, button?: number) {
-      listeners.get(type)?.({
-        offsetX: x,
-        offsetY: y,
-        button: button ?? (type === "pointermove" ? -1 : 0),
-        pointerId: 1,
-        shiftKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        altKey: false,
-      } as PointerEvent);
-    },
-  } as unknown as Surface;
-}
-
 let controller: InteractionController | null = null;
-/** The window's key listeners, by event type, as the controller registered them. */
-const keyListeners = new Map<string, (e: KeyboardEvent) => void>();
-
-/** A key going down or up on the window; the returned spy says whether the press was kept from the app. */
-function key(type: "keydown" | "keyup", name: string): () => boolean {
-  const stop = vi.fn();
-  keyListeners.get(type)?.({ key: name, target: null, stopImmediatePropagation: stop } as never);
-  return () => stop.mock.calls.length > 0;
-}
+let key: ReturnType<typeof stubWindowKeys>;
 
 beforeEach(() => {
-  keyListeners.clear();
-  vi.stubGlobal("window", {
-    addEventListener: (type: string, fn: (e: KeyboardEvent) => void) => keyListeners.set(type, fn),
-    removeEventListener: (type: string) => keyListeners.delete(type),
-  });
-  vi.stubGlobal("HTMLElement", class {});
+  key = stubWindowKeys();
   // A frame runs at once, and hands back no handle, so every move draws straight away.
   vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) => {
     draw(0);
@@ -98,7 +55,7 @@ function mapOver(systems: SystemNode[], layers: MapLayer[] = [], nebulae: Nebula
   useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems, nebulae });
   const cam = new Camera();
   cam.setViewport(800, 600);
-  const surface = canvas();
+  const surface = recordingCanvas();
   const positions = new DrawnPositions(cam);
   const highlights = new HighlightsLayer(positions);
   controller = new InteractionController(surface, cam, highlights, layers, positions);
@@ -302,8 +259,8 @@ describe("a prevented pair's dash", () => {
     ]);
     const mid = cam.worldToScreen(0, 0);
 
-    surface.fire("pointerdown", mid.x, mid.y, 2);
-    surface.fire("pointerup", mid.x, mid.y, 2);
+    surface.fire("pointerdown", mid.x, mid.y, { button: 2 });
+    surface.fire("pointerup", mid.x, mid.y, { button: 2 });
     expect(useMapChromeStore.getState().contextMenu?.target).toEqual({
       kind: "prevented",
       a: 1,

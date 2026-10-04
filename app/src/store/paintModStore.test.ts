@@ -4,7 +4,6 @@ import { stubPrefs } from "../test/prefs";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import * as ipc from "../api/ipc";
 import { SCENARIO_CAPABILITIES } from "../generated/constants";

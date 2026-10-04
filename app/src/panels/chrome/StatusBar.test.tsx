@@ -4,7 +4,6 @@ import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("./GameDataPanel", () => ({ GameDataPanel: () => "[game data]" }));
 

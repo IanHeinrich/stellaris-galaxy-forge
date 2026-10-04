@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { detailOf, name, planetClassView, starClassView } from "../../../store/fixture";
+import { detailOf, name } from "../../../store/fixture";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog"));
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
@@ -31,6 +30,7 @@ import {
   sections,
   SYSTEM,
 } from "../inspectorFixture";
+import { armStarClasses } from "../../../store/storeFixture";
 import { mockedIpc } from "../../../test/ipc";
 import { heightToSlider } from "../../../lib/height";
 import { HEIGHT_HINT } from "./SystemHeight";
@@ -192,27 +192,12 @@ describe("a save system's overview", () => {
 });
 
 /** The install's classes for the binary under test, its bodies and a class to change it to. */
-function armStarClasses(): void {
-  useGameDataStore.setState({
-    names: new Map([
-      ["sc_binary_1", "X-ray Binary"],
-      ["sc_binary_2", "Neutron Binary"],
-    ]),
-    starClasses: new Map(
-      [
-        starClassView("sc_g", "pc_g_star"),
-        starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
-        starClassView("sc_binary_2", "pc_b_star", "pc_neutron_star"),
-      ].map((c) => [c.key, c]),
-    ),
-    planetClasses: new Map(
-      ["pc_a_star", "pc_pulsar", "pc_b_star", "pc_neutron_star", "pc_g_star"].map((k) => [
-        k,
-        planetClassView(k),
-      ]),
-    ),
-  });
-}
+const CLASSES = {
+  sc_g: ["pc_g_star"],
+  sc_binary_1: ["pc_a_star", "pc_pulsar"],
+  sc_binary_2: ["pc_b_star", "pc_neutron_star"],
+};
+const NAMES = { sc_binary_1: "X-ray Binary", sc_binary_2: "Neutron Binary" };
 
 describe("a save system's wormhole pair", () => {
   it("names the natural wormhole's other end and says how to take the pair out", async () => {
@@ -239,7 +224,7 @@ describe("the star class at the head", () => {
     });
 
   it("names a multiple star by its class's bodies, as plain text on a save", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(stars());
 
@@ -253,7 +238,7 @@ describe("the star class at the head", () => {
   });
 
   it("notes stars no class has, by their names, and what the game treats the system as", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     useGameDataStore.setState({
       names: new Map([
         ["pc_a_star", "Class A Star"],
@@ -277,7 +262,7 @@ describe("the star class at the head", () => {
   });
 
   it("leaves the note out when the stars match the class, in any order", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(
       details({
@@ -292,7 +277,7 @@ describe("the star class at the head", () => {
   });
 
   it("marks each star and planet in the planet list as a page with fields to edit", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(stars());
 
@@ -302,7 +287,7 @@ describe("the star class at the head", () => {
   });
 
   it("marks every planet as editable, and a star with its own hint", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(
       details({
@@ -334,7 +319,7 @@ describe("the star class at the head", () => {
   });
 
   it("stays plain text on a scenario", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("scenario");
     await land(stars());
 

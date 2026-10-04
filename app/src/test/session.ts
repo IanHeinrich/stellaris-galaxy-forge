@@ -1,6 +1,9 @@
 import type { GalaxyView } from "../generated/GalaxyView";
 import type { OpenResult } from "../generated/OpenResult";
+import type { SystemDetails } from "../generated/SystemDetails";
+import { useDetailsStore } from "../store/detailsStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
+import { useSceneStore } from "../store/sceneStore";
 import { mockedIpc } from "./ipc";
 
 type Opened = OpenResult & { path: string };
@@ -23,4 +26,10 @@ export function readyAs(result: Opened): void {
     path: result.path,
     capabilities: result.capabilities,
   });
+}
+
+/** Enters the system view of `details`' system with those details landed, as a read leaves them. */
+export function inSystem(details: SystemDetails): void {
+  useSceneStore.getState().enterSystem(details.id);
+  useDetailsStore.setState({ details: new Map([[details.id, details]]) });
 }

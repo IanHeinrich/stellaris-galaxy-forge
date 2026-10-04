@@ -3,14 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { NEVER_WARN, PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
 import { buttons, shown } from "../../test/elements";
-import { saveFile } from "../../test/openRows";
+import { saveFile } from "../../test/builders";
 import { OpenModeDialog } from "./OpenModeDialog";
 
 beforeEach(() => {

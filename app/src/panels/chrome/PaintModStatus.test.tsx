@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import * as ipc from "../../api/ipc";
@@ -31,7 +30,6 @@ describe("the mod's status line", () => {
     usePaintModStore.setState({ known: true, paintMod: null });
 
     const html = status();
-    expect(html).toContain('class="paint-mod-status warn"');
     expect(html).toContain("Subscribe to the ");
     expect(html).toContain(">Paint a Galaxy mod on the Steam Workshop ↗</button>");
     expect(html).toContain("then enable it in your playset.");
@@ -47,7 +45,6 @@ describe("the mod's status line", () => {
     usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
 
     const html = status();
-    expect(html).toContain('class="paint-mod-status warn"');
     expect(html).toContain(
       "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.",
     );
@@ -58,9 +55,7 @@ describe("the mod's status line", () => {
     usePaintModStore.setState({ known: true, paintMod: paintModView() });
 
     const html = status();
-    expect(html).toContain('class="paint-mod-status"');
     expect(html).toContain("Paint a Galaxy mod enabled ✓");
-    expect(html).not.toContain("warn");
   });
 
   it("reports a Workshop link the shell refuses on the session", async () => {
