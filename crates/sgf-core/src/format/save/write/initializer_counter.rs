@@ -79,8 +79,8 @@ pub(crate) fn count(
         // A hand-edited count can sit below what the adds put on it; none goes below 0.
         let after = (now + change).max(0);
         if after == 0 && !loaded.iter().any(|(name, _)| name == initializer) {
-            edit.remove_statement(counts[at].span());
-            edit.remove_statement(names[at].span());
+            edit.bytes().remove_statement(counts[at].span());
+            edit.bytes().remove_statement(names[at].span());
         } else {
             edit.replace_span(span, after.to_string());
         }
@@ -108,7 +108,9 @@ fn append(
         None => edit.insert_first(count_block, None, &count.to_string()),
     }
     match names.last() {
-        Some(last) => edit.insert_after(last.span().end, &quoted(initializer)),
+        Some(last) => edit
+            .bytes()
+            .insert_after(last.span().end, &quoted(initializer)),
         None => edit.insert_first(name_block, None, &quoted(initializer)),
     }
     Ok(())

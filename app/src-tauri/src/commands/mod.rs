@@ -87,7 +87,7 @@ async fn with_scenario<R: Runtime, T: Send + 'static>(
         let Some((generation, gd)) = game_data.snapshot() else {
             return Ok(None);
         };
-        if !Capabilities::of(&session.doc).scripted_owners {
+        if !Capabilities::of(session.doc()).scripted_owners {
             return Ok(None);
         }
         Ok(f(session, &gd, &game_data, generation))
@@ -114,7 +114,7 @@ fn require<S: Deref<Target = Session>>(
     refusal: &str,
 ) -> Result<S, SgfError> {
     let session = session.ok_or_else(SgfError::no_session)?;
-    if !can(Capabilities::of(&session.doc)) {
+    if !can(Capabilities::of(session.doc())) {
         return Err(SgfError::new(ErrorKind::Op, refusal));
     }
     Ok(session)

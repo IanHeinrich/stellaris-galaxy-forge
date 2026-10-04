@@ -30,8 +30,8 @@ fn a_system_edited_earlier_can_still_be_removed() {
     session
         .apply(Op::RemoveSystem { system: 2 })
         .expect("remove a system that earlier ops rewrote");
-    assert!(!session.graph.systems.contains_key(&2));
-    assert!(session.graph.lane(1, 2).is_none());
+    assert!(!session.graph().systems.contains_key(&2));
+    assert!(session.graph().lane(1, 2).is_none());
     for _ in 0..3 {
         session.undo().expect("undo").expect("something to undo");
     }
@@ -67,7 +67,7 @@ fn a_system_the_file_left_nameless_gets_its_statement_back_on_undo() {
         .apply(named.inverse)
         .expect("the inverse takes the statement away again");
     assert_eq!(current(&session), nameless);
-    assert_eq!(session.graph.systems[&1].name, Default::default());
+    assert_eq!(session.graph().systems[&1].name, Default::default());
 }
 
 #[test]
@@ -93,11 +93,11 @@ fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it
             .windows(15)
             .any(|w| w == b"name = \"Lonely\"")
     );
-    assert_eq!(session.graph.systems[&9].name, Default::default());
+    assert_eq!(session.graph().systems[&9].name, Default::default());
 
     session.undo().expect("undo").expect("something to undo");
     assert_eq!(current(&session), fixture);
-    assert_eq!(session.graph.systems[&9].name.key, "Lonely");
+    assert_eq!(session.graph().systems[&9].name.key, "Lonely");
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn add_system_is_refused_when_the_id_is_taken() {
         .expect_err("2 is Coruscant");
     assert!(matches!(error, OpError::SystemExists(2)), "{error:?}");
     assert_eq!(error.to_string(), "system 2 already exists");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 #[test]
@@ -221,12 +221,12 @@ fn adding_a_system_and_removing_it_again_is_byte_identical() {
             spawn_script: None,
         })
         .expect("add");
-    assert!(session.graph.systems.contains_key(&3019));
+    assert!(session.graph().systems.contains_key(&3019));
     session
         .apply(Op::RemoveSystem { system: 3019 })
         .expect("remove the system just added");
     assert_eq!(current(&session), fixture);
-    assert!(!session.graph.systems.contains_key(&3019));
+    assert!(!session.graph().systems.contains_key(&3019));
 }
 
 #[test]
@@ -490,7 +490,7 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
         .expect_err("nothing to remove");
     assert!(matches!(error, OpError::NoEntries), "{error:?}");
 
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
     assert_eq!(current(&session), GRAMMAR.bytes());
     assert!(session.history().undo.is_empty());
 }

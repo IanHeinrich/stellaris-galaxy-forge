@@ -3,7 +3,7 @@
 //! bytes they then splice. A save's height writer starts here too.
 
 use crate::emit::coord;
-use crate::ops::rules::each_once;
+use crate::ops::rules::{each_once, named};
 use crate::ops::{Op, OpError, SystemHeight, SystemMove};
 use crate::projections::galaxy::GalaxyGraph;
 
@@ -16,12 +16,11 @@ pub(crate) struct Move {
 }
 
 impl Move {
-    /// `Moved <name> (#<id>) from (x, y) to (x, y)`, which both formats open with.
+    /// `Moved <name> #<id> from (x, y) to (x, y)`, which both formats open with.
     pub fn describe(&self) -> String {
         format!(
-            "Moved {} (#{}) from ({}, {}) to ({}, {})",
+            "Moved {} from ({}, {}) to ({}, {})",
             self.name,
-            self.id,
             coord(self.from.0),
             coord(self.from.1),
             coord(self.to.0),
@@ -47,7 +46,7 @@ pub(crate) fn decide_move(graph: &GalaxyGraph, id: u32, x: f64, y: f64) -> Resul
     let system = graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     Ok(Move {
         id,
-        name: system.display_name(),
+        name: named(graph, id),
         from: (system.x, system.y),
         to: (x, y),
     })

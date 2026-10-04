@@ -455,7 +455,7 @@ fn the_sample_save_names_its_adjective_empires_by_the_real_patterns() {
     };
     let session = common::open_4_5();
     let names: Vec<String> = session
-        .graph
+        .graph()
         .countries
         .iter()
         .filter(|c| c.name.key.starts_with("%ADJ"))

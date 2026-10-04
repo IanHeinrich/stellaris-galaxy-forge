@@ -45,7 +45,7 @@ fn remove(planet: u32, modifier: &str, feature: Option<&str>) -> Op {
 
 /// The timed modifiers planet `id`'s page lists, as (modifier, days).
 fn page(session: &Session, id: u32) -> Vec<(String, i32)> {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .unwrap_or_else(|e| panic!("planet {id}: {e}"))
         .timed_modifiers
         .into_iter()
@@ -55,7 +55,7 @@ fn page(session: &Session, id: u32) -> Vec<(String, i32)> {
 
 /// The planet features planet `id`'s page lists.
 fn features(session: &Session, id: u32) -> Vec<String> {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .unwrap_or_else(|e| panic!("planet {id}: {e}"))
         .planet_modifiers
 }
@@ -83,7 +83,7 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
         "Added modifier terraforming_candidate to planet #585"
     );
     assert_eq!(result.inverse, remove(585, CANDIDATE, None));
-    let system = get_planet_page(&session.doc, 585)
+    let system = get_planet_page(session.doc(), 585)
         .expect("planet 585")
         .system
         .expect("planet 585 orbits a system");
@@ -96,12 +96,16 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
         "Removed modifier terraforming_candidate from planet #585"
     );
     assert_eq!(removed.inverse, add(585, CANDIDATE, &[-1]));
-    assert_eq!(current(&session), session.doc.original(), "the block goes");
+    assert_eq!(
+        current(&session),
+        session.doc().original(),
+        "the block goes"
+    );
     assert!(page(&session, 585).is_empty());
 
     session.undo().expect("undo").expect("something to undo");
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -117,7 +121,7 @@ fn a_frozen_moon_with_a_timed_modifier_takes_the_candidate_last() {
         remove(40, FROZEN, None),
     );
     assert_eq!(page(&session, 40), [harvested]);
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -143,7 +147,7 @@ fn a_modifier_that_runs_out_is_removed_and_its_inverse_writes_its_days_back() {
 
     session.apply(result.inverse).expect("write it back");
     assert_eq!(page(&session, 40), [(HARVESTED.to_owned(), 3426)]);
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -169,7 +173,7 @@ fn a_planet_feature_writes_its_line_beside_the_timed_item_and_takes_both_away() 
     );
     assert!(features(&session, 585).is_empty());
     assert!(page(&session, 585).is_empty());
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -185,7 +189,7 @@ fn a_feature_without_its_timed_item_is_removed_by_its_line() {
 
     session.apply(result.inverse).expect("write the line back");
     assert_eq!(features(&session, GAS_GIANT), [PM_MOONS]);
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -248,12 +252,7 @@ fn a_modifier_is_refused_for_a_star_an_unknown_planet_or_no_change() {
             "17 copies of a modifier: an op adds or restores 1 to 16",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]
@@ -303,7 +302,7 @@ fn removing_two_permanent_copies_has_an_inverse_that_puts_both_back() {
         .expect("apply the removal's inverse");
     assert_eq!(page(&session, 585), two);
     assert!(
-        current(&session) == session.doc.original(),
+        current(&session) == session.doc().original(),
         "the inverse writes the two copies back as the file held them"
     );
 }
@@ -321,7 +320,7 @@ fn a_negative_count_of_days_the_save_holds_is_written_back_as_it_was() {
 
     session.apply(removed.inverse).expect("write it back");
     assert!(page(&session, 1567).contains(&living_sea));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -338,5 +337,5 @@ fn an_item_whose_days_are_not_a_number_is_not_removed() {
             .contains("harvested_resources_mining lasts \"soon\" days, which is not a number"),
         "{error}"
     );
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }

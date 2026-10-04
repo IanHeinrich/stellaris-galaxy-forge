@@ -35,7 +35,7 @@ pub async fn fe_zone_fit<R: Runtime>(
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
     with_session(app, move |guard| {
         let session = require(guard.as_ref(), has_zones, NO_ZONES)?;
-        Ok(placement::fit(&placement::sites(&session.graph), count))
+        Ok(placement::fit(&placement::sites(session.graph()), count))
     })
     .await
 }
@@ -47,7 +47,7 @@ pub async fn fe_zone_candidate_count<R: Runtime>(app: AppHandle<R>) -> Result<us
     with_session(app, |guard| {
         let session = require(guard.as_ref(), has_zones, NO_ZONES)?;
         Ok(placement::candidate_count(&placement::sites(
-            &session.graph,
+            session.graph(),
         )))
     })
     .await
@@ -61,7 +61,7 @@ pub async fn header_empire_counts<R: Runtime>(
 ) -> Result<Vec<(String, String)>, SgfError> {
     with_session(app, |guard| {
         let session = require(guard.as_ref(), has_header, NO_COUNTS)?;
-        let (seats, zones, clans) = for_graph(&session.graph);
+        let (seats, zones, clans) = for_graph(session.graph());
         Ok(empire_counts(seats, zones, clans)
             .into_iter()
             .map(|(key, value)| (key.to_owned(), value))

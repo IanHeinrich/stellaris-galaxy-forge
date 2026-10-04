@@ -36,14 +36,14 @@ fn remove(site: u32) -> Op {
 
 /// The site planet `id`'s page shows.
 fn site(session: &Session, id: u32) -> Option<PlanetPageDigSite> {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .unwrap_or_else(|e| panic!("planet {id}: {e}"))
         .dig_site
 }
 
 /// The system planet `id` is a body of.
 fn system_of(session: &Session, id: u32) -> u32 {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .expect("the planet")
         .system
         .expect("a system")
@@ -97,14 +97,14 @@ fn a_site_is_added_last_with_the_next_id_and_the_page_and_details_read_it() {
         "Removed dig site site_lost_moments (#4) from planet #585"
     );
     assert_eq!(removed.inverse, add(BARREN, LOST_MOMENTS, 1));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert_eq!(site(&session, BARREN), None);
     assert!(!listed(&session, system).iter().any(|&(id, _)| id == 4));
 
     session.undo().expect("undo").expect("the removal");
     assert_eq!(site(&session, BARREN).map(|s| s.id), Some(4));
     session.undo().expect("undo").expect("the add");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -230,12 +230,7 @@ fn a_site_is_refused_for_a_star_a_planet_with_one_or_an_unknown_id() {
         ),
         (remove(99), "dig site 99 does not exist"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]
@@ -282,7 +277,7 @@ fn an_empty_inline_sites_block_takes_each_new_site_on_a_line_of_its_own() {
 
     session.undo().expect("undo").expect("the second add");
     session.undo().expect("undo").expect("the first add");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -292,5 +287,5 @@ fn a_section_without_a_sites_block_is_refused() {
         .apply(add(BARREN, LOST_MOMENTS, 1))
         .expect_err("no sites block");
     assert_eq!(error.to_string(), "the save has no `sites`");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }

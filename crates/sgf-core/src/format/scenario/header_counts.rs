@@ -12,7 +12,7 @@ use crate::keys::scenario as keys;
 use crate::projections::galaxy::{Galaxy, PaintSpawnKind, SpawnScript, SystemNode};
 
 /// The nine keys [`empire_counts`] writes, in the order it lists them.
-pub const KEYS: [&str; 9] = [
+pub(crate) const KEYS: [&str; 9] = [
     keys::NUM_EMPIRES,
     keys::NUM_EMPIRE_DEFAULT,
     keys::ADVANCED_EMPIRE_DEFAULT,
@@ -25,7 +25,7 @@ pub const KEYS: [&str; 9] = [
 ];
 
 /// The most fallen empires the mod can seat: it knows six kinds.
-pub const MOST_FALLEN_EMPIRES: u32 = 6;
+pub(crate) const MOST_FALLEN_EMPIRES: u32 = 6;
 
 /// A map's seats, how many are held for one empire, and whether the player's seat is
 /// one of those.
@@ -88,7 +88,7 @@ pub fn empire_counts(seats: SeatCounts, zones: u32, clans: u32) -> Vec<(&'static
 }
 
 /// The first five of [`KEYS`], the ones sized by the seats.
-pub fn seat_entries(seats: SeatCounts) -> Vec<(&'static str, String)> {
+pub(crate) fn seat_entries(seats: SeatCounts) -> Vec<(&'static str, String)> {
     let most = seats.most();
     let safe = seats.safe();
     vec![
@@ -104,7 +104,7 @@ pub fn seat_entries(seats: SeatCounts) -> Vec<(&'static str, String)> {
 }
 
 /// How many fallen empires `zones` zones seat: one each, up to the kinds the mod knows.
-pub fn fallen_count(zones: u32) -> u32 {
+pub(crate) fn fallen_count(zones: u32) -> u32 {
     zones.min(MOST_FALLEN_EMPIRES)
 }
 
@@ -130,7 +130,7 @@ pub fn zone_count(galaxy: &Galaxy) -> u32 {
 
 /// A header count the map cannot honour, naming the value the file states.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum HeaderMismatch {
+pub(crate) enum HeaderMismatch {
     /// `num_empires.max` is not the seats less one, or `num_empire_default` is more
     /// than the seats any empire may take.
     Empires { allowed: u32 },
@@ -146,7 +146,7 @@ pub enum HeaderMismatch {
 /// The header's own counts as the file states them, checked against `seats`, `zones`
 /// and `clans`; the seats are checked first, then the fallen empires, then the
 /// marauders.
-pub fn header_mismatch(
+pub(crate) fn header_mismatch(
     galaxy: &Galaxy,
     seats: SeatCounts,
     zones: u32,
@@ -189,12 +189,12 @@ pub fn header_mismatch(
 }
 
 /// A seat: a system with a scripted Paint a Galaxy seat or a positive plain weight.
-pub fn is_seat(system: &SystemNode) -> bool {
+pub(crate) fn is_seat(system: &SystemNode) -> bool {
     system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
 }
 
 /// A script seating one empire: a 1st Player seat, a reserved seat or Sol.
-pub fn is_reserved_script(script: &SpawnScript) -> bool {
+pub(crate) fn is_reserved_script(script: &SpawnScript) -> bool {
     matches!(
         script,
         SpawnScript::PaintAGalaxy {
@@ -215,7 +215,7 @@ fn is_first_player(script: &SpawnScript) -> bool {
 }
 
 /// A script carrying the player's marker.
-pub fn holds_player(script: &SpawnScript) -> bool {
+pub(crate) fn holds_player(script: &SpawnScript) -> bool {
     let SpawnScript::PaintAGalaxy { player, .. } = script;
     *player
 }

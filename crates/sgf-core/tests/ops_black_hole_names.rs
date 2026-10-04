@@ -63,7 +63,7 @@ fn a_new_system_takes_its_name_from_the_black_hole_pool_and_a_removal_gives_it_b
     let mut session = open_4_5();
     let (name, _) = two_free(&session);
     let holes = holes_free(&session);
-    let star_names = free_star_names(&session.doc);
+    let star_names = free_star_names(session.doc());
     assert!(!star_names.contains(&name));
 
     round_trip_step(&mut session, "add", add(black_hole(&name)));
@@ -71,7 +71,7 @@ fn a_new_system_takes_its_name_from_the_black_hole_pool_and_a_removal_gives_it_b
     let left = holes_free(&session);
     assert_eq!(left.len(), holes.len() - 1);
     assert!(!left.contains(&name));
-    assert_eq!(free_star_names(&session.doc), star_names);
+    assert_eq!(free_star_names(session.doc()), star_names);
 
     let mut twin = black_hole(&name);
     (twin.x, twin.y) = TWIN_AT;
@@ -96,16 +96,16 @@ fn a_new_system_takes_its_name_from_the_black_hole_pool_and_a_removal_gives_it_b
     );
     assert_eq!(black_holes(&session, &name), 1);
     assert_eq!(holes_free(&session), holes);
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
 fn a_rename_puts_the_old_name_back_in_its_pool_and_takes_the_new_one_from_its_own() {
     let mut session = open_4_5();
     let (first, second) = two_free(&session);
-    let star = free_star_names(&session.doc)[0].clone();
+    let star = free_star_names(session.doc())[0].clone();
     let holes = holes_free(&session);
-    let star_names = free_star_names(&session.doc);
+    let star_names = free_star_names(session.doc());
     session.apply(add(black_hole(&first))).expect("add");
 
     let result = round_trip_step(&mut session, "rename", rename(ADDED, &second));
@@ -125,14 +125,14 @@ fn a_rename_puts_the_old_name_back_in_its_pool_and_takes_the_new_one_from_its_ow
     );
     assert_eq!(stars(&session, &star), 1);
     assert_eq!(holes_free(&session), holes);
-    assert_eq!(free_star_names(&session.doc), star_names);
+    assert_eq!(free_star_names(session.doc()), star_names);
 
     round_trip_step(&mut session, "rename back", rename(ADDED, &first));
     assert_eq!(black_holes(&session, &first), 0);
     session
         .apply(Op::RemoveSystem { system: ADDED })
         .expect("remove the system");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn a_system_named_from_the_star_pool_can_take_a_black_hole_name() {
 
     round_trip_step(&mut session, "remove", Op::RemoveSystem { system: ADDED });
     assert_eq!(black_holes(&session, &name), 1);
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]

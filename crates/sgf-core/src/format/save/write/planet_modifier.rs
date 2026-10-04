@@ -130,7 +130,7 @@ pub(crate) fn plan_remove(
             .map(|n| n.span())
             .collect();
         for span in lines {
-            edit.remove_lines(span);
+            edit.bytes().remove_lines(span);
         }
     }
     let description = match taken {

@@ -2,7 +2,8 @@
 //! and re-project the touched systems; they never re-run an op.
 
 use crate::document::Document;
-use crate::ops::{Applied, OpError, refresh, slots};
+use crate::ops::{Applied, MetaEdit, OpError, refresh, slots};
+use crate::overlay::Anchor;
 use crate::projections::galaxy::GalaxyGraph;
 use crate::views::{HistoryEntry, HistoryView};
 
@@ -33,7 +34,7 @@ impl History {
         let Some(applied) = self.undo.pop() else {
             return Ok(None);
         };
-        restore_before(doc, &applied);
+        restore_before(doc, &applied.before, applied.meta.as_ref());
         let slots = slots(&applied.before);
         if let Err(e) = refresh(doc, graph, &applied.touched, &slots) {
             let _ = replay_after(doc, &applied);
@@ -57,7 +58,7 @@ impl History {
         let slots = slots(&applied.before);
         let replayed = replay_after(doc, &applied);
         if let Err(e) = replayed.and_then(|()| refresh(doc, graph, &applied.touched, &slots)) {
-            restore_before(doc, &applied);
+            restore_before(doc, &applied.before, applied.meta.as_ref());
             let _ = refresh(doc, graph, &applied.touched, &slots);
             self.redo.push(applied);
             return Err(e);
@@ -95,12 +96,17 @@ impl History {
     }
 }
 
-/// Put back what the op displaced, most recent replacement first.
-fn restore_before(doc: &mut Document, applied: &Applied) {
-    for (anchor, prev) in applied.before.iter().rev() {
+/// Put back what an op displaced, most recent replacement first, and the `meta` it
+/// rewrote.
+pub(super) fn restore_before(
+    doc: &mut Document,
+    before: &[(Anchor, Option<Vec<u8>>)],
+    meta: Option<&MetaEdit>,
+) {
+    for (anchor, prev) in before.iter().rev() {
         doc.restore(*anchor, prev.clone());
     }
-    if let Some(meta) = &applied.meta {
+    if let Some(meta) = meta {
         doc.restore_meta(meta.before.clone());
     }
 }

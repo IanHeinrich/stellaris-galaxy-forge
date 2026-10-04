@@ -349,10 +349,10 @@ fn a_save_exports_with_the_line_on_top_under_both_profiles() {
 
     let options = export::ScenarioOptions {
         exported_from: Some("odd (name)\r\n.sav".to_owned()),
-        ..export::options_for(&save.graph, NAME)
+        ..export::options_for(save.graph(), NAME)
     };
     let (text, _) = export::scenario_text(
-        &save.graph,
+        save.graph(),
         &options,
         &no_names,
         &no_sources,
@@ -362,9 +362,9 @@ fn a_save_exports_with_the_line_on_top_under_both_profiles() {
         text.starts_with(format!("{} (converted from save odd name.sav)\n", forge()).as_bytes())
     );
 
-    let unnamed = export::options_for(&save.graph, NAME);
+    let unnamed = export::options_for(save.graph(), NAME);
     let (text, _) = export::scenario_text(
-        &save.graph,
+        save.graph(),
         &unnamed,
         &no_names,
         &no_sources,

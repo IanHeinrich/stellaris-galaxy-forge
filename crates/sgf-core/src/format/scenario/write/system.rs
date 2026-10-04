@@ -340,7 +340,7 @@ pub(super) fn set_name(
     let edit = plan.edit(&s.doc, id)?;
     let named = edit.entity()?.find(keys::NAME, &edit.buf).map(Node::span);
     match (named, name.is_empty()) {
-        (Some(span), true) => edit.remove_statement(span),
+        (Some(span), true) => edit.bytes().remove_statement(span),
         (Some(_), false) => edit.set_scalar(&[keys::NAME], quoted(name))?,
         (None, true) => {}
         // The id opens the statement, so a name belongs right after it.
@@ -410,7 +410,7 @@ fn write_initializer(
                 .find(keys::INITIALIZER, &edit.buf)
                 .expect("just found")
                 .span();
-            edit.remove_statement(span);
+            edit.bytes().remove_statement(span);
         }
         (None, false) => {}
     }

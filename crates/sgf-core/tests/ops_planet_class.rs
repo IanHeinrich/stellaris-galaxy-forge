@@ -2,12 +2,12 @@
 //! and the inverse each put the original bytes back, and the refusals name what they refuse.
 //! The install's rules for each class are written out here, as the app sends them.
 
-use sgf_core::entity::get_planet_page;
+use sgf_core::entity::{EntityKind, get_planet_page};
 use sgf_core::ops::{ClassChange, Op, PlanetClassRule, PlanetLook};
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, round_trip_step, snapshot_step};
+use common::diff::{round_trip, round_trip_step};
 use common::examples::{ADDED_BODY, meissa_v};
 use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
 
@@ -40,7 +40,7 @@ fn set(planet: u32, from: &str, to: &str) -> Op {
 
 /// Planet `id`'s class, model index and model, as its page reads them from the bytes.
 fn look(session: &Session, id: u32) -> (String, Option<String>) {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     (page.class, page.entity_name)
 }
 
@@ -49,25 +49,20 @@ fn look(session: &Session, id: u32) -> (String, Option<String>) {
 fn change(planet: u32, from: &str, to: &str, snapshot: &str) {
     let mut session = open_4_5();
     session.warm_details().expect("build details");
-    let result = snapshot_step(&mut session, snapshot, set(planet, from, to));
-    assert_eq!(result.details_stale.len(), 1, "{snapshot}: stale");
-    assert!(!result.reclassifies);
+    let step = common::field_step(&mut session, snapshot, set(planet, from, to), |s| {
+        look(s, planet)
+    });
+    assert_eq!(step.result.details_stale.len(), 1, "{snapshot}: stale");
+    assert!(!step.result.reclassifies);
     assert!(session.built_details().is_some(), "{snapshot}: kept");
-    assert_eq!(look(&session, planet), (to.to_owned(), None));
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(
-        current(&session),
-        session.doc.original(),
-        "{snapshot}: undo"
-    );
+    assert_eq!(step.after, (to.to_owned(), None));
 
     let mut session = open_4_5();
     let applied = session.apply(set(planet, from, to)).expect("apply");
     session.apply(applied.inverse).expect("apply the inverse");
     assert_eq!(
         current(&session),
-        session.doc.original(),
+        session.doc().original(),
         "{snapshot}: inverse"
     );
 }
@@ -168,12 +163,7 @@ fn a_class_change_is_refused_for_stars_fixed_classes_and_colonies() {
         ),
         (set(585, "pc_barren", ""), "a planet class may not be empty"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// A colony may still go to a class open to colonies whose one model it lacks the index of.
@@ -183,10 +173,7 @@ fn a_colony_made_nuked_takes_its_one_model() {
     session
         .apply(set(2, "pc_continental", "pc_nuked"))
         .expect("a colony made a tomb world");
-    let text = String::from_utf8_lossy(&current(&session)).into_owned();
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets + text[planets..].find("\n\t\t2=\n").expect("planet 2");
-    let entity = &text[start..start + text[start..].find("\n\t\t}\n").expect("its end")];
+    let entity = common::entity_text(&session, EntityKind::Planet, 2);
     assert!(entity.contains("\n\t\t\tplanet_class=\"pc_nuked\"\n"));
     assert!(entity.contains("\n\t\t\tentity=0\n"), "{entity}");
 }
@@ -230,7 +217,7 @@ fn a_look_is_written_only_when_it_is_a_model_the_class_has() {
         let error = session.apply(with_look(look)).expect_err(message);
         assert_eq!(error.to_string(), message);
     }
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 
     session
         .apply(with_look(PlanetLook {
@@ -269,7 +256,7 @@ fn a_planet_with_a_megastructure_keeps_its_class() {
         error.to_string(),
         "planet 936 has a megastructure, so it keeps its class"
     );
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 /// `colony=4294967295` is the null id: the planet has no colony, as its page reads it.

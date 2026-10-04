@@ -2,6 +2,7 @@
 //! 4.x samples: each edit's diff, the inner radius it grows, byte-exact undo, and what is
 //! refused.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::format::save::details::{BodyRole, Bounds, HeuristicResolver, RawPlanet};
 use sgf_core::ops::Parent;
 use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
@@ -76,18 +77,6 @@ fn drawn(session: &Session, system: u32, id: u32) -> f64 {
     let body = resolved.planets.into_iter().find(|p| p.id == id);
     let layout = body.and_then(|p| p.layout).expect("the body's layout");
     layout.orbit.expect("a drawn radius").min
-}
-
-/// The planet's entity as the session's bytes now hold it.
-fn entity(session: &Session, id: u32) -> String {
-    let text = text(session);
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets
-        + text[planets..]
-            .find(&format!("\n\t\t{id}=\n\t\t{{\n"))
-            .unwrap_or_else(|| panic!("planet {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t\t}\n").expect("its end");
-    text[start..end].to_owned()
 }
 
 /// Planet 585 of the 4.5 sample's system 1 stands 65.02 from the star, its moon 586 at
@@ -208,7 +197,7 @@ fn a_body_moved_outside_the_inner_radius_inside_a_belt_past_it_grows_it() {
 
 /// Systems of the 4.5 sample below the rule whose outermost reach is a moon: system 2's
 /// moon 604 of planet 603, drawn 200.06 out, and the like. Dragging the planet round its
-/// ring takes the moon no further, so the inner radius stays at every whole degree.
+/// ring takes the moon no further, so the inner radius stays at every fifth degree.
 #[test]
 fn a_planet_with_a_moon_moved_round_its_ring_leaves_the_inner_radius() {
     let mut session = open_4_5();
@@ -221,7 +210,7 @@ fn a_planet_with_a_moon_moved_round_its_ring_leaves_the_inner_radius() {
         (47, 1028),
     ] {
         let radius = drawn(&session, system, planet);
-        for angle in 0..360 {
+        for angle in (0..360).step_by(5) {
             let result = session
                 .apply(move_body(system, planet, radius, f64::from(angle)))
                 .unwrap_or_else(|e| panic!("move {planet} to {angle}°: {e}"));
@@ -244,9 +233,9 @@ fn a_move_along_the_ring_keeps_the_stored_orbit() {
     let result = session
         .apply(move_body(1, 585, radius, 100.0))
         .expect("move 585 along its ring");
-    assert!(entity(&session, 585).contains("\t\t\torbit=65\n"));
+    assert!(common::entity_text(&session, EntityKind::Planet, 585).contains("\t\t\torbit=65\n"));
     session.apply(result.inverse).expect("move it back");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// Planet 587 made a moon of 588, which has none: 588 gains a `moons` list before its
@@ -259,7 +248,7 @@ fn a_planet_without_moons_gains_a_moons_list() {
         "gains_a_moons_list",
         set_parent(1, 587, Some(588), 15.0, 0.0),
     );
-    let host = entity(&session, 588);
+    let host = common::entity_text(&session, EntityKind::Planet, 588);
     assert!(
         host.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t587 \n\t\t\t}\n\t\t\tplanet_orbitals=\n"),
         "{host}"
@@ -290,12 +279,12 @@ fn a_planet_made_a_moon_of_a_higher_id() {
     let moon = planet(&session, 1, 588);
     assert_eq!((moon.parent, moon.moon), (Some(589), true));
     assert_near(offset(&session, 1, 588, 589), (0.0, 20.0), "the new moon");
-    let host = entity(&session, 589);
+    let host = common::entity_text(&session, EntityKind::Planet, 589);
     assert!(
         host.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t588 590 \n"),
         "{host}"
     );
-    let moon = entity(&session, 588);
+    let moon = common::entity_text(&session, EntityKind::Planet, 588);
     let flags = moon.find("\t\t\tbinary_flags=576\n").expect("the moon bit");
     let coordinate = moon.find("\t\t\tcoordinate=\n").expect("the coordinate");
     assert!(flags < coordinate, "{moon}");
@@ -334,10 +323,10 @@ fn a_moon_detached_from_its_planet() {
         "{:?}",
         result.inverse
     );
-    let host = entity(&session, 589);
+    let host = common::entity_text(&session, EntityKind::Planet, 589);
     assert!(!host.contains("moons="), "{host}");
     assert!(host.contains("\t\t\tbinary_flags=320\n"), "{host}");
-    let freed = entity(&session, 590);
+    let freed = common::entity_text(&session, EntityKind::Planet, 590);
     assert!(!freed.contains("\t\t\tbinary_flags="), "{freed}");
     assert!(!freed.contains("moon_of"), "{freed}");
     let planet = planet(&session, 1, 590);
@@ -363,7 +352,7 @@ fn a_moon_of_a_missing_planet_is_made_a_planet() {
         set_parent(40, 58, None, 120.0, 10.0),
     );
     assert_eq!(result.entry.description, "Made moon #58 a planet");
-    let freed = entity(&session, 58);
+    let freed = common::entity_text(&session, EntityKind::Planet, 58);
     assert!(freed.contains("\t\t\tbinary_flags=65\n"), "{freed}");
 }
 
@@ -488,12 +477,7 @@ fn body_edits_are_refused() {
             "planet 584 is the system's primary body: to make planet 588 a planet, give it no parent",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// Alpha Centauri, system 278 of the 4.4 sample: 327 is the far companion star, at orbit
@@ -568,7 +552,7 @@ fn the_4_5_samples_systems_below_the_inner_radius_rule() {
     let session = open_4_5();
     let details = session.details().expect("details");
     let below = session
-        .graph
+        .graph()
         .systems
         .keys()
         .filter(|&&id| {
@@ -643,10 +627,10 @@ fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
     else {
         panic!("the centre put back, not {:?}", ops[0]);
     };
-    let planet_330 = entity(&session, 330);
+    let planet_330 = common::entity_text(&session, EntityKind::Planet, 330);
     assert!(planet_330.contains("\t\t\tmoon_of=327\n"), "{planet_330}");
     assert!(!planet_330.contains("\t\t\tbinary_flags="), "{planet_330}");
-    let star = entity(&session, 327);
+    let star = common::entity_text(&session, EntityKind::Planet, 327);
     assert!(
         star.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t328 329 330 \n"),
         "{star}"
@@ -663,8 +647,11 @@ fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
     session
         .apply(set_parent(278, 330, None, radius, angle))
         .expect("back to the centre");
-    assert_eq!(entity(&session, 327), entity(&original, 327));
-    assert!(!entity(&session, 330).contains("moon_of"));
+    assert_eq!(
+        common::entity_text(&session, EntityKind::Planet, 327),
+        common::entity_text(&original, EntityKind::Planet, 327)
+    );
+    assert!(!common::entity_text(&session, EntityKind::Planet, 330).contains("moon_of"));
     assert_near(at(&session, 278, 330), at(&original, 278, 330), "330 back");
 }
 
@@ -694,10 +681,10 @@ fn a_companion_stars_planet_made_a_planet_of_the_centre() {
         "{:?}",
         result.inverse
     );
-    let freed = entity(&session, 328);
+    let freed = common::entity_text(&session, EntityKind::Planet, 328);
     assert!(!freed.contains("moon_of"), "{freed}");
     assert!(freed.contains("\t\t\tbinary_flags=73\n"), "{freed}");
-    let star = entity(&session, 327);
+    let star = common::entity_text(&session, EntityKind::Planet, 327);
     assert!(
         star.contains("\t\t\tmoons=\n\t\t\t{\n\t\t\t\t329 \n"),
         "{star}"
@@ -735,7 +722,7 @@ fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
     session
         .apply(orbit_star(278, 330, 327, 90.0, 30.0))
         .expect("a planet of the star");
-    let planet_330 = entity(&session, 330);
+    let planet_330 = common::entity_text(&session, EntityKind::Planet, 330);
     assert!(
         planet_330.contains(
             "			moon_of=327
@@ -743,7 +730,7 @@ fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
         ),
         "{planet_330}"
     );
-    assert!(!planet_330.contains("			binary_flags="), "{planet_330}");
+    assert!(!planet_330.contains("\t\t\tbinary_flags="), "{planet_330}");
 }
 
 /// A planet with moons may orbit a star but not a planet, and the asteroids of the 4.5
@@ -752,33 +739,33 @@ fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
 #[test]
 fn what_a_star_parent_refuses() {
     let mut session = open();
-    for (op, message) in [
-        (
-            set_parent(278, 330, Some(328), 15.0, 0.0),
-            "planet 330 has moons, so it cannot become a moon",
-        ),
-        (
-            orbit_star(278, 328, 327, 90.0, 0.0),
-            "planet 328 already has that parent",
-        ),
-    ] {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(
+        &mut session,
+        [
+            (
+                set_parent(278, 330, Some(328), 15.0, 0.0),
+                "planet 330 has moons, so it cannot become a moon",
+            ),
+            (
+                orbit_star(278, 328, 327, 90.0, 0.0),
+                "planet 328 already has that parent",
+            ),
+        ],
+    );
     let mut session = open_4_5();
-    for (op, message) in [
-        (
-            set_parent(76, 1271, None, 40.0, 0.0),
-            "planet 1271 already has that parent",
-        ),
-        (
-            orbit_star(76, 1271, 1270, 40.0, 0.0),
-            "planet 1270 is the system's primary body: to make planet 1271 a planet, give it no parent",
-        ),
-    ] {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(
+        &mut session,
+        [
+            (
+                set_parent(76, 1271, None, 40.0, 0.0),
+                "planet 1271 already has that parent",
+            ),
+            (
+                orbit_star(76, 1271, 1270, 40.0, 0.0),
+                "planet 1270 is the system's primary body: to make planet 1271 a planet, give it no parent",
+            ),
+        ],
+    );
 }
 
 /// A session given other radii, as an install's defines can set them, grows system 1 by

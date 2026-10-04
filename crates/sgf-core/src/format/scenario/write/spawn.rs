@@ -106,10 +106,10 @@ fn write_weight(
         // A block of modifiers alone states no base, so there is nothing to clear.
         (None, Some(block)) => match block.base {
             Some(_) if block.foreign_modifiers.is_empty() => {
-                edit.remove_statement(block.statement);
+                edit.bytes().remove_statement(block.statement);
                 removed_block = true;
             }
-            Some(span) => edit.remove_statement(span),
+            Some(span) => edit.bytes().remove_statement(span),
             None => {}
         },
         (None, None) => {}
@@ -157,18 +157,19 @@ fn write_script(
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
                 let after = last_of_id_name_position(edit)?;
                 let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
-                edit.insert_after(after, &text);
+                edit.bytes().insert_after(after, &text);
             }
             let text = paint::weight_statement(script);
             match standing {
-                Some(block) => edit.replace_statement(block.statement, &text),
+                Some(block) => edit.bytes().replace_statement(block.statement, &text),
                 None => insert_statement(edit, &text)?,
             }
         }
-        (None, Some(block)) => edit.remove_statement(block.statement),
+        (None, Some(block)) => edit.bytes().remove_statement(block.statement),
         (None, None) => {}
     }
-    Ok((paint::description(id, script), (id, previous)))
+    let description = paint::description(&named(&s.graph, id), script);
+    Ok((description, (id, previous)))
 }
 
 /// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites
@@ -232,7 +233,7 @@ fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
         Some(node) => node.span().end,
         None => last_of_id_name_position(edit)?,
     };
-    edit.insert_after(after, text);
+    edit.bytes().insert_after(after, text);
     Ok(())
 }
 

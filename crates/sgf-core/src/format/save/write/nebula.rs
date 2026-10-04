@@ -25,11 +25,11 @@ use crate::format::save::write::game_tables::is_cloud_kind;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::name_pool;
 use crate::keys;
-use crate::ops::rules::each_once;
 use crate::ops::rules::nebula::{
     Membership, Prospect, all_systems, decide_add, decide_membership, decide_move, decide_name,
     decide_radius, decide_remove, prospective,
 };
+use crate::ops::rules::{each_once, named};
 use crate::ops::{Edit, Emitted, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::plural;
 use crate::projections::name::looks_like_key;
@@ -252,8 +252,7 @@ pub(crate) fn plan_set_turbulent(
             continue;
         }
         if turbulent && standing.home {
-            let system = s.graph.systems.get(&id);
-            homes.push(system.map_or_else(|| id.to_string(), |sys| sys.display_name()));
+            homes.push(named(&s.graph, id));
         }
         footprints.set(plan, &standing, &target)?;
         had.push(standing.footprint);
@@ -348,13 +347,13 @@ pub(crate) fn plan_set_name(
     match (literal, flag) {
         (true, None) => edit.insert(after_key, emit::literal_line(&indent)),
         (true, Some(_)) => edit.set_scalar(&[keys::NAME, keys::LITERAL], "yes")?,
-        (false, Some(span)) => edit.remove_lines(span),
+        (false, Some(span)) => edit.bytes().remove_lines(span),
         (false, None) => {}
     }
     // The new name is one text, not a format string: whatever the old one substituted
     // into has nowhere left to go.
     if let Some(span) = variables {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
         set.dropped_variables = true;
     }
     let staying = others_named(s, index, &set.from);
@@ -413,7 +412,7 @@ fn remove_member(edit: &mut Edit, id: u32) -> Result<(), OpError> {
         edit.require_alone_on_line(span, "member line")?;
     }
     for span in removing {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     Ok(())
 }

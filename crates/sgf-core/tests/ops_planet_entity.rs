@@ -2,6 +2,7 @@
 //! planet page and the system details read the model back, and undo puts the original bytes
 //! back.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::entity::get_planet_page;
 use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::Op;
@@ -9,7 +10,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open_4_5, text};
+use common::{current, open_4_5};
 
 const PARADISE: &str = "ocean_paradise_planet_01_entity";
 
@@ -22,14 +23,14 @@ fn set(planet: u32, entity: Option<&str>) -> Op {
 
 /// Planet `id`'s model, as its page reads it from the session's bytes.
 fn model(session: &Session, id: u32) -> Option<String> {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     page.entity_name
 }
 
 /// Planet `id`'s model as its system's details read it, from the projection built before the
 /// edit.
 fn drawn_model(session: &Session, id: u32) -> Option<String> {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     let system = page.system.expect("the planet's system");
     let details = session.built_details().expect("the details kept");
     let resolved = details.resolve(system, &HeuristicResolver, false);
@@ -43,15 +44,9 @@ fn drawn_model(session: &Session, id: u32) -> Option<String> {
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
 fn flags(session: &Session, id: u32) -> Option<String> {
-    let text = text(session);
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets
-        + text[planets..]
-            .find(&format!("\n\t\t{id}=\n\t\t{{\n"))
-            .unwrap_or_else(|| panic!("planet {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t\t}\n").expect("its end");
-    let entity = &text[start..end];
-    let at = entity.find("\n\t\t\tbinary_flags=")? + "\n\t\t\tbinary_flags=".len();
+    const KEY: &str = "\n\t\t\tbinary_flags=";
+    let entity = common::entity_text(session, EntityKind::Planet, id);
+    let at = entity.find(KEY)? + KEY.len();
     Some(entity[at..].lines().next().unwrap_or_default().to_owned())
 }
 
@@ -59,29 +54,12 @@ fn flags(session: &Session, id: u32) -> Option<String> {
 /// original bytes and model back and redo the new one.
 fn change(planet: u32, entity: Option<&str>, snapshot: &str) -> Session {
     let mut session = open_4_5();
-    let before = model(&session, planet);
-    let result = snapshot_step(&mut session, snapshot, set(planet, entity));
-    assert_eq!(result.inverse, set(planet, before.as_deref()));
-    assert!(!result.reclassifies);
-    assert_eq!(
-        model(&session, planet).as_deref(),
-        entity,
-        "{snapshot}: after"
-    );
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(
-        current(&session),
-        session.doc.original(),
-        "{snapshot}: undo"
-    );
-    assert_eq!(model(&session, planet), before, "{snapshot}: undone");
-    session.redo().expect("redo").expect("something to redo");
-    assert_eq!(
-        model(&session, planet).as_deref(),
-        entity,
-        "{snapshot}: redone"
-    );
+    let step = common::field_step(&mut session, snapshot, set(planet, entity), |s| {
+        model(s, planet)
+    });
+    assert_eq!(step.after.as_deref(), entity, "{snapshot}");
+    assert_eq!(step.result.inverse, set(planet, step.before.as_deref()));
+    assert!(!step.result.reclassifies);
     session
 }
 
@@ -192,14 +170,11 @@ fn a_model_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         ),
         (set(585, Some("")), "a planet model may not be empty"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(&mut session, refusals);
     let error = session
         .apply(set(585, Some("two words")))
         .expect_err("not an identifier");
     assert!(error.to_string().contains("two words"), "{error}");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
     assert!(session.history().undo.is_empty());
 }

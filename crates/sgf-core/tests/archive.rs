@@ -29,7 +29,7 @@ fn each_samples_galaxy_settings_are_read_without_loading_the_save() {
     for (name, path) in [("galaxy_4_4", SAMPLE), ("galaxy_4_5", SAMPLE_4_5)] {
         let settings = archive::read_galaxy_settings(path).expect("read the galaxy block");
         let session = Session::open(path).expect("open the sample");
-        let setup = session.graph.setup.clone().expect("a setup");
+        let setup = session.graph().setup.clone().expect("a setup");
         assert_eq!(settings.template.as_deref(), Some(setup.template.as_str()));
         assert_eq!(settings.num_empires, Some(setup.num_empires));
         assert_eq!(settings.num_hyperlanes, Some(setup.num_hyperlanes));

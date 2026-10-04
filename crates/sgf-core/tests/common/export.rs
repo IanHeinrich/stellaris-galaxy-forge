@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::projections::galaxy::Galaxy;
+use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
 
 /// The committed fixtures' name: the sample save's file stem, as the exporter defaults to.
@@ -38,11 +39,20 @@ pub fn exported_as(
     name: &str,
     profile: ScenarioProfile,
 ) -> (Vec<u8>, ExportReport) {
+    exported_graph_as(session.graph(), name, profile)
+}
+
+/// [`exported_as`] for a galaxy that need not be a session's.
+pub fn exported_graph_as(
+    graph: &GalaxyGraph,
+    name: &str,
+    profile: ScenarioProfile,
+) -> (Vec<u8>, ExportReport) {
     let options = export::ScenarioOptions {
         exported_from: Some(SAVE_FILE.to_owned()),
-        ..export::options_for(&session.graph, name)
+        ..export::options_for(graph, name)
     };
-    export::scenario_text(&session.graph, &options, &no_names, &no_sources, profile)
+    export::scenario_text(graph, &options, &no_names, &no_sources, profile)
 }
 
 /// `text` with this version of Forge in its first line written as `0.0.0`, the version
@@ -80,8 +90,8 @@ pub fn find(bytes: &[u8], from: usize, needle: &str) -> usize {
         .unwrap_or_else(|| panic!("{needle:?} not found"))
 }
 
-pub fn default_capitals(save: &Session) -> BTreeSet<u32> {
-    save.graph
+pub fn default_capitals(graph: &GalaxyGraph) -> BTreeSet<u32> {
+    graph
         .countries
         .iter()
         .filter(|c| c.country_type == "default")

@@ -261,7 +261,7 @@ impl Plan {
                     touched.push(subject);
                 }
                 Err(e) => {
-                    rollback(session, &before, &touched);
+                    rollback(session, &before, &touched, None);
                     return Err(e.into());
                 }
             }
@@ -274,7 +274,7 @@ impl Plan {
                     touched.push(what.subject(anchor));
                 }
                 Err(e) => {
-                    rollback(session, &before, &touched);
+                    rollback(session, &before, &touched, None);
                     return Err(e.into());
                 }
             }
@@ -292,7 +292,7 @@ impl Plan {
                 touched.dedup();
             }
             Err(e) => {
-                rollback(session, &before, &touched);
+                rollback(session, &before, &touched, None);
                 return Err(e);
             }
         }

@@ -9,7 +9,8 @@ use common::{open, open_3_4, open_4_5};
 
 #[test]
 fn the_4_4_sample_carries_its_setup_screen_and_player_country() {
-    let g = open().graph;
+    let session = open();
+    let g = session.graph();
     assert_eq!(
         g.setup,
         Some(GameSetup {
@@ -74,7 +75,7 @@ fn runtime(settings: &GalaxySettings) -> Vec<(&'static str, Option<f64>)> {
 #[test]
 fn each_sample_carries_the_settings_the_game_keeps_reading() {
     for (label, session, crises) in [("4.4", open(), 5.0), ("4.5", open_4_5(), 1.0)] {
-        let settings = session.graph.settings.clone().expect("a save's settings");
+        let settings = session.graph().settings.clone().expect("a save's settings");
         assert_eq!(settings.crisis_type.as_deref(), Some("all"), "{label}");
         let expected = [
             crises, 150.0, 225.0, 1050.0, 1.0, 5.0, 1.0, 2.0, 5.0, 8.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -85,7 +86,7 @@ fn each_sample_carries_the_settings_the_game_keeps_reading() {
         }
     }
     let old = open_3_4()
-        .graph
+        .graph()
         .settings
         .clone()
         .expect("3.4 writes a galaxy block");
@@ -120,8 +121,8 @@ fn each_sample_carries_its_abundance_and_the_l_gate_outcome_it_rolled() {
         ),
     ] {
         assert_eq!(session.resource_abundance(), Some(2.0), "{label}");
-        assert_eq!(session.graph.lgate, unopened(outcome), "{label}");
-        assert_eq!(session.graph.kaleidoscope, kaleidoscope, "{label}");
+        assert_eq!(session.graph().lgate, unopened(outcome), "{label}");
+        assert_eq!(session.graph().kaleidoscope, kaleidoscope, "{label}");
     }
     assert_eq!(
         open_3_4().resource_abundance(),
@@ -133,9 +134,9 @@ fn each_sample_carries_its_abundance_and_the_l_gate_outcome_it_rolled() {
 #[test]
 fn a_scenario_carries_none_of_them() {
     let session = PAINTED.open();
-    assert_eq!(session.graph.setup, None);
-    assert_eq!(session.graph.settings, None);
-    assert_eq!(session.graph.player_country, None);
+    assert_eq!(session.graph().setup, None);
+    assert_eq!(session.graph().settings, None);
+    assert_eq!(session.graph().player_country, None);
     assert_eq!(session.resource_abundance(), None);
-    assert!(!session.graph.kaleidoscope);
+    assert!(!session.graph().kaleidoscope);
 }

@@ -32,8 +32,8 @@ fn refreshed_in_place(op: Op, system: u32) -> Session {
             assert_eq!(details.raw(26), Some(&other), "{step}: system 26");
         }
         let fresh = DetailsProjection::build(
-            &session.doc,
-            &session.graph,
+            session.doc(),
+            session.graph(),
             Arc::clone(session.star_classes()),
         )
         .expect("a fresh build");
@@ -185,8 +185,8 @@ fn matches_a_fresh_build(session: &Session, systems: &[u32], name: &str, step: &
         .built_details()
         .unwrap_or_else(|| panic!("{name}: the {step} dropped the details"));
     let fresh = DetailsProjection::build(
-        &session.doc,
-        &session.graph,
+        session.doc(),
+        session.graph(),
         Arc::clone(session.star_classes()),
     )
     .expect("a fresh build");

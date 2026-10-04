@@ -325,17 +325,30 @@ fn every_located_system_is_returned_beyond_the_limit() {
     assert!(miasma.systems.is_empty(), "{:?}", miasma.systems);
 }
 
+/// The precursor regions the 4.5 sample flags: the flag, the name the install gives it, the
+/// query that finds it and how many systems carry it.
+const REGIONS: [(&str, &str, &str, usize); 7] = [
+    ("precursor_1", "Vultaum", "vultaum", 82),
+    ("precursor_2", "Yuht", "yuht", 88),
+    ("precursor_3", "First League", "first league", 82),
+    ("precursor_4", "Irassian", "irassian", 85),
+    ("precursor_5", "Cybrex", "cybrex", 90),
+    ("precursor_zroni_1", "Zroni", "zroni", 85),
+    ("precursor_adakkaria", "adAkkaria", "adakkaria", 73),
+];
+
 #[test]
 fn a_flag_matches_by_its_localised_name() {
     let s = common::open_4_5();
-    let loc = |key: &str| match key {
-        "precursor_1" => Some("Vultaum".to_owned()),
-        "precursor_zroni_1" => Some("Zroni".to_owned()),
-        _ => None,
+    let loc = |key: &str| {
+        REGIONS
+            .iter()
+            .find(|(flag, ..)| *flag == key)
+            .map(|(_, name, ..)| (*name).to_owned())
     };
     let flagged = |flag: &str| -> Vec<u32> {
         let mut ids: Vec<u32> = s
-            .graph
+            .graph()
             .systems
             .values()
             .filter(|system| system.flags.iter().any(|f| f == flag))
@@ -353,18 +366,16 @@ fn a_flag_matches_by_its_localised_name() {
         ids
     };
 
-    let vultaum = found("vultaum", &loc);
-    assert_eq!(vultaum.len(), 82);
-    assert_eq!(ids(&vultaum), flagged("precursor_1"));
-    assert!(
-        vultaum
-            .iter()
-            .all(|h| h.matched_on.as_deref() == Some("Vultaum"))
-    );
-
-    let zroni = found("zroni", &loc);
-    assert_eq!(zroni.len(), 85);
-    assert_eq!(ids(&zroni), flagged("precursor_zroni_1"));
-
-    assert!(found("vultaum", &no_loc).is_empty());
+    for (flag, name, query, count) in REGIONS {
+        let hits = found(query, &loc);
+        assert_eq!(hits.len(), count, "{query}");
+        assert_eq!(ids(&hits), flagged(flag), "{query}");
+        assert!(
+            hits.iter().all(|h| h.matched_on.as_deref() == Some(name)),
+            "{query}"
+        );
+        if !flag.contains(query) {
+            assert!(found(query, &no_loc).is_empty(), "{query} without a name");
+        }
+    }
 }

@@ -18,5 +18,3 @@ inverse: SetEmpireFlag { country: 34, flag: EmpireFlag { icon_category: "pre_ftl
  				"null"
  				"null"
  				"null"
-
-meta unchanged

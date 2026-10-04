@@ -45,8 +45,8 @@ fn two_homes_of_one_clan_are_reported_together_and_only_one_spawns() {
         session.system(10).and_then(|s| s.marauder),
         Some(MarauderRole::Home(1))
     );
-    assert_eq!(homes(&session.graph).get(&1), Some(&vec![10, 11]));
-    assert_eq!(clan_count(&session.graph), 1);
+    assert_eq!(homes(session.graph()).get(&1), Some(&vec![10, 11]));
+    assert_eq!(clan_count(session.graph()), 1);
     let issues = session.validate();
     let duplicate = coded(&issues, IssueCode::MarauderHomeDuplicate);
     assert_eq!(duplicate.len(), 1, "{issues:?}");
@@ -138,8 +138,8 @@ fn a_home_beside_a_seat_is_worth_a_look_on_a_painted_map() {
 fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
     assert_eq!(CLANS, 3);
     let plain = PAINTED.open();
-    assert!(homes(&plain.graph).is_empty());
-    assert_eq!(clan_count(&plain.graph), 0);
+    assert!(homes(plain.graph()).is_empty());
+    assert_eq!(clan_count(plain.graph()), 0);
 
     let two = PAINTED.open_edited(&[
         (
@@ -151,7 +151,7 @@ fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
             "id = \"11\" position = { x = -150 y = -30 } initializer = marauder_2_1 }",
         ),
     ]);
-    assert_eq!(clan_count(&two.graph), 2);
+    assert_eq!(clan_count(two.graph()), 2);
 
     let three = PAINTED.open_edited(&[
         (
@@ -167,7 +167,7 @@ fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
             "id = \"7\" position = { x = 20 y = -20 } name = \"Ingress\" initializer = marauder_3_1",
         ),
     ]);
-    assert_eq!(clan_count(&three.graph), 3);
+    assert_eq!(clan_count(three.graph()), 3);
 
     let mut session = PAINTED.open();
     session
@@ -180,7 +180,7 @@ fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
         session.system(10).and_then(|s| s.marauder),
         Some(MarauderRole::Home(3))
     );
-    assert_eq!(homes(&session.graph).get(&3), Some(&vec![10]));
+    assert_eq!(homes(session.graph()).get(&3), Some(&vec![10]));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(session.system(10).and_then(|s| s.marauder), None);
 }
@@ -196,16 +196,16 @@ fn the_sample_saves_two_clans_read_from_their_initializers_and_raise_no_issue() 
     assert_eq!(role(76), Some(MarauderRole::Base(2)));
     assert_eq!(role(435), Some(MarauderRole::Base(2)));
     assert_eq!(
-        save.graph
+        save.graph()
             .systems
             .values()
             .filter(|s| s.marauder.is_some())
             .count(),
         6
     );
-    assert_eq!(homes(&save.graph).get(&1), Some(&vec![13]));
-    assert_eq!(homes(&save.graph).get(&2), Some(&vec![12]));
-    assert_eq!(clan_count(&save.graph), 2);
+    assert_eq!(homes(save.graph()).get(&1), Some(&vec![13]));
+    assert_eq!(homes(save.graph()).get(&2), Some(&vec![12]));
+    assert_eq!(clan_count(save.graph()), 2);
     let issues = save.validate();
     assert!(marauder_issues(&issues).is_empty(), "{issues:?}");
 }
@@ -286,8 +286,8 @@ fn a_home_with_two_bases_but_one_not_hyperlaned_still_raises_the_issue() {
 #[test]
 fn the_paint_fixture_exports_both_clans_complete_and_raises_no_bases_missing_issue() {
     let session = EXPORTED_PAINT.open();
-    assert_eq!(homes(&session.graph).get(&1), Some(&vec![13]));
-    assert_eq!(homes(&session.graph).get(&2), Some(&vec![12]));
+    assert_eq!(homes(session.graph()).get(&1), Some(&vec![13]));
+    assert_eq!(homes(session.graph()).get(&2), Some(&vec![12]));
     let issues = session.validate();
     assert!(
         coded(&issues, IssueCode::MarauderBasesMissing).is_empty(),

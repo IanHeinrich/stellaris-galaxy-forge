@@ -1,7 +1,7 @@
 //! The op vocabulary: every edit the editor can make and the entries its plural ops take.
 
 use serde::{Deserialize, Serialize};
-use strum::IntoStaticStr;
+use strum::{IntoStaticStr, VariantNames};
 use ts_rs::TS;
 
 use crate::format::save::system_spec::SystemSpec;
@@ -10,7 +10,7 @@ use crate::ops::OpError;
 use crate::projections::galaxy::{LGateOutcome, SpawnScript};
 use crate::views::{DocumentKind, OrbitPlacement};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr, VariantNames)]
 #[ts(export)]
 #[serde(tag = "type")]
 pub enum Op {

@@ -10,6 +10,7 @@ use sgf_core::ops::{
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::views::OrbitPlacement;
+use strum::VariantNames;
 
 use super::brush::new_system;
 use super::fixture::PAINTED;
@@ -617,26 +618,10 @@ pub fn one_of_each() -> Vec<Example> {
     let names: Vec<&str> = examples.iter().map(Example::name).collect();
     assert_eq!(
         names,
-        variant_names(),
+        Op::VARIANTS,
         "one example of each variant, in declaration order"
     );
     examples
-}
-
-/// Every variant `Op` declares, as its derived deserialiser lists them when refusing an
-/// unknown tag.
-fn variant_names() -> Vec<String> {
-    let error = serde_json::from_str::<Op>(r#"{"type":"?"}"#).expect_err("no such variant");
-    let message = error.to_string();
-    let (_, listed) = message
-        .split_once("expected one of ")
-        .unwrap_or_else(|| panic!("{message}"));
-    listed
-        .split('`')
-        .skip(1)
-        .step_by(2)
-        .map(str::to_owned)
-        .collect()
 }
 
 fn moved(id: u32, x: f64, y: f64) -> SystemMove {

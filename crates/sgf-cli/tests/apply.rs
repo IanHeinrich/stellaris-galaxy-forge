@@ -38,7 +38,7 @@ fn apply_writes_the_edited_save_to_the_output_path() {
     let op = json!({ "type": "MoveSystem", "system": 0, "x": -150, "y": 60 });
     let (text, path) = applied(SAMPLE, &[op]);
     assert!(
-        text.contains("Moved Gamma Refuge (#0) from (-144.22, 57.36) to (-150, 60)"),
+        text.contains("Moved Gamma Refuge #0 from (-144.22, 57.36) to (-150, 60)"),
         "{text}"
     );
     assert!(
@@ -87,7 +87,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
         (
             SAMPLE,
             vec![json!({ "type": "NormaliseLaneLength", "a": 788, "b": 760 })],
-            vec!["Normalised lane 788 <-> 760 length from 20.70131 to 20"],
+            vec!["Normalised lane Raprix #788 <-> Kachada #760 length from 20.70131 to 20"],
         ),
         (
             SAMPLE,
@@ -211,7 +211,7 @@ fn apply_writes_an_op_of_each_family_and_the_result_validates() {
             vec![
                 "Set header priority to 7",
                 "Set the spawn weight of Gamma Refuge #0 to 3",
-                "Prevented lane 0 <-> 5",
+                "Prevented lane Gamma Refuge #0 <-> Bir #5",
             ],
         ),
     ];

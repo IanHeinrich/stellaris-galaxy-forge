@@ -85,7 +85,7 @@ fn the_move_back_writes_the_bytes_the_game_wrote() {
         .apply(move_wormhole(1, 300.0, 45.0))
         .expect("the move");
     session.apply(result.inverse).expect("move it back");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// Details built after the move read the same point as details refreshed by it.
@@ -96,7 +96,7 @@ fn details_built_after_the_move_read_the_new_point() {
         .apply(move_wormhole(1, 120.0, 200.0))
         .expect("the move");
     let refreshed = wormholes(&session, 489);
-    let rebuilt = Session::from_document(None, session.doc.clone()).expect("project the doc");
+    let rebuilt = Session::from_document(None, session.doc().clone()).expect("project the doc");
     assert_eq!(wormholes(&rebuilt, 489), refreshed);
     assert_eq!(refreshed[0].x, -112.76311);
     assert_eq!(refreshed[0].y, -41.04242);
@@ -123,7 +123,7 @@ fn a_shroud_tunnel_is_listed_but_not_moved() {
         error.to_string(),
         "natural wormhole 0 has bypass type \"shroud_tunnel\": only a wormhole can be moved"
     );
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 #[test]
@@ -147,11 +147,7 @@ fn wormhole_moves_are_refused() {
             "value is not a finite number",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]

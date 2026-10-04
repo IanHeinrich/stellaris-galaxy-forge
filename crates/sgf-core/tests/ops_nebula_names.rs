@@ -45,16 +45,16 @@ fn pooled(session: &Session, name: &str) -> usize {
 
 /// Two names the pool holds.
 fn two_free(session: &Session) -> (String, String) {
-    let free = free_nebula_names(&session.doc);
+    let free = free_nebula_names(session.doc());
     (free[0].clone(), free[1].clone())
 }
 
 #[test]
 fn the_pool_holds_the_names_no_nebula_of_the_galaxy_took() {
     for session in samples() {
-        let free = free_nebula_names(&session.doc);
+        let free = free_nebula_names(session.doc());
         assert!(!free.is_empty());
-        for nebula in &session.graph.nebulae {
+        for nebula in &session.graph().nebulae {
             assert!(!free.contains(&nebula.name.key), "{}", nebula.name.key);
         }
     }
@@ -67,15 +67,15 @@ fn the_pool_holds_the_names_no_nebula_of_the_galaxy_took() {
 fn a_new_nebula_takes_its_name_from_the_pool_and_a_removal_gives_it_back() {
     for mut session in samples() {
         let (name, _) = two_free(&session);
-        let free = free_nebula_names(&session.doc);
-        let index = session.graph.nebulae.len();
+        let free = free_nebula_names(session.doc());
+        let index = session.graph().nebulae.len();
 
         round_trip_step(&mut session, "add", add(&name));
         assert_eq!(pooled(&session, &name), 0);
-        let left = free_nebula_names(&session.doc);
+        let left = free_nebula_names(session.doc());
         assert_eq!(left.len(), free.len() - 1);
         assert!(!left.contains(&name));
-        let added = &session.graph.nebulae[index];
+        let added = &session.graph().nebulae[index];
         assert_eq!(added.name.key, name);
         assert!(
             !added.name.literal,
@@ -88,12 +88,12 @@ fn a_new_nebula_takes_its_name_from_the_pool_and_a_removal_gives_it_back() {
         assert_eq!(pooled(&session, &name), 0, "the other still holds it");
         session.apply(remove(index)).expect("remove the other");
         assert_eq!(pooled(&session, &name), 1);
-        assert_eq!(free_nebula_names(&session.doc), free);
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(free_nebula_names(session.doc()), free);
+        assert_eq!(current(&session), session.doc().original());
 
         session.apply(add(UNPOOLED)).expect("add off the pool");
-        assert_eq!(free_nebula_names(&session.doc), free);
-        assert!(session.graph.nebulae[index].name.literal);
+        assert_eq!(free_nebula_names(session.doc()), free);
+        assert!(session.graph().nebulae[index].name.literal);
     }
 }
 
@@ -105,10 +105,10 @@ fn a_new_nebula_takes_its_name_from_the_pool_and_a_removal_gives_it_back() {
 fn a_rename_puts_the_old_name_back_and_takes_the_new_one() {
     for mut session in samples() {
         let (first, second) = two_free(&session);
-        let free = free_nebula_names(&session.doc);
-        let index = session.graph.nebulae.len();
-        let held = session.graph.nebulae[0].name.key.clone();
-        let only_the_file = session.graph.nebulae[1].name.key.clone();
+        let free = free_nebula_names(session.doc());
+        let index = session.graph().nebulae.len();
+        let held = session.graph().nebulae[0].name.key.clone();
+        let only_the_file = session.graph().nebulae[1].name.key.clone();
         session.apply(add(&first)).expect("add");
 
         let result = round_trip_step(&mut session, "rename", rename(index, &second));
@@ -119,22 +119,22 @@ fn a_rename_puts_the_old_name_back_and_takes_the_new_one() {
             .apply(rename(index, UNPOOLED))
             .expect("rename off the pool");
         assert_eq!(pooled(&session, &second), 1);
-        assert_eq!(free_nebula_names(&session.doc), free);
+        assert_eq!(free_nebula_names(session.doc()), free);
         session
             .apply(rename(index, &only_the_file))
             .expect("rename onto a name only the file holds");
-        assert_eq!(free_nebula_names(&session.doc), free);
+        assert_eq!(free_nebula_names(session.doc()), free);
         assert_eq!(pooled(&session, &only_the_file), 0);
 
         session.apply(rename(index, &first)).expect("rename back");
-        let taken = free_nebula_names(&session.doc);
+        let taken = free_nebula_names(session.doc());
         round_trip_step(
             &mut session,
             "rename the file's nebula onto it",
             rename(0, &first),
         );
-        assert_eq!(session.graph.nebulae[0].name.key, first);
-        assert_eq!(free_nebula_names(&session.doc), taken);
+        assert_eq!(session.graph().nebulae[0].name.key, first);
+        assert_eq!(free_nebula_names(session.doc()), taken);
         session.apply(remove(index)).expect("remove the added one");
         assert_eq!(
             pooled(&session, &first),
@@ -143,7 +143,7 @@ fn a_rename_puts_the_old_name_back_and_takes_the_new_one() {
         );
         session.apply(rename(0, &held)).expect("rename back");
         assert_eq!(pooled(&session, &first), 1);
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
 
         session
             .apply(rename(0, &first))
@@ -157,7 +157,7 @@ fn a_rename_puts_the_old_name_back_and_takes_the_new_one() {
         );
         session.apply(rename(0, &held)).expect("rename back");
         assert_eq!(pooled(&session, &first), 1);
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -166,11 +166,11 @@ fn a_rename_puts_the_old_name_back_and_takes_the_new_one() {
 #[test]
 fn removing_a_nebula_the_file_held_gives_back_only_a_pooled_name() {
     for mut session in samples() {
-        let free = free_nebula_names(&session.doc);
+        let free = free_nebula_names(session.doc());
         let (name, _) = two_free(&session);
-        let held = session.graph.nebulae[0].name.key.clone();
+        let held = session.graph().nebulae[0].name.key.clone();
         round_trip_step(&mut session, "remove", remove(0));
-        assert_eq!(free_nebula_names(&session.doc), free);
+        assert_eq!(free_nebula_names(session.doc()), free);
         assert_eq!(pooled(&session, &held), 0, "its own name is not added");
         session.undo().expect("undo").expect("the removal");
 
@@ -179,24 +179,24 @@ fn removing_a_nebula_the_file_held_gives_back_only_a_pooled_name() {
         session.apply(remove(0)).expect("remove");
         assert_eq!(pooled(&session, &name), 1);
         assert_eq!(pooled(&session, &held), 0);
-        assert_eq!(free_nebula_names(&session.doc), free);
+        assert_eq!(free_nebula_names(session.doc()), free);
     }
 }
 
 #[test]
 fn a_scenario_has_no_pool_and_names_its_nebula_all_the_same() {
     let mut session = EXPORTED.open();
-    assert!(free_nebula_names(&session.doc).is_empty());
-    let index = session.graph.nebulae.len();
+    assert!(free_nebula_names(session.doc()).is_empty());
+    let index = session.graph().nebulae.len();
     round_trip_step(&mut session, "add", add("Yinarim_Nebula"));
-    assert_eq!(session.graph.nebulae[index].name.key, "Yinarim_Nebula");
+    assert_eq!(session.graph().nebulae[index].name.key, "Yinarim_Nebula");
 }
 
 #[test]
 fn the_diffs_a_pooled_name_writes() {
     let mut session = open();
     let (first, second) = two_free(&session);
-    let index = session.graph.nebulae.len();
+    let index = session.graph().nebulae.len();
     let added = session.apply(add(&first)).expect("add");
     common::snapshot("add_nebula_pooled", &report(&session, &added));
     common::snapshot(

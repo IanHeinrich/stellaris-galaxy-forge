@@ -11,7 +11,7 @@
 use std::fmt::Write as _;
 
 use crate::emit::{coord, rounded};
-use crate::ops::rules::check_name;
+use crate::ops::rules::{check_name, named};
 use crate::ops::{Op, OpError};
 use crate::plural;
 use crate::projections::galaxy::{GalaxyGraph, Nebula, nearest_prospective};
@@ -428,7 +428,7 @@ pub(crate) fn describe_membership(
         let nebula = graph.nebulae[c.nebula].display_name();
         let verb = if c.joined { "joined" } else { "left" };
         if name_systems {
-            let system = graph.systems[&c.system].display_name();
+            let system = named(graph, c.system);
             write!(out, "; {system} {verb} {nebula}").unwrap();
         } else {
             write!(out, "; {verb} {nebula}").unwrap();

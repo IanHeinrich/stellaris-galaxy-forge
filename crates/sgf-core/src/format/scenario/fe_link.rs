@@ -18,13 +18,13 @@ use ts_rs::TS;
 
 use crate::projections::galaxy::Galaxy;
 
-pub const CUSTOM_CONNECTIONS: &str = "painted_galaxy_fe_custom_connections";
-pub const ID_PREFIX: &str = "painted_galaxy_fe_custom_connection_id_";
-pub const TO_PREFIX: &str = "painted_galaxy_fe_custom_connection_to_";
+pub(crate) const CUSTOM_CONNECTIONS: &str = "painted_galaxy_fe_custom_connections";
+pub(crate) const ID_PREFIX: &str = "painted_galaxy_fe_custom_connection_id_";
+pub(crate) const TO_PREFIX: &str = "painted_galaxy_fe_custom_connection_to_";
 /// The ids the mod looks for: `0` up to but not including this.
 pub const MOST_IDS: u8 = 100;
 /// How far the mod's own rule reaches when it links a fallen empire to its neighbours.
-pub const LINK_REACH: f64 = 100.0;
+pub(crate) const LINK_REACH: f64 = 100.0;
 
 /// One system's custom connection flags, exactly as the file has them: whether it takes
 /// custom connections for the zone it anchors, the id it takes them under, and the ids

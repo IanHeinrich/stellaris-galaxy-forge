@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Moved Inegore (#786) from (-59.10617, -192.19434) to (-60, -190); updated 6 lane lengths
+Moved Inegore #786 from (-59.10617, -192.19434) to (-60, -190); updated 6 lane lengths
 touched: [567, 590, 786, 787]
 inverse: MoveSystem { system: 786, x: -59.10617, y: -192.19434 }
 … and 3 other issues

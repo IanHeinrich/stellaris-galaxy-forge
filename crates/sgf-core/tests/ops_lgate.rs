@@ -25,7 +25,7 @@ fn unopened(outcome: LGateOutcome) -> Option<LGate> {
 /// the bytes and the app's delta read it.
 fn switch(session: &mut Session, outcome: LGateOutcome, snapshot: &str) -> OpResult {
     let result = snapshot_step(session, snapshot, set(outcome));
-    assert_eq!(session.graph.lgate, unopened(outcome), "{snapshot}");
+    assert_eq!(session.graph().lgate, unopened(outcome), "{snapshot}");
     assert_eq!(reprojected(session).lgate, unopened(outcome), "{snapshot}");
     let edit = session.edit_result(result.clone());
     assert_eq!(
@@ -38,7 +38,10 @@ fn switch(session: &mut Session, outcome: LGateOutcome, snapshot: &str) -> OpRes
 
 #[test]
 fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
-    assert_eq!(open_4_5().graph.lgate, unopened(LGateOutcome::GrayTempest));
+    assert_eq!(
+        open_4_5().graph().lgate,
+        unopened(LGateOutcome::GrayTempest)
+    );
     for (outcome, snapshot) in [
         (LGateOutcome::LDrakes, "gray_tempest_to_l_drakes"),
         (
@@ -57,8 +60,8 @@ fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
         }
         assert_eq!(result.inverse, set(LGateOutcome::GrayTempest));
         session.apply(result.inverse).unwrap();
-        assert_eq!(current(&session), session.doc.original());
-        assert_eq!(session.graph.lgate, unopened(LGateOutcome::GrayTempest));
+        assert_eq!(current(&session), session.doc().original());
+        assert_eq!(session.graph().lgate, unopened(LGateOutcome::GrayTempest));
     }
 }
 
@@ -82,7 +85,7 @@ fn the_outcome_is_refused_once_a_gate_has_opened_or_where_there_is_none_to_set()
     let mut no_gate = open_edited(|gamestate| {
         *gamestate = gamestate.replace("type=\"lgate\"", "type=\"sgf_test\"");
     });
-    assert_eq!(no_gate.graph.lgate, None);
+    assert_eq!(no_gate.graph().lgate, None);
     assert!(matches!(
         no_gate.apply(set(LGateOutcome::LDrakes)),
         Err(OpError::NoLGate)
@@ -96,6 +99,6 @@ fn the_outcome_is_refused_once_a_gate_has_opened_or_where_there_is_none_to_set()
     );
 
     for session in [&opened, &no_gate, &unchanged] {
-        assert!(!session.doc.is_dirty());
+        assert!(!session.doc().is_dirty());
     }
 }

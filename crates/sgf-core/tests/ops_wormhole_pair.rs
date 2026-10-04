@@ -53,7 +53,7 @@ fn a_wormhole_pair_added_between_two_systems() {
     let result = snapshot_step(&mut session, "wormhole_pair_added", add(1, 140));
     assert_eq!(result.inverse, remove(1, 140));
     assert_eq!(result.details_stale, [1, 140]);
-    assert!(linked(&session.graph, 1, 140));
+    assert!(linked(session.graph(), 1, 140));
     let one = wormholes(&session, 1);
     let other = wormholes(&session, 140);
     assert_eq!((one.len(), other.len()), (1, 1));
@@ -68,7 +68,7 @@ fn a_wormhole_pair_added_between_two_systems() {
     let path = dir.path().join("wormhole-pair.sav");
     session.save_as(&path).expect("save_as");
     let reopened = Session::open(&path).expect("reopen");
-    assert!(linked(&reopened.graph, 1, 140));
+    assert!(linked(reopened.graph(), 1, 140));
     assert_eq!(wormholes(&reopened, 1), one);
     assert_eq!(wormholes(&reopened, 140), other);
 }
@@ -91,7 +91,7 @@ fn the_edit_result_reports_the_bypass_links_only_when_they_change() {
         .delta
         .bypasses
         .expect("the links");
-    assert_eq!(links, session.graph.bypasses);
+    assert_eq!(links, session.graph().bypasses);
     assert!(links.contains(&BypassLink::Wormhole { a: 1, b: 140 }));
 
     let undone = session.undo().expect("undo").expect("an op to undo");
@@ -108,8 +108,8 @@ fn an_added_pair_removed_gives_back_the_bytes_as_opened() {
     let mut session = open_4_5();
     session.apply(add(1, 140)).expect("the add");
     let removed = session.apply(remove(140, 1)).expect("the removal");
-    assert_eq!(current(&session), session.doc.original());
-    assert!(!linked(&session.graph, 1, 140));
+    assert_eq!(current(&session), session.doc().original());
+    assert!(!linked(session.graph(), 1, 140));
     assert!(wormholes(&session, 1).is_empty() && wormholes(&session, 140).is_empty());
     assert!(matches!(
         removed.inverse,
@@ -125,14 +125,14 @@ fn an_added_pair_removed_gives_back_the_bytes_as_opened() {
 #[test]
 fn a_wormhole_pair_the_game_wrote_removed() {
     let mut session = open_4_5();
-    assert!(linked(&session.graph, 489, 152));
+    assert!(linked(session.graph(), 489, 152));
     let result = snapshot_step(&mut session, "wormhole_pair_removed", remove(152, 489));
     assert_eq!(result.details_stale, [152, 489]);
-    assert!(!linked(&session.graph, 489, 152));
+    assert!(!linked(session.graph(), 489, 152));
     assert!(wormholes(&session, 489).is_empty() && wormholes(&session, 152).is_empty());
 
     session.apply(result.inverse).expect("add it back");
-    assert!(linked(&session.graph, 489, 152));
+    assert!(linked(session.graph(), 489, 152));
     assert_eq!(
         wormholes(&session, 152),
         [wormhole(15, 23, 489, 57.61222, 347.70984)],
@@ -172,11 +172,7 @@ fn wormhole_pairs_are_refused() {
         ),
         (remove(99_999, 1), "system 99999 does not exist"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// The 4.4 sample writes its wormholes as 4.5 does: wormhole 1 stands in system 52,
@@ -187,9 +183,9 @@ fn wormhole_pairs_in_a_4_4_save() {
     round_trip(open(), remove(52, 449));
     let mut session = open();
     session.apply(add(0, 752)).expect("the add");
-    assert!(linked(&session.graph, 0, 752));
+    assert!(linked(session.graph(), 0, 752));
     session.apply(remove(752, 0)).expect("the removal");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]

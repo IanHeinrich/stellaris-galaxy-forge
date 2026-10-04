@@ -13,9 +13,9 @@ use common::{current, open_3_4};
 #[test]
 fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly() {
     let mut session = open_3_4();
-    assert!(!session.graph.systems[&0].lanes.is_empty());
-    assert!(!session.graph.systems[&1].lanes.is_empty());
-    assert!(session.graph.lane(0, 1).is_none());
+    assert!(!session.graph().systems[&0].lanes.is_empty());
+    assert!(!session.graph().systems[&1].lanes.is_empty());
+    assert!(session.graph().lane(0, 1).is_none());
 
     let op = Op::AddLane {
         a: 0,
@@ -23,8 +23,8 @@ fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly()
         bridge: false,
     };
     snapshot_step(&mut session, "add_lane_0_1", op);
-    let lane_0_1 = session.graph.lane(0, 1).expect("0 -> 1");
-    let lane_1_0 = session.graph.lane(1, 0).expect("1 -> 0");
+    let lane_0_1 = session.graph().lane(0, 1).expect("0 -> 1");
+    let lane_1_0 = session.graph().lane(1, 0).expect("1 -> 0");
     assert_eq!(lane_0_1.length, lane_1_0.length);
     assert!(!lane_0_1.bridge);
 }
@@ -33,8 +33,8 @@ fn a_lane_between_two_blocked_systems_is_added_on_both_ends_and_undoes_exactly()
 #[test]
 fn a_lane_to_a_system_with_no_hyperlane_block_creates_it() {
     let mut session = open_3_4();
-    assert!(session.graph.systems[&591].lanes.is_empty());
-    assert!(!session.graph.systems[&590].lanes.is_empty());
+    assert!(session.graph().systems[&591].lanes.is_empty());
+    assert!(!session.graph().systems[&590].lanes.is_empty());
 
     let op = Op::AddLane {
         a: 591,
@@ -42,10 +42,10 @@ fn a_lane_to_a_system_with_no_hyperlane_block_creates_it() {
         bridge: false,
     };
     let applied = round_trip_step(&mut session, "AddLane(591, 590)", op);
-    assert_eq!(session.graph.systems[&591].lanes.len(), 1);
-    let lane = session.graph.lane(591, 590).expect("591 -> 590");
+    assert_eq!(session.graph().systems[&591].lanes.len(), 1);
+    let lane = session.graph().lane(591, 590).expect("591 -> 590");
     assert_eq!(
-        session.graph.lane(590, 591).expect("590 -> 591").length,
+        session.graph().lane(590, 591).expect("590 -> 591").length,
         lane.length
     );
     common::snapshot(
@@ -54,25 +54,25 @@ fn a_lane_to_a_system_with_no_hyperlane_block_creates_it() {
     );
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
-    assert!(session.graph.systems[&591].lanes.is_empty());
+    assert_eq!(current(&session), session.doc().original());
+    assert!(session.graph().systems[&591].lanes.is_empty());
 }
 
 /// The existing lane 0 <-> 398, as `sgf lane remove` refused before the fix.
 #[test]
 fn removing_an_existing_lane_takes_it_from_both_ends() {
     let mut session = open_3_4();
-    assert!(session.graph.lane(0, 398).is_some());
+    assert!(session.graph().lane(0, 398).is_some());
 
     let op = Op::RemoveLane { a: 0, b: 398 };
     let applied = round_trip_step(&mut session, "RemoveLane(0, 398)", op);
-    assert!(session.graph.lane(0, 398).is_none());
-    assert!(session.graph.lane(398, 0).is_none());
+    assert!(session.graph().lane(0, 398).is_none());
+    assert!(session.graph().lane(398, 0).is_none());
     common::snapshot("remove_lane_0_398", &plain_report(&session, &applied));
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
-    assert!(session.graph.lane(0, 398).is_some());
+    assert_eq!(current(&session), session.doc().original());
+    assert!(session.graph().lane(0, 398).is_some());
 }
 
 /// Isolating system 0 takes its whole `hyperlane` block and every neighbour's entry back
@@ -80,20 +80,20 @@ fn removing_an_existing_lane_takes_it_from_both_ends() {
 #[test]
 fn isolating_a_system_removes_its_whole_block_and_every_neighbours_entry() {
     let mut session = open_3_4();
-    let before = session.graph.systems[&0].clone();
+    let before = session.graph().systems[&0].clone();
     assert!(!before.lanes.is_empty());
 
     let op = Op::IsolateSystem { system: 0 };
     let applied = round_trip_step(&mut session, "IsolateSystem(0)", op);
-    assert!(session.graph.systems[&0].lanes.is_empty());
+    assert!(session.graph().systems[&0].lanes.is_empty());
     for lane in &before.lanes {
-        assert!(session.graph.lane(lane.to, 0).is_none(), "{}", lane.to);
+        assert!(session.graph().lane(lane.to, 0).is_none(), "{}", lane.to);
     }
     common::snapshot("isolate_system_0", &plain_report(&session, &applied));
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
-    let mut restored: Vec<_> = session.graph.systems[&0]
+    assert_eq!(current(&session), session.doc().original());
+    let mut restored: Vec<_> = session.graph().systems[&0]
         .lanes
         .iter()
         .map(|l| (l.to, l.bridge))
@@ -136,8 +136,8 @@ fn edited_bytes_reload_and_validate_clean() {
 
     let reloaded = Document::load(&path).expect("reload");
     let graph = GalaxyGraph::build(&reloaded).expect("build galaxy");
-    assert_eq!(graph.systems, session.graph.systems);
-    assert_eq!(graph.order, session.graph.order);
+    assert_eq!(graph.systems, session.graph().systems);
+    assert_eq!(graph.order, session.graph().order);
 
     let issues = validate(&graph);
     let errors: Vec<_> = issues

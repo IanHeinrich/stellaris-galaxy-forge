@@ -45,7 +45,7 @@ fn a_neutral_planet_with_moons_moves_to_an_unowned_system() {
     let mut session = open_4_5();
     session.warm_details().expect("build details");
     let before = findings(&session);
-    let counts = [140, 216].map(|id| session.graph.systems[&id].planet_count);
+    let counts = [140, 216].map(|id| session.graph().systems[&id].planet_count);
 
     let result = snapshot_step(&mut session, "neutral_with_moons", move_planet(99, 216));
     assert_eq!(
@@ -72,8 +72,8 @@ fn a_neutral_planet_with_moons_moves_to_an_unowned_system() {
 
     assert!(!planet_ids(&session, 140).contains(&99));
     assert!(planet_ids(&session, 216).ends_with(&[99, 100, 101]));
-    assert_eq!(session.graph.systems[&140].planet_count, counts[0] - 3);
-    assert_eq!(session.graph.systems[&216].planet_count, counts[1] + 3);
+    assert_eq!(session.graph().systems[&140].planet_count, counts[0] - 3);
+    assert_eq!(session.graph().systems[&216].planet_count, counts[1] + 3);
     let after = findings(&session);
     let new: Vec<_> = after.difference(&before).collect();
     assert!(new.is_empty(), "new findings: {new:?}");
@@ -151,12 +151,7 @@ fn moves_are_refused() {
             "planet 1140 is a star: only a planet can move to another system",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// Colony 402 of country 16777226 goes to system 216, which nobody owns. Country 11 owns
@@ -507,14 +502,14 @@ fn the_dry_run_agrees_with_the_targets() {
         (open(), &[&[59][..]][..]),
     ] {
         let bytes = current(&session);
-        let mut systems: Vec<u32> = session.graph.systems.keys().copied().collect();
+        let mut systems: Vec<u32> = session.graph().systems.keys().copied().collect();
         systems.sort_unstable();
         for &set in sets {
             let targets = session.planet_move_targets(set);
             let checked = systems
                 .iter()
                 .enumerate()
-                .filter(|&(i, id)| i % 7 == 0 || session.graph.systems[id].owner.is_some());
+                .filter(|&(i, id)| i % 7 == 0 || session.graph().systems[id].owner.is_some());
             for (_, &to) in checked {
                 let check = session.planet_move_check(set, to, None);
                 let target = targets.systems.iter().find(|t| t.system == to);

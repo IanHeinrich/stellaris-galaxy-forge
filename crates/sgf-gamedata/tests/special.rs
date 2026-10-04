@@ -9,7 +9,7 @@ use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_gamedata::special::{KIND_ORDER, SpecialKind, SpecialSystems, classify, classify_session};
 
 /// The sample save's galaxy, parsed once for every test in this file.
-static GRAPH: LazyLock<GalaxyGraph> = LazyLock::new(|| common::open_4_4().graph);
+static GRAPH: LazyLock<GalaxyGraph> = LazyLock::new(|| common::open_4_4().graph().clone());
 
 fn count(result: &SpecialSystems, kind: SpecialKind) -> u32 {
     result
@@ -185,7 +185,7 @@ fn a_system_with_no_initializer_country_is_named_after_the_country_in_it() {
         Some("Covenant of the Shroud")
     );
     assert_eq!(shroudwalkers.label, "Covenant of the Shroud");
-    let without = classify(&session.graph, None);
+    let without = classify(session.graph(), None);
     let fallback = without
         .systems
         .iter()
@@ -269,7 +269,7 @@ fn hidden_content_is_marked_by_the_flags_generation_set() {
         ("4.4", common::open_4_4(), 1, 20, 1),
         ("4.5", common::open_4_5(), 0, 15, 3),
     ] {
-        let result = classify(&session.graph, None);
+        let result = classify(session.graph(), None);
         let hubs: Vec<_> = result
             .systems
             .iter()

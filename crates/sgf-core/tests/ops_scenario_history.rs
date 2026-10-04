@@ -106,14 +106,14 @@ fn a_batch_of_systems_and_lanes_is_one_edit_and_one_undo_step() {
     let mut session = GRAMMAR.open();
     let result = session.apply(clan()).expect("apply the batch");
     assert_eq!(session.history().undo.len(), 1);
-    assert!(session.graph.lane(4000, 4001).is_some());
-    assert!(session.graph.lane(4000, 4002).is_some());
+    assert!(session.graph().lane(4000, 4001).is_some());
+    assert!(session.graph().lane(4000, 4002).is_some());
     common::snapshot("batch_clan", &report(&session, &result));
 
     session.undo().expect("undo").expect("the batch to undo");
     assert_eq!(current(&session), GRAMMAR.bytes());
     assert_eq!(session.history().undo.len(), 0);
-    assert!(!session.graph.systems.contains_key(&4000));
+    assert!(!session.graph().systems.contains_key(&4000));
     round_trip(GRAMMAR.open(), clan());
 }
 
@@ -153,7 +153,7 @@ fn a_batch_whose_last_member_is_refused_leaves_nothing_behind() {
     assert_eq!(current(&session), GRAMMAR.bytes());
     assert_eq!(session.history().undo.len(), 0);
     assert!(!session.is_dirty());
-    assert!(!session.graph.systems.contains_key(&4000));
+    assert!(!session.graph().systems.contains_key(&4000));
 }
 
 #[test]

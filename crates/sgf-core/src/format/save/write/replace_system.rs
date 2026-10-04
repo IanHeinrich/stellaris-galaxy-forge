@@ -140,7 +140,7 @@ fn respec(
         planet_lines(&indent, &written.ids),
     );
     for span in planets {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     edit.set_scalar(&[keys::STAR_CLASS], quoted(&spec.star_class))?;
     let belt_list = add_system::belts(spec);
@@ -174,6 +174,6 @@ pub(crate) fn rewrite_block(
         edit.insert(edit.line_start(at.start), text(&indent));
     }
     if let Some(block) = block {
-        edit.remove_lines(block);
+        edit.bytes().remove_lines(block);
     }
 }

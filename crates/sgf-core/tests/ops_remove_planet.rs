@@ -63,7 +63,7 @@ fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
 /// The hunks of the session's diff that write more than tombstones: the lists and keys the
 /// op rewrote, without the entries it only replaced with `<id>=none`.
 fn rewrites(session: &Session) -> String {
-    let original = String::from_utf8_lossy(session.doc.original()).into_owned();
+    let original = String::from_utf8_lossy(session.doc().original()).into_owned();
     let edited = String::from_utf8_lossy(&current(session)).into_owned();
     let diff = TextDiff::configure()
         .algorithm(Algorithm::Patience)
@@ -336,7 +336,7 @@ fn the_inverse_writes_back_every_entity() {
 #[test]
 fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
     let mut session = open_4_5();
-    let before = get_planet_page(&session.doc, 703)
+    let before = get_planet_page(session.doc(), 703)
         .expect("the planet")
         .dig_site;
     let result = session.apply(delete(703)).expect("delete");
@@ -358,7 +358,7 @@ fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
         }
     );
     session.apply_inverse(result.inverse).expect("the inverse");
-    let after = get_planet_page(&session.doc, 703)
+    let after = get_planet_page(session.doc(), 703)
         .expect("the planet")
         .dig_site;
     let kind = |site: &Option<_>| site.as_ref().map(|s: &PlanetPageDigSite| s.kind.clone());
@@ -367,13 +367,10 @@ fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
 
 #[test]
 fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for case in cases() {
         let mut session = (case.session)();
         let result = session.apply(case.op.clone()).expect(case.name);
-        let path = dir.path().join(format!("{}.sav", case.name));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(&mut session);
         let listed: Vec<u32> = common::planets(&reopened, case.system)
             .iter()
             .map(|p| p.id)
@@ -381,7 +378,7 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
         match case.op {
             Op::DeleteBody { body: planet } => {
                 assert!(
-                    get_planet_page(&reopened.doc, planet).is_err(),
+                    get_planet_page(reopened.doc(), planet).is_err(),
                     "{}",
                     case.name
                 );
@@ -389,7 +386,7 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
                 assert!(!common::planet_ids(&reopened, case.system).contains(&planet));
             }
             Op::RemoveColony { body: planet } => {
-                let page = get_planet_page(&reopened.doc, planet).expect(case.name);
+                let page = get_planet_page(reopened.doc(), planet).expect(case.name);
                 assert_eq!(page.colony, None, "{}", case.name);
                 assert_eq!(page.owner, None, "{}", case.name);
                 assert_eq!(page.controller, None, "{}", case.name);
@@ -580,10 +577,10 @@ fn a_planet_whose_class_changed_is_deleted() {
             result.entry.description,
             format!("Deleted planet #{planet}{moons}")
         );
-        assert!(get_planet_page(&session.doc, planet).is_err(), "{planet}");
+        assert!(get_planet_page(session.doc(), planet).is_err(), "{planet}");
         session.apply_inverse(result.inverse).expect("the inverse");
         assert_eq!(current(&session), changed, "{planet}");
-        let page = get_planet_page(&session.doc, planet).expect("the planet");
+        let page = get_planet_page(session.doc(), planet).expect("the planet");
         assert_eq!(page.class, "pc_ocean");
     }
 }

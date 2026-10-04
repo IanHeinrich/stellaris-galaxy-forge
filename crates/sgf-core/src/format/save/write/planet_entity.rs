@@ -60,7 +60,7 @@ pub(crate) fn write_entity_name(edit: &mut Edit, name: Option<&str>) -> Result<(
         .find(keys::ENTITY_NAME, &edit.buf)
         .map(|n| n.span());
     match (written, name) {
-        (Some(span), None) => edit.remove_statement(span),
+        (Some(span), None) => edit.bytes().remove_statement(span),
         (Some(_), Some(name)) => edit.set_scalar(&[keys::ENTITY_NAME], quoted(name))?,
         (None, Some(name)) => {
             let text = format!("{}={}", keys::ENTITY_NAME, quoted(name));

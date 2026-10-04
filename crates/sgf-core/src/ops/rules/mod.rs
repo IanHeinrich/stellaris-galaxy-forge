@@ -128,6 +128,12 @@ pub(crate) fn labelled(key: &str, literal: bool, system: u32) -> String {
     }
 }
 
+/// [`named`] for each of `ids`, joined by commas.
+pub(crate) fn named_all(galaxy: &Galaxy, ids: &[u32]) -> String {
+    let names: Vec<String> = ids.iter().map(|&id| named(galaxy, id)).collect();
+    names.join(", ")
+}
+
 /// A plural op's entries: at least one, and no system named twice.
 pub(crate) fn each_once<T>(entries: &[T], id: impl Fn(&T) -> u32) -> Result<(), OpError> {
     if entries.is_empty() {

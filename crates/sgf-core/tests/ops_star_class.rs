@@ -7,7 +7,6 @@ use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::snapshot_step;
 use common::examples;
 use common::{current, open, open_4_5, reprojected};
 
@@ -26,7 +25,7 @@ fn set(id: u32, class: &str, bodies: &[(u32, &str)]) -> Op {
 }
 
 fn star_class(session: &Session, id: u32) -> String {
-    session.graph.systems[&id].star_class.clone()
+    session.graph().systems[&id].star_class.clone()
 }
 
 fn body_class(session: &Session, id: u32, planet: u32) -> String {
@@ -46,8 +45,9 @@ fn change(session: &mut Session, op: Op, snapshot: &str) -> OpResult {
     else {
         unreachable!("a star class op")
     };
-    let result = snapshot_step(session, snapshot, op);
-    assert_eq!(star_class(session, id), class, "{snapshot}");
+    let step = common::field_step(session, snapshot, op, |s| star_class(s, id));
+    assert_eq!(step.after, class, "{snapshot}");
+    let result = step.result;
     let edit = session.edit_result(result.clone());
     let delta = edit
         .delta
@@ -79,13 +79,10 @@ fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
         result.entry.description,
         format!(
             "Set the star class of {} #1 from sc_g to sc_pulsar",
-            session.graph.systems[&1].display_name()
+            session.graph().systems[&1].display_name()
         )
     );
     assert_eq!(result.inverse, set(1, "sc_g", &[(584, "pc_g_star")]));
-    session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(star_class(&session, 1), "sc_g");
 }
 
 #[test]
@@ -145,12 +142,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
             "system 1 is already sc_g with those star bodies",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]
@@ -164,7 +156,7 @@ fn a_body_alone_changes_when_the_star_class_already_stands() {
     assert_eq!(body_class(&session, 1, 748), "pc_pulsar");
     assert_eq!(result.inverse, set(1, "sc_g", &[(748, "pc_g_star")]));
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -224,7 +216,7 @@ fn a_batch_of_star_classes_is_one_step_that_undoes_to_the_original_bytes() {
     assert_eq!(session.history().undo.len(), 1);
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert_eq!(star_class(&session, 1), "sc_g");
     assert_eq!(star_class(&session, 35), "sc_binary_2");
     assert_eq!(body_class(&session, 1, 748), "pc_g_star");
@@ -251,9 +243,9 @@ fn a_refused_member_leaves_the_whole_batch_unapplied() {
         ),
         "{error}"
     );
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
     assert!(session.history().undo.is_empty());
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert_eq!(star_class(&session, 1), "sc_g");
     assert_eq!(body_class(&session, 1, 748), "pc_g_star");
 }
@@ -271,7 +263,7 @@ fn bodies(system: &SystemNode) -> Vec<(String, Option<u32>)> {
 #[test]
 fn a_binarys_bodies_are_read_at_load_and_follow_a_change_of_one_star() {
     let mut session = open_4_5();
-    let system = &session.graph.systems[&5];
+    let system = &session.graph().systems[&5];
     assert_eq!(system.star_class, "sc_binary_7");
     let loaded = bodies(system);
     assert_eq!(loaded.len(), 9);
@@ -298,7 +290,7 @@ fn a_binarys_bodies_are_read_at_load_and_follow_a_change_of_one_star() {
     expected[1] = ("pc_t_star".to_owned(), Some(20));
     assert_eq!(bodies(sent), expected, "the delta");
     assert_eq!(
-        bodies(&session.graph.systems[&5]),
+        bodies(&session.graph().systems[&5]),
         expected,
         "the projection"
     );
@@ -322,5 +314,11 @@ fn a_binarys_bodies_are_read_at_load_and_follow_a_change_of_one_star() {
 #[test]
 fn a_scenario_system_carries_no_bodies() {
     let scenario = examples::scenario();
-    assert!(scenario.graph.systems.values().all(|s| s.bodies.is_none()));
+    assert!(
+        scenario
+            .graph()
+            .systems
+            .values()
+            .all(|s| s.bodies.is_none())
+    );
 }

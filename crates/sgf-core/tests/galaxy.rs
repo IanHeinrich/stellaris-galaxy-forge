@@ -311,14 +311,14 @@ fn countries_carry_their_capital_system_and_system_count() {
 fn a_primitive_carries_its_pre_ftl_age_and_an_empire_none() {
     let session = common::open_4_5();
     let age = |id: u32| {
-        let country = session.graph.countries.iter().find(|c| c.id == id);
+        let country = session.graph().countries.iter().find(|c| c.id == id);
         country.expect("the country").preftl_age.clone()
     };
     assert_eq!(age(36).as_deref(), Some("stone_age"));
     assert_eq!(age(37).as_deref(), Some("atomic_age"));
     assert_eq!(age(0), None);
     let primitives = session
-        .graph
+        .graph()
         .countries
         .iter()
         .filter(|c| c.country_type == "primitive");
@@ -542,7 +542,7 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     assert!(coded(&session.validate(), IssueCode::LClusterSystem).is_empty());
 
     let mut plain = GRAMMAR.open();
-    let id = plain.graph.order[0];
+    let id = plain.graph().order[0];
     let result = plain
         .apply(Op::MoveSystem {
             system: id,
@@ -558,7 +558,7 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     );
 
     let mut save = common::open();
-    let id = save.graph.order[0];
+    let id = save.graph().order[0];
     let result = save
         .apply(Op::MoveSystem {
             system: id,
@@ -599,7 +599,7 @@ fn a_hyper_relay_projects_as_a_relay_bypass_on_its_system() {
         }
     });
     let relays: Vec<u32> = session
-        .graph
+        .graph()
         .bypasses
         .iter()
         .filter_map(|link| match link {
@@ -608,5 +608,5 @@ fn a_hyper_relay_projects_as_a_relay_bypass_on_its_system() {
         })
         .collect();
     assert_eq!(relays, [217, 471]);
-    assert!(session.graph.lane(217, 471).is_some());
+    assert!(session.graph().lane(217, 471).is_some());
 }

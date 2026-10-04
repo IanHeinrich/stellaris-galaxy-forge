@@ -3,14 +3,12 @@
 //! edited bytes read the new colours, undo puts the original bytes back, and the inverse
 //! op writes them back too.
 
-use sgf_core::archive::{self, MetaFlag};
 use sgf_core::ops::{MapColorPair, Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
-use similar::TextDiff;
 
 use crate::common;
 use common::diff::snapshot_step;
-use common::{current, open, open_4_5, reprojected};
+use common::{current, meta_flag, names, open, open_4_5, reprojected};
 
 /// The player empire, created with Independent Map Color on.
 const PLAYER: u32 = 0;
@@ -29,37 +27,12 @@ fn set(country: u32, colors: Option<MapColorPair>) -> Op {
 }
 
 fn country(countries: &[CountryNode], id: u32) -> (Option<String>, Option<String>) {
-    let country = countries
-        .iter()
-        .find(|c| c.id == id)
-        .unwrap_or_else(|| panic!("country {id}"));
+    let country = common::country(countries, id);
     (country.border_color.clone(), country.fill_color.clone())
 }
 
 fn colours(border: &str, fill: &str) -> (Option<String>, Option<String>) {
     (Some(border.to_owned()), Some(fill.to_owned()))
-}
-
-fn names(names: &[&str]) -> Vec<String> {
-    names.iter().map(|&n| n.to_owned()).collect()
-}
-
-fn meta_flag(meta: &[u8]) -> MetaFlag {
-    archive::parse_meta(meta)
-        .expect("read meta")
-        .flag
-        .expect("a flag in meta")
-}
-
-/// `meta` as a unified diff against `original`.
-fn meta_diff(original: &[u8], meta: &[u8]) -> String {
-    let before = String::from_utf8_lossy(original);
-    let after = String::from_utf8_lossy(meta);
-    let diff = TextDiff::from_lines(&before, &after);
-    format!(
-        "{}",
-        diff.unified_diff().context_radius(3).header("meta", "meta")
-    )
 }
 
 /// Round-trip and snapshot `op` on a fresh 4.5 sample, check the projection, a reload of
@@ -77,7 +50,7 @@ fn change(
     let mut session = open_4_5();
     let result = snapshot_step(&mut session, snapshot, op);
     assert_eq!(
-        country(&session.graph.countries, id),
+        country(&session.graph().countries, id),
         expected,
         "{snapshot}"
     );
@@ -93,16 +66,16 @@ fn change(
         "{snapshot}: reaches the app"
     );
     assert_eq!(result.inverse, inverse, "{snapshot}");
-    let edited_meta = session.doc.meta().to_vec();
+    let edited_meta = session.doc().meta().to_vec();
     session.apply(result.inverse).expect("apply the inverse");
     assert_eq!(
         current(&session),
-        session.doc.original(),
+        session.doc().original(),
         "{snapshot}: the inverse"
     );
     assert_eq!(
-        session.doc.meta(),
-        session.doc.original_meta(),
+        session.doc().meta(),
+        session.doc().original_meta(),
         "{snapshot}: the inverse puts meta back"
     );
     edited_meta
@@ -111,21 +84,21 @@ fn change(
 #[test]
 fn colours_set_on_an_ai_empire_turn_independent_map_colours_on() {
     let before = open_4_5();
-    assert_eq!(country(&before.graph.countries, AI), (None, None));
+    assert_eq!(country(&before.graph().countries, AI), (None, None));
     let meta = change(
         set(AI, pair("blue", "dark_blue")),
         colours("blue", "dark_blue"),
         set(AI, None),
         "ai_empire_set",
     );
-    assert_eq!(meta, before.doc.original_meta(), "meta is the player's");
+    assert_eq!(meta, before.doc().original_meta(), "meta is the player's");
 }
 
 #[test]
 fn the_player_empire_s_map_colours_change() {
     let before = open_4_5();
     assert_eq!(
-        country(&before.graph.countries, PLAYER),
+        country(&before.graph().countries, PLAYER),
         colours("intense_red", "light_pink")
     );
     let meta = change(
@@ -133,10 +106,6 @@ fn the_player_empire_s_map_colours_change() {
         colours("green", "light_pink"),
         set(PLAYER, pair("intense_red", "light_pink")),
         "player_empire_changed",
-    );
-    common::snapshot(
-        "player_empire_changed_meta",
-        &meta_diff(before.doc.original_meta(), &meta),
     );
     let flag = meta_flag(&meta);
     assert_eq!(
@@ -154,10 +123,6 @@ fn the_player_empire_goes_back_to_its_flag_colours() {
         set(PLAYER, pair("intense_red", "light_pink")),
         "player_empire_flag_colours",
     );
-    common::snapshot(
-        "player_empire_flag_colours_meta",
-        &meta_diff(open_4_5().doc.original_meta(), &meta),
-    );
     let flag = meta_flag(&meta);
     assert_eq!(
         flag.colors,
@@ -173,8 +138,8 @@ fn the_player_s_map_colours_turned_off_and_on_again_restore_meta() {
     session
         .apply(set(PLAYER, pair("intense_red", "light_pink")))
         .expect("turn them on");
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(session.doc.meta(), session.doc.original_meta());
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(session.doc().meta(), session.doc().original_meta());
 }
 
 #[test]
@@ -183,17 +148,17 @@ fn undo_puts_the_player_s_meta_back() {
         let mut session = open_4_5();
         session.apply(set(PLAYER, colors.clone())).expect("apply");
         assert_ne!(
-            session.doc.meta(),
-            session.doc.original_meta(),
+            session.doc().meta(),
+            session.doc().original_meta(),
             "{colors:?}: apply"
         );
         session.undo().expect("undo").expect("an op to undo");
         assert_eq!(
-            session.doc.meta(),
-            session.doc.original_meta(),
+            session.doc().meta(),
+            session.doc().original_meta(),
             "{colors:?}: undo"
         );
-        assert!(!session.doc.is_dirty(), "{colors:?}: undo");
+        assert!(!session.doc().is_dirty(), "{colors:?}: undo");
     }
 }
 
@@ -244,6 +209,6 @@ fn map_colours_are_refused_without_a_4_5_colours_list_or_where_nothing_would_cha
     }
 
     for session in [&four_four, &session] {
-        assert!(!session.doc.is_dirty());
+        assert!(!session.doc().is_dirty());
     }
 }

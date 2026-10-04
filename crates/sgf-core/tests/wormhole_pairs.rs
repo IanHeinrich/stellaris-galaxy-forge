@@ -18,7 +18,7 @@ fn set_pair(a: u32, b: u32, pair: Option<u32>) -> Op {
 #[test]
 fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
     let session = PAINTED.open();
-    let systems = &session.graph.systems;
+    let systems = &session.graph().systems;
     for (id, pair) in [(7, Some(1)), (8, Some(1)), (12, Some(2)), (13, Some(2))] {
         assert_eq!(systems[&id].wormhole_pair, pair, "system {id}");
     }
@@ -26,7 +26,7 @@ fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
         assert_eq!(systems[&id].wormhole_pair, None, "system {id}");
     }
     assert_eq!(
-        session.graph.bypasses,
+        session.graph().bypasses,
         [
             BypassLink::Wormhole { a: 7, b: 8 },
             BypassLink::Wormhole { a: 12, b: 13 },
@@ -41,7 +41,7 @@ fn each_pair_reads_from_its_flags_and_projects_as_one_link() {
 
     let save = common::open();
     assert!(
-        save.graph
+        save.graph()
             .systems
             .values()
             .all(|s| s.wormhole_pair.is_none())
@@ -116,8 +116,8 @@ fn a_pair_is_written_on_both_ends_and_taken_off_both() {
     {
         let mut session = PAINTED.open();
         let result = session.apply(set_pair(a, b, pair)).expect(name);
-        assert_eq!(session.graph.systems[&a].wormhole_pair, pair, "{name}");
-        assert_eq!(session.graph.systems[&b].wormhole_pair, pair, "{name}");
+        assert_eq!(session.graph().systems[&a].wormhole_pair, pair, "{name}");
+        assert_eq!(session.graph().systems[&b].wormhole_pair, pair, "{name}");
         for fragment in written {
             assert!(
                 common::text(&session).contains(fragment),
@@ -149,12 +149,12 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
         "Joined Ingress #7 and Low Seat #13 as wormhole pair 3"
     );
     assert_eq!(
-        session.graph.bypasses,
+        session.graph().bypasses,
         [BypassLink::Wormhole { a: 7, b: 13 }],
         "8 and 12 are left holding numbers with no partner"
     );
-    assert_eq!(session.graph.systems[&8].wormhole_pair, Some(1));
-    assert_eq!(session.graph.systems[&12].wormhole_pair, Some(2));
+    assert_eq!(session.graph().systems[&8].wormhole_pair, Some(1));
+    assert_eq!(session.graph().systems[&12].wormhole_pair, Some(2));
 
     let result = session
         .apply(set_pair(7, 8, None))
@@ -169,8 +169,8 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
         result.entry.description,
         "Removed the wormhole pair from Ingress #7 and Egress #8"
     );
-    assert!(session.graph.bypasses.is_empty());
-    assert_eq!(session.graph.systems[&13].wormhole_pair, Some(3));
+    assert!(session.graph().bypasses.is_empty());
+    assert_eq!(session.graph().systems[&13].wormhole_pair, Some(3));
     session.undo().expect("undo").expect("an op to undo");
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(common::current(&session), PAINTED.bytes());
@@ -205,7 +205,7 @@ fn an_empire_cluster_of_its_own_stays_when_the_pair_goes() {
 ";
     let mut session = from_scenario_text(multi_line);
     assert_eq!(
-        session.graph.bypasses,
+        session.graph().bypasses,
         [BypassLink::Wormhole { a: 7, b: 8 }]
     );
     session.apply(set_pair(7, 8, None)).expect("remove");
@@ -281,9 +281,9 @@ fn a_pair_needs_two_systems_that_exist_and_a_number_nobody_else_holds() {
     session
         .apply(set_pair(12, 13, Some(2)))
         .expect("the holders may keep their own number");
-    assert_eq!(session.graph.systems[&12].wormhole_pair, Some(2));
+    assert_eq!(session.graph().systems[&12].wormhole_pair, Some(2));
     assert_eq!(
-        session.graph.bypasses,
+        session.graph().bypasses,
         [
             BypassLink::Wormhole { a: 7, b: 8 },
             BypassLink::Wormhole { a: 12, b: 13 },
