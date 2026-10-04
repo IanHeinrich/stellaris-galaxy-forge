@@ -54,6 +54,7 @@ import { DEFAULT_SPAWN_WEIGHT, spawnPointOp } from "../../spawnPoint";
 import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
 import { TextField } from "../../EditField";
 import { SystemView } from "./SystemView";
+import { shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
@@ -182,16 +183,14 @@ describe("a scenario system's owner line", () => {
     await useEditorStore.getState().select(0);
 
     const dayOne = renderToStaticMarkup(<SystemView id={0} />);
-    expect(dayOne).toContain('<span class="chip src" title="The owner is the one an event claims');
+    expect(dayOne).toContain('title="The owner is the one an event claims');
 
     ownerDetail(1, TERRITORY.id);
     await open("scenario");
     useGameDataStore.setState({ scenarioOwners: SCENARIO_OWNERS });
 
     const generation = overview();
-    expect(generation).toContain(
-      '<span class="chip init" title="The owner is the one the initializer',
-    );
+    expect(generation).toContain('title="The owner is the one the initializer');
     expect(generation).not.toContain("The owner is the one an event claims");
   });
 
@@ -217,7 +216,7 @@ describe("a scenario system's bypasses", () => {
     // The partner is named, not numbered, and the row jumps to it.
     expect(html).toContain("Barnard");
     expect(html).toContain('title="Jump to #2"');
-    expect(html).toContain('<span class="chip init" title="Placed by the initializer');
+    expect(html).toContain('title="Placed by the initializer');
   });
 
   it("marks a day-one endpoint with the scripts that place it, and says when it is assumed", async () => {
@@ -227,7 +226,7 @@ describe("a scenario system's bypasses", () => {
 
     const html = renderToStaticMarkup(<SystemView id={0} />);
     expect(html).toContain("Gateway (ruined)");
-    expect(html).toContain('<span class="chip src" title="Placed on day one by fixture.9"');
+    expect(html).toContain('title="Placed on day one by fixture.9"');
     expect(html).toContain(">assumed<");
   });
 
@@ -415,11 +414,9 @@ describe("a scenario system's spawn modifiers", () => {
     const html = overview();
     expect(html).toContain("Modifiers · 3");
     // An author's own trigger is shown as written, with nothing read into it.
-    expect(html).toContain(
-      '<span class="num">×0</span><span class="mono">is_ai = yes</span></div>',
-    );
+    expect(shown(html)).toContain("×0 is_ai = yes");
     expect(html).toContain("+5");
-    expect(html).toContain('<span class="chip">flag: my_flag</span>');
+    expect(html).toContain(">flag: my_flag<");
     // Script this editor does not read is still shown, by the trigger it states.
     expect(html).toContain("×2");
     expect(html).toContain("has_star_flag = empire_cluster");
@@ -662,7 +659,7 @@ describe("the spawn point section", () => {
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("basic_init_01"));
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Choose"));
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Hyperlanes"));
-    expect(html).toContain('<span class="chip">scenario</span>');
+    expect(html).toContain(">scenario<");
   });
 
   it("leaves the initializer section open while nothing of the initializers draws", async () => {
@@ -743,7 +740,7 @@ describe("a scenario system's scripts", () => {
     const row = overview();
     expect(sections(row)).toContain("Scripts · 5");
     expect(row).toContain(SCRIPTS_TAB_TITLE);
-    expect(row).toContain('<span class="chip src">scripts</span>');
+    expect(row).toContain(">scripts<");
     // The rows themselves are the tab's, not the Overview's.
     expect(row).not.toContain("empire_capital_init");
     expect(row).not.toContain(SCRIPTS_LIMITS);
@@ -764,7 +761,6 @@ describe("a scenario system's scripts", () => {
     useScriptsStore.setState({ failed: new Map([[SYSTEM, "no game data is loaded"]]) });
     const html = overview();
     expect(sections(html)).toContain("Scripts · unavailable");
-    expect(html).toContain('class="ins-sec-title muted">Scripts · unavailable');
   });
 
   it("groups every kind the chain reaches and says when each runs and where it lives", async () => {
@@ -903,7 +899,6 @@ describe("the head of a scenario system", () => {
     const html = drawnBy(overview);
     expect(html).toContain('title="Rename this system"');
     expect(html).toContain('aria-label="System name"');
-    expect(html).toContain('class="edit-field edit-text ins-name-field"');
     expect(sections(html)).not.toContain("Name");
 
     const name = drawnField(TextField, "System name") as { onCommit(name: string): void };

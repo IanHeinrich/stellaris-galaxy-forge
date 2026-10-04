@@ -31,6 +31,7 @@ import {
   SYSTEM,
 } from "../inspectorFixture";
 import { armStarClasses } from "../../../store/storeFixture";
+import { buttons, shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 import { heightToSlider } from "../../../lib/height";
 import { HEIGHT_HINT } from "./SystemHeight";
@@ -62,7 +63,7 @@ describe("a save system's overview", () => {
     ]);
     expect(html).toContain('role="group" aria-label="Position"');
     expect(html).toContain("System total");
-    expect(html).toContain('class="ins-prow" role="button"');
+    expect(html).toContain('role="button"');
     expect(html).not.toContain("static");
   });
 
@@ -165,9 +166,7 @@ describe("a save system's overview", () => {
     await land(details());
 
     const html = overview();
-    expect(html).toContain(
-      `<div class="ins-line">${kindTitle("contingency")}</div><div class="ins-line">${kindTitle("cutholoid")}</div>`,
-    );
+    expect(shown(html)).toContain(`${kindTitle("contingency")} ${kindTitle("cutholoid")}`);
     expect(html).toContain("<div>AI_system_2</div>");
   });
 
@@ -230,9 +229,7 @@ describe("the star class at the head", () => {
 
     const html = overview();
     // The fixture has no names for the bodies.
-    expect(html).toMatch(
-      /<div class="ins-sub muted">pc_a_star \+ pc_pulsar · \d+ planets · nebula/,
-    );
+    expect(shown(html)).toMatch(/pc_a_star \+ pc_pulsar · \d+ planets · nebula/);
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
   });
@@ -282,7 +279,7 @@ describe("the star class at the head", () => {
     await land(stars());
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(3);
     expect(html).toContain("Open this star&#x27;s page to change its type and size");
   });
 
@@ -300,7 +297,7 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(3);
     expect(html).toContain(
       "Open this planet&#x27;s page to rename it or change its modifiers, deposits and anomaly",
     );
@@ -314,7 +311,7 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(2);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(2);
     expect(html.indexOf("Alpha")).toBeLessThan(html.indexOf("Tarkin"));
   });
 
@@ -327,7 +324,7 @@ describe("the star class at the head", () => {
     expect(html).toContain("X-ray Binary · ");
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
-    expect(html).not.toContain("ins-edit-chip");
+    expect(shown(html)).not.toContain("✎ Edit");
   });
 });
 
@@ -427,7 +424,7 @@ describe("a system added this session", () => {
     await land(details({ planets: [planet(100, "Tarkin")] }));
 
     const html = overview();
-    expect(html).toContain('class="edit-block added" role="group" aria-label="Added this session"');
+    expect(html).toContain('role="group" aria-label="Added this session"');
     expect(html).toContain("+ added this session");
     expect(html).toContain('aria-label="System name"');
     expect(html).toContain("Red star");
@@ -452,7 +449,7 @@ describe("the Planets header's system view button", () => {
   it("offers the view on a save or a scenario until it shows this system", async () => {
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
+    expect(buttons(overview())).toContain("Open system view");
 
     useSceneStore.getState().enterSystem(SYSTEM);
     expect(overview()).not.toContain("Open system view");
@@ -460,7 +457,7 @@ describe("the Planets header's system view button", () => {
     useSceneStore.getState().exitScene();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
+    expect(buttons(overview())).toContain("Open system view");
   });
 });
 

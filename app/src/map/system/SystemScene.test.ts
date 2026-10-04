@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
-vi.mock("../../api/gamedata", () => ({ getTextures: () => Promise.resolve([]) }));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 vi.mock("../../store/systemGeometry", async (original) => ({
   ...(await original<typeof import("../../store/systemGeometry")>()),
   applyGeometry: vi.fn(() => Promise.resolve(true)),
@@ -15,8 +15,9 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { applyGeometry } from "../../store/systemGeometry";
-import { byId, name, placedNode, systemDetails } from "../../test/builders";
-import { EARTH, SUN, SYSTEM, saveBody, stubTextMeasurement } from "./fixture";
+import { byId, name, placedNode, saveBody, systemDetails } from "../../test/builders";
+import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
+import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./fixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
 
@@ -32,61 +33,18 @@ const NAMED_EARTH = {
   name_key: "NAME_Earth",
 };
 
-type Listener = (e: Partial<PointerEvent>) => void;
-
-/** The window's key listeners, by event type, as the scene registered them. */
-const keyListeners = new Map<string, (e: Partial<KeyboardEvent>) => void>();
+let press: ReturnType<typeof stubWindowKeys>;
 
 beforeEach(() => {
-  keyListeners.clear();
-  vi.stubGlobal("window", {
-    addEventListener: (type: string, fn: (e: Partial<KeyboardEvent>) => void) =>
-      keyListeners.set(type, fn),
-    removeEventListener: (type: string) => keyListeners.delete(type),
-  });
-  vi.stubGlobal("HTMLElement", class {});
+  press = stubWindowKeys();
 });
-
-/** A key going down on the window; the returned spy says whether the press was kept from the app. */
-function keyDown(name: string): () => boolean {
-  const stop = vi.fn();
-  keyListeners.get("keydown")?.({ key: name, target: null, stopImmediatePropagation: stop });
-  return () => stop.mock.calls.length > 0;
-}
-
-/** A canvas that keeps its listeners, so a test can move and press on it. */
-function recordingCanvas(): {
-  canvas: HTMLCanvasElement;
-  fire: (type: string, x: number, y: number, extra?: Partial<PointerEvent>) => void;
-} {
-  const listeners = new Map<string, Listener>();
-  const canvas = {
-    style: {},
-    addEventListener: (type: string, listener: Listener) => void listeners.set(type, listener),
-    removeEventListener: (type: string) => void listeners.delete(type),
-    setPointerCapture: () => undefined,
-    hasPointerCapture: () => false,
-    releasePointerCapture: () => undefined,
-  } as unknown as HTMLCanvasElement;
-  let time = 1000;
-  const fire = (type: string, x: number, y: number, extra: Partial<PointerEvent> = {}) =>
-    listeners.get(type)?.({
-      offsetX: x,
-      offsetY: y,
-      button: type === "pointermove" ? -1 : 0,
-      pointerId: 1,
-      timeStamp: (time += 50),
-      ...extra,
-    });
-  return { canvas, fire };
-}
 
 const renderer = { generateTexture: () => new Texture() } as unknown as Renderer;
 
 let scene: SystemScene | null = null;
 
 /** The scene entered on `SYSTEM`, sized as the host sizes it, after its first frame. */
-function entered(canvas = recordingCanvas().canvas): SystemScene {
+function entered(canvas = recordingCanvas()): SystemScene {
   useGalaxyStore.setState({
     systems: byId(placedNode(SYSTEM, 0, 0), placedNode(RENUMBERED, 0, 0), placedNode(OTHER, 0, 0)),
   });
@@ -267,7 +225,8 @@ describe("the system scene's lanes", () => {
 describe("the system scene's name plates", () => {
   it("open their body's page on a click away from the body", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     const earth = zoomedOnEarth(shown);
 
@@ -290,7 +249,8 @@ describe("the system scene's name plates", () => {
 describe("the system scene's tooltip", () => {
   it("shows a body's name as it lands while the pointer rests on the body", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     const earth = zoomedOnEarth(shown);
     fire("pointermove", earth.x, earth.y);
@@ -304,14 +264,15 @@ describe("the system scene's tooltip", () => {
 
   it("names an unnamed body by what the initializer draws for it", () => {
     const drawn = {
-      ...saveBody(2, "random", [90, 0], 90, 1),
+      ...saveBody(2, "random", [90, 0], 90, 16, SUN),
       name: name(""),
       name_key: "",
       drawn: true,
     };
     const details = systemDetails({ id: SYSTEM, inner_radius: 400, planets: [SUN, drawn] });
     useDetailsStore.setState({ details: new Map([[SYSTEM, details]]) });
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const at = zoomedOnEarth(entered(canvas));
     fire("pointermove", at.x, at.y);
 
@@ -341,7 +302,8 @@ describe("a body dragged in the system scene", () => {
 
   it("shows the preview once a frame applies it", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     dragEarthTo(shown, fire, 10);
@@ -353,7 +315,8 @@ describe("a body dragged in the system scene", () => {
 
   it("holds the preview after a release through the edit's stale mark, until fresh details land", async () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
@@ -377,7 +340,8 @@ describe("a body dragged in the system scene", () => {
   it("drops the preview when the edit is refused", async () => {
     vi.mocked(applyGeometry).mockResolvedValueOnce(false);
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
@@ -392,7 +356,8 @@ describe("a body dragged in the system scene", () => {
 
   it("cancels a drag whose system's details change under it, and sends nothing", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
@@ -408,13 +373,14 @@ describe("a body dragged in the system scene", () => {
 
   it("puts the body back on Esc, keeping the key from the app, and sends nothing", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
     shown.tick();
     expect(earthAngle(shown)).toBe(10);
-    const kept = keyDown("Escape");
+    const kept = press("keydown", "Escape");
     fire("pointerup", to.x, to.y);
     shown.tick();
     expect(kept()).toBe(true);
@@ -425,13 +391,14 @@ describe("a body dragged in the system scene", () => {
 
   it("drops a drag when the window loses focus, or a move comes with no button held", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     dragEarthTo(shown, fire, 10);
     shown.tick();
     expect(earthAngle(shown)).toBe(10);
-    keyListeners.get("blur")?.({});
+    press("blur", "");
     shown.tick();
     expect(earthAngle(shown)).toBe(0);
 
@@ -447,7 +414,8 @@ describe("a body dragged in the system scene", () => {
 
   it("pans on a drag while a released edit is still held, sending nothing more", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
@@ -466,7 +434,8 @@ describe("a body dragged in the system scene", () => {
 
   it("drops a held edit's preview when the system's details fail to come back", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     const to = dragEarthTo(shown, fire, 10);
@@ -485,7 +454,8 @@ describe("a body dragged in the system scene", () => {
 
   it("measures the pointer again under the camera as it stands when Shift changes", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     zoomedOnEarth(shown);
     dragEarthTo(shown, fire, 10);
@@ -495,14 +465,15 @@ describe("a body dragged in the system scene", () => {
     shown.cam.x += now.x - was.x;
     shown.cam.y += now.y - was.y;
     shown.cam.rev++;
-    keyDown("Shift");
+    press("keydown", "Shift");
     shown.tick();
     expect(earthAngle(shown)).toBe(45);
   });
 
   it("leaves the camera where it is while a preview reaches past the system", () => {
     detailsLand(SYSTEM);
-    const { canvas, fire } = recordingCanvas();
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
     const shown = entered(canvas);
     const fitted = camera(shown);
     const from = shown.cam.worldToScreen(90, 0);

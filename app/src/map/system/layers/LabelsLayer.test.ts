@@ -1,16 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/** The texture fetch, which answers only once a test lets it. */
-const fetch = vi.hoisted(() => ({ answers: false }));
-
-vi.mock("../../../api/gamedata", () => ({
-  getTextures: (keys: string[]) =>
-    fetch.answers
-      ? Promise.resolve(
-          keys.map((key) => ({ key, width: 1, height: 1, png_base64: "", error: null })),
-        )
-      : new Promise(() => {}),
-}));
+vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
 
 import { BitmapText, Container, Graphics, NineSliceSprite, Sprite, Texture } from "pixi.js";
 import { empireFlagKey } from "../../../lib/details/fleets";
@@ -27,14 +17,14 @@ import type { Camera } from "../../Camera";
 import { DISC_PX } from "../../layers/details/cell";
 import { NAME_STYLE } from "../../layers/nameWidth";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
-import { countryNode } from "../../../test/builders";
+import { countryNode, saveBody } from "../../../test/builders";
+import { textureFetch } from "../../../test/textures";
 import { systemContext } from "../context";
 import {
   EARTH,
   LUNA,
   MARS,
   SUN,
-  saveBody,
   context,
   drawOps,
   plateTexts,
@@ -51,8 +41,11 @@ import { NO_HIGHLIGHT } from "./SystemLayer";
 
 stubTextMeasurement();
 
+beforeEach(() => {
+  textureFetch.mode = "never";
+});
+
 afterEach(() => {
-  fetch.answers = false;
   setTextureDecoder(null);
   clearTextures();
 });
@@ -222,7 +215,7 @@ describe("the system scene's labels layer", () => {
       return decoded.get(key)!;
     };
     setTextureDecoder((view) => Promise.resolve(textureFor(view.key)));
-    fetch.answers = true;
+    textureFetch.mode = "views";
     return textureFor;
   };
 
@@ -261,7 +254,7 @@ describe("the system scene's labels layer", () => {
     });
     const capital = { ...EARTH, colonised: true, capital: true, owner: empire.id };
     const natives = { ...MARS, colonised: true, owner: 10, pre_ftl: true };
-    const plainWorld = saveBody(5, "pc_barren", [-150, 0], 150, SUN.id);
+    const plainWorld = saveBody(5, "pc_barren", [-150, 0], 150, 16, SUN);
     const withDetails = (details: boolean) =>
       systemContext({
         ...context({
