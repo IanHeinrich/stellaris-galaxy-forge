@@ -27,16 +27,9 @@ env:
   CARGO_PROFILE_DEV_DEBUG: 0
 
 jobs:
-  checks:
-    name: Checks (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
-          - macos-latest
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,40 +38,106 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           components: rustfmt, clippy
+          shared-key: lint
+          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Changelog script tests
-        if: matrix.os == 'ubuntu-latest'
         run: bash scripts/changelog_test.sh
-
+      - name: Test shard script tests
+        run: bash scripts/test-shard_test.sh
       - name: Version file agrees with the manifests
         run: bash scripts/version.sh check
 
-      # Platform-independent checks run once, on Ubuntu; every runner still compiles and tests the workspace.
       - name: Rust format
-        if: matrix.os == 'ubuntu-latest'
         run: cargo fmt --all -- --check
       - name: Rust clippy
-        if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Rust tests
-        run: cargo test --workspace
-      - name: Generated TypeScript types are up to date
-        if: matrix.os == 'ubuntu-latest'
-        run: git diff --exit-code app/src/generated
 
       - name: App install
         run: npm ci
         working-directory: app
       - name: App lint
-        if: matrix.os == 'ubuntu-latest'
         run: npm run lint
         working-directory: app
       - name: App tests
-        if: matrix.os == 'ubuntu-latest'
         run: npm test
         working-directory: app
       - name: App build
-        if: matrix.os == 'ubuntu-latest'
         run: npm run build
         working-directory: app
 
+  # Shard 0 runs everything except sgf-core's integration tests. The other shards split those
+  # tests, which take most of the time, across jobs.
+  test:
+    name: Test (${{ matrix.os }}, ${{ matrix.shard }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, shard: 0, count: 0 }
+          - { os: windows-latest, shard: 1, count: 3 }
+          - { os: windows-latest, shard: 2, count: 3 }
+          - { os: windows-latest, shard: 3, count: 3 }
+          - { os: ubuntu-latest, shard: 0, count: 0 }
+          - { os: ubuntu-latest, shard: 1, count: 3 }
+          - { os: ubuntu-latest, shard: 2, count: 3 }
+          - { os: ubuntu-latest, shard: 3, count: 3 }
+          - { os: macos-latest, shard: 0, count: 0 }
+          - { os: macos-latest, shard: 1, count: 2 }
+          - { os: macos-latest, shard: 2, count: 2 }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # The shards build different crates, so shard 0 keeps its own cache and the rest share one.
+      - uses: ./.github/actions/setup
+        with:
+          tauri: ${{ matrix.shard == 0 }}
+          shared-key: test-${{ matrix.os }}-${{ matrix.shard == 0 && 'all' || 'core' }}
+          save: ${{ github.ref == 'refs/heads/main' && (matrix.shard == 0 || matrix.shard == 1) }}
+
+      - name: Version file agrees with the manifests
+        if: matrix.shard == 0
+        run: bash scripts/version.sh check
+      # Every crate's unit tests in one build, so sgf-core's builds alongside the others. The
+      # corpus binaries skip without their variables; clippy already builds them.
+      - name: Unit tests
+        if: matrix.shard == 0
+        run: cargo test --workspace --lib --bins
+      - name: Integration and doc tests outside sgf-core
+        if: matrix.shard == 0
+        run: |
+          cargo test --workspace --exclude sgf-core --test integration
+          cargo test --workspace --doc
+
+      - name: sgf-core integration tests
+        if: matrix.shard != 0
+        run: bash scripts/test-shard.sh ${{ matrix.shard }} ${{ matrix.count }}
+
+      # Shard 0 writes the ts-rs types and the shard holding constants:: writes constants.ts.
+      - name: Generated TypeScript types are up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: git diff --exit-code app/src/generated
+
+  checks:
+    name: Checks (${{ matrix.os }})
+    needs: [lint, test]
+    if: always()
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: Lint and test jobs passed
+        env:
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          echo "lint: $LINT"
+          echo "test: $TEST"
+          [ "$LINT" = success ] && [ "$TEST" = success ]
