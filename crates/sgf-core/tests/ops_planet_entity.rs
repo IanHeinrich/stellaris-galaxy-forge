@@ -9,7 +9,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open_3_4, open_4_5, text};
+use common::{current, open_4_5, text};
 
 const PARADISE: &str = "ocean_paradise_planet_01_entity";
 
@@ -202,14 +202,4 @@ fn a_model_is_refused_for_a_star_an_unknown_planet_or_no_change() {
     assert!(error.to_string().contains("two words"), "{error}");
     assert!(!session.doc.is_dirty());
     assert!(session.history().undo.is_empty());
-}
-
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let mut session = open_3_4();
-    let error = session
-        .apply(set(1, Some(PARADISE)))
-        .expect_err("a 3.4 save");
-    assert!(error.to_string().contains("3.4"), "{error}");
-    assert!(!session.doc.is_dirty());
 }

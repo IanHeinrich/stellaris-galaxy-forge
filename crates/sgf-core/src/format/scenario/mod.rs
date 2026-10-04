@@ -124,24 +124,16 @@ impl Format for Scenario {
     fn capabilities(&self, _doc: &Document) -> Capabilities {
         Capabilities {
             empires: true,
-            details: false,
-            lane_lengths: false,
             nebulae: true,
-            bypasses: false,
             special: true,
-            precursors: false,
             create_systems: true,
-            lane_bridges: false,
-            waylines: false,
-            added_systems: false,
-            bodies: false,
-            deposits: false,
-            geometry: false,
-            map_colors: false,
-            lgate: false,
             symmetry: true,
-            wormhole_pairs: false,
-            system_heights: false,
+            rolled_layout: true,
+            rename_systems: true,
+            header: true,
+            scripted_owners: true,
+            scripts: true,
+            ..Capabilities::default()
         }
     }
 }

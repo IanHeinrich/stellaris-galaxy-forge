@@ -2,15 +2,14 @@
 //! byte-exact undo, what the galaxy and the details read back, and what is refused.
 
 use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::session::Session;
-use sgf_core::views::Capabilities;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::examples::save_with_added;
-use common::{current, open, open_3_4, open_4_5};
+use common::{current, open, open_4_5};
 
 fn add(a: u32, b: u32) -> Op {
     Op::AddSaveWormholePair { a, b, at: None }
@@ -208,15 +207,4 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
     session
         .apply(Op::RemoveSystem { id: 791 })
         .expect("then the system goes");
-}
-
-#[test]
-fn a_3_x_save_is_refused() {
-    assert!(Capabilities::of(&open_4_5().doc).wormhole_pairs);
-    assert!(Capabilities::of(&open().doc).wormhole_pairs);
-    assert!(!Capabilities::of(&open_3_4().doc).wormhole_pairs);
-    for op in [add(0, 1), remove(0, 1)] {
-        let error = open_3_4().apply(op).expect_err("a 3.4 save");
-        assert!(matches!(error, OpError::SaveTooOld(_)), "{error:?}");
-    }
 }

@@ -21,6 +21,18 @@ export const SAVE_CAPABILITIES: Capabilities = {
   symmetry: false,
   wormhole_pairs: true,
   system_heights: true,
+  planet_moves: true,
+  rolled_layout: false,
+  add_bodies: true,
+  remove_bodies: true,
+  planet_classes: true,
+  modifiers: true,
+  anomalies: true,
+  dig_sites: true,
+  rename_systems: false,
+  header: false,
+  scripted_owners: false,
+  scripts: false,
 };
 
 /** What a static galaxy scenario supports: scripted empires and system statements, no lengths. */
@@ -44,6 +56,18 @@ export const SCENARIO_CAPABILITIES: Capabilities = {
   symmetry: true,
   wormhole_pairs: false,
   system_heights: false,
+  planet_moves: false,
+  rolled_layout: true,
+  add_bodies: false,
+  remove_bodies: false,
+  planet_classes: false,
+  modifiers: false,
+  anomalies: false,
+  dig_sites: false,
+  rename_systems: true,
+  header: true,
+  scripted_owners: true,
+  scripts: true,
 };
 
 /** The file session, as a capability read sees it. */
