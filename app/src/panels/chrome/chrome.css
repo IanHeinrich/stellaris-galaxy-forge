@@ -13,7 +13,7 @@
 }
 
 .layer-text {
-  font-size: 11px;
+  font-size: var(--text-hint);
   font-weight: 700;
   letter-spacing: -0.02em;
   pointer-events: none;
@@ -22,13 +22,13 @@
 button.icon[aria-pressed="true"] {
   color: var(--accent);
   border-color: var(--accent-dim);
-  background: rgba(255, 209, 102, 0.1);
+  background: var(--accent-bg-soft);
 }
 
 button.icon[aria-pressed="mixed"] {
   color: var(--accent-dim);
   border-color: var(--border);
-  background: rgba(255, 209, 102, 0.04);
+  background: var(--accent-bg-faint);
 }
 
 /* A toggle for what the scripts decide keeps its derived hue, dimmed, while it is partly on. */
@@ -193,7 +193,7 @@ button.master.init[aria-pressed="true"] {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .menu-pop.right {
@@ -276,7 +276,7 @@ button.master.init[aria-pressed="true"] {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .menu-flyout > :not(.menu-list) {
@@ -348,7 +348,7 @@ button.master.init[aria-pressed="true"] {
 .menu-item .layer-icon,
 .menu-item .layer-text {
   width: 16px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   text-align: center;
   color: var(--fg-muted);
 }
@@ -394,7 +394,7 @@ button.master.init[aria-pressed="true"] {
   gap: 8px;
   margin: 6px 0 2px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-muted);
@@ -491,7 +491,7 @@ button.master.init[aria-pressed="true"] {
 }
 
 .symmetry-badge {
-  font-size: 9px;
+  font-size: var(--text-micro);
   line-height: 1;
 }
 
@@ -511,10 +511,8 @@ button.master.init[aria-pressed="true"] {
 }
 
 .symmetry-row {
-  display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: 12px;
+  font-size: var(--text-control);
   white-space: nowrap;
 }
 
@@ -522,15 +520,9 @@ button.master.init[aria-pressed="true"] {
   min-width: 48px;
 }
 
-.symmetry-row button {
+.symmetry-row.segmented button {
   min-width: 24px;
   padding: 2px 6px;
-}
-
-.symmetry-row button[aria-checked="true"] {
-  color: var(--accent);
-  background: var(--bg-elevated);
-  border-color: var(--accent-dim);
 }
 
 .tool-rail-foot {
@@ -569,12 +561,12 @@ button.master.init[aria-pressed="true"] {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .scene-crumb {
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .scene-crumb .sep {
@@ -589,7 +581,7 @@ button.master.init[aria-pressed="true"] {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-control);
   white-space: nowrap;
 }
 
@@ -627,25 +619,6 @@ button.master.init[aria-pressed="true"] {
   font-variant-numeric: tabular-nums;
 }
 
-.tool-segmented,
-.tool-chips {
-  display: flex;
-  gap: 2px;
-}
-
-.tool-segmented button,
-.tool-chips button {
-  padding: 2px 8px;
-  font-size: 12px;
-}
-
-.tool-segmented button[aria-checked="true"],
-.tool-chips button[aria-pressed="true"] {
-  color: var(--accent);
-  background: var(--bg-elevated);
-  border-color: var(--accent-dim);
-}
-
 .ripple-profile {
   display: block;
   background: var(--bg);
@@ -672,7 +645,7 @@ button.master.init[aria-pressed="true"] {
 
 .tool-hint {
   flex-basis: 100%;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .menu-file {
@@ -690,7 +663,7 @@ button.master.init[aria-pressed="true"] {
 
 .menu-note {
   padding: 2px 6px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   overflow-wrap: anywhere;
 }
 
@@ -729,7 +702,7 @@ button.master.init[aria-pressed="true"] {
 /* The update's one seat in the top bar, in the accent the app keeps for "there is something here". */
 button.badge.update-badge {
   color: var(--accent);
-  background: rgba(255, 209, 102, 0.1);
+  background: var(--accent-bg-soft);
   border: 1px solid var(--accent-dim);
   border-radius: 8px;
 }
@@ -755,7 +728,7 @@ button.badge.paint-badge:hover {
 
 /* The mod's state in one line, wherever the choice for it is made. */
 .paint-mod-status {
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.45;
   color: var(--fg-muted);
 }
@@ -778,7 +751,7 @@ button.badge.paint-badge:hover {
   gap: 12px;
   flex: none;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--text-control);
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
@@ -845,13 +818,13 @@ button.badge.paint-badge:hover {
 .cut-bar {
   margin-top: 8px;
   padding: 4px 12px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-muted);
   white-space: nowrap;
   background: var(--bg-elevated);
   border: 1px solid var(--accent-dim);
   border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
   pointer-events: auto;
 }
 
@@ -885,12 +858,12 @@ button.badge.paint-badge:hover {
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--text-control);
   white-space: nowrap;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .tilt-track {
@@ -926,7 +899,7 @@ button.badge.paint-badge:hover {
   top: 0;
   left: calc(var(--tilt-thumb) / 2 + (100% - var(--tilt-thumb)) * var(--tilt-game));
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: var(--text-micro);
   line-height: 1;
   color: var(--fg-muted);
 }

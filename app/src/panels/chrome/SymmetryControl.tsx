@@ -57,7 +57,7 @@ function Choice({ choice, current }: { choice: SymmetryChoice; current: Symmetry
 
 function Row({ label, children }: { label?: string; children: ReactNode }) {
   return (
-    <div className="symmetry-row">
+    <div className="symmetry-row segmented">
       {label && <span className="symmetry-row-label">{label}</span>}
       {children}
     </div>

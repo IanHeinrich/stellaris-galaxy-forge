@@ -20,7 +20,7 @@
 
 .ins-script-actions button {
   padding: 0 3px;
-  font-size: 12px;
+  font-size: var(--text-control);
   opacity: 0;
 }
 

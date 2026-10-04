@@ -2,12 +2,19 @@ import { useMemo, useState } from "react";
 import type { CountryNode } from "../../../generated/CountryNode";
 import type { EmpireFlag } from "../../../generated/EmpireFlag";
 import type { EntityView as EntityViewData } from "../../../generated/EntityView";
-import type { FlagParts } from "../../../generated/FlagParts";
 import type { FlagRef } from "../../../generated/FlagRef";
-import type { MapColor } from "../../../generated/MapColor";
 import type { MapColorPair } from "../../../generated/MapColorPair";
 import { empireFlagKey } from "../../../lib/details/fleets";
-import { flagKey } from "../../../lib/flagKey";
+import {
+  backgroundItem,
+  emblemGroups,
+  emblemItem,
+  empireFlag,
+  flagMods,
+  paletteLines,
+  paletteSwatch,
+  sameFlag,
+} from "../../../lib/flags";
 import { readableKey, stripped, templateName } from "../../../lib/names";
 import { counted } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -42,135 +49,24 @@ export const FLAG_UNREADABLE = "The save has no complete flag for this empire";
 /** The root level of the country, whose government the About block reads. */
 const ROOT: readonly string[] = [];
 
-/** A palette colour as a swatch: its map colour, and its name, or a note that it is not there. */
-function colorSwatch(name: string, palette: ReadonlyMap<string, MapColor>): Swatch {
-  const color = palette.get(name);
-  if (color === undefined) return { key: name, label: `unknown: ${name}` };
-  return { key: name, label: name, color: color.map };
-}
-
-/** Which palette the swatches come from, and what choosing from a mod's asks of the save. */
-function paletteLines(palette: ReadonlyMap<string, MapColor>, source: string | null): string[] {
-  if (palette.size === 0) return ["Load game data to pick from the game's palette."];
-  if (source === null) return ["Palette: Stellaris"];
-  return [`Palette: ${source}`, "The save needs this mod to show these colours."];
-}
-
-/** The flag an empire has, as the op takes it; null when the save gives no complete flag. */
-function empireFlag(country: CountryNode): EmpireFlag | null {
-  const icon = country.flag_icon;
-  const background = country.flag_background;
-  const [primary, secondary] = country.colors;
-  if (!icon || !background || primary === undefined || secondary === undefined) return null;
-  return {
-    icon_category: icon.category,
-    icon_file: icon.file,
-    background: background.file,
-    primary,
-    secondary,
-  };
-}
-
-/** A flag file's name as the pickers show it. */
-function fileLabel(file: string): string {
-  return file.replace(/\.dds$/i, "");
-}
-
-function emblemItem(category: string, file: string): TileItem {
-  return {
-    key: `${category}/${file}`,
-    label: fileLabel(file),
-    textures: [`flag:${category}/${file}`],
-  };
-}
-
-/**
- * The emblem categories as the dropdown lists them, each with its count: the game's first, in
- * alphabetical order, then those only mods add, under a heading and named with their mods.
- */
-function emblemGroups(parts: FlagParts): TileGroup[] {
-  const groups = parts.emblems.map((category): TileGroup => {
-    const name = `${category.name.replace(/_/g, " ")} ${category.files.length}`;
-    const mods = [...new Set(category.files.map((f) => f.source))];
-    const modded = mods.every((mod) => mod !== null);
-    return {
-      key: category.name,
-      label: name,
-      section: modded ? "From mods" : undefined,
-      note: modded ? (mods.length === 1 ? mods[0] : `${mods.length} mods`) : undefined,
-      items: category.files.map((f) => emblemItem(category.name, f.file)),
-    };
-  });
-  const game = groups.filter((g) => g.section === undefined);
-  const mods = groups.filter((g) => g.section !== undefined);
-  const byLabel = (a: TileGroup, b: TileGroup) => a.label.localeCompare(b.label);
-  return [...game.sort(byLabel), ...mods.sort(byLabel)];
-}
-
-/** A background in the empire's colours, without the emblem. */
-function backgroundItem(file: string, background: FlagRef, colors: readonly string[]): TileItem {
-  return {
-    key: file,
-    label: fileLabel(file),
-    textures: [flagKey({ ...background, file }, null, colors)],
-  };
-}
-
-/** A palette colour as a flag swatch: its flag colour, and its name, or a note that it is not there. */
-function flagSwatch(name: string, palette: ReadonlyMap<string, MapColor>): Swatch {
-  const color = palette.get(name);
-  if (color === undefined) return { key: name, label: `unknown: ${name}` };
-  return { key: name, label: name, color: color.flag };
-}
-
-/** The mods the flag's emblem and background come from, each once. */
-function flagMods(flag: EmpireFlag, parts: FlagParts): string[] {
-  const emblem = parts.emblems
-    .find((category) => category.name === flag.icon_category)
-    ?.files.find((f) => f.file === flag.icon_file);
-  const background = parts.backgrounds.find((f) => f.file === flag.background);
-  const mods = [emblem?.source, background?.source].filter(
-    (mod): mod is string => typeof mod === "string",
-  );
-  return [...new Set(mods)];
-}
-
-/** The flag fields, disabled, and why. */
-function FlagUnavailable({ reason }: { reason: string }) {
-  const none: TileItem = { key: "", label: "none", textures: [] };
-  const noColor: Swatch = { key: "", label: "none" };
-  return (
-    <EditBlock title="Flag">
-      {["Emblem", "Background"].map((label) => (
-        <TilePicker
-          key={label}
-          label={label}
-          disabledReason={reason}
-          current={none}
-          groups={[]}
-          open={false}
-          onOpenChange={() => undefined}
-          onPick={() => undefined}
-        />
-      ))}
-      {["Primary", "Secondary"].map((label) => (
-        <EditRow key={label} label={label}>
-          <SwatchField
-            label={label}
-            disabledReason={reason}
-            current={noColor}
-            swatches={[]}
-            onPick={() => undefined}
-          />
-        </EditRow>
-      ))}
-      <EditNote>{reason}</EditNote>
-    </EditBlock>
-  );
-}
+/** What a disabled picker shows in place of a choice. */
+const NO_TILE: TileItem = { key: "", label: "none", textures: [] };
+const NO_COLOR: Swatch = { key: "", label: "none" };
 
 /** Which of the flag's tile panels is open; one at a time. */
 type FlagPanel = "emblem" | "background" | null;
+
+/** The flag the fields edit with the background it sits on, or the reason they cannot edit one. */
+function editableFlag(
+  country: CountryNode,
+  hasParts: boolean,
+): { flag: EmpireFlag; background: FlagRef } | { reason: string } {
+  const flag = empireFlag(country);
+  const background = country.flag_background;
+  if (flag === null || !background) return { reason: FLAG_UNREADABLE };
+  if (!hasParts) return { reason: FLAG_NEEDS_GAME_DATA };
+  return { flag, background };
+}
 
 /** A save empire's flag: its emblem, its background and its two colours. */
 function FlagFields({ country }: { country: CountryNode }) {
@@ -179,36 +75,40 @@ function FlagFields({ country }: { country: CountryNode }) {
   const parts = useGameDataStore((s) => s.flagParts);
   const palette = useGameDataStore((s) => s.mapColors);
   const source = useGameDataStore((s) => s.mapColorSource);
-  const flag = empireFlag(country);
-  const icon = country.flag_icon;
-  const background = country.flag_background;
-  if (flag === null || !icon || !background) return <FlagUnavailable reason={FLAG_UNREADABLE} />;
-  if (parts.emblems.length === 0 && parts.backgrounds.length === 0) {
-    return <FlagUnavailable reason={FLAG_NEEDS_GAME_DATA} />;
-  }
+  const editable = editableFlag(country, parts.emblems.length + parts.backgrounds.length > 0);
+  const ready = "flag" in editable ? editable : null;
+  const reason = "reason" in editable ? editable.reason : undefined;
   const set = (change: Partial<EmpireFlag>) => {
-    const next = { ...flag, ...change };
-    const keys = Object.keys(next) as (keyof EmpireFlag)[];
-    if (keys.some((key) => next[key] !== flag[key])) {
+    if (ready === null) return;
+    const next = { ...ready.flag, ...change };
+    if (!sameFlag(next, ready.flag)) {
       applyOp({ type: "SetEmpireFlag", country: country.id, flag: next });
     }
   };
   const openPanel = (which: FlagPanel) => (open: boolean) => setPanel(open ? which : null);
-  const backgrounds: TileGroup[] = [
-    {
-      key: "backgrounds",
-      label: "Backgrounds",
-      items: parts.backgrounds.map((f) => backgroundItem(f.file, background, country.colors)),
-    },
-  ];
-  const swatches = [...palette.keys()].map((name) => flagSwatch(name, palette));
+  const backgrounds: TileGroup[] =
+    ready === null
+      ? []
+      : [
+          {
+            key: "backgrounds",
+            label: "Backgrounds",
+            items: parts.backgrounds.map((f) =>
+              backgroundItem(f.file, ready.background, country.colors),
+            ),
+          },
+        ];
+  const swatches = [...palette.keys()].map((name) => paletteSwatch(name, palette, "flag"));
   return (
     <EditBlock title="Flag">
       <TilePicker
         label="Emblem"
         title="The emblem in the middle of the flag"
-        current={emblemItem(flag.icon_category, flag.icon_file)}
-        groups={emblemGroups(parts)}
+        disabledReason={reason}
+        current={
+          ready === null ? NO_TILE : emblemItem(ready.flag.icon_category, ready.flag.icon_file)
+        }
+        groups={ready === null ? [] : emblemGroups(parts)}
         open={panel === "emblem"}
         onOpenChange={openPanel("emblem")}
         onPick={(key) => {
@@ -219,7 +119,12 @@ function FlagFields({ country }: { country: CountryNode }) {
       <TilePicker
         label="Background"
         title="The pattern behind the emblem"
-        current={backgroundItem(flag.background, background, country.colors)}
+        disabledReason={reason}
+        current={
+          ready === null
+            ? NO_TILE
+            : backgroundItem(ready.flag.background, ready.background, country.colors)
+        }
         groups={backgrounds}
         open={panel === "background"}
         onOpenChange={openPanel("background")}
@@ -229,7 +134,8 @@ function FlagFields({ country }: { country: CountryNode }) {
         <SwatchField
           label="Primary"
           title="The flag's main colour"
-          current={flagSwatch(flag.primary, palette)}
+          disabledReason={reason}
+          current={ready === null ? NO_COLOR : paletteSwatch(ready.flag.primary, palette, "flag")}
           swatches={swatches}
           onOpen={() => setPanel(null)}
           onPick={(primary) => set({ primary })}
@@ -239,46 +145,25 @@ function FlagFields({ country }: { country: CountryNode }) {
         <SwatchField
           label="Secondary"
           title="The flag's second colour"
-          current={flagSwatch(flag.secondary, palette)}
+          disabledReason={reason}
+          current={ready === null ? NO_COLOR : paletteSwatch(ready.flag.secondary, palette, "flag")}
           swatches={swatches}
           onOpen={() => setPanel(null)}
           onPick={(secondary) => set({ secondary })}
         />
       </EditRow>
-      {flagMods(flag, parts).map((mod) => (
-        <EditNote key={mod}>{`The save needs ${mod} to show this flag.`}</EditNote>
-      ))}
-      {paletteLines(palette, source).map((line) => (
-        <EditNote key={line}>{line}</EditNote>
-      ))}
-    </EditBlock>
-  );
-}
-
-/** A 4.4 save's empire: the map colour fields, disabled, and why. */
-function MapColorsUnavailable() {
-  const none: Swatch = { key: "", label: "none" };
-  return (
-    <EditBlock title="Map colours">
-      <EditRow label="Border">
-        <SwatchField
-          label="Border"
-          disabledReason={MAP_COLORS_NEED_4_5}
-          current={none}
-          swatches={[]}
-          onPick={() => undefined}
-        />
-      </EditRow>
-      <EditRow label="Fill">
-        <SwatchField
-          label="Fill"
-          disabledReason={MAP_COLORS_NEED_4_5}
-          current={none}
-          swatches={[]}
-          onPick={() => undefined}
-        />
-      </EditRow>
-      <EditNote>{MAP_COLORS_NEED_4_5}</EditNote>
+      {ready === null ? (
+        <EditNote>{reason}</EditNote>
+      ) : (
+        <>
+          {flagMods(ready.flag, parts).map((mod) => (
+            <EditNote key={mod}>{`The save needs ${mod} to show this flag.`}</EditNote>
+          ))}
+          {paletteLines(palette, source).map((line) => (
+            <EditNote key={line}>{line}</EditNote>
+          ))}
+        </>
+      )}
     </EditBlock>
   );
 }
@@ -288,7 +173,7 @@ function MapColorFields({ country }: { country: CountryNode }) {
   const applyOp = useApplyOp();
   const palette = useGameDataStore((s) => s.mapColors);
   const source = useGameDataStore((s) => s.mapColorSource);
-  if (!country.has_map_colors) return <MapColorsUnavailable />;
+  const reason = country.has_map_colors ? undefined : MAP_COLORS_NEED_4_5;
   const on = country.use_map_color;
   const border = country.painted_border ?? "";
   const fill = country.painted_fill ?? "";
@@ -297,22 +182,27 @@ function MapColorFields({ country }: { country: CountryNode }) {
   const pick = (pair: MapColorPair) => {
     if (pair.border !== border || pair.fill !== fill) set(pair);
   };
-  const swatches = [...palette.keys()].map((name) => colorSwatch(name, palette));
+  const swatch = (name: string) =>
+    reason === undefined ? paletteSwatch(name, palette, "map") : NO_COLOR;
+  const swatches = [...palette.keys()].map((name) => paletteSwatch(name, palette, "map"));
   return (
     <EditBlock title="Map colours">
-      <ToggleField
-        label={INDEPENDENT_MAP_COLOUR}
-        title="On: the border and fill use the colours below. Off: they come from the flag's primary and secondary colours."
-        checked={on}
-        onChange={(independent) => set(independent ? { border, fill } : null)}
-      />
-      {on ? (
+      {reason === undefined && (
+        <ToggleField
+          label={INDEPENDENT_MAP_COLOUR}
+          title="On: the border and fill use the colours below. Off: they come from the flag's primary and secondary colours."
+          checked={on}
+          onChange={(independent) => set(independent ? { border, fill } : null)}
+        />
+      )}
+      {on || reason !== undefined ? (
         <>
           <EditRow label="Border">
             <SwatchField
               label="Border"
               title="The colour of the empire's border on the map"
-              current={colorSwatch(border, palette)}
+              disabledReason={reason}
+              current={swatch(border)}
               swatches={swatches}
               onPick={(name) => pick({ border: name, fill })}
             />
@@ -321,7 +211,8 @@ function MapColorFields({ country }: { country: CountryNode }) {
             <SwatchField
               label="Fill"
               title="The colour the empire's territory is filled with on the map"
-              current={colorSwatch(fill, palette)}
+              disabledReason={reason}
+              current={swatch(fill)}
               swatches={swatches}
               onPick={(name) => pick({ border, fill: name })}
             />
@@ -330,17 +221,19 @@ function MapColorFields({ country }: { country: CountryNode }) {
       ) : (
         <>
           <EditRow label="Border">
-            <FlagColourText swatch={colorSwatch(border, palette)} source="flag primary" />
+            <FlagColourText swatch={swatch(border)} source="flag primary" />
           </EditRow>
           <EditRow label="Fill">
-            <FlagColourText swatch={colorSwatch(fill, palette)} source="flag secondary" />
+            <FlagColourText swatch={swatch(fill)} source="flag secondary" />
           </EditRow>
           <EditNote>The map uses the flag&apos;s primary and secondary colours.</EditNote>
         </>
       )}
-      {paletteLines(palette, source).map((line) => (
-        <EditNote key={line}>{line}</EditNote>
-      ))}
+      {reason === undefined ? (
+        paletteLines(palette, source).map((line) => <EditNote key={line}>{line}</EditNote>)
+      ) : (
+        <EditNote>{reason}</EditNote>
+      )}
     </EditBlock>
   );
 }

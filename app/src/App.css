@@ -6,9 +6,13 @@
   --border: #243044;
   --fg: #d6dde8;
   --fg-muted: #7f8ca3;
-  --accent: #ffd166;
+  --accent-rgb: 255, 209, 102;
+  --accent: rgb(var(--accent-rgb));
   --accent-dim: #8a6f2a;
-  --accent-bg: rgba(255, 209, 102, 0.07);
+  --accent-bg-faint: rgba(var(--accent-rgb), 0.04);
+  --accent-bg: rgba(var(--accent-rgb), 0.07);
+  --accent-bg-soft: rgba(var(--accent-rgb), 0.1);
+  --accent-bg-strong: rgba(var(--accent-rgb), 0.12);
   --warn: #ff8c66;
   --allowed: #6ee7b7;
   --allowed-dim: #2f6b55;
@@ -26,6 +30,13 @@
 
   --font-ui: "Segoe UI", Inter, system-ui, -apple-system, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --text-micro: 9px;
+  --text-hint: 11px;
+  --text-note: 11.5px;
+  --text-control: 12px;
+
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-dialog: 0 10px 30px rgba(0, 0, 0, 0.5);
 
   font-family: var(--font-ui);
   font-size: 13px;
@@ -68,6 +79,23 @@ button:hover:not(:disabled) {
 button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* A row of buttons whose pressed, checked or selected one is on. */
+.segmented {
+  display: flex;
+  gap: 2px;
+}
+
+.segmented button {
+  padding: 2px 8px;
+  font-size: var(--text-control);
+}
+
+.segmented button:is([aria-pressed="true"], [aria-checked="true"], [aria-selected="true"]) {
+  color: var(--accent);
+  background: var(--bg-elevated);
+  border-color: var(--accent-dim);
 }
 
 button.link {
@@ -122,7 +150,7 @@ h3 {
 /* A hint under an item's label, small and muted, whole in the tooltip too. */
 .hinted > .muted {
   display: block;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .warn {
@@ -161,7 +189,7 @@ h3 {
   gap: 12px;
   border-bottom: none;
   border-top: 1px solid var(--border);
-  font-size: 11.5px;
+  font-size: var(--text-note);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -172,7 +200,7 @@ h3 {
 
 .badge {
   padding: 0 6px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   line-height: 16px;
   border-radius: 8px;
 }
@@ -257,7 +285,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-muted);
 }
 
@@ -354,7 +382,7 @@ kbd {
   flex: 1 0 auto;
   height: 26px;
   padding: 0 5px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   white-space: nowrap;
   color: var(--fg-muted);
   background: none;
@@ -424,7 +452,7 @@ kbd {
 
 .progress-label {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .tri {

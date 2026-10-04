@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .browser-filters {
@@ -15,7 +15,7 @@
 .browser-filters button {
   height: 20px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   line-height: 18px;
 }
 
@@ -49,7 +49,7 @@
   border: none;
   padding: 0;
   text-align: left;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-muted);
 }
 
@@ -67,12 +67,12 @@
 }
 
 .browser-sub-group .browser-head .browser-title {
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .browser-group-note {
   padding: 4px 2px 5px 14px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   line-height: 1.4;
   color: var(--fg-muted);
 }
@@ -89,7 +89,7 @@
   border: none;
   padding: 0;
   color: var(--fg-muted);
-  font-size: 9px;
+  font-size: var(--text-micro);
   line-height: 1;
 }
 
@@ -167,7 +167,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--fg-muted);
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .browser-count {
@@ -229,7 +229,7 @@
 .browser-actions .browser-fix {
   width: auto;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   border: 1px solid var(--border);
   border-radius: 3px;
 }
@@ -281,7 +281,7 @@
 
 .browser-note {
   margin-top: 10px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-muted);
 }
 
@@ -290,7 +290,7 @@
   border: none;
   padding: 0 0 0 4px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .browser-paused {
@@ -300,7 +300,7 @@
   gap: 6px;
   margin-bottom: 6px;
   padding: 5px 7px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg);
   background: var(--bg-elevated);
   border: 1px solid var(--accent-dim);
@@ -315,7 +315,7 @@
 .browser-paused button {
   height: 20px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   line-height: 18px;
 }
 
@@ -337,7 +337,7 @@
 
 .browser-code-filter {
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-hint);
   height: 20px;
   color: var(--fg);
   background: var(--bg);
@@ -357,7 +357,7 @@
 }
 
 .history h3 {
-  font-size: 11px;
+  font-size: var(--text-hint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-muted);
@@ -387,7 +387,7 @@
 }
 
 .history-list li.current {
-  background: rgba(255, 209, 102, 0.12);
+  background: var(--accent-bg-strong);
   cursor: default;
 }
 

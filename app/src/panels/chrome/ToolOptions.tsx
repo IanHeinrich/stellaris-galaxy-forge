@@ -1,18 +1,24 @@
-import { useState, type ComponentType, type CSSProperties, type InputHTMLAttributes } from "react";
-import type { EraseTarget } from "../../lib/brush/brushTools";
+import type { ComponentType, CSSProperties, InputHTMLAttributes } from "react";
 import {
   HEIGHT_MODES,
   RIPPLE_PRESETS,
   rippleAt,
   rippleEnvelope,
-  type HeightMode,
-  type RipplePreset,
   type RippleShape,
 } from "../../lib/brush/heightBrush";
-import type { LaneMode } from "../../lib/brush/lanes";
 import { heightTint } from "../../lib/height";
 import { typedNumber } from "../../lib/text";
 import type { Tool } from "../../lib/tools";
+import {
+  choiceOf,
+  densityLimit,
+  ERASE_TARGET_CHOICES,
+  HEIGHT_MODE_HINTS,
+  HEIGHT_MODE_LABELS,
+  LANE_MODE_CHOICES,
+  RIPPLE_PRESET_LABELS,
+  type Choice,
+} from "../../lib/toolCopy";
 import { toCss } from "../../lib/visual/ownerColors";
 import {
   effectiveSpacing,
@@ -29,11 +35,11 @@ import {
   spacingOfSlider,
   useToolStore,
 } from "../../store/toolStore";
-import { ENTER } from "../keys";
 import { LaneDensitySlider } from "../LaneDensitySlider";
+import { useDraft } from "../useDraft";
 import "./chrome.css";
 
-/** A number field that applies on Enter or when it loses focus; text that is no number is dropped. */
+/** A number field that applies on Enter or when it loses focus, and drops what Escape abandons. */
 function DraftNumber({
   value,
   onApply,
@@ -42,24 +48,14 @@ function DraftNumber({
   InputHTMLAttributes<HTMLInputElement>,
   "type" | "value" | "onChange" | "onBlur" | "onKeyDown"
 >) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const apply = () => {
-    const n = draft === null ? null : typedNumber(draft);
-    if (n !== null) onApply(n);
-    setDraft(null);
-  };
-  return (
-    <input
-      type="number"
-      {...input}
-      value={draft ?? value}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={apply}
-      onKeyDown={(e) => {
-        if (e.key === ENTER) apply();
-      }}
-    />
-  );
+  const { draft, inputProps } = useDraft({
+    shown: String(value),
+    onCommit: (text) => {
+      const n = typedNumber(text);
+      if (n !== null) onApply(n);
+    },
+  });
+  return <input type="number" {...input} value={draft ?? value} {...inputProps} />;
 }
 
 /** The brush diameter as a slider and a number. */
@@ -98,6 +94,33 @@ function LaneDensityOption({ disabled = false }: { disabled?: boolean }) {
   );
 }
 
+/** A drop-down over `choices`; it reports a choice, never the text the element hands back. */
+function ChoiceSelect<T extends string>({
+  value,
+  choices,
+  onChange,
+}: {
+  value: T;
+  choices: readonly Choice<T>[];
+  onChange(value: T): void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => {
+        const chosen = choiceOf(choices, e.target.value);
+        if (chosen !== null) onChange(chosen);
+      }}
+    >
+      {choices.map((choice) => (
+        <option key={choice.value} value={choice.value}>
+          {choice.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function PaintOptions() {
   const size = useToolStore((s) => s.size);
   const chosen = useToolStore((s) => s.spacing);
@@ -105,7 +128,7 @@ function PaintOptions() {
   const limited = spacing > chosen;
   const least = minSpacingFor(size);
   const reach = sliderOfSpacing(least) / SPACING_SLIDER_MAX;
-  const why = `A brush this size paints at most ${MAX_SYSTEMS_PER_BRUSH} systems per circle, so the spacing is at least ${least}. Make the brush smaller to paint denser.`;
+  const why = densityLimit(MAX_SYSTEMS_PER_BRUSH, least);
   const setSpacing = useToolStore((s) => s.setSpacing);
   const laneMode = useToolStore((s) => s.laneMode);
   const setLaneMode = useToolStore((s) => s.setLaneMode);
@@ -144,11 +167,7 @@ function PaintOptions() {
       </label>
       <label className="tool-option">
         Lanes
-        <select value={laneMode} onChange={(e) => setLaneMode(e.target.value as LaneMode)}>
-          <option value="off">Off</option>
-          <option value="new">Among new</option>
-          <option value="nearby">New and nearby</option>
-        </select>
+        <ChoiceSelect value={laneMode} choices={LANE_MODE_CHOICES} onChange={setLaneMode} />
       </label>
       <LaneDensityOption disabled={laneMode === "off"} />
     </>
@@ -165,10 +184,11 @@ function EraseOptions() {
       <SizeOption />
       <label className="tool-option">
         Target
-        <select value={eraseTarget} onChange={(e) => setEraseTarget(e.target.value as EraseTarget)}>
-          <option value="systems">Systems</option>
-          <option value="lanes">Lanes only</option>
-        </select>
+        <ChoiceSelect
+          value={eraseTarget}
+          choices={ERASE_TARGET_CHOICES}
+          onChange={setEraseTarget}
+        />
       </label>
       <label className="tool-option">
         <input
@@ -191,28 +211,6 @@ function ConnectOptions() {
     </>
   );
 }
-
-const MODE_LABELS: Record<HeightMode, string> = {
-  set: "Set",
-  raise: "Raise",
-  ripple: "Ripple",
-  smooth: "Smooth",
-};
-
-const MODE_HINTS: Record<HeightMode, string> = {
-  set: "Click or drag to set every system under the brush to this height.",
-  raise: "Click or drag to lift systems, most at the centre. Alt lowers.",
-  ripple:
-    "Click to drop a ripple, or hold the button and let go where it should land. Rings preview on the map first. Alt flips crests and troughs.",
-  smooth: "Drag to even out bumps between neighbours.",
-};
-
-const PRESET_LABELS: Record<RipplePreset, string> = {
-  ripples: "Ripples",
-  waves: "Waves",
-  dome: "Dome",
-  crater: "Crater",
-};
 
 /** A labelled slider over `range` and its value, typed into a field when `field` names one. */
 function SliderOption({
@@ -264,7 +262,7 @@ function HeightModeOption() {
   const mode = useToolStore((s) => s.heightMode);
   const setMode = useToolStore((s) => s.setHeightMode);
   return (
-    <div className="tool-segmented" role="radiogroup" aria-label="Height brush mode">
+    <div className="segmented" role="radiogroup" aria-label="Height brush mode">
       {HEIGHT_MODES.map((m) => (
         <button
           key={m}
@@ -273,7 +271,7 @@ function HeightModeOption() {
           aria-checked={mode === m}
           onClick={() => setMode(m)}
         >
-          {MODE_LABELS[m]}
+          {HEIGHT_MODE_LABELS[m]}
         </button>
       ))}
     </div>
@@ -333,10 +331,10 @@ function RippleOptions() {
   const pick = useToolStore((s) => s.pickRipplePreset);
   return (
     <>
-      <div className="tool-chips" role="group" aria-label="Ripple presets">
+      <div className="segmented" role="group" aria-label="Ripple presets">
         {RIPPLE_PRESETS.map((p) => (
           <button key={p} type="button" aria-pressed={preset === p} onClick={() => pick(p)}>
-            {PRESET_LABELS[p]}
+            {RIPPLE_PRESET_LABELS[p]}
           </button>
         ))}
       </div>
@@ -399,7 +397,7 @@ function HeightOptions() {
           unit="%"
         />
       )}
-      <span className="tool-hint muted">{MODE_HINTS[mode]}</span>
+      <span className="tool-hint muted">{HEIGHT_MODE_HINTS[mode]}</span>
     </>
   );
 }

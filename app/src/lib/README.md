@@ -74,12 +74,15 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   bodies may take a moon),
   `height` (a system's height as the editor shows it, 0 on the game's default
   plane, and the colour it reads as),
+  `flags` (an empire's flag as the flag fields edit it: its emblem and
+  background rows, the mods it needs and the palette swatches),
   `precursors` (each system's precursor flags, matched against the install's
   definitions and grouped into the legend the map draws) and `planetMove`
   (moving save planets between systems: where a click in the system view
   places a lone planet, the systems nearest by jumps, and every sentence the
   menus, the cut bar and the inspector say about a cut and its paste).
-- The app's words: `issueCopy`, `paintCopy` and `sessionCopy` hold the
+- The app's words: `issueCopy`, `paintCopy`, `sessionCopy` and `toolCopy` (the
+  brush options' labels, hints and drop-downs) hold the
   sentences each screen uses for one subject, and `names`, `text` and
   `version` turn keys, counts and version strings into English.
   `releaseNotes` reads a release's notes into the spans the update dialog

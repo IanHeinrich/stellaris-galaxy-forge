@@ -115,7 +115,7 @@
   align-items: center;
   gap: 4px 10px;
   margin: 2px 0 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-soft);
 }
 
@@ -198,7 +198,7 @@
 }
 
 .pl-dep .l1 {
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .pl-dep .l2 {
@@ -231,12 +231,12 @@
 }
 
 .pl-yield .res {
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .pl-count {
   padding: 0 5px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   font-variant-numeric: tabular-nums;
   color: var(--fg-soft);
   background: var(--bg-elevated);
@@ -251,7 +251,7 @@
 
 .pl-dep-remove {
   padding: 0 4px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   line-height: 16px;
   color: var(--fg-soft);
   background: none;
@@ -275,7 +275,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--warn);
   border-left: 2px solid var(--warn);
 }
@@ -291,7 +291,7 @@
 
 .pl-dep-note {
   padding: 4px 2px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-soft);
 }
 
@@ -332,7 +332,7 @@
 .dp-amount {
   padding: 1px 7px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -357,7 +357,7 @@
 
 .dp-added {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--ok, var(--accent));
 }
 
@@ -411,7 +411,7 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-soft);
 }
 
@@ -451,7 +451,7 @@
   padding: 6px 2px 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-soft);
   white-space: pre-line;
   overflow-wrap: anywhere;
@@ -461,7 +461,7 @@
 .dp-details-name {
   display: block;
   margin-bottom: 2px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg);
 }
 
@@ -506,7 +506,7 @@
 
 .pl-mod .l1 {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .pl-mod .l2 {
@@ -555,7 +555,7 @@
   align-items: center;
   gap: 6px;
   padding: 2px 0 6px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .mp-duration label {
@@ -579,7 +579,7 @@
   flex-direction: column;
   gap: 2px;
   margin: 8px 0;
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .pl-remove-button {

@@ -17,7 +17,7 @@
 
 .ins-tab {
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   white-space: nowrap;
   color: var(--fg-muted);
   background: none;
@@ -98,7 +98,7 @@
 }
 
 .ins-sub {
-  font-size: 11px;
+  font-size: var(--text-hint);
   margin-bottom: 2px;
 }
 
@@ -179,7 +179,7 @@ button.chip.jump:hover {
 }
 
 .ins-sec .tri {
-  font-size: 9px;
+  font-size: var(--text-micro);
 }
 
 .ins-sec::after {
@@ -254,7 +254,7 @@ button.chip.jump:hover {
 .ins-more {
   display: block;
   padding: 2px;
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .ins-actions {
@@ -299,13 +299,13 @@ button.chip.jump:hover {
 .ins-placeholder,
 .ins-hint {
   padding: 4px 2px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
 }
 
 .ins-warn {
   margin-top: 4px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--warn);
   border-left: 3px solid var(--warn);
 }

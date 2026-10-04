@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { LayerId } from "../../lib/visual/layerIds";
 import { Glyph, NebulaMark, OwnerMark, StarMark } from "../Glyph";
+import { HeightMark } from "../HeightMark";
 
 function LayerGlyph({ children }: { children: ReactNode }) {
   return <Glyph className="layer-icon">{children}</Glyph>;
@@ -21,17 +22,6 @@ function FilledGlyph({ children }: { children: ReactNode }) {
     >
       {children}
     </svg>
-  );
-}
-
-/** A star on a drop line over a small hexagon: a height above the plane. */
-export function HeightMark() {
-  return (
-    <>
-      <circle cx="8" cy="3.6" r="2" fill="currentColor" stroke="none" />
-      <path d="M8 6.2v4.4" />
-      <path d="M8 10.8 10.2 12v2.4L8 15.6l-2.2-1.2V12Z" />
-    </>
   );
 }
 

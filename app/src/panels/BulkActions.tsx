@@ -249,15 +249,9 @@ function BulkHeight({ ids }: { ids: readonly number[] }) {
     <div className="height-group" role="group" aria-label="Height">
       <div className="edit-block-title">Height</div>
       <HeightStrip heights={heights} />
-      <div className="height-changes" role="group" aria-label="Height change">
+      <div className="segmented" role="group" aria-label="Height change">
         {HEIGHT_CHANGES.map(({ change: c, label }) => (
-          <button
-            key={c}
-            type="button"
-            aria-pressed={change === c}
-            className={change === c ? "on" : undefined}
-            onClick={() => setChange(c)}
-          >
+          <button key={c} type="button" aria-pressed={change === c} onClick={() => setChange(c)}>
             {label}
           </button>
         ))}

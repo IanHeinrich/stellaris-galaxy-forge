@@ -14,6 +14,7 @@ import { useEditorStore } from "../../../store/editorStore";
 import { useCanEdit } from "../../../store/fileSessionStore";
 import { useHeightPreviewStore } from "../../../store/heightPreviewStore";
 import { EditNote, EditRow, TextField } from "../../EditField";
+import { HeightMark } from "../../HeightMark";
 
 export const HEIGHT_HINT = "0 is flat. Above 0 rises above the galaxy plane, below 0 sinks.";
 
@@ -21,17 +22,7 @@ export const HEIGHT_HINT = "0 is flat. Above 0 rises above the galaxy plane, bel
 const PLANE_Y = 12;
 const MAX_LIFT = 9;
 
-/** The six corners of a hexagon lying on the plane, seen at an angle. */
-function hexagon(cx: number, cy: number, rx: number, ry: number): string {
-  return [0, 60, 120, 180, 240, 300]
-    .map((deg) => {
-      const a = (deg * Math.PI) / 180;
-      return `${(cx + rx * Math.cos(a)).toFixed(2)},${(cy + ry * Math.sin(a)).toFixed(2)}`;
-    })
-    .join(" ");
-}
-
-/** The game's height marker: the star on a drop line over its hexagon on the plane. */
+/** The height marker with its star lifted by the height, in the colour the height reads as. */
 function HeightIcon({ relative }: { relative: number }) {
   const color = toCss(heightTint(relative));
   const lift = isFlat(relative)
@@ -40,9 +31,15 @@ function HeightIcon({ relative }: { relative: number }) {
   const star = PLANE_Y - lift;
   return (
     <svg className="height-icon" viewBox="0 0 16 24" width={12} height={18} aria-hidden="true">
-      <polygon points={hexagon(8, PLANE_Y, 5, 2.2)} fill="none" stroke={color} strokeWidth={1} />
-      {lift !== 0 && <line x1={8} y1={PLANE_Y} x2={8} y2={star} stroke={color} strokeWidth={1} />}
-      <circle cx={8} cy={star} r={2.2} fill={color} />
+      <HeightMark
+        plane={PLANE_Y}
+        star={star}
+        rx={5}
+        ry={2.2}
+        radius={2.2}
+        color={color}
+        strokeWidth={1}
+      />
     </svg>
   );
 }

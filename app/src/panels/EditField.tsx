@@ -1,7 +1,7 @@
-import { useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { typedNumber } from "../lib/text";
 import { IconPicker, type IconPickerItem } from "./IconPicker";
-import { ENTER, ESCAPE } from "./keys";
+import { useDraft } from "./useDraft";
 import "./panels.css";
 
 function classes(...names: (string | false | undefined)[]): string {
@@ -45,26 +45,20 @@ function fieldText(props: TextFieldProps): string {
  * one; Escape abandons the edit.
  */
 export function TextField(props: TextFieldProps) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const cancelled = useRef(false);
   const shown = fieldText(props);
   const disabled = props.disabledReason !== undefined;
-  const commit = () => {
-    props.onDone?.();
-    const text = draft;
-    setDraft(null);
-    if (cancelled.current) {
-      cancelled.current = false;
-      return;
-    }
-    if (text === null || text === shown) return;
-    if (props.kind === "text") {
-      props.onCommit(text);
-      return;
-    }
-    const n = typedNumber(text);
-    if (n !== null) props.onCommit(n);
-  };
+  const { draft, startDraft, inputProps } = useDraft({
+    shown,
+    onDone: props.onDone,
+    onCommit: (text) => {
+      if (props.kind === "text") {
+        props.onCommit(text);
+        return;
+      }
+      const n = typedNumber(text);
+      if (n !== null) props.onCommit(n);
+    },
+  });
   return (
     <span
       className={classes("edit-field", "edit-text", disabled && "disabled", props.className)}
@@ -79,17 +73,9 @@ export function TextField(props: TextFieldProps) {
         disabled={disabled}
         value={draft ?? props.display ?? shown}
         onFocus={() => {
-          if (props.display !== undefined) setDraft(shown);
+          if (props.display !== undefined) startDraft();
         }}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === ENTER) e.currentTarget.blur();
-          else if (e.key === ESCAPE) {
-            cancelled.current = true;
-            e.currentTarget.blur();
-          }
-        }}
+        {...inputProps}
       />
       <span className="edit-field-icon" aria-hidden="true">
         ✎
