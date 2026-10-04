@@ -71,6 +71,8 @@ jobs:
   test:
     name: Test (${{ matrix.os }}, ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
+    env:
+      SCCACHE_GHA_ENABLED: "true"
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +100,14 @@ jobs:
           shared-key: test-${{ matrix.os }}-${{ matrix.shard == 0 && 'all' || 'core' }}
           save: ${{ github.ref == 'refs/heads/main' && (matrix.shard == 0 || matrix.shard == 1) }}
 
+      # rust-cache keeps only the dependencies, so sccache keeps the workspace's own crates. The
+      # wrapper goes in the runner's cargo config: a RUSTC_WRAPPER variable would change
+      # rust-cache's key.
+      - uses: mozilla-actions/sccache-action@v0.0.11
+      - name: Compile through sccache
+        shell: bash
+        run: printf "[build]\nrustc-wrapper = 'sccache'\n" >> "${CARGO_HOME:-$HOME/.cargo}/config.toml"
+
       - name: Version file agrees with the manifests
         if: matrix.shard == 0
         run: bash scripts/version.sh check
@@ -120,6 +130,10 @@ jobs:
       - name: Generated TypeScript types are up to date
         if: matrix.os == 'ubuntu-latest'
         run: git diff --exit-code app/src/generated
+
+      - name: sccache statistics
+        if: always()
+        run: sccache --show-stats
 
   checks:
     name: Checks (${{ matrix.os }})
