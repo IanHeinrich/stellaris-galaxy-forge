@@ -6,7 +6,6 @@ use std::path::Path;
 
 use sgf_core::cst::{self, Node, Value};
 use sgf_core::emit::{coord, hyperlane_block, lane_entry};
-use sgf_core::scan;
 
 use crate::common;
 
@@ -45,11 +44,10 @@ fn xy_scalars<'a>(node: &Node, src: &'a [u8], out: &mut Vec<&'a str>) {
 
 #[test]
 fn every_system_coordinate_in_the_sample_re_emits_unchanged() {
-    let gamestate = common::gamestate();
-    let src = gamestate.as_slice();
-    let index = scan::scan(src).expect("scan sample");
+    let doc = common::load();
+    let src = doc.original();
     let mut seen = 0;
-    for entity in index.entities("galactic_object") {
+    for entity in doc.index().entities("galactic_object") {
         let root = cst::parse(entity.stmt.slice(src), entity.stmt.start).expect("parse entity");
         let mut texts = Vec::new();
         xy_scalars(&root, src, &mut texts);
