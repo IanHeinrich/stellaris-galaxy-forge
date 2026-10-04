@@ -111,6 +111,19 @@ pub struct TextureView {
     pub error: Option<String>,
 }
 
+impl TextureView {
+    /// A texture that could not be made: `key`, no pixels and the reason.
+    pub fn failed(key: &str, error: impl Into<String>) -> Self {
+        Self {
+            key: key.to_owned(),
+            width: 0,
+            height: 0,
+            png_base64: None,
+            error: Some(error.into()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Textures {
     cache_dir: PathBuf,
@@ -170,13 +183,7 @@ impl Textures {
                     error: None,
                 }
             }
-            Err(e) => TextureView {
-                key: key.to_owned(),
-                width: 0,
-                height: 0,
-                png_base64: None,
-                error: Some(e.to_string()),
-            },
+            Err(e) => TextureView::failed(key, e.to_string()),
         }
     }
 

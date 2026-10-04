@@ -30,13 +30,18 @@ stellaris-galaxy-forge/
 │   │   │   │                  save/details/ projects a system's planets, fleets and starbase;
 │   │   │   │                  save/write/ writes the save ops, with game_tables.rs for what is
 │   │   │   │                  copied from the game's own files
-│   │   │   ├── ops/           every edit. op.rs has the Op enum, with each op's inverse and
-│   │   │   │                  description. plan.rs commits all of an op's edits or none of them.
-│   │   │   │                  rules/ decides what an edit may do on the graph. history.rs replays
-│   │   │   │                  bytes for undo
-│   │   │   ├── projections/   caches read from the index: the galaxy graph and names, and the
-│   │   │   │                  readers every projection shares
-│   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save
+│   │   │   ├── ops/           every edit. op.rs has the Op enum and, for each op, the row Op::reach
+│   │   │   │                  gives it: the document kinds that take it and how its details go
+│   │   │   │                  stale. The planners under format/*/write build each op's edits,
+│   │   │   │                  description and inverse. edit.rs is the edit primitive they plan
+│   │   │   │                  in, plan.rs commits all of an op's edits or none of them, and
+│   │   │   │                  error.rs holds the refusals. rules/ decides what an edit may do on
+│   │   │   │                  the graph. history.rs replays bytes for undo
+│   │   │   ├── projections/   caches read from the index: the galaxy graph and names, the readers
+│   │   │   │                  every projection shares, and geometry.rs, where a system's bodies
+│   │   │   │                  stand about their parents
+│   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save, and the reads the
+│   │   │   │                  shell and CLI ask of them
 │   │   │   ├── validate/      what the game could not cope with. The codes are here, with paint.rs
 │   │   │   │                  and scenario.rs for the checks that apply to only one kind of file
 │   │   │   ├── search.rs      find systems and entities by name or id, and systems by what they hold
@@ -69,8 +74,9 @@ stellaris-galaxy-forge/
 │   │   │   ├── initializers.rs solar_system_initializers: what a system will spawn
 │   │   │   ├── condition.rs   a trigger block compiled once to the conditions the crate can judge
 │   │   │   ├── weight.rs      a weight block: a base, its factors and its modifiers
-│   │   │   ├── generate.rs    rolls a system to add to a save from the install's rules, with
-│   │   │   │                  rng.rs for its random numbers
+│   │   │   ├── generate/      rolls a system to add to a save from the install's rules, with
+│   │   │   │                  rng.rs for its random numbers. save.rs builds the bodies and
+│   │   │   │                  systems added to a save, and the class rules a class change takes
 │   │   │   ├── orbit_walk.rs  the walk over an initializer's planet and moon blocks that
 │   │   │   │                  places each body as the engine does, shared by the roller, the
 │   │   │   │                  example roll and the scenario details
@@ -81,6 +87,11 @@ stellaris-galaxy-forge/
 │   │   │   ├── body_effects.rs what a layout's init_effect does to a body it places
 │   │   │   ├── summary.rs     the hover card of an Add system pick
 │   │   │   ├── planet_views.rs what the planet page draws from the install
+│   │   │   ├── choices.rs     the planet the page's pickers are asked about. anomaly_choices.rs,
+│   │   │   │                  deposit_choices.rs, dig_site_choices.rs and modifier_choices.rs say
+│   │   │   │                  what each picker offers for it, and planet_models.rs the models
+│   │   │   ├── picks.rs       the classes the add-system and add-body menus offer
+│   │   │   ├── fonts.rs       the typeface the galaxy map writes empire names in
 │   │   │   ├── scripts/       events, effects, on_actions: who claims what on day one
 │   │   │   ├── special.rs     leviathans, enclaves, marauders, fallen empires, landmarks
 │   │   │   ├── details.rs     a scenario system's details from its initializer, the example
@@ -93,18 +104,21 @@ stellaris-galaxy-forge/
 │   │   │   │                  belongs to
 │   │   │   └── views.rs       IPC types
 │   │   └── tests/             against a fixture mod in tests/fixtures, and the real install when present
-│   └── sgf-cli/               the sgf binary: cli.rs declares it, commands/ has one file per verb
+│   └── sgf-cli/               the sgf binary: cli.rs declares it, commands/ has one file per verb.
+│                              apply.rs runs the edits that JSON files hold
 ├── app/
 │   ├── src-tauri/             the Tauri 2 shell (sgf-app)
-│   │   ├── src/commands/      the IPC surface: session, scenario, entity, gamedata, listing,
-│   │   │                      add_system, nebula, paint, update
+│   │   ├── src/commands/      the IPC surface, one module per area: session, scenario, entity,
+│   │   │                      gamedata, listing, add_system, add_body, nebula, paint, update
 │   │   ├── src/state.rs       the open session, game data and texture cache behind mutexes
-│   │   ├── src/views.rs       the shell's own IPC types, for the updater
+│   │   ├── src/views.rs       the shell's own IPC types, for the updater and Add planet
 │   │   ├── src/watch/         watches the install and mod roots game data was read from
-│   │   └── tests/             the commands end to end on the sample save
+│   │   └── tests/             the commands end to end on the sample save; constants.rs writes
+│   │                          app/src/generated/shell.ts, the event names and the releases URL
 │   └── src/                   React + TypeScript. A layer imports only from the layers below it
-│       ├── test/              builders and stand-ins the tests of every layer share, and ipc.ts,
-│       │                      the one set of command spies
+│       ├── test/              builders and stand-ins the tests of every layer share, ipc.ts, the one
+│       │                      set of command spies, and setup.ts, which mocks the dialog plugin once
+│       │                      for every test file. test/README.md says how to open a document
 │       ├── panels/            the React tree: chrome/ (top bar, dock, status bar), inspector/,
 │       │                      browser/ (empires, points of interest, issues, changes),
 │       │                      file/ (open screen, New scenario), initializers/, search/, overlays/
@@ -114,26 +128,37 @@ stellaris-galaxy-forge/
 │       │                      models, and pointerBridge.ts, which feeds both scenes their
 │       │                      input), layers/ with highlights/ (the brush, drag and symmetry
 │       │                      overlays), picking/ (what lies under the pointer), follows.ts
-│       │                      (how either scene follows a store)
-│       │   └── system/        the system view's scene: sources.ts reads the stores, context.ts
-│       │                      resolves them into what the layers draw, camera.ts fits the
-│       │                      view, and beside them its gesture model, picking and layers/
-│       │                      (bodies, orbits, belts, labels, radii, exits, nebula, highlight
-│       │                      and the rolled placeholders, with the textures they make on the
-│       │                      CPU)
+│       │                      (how either scene follows a store), and tilt.ts and
+│       │                      drawnPositions.ts, where a lean of the galaxy plane and the heights
+│       │                      put each system, which every galaxy layer draws through
+│       │   └── system/        the system view's scene: sources.ts reads one SceneSubject (the
+│       │                      system's details, roll, node and neighbours) from the stores for
+│       │                      either kind of document, context.ts resolves it into what the
+│       │                      layers draw, camera.ts fits the view, picking.ts names what lies
+│       │                      under the pointer as one SceneTarget (a body, wormhole, exit or
+│       │                      handle), the gesture model turns the pointer into a drag, and
+│       │                      bodyDrag.ts and drags.ts hold the drags (a body, a wormhole, a
+│       │                      belt or inner radius handle). Its layers/ draw bodies, orbits,
+│       │                      belts, labels, radii, exits, handles, locks, wormholes, nebula,
+│       │                      highlight and the rolled placeholders, with the textures they make
+│       │                      on the CPU
 │       ├── store/             Zustand stores, one per concern: session, editor, galaxy, game data, ...
 │       │                      editorStore.*.ts split the editor's actions by subject (nebulae,
 │       │                      lanes, brush, ...). editorEdits.ts runs all edits through a single
 │       │                      queue. symmetricEdits.ts widens an edit under symmetry.
 │       │                      fileSessionStore.saveGate.ts asks a save's questions, and
 │       │                      fileSessionStore.writes.ts writes the files. issueNotes.ts raises
-│       │                      the app's own notes. storeFixture.ts resets every store for a
+│       │                      the app's own notes. planetEditAdapter.ts builds the ops a save body's
+│       │                      page sends, systemGeometry.ts applies a system's geometry edits, and
+│       │                      resetScopes.ts says which stores a closed document or reloaded game
+│       │                      data resets. storeFixture.ts resets every store for a
 │       │                      test, and fixtures/ holds the documents the tests open
 │       ├── lib/               pure helpers: geometry/, initializer/, details/, visual/, brush/, keys.ts;
 │       │                      lib/README.md says what each holds
-│       ├── api/               one function per Tauri command
-│       └── generated/         ts-rs output and constants.ts; rewritten by cargo test --workspace,
-│                              never edited
+│       ├── api/               one function per Tauri command, one file per module of
+│       │                      src-tauri/src/commands, and ipc.ts re-exporting them
+│       └── generated/         ts-rs output, constants.ts and shell.ts; rewritten by cargo test
+│                              --workspace, never edited
 ├── docs/                      this file, the user guide, the engineering rules, the format
 │                              and game-data facts, the Paint a Galaxy integration notes, adr/,
 │                              media/
@@ -159,8 +184,9 @@ stellaris-galaxy-forge/
   start. When a mod file changes, a file watcher rebuilds the registry
   it affects. It also rolls the systems added to a save from the
   install's own rules.
-- `sgf` is the command line. It runs the same edits from a terminal,
-  and it is also the test harness for the core.
+- `sgf` is the command line. `sgf apply` runs the same edits from a
+  terminal, as ops written in JSON files. It is also the test harness
+  for the core.
 - The desktop app is a Tauri 2 shell (`sgf-app`) around a React and
   TypeScript UI with a PixiJS map. The UI never touches bytes. It sends
   edits to the core over IPC and redraws from what comes back.
@@ -207,10 +233,17 @@ span of every top-level statement. Inside the sections that hold
 entities, it also records the span of every id-keyed block. Structure
 comes from counting braces. The game writes keys at column 0 at any
 depth, so indentation means nothing. The index is the only structure
-the editor keeps about the file as a whole, apart from two lists read
-back from the overlay after every edit: a save's `nebula` sections and
-the entities an op added. There is no typed model of the file, and
-nothing is ever serialised from one.
+the editor keeps about the file as a whole, apart from what the
+document caches beside it. A save keeps its `nebula` sections and the
+systems, planets, deposits, dig sites and wormholes an op added, both read
+back from the overlay after every edit. It also keeps the countries that
+have found each planet's anomaly and what clearing each blocker costs,
+read on first use. The index of an inner section (`planets.planet`,
+`starbase_mgr.starbases`, `archaeological_sites`) is built the first time
+an address needs it. A scenario keeps its own index of the statements it
+reads. The `meta` bytes of a save are held beside the original, with the
+version an op rewrote. There is no typed model of the file, and nothing is
+ever serialised from one.
 
 The galaxy graph is a projection read from the index. It holds systems
 with their positions and lanes, nebulae with their members, and
@@ -233,6 +266,16 @@ replaced. Undo puts those old bytes back, and redo puts the edit's bytes
 back. The inverse describes the change. A `Batch` applies several edits
 as one history entry. If any of them is refused, the document is left as
 it was.
+
+An op is a variant of `Op`. Its row from `Op::reach` says which document
+kinds take it, whether it leaves the details projection stale and how that
+is brought up to date (read again in place, or built again), whether it
+reclassifies systems, whether it needs a 4.x save, and whether it takes a
+second step once the first is committed. The format's planner for the op
+decides its edits, its description and its inverse, in terms of the
+primitive in `ops/edit.rs`. `ops/plan.rs` commits the edits together, and
+`ops/error.rs` holds the reasons an op is refused. The session refuses
+from outside an op that is only ever an inverse.
 
 ## An edit, end to end
 
@@ -296,11 +339,17 @@ choice and the mod's install state. `sgf-gamedata` finds the mod itself
 A save and a scenario share the byte model, the index, the graph, the
 edits and the history. What differs between them is behind the `Format`
 trait. It says which statements hold systems, lanes and nebulae, which
-edits the format supports, and how each edit's bytes are written. A
-scenario can add and remove any system and set what it spawns. A save
-can add systems and remove the ones added this session. A save carries
-lane lengths, and a scenario does not. An edit decides what changes on
-the graph, and the format writes the bytes.
+edits the format supports, and how each edit's bytes are written. Each
+op's row in `Op::reach` says which kinds take it. A scenario can add and
+remove any system and set what it spawns. A save can add systems and
+remove the ones added this session. It can also edit its bodies: star
+classes, planet sizes, classes and models, orbits and belts, moons, deposits,
+modifiers, anomalies and dig sites. It can delete planets and moons,
+remove colonies, move a planet to another system, move wormholes, add and
+remove wormhole pairs, set system heights, and change an empire's name,
+flag and map colours. A save carries lane lengths, and a scenario does
+not. An edit decides what changes on the graph, and the format writes
+the bytes.
 
 ## Layers of the app
 
@@ -312,3 +361,12 @@ generated types), `store/` (session state and the actions the UI calls),
 map). A layer imports only from the layers below it.
 `app/src/lib/README.md` and `app/src/panels/README.md` state the rule
 and its exceptions.
+
+The planet page is one `BodyPage` for every kind of document. A
+`BodySource` for each kind reads the body and the rows its page lists, and
+gives the page the adapter that edits it. A system's geometry is edited through one
+adapter per kind too, and `lib/documentKinds.ts` holds the other things
+that differ between kinds as one row each. The scene reads a system through
+one `SceneSubject`, and the system view's drags go through one
+`SceneTarget`. `app/src/lib/README.md` and `app/src/panels/README.md` say
+which module holds what.

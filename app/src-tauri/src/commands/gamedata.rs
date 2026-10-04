@@ -428,13 +428,9 @@ pub async fn get_textures<R: Runtime>(
         keys.iter()
             .map(|key| match &gd {
                 Some(gd) => gd.texture(&textures.0, key),
-                None => TextureView {
-                    key: key.clone(),
-                    width: 0,
-                    height: 0,
-                    png_base64: None,
-                    error: Some(SgfError::no_game_data("show the game's art").message),
-                },
+                None => {
+                    TextureView::failed(key, SgfError::no_game_data("show the game's art").message)
+                }
             })
             .collect()
     })

@@ -17,6 +17,11 @@ Each editable vocabulary is a set of top-level `key = { … }` blocks in
 | `deposit.type="d_…"` | `deposits/` (26 files) | 587 | `is_for_colonizable`, `station`, and `resources.category`, which points into `deposit_categories/`. Together they tell orbital, planetary and blocker deposits apart. |
 | `planet.planet_modifier="pm_…"` | `planet_modifiers/` (1 file) | 71 | Spawn rules only. The display name comes from localisation. |
 | `planet.timed_modifier.items[].modifier="…"` | `static_modifiers/` (37 files) | hundreds | Effects. Some `pm_` keys are defined here too. |
+| `anomaly` on a planet | `anomalies/` | | The category and its `spawn_chance`. The page offers the categories that can be added to a body. |
+| a site in `archaeological_sites` | `archaeological_site_types/` | | The stages. The page offers the types a site in a save can stand for. |
+| a colony's `designation` | `colony_types/` | | The designation's name and icon. |
+| `asteroid_belts` of a system | `asteroid_belts/` | | The belt kinds the system view draws. |
+| `entity` of a planet (its model) | `gfx/models` and the scripts | | Not a `common/` dir. The entities come from the `.asset` files under `gfx/models`, and the models a planet may take from the initializers' `entity` and from every `set_planet_entity`. |
 
 Vanilla `common/` is 27 MB, and the English localisation is 16 MB. Mods
 extend every one of these vocabularies. A large content mod can add
@@ -254,6 +259,19 @@ order. Within a `common/` dir it processes files in filename order.
   file in that folder.
 - For a localisation key, the last file loaded wins. Files in
   `replace/` win over all of them.
+
+`Layout::files_in` applies those rules to a `common/` dir. The code walks
+other folders by rules of their own:
+
+- Texture folders such as `flags/<category>` are read one level deep, and
+  match the extension in any case. A `replace_path` of the folder or of
+  any folder above it discards the earlier files.
+- The `.asset` and `.gfx` files under `gfx/models` are read at any depth.
+  A later layer's file of the same path, in any case, replaces the earlier
+  one, and `replace_path` is not applied.
+- `interface/*.gfx` and `fonts/*.asset` are read from every layer with no
+  file replacement. Where two layers define the same name, the later one
+  wins.
 
 To apply this, build a `filename → winning path` map for each dir across
 the layers. Then parse the files in filename order and let later keys

@@ -8,7 +8,6 @@ import {
   NAME_ROW,
   NO_MARKS,
   bodyMarks,
-  colonyOwner,
   marked,
   nameEmblem,
   nameRowY,
@@ -18,25 +17,6 @@ import {
   sameMarks,
   visiblePlanets,
 } from "./layout";
-
-describe("colonyOwner", () => {
-  it("is the first owner that is not a pre-FTL civilisation", () => {
-    const d = details({
-      planets: [
-        planet({ id: 1, owner: 9, pre_ftl: true }),
-        planet({ id: 2, owner: null }),
-        planet({ id: 3, owner: 4, colonised: true }),
-        planet({ id: 4, owner: 5, colonised: true }),
-      ],
-    });
-    expect(colonyOwner(d)).toBe(4);
-  });
-
-  it("is null when only pre-FTL or unowned planets are present", () => {
-    expect(colonyOwner(details({ planets: [planet({ owner: 9, pre_ftl: true })] }))).toBeNull();
-    expect(colonyOwner(details({}))).toBeNull();
-  });
-});
 
 describe("visiblePlanets", () => {
   it("shows free habitable planets, guessing from the class without game data", () => {
@@ -170,6 +150,22 @@ describe("plateBox", () => {
 });
 
 describe("nameEmblem", () => {
+  it("is the first owner that is not a pre-FTL civilisation, and nobody's when there is none", () => {
+    const countries = new Map<number, CountryNode>([[4, { ...COUNTRY, id: 4 }]]);
+    const owner = (planets: ReturnType<typeof planet>[]) =>
+      nameEmblem(planets, countries)?.owner ?? null;
+    expect(
+      owner([
+        planet({ id: 1, owner: 9, pre_ftl: true }),
+        planet({ id: 2, owner: null }),
+        planet({ id: 3, owner: 4, colonised: true }),
+        planet({ id: 4, owner: 5, colonised: true }),
+      ]),
+    ).toBe(4);
+    expect(owner([planet({ owner: 9, pre_ftl: true })])).toBeNull();
+    expect(owner([])).toBeNull();
+  });
+
   it("is the coloniser's, else a marauder clan's holding the system with no plate, else nobody's", () => {
     const countries = new Map<number, CountryNode>([
       [5, { ...COUNTRY, id: 5, country_type: "dormant_marauders" }],

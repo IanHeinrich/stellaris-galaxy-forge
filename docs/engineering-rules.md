@@ -112,7 +112,8 @@ format sees it.
   layer.
 - `app/src/generated/`: TypeScript types exported by ts-rs, and
   `constants.ts`, the core's rules the app reads too, written by
-  `crates/sgf-core/tests/constants.rs`. Generated: regenerate with
+  `crates/sgf-core/tests/constants.rs`, and `shell.ts`, the shell's event names, written by
+  `app/src-tauri/tests/constants.rs`. Generated: regenerate with
   `cargo test --workspace` (`sgf-core`, `sgf-gamedata` and `sgf-app`, via
   its `views.rs`, all export types); never hand-edit.
 - `testdata/`: save corpus via git-lfs (`4.4-early.sav`, Stellaris

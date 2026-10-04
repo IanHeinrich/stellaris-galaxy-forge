@@ -11,14 +11,12 @@ import {
   depositTypeView,
   modifierLine,
   name,
-  planetClassView,
   planetPage,
-  starClassView,
 } from "../../../store/fixture";
-import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry, type InspectorTab } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { heldAnomaly, savePickerTarget } from "../../../store/planetEditAdapter";
+import { armStarClasses as armClasses } from "../../../store/storeFixture";
 import { details, land, planet, SYSTEM } from "../inspectorFixture";
 import { PlanetView } from "./PlanetView";
 
@@ -33,31 +31,17 @@ export const EMPIRE = 16;
 
 /** The install's classes for a binary of a Class A star and a pulsar, and a Class G star. */
 export function armStarClasses(): void {
-  useGameDataStore.setState({
-    names: new Map([
-      ["pc_a_star", "Class A Star"],
-      ["pc_g_star", "Class G Star"],
-      ["pc_pulsar", "Pulsar"],
-      ["pc_continental", "Continental World"],
-      ["pc_barren_cold", "Barren World"],
-    ]),
-    starClasses: new Map(
-      [
-        starClassView("sc_a", "pc_a_star"),
-        starClassView("sc_g", "pc_g_star"),
-        starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
-      ].map((c) => [c.key, c]),
-    ),
-    planetClasses: new Map(
-      [
-        planetClassView("pc_a_star"),
-        planetClassView("pc_g_star"),
-        planetClassView("pc_pulsar"),
-        planetClassView("pc_continental", false),
-        planetClassView("pc_barren_cold", false),
-      ].map((c) => [c.key, c]),
-    ),
-  });
+  armClasses(
+    { sc_a: ["pc_a_star"], sc_g: ["pc_g_star"], sc_binary_1: ["pc_a_star", "pc_pulsar"] },
+    {
+      pc_a_star: "Class A Star",
+      pc_g_star: "Class G Star",
+      pc_pulsar: "Pulsar",
+      pc_continental: "Continental World",
+      pc_barren_cold: "Barren World",
+    },
+    ["pc_continental", "pc_barren_cold"],
+  );
 }
 
 export const stars = () =>

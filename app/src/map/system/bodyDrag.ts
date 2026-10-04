@@ -38,8 +38,8 @@ const SHIFT_STEP_DEG = 15;
  * A moon comes away from its planet once the pointer is past this many times the planet's
  * outermost moon ring, and this many screen pixels beyond that.
  */
-export const DETACH_RING_FACTOR = 2;
-export const DETACH_PAST_PX = 30;
+const DETACH_RING_FACTOR = 2;
+const DETACH_PAST_PX = 30;
 
 /** A handle the scene draws on a belt or the inner radius, which a drag moves. */
 export type HandleRef =

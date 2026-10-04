@@ -540,7 +540,7 @@ const lastHandles = lastOf<readonly SceneHandle[]>();
 const lastWormholes = lastOf<readonly SceneWormhole[]>();
 
 /** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
-export const HANDLES_PER_CIRCLE = 6;
+const HANDLES_PER_CIRCLE = 6;
 
 /** Where each handle stands on a circle about the centre, as unit steps in world units. */
 const HANDLE_SPOTS: readonly (readonly [number, number])[] = Array.from(

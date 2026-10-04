@@ -41,3 +41,26 @@ moves cut planets, and so changes the system a planet page's System field shows.
   box.
 - A change is one op, applied as soon as the field commits. Undo takes it back,
   so there is no Apply, Cancel or edit mode.
+
+## The body page
+
+`inspector/entity/BodyPage.tsx` is the one page for a planet, moon or star,
+in a save and in a scenario. A `BodySource` for each kind of document
+(`bodySources.ts`) reads the body and the rows the page lists, and gives
+the page the adapter that edits it. The page then lists its sections in
+order, in the `SECTIONS` table: deposits, modifiers, anomaly, dig site,
+colony, About, moons and delete. Each section takes the same
+`PlanetSectionProps`, and leaves itself out where it has nothing to show.
+`planetOffers` says which edits the page offers. The deposit, modifier, anomaly
+and dig site pickers are each a `PickerKind` (its store, its words and its
+chips) given to one `PlanetPicker`.
+
+`BoundsField` is a number a scenario may leave to a draw, so it edits a
+`Bounds`: one field for a fixed value, or one for each end of a range.
+`RadiusAngleFields` (`inspector/`) are the Radius and Angle rows of a thing
+placed about a point, built on it. A page sends a geometry edit through
+`useGeometryEdit` and shows the refusal beside the field.
+
+A system's Overview is a list of sections in `inspector/system/overviewSections.ts`,
+each with the capability it needs, so a kind of document shows the sections
+it supports.

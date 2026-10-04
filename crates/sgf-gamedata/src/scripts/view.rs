@@ -212,7 +212,7 @@ pub struct ScenarioBypass {
     pub assumed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct ScenarioBypasses {
     /// One entry per endpoint, by system; a pair carries both ends.

@@ -4,11 +4,12 @@
 //! A [`Subject`] names what the statement stands for so that an error reads as the op's
 //! caller expects; [`splice`] applies the planned ranges to a copy of the bytes.
 //!
-//! Ops reach the bytes through three primitives: [`Edit::set_scalar`] rewrites a value,
-//! [`Edit::insert`] adds whole lines at a line boundary, and
-//! [`Edit::remove_lines`] deletes them. Structure comes from the CST and indentation is
-//! copied from the line the text lands beside; only a line written last in a block adds a
-//! tab to its closing brace's ([`Edit::before_close`]).
+//! Ops reach the bytes through the methods of [`Edit`] and [`BufEdit`]: a value is
+//! rewritten ([`Edit::set_scalar`], [`Edit::set_value`], `replace_span`), and a statement or
+//! line is inserted, removed or replaced (`insert`, `insert_after`, `insert_before`,
+//! `remove_statement`, `remove_lines`, `replace_statement`). Structure comes from the CST and
+//! indentation is copied from the line the text lands beside; only a line written last in a
+//! block adds a tab to its closing brace's ([`Edit::before_close`]).
 
 use std::ops::Range;
 

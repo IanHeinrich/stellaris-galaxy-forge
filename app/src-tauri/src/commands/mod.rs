@@ -1,5 +1,5 @@
-//! The Tauri commands. Names and argument names match the wrappers in `app/src/api/`;
-//! the event names match `app/src/api/events.ts`.
+//! The Tauri commands. Names and argument names match the wrappers in `app/src/api/`, one
+//! file per module here. The event names are written to `app/src/generated/shell.ts`.
 
 pub mod add_body;
 pub mod add_system;
