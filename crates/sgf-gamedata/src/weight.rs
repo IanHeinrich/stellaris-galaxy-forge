@@ -1,6 +1,6 @@
-//! A weight block as the install writes one: a layout's `usage_odds` and a deposit's
-//! `drop_weight`. A base, times every top-level `factor`, then each `modifier` whose
-//! conditions hold, in order.
+//! A weight block as the install writes one: a layout's `usage_odds`, a deposit's
+//! `drop_weight`, an anomaly's `spawn_chance` and a dig site's `weight`. A base, times every
+//! top-level `factor`, then each `modifier` whose conditions hold, in order.
 
 use sgf_core::cst::Node;
 
@@ -29,9 +29,13 @@ pub struct WeightModifier {
 }
 
 impl Weight {
-    /// `node`'s `weight` or `base`, or `base` when it writes neither.
+    /// `node`'s `weight` or `base`, or `base` when it writes neither. A `node` that is a
+    /// number is a fixed weight.
     pub(crate) fn read(node: &Node, def: &Def, base: f64) -> Self {
         let src = &def.src;
+        if let Some(text) = node.scalar_str(src) {
+            return Self::fixed(def.number_of(text).unwrap_or(base));
+        }
         let number = |node: &Node, key: &str| def.number_of(node.find(key, src)?.scalar_str(src)?);
         Self {
             base: number(node, "weight")
@@ -66,19 +70,49 @@ impl Weight {
     pub fn evaluate(&self, subject: &dyn Subject) -> f64 {
         let mut weight = self.base * self.factor;
         for modifier in &self.modifiers {
-            if modifier.when.evaluate(subject) != Some(true) {
-                continue;
-            }
-            let factor = modifier.factor.unwrap_or(1.0);
-            let add = modifier.add.unwrap_or(0.0);
-            weight = match FACTOR_BEFORE_ADD {
-                true => weight * factor + add,
-                false => (weight + add) * factor,
-            };
-            if let Some(set) = modifier.weight {
-                weight = set;
+            if modifier.when.evaluate(subject) == Some(true) {
+                weight = modifier.apply(weight);
             }
         }
         weight
+    }
+
+    /// Whether some subject like `subject` could draw a weight above zero: every modifier
+    /// whose conditions could hold adds, and only those that surely hold multiply or set it.
+    pub fn could_be_positive(&self, subject: &dyn Subject) -> bool {
+        let mut weight = self.base * self.factor;
+        for modifier in &self.modifiers {
+            match modifier.when.evaluate(subject) {
+                Some(true) => weight = modifier.apply(weight),
+                Some(false) => {}
+                None => weight += modifier.add.unwrap_or(0.0),
+            }
+        }
+        weight > 0.0
+    }
+
+    /// Whether any subject could draw a weight above zero: it starts above zero, or a
+    /// modifier adds or sets one.
+    pub fn ever_positive(&self) -> bool {
+        self.base * self.factor > 0.0
+            || self
+                .modifiers
+                .iter()
+                .any(|m| m.add.is_some_and(|a| a > 0.0) || m.weight.is_some_and(|w| w > 0.0))
+    }
+}
+
+impl WeightModifier {
+    /// `weight` after this modifier, its conditions holding.
+    fn apply(&self, weight: f64) -> f64 {
+        if let Some(set) = self.weight {
+            return set;
+        }
+        let factor = self.factor.unwrap_or(1.0);
+        let add = self.add.unwrap_or(0.0);
+        match FACTOR_BEFORE_ADD {
+            true => weight * factor + add,
+            false => (weight + add) * factor,
+        }
     }
 }

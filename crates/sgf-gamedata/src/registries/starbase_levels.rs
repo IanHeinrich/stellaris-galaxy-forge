@@ -11,6 +11,8 @@ use crate::install::script::{self, Variables};
 use crate::registries::registry::Registry;
 use crate::registries::ship_sizes::ShipSizes;
 
+pub(crate) const DIR: &str = "common/starbase_levels";
+
 pub type StarbaseLevels = Registry<StarbaseLevelDef>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +30,7 @@ pub(crate) fn load(
     globals: &Arc<Variables>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> StarbaseLevels {
-    script::parse_dir(layout, "common/starbase_levels", globals, diagnostics)
+    script::parse_dir(layout, DIR, globals, diagnostics)
         .into_iter()
         .map(|(key, def)| {
             let ship_size = def.scalar("ship_size").map(str::to_owned);

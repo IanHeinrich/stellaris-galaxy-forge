@@ -10,26 +10,25 @@ use sgf_core::cst::{self, Node};
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::initializers::InitPlanet;
+use crate::initializers::{InitPlanet, Initializer};
 use crate::loc::localisation::Localisation;
+use crate::registries::registry::FromDef;
+use crate::scripts::index::{EFFECTS_DIR, EVENTS_DIR, ON_ACTIONS_DIR};
 
-/// The directories whose scripts can run `set_planet_entity`.
-const SCRIPT_DIRS: [&str; 8] = [
-    "common/scripted_effects",
+/// The directories whose scripts can run `set_planet_entity` that the script index parses.
+const INDEXED_DIRS: [&str; 4] = [EFFECTS_DIR, ON_ACTIONS_DIR, EVENTS_DIR, Initializer::DIR];
+/// The other directories whose scripts can run `set_planet_entity`.
+const OTHER_DIRS: [&str; 4] = [
     "common/decisions",
     "common/megastructures",
     "common/buildings",
     "common/inline_scripts",
-    "common/on_actions",
-    "common/solar_system_initializers",
-    "events",
 ];
 
 const SET_PLANET_ENTITY: &str = "set_planet_entity";
 
 /// Models never offered: the arc furnace's turret model hides the planet in game.
 const DENIED: [&str; 1] = ["invisible_turret_entity"];
-const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -51,20 +50,24 @@ impl GameData {
         for init in self.initializers.iter() {
             self.models_of_bodies(&init.planets, &mut found);
         }
-        for dir in SCRIPT_DIRS {
+        for dir in INDEXED_DIRS {
             for file in self.layout.files_in(dir) {
-                let Ok(bytes) = fs::read(&file) else {
+                if let Some(parsed) = self.scripts.parsed(&file)
+                    && sets_planet_entity(&parsed.src)
+                {
+                    self.models_of_script(&parsed.root, None, &parsed.src, &mut found);
+                }
+            }
+        }
+        for dir in OTHER_DIRS {
+            for file in self.layout.files_in(dir) {
+                let Ok(src) = fs::read(&file) else {
                     continue;
                 };
-                let src = bytes.strip_prefix(UTF8_BOM).unwrap_or(&bytes);
-                if !src
-                    .windows(SET_PLANET_ENTITY.len())
-                    .any(|w| w == SET_PLANET_ENTITY.as_bytes())
+                if sets_planet_entity(&src)
+                    && let Ok(root) = cst::parse_script(&src, 0)
                 {
-                    continue;
-                }
-                if let Ok(root) = cst::parse_script(src, 0) {
-                    self.models_of_script(&root, None, src, &mut found);
+                    self.models_of_script(&root, None, &src, &mut found);
                 }
             }
         }
@@ -248,6 +251,11 @@ fn readable(key: &str) -> String {
         })
         .collect();
     words.join(" ")
+}
+
+fn sets_planet_entity(src: &[u8]) -> bool {
+    src.windows(SET_PLANET_ENTITY.len())
+        .any(|w| w == SET_PLANET_ENTITY.as_bytes())
 }
 
 /// A model named outright, not a `$PARAMETER$` or `@variable` a scripted effect fills in.

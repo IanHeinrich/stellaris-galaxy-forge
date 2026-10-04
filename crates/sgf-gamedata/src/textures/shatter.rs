@@ -6,6 +6,8 @@ use std::f64::consts::TAU;
 
 use image::{Rgba, RgbaImage};
 
+use crate::rng::Rng;
+
 /// The share of the image's half-width the planet fills before it breaks, leaving room for its
 /// shards to part.
 const CORE: f64 = 0.6;
@@ -35,7 +37,7 @@ type Pt = [f64; 2];
 
 /// `disc`, a lit disc filling its square image, broken as `seed` says, the same size.
 pub(super) fn shatter(disc: &RgbaImage, seed: u64) -> RgbaImage {
-    let mut rng = Rng(seed);
+    let mut rng = Rng::new(seed);
     let side = disc.width();
     let cells = Cells::new(&sites(&mut rng), seed, side * SUPERSAMPLE);
     let shards: Vec<Shard> = cells
@@ -223,7 +225,7 @@ fn lattice(seed: u64, x: i64, y: i64) -> f64 {
     let key = seed
         ^ (x as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15)
         ^ (y as u64).wrapping_mul(0xc2b2_ae3d_27d4_eb4f);
-    Rng(key).unit() * 2.0 - 1.0
+    Rng::new(key).unit() * 2.0 - 1.0
 }
 
 fn ease(t: f64) -> f64 {
@@ -339,30 +341,4 @@ fn sample(disc: &RgbaImage, p: Pt) -> [f64; 4] {
 
 fn byte(unit: f64) -> u8 {
     (unit * 255.0).round().clamp(0.0, 255.0) as u8
-}
-
-/// SplitMix64: a small generator whose sequence for a seed never changes.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-        z ^ (z >> 31)
-    }
-
-    /// In 0 to 1.
-    fn unit(&mut self) -> f64 {
-        (self.next() >> 11) as f64 / (1u64 << 53) as f64
-    }
-
-    fn range(&mut self, low: f64, high: f64) -> f64 {
-        low + (high - low) * self.unit()
-    }
-
-    fn count(&mut self, (low, high): (u64, u64)) -> usize {
-        (low + self.next() % (high - low + 1)) as usize
-    }
 }

@@ -8,9 +8,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::deposit_roll::{RollBody, fitting};
+use crate::deposit_roll::fitting;
 use crate::registries::deposits::DepositDef;
-use crate::weight::Weight;
 
 /// Where the picker files a deposit type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -47,50 +46,54 @@ pub struct DepositChoice {
     pub event_only: bool,
 }
 
-/// The planet a picker is asked about, any of whose class and size may be left to a random
-/// draw, as in a system initializer's planet block.
-#[derive(Debug, Clone, Copy)]
-pub struct AskedBody<'a> {
-    pub class: Option<&'a str>,
-    pub size: Option<u32>,
-    pub moon: bool,
-}
+pub use crate::choices::AskedBody;
 
-/// Every deposit type but the null one, by key, for the planet `asked` that holds `deposits`.
-/// Of two types in one family with the same yields and the same planet modifiers, only one
-/// is offered: the one the roll could place here, else the first by key. With no class none
-/// is usual. With no size a type is usual when the roll could place it at any size the
-/// class draws.
+/// [`GameData::deposit_choices`], for callers not yet moved to the method.
 pub fn deposit_choices(
     gd: &GameData,
     asked: &AskedBody<'_>,
     deposits: &[String],
 ) -> Vec<DepositChoice> {
-    let usual = usual_keys(gd, asked, deposits);
-    let offered: Vec<&DepositDef> = gd.deposits.iter().filter(|d| !d.roll.is_null).collect();
-    let mut kept: HashMap<(String, String), &DepositDef> = HashMap::new();
-    for d in &offered {
-        let slot = kept.entry((family(d), sameness(d))).or_insert(d);
-        if !usual.contains(slot.key.as_str()) && usual.contains(d.key.as_str()) {
-            *slot = d;
+    gd.deposit_choices(asked, deposits)
+}
+
+impl GameData {
+    /// Every deposit type but the null one, by key, for the planet `asked` that holds
+    /// `deposits`. Of two types in one family with the same yields and the same planet
+    /// modifiers, only one is offered: the one the roll could place here, else the first by
+    /// key. With no class none is usual. With no size a type is usual when the roll could
+    /// place it at any size the class draws.
+    pub fn deposit_choices(
+        &self,
+        asked: &AskedBody<'_>,
+        deposits: &[String],
+    ) -> Vec<DepositChoice> {
+        let usual = usual_keys(self, asked, deposits);
+        let offered: Vec<&DepositDef> = self.deposits.iter().filter(|d| !d.roll.is_null).collect();
+        let mut kept: HashMap<(String, String), &DepositDef> = HashMap::new();
+        for d in &offered {
+            let slot = kept.entry((family(d), sameness(d))).or_insert(d);
+            if !usual.contains(slot.key.as_str()) && usual.contains(d.key.as_str()) {
+                *slot = d;
+            }
         }
+        let kept: HashSet<&str> = kept.values().map(|d| d.key.as_str()).collect();
+        let mut choices: Vec<DepositChoice> = offered
+            .into_iter()
+            .filter(|d| kept.contains(d.key.as_str()))
+            .map(|d| DepositChoice {
+                key: d.key.clone(),
+                family: family(d),
+                amount: d.produces.first().map(|&(_, amount)| amount),
+                category: category(self, d),
+                usual: usual.contains(d.key.as_str()),
+                description: self.loc.description(&format!("{}_desc", d.key)),
+                event_only: !d.roll.drop_weight.ever_positive(),
+            })
+            .collect();
+        split_differing(&mut choices, self);
+        choices
     }
-    let kept: HashSet<&str> = kept.values().map(|d| d.key.as_str()).collect();
-    let mut choices: Vec<DepositChoice> = offered
-        .into_iter()
-        .filter(|d| kept.contains(d.key.as_str()))
-        .map(|d| DepositChoice {
-            key: d.key.clone(),
-            family: family(d),
-            amount: d.produces.first().map(|&(_, amount)| amount),
-            category: category(gd, d),
-            usual: usual.contains(d.key.as_str()),
-            description: gd.loc.description(&format!("{}_desc", d.key)),
-            event_only: never_rolled(&d.roll.drop_weight),
-        })
-        .collect();
-    split_differing(&mut choices, gd);
-    choices
 }
 
 /// The keys the roll could place on `asked`.
@@ -99,25 +102,15 @@ fn usual_keys<'a>(
     asked: &AskedBody<'_>,
     deposits: &[String],
 ) -> HashSet<&'a str> {
-    let Some(class) = asked.class else {
-        return HashSet::new();
-    };
-    let class_def = gd.planet_classes.get(class);
+    let class_def = asked.class.and_then(|class| gd.planet_classes.get(class));
     let sizes = match (asked.size, class_def.and_then(|c| c.size(asked.moon))) {
         (Some(size), _) => size..=size,
         (None, Some(range)) => range.min.round() as u32..=range.max.round() as u32,
         (None, None) => return HashSet::new(),
     };
     sizes
-        .flat_map(|size| {
-            let body = RollBody {
-                class,
-                size,
-                star: class_def.is_some_and(|c| c.star),
-                moon: asked.moon,
-            };
-            fitting(gd, &body, deposits)
-        })
+        .filter_map(|size| asked.roll_body(gd, size))
+        .flat_map(|body| fitting(gd, &body, deposits))
         .map(|d| d.key.as_str())
         .collect()
 }
@@ -178,7 +171,7 @@ fn category(gd: &GameData, d: &DepositDef) -> DepositCategory {
     if gd.is_blocker(&d.key) {
         return DepositCategory::Blockers;
     }
-    if never_rolled(&d.roll.drop_weight) {
+    if !d.roll.drop_weight.ever_positive() {
         return DepositCategory::Special;
     }
     let yields = resources(d);
@@ -199,14 +192,4 @@ fn category(gd: &GameData, d: &DepositDef) -> DepositCategory {
     } else {
         DepositCategory::Strategic
     }
-}
-
-/// A weight that is zero whatever the body: nothing in it multiplies from above zero, adds
-/// or sets one.
-fn never_rolled(weight: &Weight) -> bool {
-    weight.base * weight.factor <= 0.0
-        && weight
-            .modifiers
-            .iter()
-            .all(|m| m.add.is_none_or(|a| a <= 0.0) && m.weight.is_none_or(|w| w <= 0.0))
 }

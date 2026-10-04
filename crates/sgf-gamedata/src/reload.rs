@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use crate::initializers::Initializer;
 use crate::install::layers::Layout;
+use crate::install::scenarios::SCENARIO_DIR;
+use crate::install::script::VARIABLES_DIR;
 use crate::loc::localisation::Localisation;
 use crate::registries::anomalies::AnomalyCategoryDef;
 use crate::registries::asteroid_belts::AsteroidBeltDef;
@@ -17,6 +19,7 @@ use crate::registries::country_types::CountryType;
 use crate::registries::deposit_categories::DepositCategory;
 use crate::registries::deposits::DepositDef;
 use crate::registries::dig_site_types::DigSiteTypeDef;
+use crate::registries::galaxy_sizes::GalaxySizes;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::planet_modifiers::PlanetModifierDef;
 use crate::registries::registry::FromDef;
@@ -24,9 +27,15 @@ use crate::registries::scripted_triggers::ScriptedTrigger;
 use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
-use crate::registries::{colors, flags, precursors, registry, star_names};
-use crate::scripts::ScriptIndex;
-use crate::{Bypasses, Colors, CountryTypes, Diagnostic, Flags, GameData, Initializers};
+use crate::registries::{
+    colors, flags, galaxy_shapes, precursors, registry, star_names, starbase_levels,
+    terraform_links,
+};
+use crate::scripts::{ScriptIndex, index};
+use crate::{
+    Bypasses, Colors, CountryTypes, DEFINES_DIR, Diagnostic, Flags, GalaxyShapes, GameData,
+    Initializers,
+};
 
 /// A registry a watched file can belong to; the others are only rebuilt by
 /// a full load.
@@ -41,14 +50,17 @@ pub enum RegistryKind {
     Localisation,
     /// `common/scripted_variables`, which every definition can read: a change rereads all.
     Variables,
-    /// The definitions the generator, the planet page and the map read (deposits and their
-    /// categories, star and planet classes and their lists, scripted triggers, modifiers,
-    /// anomaly categories, colony types, dig site types, ship sizes, defines, random names,
-    /// precursors). They feed one another and are never rebuilt apart: a change rereads all.
+    /// The definitions the generator, the planet page and the map read, from the directories
+    /// `DIRS` gives this kind. They feed one another and are never rebuilt apart: a change
+    /// rereads all.
     Definitions,
+    /// `map/galaxy` and `map/setup_scenarios`: the galaxy shapes and sizes a scenario can
+    /// offer. Galaxy Forge saves scenarios into `map/setup_scenarios`, so these are reread
+    /// on their own.
+    GalaxyOptions,
 }
 
-const ALL: [RegistryKind; 9] = [
+const ALL: [RegistryKind; 10] = [
     RegistryKind::Initializers,
     RegistryKind::Scripts,
     RegistryKind::CountryTypes,
@@ -58,16 +70,17 @@ const ALL: [RegistryKind; 9] = [
     RegistryKind::Localisation,
     RegistryKind::Variables,
     RegistryKind::Definitions,
+    RegistryKind::GalaxyOptions,
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 24] = [
+const DIRS: [(&str, RegistryKind); 28] = [
     (Initializer::DIR, RegistryKind::Initializers),
-    ("common/scripted_effects", RegistryKind::Scripts),
-    ("events", RegistryKind::Scripts),
-    ("common/on_actions", RegistryKind::Scripts),
-    ("prescripted_countries", RegistryKind::Scripts),
-    ("common/scripted_variables", RegistryKind::Variables),
+    (index::EFFECTS_DIR, RegistryKind::Scripts),
+    (index::EVENTS_DIR, RegistryKind::Scripts),
+    (index::ON_ACTIONS_DIR, RegistryKind::Scripts),
+    (index::PRESCRIPTED_DIR, RegistryKind::Scripts),
+    (VARIABLES_DIR, RegistryKind::Variables),
     (CountryType::DIR, RegistryKind::CountryTypes),
     (BypassDef::DIR, RegistryKind::Bypasses),
     (DepositDef::DIR, RegistryKind::Definitions),
@@ -82,10 +95,14 @@ const DIRS: [(&str, RegistryKind); 24] = [
     (DigSiteTypeDef::DIR, RegistryKind::Definitions),
     (AsteroidBeltDef::DIR, RegistryKind::Definitions),
     (ShipSizeDef::DIR, RegistryKind::Definitions),
-    ("common/starbase_levels", RegistryKind::Definitions),
-    ("common/defines", RegistryKind::Definitions),
+    (starbase_levels::DIR, RegistryKind::Definitions),
+    (DEFINES_DIR, RegistryKind::Definitions),
     (star_names::DIR, RegistryKind::Definitions),
     (precursors::DIR, RegistryKind::Definitions),
+    (terraform_links::TERRAFORM_DIR, RegistryKind::Definitions),
+    (terraform_links::GAME_RULES_DIR, RegistryKind::Definitions),
+    (galaxy_shapes::DIR, RegistryKind::GalaxyOptions),
+    (SCENARIO_DIR, RegistryKind::GalaxyOptions),
 ];
 
 impl RegistryKind {
@@ -107,6 +124,7 @@ impl RegistryKind {
             Self::Localisation => "localisation",
             Self::Variables => "variables",
             Self::Definitions => "definitions",
+            Self::GalaxyOptions => "galaxy_options",
         }
     }
 
@@ -237,7 +255,13 @@ impl GameData {
             );
         }
 
-        if !replaced.is_empty() {
+        if kinds.contains(&RegistryKind::GalaxyOptions) {
+            out.galaxy_shapes = Arc::new(GalaxyShapes::load(&self.layout, &mut fresh));
+            out.galaxy_sizes = Arc::new(GalaxySizes::load(&self.layout, &mut fresh));
+            replaced.insert(RegistryKind::GalaxyOptions);
+        }
+
+        if replaced.iter().any(|k| *k != RegistryKind::GalaxyOptions) {
             out.eligibility = Arc::default();
         }
         out.diagnostics
@@ -289,5 +313,33 @@ fn superseded(d: &Diagnostic, layout: &Layout, kinds: &BTreeSet<RegistryKind>) -
         Diagnostic::ParseError { file, .. } | Diagnostic::Unreadable { file, .. } => of_file(file),
         Diagnostic::RebuildFailed { kind, .. } => kinds.iter().any(|k| k.as_str() == kind),
         Diagnostic::ModMissing { .. } => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::RegistryKind;
+    use crate::LoadOptions;
+    use crate::install::layers::Layout;
+
+    #[test]
+    fn every_directory_a_load_reads_names_its_registry() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        let opts = LoadOptions {
+            install: Some(fixtures.join("install")),
+            user_dir: Some(fixtures.join("userdata")),
+            language: "english".to_owned(),
+            mods: true,
+        };
+        let (loaded, walked) = Layout::record_walks(|| crate::load(&opts, &mut |_| {}));
+        loaded.expect("the fixture loads");
+        assert!(!walked.is_empty());
+        let unread: Vec<&String> = walked
+            .iter()
+            .filter(|dir| RegistryKind::of_relative(&format!("{dir}/probe.txt")).is_none())
+            .collect();
+        assert!(unread.is_empty(), "no registry for {unread:?}");
     }
 }

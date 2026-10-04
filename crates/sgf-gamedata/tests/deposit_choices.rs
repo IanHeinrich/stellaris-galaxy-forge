@@ -4,7 +4,8 @@
 
 use crate::common;
 
-use sgf_gamedata::deposit_choices::{AskedBody, DepositCategory, DepositChoice, deposit_choices};
+use sgf_gamedata::choices::AskedBody;
+use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
 
 const FILES: [(&str, &str); 4] = [
     (
@@ -69,7 +70,7 @@ fn rock() -> AskedBody<'static> {
 #[test]
 fn types_yielding_the_same_resources_share_a_family_with_one_button_per_amount() {
     let (_dir, gd) = common::hand_written(&FILES);
-    let choices = deposit_choices(&gd, &rock(), &[]);
+    let choices = gd.deposit_choices(&rock(), &[]);
     assert!(choices.iter().all(|c| c.key != "d_null_deposit"));
     let offered = |key: &str| choices.iter().any(|c| c.key == key);
 
@@ -140,7 +141,7 @@ fn types_yielding_the_same_resources_share_a_family_with_one_button_per_amount()
 #[test]
 fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it() {
     let (_dir, gd) = common::hand_written(&FILES);
-    let choices = deposit_choices(&gd, &rock(), &[]);
+    let choices = gd.deposit_choices(&rock(), &[]);
     let category = |key: &str| choice(&choices, key).category;
     assert_eq!(category("d_fx_energy_1"), DepositCategory::Energy);
     assert_eq!(category("d_fx_minerals"), DepositCategory::Minerals);
@@ -179,7 +180,7 @@ fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it(
         moon: true,
         ..rock()
     };
-    let on_a_moon = deposit_choices(&gd, &moon, &[]);
+    let on_a_moon = gd.deposit_choices(&moon, &[]);
     assert!(usual(&on_a_moon, "d_fx_energy_2"));
     assert!(usual(&on_a_moon, "d_fx_rising"));
 }
@@ -197,12 +198,12 @@ fn a_planet_of_no_class_offers_one_type_per_button_with_none_usual() {
             .map(|c| (c.family.clone(), c.amount))
             .collect()
     };
-    let known = deposit_choices(&gd, &rock(), &[]);
+    let known = gd.deposit_choices(&rock(), &[]);
     let unknown = AskedBody {
         class: None,
         ..rock()
     };
-    let choices = deposit_choices(&gd, &unknown, &[]);
+    let choices = gd.deposit_choices(&unknown, &[]);
     assert_eq!(shape(&choices), shape(&known));
     assert!(choices.iter().all(|c| !c.usual));
     assert!(
@@ -221,14 +222,14 @@ fn the_real_install_offers_every_choice_of_a_class_at_no_size() {
         size,
         moon: false,
     };
-    let none = deposit_choices(gd, &asked(None, None), &[]);
-    let any_size = deposit_choices(gd, &asked(Some("pc_arctic"), None), &[]);
+    let none = gd.deposit_choices(&asked(None, None), &[]);
+    let any_size = gd.deposit_choices(&asked(Some("pc_arctic"), None), &[]);
     assert!(none.iter().all(|c| !c.usual));
     assert_eq!(keys(&none), keys(&any_size));
     let usual = |choices: &[DepositChoice], key: &str| choice(choices, key).usual;
     assert!(usual(&any_size, "d_massive_glacier"));
 
-    let at_size = |size| deposit_choices(gd, &asked(Some("pc_arctic"), Some(size)), &[]);
+    let at_size = |size| gd.deposit_choices(&asked(Some("pc_arctic"), Some(size)), &[]);
     let range = gd
         .planet_classes
         .get("pc_arctic")
@@ -248,13 +249,12 @@ fn a_planet_of_no_size_is_judged_at_every_size_its_class_draws() {
     let (_dir, gd) = common::hand_written(&FILES);
     let usual = |size| {
         let asked = AskedBody { size, ..rock() };
-        let choices = deposit_choices(&gd, &asked, &[]);
+        let choices = gd.deposit_choices(&asked, &[]);
         ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual)
     };
     assert_eq!(usual(Some(15)), [false, false, false]);
     assert_eq!(usual(None), [true, true, false], "the rock draws 10 to 20");
-    let any = deposit_choices(
-        &gd,
+    let any = gd.deposit_choices(
         &AskedBody {
             size: None,
             ..rock()
@@ -272,7 +272,7 @@ fn a_moon_of_no_size_is_judged_over_its_class_moon_sizes() {
         moon: true,
         ..rock()
     };
-    let choices = deposit_choices(&gd, &moon, &[]);
+    let choices = gd.deposit_choices(&moon, &[]);
     let usual = ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual);
     assert_eq!(usual, [true, false, false], "the rock's moons draw 2 to 6");
 }
@@ -285,6 +285,6 @@ fn a_planet_of_an_unknown_class_and_no_size_has_none_usual() {
         size: None,
         moon: false,
     };
-    let choices = deposit_choices(&gd, &unknown, &[]);
+    let choices = gd.deposit_choices(&unknown, &[]);
     assert!(!choices.is_empty() && choices.iter().all(|c| !c.usual));
 }

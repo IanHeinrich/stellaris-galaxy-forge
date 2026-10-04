@@ -122,6 +122,8 @@ pub fn whole(n: f64) -> u32 {
     n.round().max(0.0) as u32
 }
 
+pub(crate) const VARIABLES_DIR: &str = "common/scripted_variables";
+
 /// `common/scripted_variables`: the `@name = value` scalars every script file can use.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Variables(BTreeMap<String, String>);
@@ -129,7 +131,7 @@ pub struct Variables(BTreeMap<String, String>);
 impl Variables {
     pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
         let mut vars = BTreeMap::new();
-        for file in layout.files_in("common/scripted_variables") {
+        for file in layout.files_in(VARIABLES_DIR) {
             if let Some((root, src)) = parse_file(&file, diagnostics) {
                 vars.extend(file_vars(root.children(), &src));
             }

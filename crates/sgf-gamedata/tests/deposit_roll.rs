@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::ops::{BodySpec, SystemSpec};
 use sgf_gamedata::GameData;
-use sgf_gamedata::deposit_roll::{NewBody, RollBody, fitting, roll_deposits};
+use sgf_gamedata::deposit_roll::{Kind, NewBody, RollBody, fitting, roll_deposits};
 use sgf_gamedata::generate::generate;
 use sgf_gamedata::layouts::odds;
 use sgf_gamedata::rng::Rng;
@@ -80,8 +80,7 @@ fn body(class: &str, size: u32) -> RollBody<'_> {
     RollBody {
         class,
         size,
-        star: false,
-        moon: false,
+        kind: Kind::Planet,
     }
 }
 
@@ -197,7 +196,10 @@ fn a_hand_written_rock_rolls_one_draw_scaled_by_abundance() {
     let (got, _) = share(&gd, &rock, 0.0, 2_000);
     assert_eq!(got, 0.0);
 
-    let moon = RollBody { moon: true, ..rock };
+    let moon = RollBody {
+        kind: Kind::Moon,
+        ..rock
+    };
     let (_, seen) = share(&gd, &moon, 2.0, 2_000);
     assert_eq!(seen, keys(&["d_fx_ore", "d_fx_moon_only"]));
 }
@@ -206,7 +208,7 @@ fn a_hand_written_rock_rolls_one_draw_scaled_by_abundance() {
 fn a_hand_written_star_always_gets_exactly_one() {
     let (_dir, gd) = hand_written();
     let star = RollBody {
-        star: true,
+        kind: Kind::Star,
         ..body("pc_fx_star", 25)
     };
     let mut unit = Rng::new(3);
@@ -342,7 +344,7 @@ fn a_modifier_that_adds_and_multiplies_weighs_a_layout_and_a_deposit_alike() {
     assert_eq!(odds(&gd, layout, None), 4.0, "1 times 3, plus 1");
 
     let star = RollBody {
-        star: true,
+        kind: Kind::Star,
         ..body("pc_fx_star", 20)
     };
     let mut unit = Rng::new(23);
@@ -418,7 +420,7 @@ fn the_real_install_gives_every_star_one_deposit() {
         "pc_black_hole",
     ] {
         let star = RollBody {
-            star: true,
+            kind: Kind::Star,
             ..body(class, 25)
         };
         for abundance in [0.25, 2.0, 5.0] {
@@ -560,8 +562,12 @@ fn the_real_install_leaves_no_body_empty_at_the_maximum_and_all_at_zero() {
         for moon in [false, true] {
             for _ in 0..300 {
                 let size = size_of(gd, class, &mut unit);
+                let kind = match moon {
+                    true => Kind::Moon,
+                    false => Kind::Planet,
+                };
                 let b = RollBody {
-                    moon,
+                    kind,
                     ..body(class, size)
                 };
                 assert_eq!(roll_deposits(gd, &b, max, &mut unit).len(), 1, "{class}");
@@ -657,7 +663,7 @@ fn the_types_that_fit_a_hand_written_body_are_those_its_potential_allows() {
     };
     let fit = |body: &RollBody<'_>| fit_with(body, &[]);
     let star = RollBody {
-        star: true,
+        kind: Kind::Star,
         ..body("pc_fx_star", 25)
     };
     assert_eq!(fit(&star), keys(&["d_fx_star_energy", "d_fx_star_physics"]));
@@ -667,7 +673,10 @@ fn the_types_that_fit_a_hand_written_body_are_those_its_potential_allows() {
         keys(&["d_fx_ore", "d_fx_unmarked"]),
         "the null deposit, a potential that cannot be judged and a type that weighs nothing are left out"
     );
-    let moon = RollBody { moon: true, ..rock };
+    let moon = RollBody {
+        kind: Kind::Moon,
+        ..rock
+    };
     assert_eq!(fit(&moon), keys(&["d_fx_ore", "d_fx_moon_only"]));
     assert_eq!(
         fit(&body("pc_fx_meadow", 16)),

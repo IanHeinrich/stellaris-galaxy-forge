@@ -952,6 +952,44 @@ fn ring_odds_follow_each_classs_chance_of_ring() {
     }
 }
 
+/// A layout with a plain `random` planet at an orbit no class spawns at.
+const UNBANDED: [(&str, &str); 4] = [
+    (
+        "common/star_classes/00_stars.txt",
+        "sc_fx = {\n\tclass = fx_star\n\tplanet = { key = pc_fx_star }\n\tspawn_odds = 1\n}\n",
+    ),
+    (
+        "common/planet_classes/00_fx.txt",
+        "pc_fx_star = {\n\tstar = yes\n\tplanet_size = 20\n}\n\
+         pc_fx_far = {\n\tmin_distance_from_sun = 500\n\tmax_distance_from_sun = 1000\n\
+         \tspawn_odds = 1\n\tplanet_size = 15\n}\n",
+    ),
+    (
+        "common/solar_system_initializers/00_fx.txt",
+        "fx_unbanded = {\n\tclass = sc_fx\n\tusage = misc_system_init\n\tusage_odds = 5\n\
+         \tplanet = { count = 1 class = star orbit_distance = 0 }\n\tchange_orbit = 40\n\
+         \tplanet = { count = 1 class = random orbit_distance = 20 }\n}\n",
+    ),
+    ("localisation/english/fx_l_english.yml", "l_english:\n"),
+];
+
+#[test]
+fn a_random_planet_at_an_orbit_no_class_spawns_at_is_drawn_from_every_orbit() {
+    let (_dir, gd) = common::hand_written(&UNBANDED);
+    let spec = generate_layout_for(
+        &gd,
+        &SaveFacts::default(),
+        1,
+        "Fx",
+        (0.0, 0.0),
+        "fx_unbanded",
+        ABUNDANCE,
+    )
+    .expect("fx_unbanded");
+    let classes: Vec<&str> = spec.planets.iter().map(|p| p.class.as_str()).collect();
+    assert_eq!(classes, ["pc_fx_far"]);
+}
+
 /// A layout whose one planet is given a gem when the save has neither of two DLC.
 const NEITHER: (&str, &str) = (
     INITIALIZERS,
