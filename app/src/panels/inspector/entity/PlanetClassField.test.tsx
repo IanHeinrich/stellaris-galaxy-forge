@@ -63,13 +63,12 @@ describe("a planet's model", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     field.onPick("ocean_paradise_planet_01_entity");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetBodyModel",
-        body: WORLD,
-        entity: "ocean_paradise_planet_01_entity",
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "SetBodyModel",
+      body: WORLD,
+      entity: "ocean_paradise_planet_01_entity",
+    });
   });
 
   it("shows the model a planet has, and Default takes it off", async () => {
@@ -80,13 +79,12 @@ describe("a planet's model", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     field.onPick("");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetBodyModel",
-        body: WORLD,
-        entity: null,
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "SetBodyModel",
+      body: WORLD,
+      entity: null,
+    });
   });
 
   it("offers no model to a star or on a scenario", async () => {
@@ -141,14 +139,13 @@ describe("a planet's class", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     field.onPick("pc_barren");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetBodyClass",
-        body: WORLD,
-        from: { class: "pc_arctic", change: "any", models: 3 },
-        to: { class: "pc_barren", change: "uncolonised", models: 3 },
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "SetBodyClass",
+      body: WORLD,
+      from: { class: "pc_arctic", change: "any", models: 3 },
+      to: { class: "pc_barren", change: "uncolonised", models: 3 },
+    });
   });
 
   it("offers a colony only the classes open to colonies", async () => {

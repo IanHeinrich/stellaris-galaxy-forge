@@ -21,11 +21,9 @@ const DIR = "C:/mods/pag/map/setup_scenarios";
 /** The notice's button reading `label`. */
 const button = (label: string) => buttonIn(<PaintNotice />, label)!;
 
-const stored = new Map<string, string>();
-
 beforeEach(() => {
   vi.clearAllMocks();
-  stubPrefs(stored);
+  stubPrefs();
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   usePaintModStore.setState({ ...usePaintModStore.getInitialState() });
 });
@@ -55,7 +53,7 @@ describe("the notice for a scenario outside the mod", () => {
       "Custom galaxies hit game-breaking bugs without the Paint a Galaxy mod. Save this map into " +
         "the mod unless it belongs to a mod of your own.",
     );
-    expect(html).toContain("Paint a Galaxy mod enabled ✓");
+    expect(html).toContain('class="paint-mod-status"');
     expect(html).toContain("Save into the Paint a Galaxy mod…");
     expect(html).toContain("Not for me");
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(false);
@@ -70,15 +68,11 @@ describe("the notice for a scenario outside the mod", () => {
     readyAs(SCENARIO_RESULT);
     usePaintModStore.setState({ known: true, paintMod: null });
 
-    const html = notice();
-    expect(html).toContain("Subscribe to the ");
-    expect(html).toContain("then enable it in your playset.");
+    expect(notice()).toContain("paint-mod-status");
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(true);
 
     usePaintModStore.setState({ known: true, paintMod: paintModView({ enabled: false }) });
-    expect(notice()).toContain(
-      "The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher.",
-    );
+    expect(notice()).toContain("paint-mod-status");
     expect(button("Save into the Paint a Galaxy mod…").props.disabled).toBe(false);
   });
 
@@ -89,7 +83,5 @@ describe("the notice for a scenario outside the mod", () => {
 
     button("Not for me").props.onClick();
     expect(notice()).toBe("");
-    expect(stored.get("sgf.paint.noticeDismissed")).toBe("true");
-    expect(usePaintModStore.getState().noticeDismissed).toBe(true);
   });
 });

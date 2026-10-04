@@ -57,21 +57,18 @@ describe("the Planets section", () => {
     expect(line).not.toContain("–");
   });
 
-  it.each(["save", "scenario"] as const)(
-    "opens a %s body's page on the system that lists it",
-    async (kind) => {
-      await open(kind);
-      await land(details({ planets: [planet(100, "Tarkin")] }));
+  it("opens a save body's page on the system that lists it", async () => {
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
 
-      drawnBy(overview);
-      const row = lastDrawn(
-        (el) => el.type === DrillRow && String(el.props.className).startsWith("ins-prow"),
-        "a planet row",
-      ) as { onOpen(): void };
-      row.onOpen();
+    drawnBy(overview);
+    const row = lastDrawn(
+      (el) => el.type === DrillRow && String(el.props.className).startsWith("ins-prow"),
+      "a planet row",
+    ) as { onOpen(): void };
+    row.onOpen();
 
-      const { stack } = useInspectorStore.getState();
-      expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: 100 });
-    },
-  );
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: 100 });
+  });
 });

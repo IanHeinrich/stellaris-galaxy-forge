@@ -27,6 +27,7 @@ import {
   MAP_COLORS_NEED_4_5,
 } from "./CountryView";
 import { mockedIpc } from "../../../test/ipc";
+import { until } from "../../../test/wait";
 
 bindStores();
 
@@ -178,7 +179,7 @@ describe("an empire's map colour fields", () => {
     drawnBy(() => page("overview"));
 
     drawnField(SwatchField, "Border").onPick("light_pink");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetEmpireMapColors",
         country: CHOSEN.id,
@@ -187,7 +188,7 @@ describe("an empire's map colour fields", () => {
     );
 
     drawnField(ToggleField, INDEPENDENT_MAP_COLOUR).onChange(false);
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetEmpireMapColors",
         country: CHOSEN.id,
@@ -263,21 +264,21 @@ describe("an empire's flag fields", () => {
     drawnBy(() => page("overview"));
 
     drawnField(TilePicker, "Emblem").onPick("pointy/flag_pointy_3.dds");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
         flagWith({ icon_file: "flag_pointy_3.dds" }),
       ),
     );
 
     drawnField(TilePicker, "Background").onPick("flag_bg_stripes.dds");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
         flagWith({ background: "flag_bg_stripes.dds" }),
       ),
     );
 
     drawnField(SwatchField, "Secondary").onPick("intense_red");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(flagWith({ secondary: "intense_red" })),
     );
   });
@@ -290,7 +291,7 @@ describe("an empire's flag fields", () => {
     drawnField(TilePicker, "Emblem").onPick("pointy/flag_pointy_2.dds");
     drawnField(SwatchField, "Primary").onPick("intense_red");
     drawnField(SwatchField, "Primary").onPick("light_pink");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(flagWith({ primary: "light_pink" })),
     );
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
@@ -317,7 +318,7 @@ describe("an empire's name", () => {
     const field = drawnField(TextField, "Empire name");
     if (field.kind !== "text") throw new Error("a text field");
     field.onCommit(" Sgf Dominion ");
-    await vi.waitFor(() =>
+    await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "RenameEmpire",
         country: FLAGGED.id,

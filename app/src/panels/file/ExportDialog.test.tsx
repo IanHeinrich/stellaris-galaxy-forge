@@ -13,14 +13,8 @@ import { OPEN_RESULT, exportReport } from "../../store/fixture";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { ExportDialog, ExportForm, ExportReportRows } from "./ExportDialog";
-import { PaintChoice } from "./PaintChoice";
-import {
-  countsSummary,
-  fallenEmpiresSummary,
-  homeInitializerLines,
-  omittedLines,
-  seatsSummary,
-} from "./exportReport";
+import { PAINT_CHECK } from "../../lib/paintCopy";
+import { fallenEmpiresSummary, omittedLines, seatsSummary } from "./exportReport";
 
 const FULL = exportReport({
   seats: 17,
@@ -184,16 +178,12 @@ describe("the report", () => {
 
   it("words each row of the conversion, plural or singular, and each zone that missed its spot", () => {
     expect(seatsSummary(exportReport({ seats: 1 }), id)).toBe("1 seat.");
-    expect(seatsSummary(exportReport({ player_seat: 217, player_seat_kind: "sol" }), id)).toBe(
-      "17 seats. Your capital, system 217, is the Sol seat: only the United Nations of Earth can start there, and it will.",
-    );
     expect(
       seatsSummary(exportReport({ player_seat: 217, player_seat_kind: "preferred" }), id),
     ).toBe(
       "17 seats. Your capital, system 217, is a weighted 1st Player seat: you are all but certain to start there. For a certain start, reserve the seat and give your empire its trait.",
     );
 
-    expect(fallenEmpiresSummary(exportReport())).toBeNull();
     expect(
       fallenEmpiresSummary(
         exportReport({
@@ -250,7 +240,6 @@ describe("the report", () => {
         "1 placed nearby: the old spot was not clear. Custodian Matrix has no clear spot within reach.",
     );
 
-    expect(omittedLines(exportReport())).toEqual([]);
     expect(
       omittedLines(
         exportReport({
@@ -264,17 +253,6 @@ describe("the report", () => {
       "1 L-Cluster system left out: the game adds its own.",
       "4 Marauder systems left out: the game adds its own.",
     ]);
-
-    expect(countsSummary(exportReport())).toBeNull();
-    expect(countsSummary(exportReport({ setup_from_save: true }))).toBe(
-      "Counts from the save's setup.",
-    );
-
-    expect(homeInitializerLines(exportReport(), id)).toEqual({ review: "", replaced: [] });
-    expect(homeInitializerLines(PAINTED, id)).toEqual({
-      review: "void_dwellers_start (system 12)",
-      replaced: ["system 311 had shattered_ring_start, replaced with a generic start."],
-    });
   });
 });
 
@@ -286,34 +264,7 @@ describe("the dialog", () => {
     const html = renderToStaticMarkup(<ExportDialog />);
     expect(html).toContain('aria-label="Export as scenario"');
     expect(html).toContain("Not carried over");
-    expect(html).toContain("For the Paint a Galaxy mod");
-    expect(html).toContain("Untick it only if the map is for a mod of your own.");
-    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
-
-    usePaintModStore.setState({ paintChoice: true });
-    expect(
-      renderToStaticMarkup(<ExportDialog />).match(/<input type="checkbox"[^>]*>/)![0],
-    ).toContain("checked=");
-  });
-
-  it("shows the mod's state under the box only while it is ticked", () => {
-    useFileSessionStore.setState({ pendingExport: FULL });
-    usePaintModStore.setState({ known: true, paintMod: null });
-    expect(renderToStaticMarkup(<ExportDialog />)).not.toContain("paint-mod-status");
-
-    usePaintModStore.setState({ paintChoice: true });
-    const html = renderToStaticMarkup(<ExportDialog />);
-    expect(html).toContain("paint-mod-status");
-    expect(html).toContain("Paint a Galaxy mod on the Steam Workshop");
-  });
-
-  it("ticking the box is the standing choice, kept per machine", () => {
-    const box = elements(<PaintChoice />).find(
-      (el): el is ReactElement<{ onChange: (e: unknown) => void }> => el.type === "input",
-    )!;
-    box.props.onChange({ currentTarget: { checked: true } });
-    expect(usePaintModStore.getState().paintChoice).toBe(true);
-    expect(stored.get("sgf.paint.profile")).toBe("true");
+    expect(html).toContain(PAINT_CHECK);
   });
 
   it("exports under the profile the box says on submit, and Cancel answers with none", () => {

@@ -92,11 +92,15 @@ export async function landPage(page: PlanetPage): Promise<void> {
   await answerPage(page);
 }
 
-/** Answers the read of `page` as the save does, leaving its system's details as they are. */
+/**
+ * Answers the read of `page` as the save does, leaving its system's details as they are. Its
+ * callers run fake timers.
+ */
 export async function answerPage(page: PlanetPage): Promise<void> {
   vi.mocked(ipc.getPlanetPage).mockResolvedValueOnce(page);
   useEntityStore.getState().requestPlanetPage(page.id);
-  await vi.waitFor(() => expect(useEntityStore.getState().pages.get(page.id)).toBe(page));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(useEntityStore.getState().pages.get(page.id)).toBe(page);
 }
 
 /** The planet's page on `tab`, drilled onto from its system. */

@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { isSpawnWeight } from "../lib/spawn";
 import { byId, node } from "../store/fixture";
-import { spawnPointOp, spawnPointsOp, spawnTargets } from "./spawnPoint";
+import { DEFAULT_SPAWN_WEIGHT, spawnPointOp, spawnPointsOp, spawnTargets } from "./spawnPoint";
 
 /** A system the generator can weigh, and one it cannot: a weight needs an initializer beside it. */
 const weighable = (id: number) => node(id, `NAME_${id}`, id, 0, "sc_g");
 const plain = (id: number) => node(id, `NAME_${id}`, id, 0, "sc_g", [], { initializer: "" });
+
+describe("a spawn weight", () => {
+  it("is only a weight above zero, so nothing writes a system out of the draw", () => {
+    expect(isSpawnWeight(DEFAULT_SPAWN_WEIGHT)).toBe(true);
+    expect(isSpawnWeight(0.25)).toBe(true);
+    expect(isSpawnWeight(0)).toBe(false);
+    expect(isSpawnWeight(-3)).toBe(false);
+  });
+});
 
 describe("weighing a selection", () => {
   it("writes one entry per system that can carry a weight, as a single op", () => {

@@ -49,6 +49,7 @@ import { useGeneratorStore } from "../../store/generatorStore";
 import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
+import { until } from "../../test/wait";
 
 bindStores();
 
@@ -116,9 +117,7 @@ describe("the system view's menus", () => {
     vi.mocked(dialog.confirm).mockResolvedValue(true);
     vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
     menuItem(<BodyMenu target={body} frame={{}} />, "Delete moon").props.onClick();
-    await vi.waitFor(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteBody", body: 13 }),
-    );
+    await until(() => expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteBody", body: 13 }));
     expect(dialog.confirm).toHaveBeenCalledWith(
       "Delete Luna? The moon is removed from the save.",
       expect.objectContaining({ kind: "warning" }),
@@ -187,7 +186,7 @@ describe("a belt's handle in the system view", () => {
     expect(html).toContain(">Remove belt</button>");
     expect(html.indexOf("Remove belt")).toBeLessThan(html.indexOf("Back to galaxy"));
     menuItem(<BeltMenu target={target} frame={{}} />, "Remove belt").props.onClick();
-    await vi.waitFor(() =>
+    await until(() =>
       expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveBelt", system: 0, index: 0 }),
     );
     const removes = vi.mocked(ipc.applyOp).mock.calls.filter(([op]) => op.type === "RemoveBelt");
@@ -216,7 +215,7 @@ describe("the system view's empty space", () => {
       <SceneSpaceMenu target={target} frame={{}} />,
       "Add belt here (r 150)",
     ).props.onClick();
-    await vi.waitFor(() =>
+    await until(() =>
       expect(ipc.applyOp).toHaveBeenCalledWith({
         type: "AddBelt",
         system: 0,
@@ -415,9 +414,7 @@ describe("moving planets", () => {
 
     drawnBy(menu);
     drawnButton("Paste 2 planets here").onClick();
-    await vi.waitFor(() =>
-      expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH, MARS], BARNARD, null),
-    );
+    await until(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH, MARS], BARNARD, null));
   });
 
   it("refuses a paste back into the planets' own system without asking the core", async () => {
@@ -451,7 +448,7 @@ describe("moving planets", () => {
 
     drawnBy(menu);
     drawnButton(label).onClick();
-    await vi.waitFor(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH], CENTAURI, at));
+    await until(() => expect(ipc.planetMoveOp).toHaveBeenCalledWith([EARTH], CENTAURI, at));
   });
 
   it("names a lone body in its Cut", async () => {
