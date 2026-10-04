@@ -512,7 +512,7 @@ fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back
         .expect("link Sol and Gamma to Old Seat");
     assert_eq!(
         edited.entry.description,
-        "Link 2 systems to the fallen empire zone at Old Seat"
+        "Linked 2 systems to the fallen empire zone at Old Seat #9"
     );
     assert!(edited.dirty);
     assert!(!edited.reclassifies);

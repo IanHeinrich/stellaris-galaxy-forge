@@ -56,7 +56,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
             .edit
             .entry
             .description
-            .starts_with(&format!("Added planet #{} to system #408", planet.planet)),
+            .starts_with(&format!("Added planet #{} to Meissa #408", planet.planet)),
         "{}",
         planet.edit.entry.description
     );
@@ -74,7 +74,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     assert_ne!(moon.planet, planet.planet);
     assert!(
         moon.edit.entry.description.starts_with(&format!(
-            "Added moon #{} of planet #138 in system #408 (pc_desert, size 8)",
+            "Added moon #{} of planet #138 in Meissa #408 (pc_desert, size 8)",
             moon.planet
         )),
         "{}",
