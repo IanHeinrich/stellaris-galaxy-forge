@@ -9,6 +9,7 @@
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::bodies::{frame_bodies, grow};
@@ -34,10 +35,6 @@ use crate::views::{
 /// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
 /// and the black hole and pulsar classes are stars without it. `star` is the class an
 /// initializer writes for a system's own star.
-pub(crate) fn is_star_class(class: &str) -> bool {
-    class.ends_with("_star") || matches!(class, "star" | "pc_black_hole" | "pc_pulsar")
-}
-
 pub(crate) fn plan_move(
     plan: &mut Plan,
     s: &Session,

@@ -6,8 +6,8 @@
 
 use crate::emit::quoted;
 use crate::emit::system::ENTITY_NAME_FLAG;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::write::planet_entry::{PlanetEntry, set_flag};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};

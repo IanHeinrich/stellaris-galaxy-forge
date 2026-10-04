@@ -10,8 +10,9 @@
 
 use crate::emit::system::{WormholeEnd, natural_wormhole_entry, wormhole_bypass_entry};
 use crate::format::save::added::Table;
+use crate::format::save::added::row;
 use crate::format::save::alloc::{TableEnd, next_id};
-use crate::format::save::galaxy::bypasses::{NATURAL, NaturalWormhole, natural_wormholes, row};
+use crate::format::save::galaxy::bypasses::{NATURAL, NaturalWormhole, natural_wormholes};
 use crate::format::save::write::id_list::{Emptied, Place, append, unlist};
 use crate::format::save::write::wormhole::{WORMHOLE, named};
 use crate::keys;

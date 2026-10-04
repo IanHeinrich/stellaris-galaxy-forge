@@ -5,8 +5,8 @@
 //! an index the new class has no model for goes back to 0.
 
 use crate::NULL_ID;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::write::planet_entity::write_entity_name;
 use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;

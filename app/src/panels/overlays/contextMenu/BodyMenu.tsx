@@ -54,10 +54,14 @@ export function BodyMenu({
   const moonHost =
     canAddBodies &&
     planet !== undefined &&
-    takesMoons(planet, {
-      star: isStarBody(planet.class, planetClasses, starClasses),
-      asteroid: planetClasses.get(planet.class)?.asteroid === true,
-    });
+    takesMoons(
+      planet,
+      details?.planets.find((p) => p.id === planet.parent),
+      {
+        star: isStarBody(planet.class, planetClasses, starClasses),
+        asteroid: planetClasses.get(planet.class)?.asteroid === true,
+      },
+    );
   const addMoon = (planetClass: string | null) =>
     addBodyAt(
       target.system,

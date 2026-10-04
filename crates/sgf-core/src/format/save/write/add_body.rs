@@ -7,6 +7,7 @@
 use crate::document::Document;
 use crate::emit::roman;
 use crate::emit::system::{MOON_FLAG, RING_FLAG};
+use crate::entity::facts::planet::is_star_class;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
@@ -18,7 +19,6 @@ use crate::format::save::write::add_system::{
 use crate::format::save::write::asteroid_names;
 use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
-use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::write::planet_entry::{list_moon, unlist_moon};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;

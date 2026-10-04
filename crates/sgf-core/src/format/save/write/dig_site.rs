@@ -4,11 +4,11 @@
 //! is left as it stands.
 
 use crate::NULL_ID;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::dig_sites::{self, PLANET_LOCATION};
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
 use crate::ops::rules::{Form, check_text};

@@ -1,12 +1,12 @@
 //! Reading a save's `bypasses` table through the systems that own each bypass.
 
+use crate::format::save::added::rows;
 use std::collections::{HashMap, HashSet};
 
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
-pub(crate) use crate::format::save::added::{row, rows};
 use crate::keys;
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{BypassLink, ProjectionError, SystemNode};

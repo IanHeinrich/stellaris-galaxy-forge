@@ -24,7 +24,7 @@ use crate::format::save::write::{
     add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
     lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
     planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
-    rename_system, replace_system, star_class, system_height, wormhole, wormhole_pair,
+    rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -272,7 +272,7 @@ impl Format for Save {
             Op::RestoreSaveEntities {
                 description,
                 entities,
-            } => remove_planet::plan_restore(plan, s, description, entities),
+            } => restore::plan_restore(plan, s, description, entities),
             Op::SetPlanetEntity { planet, entity } => {
                 planet_entity::plan_set(plan, s, *planet, entity.as_deref())
             }

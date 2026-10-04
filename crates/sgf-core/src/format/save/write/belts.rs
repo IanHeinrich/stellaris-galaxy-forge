@@ -201,11 +201,7 @@ pub(crate) fn plan_inner_radius(
     if new_text == old_text {
         return Err(OpError::InnerRadiusUnchanged(system));
     }
-    let least = current.min(
-        radii
-            .min_inner
-            .max(system_reach(&frame, &belt_radii(edit, entity))),
-    );
+    let least = radii.inner_floor(system_reach(&frame, &belt_radii(edit, entity)), current);
     if radius < least {
         return Err(OpError::InnerRadiusTooSmall { least });
     }
