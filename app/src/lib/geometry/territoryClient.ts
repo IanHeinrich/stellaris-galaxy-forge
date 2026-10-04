@@ -59,7 +59,10 @@ export class InlineTerritoryClient implements TerritoryClient {
  * Computes in a module worker, one request in flight at a time. A reset makes everything
  * queued before it moot and drops it; applies queued after one wait behind it. A band request
  * replaces any band request still queued, so a zoom re-traces only for its latest step. Should the
- * worker fail before it has ever answered, the rest of the session computes inline.
+ * worker fail before it has ever answered, the rest of the session computes inline. Should an
+ * apply or band request fail after that, the worker starts over from the galaxy as the caller last
+ * described it, since the failed request may have left its field half updated. A reset that fails
+ * is not tried again: the requests queued behind it go on to the worker.
  */
 export class WorkerTerritoryClient implements TerritoryClient {
   private worker: Worker | null;
@@ -68,6 +71,9 @@ export class WorkerTerritoryClient implements TerritoryClient {
   private inFlight: Request | null = null;
   private answered = false;
   private queue: Request[] = [];
+  /** The last reset, with every apply and band request since folded in. */
+  private galaxy: Omit<Extract<Request, { kind: "reset" }>, "systems"> | null = null;
+  private systems = new Map<number, TerritorySystem>();
 
   constructor() {
     this.worker = new Worker(new URL("./territories.worker.ts", import.meta.url), {
@@ -84,8 +90,11 @@ export class WorkerTerritoryClient implements TerritoryClient {
         this.fallBack();
         return;
       }
-      // A request that threw gets no reply; the ones behind it must not wait for one.
+      const failed = this.inFlight;
       this.inFlight = null;
+      if (failed?.kind !== "reset" && this.galaxy) {
+        this.queue = [{ ...this.galaxy, systems: [...this.systems.values()] }];
+      }
       this.postNext();
     };
   }
@@ -97,15 +106,22 @@ export class WorkerTerritoryClient implements TerritoryClient {
     widths: BandWidths,
     epoch: number,
   ): void {
-    const request = { systems: Array.from(systems, project), params, bordered: [...bordered] };
-    this.post({ kind: "reset", epoch, ...request, widths });
+    const projected = Array.from(systems, project);
+    this.galaxy = { kind: "reset", epoch, params, bordered: [...bordered], widths };
+    this.systems = new Map(projected.map((s) => [s.id, s]));
+    this.post({ ...this.galaxy, systems: projected });
   }
 
   apply(changed: TerritorySystem[], removed: number[], epoch: number): void {
-    this.post({ kind: "apply", epoch, changed: changed.map(project), removed });
+    const projected = changed.map(project);
+    for (const id of removed) this.systems.delete(id);
+    for (const s of projected) this.systems.set(s.id, s);
+    if (this.galaxy) this.galaxy = { ...this.galaxy, epoch };
+    this.post({ kind: "apply", epoch, changed: projected, removed });
   }
 
   band(widths: BandWidths, epoch: number): void {
+    if (this.galaxy) this.galaxy = { ...this.galaxy, epoch, widths };
     this.post({ kind: "band", epoch, widths });
   }
 

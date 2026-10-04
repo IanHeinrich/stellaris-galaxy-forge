@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
-import { Territories, type Shape } from "./territories";
+import { Territories, type BandWidths, type Shape } from "./territories";
 import { scanPiece } from "./labelFit";
 import { countryRegions } from "./territory";
-import { buildGalaxy } from "./territory.fixture";
+import { buildGalaxy, PARAMS } from "./territory.fixture";
 
-const PARAMS = { radius: 35, laneHalfWidth: 10 };
+const NEAR: BandWidths = { band: 1.6, seam: 0.4 };
+const FAR: BandWidths = { band: 5.9, seam: 5.9 / 4 };
 const BORDERED = [10, 20, 30];
 
 const system = (id: number, x: number, y: number, owner: number | null): SystemNode =>
@@ -21,7 +22,7 @@ function direct(systems: SystemNode[], bordered = BORDERED): Map<number, Shape> 
   const shapes = new Map<number, Shape>();
   for (const [id, region] of countryRegions(systems, PARAMS, new Set(bordered))) {
     const scans = region.map((polygon) => scanPiece(polygon));
-    shapes.set(id, { smoothed: region, scans, band: [], seam: [], inner: [] });
+    shapes.set(id, { outline: region, scans, band: [], seam: [], inner: [] });
   }
   return shapes;
 }
@@ -31,7 +32,7 @@ function dist2(a: { x: number; y: number }, b: { x: number; y: number }): number
 }
 
 describe("Territories", () => {
-  it("resets to every bordered country's smoothed region and its pieces' scans", () => {
+  it("resets to every bordered country's outline and its pieces' scans", () => {
     const shapes = new Territories().reset(galaxy(), PARAMS, BORDERED);
     expect([...shapes.keys()].sort()).toEqual([10, 20, 30]);
     expect(shapes).toEqual(direct(galaxy()));
@@ -57,7 +58,7 @@ describe("Territories", () => {
     expect(removed).toEqual([20]);
   });
 
-  it("matches a rebuild after moves inside, across a border, a removal and a change of owner", () => {
+  it("matches a banded rebuild after moves, a removal, a change of owner and new widths", () => {
     const { systems, sizes } = buildGalaxy();
     const bordered = sizes.map((s) => s.country);
     const [largest, second] = [sizes[0].country, sizes[1].country];
@@ -67,7 +68,7 @@ describe("Territories", () => {
       foreign.reduce((best, f) => (dist2(f, s) < dist2(best, s) ? f : best));
 
     const territories = new Territories();
-    const latest = territories.reset(systems, PARAMS, bordered);
+    const latest = territories.reset(systems, PARAMS, bordered, NEAR);
     let galaxy = systems;
     const step = (changed: SystemNode[], removed: number[]): void => {
       galaxy = galaxy
@@ -84,10 +85,14 @@ describe("Territories", () => {
     const across = nearest(crossing);
     step([{ ...crossing, x: 2 * across.x - crossing.x, y: 2 * across.y - crossing.y }], []);
     step([], [own[own.length - 1].id]);
+    for (const [id, banding] of territories.band(FAR)) Object.assign(latest.get(id)!, banding);
     const defector = systems.find((s) => s.owner === second) as SystemNode;
     step([{ ...defector, owner: largest }], []);
 
-    expect(latest).toEqual(direct(galaxy, bordered));
+    expect(latest.get(largest)!.band.length).toBeGreaterThan(0);
+    expect([...latest].sort(([a], [b]) => a - b)).toEqual(
+      [...new Territories().reset(galaxy, PARAMS, bordered, FAR)].sort(([a], [b]) => a - b),
+    );
   });
 
   it("answers an apply before any reset with nothing", () => {

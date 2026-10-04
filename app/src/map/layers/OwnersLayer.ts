@@ -10,7 +10,8 @@ import {
   type LabelShape,
   type PieceScan,
 } from "../../lib/geometry/labelFit";
-import type { Region, TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
+import type { Region } from "../../lib/geometry/polygon";
+import type { TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
 import type { Banding, BandWidths, Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
@@ -145,7 +146,7 @@ interface PieceBadge {
 
 interface CountryShape {
   /** The drawn outline: the country's region with its corners rounded off. */
-  smoothed: Region;
+  outline: Region;
   /** Each piece of the outline, scanned for room for its label. */
   scans: PieceScan[];
   /** The band, its seam, and the part of the territory inside the band, from the client. */
@@ -230,9 +231,9 @@ function boundsOf(region: Region): number[] {
 }
 
 /** Every point of the shape's outline and band: what drawing its edge costs. */
-function pointsOf({ smoothed, band, seam, inner }: Omit<CountryShape, "points">): number {
+function pointsOf({ outline, band, seam, inner }: Omit<CountryShape, "points">): number {
   let n = 0;
-  for (const region of [smoothed, band, seam, inner]) {
+  for (const region of [outline, band, seam, inner]) {
     for (const ring of region.flat()) n += ring.length;
   }
   return n;
@@ -468,13 +469,13 @@ export class OwnersLayer implements MapLayer {
     this.drawEdge(shape);
   }
 
-  private show(id: number, { smoothed, scans, band, seam, inner }: Shape): void {
+  private show(id: number, { outline, scans, band, seam, inner }: Shape): void {
     let shape = this.shapes.get(id);
     if (!shape) {
       const badges = new Container();
       badges.visible = false;
       shape = {
-        smoothed: [],
+        outline: [],
         scans: [],
         band: [],
         seam: [],
@@ -496,12 +497,12 @@ export class OwnersLayer implements MapLayer {
       this.overlay.addChild(badges);
       this.shapes.set(id, shape);
     }
-    shape.smoothed = smoothed;
+    shape.outline = outline;
     shape.scans = scans;
     shape.band = band;
     shape.seam = seam;
     shape.inner = inner;
-    shape.bounds = boundsOf(smoothed);
+    shape.bounds = boundsOf(outline);
     shape.points = pointsOf(shape);
     this.matchPieces(shape);
     this.retext(id, shape);
@@ -578,9 +579,9 @@ export class OwnersLayer implements MapLayer {
     this.drawEdge(shape);
   }
 
-  private drawFill({ fill, smoothed, colors }: CountryShape): void {
+  private drawFill({ fill, outline, colors }: CountryShape): void {
     fill.clear();
-    fillRegion(fill, smoothed, { color: colors.fill });
+    fillRegion(fill, outline, { color: colors.fill });
   }
 
   private bandWidths(): BandWidths {
@@ -644,17 +645,17 @@ export class OwnersLayer implements MapLayer {
     this.applyVisibility();
   }
 
-  private drawEmphasis(id: number, { emphasis, smoothed }: CountryShape): void {
+  private drawEmphasis(id: number, { emphasis, outline }: CountryShape): void {
     emphasis.clear();
     if (!this.emphasised.has(id)) return;
-    for (const ring of smoothed.flat()) emphasis.poly(ring, true);
+    for (const ring of outline.flat()) emphasis.poly(ring, true);
     emphasis.stroke({
       color: EMPHASIS_COLOR,
       width: EMPHASIS_GLOW_PX * this.unit,
       alpha: EMPHASIS_GLOW_ALPHA,
       join: "round",
     });
-    for (const ring of smoothed.flat()) emphasis.poly(ring, true);
+    for (const ring of outline.flat()) emphasis.poly(ring, true);
     emphasis.stroke({
       color: EMPHASIS_COLOR,
       width: EMPHASIS_PX * this.unit,

@@ -6,7 +6,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - `lib/geometry/`: points, the mesh and the drawn territory: the maths,
   which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
   territories between edits, `territories.worker.ts` runs it off the UI thread
-  and `territoryClient.ts` is how the map talks to either. `pairs.ts` and
+  and `territoryClient.ts` is how the map talks to either. `territory.ts` is
+  the influence field the territories are traced from, `contour.ts` turns the
+  traced segments into rings, and `polygon.ts` holds the ring helpers: area,
+  point in ring, and nesting rings into polygons with holes. `pairs.ts` and
   `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
   images about the centre, and `joinIslands.ts` the fewest short edges that
   join separate components.

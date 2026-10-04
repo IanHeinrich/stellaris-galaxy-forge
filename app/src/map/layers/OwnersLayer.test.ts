@@ -40,6 +40,10 @@ const COUNTRIES = new Map([[COUNTRY.id, COUNTRY]]);
 const PARAMS = {
   radius: VANILLA_BORDER.system_radius,
   laneHalfWidth: VANILLA_BORDER.hyperlane_thickness / 2,
+  ownerlessRadius: VANILLA_BORDER.ownerless_system_radius,
+  ownerlessLaneThickness: VANILLA_BORDER.ownerless_hyperlane_thickness,
+  reachFactor: VANILLA_BORDER.influence_max_distance_factor,
+  ownerlessReachFactor: VANILLA_BORDER.ownerless_influence_max_distance_factor,
 };
 
 const PALETTE = new Map<string, MapColor>(

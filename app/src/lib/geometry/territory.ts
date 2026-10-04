@@ -1,7 +1,5 @@
-import type { Pt } from "./pt";
-
-/** Multipolygon: polygons → rings (the outer ring, then its holes) → unclosed points. */
-export type Region = Pt[][][];
+import { CASES, edgeId, SADDLES, stitched } from "./contour";
+import type { Region } from "./polygon";
 
 /** What the territory maths reads of a system; a `SystemNode` is one. */
 export interface TerritorySystem {
@@ -12,25 +10,21 @@ export interface TerritorySystem {
   readonly lanes: readonly { readonly to: number }[];
 }
 
-/** The `NGraphics` defines territories are shaped by, in world units; unset ones are vanilla's. */
+/** The `NGraphics` defines territories are shaped by, in world units. */
 export interface TerritoryParams {
   /** `BORDER_SYSTEM_RADIUS`: the unit an owned system's influence falls off in. */
   radius: number;
   /** Half of `BORDER_HYPERLANE_THICKNESS`, the unit of a lane between two systems of one owner. */
   laneHalfWidth: number;
   /** `BORDER_OWNERLESS_SYSTEM_RADIUS`. */
-  ownerlessRadius?: number;
+  ownerlessRadius: number;
   /** `BORDER_OWNERLESS_HYPERLANE_THICKNESS`, for a lane between two unowned systems. */
-  ownerlessLaneThickness?: number;
+  ownerlessLaneThickness: number;
   /** `BORDER_INFLUENCE_MAX_DISTANCE_FACTOR`: how many of its units an owned source reaches. */
-  reachFactor?: number;
+  reachFactor: number;
   /** `BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR`, likewise for an unowned one. */
-  ownerlessReachFactor?: number;
+  ownerlessReachFactor: number;
 }
-
-const VANILLA_OWNERLESS_RADIUS = 30;
-const VANILLA_OWNERLESS_LANE_THICKNESS = 20;
-const VANILLA_REACH_FACTOR = 1.88;
 
 /** World units per texel of the influence field. */
 const TEXEL = 0.5;
@@ -48,8 +42,8 @@ const SOFTNESS = 0.155;
 const EDGE = 0.8;
 /**
  * How far the smooth max and min that round a territory's corners blend, in influence units:
- * where two owners' borders meet, or a border meets open space. Fitted to a corner radius of
- * about 2 world units, as measured at the game's triple junctions.
+ * where two owners' borders meet, or a border meets open space. Where two vanilla countries and
+ * an unowned system meet, it rounds the corner to a radius of 5 to 6 world units.
  */
 const CORNER_BLEND = 0.2;
 /** The most the smooth max and min together raise φ above the hard max. */
@@ -66,12 +60,8 @@ const MAX_BAND_DEPTH = 0.3;
  */
 const DEPTH_BLEND = 0.1;
 const SLOPE_BLEND_SHARE = 0.5;
-/** Rings smaller than this, in world units², are slivers and are dropped. */
-const MIN_RING_AREA = 25;
-/** An outline point this close to the line through the points kept either side of it is dropped. */
-const SIMPLIFY_TOLERANCE = 0.05;
-/** Crossings of every this many texel rows and columns are always kept, so neighbours simplify a shared border alike. */
-const ANCHOR_SPACING = 16;
+/** How far above 0 the lowest hard φ at a cell's corners may lie for a contour to cross the cell. */
+const HARD_SLACK = DEPTH_BLEND / 4;
 /** Entries of the falloff table per unit of distance over softness. */
 const FALLOFF_STEPS = 256;
 /**
@@ -85,8 +75,6 @@ const BLOCK_RADIUS = Math.SQRT2 * ((BLOCK - 1) / 2) * TEXEL;
 const NO_ONE = 0;
 const UNOWNED = 1;
 
-const TEXEL_OFFSET = 2 ** 20;
-const TEXEL_SPAN = 2 ** 21;
 const TILE_OFFSET = 2 ** 14;
 const TILE_SPAN = 2 ** 15;
 /** A tile and two texels of its neighbours right and below: a corner's slope reads one further. */
@@ -144,18 +132,19 @@ interface Tile {
 const OUTLINE = 0;
 const BAND = 1;
 const SEAM = 2;
+type Contour = typeof OUTLINE | typeof BAND | typeof SEAM;
+const CONTOURS: readonly Contour[] = [OUTLINE, BAND, SEAM];
+const BANDS: readonly Contour[] = [BAND, SEAM];
 /** What a block must be measured for: no contour, only a band's inner edge, or any. */
 const CLEAR = 0;
 const BANDED = 1;
 const ANY = 2;
-const CONTOURS = [OUTLINE, BAND, SEAM];
 /** What a cell is to the bands: out of their reach, held by one owner, or shared by several. */
 const OUTSIDE = 0;
 const INSIDE = 1;
 const MIXED = 2;
 /** How far, as a share, a width must be from a cell's limits for them to settle its corners' sides. */
 const LIMIT_MARGIN = 1e-4;
-const BANDS = [BAND, SEAM];
 
 /**
  * The game's territories as an influence field over the galaxy. Each owned system, each lane
@@ -235,10 +224,10 @@ export class InfluenceField {
     this.levels[SEAM] = Math.max(seam, 0);
     this.ownedRadius = params.radius;
     this.ownedLane = 2 * params.laneHalfWidth;
-    this.ownerlessRadius = params.ownerlessRadius ?? VANILLA_OWNERLESS_RADIUS;
-    this.ownerlessLane = params.ownerlessLaneThickness ?? VANILLA_OWNERLESS_LANE_THICKNESS;
-    this.ownedFactor = params.reachFactor ?? VANILLA_REACH_FACTOR;
-    this.ownerlessFactor = params.ownerlessReachFactor ?? VANILLA_REACH_FACTOR;
+    this.ownerlessRadius = params.ownerlessRadius;
+    this.ownerlessLane = params.ownerlessLaneThickness;
+    this.ownedFactor = params.reachFactor;
+    this.ownerlessFactor = params.ownerlessReachFactor;
     this.none = Math.max(this.ownedFactor, this.ownerlessFactor);
     const size = Math.ceil((this.none / SOFTNESS) * FALLOFF_STEPS) + 2;
     this.table = Float64Array.from({ length: size }, (_, i) => Math.exp(-i / FALLOFF_STEPS));
@@ -253,11 +242,18 @@ export class InfluenceField {
     this.lone = 1 / Math.max(this.ownedRadius, 1e-6);
   }
 
+  /** Replaces every system the field holds with these. */
   reset(systems: Iterable<TerritorySystem>): void {
+    this.systems.clear();
+    this.listedBy.clear();
+    this.points.clear();
+    this.lanes.clear();
+    this.tiles.clear();
+    for (const outlined of this.outlined) outlined.clear();
     for (const s of systems) this.link(s);
     const dirty = new Set<number>();
     for (const s of this.systems.values()) this.addSources(s, dirty);
-    for (const key of dirty) this.raster(this.tiles.get(key) as Tile);
+    for (const key of dirty) this.raster(this.tileAt(key));
     for (const key of dirty) this.trace(key, CONTOURS);
   }
 
@@ -290,7 +286,7 @@ export class InfluenceField {
       this.link(s);
     }
     for (const s of changed) this.addSources(s, dirty);
-    for (const key of dirty) this.raster(this.tiles.get(key) as Tile);
+    for (const key of dirty) this.raster(this.tileAt(key));
     const traced = new Set<number>();
     for (const key of dirty) {
       for (const k of [key, key - 1, key - TILE_SPAN, key - TILE_SPAN - 1]) {
@@ -328,58 +324,17 @@ export class InfluenceField {
     return this.contoured(owner, SEAM);
   }
 
-  private contoured(owner: number, contour: number): Region {
+  private contoured(owner: number, contour: Contour): Region {
     const code = this.codes.get(owner);
     const keys = code === undefined ? undefined : this.outlined[contour].get(code);
     if (code === undefined || !keys || keys.size === 0) return [];
-    const parts: number[][] = [];
-    let count = 0;
-    for (const key of keys) {
-      const part = (this.tiles.get(key) as Tile).segments[contour].get(code) as number[];
-      parts.push(part);
-      count += part.length / 4;
-    }
-    const from = new Float64Array(count);
-    const to = new Float64Array(count);
-    const xs = new Float64Array(count);
-    const ys = new Float64Array(count);
-    const at = new Map<number, number>();
-    let n = 0;
-    for (const part of parts) {
-      for (let k = 0; k < part.length; k += 4, n++) {
-        from[n] = part[k];
-        to[n] = part[k + 1];
-        xs[n] = part[k + 2];
-        ys[n] = part[k + 3];
-        at.set(part[k], n);
-      }
-    }
-    const visited = new Uint8Array(count);
-    const traced: { ring: Pt[]; first: number }[] = [];
-    for (let start = 0; start < count; start++) {
-      if (visited[start]) continue;
-      const rx: number[] = [];
-      const ry: number[] = [];
-      const ids: number[] = [];
-      let k: number | undefined = start;
-      while (k !== undefined && !visited[k]) {
-        visited[k] = 1;
-        rx.push(xs[k]);
-        ry.push(ys[k]);
-        ids.push(from[k]);
-        k = at.get(to[k]);
-      }
-      if (k !== start) continue;
-      // Every ring starts at its lowest edge, so an edit and a rebuild give the same rings.
-      let low = 0;
-      for (let i = 1; i < ids.length; i++) if (ids[i] < ids[low]) low = i;
-      const ring = simplified(rotated(rx, low), rotated(ry, low), rotated(ids, low));
-      if (ring.length >= 3 && Math.abs(ringArea(ring)) >= MIN_RING_AREA) {
-        traced.push({ ring, first: ids[low] });
-      }
-    }
-    traced.sort((a, b) => a.first - b.first);
-    return nested(traced.map((t) => t.ring));
+    return stitched([...keys].map((key) => this.tileAt(key).segments[contour].get(code) ?? []));
+  }
+
+  private tileAt(key: number): Tile {
+    const tile = this.tiles.get(key);
+    if (!tile) throw new Error(`no territory tile ${key}`);
+    return tile;
   }
 
   private codeOf(owner: number | null): number {
@@ -509,7 +464,7 @@ export class InfluenceField {
 
   private unregister(s: Source, dirty: Set<number>): void {
     for (const key of s.tiles) {
-      const tile = this.tiles.get(key) as Tile;
+      const tile = this.tileAt(key);
       const at = tile.sources.indexOf(s);
       if (at >= 0) tile.sources.splice(at, 1);
       dirty.add(key);
@@ -680,13 +635,13 @@ export class InfluenceField {
   }
 
   /** Re-traces the tile's cells on these contours; the owner codes whose segments there changed. */
-  private trace(key: number, contours: readonly number[]): Set<number> {
-    const tile = this.tiles.get(key) as Tile;
+  private trace(key: number, contours: readonly Contour[]): Set<number> {
+    const tile = this.tileAt(key);
     const traced = contours.filter((c) => c === OUTLINE || this.levels[c] > 0);
     const marched = tile.crossed > 0 && traced.length > 0 ? this.march(tile, key, traced) : [];
     const changed = new Set<number>();
     for (const contour of contours) {
-      const segments = marched[traced.indexOf(contour)] ?? new Map<number, number[]>();
+      const segments = marched[contour] ?? new Map<number, number[]>();
       const outlined = this.outlined[contour];
       const before = tile.segments[contour];
       for (const [code, old] of before) {
@@ -706,9 +661,10 @@ export class InfluenceField {
 
   /**
    * Marching squares over the cells whose top-left texel is in the tile, for each drawn owner and
-   * each of `contours`: the outline, or a band's inner edge at that contour's width.
+   * each of `contours`: the outline, or a band's inner edge at that contour's width. The segments
+   * of each owner code, by contour.
    */
-  private march(tile: Tile, key: number, contours: readonly number[]): Map<number, number[]>[] {
+  private march(tile: Tile, key: number, contours: readonly Contour[]): Map<number, number[]>[] {
     const best = this.padBest;
     const second = this.padSecond;
     const third = this.padThird;
@@ -716,8 +672,9 @@ export class InfluenceField {
     const runner = this.padRunner;
     this.pad(tile, key);
     const drawn = this.drawnCodes;
-    const outs = contours.map(() => new Map<number, number[]>());
-    const widths = contours.map((c) => this.levels[c]);
+    const outs: Map<number, number[]>[] = [];
+    for (const c of contours) outs[c] = new Map();
+    const widths = this.levels;
     const lone = this.lone;
     const slopeBlend = lone * SLOPE_BLEND_SHARE;
     const gi0 = tile.ti * TILE;
@@ -778,15 +735,16 @@ export class InfluenceField {
       if (w === 0) return v;
       return v + smoothMin(w * slopeAt(q, c, v), MAX_BAND_DEPTH, DEPTH_BLEND);
     };
-    const values = contours.map((_, k) => this.padValues[k].fill(NaN));
-    const valueOf = (q: number, c: number, k: number): number => {
+    const values = this.padValues;
+    for (const k of contours) values[k].fill(NaN);
+    const valueOf = (q: number, c: number, k: Contour): number => {
       if (owner[q] !== c) return valueAt(q, c, widths[k]);
       const memo = values[k];
       let v = memo[q];
       if (v !== v) v = memo[q] = valueAt(q, c, widths[k]);
       return v;
     };
-    const cell = (k: number, c: number, i: number, j: number, q: number): void => {
+    const cell = (k: Contour, c: number, i: number, j: number, q: number): void => {
       const v0 = valueOf(q, c, k);
       const v1 = valueOf(q + 1, c, k);
       const v2 = valueOf(q + PAD + 1, c, k);
@@ -813,7 +771,7 @@ export class InfluenceField {
       }
     };
     /** Traces the cell for each drawn owner at its corners, once each. */
-    const shared = (k: number, i: number, j: number, q: number): void => {
+    const shared = (k: Contour, i: number, j: number, q: number): void => {
       const a = owner[q];
       const b = owner[q + 1];
       const c = owner[q + PAD + 1];
@@ -824,21 +782,20 @@ export class InfluenceField {
       if (drawn[d] && d !== a && d !== b && d !== c) cell(k, d, i, j, q);
     };
     const hard = this.padHard;
-    const outline = contours[0] === OUTLINE;
-    const banded = contours.length > (outline ? 1 : 0);
+    const outline = contours.includes(OUTLINE);
+    const bands = contours.filter((c) => c !== OUTLINE);
+    const banded = bands.length > 0;
     if (banded && (outline || !tile.limited)) this.limit(tile, phiAt, slopeAt);
     else if (outline) tile.limited = false;
     const { limits, kinds, ranges } = tile;
-    const live: number[] = [];
+    const live: Contour[] = [];
     for (let block = 0; block < BLOCKS * BLOCKS; block++) {
       if (tile.needs[block] === CLEAR) continue;
       live.length = 0;
       if (banded) {
         const low = ranges[2 * block] * (1 - LIMIT_MARGIN);
         const high = ranges[2 * block + 1] * (1 + LIMIT_MARGIN);
-        for (let k = outline ? 1 : 0; k < contours.length; k++) {
-          if (widths[k] >= low && widths[k] <= high) live.push(k);
-        }
+        for (const k of bands) if (widths[k] >= low && widths[k] <= high) live.push(k);
       }
       if (live.length === 0 && !outline) continue;
       const i0 = (block % BLOCKS) * BLOCK;
@@ -848,27 +805,12 @@ export class InfluenceField {
           const q = j * PAD + i;
           // Past every owner's edge at all four corners, every φ is positive; and the outline
           // keeps clear of a cell whose hard φ is further from 0 than the rounding moves it.
-          const near =
-            best[q] <= EDGE ||
-            best[q + 1] <= EDGE ||
-            best[q + PAD] <= EDGE ||
-            best[q + PAD + 1] <= EDGE;
-          if (outline && near) {
+          if (outline && nearEdge(best, q)) {
             const a = owner[q];
             if (a === owner[q + 1] && a === owner[q + PAD + 1] && a === owner[q + PAD]) {
-              const h0 = hard[q];
-              const h1 = hard[q + 1];
-              const h2 = hard[q + PAD];
-              const h3 = hard[q + PAD + 1];
-              if (
-                drawn[a] &&
-                Math.max(h0, h1, h2, h3) >= -CORNER_RISE &&
-                Math.min(h0, h1, h2, h3) <= DEPTH_BLEND / 4
-              ) {
-                cell(0, a, i, j, q);
-              }
+              if (drawn[a] && cornerHardRange(hard, q, -CORNER_RISE)) cell(OUTLINE, a, i, j, q);
             } else {
-              shared(0, i, j, q);
+              shared(OUTLINE, i, j, q);
             }
           }
           if (live.length === 0) continue;
@@ -932,14 +874,7 @@ export class InfluenceField {
         for (let j = j0; j < j0 + BLOCK; j++) {
           for (let i = i0; i < i0 + BLOCK; i++) {
             const q = j * PAD + i;
-            if (
-              best[q] > EDGE &&
-              best[q + 1] > EDGE &&
-              best[q + PAD] > EDGE &&
-              best[q + PAD + 1] > EDGE
-            ) {
-              continue;
-            }
+            if (!nearEdge(best, q)) continue;
             const a = owner[q];
             const b = owner[q + 1];
             const c = owner[q + PAD + 1];
@@ -952,14 +887,7 @@ export class InfluenceField {
               }
               continue;
             }
-            if (!drawn[a]) continue;
-            const h0 = hard[q];
-            const h1 = hard[q + 1];
-            const h2 = hard[q + PAD];
-            const h3 = hard[q + PAD + 1];
-            if (Math.max(h0, h1, h2, h3) < deepest || Math.min(h0, h1, h2, h3) > DEPTH_BLEND / 4) {
-              continue;
-            }
+            if (!drawn[a] || !cornerHardRange(hard, q, deepest)) continue;
             kinds[j * TILE + i] = INSIDE;
             const l0 = limitAt(q, a);
             const l1 = limitAt(q + 1, a);
@@ -995,6 +923,25 @@ export class InfluenceField {
 }
 
 type Texels = Float32Array | Uint16Array;
+
+/** Whether any corner of the cell from padded texel `q` lies within `EDGE` of its nearest owner. */
+function nearEdge(best: Float32Array, q: number): boolean {
+  return (
+    best[q] <= EDGE || best[q + 1] <= EDGE || best[q + PAD] <= EDGE || best[q + PAD + 1] <= EDGE
+  );
+}
+
+/**
+ * Whether the hard φ at the corners of the cell from padded texel `q` reaches `low` at its
+ * highest and `HARD_SLACK` at its lowest, so a contour between them can cross the cell.
+ */
+function cornerHardRange(hard: Float32Array, q: number, low: number): boolean {
+  const h0 = hard[q];
+  const h1 = hard[q + 1];
+  const h2 = hard[q + PAD];
+  const h3 = hard[q + PAD + 1];
+  return Math.max(h0, h1, h2, h3) >= low && Math.min(h0, h1, h2, h3) <= HARD_SLACK;
+}
 
 /** One layer of a tile and its neighbours' first two columns and rows, or `empty` where there is no neighbour. */
 function padLayer(
@@ -1074,52 +1021,6 @@ export function countryRegions(
   return regions;
 }
 
-/**
- * A cell's corners are v0 top left, v1 top right, v2 bottom right, v3 bottom left; its edges
- * 0 top, 1 right, 2 bottom, 3 left. Each case lists its segments as from and to edges, with
- * the owner's side always on the same hand, so segments chain into rings.
- */
-const CASES: readonly (readonly number[])[] = [
-  [],
-  [3, 0],
-  [0, 1],
-  [3, 1],
-  [1, 2],
-  [],
-  [0, 2],
-  [3, 2],
-  [2, 3],
-  [2, 0],
-  [],
-  [2, 1],
-  [1, 3],
-  [1, 0],
-  [0, 3],
-  [],
-];
-/** Cases 5 and 10, with the two inside corners joined through the cell or kept apart. */
-const SADDLES: readonly (readonly number[])[] = [
-  [3, 2, 1, 0],
-  [3, 0, 1, 2],
-  [0, 3, 2, 1],
-  [0, 1, 2, 3],
-];
-
-/** A cell edge's id, the same from either cell that shares it: the texel it starts at and its axis. */
-function edgeId(edge: number, gi: number, gj: number): number {
-  const x = edge === 1 ? gi + 1 : gi;
-  const y = edge === 2 ? gj + 1 : gj;
-  const axis = edge === 1 || edge === 3 ? 1 : 0;
-  return ((y + TEXEL_OFFSET) * TEXEL_SPAN + x + TEXEL_OFFSET) * 2 + axis;
-}
-
-function isAnchor(id: number): boolean {
-  const axis = id % 2;
-  const texel = (id - axis) / 2;
-  const line = axis === 0 ? Math.floor(texel / TEXEL_SPAN) : texel % TEXEL_SPAN;
-  return line % ANCHOR_SPACING === 0;
-}
-
 function tileKey(ti: number, tj: number): number {
   return (tj + TILE_OFFSET) * TILE_SPAN + ti + TILE_OFFSET;
 }
@@ -1152,10 +1053,6 @@ function newTile(ti: number, tj: number): Tile {
 /** By owner, then by place, so a tile sums its sources in the same order however it got them. */
 function bySource(a: Source, b: Source): number {
   return a.code - b.code || a.ax - b.ax || a.ay - b.ay || a.dx - b.dx || a.dy - b.dy;
-}
-
-function rotated(values: number[], start: number): number[] {
-  return start === 0 ? values : [...values.slice(start), ...values.slice(0, start)];
 }
 
 function sameNumbers(a: readonly number[], b: readonly number[] | undefined): boolean {
@@ -1220,155 +1117,4 @@ function crossesRect(s: Source, x0: number, y0: number, x1: number, y1: number):
     }
   }
   return true;
-}
-
-/**
- * The ring with the points between anchors thinned by Douglas–Peucker. A stretch is always
- * thinned from its anchor with the lower id, so two owners sharing it keep the same points.
- */
-function simplified(xs: number[], ys: number[], ids: number[]): Pt[] {
-  const n = xs.length;
-  const anchors: number[] = [];
-  for (let i = 0; i < n; i++) if (isAnchor(ids[i])) anchors.push(i);
-  if (anchors.length < 2) return xs.map((x, i) => ({ x, y: ys[i] }));
-  const keep = new Uint8Array(n);
-  for (const a of anchors) keep[a] = 1;
-  const chain: number[] = [];
-  for (let k = 0; k < anchors.length; k++) {
-    const from = anchors[k];
-    const to = anchors[(k + 1) % anchors.length];
-    chain.length = 0;
-    for (let i = from; ; i = (i + 1) % n) {
-      chain.push(i);
-      if (i === to) break;
-    }
-    if (ids[to] < ids[from]) chain.reverse();
-    thin(chain, xs, ys, keep);
-  }
-  const out: Pt[] = [];
-  for (let i = 0; i < n; i++) if (keep[i]) out.push({ x: xs[i], y: ys[i] });
-  return out;
-}
-
-function thin(chain: number[], xs: number[], ys: number[], keep: Uint8Array): void {
-  const stack = [0, chain.length - 1];
-  const tolerance2 = SIMPLIFY_TOLERANCE * SIMPLIFY_TOLERANCE;
-  while (stack.length > 0) {
-    const hi = stack.pop() as number;
-    const lo = stack.pop() as number;
-    if (hi - lo < 2) continue;
-    const ax = xs[chain[lo]];
-    const ay = ys[chain[lo]];
-    const dx = xs[chain[hi]] - ax;
-    const dy = ys[chain[hi]] - ay;
-    const len2 = dx * dx + dy * dy;
-    let far = -1;
-    let farthest = -1;
-    for (let m = lo + 1; m < hi; m++) {
-      const px = xs[chain[m]] - ax;
-      const py = ys[chain[m]] - ay;
-      const cross = px * dy - py * dx;
-      const d = len2 > 0 ? (cross * cross) / len2 : px * px + py * py;
-      if (d > farthest) {
-        farthest = d;
-        far = m;
-      }
-    }
-    if (farthest <= tolerance2) continue;
-    keep[chain[far]] = 1;
-    stack.push(lo, far, far, hi);
-  }
-}
-
-/**
- * Rings sorted into polygons: the rings traced with the territory on one hand are outer
- * rings, the others holes, each in the smallest outer ring that holds it. Outer rings come out
- * anticlockwise and holes clockwise, as the map expects.
- */
-function nested(rings: Pt[][]): Region {
-  for (const ring of rings) ring.reverse();
-  return grouped(rings);
-}
-
-/**
- * The territory less its inner part: the band, as polygons with holes. The inner region's
- * rings are turned round, so its outer rings become the band's holes and its holes, which
- * hold the territory's own, become outer rings of the band.
- */
-export function bandOf(territory: Region, inner: Region): Region {
-  const rings = territory.flat();
-  for (const ring of trimmedInner(territory, inner).flat()) rings.push([...ring].reverse());
-  return grouped(rings);
-}
-
-/**
- * The inner part without the holes that hold none of the territory's own. Where the field runs
- * shallow in a sparse middle, the band's inner edge can close round a patch that is no hole of
- * the territory, and the game draws no band there.
- */
-export function trimmedInner(territory: Region, inner: Region): Region {
-  const holes = territory.flatMap((polygon) => polygon.slice(1));
-  return inner.map(([outer, ...rest]) => [
-    outer,
-    ...rest.filter((ring) => holes.some((hole) => inRing(hole[0], ring))),
-  ]);
-}
-
-/** Anticlockwise rings as outer rings, each clockwise one a hole in the smallest that holds it. */
-function grouped(rings: Pt[][]): Region {
-  const outers: { ring: Pt[]; area: number; box: number[] }[] = [];
-  const holes: Pt[][] = [];
-  for (const ring of rings) {
-    const area = ringArea(ring);
-    if (area < 0) outers.push({ ring, area: -area, box: boxOf(ring) });
-    else holes.push(ring);
-  }
-  outers.sort((a, b) => a.area - b.area);
-  const region: Region = outers.map((o) => [o.ring]);
-  for (const hole of holes) {
-    const p = hole[0];
-    const at = outers.findIndex(
-      (o) =>
-        p.x >= o.box[0] &&
-        p.x <= o.box[2] &&
-        p.y >= o.box[1] &&
-        p.y <= o.box[3] &&
-        inRing(p, o.ring),
-    );
-    if (at >= 0) region[at].push(hole);
-  }
-  return region;
-}
-
-function boxOf(ring: Pt[]): number[] {
-  const box = [Infinity, Infinity, -Infinity, -Infinity];
-  for (const p of ring) {
-    if (p.x < box[0]) box[0] = p.x;
-    if (p.y < box[1]) box[1] = p.y;
-    if (p.x > box[2]) box[2] = p.x;
-    if (p.y > box[3]) box[3] = p.y;
-  }
-  return box;
-}
-
-/** Whether `p` lies inside `ring`, by the even-odd rule. */
-function inRing(p: Pt, ring: Pt[]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i];
-    const b = ring[j];
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-/** The ring's area, negative for an anticlockwise ring. */
-export function ringArea(ring: Pt[]): number {
-  let sum = 0;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    sum += (ring[j].x + ring[i].x) * (ring[j].y - ring[i].y);
-  }
-  return sum / 2;
 }

@@ -1,20 +1,21 @@
+import { boxOf, type Rect } from "./polygon";
 import type { Pt } from "./pt";
 
 /** Horizontal lines a territory piece is sampled along to place its name. */
-export const SCAN_ROWS = 48;
+const SCAN_ROWS = 48;
 /**
  * How far either end of a name may run past the edge of its stretch, in units of scale (font
  * sizes), about half a letter: in the game the first letter of a name centred on its territory
  * can reach over the border.
  */
-const NAME_SPILL = 0.5;
+export const NAME_SPILL = 0.5;
 /** The share of the emblem's width and height that may poke past the piece. */
 const EMBLEM_OVERHANG = 0.1;
 /**
  * How far above and below the centre of area, as a share of the piece's height, a label looks
  * for the row where it comes out largest before it settles for the nearest row that fits.
  */
-const WINDOW = 0.15;
+export const WINDOW = 0.15;
 /** Heights within this share of each other count as the same size. */
 const TIE = 0.05;
 /** Rank of a scale, `TIE` wide, larger first. */
@@ -25,9 +26,11 @@ function rankOf(scale: number): number {
  * How far a label keeps from a hole's edge, in world units. A hole is an unclaimed system, and
  * the game keeps its labels well clear of one: Chinorr Combine's emblem sits below its holes.
  */
-const HOLE_CLEARANCE = 25;
+export const HOLE_CLEARANCE = 25;
 /** The step a label's scale is tried down by while it does not fit. */
 const SCALE_STEP = 0.95;
+/** The smallest floor a label is tried down to, whatever it asks for: a floor of 0 never ends. */
+const LEAST_FLOOR = 0.01;
 
 /**
  * One territory piece cut by evenly spaced horizontal lines: what a label needs to find room
@@ -47,7 +50,7 @@ export interface PieceScan {
 }
 
 /** A hole of a piece: its middle and the radius that takes in all of it. */
-export interface Hole {
+interface Hole {
   x: number;
   y: number;
   r: number;
@@ -104,25 +107,11 @@ export function scanPiece(rings: readonly (readonly Pt[])[], rows = SCAN_ROWS): 
 
 /** The circle round a hole's ring: the middle of its box, out to its farthest point. */
 function holeOf(ring: readonly Pt[]): Hole {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const p of ring) {
-    minX = Math.min(minX, p.x);
-    minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x);
-    maxY = Math.max(maxY, p.y);
-  }
-  const x = (minX + maxX) / 2;
-  const y = (minY + maxY) / 2;
+  const { x0, y0, x1, y1 } = boxOf(ring);
+  const x = (x0 + x1) / 2;
+  const y = (y0 + y1) / 2;
   const r = ring.reduce((far, p) => Math.max(far, Math.hypot(p.x - x, p.y - y)), 0);
   return { x, y, r };
-}
-
-/** A piece with no holes: `scanPiece` of the one ring. */
-export function scanRing(ring: readonly Pt[], rows = SCAN_ROWS): PieceScan {
-  return scanPiece([ring], rows);
 }
 
 /**
@@ -207,13 +196,6 @@ interface Spot {
   y: number;
   scale: number;
   hang: boolean;
-}
-
-interface Rect {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
 }
 
 /** How many places in its piece a crowded label tries before it shrinks. */
@@ -312,7 +294,7 @@ function fitAt(
   maxScale: number,
   minScale: number,
 ): Spot | null {
-  for (let scale = maxScale; scale >= minScale; scale *= SCALE_STEP) {
+  for (let scale = maxScale; scale >= Math.max(minScale, LEAST_FLOOR); scale *= SCALE_STEP) {
     const half = (shape.nameHeight * scale) / 2;
     const room = stretchesOver(scan, y - half, y + half);
     const stretch = room && stretchAt(room, scan.cx, true);
@@ -367,21 +349,6 @@ function spotsIn(scan: PieceScan, shape: LabelShape, maxScale: number, minScale:
 }
 
 /**
- * The label of `shape` the scanned piece takes on its own: centred on the piece, as large as
- * fits there up to `maxScale`. A piece with no room for `minScale` takes that scale with the
- * emblem on its centre and the name hanging below, overflowing.
- */
-export function fitLabel(
-  scan: PieceScan,
-  shape: LabelShape,
-  maxScale: number,
-  minScale: number,
-): LabelFit {
-  const [best] = spotsIn(scan, shape, maxScale, minScale);
-  return placed(shape, best, Math.max(best.scale, minScale));
-}
-
-/**
  * Every label fitted to its piece with no two overlapping. The largest go first, each at its
  * best place. A label that would overlap one already placed tries its piece's other places,
  * then shrinks step by step at each of them down to half its floor, and is left out (null) if
@@ -395,7 +362,8 @@ export function placeLabels(requests: readonly LabelRequest[]): (LabelFit | null
   const taken: Rect[] = [];
   const out: (LabelFit | null)[] = requests.map(() => null);
   for (const i of order) {
-    const { shape, minScale } = requests[i];
+    const { shape } = requests[i];
+    const minScale = Math.max(requests[i].minScale, LEAST_FLOOR);
     const tryAt = (spot: Spot, scale: number): boolean => {
       const fit = placed(shape, spot, scale);
       const rects = rectsOf(shape, fit);

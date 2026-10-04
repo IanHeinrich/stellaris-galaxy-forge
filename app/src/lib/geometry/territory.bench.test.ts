@@ -1,13 +1,22 @@
 import { describe, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
-import { scanRing } from "./labelFit";
-import { Territories } from "./territories";
-import { countryRegions, type Region, type TerritoryParams } from "./territory";
-import { buildGalaxy } from "./territory.fixture";
+import { placeLabels, type LabelRequest } from "./labelFit";
+import { Territories, type BandWidths } from "./territories";
+import { buildGalaxy, PARAMS } from "./territory.fixture";
 
-const PARAMS: TerritoryParams = { radius: 35, laneHalfWidth: 10 };
 const BENCH_OPTIONS = { iterations: 5, warmupIterations: 1 };
+const BENCH_TIMEOUT_MS = 600_000;
 const MOVE_DISTANCE = 20;
+/** The band widths the map asks for zoomed in and zoomed out. */
+const NEAR: BandWidths = { band: 1.6, seam: 0.4 };
+const FAR: BandWidths = { band: 5.9, seam: 5.9 / 4 };
+/** A label's shape per unit of font size, as the map measures an emblem over a name. */
+const LETTER_WIDTH = 0.6;
+const NAME_HEIGHT = 1.2;
+const EMBLEM = 3.2;
+const DROP = 0.3;
+const MAX_SCALE = 44;
+const NARROWEST = 50;
 
 interface BenchResult {
   name: string;
@@ -44,10 +53,9 @@ function runBench(
 }
 
 describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () => {
-  it("times countryRegions, Territories and scanRing", () => {
+  it("times Territories and placeLabels", { timeout: BENCH_TIMEOUT_MS }, () => {
     const { systems, laneCount, sizes } = buildGalaxy();
     const largestCountry = sizes[0].country;
-    const largestOnly = new Set([largestCountry]);
     const bordered = sizes.map((s) => s.country);
     console.log(
       `territory bench galaxy: ${systems.length} systems, ${laneCount} lanes, ${sizes.length} countries, ` +
@@ -62,29 +70,22 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
     if (!movedSource) throw new Error("territory bench: no system found in the largest country");
     const movedSystem: SystemNode = { ...movedSource, x: movedSource.x + MOVE_DISTANCE };
 
-    const regionList: Region[] = [...countryRegions(systems, PARAMS).values()];
-
     const model = new Territories();
+    const requests: LabelRequest[] = [];
+    for (const [country, shape] of model.reset(systems, PARAMS, bordered, FAR)) {
+      const nameWidth = LETTER_WIDTH * (6 + (country % 13));
+      const label = { nameWidth, nameHeight: NAME_HEIGHT, emblem: EMBLEM, drop: DROP };
+      const minScale = Math.min(6, NARROWEST / nameWidth);
+      for (const scan of shape.scans) {
+        requests.push({ scan, shape: label, maxScale: MAX_SCALE, minScale });
+      }
+    }
 
     const results: BenchResult[] = [
       runBench(
-        "countryRegions: full reset of every country",
+        "Territories.reset over the whole galaxy, banded",
         () => {
-          countryRegions(systems, PARAMS);
-        },
-        BENCH_OPTIONS,
-      ),
-      runBench(
-        "countryRegions: only the largest country",
-        () => {
-          countryRegions(systems, PARAMS, largestOnly);
-        },
-        BENCH_OPTIONS,
-      ),
-      runBench(
-        "Territories.reset over the whole galaxy",
-        () => {
-          new Territories().reset(systems, PARAMS, bordered);
+          new Territories().reset(systems, PARAMS, bordered, FAR);
         },
         BENCH_OPTIONS,
       ),
@@ -93,12 +94,19 @@ describe.skipIf(!import.meta.env.SGF_BENCH)("territory geometry benchmarks", () 
         () => {
           model.apply([movedSystem], []);
         },
-        { ...BENCH_OPTIONS, setup: () => model.reset(systems, PARAMS, bordered) },
+        { ...BENCH_OPTIONS, setup: () => model.reset(systems, PARAMS, bordered, FAR) },
       ),
       runBench(
-        "scanRing over every piece of every region",
+        "Territories.band from the near widths to the far ones",
         () => {
-          for (const region of regionList) for (const polygon of region) scanRing(polygon[0]);
+          model.band(FAR);
+        },
+        { ...BENCH_OPTIONS, setup: () => model.reset(systems, PARAMS, bordered, NEAR) },
+      ),
+      runBench(
+        `placeLabels over every piece of every country (${requests.length})`,
+        () => {
+          placeLabels(requests);
         },
         BENCH_OPTIONS,
       ),

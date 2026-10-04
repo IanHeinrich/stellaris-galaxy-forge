@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SystemNode } from "../../generated/SystemNode";
 import { placedNode } from "../../test/builders";
+import { bandOf, inRing, trimmedInner, type Region } from "./polygon";
 import type { Pt } from "./pt";
-import { bandOf, countryRegions, InfluenceField, type Region } from "./territory";
-
-const PARAMS = { radius: 35, laneHalfWidth: 10 };
+import { countryRegions, InfluenceField } from "./territory";
+import { PARAMS } from "./territory.fixture";
 
 const system = (
   id: number,
@@ -23,17 +23,9 @@ function ringOf(owner: number, distances: number[], lanesToCentre = false): Syst
   });
 }
 
-function inRing(p: Pt, ring: Pt[]): boolean {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const a = ring[i];
-    const b = ring[j];
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
+/** The band between the outline and its inner part, as the map draws it. */
+const bandBetween = (outline: Region, inner: Region): Region =>
+  bandOf(outline, trimmedInner(outline, inner));
 
 function inRegion(p: Pt, region: Region): boolean {
   return region.some(
@@ -164,7 +156,7 @@ describe("countryRegions", () => {
   it("joins two lobes' bands across the neck between them", () => {
     const field = new InfluenceField(PARAMS, null, 5);
     field.reset([system(1, 0, 0, 10), system(2, 58, 0, 10)]);
-    const band = bandOf(field.region(10), field.inner(10));
+    const band = bandBetween(field.region(10), field.inner(10));
     expect(band).toHaveLength(1);
     expect(band[0]).toHaveLength(3);
     expect(inRegion({ x: 29, y: 0 }, band)).toBe(true);
@@ -176,7 +168,7 @@ describe("countryRegions", () => {
     const field = new InfluenceField(PARAMS, null, 5.9);
     field.reset([system(1, 0, 0, 10), system(2, 50, 0, 10)]);
     const inner = field.inner(10);
-    const band = bandOf(field.region(10), inner);
+    const band = bandBetween(field.region(10), inner);
     expect(inner).toHaveLength(1);
     expect(band).toHaveLength(1);
     expect(inRegion({ x: 25, y: 0 }, inner)).toBe(true);
@@ -196,7 +188,7 @@ describe("countryRegions", () => {
     expect(outline).toEqual([[outline[0][0]]]);
     expect(sparse.inner(10)[0].length).toBeGreaterThan(1);
     for (const inner of [sparse.inner(10), sparse.seamInner(10)]) {
-      const band = bandOf(outline, inner);
+      const band = bandBetween(outline, inner);
       expect(band).toHaveLength(1);
       expect(inRegion({ x: 0, y: 0 }, band)).toBe(false);
     }
@@ -205,7 +197,7 @@ describe("countryRegions", () => {
     const territory = holed.region(10);
     expect(territory[0]).toHaveLength(2);
     const { maxX } = box(territory[0][1]);
-    expect(inRegion({ x: maxX + 1, y: 0 }, bandOf(territory, holed.inner(10)))).toBe(true);
+    expect(inRegion({ x: maxX + 1, y: 0 }, bandBetween(territory, holed.inner(10)))).toBe(true);
   });
 
   it("keeps the band and its seam inside the territory at the widest band", () => {
@@ -221,7 +213,7 @@ describe("countryRegions", () => {
       expect(outline.length).toBeGreaterThan(0);
       for (const inner of [field.inner(10), field.seamInner(10)]) {
         expect(within(inner, outline)).toBe(true);
-        expect(within(bandOf(outline, inner), outline)).toBe(true);
+        expect(within(bandBetween(outline, inner), outline)).toBe(true);
       }
     }
   });
