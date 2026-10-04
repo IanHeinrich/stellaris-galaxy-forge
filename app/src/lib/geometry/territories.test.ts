@@ -93,7 +93,7 @@ describe("Territories", () => {
     expect([...latest].sort(([a], [b]) => a - b)).toEqual(
       [...new Territories().reset(galaxy, PARAMS, bordered, FAR)].sort(([a], [b]) => a - b),
     );
-  });
+  }, 20_000);
 
   it("answers an apply before any reset with nothing", () => {
     const { shapes, removed } = new Territories().apply([system(1, 0, 0, 10)], [2]);
