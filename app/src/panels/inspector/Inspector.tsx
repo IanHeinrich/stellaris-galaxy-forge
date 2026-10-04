@@ -25,7 +25,6 @@ import "./inspector.css";
 import { Empty } from "./parts";
 import { ChildView } from "./entity/ChildView";
 import { INSPECTOR_VIEWS } from "./entity/views";
-import { useBodySelectionPage } from "./selection/bodySelectionPage";
 
 /** What a crumb reads its name from: the galaxy's countries, the save bodies' pages as read. */
 interface CrumbNames {
@@ -43,7 +42,7 @@ function crumbLabel(entry: Entry, { countries, pages, names }: CrumbNames): stri
     const country = countries.get(entry.ref.id);
     return country === undefined ? entry.label : templateName(country);
   }
-  if (entry.ref.kind === "planet") {
+  if (entry.ref.kind === "body") {
     const page = pages.get(entry.ref.id);
     return page === undefined ? entry.label : bodyName(page, names);
   }
@@ -161,7 +160,6 @@ export function Inspector() {
     () => tabsFor(entry.ref, hasContents, { scripts, data }),
     [entry.ref, hasContents, scripts, data],
   );
-  useBodySelectionPage();
 
   const root = useMemo<Entry>(() => {
     const name = (id: number) => systemNameOf(systems, names, id);

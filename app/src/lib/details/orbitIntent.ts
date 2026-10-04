@@ -222,16 +222,15 @@ export function bodyOrbit(layout: SystemLayout, id: number): BodyOrbit | null {
 }
 
 /**
- * The body of `system` that `ref` opens, or null: a planet the layout lists, or a scenario body of
- * this system. The scene rings it, and the nudge moves it.
+ * The body of `system` that `ref` opens, or null: a body of this system the layout lists. The scene
+ * rings it, and the nudge moves it.
  */
 export function inspectedBody(
   layout: SystemLayout,
   system: number | null,
   ref: EntityRef | null,
 ): number | null {
-  const ours = ref?.kind === "planet" || (ref?.kind === "body" && ref.system === system);
-  if (!ours) return null;
+  if (ref?.kind !== "body" || ref.system !== system) return null;
   return layout.bodies.some((b) => b.id === ref.id) ? ref.id : null;
 }
 

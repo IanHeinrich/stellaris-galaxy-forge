@@ -58,8 +58,8 @@ describe("what an intent reads of the layout", () => {
   });
 
   it("finds the body the inspector shows among the system's", () => {
-    expect(inspectedBody(layout, SYSTEM, { kind: "planet", id: LONE })).toBe(LONE);
-    expect(inspectedBody(layout, SYSTEM, { kind: "planet", id: 99 })).toBeNull();
+    expect(inspectedBody(layout, SYSTEM, { kind: "body", system: SYSTEM, id: LONE })).toBe(LONE);
+    expect(inspectedBody(layout, SYSTEM, { kind: "body", system: SYSTEM, id: 99 })).toBeNull();
     expect(inspectedBody(layout, SYSTEM, { kind: "body", system: SYSTEM, id: MOON })).toBe(MOON);
     expect(inspectedBody(layout, SYSTEM, { kind: "body", system: 1, id: MOON })).toBeNull();
     expect(inspectedBody(layout, SYSTEM, { kind: "system", id: SYSTEM })).toBeNull();

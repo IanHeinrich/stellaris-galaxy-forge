@@ -571,7 +571,7 @@ describe("the system view's menus", () => {
     useLayoutStore.setState({ tab: "issues" });
     menuItem(<BodyMenu target={body} frame={{}} />, "Inspect").props.onClick();
     const { stack } = useInspectorStore.getState();
-    expect(stack.map((e) => e.ref)).toEqual([stack[0].ref, { kind: "planet", id: 12 }]);
+    expect(stack.map((e) => e.ref)).toEqual([stack[0].ref, { kind: "body", system: 0, id: 12 }]);
     expect(stack[1].label).toBe("Earth");
     expect(useLayoutStore.getState().tab).toBe("inspector");
     expect(useMapChromeStore.getState().contextMenu).toBeNull();
@@ -791,7 +791,7 @@ describe("adding a planet or moon in the system view", () => {
       expect.any(Number),
     );
     const { stack } = useInspectorStore.getState();
-    expect(stack[stack.length - 1].ref).toEqual({ kind: "planet", id: 20 });
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: 0, id: 20 });
 
     const read = useDetailsStore.getState().details.get(0)!;
     const added = planetSummary({ id: 20, class: "pc_desert", name: name("P20"), name_key: "P20" });

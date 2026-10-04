@@ -3,11 +3,12 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { documentCapabilities } from "../lib/capabilities";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
+import { useEntityStore } from "./entityStore";
 import { getPaintLayer, redrawStars, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useHeightPreviewStore } from "./heightPreviewStore";
-import { useInspectorStore } from "./inspectorStore";
+import { useInspectorStore, type Entry } from "./inspectorStore";
 import {
   noteDuplicateNames,
   noteGalaxySize,
@@ -21,7 +22,7 @@ import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
-import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
+import { currentBarMode, sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
 
@@ -56,6 +57,8 @@ export function bindStores(): void {
   followSymmetry();
   followWatchlist();
   followPlanetMove();
+  followBodySelectionPage();
+  followBodyPages();
   followHeightPreview();
 }
 
@@ -102,6 +105,83 @@ function followPlanetMove(): void {
       scene().keepBodies((id) => held.has(id));
     }
     scene().followInspector();
+  });
+}
+
+/** What the inspector's stack does to follow the body selection. */
+export type SummaryStep =
+  { kind: "open"; entry: Entry } | { kind: "pop" } | { kind: "clear" } | null;
+
+/**
+ * The step that keeps the summary above the shown system's page while two or more of its bodies
+ * are selected, and takes it away once fewer are. Leaving the summary by its crumbs, with the
+ * selection as it was `before`, clears the selection, since the summary would only come back.
+ */
+export function summaryStep(
+  selection: BodySelection | null,
+  shown: number | null,
+  stack: readonly Entry[],
+  before: { selection: BodySelection | null; stack: readonly Entry[] },
+): SummaryStep {
+  const root = stack[0].ref;
+  const page = stack.length > 1 ? stack[1] : null;
+  const summary = page !== null && page.ref.kind === "bodies";
+  const wanted =
+    selection !== null &&
+    selection.ids.length > 1 &&
+    selection.system === shown &&
+    root.kind === "system" &&
+    root.id === shown;
+  if (!wanted) return summary ? { kind: "pop" } : null;
+  const left =
+    selection === before.selection && stack.length === 1 && before.stack[1]?.ref.kind === "bodies";
+  if (left) return { kind: "clear" };
+  const label = `${selection.ids.length} selected`;
+  if (summary && page.label === label) return null;
+  return { kind: "open", entry: { ref: { kind: "bodies", system: selection.system }, label } };
+}
+
+// The summary of two or more selected bodies follows the selection, as `summaryStep` says.
+function followBodySelectionPage(): void {
+  let seen = {
+    selection: useSceneStore.getState().bodySelection,
+    shown: sceneSystem(),
+    stack: useInspectorStore.getState().stack,
+  };
+  const follow = () => {
+    const now = {
+      selection: useSceneStore.getState().bodySelection,
+      shown: sceneSystem(),
+      stack: useInspectorStore.getState().stack,
+    };
+    if (now.selection === seen.selection && now.shown === seen.shown && now.stack === seen.stack) {
+      return;
+    }
+    const step = summaryStep(now.selection, now.shown, now.stack, seen);
+    seen = now;
+    if (step === null) return;
+    if (step.kind === "open") useInspectorStore.getState().openFromMap(step.entry);
+    else if (step.kind === "pop") useInspectorStore.getState().popTo(0);
+    else useSceneStore.getState().clearBodies();
+  };
+  useSceneStore.subscribe(follow);
+  useInspectorStore.subscribe(follow);
+}
+
+// A save body's page says which system its planet is in. A move, or the undo or redo of one,
+// stales the page; it is read again, and every inspector page on the planet follows that system.
+function followBodyPages(): void {
+  useEntityStore.subscribe((state, previous) => {
+    if (state.pages === previous.pages && state.stalePages === previous.stalePages) return;
+    for (const { ref } of useInspectorStore.getState().stack) {
+      if (ref.kind !== "body") continue;
+      const page = state.pages.get(ref.id);
+      if (page === undefined) continue;
+      if (state.stalePages.has(ref.id)) useEntityStore.getState().requestPlanetPage(ref.id);
+      else if (page.system !== null && page.system !== ref.system) {
+        useInspectorStore.getState().moveBodies([ref.id], page.system);
+      }
+    }
   });
 }
 

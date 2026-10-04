@@ -251,7 +251,9 @@ describe("editing", () => {
       ]),
     });
     await editor().select(1);
-    useInspectorStore.getState().open({ ref: { kind: "planet", id: 42 }, label: "Planet" });
+    useInspectorStore
+      .getState()
+      .open({ ref: { kind: "body", system: 7, id: 42 }, label: "Planet" });
     mockedIpc.getSystem.mockClear();
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [7] }));
 
@@ -262,7 +264,9 @@ describe("editing", () => {
 
   it("leaves the selected system alone when nothing it shows was touched", async () => {
     await editor().select(1);
-    useInspectorStore.getState().open({ ref: { kind: "planet", id: 42 }, label: "Planet" });
+    useInspectorStore
+      .getState()
+      .open({ ref: { kind: "body", system: 7, id: 42 }, label: "Planet" });
     mockedIpc.getSystem.mockClear();
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 1, y: 1 }] } }),
@@ -463,7 +467,7 @@ describe("following a delete that renumbers", () => {
     await editor().select(7);
     const inspector = useInspectorStore.getState();
     inspector.setRoot({ ref: { kind: "system", id: 7 }, label: "Added 7" });
-    inspector.open({ ref: { kind: "planet", id: 70 }, label: "Added 7 I" });
+    inspector.open({ ref: { kind: "body", system: 7, id: 70 }, label: "Added 7 I" });
     useWatchlistStore.setState({ results: new Map([["added", [7, 3]]]) });
 
     await removeSix(seven);
@@ -471,7 +475,7 @@ describe("following a delete that renumbers", () => {
     expect(editor().selection).toEqual([6]);
     expect(useInspectorStore.getState().stack.map((e) => e.ref)).toEqual([
       { kind: "system", id: 6 },
-      { kind: "planet", id: 70 },
+      { kind: "body", system: 6, id: 70 },
     ]);
     expect(useWatchlistStore.getState().results.get("added")).toEqual([6, 3]);
     expect(editor().inspected?.system.id).toBe(6);
@@ -482,7 +486,7 @@ describe("following a delete that renumbers", () => {
     await editor().select(6);
     const inspector = useInspectorStore.getState();
     inspector.setRoot({ ref: { kind: "system", id: 6 }, label: "Added 6" });
-    inspector.open({ ref: { kind: "planet", id: 60 }, label: "Added 6 I" });
+    inspector.open({ ref: { kind: "body", system: 6, id: 60 }, label: "Added 6 I" });
     useWatchlistStore.setState({ results: new Map([["added", [6, 3]]]) });
 
     await removeSix(seven);
@@ -549,7 +553,7 @@ describe("following a delete that renumbers", () => {
       details: new Map([[6, systemDetails({ id: 6, planets: [planetSummary({ id: 60 })] })]]),
     });
     const inspector = useInspectorStore.getState();
-    inspector.openPage({ ref: { kind: "planet", id: 60 }, label: "Added 6 I" });
+    inspector.openPage({ ref: { kind: "body", system: 6, id: 60 }, label: "Added 6 I" });
     inspector.open({ ref: { kind: "deposit", id: 600 }, label: "Minerals" });
 
     await removeSix(seven);

@@ -36,7 +36,7 @@ function onTheColony(): void {
   useInspectorStore.setState({
     stack: [
       { ref: { kind: "system", id: 1 }, label: "Sol" },
-      { ref: { kind: "planet", id: 1207 }, label: "Terra" },
+      { ref: { kind: "body", system: 1, id: 1207 }, label: "Terra" },
       { ref: { kind: "colony", id: 18 }, label: "Colony #18" },
     ],
   });

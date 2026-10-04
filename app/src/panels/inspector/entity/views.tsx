@@ -7,7 +7,6 @@ import { CountryView } from "./CountryView";
 import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
 import { PlanetView } from "./PlanetView";
-import { ScenarioBodyView } from "./ScenarioBodyView";
 import { WormholeView } from "./WormholeView";
 import { GalaxyView } from "../galaxy/GalaxyView";
 import { BodySelectionView } from "../selection/BodySelectionView";
@@ -37,7 +36,6 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   lane: { label: "Hyperlane", component: LaneEntry },
   nebula: { label: "Nebula", component: NebulaEntry },
   system: { label: "System", component: SystemEntry },
-  planet: entity("planet", "Planet", PlanetView),
   colony: entity("colony", "Colony"),
   fleet: entity("fleet", "Fleet"),
   ship: entity("ship", "Ship"),
@@ -48,6 +46,6 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   sector: entity("sector", "Sector"),
   deposit: entity("deposit", "Deposit"),
   wormhole: entity("wormhole", "Wormhole", WormholeView),
-  body: { label: "Body", component: ScenarioBodyView },
+  body: { label: "Body", component: PlanetView },
   nodelist: { label: "List", component: EntityView },
 };
