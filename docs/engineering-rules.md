@@ -114,9 +114,15 @@ because the file dialog already asked about overwriting it.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
 - `ci.yml` runs on every PR that changes more than documentation, and is
-  also called by `release.yml` on every push to `main`. It runs `bash scripts/version.sh check` and `cargo test
-  --workspace` on Windows, Ubuntu and macOS, and fmt, clippy, the diff of
-  `app/src/generated/`, lint, Vitest and the app build on Ubuntu only.
+  also called by `release.yml` on every push to `main`. The `Lint` job
+  runs on Ubuntu: the script tests, `bash scripts/version.sh check`, fmt,
+  clippy, and the app's lint, Vitest and build. The `Test` jobs run on
+  Windows, Ubuntu and macOS. Shard 0 of each runs everything except
+  sgf-core's integration tests, and on Ubuntu checks the diff of
+  `app/src/generated/`. The other shards run those integration tests, which
+  take most of the time, split by `bash scripts/test-shard.sh <index>
+  <count>`. `Checks (<os>)` reports passed only when `Lint` and every
+  `Test` job passed.
   A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
   `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
   skips the build, and `ci-docs.yml` reports the required checks as

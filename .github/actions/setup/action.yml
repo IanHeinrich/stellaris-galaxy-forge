@@ -10,12 +10,24 @@ inputs:
     description: Rust targets to add, comma separated.
     required: false
     default: ""
+  tauri:
+    description: Install the Linux Tauri prerequisites, "true" or "false".
+    required: false
+    default: "true"
+  shared-key:
+    description: Cache key shared by the jobs that build the same crates, empty for the default.
+    required: false
+    default: ""
+  save:
+    description: Save the Rust cache when the job ends, "true" or "false".
+    required: false
+    default: "true"
 
 runs:
   using: composite
   steps:
     - name: Linux Tauri prerequisites
-      if: runner.os == 'Linux'
+      if: runner.os == 'Linux' && inputs.tauri == 'true'
       shell: bash
       run: |
         sudo apt-get update
@@ -26,6 +38,9 @@ runs:
         components: ${{ inputs.components }}
         targets: ${{ inputs.targets }}
     - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ${{ inputs.shared-key }}
+        save-if: ${{ inputs.save == 'true' }}
 
     - uses: actions/setup-node@v4
       with:
