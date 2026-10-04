@@ -13,9 +13,10 @@ mod extract;
 mod resolve;
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::document::Document;
-use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
+use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::read;
 use crate::validate::{self, Issue};
 
@@ -36,12 +37,18 @@ pub struct DetailsProjection {
     /// every system again on an edit; kept up to date by [`Self::refresh_planets`] and
     /// [`Self::refresh_systems`].
     overlaps: HashMap<u32, Vec<Issue>>,
+    /// Which bodies are stars, as the session held it when this was built.
+    stars: Arc<StarClasses>,
 }
 
 impl DetailsProjection {
     /// Project every system in `graph`, and its planets, from the bytes now standing for
-    /// each entry.
-    pub fn build(doc: &Document, graph: &GalaxyGraph) -> Result<Self, ProjectionError> {
+    /// each entry, a body being a star as `stars` says.
+    pub fn build(
+        doc: &Document,
+        graph: &GalaxyGraph,
+        stars: Arc<StarClasses>,
+    ) -> Result<Self, ProjectionError> {
         let src = doc.original();
         let index = doc.index();
         let countries = extract::countries(&read::countries(index, src)?);
@@ -55,8 +62,13 @@ impl DetailsProjection {
             .map(|&id| (id, RawSystemDetails::default()))
             .collect();
         extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
-        let planet_system =
-            extract::planets(doc, &countries, &deposit_kind, &colony_pops, &mut by_system)?;
+        let tables = extract::PlanetTables {
+            countries: &countries,
+            deposit_kind: &deposit_kind,
+            colony_pops: &colony_pops,
+            stars: &stars,
+        };
+        let planet_system = extract::planets(doc, &tables, &mut by_system)?;
         extract::megastructures(index, src, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
         extract::wormholes(doc, graph, &mut by_system)?;
@@ -67,6 +79,7 @@ impl DetailsProjection {
         Ok(Self {
             by_system,
             overlaps,
+            stars,
         })
     }
 
@@ -88,7 +101,7 @@ impl DetailsProjection {
             let Some(planet) = details.planets.iter_mut().find(|p| p.id == id) else {
                 continue;
             };
-            if let Some(fresh) = extract::planet(doc, id, primary)? {
+            if let Some(fresh) = extract::planet(doc, id, primary, &self.stars)? {
                 *planet = RawPlanet {
                     capital: planet.capital,
                     pre_ftl: planet.pre_ftl,

@@ -4,7 +4,7 @@ use sgf_core::format::scenario::fe_zone::FeZone;
 use sgf_core::format::scenario::header_counts::{empire_counts, for_graph};
 use sgf_core::ops::Op;
 use sgf_core::ops::rules::fe_zone as placement;
-use sgf_core::views::{DocumentKind, EditResult, SgfError};
+use sgf_core::views::{Capabilities, EditResult, SgfError};
 use tauri::{AppHandle, Runtime};
 
 use super::{apply_op, require, with_session};
@@ -34,7 +34,7 @@ pub async fn fe_zone_fit<R: Runtime>(
     count: usize,
 ) -> Result<Vec<(u32, Option<FeZone>)>, SgfError> {
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), DocumentKind::Scenario, NO_ZONES)?;
+        let session = require(guard.as_ref(), has_zones, NO_ZONES)?;
         Ok(placement::fit(&placement::sites(&session.graph), count))
     })
     .await
@@ -45,7 +45,7 @@ pub async fn fe_zone_fit<R: Runtime>(
 #[tauri::command]
 pub async fn fe_zone_candidate_count<R: Runtime>(app: AppHandle<R>) -> Result<usize, SgfError> {
     with_session(app, |guard| {
-        let session = require(guard.as_ref(), DocumentKind::Scenario, NO_ZONES)?;
+        let session = require(guard.as_ref(), has_zones, NO_ZONES)?;
         Ok(placement::candidate_count(&placement::sites(
             &session.graph,
         )))
@@ -60,7 +60,7 @@ pub async fn header_empire_counts<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Vec<(String, String)>, SgfError> {
     with_session(app, |guard| {
-        let session = require(guard.as_ref(), DocumentKind::Scenario, NO_COUNTS)?;
+        let session = require(guard.as_ref(), has_header, NO_COUNTS)?;
         let (seats, zones, clans) = for_graph(&session.graph);
         Ok(empire_counts(seats, zones, clans)
             .into_iter()
@@ -68,4 +68,13 @@ pub async fn header_empire_counts<R: Runtime>(
             .collect())
     })
     .await
+}
+
+/// Fallen empire zones are flags on a system statement's `effect`.
+fn has_zones(capabilities: Capabilities) -> bool {
+    capabilities.create_systems
+}
+
+fn has_header(capabilities: Capabilities) -> bool {
+    capabilities.header
 }

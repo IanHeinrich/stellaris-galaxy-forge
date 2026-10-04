@@ -1,10 +1,11 @@
 //! One system of the graph: its position, star class, hyperlanes and owner.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::entity::facts::planet::is_star_class;
 use crate::format::scenario::{FeLinkFlags, FeZone, MarauderRole};
 use crate::projections::galaxy::{SpawnModifier, SpawnScript, display_template};
 use crate::projections::name::NameTemplate;
@@ -164,5 +165,45 @@ impl SystemNode {
     /// See [`display_template`].
     pub fn display_name(&self) -> String {
         display_template(&self.name)
+    }
+}
+
+/// What the loaded install says of stars that neither a save nor a scenario writes down.
+/// The default is what is known without an install: a body is a star by its class's name, and
+/// no scenario system has a star class.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct StarClasses {
+    /// The planet classes the install flags as stars.
+    pub bodies: Option<HashSet<String>>,
+    /// The star class of a scenario system of each initializer that names one. An initializer
+    /// that draws from a random list is not here: the game picks that star at generation.
+    pub initializers: HashMap<String, String>,
+}
+
+impl StarClasses {
+    /// Whether a body of planet class `class` is a star.
+    pub fn is_star_body(&self, class: &str) -> bool {
+        match &self.bodies {
+            Some(bodies) => bodies.contains(class),
+            None => is_star_class(class),
+        }
+    }
+
+    /// The star class a scenario system of `initializer` has; empty when the game picks it.
+    pub fn drawn(&self, initializer: &str) -> &str {
+        self.initializers
+            .get(initializer)
+            .map_or("", String::as_str)
+    }
+}
+
+/// Give each scenario system in `systems` the star class `classes` names for it, since a
+/// scenario writes none: its initializer decides.
+pub(crate) fn draw_scenario_stars(systems: &mut HashMap<u32, SystemNode>, classes: &StarClasses) {
+    for system in systems.values_mut() {
+        let drawn = classes.drawn(&system.initializer);
+        if system.star_class != drawn {
+            system.star_class = drawn.to_owned();
+        }
     }
 }

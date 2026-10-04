@@ -26,8 +26,8 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::timeout_at;
 
-use crate::commands::{GAME_DATA_CHANGED_EVENT, resize_open_session};
-use crate::state::GameDataState;
+use crate::commands::{GAME_DATA_CHANGED_EVENT, refit_open_session};
+use crate::state::{GameDataState, relock};
 use guard::{Action, Guard};
 
 /// How long a path must sit still before the debouncer reports it.
@@ -296,7 +296,7 @@ async fn rebuild<R: Runtime>(
         return;
     }
     if state.swap(from, Arc::new(rebuilt)).is_some() {
-        resize_open_session(app);
+        refit_open_session(app);
         let registries = replaced.iter().map(|k| k.as_str().to_owned()).collect();
         announce(app, registries, None);
     }
@@ -373,7 +373,7 @@ fn key(path: &Path) -> String {
 }
 
 fn lock(state: &WatchState) -> MutexGuard<'_, Status> {
-    state.0.lock().unwrap_or_else(|e| e.into_inner())
+    relock(&state.0)
 }
 
 struct Sink(UnboundedSender<Message>);

@@ -18,6 +18,7 @@ use crate::entity::views::{
 use crate::format::save::dig_sites;
 use crate::keys;
 use crate::overlay::Anchor;
+use crate::projections::galaxy::StarClasses;
 use crate::projections::name::NameTemplate;
 use crate::projections::read;
 
@@ -82,7 +83,7 @@ pub enum BodyRole {
     Moon,
 }
 
-/// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
+/// Whether a planet class is a star's by its name, for when no install says: every vanilla star body's class ends in `_star`,
 /// and the black hole and pulsar classes are stars without it. `star` is the class an
 /// initializer writes for a system's own star.
 pub(crate) fn is_star_class(class: &str) -> bool {
@@ -100,13 +101,14 @@ impl PlanetFacts {
         self.binary_flags & MOON_FLAG != 0
     }
 
-    /// The body's role, `primary` saying whether its system lists it first.
-    pub(crate) fn role(&self, primary: bool) -> BodyRole {
+    /// The body's role, `primary` saying whether its system lists it first and `stars`
+    /// which classes are stars'.
+    pub(crate) fn role(&self, primary: bool, stars: &StarClasses) -> BodyRole {
         if primary {
             BodyRole::Primary
         } else if self.moon() {
             BodyRole::Moon
-        } else if is_star_class(&self.class) {
+        } else if stars.is_star_body(&self.class) {
             BodyRole::Star
         } else {
             BodyRole::Planet

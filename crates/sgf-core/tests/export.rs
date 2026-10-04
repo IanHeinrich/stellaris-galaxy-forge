@@ -294,7 +294,7 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
 #[test]
 fn a_new_scenario_is_a_header_with_nothing_in_it() {
     let mut session =
-        export::new_scenario("sgf_test", 0.0, ScenarioProfile::Plain).expect("new scenario");
+        export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::Plain).expect("new scenario");
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), "sgf_test");
     assert!(session.graph.systems.is_empty());
@@ -318,8 +318,8 @@ fn a_new_scenario_is_a_header_with_nothing_in_it() {
 
 #[test]
 fn a_new_paint_a_galaxy_scenario_is_the_mods_header_with_nothing_in_it() {
-    let mut session =
-        export::new_scenario("sgf_test", 0.0, ScenarioProfile::PaintAGalaxy).expect("new scenario");
+    let mut session = export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::PaintAGalaxy)
+        .expect("new scenario");
     assert_eq!(session.title(), "sgf_test");
     assert!(session.graph.systems.is_empty());
 
@@ -337,7 +337,8 @@ fn a_new_paint_a_galaxy_scenario_is_the_mods_header_with_nothing_in_it() {
 #[test]
 fn a_scenario_name_that_cannot_be_quoted_is_refused_or_dropped() {
     for name in ["My \"Best\" Galaxy", "back\\slash", "two\nlines", ""] {
-        let error = export::new_scenario(name, 0.0, ScenarioProfile::Plain).expect_err("refused");
+        let error =
+            export::new_scenario(name, 0.0, 0.0, ScenarioProfile::Plain).expect_err("refused");
         assert!(
             error.to_string().contains("scenario name"),
             "{name:?}: {error}"

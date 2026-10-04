@@ -1,8 +1,10 @@
 //! The save's side of a rolled system: what a system or body added to a save, or one
-//! rolled again, is built from, named after its pool and given its Resource Abundance.
+//! rolled again, is built from, named after its pool and given its Resource Abundance. And
+//! the planet class rules a class change in a save takes from the install.
 
-use sgf_core::ops::{BodySpec, SystemSpec};
+use sgf_core::ops::{NewBody, Op, PlanetClassRule, SystemSpec};
 use sgf_core::session::Session;
+use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 
 use super::{BLACK_HOLE, BodyRoll, GenerateError, generate, generate_layout_for, roll_body};
 use crate::GameData;
@@ -59,6 +61,15 @@ pub enum ForSaveError {
     NoSystem(u32),
     #[error(transparent)]
     Generate(#[from] GenerateError),
+}
+
+impl From<ForSaveError> for SgfError {
+    fn from(e: ForSaveError) -> Self {
+        match e {
+            ForSaveError::NoSystem(id) => Self::not_found(format!("system {id}")),
+            e => Self::new(ErrorKind::Op, e.to_string()),
+        }
+    }
 }
 
 impl Pick {
@@ -127,36 +138,114 @@ pub fn for_save(
     Ok(spec)
 }
 
-/// A body for system `system` of `session`'s save, rolled from `seed` as [`roll_body`] rolls
-/// one about the system's star at the save's Resource Abundance: a moon of `parent` when given,
-/// banded by how far that planet stands from the star, else a planet banded by `radius`.
-#[allow(clippy::too_many_arguments)]
+/// A body asked of a save's system: what is fixed of it, the rest drawn by the roll.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BodyAsk {
+    pub system: u32,
+    /// The planet it is a moon of; a planet when `None`.
+    pub parent: Option<u32>,
+    /// Drawn at its orbit when `None`.
+    pub class: Option<String>,
+    /// Drawn from its class's range when `None`.
+    pub size: Option<u32>,
+    /// Where it stands from what it orbits.
+    pub at: OrbitPlacement,
+    /// Named as the game names a new body when `None`.
+    pub name: Option<String>,
+}
+
+/// The `AddBody` that adds `ask` to `session`'s save, rolled from `seed` as [`roll_body`]
+/// rolls a body about the system's star at the save's Resource Abundance: a moon banded by how
+/// far its planet stands from the star, else a planet banded by its own radius.
 pub fn body_for_save(
     gd: &GameData,
     session: &Session,
     seed: u64,
-    system: u32,
-    parent: Option<u32>,
-    class: Option<&str>,
-    size: Option<u32>,
-    radius: f64,
-) -> Result<BodySpec, ForSaveError> {
+    ask: BodyAsk,
+) -> Result<Op, ForSaveError> {
     let node = session
-        .system(system)
-        .ok_or(ForSaveError::NoSystem(system))?;
-    let orbit = match parent {
-        Some(parent) => standing(session, system, parent).unwrap_or(radius),
+        .system(ask.system)
+        .ok_or(ForSaveError::NoSystem(ask.system))?;
+    let radius = ask.at.radius;
+    let orbit = match ask.parent {
+        Some(parent) => standing(session, ask.system, parent).unwrap_or(radius),
         None => radius,
     };
     let roll = BodyRoll {
         star_class: &node.star_class,
-        class,
-        size,
-        moon: parent.is_some(),
+        class: ask.class.as_deref(),
+        size: ask.size,
+        moon: ask.parent.is_some(),
         orbit,
         abundance: gd.deposit_defines.abundance(session.resource_abundance()),
     };
-    Ok(roll_body(gd, seed, &roll)?)
+    let body = roll_body(gd, seed, &roll)?;
+    Ok(Op::AddBody {
+        system: ask.system,
+        spec: NewBody {
+            class: body.class,
+            size: body.size,
+            moon_of: ask.parent,
+            name: ask.name,
+            deposits: body.deposits,
+            ring: body.ring,
+        },
+        at: ask.at,
+    })
+}
+
+/// Why a planet class change could not take the install's rules.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ClassRulesError {
+    #[error("load game data to change a planet class")]
+    NoGameData,
+    #[error("the install has no planet class {0}")]
+    NoClass(String),
+}
+
+impl From<ClassRulesError> for SgfError {
+    fn from(e: ClassRulesError) -> Self {
+        match e {
+            ClassRulesError::NoGameData => Self::no_game_data("change a planet class"),
+            e => Self::new(ErrorKind::Op, e.to_string()),
+        }
+    }
+}
+
+impl GameData {
+    /// `op` with the rules of every planet class change in it read from `gd`, whatever the
+    /// caller sent: the core takes the rules as given, and only the install knows them. An op
+    /// that changes no class passes through without game data.
+    pub fn with_class_rules(gd: Option<&Self>, op: Op) -> Result<Op, ClassRulesError> {
+        match op {
+            Op::SetBodyClass {
+                body,
+                from,
+                to,
+                look,
+            } => {
+                let gd = gd.ok_or(ClassRulesError::NoGameData)?;
+                let rule = |given: &PlanetClassRule| {
+                    gd.planet_class_rule(&given.class)
+                        .ok_or_else(|| ClassRulesError::NoClass(given.class.clone()))
+                };
+                Ok(Op::SetBodyClass {
+                    body,
+                    from: rule(&from)?,
+                    to: rule(&to)?,
+                    look,
+                })
+            }
+            Op::Batch { description, ops } => Ok(Op::Batch {
+                description,
+                ops: ops
+                    .into_iter()
+                    .map(|op| Self::with_class_rules(gd, op))
+                    .collect::<Result<_, _>>()?,
+            }),
+            op => Ok(op),
+        }
+    }
 }
 
 /// How far planet `id` of `system` stands from the system's centre.

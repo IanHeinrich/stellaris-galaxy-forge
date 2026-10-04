@@ -3,25 +3,25 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use sgf_core::archive;
+use sgf_core::document;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
-use sgf_core::format::scenario::is_painted;
 use sgf_core::library;
-use sgf_core::ops::{Op, PlanetClassRule};
+use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::Issue;
 use sgf_core::views::{
-    Capabilities, DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult,
-    ProgressPhase, SaveResult, SgfError,
+    DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase, SaveResult,
+    SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{DONE, START, VALIDATE_AT, io_error, progress, require, size_systems, with_session};
+use super::{
+    DONE, START, VALIDATE_AT, fit_to_game_data, io_error, is_save, progress, require, with_session,
+};
 use crate::state::GameDataState;
 
 const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
-const CLASS_NEEDS_GAME_DATA: &str = "load game data to change a planet class";
 
 /// Open `path`, a save or a scenario script, as the session, replacing any open one.
 /// Emits `sgf://progress`.
@@ -55,6 +55,21 @@ pub async fn open_as_scenario<R: Runtime>(
     .await
 }
 
+/// Which kind of document the file at `path` holds, read from its first bytes. Fails when
+/// the file cannot be read or is too short to tell, so the caller goes by its name.
+#[tauri::command]
+pub async fn document_kind(path: String) -> Result<DocumentKind, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let length = std::fs::metadata(&path).map_err(io_error)?.len();
+        if length < SNIFFED_BYTES {
+            return Err(io_error(format!("{path} is too short to tell its kind")));
+        }
+        Ok(document::sniff(&path))
+    })
+    .await
+    .map_err(io_error)?
+}
+
 /// Start an empty, unsaved scenario called `name`; `radius` sizes the map's canvas
 /// until systems give it an extent of its own, `core_radius` is written to the header.
 /// `profile` is plain when absent. Emits `sgf://progress`.
@@ -67,9 +82,8 @@ pub async fn new_scenario<R: Runtime>(
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
     install(app, move |_| {
-        let mut session = export::new_scenario(&name, core_radius, profile.unwrap_or_default())?;
-        session.graph.galaxy_radius = radius;
-        Ok(session)
+        let profile = profile.unwrap_or_default();
+        Ok(export::new_scenario(&name, radius, core_radius, profile)?)
     })
     .await
 }
@@ -88,7 +102,7 @@ pub async fn export_scenario<R: Runtime>(
     let (text, report, dirty) = with_session(app.clone(), {
         let path = path.clone();
         move |guard| {
-            let session = require(guard.as_ref(), DocumentKind::Save, ONLY_A_SAVE_EXPORTS)?;
+            let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
             let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
             let name = Path::new(&path)
                 .file_stem()
@@ -127,7 +141,7 @@ pub async fn export_scenario<R: Runtime>(
 pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
-        let session = require(guard.as_ref(), DocumentKind::Save, ONLY_A_SAVE_EXPORTS)?;
+        let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::draft(
             &session.graph,
@@ -159,18 +173,19 @@ async fn install_reporting<R: Runtime>(
     let gd = app.state::<GameDataState>().loaded();
     let task_app = app.clone();
     let (session, result) = tauri::async_runtime::spawn_blocking(move || {
-        let (session, extra) = build(gd)?;
+        let (mut session, extra) = build(gd)?;
+        fit_to_game_data(&task_app, &mut session);
         progress(&task_app, ProgressPhase::Validate, VALIDATE_AT);
-        let mut result = opened(&session)?;
+        let mut result = session.open_result()?;
         result.issues.extend(extra);
         Ok::<_, SgfError>((session, result))
     })
     .await
     .map_err(io_error)??;
-    let sizing = app.clone();
+    let fitting = app.clone();
     with_session(app.clone(), move |mut guard| {
         let mut session = session;
-        size_systems(&sizing, &mut session);
+        fit_to_game_data(&fitting, &mut session);
         *guard = Some(session);
         Ok(())
     })
@@ -179,26 +194,19 @@ async fn install_reporting<R: Runtime>(
     Ok(result)
 }
 
-fn opened(session: &Session) -> Result<OpenResult, SgfError> {
-    let (meta, painted) = match session.kind() {
-        DocumentKind::Save => (Some(archive::parse_meta(session.doc.meta())?), false),
-        DocumentKind::Scenario => (None, is_painted(session.doc.original())),
-    };
-    Ok(OpenResult {
-        path: session
-            .path
-            .as_ref()
-            .map(|p| p.to_string_lossy().into_owned()),
-        cloud: session.path.as_deref().is_some_and(library::is_cloud_save),
-        kind: session.kind(),
-        painted,
-        title: session.title(),
-        meta,
-        galaxy: GalaxyView::from(&session.graph),
-        issues: session.validate(),
-        capabilities: Capabilities::of(&session.doc),
+/// The open document's galaxy as it stands, for the map to read again once game data
+/// changes the star each system is drawn as.
+#[tauri::command]
+pub async fn get_galaxy<R: Runtime>(app: AppHandle<R>) -> Result<GalaxyView, SgfError> {
+    with_session(app, |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(GalaxyView::from(&session.graph))
     })
+    .await
 }
+
+/// The bytes [`document::sniff`] reads to tell a save from a scenario.
+const SNIFFED_BYTES: u64 = 4;
 
 /// Builds the details projection so search also finds planets and fleets, and returns the
 /// issues with the findings that read the details; idempotent.
@@ -216,48 +224,11 @@ pub async fn apply_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<EditResul
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
-        let op = with_install_class_rules(op, gd.as_deref())?;
+        let op = GameData::with_class_rules(gd.as_deref(), op)?;
         let result = session.apply(op)?;
         Ok(session.edit_result(result))
     })
     .await
-}
-
-/// `op` with the rules of every planet class change in it read from the install, whatever the
-/// caller sent: the core takes the rules as given, since only the install knows them.
-fn with_install_class_rules(op: Op, gd: Option<&GameData>) -> Result<Op, SgfError> {
-    match op {
-        Op::SetBodyClass {
-            body: planet,
-            from,
-            to,
-            look,
-        } => {
-            let gd = gd.ok_or_else(|| SgfError::new(ErrorKind::Op, CLASS_NEEDS_GAME_DATA))?;
-            let rule = |given: &PlanetClassRule| {
-                gd.planet_class_rule(&given.class).ok_or_else(|| {
-                    SgfError::new(
-                        ErrorKind::Op,
-                        format!("the install has no planet class {}", given.class),
-                    )
-                })
-            };
-            Ok(Op::SetBodyClass {
-                body: planet,
-                from: rule(&from)?,
-                to: rule(&to)?,
-                look,
-            })
-        }
-        Op::Batch { description, ops } => Ok(Op::Batch {
-            description,
-            ops: ops
-                .into_iter()
-                .map(|op| with_install_class_rules(op, gd))
-                .collect::<Result<_, _>>()?,
-        }),
-        op => Ok(op),
-    }
 }
 
 /// Why `op` would be refused, or `None` when it would apply. The session is left as it was.
@@ -267,7 +238,7 @@ pub async fn check_op<R: Runtime>(app: AppHandle<R>, op: Op) -> Result<Option<St
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        let op = with_install_class_rules(op, gd.as_deref())?;
+        let op = GameData::with_class_rules(gd.as_deref(), op)?;
         Ok(session.check_op(&op))
     })
     .await

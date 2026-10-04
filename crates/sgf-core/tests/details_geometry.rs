@@ -1,6 +1,8 @@
 //! The details of a save system whose bodies, belts or inner radius an op rewrote, reread in
 //! place: after apply, undo and redo they equal the details a fresh build reads.
 
+use std::sync::Arc;
+
 use sgf_core::format::save::details::DetailsProjection;
 use sgf_core::ops::Parent;
 use sgf_core::ops::{DetailsReach, Op};
@@ -29,7 +31,12 @@ fn refreshed_in_place(op: Op, system: u32) -> Session {
         if system != 26 {
             assert_eq!(details.raw(26), Some(&other), "{step}: system 26");
         }
-        let fresh = DetailsProjection::build(&session.doc, &session.graph).expect("a fresh build");
+        let fresh = DetailsProjection::build(
+            &session.doc,
+            &session.graph,
+            Arc::clone(session.star_classes()),
+        )
+        .expect("a fresh build");
         assert_eq!(
             details.raw(system),
             fresh.raw(system),
@@ -177,7 +184,12 @@ fn matches_a_fresh_build(session: &Session, systems: &[u32], name: &str, step: &
     let details = session
         .built_details()
         .unwrap_or_else(|| panic!("{name}: the {step} dropped the details"));
-    let fresh = DetailsProjection::build(&session.doc, &session.graph).expect("a fresh build");
+    let fresh = DetailsProjection::build(
+        &session.doc,
+        &session.graph,
+        Arc::clone(session.star_classes()),
+    )
+    .expect("a fresh build");
     for &system in systems {
         assert_eq!(
             details.raw(system),

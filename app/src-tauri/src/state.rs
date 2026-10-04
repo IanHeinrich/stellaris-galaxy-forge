@@ -16,8 +16,8 @@ pub struct AppState(pub Mutex<Option<Session>>);
 /// version the app sees.
 #[derive(Default)]
 pub struct GameDataState {
-    pub data: Mutex<Option<Arc<GameData>>>,
-    pub generation: AtomicU64,
+    data: Mutex<Option<Arc<GameData>>>,
+    generation: AtomicU64,
     owners: Mutex<Option<Cached<ScenarioOwners>>>,
     bypasses: Mutex<Option<Cached<ScenarioBypasses>>>,
     special_labels: Mutex<Option<Cached<SpecialLabels>>>,
@@ -36,14 +36,14 @@ struct Cached<T> {
 
 impl<T> Cached<T> {
     fn get(slot: &Mutex<Option<Self>>, generation: u64, digest: u64) -> Option<Arc<T>> {
-        let slot = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let slot = relock(slot);
         let cached = slot.as_ref()?;
         (cached.generation == generation && cached.digest == digest)
             .then(|| Arc::clone(&cached.value))
     }
 
     fn put(slot: &Mutex<Option<Self>>, generation: u64, digest: u64, value: Arc<T>) {
-        let mut slot = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let mut slot = relock(slot);
         *slot = Some(Self {
             generation,
             digest,
@@ -117,7 +117,7 @@ impl GameDataState {
     }
 
     fn lock(&self) -> MutexGuard<'_, Option<Arc<GameData>>> {
-        self.data.lock().unwrap_or_else(|e| e.into_inner())
+        relock(&self.data)
     }
 
     fn bump(&self) -> u64 {
@@ -135,10 +135,16 @@ pub struct UpdateState(Mutex<Option<Update>>);
 
 impl UpdateState {
     pub fn put(&self, update: Option<Update>) {
-        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = update;
+        *relock(&self.0) = update;
     }
 
     pub fn take(&self) -> Option<Update> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).take()
+        relock(&self.0).take()
     }
+}
+
+/// `mutex` locked, taking it back from a holder that panicked: every value kept here stays
+/// whole between statements.
+pub(crate) fn relock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|e| e.into_inner())
 }

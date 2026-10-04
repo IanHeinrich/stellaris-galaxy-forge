@@ -2,10 +2,11 @@
 //! 4.x samples: each edit's diff, the inner radius it grows, byte-exact undo, and what is
 //! refused.
 
-use sgf_core::format::save::details::{Bounds, HeuristicResolver, RawPlanet};
+use sgf_core::format::save::details::{BodyRole, Bounds, HeuristicResolver, RawPlanet};
 use sgf_core::ops::Parent;
 use sgf_core::ops::rules::bodies::{Body, system_reach};
 use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
+use sgf_core::projections::galaxy::StarClasses;
 use sgf_core::session::Session;
 
 use crate::common;
@@ -707,6 +708,42 @@ fn a_companion_stars_planet_made_a_planet_of_the_centre() {
         .apply(set_parent(278, 331, Some(329), 15.0, 0.0))
         .expect("a planet of a star takes a moon");
     assert_eq!(planet(&session, 278, 331).parent, Some(329));
+}
+
+/// Alpha Centauri's companion star 327 given a class the name rule does not know, which the
+/// install says is a star's: planet 330 dropped on it becomes its planet, not a moon.
+#[test]
+fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
+    let mut session = common::open_edited(|gamestate| {
+        let entity = gamestate
+            .find(
+                "
+		327=
+		{",
+            )
+            .expect("planet 327");
+        let key = "planet_class=\"";
+        let class = entity + gamestate[entity..].find(key).expect("its class") + key.len();
+        let end = class + gamestate[class..].find('"').expect("the class's end");
+        gamestate.replace_range(class..end, "pc_modded_dwarf");
+    });
+    session.set_star_classes(StarClasses {
+        bodies: Some(["pc_modded_dwarf".to_owned()].into()),
+        ..StarClasses::default()
+    });
+    assert_eq!(planet(&session, 278, 327).role, BodyRole::Star);
+    session
+        .apply(orbit_star(278, 330, 327, 90.0, 30.0))
+        .expect("a planet of the star");
+    let planet_330 = entity(&session, 330);
+    assert!(
+        planet_330.contains(
+            "			moon_of=327
+"
+        ),
+        "{planet_330}"
+    );
+    assert!(!planet_330.contains("			binary_flags="), "{planet_330}");
 }
 
 /// A planet with moons may orbit a star but not a planet, and the asteroids of the 4.5

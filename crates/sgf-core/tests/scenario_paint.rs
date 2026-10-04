@@ -854,7 +854,7 @@ fn a_file_is_painted_by_the_mods_names_or_forges_header_for_it() {
     assert!(!is_painted(&EXPORTED.bytes()));
 
     let empty = |profile| {
-        let session = export::new_scenario("sgf_new", 0.0, profile).expect("new scenario");
+        let session = export::new_scenario("sgf_new", 0.0, 0.0, profile).expect("new scenario");
         common::current(&session)
     };
     assert!(is_painted(&empty(ScenarioProfile::PaintAGalaxy)));

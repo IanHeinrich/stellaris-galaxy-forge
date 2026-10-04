@@ -10,6 +10,7 @@ use sgf_core::format::save::details::{
     ArchaeologySite, BodyLayout, BodyRole, Bounds, DepositCount, DetailsResolver, FleetPresence,
     MegastructureSummary, PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
 };
+use sgf_core::projections::galaxy::StarClasses;
 use sgf_core::projections::name::NameTemplate;
 
 use crate::GameData;
@@ -161,15 +162,34 @@ impl GameData {
             .collect()
     }
 
-    /// Save system details with what the install says of each body: the star class each star
-    /// is drawn as, in a system of star class `system`, and which planets are stars. Which
-    /// bodies are moons is the save's to say.
+    /// Save system details with the star class each star is drawn as, in a system of star
+    /// class `system`. Which bodies are stars is the session's to say, from
+    /// [`Self::session_star_classes`].
     pub fn resolve_save_bodies(&self, details: &mut SystemDetails, system: &str) {
         for planet in &mut details.planets {
             planet.star_class = self.drawn_star_class(&planet.class, system);
-            if planet.role == BodyRole::Planet && self.is_star_body(&planet.class) {
-                planet.role = BodyRole::Star;
-            }
+        }
+    }
+
+    /// What the install says of stars, for a session: the planet classes flagged `star`, and
+    /// the star class each initializer that names one gives a scenario system.
+    pub fn session_star_classes(&self) -> StarClasses {
+        StarClasses {
+            bodies: Some(
+                self.planet_classes
+                    .iter()
+                    .filter(|c| c.star)
+                    .map(|c| c.key.clone())
+                    .collect(),
+            ),
+            initializers: self
+                .initializers
+                .iter()
+                .filter_map(|i| {
+                    let class = i.class.as_deref().filter(|c| c.starts_with("sc_"))?;
+                    Some((i.name.clone(), class.to_owned()))
+                })
+                .collect(),
         }
     }
 

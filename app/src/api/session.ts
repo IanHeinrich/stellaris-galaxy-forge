@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AddedBody } from "../generated/AddedBody";
 import type { AddSystemPicks } from "../generated/AddSystemPicks";
 import type { CampaignListing } from "../generated/CampaignListing";
+import type { DocumentKind } from "../generated/DocumentKind";
 import type { EditResult } from "../generated/EditResult";
 import type { EntityAddr } from "../generated/EntityAddr";
 import type { EntityKind } from "../generated/EntityKind";
@@ -16,6 +17,7 @@ import type { ExportReport } from "../generated/ExportReport";
 import type { Issue } from "../generated/Issue";
 import type { ExportResult } from "../generated/ExportResult";
 import type { FeZone } from "../generated/FeZone";
+import type { GalaxyView } from "../generated/GalaxyView";
 import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
@@ -67,6 +69,11 @@ export function missingPaths(paths: string[]): Promise<string[]> {
   return invoke<string[]>("missing_paths", { paths });
 }
 
+/** Which kind of document the file at `path` holds, read from its bytes, whatever its extension. */
+export function documentKind(path: string): Promise<DocumentKind> {
+  return invoke<DocumentKind>("document_kind", { path });
+}
+
 /** Open a save or a scenario script as the session; emits `sgf://progress` while it loads. */
 export function openSave(path: string): Promise<OpenResult> {
   return invoke<OpenResult>("open_save", { path });
@@ -95,6 +102,11 @@ export function exportScenario(path: string, profile: ScenarioProfile): Promise<
 /** What exporting the open save would report, without writing anything. */
 export function previewExport(): Promise<ExportReport> {
   return invoke<ExportReport>("preview_export");
+}
+
+/** The open document's galaxy as it stands, its stars drawn as the loaded game data says. */
+export function getGalaxy(): Promise<GalaxyView> {
+  return invoke<GalaxyView>("get_galaxy");
 }
 
 /** One system with its neighbours resolved. Rejects with `SgfError` when no save is open or `id` is unknown. */

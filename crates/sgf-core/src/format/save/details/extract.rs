@@ -22,7 +22,7 @@ use crate::format::save::system_spec::BeltSpec;
 use crate::format::save::{dig_sites, read_spec};
 use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
-use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
+use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::name::NameTemplate;
 use crate::projections::read::{self, PERMANENT, RawCountry};
 use crate::scan::Index;
@@ -293,15 +293,27 @@ pub(super) fn ship_sizes(
     Ok(sizes)
 }
 
+/// What the other tables say of the planets, and which of them are stars.
+pub(super) struct PlanetTables<'a> {
+    pub countries: &'a Countries,
+    pub deposit_kind: &'a HashMap<u32, String>,
+    pub colony_pops: &'a HashMap<u32, u32>,
+    pub stars: &'a StarClasses,
+}
+
 /// Every entity of `planets.planet` as it now stands, the ones an op added included,
 /// filed under its `coordinate.origin`; returns planet id → system id.
 pub(super) fn planets(
     doc: &Document,
-    countries: &Countries,
-    deposit_kind: &HashMap<u32, String>,
-    colony_pops: &HashMap<u32, u32>,
+    tables: &PlanetTables,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<HashMap<u32, u32>, ProjectionError> {
+    let PlanetTables {
+        countries,
+        deposit_kind,
+        colony_pops,
+        stars,
+    } = tables;
     let mut planet_system = HashMap::new();
     for (id, anchor) in planet_statements(doc)? {
         let Some((node, src)) = current_entity(doc, keys::PLANETS, u64::from(id), anchor)? else {
@@ -315,7 +327,8 @@ pub(super) fn planets(
             continue;
         };
         planet_system.insert(id, origin);
-        let mut raw = raw_planet(id, &planet, &node, src, details.primary == Some(id));
+        let primary = details.primary == Some(id);
+        let mut raw = raw_planet(id, &planet, &node, src, planet.role(primary, stars));
         raw.capital = planet
             .colony
             .is_some_and(|c| countries.capitals.contains(&c));
@@ -359,11 +372,10 @@ fn permanent_modifiers(node: &Node, src: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Planet `id` as its entity `node` reads, `planet` being its facts and `primary` whether
-/// its system lists it first. What other tables say of it, its capital, pre-FTL owner,
-/// deposits and pops, is left empty.
-fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], primary: bool) -> RawPlanet {
-    let role = planet.role(primary);
+/// Planet `id` as its entity `node` reads, `planet` being its facts and `role` what it is
+/// in its system. What other tables say of it, its capital, pre-FTL owner, deposits and
+/// pops, is left empty.
+fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], role: BodyRole) -> RawPlanet {
     RawPlanet {
         id,
         class: planet.class.clone(),
@@ -388,18 +400,24 @@ fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], primary: b
     }
 }
 
-/// Planet `id` as its entity now reads, `primary` saying whether its system lists it first,
-/// with what other tables say of it left empty; `None` when the save holds no such planet.
+/// Planet `id` as its entity now reads, `primary` saying whether its system lists it first
+/// and `stars` which bodies are stars, with what other tables say of it left empty; `None`
+/// when the save holds no such planet.
 pub(super) fn planet(
     doc: &Document,
     id: u32,
     primary: bool,
+    stars: &StarClasses,
 ) -> Result<Option<RawPlanet>, ProjectionError> {
     let Some(anchor) = planet_statement(doc, id)? else {
         return Ok(None);
     };
-    Ok(current_entity(doc, keys::PLANETS, u64::from(id), anchor)?
-        .map(|(node, src)| raw_planet(id, &facts::planet::read(&node, src), &node, src, primary)))
+    Ok(
+        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.map(|(node, src)| {
+            let facts = facts::planet::read(&node, src);
+            raw_planet(id, &facts, &node, src, facts.role(primary, stars))
+        }),
+    )
 }
 
 /// An entity's `<id>=` node parsed from the bytes now standing for it, which an op may

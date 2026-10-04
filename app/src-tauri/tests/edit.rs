@@ -8,6 +8,27 @@ use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 use crate::common;
 use common::{SAMPLE, SAMPLE_45, invoke, kind, opened, webview, with_game_data};
 
+const SAMPLE_34: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
+
+/// A 3.4 save is a save to the commands that add systems and bodies: what its version cannot
+/// take is the core's to refuse, not the shell's.
+#[test]
+fn a_3_4_save_reaches_the_core() {
+    let w = opened(SAMPLE_34);
+    let refused = invoke::<EditResult>(&w, "remove_added_systems", json!({ "ids": [1] }))
+        .expect_err("none added");
+    assert_eq!(
+        refused.message,
+        "none of these systems was added this session"
+    );
+    let args = json!({
+        "system": 1, "parent": 2, "class": null, "size": null,
+        "radius": 10.0, "angle": 0.0, "seed": 7
+    });
+    let refused = invoke::<EditResult>(&w, "add_body", args).expect_err("no game data");
+    assert_eq!(refused.message, "load game data to add a moon");
+}
+
 #[test]
 fn edit_undo_redo() {
     let w = webview();
