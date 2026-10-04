@@ -100,8 +100,9 @@ describe("issuesStore", () => {
     );
 
     const moved = { ...OVERLAP, systems: [2] };
-    mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [AT_LOAD], details_stale: [2] }));
-    mockedIpc.warmDetails.mockResolvedValueOnce([AT_LOAD, OVERLAP, moved]);
+    mockedIpc.applyOp.mockResolvedValue(
+      editResult({ issues: [AT_LOAD, OVERLAP, moved], details_stale: [2] }),
+    );
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
     await vi.waitFor(() => expect(useIssuesStore.getState().issues).toContainEqual(moved));
     const { issues, baseline } = useIssuesStore.getState();

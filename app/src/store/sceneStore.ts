@@ -2,8 +2,21 @@ import { create } from "zustand";
 import { documentCapabilities, type CapabilitySource } from "../lib/capabilities";
 import { renumberedId, type Renumbering } from "../lib/renumber";
 import { barModeOf, type BarMode } from "../lib/visual/barMode";
+import { bodyName } from "../lib/details/labels";
+import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
+import { useGameDataStore } from "./gameDataStore";
+import { bodyEntry, useInspectorStore } from "./inspectorStore";
+
+/**
+ * The bodies selected in one system's view, in the order they were picked. A selection of one
+ * body is always the body whose page the inspector shows in the system view.
+ */
+export interface BodySelection {
+  system: number;
+  ids: readonly number[];
+}
 
 /** What the map shows: the whole galaxy, or one system's bodies. */
 export type Scene = { kind: "galaxy" } | { kind: "system"; id: number };
@@ -43,6 +56,49 @@ export interface SceneState {
   exitScene(): void;
   /** Follows an edit that renumbered the system shown; one it removed leaves the scene. */
   renumber(pairs: Renumbering): void;
+  /** The bodies selected in the system view; null with none. */
+  bodySelection: BodySelection | null;
+  /** Selects `ids` of `system`, or nothing; the caller opens any page. */
+  selectBodies(selection: BodySelection | null): void;
+  /** Selects body `id` of `system` alone; the caller opens its page. */
+  selectBody(system: number, id: number): void;
+  /** Selects body `id` of `system` alone, with its page open. */
+  showBody(system: number, id: number): void;
+  /**
+   * Adds body `id` to the selection, or takes it out. A body of another system starts a new
+   * selection, and so does any toggle on a document whose planets cannot move. When one body is
+   * left it opens that body's page and returns its id; when none is, the inspector goes back to
+   * the system.
+   */
+  toggleBody(system: number, id: number): number | null;
+  clearBodies(): void;
+  /** Keeps only the selected bodies `present` says are still in the selection's system. */
+  keepBodies(present: (id: number) => boolean): void;
+  /** Makes a selection of one body or none the body whose page the inspector shows, if any. */
+  followInspector(): void;
+}
+
+/** The body of the system shown whose page is on top of the inspector, or null. */
+function inspectedBody(): { system: number; id: number } | null {
+  const shown = sceneSystem();
+  if (shown === null) return null;
+  const { stack } = useInspectorStore.getState();
+  const { ref } = stack[stack.length - 1];
+  if (ref.kind === "body") return ref.system === shown ? { system: shown, id: ref.id } : null;
+  if (ref.kind !== "planet") return null;
+  const read = useDetailsStore.getState().details.get(shown);
+  if (read !== undefined && !read.planets.some((p) => p.id === ref.id)) return null;
+  return { system: shown, id: ref.id };
+}
+
+/** Opens the page of body `id` of `system` above the system's, named as its read details name it. */
+function openBodyPage(system: number, id: number): void {
+  const planet = useDetailsStore
+    .getState()
+    .details.get(system)
+    ?.planets.find((p) => p.id === id);
+  const label = planet ? bodyName(planet, useGameDataStore.getState().names) : `#${id}`;
+  useInspectorStore.getState().openFromMap(bodyEntry(system, id, label));
 }
 
 /** The system the map shows, or null while it shows the galaxy. */
@@ -73,7 +129,7 @@ export function useBarMode(): BarMode {
 
 /** Whether the document draws its systems as rolls of their initializers: it has no bodies of its own. */
 function rollsSystems(session: CapabilitySource): boolean {
-  return !documentCapabilities(session).details;
+  return documentCapabilities(session).rolled_layout;
 }
 
 /** Whether Roll again has anything to do: a rolled system is shown. */
@@ -151,5 +207,64 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     if (id === scene.id) return;
     if (id === null) get().exitScene();
     else set({ scene: { kind: "system", id } });
+  },
+
+  bodySelection: null,
+
+  selectBodies(selection) {
+    set({ bodySelection: selection });
+  },
+
+  selectBody(system, id) {
+    get().selectBodies({ system, ids: [id] });
+  },
+
+  showBody(system, id) {
+    get().selectBody(system, id);
+    openBodyPage(system, id);
+  },
+
+  toggleBody(system, id) {
+    const selection = get().bodySelection;
+    const ids =
+      selection === null ||
+      selection.system !== system ||
+      !documentCapabilities(useFileSessionStore.getState()).planet_moves
+        ? [id]
+        : selection.ids.includes(id)
+          ? selection.ids.filter((b) => b !== id)
+          : [...selection.ids, id];
+    if (ids.length === 1) {
+      get().showBody(system, ids[0]);
+      return ids[0];
+    }
+    get().selectBodies(ids.length === 0 ? null : { system, ids });
+    if (ids.length === 0) useInspectorStore.getState().popTo(0);
+    return null;
+  },
+
+  clearBodies() {
+    if (get().bodySelection !== null) get().selectBodies(null);
+  },
+
+  keepBodies(present) {
+    const selection = get().bodySelection;
+    if (selection === null) return;
+    const ids = selection.ids.filter(present);
+    if (ids.length === selection.ids.length) return;
+    get().selectBodies(ids.length > 1 ? { system: selection.system, ids } : null);
+    get().followInspector();
+  },
+
+  followInspector() {
+    const selection = get().bodySelection;
+    if (selection !== null && selection.ids.length > 1) return;
+    const body = inspectedBody();
+    if (body === null) {
+      if (selection !== null) get().selectBodies(null);
+      return;
+    }
+    if (selection?.system === body.system && selection.ids[0] === body.id) return;
+    get().selectBody(body.system, body.id);
   },
 }));

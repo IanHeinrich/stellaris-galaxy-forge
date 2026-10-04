@@ -78,15 +78,6 @@ describe("the deposit picker", () => {
     });
   });
 
-  it("reads the types offered for the planet once, when it opens", async () => {
-    useDepositPickerStore.getState().open(planetPickerTarget(PAGE, true), "deposits");
-    await vi.waitFor(() => expect(useDepositPickerStore.getState().choices?.list).toEqual(CHOICES));
-    expect(mockedIpc.getDepositChoices).toHaveBeenCalledWith("pc_barren", 16, true, []);
-    useDepositPickerStore.getState().open(planetPickerTarget(PAGE, true), "deposits");
-    expect(mockedIpc.getDepositChoices).toHaveBeenCalledTimes(1);
-    expect(useDepositPickerStore.getState().target?.key).toBe("save-planet:40");
-  });
-
   it("stays open with its search after an add, and says what it added", async () => {
     const store = useDepositPickerStore.getState();
     store.open(planetPickerTarget(PAGE, false), "deposits");

@@ -9,6 +9,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { type Entry } from "../../../store/inspectorStore";
 import { cutAvailability, usePlanetMoveStore } from "../../../store/planetMoveStore";
+import { useSceneStore } from "../../../store/sceneStore";
 import { useOpenEntity } from "../entity/useEntity";
 import { DrillLink, Empty, Section } from "../parts";
 
@@ -40,10 +41,10 @@ function bodyNote(
  */
 export function BodySelectionView({ entry }: { entry: Entry }) {
   const system = entry.ref.kind === "bodies" ? entry.ref.system : null;
-  const selection = usePlanetMoveStore((s) => s.selection);
+  const selection = useSceneStore((s) => s.bodySelection);
   const selectionTargets = usePlanetMoveStore((s) => s.selectionTargets);
   const cut = usePlanetMoveStore((s) => s.cut);
-  const toggleBody = usePlanetMoveStore((s) => s.toggleBody);
+  const toggleBody = useSceneStore((s) => s.toggleBody);
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const cancelCut = usePlanetMoveStore((s) => s.cancelCut);
   const read = useDetailsStore((s) => (system === null ? undefined : s.details.get(system)));
@@ -70,7 +71,7 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
       : [];
   });
 
-  const availability = cutAvailability({ selection, selectionTargets });
+  const availability = cutAvailability(selection, selectionTargets);
   const cutPlanets = availability.kind === "ready" ? availability.planets : moving;
   const isCut = cut !== null && cut.from === system && sameIds(cut.planets, cutPlanets);
 

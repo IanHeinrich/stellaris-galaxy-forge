@@ -18,7 +18,7 @@ import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { usePlanetMoveStore } from "./planetMoveStore";
+import { useSceneStore } from "./sceneStore";
 
 type AddSystemActions = Pick<
   EditorState,
@@ -124,7 +124,7 @@ export function addSystemActions(
           return added.edit;
         });
         if (result === null || planet === null) return false;
-        usePlanetMoveStore.getState().showBody(system, planet);
+        useSceneStore.getState().showBody(system, planet);
         return true;
       });
     },

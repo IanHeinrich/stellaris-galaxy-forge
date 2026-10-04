@@ -46,7 +46,8 @@ const BINDINGS: Array<Binding<SceneView, "bind">> = [
     (s, view) => view.selectBody(s.stack[s.stack.length - 1].ref),
     "bind",
   ),
-  follows(usePlanetMoveStore, [(s) => s.selection, (s) => s.cut], showMove, "bind"),
+  follows(useSceneStore, [(s) => s.bodySelection], showMove, "bind"),
+  follows(usePlanetMoveStore, [(s) => s.cut], showMove, "bind"),
   follows(useMapChromeStore, [(s) => s.contextMenu], showMove),
 ];
 

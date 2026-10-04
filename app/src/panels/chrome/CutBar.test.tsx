@@ -42,8 +42,8 @@ beforeEach(async () => {
 });
 
 async function cut(...ids: number[]): Promise<void> {
-  moves().selectBody(SOL, ids[0]);
-  for (const id of ids.slice(1)) moves().toggleBody(SOL, id);
+  useSceneStore.getState().selectBody(SOL, ids[0]);
+  for (const id of ids.slice(1)) useSceneStore.getState().toggleBody(SOL, id);
   await settle();
   moves().cutSelection();
 }
@@ -76,9 +76,9 @@ describe("the cut bar", () => {
 
   it("says how many bodies are selected in the system view, and how to add or clear them", async () => {
     useSceneStore.getState().enterSystem(SOL);
-    moves().selectBody(SOL, EARTH);
+    useSceneStore.getState().selectBody(SOL, EARTH);
     expect(renderToStaticMarkup(<StatusBar />)).not.toContain("selected ·");
-    moves().toggleBody(SOL, LUNA);
+    useSceneStore.getState().toggleBody(SOL, LUNA);
     expect(renderToStaticMarkup(<StatusBar />)).toContain(
       "2 planets selected · Ctrl or Shift-click to add planets · Esc clears",
     );

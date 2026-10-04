@@ -145,6 +145,27 @@ describe("auto-reload", () => {
     expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["planet models", "getPlanetModels", "loadPlanetModels", "planetModels"],
+    ["initializers", "getInitializers", "loadInitializers", "initializers"],
+    ["galaxy shapes", "getGalaxyShapes", "loadGalaxyShapes", "galaxyShapes"],
+  ] as const)("drops %s read before a rebuild", async (_name, ask, loader, field) => {
+    const changed = await ready();
+    let answer: (list: never[]) => void = () => {};
+    mockedIpc[ask].mockImplementationOnce(
+      () => new Promise<never[]>((resolve) => (answer = resolve)),
+    );
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
+
+    const loading = useGameDataStore.getState()[loader]();
+    changed(CHANGED);
+    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    answer([]);
+    await loading;
+
+    expect(useGameDataStore.getState()[field]).toBeNull();
+  });
+
   it("an abandoned tail leaves no spinner behind", async () => {
     const changed = await ready();
     mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });

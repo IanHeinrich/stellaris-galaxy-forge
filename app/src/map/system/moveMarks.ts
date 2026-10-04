@@ -7,6 +7,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { usePlanetMoveStore, type PlanetCut } from "../../store/planetMoveStore";
+import { useSceneStore } from "../../store/sceneStore";
 import type { PasteGhost, SceneHighlight } from "./layers/SystemLayer";
 
 export type MoveMarks = Pick<SceneHighlight, "selectedBodies" | "cutBodies" | "pasteGhost">;
@@ -20,7 +21,8 @@ const NONE: readonly number[] = [];
  * already, and nothing comes along with it.
  */
 export function moveMarks(id: number | null): MoveMarks {
-  const { selection, cut } = usePlanetMoveStore.getState();
+  const { cut } = usePlanetMoveStore.getState();
+  const selection = useSceneStore.getState().bodySelection;
   const movable = documentCapabilities(useFileSessionStore.getState()).details;
   return {
     selectedBodies: movable && id !== null && selection?.system === id ? selection.ids : NONE,

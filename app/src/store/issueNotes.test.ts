@@ -6,6 +6,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { SystemNode } from "../generated/SystemNode";
+import { SAVE_CAPABILITIES } from "../generated/constants";
 import { paintModView } from "../test/builders";
 import { useEditorStore } from "./editorStore";
 import {
@@ -229,6 +230,7 @@ describe("the galaxy size note", () => {
     mockedIpc.openSave.mockResolvedValue({
       ...scenarioOf(2000),
       kind: "save",
+      capabilities: SAVE_CAPABILITIES,
       path: OPEN_RESULT.path,
     });
     await session().openSave(OPEN_RESULT.path);

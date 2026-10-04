@@ -7,6 +7,7 @@ vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import * as ipc from "../api/ipc";
+import { SCENARIO_CAPABILITIES } from "../generated/constants";
 import { bindStores } from "./bindStores";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useLayoutStore } from "./layoutStore";
@@ -137,7 +138,12 @@ describe("the Paint a Galaxy mod's status", () => {
 
   describe("polled only while an answer could change the screen", () => {
     const scenarioOpen = (extra: Partial<ReturnType<typeof useFileSessionStore.getState>> = {}) =>
-      useFileSessionStore.setState({ status: "ready", kind: "scenario", ...extra });
+      useFileSessionStore.setState({
+        status: "ready",
+        kind: "scenario",
+        capabilities: SCENARIO_CAPABILITIES,
+        ...extra,
+      });
 
     it("not with nothing open, nor for a save", async () => {
       vi.useFakeTimers();

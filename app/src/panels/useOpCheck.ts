@@ -1,5 +1,5 @@
 import type { Op } from "../generated/Op";
-import { useOpCheckStore } from "../store/opCheckStore";
+import { opCheckKey, useOpCheckStore } from "../store/opCheckStore";
 
 /**
  * Why `op`, about a body of `system`, would be refused: a reason, null when it would apply,
@@ -8,12 +8,12 @@ import { useOpCheckStore } from "../store/opCheckStore";
  * drawn once still asks.
  */
 export function useOpCheck(op: Op, system: number | null): string | null | undefined {
-  const key = JSON.stringify(op);
+  const key = opCheckKey(op);
   const generation = useOpCheckStore((s) =>
     system === null ? 0 : (s.generations.get(system) ?? 0),
   );
   const check = useOpCheckStore((s) => s.answers.get(key));
   if (check?.generation === generation) return check.refusal;
-  useOpCheckStore.getState().ask(key, generation);
+  useOpCheckStore.getState().ask(op, generation);
   return undefined;
 }

@@ -64,7 +64,8 @@ export interface EntityState {
   requestPlanetPage(id: number): void;
   /**
    * What an applied edit, undo or redo leaves behind: every entity it rewrote is stale, and so
-   * is every page of a body in a system it touched or removed.
+   * is the page of every planet listing a rewritten moon. A touched or removed system also
+   * stales the wormhole reads and drops the page reads in flight.
    */
   noteEdit(result: EditResult): void;
   /** Drops every level and the source of each entity, so the next request reads it again. */
@@ -127,11 +128,14 @@ export const useEntityStore = create<EntityState>((set, get) => ({
       ...result.details_stale,
       ...(result.delta.removed ?? []),
     ]);
-    const pages = [...get().pages.values()]
-      .filter((page) => page.system !== null && systems.has(page.system))
-      .map((page): EntityAddr => ({ kind: "planet", id: page.id }));
     const wormholes = systems.size > 0 ? wormholeReads(get()) : [];
-    get().invalidate([...result.touched_entities, ...pages, ...wormholes]);
+    const planets = new Set(
+      result.touched_entities.filter((addr) => addr.kind === "planet").map((addr) => addr.id),
+    );
+    const hosts = [...get().pages.values()]
+      .filter((page) => page.moons.some((moon) => planets.has(moon.id)))
+      .map((page): EntityAddr => ({ kind: "planet", id: page.id }));
+    get().invalidate([...result.touched_entities, ...hosts, ...wormholes]);
     if (systems.size > 0) dropPendingPages();
   },
 

@@ -10,6 +10,7 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
 });
 
 import { templateKey } from "../lib/names";
+import { SCENARIO_CAPABILITIES } from "../generated/constants";
 import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -323,7 +324,7 @@ describe("initializers", () => {
 
   it("a scenario reads them as it loads, keeping the star class the core draws each one as", async () => {
     mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
-    useFileSessionStore.setState({ kind: "scenario" });
+    useFileSessionStore.setState({ kind: "scenario", capabilities: SCENARIO_CAPABILITIES });
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
     await vi.waitFor(() => expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS));
