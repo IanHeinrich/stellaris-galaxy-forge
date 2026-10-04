@@ -1,3 +1,5 @@
+import type { PlanetPage } from "../generated/PlanetPage";
+import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
@@ -22,8 +24,17 @@ import { useDigSitePickerStore } from "./digSitePickerStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
-import { planetPickerTarget } from "./planetEditAdapter";
+import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
+
+/** Save body `page` in system 1, as its page hands it to the pickers. */
+const pickerTarget = (page: PlanetPage) =>
+  savePickerTarget(
+    1,
+    planetSummary({ id: page.id, class: page.class, size: page.size }),
+    page,
+    heldAnomaly(page),
+  );
 
 bindStores();
 
@@ -69,8 +80,8 @@ const MODIFIERS: ModifierChoice[] = [
   },
 ];
 
-const A = planetPickerTarget(planetPage({ id: 40, class: "pc_barren", size: 12 }), false);
-const B = planetPickerTarget(planetPage({ id: 41, class: "pc_desert", size: 18 }), false);
+const A = pickerTarget(planetPage({ id: 40, class: "pc_barren", size: 12 }));
+const B = pickerTarget(planetPage({ id: 41, class: "pc_desert", size: 18 }));
 
 /** What the table reads and drives of one picker's store. */
 interface Picker {

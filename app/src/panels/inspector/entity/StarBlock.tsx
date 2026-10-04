@@ -1,3 +1,5 @@
+import type { Bounds } from "../../../generated/Bounds";
+import { bodySize } from "./bodyFields";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
@@ -83,7 +85,7 @@ export function SizeField({
   title = "Change the body's size",
 }: {
   edits: PlanetEditAdapter;
-  size: number | null;
+  size: Bounds | null;
   title?: string;
 }) {
   if (size === null) {
@@ -101,14 +103,14 @@ export function SizeField({
     <BoundsField
       label="Size"
       title={title}
-      value={{ min: size, max: size }}
+      value={size}
       ranges={edits.ranges}
-      onCommit={(next) => void edits.setSize(next, size)}
+      onCommit={(next) => void edits.setSize(next, size.min)}
     />
   );
 }
 
-/** A save star body's type and size, the fields its page opens with. */
+/** A star body's type and size, the fields its page opens with. */
 export function StarBlock({
   planet,
   system,
@@ -124,7 +126,7 @@ export function StarBlock({
         <StarTypeField planet={planet} system={system} edits={edits} />
       </EditRow>
       <EditRow label="Size">
-        <SizeField edits={edits} size={planet.size} />
+        <SizeField edits={edits} size={bodySize(planet)} />
       </EditRow>
     </EditBlock>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import type { DigSiteChoice } from "../../../generated/DigSiteChoice";
 import type { PlanetPageDigSite } from "../../../generated/PlanetPageDigSite";
 import {
@@ -11,9 +11,8 @@ import {
 } from "../../../lib/details/digSitePicker";
 import { ARCHAEOLOGY_ICON_KEYS } from "../../../lib/details/icons";
 import { siteLabel } from "../../../lib/details/labels";
-import type { PickerTarget } from "../../../lib/details/picker";
 import { useDigSitePickerStore } from "../../../store/digSitePickerStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
+import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useNamed } from "../../useNamed";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
@@ -72,28 +71,21 @@ const DIG_SITE_PICKER: PickerKind<DigSitePickRow, DigSiteChip, DigSiteChoice> = 
  */
 function DigSiteRow({
   site,
-  target,
   onRemove,
 }: {
   site: PlanetPageDigSite;
-  target: PickerTarget;
   onRemove: (() => void) | null;
 }) {
   const named = useNamed([site.kind], siteLabel);
-  const ready = useGameDataStore((s) => s.status === "ready");
-  const choices = useDigSitePickerStore((s) => s.choices);
-  useEffect(() => {
-    if (ready) useDigSitePickerStore.getState().load(target);
-  }, [ready, choices, target]);
-  const choice = choices?.list.find((c) => c.key === site.kind);
-  const description = choice?.description ?? null;
+  const type = usePlanetDataStore((s) => s.digSites.get(site.kind));
+  const description = type?.description ?? null;
   const name = named(site.kind);
   return (
     <PickedRow
       art={<SiteArt />}
       name={name}
       lines={[
-        { className: "l2", text: digSiteLine(site, choice?.stages ?? null) },
+        { className: "l2", text: digSiteLine(site, type?.stages ?? null) },
         ...(description === null ? [] : [{ className: "l3" as const, text: description }]),
       ]}
       remove={
@@ -113,22 +105,22 @@ function DigSiteRow({
 
 /**
  * The planet's dig site; where the page offers dig sites, with its remove button, or the picker
- * when it has none, both through `target`'s adapter.
+ * when it has none, both through the target's adapter.
  */
-export function PlanetDigSite({ page, offers, target }: PlanetSectionProps) {
-  const site = page.dig_site;
+export function PlanetDigSite({ read, offers }: PlanetSectionProps) {
+  const held = read.rows.digSite;
+  const { target } = read;
   const editable = offers.digSite;
-  if (site === null && !editable) return null;
+  if (held === null && !editable) return null;
   return (
     <Section id="planet.digSite" title="Dig site">
-      {site !== null && (
+      {held !== null && (
         <DigSiteRow
-          site={site}
-          target={target}
-          onRemove={editable ? () => void target.edits.removeDigSite(site.id) : null}
+          site={held.site}
+          onRemove={editable ? () => void target.edits.removeDigSite(held.ref) : null}
         />
       )}
-      {site === null && editable && <PlanetPicker kind={DIG_SITE_PICKER} target={target} />}
+      {held === null && editable && <PlanetPicker kind={DIG_SITE_PICKER} target={target} />}
     </Section>
   );
 }

@@ -32,13 +32,14 @@ export function CountryRow({ label, id }: { label: string; id: number }) {
   );
 }
 
-/** The colony's facts, and its removal through the target's adapter where the page offers it. */
-export function PlanetColony({ page, offers, target }: PlanetSectionProps) {
+/** A save colony's facts, and its removal through the target's adapter where the page offers it. */
+export function PlanetColony({ read, offers }: PlanetSectionProps) {
   const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
   const names = useGameDataStore((s) => s.names);
   const opener = useOpenEntity();
-  const colony = page.colony;
-  if (colony === null || page.owner === null) return null;
+  const page = read.page;
+  const colony = page?.colony ?? null;
+  if (page === null || colony === null || page.owner === null) return null;
   const designation = colony.final_designation ?? colony.designation;
   const type = designation === null ? undefined : colonyTypes.get(designation);
   const split = colony.species.map(
@@ -71,7 +72,12 @@ export function PlanetColony({ page, offers, target }: PlanetSectionProps) {
         </LinkRow>
       </Properties>
       {offers.pageRemoval && (
-        <RemoveColonyAction page={page} name={bodyName(page, names)} edits={target.edits} />
+        <RemoveColonyAction
+          body={read.summary.id}
+          system={read.details.id}
+          name={bodyName(read.summary, names)}
+          edits={read.target.edits}
+        />
       )}
     </Section>
   );
