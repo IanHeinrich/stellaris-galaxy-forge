@@ -11,7 +11,6 @@ import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { Nebula } from "../generated/Nebula";
 import type { PlanetClassView } from "../generated/PlanetClassView";
-import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { StarClassView } from "../generated/StarClassView";
@@ -25,7 +24,6 @@ import { documentCapabilities } from "../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { NO_PRECURSORS, type PrecursorRegions } from "../lib/precursors";
-import { bypassLinks } from "../lib/scenarioBypasses";
 import {
   displayNameIn,
   nodeNameIn,
@@ -34,6 +32,7 @@ import {
   templateNameIn,
   type Names,
 } from "../lib/names";
+import { shownBypasses } from "../store/bypassSelectors";
 import { useDetailsStore } from "../store/detailsStore";
 import { getPaintLayer, useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
@@ -191,25 +190,6 @@ const NOTHING: never[] = [];
 const NO_KEYS: ReadonlySet<string> = new Set<string>();
 const NO_OWNERS: ReadonlySet<number> = new Set<number>();
 
-let linkedFrom: ScenarioBypasses | null = null;
-let linkedFlags = "";
-let scenarioLinks: readonly BypassLink[] = NOTHING;
-
-/** A scenario's drawn bypasses, as one instance per reading and pair of toggles. */
-function linksIn(
-  bypasses: ScenarioBypasses | null,
-  initializers: boolean,
-  dayOne: boolean,
-): readonly BypassLink[] {
-  const flags = `${initializers} ${dayOne}`;
-  if (bypasses !== linkedFrom || flags !== linkedFlags) {
-    linkedFrom = bypasses;
-    linkedFlags = flags;
-    scenarioLinks = bypasses === null ? NOTHING : bypassLinks(bypasses, initializers, dayOne);
-  }
-  return scenarioLinks;
-}
-
 let stationsFrom: readonly Waystation[] = NOTHING;
 let stationsBySystem: ReadonlyMap<number, Waystation> = new Map<number, Waystation>();
 
@@ -329,8 +309,9 @@ export function renderContext(): RenderContext {
     return text;
   };
   const ready = data.status === "ready";
-  const { kind } = useFileSessionStore.getState();
-  const capabilities = documentCapabilities(useFileSessionStore.getState());
+  const session = useFileSessionStore.getState();
+  const { kind } = session;
+  const capabilities = documentCapabilities(session);
   const ownership = currentOwnership();
   return Object.freeze({
     galaxy: galaxy.galaxy,
@@ -340,10 +321,11 @@ export function renderContext(): RenderContext {
     paintLayer: getPaintLayer(),
     systems: galaxy.systems,
     nebulae: galaxy.nebulae,
-    bypasses:
-      kind === "scenario"
-        ? linksIn(data.scenarioBypasses, chrome.layers.bypasses, chrome.layers.day_one_bypasses)
-        : galaxy.bypasses,
+    bypasses: shownBypasses(
+      { session, links: galaxy.bypasses, placed: data.scenarioBypasses },
+      chrome.layers.bypasses,
+      chrome.layers.day_one_bypasses,
+    ),
     waylines: galaxy.waylines,
     waystations: stationsIn(galaxy.waystations),
     radius: galaxy.galaxy?.galaxy_radius ?? 0,
