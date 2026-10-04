@@ -42,9 +42,14 @@ pub(crate) fn as_u32(n: usize) -> u32 {
 
 /// `1 system`, `3 systems`: a count with its noun, for descriptions and sublines.
 pub(crate) fn plural(n: usize, noun: &str) -> String {
+    plural_of(n, noun, &format!("{noun}s"))
+}
+
+/// [`plural`] for a noun whose plural is not its singular and an `s`: `3 armies`.
+pub(crate) fn plural_of(n: usize, noun: &str, nouns: &str) -> String {
     if n == 1 {
         format!("1 {noun}")
     } else {
-        format!("{n} {noun}s")
+        format!("{n} {nouns}")
     }
 }

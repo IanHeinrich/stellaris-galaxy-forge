@@ -3,6 +3,7 @@
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
+use sgf_core::NULL_ID;
 use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
 use sgf_core::export::policy::LCLUSTER_PREFIX;
 use sgf_core::format::save::WHOLE_ENTRIES_FROM_MAJOR;
@@ -63,6 +64,11 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "How close the game lets a system it spawns stand to another.",
         "SPAWN_BUFFER",
         SPAWN_BUFFER.to_string(),
+    );
+    constant(
+        "The id a save writes where an entity names none.",
+        "NULL_ID",
+        NULL_ID.to_string(),
     );
     constant(
         "The first major version whose saves take an added system.",

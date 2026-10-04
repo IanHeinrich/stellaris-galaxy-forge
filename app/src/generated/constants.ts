@@ -11,6 +11,9 @@ export const LCLUSTER_PREFIX = "lcluster";
 /** How close the game lets a system it spawns stand to another. */
 export const SPAWN_BUFFER = 10;
 
+/** The id a save writes where an entity names none. */
+export const NULL_ID = 4294967295;
+
 /** The first major version whose saves take an added system. */
 export const ADDED_SYSTEMS_FROM_MAJOR = 4;
 

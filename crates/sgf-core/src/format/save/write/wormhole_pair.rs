@@ -2,28 +2,21 @@
 //! with only what the game does not fill in on load, and taken out whole.
 //!
 //! An add writes one `natural_wormholes` entry and one `bypasses` entry per end, each at
-//! its table's highest id plus one, and lists each end in its system's
+//! one past the highest id its table has held this session, and lists each end in its system's
 //! `natural_wormholes`. The game fills in the bypasses' connections and lock fields, the
 //! systems' `bypasses` lists and each country's `usable_bypasses`. A removal erases all four
 //! entries and takes their ids out of both systems' lists: a tombstone or any id left
 //! behind shows a broken wormhole on the galaxy map.
 
-use crate::Span;
-use crate::document::Document;
-use crate::emit::inline;
-use crate::emit::system::{
-    WormholeEnd, natural_wormhole_entry, natural_wormholes_list, wormhole_bypass_entry,
-};
+use crate::emit::system::{WormholeEnd, natural_wormhole_entry, wormhole_bypass_entry};
 use crate::format::save::added::Table;
-use crate::format::save::alloc::TableEnd;
-use crate::format::save::check_version;
+use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::galaxy::bypasses::{NATURAL, NaturalWormhole, natural_wormholes, row};
+use crate::format::save::write::id_list::{Emptied, Place, append, unlist};
 use crate::format::save::write::wormhole::{WORMHOLE, named};
 use crate::keys;
 use crate::ops::rules::bodies::point;
-use crate::ops::{Edit, Emitted, Op, OpError, Plan, Planned, Subject};
-use crate::overlay::Anchor;
-use crate::scan::Value;
+use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
 use crate::session::Session;
 
 /// How far past its system's `inner_radius` the game puts a wormhole it spawns without a
@@ -40,7 +33,6 @@ pub(crate) fn plan_add(
     b: u32,
     at: Option<((f64, f64), (f64, f64))>,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     if a == b {
         return Err(OpError::WormholeSelf(a));
     }
@@ -71,8 +63,8 @@ pub(crate) fn plan_add(
             outside(plan, s, b, SECOND_ANGLE)?,
         ),
     };
-    let natural = next_id(&s.doc, NATURAL);
-    let bypass = next_id(&s.doc, Table::Bypass);
+    let natural = next_id(&s.doc, NATURAL)?;
+    let bypass = next_id(&s.doc, Table::Bypass)?;
     let ends = [
         WormholeEnd {
             id: natural,
@@ -89,14 +81,18 @@ pub(crate) fn plan_add(
             at: second,
         },
     ];
-    let mut naturals = table_end(&s.doc, NATURAL)?;
-    let mut bypasses = table_end(&s.doc, Table::Bypass)?;
+    let mut naturals = TableEnd::of(&s.doc, NATURAL)?;
+    let mut bypasses = TableEnd::of(&s.doc, Table::Bypass)?;
     for end in &ends {
         let text = natural_wormhole_entry(naturals.indent(), end);
         plan.emit(Emitted::Record, naturals.at(), naturals.shape(text));
         let text = wormhole_bypass_entry(bypasses.indent(), end);
         plan.emit(Emitted::Record, bypasses.at(), bypasses.shape(text));
-        list(plan.edit(&s.doc, end.system)?, end.id)?;
+        append(
+            plan.edit(&s.doc, end.system)?,
+            &NATURAL_WORMHOLES_AT,
+            &[end.id],
+        )?;
     }
     Ok(Planned {
         description: format!(
@@ -114,7 +110,6 @@ pub(crate) fn plan_remove(
     a: u32,
     b: u32,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     for system in [a, b] {
         if !s.graph.systems.contains_key(&system) {
             return Err(OpError::UnknownSystem(system));
@@ -167,70 +162,13 @@ fn outside(plan: &mut Plan, s: &Session, id: u32, angle: f64) -> Result<(f64, f6
     Ok(point((0.0, 0.0), radius + PAST_INNER_RADIUS, angle))
 }
 
-/// One past the highest id `table` now holds, a tombstone's included.
-fn next_id(doc: &Document, table: Table) -> u32 {
-    let loaded = doc
-        .index()
-        .entities(table.section())
-        .iter()
-        .filter(|entity| {
-            !doc.overlay()
-                .removed(Anchor::Original(entity.stmt), doc.original())
-        })
-        .filter_map(|entity| u32::try_from(entity.id).ok());
-    let added = doc.added().entries(table).map(|(id, _)| id);
-    loaded.chain(added).max().map_or(0, |highest| highest + 1)
-}
-
-/// Where `table`'s new entries go.
-fn table_end(doc: &Document, table: Table) -> Result<TableEnd, OpError> {
-    let key = table.section();
-    let section = doc
-        .index()
-        .section(key)
-        .ok_or(OpError::MissingSaveKey(key))?;
-    let Value::Block { close, .. } = section.value else {
-        return Err(OpError::MissingSaveKey(key));
-    };
-    Ok(TableEnd::read(doc, table, close, doc.index().entities(key)))
-}
-
-/// Put `id` last in the system's `natural_wormholes`, writing the list after its
-/// `hyperlane` block, or after `star_class` when it has none, where the game keeps it.
-fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(block) = entity.find(keys::NATURAL_WORMHOLES, &edit.buf) else {
-        let after = entity
-            .find(keys::HYPERLANE, &edit.buf)
-            .or_else(|| entity.find(keys::STAR_CLASS, &edit.buf))
-            .ok_or_else(|| edit.parse_error(entity.span().start, "missing star_class"))?
-            .span();
-        let text = statement(&edit.indent(after.start), id);
-        edit.insert_after(after.end, &text);
-        return Ok(());
-    };
-    if block.scalar_span().is_some() {
-        return Err(edit.parse_error(block.span().start, "natural_wormholes is not a block"));
-    }
-    match block.children().last() {
-        Some(item) => {
-            let at = item.span().end;
-            edit.insert(at, format!(" {id}").into_bytes());
-        }
-        None => {
-            let span = block.span();
-            let text = statement(&edit.indent(span.start), id);
-            edit.replace_statement(span, &text);
-        }
-    }
-    Ok(())
-}
-
-/// A `natural_wormholes` list of `id` alone, as a statement whose first line takes
-/// `indent` from the line it is written on.
-fn statement(indent: &[u8], id: u32) -> String {
-    inline(indent, &natural_wormholes_list(indent, &[id]))
-}
+/// Where a system's `natural_wormholes` goes when it has none: after its `hyperlane` block,
+/// or after `star_class` when it has none.
+const NATURAL_WORMHOLES_AT: Place = Place {
+    key: keys::NATURAL_WORMHOLES,
+    after: &[keys::HYPERLANE, keys::STAR_CLASS],
+    before: None,
+};
 
 /// Erase one end's `natural_wormholes` and `bypasses` entries, and take their ids out of
 /// its system's lists.
@@ -240,39 +178,9 @@ fn take_out(plan: &mut Plan, s: &Session, end: &NaturalWormhole) -> Result<(), O
         plan.erase(&s.doc, Subject::Record(bypass.anchor), bypass.anchor)?;
     }
     let edit = plan.edit(&s.doc, end.system)?;
-    unlist(edit, keys::NATURAL_WORMHOLES, end.id)?;
-    unlist(edit, keys::BYPASSES, end.bypass)
-}
-
-/// Take `id` out of the system's list `key`, and the list with it when nothing else is
-/// left in it. A list that does not name it is left alone: the game writes a bypass into
-/// its system's `bypasses` only when it loads the save.
-fn unlist(edit: &mut Edit, key: &str, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(block) = entity.find(key, &edit.buf) else {
-        return Ok(());
-    };
-    let listed: Vec<Span> = block
-        .children()
-        .iter()
-        .filter(|item| item.key.is_none() && item.scalar_str(&edit.buf) == Some(&id.to_string()))
-        .map(|item| item.span())
-        .collect();
-    if listed.is_empty() {
-        return Ok(());
-    }
-    if listed.len() == block.children().len() {
-        let span = block.span();
-        edit.remove_statement(span);
-        return Ok(());
-    }
-    for item in listed {
-        let end = item.end
-            + edit.buf[item.end..]
-                .iter()
-                .take_while(|&&b| b == b' ' || b == b'\t')
-                .count();
-        edit.replace_span(Span::new(item.start, end), Vec::new());
-    }
+    unlist(edit, keys::NATURAL_WORMHOLES, &[end.id], Emptied::Drop)?;
+    // A list that does not name the bypass is left alone: the game writes a bypass into
+    // its system's `bypasses` only when it loads the save.
+    unlist(edit, keys::BYPASSES, &[end.bypass], Emptied::Drop)?;
     Ok(())
 }

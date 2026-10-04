@@ -11,13 +11,12 @@
 //! gives its slot back instead, as [`super::remove_system`] does for a system's bodies.
 
 use crate::document::Document;
-use crate::emit::inline;
-use crate::emit::system::{DepositEntry, PLANET_HOLDER, deposit_entry, deposits_list};
+use crate::emit::system::{DepositEntry, PLANET_HOLDER, deposit_entry};
 use crate::entity::facts::planet::{self, PlanetFacts};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
-use crate::format::save::check_version;
 use crate::format::save::write::add_system::write_slot;
+use crate::format::save::write::id_list::{Emptied, append_in, statement, unlist_in};
 use crate::format::save::{entity_at, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
@@ -25,7 +24,6 @@ use crate::ops::{Edit, Emitted, Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
-use crate::span::Span;
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -33,7 +31,6 @@ pub(crate) fn plan_add(
     planet: u32,
     kind: &str,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_deposit_kind(kind)?;
     let (system, _) = planet_facts(&s.doc, planet)?;
     let mut table = SlotTable::deposits(&s.doc)?;
@@ -54,7 +51,6 @@ pub(crate) fn plan_add(
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, deposit: u32) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let held = held(&s.doc, deposit)?;
     let planet = held.planet.ok_or(OpError::DepositNotOnPlanet(deposit))?;
     let (system, facts) = match planet_facts(&s.doc, planet) {
@@ -150,61 +146,24 @@ fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
             .last()
             .ok_or_else(|| edit.parse_error(entity.span().start, "the planet is empty"))?
             .span();
-        let text = statement(&edit.indent(last.start), id);
+        let text = statement(&edit.indent(last.start), keys::DEPOSITS, &[id]);
         edit.insert_after(last.end, &text);
         return Ok(());
     };
-    if block.scalar_span().is_some() {
-        return Err(edit.parse_error(block.span().start, "deposits is not a block"));
-    }
-    match block.children().last() {
-        Some(item) => {
-            let at = item.span().end;
-            edit.insert(at, format!(" {id}").into_bytes());
-        }
-        None => {
-            let span = block.span();
-            let text = statement(&edit.indent(span.start), id);
-            edit.replace_statement(span, &text);
-        }
-    }
-    Ok(())
-}
-
-/// A `deposits` list of `id` alone, as a statement whose first line takes `indent` from
-/// the line it is written on.
-fn statement(indent: &[u8], id: u32) -> String {
-    inline(indent, &deposits_list(indent, &[id]))
+    let block = block.clone();
+    append_in(edit, &block, keys::DEPOSITS, &[id])
 }
 
 /// Take `id` out of the planet's `deposits`, and the list with it when nothing else is
 /// left in it.
 fn unlist(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let block = entity
+    let block = edit
+        .entity()?
         .find(keys::DEPOSITS, &edit.buf)
+        .cloned()
         .ok_or(OpError::DepositNotOnPlanet(id))?;
-    let listed: Vec<Span> = block
-        .children()
-        .iter()
-        .filter(|item| item.key.is_none() && item.scalar_str(&edit.buf) == Some(&id.to_string()))
-        .map(|item| item.span())
-        .collect();
-    if listed.is_empty() {
-        return Err(OpError::DepositNotOnPlanet(id));
+    match unlist_in(edit, &block, &[id], Emptied::Drop) {
+        0 => Err(OpError::DepositNotOnPlanet(id)),
+        _ => Ok(()),
     }
-    if listed.len() == block.children().len() {
-        let span = block.span();
-        edit.remove_statement(span);
-        return Ok(());
-    }
-    for item in listed {
-        let end = item.end
-            + edit.buf[item.end..]
-                .iter()
-                .take_while(|&&b| b == b' ' || b == b'\t')
-                .count();
-        edit.replace_span(Span::new(item.start, end), Vec::new());
-    }
-    Ok(())
 }

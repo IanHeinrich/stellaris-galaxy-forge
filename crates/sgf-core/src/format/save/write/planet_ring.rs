@@ -2,8 +2,7 @@
 //! bit is written whatever the body's class; the game is the judge of what a class draws.
 
 use crate::emit::system::RING_FLAG;
-use crate::format::save::write::bodies::set_flag;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::write::planet_entry::{PlanetEntry, set_flag};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read;
@@ -15,9 +14,7 @@ pub(crate) fn plan_set(
     id: u32,
     ring: bool,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     let held = read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & RING_FLAG != 0);
     if held == ring {
         let state = if ring {
