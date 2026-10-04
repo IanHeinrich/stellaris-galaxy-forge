@@ -392,12 +392,12 @@ byte for byte the input.
 
 ```mermaid
 flowchart LR
-  File[(.sav or scenario .txt)] -->|read once, kept as is| Bytes[Original bytes]
-  Bytes -->|one pass, brace counting| Map[Galaxy map]
-  Map -->|you edit| Patches[Patches keyed to original offsets]
-  Bytes --> Save[Save: bytes with patches spliced in]
+  File[(".sav or<br/>scenario .txt")] -->|"read once,<br/>kept as is"| Bytes["Original bytes"]
+  Bytes -->|"one pass,<br/>brace counting"| Map["Galaxy map"]
+  Map -->|"you edit"| Patches["Patches keyed to<br/>original offsets"]
+  Bytes --> Save["Save: bytes with<br/>patches spliced in"]
   Patches --> Save
-  Save -->|backup first| File
+  Save -->|"backup first"| File
 ```
 
 The full picture, with what the editor holds in memory and how the
