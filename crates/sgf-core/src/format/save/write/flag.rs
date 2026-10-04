@@ -6,22 +6,16 @@
 //! restores the bytes each write displaced rather than re-deriving them.
 
 use crate::Span;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::quoted;
+use crate::format::save::write::flag_colors::{
+    FOLLOWS, PRIMARY, SECONDARY, Unreadable, map_colors_on,
+};
 use crate::keys;
-use crate::ops::rules::{Form, check_text, quoted};
-use crate::ops::{EmpireFlag, Op, OpError, Plan, Planned};
+use crate::ops::rules::{Form, check_text};
+use crate::ops::{EmpireFlag, Op, OpError, ParseAt, Plan, Planned};
 use crate::session::Session;
-
-const PRIMARY: usize = 0;
-const SECONDARY: usize = 1;
-/// The map border and fill 4.5 keeps after the four flag colours. With map colours off
-/// the game copies the first two into them.
-const MAP_BORDER: usize = 4;
-const MAP_FILL: usize = 5;
-
-/// A place in the bytes the flag cannot be read at, and why.
-type Unreadable = (usize, String);
 
 pub(crate) fn plan_set(
     plan: &mut Plan,
@@ -46,7 +40,10 @@ pub(crate) fn plan_set(
     let (old, values) = rewrite(node, &edit.buf, flag)
         .map_err(|(offset, reason)| edit.parse_error(offset, reason))?;
     if values.is_empty() {
-        return Err(OpError::FlagUnchanged(country));
+        return Err(OpError::unchanged(
+            format!("country {country}\'s flag"),
+            "is already set that way",
+        ));
     }
     for (span, text) in values {
         edit.replace_span(span, text);
@@ -63,22 +60,15 @@ pub(crate) fn plan_set(
 /// Rewrite the player's flag in `meta` as [`plan_set`] rewrites the country's. A `meta`
 /// with no flag is left as it is.
 fn plan_meta(plan: &mut Plan, doc: &Document, flag: &EmpireFlag) -> Result<(), OpError> {
-    let meta = doc.meta();
-    let parse_error = |(offset, reason): Unreadable| OpError::MetaParse { offset, reason };
-    let root = cst::parse(meta, 0).map_err(|e| parse_error((e.offset, e.reason.to_owned())))?;
-    let Some(node) = root.find(keys::FLAG, meta) else {
+    let (root, mut out) = plan.edit_meta(doc)?;
+    let Some(node) = root.find(keys::FLAG, out.buf) else {
         return Ok(());
     };
-    let (_, mut values) = rewrite(node, meta, flag).map_err(parse_error)?;
-    if values.is_empty() {
-        return Ok(());
+    let (_, values) = rewrite(node, out.buf, flag)
+        .map_err(|(offset, reason)| OpError::parse(ParseAt::Meta, offset, reason))?;
+    for (span, text) in values {
+        out.replace_span(span, text);
     }
-    values.sort_by_key(|(span, _)| span.start);
-    let mut bytes = meta.to_vec();
-    for (span, text) in values.into_iter().rev() {
-        bytes.splice(span.range(), text.into_bytes());
-    }
-    plan.replace_meta(bytes);
     Ok(())
 }
 
@@ -113,10 +103,6 @@ fn rewrite(
             "flag.colors has fewer than two entries".to_owned(),
         ));
     }
-    let map_colors_on = node
-        .find(keys::USE_MAP_COLOR, buf)
-        .and_then(|n| n.scalar_str(buf))
-        == Some("yes");
     let old = EmpireFlag {
         icon_category: icon_category.1.clone(),
         icon_file: icon_file.1.clone(),
@@ -132,11 +118,8 @@ fn rewrite(
         (entries[PRIMARY].clone(), &new.primary),
         (entries[SECONDARY].clone(), &new.secondary),
     ];
-    if !map_colors_on {
-        for (slot, follows, colour) in [
-            (MAP_BORDER, PRIMARY, &new.primary),
-            (MAP_FILL, SECONDARY, &new.secondary),
-        ] {
+    if !map_colors_on(node, buf) {
+        for ((slot, follows), colour) in FOLLOWS.into_iter().zip([&new.primary, &new.secondary]) {
             if let Some(entry) = entries.get(slot).filter(|e| e.1 == entries[follows].1) {
                 writes.push((entry.clone(), colour));
             }

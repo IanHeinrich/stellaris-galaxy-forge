@@ -80,7 +80,7 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
     let result = mark(&mut session, 585, add(585, CANDIDATE, &[-1]), "barren_4_5");
     assert_eq!(
         result.entry.description,
-        "Add modifier terraforming_candidate to planet #585"
+        "Added modifier terraforming_candidate to planet #585"
     );
     assert_eq!(result.inverse, remove(585, CANDIDATE, None));
     let system = get_planet_page(&session.doc, 585)
@@ -93,7 +93,7 @@ fn a_barren_planet_without_timed_modifiers_becomes_a_candidate_and_back() {
     let removed = session.apply(result.inverse).expect("remove the candidate");
     assert_eq!(
         removed.entry.description,
-        "Remove modifier terraforming_candidate from planet #585"
+        "Removed modifier terraforming_candidate from planet #585"
     );
     assert_eq!(removed.inverse, add(585, CANDIDATE, &[-1]));
     assert_eq!(current(&session), session.doc.original(), "the block goes");
@@ -126,7 +126,7 @@ fn a_modifier_for_some_days_is_written_with_them() {
     let result = mark(&mut session, 585, add(585, CANDIDATE, &[360]), "timed_4_5");
     assert_eq!(
         result.entry.description,
-        "Add modifier terraforming_candidate to planet #585 for 360 days"
+        "Added modifier terraforming_candidate to planet #585 for 360 days"
     );
 }
 
@@ -154,7 +154,7 @@ fn a_planet_feature_writes_its_line_beside_the_timed_item_and_takes_both_away() 
     let result = mark(&mut session, 585, op, "feature_4_5");
     assert_eq!(
         result.entry.description,
-        "Add planet feature pm_mineral_poor (mineral_poor) to planet #585"
+        "Added planet feature pm_mineral_poor (mineral_poor) to planet #585"
     );
     assert_eq!(features(&session, 585), ["pm_mineral_poor"]);
     assert_eq!(
@@ -165,7 +165,7 @@ fn a_planet_feature_writes_its_line_beside_the_timed_item_and_takes_both_away() 
     let removed = session.apply(result.inverse).expect("remove the feature");
     assert_eq!(
         removed.entry.description,
-        "Remove planet feature pm_mineral_poor (mineral_poor) from planet #585"
+        "Removed planet feature pm_mineral_poor (mineral_poor) from planet #585"
     );
     assert!(features(&session, 585).is_empty());
     assert!(page(&session, 585).is_empty());

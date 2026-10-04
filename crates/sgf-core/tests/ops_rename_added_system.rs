@@ -158,7 +158,7 @@ fn what_a_rename_refuses() {
             ("Bad\"Name", |e| {
                 matches!(e, OpError::InvalidText { what: "a name", .. })
             }),
-            (name.as_str(), |e| matches!(e, OpError::NameUnchanged(..))),
+            (name.as_str(), |e| matches!(e, OpError::Unchanged { .. })),
         ] {
             let error = session.apply(rename(id, bad)).expect_err("refused");
             assert!(check(&error), "{bad:?}: {error}");

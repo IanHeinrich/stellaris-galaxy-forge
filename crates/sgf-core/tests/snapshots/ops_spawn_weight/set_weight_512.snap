@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
-Set system 512 spawn weight to 2.5
+Set the spawn weight of Flagged #512 to 2.5
 inverse: SetSpawnWeight { system: 512, base: None }
 
 --- scenario

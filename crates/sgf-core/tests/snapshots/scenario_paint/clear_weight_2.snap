@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Cleared system 2 spawn weight
+Cleared the spawn weight of Gamma #2
 inverse: SetSpawnScript { system: 2, script: Some(PaintAGalaxy { kind: Reserved("a"), random_value: 2, player: false }) }
 
 --- scenario

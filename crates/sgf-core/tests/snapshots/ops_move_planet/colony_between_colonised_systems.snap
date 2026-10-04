@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved planet #318 from system #400 to system #449, at orbit 216; set the inner radius of system #449 from 215 to 246
-inverse: Batch { description: "Undo of \"Moved planet #318 from system #400 to system #449, at orbit 216; set the inner radius of system #449 from 215 to 246\"", ops: [MoveBodyToSystem { body: 318, to: 400, at: Some(OrbitPlacement { radius: 100.077195429, angle: 340.222476642 }) }, SetInnerRadius { system: 449, radius: 215.0 }] }
+Moved planet #318 from Gindix #400 to Linkirk #449, at orbit 216; set the inner radius of Linkirk #449 from 215 to 246
+inverse: Batch { description: "Undo of \"Moved planet #318 from Gindix #400 to Linkirk #449, at orbit 216; set the inner radius of Linkirk #449 from 215 to 246\"", ops: [MoveBodyToSystem { body: 318, to: 400, at: Some(OrbitPlacement { radius: 100.077195429, angle: 340.222476642 }) }, SetInnerRadius { system: 449, radius: 215.0 }] }
 
 --- gamestate
 +++ gamestate

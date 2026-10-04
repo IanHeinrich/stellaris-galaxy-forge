@@ -3,15 +3,17 @@
 //! reaches its radius, so one added or moved past the system's reach grows the inner radius
 //! as a body does.
 
-use crate::Span;
 use crate::cst::Node;
 use crate::emit::system::{belt_entry, belts_block};
-use crate::emit::{coord, quoted};
+use crate::emit::{coord, inline, quoted};
 use crate::format::save::write::bodies::{self, number};
+use crate::format::save::write::place::{self, insert_key};
 use crate::keys;
-use crate::ops::rules::bodies::{check_radius, system_reach};
+use crate::ops::rules::bodies::check_radius;
+use crate::ops::rules::named;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::projections::geometry::system_reach;
 use crate::projections::read;
 use crate::session::Session;
 
@@ -40,15 +42,14 @@ pub(crate) fn plan_add(
             edit.insert(at, belt_entry(&indent, kind, radius));
         }
         None => {
-            let before = belts_before(edit, entity)?;
-            let at = edit.line_start(before.start);
-            let indent = edit.indent(at);
-            edit.insert(at, belts_block(&indent, &[(kind, radius)]));
+            let text = |indent: &[u8]| inline(indent, &belts_block(indent, &[(kind, radius)]));
+            insert_key(edit, &[], &place::system::ASTEROID_BELTS, text)?;
         }
     }
     let description = format!(
-        "Added a belt ({kind}) at radius {} to system #{system}",
-        number(radius)
+        "Added a belt ({kind}) at radius {} to {}",
+        number(radius),
+        named(&s.graph, system)
     );
     let inverse = Op::RemoveBelt { system, index };
     bodies::grow(plan, s, system, &before, radius, description, inverse)
@@ -82,8 +83,9 @@ pub(crate) fn plan_remove(
     }
     Ok(Planned {
         description: format!(
-            "Removed the belt at radius {} from system #{system}",
-            number(radius)
+            "Removed the belt at radius {} from {}",
+            number(radius),
+            named(&s.graph, system)
         ),
         inverse: Op::AddBelt {
             system,
@@ -120,12 +122,16 @@ pub(crate) fn plan_set_radius(
         .map_err(|_| edit.parse_error(span.start, "inner_radius is not a number"))?;
     let new_text = coord(radius);
     if new_text == old_text {
-        return Err(OpError::BeltUnchanged { system, index });
+        return Err(OpError::unchanged(
+            format!("belt {index} of system {system}"),
+            "is already that way",
+        ));
     }
     edit.replace_span(span, new_text);
     let description = format!(
-        "Moved the belt at radius {} in system #{system} to {}",
+        "Moved the belt at radius {} in {} to {}",
         number(old),
+        named(&s.graph, system),
         number(radius)
     );
     let inverse = Op::SetBeltRadius {
@@ -159,7 +165,10 @@ pub(crate) fn plan_set_kind(
     let old_text = edit.text(span).to_owned();
     let new_text = quoted(kind);
     if new_text == old_text {
-        return Err(OpError::BeltUnchanged { system, index });
+        return Err(OpError::unchanged(
+            format!("belt {index} of system {system}"),
+            "is already that way",
+        ));
     }
     let radius: f64 = read::required(entry, keys::INNER_RADIUS, &edit.buf)
         .map_err(|reason| edit.parse_error(entry.span().start, reason))?;
@@ -167,8 +176,9 @@ pub(crate) fn plan_set_kind(
     edit.replace_span(span, new_text);
     Ok(Planned {
         description: format!(
-            "Set the belt at radius {} in system #{system} from {old_kind} to {kind}",
-            number(radius)
+            "Set the belt at radius {} in {} from {old_kind} to {kind}",
+            number(radius),
+            named(&s.graph, system)
         ),
         inverse: Op::SetBeltKind {
             system,
@@ -199,7 +209,10 @@ pub(crate) fn plan_inner_radius(
         .map_err(|_| edit.parse_error(span.start, "inner_radius is not a number"))?;
     let new_text = coord(radius);
     if new_text == old_text {
-        return Err(OpError::InnerRadiusUnchanged(system));
+        return Err(OpError::unchanged(
+            format!("system {system}"),
+            "already has that inner radius",
+        ));
     }
     let least = radii.inner_floor(system_reach(&frame, &belt_radii(edit, entity)), current);
     if radius < least {
@@ -212,7 +225,8 @@ pub(crate) fn plan_inner_radius(
     }
     Ok(Planned {
         description: format!(
-            "Set the inner radius of system #{system} from {} to {}",
+            "Set the inner radius of {} from {} to {}",
+            named(&s.graph, system),
             number(current),
             number(radius)
         ),
@@ -241,18 +255,4 @@ fn entries(block: &Node) -> Vec<&Node> {
         .iter()
         .filter(|c| c.key.is_none())
         .collect()
-}
-
-/// Where a new `asteroid_belts` block goes when the system has none: right before
-/// `discovery`, else `arm`, else `flags`, or `initializer` when it has none of those, as the
-/// game writes hyperlane, then asteroid_belts, then discovery, arm, flags, initializer.
-fn belts_before(edit: &Edit, entity: &Node) -> Result<Span, OpError> {
-    let discovery = entity.find(keys::DISCOVERY, &edit.buf).map(Node::span);
-    let arm = entity.find(keys::ARM, &edit.buf).map(Node::span);
-    let flags = entity.find(keys::FLAGS, &edit.buf).map(Node::span);
-    let initializer = entity
-        .find(keys::INITIALIZER, &edit.buf)
-        .map(Node::span)
-        .ok_or_else(|| edit.parse_error(0, "the system has no initializer"))?;
-    Ok(discovery.or(arm).or(flags).unwrap_or(initializer))
 }

@@ -4,9 +4,9 @@
 
 use sgf_core::format::save::details::{BodyRole, Bounds, HeuristicResolver, RawPlanet};
 use sgf_core::ops::Parent;
-use sgf_core::ops::rules::bodies::{Body, system_reach};
 use sgf_core::ops::{Op, OpError, Subject, SystemRadii};
 use sgf_core::projections::galaxy::StarClasses;
+use sgf_core::projections::geometry::{Body, system_reach};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -136,7 +136,7 @@ fn a_planet_moved_past_the_inner_radius_grows_it() {
     assert_eq!(
         result.entry.description,
         "Moved planet #585 from orbit 65.02 at 28.2° to orbit 180 at 40°, with its moon #586; \
-         set the inner radius of system #1 from 186.71 to 225"
+         set the inner radius of Xu Nur #1 from 186.71 to 225"
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);
@@ -178,7 +178,7 @@ fn a_body_moved_outside_the_inner_radius_inside_a_belt_past_it_grows_it() {
         result
             .entry
             .description
-            .ends_with("; set the inner radius of system #14 from 150 to 230"),
+            .ends_with("; set the inner radius of Mareenius #14 from 150 to 230"),
         "{}",
         result.entry.description
     );
@@ -200,7 +200,7 @@ fn a_body_moved_outside_the_inner_radius_inside_a_belt_past_it_grows_it() {
         result
             .entry
             .description
-            .ends_with("; set the inner radius of system #14 from 150 to 230"),
+            .ends_with("; set the inner radius of Mareenius #14 from 150 to 230"),
         "{}",
         result.entry.description
     );
@@ -628,7 +628,7 @@ fn a_planet_with_its_moon_made_a_planet_of_a_companion_star() {
     assert_eq!(
         result.entry.description,
         "Made planet #330 a planet of star #327, with its moon #331; set the inner radius of \
-         system #278 from 330 to 360.02"
+         Alpha Centauri #278 from 330 to 360.02"
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);

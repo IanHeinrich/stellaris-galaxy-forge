@@ -8,7 +8,7 @@ use sgf_core::format::scenario::header_counts::{
     SeatCounts, empire_counts, seat_counts, zone_count,
 };
 use sgf_core::format::scenario::marauder::clan_count;
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::{Op, OpError, ParseAt};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -178,11 +178,11 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
                 ("core_radius".to_owned(), "1".to_owned()),
                 ("core_radius".to_owned(), "2".to_owned()),
             ],
-            |e| matches!(e, OpError::HeaderParse { reason, .. } if reason.contains("more than once")),
+            |e| matches!(e, OpError::Parse { at: ParseAt::Header, reason, .. } if reason.contains("more than once")),
         ),
         (
             vec![("system".to_owned(), "5".to_owned())],
-            |e| matches!(e, OpError::HeaderParse { reason, .. } if reason.contains("not a header key")),
+            |e| matches!(e, OpError::Parse { at: ParseAt::Header, reason, .. } if reason.contains("not a header key")),
         ),
     ];
     for (entries, expected) in cases {

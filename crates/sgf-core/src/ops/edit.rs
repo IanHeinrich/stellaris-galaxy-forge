@@ -17,7 +17,7 @@ use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::format;
 use crate::keys;
-use crate::ops::OpError;
+use crate::ops::{OpError, ParseAt};
 pub(crate) use crate::overlay::blank_slot;
 use crate::overlay::{Anchor, is_blank};
 
@@ -78,35 +78,19 @@ impl Subject {
     }
 
     pub fn parse_error(self, offset: usize, reason: impl Into<String>) -> OpError {
-        let reason = reason.into();
-        match self {
+        let at = match self {
             Self::System(system)
             | Self::Statement {
                 ends: (system, _), ..
-            } => OpError::Parse {
-                system,
-                offset,
-                reason,
-            },
-            Self::Planet { id: planet, .. } => OpError::PlanetParse {
-                planet,
-                offset,
-                reason,
-            },
-            Self::Nebula(nebula) => OpError::NebulaParse {
-                nebula,
-                offset,
-                reason,
-            },
-            Self::Header(_) => OpError::HeaderParse { offset, reason },
-            Self::Flags => OpError::FlagsParse { offset, reason },
-            Self::Country(country) => OpError::CountryParse {
-                country,
-                offset,
-                reason,
-            },
-            Self::Record(_) => OpError::RecordParse { offset, reason },
-        }
+            } => ParseAt::System(system),
+            Self::Planet { id, .. } => ParseAt::Body(id),
+            Self::Nebula(nebula) => ParseAt::Nebula(nebula),
+            Self::Header(_) => ParseAt::Header,
+            Self::Flags => ParseAt::Flags,
+            Self::Country(country) => ParseAt::Country(country),
+            Self::Record(_) => ParseAt::Record,
+        };
+        OpError::parse(at, offset, reason)
     }
 }
 

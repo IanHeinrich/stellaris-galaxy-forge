@@ -24,10 +24,10 @@ use crate::format::save::write::game_tables::SPAWN_BUFFER;
 use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
-use crate::format::save::write::nebula::plan_membership;
+use crate::format::save::write::nebula::{plan_membership, written_literal};
 use crate::keys::{self, GAME_STARTED};
 use crate::ops::rules::nebula::{Membership, describe_membership, prospective};
-use crate::ops::rules::{Form, check_name, check_text};
+use crate::ops::rules::{Form, check_name, check_text, labelled};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::overlay::Anchor;
 use crate::plural;
@@ -75,8 +75,8 @@ pub(crate) fn plan_add(
     let joins = describe_membership(&s.graph, joins.as_slice(), false);
     Ok(Planned {
         description: format!(
-            "Added {} (#{id}) at ({}, {}) with {} and {}{joins}",
-            spec.name,
+            "Added {} at ({}, {}) with {} and {}{joins}",
+            labelled(&spec.name, written_literal(&spec.name), id),
             coord(x),
             coord(y),
             bodies(spec, written.ids.len()),
@@ -219,7 +219,7 @@ pub(crate) fn belts(spec: &SystemSpec) -> Vec<(&str, f64)> {
 
 /// The save's day one as its global `game_started` flag dates it.
 fn day_one(doc: &Document) -> Result<String, OpError> {
-    let missing = OpError::MissingSaveKey(GAME_STARTED);
+    let missing = OpError::MissingKey(GAME_STARTED);
     let section = doc.index().section(keys::FLAGS).ok_or(missing)?;
     entity_at(doc, Anchor::Original(section.stmt))
         .ok()
@@ -228,7 +228,7 @@ fn day_one(doc: &Document) -> Result<String, OpError> {
             let date = flags.find(GAME_STARTED, bytes)?.scalar_str(bytes)?;
             Some(date.to_owned())
         })
-        .ok_or(OpError::MissingSaveKey(GAME_STARTED))
+        .ok_or(OpError::MissingKey(GAME_STARTED))
 }
 
 /// Refuse a spec whose `capped` differs from that of a system added since the file was
@@ -320,7 +320,7 @@ pub(crate) fn write_body(
     for kind in &body.spec.deposits {
         let deposits = deposits
             .as_deref_mut()
-            .ok_or(OpError::MissingSaveKey(keys::DEPOSIT))?;
+            .ok_or(OpError::MissingKey(keys::DEPOSIT))?;
         let deposit = deposits.take();
         held.push(deposit.id());
         let entry = DepositEntry {

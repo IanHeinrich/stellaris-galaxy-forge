@@ -248,7 +248,7 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
     let result = round_trip_step(session, "reroll renamed", reroll(first, again));
     assert_eq!(
         result.entry.description,
-        format!("Rolled Mura (#601) again as {other}, sc_m, with 4 bodies")
+        format!("Rolled Mura #601 again as {other}, sc_m, with 4 bodies")
     );
     assert_eq!(session.system(first).unwrap().name.key, other);
     assert_eq!(pooled(session, "star_names", &spike.name), 1);

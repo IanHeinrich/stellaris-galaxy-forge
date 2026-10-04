@@ -4,7 +4,7 @@
 use super::flags::rewrite_flags;
 use crate::format::scenario::paint::{EMPIRE_CLUSTER, WORMHOLE_FLAG_PREFIX, is_wormhole_flag};
 use crate::ops::rules::each_once;
-use crate::ops::rules::fe_zone::label;
+use crate::ops::rules::named;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::session::Session;
@@ -32,14 +32,14 @@ pub(super) fn set_pair(
     let previous = vec![(a, first.wormhole_pair), (b, second.wormhole_pair)];
     let description = match pair {
         Some(n) => format!(
-            "Join {} and {} as wormhole pair {n}",
-            label(first),
-            label(second)
+            "Joined {} and {} as wormhole pair {n}",
+            named(&s.graph, a),
+            named(&s.graph, b)
         ),
         None => format!(
-            "Remove the wormhole pair from {} and {}",
-            label(first),
-            label(second)
+            "Removed the wormhole pair from {} and {}",
+            named(&s.graph, a),
+            named(&s.graph, b)
         ),
     };
     for id in [a, b] {

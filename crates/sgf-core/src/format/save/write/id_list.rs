@@ -5,6 +5,7 @@ use crate::Span;
 use crate::cst::Node;
 use crate::emit::system::planet_lines;
 use crate::emit::{Lines, inline};
+use crate::format::save::write::place::{Place, insert_key};
 use crate::keys;
 use crate::ops::{Edit, OpError};
 
@@ -17,14 +18,6 @@ pub(crate) enum Emptied {
     Keep,
     /// It holds the null id, as a system with no starbase does.
     Null,
-}
-
-/// A list of an entity, and where the game writes it when the entity has none: after the
-/// first of `after` the entity holds, else before `before`.
-pub(crate) struct Place {
-    pub key: &'static str,
-    pub after: &'static [&'static str],
-    pub before: Option<&'static str>,
 }
 
 /// The ids the list block holds, with their spans.
@@ -92,33 +85,10 @@ pub(crate) fn append(edit: &mut Edit, place: &Place, ids: &[u32]) -> Result<(), 
     if ids.is_empty() {
         return Ok(());
     }
-    let entity = edit.entity()?;
-    if let Some(block) = entity.find(place.key, &edit.buf).cloned() {
+    if let Some(block) = edit.entity()?.find(place.key, &edit.buf).cloned() {
         return append_in(edit, &block, place.key, ids);
     }
-    let after = place
-        .after
-        .iter()
-        .find_map(|key| entity.find(key, &edit.buf).map(Node::span));
-    if let Some(after) = after {
-        let text = statement(&edit.indent(after.start), place.key, ids);
-        edit.insert_after(after.end, &text);
-        return Ok(());
-    }
-    let before = place
-        .before
-        .and_then(|key| entity.find(key, &edit.buf))
-        .map(Node::span);
-    let Some(before) = before else {
-        let reason = match place.before {
-            Some(key) => format!("nowhere to write {}: missing {key}", place.key),
-            None => format!("nowhere to write {}", place.key),
-        };
-        return Err(edit.parse_error(0, reason));
-    };
-    let text = statement(&edit.indent(before.start), place.key, ids);
-    edit.insert_before(before, &text);
-    Ok(())
+    insert_key(edit, &[], place, |indent| statement(indent, place.key, ids))
 }
 
 /// Put `ids` last in `block`, the list `key`.

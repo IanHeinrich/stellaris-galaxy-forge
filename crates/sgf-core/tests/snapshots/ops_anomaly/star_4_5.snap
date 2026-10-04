@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Add anomaly DISTAR_TIME_CAT to planet #584
+Added anomaly DISTAR_TIME_CAT to planet #584
 inverse: RemoveAnomaly { body: 584 }
 
 --- gamestate

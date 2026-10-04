@@ -26,7 +26,8 @@ use crate::format::save::write::game_tables::{
     CLASS_A, FIRST_CONTACT, HOME_SYSTEM, OCEAN_PARADISE, TURBULENT_KINDS, beside, calm_kinds,
     calm_of, is_cloud_kind, turbulent_of,
 };
-use crate::format::save::write::timed_modifiers::{self, Place};
+use crate::format::save::write::place;
+use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::format::save::{entity, entity_at, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::{Edit, Emitted, NebulaCloud, NebulaFootprint, OpError, Plan, Subject};
@@ -404,10 +405,10 @@ impl<'d> Footprints<'d> {
 /// after `index=` when it is new, and with the last item it held.
 fn set_modifiers(edit: &mut Edit, cloaking: bool, turbulent: bool) -> Result<(), OpError> {
     let modifiers = [
-        (CLOAKING, cloaking.then_some(Place::First)),
-        (TURBULENT_NEBULA, turbulent.then_some(Place::Last)),
+        (CLOAKING, ItemEdit::permanent(cloaking, End::First)),
+        (TURBULENT_NEBULA, ItemEdit::permanent(turbulent, End::Last)),
     ];
-    timed_modifiers::set(edit, keys::INDEX, &modifiers)?;
+    timed_modifiers::set_items(edit, &place::system::TIMED_MODIFIER, &modifiers)?;
     Ok(())
 }
 

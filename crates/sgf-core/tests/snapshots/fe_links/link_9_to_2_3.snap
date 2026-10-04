@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Link 2 systems to the fallen empire zone at Old Seat
+Linked 2 systems to the fallen empire zone at Old Seat #9
 inverse: SetFeLinkFlags { entries: [(2, FeLinkFlags { custom: false, id: None, to: [] }), (3, FeLinkFlags { custom: false, id: None, to: [] }), (9, FeLinkFlags { custom: false, id: None, to: [] })] }
 
 --- scenario

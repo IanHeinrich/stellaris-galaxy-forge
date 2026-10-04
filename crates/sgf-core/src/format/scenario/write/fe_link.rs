@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_link::{self, FeLinkFlags, MOST_IDS, flags, is_link_flag};
 use crate::ops::rules::each_once;
-use crate::ops::rules::fe_zone::label;
+use crate::ops::rules::named;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::projections::galaxy::SystemNode;
@@ -45,13 +45,13 @@ pub(super) fn set_links(
     let description = if wanted.is_empty() {
         format!(
             "Let the mod link the fallen empire zone at {} to its nearest systems",
-            label(system)
+            named(&s.graph, system.id)
         )
     } else {
         format!(
-            "Link {} to the fallen empire zone at {}",
+            "Linked {} to the fallen empire zone at {}",
             plural(wanted.len(), "system"),
-            label(system)
+            named(&s.graph, system.id)
         )
     };
     let mut by_id: Vec<&SystemNode> = s.graph.systems.values().collect();

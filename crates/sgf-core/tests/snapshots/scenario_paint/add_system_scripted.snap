@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added system 14 at (60, 10) as a Paint a Galaxy spawn (enabled)
+Added New Seat #14 at (60, 10) as a Paint a Galaxy spawn (enabled)
 inverse: RemoveSystem { system: 14 }
 
 --- scenario

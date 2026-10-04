@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved planet #10 and its 3 moons, with 2 stations, from system #169 to system #2, at orbit 271; set the inner radius of system #2 from 244.88 to 326
-inverse: Batch { description: "Undo of \"Moved planet #10 and its 3 moons, with 2 stations, from system #169 to system #2, at orbit 271; set the inner radius of system #2 from 244.88 to 326\"", ops: [MoveBodyToSystem { body: 10, to: 169, at: Some(OrbitPlacement { radius: 160.075270303, angle: 203.989469506 }) }, SetInnerRadius { system: 2, radius: 244.88 }] }
+Moved planet #10 and its 3 moons, with 2 stations, from Alari system #169 to Millistamu #2, at orbit 271; set the inner radius of Millistamu #2 from 244.88 to 326
+inverse: Batch { description: "Undo of \"Moved planet #10 and its 3 moons, with 2 stations, from Alari system #169 to Millistamu #2, at orbit 271; set the inner radius of Millistamu #2 from 244.88 to 326\"", ops: [MoveBodyToSystem { body: 10, to: 169, at: Some(OrbitPlacement { radius: 160.075270303, angle: 203.989469506 }) }, SetInnerRadius { system: 2, radius: 244.88 }] }
 
 --- gamestate
 +++ gamestate

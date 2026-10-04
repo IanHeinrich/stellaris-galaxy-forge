@@ -5,7 +5,7 @@
 use crate::common::batch::{spawn_scripts, spawn_weights};
 use sgf_core::export::{self, ScenarioProfile};
 use sgf_core::format::scenario::is_painted;
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::{Op, OpError, ParseAt};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 
 use crate::common;
@@ -397,7 +397,7 @@ fn a_plain_weight_is_refused_on_a_scripted_system() {
         let error = session
             .apply(set(10, script(reserved(name), 0)))
             .expect_err(name);
-        assert!(matches!(error, OpError::InvalidSeatLetter(_)), "{error}");
+        assert!(matches!(error, OpError::InvalidSeatName(_)), "{error}");
     }
     assert_eq!(
         session
@@ -466,7 +466,16 @@ fn a_block_of_modifiers_is_neither_written_over_nor_cleared() {
     let mut session = GRAMMAR.open();
     for script in [script(PaintSpawnKind::Enabled, 2), None] {
         let error = session.apply(set(2, script)).expect_err("modifiers");
-        assert!(matches!(error, OpError::Parse { system: 2, .. }), "{error}");
+        assert!(
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::System(2),
+                    ..
+                }
+            ),
+            "{error}"
+        );
         assert!(
             error.to_string().contains(
                 "spawn_weight carries modifiers this editor does not rewrite; edit the block by hand"
@@ -497,12 +506,30 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
         script(PaintSpawnKind::Enabled, 7)
     );
     let error = session.apply(set(7, None)).expect_err("clear");
-    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert!(
+        matches!(
+            error,
+            OpError::Parse {
+                at: ParseAt::System(7),
+                ..
+            }
+        ),
+        "{error}"
+    );
     common::snapshot("clear_7_modifier_refused", &error.to_string());
     let error = session
         .apply(set(7, script(PaintSpawnKind::Preferred, 1)))
         .expect_err("replace");
-    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert!(
+        matches!(
+            error,
+            OpError::Parse {
+                at: ParseAt::System(7),
+                ..
+            }
+        ),
+        "{error}"
+    );
     assert_eq!(common::current(&session), text.as_bytes());
 
     // Taking the base alone would leave `add` and the modifier, a block no op puts back.
@@ -512,7 +539,16 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
             base: None,
         })
         .expect_err("clear the base");
-    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert!(
+        matches!(
+            error,
+            OpError::Parse {
+                at: ParseAt::System(7),
+                ..
+            }
+        ),
+        "{error}"
+    );
     assert_eq!(common::current(&session), text.as_bytes());
 }
 
@@ -534,7 +570,16 @@ fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
     assert_eq!(session.graph.systems[&7].spawn_script, None);
     assert_eq!(session.graph.systems[&7].spawn_weight, Some(10.0));
     let error = session.apply(set(7, player(7))).expect_err("seat");
-    assert!(matches!(error, OpError::Parse { system: 7, .. }), "{error}");
+    assert!(
+        matches!(
+            error,
+            OpError::Parse {
+                at: ParseAt::System(7),
+                ..
+            }
+        ),
+        "{error}"
+    );
     assert_eq!(common::current(&session), text.as_bytes());
 
     // The base alone is the editor's to clear, and the modifier stays.
@@ -583,7 +628,13 @@ fn a_marker_of_another_kinds_shape_is_neither_read_nor_rewritten() {
         let name = op.name();
         let error = session.apply(op).expect_err(name);
         assert!(
-            matches!(error, OpError::Parse { system: 7, .. }),
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::System(7),
+                    ..
+                }
+            ),
             "{name}: {error}"
         );
     }
@@ -620,7 +671,13 @@ fn the_players_marker_beside_a_foreign_modifier_is_neither_read_nor_rewritten() 
         let name = op.name();
         let error = session.apply(op).expect_err(name);
         assert!(
-            matches!(error, OpError::Parse { system: 7, .. }),
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::System(7),
+                    ..
+                }
+            ),
             "{name}: {error}"
         );
     }
@@ -816,7 +873,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     let error = session
         .apply(add(None, script(reserved("ab"), 0)))
         .expect_err("two letters");
-    assert!(matches!(error, OpError::InvalidSeatLetter(_)), "{error}");
+    assert!(matches!(error, OpError::InvalidSeatName(_)), "{error}");
     assert!(!session.is_dirty());
 }
 

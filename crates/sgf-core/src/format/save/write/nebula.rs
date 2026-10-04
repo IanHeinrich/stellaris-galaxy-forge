@@ -16,6 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Span;
 use crate::cst::{self, Node};
+use crate::emit::quoted;
 use crate::emit::{self, NebulaSection, coord};
 use crate::format;
 use crate::format::save::check_version;
@@ -24,11 +25,11 @@ use crate::format::save::write::game_tables::is_cloud_kind;
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::name_pool;
 use crate::keys;
+use crate::ops::rules::each_once;
 use crate::ops::rules::nebula::{
     Membership, Prospect, all_systems, decide_add, decide_membership, decide_move, decide_name,
     decide_radius, decide_remove, prospective,
 };
-use crate::ops::rules::{each_once, quoted};
 use crate::ops::{Edit, Emitted, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::plural;
 use crate::projections::name::looks_like_key;
@@ -258,10 +259,10 @@ pub(crate) fn plan_set_turbulent(
         had.push(standing.footprint);
     }
     if had.is_empty() {
-        return Err(OpError::TurbulenceUnchanged {
-            nebula: name,
-            state,
-        });
+        return Err(OpError::unchanged(
+            format!("every system of {name}"),
+            format!("is already {state}"),
+        ));
     }
     footprints.finish(plan)?;
     let mut description = format!(

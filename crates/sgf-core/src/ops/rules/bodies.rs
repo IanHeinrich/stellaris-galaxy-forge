@@ -3,10 +3,8 @@
 //! measuring is [`crate::projections::geometry`]'s.
 
 use crate::ops::OpError;
-pub use crate::projections::geometry::{
-    BELT_SCATTER, Body, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, Overlap,
-    STORED_ORBIT_SLACK, SystemRadii, angle_about, centre, descendants, drawn_radius, find,
-    moved_reach, normalised, overlaps, point, reach, system_reach,
+use crate::projections::geometry::{
+    Body, STORED_ORBIT_SLACK, centre, descendants, drawn_radius, find, normalised, point,
 };
 
 /// Refuse a radius that is not a number above zero, `what` naming what it measures.
@@ -35,7 +33,7 @@ pub(crate) fn check_placement(radius: f64, angle: f64) -> Result<(), OpError> {
 /// Body `id`, refused when the frame does not list it or it stands at the system's centre,
 /// with no orbit about its parent to move along.
 pub fn movable(bodies: &[Body], system: u32, id: u32) -> Result<&Body, OpError> {
-    let body = find(bodies, id).ok_or(OpError::NotABody { planet: id, system })?;
+    let body = find(bodies, id).ok_or(OpError::NotABody { body: id, system })?;
     let about = centre(bodies, body).unwrap_or((0.0, 0.0));
     if drawn_radius(body.at, about, Some(body.orbit)) <= STORED_ORBIT_SLACK {
         return Err(OpError::AtCentre(id));
@@ -65,7 +63,7 @@ pub fn check_parent(
     }
     if let Some(parent) = parent {
         let host = find(bodies, parent).ok_or(OpError::NotABody {
-            planet: parent,
+            body: parent,
             system,
         })?;
         let reason = if parent == id {
@@ -99,7 +97,10 @@ pub fn check_parent(
     let orbits_centre =
         |parent: Option<u32>| parent.is_none_or(|p| find(bodies, p).is_some_and(stands_at_centre));
     if body.parent == parent || (orbits_centre(body.parent) && orbits_centre(parent)) {
-        return Err(OpError::ParentUnchanged(id));
+        return Err(OpError::unchanged(
+            format!("planet {id}"),
+            "already has that parent",
+        ));
     }
     Ok(())
 }

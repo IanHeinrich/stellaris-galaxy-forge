@@ -13,11 +13,13 @@ use crate::format::save::added::Table;
 use crate::format::save::added::row;
 use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::galaxy::bypasses::{NATURAL, NaturalWormhole, natural_wormholes};
-use crate::format::save::write::id_list::{Emptied, Place, append, unlist};
-use crate::format::save::write::wormhole::{WORMHOLE, named};
+use crate::format::save::write::id_list::{Emptied, append, unlist};
+use crate::format::save::write::place;
+use crate::format::save::write::wormhole::WORMHOLE;
 use crate::keys;
-use crate::ops::rules::bodies::point;
+use crate::ops::rules::named;
 use crate::ops::{Emitted, Op, OpError, PairPoints, Plan, Planned, Subject};
+use crate::projections::geometry::point;
 use crate::session::Session;
 
 /// How far past its system's `inner_radius` the game puts a wormhole it spawns without a
@@ -94,15 +96,15 @@ pub(crate) fn plan_add(
         plan.emit(Emitted::Record, bypasses.at(), bypasses.shape(text));
         append(
             plan.edit(&s.doc, end.system)?,
-            &NATURAL_WORMHOLES_AT,
+            &place::system::NATURAL_WORMHOLES,
             &[end.id],
         )?;
     }
     Ok(Planned {
         description: format!(
             "Added a wormhole pair between {} and {}",
-            named(s, a),
-            named(s, b)
+            named(&s.graph, a),
+            named(&s.graph, b)
         ),
         inverse: Op::RemoveWormholePair { a, b },
     })
@@ -144,8 +146,8 @@ pub(crate) fn plan_remove(
     Ok(Planned {
         description: format!(
             "Removed the wormhole pair between {} and {}",
-            named(s, a),
-            named(s, b)
+            named(&s.graph, a),
+            named(&s.graph, b)
         ),
         inverse: Op::AddWormholePair {
             a,
@@ -168,14 +170,6 @@ fn outside(plan: &mut Plan, s: &Session, id: u32, angle: f64) -> Result<(f64, f6
         .map_err(|_| edit.parse_error(span.start, "inner_radius is not a number"))?;
     Ok(point((0.0, 0.0), radius + PAST_INNER_RADIUS, angle))
 }
-
-/// Where a system's `natural_wormholes` goes when it has none: after its `hyperlane` block,
-/// or after `star_class` when it has none.
-const NATURAL_WORMHOLES_AT: Place = Place {
-    key: keys::NATURAL_WORMHOLES,
-    after: &[keys::HYPERLANE, keys::STAR_CLASS],
-    before: None,
-};
 
 /// Erase one end's `natural_wormholes` and `bypasses` entries, and take their ids out of
 /// its system's lists.

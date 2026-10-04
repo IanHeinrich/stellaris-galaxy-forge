@@ -51,7 +51,7 @@ fn one_system_is_described_by_name_with_the_height_it_had() {
         .expect("set the height");
     assert_eq!(
         applied.entry.description,
-        format!("Set the height of {name} (#0) from 3.65056 to 0.00001")
+        format!("Set the height of {name} #0 from 3.65056 to 0.00001")
     );
 }
 
@@ -80,12 +80,12 @@ fn a_3_4_system_gets_the_height_it_lacked_and_the_inverse_takes_it_out() {
         .expect("add a height");
     assert_eq!(
         added.entry.description,
-        format!("Set the height of {name} (#0) to 1")
+        format!("Set the height of {name} #0 to 1")
     );
     let cleared = session.apply(added.inverse).expect("take it out");
     assert_eq!(
         cleared.entry.description,
-        format!("Cleared the height of {name} (#0)")
+        format!("Cleared the height of {name} #0")
     );
     assert_eq!(current(&session), session.doc.original());
 }

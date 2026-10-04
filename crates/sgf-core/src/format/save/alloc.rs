@@ -77,10 +77,10 @@ pub(crate) fn system_counter(doc: &Document) -> Result<Counter, OpError> {
 
 /// The top-level counter `key` and the id it now holds.
 pub(crate) fn counter(doc: &Document, key: &'static str) -> Result<Counter, OpError> {
-    let missing = OpError::MissingSaveKey(key);
+    let missing = OpError::MissingKey(key);
     let section = doc.index().section(key).ok_or(missing)?;
     let anchor = Anchor::Original(section.stmt);
-    let last = scalar_id(doc.current(anchor)?).ok_or(OpError::MissingSaveKey(key))?;
+    let last = scalar_id(doc.current(anchor)?).ok_or(OpError::MissingKey(key))?;
     Ok(Counter { key, anchor, last })
 }
 
@@ -141,8 +141,8 @@ impl TableEnd {
         let table = table.into();
         let (index, key) = table
             .loaded(doc)?
-            .ok_or(OpError::MissingSaveKey(table.section()))?;
-        let missing = || OpError::MissingSaveKey(key);
+            .ok_or(OpError::MissingKey(table.section()))?;
+        let missing = || OpError::MissingKey(key);
         let Value::Block { close, .. } = index.section(key).ok_or_else(missing)?.value else {
             return Err(missing());
         };
@@ -229,7 +229,7 @@ pub(crate) struct SlotTable {
 impl SlotTable {
     /// `planets.planet`.
     pub fn planets(doc: &Document) -> Result<Self, OpError> {
-        let missing = || OpError::MissingSaveKey(keys::PLANETS);
+        let missing = || OpError::MissingKey(keys::PLANETS);
         let inner = doc.inner_index(keys::PLANETS)?.ok_or_else(missing)?;
         let section = inner.section(keys::PLANET).ok_or_else(missing)?;
         Self::read(
@@ -243,7 +243,7 @@ impl SlotTable {
 
     /// The top-level `deposit` table.
     pub fn deposits(doc: &Document) -> Result<Self, OpError> {
-        let missing = || OpError::MissingSaveKey(keys::DEPOSIT);
+        let missing = || OpError::MissingKey(keys::DEPOSIT);
         let section = doc.index().section(keys::DEPOSIT).ok_or_else(missing)?;
         let entities = doc.index().entities(keys::DEPOSIT);
         Self::read(doc, EntityKind::Deposit, section.value, entities).ok_or_else(missing)
@@ -251,7 +251,7 @@ impl SlotTable {
 
     /// The top-level `ambient_object` table.
     pub fn ambient_objects(doc: &Document) -> Result<Self, OpError> {
-        let missing = || OpError::MissingSaveKey(keys::AMBIENT_OBJECT);
+        let missing = || OpError::MissingKey(keys::AMBIENT_OBJECT);
         let section = doc
             .index()
             .section(keys::AMBIENT_OBJECT)

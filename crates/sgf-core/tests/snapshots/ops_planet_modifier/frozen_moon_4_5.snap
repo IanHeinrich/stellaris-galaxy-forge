@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Add modifier frozen_terraforming_candidate to planet #40
+Added modifier frozen_terraforming_candidate to planet #40
 inverse: RemoveBodyModifier { body: 40, modifier: "frozen_terraforming_candidate", feature: None }
 
 --- gamestate

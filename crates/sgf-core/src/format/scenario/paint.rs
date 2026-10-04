@@ -304,7 +304,7 @@ pub(crate) fn check(script: &SpawnScript) -> Result<(), OpError> {
     if let PaintSpawnKind::Reserved(name) = kind
         && !RESERVED_SEAT_NAMES.contains(&name.as_str())
     {
-        return Err(OpError::InvalidSeatLetter(name.clone()));
+        return Err(OpError::InvalidSeatName(name.clone()));
     }
     if *player && matches!(kind, PaintSpawnKind::Enabled) {
         return Err(OpError::EnabledSeatPlayer);
@@ -603,7 +603,7 @@ mod tests {
             "", "Z", "ab", "1", "|", " ", "é", "Alpha", "sol", "aa", "alph", "α",
         ] {
             assert!(
-                matches!(check(&reserved(name)), Err(OpError::InvalidSeatLetter(_))),
+                matches!(check(&reserved(name)), Err(OpError::InvalidSeatName(_))),
                 "{name:?}"
             );
         }

@@ -556,5 +556,5 @@ fn a_system_with_one_lane_is_removed_with_one_lane() {
     let removed = session
         .apply(Op::RemoveSystem { system: 888 })
         .expect("remove");
-    assert_eq!(removed.entry.description, "Removed system 888 (1 lane)");
+    assert_eq!(removed.entry.description, "Removed Reserved #888 (1 lane)");
 }

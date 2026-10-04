@@ -467,11 +467,11 @@ fn what_the_ops_refuse() {
     let mut old = open_3_4();
     assert!(matches!(
         refused(&mut old, add(3, "d_minerals_3")),
-        OpError::SaveTooOld(_)
+        OpError::VersionTooOld(_)
     ));
     assert!(matches!(
         refused(&mut old, remove(16)),
-        OpError::SaveTooOld(_)
+        OpError::VersionTooOld(_)
     ));
 }
 

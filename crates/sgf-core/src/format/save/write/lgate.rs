@@ -22,7 +22,10 @@ pub(crate) fn plan_set_outcome(
         return Err(OpError::LGateOpened);
     }
     if lgate.outcome == outcome {
-        return Err(OpError::LGateUnchanged(outcome.label()));
+        return Err(OpError::unchanged(
+            "the L-Gate outcome",
+            format!("is already {}", outcome.label()),
+        ));
     }
     let edit = plan.edit_flags(&s.doc)?;
     let flags = edit.entity()?;

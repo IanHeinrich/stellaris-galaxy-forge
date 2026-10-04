@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Remove the wormhole pair from High Seat and Low Seat
+Removed the wormhole pair from High Seat #12 and Low Seat #13
 inverse: SetWormholePair { a: 12, b: 13, pair: Some(2) }
 
 --- scenario

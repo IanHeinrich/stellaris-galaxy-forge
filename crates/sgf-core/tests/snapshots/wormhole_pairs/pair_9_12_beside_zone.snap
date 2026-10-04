@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Join Old Seat and High Seat as wormhole pair 5
+Joined Old Seat #9 and High Seat #12 as wormhole pair 5
 inverse: SetWormholeEnds { entries: [(9, None), (12, Some(2))] }
 
 --- scenario
