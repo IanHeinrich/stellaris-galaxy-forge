@@ -1,5 +1,5 @@
 import { Container, type Renderer } from "pixi.js";
-import type { GeometryIntent } from "../../lib/details/orbitEdits";
+import type { GeometryIntent } from "../../lib/details/orbitIntent";
 import { laneLabel } from "../../lib/names";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";

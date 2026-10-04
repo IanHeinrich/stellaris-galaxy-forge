@@ -1,5 +1,5 @@
 import { ADD_PLANET_LABEL } from "../../../lib/addBody";
-import { defaultBeltKind } from "../../../lib/details/orbitEdits";
+import { defaultBeltKind } from "../../../lib/details/orbitIntent";
 import { placementAt } from "../../../lib/planetMove";
 import { useSystemNames } from "../../../store/browserRows";
 import type { ContextTarget } from "../../../store/mapChromeStore";

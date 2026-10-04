@@ -8,7 +8,7 @@ import type { Lane } from "../generated/Lane";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import type { PlanetRefusal } from "../generated/PlanetRefusal";
-import { wrapDegrees } from "./details/orbits";
+import { polarAbout, wrapDegrees } from "./details/orbits";
 import { counted } from "./text";
 
 /** A cut planet as the copy names it: a moon cut without its planet arrives as a planet. */
@@ -25,10 +25,8 @@ export interface WarningNames {
 
 /** Where a planet pasted at the system-view point (x, y), relative to the centre, goes. */
 export function placementAt(x: number, y: number): OrbitPlacement {
-  return {
-    radius: Math.round(Math.hypot(x, y)),
-    angle: Math.round(wrapDegrees((Math.atan2(y, x) * 180) / Math.PI)) % 360,
-  };
+  const { radius, angle } = polarAbout({ x, y }, { x: 0, y: 0 });
+  return { radius: Math.round(radius), angle: Math.round(angle) % 360 };
 }
 
 /** `orbit 108 · 20°`. */

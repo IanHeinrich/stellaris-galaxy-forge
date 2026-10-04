@@ -12,11 +12,8 @@ import type { SystemRoll } from "../../generated/SystemRoll";
 import { documentCapabilities } from "../../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../../lib/details/discs";
 import type { BypassKinds } from "../../lib/details/icons";
-import {
-  geometryAdapterFor,
-  NO_GEOMETRY,
-  type GeometryAdapter,
-} from "../../lib/details/orbitEdits";
+import type { GeometryAdapter } from "../../lib/details/orbitIntent";
+import { geometryAdapterFor, NO_GEOMETRY } from "../../lib/details/saveGeometry";
 import { nodeNameIn, stripped, templateKey, templateNameIn } from "../../lib/names";
 import { NO_OWNERSHIP, type Ownership } from "../../lib/ownership";
 import type { SceneLayerId } from "../../lib/visual/layerIds";
@@ -175,7 +172,7 @@ export function readSystemSources(id: number | null): SystemSources {
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
     countryName: galaxy.countryName,
-    geometry: geometryAdapterFor(documentCapabilities(session), id),
+    geometry: geometryAdapterFor(session.kind, documentCapabilities(session), id),
     lockedBodies,
   });
 }

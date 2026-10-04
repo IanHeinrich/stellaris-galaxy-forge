@@ -1,6 +1,7 @@
 import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
 import { bodyName } from "../../../lib/details/labels";
-import { lockedToName, nextMoonRing, orbitParent } from "../../../lib/details/orbitEdits";
+import { lockedToName } from "../../../lib/details/orbitIntent";
+import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { isStarBody } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";

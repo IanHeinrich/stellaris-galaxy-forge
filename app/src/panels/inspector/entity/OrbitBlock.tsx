@@ -1,17 +1,13 @@
 import { MOON_RING_FIRST } from "../../../generated/constants";
 import { bodyName } from "../../../lib/details/labels";
-import {
-  bodyOrbit,
-  fieldIntent,
-  GEOMETRY_REASONS,
-  NO_GEOMETRY,
-  orbitParent,
-} from "../../../lib/details/orbitEdits";
+import { bodyOrbit, fieldIntent, GEOMETRY_REASONS } from "../../../lib/details/orbitIntent";
+import { orbitParent } from "../../../lib/details/orbitReach";
+import { NO_GEOMETRY } from "../../../lib/details/saveGeometry";
 import { wrapDegrees, type BodyPlacement, type Point } from "../../../lib/details/orbits";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useState } from "react";
-import type { GeometryIntent } from "../../../lib/details/orbitEdits";
+import type { GeometryIntent } from "../../../lib/details/orbitIntent";
 import {
   applyGeometryFrom,
   useSystemGeometry,

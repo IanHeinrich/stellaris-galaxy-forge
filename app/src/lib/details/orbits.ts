@@ -180,6 +180,26 @@ export function saveAngle(fromX: number, fromY: number, toX: number, toY: number
   return wrapDegrees((Math.atan2(toY - fromY, toX - fromX) * 180) / Math.PI);
 }
 
+/** Where `point` stands about `centre`: its distance, and its angle in `polar`'s degrees. */
+export function polarAbout(point: Point, centre: Point): { radius: number; angle: number } {
+  return {
+    radius: Math.hypot(point.x - centre.x, point.y - centre.y),
+    angle: saveAngle(centre.x, centre.y, point.x, point.y),
+  };
+}
+
+/** How near two values must be to count as the same, a value and a whole number included. */
+export const SAME = 1e-6;
+
+export function near(a: number, b: number): boolean {
+  return Math.abs(a - b) < SAME;
+}
+
+/** `value` to two decimal places, as the orbit fields and messages show it. */
+export function rounded(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 /** Screen radians of the save-frame direction (dx, dy). */
 function screenRotation(dx: number, dy: number): number {
   if (dx === 0 && dy === 0) return 0;
