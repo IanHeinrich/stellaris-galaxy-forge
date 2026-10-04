@@ -198,8 +198,8 @@ function SceneHint({ system }: { system: number }) {
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
   const { editing } = useSystemGeometry(system);
   const cut = usePlanetMoveStore((s) => s.cut?.planets.length ?? null);
-  const selected = usePlanetMoveStore((s) =>
-    s.selection !== null && s.selection.system === system ? s.selection.ids.length : 0,
+  const selected = useSceneStore((s) =>
+    s.bodySelection !== null && s.bodySelection.system === system ? s.bodySelection.ids.length : 0,
   );
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;

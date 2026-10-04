@@ -1,10 +1,7 @@
 import { vi } from "vitest";
 import type { StoreApi } from "zustand";
 
-import { useAnomalyPickerStore } from "./anomalyPickerStore";
-import { useDepositPickerStore } from "./depositPickerStore";
 import { useDetailsStore } from "./detailsStore";
-import { useDigSitePickerStore } from "./digSitePickerStore";
 import { useEditorStore } from "./editorStore";
 import { useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -18,13 +15,13 @@ import { useIssuesStore } from "./issuesStore";
 import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
-import { useModifierPickerStore } from "./modifierPickerStore";
-import { resetOpChecks, useOpCheckStore } from "./opCheckStore";
+import { useOpCheckStore } from "./opCheckStore";
 import { resetOpenScreen } from "./openScreenStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetDataStore } from "./planetDataStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
 import { useRecentsStore } from "./recentsStore";
+import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
@@ -33,9 +30,6 @@ import { useWatchlistStore } from "./watchlistStore";
 import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
-  useAnomalyPickerStore,
-  useDepositPickerStore,
-  useDigSitePickerStore,
   useEditorStore,
   useEntityStore,
   useFileSessionStore,
@@ -47,7 +41,6 @@ const STORES: StoreApi<object>[] = [
   useLayoutStore,
   useLGateStore,
   useMapChromeStore,
-  useModifierPickerStore,
   useOpCheckStore,
   usePaintModStore,
   usePlanetDataStore,
@@ -66,7 +59,7 @@ export function resetStores(): void {
   useGalaxyStore.getState().clear();
   useDetailsStore.getState().clear();
   resetOpenScreen();
-  resetOpChecks();
+  for (const reset of [...DOCUMENT_SCOPED, ...GAME_DATA_SCOPED]) reset();
   for (const store of STORES) store.setState({ ...store.getInitialState() });
 }
 

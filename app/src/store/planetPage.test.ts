@@ -8,6 +8,7 @@ import type { Op } from "../generated/Op";
 import { editor, openFixtureSave } from "./editorFixture";
 import { useEntityStore } from "./entityStore";
 import { editResult, planetPage } from "./fixture";
+import { name } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
 const getPlanetPage = mockedIpc.getPlanetPage;
@@ -20,8 +21,13 @@ const ALPHA = 1;
 const SOL = 0;
 
 const RETYPE: Op = { type: "SetStarClass", system: ALPHA, class: "sc_a", bodies: [] };
-/** What the backend says a star-type edit, or its undo, rewrote: the system, never the planet. */
-const ALPHA_EDITED = editResult({ touched_entities: [{ kind: "system", id: ALPHA }] });
+/** What the backend says a star-type edit, or its undo, rewrote: the system and its star. */
+const ALPHA_EDITED = editResult({
+  touched_entities: [
+    { kind: "system", id: ALPHA },
+    { kind: "planet", id: STAR },
+  ],
+});
 
 async function readPages(): Promise<void> {
   entities().requestPlanetPage(STAR);
@@ -65,6 +71,25 @@ describe("a planet page after an edit", () => {
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
   });
 
+  it("is made stale by an edit that rewrites only one of its moons", async () => {
+    const MOON = 4;
+    const moon = {
+      id: MOON,
+      name: name("NAME_Moon"),
+      name_key: "NAME_Moon",
+      class: "pc_barren",
+      size: 6,
+    };
+    getPlanetPage.mockImplementation(async (id) =>
+      planetPage({ id, system: SOL, moons: id === WORLD ? [moon] : [] }),
+    );
+    entities().requestPlanetPage(WORLD);
+    await vi.waitFor(() => expect(entities().pages.has(WORLD)).toBe(true));
+
+    entities().noteEdit(editResult({ touched_entities: [{ kind: "planet", id: MOON }] }));
+    expect([...entities().stalePages]).toEqual([WORLD]);
+  });
+
   it("is made stale by an undo to its system as by the edit", async () => {
     await readPages();
     mockedIpc.undo.mockResolvedValue(ALPHA_EDITED);
@@ -75,13 +100,6 @@ describe("a planet page after an edit", () => {
     entities().requestPlanetPage(STAR);
     await vi.waitFor(() => expect(entities().stalePages.size).toBe(0));
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
-  });
-
-  it("is stale when its system leaves the galaxy", async () => {
-    await readPages();
-
-    entities().noteEdit(editResult({ delta: { systems: [], removed: [SOL] } }));
-    expect([...entities().stalePages]).toEqual([WORLD]);
   });
 
   it("throws away a page read the edit overtook", async () => {

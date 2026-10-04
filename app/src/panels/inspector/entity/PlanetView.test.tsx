@@ -702,7 +702,7 @@ describe("an unowned world's page", () => {
       },
     });
     useGameDataStore.setState({ names: new Map([["site_lost_moments", "Never Forget"]]) });
-    useDigSitePickerStore.setState({ choices: SITE_TYPES });
+    useDigSitePickerStore.setState({ choices: { body: "", list: SITE_TYPES } });
 
     const html = drawnBy(() => render(WORLD));
     expect(html).toContain("Dig site");
@@ -726,18 +726,21 @@ describe("an unowned world's page", () => {
       dig_site: { id: 2, kind: "site_the_library", stages_done: 3, clues: 0, excavating: false },
     });
     useDigSitePickerStore.setState({
-      choices: [
-        ...SITE_TYPES,
-        {
-          key: "site_the_library",
-          name: "The Library",
-          description: null,
-          difficulty: 4,
-          stages: 3,
-          rolled: true,
-          offered: false,
-        },
-      ],
+      choices: {
+        body: "",
+        list: [
+          ...SITE_TYPES,
+          {
+            key: "site_the_library",
+            name: "The Library",
+            description: null,
+            difficulty: 4,
+            stages: 3,
+            rolled: true,
+            offered: false,
+          },
+        ],
+      },
     });
 
     const html = render(WORLD);
@@ -764,7 +767,7 @@ describe("an unowned world's page", () => {
 
     useDigSitePickerStore.setState({
       target: planetPickerTarget(OLBERS, false),
-      choices: SITE_TYPES,
+      choices: { body: "", list: SITE_TYPES },
       chip: "Events",
     });
     const html = drawnBy(() => render(WORLD));

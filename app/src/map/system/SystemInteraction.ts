@@ -5,7 +5,7 @@ import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
-import { planetsCanMove, usePlanetMoveStore } from "../../store/planetMoveStore";
+import { planetsCanMove } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
@@ -156,7 +156,7 @@ export class SystemInteraction {
       openBody: (system, id) => this.openBody(system, id),
       openWormhole: (system, id) => this.openWormhole(system, id),
       showSystem: () => {
-        usePlanetMoveStore.getState().clearBodies();
+        useSceneStore.getState().clearBodies();
         useInspectorStore.getState().popTo(0);
       },
       frame: () => this.scene.frame(),
@@ -285,7 +285,7 @@ export class SystemInteraction {
     if (!this.scene.context().bodyById.get(id)?.planet) return;
     // A drag opens its body's page as it starts, while the model is still busy with the press.
     if (this.pressToggles && !this.model.busy() && planetsCanMove()) {
-      usePlanetMoveStore.getState().toggleBody(system, id);
+      useSceneStore.getState().toggleBody(system, id);
     } else {
       this.selectAlone(system, id);
     }
@@ -295,12 +295,12 @@ export class SystemInteraction {
   private openWormhole(system: number, id: number): void {
     const hole = this.scene.context().wormholes.find((w) => w.id === id);
     if (!hole) return;
-    usePlanetMoveStore.getState().clearBodies();
+    useSceneStore.getState().clearBodies();
     useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
   }
 
   private selectAlone(system: number, id: number): void {
-    usePlanetMoveStore.getState().selectBody(system, id);
+    useSceneStore.getState().selectBody(system, id);
     this.showBody(system, id);
   }
 
@@ -312,7 +312,7 @@ export class SystemInteraction {
   }
 
   private selected(id: number): boolean {
-    return usePlanetMoveStore.getState().selection?.ids.includes(id) === true;
+    return useSceneStore.getState().bodySelection?.ids.includes(id) === true;
   }
 
   private hover(

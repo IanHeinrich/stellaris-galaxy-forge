@@ -499,7 +499,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
     },
 
     resetSession() {
-      edits.newSession();
       set({ ...INITIAL });
     },
   };

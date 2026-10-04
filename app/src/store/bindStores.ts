@@ -1,12 +1,11 @@
 import { detailNameKeys } from "../lib/details/labels";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
-import { setRollWithin, useDetailsStore } from "./detailsStore";
+import { documentCapabilities } from "../lib/capabilities";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
-import { useEntityStore } from "./entityStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
-import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
-import { useGeneratorStore } from "./generatorStore";
+import { useGameDataStore } from "./gameDataStore";
 import { useHeightPreviewStore } from "./heightPreviewStore";
 import { useInspectorStore } from "./inspectorStore";
 import {
@@ -20,8 +19,8 @@ import { useLayoutStore } from "./layoutStore";
 import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
-import { usePlanetDataStore } from "./planetDataStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
+import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
 import { useWatchlistStore } from "./watchlistStore";
@@ -45,18 +44,14 @@ export function bindStores(): void {
   followSession();
   followGroups();
   followIssuesTab();
-  followEntities();
-  followAddSystemPicks();
-  followPlanetData();
+  followGameData();
   followDetails();
   followLocks();
   followScenarioInitializers();
   followPaintMod();
   followGalaxySize();
-  followRollWithin();
   followNotes();
   followTool();
-  followTilt();
   followScene();
   followSymmetry();
   followWatchlist();
@@ -65,7 +60,7 @@ export function bindStores(): void {
 }
 
 // A height preview belongs to the system the inspector shows and to the document as it stands:
-// another selection, an edit, undo or redo, or another document drops it.
+// another selection, an edit, undo or redo drops it, and so does another document (`DOCUMENT_SCOPED`).
 function followHeightPreview(): void {
   const clear = () => useHeightPreviewStore.getState().clear();
   useEditorStore.subscribe((state, previous) => {
@@ -74,43 +69,39 @@ function followHeightPreview(): void {
   useGalaxyStore.subscribe((state, previous) => {
     if (state.version !== previous.version || state.galaxy !== previous.galaxy) clear();
   });
-  useFileSessionStore.subscribe((state, previous) => {
-    if (state.status !== previous.status) clear();
-  });
 }
 
-// A body selection and a cut belong to the open document. The selection belongs to one system,
+// A body selection and a cut belong to the open document (`DOCUMENT_SCOPED`). The selection belongs to one system,
 // so entering another clears it, and a body the details no longer hold there leaves it. A
 // selection of one body follows the inspector's page. An edit, undo or redo can change where
 // planets may go, so the targets are read again.
 function followPlanetMove(): void {
   const moves = () => usePlanetMoveStore.getState();
-  useFileSessionStore.subscribe((state, previous) => {
-    if (state.status !== previous.status) moves().reset();
-  });
+  const scene = () => useSceneStore.getState();
   useEditorStore.subscribe((state, previous) => {
     if (state.history === previous.history) return;
     if (useFileSessionStore.getState().status === "ready") moves().refresh();
   });
   useSceneStore.subscribe((state, previous) => {
+    if (state.bodySelection !== previous.bodySelection) moves().followSelection();
     if (state.scene === previous.scene && state.visit === previous.visit) return;
-    const { selection } = moves();
+    const selection = state.bodySelection;
     const entered = state.visit !== previous.visit;
-    if (entered && selection !== null && selection.system !== sceneSystem()) moves().clearBodies();
-    moves().followInspector();
+    if (entered && selection !== null && selection.system !== sceneSystem()) scene().clearBodies();
+    scene().followInspector();
   });
   useInspectorStore.subscribe((state, previous) => {
-    if (state.stack !== previous.stack) moves().followInspector();
+    if (state.stack !== previous.stack) scene().followInspector();
   });
   useDetailsStore.subscribe((state, previous) => {
     if (state.details === previous.details) return;
-    const { selection } = moves();
+    const selection = scene().bodySelection;
     const after = selection === null ? undefined : state.details.get(selection.system);
     if (after !== undefined && after !== previous.details.get(after.id)) {
       const held = new Set(after.planets.map((p) => p.id));
-      moves().keepBodies((id) => held.has(id));
+      scene().keepBodies((id) => held.has(id));
     }
-    moves().followInspector();
+    scene().followInspector();
   });
 }
 
@@ -166,13 +157,6 @@ function followGalaxySize(): void {
   });
 }
 
-// A scenario system's example roll fits its planets within the loaded game data's least inner radius.
-function followRollWithin(): void {
-  useGameDataStore.subscribe((state, previous) => {
-    if (state.summary !== previous.summary) setRollWithin(systemRadiiOf(state).min_inner);
-  });
-}
-
 // A tool the document in hand or the scene on show cannot take, or any tool once the document
 // goes, falls back to Select.
 function followTool(): void {
@@ -190,13 +174,6 @@ function followTool(): void {
     if (tool !== "select" && !toolAllowed(tool, currentBarMode())) {
       useToolStore.setState({ tool: "select" });
     }
-  });
-}
-
-// The tilt is a view of one document: another document, or none, starts flat.
-function followTilt(): void {
-  useFileSessionStore.subscribe((state, previous) => {
-    if (state.status !== previous.status) useToolStore.getState().setTilt(0);
   });
 }
 
@@ -295,31 +272,19 @@ function paintModPollWanted(): boolean {
   if (useLayoutStore.getState().scenarioDialog || file.pendingExport !== null) {
     return usePaintModStore.getState().paintChoice;
   }
-  if (file.status !== "ready" || file.kind !== "scenario") return false;
+  if (file.status !== "ready" || !documentCapabilities(file).create_systems) return false;
   return getPaintLayer() || !noticeDismissed;
 }
 
-function followEntities(): void {
-  useFileSessionStore.subscribe((state, previous) => {
-    if (state.status !== previous.status) useEntityStore.getState().clear();
-  });
-}
-
-// The Add system menu's picks count what the open save's galaxy holds.
-function followAddSystemPicks(): void {
-  useFileSessionStore.subscribe((state, previous) => {
-    if (state.status !== previous.status) useGeneratorStore.getState().clearPicks();
-  });
-}
-
-// A planet page's deposits, modifiers and designations, the star classes a rolled system can
-// have, and a scenario body's page, are the loaded game data's to say.
-function followPlanetData(): void {
+// Game data loading, reloading or going away drops everything read from what it replaces.
+function followGameData(): void {
   useGameDataStore.subscribe((state, previous) => {
-    if (state.status !== previous.status || state.version !== previous.version) {
-      usePlanetDataStore.getState().clear();
-      useGeneratorStore.getState().clear();
-      useInspectorStore.getState().dropBodies();
+    if (
+      state.status !== previous.status ||
+      state.version !== previous.version ||
+      state.summary !== previous.summary
+    ) {
+      for (const reset of GAME_DATA_SCOPED) reset();
     }
   });
 }
@@ -352,14 +317,15 @@ function followLocks(): void {
   });
 }
 
-// The map draws each scenario system by its initializer's star class, so a scenario reads the list.
+// The map draws each scenario system by its initializer's star class, so a document whose systems
+// name their initializers reads the list.
 function followScenarioInitializers(): void {
   const read = (): void => {
-    if (useFileSessionStore.getState().kind !== "scenario") return;
+    if (!documentCapabilities(useFileSessionStore.getState()).scripts) return;
     void useGameDataStore.getState().loadInitializers();
   };
   useFileSessionStore.subscribe((state, previous) => {
-    if (state.kind !== previous.kind) read();
+    if (state.capabilities !== previous.capabilities) read();
   });
   useGameDataStore.subscribe((state, previous) => {
     if (state.status !== previous.status || state.initializers !== previous.initializers) read();
@@ -389,6 +355,7 @@ function followGroups(): void {
 function followSession(): void {
   useFileSessionStore.subscribe((state, previous) => {
     if (state.status === previous.status) return;
+    for (const reset of DOCUMENT_SCOPED) reset();
     useSceneStore.getState().exitScene();
     useSceneStore.getState().clearLocks();
     if (state.status === "loading") useLGateStore.getState().hide();

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Issue } from "../generated/Issue";
 import type { CountryNode } from "../generated/CountryNode";
 import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
@@ -213,7 +212,7 @@ describe("editing", () => {
     expect(useFileSessionStore.getState().title).toBe(OPEN_RESULT.title);
   });
 
-  it("stale details stay cached, the projection is warmed again and the system is re-read", async () => {
+  it("stale details stay cached and the system is re-read, with no second ask for the findings", async () => {
     useDetailsStore.setState({
       details: new Map([[1, systemDetails({ id: 1 })]]),
       pending: new Set([2]),
@@ -228,54 +227,21 @@ describe("editing", () => {
     const details = useDetailsStore.getState();
     expect(details.details.has(1)).toBe(true);
     expect(details.pending.has(2)).toBe(false);
-    expect(mockedIpc.warmDetails).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.warmDetails).not.toHaveBeenCalled();
     expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
   });
 
-  it("a projection rebuild that fails says so on the session, and the edit still stands", async () => {
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    mockedIpc.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
-
-    expect(await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 })).toBe(true);
-
-    await vi.waitFor(() => expect(sessionError()).toBe("no projection"));
-    expect(useFileSessionStore.getState().dirty).toBe(true);
-  });
-
-  it("drops a projection rebuild's findings once a later edit has landed", async () => {
-    let warmed: (issues: Issue[]) => void = () => undefined;
-    const warm = new Promise<Issue[]>((resolve) => {
-      warmed = resolve;
-    });
-    mockedIpc.warmDetails.mockReturnValueOnce(warm);
+  it("shows the overlap findings an edit that staled the details returns", async () => {
     const overlap = appIssue({ code: "bodies_overlap", message: "overlap", systems: [1] });
     const lane = appIssue({ code: "system_isolated", message: "isolated", systems: [2] });
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [lane] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1], issues: [overlap] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [lane, overlap] }));
 
     await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
+    expect(useIssuesStore.getState().issues).toEqual([overlap]);
     await editor().applyOp({ type: "RemoveLane", a: 0, b: 1 });
-    warmed([overlap]);
-    await warm;
-    await Promise.resolve();
 
-    expect(useIssuesStore.getState().issues).toEqual([lane]);
-  });
-
-  it("a projection rebuild that fails once the document is gone says nothing", async () => {
-    let fail: (e: unknown) => void = () => undefined;
-    const warm = new Promise<Issue[]>((_warmed, rejected) => {
-      fail = rejected;
-    });
-    mockedIpc.warmDetails.mockReturnValueOnce(warm);
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-
-    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
-    editor().resetSession();
-    fail({ kind: "internal", message: "no projection" });
-    await warm.catch(() => undefined);
-
-    expect(sessionError()).toBeNull();
+    expect(useIssuesStore.getState().issues).toEqual([lane, overlap]);
   });
 
   it("re-reads the selected system when the inspector shows a planet of a system gone stale", async () => {

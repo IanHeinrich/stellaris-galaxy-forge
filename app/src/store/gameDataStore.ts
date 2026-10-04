@@ -346,50 +346,60 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
     }
   },
 
-  async loadInitializers() {
-    if (get().status !== "ready" || get().initializers !== null || get().initializersPending)
-      return;
-    set({ initializersPending: true });
-    try {
-      const initializers = await ipc.getInitializers();
-      set({ initializersPending: false });
-      if (get().status === "ready") {
-        set({ initializers, initializerClasses: starClassesOf(initializers) });
-      }
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), initializersPending: false });
-    }
+  loadInitializers() {
+    return readOnce("initializers", ipc.getInitializers, (initializers) => ({
+      initializers,
+      initializerClasses: starClassesOf(initializers),
+    }));
   },
 
-  async loadGalaxyShapes() {
-    if (get().status !== "ready" || get().galaxyShapes !== null || get().galaxyShapesPending)
-      return;
-    set({ galaxyShapesPending: true });
-    try {
-      const galaxyShapes = await ipc.getGalaxyShapes();
-      set({ galaxyShapesPending: false });
-      if (get().status === "ready") set({ galaxyShapes });
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), galaxyShapesPending: false });
-    }
+  loadGalaxyShapes() {
+    return readOnce("galaxyShapes", ipc.getGalaxyShapes, (galaxyShapes) => ({ galaxyShapes }));
   },
 
-  async loadPlanetModels() {
-    if (get().status !== "ready" || get().planetModels !== null || get().planetModelsPending)
-      return;
-    set({ planetModelsPending: true });
-    try {
-      const planetModels = await ipc.getPlanetModels();
-      set({ planetModelsPending: false });
-      if (get().status === "ready") set({ planetModels });
-    } catch (e) {
-      set({ error: ipc.errorMessage(e), planetModelsPending: false });
-    }
+  loadPlanetModels() {
+    return readOnce("planetModels", ipc.getPlanetModels, (planetModels) => ({ planetModels }));
   },
 
   ...documentActions(set, get),
   ...nameActions(set, get),
 }));
+
+/** The lists the game data reads on first use. */
+type FirstUse = "initializers" | "galaxyShapes" | "planetModels";
+
+/** Marks each list's first read as out or back. */
+const PENDING: Record<FirstUse, (pending: boolean) => Partial<GameDataState>> = {
+  initializers: (initializersPending) => ({ initializersPending }),
+  galaxyShapes: (galaxyShapesPending) => ({ galaxyShapesPending }),
+  planetModels: (planetModelsPending) => ({ planetModelsPending }),
+};
+
+/**
+ * Reads `list` once for the game data loaded now, and lands it with `land`. A reply that comes
+ * back after the game data was reloaded, rebuilt or unloaded is dropped: whatever moved it on has
+ * already put the list back to unread.
+ */
+async function readOnce<T>(
+  list: FirstUse,
+  read: () => Promise<T>,
+  land: (value: T) => Partial<GameDataState>,
+): Promise<void> {
+  const store = useGameDataStore;
+  const asked = store.getState();
+  if (asked.status !== "ready" || asked[list] !== null || asked[`${list}Pending`]) return;
+  const current = () => {
+    const now = store.getState();
+    return now.version === asked.version && now.status === "ready";
+  };
+  store.setState(PENDING[list](true));
+  try {
+    const value = await read();
+    if (current()) store.setState({ ...PENDING[list](false), ...land(value) });
+  } catch (e) {
+    if (current()) store.setState({ ...PENDING[list](false), error: ipc.errorMessage(e) });
+  }
+}
 
 /** The one subscription to the watcher's events, held while game data is loaded. */
 let changes: Promise<() => void> | null = null;
