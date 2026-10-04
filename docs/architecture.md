@@ -5,150 +5,29 @@ and how an edit gets from the map to the file. The README has the short
 version. The rules every change follows are in
 [engineering-rules.md](engineering-rules.md).
 
-## Where things live
-
-```
-stellaris-galaxy-forge/
-├── Cargo.toml                 workspace: crates/* and app/src-tauri
-├── VERSION                    the version number, which scripts/version.sh copies into the manifests
-├── CHANGELOG.md               Keep a Changelog; every PR adds to Unreleased
-├── crates/
-│   ├── sgf-core/              the document model; knows nothing about a UI
-│   │   ├── src/
-│   │   │   ├── archive.rs     the .sav zip: inflate gamestate and meta, backup-then-persist on write
-│   │   │   ├── backup.rs      the backups beside a saved file, keeping only the original, the three
-│   │   │   │                  newest and four spread over the rest
-│   │   │   ├── document.rs    a loaded document (original bytes, index, overlay), and whether it is
-│   │   │   │                  a save or a scenario
-│   │   │   ├── scan.rs        the index, built in one pass: spans of every statement and id-keyed block
-│   │   │   ├── lexer.rs       tokens: bare and quoted scalars, braces, equals
-│   │   │   ├── cst.rs         a concrete syntax tree for the statements an edit has to read
-│   │   │   ├── span.rs        byte ranges
-│   │   │   ├── overlay.rs     patches keyed to original offsets: replace a span or insert at one
-│   │   │   ├── emit/          writes the bytes of an edited statement, copying its indentation
-│   │   │   ├── format/        the Format trait; save/ and scenario/ are the only per-format code.
-│   │   │   │                  save/details/ projects a system's planets, fleets and starbase;
-│   │   │   │                  save/write/ writes the save ops, with game_tables.rs for what is
-│   │   │   │                  copied from the game's own files
-│   │   │   ├── ops/           every edit. op.rs has the Op enum, with each op's inverse and
-│   │   │   │                  description. plan.rs commits all of an op's edits or none of them.
-│   │   │   │                  rules/ decides what an edit may do on the graph. history.rs replays
-│   │   │   │                  bytes for undo
-│   │   │   ├── projections/   caches read from the index: the galaxy graph and names, and the
-│   │   │   │                  readers every projection shares
-│   │   │   ├── session.rs     document + graph + history; apply, undo, redo, save
-│   │   │   ├── validate/      what the game could not cope with. The codes are here, with paint.rs
-│   │   │   │                  and scenario.rs for the checks that apply to only one kind of file
-│   │   │   ├── search.rs      find systems and entities by name or id, and systems by what they hold
-│   │   │   ├── entity/        addressing any entity in the file for the inspector
-│   │   │   ├── library.rs     where this machine keeps its saves, and what each campaign folder
-│   │   │   │                  holds, for the Open screen
-│   │   │   ├── export/        writes a save's galaxy out as a scenario script, as a draft with a
-│   │   │   │                  report. policy.rs decides what carries over. paint/ adds the
-│   │   │   │                  Paint a Galaxy profile (header, seats, fallen empire zones)
-│   │   │   ├── guides.rs      where the game places things at generation (the L-Cluster circle)
-│   │   │   ├── shape.rs       every key path of a gamestate with its count, and the difference
-│   │   │   │                  between two
-│   │   │   ├── synth.rs       synthetic saves for stress tests
-│   │   │   ├── keys.rs        the statement keys the formats read
-│   │   │   └── views.rs       the IPC types; ts-rs exports them to app/src/generated
-│   │   └── tests/             outside-in: every op applied to the sample saves, insta snapshots,
-│   │                          round-trip identity, corpus timing (SGF_CORPUS_DIR), and
-│   │                          constants.rs, which writes app/src/generated/constants.ts
-│   ├── sgf-gamedata/          the user's install and mods, read at runtime
-│   │   ├── src/
-│   │   │   ├── install/       Steam discovery, mods (the Paint a Galaxy mod by Workshop id), load
-│   │   │   │                  order, override semantics
-│   │   │   ├── registries/    star and planet classes, colours, deposits, resources, ship sizes,
-│   │   │   │                  starbase levels, country types, bypasses, galaxy sizes and shapes,
-│   │   │   │                  defines, gfx, and terraform_links.rs: which modifier makes a
-│   │   │   │                  planet class a terraforming candidate, and what the empire needs
-│   │   │   ├── loc/           localisation files, language-keyed names
-│   │   │   ├── textures/      DDS decoding and the sprite cache, and the planet and star discs
-│   │   │   │                  the system view draws, baked by one sphere renderer (sphere.rs)
-│   │   │   ├── initializers.rs solar_system_initializers: what a system will spawn
-│   │   │   ├── condition.rs   a trigger block compiled once to the conditions the crate can judge
-│   │   │   ├── weight.rs      a weight block: a base, its factors and its modifiers
-│   │   │   ├── generate.rs    rolls a system to add to a save from the install's rules, with
-│   │   │   │                  rng.rs for its random numbers
-│   │   │   ├── orbit_walk.rs  the walk over an initializer's planet and moon blocks that
-│   │   │   │                  places each body as the engine does, shared by the roller, the
-│   │   │   │                  example roll and the scenario details
-│   │   │   ├── layouts.rs     the misc_system_init layouts the generator can build
-│   │   │   ├── menu.rs        the Special menu of Add system
-│   │   │   ├── naming.rs      names for the systems and nebulae the editor places
-│   │   │   ├── deposit_roll.rs the deposits a generated body rolls
-│   │   │   ├── body_effects.rs what a layout's init_effect does to a body it places
-│   │   │   ├── summary.rs     the hover card of an Add system pick
-│   │   │   ├── planet_views.rs what the planet page draws from the install
-│   │   │   ├── scripts/       events, effects, on_actions: who claims what on day one
-│   │   │   ├── special.rs     leviathans, enclaves, marauders, fallen empires, landmarks
-│   │   │   ├── details.rs     a scenario system's details from its initializer, the example
-│   │   │   │                  roll the system view draws it at (placeholder planets where the
-│   │   │   │                  game rolls them), and each save body's drawn star class and
-│   │   │   │                  whether it is a moon
-│   │   │   ├── resolver.rs    gives details and exports the install's definitions when game data
-│   │   │   │                  is loaded, and the save's own keys otherwise
-│   │   │   ├── reload.rs      rereads only the registry that a changed file under a layer root
-│   │   │   │                  belongs to
-│   │   │   └── views.rs       IPC types
-│   │   └── tests/             against a fixture mod in tests/fixtures, and the real install when present
-│   └── sgf-cli/               the sgf binary: cli.rs declares it, commands/ has one file per verb
-├── app/
-│   ├── src-tauri/             the Tauri 2 shell (sgf-app)
-│   │   ├── src/commands/      the IPC surface: session, scenario, entity, gamedata, listing,
-│   │   │                      add_system, nebula, paint, update
-│   │   ├── src/state.rs       the open session, game data and texture cache behind mutexes
-│   │   ├── src/views.rs       the shell's own IPC types, for the updater
-│   │   ├── src/watch/         watches the install and mod roots game data was read from
-│   │   └── tests/             the commands end to end on the sample save
-│   └── src/                   React + TypeScript. A layer imports only from the layers below it
-│       ├── test/              builders and stand-ins the tests of every layer share, and ipc.ts,
-│       │                      the one set of command spies
-│       ├── panels/            the React tree: chrome/ (top bar, dock, status bar), inspector/,
-│       │                      browser/ (empires, points of interest, issues, changes),
-│       │                      file/ (open screen, New scenario), initializers/, search/, overlays/
-│       ├── map/               the PixiJS renderer: Camera, MapController (the host: ticker, resize,
-│       │                      wheel and pan keys for the scene it shows), GalaxyScene (the galaxy's
-│       │                      camera, layers and bindings), interaction/ (the Select and brush
-│       │                      models, and pointerBridge.ts, which feeds both scenes their
-│       │                      input), layers/ with highlights/ (the brush, drag and symmetry
-│       │                      overlays), picking/ (what lies under the pointer), follows.ts
-│       │                      (how either scene follows a store)
-│       │   └── system/        the system view's scene: sources.ts reads the stores, context.ts
-│       │                      resolves them into what the layers draw, camera.ts fits the
-│       │                      view, and beside them its gesture model, picking and layers/
-│       │                      (bodies, orbits, belts, labels, radii, exits, nebula, highlight
-│       │                      and the rolled placeholders, with the textures they make on the
-│       │                      CPU)
-│       ├── store/             Zustand stores, one per concern: session, editor, galaxy, game data, ...
-│       │                      editorStore.*.ts split the editor's actions by subject (nebulae,
-│       │                      lanes, brush, ...). editorEdits.ts runs all edits through a single
-│       │                      queue. symmetricEdits.ts widens an edit under symmetry.
-│       │                      fileSessionStore.saveGate.ts asks a save's questions, and
-│       │                      fileSessionStore.writes.ts writes the files. issueNotes.ts raises
-│       │                      the app's own notes. storeFixture.ts resets every store for a
-│       │                      test, and fixtures/ holds the documents the tests open
-│       ├── lib/               pure helpers: geometry/, initializer/, details/, visual/, brush/, keys.ts;
-│       │                      lib/README.md says what each holds
-│       ├── api/               one function per Tauri command
-│       └── generated/         ts-rs output and constants.ts; rewritten by cargo test --workspace,
-│                              never edited
-├── docs/                      this file, the user guide, the engineering rules, the format
-│                              and game-data facts, the Paint a Galaxy integration notes, adr/,
-│                              media/
-├── scripts/                   version.sh, changelog.sh and docs-only.sh, used by the workflows, and
-│                              game-update.sh for a new game version
-├── testdata/                  the 3.4, 4.4 and 4.5 sample saves (git-lfs), the 4.4 save's scenario
-│                              and Paint exports, a scenario as Paint a Galaxy writes one, the
-│                              Issues fixtures, a grammar fixture and two add-system specs
-├── workshop/                  the Steam Workshop page and its uploader (its own Cargo package)
-└── .github/                   ci.yml (checks on three OSes), ci-docs.yml (reports those checks as
-                               passed for a docs-only change), release.yml (tag, build, publish),
-                               changelog.yml, actions/setup, the PR template with the in-game checks
-```
-
 ## The pieces
+
+```mermaid
+flowchart LR
+  subgraph app["Desktop app"]
+    UI["React panels<br/>and PixiJS map"]
+    Shell["sgf-app<br/>Tauri commands"]
+  end
+  CLI["sgf<br/>command line"]
+  Core["sgf-core<br/>the document model"]
+  GD["sgf-gamedata<br/>install and mods"]
+  File[(".sav or<br/>scenario .txt")]
+  Install[("Stellaris install<br/>and mods")]
+
+  UI -->|"edits over IPC"| Shell
+  Shell --> Core
+  Shell --> GD
+  CLI --> Core
+  CLI --> GD
+  GD --> Core
+  Core -->|"open, save"| File
+  GD -->|"read at runtime"| Install
+```
 
 - `sgf-core` is the Rust core. It opens a save or a scenario, indexes
   it, projects the galaxy from it, applies edits and writes the file
@@ -165,37 +44,171 @@ stellaris-galaxy-forge/
   TypeScript UI with a PixiJS map. The UI never touches bytes. It sends
   edits to the core over IPC and redraws from what comes back.
 
+## Where things live
+
+```
+crates/
+  sgf-core/        the document model
+  sgf-gamedata/    the user's install and mods
+  sgf-cli/         the sgf binary
+app/
+  src-tauri/       the Tauri shell
+  src/             the React + TypeScript UI
+docs/  scripts/  testdata/  workshop/  .github/  changelog.d/
+```
+
+The tables below go one level deeper. Each path is relative to the
+folder in the table's heading.
+
+### `crates/sgf-core/src`
+
+The document model. It knows nothing about a UI.
+
+| Path | What's in it |
+| --- | --- |
+| **Reading the file** | |
+| `archive.rs` | The `.sav` zip: inflates `gamestate` and `meta`, and writes backup-then-persist |
+| `document.rs` | A loaded document (original bytes, index, overlay), and whether it is a save or a scenario |
+| `scan.rs` | The index, built in one pass: the span of every statement and id-keyed block |
+| `lexer.rs` | Tokens: bare and quoted scalars, braces, equals |
+| `cst.rs` | A concrete syntax tree for the statements an edit has to read |
+| `span.rs` | Byte ranges |
+| `keys.rs` | The statement keys the formats read |
+| **Editing** | |
+| `session.rs` | Holds the document, graph and history, and applies, undoes, redoes and saves |
+| `ops/` | Every edit. `op.rs` has the `Op` enum with each op's inverse and description. `plan.rs` commits all of an op's edits or none of them. `rules/` decides what an edit may do to the graph. `history.rs` puts bytes back for undo |
+| `overlay.rs` | Patches keyed to original offsets: replace a span or insert at one |
+| `emit/` | Writes the bytes of an edited statement, copying its indentation |
+| `format/` | The `Format` trait. `save/` and `scenario/` are the only per-format code. `save/details/` projects a system's planets, fleets and starbase. `save/write/` writes the save ops, and `game_tables.rs` holds what is copied from the game's files |
+| **Reading the galaxy back** | |
+| `projections/` | Caches read from the index: the galaxy graph and names, and the readers they share |
+| `entity/` | Finds any entity in the file for the inspector |
+| `search.rs` | Finds systems and entities by name or id, and systems by what they hold |
+| `validate/` | Checks for what the game could not cope with. `paint.rs` and `scenario.rs` hold the checks that apply to only one kind of file |
+| `guides.rs` | Where the game places things at generation (the L-Cluster circle) |
+| **Other files** | |
+| `export/` | Writes a save's galaxy out as a scenario, as a draft with a report. `policy.rs` decides what is kept. `paint/` adds the Paint a Galaxy header, seats and fallen empire zones |
+| `backup.rs` | The backups beside a saved file: the original, the three newest and four spread over the rest |
+| `library.rs` | Where this machine keeps its saves, and what each campaign folder holds, for the Open screen |
+| **Tooling** | |
+| `views.rs` | The IPC types. ts-rs exports them to `app/src/generated` |
+| `shape.rs` | Every key path of a gamestate with its count, and the difference between two |
+| `synth.rs` | Synthetic saves for stress tests |
+| `../tests/` | Each op applied to the sample saves and snapshotted with insta, the round trip, corpus timing, and `constants.rs`, which writes `app/src/generated/constants.ts` |
+
+### `crates/sgf-gamedata/src`
+
+The user's install and mods, read at runtime.
+
+| Path | What's in it |
+| --- | --- |
+| **Finding the files** | |
+| `install/` | Finds Steam, the install and the mods (Paint a Galaxy by its Workshop id), and works out load order and overrides |
+| `reload.rs` | Rereads only the registry a changed file belongs to |
+| **Definitions** | |
+| `registries/` | Star and planet classes, colours, deposits, resources, ship sizes, starbase levels, country types, bypasses, galaxy sizes and shapes, defines, gfx. `terraform_links.rs` says which modifier makes a planet a terraforming candidate |
+| `loc/` | Localisation files and language-keyed names |
+| `textures/` | DDS decoding, the sprite cache, and the planet and star discs the system view draws (`sphere.rs`) |
+| `fonts.rs` | The typeface the map writes empire names in |
+| `initializers.rs` | `solar_system_initializers`: what a system will spawn |
+| `scripts/` | Events, effects and on_actions: who claims what on day one |
+| `special.rs` | Leviathans, enclaves, marauders, fallen empires, landmarks |
+| `condition.rs` | A trigger block compiled to the conditions the crate can judge |
+| `weight.rs` | A weight block: a base, its factors and its modifiers |
+| **Rolling a system for Add system** | |
+| `generate.rs` | Rolls a system from the install's rules, with `rng.rs` for its random numbers |
+| `orbit_walk.rs` | Places each planet and moon of an initializer as the engine does. The roller, the example roll and the scenario details all use it |
+| `layouts.rs` | The `misc_system_init` layouts the generator can build |
+| `deposit_roll.rs` | The deposits a generated body rolls |
+| `body_effects.rs` | What a layout's `init_effect` does to a body it places |
+| `naming.rs` | Names for the systems and nebulae the editor places |
+| `menu.rs` | The Special menu of Add system |
+| `summary.rs` | The hover card of an Add system pick |
+| **What the panels show** | |
+| `details.rs` | A scenario system's details from its initializer, the example roll the system view shows, and each save body's star class and whether it is a moon |
+| `planet_views.rs` | What the planet page shows from the install |
+| `*_choices.rs`, `planet_models.rs` | What the planet page offers to add: anomalies, deposits, dig sites, modifiers and models |
+| `resolver.rs` | Gives details and exports the install's definitions when game data is loaded. Without game data they use the save's own keys |
+| `views.rs` | The IPC types |
+| `../tests/` | Tests against a fixture mod in `tests/fixtures`, and against the real install when there is one |
+
+### `crates/sgf-cli`
+
+The `sgf` binary. `cli.rs` declares it, and `commands/` has one file per
+verb.
+
+### `app/src-tauri`
+
+The Tauri 2 shell, `sgf-app`.
+
+| Path | What's in it |
+| --- | --- |
+| `src/commands/` | The IPC surface: session, scenario, entity, gamedata, listing, add_system, add_body, nebula, paint, update |
+| `src/state.rs` | The open session, game data and texture cache behind mutexes |
+| `src/views.rs` | The shell's own IPC types, for the updater |
+| `src/watch/` | Watches the install and mod roots game data was read from |
+| `tests/` | The commands end to end on the sample save |
+
+### `app/src`
+
+React and TypeScript. The folders are layers, listed from the top. A
+layer imports only from the layers below it. `lib/README.md` and
+`panels/README.md` state the rule and its exceptions.
+
+| Path | What's in it |
+| --- | --- |
+| `panels/` | The React tree: `chrome/` (top bar, dock, status bar), `inspector/`, `browser/` (empires, points of interest, issues, changes), `file/` (Open screen, New scenario), `initializers/`, `search/`, `overlays/` |
+| `map/` | The PixiJS renderer. `MapController` runs the ticker and handles resize, the wheel and the pan keys for whichever scene is showing. `GalaxyScene` has the galaxy's camera, layers and bindings |
+| `map/interaction/` | The Select and brush models, and `pointerBridge.ts`, which feeds both scenes their input |
+| `map/layers/` | The galaxy map's layers, one file each. `highlights/` has the brush, drag and symmetry overlays |
+| `map/picking/` | What lies under the pointer |
+| `map/system/` | The system view. `sources.ts` reads the stores and `context.ts` turns them into what the layers draw. `camera.ts` fits the view to the system. `layers/` has bodies, orbits, belts, labels, exits, nebula and the rolled placeholders |
+| `store/` | Zustand stores, one per concern: session, editor, galaxy, game data and so on |
+| `store/editorStore.*.ts` | The editor's actions, split by subject (nebulae, lanes, brush, ...) |
+| `store/editorEdits.ts` | The queue every edit runs through. `symmetricEdits.ts` widens an edit under symmetry |
+| `store/fileSessionStore.*.ts` | `saveGate.ts` asks the questions before a save. `writes.ts` writes the files |
+| `lib/` | Pure helpers over the generated types: `geometry/`, `initializer/`, `details/`, `visual/`, `brush/`, `keys.ts`. `lib/README.md` says what each holds |
+| `api/` | One function per Tauri command |
+| `generated/` | ts-rs output and `constants.ts`. `cargo test --workspace` rewrites it, so don't edit it by hand |
+| `test/` | Builders and stand-ins the tests of every layer share, and `ipc.ts`, the one set of command spies. `store/storeFixture.ts` resets every store for a test |
+
+### The rest of the repository
+
+| Path | What's in it |
+| --- | --- |
+| `Cargo.toml` | The workspace: `crates/*` and `app/src-tauri` |
+| `VERSION` | The version number. `scripts/version.sh` copies it into the manifests |
+| `CHANGELOG.md`, `changelog.d/` | Keep a Changelog. Each PR adds a file to `changelog.d/`, and the release folds them into `CHANGELOG.md` |
+| `docs/` | This file, the user guide, the engineering rules, the format and game-data facts, the Paint a Galaxy notes, `adr/`, `media/` |
+| `scripts/` | `version.sh`, `changelog.sh` and `docs-only.sh` for the workflows, and `game-update.sh` for a new game version |
+| `testdata/` | The 3.4, 4.4 and 4.5 sample saves (git-lfs), the 4.4 save's scenario and Paint exports, a scenario as Paint a Galaxy writes one, the Issues fixtures, a grammar fixture and two add-system specs |
+| `workshop/` | The Steam Workshop page, and the uploader that pushes it to Steam (its own Cargo package) |
+| `.github/` | `ci.yml` runs the checks on three OSes. `ci-docs.yml` reports them as passed for a docs-only change. `release.yml` tags, builds and publishes. Also `changelog.yml`, `actions/setup`, and the PR template with the in-game checks |
+
 ## What a session holds
 
 ```mermaid
-flowchart TB
-  subgraph disk[On disk]
-    Sav[(".sav: zip of<br/>gamestate and meta")]
-    Txt[("scenario .txt")]
+flowchart LR
+  subgraph open["1. Open"]
+    direction TB
+    F1[(".sav or .txt")] -->|"inflate once"| B1["Original bytes<br/>never modified"]
+    B1 -->|"one scan"| I1["Index<br/>statement spans"]
+    I1 --> G1["Galaxy graph<br/>systems, lanes,<br/>nebulae, countries"]
+    I1 -->|"on first use"| D1["Details<br/>planets, fleets,<br/>starbases"]
   end
-  subgraph session[Session, in memory]
-    Bytes["Original bytes:<br/>read once, never modified"]
-    Index["Index: the span of every<br/>top-level statement and<br/>every id-keyed block"]
-    Graph["Galaxy graph: systems,<br/>lanes, nebulae, countries"]
-    Details["Details projection: planets,<br/>fleets, starbases,<br/>built on first use"]
-    Overlay["Overlay: replacement and<br/>inserted bytes, keyed<br/>to original offsets"]
-    History["History: every applied edit<br/>with its inverse<br/>and description"]
+  subgraph edit["2. Edit"]
+    direction TB
+    E2(["An edit from<br/>the UI or CLI"]) -->|"new bytes"| O2["Overlay<br/>patches keyed to<br/>original offsets"]
+    E2 -->|"inverse"| H2["History"]
+    O2 -->|"re-read touched<br/>statements"| G2["Galaxy graph"]
   end
-  Sav & Txt -->|"one linear scan"| Bytes --> Index
-  Index --> Graph
-  Index --> Details
-  Apply["Apply an edit"] -->|"decides the<br/>change on"| Graph
-  Apply -->|"writes<br/>patches into"| Overlay
-  Apply -->|"pushes the<br/>inverse onto"| History
-  Overlay -->|"re-read touched<br/>statements"| Graph
-  Bytes & Overlay -->|"spliced in one pass,<br/>backup first"| Save["Save"] --> Sav & Txt
-  UI["React panels<br/>and PixiJS map"] -->|"edits over IPC"| Tauri["Tauri commands"] --> Apply
-  CLI["sgf command line"] --> Apply
-  subgraph gamedata[sgf-gamedata]
-    Install["Your install and mods:<br/>definitions, names, art"]
+  subgraph save["3. Save"]
+    direction TB
+    B3["Original bytes"] --> S3["Spliced in one pass"]
+    O3["Overlay"] --> S3
+    S3 --> F3[("New file,<br/>old one kept<br/>as a backup")]
   end
-  Install --> UI
-  Install --> Details
+  open ==> edit ==> save
 ```
 
 A save is a zip with two members, `gamestate` and `meta`. A scenario is
@@ -230,11 +243,28 @@ modified.
 When an edit is applied, the history records the edit, a description
 for the change log, its inverse, and the slot contents the edit
 replaced. Undo puts those old bytes back, and redo puts the edit's bytes
-back. The inverse describes the change. A `Batch` applies several edits
+back. A `Batch` applies several edits
 as one history entry. If any of them is refused, the document is left as
 it was.
 
 ## An edit, end to end
+
+```mermaid
+sequenceDiagram
+  participant UI as UI or CLI
+  participant Op as Op
+  participant Graph as Galaxy graph
+  participant Fmt as Format
+  participant Ov as Overlay
+  participant Hist as History
+  UI->>Op: move system 419 to (x, y)
+  Op->>Graph: what changes? position, lane lengths
+  Op->>Fmt: write each touched statement
+  Fmt->>Ov: bytes into the statement's slot
+  Ov-->>Graph: re-read touched statements
+  Op->>Hist: push the inverse
+  Op-->>UI: new graph state and validator issues
+```
 
 1. The UI or the CLI sends an edit: move system 419 to (x, y).
 2. The core decides what changes on the galaxy graph. Here that is the
@@ -259,7 +289,7 @@ goes out at its insertion offset. The old file is then renamed to
 ## Ownership
 
 Who owns a system comes from three places. `sgf-core` reads the
-structure the text itself carries. In a save, that is the countries and
+structure written in the text. In a save, that is the countries and
 the systems they hold. In a scenario, it is the marauder roles and
 fallen empire zones, read from the initializers and flags the scenario
 names. `sgf-gamedata` works out what that text means at game start: the
@@ -282,8 +312,8 @@ fallen empire zones and the wormhole flags.
 
 Reading a scenario needs no profile. The scenario format picks out the
 mod's statements from the bytes (`format/scenario/paint.rs`,
-`fe_zone.rs`), so a scenario another tool wrote for the mod is edited
-faithfully.
+`fe_zone.rs`), so the editor keeps them in a scenario another tool
+wrote for the mod.
 
 In the app, `lib/paint.ts` decides whether a document is a Paint one. It
 goes by the file's content, the choice made when the file was created,
@@ -298,17 +328,6 @@ edits and the history. What differs between them is behind the `Format`
 trait. It says which statements hold systems, lanes and nebulae, which
 edits the format supports, and how each edit's bytes are written. A
 scenario can add and remove any system and set what it spawns. A save
-can add systems and remove the ones added this session. A save carries
+can add systems and remove the ones added this session. A save stores
 lane lengths, and a scenario does not. An edit decides what changes on
 the graph, and the format writes the bytes.
-
-## Layers of the app
-
-`app/src` is split by layer. From the bottom up, the layers are
-`generated/` (the IPC types ts-rs writes from the Rust crates), `api/`
-(one function per Tauri command), `lib/` (pure helpers over the
-generated types), `store/` (session state and the actions the UI calls),
-`map/` (the PixiJS renderer) and `panels/` (the React tree around the
-map). A layer imports only from the layers below it.
-`app/src/lib/README.md` and `app/src/panels/README.md` state the rule
-and its exceptions.
