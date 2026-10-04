@@ -2,12 +2,15 @@
 //! borders, their names and moons, and the `NGameplay` ones that set how many deposits a new body rolls
 //! and how far out a system's inner and outer radii lie.
 
+use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use sgf_core::ops::SystemRadii;
+use ts_rs::TS;
 
 use crate::install::script::ParsedDir;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct BorderDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
@@ -71,11 +74,15 @@ impl BorderDefines {
                         "BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR",
                     ),
                     (&mut out.moon_scale, "MOON_SCALE"),
-                    (&mut out.name_min_width, "MAPNAME_BORDER_MIN_SIZE"),
                 ] {
                     if let Some(n) = field(graphics, key, src) {
                         *target = n;
                     }
+                }
+                if let Some(width) =
+                    field(graphics, "MAPNAME_BORDER_MIN_SIZE", src).filter(|w| *w > 0.0)
+                {
+                    out.name_min_width = width;
                 }
             }
         }

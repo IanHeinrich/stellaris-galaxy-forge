@@ -9,7 +9,7 @@ use crate::weight::Weight;
 pub type AnomalyCategories = Registry<AnomalyCategoryDef>;
 
 /// The prefix of the categories the AI's own anomalies use.
-pub const AI_PREFIX: &str = "AIANOM_";
+pub(crate) const AI_PREFIX: &str = "AIANOM_";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnomalyCategoryDef {
@@ -39,10 +39,9 @@ impl FromDef for AnomalyCategoryDef {
                 .number("level")
                 .filter(|level| *level >= 0.0)
                 .map(|level| level.round() as u32),
-            desc: def.scalar("desc").map_or_else(
-                || format!("{key}_desc"),
-                |desc| desc.trim_matches('"').to_owned(),
-            ),
+            desc: def
+                .scalar("desc")
+                .map_or_else(|| format!("{key}_desc"), str::to_owned),
             on_spawn: def.node.find("on_spawn", src).is_some(),
             chain,
             spawn_chance: spawn_chance

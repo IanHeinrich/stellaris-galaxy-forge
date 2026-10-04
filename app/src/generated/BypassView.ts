@@ -2,6 +2,6 @@
 
 export type BypassView = { key: string, 
 /**
- * The `GFX_ship_class_small` frame the map draws this kind with.
+ * The frame of the map icon sheet; a negative `icon_frame` means none.
  */
 icon_frame: number | null, };

@@ -6,18 +6,14 @@ use crate::common;
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant, SystemTime};
 
 use image::{DynamicImage, GenericImageView, Rgba};
 use sgf_gamedata::install::layers::Layout;
-use sgf_gamedata::textures::{Lookups, SpriteSource, TextureError, TextureKey, Textures};
+use sgf_gamedata::registries::gfx::Sprites;
+use sgf_gamedata::textures::{Lookups, TextureError, TextureKey, Textures};
 
-fn decode(
-    textures: &Textures,
-    layout: &Layout,
-    sprites: &dyn SpriteSource,
-    key: &str,
-) -> DynamicImage {
+fn decode(textures: &Textures, layout: &Layout, sprites: &Sprites, key: &str) -> DynamicImage {
     let png = textures
         .png(layout, &Lookups::none(sprites), key)
         .unwrap_or_else(|e| panic!("{key}: {e}"));
@@ -392,4 +388,71 @@ fn install_empire_flag_composes() {
         centre.0[2] > 120 && centre.0[0] < 80,
         "the centre shows the background, not an emblem: {centre:?}"
     );
+}
+
+fn age(path: &std::path::Path, days: u64) {
+    let long_ago = SystemTime::now() - Duration::from_secs(days * 24 * 60 * 60);
+    fs::File::options()
+        .write(true)
+        .open(path)
+        .and_then(|file| file.set_modified(long_ago))
+        .expect("an aged file");
+}
+
+#[test]
+fn starting_up_removes_cached_pngs_nobody_has_used_for_a_month() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let cache = dir.path().join("textures");
+    fs::create_dir_all(cache.join("nested")).unwrap();
+    let files = [
+        "00000000000000aa.png",
+        "00000000000000bb.png",
+        "notes.txt",
+        "nested/00000000000000cc.png",
+    ];
+    for name in files {
+        fs::write(cache.join(name), b"x").unwrap();
+    }
+    for name in [
+        "00000000000000aa.png",
+        "notes.txt",
+        "nested/00000000000000cc.png",
+    ] {
+        age(&cache.join(name), 90);
+    }
+
+    let _textures = Textures::new(Some(cache.clone()));
+
+    assert!(!cache.join("00000000000000aa.png").exists(), "old png");
+    assert!(cache.join("00000000000000bb.png").exists(), "recent png");
+    assert!(cache.join("notes.txt").exists(), "not a cached texture");
+    assert!(
+        cache.join("nested/00000000000000cc.png").exists(),
+        "not directly inside"
+    );
+}
+
+#[test]
+fn a_cache_hit_renews_the_file_so_a_texture_in_use_is_not_pruned() {
+    let gd = common::cached_fixture();
+    let (_dir, textures) = common::temp_textures();
+    let (layout, sprites) = (&gd.layout, gd.sprites.as_ref());
+    let key = "sprite:GFX_fixture_bgra";
+    textures
+        .png(layout, &Lookups::none(sprites), key)
+        .expect("a baked texture");
+    let baked = fs::read_dir(textures.cache_dir())
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    age(&baked, 20);
+
+    textures
+        .png(layout, &Lookups::none(sprites), key)
+        .expect("a cache hit");
+
+    let modified = fs::metadata(&baked).unwrap().modified().unwrap();
+    assert!(modified > SystemTime::now() - Duration::from_secs(24 * 60 * 60));
 }

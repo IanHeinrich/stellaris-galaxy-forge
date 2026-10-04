@@ -8,32 +8,33 @@
 //! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>` and
 //! `planet_ring`.
 
-use std::collections::BTreeSet;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::prelude::*;
 use image::imageops::{self, FilterType};
-use image::{ImageFormat, Rgba, RgbaImage};
+use image::{ImageFormat, RgbaImage};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::GameData;
 use crate::install::layers::Layout;
-use crate::registries::gfx::Sprites;
+use crate::registries::flags::{background_path, emblem_path};
 
 mod dds;
+mod flag;
 mod key;
+mod lookups;
 pub(crate) mod planet_disc;
 mod shatter;
 mod sphere;
 mod star_disc;
 
 pub use key::TextureKey;
+pub use lookups::{Lookups, StarBody};
 pub use star_disc::StarAtmosphere;
 
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
@@ -41,218 +42,11 @@ pub use star_disc::StarAtmosphere;
 /// user's disk cache.
 const BAKE: u32 = 3;
 
-/// Where a `GFX_` sprite's texture lives; the `.gfx` registry implements it.
-pub trait SpriteSource {
-    /// The texture file (forward slashes, relative to a layer root) and the
-    /// 1-based frame to crop, if any.
-    fn resolve(&self, name: &str, frame: Option<u32>) -> Option<(String, Option<u32>)>;
-    fn frame_count(&self, name: &str) -> Option<u32>;
-}
+/// A cached PNG nobody has asked for in this long is deleted at start-up.
+const CACHE_MAX_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 
-impl SpriteSource for Sprites {
-    fn resolve(&self, name: &str, frame: Option<u32>) -> Option<(String, Option<u32>)> {
-        Sprites::resolve(self, name, frame)
-    }
-
-    fn frame_count(&self, name: &str) -> Option<u32> {
-        Sprites::frame_count(self, name)
-    }
-}
-
-/// A flag colour by its `flags/colors.txt` name.
-pub type ColourLookup<'a> = &'a dyn Fn(&str) -> Option<[u8; 3]>;
-
-/// The surface map, relative to a layer root, of a planet class that is drawn as a disc:
-/// neither a star nor an asteroid.
-pub type SurfaceLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
-
-/// What a star planet class's disc is baked from.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StarBody {
-    /// Its entity's own surface map, relative to a layer root.
-    pub surface: Option<String>,
-    /// The `class` its star class lights it as, which names its `gfx/worldgfx` settings.
-    pub lighting: Option<String>,
-    pub atmosphere: Option<StarAtmosphere>,
-}
-
-/// The map of the pieces, relative to a layer root, of a planet class whose model is a planet
-/// broken into pieces.
-pub type PiecesLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
-
-/// The surface map, relative to a layer root, of a planet model by its entity name.
-pub type ModelLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
-
-/// The star planet classes by key.
-pub type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
-
-/// How a key's names are looked up in the install: an install's own, or [`Lookups::none`]'s
-/// stand-ins for a caller that only cares about one of them.
-pub struct Lookups<'a> {
-    pub sprites: &'a dyn SpriteSource,
-    pub colour: ColourLookup<'a>,
-    pub planet_surface: SurfaceLookup<'a>,
-    pub planet_pieces: PiecesLookup<'a>,
-    pub model_surface: ModelLookup<'a>,
-    pub star_body: StarLookup<'a>,
-}
-
-impl<'a> Lookups<'a> {
-    /// No flag colour, planet surface or pieces, model surface or star body: every one of those
-    /// keys fails, and only `sprites` resolves.
-    pub fn none(sprites: &'a dyn SpriteSource) -> Self {
-        fn no_colour(_: &str) -> Option<[u8; 3]> {
-            None
-        }
-        fn no_surface(_: &str) -> Option<String> {
-            None
-        }
-        fn no_star(_: &str) -> Option<StarBody> {
-            None
-        }
-        Self {
-            sprites,
-            colour: &no_colour,
-            planet_surface: &no_surface,
-            planet_pieces: &no_surface,
-            model_surface: &no_surface,
-            star_body: &no_star,
-        }
-    }
-}
-
-impl GameData {
-    /// `key` decoded through this install's sprites, flag colours and planet classes.
-    pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
-    }
-
-    pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
-        self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
-    }
-
-    /// This install's own lookups, built once and handed to `use_lookups`.
-    fn with_lookups<T>(&self, use_lookups: impl FnOnce(&Lookups<'_>) -> T) -> T {
-        let colour = |name: &str| self.colors.entries.get(name).map(|c| c.flag);
-        let surface = |class: &str| self.planet_surface(class);
-        let pieces = |class: &str| self.planet_pieces(class);
-        let model = |entity: &str| self.entity_surface(entity);
-        let star = |class: &str| self.star_disc_inputs(class);
-        use_lookups(&Lookups {
-            sprites: &*self.sprites,
-            colour: &colour,
-            planet_surface: &surface,
-            planet_pieces: &pieces,
-            model_surface: &model,
-            star_body: &star,
-        })
-    }
-
-    fn star_disc_inputs(&self, class: &str) -> Option<StarBody> {
-        let def = self.planet_classes.get(class).filter(|c| c.star)?;
-        let atmosphere = def.atmosphere.map(|a| StarAtmosphere {
-            colour: a.colour,
-            intensity: a.intensity,
-            width: a.width,
-        });
-        Some(StarBody {
-            surface: def.entity.as_deref().and_then(|e| self.entity_surface(e)),
-            lighting: self.star_lighting(class),
-            atmosphere,
-        })
-    }
-
-    /// The class a star body of `class` is lit as: as the single star of its own star class,
-    /// else as a member of the first system that names it.
-    fn star_lighting(&self, class: &str) -> Option<String> {
-        let lit_as = |sc: &crate::StarClass| {
-            sc.planets
-                .iter()
-                .find(|p| p.key == class)
-                .map(|p| p.lighting.clone())
-        };
-        let classes = || self.star_classes.iter();
-        classes()
-            .filter(|sc| sc.planets.len() == 1)
-            .find_map(lit_as)
-            .or_else(|| classes().find_map(lit_as))
-    }
-
-    fn planet_surface(&self, class: &str) -> Option<String> {
-        self.entity_surface(self.planet_entity(class)?)
-    }
-
-    fn planet_pieces(&self, class: &str) -> Option<String> {
-        let entity = self.planet_entity(class)?;
-        match planet_disc::surface(&self.layout, self.surface_maps(), entity) {
-            planet_disc::Surface::Pieces(rel) => Some(rel),
-            _ => None,
-        }
-    }
-
-    /// The model family of `class`, when it is neither a star nor an asteroid.
-    fn planet_entity(&self, class: &str) -> Option<&str> {
-        self.planet_classes
-            .get(class)
-            .filter(|c| !c.star && !c.asteroid)?
-            .entity
-            .as_deref()
-    }
-
-    fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
-        self.surface_maps
-            .get_or_init(|| planet_disc::surface_maps(&self.layout))
-    }
-
-    /// How many models the install numbers for a planet of `class`; 0 when it names none.
-    pub(crate) fn class_models(&self, class: &str) -> u32 {
-        self.planet_classes
-            .get(class)
-            .and_then(|c| c.entity.as_deref())
-            .map_or(0, |entity| self.surface_maps().model_count(entity))
-    }
-
-    fn entity_surface(&self, entity: &str) -> Option<String> {
-        planet_disc::diffuse(&self.layout, self.surface_maps(), entity)
-    }
-
-    /// Whether a planet of `class` is drawn from its icon alone: neither a star nor an
-    /// asteroid, and its entity's model read and found to have no planet surface, as a
-    /// habitat's or a ring world's.
-    pub(crate) fn flat_art(&self, class: &str) -> bool {
-        self.flat_art
-            .get_or_init(|| self.classes_whose_surface(|s| *s == planet_disc::Surface::Flat))
-            .contains(class)
-    }
-
-    /// Whether a planet of `class` is drawn broken apart: its entity's model is a planet in
-    /// pieces, as the shattered world's.
-    pub(crate) fn shattered(&self, class: &str) -> bool {
-        self.shattered
-            .get_or_init(|| {
-                self.classes_whose_surface(|s| matches!(s, planet_disc::Surface::Pieces(_)))
-            })
-            .contains(class)
-    }
-
-    /// The planet classes, neither stars nor asteroids, whose entity's model has a surface
-    /// `wanted` accepts.
-    fn classes_whose_surface(
-        &self,
-        wanted: impl Fn(&planet_disc::Surface) -> bool,
-    ) -> BTreeSet<String> {
-        self.planet_classes
-            .iter()
-            .filter(|c| !c.star && !c.asteroid)
-            .filter(|c| {
-                c.entity.as_deref().is_some_and(|e| {
-                    wanted(&planet_disc::surface(&self.layout, self.surface_maps(), e))
-                })
-            })
-            .map(|c| c.key.clone())
-            .collect()
-    }
-}
+/// A cache hit renews the file once it is this old, so a texture in use is never pruned.
+const CACHE_RENEW_AFTER: Duration = Duration::from_secs(24 * 60 * 60);
 
 impl TextureKey {
     /// Whether a layer of `layout` has the file this key names.
@@ -269,7 +63,7 @@ impl TextureKey {
             Self::Icon { path } => Ok(format!("{ICONS}/{path}")),
             Self::PlanetRing => Ok(PLANET_RING.to_owned()),
             Self::Flag { category, file } | Self::Symbol { category, file } => {
-                Ok(format!("flags/{category}/{file}"))
+                Ok(emblem_path(category, file))
             }
             Self::Sprite { .. }
             | Self::EmpireFlag { .. }
@@ -349,6 +143,7 @@ impl Textures {
                 .join("stellaris-galaxy-forge")
                 .join("textures")
         });
+        prune(&cache_dir);
         Self {
             cache_dir,
             worlds: Mutex::default(),
@@ -397,6 +192,7 @@ impl Textures {
         let job = Job::plan(&key, layout, lookups, self)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
+            renew(&cache_file);
             return Ok(png);
         }
         let png = encode_png(&job.render()?)?;
@@ -497,8 +293,6 @@ enum Job {
 pub(crate) const ICONS: &str = "gfx/interface/icons";
 const DEPOSIT_ICONS: &str = "gfx/interface/icons/deposits";
 const PLANET_RING: &str = "gfx/models/planets/ring_tiling_diffuse.dds";
-const EMPIRE_FLAG_MASK: &str = "gfx/interface/flags/empire_flag_64_mask.dds";
-const EMPIRE_FLAG_FRAME: &str = "gfx/interface/flags/empire_flag_64_frame.dds";
 
 impl Job {
     fn plan(
@@ -559,16 +353,14 @@ impl Job {
                 icon,
                 colours,
             } => Ok(Self::EmpireFlag {
-                background: Input::resolve(layout, &format!("flags/backgrounds/{background}"))?,
+                background: Input::resolve(layout, &background_path(background))?,
                 icon: icon
                     .as_ref()
-                    .map(|(category, file)| {
-                        Input::resolve(layout, &format!("flags/{category}/{file}"))
-                    })
+                    .map(|(category, file)| Input::resolve(layout, &emblem_path(category, file)))
                     .transpose()?,
-                mask: Input::resolve(layout, EMPIRE_FLAG_MASK)?,
-                frame: Input::resolve(layout, EMPIRE_FLAG_FRAME)?,
-                colours: resolve_colours(colours, colour)?,
+                mask: Input::resolve(layout, flag::EMPIRE_FLAG_MASK)?,
+                frame: Input::resolve(layout, flag::EMPIRE_FLAG_FRAME)?,
+                colours: flag::resolve_colours(colours, colour)?,
             }),
             TextureKey::Symbol { .. } => Ok(Self::White(Input::resolve(layout, &key.rel_path()?)?)),
             _ => Ok(Self::Whole(Input::resolve(layout, &key.rel_path()?)?)),
@@ -650,7 +442,7 @@ impl Job {
                 mask,
                 frame,
                 colours,
-            } => Ok(compose_empire_flag(
+            } => Ok(flag::compose_empire_flag(
                 &background.decode()?,
                 icon.as_ref().map(Input::decode).transpose()?.as_ref(),
                 &mask.decode()?,
@@ -699,116 +491,6 @@ impl Job {
     }
 }
 
-/// `null` contributes nothing; `#rrggbb` is literal; anything else is looked up. A name the
-/// lookup lacks (a mod's `customcolor1951`, which the game decodes rather than defines) tints
-/// nothing, so the flag still composes from its symbol, background and frame.
-fn resolve_colours(
-    names: &[String; 4],
-    lookup: ColourLookup<'_>,
-) -> Result<[Option<[u8; 3]>; 4], TextureError> {
-    let mut colours = [None; 4];
-    for (slot, name) in colours.iter_mut().zip(names) {
-        *slot = match name.as_str() {
-            "null" => None,
-            hex if hex.starts_with('#') => {
-                Some(parse_hex(hex).ok_or_else(|| TextureError::UnknownColour(name.clone()))?)
-            }
-            other => lookup(other),
-        };
-    }
-    Ok(colours)
-}
-
-fn parse_hex(hex: &str) -> Option<[u8; 3]> {
-    let digits = hex.strip_prefix('#')?;
-    if digits.len() != 6 {
-        return None;
-    }
-    let channel = |i: usize| u8::from_str_radix(&digits[i..i + 2], 16).ok();
-    Some([channel(0)?, channel(2)?, channel(4)?])
-}
-
-/// The game's `GFX_empire_flag_64` (`interface/game_setup/customization.gfx`):
-/// background at (5,5) 60×60, symbol at (12,12) 46×46, inside the 70×70 frame.
-const BG_ORIGIN: u32 = 5;
-const BG_SIZE: u32 = 60;
-const SYMBOL_ORIGIN: u32 = 12;
-const SYMBOL_SIZE: u32 = 46;
-
-/// `gfx/FX/flag_sprite.shader`: the background's R, G and B channels each
-/// weight one colour; the symbol is lerped in by its alpha, untinted; the
-/// mask's alpha cuts the shape; the frame is lerped on top by its alpha.
-fn compose_empire_flag(
-    background: &RgbaImage,
-    icon: Option<&RgbaImage>,
-    mask: &RgbaImage,
-    frame: &RgbaImage,
-    colours: &[Option<[u8; 3]>; 4],
-) -> RgbaImage {
-    let (width, height) = frame.dimensions();
-    let background = imageops::resize(background, BG_SIZE, BG_SIZE, FilterType::Triangle);
-    let icon =
-        icon.map(|icon| imageops::resize(icon, SYMBOL_SIZE, SYMBOL_SIZE, FilterType::Triangle));
-    let mask = imageops::resize(mask, width, height, FilterType::Triangle);
-    let tint: Vec<[f32; 3]> = colours
-        .iter()
-        .take(3)
-        .map(|c| c.map_or([0.0; 3], |[r, g, b]| [unit(r), unit(g), unit(b)]))
-        .collect();
-    RgbaImage::from_fn(width, height, |x, y| {
-        let bg = clamped(
-            &background,
-            x as i64 - BG_ORIGIN as i64,
-            y as i64 - BG_ORIGIN as i64,
-        );
-        let mut rgb = [0.0f32; 3];
-        for (weight, colour) in bg.0.iter().zip(&tint) {
-            for (out, c) in rgb.iter_mut().zip(colour) {
-                *out = (*out + c * unit(*weight)).min(1.0);
-            }
-        }
-        if let (Some(icon), Some(sx), Some(sy)) = (
-            &icon,
-            x.checked_sub(SYMBOL_ORIGIN).filter(|s| *s < SYMBOL_SIZE),
-            y.checked_sub(SYMBOL_ORIGIN).filter(|s| *s < SYMBOL_SIZE),
-        ) {
-            let symbol = icon.get_pixel(sx, sy).0;
-            let a = unit(symbol[3]);
-            for (out, s) in rgb.iter_mut().zip(&symbol[..3]) {
-                *out = lerp(*out, unit(*s), a);
-            }
-        }
-        let alpha = unit(mask.get_pixel(x, y).0[3]);
-        let f = frame.get_pixel(x, y).0;
-        let fa = unit(f[3]);
-        for (out, fc) in rgb.iter_mut().zip(&f[..3]) {
-            *out = lerp(*out * alpha, unit(*fc), fa);
-        }
-        let alpha = alpha.max(fa);
-        let straight = |c: f32| (if alpha > 0.0 { c / alpha } else { 0.0 } * 255.0).round() as u8;
-        Rgba([
-            straight(rgb[0]),
-            straight(rgb[1]),
-            straight(rgb[2]),
-            (alpha * 255.0).round() as u8,
-        ])
-    })
-}
-
-fn clamped(image: &RgbaImage, x: i64, y: i64) -> Rgba<u8> {
-    let x = x.clamp(0, image.width() as i64 - 1) as u32;
-    let y = y.clamp(0, image.height() as i64 - 1) as u32;
-    *image.get_pixel(x, y)
-}
-
-fn unit(v: u8) -> f32 {
-    f32::from(v) / 255.0
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
-}
-
 fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, TextureError> {
     let mut png = Cursor::new(Vec::new());
     image
@@ -825,6 +507,42 @@ fn png_size(png: &[u8]) -> (u32, u32) {
             .map_or(0, u32::from_be_bytes)
     };
     (field(16), field(20))
+}
+
+/// Deletes the `.png` files directly inside `dir` that were last used more than [`CACHE_MAX_AGE`] ago.
+fn prune(dir: &Path) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let unused_since = entry
+            .metadata()
+            .ok()
+            .filter(|meta| meta.is_file())
+            .and_then(|meta| meta.modified().ok())
+            .and_then(|modified| SystemTime::now().duration_since(modified).ok());
+        if path.extension().is_some_and(|ext| ext == "png")
+            && unused_since.is_some_and(|age| age > CACHE_MAX_AGE)
+        {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
+
+/// Stamps a cache file as used now when its last stamp is a day old.
+fn renew(path: &Path) {
+    let stale = fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|modified| SystemTime::now().duration_since(modified).ok())
+        .is_some_and(|age| age > CACHE_RENEW_AFTER);
+    if stale {
+        let _ = fs::File::options()
+            .write(true)
+            .open(path)
+            .and_then(|file| file.set_modified(SystemTime::now()));
+    }
 }
 
 /// A cache write that fails leaves nothing behind and is not an error.
@@ -860,7 +578,7 @@ mod tests {
     }
 
     /// Every rendered kind of [`Job`] gets a different cache name when the bake version
-    /// differs, not only the star kinds (bug 7).
+    /// differs, not only the star kinds.
     #[test]
     fn every_rendered_kind_changes_cache_name_when_bake_differs() {
         let key = TextureKey::PlanetRing;

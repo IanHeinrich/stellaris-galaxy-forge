@@ -4,13 +4,17 @@
 //! emblems at other sizes, not choices of their own).
 //! `flags/backgrounds/*.dds`: the plain backgrounds a flag can use.
 
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::install::layers::Layout;
 
 const DIR: &str = "flags";
 const BACKGROUNDS: &str = "backgrounds";
 const EXT: &str = "dds";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, rename = "FlagFileView")]
 pub struct FlagFile {
     /// The `.dds` file name, with extension (`flag_pointy_2.dds`).
     pub file: String,
@@ -18,7 +22,8 @@ pub struct FlagFile {
     pub source: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, rename = "EmblemCategoryView")]
 pub struct EmblemCategory {
     pub name: String,
     /// Sorted naturally by file name where that reads as intended
@@ -115,4 +120,14 @@ fn take_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
         chars.next();
     }
     digits
+}
+
+/// An emblem or symbol file under the layer root.
+pub(crate) fn emblem_path(category: &str, file: &str) -> String {
+    format!("{DIR}/{category}/{file}")
+}
+
+/// A background file under the layer root.
+pub(crate) fn background_path(file: &str) -> String {
+    format!("{DIR}/{BACKGROUNDS}/{file}")
 }

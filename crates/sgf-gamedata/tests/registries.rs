@@ -6,7 +6,7 @@ use crate::common;
 use sgf_core::format::save::details::DetailsResolver;
 use sgf_core::ops::SystemRadii;
 use sgf_gamedata::registries::asteroid_belts::BeltLook;
-use sgf_gamedata::views::{BypassView, GameDataSummary, ShipSizeView, TerraformCandidateView};
+use sgf_gamedata::views::{GameDataSummary, ShipSizeView, TerraformCandidateView};
 
 #[test]
 fn sprites_resolve() {
@@ -263,9 +263,7 @@ fn bypass_icon_frame_is_read_and_an_absent_frame_is_none() {
         "a bypass without an icon_frame field"
     );
 
-    let view = BypassView::from(gateway);
-    assert_eq!(view.key, "fixture_gateway");
-    assert_eq!(view.icon_frame, Some(25));
+    assert_eq!(gateway.icon_frame, Some(25));
 }
 
 #[test]
@@ -282,6 +280,17 @@ fn defines_survive_trailing_comments() {
     assert_eq!(gd.border.ownerless_influence_max_distance_factor, 1.88);
     assert_eq!(gd.border.moon_scale, 0.65);
     assert_eq!(gd.border.name_min_width, 80.0);
+}
+
+#[test]
+fn a_name_width_of_zero_or_less_keeps_the_default() {
+    for written in ["0", "-5"] {
+        let (_dir, gd) = common::hand_written(&[(
+            "common/defines/00_defines.txt",
+            &format!("NGraphics = {{ MAPNAME_BORDER_MIN_SIZE = {written} }}"),
+        )]);
+        assert_eq!(gd.border.name_min_width, 100.0, "written as {written}");
+    }
 }
 
 #[test]
