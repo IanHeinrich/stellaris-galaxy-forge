@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Texture, type Renderer } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import type { Issue } from "../../generated/Issue";
@@ -29,7 +30,7 @@ describe("a delta that removes a system", () => {
   });
 
   it("takes its issue ring with it", () => {
-    const layer = new IssuesLayer();
+    const layer = new IssuesLayer(new DrawnPositions());
     layer.rebuild(mapContext(NODES));
     layer.setIssues([ISSUE]);
     expect(layer.container.children).toHaveLength(2);

@@ -401,7 +401,7 @@ export class BrushStroke {
     systems: ReadonlyMap<number, SystemNode>,
     grid: SpatialGrid,
     seed: number,
-    swept: SweptGround = { systems, grid },
+    swept: SweptGround,
   ) {
     const ground = new StrokeGround(settings, systems, grid, swept);
     this.r = ground.r;

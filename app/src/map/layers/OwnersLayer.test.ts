@@ -10,7 +10,8 @@ import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
 import { countryNode } from "../../test/builders";
 import { Camera } from "../Camera";
 import { VANILLA_BORDER, type RenderContext } from "../RenderContext";
-import { CLAN_GLYPH, OwnersLayer } from "./OwnersLayer";
+import { CLAN_GLYPH } from "./EmpireLabels";
+import { OwnersLayer } from "./OwnersLayer";
 import { layerIdsFor, layersFor } from "./registry";
 import {
   childByLabel,

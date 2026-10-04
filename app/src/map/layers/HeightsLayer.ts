@@ -14,7 +14,7 @@ import { MAP_FONT, RING_RADIUS } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { DrawnPositions, type DrawnChange } from "../drawnPositions";
-import { RingBatch, type RingSpec } from "./highlights/RingBatch";
+import { RingBatches, type RingSpec, type WantedRings } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 
 /** How many steps a ring's weight takes from barely off the plane to a full height. */
@@ -45,11 +45,10 @@ interface Lifted {
   readonly tint: number;
 }
 
-/** The stored systems of one tint and weight: their rings, and their drops while tilted. */
+/** The stored systems of one tint and weight, and their drops while tilted. */
 interface Group {
   readonly tint: number;
   readonly entries: Lifted[];
-  readonly batch: RingBatch;
   readonly drops: Graphics;
 }
 
@@ -96,6 +95,7 @@ export class HeightsLayer implements MapLayer {
   private readonly previewPlane = new Graphics({ label: "previewPlane" });
   private readonly previewRings = new Container({ label: "previewRings" });
   private readonly values = new Container({ label: "values" });
+  private readonly batches = new RingBatches(this.rings, "height.");
   private readonly groups = new Map<string, Group>();
   private readonly shown = new Map<number, BitmapText>();
   private readonly free: BitmapText[] = [];
@@ -117,7 +117,7 @@ export class HeightsLayer implements MapLayer {
   private readonly valueScale = { x: 1, y: 1 };
   private readonly bounds = [0, 0, 0, 0];
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.addChild(
       this.plane,
       this.previewPlane,
@@ -165,7 +165,7 @@ export class HeightsLayer implements MapLayer {
 
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
-    for (const { batch } of this.groups.values()) batch.setScale(this.scale);
+    this.batches.setScale(this.scale);
     for (const mark of this.previewMarks.values()) mark.scale.set(this.scale.x, this.scale.y);
     cam.childScale(1, this.valueScale);
     if (cam.scale !== this.camScale) {
@@ -183,7 +183,7 @@ export class HeightsLayer implements MapLayer {
 
   destroy(): void {
     this.container.destroy({ children: true });
-    for (const { batch } of this.groups.values()) batch.destroy();
+    this.batches.destroy();
   }
 
   /** Reads the height the preview shows for system `id`, kept while it is off the plane. */
@@ -221,12 +221,17 @@ export class HeightsLayer implements MapLayer {
       if (entries) entries.push(entry);
       else wanted.set(key, [entry]);
     }
+    const rings = new Map<string, WantedRings>();
+    for (const [key, entries] of wanted) {
+      rings.set(key, {
+        spec: ringSpec(entries[0].tint, levelOf(entries[0].height)),
+        points: this.settledPoints(entries),
+      });
+    }
+    this.batches.sync(rings);
     for (const [key, group] of this.groups) {
       if (wanted.has(key)) continue;
-      this.rings.removeChild(group.batch.container);
       this.plane.removeChild(group.drops);
-      group.batch.container.destroy({ children: true });
-      group.batch.destroy();
       group.drops.destroy();
       this.groups.delete(key);
     }
@@ -235,15 +240,15 @@ export class HeightsLayer implements MapLayer {
       if (group) {
         group.entries.splice(0, group.entries.length, ...entries);
       } else {
-        const tint = entries[0].tint;
-        const batch = new RingBatch(ringSpec(tint, levelOf(entries[0].height)), `height.${key}`);
-        batch.setScale(this.scale);
-        group = { tint, entries, batch, drops: new Graphics({ label: `plane.${key}` }) };
+        group = {
+          tint: entries[0].tint,
+          entries,
+          drops: new Graphics({ label: `plane.${key}` }),
+        };
         this.groups.set(key, group);
-        this.rings.addChild(batch.container);
         this.plane.addChild(group.drops);
       }
-      this.drawGroup(key);
+      this.drawDrops(group);
     }
   }
 
@@ -251,8 +256,12 @@ export class HeightsLayer implements MapLayer {
   private drawGroup(key: string): void {
     const group = this.groups.get(key);
     if (!group) return;
-    group.batch.place([...this.settled(group.entries)].map((entry) => this.at(entry)));
+    this.batches.place(key, this.settledPoints(group.entries));
     this.drawDrops(group);
+  }
+
+  private settledPoints(entries: Iterable<Lifted>): Pt[] {
+    return [...this.settled(entries)].map((entry) => this.at(entry));
   }
 
   /** The tilted map's drop lines from a group's systems, and the hexagons on the plane they fall to. */

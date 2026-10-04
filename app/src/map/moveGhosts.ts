@@ -15,7 +15,7 @@ export interface MoveGhost {
 export function ghostLaneSegments(
   systems: ReadonlyMap<number, SystemNode>,
   ghosts: readonly MoveGhost[],
-  at: (s: SystemNode) => Pt = (s) => s,
+  at: (s: SystemNode) => Pt,
 ): Array<[Pt, Pt]> {
   const ghostOf = new Map(ghosts.map((g) => [g.id, g]));
   const segments: Array<[Pt, Pt]> = [];

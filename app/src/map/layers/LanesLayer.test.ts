@@ -226,7 +226,7 @@ describe("a lane between two Hyper Relays", () => {
   }
 
   it("is drawn wider than a lane with a relay at one end only", () => {
-    const layer = new LanesLayer();
+    const layer = new LanesLayer(new DrawnPositions());
     layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
 
     const relay = strokeOf(layer, [0, 0, 20, 0]);
@@ -239,7 +239,7 @@ describe("a lane between two Hyper Relays", () => {
   });
 
   it("stays the same width on screen as the map zooms", () => {
-    const layer = new LanesLayer();
+    const layer = new LanesLayer(new DrawnPositions());
     layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
     for (const scale of [0.3, 4, 12]) {
       viewport(layer, scale);
@@ -248,7 +248,7 @@ describe("a lane between two Hyper Relays", () => {
   });
 
   it("keeps its width under a wayline", () => {
-    const layer = new LanesLayer();
+    const layer = new LanesLayer(new DrawnPositions());
     layer.rebuild(
       mapContext(RELAYED, { bypasses: RELAYS, waylines: [{ a: 10, b: 11, network: 1 }] }),
     );
@@ -256,7 +256,7 @@ describe("a lane between two Hyper Relays", () => {
   });
 
   it("goes back to a hairline once an end no longer holds a relay", () => {
-    const layer = new LanesLayer();
+    const layer = new LanesLayer(new DrawnPositions());
     layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS }));
     layer.rebuild(mapContext(RELAYED, { bypasses: RELAYS.slice(1) }));
     expect(strokeOf(layer, [0, 0, 20, 0]).pixelLine).toBe(true);

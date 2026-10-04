@@ -370,7 +370,16 @@ export class InteractionController {
       snap:
         this.laneFrom === null || !grid
           ? null
-          : snapTarget(grid, this.index, systems, this.cam, at, this.laneFrom, zones, w),
+          : snapTarget({
+              grid,
+              index: this.index,
+              systems,
+              cam: this.cam,
+              at,
+              plane: w,
+              from: this.laneFrom,
+              zones,
+            }),
       nebula,
       prevented,
     };

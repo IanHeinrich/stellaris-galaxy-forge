@@ -16,7 +16,7 @@ export type MapEdge =
 export function edgeEnds(
   systems: Systems,
   edge: MapEdge | null,
-  at: (s: SystemNode) => Pt = (s) => s,
+  at: (s: SystemNode) => Pt,
 ): Segment | null {
   if (!edge) return null;
   if (edge.kind === "lane") {

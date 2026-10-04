@@ -258,7 +258,10 @@ export class BrushStrokes {
     const at = this.at;
     const { systems, grid } = useGalaxyStore.getState();
     if (!at || at.tool !== "height" || this.settling || !grid) return;
-    const stroke = new BrushStroke(settingsFor(at.tool, at.flipped), systems, grid, 0);
+    const stroke = new BrushStroke(settingsFor(at.tool, at.flipped), systems, grid, 0, {
+      systems,
+      grid,
+    });
     stroke.add([{ x: at.x, y: at.y }]);
     const result = stroke.result();
     if (result.kind === "height") this.showHeights(result.heights);

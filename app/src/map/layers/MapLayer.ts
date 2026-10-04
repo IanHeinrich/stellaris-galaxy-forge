@@ -15,12 +15,14 @@ export interface DragState {
   readonly byId: ReadonlyMap<number, MoveGhost>;
 }
 
-/** Whether two drags move the same systems, wherever each puts them. */
-export function sameDragged(
-  a: ReadonlyMap<number, MoveGhost>,
-  b: ReadonlyMap<number, MoveGhost>,
+/** Whether two sets, or the keys of two maps, hold the same ids. */
+export function sameKeys(
+  a: ReadonlySet<number> | ReadonlyMap<number, unknown>,
+  b: ReadonlySet<number> | ReadonlyMap<number, unknown>,
 ): boolean {
-  return a.size === b.size && [...a.keys()].every((id) => b.has(id));
+  if (a.size !== b.size) return false;
+  for (const id of a.keys()) if (!b.has(id)) return false;
+  return true;
 }
 
 /**

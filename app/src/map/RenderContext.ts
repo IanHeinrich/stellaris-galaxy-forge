@@ -1,6 +1,7 @@
 import type { BorderDefines } from "../generated/BorderDefines";
 import type { BypassLink } from "../generated/BypassLink";
 import type { BypassView } from "../generated/BypassView";
+import type { Capabilities } from "../generated/Capabilities";
 import type { CountryNode } from "../generated/CountryNode";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DocumentKind } from "../generated/DocumentKind";
@@ -20,6 +21,7 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
+import { documentCapabilities } from "../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { NO_PRECURSORS, type PrecursorRegions } from "../lib/precursors";
@@ -69,6 +71,8 @@ export interface RenderContext {
   readonly lgate: LGate | null;
   /** The open document's format, or null while nothing is open. */
   readonly kind: DocumentKind | null;
+  /** What the open document supports: the differences between formats the layers read. */
+  readonly capabilities: Capabilities;
   /** Whether the document is written for the Paint a Galaxy mod, whose zones the map draws. */
   readonly paintLayer: boolean;
   readonly systems: Systems;
@@ -142,6 +146,7 @@ export const sameContext = sameFields<RenderContext>({
   galaxy: true,
   lgate: true,
   kind: true,
+  capabilities: true,
   paintLayer: true,
   systems: true,
   nebulae: true,
@@ -265,6 +270,7 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   galaxy: null,
   lgate: null,
   kind: null,
+  capabilities: documentCapabilities({ capabilities: null }),
   paintLayer: false,
   systems: new Map<number, SystemNode>(),
   nebulae: NOTHING,
@@ -323,12 +329,14 @@ export function renderContext(): RenderContext {
     return text;
   };
   const ready = data.status === "ready";
-  const kind = useFileSessionStore.getState().kind;
+  const { kind } = useFileSessionStore.getState();
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
   const ownership = currentOwnership();
   return Object.freeze({
     galaxy: galaxy.galaxy,
     lgate: galaxy.lgate,
     kind,
+    capabilities,
     paintLayer: getPaintLayer(),
     systems: galaxy.systems,
     nebulae: galaxy.nebulae,
@@ -362,12 +370,14 @@ export function renderContext(): RenderContext {
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
     precursors: chrome.layers.precursors ? currentPrecursors() : NO_PRECURSORS,
     hiddenPrecursors: chrome.hiddenPrecursors,
-    initializerLabels: kind === "scenario" && chrome.layers.initializers,
+    initializerLabels: capabilities.scripts && chrome.layers.initializers,
     territoriesShown: chrome.layers.owners && ownership.table.size > 0,
     starTints: chrome.layers.classes,
     coloniesShown: chrome.layers.colonies,
     hiddenOwners: hiddenOwnersIn(
-      kind === "scenario" && !chrome.layers.claims ? claimedIn(data.scenarioOwners) : NO_OWNERS,
+      capabilities.scripted_owners && !chrome.layers.claims
+        ? claimedIn(data.scenarioOwners)
+        : NO_OWNERS,
       clansIn(ownership),
     ),
     specialWithGameData: data.specialWithGameData,

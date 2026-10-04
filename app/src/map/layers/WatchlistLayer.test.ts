@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Graphics } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import { nextColour, type WatchRings } from "../../lib/watchlist";
@@ -20,7 +21,7 @@ describe("the watchlist layer", () => {
       slot,
       systems: [slot],
     }));
-    const layer = new WatchlistLayer();
+    const layer = new WatchlistLayer(new DrawnPositions());
     layer.rebuild(mapContext(nodes));
     viewport(layer, 1);
     layer.setWatchlist(entries);

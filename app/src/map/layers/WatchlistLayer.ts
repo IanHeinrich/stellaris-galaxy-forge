@@ -4,7 +4,7 @@ import { WATCH_COLOURS, type WatchRings } from "../../lib/watchlist";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { DrawnPositions, movedAny, type DrawnChange } from "../drawnPositions";
-import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
+import { pointsOf, RingBatches, type RingSpec, type WantedRings } from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 import { RING_RADIUS, WATCH_RING_STEP } from "../../lib/visual/style";
 
@@ -30,13 +30,13 @@ function batchKey(rings: WatchRings): string {
 export class WatchlistLayer implements MapLayer {
   readonly id = "watchlist" as const;
   readonly container = new Container();
-  private readonly batches = new Map<string, RingBatch>();
+  private readonly batches = new RingBatches(this.container, "watch.");
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private rings: readonly WatchRings[] = [];
   private readonly scale = { x: 1, y: 1 };
 
-  constructor(private readonly drawn = new DrawnPositions()) {}
+  constructor(private readonly drawn: DrawnPositions) {}
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -57,7 +57,7 @@ export class WatchlistLayer implements MapLayer {
 
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
-    for (const batch of this.batches.values()) batch.setScale(this.scale);
+    this.batches.setScale(this.scale);
   }
 
   onDrawn({ moved }: DrawnChange): void {
@@ -70,27 +70,17 @@ export class WatchlistLayer implements MapLayer {
 
   destroy(): void {
     this.container.destroy({ children: true });
-    for (const batch of this.batches.values()) batch.destroy();
+    this.batches.destroy();
   }
 
   private place(): void {
-    const wanted = new Map(this.rings.map((rings) => [batchKey(rings), rings]));
-    for (const [key, batch] of this.batches) {
-      if (wanted.has(key)) continue;
-      this.container.removeChild(batch.container);
-      batch.container.destroy({ children: true });
-      batch.destroy();
-      this.batches.delete(key);
+    const wanted = new Map<string, WantedRings>();
+    for (const rings of this.rings) {
+      wanted.set(batchKey(rings), {
+        spec: specOf(rings),
+        points: pointsOf(this.systems, rings.systems, this.drawn.at),
+      });
     }
-    for (const [key, rings] of wanted) {
-      let batch = this.batches.get(key);
-      if (!batch) {
-        batch = new RingBatch(specOf(rings), `watch.${key}`);
-        batch.setScale(this.scale);
-        this.batches.set(key, batch);
-        this.container.addChild(batch.container);
-      }
-      batch.place(pointsOf(this.systems, rings.systems, this.drawn.at));
-    }
+    this.batches.sync(wanted);
   }
 }

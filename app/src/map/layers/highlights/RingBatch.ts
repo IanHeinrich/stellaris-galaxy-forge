@@ -77,16 +77,67 @@ export class RingBatch {
   }
 
   destroy(): void {
+    this.container.destroy({ children: true });
     this.shape.destroy();
   }
 }
 
+/** The rings one batch of `RingBatches` draws: their look and the points they go round. */
+export interface WantedRings {
+  spec: RingSpec;
+  points: readonly Pt[];
+}
+
+/** `RingBatch`es by kind of ring, added to one container and kept in step with what is wanted. */
+export class RingBatches {
+  private readonly batches = new Map<string, RingBatch>();
+  private readonly scale: Pt = { x: 1, y: 1 };
+
+  constructor(
+    private readonly parent: Container,
+    private readonly labelPrefix: string,
+  ) {}
+
+  /** Destroys the batches `wanted` lacks, makes the ones it adds, and places every batch's points. */
+  sync(wanted: ReadonlyMap<string, WantedRings>): void {
+    for (const [key, batch] of this.batches) {
+      if (wanted.has(key)) continue;
+      batch.destroy();
+      this.batches.delete(key);
+    }
+    for (const [key, { spec, points }] of wanted) this.batchFor(key, spec).place(points);
+  }
+
+  /** Places `points` alone, in the batch for `key` if there is one. */
+  place(key: string, points: readonly Pt[]): void {
+    this.batches.get(key)?.place(points);
+  }
+
+  setScale(scale: Pt): void {
+    this.scale.x = scale.x;
+    this.scale.y = scale.y;
+    for (const batch of this.batches.values()) batch.setScale(scale);
+  }
+
+  destroy(): void {
+    for (const batch of this.batches.values()) batch.destroy();
+    this.batches.clear();
+  }
+
+  private batchFor(key: string, spec: RingSpec): RingBatch {
+    let batch = this.batches.get(key);
+    if (!batch) {
+      batch = new RingBatch(spec, `${this.labelPrefix}${key}`);
+      batch.setScale(this.scale);
+      this.batches.set(key, batch);
+      this.parent.addChild(batch.container);
+    }
+    return batch;
+  }
+}
+
 /** Where the systems of `ids` the map holds draw, as `at` says, skipping the rest. */
-export function pointsOf(
-  systems: Systems,
-  ids: Iterable<number>,
-  at: (s: SystemNode) => Pt = (s) => s,
-): Pt[] {
+export function pointsOf(systems: Systems, ids: Iterable<number>, at: (s: SystemNode) => Pt): Pt[] {
   const points: Pt[] = [];
   for (const id of ids) {
     const s = systems.get(id);

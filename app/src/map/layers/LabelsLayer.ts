@@ -76,7 +76,7 @@ export class LabelsLayer implements MapLayer {
     if (this.pinned.has(s.id)) this.pinnedInView.add(s.id);
   };
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.addChild(this.plates);
     this.unsubscribe.push(onTextures(() => this.schedulePlates()));
   }
@@ -93,7 +93,7 @@ export class LabelsLayer implements MapLayer {
     }
     if (
       ctx.names !== prev.names ||
-      ctx.kind !== prev.kind ||
+      ctx.capabilities !== prev.capabilities ||
       ctx.initializerLabels !== prev.initializerLabels ||
       ctx.hiddenInitializers !== prev.hiddenInitializers ||
       ctx.territoriesShown !== prev.territoriesShown
@@ -219,7 +219,7 @@ export class LabelsLayer implements MapLayer {
 
   /** A scenario's named systems are labelled at every zoom, unless its scripted empires name the regions. */
   private get keepsNames(): boolean {
-    return this.ctx.kind === "scenario" && !this.ctx.territoriesShown;
+    return this.ctx.capabilities.scripted_owners && !this.ctx.territoriesShown;
   }
 
   private nameOf(s: SystemNode): string {

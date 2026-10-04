@@ -252,22 +252,36 @@ function idSet(ids: readonly number[]): ReadonlySet<number> {
   return set;
 }
 
+/** The pointer of a lane drag from `from`, and what `snapTarget` snaps it to. */
+export interface SnapQuery {
+  grid: SpatialGrid;
+  index: PickIndex;
+  systems: Systems;
+  cam: Camera;
+  /** The pointer in the grid's space. */
+  at: Pt;
+  /** The same point on the plane. */
+  plane: Pt;
+  from: LaneSource;
+  /** Whether the zones show. */
+  zones: boolean;
+}
+
 /**
- * What a lane drag from `from` would snap to: the nearest system of `grid` inside the snap
- * radius of `at`, in the grid's space, or, for a drag from systems while `zones` show, the zone
- * whose ring line passes near `plane`, the same point on the plane; and whether the lane or
- * link could be added.
+ * What a lane drag would snap to: the nearest system of `grid` inside the snap radius of `at`,
+ * or, for a drag from systems while zones show, the zone whose ring line passes near `plane`;
+ * and whether the lane or link could be added.
  */
-export function snapTarget(
-  grid: SpatialGrid,
-  index: PickIndex,
-  systems: Systems,
-  cam: Camera,
-  at: Pt,
-  from: LaneSource,
-  zones: boolean,
-  plane: Pt = at,
-): LaneTarget | null {
+export function snapTarget({
+  grid,
+  index,
+  systems,
+  cam,
+  at,
+  plane,
+  from,
+  zones,
+}: SnapQuery): LaneTarget | null {
   const reach = SNAP_RADIUS_PX / cam.scale;
   const near = nearestOutside(grid, at, reach, from.kind === "systems" ? idSet(from.ids) : NO_IDS);
   const s = near && systems.get(near.id);

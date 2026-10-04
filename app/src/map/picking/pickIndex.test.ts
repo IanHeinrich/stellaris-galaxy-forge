@@ -4,10 +4,11 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { distToSegmentSq } from "../../lib/geometry/geometry";
 import { seeded } from "../../lib/random";
 import type { LaneRef } from "../../store/editorStore";
+import { DrawnPositions } from "../drawnPositions";
 import { PickIndex } from "./pickIndex";
 
 function indexed(...nodes: SystemNode[]): PickIndex {
-  const index = new PickIndex();
+  const index = new PickIndex(new DrawnPositions());
   index.build(byId(...nodes));
   return index;
 }
@@ -139,7 +140,7 @@ describe("the pick index against a scan of every lane", () => {
     const rand = seeded(7);
     const nodes = galaxy(rand);
     const systems = byId(...nodes);
-    const index = new PickIndex();
+    const index = new PickIndex(new DrawnPositions());
     index.build(systems);
     expectSameAsScan(index, systems, rand);
 

@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /** The texture fetch, which answers with nothing, or once a test asks, that no key can render. */
@@ -68,7 +69,7 @@ describe("the details layer's rows", () => {
         return name.key;
       },
     });
-    const layer = new DetailsLayer();
+    const layer = new DetailsLayer(new DrawnPositions());
     layer.rebuild(ctx);
     viewport(layer, CLOSE);
     expect(laidOut).toBe(IN_VIEW);
@@ -100,7 +101,7 @@ describe("the details layer's rows", () => {
         return name.key;
       },
     });
-    const layer = new DetailsLayer();
+    const layer = new DetailsLayer(new DrawnPositions());
     layer.rebuild(ctx);
     viewport(layer, CLOSE);
 
@@ -128,7 +129,7 @@ describe("the details layer's rows", () => {
       megastructures: [{ id: 50, kind: "dyson_sphere_2", owner: null, planet: 7 }],
       sites: [{ id: 60, kind: "site_tiyanki_graveyard", planet: 7 }],
     };
-    const layer = new DetailsLayer();
+    const layer = new DetailsLayer(new DrawnPositions());
     layer.rebuild(mapContext(NODES, { details: new Map([[SOL.id, sol]]), detailsVersion: 1 }));
     viewport(layer, CLOSE);
     const texts = (c: Container): BitmapText[] => [

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { SystemNode } from "../generated/SystemNode";
 import { placedNode as node } from "../test/builders";
 import { ghostLaneSegments } from "./moveGhosts";
+
+const flat = (s: SystemNode) => s;
 
 describe("ghostLaneSegments", () => {
   it("joins two moved systems once at their ghosts and a moved one to its unmoved neighbour", () => {
@@ -11,7 +14,7 @@ describe("ghostLaneSegments", () => {
     ]);
     const a = { id: 1, x: 5, y: 5 };
     const b = { id: 2, x: 15, y: 5 };
-    expect(ghostLaneSegments(systems, [a, b])).toEqual([
+    expect(ghostLaneSegments(systems, [a, b], flat)).toEqual([
       [a, b],
       [a, systems.get(3)],
     ]);
@@ -19,7 +22,7 @@ describe("ghostLaneSegments", () => {
 
   it("is empty with no ghosts or for a ghost of an unknown system", () => {
     const systems = new Map([[1, node(1, 0, 0, [])]]);
-    expect(ghostLaneSegments(systems, [])).toEqual([]);
-    expect(ghostLaneSegments(systems, [{ id: 9, x: 0, y: 0 }])).toEqual([]);
+    expect(ghostLaneSegments(systems, [], flat)).toEqual([]);
+    expect(ghostLaneSegments(systems, [{ id: 9, x: 0, y: 0 }], flat)).toEqual([]);
   });
 });

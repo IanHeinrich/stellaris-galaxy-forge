@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SystemNode } from "../generated/SystemNode";
 import { name, placedNode } from "../test/builders";
 import { selectionFrame } from "./selectionFrame";
 
@@ -8,9 +9,11 @@ const SYSTEMS = new Map([
 ]);
 const NEBULA = { name: name("N"), x: 200, y: 100, radius: 30, systems: [] };
 
+const flat = (s: SystemNode) => s.y;
+
 describe("the selection frame", () => {
   it("boxes the selected systems, before any selected nebula", () => {
-    expect(selectionFrame(SYSTEMS, [1, 2], NEBULA)).toEqual({
+    expect(selectionFrame(SYSTEMS, [1, 2], NEBULA, flat)).toEqual({
       minX: -40,
       minY: -20,
       maxX: 60,
@@ -19,12 +22,12 @@ describe("the selection frame", () => {
   });
 
   it("boxes a nebula selected alone by its ring, rather than leaving the galaxy fit to it", () => {
-    expect(selectionFrame(SYSTEMS, [], NEBULA)).toEqual({
+    expect(selectionFrame(SYSTEMS, [], NEBULA, flat)).toEqual({
       minX: 170,
       minY: 70,
       maxX: 230,
       maxY: 130,
     });
-    expect(selectionFrame(SYSTEMS, [], undefined)).toBeNull();
+    expect(selectionFrame(SYSTEMS, [], undefined, flat)).toBeNull();
   });
 });

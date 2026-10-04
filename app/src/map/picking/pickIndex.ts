@@ -57,8 +57,6 @@ export interface PickPlace {
   toPick(p: Pt): Pt;
 }
 
-const ON_THE_PLANE: PickPlace = { pickAt: (s) => s, toPick: (p) => p };
-
 /**
  * What pointer picking needs beyond the system grid: every lane and zone link as a segment
  * filed under the cells it crosses, where `place` says the pointer finds its ends, and the
@@ -82,7 +80,7 @@ export class PickIndex {
   private maxCx = -Infinity;
   private maxCy = -Infinity;
 
-  constructor(private readonly place: PickPlace = ON_THE_PLANE) {}
+  constructor(private readonly place: PickPlace) {}
 
   build(systems: Systems): void {
     this.cells.clear();
