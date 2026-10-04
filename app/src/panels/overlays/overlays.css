@@ -4,13 +4,13 @@
   pointer-events: none;
   max-width: 360px;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.35;
   color: #d6dde8;
   background: rgba(10, 14, 20, 0.92);
   border: 1px solid rgba(120, 160, 200, 0.35);
   border-radius: 3px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .map-tooltip-title {
@@ -97,7 +97,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .context-menu-header {
@@ -182,7 +182,7 @@
 
 .pick-group-heading {
   padding: 4px 6px 2px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   color: var(--fg-muted);
 }
 
@@ -259,7 +259,7 @@
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dialog);
 }
 
 .update-dialog h1 {
@@ -276,14 +276,14 @@
   padding: 8px 10px;
   overflow-y: auto;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--text-control);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
 }
 
 .update-notes h2 {
-  font-size: 12px;
+  font-size: var(--text-control);
   margin: 10px 0 4px;
 }
 
@@ -312,7 +312,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .update-actions {
@@ -328,7 +328,7 @@
   flex: 1;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .fe-zone-fit-slider input[type="range"] {
@@ -351,7 +351,7 @@
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dialog);
 }
 
 .save-issues-dialog h1 {
@@ -382,6 +382,6 @@
 .context-menu button.hinted > .warn {
   display: block;
   max-width: 260px;
-  font-size: 11.5px;
+  font-size: var(--text-note);
   white-space: normal;
 }

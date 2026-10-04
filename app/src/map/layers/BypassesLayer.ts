@@ -1,7 +1,7 @@
 import { Circle, Container, type FederatedPointerEvent, Graphics } from "pixi.js";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { Camera } from "../Camera";
-import { type BypassKinds, bypassIconKey } from "../../lib/details/icons";
+import { type BypassKinds, bypassIconKey, RELAY_BYPASS } from "../../lib/details/icons";
 import { bypassName } from "../../lib/details/labels";
 import { labelTier } from "../../lib/visual/labels";
 import { badgeGeometry, badgeSide } from "../../lib/visual/specialStyle";
@@ -20,7 +20,7 @@ const GATEWAY = { color: 0x38bdf8, icon: "gateway", label: "Gateway", ruined: "R
 const LGATE = { color: 0x22d3ee, icon: "lgate", label: "L-Gate" };
 const OTHER = { color: 0xa3e635, size: 3.5, width: 1.5, alpha: 0.85 };
 /** Late game nearly every system has a relay, so its marker stays in the background. */
-const RELAY = { ...OTHER, kind: "relay_bypass", width: 1, alpha: 0.2 };
+const RELAY = { ...OTHER, kind: RELAY_BYPASS, width: 1, alpha: 0.2 };
 /** Marker centre relative to the star, in marker units, so it clears the star and its rings. */
 const OFFSET = { x: 12, y: -12 };
 /** The marker's own hit area, around its offset centre, clear of the star's own hover and drag. */
@@ -100,7 +100,7 @@ export class BypassesLayer implements MapLayer {
   private readonly badgeTip = new OwnedTooltip();
   private readonly markerTip = new OwnedTooltip();
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.addChild(this.lines, this.markerLayer, this.badgeLayer);
   }
 

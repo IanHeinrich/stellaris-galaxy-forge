@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Issue } from "../../generated/Issue";
@@ -30,7 +31,7 @@ beforeEach(() => {
 
 describe("the issues layer", () => {
   it("names the issue's severity, what it is and why it matters, on the ring", () => {
-    const layer = new IssuesLayer();
+    const layer = new IssuesLayer(new DrawnPositions());
     layer.rebuild(mapContext([SOL]));
     viewport(layer, 1);
     layer.setIssues([ISOLATED]);
@@ -50,7 +51,7 @@ describe("the issues layer", () => {
   });
 
   it("rings a system in the colour of its worst issue, whatever order they come in", () => {
-    const layer = new IssuesLayer();
+    const layer = new IssuesLayer(new DrawnPositions());
     layer.rebuild(mapContext([SOL]));
     viewport(layer, 1);
     const duplicate: Issue = { ...ISOLATED, severity: "info", code: "lane_duplicate" };

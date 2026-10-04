@@ -84,11 +84,7 @@ function inspectedBody(): { system: number; id: number } | null {
   if (shown === null) return null;
   const { stack } = useInspectorStore.getState();
   const { ref } = stack[stack.length - 1];
-  if (ref.kind === "body") return ref.system === shown ? { system: shown, id: ref.id } : null;
-  if (ref.kind !== "planet") return null;
-  const read = useDetailsStore.getState().details.get(shown);
-  if (read !== undefined && !read.planets.some((p) => p.id === ref.id)) return null;
-  return { system: shown, id: ref.id };
+  return ref.kind === "body" && ref.system === shown ? { system: shown, id: ref.id } : null;
 }
 
 /** Opens the page of body `id` of `system` above the system's, named as its read details name it. */

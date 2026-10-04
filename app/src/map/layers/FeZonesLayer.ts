@@ -107,7 +107,7 @@ function draw(g: Graphics, anchorDx: number, anchorDy: number, selected: boolean
 
 /** Only a scenario written for the mod carries zones the map should draw. */
 function drawn(ctx: RenderContext): boolean {
-  return ctx.kind === "scenario" && ctx.paintLayer;
+  return ctx.paintLayer;
 }
 
 /** The centre text: the ring's name, and the kind's full label below it unless it is random. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
+import type { WormholeSummary } from "../../generated/WormholeSummary";
 import { COUNTRY, details, fleet, planet } from "./fixture";
 import { type BypassKinds, bypassIconKey } from "./icons";
 import {
@@ -325,5 +326,25 @@ describe("bypassIcons", () => {
     expect(bypassIconKey("relay_bypass", kinds)).toBeNull();
     const icons = bypassIcons(bypasses, 2, kinds);
     expect(icons[icons.length - 1].keys).toEqual([]);
+  });
+
+  it("leaves out the bypasses the system's own wormholes already list", () => {
+    const hole = (kind: string): WormholeSummary => ({
+      id: 0,
+      bypass: 0,
+      kind,
+      partner: null,
+      x: 0,
+      y: 0,
+    });
+    const links: BypassLink[] = [
+      { type: "wormhole", a: 1, b: 2 },
+      { type: "other", system: 2, kind: "shroud_tunnel" },
+      { type: "other", system: 2, kind: "relay_bypass" },
+    ];
+    const labels = bypassIcons(links, 2, undefined, [hole("wormhole"), hole("shroud_tunnel")]).map(
+      (i) => i.label,
+    );
+    expect(labels).toEqual(["Relay Bypass"]);
   });
 });

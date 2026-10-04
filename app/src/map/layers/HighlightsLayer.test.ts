@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import type { Graphics } from "pixi.js";
 import { describe, expect, it, vi } from "vitest";
 import { lanesTo, feLinkedNode, systemNode, zoneAnchor } from "../../test/builders";
@@ -25,7 +26,7 @@ const LANE = { kind: "lane", lane: { a: 2, b: 3 } } as const;
 const LINK = { kind: "feLink", anchor: 0, system: 1 } as const;
 
 function drawn(scale = 1): HighlightsLayer {
-  const layer = new HighlightsLayer();
+  const layer = new HighlightsLayer(new DrawnPositions());
   layer.rebuild(mapContext([ANCHOR, LINKED, LANE_A, LANE_B], { paintLayer: true }));
   viewport(layer, scale);
   return layer;

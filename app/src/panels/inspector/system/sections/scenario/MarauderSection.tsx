@@ -10,18 +10,9 @@ import {
 } from "../../../../../lib/marauder";
 import { useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { useCanEdit } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
-
-/** What a clan home is, in three short lines: three systems, created at game start. */
-export function homeIntro(clan: number): readonly string[] {
-  return [
-    `This system is clan ${clan}'s home.`,
-    "The initializer creates the clan at game start.",
-    "A clan is the home and two outposts, each hyperlaned to it.",
-  ];
-}
+import { homeIntro } from "./sectionCopy";
 
 /** What the section says of a base with no home of its clan on a lane. */
 export const NO_HOME_BESIDE = "No clan home beside it. Nothing spawns here.";
@@ -34,8 +25,7 @@ export const ADD_BASES = "Add the missing outposts";
  * names its home.
  */
 export function MarauderSection({ system }: { system: SystemNode }) {
-  const editable = useCanEdit("create_systems");
-  if (!editable || system.marauder === null) return null;
+  if (system.marauder === null) return null;
   return "home" in system.marauder ? (
     <Home system={system} clan={system.marauder.home} />
   ) : (

@@ -17,7 +17,7 @@ import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeS
 import { usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
-import { BulkActions, MarauderClanButton, WormholePairButton } from "../../BulkActions";
+import { BulkActions, MarauderClanButton } from "../../BulkActions";
 import { NEEDS_INITIALIZER, spawnPointsOp, spawnTargets } from "../../spawnPoint";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
@@ -48,7 +48,6 @@ export function SystemMenu({
   const paint = usePaintLayer();
   const capabilities = useFileSessionStore(documentCapabilities);
   const canCreate = useCanEdit("create_systems");
-  const wormholePairs = useCanEdit("wormhole_pairs");
   const zones = useZones();
   const { selection, selected, selectedName } = useSelected();
   const linkItem = useZoneLink();
@@ -93,14 +92,6 @@ export function SystemMenu({
           >
             Isolate
           </MenuItem>
-          {(zones || wormholePairs) && selection.length === 2 && inSelection && (
-            <WormholePairButton
-              a={selection[0]}
-              b={selection[1]}
-              dismiss={closeContextMenu}
-              itemRole="menuitem"
-            />
-          )}
           {selection.length > 0 && !inSelection && (
             <>
               <MenuItem disabled={connectable === 0} run={() => connectSelectedTo(target.id)}>

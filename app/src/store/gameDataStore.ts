@@ -85,8 +85,6 @@ export interface GameDataState {
   lgateMods: LGateModTouch[];
   /** Every solar system initializer, read on first use; `null` until then. */
   initializers: InitializerView[] | null;
-  /** Each initializer's own star class, drawn for a scenario system until the game rolls one. */
-  initializerClasses: ReadonlyMap<string, string>;
   /** True while that first read is in flight, so it happens once. */
   initializersPending: boolean;
   /** Every galaxy shape a scenario can list itself under, read on first use; `null` until then. */
@@ -149,8 +147,6 @@ export interface GameDataState {
   displayNameOf(key: string): string | undefined;
 }
 
-const NO_CLASSES: ReadonlyMap<string, string> = new Map<string, string>();
-
 const UNLOADED = {
   status: "idle" as GameDataStatus,
   summary: null,
@@ -171,7 +167,6 @@ const UNLOADED = {
   countryTypes: new Map<string, CountryTypeView>(),
   lgateMods: [] as LGateModTouch[],
   initializers: null as InitializerView[] | null,
-  initializerClasses: NO_CLASSES,
   initializersPending: false,
   galaxyShapes: null as GalaxyShapeView[] | null,
   galaxyShapesPending: false,
@@ -188,14 +183,9 @@ const UNLOADED = {
   hotCount: 0,
 };
 
-function starClassesOf(initializers: readonly InitializerView[]): ReadonlyMap<string, string> {
-  return new Map(initializers.map((init) => [init.name, init.star_class]));
-}
-
 /** The lists read on first use, as they stand until then. */
 const FRESH_DATA = {
   initializers: null,
-  initializerClasses: NO_CLASSES,
   initializersPending: false,
   galaxyShapes: null,
   galaxyShapesPending: false,
@@ -352,10 +342,7 @@ export const useGameDataStore = create<GameDataState>((set, get) => ({
   },
 
   loadInitializers() {
-    return readOnce("initializers", ipc.getInitializers, (initializers) => ({
-      initializers,
-      initializerClasses: starClassesOf(initializers),
-    }));
+    return readOnce("initializers", ipc.getInitializers, (initializers) => ({ initializers }));
   },
 
   loadGalaxyShapes() {

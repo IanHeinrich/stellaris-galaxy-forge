@@ -3,6 +3,7 @@ import type { GalaxyView } from "../../generated/GalaxyView";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
+import { kindCapabilities } from "../../lib/documentKinds";
 import { composeOwnership } from "../../lib/ownership";
 import { SpatialGrid } from "../../lib/spatialGrid";
 import { systemNode } from "../../test/builders";
@@ -40,6 +41,7 @@ export function mapContext(
     grid,
     ...over,
   };
+  ctx.capabilities = over.capabilities ?? kindCapabilities(ctx.kind);
   if (over.owners !== undefined || over.table !== undefined) return ctx;
   const { owners, table } = composeOwnership({
     kind: ctx.kind,

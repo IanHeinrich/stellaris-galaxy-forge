@@ -33,7 +33,7 @@ import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
 import { LaneDragOverlay } from "./highlights/LaneDragOverlay";
 import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
-import { markerScale, sameDragged, type DragState, type MapLayer } from "./MapLayer";
+import { markerScale, sameKeys, type DragState, type MapLayer } from "./MapLayer";
 
 const SELECTION: RingSpec = {
   color: ACCENT_COLOR,
@@ -177,7 +177,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly scale = { x: 1, y: 1 };
   private readonly pixelScale = { x: 1, y: 1 };
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.laneDrag = new LaneDragOverlay(drawn.at);
     this.container.addChild(
       this.coreRing,
@@ -309,7 +309,7 @@ export class HighlightsLayer implements MapLayer {
 
   setDragState(drag: DragState | null): void {
     const dragged = drag?.byId ?? new Map<number, MoveGhost>();
-    const same = sameDragged(dragged, this.dragged);
+    const same = sameKeys(dragged, this.dragged);
     this.ghosts = drag?.ghosts ?? [];
     this.laneDrag.setMoving(this.ghosts.length > 0);
     this.dragged = dragged;

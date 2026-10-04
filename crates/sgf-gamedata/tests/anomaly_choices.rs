@@ -3,9 +3,9 @@
 //! body asked about; a mod's categories; and the real install's counts.
 
 use crate::common;
+use common::by_key;
 use common::scripts::install_with_mod;
 
-use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::choices::AskedBody;
 
 const FILES: [(&str, &str); 4] = [
@@ -47,13 +47,6 @@ fn asked(class: &str) -> AskedBody<'_> {
     }
 }
 
-fn choice<'a>(choices: &'a [AnomalyChoice], key: &str) -> &'a AnomalyChoice {
-    choices
-        .iter()
-        .find(|c| c.key == key)
-        .unwrap_or_else(|| panic!("{key} is offered"))
-}
-
 #[test]
 fn categories_run_on_spawn_gated_by_a_chain_or_the_ais_own_are_left_out() {
     let (_dir, gd) = common::hand_written(&FILES);
@@ -70,7 +63,7 @@ fn categories_run_on_spawn_gated_by_a_chain_or_the_ais_own_are_left_out() {
         ]
     );
 
-    let rock = choice(&choices, "fx_rock_cat");
+    let rock = by_key(&choices, "fx_rock_cat");
     assert_eq!(rock.name, "Strange Rock");
     assert_eq!(rock.level, Some(2));
     assert_eq!(
@@ -78,14 +71,14 @@ fn categories_run_on_spawn_gated_by_a_chain_or_the_ais_own_are_left_out() {
         Some("A rock that hums."),
         "colour and icon codes stripped, references resolved"
     );
-    let asteroid = choice(&choices, "fx_asteroid_cat");
+    let asteroid = by_key(&choices, "fx_asteroid_cat");
     assert_eq!(
         asteroid.name, "Fx Asteroid Cat",
         "no name: the key made readable"
     );
     assert_eq!(asteroid.level, Some(7), "the level through its variable");
     assert_eq!(asteroid.description.as_deref(), Some("It tumbles."));
-    let debris = choice(&choices, "fx_debris_cat");
+    let debris = by_key(&choices, "fx_debris_cat");
     assert_eq!(
         debris.description.as_deref(),
         Some("Debris drifts in orbit of it."),
@@ -142,7 +135,7 @@ fn a_mods_categories_are_offered_beside_the_installs() {
         "many_cat = {\n\tlevel = 5\n\tspawn_chance = { base = 1 }\n}\n",
     )]);
     let choices = gd.anomaly_choices(&asked("pc_desert"));
-    let many = choice(&choices, "many_cat");
+    let many = by_key(&choices, "many_cat");
     assert_eq!(many.level, Some(5));
     assert!(many.usual);
 }

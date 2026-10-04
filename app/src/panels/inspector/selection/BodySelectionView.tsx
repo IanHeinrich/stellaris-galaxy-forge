@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyClassName } from "../../../lib/details/labels";
 import { capabilityFor } from "../../../lib/entities";
 import type { Names } from "../../../lib/names";
 import { cutHint, cutLabel, movingBodies, selectionLine } from "../../../lib/planetMove";
@@ -7,10 +8,10 @@ import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { type Entry } from "../../../store/inspectorStore";
-import { cutAvailability, usePlanetMoveStore } from "../../../store/planetMoveStore";
-import { useSceneStore } from "../../../store/sceneStore";
-import { useOpenEntity } from "../entity/useEntity";
+import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { cutAvailability, cutPlanets, usePlanetMoveStore } from "../../../store/planetMoveStore";
+import { useSceneStore, type BodySelection } from "../../../store/sceneStore";
+import { useSystemBodyNamer } from "../entity/useBodyName";
 import { DrillLink, Empty, Section } from "../parts";
 
 /** Whether `a` and `b` hold the same ids. */
@@ -35,6 +36,45 @@ function bodyNote(
   return parts.join(" · ");
 }
 
+/** One selected body of `system`: its name, opening its page, what it is, and a × that drops it. */
+function SelectedBody({
+  system,
+  id,
+  name,
+  children,
+}: {
+  system: number;
+  id: number;
+  name: string;
+  children: ReactNode;
+}) {
+  const open = useInspectorStore((s) => s.open);
+  const toggleBody = useSceneStore((s) => s.toggleBody);
+  return (
+    <div className="ins-line ins-body-pick">
+      <span>
+        <DrillLink
+          requires={capabilityFor("planet")}
+          title="Open the planet's page"
+          onOpen={() => open(bodyEntry(system, id, name))}
+        >
+          {name}
+        </DrillLink>
+        {children}
+      </span>
+      <button
+        type="button"
+        className="link ins-close"
+        title={`Remove ${name} from the selection`}
+        aria-label={`Remove ${name} from the selection`}
+        onClick={() => toggleBody(system, id)}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 /**
  * Two or more bodies selected in a system's view: what moves with them, each body with a × that
  * drops it from the selection, and Cut, or Cancel move once these planets are cut.
@@ -42,25 +82,27 @@ function bodyNote(
 export function BodySelectionView({ entry }: { entry: Entry }) {
   const system = entry.ref.kind === "bodies" ? entry.ref.system : null;
   const selection = useSceneStore((s) => s.bodySelection);
-  const selectionTargets = usePlanetMoveStore((s) => s.selectionTargets);
-  const cut = usePlanetMoveStore((s) => s.cut);
-  const toggleBody = useSceneStore((s) => s.toggleBody);
-  const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
-  const cancelCut = usePlanetMoveStore((s) => s.cancelCut);
-  const read = useDetailsStore((s) => (system === null ? undefined : s.details.get(system)));
-  const names = useGameDataStore((s) => s.names);
-  const countryName = useGalaxyStore((s) => s.countryName);
-  const opener = useOpenEntity();
   if (system === null || selection === null || selection.system !== system) {
     return <Empty>No bodies are selected.</Empty>;
   }
+  return <SelectedBodies selection={selection} />;
+}
+
+/** The summary of `selection`, two or more bodies of one system. */
+function SelectedBodies({ selection }: { selection: BodySelection }) {
+  const { system } = selection;
+  const selectionTargets = usePlanetMoveStore((s) => s.selectionTargets);
+  const cut = usePlanetMoveStore((s) => s.cut);
+  const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
+  const cancelCut = usePlanetMoveStore((s) => s.cancelCut);
+  const read = useDetailsStore((s) => s.details.get(system));
+  const names = useGameDataStore((s) => s.names);
+  const countryName = useGalaxyStore((s) => s.countryName);
+  const nameIn = useSystemBodyNamer(system);
 
   const planets = read?.planets ?? [];
   const bodyOf = (id: number) => planets.find((p) => p.id === id);
-  const nameOf = (id: number) => {
-    const body = bodyOf(id);
-    return body === undefined ? `#${id}` : bodyName(body, names);
-  };
+  const nameOf = (id: number) => nameIn(id) ?? `#${id}`;
   const moving = movingBodies(selection.ids, (id) => bodyOf(id)?.parent ?? null);
   const movingSet = new Set(moving);
   const moonsAlong = planets.filter((p) => p.parent !== null && movingSet.has(p.parent)).length;
@@ -72,8 +114,8 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
   });
 
   const availability = cutAvailability(selection, selectionTargets);
-  const cutPlanets = availability.kind === "ready" ? availability.planets : moving;
-  const isCut = cut !== null && cut.from === system && sameIds(cut.planets, cutPlanets);
+  const taken = cutPlanets(selection, selectionTargets, read);
+  const isCut = cut !== null && cut.from === system && sameIds(cut.planets, taken);
 
   return (
     <>
@@ -86,34 +128,15 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
       <Section id="bodies.planets" title="Planets" count={selection.ids.length}>
         {selection.ids.map((id) => {
           const body = bodyOf(id);
-          const name = nameOf(id);
           return (
-            <div className="ins-line ins-body-pick" key={id}>
-              <span>
-                <DrillLink
-                  requires={capabilityFor("planet")}
-                  title="Open the planet's page"
-                  onOpen={() => opener.open({ kind: "planet", id }, name)}
-                >
-                  {name}
-                </DrillLink>
-                {body !== undefined && (
-                  <span className="muted">
-                    {" "}
-                    · {bodyNote(body, planets, nameOf, countryName, names)}
-                  </span>
-                )}
-              </span>
-              <button
-                type="button"
-                className="link ins-close"
-                title={`Remove ${name} from the selection`}
-                aria-label={`Remove ${name} from the selection`}
-                onClick={() => toggleBody(system, id)}
-              >
-                ×
-              </button>
-            </div>
+            <SelectedBody key={id} system={system} id={id} name={nameOf(id)}>
+              {body !== undefined && (
+                <span className="muted">
+                  {" "}
+                  · {bodyNote(body, planets, nameOf, countryName, names)}
+                </span>
+              )}
+            </SelectedBody>
           );
         })}
       </Section>
@@ -130,9 +153,7 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
               title={availability.kind === "refused" ? availability.reason : undefined}
               onClick={() => cutSelection()}
             >
-              {cutLabel(
-                cutPlanets.map((id) => ({ name: nameOf(id), moon: bodyOf(id)?.moon === true })),
-              )}
+              {cutLabel(taken.map((id) => ({ name: nameOf(id), moon: bodyOf(id)?.moon === true })))}
             </button>
           )}
         </div>

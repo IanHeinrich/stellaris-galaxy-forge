@@ -2,6 +2,7 @@ import { Container, Graphics } from "pixi.js";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
+import { RELAY_BYPASS } from "../../lib/details/icons";
 import { pairKey } from "../../lib/geometry/pairs";
 import { cellKey } from "../../lib/spatialGrid";
 import type { Camera } from "../Camera";
@@ -12,7 +13,7 @@ import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContex
 import { DrawnPositions, type DrawnChange } from "../drawnPositions";
 import { ORIGIN_LANE_ALPHA } from "../../lib/visual/style";
 import { evenDashedLine } from "./dashes";
-import { sameDragged, type DragState, type MapLayer } from "./MapLayer";
+import { sameKeys, type DragState, type MapLayer } from "./MapLayer";
 
 export interface LaneStyle {
   color: number;
@@ -30,8 +31,6 @@ export const PREVENTED_LANE: LaneStyle = { color: 0x3b5b8a, alpha: 0.3 };
 const DASH = 2;
 const GAP = 2;
 
-/** The bypass a Hyper Relay stands in the save as. */
-const RELAY_BYPASS = "relay_bypass";
 /**
  * A lane between two relays, in pixels. The game's `HYPERLANE_THICKNESS_RELAY` is only twice its
  * default, but its lanes are wider than this map's hairlines, so twice a hairline barely shows.
@@ -87,12 +86,6 @@ function relaySystems(bypasses: readonly BypassLink[]): ReadonlySet<number> {
   return ids;
 }
 
-function sameMembers(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
-  if (a.size !== b.size) return false;
-  for (const id of a) if (!b.has(id)) return false;
-  return true;
-}
-
 /** World units per side of the tiles the lanes are drawn in, so an edit redraws only its own. */
 const TILE = 200;
 
@@ -140,7 +133,7 @@ export class LanesLayer implements MapLayer {
   private ease = 0;
   private relayStep = 0;
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.addChild(
       this.preventedLayer,
       this.lanesLayer,
@@ -174,7 +167,7 @@ export class LanesLayer implements MapLayer {
   /** Dims the lanes of the systems being dragged; their ghost lanes take their place. */
   setDragState(drag: DragState | null): void {
     const dragged = drag?.byId ?? NO_DRAG;
-    const same = sameDragged(dragged, this.dragged);
+    const same = sameKeys(dragged, this.dragged);
     if (same) return;
     const dirty = new Set<number>();
     for (const ids of [this.dragged.keys(), dragged.keys()]) {
@@ -228,7 +221,7 @@ export class LanesLayer implements MapLayer {
     if (bypasses === this.bypasses) return false;
     this.bypasses = bypasses;
     const relays = relaySystems(bypasses);
-    const changed = !sameMembers(relays, this.relays);
+    const changed = !sameKeys(relays, this.relays);
     this.relays = relays;
     return changed;
   }

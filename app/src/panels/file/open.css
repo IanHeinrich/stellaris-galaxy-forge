@@ -59,14 +59,14 @@
 }
 
 .open-rail-item[aria-selected="true"] {
-  background: rgba(255, 209, 102, 0.12);
+  background: var(--accent-bg-strong);
   box-shadow: inset 3px 0 0 var(--accent);
   color: var(--fg);
   font-weight: 600;
 }
 
 .open-rail-count {
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--fg-soft);
@@ -118,7 +118,7 @@
   z-index: 1;
   padding: 8px 8px 4px;
   background: var(--bg-panel);
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -127,14 +127,14 @@
 
 .open-group {
   padding: 6px 8px 2px;
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 600;
   color: var(--fg-soft);
 }
 
 .open-note {
   padding: 4px 8px 6px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-soft);
 }
 
@@ -157,7 +157,7 @@
 }
 
 .open-row.active {
-  background: rgba(255, 209, 102, 0.1);
+  background: var(--accent-bg-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -215,7 +215,7 @@
 }
 
 .open-sub {
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-soft);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -228,7 +228,7 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg-soft);
   white-space: nowrap;
 }
@@ -236,7 +236,7 @@
 .open-row .ghost,
 .open-heading .ghost {
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: var(--text-control);
   background: none;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -256,7 +256,7 @@
 .open-more {
   display: block;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .open-row .ghost:hover,
@@ -288,7 +288,7 @@
   grid-column: 1 / -1;
   margin-top: 4px;
   color: var(--warn);
-  font-size: 12px;
+  font-size: var(--text-control);
   white-space: pre-wrap;
 }
 
@@ -296,7 +296,7 @@
   display: inline-block;
   min-width: 14px;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-hint);
   font-weight: 600;
   border-radius: 3px;
   padding: 0 4px;
@@ -316,7 +316,7 @@
   overflow-y: auto;
   padding: 12px 14px;
   border-left: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.45;
 }
 
@@ -362,7 +362,7 @@
 .od-badge {
   padding: 0 6px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   background: var(--src-bg);
   color: var(--src);
 }
@@ -391,7 +391,7 @@
 
 .od-block h3 {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--text-control);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -433,7 +433,7 @@
 .od-tag {
   padding: 1px 6px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--text-hint);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--fg);
@@ -494,7 +494,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 
 .hint {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .error-box {
@@ -539,7 +539,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dialog);
 }
 
 .open-dialog-head {
@@ -596,7 +596,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 
 .setup-why {
   color: var(--fg-muted);
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.45;
 }
 
@@ -605,7 +605,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
   gap: 6px;
   margin-top: 4px;
   color: var(--warn);
-  font-size: 12px;
+  font-size: var(--text-control);
   line-height: 1.45;
 }
 
@@ -618,7 +618,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 
 .setup-path {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-note);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -642,7 +642,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
 }
 
 .never-warn-why {
-  font-size: 11px;
+  font-size: var(--text-hint);
   margin: 0;
 }
 
@@ -654,7 +654,7 @@ button.open-primary:hover:not([aria-disabled="true"]) {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--text-control);
 }
 
 .welcome-gamedata label {

@@ -11,7 +11,7 @@ import { polar } from "../lib/details/orbits";
 import { saveBody } from "../test/builders";
 import { editResult, orbitClasses, orbitSystem } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
-import { bodyEntryOf, useInspectorStore } from "./inspectorStore";
+import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
 import { applyGeometry, nudgeBody, systemGeometry } from "./systemGeometry";
@@ -31,7 +31,7 @@ function readSol(): void {
 /** Sol on screen, with the inspector showing body `id`'s page. */
 function inspect(id: number): void {
   useSceneStore.getState().enterSystem(SOL);
-  useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, id, "Body"));
+  useInspectorStore.getState().openFromMap(bodyEntry(SOL, id, "Body"));
 }
 
 beforeEach(async () => {
@@ -113,7 +113,7 @@ describe("nudgeBody", () => {
   });
 
   it("does nothing while the galaxy is shown", async () => {
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LONE, "Body"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, LONE, "Body"));
     expect(await nudgeBody({ turn: 1, out: 0 })).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });

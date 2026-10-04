@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { describe, expect, it } from "vitest";
 import { DETAIL_SCALE } from "../../lib/visual/labels";
 import { INITIALIZER_ALPHA } from "../../lib/visual/style";
@@ -13,7 +14,7 @@ const CLOSE = DETAIL_SCALE + 1;
 const FAR = DETAIL_SCALE - 1;
 
 function labelled(over: Parameters<typeof mapContext>[1], scale = CLOSE): string[] {
-  const layer = new LabelsLayer();
+  const layer = new LabelsLayer(new DrawnPositions());
   layer.rebuild(mapContext(NODES, over));
   viewport(layer, scale);
   return drawnText(layer.container);
@@ -29,7 +30,7 @@ describe("one label per system", () => {
   });
 
   it("fades an initializer label so the named systems stand out", () => {
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext(NODES, { initializerLabels: true }));
     viewport(layer, CLOSE);
     const alphas = new Map(drawnLabels(layer.container).map((l) => [l.text, l.alpha]));
@@ -63,7 +64,7 @@ describe("zoomed out", () => {
   });
 
   it("relabels the moment the empires layer flips, without waiting for a zoom", () => {
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext(NODES, { initializerLabels: true }));
     viewport(layer, FAR);
     expect(drawnText(layer.container)).toEqual(["Sol"]);
@@ -87,7 +88,7 @@ describe("the label budget", () => {
     const many = Array.from({ length: 450 }, (_, i) =>
       mapNode(i + 10, -99 + i * 0.4, `System ${i}`),
     );
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext([...many, DRAGON, RANDOM], { initializerLabels: true }));
     viewport(layer, CLOSE);
     const text = drawnText(layer.container);
@@ -99,7 +100,7 @@ describe("the label budget", () => {
 
 describe("a deleted system", () => {
   it("takes its label with it", () => {
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext(NODES, { initializerLabels: true }));
     viewport(layer, CLOSE);
     layer.rebuild(mapContext([SOL, RANDOM], { initializerLabels: true }));
@@ -113,7 +114,7 @@ describe("pinned and hovered labels", () => {
 
   it("labels a selected system only while it is in view", () => {
     const pinnedAt = (at: { x: number; y: number }) => {
-      const layer = new LabelsLayer();
+      const layer = new LabelsLayer(new DrawnPositions());
       layer.rebuild(mapContext([SOL, FAR_AWAY], { kind: "save" }));
       layer.setPinned([FAR_AWAY.id]);
       viewport(layer, CLOSE, at);
@@ -125,7 +126,7 @@ describe("pinned and hovered labels", () => {
 
   it("labels the hovered system past the budget without a pass, and lets it go", () => {
     const many = Array.from({ length: 450 }, (_, i) => mapNode(i, -99 + i * 0.4, `System ${i}`));
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext(many, { kind: "save" }));
     viewport(layer, CLOSE);
     expect(drawnText(layer.container)).not.toContain("System 449");
@@ -157,7 +158,7 @@ describe("the ranking behind the labels", () => {
       laned(1000 + i, -90 + i * 0.2, `Plain ${i}`, 0),
     );
     const ones = Array.from({ length: 50 }, (_, i) => laned(2000 + i, 50 + i * 0.8, `One ${i}`, 1));
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext([...hubs, ...plain, ...ones], { kind: "save" }));
     layer.setPinned([...plain, ...ones].map((s) => s.id));
     viewport(layer, CLOSE);
@@ -171,7 +172,7 @@ describe("the ranking behind the labels", () => {
     const many = Array.from({ length: 450 }, (_, i) =>
       mapNode(i, (-99 + i * 0.4) * K, `System ${i}`),
     );
-    const layer = new LabelsLayer();
+    const layer = new LabelsLayer(new DrawnPositions());
     layer.rebuild(mapContext(many, { kind: "save" }));
     viewport(layer, CLOSE);
     expect(drawnText(layer.container)).not.toContain("System 449");

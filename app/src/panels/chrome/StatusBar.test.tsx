@@ -286,7 +286,7 @@ describe("the system view", () => {
     expect(html).not.toContain("selected");
     expect(html).toContain("Esc back to galaxy");
 
-    useInspectorStore.getState().open({ ref: { kind: "planet", id: 12 }, label: "Earth" });
+    useInspectorStore.getState().open({ ref: { kind: "body", system: 0, id: 12 }, label: "Earth" });
     expect(bar()).toContain("Earth · orbit 45 · angle 270° · drag to move · Shift+arrows nudge");
 
     useMapChromeStore.getState().setSceneHint("Sol — Alpha Centauri · length 43");

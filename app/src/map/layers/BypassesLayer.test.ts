@@ -1,7 +1,8 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Container, Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
+vi.mock("../../api/gamedata", () => ({ getTextures: () => Promise.resolve([]) }));
 vi.mock("../../lib/visual/textures", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/visual/textures")>();
   return { ...actual, requestTextures: vi.fn(actual.requestTextures) };
@@ -31,7 +32,7 @@ function drawn(
   scale = 1,
   bypassKinds?: BypassKinds,
 ): BypassesLayer {
-  const layer = new BypassesLayer();
+  const layer = new BypassesLayer(new DrawnPositions());
   layer.rebuild(mapContext(SYSTEMS, { bypasses, ...(bypassKinds && { bypassKinds }) }));
   viewport(layer, scale);
   return layer;
@@ -167,7 +168,7 @@ describe("the bypasses layer", () => {
   });
 
   it("adds the L-Cluster outcome to the L-Gate tooltip once it is revealed, never before", () => {
-    const layer = new BypassesLayer();
+    const layer = new BypassesLayer(new DrawnPositions());
     const lgate = { outcome: "l_drakes", opened: true } as const;
     layer.rebuild(mapContext(SYSTEMS, { bypasses: [{ type: "l_gate", system: 2 }], lgate }));
     viewport(layer, 1);

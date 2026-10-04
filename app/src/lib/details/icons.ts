@@ -85,6 +85,9 @@ export const PRE_FTL_ICON: Icon = {
 /** Bypass kind → what `common/bypass` says about it. */
 export type BypassKinds = ReadonlyMap<string, BypassView>;
 
+/** The bypass a Hyper Relay stands in the save as. */
+export const RELAY_BYPASS = "relay_bypass";
+
 /** The vanilla `icon_frame` of each bypass kind, for when the game's definitions are not loaded. */
 const BYPASS_FRAMES: Record<string, number> = {
   gateway: 25,
@@ -96,7 +99,7 @@ const BYPASS_FRAMES: Record<string, number> = {
   entropy_wormhole: 12,
   starlit_wormhole: 59,
   lgate: 30,
-  relay_bypass: 30,
+  [RELAY_BYPASS]: 30,
 };
 
 /**

@@ -57,7 +57,7 @@ export class IssuesLayer implements MapLayer {
   private hovered: number | null = null;
   private readonly tip = new OwnedTooltip();
 
-  constructor(private readonly drawn = new DrawnPositions()) {}
+  constructor(private readonly drawn: DrawnPositions) {}
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;

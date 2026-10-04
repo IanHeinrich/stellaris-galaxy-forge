@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import * as ipc from "../../../api/ipc";
-import type { HistoryView } from "../../../generated/HistoryView";
-import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
+import { useMemo } from "react";
+import type { PlanetMoveWarning } from "../../../generated/PlanetMoveWarning";
 import {
   jumpsFrom,
   jumpsText,
@@ -10,12 +8,15 @@ import {
   warningLine,
   warningLines,
 } from "../../../lib/planetMove";
-import { useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
-import { usePlanetMoveStore } from "../../../store/planetMoveStore";
+import {
+  usePlanetMoveStore,
+  usePlanetTargets,
+  type TargetsRead,
+} from "../../../store/planetMoveStore";
 import { ComboField, type ComboItem } from "../../ComboField";
 import { EditRow } from "../../EditField";
-import { useWarningNames } from "../../usePlanetMove";
+import { useWarningNames } from "../../useCut";
 
 /** What the field says while the core is first asked where the planet may go. */
 export const READING_TARGETS = "Reading where this planet can move…";
@@ -23,45 +24,11 @@ export const READING_TARGETS = "Reading where this planet can move…";
 /** What the field says when the core could not say where the planet may go. */
 export const TARGETS_FAILED = "Couldn't read where this planet can move";
 
-/** Where a planet may move as last read: its targets, or the failure to read them. */
-export type TargetsRead = { targets: PlanetMoveTargets } | { failed: true };
-
-/**
- * Where planet `id` may move, asked again after every edit, undo and redo. The last answer stays
- * while the next is on its way; null only before the first.
- */
-function usePlanetTargets(id: number): TargetsRead | null {
-  const history = useEditorStore((s) => s.history);
-  const [answer, setAnswer] = useState<{ id: number; read: TargetsRead } | null>(null);
-  useEffect(() => {
-    let live = true;
-    ipc
-      .planetMoveTargets([id])
-      .then((targets) => {
-        if (live) setAnswer({ id, read: { targets } });
-      })
-      .catch((e: unknown) => {
-        console.warn("planet move targets", ipc.errorMessage(e));
-        if (live) setAnswer({ id, read: { failed: true } });
-      });
-    return () => {
-      live = false;
-    };
-  }, [id, history]);
-  return answer !== null && answer.id === id ? answer.read : null;
-}
-
 /** A warning line and every warning behind it, for under the field. */
 interface Note {
   line: string;
   all: string;
 }
-
-/**
- * The warning of the last move made from the field, kept outside it: the page reads the planet
- * again after the move and draws a new field. It holds until another edit or another planet.
- */
-let lastPick: { planet: number; history: HistoryView; note: Note } | null = null;
 
 /**
  * The System field: planet `id`, standing in `system`, moved to another system picked by name,
@@ -88,9 +55,7 @@ export function SystemChoice({
   const countryName = useGalaxyStore((s) => s.countryName);
   const movePlanet = usePlanetMoveStore((s) => s.movePlanet);
   const names = useWarningNames();
-  const history = useEditorStore((s) => s.history);
-  const [, setPicks] = useState(0);
-  const picked = lastPick?.planet === id && lastPick.history === history ? lastPick.note : null;
+  const moved = usePlanetMoveStore((s) => (s.lastMove?.planet === id ? s.lastMove.warnings : null));
 
   const jumps = useMemo(() => jumpsFrom(systems, system), [systems, system]);
   const order = useMemo(() => {
@@ -105,11 +70,12 @@ export function SystemChoice({
   }, [targets, systems, system, jumps]);
 
   const byId = new Map(targets?.systems.map((t) => [t.system, t]) ?? []);
-  const noteOf = (to: number): Note | null => {
-    const warnings = byId.get(to)?.warnings ?? [];
+  const noteOn = (warnings: readonly PlanetMoveWarning[]): Note | null => {
     const line = warningLine(warnings, names);
     return line === null ? null : { line, all: warningLines(warnings, names).join("\n") };
   };
+  const noteOf = (to: number) => noteOn(byId.get(to)?.warnings ?? []);
+  const picked = moved === null ? null : noteOn(moved);
   const items: ComboItem[] = order.map((to) => {
     const owner = systems.get(to)?.owner ?? null;
     const warned = (byId.get(to)?.warnings.length ?? 0) > 0;
@@ -147,13 +113,7 @@ export function SystemChoice({
         note={note}
         onPick={(key) => {
           const to = Number(key);
-          const warned = noteOf(to);
-          lastPick = null;
-          void movePlanet(id, to).then((moved) => {
-            if (!moved || warned === null) return;
-            lastPick = { planet: id, history: useEditorStore.getState().history, note: warned };
-            setPicks((n) => n + 1);
-          });
+          void movePlanet(id, to, byId.get(to)?.warnings ?? []);
         }}
       />
     </EditRow>

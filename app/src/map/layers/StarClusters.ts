@@ -69,11 +69,10 @@ export class StarClusters {
    * Sizes and places system `id`'s stars for the zoom `camScale` about `y`, where the system
    * draws, upright on a screen that squashes world y by `squash`.
    */
-  rescale(id: number, camScale: number, squash = 1, y?: number): void {
+  rescale(id: number, camScale: number, squash: number, y: number): void {
     const cluster = this.clusters.get(id);
     if (!cluster) return;
     const footprint = starDiameterPx(STAR_BASE_PX, camScale);
-    const centre = y ?? cluster.node.y;
     cluster.sprites.forEach((star, i) => {
       const place = cluster.stars[i];
       const width = star.texture.width;
@@ -82,7 +81,7 @@ export class StarClusters {
       star.scale.set(k, k / squash);
       star.position.set(
         cluster.node.x + (place.dx * footprint) / camScale,
-        centre + (place.dy * footprint) / (camScale * squash),
+        y + (place.dy * footprint) / (camScale * squash),
       );
     });
   }

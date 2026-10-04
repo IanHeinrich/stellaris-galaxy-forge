@@ -3,6 +3,7 @@
 //! each is filed under, and which the roll could place on the planet.
 
 use crate::common;
+use common::by_key;
 
 use sgf_gamedata::choices::AskedBody;
 use sgf_gamedata::deposit_choices::{DepositCategory, DepositChoice};
@@ -52,13 +53,6 @@ const FILES: [(&str, &str); 4] = [
     ),
 ];
 
-fn choice<'a>(choices: &'a [DepositChoice], key: &str) -> &'a DepositChoice {
-    choices
-        .iter()
-        .find(|c| c.key == key)
-        .unwrap_or_else(|| panic!("{key} is offered"))
-}
-
 fn rock() -> AskedBody<'static> {
     AskedBody {
         class: Some("pc_fx_rock"),
@@ -79,7 +73,7 @@ fn types_yielding_the_same_resources_share_a_family_with_one_button_per_amount()
         ("d_fx_energy_2", 2.0),
         ("d_fx_energy_10", 10.0),
     ] {
-        let c = choice(&choices, key);
+        let c = by_key(&choices, key);
         assert_eq!(
             (c.family.as_str(), c.amount),
             ("yields:energy", Some(amount))
@@ -89,50 +83,50 @@ fn types_yielding_the_same_resources_share_a_family_with_one_button_per_amount()
         !offered("d_fx_energy_0old"),
         "the same +1 Energy as d_fx_energy_1, which the roll could place here"
     );
-    let generator = choice(&choices, "d_fx_generator");
+    let generator = by_key(&choices, "d_fx_generator");
     assert_ne!(
         generator.family, "yields:energy",
         "the same +1 Energy with a district of its own keeps a button of its own"
     );
 
-    let artifacts = choice(&choices, "d_fx_artifacts_planet_1");
+    let artifacts = by_key(&choices, "d_fx_artifacts_planet_1");
     assert_eq!(artifacts.family, "yields:minor_artifacts");
     assert!(
         !offered("d_fx_artifacts_research_1"),
         "the same +1 Minor Artifacts as the first by key"
     );
     assert_eq!(
-        choice(&choices, "d_fx_artifacts_mining_2").family,
+        by_key(&choices, "d_fx_artifacts_mining_2").family,
         "yields:minor_artifacts"
     );
 
     let nanites: Vec<Option<f64>> = ["d_fx_nanite_small", "d_fx_nanite_large"]
         .iter()
         .map(|key| {
-            let c = choice(&choices, key);
+            let c = by_key(&choices, key);
             assert_eq!(c.family, "yields:nanites", "keys without a number join too");
             c.amount
         })
         .collect();
     assert_eq!(nanites, [Some(0.1), Some(25.6)]);
 
-    let exotic = choice(&choices, "d_fx_exotic_mountain");
+    let exotic = by_key(&choices, "d_fx_exotic_mountain");
     assert_eq!(
         exotic.family, "d_fx_exotic_mountain",
         "a named feature keeps its own row though it yields what d_fx_gas does"
     );
     assert_eq!(
-        choice(&choices, "d_fx_gas").family,
+        by_key(&choices, "d_fx_gas").family,
         "yields:sr_exotic_gases"
     );
 
-    let mountains = choice(&choices, "d_fx_mountains");
+    let mountains = by_key(&choices, "d_fx_mountains");
     assert_eq!(
         (mountains.family.as_str(), mountains.amount),
         ("d_fx_mountains", None)
     );
     assert_eq!(
-        choice(&choices, "d_fx_relic").description.as_deref(),
+        by_key(&choices, "d_fx_relic").description.as_deref(),
         Some("A relic of an older age.")
     );
     assert_eq!(mountains.description, None);
@@ -142,7 +136,7 @@ fn types_yielding_the_same_resources_share_a_family_with_one_button_per_amount()
 fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it() {
     let (_dir, gd) = common::hand_written(&FILES);
     let choices = gd.deposit_choices(&rock(), &[]);
-    let category = |key: &str| choice(&choices, key).category;
+    let category = |key: &str| by_key(&choices, key).category;
     assert_eq!(category("d_fx_energy_1"), DepositCategory::Energy);
     assert_eq!(category("d_fx_minerals"), DepositCategory::Minerals);
     assert_eq!(category("d_fx_food"), DepositCategory::Food);
@@ -158,10 +152,10 @@ fn each_type_is_filed_under_a_category_and_marked_where_the_roll_could_place_it(
         "a weight a modifier can raise is rolled somewhere"
     );
     assert_eq!(category("d_fx_glacier"), DepositCategory::Blockers);
-    assert!(!choice(&choices, "d_fx_glacier").event_only);
-    assert!(choice(&choices, "d_fx_relic").event_only);
+    assert!(!by_key(&choices, "d_fx_glacier").event_only);
+    assert!(by_key(&choices, "d_fx_relic").event_only);
 
-    let usual = |choices: &[DepositChoice], key: &str| choice(choices, key).usual;
+    let usual = |choices: &[DepositChoice], key: &str| by_key(choices, key).usual;
     assert!(usual(&choices, "d_fx_energy_1"));
     assert!(
         !usual(&choices, "d_fx_energy_2"),
@@ -226,7 +220,7 @@ fn the_real_install_offers_every_choice_of_a_class_at_no_size() {
     let any_size = gd.deposit_choices(&asked(Some("pc_arctic"), None), &[]);
     assert!(none.iter().all(|c| !c.usual));
     assert_eq!(keys(&none), keys(&any_size));
-    let usual = |choices: &[DepositChoice], key: &str| choice(choices, key).usual;
+    let usual = |choices: &[DepositChoice], key: &str| by_key(choices, key).usual;
     assert!(usual(&any_size, "d_massive_glacier"));
 
     let at_size = |size| gd.deposit_choices(&asked(Some("pc_arctic"), Some(size)), &[]);
@@ -250,7 +244,7 @@ fn a_planet_of_no_size_is_judged_at_every_size_its_class_draws() {
     let usual = |size| {
         let asked = AskedBody { size, ..rock() };
         let choices = gd.deposit_choices(&asked, &[]);
-        ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual)
+        ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| by_key(&choices, key).usual)
     };
     assert_eq!(usual(Some(15)), [false, false, false]);
     assert_eq!(usual(None), [true, true, false], "the rock draws 10 to 20");
@@ -261,7 +255,7 @@ fn a_planet_of_no_size_is_judged_at_every_size_its_class_draws() {
         },
         &[],
     );
-    assert!(choice(&any, "d_fx_energy_1").usual);
+    assert!(by_key(&any, "d_fx_energy_1").usual);
 }
 
 #[test]
@@ -273,7 +267,7 @@ fn a_moon_of_no_size_is_judged_over_its_class_moon_sizes() {
         ..rock()
     };
     let choices = gd.deposit_choices(&moon, &[]);
-    let usual = ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| choice(&choices, key).usual);
+    let usual = ["d_fx_small", "d_fx_big", "d_fx_huge"].map(|key| by_key(&choices, key).usual);
     assert_eq!(usual, [true, false, false], "the rock's moons draw 2 to 6");
 }
 

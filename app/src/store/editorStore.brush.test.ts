@@ -172,7 +172,7 @@ describe("a cut stroke", () => {
 /** A stroke through `path` over the galaxy the store holds. */
 function stroke(settings: Partial<BrushSettings>, path: Pt[]) {
   const { systems, grid } = useGalaxyStore.getState();
-  const s = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1);
+  const s = new BrushStroke({ ...ERASE, ...settings }, systems, grid!, 1, { systems, grid: grid! });
   let prev: Pt | null = null;
   for (const next of path) {
     s.add(stampsAlong(prev, next, s.r));

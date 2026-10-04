@@ -19,7 +19,7 @@ export function selectionFrame(
   systems: Systems,
   selection: readonly number[],
   nebula: Nebula | undefined,
-  yOf: (s: SystemNode) => number = (s) => s.y,
+  yOf: (s: SystemNode) => number,
 ): Frame | null {
   const frame = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   const take = (x: number, y: number, r = 0) => {

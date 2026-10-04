@@ -66,3 +66,35 @@ pub fn without_install(out: &Output) -> bool {
     }
     missing
 }
+
+/// Run `sgf` with `args` and `-o` a new file, expecting success; what it printed and the file.
+pub fn edited(args: &[&str]) -> (String, tempfile::TempPath) {
+    let out = tempfile::Builder::new()
+        .suffix(".sav")
+        .tempfile()
+        .expect("a temporary file")
+        .into_temp_path();
+    let mut args = args.to_vec();
+    args.extend(["-o", out.to_str().expect("a UTF-8 path")]);
+    let out_run = sgf(&args);
+    ok(&out_run);
+    (stdout(&out_run), out)
+}
+
+/// An edit file for `sgf apply` that holds `op`.
+pub fn edit(op: &serde_json::Value) -> tempfile::TempPath {
+    let file = tempfile::Builder::new()
+        .suffix(".json")
+        .tempfile()
+        .expect("a temporary file");
+    std::fs::write(file.path(), op.to_string()).expect("write the edit");
+    file.into_temp_path()
+}
+
+/// `AddSystemFromSpec` for the spec at `path`, as an edit file's op.
+pub fn add_system_op(path: &str) -> serde_json::Value {
+    let spec: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).expect("read the spec"))
+            .expect("the spec as JSON");
+    serde_json::json!({ "type": "AddSystemFromSpec", "spec": spec })
+}

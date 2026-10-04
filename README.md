@@ -366,9 +366,9 @@ save to loading it in the game.
 
 ## Command line
 
-The `sgf` tool makes the same edits from a terminal, one command per
-edit, with the same backups as the app. It is on the Releases page
-beside the app. The commands are listed in the
+The `sgf` tool reads saves and scenarios from a terminal. `sgf apply`
+applies edits that JSON files hold, with the same backups as the app. It
+is on the Releases page beside the app. The commands are listed in the
 [user guide](docs/user-guide.md#command-line).
 
 ## How it works

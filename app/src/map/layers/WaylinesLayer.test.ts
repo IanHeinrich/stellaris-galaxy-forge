@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Container, Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -76,7 +77,7 @@ function drawn(
   stations: readonly Waystation[] = STATIONS,
   over: Partial<RenderContext> = {},
 ): WaylinesLayer {
-  const layer = new WaylinesLayer();
+  const layer = new WaylinesLayer(new DrawnPositions());
   layer.rebuild(context(waylines, stations, over));
   viewport(layer, DETAIL_SCALE);
   return layer;

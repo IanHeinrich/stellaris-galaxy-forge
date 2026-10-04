@@ -55,7 +55,7 @@ export class WaylinesLayer implements MapLayer {
   private hovered: Waystation | null = null;
   private readonly tip = new OwnedTooltip();
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.addChild(this.bands, this.badgeLayer);
   }
 

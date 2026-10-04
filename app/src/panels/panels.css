@@ -58,12 +58,12 @@
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .icon-picker-pop:focus {
@@ -255,7 +255,7 @@
 }
 
 .edit-note {
-  font-size: 11px;
+  font-size: var(--text-hint);
   line-height: 1.4;
   color: var(--fg-muted);
 }
@@ -320,7 +320,7 @@
   align-items: center;
   gap: 6px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--text-hint);
 }
 
 .mesh-slider input[type="range"] {
@@ -445,12 +445,12 @@
   margin: 0;
   padding: 4px;
   list-style: none;
-  font-size: 12px;
+  font-size: var(--text-control);
   color: var(--fg);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-pop);
 }
 
 .combo-option {
@@ -483,7 +483,7 @@
 
 /* The highlighted or picked row's warning, under the field. */
 .combo-note {
-  font-size: 11.5px;
+  font-size: var(--text-note);
   line-height: 1.4;
   color: var(--warn);
 }
@@ -512,33 +512,14 @@
 }
 
 .height-strip text {
-  font-size: 9px;
+  font-size: var(--text-micro);
   fill: var(--fg-muted);
 }
 
-.height-group .height-changes {
-  display: flex;
-}
-
-.height-group .height-changes button {
+.height-group .segmented button {
   flex: 1;
   width: auto;
   text-align: center;
-  border-radius: 0;
-}
-
-.height-group .height-changes button:first-child {
-  border-radius: 4px 0 0 4px;
-}
-
-.height-group .height-changes button:last-child {
-  border-radius: 0 4px 4px 0;
-}
-
-.height-group .height-changes button.on {
-  color: var(--accent);
-  border-color: var(--accent-dim);
-  background: var(--accent-bg);
 }
 
 .height-apply {
@@ -554,5 +535,5 @@
 }
 
 .height-hint {
-  font-size: 11px;
+  font-size: var(--text-hint);
 }

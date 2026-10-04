@@ -3,7 +3,7 @@
  * than a store: layers read it in their render path and redraw on `onTextures`.
  */
 import type { Texture } from "pixi.js";
-import { getTextures } from "../../api/textures";
+import { getTextures } from "../../api/gamedata";
 import type { TextureView } from "../../generated/TextureView";
 
 export type TextureDecoder = (view: TextureView) => Promise<Texture>;

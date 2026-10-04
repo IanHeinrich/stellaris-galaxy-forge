@@ -1,6 +1,7 @@
 import type { BorderDefines } from "../generated/BorderDefines";
 import type { BypassLink } from "../generated/BypassLink";
 import type { BypassView } from "../generated/BypassView";
+import type { Capabilities } from "../generated/Capabilities";
 import type { CountryNode } from "../generated/CountryNode";
 import type { CountryTypeView } from "../generated/CountryTypeView";
 import type { DocumentKind } from "../generated/DocumentKind";
@@ -10,7 +11,6 @@ import type { MapColor } from "../generated/MapColor";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { Nebula } from "../generated/Nebula";
 import type { PlanetClassView } from "../generated/PlanetClassView";
-import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystem } from "../generated/SpecialSystem";
 import type { StarClassView } from "../generated/StarClassView";
@@ -20,10 +20,10 @@ import type { SystemNode } from "../generated/SystemNode";
 import type { Wayline } from "../generated/Wayline";
 import type { Waystation } from "../generated/Waystation";
 import type { CountryTypes } from "../lib/countryKinds";
+import { documentCapabilities } from "../lib/capabilities";
 import { VANILLA_MOON_SCALE } from "../lib/details/discs";
 import { clanSystemsOf, NO_OWNERSHIP, type OwnerEntry, type Ownership } from "../lib/ownership";
 import { NO_PRECURSORS, type PrecursorRegions } from "../lib/precursors";
-import { bypassLinks } from "../lib/scenarioBypasses";
 import {
   displayNameIn,
   nodeNameIn,
@@ -32,6 +32,7 @@ import {
   templateNameIn,
   type Names,
 } from "../lib/names";
+import { shownBypasses } from "../store/bypassSelectors";
 import { useDetailsStore } from "../store/detailsStore";
 import { getPaintLayer, useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
@@ -69,6 +70,8 @@ export interface RenderContext {
   readonly lgate: LGate | null;
   /** The open document's format, or null while nothing is open. */
   readonly kind: DocumentKind | null;
+  /** What the open document supports: the differences between formats the layers read. */
+  readonly capabilities: Capabilities;
   /** Whether the document is written for the Paint a Galaxy mod, whose zones the map draws. */
   readonly paintLayer: boolean;
   readonly systems: Systems;
@@ -104,8 +107,6 @@ export interface RenderContext {
   readonly bypassKinds: ReadonlyMap<string, BypassView>;
   readonly countryTypes: CountryTypes;
   readonly special: ReadonlyMap<number, SpecialSystem>;
-  /** Each initializer's own star class, drawn for a scenario system until the game rolls one. */
-  readonly initializerClasses: ReadonlyMap<string, string>;
   /** Initializer keys filtered out in the legend: their systems are dimmed and left unlabelled. */
   readonly hiddenInitializers: ReadonlySet<string>;
   /** Each system's precursor regions, and the legend of the precursors the galaxy has. */
@@ -142,6 +143,7 @@ export const sameContext = sameFields<RenderContext>({
   galaxy: true,
   lgate: true,
   kind: true,
+  capabilities: true,
   paintLayer: true,
   systems: true,
   nebulae: true,
@@ -163,7 +165,6 @@ export const sameContext = sameFields<RenderContext>({
   bypassKinds: true,
   countryTypes: true,
   special: true,
-  initializerClasses: true,
   hiddenInitializers: true,
   precursors: true,
   hiddenPrecursors: true,
@@ -185,25 +186,6 @@ const NOTHING: never[] = [];
 /** One instance, so a context built with the filter off compares equal to the last. */
 const NO_KEYS: ReadonlySet<string> = new Set<string>();
 const NO_OWNERS: ReadonlySet<number> = new Set<number>();
-
-let linkedFrom: ScenarioBypasses | null = null;
-let linkedFlags = "";
-let scenarioLinks: readonly BypassLink[] = NOTHING;
-
-/** A scenario's drawn bypasses, as one instance per reading and pair of toggles. */
-function linksIn(
-  bypasses: ScenarioBypasses | null,
-  initializers: boolean,
-  dayOne: boolean,
-): readonly BypassLink[] {
-  const flags = `${initializers} ${dayOne}`;
-  if (bypasses !== linkedFrom || flags !== linkedFlags) {
-    linkedFrom = bypasses;
-    linkedFlags = flags;
-    scenarioLinks = bypasses === null ? NOTHING : bypassLinks(bypasses, initializers, dayOne);
-  }
-  return scenarioLinks;
-}
 
 let stationsFrom: readonly Waystation[] = NOTHING;
 let stationsBySystem: ReadonlyMap<number, Waystation> = new Map<number, Waystation>();
@@ -265,6 +247,7 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   galaxy: null,
   lgate: null,
   kind: null,
+  capabilities: documentCapabilities({ capabilities: null }),
   paintLayer: false,
   systems: new Map<number, SystemNode>(),
   nebulae: NOTHING,
@@ -290,7 +273,6 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   bypassKinds: new Map<string, BypassView>(),
   countryTypes: new Map<string, CountryTypeView>(),
   special: new Map<number, SpecialSystem>(),
-  initializerClasses: new Map<string, string>(),
   hiddenInitializers: new Set<string>(),
   precursors: NO_PRECURSORS,
   hiddenPrecursors: NO_KEYS,
@@ -323,19 +305,23 @@ export function renderContext(): RenderContext {
     return text;
   };
   const ready = data.status === "ready";
-  const kind = useFileSessionStore.getState().kind;
+  const session = useFileSessionStore.getState();
+  const { kind } = session;
+  const capabilities = documentCapabilities(session);
   const ownership = currentOwnership();
   return Object.freeze({
     galaxy: galaxy.galaxy,
     lgate: galaxy.lgate,
     kind,
+    capabilities,
     paintLayer: getPaintLayer(),
     systems: galaxy.systems,
     nebulae: galaxy.nebulae,
-    bypasses:
-      kind === "scenario"
-        ? linksIn(data.scenarioBypasses, chrome.layers.bypasses, chrome.layers.day_one_bypasses)
-        : galaxy.bypasses,
+    bypasses: shownBypasses(
+      { session, links: galaxy.bypasses, placed: data.scenarioBypasses },
+      chrome.layers.bypasses,
+      chrome.layers.day_one_bypasses,
+    ),
     waylines: galaxy.waylines,
     waystations: stationsIn(galaxy.waystations),
     radius: galaxy.galaxy?.galaxy_radius ?? 0,
@@ -358,16 +344,17 @@ export function renderContext(): RenderContext {
     bypassKinds: data.bypasses,
     countryTypes: data.countryTypes,
     special: data.special,
-    initializerClasses: data.initializerClasses,
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
     precursors: chrome.layers.precursors ? currentPrecursors() : NO_PRECURSORS,
     hiddenPrecursors: chrome.hiddenPrecursors,
-    initializerLabels: kind === "scenario" && chrome.layers.initializers,
+    initializerLabels: capabilities.scripts && chrome.layers.initializers,
     territoriesShown: chrome.layers.owners && ownership.table.size > 0,
     starTints: chrome.layers.classes,
     coloniesShown: chrome.layers.colonies,
     hiddenOwners: hiddenOwnersIn(
-      kind === "scenario" && !chrome.layers.claims ? claimedIn(data.scenarioOwners) : NO_OWNERS,
+      capabilities.scripted_owners && !chrome.layers.claims
+        ? claimedIn(data.scenarioOwners)
+        : NO_OWNERS,
       clansIn(ownership),
     ),
     specialWithGameData: data.specialWithGameData,

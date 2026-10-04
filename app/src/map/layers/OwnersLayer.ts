@@ -1,30 +1,19 @@
-import { BitmapText, Container, Graphics, Sprite, TextStyle, Ticker } from "pixi.js";
+import { Container, Graphics, Ticker } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SystemNode } from "../../generated/SystemNode";
-import { SAVE_X_SIGN, SAVE_Y_SIGN, clamp } from "../../lib/geometry/geometry";
-import {
-  placeLabels,
-  type LabelFit,
-  type LabelRequest,
-  type LabelShape,
-  type PieceScan,
-} from "../../lib/geometry/labelFit";
 import type { Region } from "../../lib/geometry/polygon";
 import type { TerritoryParams, TerritorySystem } from "../../lib/geometry/territory";
 import type { Banding, BandWidths, Reply, Shape } from "../../lib/geometry/territories";
 import { InlineTerritoryClient, type TerritoryClient } from "../../lib/geometry/territoryClient";
 import { ownerTerritoryKind } from "../../lib/ownership";
 import type { Camera } from "../Camera";
-import { EMPIRE_LABEL_MAX_SCALE } from "../../lib/visual/labels";
 import { mixColor } from "../../lib/visual/color";
 import type { OwnerColors } from "../../lib/visual/ownerColors";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { EMPHASIS_COLOR, symbolKey } from "../../lib/visual/specialStyle";
-import { hasGameMapFont, mapNameFamily, onMapNameFont } from "../../lib/visual/mapFont";
-import { MAP_FONT } from "../../lib/visual/style";
-import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
-import type { MapLayer } from "./MapLayer";
+import { EMPHASIS_COLOR } from "../../lib/visual/specialStyle";
+import { EmpireLabels } from "./EmpireLabels";
+import { sameKeys, type MapLayer } from "./MapLayer";
 
 /**
  * The game's camera distance per unit of map scale: its 35° field of view over a 1440 px tall
@@ -69,86 +58,9 @@ const STROKE_STEPS_PER_OCTAVE = 16;
  * spread over frames: about 3000 outline points, some 4 ms, a frame.
  */
 const RESTROKE_POINTS_PER_FRAME = 3000;
-const LABEL_FONT_PX = 32;
-/** The game draws names pale and a little see-through, with a soft dark glow and no shadow. */
-const NAME_COLOR = 0xeef1f6;
-const NAME_ALPHA = 0.85;
-const NAME_GLOW = {
-  color: 0x000000,
-  alpha: 0.45,
-  blur: 6,
-  distance: 0,
-  angle: 0,
-};
-/** A name's tracking in the fallback face, which is narrower than the game's. */
-const FALLBACK_SPACING = 3;
-const GAME_SPACING = 1;
-
-/** A new style for every face change: PixiJS keys a dynamic bitmap font by the style object. */
-function nameStyle(): TextStyle {
-  const game = hasGameMapFont();
-  return new TextStyle({
-    fontFamily: mapNameFamily(),
-    fontSize: LABEL_FONT_PX,
-    fontWeight: game ? "normal" : "300",
-    letterSpacing: game ? GAME_SPACING : FALLBACK_SPACING,
-    fill: NAME_COLOR,
-    dropShadow: NAME_GLOW,
-  });
-}
-
-/** The glyph that stands where a marauder clan's flag would: the game's clans fly none. */
-export const CLAN_GLYPH = "☠";
-const GLYPH_FONT_PX = 32;
-const GLYPH_STYLE = new TextStyle({
-  fontFamily: MAP_FONT,
-  fontSize: GLYPH_FONT_PX,
-  fill: 0xffffff,
-});
-/**
- * Name sizes are font sizes in world units, so names zoom with the map. A name never grows past
- * the cap however large its piece is.
- */
-const LABEL_MAX_SIZE = 44;
-/**
- * The narrowest a name is written is this share of `MAPNAME_BORDER_MIN_SIZE`, overflowing a
- * piece too small for it: in game screenshots the names on one-system pockets are half as wide
- * as that define read in world units.
- */
-const NAME_MIN_WIDTH_SHARE = 0.5;
-/** For a short name the floor stops at this font size. */
-const LABEL_FLOOR_MAX_SIZE = 6;
-/** The emblem is a square this many font sizes tall, sitting on the name's cap height. */
-const EMBLEM_SIZE = 3.2;
-/**
- * How far, in font sizes, the emblem's square reaches down into the name's line, whose top
- * stands clear of the letters: in the game the emblem nearly touches the top of the name.
- */
-const EMBLEM_DROP = 0.3;
-/** Flat white and see-through, as the game shows a territory's flag symbol. */
-const EMBLEM_ALPHA = 0.7;
-/**
- * As in the game, empire names wait a moment once the camera closes past the threshold, then fade
- * out slowly. Zooming back out before then cancels the fade; after it they fade back in quickly.
- */
-const FADE_OUT_DELAY_MS = 1200;
-const FADE_OUT_MS = 800;
-const FADE_IN_MS = 450;
-
-/** One territory piece's emblem and name. */
-interface PieceBadge {
-  badge: Container;
-  emblem: Sprite;
-  /** A clan's emblem, in the outline colour like its name; hidden for a country. */
-  glyph: BitmapText;
-  label: BitmapText;
-}
-
 interface CountryShape {
   /** The drawn outline: the country's region with its corners rounded off. */
   outline: Region;
-  /** Each piece of the outline, scanned for room for its label. */
-  scans: PieceScan[];
   /** The band, its seam, and the part of the territory inside the band, from the client. */
   band: Region;
   seam: Region;
@@ -163,11 +75,6 @@ interface CountryShape {
   bounds: number[];
   /** The outline's and the band's points, every ring counted: what a restroke costs. */
   points: number;
-  /** One badge per piece: the game labels every separate piece of a country. */
-  badges: Container;
-  pieces: PieceBadge[];
-  /** Whether the badges show an emblem or a clan's glyph above the name. */
-  art: boolean;
 }
 
 /** World units per screen pixel for the strokes, capped and snapped. */
@@ -175,10 +82,6 @@ function strokeUnit(camScale: number): number {
   const wanted = Math.min(STROKE_MAX_UNIT, 1 / camScale);
   const step = Math.round(Math.log2(wanted) * STROKE_STEPS_PER_OCTAVE);
   return Math.pow(2, step / STROKE_STEPS_PER_OCTAVE);
-}
-
-function smoothstep(t: number): number {
-  return t * t * (3 - 2 * t);
 }
 
 /** The border shader's camera-distance factor at `unitsPerPixel`: 0 close up, 1 zoomed out. */
@@ -231,19 +134,12 @@ function boundsOf(region: Region): number[] {
 }
 
 /** Every point of the shape's outline and band: what drawing its edge costs. */
-function pointsOf({ outline, band, seam, inner }: Omit<CountryShape, "points">): number {
+function pointCount({ outline, band, seam, inner }: Omit<CountryShape, "points">): number {
   let n = 0;
   for (const region of [outline, band, seam, inner]) {
     for (const ring of region.flat()) n += ring.length;
   }
   return n;
-}
-
-/** Whether two owner tables paint the same set of owners, whatever else about them changed. */
-function sameOwners(a: ReadonlyMap<number, unknown>, b: ReadonlyMap<number, unknown>): boolean {
-  if (a.size !== b.size) return false;
-  for (const id of a.keys()) if (!b.has(id)) return false;
-  return true;
 }
 
 /**
@@ -263,51 +159,42 @@ export class OwnersLayer implements MapLayer {
   private readonly fills = new Container({ label: "fills" });
   private readonly edges = new Container({ label: "edges" });
   private readonly emphases = new Container({ label: "emphases" });
+  private readonly labels = new EmpireLabels();
   /** The empire names and emblems, above the lanes and stars as in the game. */
-  readonly overlay = new Container({ label: "badges" });
+  readonly overlay = this.labels.container;
   private emphasised = new Set<number>();
   private shownKinds: ReadonlySet<SpecialKind> = new Set();
   private ctx: RenderContext = EMPTY_CONTEXT;
   /** The owner of every system as last sent to the client, hidden ones taken off. */
   private owners: ReadonlyMap<number, number> = EMPTY_CONTEXT.owners;
   private readonly shapes = new Map<number, CountryShape>();
-  private readonly emblemKeys = new Map<number, string>();
   private unit = 1;
   /** The band widths last asked of the client. */
   private widths: BandWidths = { band: 0, seam: 0 };
   private view: number[] = [-Infinity, -Infinity, Infinity, Infinity];
   private restroking = false;
-  private fade = 1;
-  private fadeTarget = 1;
-  /** How long the names have waited to fade out since the camera passed the threshold. */
-  private fadeWaited = 0;
-  private fading = false;
   private shown = true;
   private clansShown = true;
   /** Bumped with every reset so a reply to an earlier galaxy is told apart and dropped. */
   private epoch = 0;
   private destroyed = false;
-  private readonly unsubscribeTextures: () => void;
-  private readonly unsubscribeFont: () => void;
-  private labelStyle = nameStyle();
 
   constructor(private readonly client: TerritoryClient = new InlineTerritoryClient()) {
     this.territories.addChild(this.fills, this.edges);
     this.container.addChild(this.territories, this.emphases);
-    this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
-    this.unsubscribeFont = onMapNameFont(() => this.onFontChanged());
     client.onReply((reply) => this.onReply(reply));
   }
 
   rebuild(ctx: RenderContext): void {
     const prev = this.ctx;
     this.ctx = ctx;
+    this.labels.setContext(ctx);
     if (
       ctx.galaxy !== prev.galaxy ||
       ctx.kind !== prev.kind ||
       ctx.hiddenOwners !== prev.hiddenOwners ||
       ctx.border !== prev.border ||
-      (ctx.table !== prev.table && !sameOwners(ctx.table, prev.table))
+      (ctx.table !== prev.table && !sameKeys(ctx.table, prev.table))
     ) {
       this.recompute();
       this.refreshEmphasis();
@@ -315,17 +202,17 @@ export class OwnersLayer implements MapLayer {
     }
     if (ctx.table !== prev.table) {
       for (const [id, shape] of this.shapes) this.paint(id, shape);
-      for (const [id, shape] of this.shapes) this.retext(id, shape);
+      this.labels.retextAll();
       this.refreshEmphasis();
     }
     if (ctx.table !== prev.table || ctx.special !== prev.special) {
-      for (const [id, shape] of this.shapes) this.placeEmblem(id, shape);
-      this.layoutLabels();
+      this.labels.placeAll();
+      this.labels.layout();
     }
     if (ctx.table === prev.table && ctx.countryTypes !== prev.countryTypes) this.refreshEmphasis();
     if (ctx.hiddenCountries !== prev.hiddenCountries) {
       this.refreshHidden();
-      this.layoutLabels();
+      this.labels.layout();
     }
   }
 
@@ -363,7 +250,7 @@ export class OwnersLayer implements MapLayer {
         Ticker.shared.add(this.restrokeTick, this);
       }
     }
-    if (this.shown) this.fadeTowards(cam.scale < EMPIRE_LABEL_MAX_SCALE ? 1 : 0);
+    this.labels.onViewport(cam.scale);
   }
 
   /** The countries' territories go with the layer; the emphasis of the kinds shown as points of interest stays. */
@@ -386,17 +273,14 @@ export class OwnersLayer implements MapLayer {
   destroy(): void {
     this.destroyed = true;
     this.client.destroy();
-    this.unsubscribeTextures();
-    this.unsubscribeFont();
-    Ticker.shared.remove(this.fadeTick, this);
     Ticker.shared.remove(this.restrokeTick, this);
     this.container.destroy({ children: true });
-    this.overlay.destroy({ children: true });
+    this.labels.destroy();
   }
 
   private applyVisibility(): void {
     this.territories.visible = this.shown || this.clansShown;
-    this.overlay.visible = this.shown && this.fade > 0;
+    this.labels.setShown(this.shown);
     this.container.visible = this.shown || this.clansShown || this.emphasised.size > 0;
     this.refreshHidden();
   }
@@ -458,25 +342,22 @@ export class OwnersLayer implements MapLayer {
       for (const id of reply.removed) this.remove(id);
     }
     for (const [id, shape] of reply.shapes) this.show(id, shape);
-    this.layoutLabels();
+    this.labels.layout();
   }
 
   private reband(id: number, banding: Banding): void {
     const shape = this.shapes.get(id);
     if (!shape) return;
     Object.assign(shape, banding);
-    shape.points = pointsOf(shape);
+    shape.points = pointCount(shape);
     this.drawEdge(shape);
   }
 
   private show(id: number, { outline, scans, band, seam, inner }: Shape): void {
     let shape = this.shapes.get(id);
     if (!shape) {
-      const badges = new Container();
-      badges.visible = false;
       shape = {
         outline: [],
-        scans: [],
         band: [],
         seam: [],
         inner: [],
@@ -487,59 +368,28 @@ export class OwnersLayer implements MapLayer {
         unit: 0,
         bounds: [0, 0, 0, 0],
         points: 0,
-        badges,
-        pieces: [],
-        art: false,
       };
       this.fills.addChild(shape.fill);
       this.edges.addChild(shape.edge);
       this.emphases.addChild(shape.emphasis);
-      this.overlay.addChild(badges);
       this.shapes.set(id, shape);
     }
     shape.outline = outline;
-    shape.scans = scans;
     shape.band = band;
     shape.seam = seam;
     shape.inner = inner;
     shape.bounds = boundsOf(outline);
-    shape.points = pointsOf(shape);
-    this.matchPieces(shape);
-    this.retext(id, shape);
-    this.placeEmblem(id, shape);
+    shape.points = pointCount(shape);
+    this.labels.set(id, scans);
     this.paint(id, shape);
     this.drawEmphasis(id, shape);
     this.applyHidden(id, shape);
   }
 
-  /** As many piece badges as the country has pieces. */
-  private matchPieces(shape: CountryShape): void {
-    while (shape.pieces.length > shape.scans.length) {
-      shape.pieces.pop()?.badge.destroy({ children: true });
-    }
-    while (shape.pieces.length < shape.scans.length) {
-      const text = shape.pieces[0]?.label.text ?? "";
-      const label = new BitmapText({ text, style: this.labelStyle });
-      label.anchor.set(0.5, 0);
-      label.alpha = NAME_ALPHA;
-      const emblem = new Sprite();
-      emblem.anchor.set(0.5, 0.5);
-      emblem.alpha = EMBLEM_ALPHA;
-      emblem.visible = false;
-      const glyph = new BitmapText({ text: CLAN_GLYPH, style: GLYPH_STYLE });
-      glyph.anchor.set(0.5, 0.5);
-      glyph.alpha = EMBLEM_ALPHA;
-      glyph.visible = false;
-      const badge = new Container();
-      badge.addChild(emblem, glyph, label);
-      shape.badges.addChild(badge);
-      shape.pieces.push({ badge, emblem, glyph, label });
-    }
-  }
-
   /** The eye in the Empires list: a hidden country keeps its shape but paints nothing. */
   private refreshHidden(): void {
     for (const [id, shape] of this.shapes) this.applyHidden(id, shape);
+    this.labels.refreshVisibility();
   }
 
   private applyHidden(id: number, shape: CountryShape): void {
@@ -548,16 +398,10 @@ export class OwnersLayer implements MapLayer {
     shape.fill.visible = painted;
     shape.edge.visible = painted;
     shape.emphasis.visible = listed;
-    shape.badges.visible = listed && this.badged(id);
   }
 
   private isClan(id: number): boolean {
     return this.ctx.table.get(id)?.kind === "marauder_clan";
-  }
-
-  /** Every owner in the table shows its emblem and name on each piece of its region. */
-  private badged(id: number): boolean {
-    return this.ctx.table.has(id);
   }
 
   private remove(id: number): void {
@@ -566,9 +410,8 @@ export class OwnersLayer implements MapLayer {
     shape.fill.destroy();
     shape.edge.destroy();
     shape.emphasis.destroy();
-    shape.badges.destroy({ children: true });
     this.shapes.delete(id);
-    this.emblemKeys.delete(id);
+    this.labels.remove(id);
   }
 
   private paint(id: number, shape: CountryShape): void {
@@ -661,141 +504,5 @@ export class OwnersLayer implements MapLayer {
       width: EMPHASIS_PX * this.unit,
       join: "round",
     });
-  }
-
-  private placeEmblem(id: number, shape: CountryShape): void {
-    shape.badges.visible = this.badged(id) && !this.ctx.hiddenCountries.has(id);
-    if (!shape.badges.visible) return;
-    const entry = this.ctx.table.get(id);
-    const clan = entry?.kind === "marauder_clan";
-    const key = clan ? null : symbolKey(entry?.country?.flag_icon);
-    if (key === null) this.emblemKeys.delete(id);
-    else this.emblemKeys.set(id, key);
-    const texture = key === null ? null : getTexture(key);
-    if (key !== null && texture === undefined) requestTextures([key]);
-    shape.art = clan || Boolean(texture);
-    for (const piece of shape.pieces) {
-      piece.label.tint = clan ? entry.colors.outline : 0xffffff;
-      piece.emblem.visible = !clan && Boolean(texture);
-      piece.glyph.visible = clan;
-      if (clan) piece.glyph.tint = entry.colors.outline;
-      if (texture) piece.emblem.texture = texture;
-    }
-  }
-
-  /**
-   * Every shown piece's emblem over its name, as large as fits inside the piece up to the cap,
-   * with no two empires' labels overlapping. A piece too small for the game's narrowest name
-   * gets that size and overflows; a label crowded out even at half that size is left out.
-   */
-  private layoutLabels(): void {
-    const requests: LabelRequest[] = [];
-    const pieces: PieceBadge[] = [];
-    for (const shape of this.shapes.values()) {
-      shape.scans.forEach((scan, i) => {
-        const piece = shape.pieces[i];
-        const request = shape.badges.visible ? this.requestOf(piece, scan, shape.art) : null;
-        if (request === null) {
-          piece.badge.visible = false;
-          return;
-        }
-        requests.push(request);
-        pieces.push(piece);
-      });
-    }
-    placeLabels(requests).forEach((fit, k) => this.placePiece(pieces[k], requests[k].shape, fit));
-  }
-
-  /**
-   * The piece's label per unit of font size, from the cap down to the smallest font size the
-   * name takes.
-   */
-  private requestOf({ label }: PieceBadge, scan: PieceScan, art: boolean): LabelRequest | null {
-    label.scale.set(1, 1);
-    const shape = {
-      nameWidth: label.width / LABEL_FONT_PX,
-      nameHeight: label.height / LABEL_FONT_PX,
-      emblem: art ? EMBLEM_SIZE : 0,
-      drop: art ? EMBLEM_DROP : 0,
-    };
-    if (!(shape.nameWidth > 0 && shape.nameHeight > 0)) return null;
-    const narrowest = this.ctx.border.name_min_width * NAME_MIN_WIDTH_SHARE;
-    const floor = Math.min(LABEL_FLOOR_MAX_SIZE, narrowest / shape.nameWidth);
-    return { scan, shape, maxScale: LABEL_MAX_SIZE, minScale: floor };
-  }
-
-  private placePiece(piece: PieceBadge, shape: LabelShape, fit: LabelFit | null): void {
-    const { badge, emblem, glyph, label } = piece;
-    badge.visible = fit !== null;
-    if (fit === null) return;
-    badge.position.set(fit.x, fit.y);
-    const ratio = fit.scale / LABEL_FONT_PX;
-    label.scale.set(SAVE_X_SIGN * ratio, SAVE_Y_SIGN * ratio);
-    label.position.set(0, 0);
-    const diameter = shape.emblem * fit.scale;
-    if (diameter === 0) return;
-    const centre = SAVE_Y_SIGN * (shape.drop * fit.scale - diameter / 2);
-    glyph.position.set(0, centre);
-    emblem.position.set(0, centre);
-    const k = diameter / GLYPH_FONT_PX;
-    glyph.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
-    emblem.scale.set(
-      (SAVE_X_SIGN * diameter) / (emblem.texture.width || 1),
-      (SAVE_Y_SIGN * diameter) / (emblem.texture.height || 1),
-    );
-  }
-
-  /** Every name redrawn in the face that just loaded or dropped, and refitted to its piece. */
-  private onFontChanged(): void {
-    this.labelStyle = nameStyle();
-    for (const [id, shape] of this.shapes) {
-      for (const piece of shape.pieces) piece.label.style = this.labelStyle;
-      this.placeEmblem(id, shape);
-    }
-    this.layoutLabels();
-  }
-
-  private onTexturesLanded(keys: string[]): void {
-    const settled = new Set(keys);
-    let landed = false;
-    for (const [id, key] of this.emblemKeys) {
-      if (!settled.has(key)) continue;
-      const shape = this.shapes.get(id);
-      if (shape) this.placeEmblem(id, shape);
-      landed ||= shape !== undefined;
-    }
-    if (landed) this.layoutLabels();
-  }
-
-  private retext(id: number, shape: CountryShape): void {
-    const text = this.ctx.table.get(id)?.label ?? "";
-    for (const piece of shape.pieces) if (piece.label.text !== text) piece.label.text = text;
-  }
-
-  private fadeTowards(target: number): void {
-    if (target === this.fadeTarget) return;
-    this.fadeTarget = target;
-    this.fadeWaited = 0;
-    if (!this.fading) {
-      this.fading = true;
-      Ticker.shared.add(this.fadeTick, this);
-    }
-  }
-
-  private fadeTick(ticker: Ticker): void {
-    const out = this.fadeTarget < this.fade;
-    if (out && this.fadeWaited < FADE_OUT_DELAY_MS) {
-      this.fadeWaited += ticker.deltaMS;
-      return;
-    }
-    const step = ticker.deltaMS / (out ? FADE_OUT_MS : FADE_IN_MS);
-    const wasShown = this.fade > 0;
-    this.fade = clamp(this.fade + (out ? -step : step), 0, 1);
-    this.overlay.alpha = smoothstep(this.fade);
-    if (this.fade > 0 !== wasShown) this.applyVisibility();
-    if (this.fade === this.fadeTarget) {
-      this.fading = false;
-      Ticker.shared.remove(this.fadeTick, this);
-    }
   }
 }

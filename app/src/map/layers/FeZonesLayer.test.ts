@@ -103,11 +103,8 @@ describe("the fallen empire zones layer", () => {
     expect(rings(layer).map((g) => [g.x, g.y])).toEqual([[-40, 0]]);
   });
 
-  it("draws nothing for a save, or for a scenario not written for the mod", () => {
+  it("draws nothing for a document not written for the mod", () => {
     expect(rings(drawn([ZONED], false))).toEqual([]);
-    const layer = new FeZonesLayer();
-    layer.rebuild(mapContext([ZONED], { kind: "save", paintLayer: true }));
-    expect(rings(layer)).toEqual([]);
   });
 
   it("follows a delta that adds, moves and removes a zone", () => {

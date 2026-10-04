@@ -13,7 +13,8 @@ folder uses sits at the root of `panels/`.
 `.map-area`, `.map-host`, `.top-bar`, `.status-bar`, `.dock*`) and the
 primitives three or more panels use (`.badge`, `.swatch`, `.tri`, `.filter-input`,
 `.muted`/`.hinted`/`.warn`/`.spacer`, `kbd`, `.progress-*`, `button.icon`,
-`button.link`). Everything else belongs to the folder that draws it, imported
+`button.link`, and `.segmented`, a row of buttons styled from `aria-pressed`,
+`aria-checked` or `aria-selected`). Everything else belongs to the folder that draws it, imported
 by the components that folder owns. A folder has at most one stylesheet of its
 own, nested folders included. `overlays/` is the exception, with `loading.css`
 beside `overlays.css`. `inspector/selection/` and `overlays/contextMenu/` have no

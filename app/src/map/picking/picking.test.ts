@@ -3,9 +3,12 @@ import { byId, feLinkedNode, name, placedNode as node, zoneAnchor } from "../../
 import type { Nebula } from "../../generated/Nebula";
 import type { SystemNode } from "../../generated/SystemNode";
 import { Camera } from "../Camera";
+import type { Pt } from "../../lib/geometry/pt";
+import type { LaneSource } from "../interaction/MapIntent";
 import { pickEdge, pickFeZone, pickNebula, pickPrevented, pickSystem, snapTarget } from "./index";
 import { newFeZone } from "../../lib/feZone";
 import { SpatialGrid } from "../../lib/spatialGrid";
+import { DrawnPositions } from "../drawnPositions";
 import { PickIndex } from "./pickIndex";
 import { zoneOf } from "./zones";
 
@@ -21,7 +24,7 @@ function world(nodes: SystemNode[]): {
   const systems = byId(...nodes);
   const grid = new SpatialGrid();
   grid.build(nodes);
-  const index = new PickIndex();
+  const index = new PickIndex(new DrawnPositions());
   index.build(systems);
   return { systems, grid, index };
 }
@@ -31,6 +34,16 @@ function camera(scale: number): Camera {
   cam.setViewport(800, 600);
   cam.scale = scale;
   return cam;
+}
+
+function snap(
+  ground: { grid: SpatialGrid; index: PickIndex; systems: Map<number, SystemNode> },
+  cam: Camera,
+  at: Pt,
+  from: LaneSource,
+  zones: boolean,
+) {
+  return snapTarget({ ...ground, cam, at, plane: at, from, zones });
 }
 
 const FROM = (...ids: number[]) => ({ kind: "systems", ids }) as const;
@@ -129,17 +142,17 @@ describe("picking", () => {
     ]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, index, systems, cam, { x: 98, y: 0 }, FROM(1), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: 98, y: 0 }, FROM(1), true)).toEqual({
       kind: "system",
       id: 2,
       valid: false,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: 103, y: 0 }, FROM(1), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: 103, y: 0 }, FROM(1), true)).toEqual({
       kind: "system",
       id: 3,
       valid: true,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: 2, y: 0 }, FROM(1), true)).toBeNull();
+    expect(snap({ grid, index, systems }, cam, { x: 2, y: 0 }, FROM(1), true)).toBeNull();
   });
 
   it("snaps a drag from systems to a zone's ring line while zones show, valid when one of them can link", () => {
@@ -149,24 +162,22 @@ describe("picking", () => {
     const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(2), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM(2), true)).toEqual({
       kind: "feZone",
       anchor: 1,
       valid: true,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(3), true)).toMatchObject({
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM(3), true)).toMatchObject({
       valid: false,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(1), true)).toMatchObject({
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM(1), true)).toMatchObject({
       valid: false,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(3, 2), true)).toMatchObject(
-      {
-        valid: true,
-      },
-    );
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM(2), false)).toBeNull();
-    expect(snapTarget(grid, index, systems, cam, { x: -40, y: 0 }, FROM(2), true)).toBeNull();
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM(3, 2), true)).toMatchObject({
+      valid: true,
+    });
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM(2), false)).toBeNull();
+    expect(snap({ grid, index, systems }, cam, { x: -40, y: 0 }, FROM(2), true)).toBeNull();
   });
 
   it("snaps a drag from a zone's port to a system, refusing the anchor and one already linked", () => {
@@ -175,22 +186,22 @@ describe("picking", () => {
     const { systems, grid, index } = world([anchor, node(2, 200, 0), linked]);
     const cam = camera(1);
 
-    expect(snapTarget(grid, index, systems, cam, { x: 198, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: 198, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 2,
       valid: true,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: 298, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: 298, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 3,
       valid: false,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: 2, y: 0 }, FROM_ZONE(1), true)).toEqual({
+    expect(snap({ grid, index, systems }, cam, { x: 2, y: 0 }, FROM_ZONE(1), true)).toEqual({
       kind: "system",
       id: 1,
       valid: false,
     });
-    expect(snapTarget(grid, index, systems, cam, { x: -60, y: 0 }, FROM_ZONE(1), true)).toBeNull();
+    expect(snap({ grid, index, systems }, cam, { x: -60, y: 0 }, FROM_ZONE(1), true)).toBeNull();
   });
 });
 

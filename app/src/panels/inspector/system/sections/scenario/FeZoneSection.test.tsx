@@ -20,12 +20,12 @@ import {
   AUTOMATIC_NOTE,
   FALLBACK_HINT,
   FALLBACK_LABEL,
-  FE_ZONE_INTRO,
   KIND_HINT,
   LINK_HINT,
   NEAREST_NOTE,
   NONE_LINKED,
 } from "./FeZoneSection";
+import { FE_ZONE_INTRO } from "./sectionCopy";
 import { appIssue } from "../../../../../test/builders";
 import { escaped } from "../../../../../test/elements";
 import { mockedIpc } from "../../../../../test/ipc";

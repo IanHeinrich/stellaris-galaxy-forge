@@ -62,7 +62,10 @@ describe("a planet", () => {
       }),
     );
 
-    const html = show({ ref: { kind: "planet", id: PLANET.id }, label: "Earth" }, "overview");
+    const html = show(
+      { ref: { kind: "body", system: 1, id: PLANET.id }, label: "Earth" },
+      "overview",
+    );
     expect(html).toContain("Earth");
     expect(html).toContain("Continental");
     expect(html).toContain("Commonwealth of Man ›");
@@ -71,7 +74,10 @@ describe("a planet", () => {
   });
 
   it("says so while the read is still out", () => {
-    const html = show({ ref: { kind: "planet", id: PLANET.id }, label: "Earth" }, "overview");
+    const html = show(
+      { ref: { kind: "body", system: 1, id: PLANET.id }, label: "Earth" },
+      "overview",
+    );
     expect(html).toContain("Reading the planet");
   });
 });

@@ -63,7 +63,7 @@ export class SpecialLayer implements MapLayer {
   private tier: LabelTier = "none";
   private readonly unsubscribeTextures: () => void;
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.eventMode = "passive";
     this.unsubscribeTextures = onTextures((keys) => this.onTexturesLanded(keys));
   }

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 /** The texture fetch, which answers only once a test lets it. */
 const fetch = vi.hoisted(() => ({ answers: false }));
 
-vi.mock("../../../api/textures", () => ({
+vi.mock("../../../api/gamedata", () => ({
   getTextures: (keys: string[]) =>
     fetch.answers
       ? Promise.resolve(

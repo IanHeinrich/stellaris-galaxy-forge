@@ -106,7 +106,7 @@ describe("adding a planet or moon to a save system", () => {
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect(editor().history.undo).toHaveLength(1);
     const { stack } = useInspectorStore.getState();
-    expect(stack[stack.length - 1].ref).toEqual({ kind: "planet", id: 20 });
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: 0, id: 20 });
   });
 
   it("asks for a random moon of a planet", async () => {

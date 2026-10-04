@@ -9,7 +9,7 @@ import { type PointGroup, type PointRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
-import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useCanEdit } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useCollapse, type Collapse } from "./collapse";
 import { Action, Eye, Group, Row } from "./rows";
@@ -90,7 +90,7 @@ export const POINTS_NOTE =
 
 /** Systems worth finding, grouped by kind, each group's eye driving its map layer. */
 export function Points() {
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
+  const scripted = useCanEdit("scripts");
   const systems = useGalaxyStore((s) => s.systems);
   const special = useGameDataStore((s) => s.special);
   const withGameData = useGameDataStore((s) => s.specialWithGameData);
@@ -111,7 +111,7 @@ export function Points() {
   }
   return (
     <div className="browser">
-      {scenario && <div className="browser-note src">{POINTS_NOTE}</div>}
+      {scripted && <div className="browser-note src">{POINTS_NOTE}</div>}
       {groups.map((group) => (
         <PointSection key={group.key} group={group} collapse={collapse} />
       ))}

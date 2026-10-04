@@ -53,7 +53,7 @@ const ERASE: BrushSettings = { ...PAINT, tool: "erase", size: 20 };
 function stroke(settings: BrushSettings, seed = 7): BrushStroke {
   const grid = new SpatialGrid();
   grid.build(SYSTEMS);
-  return new BrushStroke(settings, GALAXY, grid, seed);
+  return new BrushStroke(settings, GALAXY, grid, seed, { systems: GALAXY, grid });
 }
 
 function run(settings: BrushSettings, path: Pt[]): StrokeResult {
@@ -169,7 +169,10 @@ function connectPoints(
 ): StrokeResult {
   const grid = new SpatialGrid();
   grid.build(systems);
-  const s = new BrushStroke({ ...PAINT, tool: "connect", ...settings }, galaxy, grid, 3);
+  const s = new BrushStroke({ ...PAINT, tool: "connect", ...settings }, galaxy, grid, 3, {
+    systems: galaxy,
+    grid,
+  });
   for (const p of points) s.add([p]);
   return s.result();
 }
@@ -258,7 +261,10 @@ describe("a stroke over the sample galaxy", () => {
     for (const s of over) galaxy.set(s.id, s);
     const grid = new SpatialGrid();
     grid.build(galaxy.values());
-    const s = new BrushStroke({ ...SAMPLE_ERASE, ...settings }, galaxy, grid, 1);
+    const s = new BrushStroke({ ...SAMPLE_ERASE, ...settings }, galaxy, grid, 1, {
+      systems: galaxy,
+      grid,
+    });
     let prev: Pt | null = null;
     for (const next of path) {
       s.add(stampsAlong(prev, next, s.r));

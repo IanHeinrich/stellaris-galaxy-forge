@@ -84,7 +84,7 @@ export class DetailsLayer implements MapLayer {
     if (this.inView.length < MAX_ROWS) this.inView.push(s.id);
   };
 
-  constructor(private readonly drawn = new DrawnPositions()) {
+  constructor(private readonly drawn: DrawnPositions) {
     this.container.eventMode = "passive";
     this.unsubscribe.push(
       onTextures(() => {

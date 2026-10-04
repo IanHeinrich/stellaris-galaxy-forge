@@ -1,5 +1,5 @@
 ---
-source: crates/sgf-gamedata/tests/special_layouts.rs
+source: crates/sgf-gamedata/tests/generate.rs
 expression: out
 ---
 Gen at -292.23404 -137.62265 sc_m debris_belt_initializer capped star_named_by_class

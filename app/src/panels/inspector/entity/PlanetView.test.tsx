@@ -43,12 +43,8 @@ import { details, land, open, overview, planet, resetStores, SYSTEM } from "../i
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetView } from "./PlanetView";
 import { PICKER_HEIGHT } from "./PickerMenu";
-import {
-  READING_TARGETS,
-  SystemChoice,
-  TARGETS_FAILED,
-  type TargetsRead,
-} from "./PlanetSystemField";
+import type { TargetsRead } from "../../../store/planetMoveStore";
+import { READING_TARGETS, SystemChoice, TARGETS_FAILED } from "./PlanetSystemField";
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
 import { escaped as escapedText } from "../../../test/elements";
 import { orbitClasses, orbitSystem, saveBody } from "../../../test/builders";
@@ -128,7 +124,7 @@ async function landPage(page: PlanetPage): Promise<void> {
 
 /** The planet's page on `tab`, drilled onto from its system. */
 function render(id: number, tab: InspectorTab = "overview"): string {
-  const entry: Entry = { ref: { kind: "planet", id }, label: "Alpha" };
+  const entry: Entry = { ref: { kind: "body", system: SYSTEM, id }, label: "Alpha" };
   useInspectorStore.setState({
     stack: [{ ref: { kind: "system", id: SYSTEM }, label: "Alpha Centauri" }, entry],
     tab,
@@ -1041,14 +1037,15 @@ describe("without game data", () => {
 });
 
 describe("a planet with no page of its own", () => {
-  it("is the generic view on a scenario", async () => {
+  it("is the scenario's body page on a scenario, with nothing of the save's to edit", async () => {
     armStarClasses();
     await open("scenario");
     await land(stars());
     await armStar();
 
     const html = render(STAR);
-    expect(html).toContain(GENERIC_HEAD);
+    expect(html).toContain('<span class="name">Alpha</span>');
+    expect(html).not.toContain(GENERIC_HEAD);
     expect(html).not.toContain("Star type");
     expect(html).not.toContain("Deposits");
   });
@@ -1201,7 +1198,7 @@ describe("a body's orbit", () => {
     );
   });
 
-  it("reads the system first, and shows no orbit fields on a scenario", async () => {
+  it("reads the system first, and shows no orbit fields to edit on a scenario", async () => {
     await open("save");
     await bodyPage(LONE);
     expect(render(LONE)).toContain("Reading the system…");
@@ -1209,7 +1206,7 @@ describe("a body's orbit", () => {
     await open("scenario");
     await landOrbits();
     const html = render(LONE);
-    expect(html).not.toContain("Orbit radius");
+    expect(html).not.toMatch(/<input[^>]*aria-label="Orbit radius"/);
     expect(html).not.toContain("Reading the system…");
   });
 });

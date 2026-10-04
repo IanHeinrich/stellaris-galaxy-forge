@@ -1,36 +1,28 @@
+import type { Bounds } from "../../../generated/Bounds";
 import { MOON_RING_FIRST } from "../../../generated/constants";
-import { bodyName } from "../../../lib/details/labels";
-import { bodyOrbit, fieldIntent, GEOMETRY_REASONS } from "../../../lib/details/orbitIntent";
+import {
+  bodyOrbit,
+  fieldIntent,
+  GEOMETRY_REASONS,
+  type BodyOrbit,
+  type GeometryIntent,
+  type Span,
+} from "../../../lib/details/orbitIntent";
 import { orbitParent } from "../../../lib/details/orbitReach";
 import { NO_GEOMETRY } from "../../../lib/details/saveGeometry";
-import { wrapDegrees, type BodyPlacement, type Point } from "../../../lib/details/orbits";
+import { polarAbout, type BodyPlacement, type Point } from "../../../lib/details/orbits";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
-import { useState } from "react";
-import type { GeometryIntent } from "../../../lib/details/orbitIntent";
-import {
-  applyGeometryFrom,
-  useSystemGeometry,
-  type SystemGeometry,
-} from "../../../store/systemGeometry";
-import { EditBlock, EditNote, EditRow, PickerField, TextField } from "../../EditField";
+import { useSystemGeometry, type SystemGeometry } from "../../../store/systemGeometry";
+import { EditBlock, EditNote, EditRow, PickerField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { Empty } from "../parts";
+import { RadiusAngleFields } from "../RadiusAngleFields";
+import { useGeometryEdit } from "../useGeometryEdit";
+import { useSystemBodyNamer } from "./useBodyName";
 
 const READING = "Reading the system…";
 const THE_STAR = "star";
 const ORIGIN: Point = { x: 0, y: 0 };
-
-function rounded(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-/** Where `body` stands about `centre`, as a radius and an angle in `polar`'s degrees. */
-function about(body: Point, centre: Point): { radius: number; angle: number } {
-  const dx = body.x - centre.x;
-  const dy = body.y - centre.y;
-  return { radius: Math.hypot(dx, dy), angle: wrapDegrees((Math.atan2(dy, dx) * 180) / Math.PI) };
-}
 
 /** Builds an intent from the system's geometry as it stands when the edit runs. */
 type Build = (geometry: SystemGeometry) => GeometryIntent | null;
@@ -45,13 +37,30 @@ function reparentTo(key: string, system: number, body: number): Build {
     const self = placed.get(body);
     if (!self) return null;
     if (key === THE_STAR) {
-      return { kind: "reparent", system, body, parent: null, ...about(self, ORIGIN) };
+      return { kind: "reparent", system, body, parent: null, ...polarAbout(self, ORIGIN) };
     }
     const host = Number(key);
-    const { angle } = about(self, placed.get(host) ?? ORIGIN);
+    const { angle } = polarAbout(self, placed.get(host) ?? ORIGIN);
     const radius = editing.bodies.get(host)?.moonRing ?? MOON_RING_FIRST;
     return { kind: "reparent", system, body, parent: host, radius, angle };
   };
+}
+
+/**
+ * The move that typing `typed` into the radius or angle field of an orbit asks for; a range
+ * where the two ends differ.
+ */
+function movedTo(
+  from: BodyOrbit,
+  field: "radius" | "angle",
+  typed: Bounds,
+): { radius: Span; angle: Span } | null {
+  const low = fieldIntent(from, field, typed.min);
+  const high = fieldIntent(from, field, typed.max);
+  if (!low || !high) return null;
+  const span = (key: "radius" | "angle") =>
+    low[key] === high[key] ? low[key] : { min: low[key], max: high[key] };
+  return { radius: span("radius"), angle: span("angle") };
 }
 
 /**
@@ -70,13 +79,10 @@ function OrbitsField({
   geometry: SystemGeometry;
   send: (build: Build) => void;
 }) {
-  const names = useGameDataStore((s) => s.names);
+  const named = useSystemBodyNamer(system);
+  const nameOf = (id: number) => named(id) ?? `#${id}`;
   const { layout, editing, frame } = geometry;
   const own = editing.bodies.get(body.id);
-  const nameOf = (id: number) => {
-    const planet = frame.details?.planets.find((p) => p.id === id);
-    return planet ? bodyName(planet, names) : `#${id}`;
-  };
   const hosts = own?.detachOnly
     ? []
     : layout.bodies.filter(
@@ -116,8 +122,8 @@ function OrbitsField({
 export function OrbitBlock({ system, body }: { system: number; body: number }) {
   const geometry = useSystemGeometry(system);
   const failed = useDetailsStore((s) => s.failed.has(system));
-  const names = useGameDataStore((s) => s.names);
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const nameOf = useSystemBodyNamer(system);
+  const { send, note } = useGeometryEdit(system);
   const { layout, editing, frame, adapter } = geometry;
   if (frame.details === null) {
     return adapter === NO_GEOMETRY || failed ? null : <Empty>{READING}</Empty>;
@@ -127,15 +133,11 @@ export function OrbitBlock({ system, body }: { system: number; body: number }) {
   const placed = layout.bodies.find((b) => b.id === body);
   const moves = orbit !== null && own?.move === true;
   if (placed === undefined || !own || !(moves || own.detachOnly)) return null;
-  const send = (build: Build) => {
-    setRefusal(null);
-    void applyGeometryFrom(system, build, setRefusal);
-  };
-  const commit = (field: "radius" | "angle", typed: number) =>
+  const commit = (field: "radius" | "angle", typed: Bounds) =>
     send(({ layout: now }) => {
       const from = bodyOrbit(now, body);
-      const to = from && fieldIntent(from, field, typed);
-      return to && { kind: "move", system, body, radius: to.radius, angle: to.angle };
+      const to = from && movedTo(from, field, typed);
+      return to && { kind: "move", system, body, ...to };
     });
   const measuredFrom = orbit !== null ? orbitParent(layout, placed) : null;
   const hostPlanet =
@@ -146,35 +148,19 @@ export function OrbitBlock({ system, body }: { system: number; body: number }) {
         <OrbitsField system={system} body={placed} geometry={geometry} send={send} />
       )}
       {moves && (
-        <>
-          <EditRow label="Orbit radius">
-            <TextField
-              kind="number"
-              label="Orbit radius"
-              title="How far it stands from what it orbits"
-              value={rounded(orbit.radius)}
-              onCommit={(typed) => commit("radius", typed)}
-            />
-          </EditRow>
-          <EditRow label="Angle">
-            <TextField
-              kind="number"
-              label="Angle"
-              title="Where it stands on its orbit, in degrees"
-              value={rounded(orbit.angle)}
-              display={String(Math.round(orbit.angle) % 360)}
-              onCommit={(typed) => commit("angle", typed)}
-            />
-          </EditRow>
-        </>
+        <RadiusAngleFields
+          radius={orbit.radius}
+          angle={orbit.angle}
+          radiusLabel="Orbit radius"
+          radiusTitle="How far it stands from what it orbits"
+          angleTitle="Where it stands on its orbit, in degrees"
+          ranges={adapter.ranges}
+          onCommit={commit}
+        />
       )}
       {own.detachOnly && <EditNote>{GEOMETRY_REASONS.noOrbit}</EditNote>}
-      {hostPlanet && <EditNote>Measured from {bodyName(hostPlanet, names)}</EditNote>}
-      {refusal !== null && (
-        <EditNote>
-          <span className="warn">{refusal}</span>
-        </EditNote>
-      )}
+      {hostPlanet && <EditNote>Measured from {nameOf(hostPlanet.id)}</EditNote>}
+      {note()}
     </EditBlock>
   );
 }

@@ -113,7 +113,7 @@ describe("the height group", () => {
     const html = renderToStaticMarkup(<BulkActions />);
     expect(dots(html)).toEqual(["#c8c6bd", "#ef9f27", "#378add"]);
     expect(html).toContain('role="group" aria-label="Height"');
-    expect(html).toContain('aria-pressed="true" class="on">Set to</button>');
+    expect(html).toContain('aria-pressed="true">Set to</button>');
     expect(html).toContain(">Raise by</button>");
     expect(html).toContain(">Lower by</button>");
     expect(html).toContain('<button type="button">Flatten (2)</button>');

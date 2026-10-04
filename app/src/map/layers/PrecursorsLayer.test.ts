@@ -1,3 +1,4 @@
+import { DrawnPositions } from "../drawnPositions";
 import { Graphics } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../../lib/capabilities";
@@ -23,7 +24,7 @@ const REGIONS: PrecursorRegions = {
 };
 
 function drawn(regions: PrecursorRegions, hidden: string[] = []): PrecursorsLayer {
-  const layer = new PrecursorsLayer();
+  const layer = new PrecursorsLayer(new DrawnPositions());
   layer.rebuild(mapContext(NODES, { precursors: regions, hiddenPrecursors: new Set(hidden) }));
   viewport(layer, 1);
   return layer;

@@ -44,7 +44,7 @@ export class LaneDragOverlay {
   private portCapable = false;
 
   /** `at` is where a system draws, which the rings and rubber lines start from. */
-  constructor(private readonly at: (s: SystemNode) => Pt = (s) => s) {}
+  constructor(private readonly at: (s: SystemNode) => Pt) {}
 
   setSystems(systems: Systems): void {
     this.systems = systems;

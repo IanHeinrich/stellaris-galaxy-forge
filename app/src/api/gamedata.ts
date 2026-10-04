@@ -1,11 +1,10 @@
 /**
  * The game's own data, read from the user's install at runtime: definitions, localisation and
- * what they make of the open save. Command names and argument names here match
- * `app/src-tauri/src/commands/`.
+ * textures, and the Paint a Galaxy mod. Command and argument names match
+ * `app/src-tauri/src/commands/gamedata.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { AnomalyChoice } from "../generated/AnomalyChoice";
-import type { BodyClassPick } from "../generated/BodyClassPick";
 import type { BypassView } from "../generated/BypassView";
 import type { ColonyTypeView } from "../generated/ColonyTypeView";
 import type { CountryTypeView } from "../generated/CountryTypeView";
@@ -27,15 +26,11 @@ import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
 import type { PrecursorView } from "../generated/PrecursorView";
 import type { ResourceIcon } from "../generated/ResourceIcon";
-import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
-import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { ShipSizeView } from "../generated/ShipSizeView";
-import type { SpecialSystems } from "../generated/SpecialSystems";
-import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
-import type { StarClassPick } from "../generated/StarClassPick";
 import type { StarClassView } from "../generated/StarClassView";
-import type { SystemScripts } from "../generated/SystemScripts";
+import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
 import type { TerraformCandidateView } from "../generated/TerraformCandidateView";
+import type { TextureView } from "../generated/TextureView";
 import type { WorkshopLinks } from "../generated/WorkshopLinks";
 
 /**
@@ -64,21 +59,6 @@ export function resumeAutoReload(): Promise<void> {
   return invoke<void>("resume_auto_reload");
 }
 
-/** The open save's special systems, classified with game data when it is loaded. Rejects when no save is open. */
-export function getSpecialSystems(): Promise<SpecialSystems> {
-  return invoke<SpecialSystems>("get_special_systems");
-}
-
-/** Who owns each scenario system at generation, from the loaded scripts; null on a save or without game data. */
-export function getScenarioOwners(): Promise<ScenarioOwners | null> {
-  return invoke<ScenarioOwners | null>("get_scenario_owners");
-}
-
-/** The wormholes and gateways the initializers and day-one events place; null on a save or without game data. */
-export function getScenarioBypasses(): Promise<ScenarioBypasses | null> {
-  return invoke<ScenarioBypasses | null>("get_scenario_bypasses");
-}
-
 /** The Paint a Galaxy mod on this machine: where its scenarios go and whether the playset loads it; null when it is not installed. */
 export function paintMod(): Promise<PaintModView | null> {
   return invoke<PaintModView | null>("paint_mod");
@@ -99,11 +79,6 @@ export function openUrl(url: string): Promise<void> {
   return invoke<void>("open_url", { url });
 }
 
-/** The scripts that reach one scenario system; null on a save, without game data, or for an unknown id. */
-export function getSystemScripts(id: number): Promise<SystemScripts | null> {
-  return invoke<SystemScripts | null>("get_system_scripts", { id });
-}
-
 /** Localised names for `keys`; only the keys that resolved are present. */
 export function getNames(keys: string[]): Promise<Record<string, string>> {
   return invoke<Record<string, string>>("get_names", { keys });
@@ -117,22 +92,6 @@ export function resolveNames(names: NameTemplate[]): Promise<string[]> {
 /** Every star class of the loaded game data; empty without it. */
 export function getStarClasses(): Promise<StarClassView[]> {
   return invoke<StarClassView[]>("get_star_classes");
-}
-
-/**
- * The star classes a rolled system can have, each with its localised name, in the order the
- * install's layouts name them; empty without game data.
- */
-export function getGeneratorStarClasses(): Promise<StarClassPick[]> {
-  return invoke<StarClassPick[]>("get_generator_star_classes");
-}
-
-/**
- * The classes a planet, or with `moon` a moon, added to a save may take, each with its name and
- * the sizes a random one is drawn from, by name; empty without game data.
- */
-export function getBodyClasses(moon: boolean): Promise<BodyClassPick[]> {
-  return invoke<BodyClassPick[]>("get_body_classes", { moon });
 }
 
 /** Every deposit definition of the loaded game data; empty without it. */
@@ -277,4 +236,9 @@ export function getResourceIcons(): Promise<ResourceIcon[]> {
 /** Every loaded mod file that could change the L-Cluster outcome; empty without game data. */
 export function getLgateOutcomeMods(): Promise<LGateModTouch[]> {
   return invoke<LGateModTouch[]>("get_lgate_outcome_mods");
+}
+
+/** One texture per key, in order, as PNG; a key that cannot be rendered carries its `error` inline. */
+export function getTextures(keys: string[]): Promise<TextureView[]> {
+  return invoke<TextureView[]>("get_textures", { keys });
 }

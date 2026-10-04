@@ -264,9 +264,9 @@ function setMatched(view: MapView, key: string | null): void {
 }
 
 function applyLayerVisibility(view: MapView, layers: GalaxyLayers): void {
-  const kind = useFileSessionStore.getState().kind;
+  const capabilities = documentCapabilities(useFileSessionStore.getState());
   for (const layer of view.layers) {
-    layer.setVisible(layerShown(layer.id, layers, kind));
+    layer.setVisible(layerShown(layer.id, layers, capabilities));
     layer.setDetailsShown?.(layers.details ?? true);
     layer.setClansShown?.(layers.marauders ?? true);
   }

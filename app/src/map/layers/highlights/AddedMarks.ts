@@ -27,7 +27,7 @@ export class AddedMarks {
   private readonly scale: Pt = { x: 1, y: 1 };
 
   /** Marks every added system of `systems` where `at` says it draws. */
-  place(systems: Systems, at: (s: SystemNode) => Pt = (s) => s): void {
+  place(systems: Systems, at: (s: SystemNode) => Pt): void {
     const doomed = new Set<Container>();
     for (const [id, mark] of this.marks) {
       if (systems.get(id)?.added) continue;

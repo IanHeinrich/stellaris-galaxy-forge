@@ -7,7 +7,7 @@ import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
 import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
 import { useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
-import { HeightMark } from "./LayerIcons";
+import { HeightMark } from "../HeightMark";
 import { SymmetryControl } from "./SymmetryControl";
 import "./chrome.css";
 

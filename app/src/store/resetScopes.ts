@@ -7,7 +7,7 @@ import { useEntityStore } from "./entityStore";
 import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
 import { useHeightPreviewStore } from "./heightPreviewStore";
-import { useInspectorStore } from "./inspectorStore";
+import { forgetPlanetOpens, useInspectorStore } from "./inspectorStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
 import { useOpCheckStore } from "./opCheckStore";
 import { usePlanetDataStore } from "./planetDataStore";
@@ -36,6 +36,7 @@ export const DOCUMENT_SCOPED: readonly (() => void)[] = [
   () => useToolStore.getState().setTilt(0),
   () => useOpCheckStore.getState().reset(),
   forgetReclassify,
+  forgetPlanetOpens,
   ...PICKERS,
 ];
 

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub mod layouts;
 pub mod scripts;
 
 use std::fs;
@@ -19,6 +20,11 @@ pub const SAMPLE_4_5: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../testdata/4.5-day-one.sav"
 );
+
+/// Free ground beside the player's home system 169, where the spike's system stood.
+pub const SPOT: (f64, f64) = (-292.23404, -137.62265);
+/// The Resource Abundance both sample saves were generated with.
+pub const ABUNDANCE: f64 = 2.0;
 
 static SAMPLE_DOCUMENT: LazyLock<Document> =
     LazyLock::new(|| Document::load(SAMPLE).expect("load the 4.4 sample"));
@@ -45,6 +51,37 @@ pub fn open_4_5_edited(edit: impl FnOnce(&mut String)) -> Session {
     let meta = SAMPLE_4_5_DOCUMENT.meta().to_vec();
     let doc = Document::from_bytes(gamestate.into_bytes(), meta).expect("index the edit");
     Session::from_document(None, doc).expect("project the edit")
+}
+
+/// A choice a planet's page offers, which [`by_key`] finds by the key it is filed under.
+pub trait Keyed {
+    fn key(&self) -> &str;
+}
+
+impl Keyed for sgf_gamedata::anomaly_choices::AnomalyChoice {
+    fn key(&self) -> &str {
+        &self.key
+    }
+}
+
+impl Keyed for sgf_gamedata::deposit_choices::DepositChoice {
+    fn key(&self) -> &str {
+        &self.key
+    }
+}
+
+impl Keyed for sgf_gamedata::dig_site_choices::DigSiteChoice {
+    fn key(&self) -> &str {
+        &self.key
+    }
+}
+
+/// The item of `items` filed under `key`; the test fails if there is none.
+pub fn by_key<'a, T: Keyed>(items: &'a [T], key: &str) -> &'a T {
+    items
+        .iter()
+        .find(|item| item.key() == key)
+        .unwrap_or_else(|| panic!("{key} is offered"))
 }
 
 pub fn fixture(rel: &str) -> PathBuf {
