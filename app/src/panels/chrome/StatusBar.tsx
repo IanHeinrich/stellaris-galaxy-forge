@@ -1,7 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
-import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitEdits";
+import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";

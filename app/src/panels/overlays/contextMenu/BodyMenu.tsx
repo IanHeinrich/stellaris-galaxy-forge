@@ -1,6 +1,7 @@
 import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
 import { bodyName } from "../../../lib/details/labels";
-import { lockedToName, nextMoonRing, orbitParent } from "../../../lib/details/orbitEdits";
+import { lockedToName } from "../../../lib/details/orbitIntent";
+import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";

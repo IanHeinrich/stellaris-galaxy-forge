@@ -16,7 +16,7 @@ export function wormholePartnerOf(bypasses: readonly BypassLink[], system: numbe
 }
 
 /** Whether `system` holds a natural wormhole or a shroud tunnel: a system holds one at most. */
-export function holdsNaturalWormhole(bypasses: readonly BypassLink[], system: number): boolean {
+export function holdsPairedBypass(bypasses: readonly BypassLink[], system: number): boolean {
   return bypasses.some((link) =>
     link.type === "wormhole"
       ? link.a === system || link.b === system
@@ -35,6 +35,6 @@ export function wormholePairAction(
 ): WormholePairAction {
   if (a === b) return null;
   if (wormholePartnerOf(bypasses, a) === b) return "unlink";
-  if (holdsNaturalWormhole(bypasses, a) || holdsNaturalWormhole(bypasses, b)) return null;
+  if (holdsPairedBypass(bypasses, a) || holdsPairedBypass(bypasses, b)) return null;
   return "link";
 }

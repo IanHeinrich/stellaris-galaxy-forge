@@ -18,7 +18,7 @@ import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
-import { bodyOrbit } from "../../../lib/details/orbitEdits";
+import { bodyOrbit } from "../../../lib/details/orbitIntent";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";

@@ -1,5 +1,5 @@
 import { bodyName } from "../../lib/details/labels";
-import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitEdits";
+import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { getTexture, requestTextures } from "../../lib/visual/textures";

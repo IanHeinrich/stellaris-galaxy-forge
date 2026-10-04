@@ -1,6 +1,6 @@
 import { ADD_PLANET_LABEL } from "../../../lib/addBody";
 import { documentCapabilities } from "../../../lib/capabilities";
-import { defaultBeltKind } from "../../../lib/details/orbitEdits";
+import { defaultBeltKind } from "../../../lib/details/orbitIntent";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { placementAt } from "../../../lib/planetMove";
 import { useSystemNames } from "../../../store/browserRows";

@@ -58,7 +58,7 @@ import { PickerField, TextField, ToggleField } from "../../EditField";
 import { ComboField } from "../../ComboField";
 import { useEditorStore } from "../../../store/editorStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
-import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
+import { GEOMETRY_REASONS } from "../../../lib/details/orbitIntent";
 import { MODEL_TITLE } from "../../../lib/details/planetModel";
 import { CLASS_FIXED, CLASS_LOOK_NOTE } from "../../../lib/details/planetClass";
 

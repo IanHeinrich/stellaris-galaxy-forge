@@ -51,11 +51,16 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   and level chips. The system view's layout is `orbits`: where each body,
   orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
-  `orbitEdits` turns a geometry edit, a body or belt at an absolute radius
-  and angle, into an op. It picks an adapter per document: a save's builds
-  the save ops, and a scenario's makes nothing editable. The adapter also
-  says what may be edited and previews an edit as a layout override, so the
-  scene and the pages never check what kind of file is open.
+  `orbitIntent` is what a geometry edit asks for, a body or belt at an
+  absolute radius and angle, and what an adapter answers: what may be
+  edited, why not, and the words for both. `orbitReach` holds the layout
+  rules the core holds too: what a body orbits, which body another would
+  stand on, and how the inner radius grows and how low it may go.
+  `saveGeometry` picks an adapter per document: a save's builds the save
+  ops, and a scenario's makes nothing editable. Its `layoutEditing` and
+  `layoutPreview` say what may be edited and preview an edit as a layout
+  override for any source, so the scene and the pages never check what
+  kind of file is open.
   `discs` sizes each body's disc.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.

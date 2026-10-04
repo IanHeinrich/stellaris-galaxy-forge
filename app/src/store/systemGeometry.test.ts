@@ -4,7 +4,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { GEOMETRY_REASONS } from "../lib/details/orbitEdits";
+import { GEOMETRY_REASONS } from "../lib/details/orbitIntent";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
