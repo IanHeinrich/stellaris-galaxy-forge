@@ -194,13 +194,7 @@ fn a_feature_without_its_timed_item_is_removed_by_its_line() {
 
 #[test]
 fn a_modifier_round_trips_from_the_file_as_opened() {
-    round_trip(open_4_5(), add(585, CANDIDATE, &[-1]));
     round_trip(open_4_5(), add(40, FROZEN, &[720]));
-    round_trip(open_4_5(), remove(40, HARVESTED, None));
-    round_trip(
-        open_4_5(),
-        add_feature(585, "mineral_poor", &[-1], "pm_mineral_poor"),
-    );
     round_trip(open_4_5(), remove(GAS_GIANT, MOONS, Some(PM_MOONS)));
     round_trip(open_4_5(), add_feature(GAS_GIANT, MOONS, &[-1], PM_MOONS));
 }

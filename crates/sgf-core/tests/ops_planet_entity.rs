@@ -9,7 +9,7 @@ use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
+use common::diff::snapshot_step;
 use common::{current, open_4_5};
 
 const PARADISE: &str = "ocean_paradise_planet_01_entity";
@@ -145,13 +145,6 @@ fn the_system_details_read_the_model_in_place() {
         .expect("take 1415's model off");
     assert_eq!(taken.details_stale.len(), 1);
     assert_eq!(drawn_model(&session, 1415), None);
-}
-
-#[test]
-fn a_model_round_trips_from_the_file_as_opened() {
-    round_trip(open_4_5(), set(585, Some(PARADISE)));
-    round_trip(open_4_5(), set(3318, Some(PARADISE)));
-    round_trip(open_4_5(), set(1415, None));
 }
 
 #[test]

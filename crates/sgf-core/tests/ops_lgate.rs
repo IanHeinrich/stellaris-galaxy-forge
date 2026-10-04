@@ -7,7 +7,7 @@ use sgf_core::projections::galaxy::{LGate, LGateOutcome};
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::snapshot_step;
+use common::diff::{plain_report, snapshot_step};
 use common::{current, open, open_4_5, open_edited, reprojected};
 
 fn set(outcome: LGateOutcome) -> Op {
@@ -25,6 +25,12 @@ fn unopened(outcome: LGateOutcome) -> Option<LGate> {
 /// the bytes and the app's delta read it.
 fn switch(session: &mut Session, outcome: LGateOutcome, snapshot: &str) -> OpResult {
     let result = snapshot_step(session, snapshot, set(outcome));
+    assert_read(session, outcome, snapshot, &result);
+    result
+}
+
+/// The projection, a reload of the bytes and the app's delta read `outcome`.
+fn assert_read(session: &Session, outcome: LGateOutcome, snapshot: &str, result: &OpResult) {
     assert_eq!(session.graph().lgate, unopened(outcome), "{snapshot}");
     assert_eq!(reprojected(session).lgate, unopened(outcome), "{snapshot}");
     let edit = session.edit_result(result.clone());
@@ -33,7 +39,6 @@ fn switch(session: &mut Session, outcome: LGateOutcome, snapshot: &str) -> OpRes
         unopened(outcome),
         "{snapshot}: reaches the app"
     );
-    result
 }
 
 #[test]
@@ -68,7 +73,14 @@ fn the_4_5_samples_gray_tempest_switches_to_each_other_outcome_and_back() {
 #[test]
 fn the_4_4_samples_empty_cluster_takes_l_drakes() {
     let mut session = open();
-    switch(&mut session, LGateOutcome::LDrakes, "empty_to_l_drakes");
+    let result = session.apply(set(LGateOutcome::LDrakes)).expect("apply");
+    common::snapshot("empty_to_l_drakes", &plain_report(&session, &result));
+    assert_read(
+        &session,
+        LGateOutcome::LDrakes,
+        "empty_to_l_drakes",
+        &result,
+    );
 }
 
 #[test]

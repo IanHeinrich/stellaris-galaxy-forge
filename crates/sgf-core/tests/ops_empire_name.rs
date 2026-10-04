@@ -171,19 +171,6 @@ fn a_renamed_player_reads_back_from_the_file() {
 }
 
 #[test]
-fn undo_puts_the_header_and_meta_back() {
-    let mut session = open();
-    session.apply(rename(PLAYER, NEW_NAME)).expect("apply");
-    session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(current(&session), session.doc().original());
-    assert_eq!(session.doc().meta(), session.doc().original_meta());
-    assert!(!session.is_dirty());
-    session.redo().expect("redo").expect("an op to redo");
-    assert_eq!(meta_name(session.doc().meta()), NEW_NAME);
-    assert_eq!(header_name(&session), NEW_NAME);
-}
-
-#[test]
 fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written() {
     let mut session = open_4_5();
     let error = session

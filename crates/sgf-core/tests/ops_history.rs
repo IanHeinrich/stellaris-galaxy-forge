@@ -188,8 +188,9 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
         if let Some(op) = example.scenario {
             cases.push((examples::scenario(), op));
         }
-        for (mut session, op) in cases {
+        for (session, op) in cases {
             let label = format!("{name} on a {:?}", session.kind());
+            let mut session = common::warm(session);
             let bytes = current(&session);
             let meta = session.doc().meta().to_vec();
             let galaxy = settled(&session);

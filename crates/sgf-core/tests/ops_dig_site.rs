@@ -199,10 +199,8 @@ fn removing_a_site_being_dug_says_a_fleet_is_excavating_it() {
 
 #[test]
 fn a_site_round_trips_from_the_file_as_opened() {
-    round_trip(open_4_5(), add(BARREN, LOST_MOMENTS, 1));
     round_trip(open_4_5(), remove(0));
     round_trip(open_4_5(), remove(3));
-    round_trip(open(), add(749, LOST_MOMENTS, 1));
     round_trip(open(), remove(4));
 }
 

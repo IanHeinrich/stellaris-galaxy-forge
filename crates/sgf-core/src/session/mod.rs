@@ -72,7 +72,7 @@ pub struct OpResult {
     pub issues: Vec<Issue>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Session {
     /// Where the document was opened from or last saved to; `None` for one never saved.
     pub(crate) path: Option<PathBuf>,
