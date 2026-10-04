@@ -15,6 +15,8 @@ import { isLClusterSystem } from "../lib/guides";
 import { meshPairs, type MeshPoint } from "../lib/geometry/mesh";
 import { nodeName, stripped, templateName } from "../lib/names";
 import { SpatialGrid } from "../lib/spatialGrid";
+import { systemLabel } from "../lib/systemLabel";
+import { useGameDataStore } from "./gameDataStore";
 
 export interface GalaxyState {
   galaxy: GalaxyView | null;
@@ -280,6 +282,15 @@ export function systemNameOf(
   const node = systems.get(id);
   if (node === undefined) return `#${id}`;
   return node.name.literal ? node.name.key : (names.get(node.name.key) ?? stripped(node.name.key));
+}
+
+/** What an undo description calls system `id` in the open galaxy: `Ferragon #489`, else `system #489`. */
+export function systemLabelOf(id: number): string {
+  const node = useGalaxyStore.getState().systems.get(id);
+  if (node === undefined) return systemLabel("", id, false);
+  const { names } = useGameDataStore.getState();
+  const localised = node.name.literal || names.has(node.name.key);
+  return systemLabel(nodeName(node.name), id, localised);
 }
 
 /** Every system outside the L-Cluster as a point and every lane between them as an id pair, once from each end. */

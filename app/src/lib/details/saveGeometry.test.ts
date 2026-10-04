@@ -252,6 +252,15 @@ describe("the op each intent makes", () => {
     });
   });
 
+  it("names the system in a belt move's description by the frame's label", () => {
+    const frame = { ...frameOf(), systemLabel: "Ferragon #140" };
+    expect(
+      op({ kind: "setBeltRadius", system: SYSTEM, index: 0, radius: 130 }, frame),
+    ).toMatchObject({
+      op: { description: "Moved the belt at radius 120 in Ferragon #140 to 130, with 1 asteroid" },
+    });
+  });
+
   it("makes nothing of an intent that changes nothing", () => {
     const frame = frameOf();
     const here = bodyOrbit(frame.layout, LONE)!;

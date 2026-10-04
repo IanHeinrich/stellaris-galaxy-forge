@@ -60,6 +60,15 @@ describe("applyGeometry", () => {
     });
   });
 
+  it("names the system in the description of a belt move by its name and id", async () => {
+    await applyGeometry({ kind: "setBeltRadius", system: SOL, index: 0, radius: 130 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Moved the belt at radius 120 in Sol #0 to 130, with 1 asteroid",
+      }),
+    );
+  });
+
   it("sends nothing on a scenario", async () => {
     await openFixtureScenario();
     readSol();

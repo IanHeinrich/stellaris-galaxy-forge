@@ -17,7 +17,7 @@ import {
 import { enabledScriptFor, nextSystemId } from "../lib/paint";
 import { initializersOp, spawnScriptsOp, spawnWeightsOp } from "../lib/systemsBatch";
 import { counted } from "../lib/text";
-import { isPrevented, linked, useGalaxyStore } from "./galaxyStore";
+import { isPrevented, linked, systemLabelOf, useGalaxyStore } from "./galaxyStore";
 import { useToolStore } from "./toolStore";
 
 function symmetry(): Symmetry {
@@ -281,7 +281,8 @@ function preventDescription(prevent: readonly Pair[], cut: number): string {
   if (cut === 0) return `Prevented ${counted(prevent.length, "lane")}`;
   if (prevent.length === 0) return `Cut ${counted(cut, "lane")}`;
   if (prevent.length === 1 && cut === 1) {
-    return `Cut and prevented lane ${prevent[0][0]} <-> ${prevent[0][1]}`;
+    const [a, b] = prevent[0];
+    return `Cut and prevented lane ${systemLabelOf(a)} <-> ${systemLabelOf(b)}`;
   }
   return `Cut ${counted(cut, "lane")} and prevented ${counted(prevent.length, "lane")}`;
 }

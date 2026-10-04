@@ -10,6 +10,7 @@ import { geometryAdapterFor } from "../lib/details/saveGeometry";
 import { shownRoll, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
+import { systemLabelOf } from "./galaxyStore";
 import { moonScaleOf, systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -105,7 +106,10 @@ async function applyBuilt(
   const geometry = systemGeometry(system);
   const intent = build(geometry);
   if (intent === null) return false;
-  const made = geometry.adapter.op(intent, geometry.frame);
+  const made = geometry.adapter.op(intent, {
+    ...geometry.frame,
+    systemLabel: systemLabelOf(system),
+  });
   if (made === null) return false;
   if ("refused" in made) {
     onRefused(made.refused);

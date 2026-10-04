@@ -109,6 +109,8 @@ export interface GeometryFrame {
   planetClasses: ReadonlyMap<string, PlanetClassView>;
   /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
   radii: SystemRadii;
+  /** What an edit's description calls the system, as `systemLabel` says; set when the edit is sent. */
+  systemLabel?: string;
 }
 
 /** The op an intent makes, or why it is refused; null when it changes nothing. */
