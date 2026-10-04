@@ -1,11 +1,9 @@
-import { useDetailsStore } from "../../store/detailsStore";
-import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore, type EntityRef } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { subscribeOwnership } from "../../store/ownership";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { follows, type Binding } from "../follows";
+import { SOURCE_FOLLOWS } from "./sources";
 
 /** What a store change moves in the system scene. */
 export interface SceneView {
@@ -21,21 +19,11 @@ export interface SceneView {
   focusBody(id: number): void;
 }
 
-const refresh = (_state: unknown, view: SceneView) => view.refresh();
 const showMove = (_state: unknown, view: SceneView) => view.showMove();
 
 /** The store fields the system scene follows, and the ones applied as it binds besides. */
 const BINDINGS: Array<Binding<SceneView, "bind">> = [
-  follows(useDetailsStore, [(s) => s.details, (s) => s.version, (s) => s.rolls], refresh),
-  follows(
-    useGameDataStore,
-    [(s) => s.planetClasses, (s) => s.starClasses, (s) => s.status, (s) => s.initializerClasses],
-    refresh,
-  ),
-  // Ownership's inputs include the systems, the names and the document kind the scene reads too.
-  { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
-  follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
-  follows(useSceneStore, [(s) => s.roll, (s) => s.lockedBodies], refresh),
+  ...SOURCE_FOLLOWS,
   follows(useSceneStore, [(s) => s.bodyFocus], (s, view) => {
     if (s.bodyFocus) view.focusBody(s.bodyFocus.id);
   }),

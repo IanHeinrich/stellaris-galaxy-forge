@@ -23,7 +23,7 @@ const NONE: readonly number[] = [];
 export function moveMarks(id: number | null): MoveMarks {
   const { cut } = usePlanetMoveStore.getState();
   const selection = useSceneStore.getState().bodySelection;
-  const movable = documentCapabilities(useFileSessionStore.getState()).details;
+  const movable = documentCapabilities(useFileSessionStore.getState()).planet_moves;
   return {
     selectedBodies: movable && id !== null && selection?.system === id ? selection.ids : NONE,
     cutBodies: id !== null && cut?.from === id ? cut.planets : NONE,

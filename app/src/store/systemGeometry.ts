@@ -2,24 +2,11 @@
  * A system's geometry as the scene, the panels and the nudge read it, and the one way an intent to
  * change it reaches the editor.
  */
-import type { Capabilities } from "../generated/Capabilities";
-import type { DocumentKind } from "../generated/DocumentKind";
-import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { SystemDetails } from "../generated/SystemDetails";
-import type { SystemRadii } from "../generated/SystemRadii";
-import type { SystemRoll } from "../generated/SystemRoll";
 import { documentCapabilities } from "../lib/capabilities";
-import {
-  bodyOrbit,
-  inspectedBody,
-  nudged,
-  type GeometryAdapter,
-  type GeometryFrame,
-  type GeometryIntent,
-  type SceneEditing,
-} from "../lib/details/orbitIntent";
+import { geometryOf, type SystemGeometry } from "../lib/details/geometry";
+import { bodyOrbit, inspectedBody, nudged, type GeometryIntent } from "../lib/details/orbitIntent";
 import { geometryAdapterFor } from "../lib/details/saveGeometry";
-import { systemLayout, type SystemLayout } from "../lib/details/orbits";
 import { shownRoll, useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -28,44 +15,7 @@ import { useInspectorStore } from "./inspectorStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { sceneSystem } from "./sceneStore";
 
-export interface SystemGeometry {
-  /** The layout the scene draws, the same object its context holds. */
-  layout: SystemLayout;
-  editing: SceneEditing;
-  adapter: GeometryAdapter;
-  frame: GeometryFrame;
-}
-
-interface Inputs {
-  system: number | null;
-  details: SystemDetails | null;
-  roll: SystemRoll | null;
-  planetClasses: ReadonlyMap<string, PlanetClassView>;
-  moonScale: number;
-  radii: SystemRadii;
-  kind: DocumentKind | null;
-  capabilities: Capabilities;
-}
-
-/**
- * Each layout's editing, per adapter and radii: the same layout, adapter and radii give the same
- * object.
- */
-const edited = new WeakMap<SystemLayout, Map<GeometryAdapter, Map<SystemRadii, SceneEditing>>>();
-
-function geometryOf(inputs: Inputs): SystemGeometry {
-  const { system, details, roll, planetClasses, moonScale, radii, kind, capabilities } = inputs;
-  const layout = systemLayout(details, roll, planetClasses, moonScale);
-  const adapter = geometryAdapterFor(kind, capabilities, system);
-  const frame = { layout, details, planetClasses, radii };
-  let byAdapter = edited.get(layout);
-  if (!byAdapter) edited.set(layout, (byAdapter = new Map()));
-  let byRadii = byAdapter.get(adapter);
-  if (!byRadii) byAdapter.set(adapter, (byRadii = new Map()));
-  let editing = byRadii.get(radii);
-  if (!editing) byRadii.set(radii, (editing = adapter.editing(frame)));
-  return { layout, editing, adapter, frame };
-}
+export type { SystemGeometry };
 
 /** System `system`'s layout, what of it may be edited, and the adapter that edits it. */
 export function systemGeometry(system: number | null): SystemGeometry {
@@ -73,14 +23,12 @@ export function systemGeometry(system: number | null): SystemGeometry {
   const data = useGameDataStore.getState();
   const session = useFileSessionStore.getState();
   return geometryOf({
-    system,
     details: system === null ? null : (details.details.get(system) ?? null),
     roll: shownRoll(details.rolls, system),
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
     radii: systemRadiiOf(data),
-    kind: session.kind,
-    capabilities: documentCapabilities(session),
+    adapter: geometryAdapterFor(session.kind, documentCapabilities(session), system),
   });
 }
 
@@ -95,7 +43,8 @@ export function useSystemGeometry(system: number | null): SystemGeometry {
   const radii = useGameDataStore(systemRadiiOf);
   const kind = useFileSessionStore((s) => s.kind);
   const capabilities = useFileSessionStore(documentCapabilities);
-  return geometryOf({ system, details, roll, planetClasses, moonScale, radii, kind, capabilities });
+  const adapter = geometryAdapterFor(kind, capabilities, system);
+  return geometryOf({ details, roll, planetClasses, moonScale, radii, adapter });
 }
 
 /** How long an edit waits for its system's fresh details before the next one builds anyway. */

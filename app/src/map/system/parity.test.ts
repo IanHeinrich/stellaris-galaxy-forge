@@ -20,7 +20,7 @@ import { systemContext, type SceneBody, type SystemContext } from "./context";
 import { blankSceneTextures, stubTextMeasurement, viewport } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
-import { NO_SOURCES } from "./sources";
+import { NO_SOURCES, placeIn } from "./sources";
 
 stubTextMeasurement();
 
@@ -106,15 +106,17 @@ function asSave(starClass: string, bodies: readonly Placed[]): SystemContext {
   );
   return systemContext({
     ...sources,
-    kind: "save",
-    systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: starClass, initializer: INITIALIZER }),
+    ...placeIn(
+      byId({ ...placedNode(SYSTEM, 0, 0), star_class: starClass, initializer: INITIALIZER }),
+      SYSTEM,
+    ),
     details: systemDetails({ id: SYSTEM, planets }),
   });
 }
 
 /**
- * The same system as a scenario holds it: no star class of its own, the initializer's, every body
- * on a fixed orbit naming its angle, and a roll landing each where the save has it.
+ * The same system as a scenario holds it: the star class the core draws from its initializer,
+ * every body on a fixed orbit naming its angle, and a roll landing each where the save has it.
  */
 function asScenario(starClass: string, bodies: readonly Placed[]): SystemContext {
   const planets = bodies.map((b) =>
@@ -133,10 +135,12 @@ function asScenario(starClass: string, bodies: readonly Placed[]): SystemContext
   });
   return systemContext({
     ...sources,
-    kind: "scenario",
-    systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
+    ...placeIn(
+      byId({ ...placedNode(SYSTEM, 0, 0), star_class: starClass, initializer: INITIALIZER }),
+      SYSTEM,
+    ),
     details: systemDetails({ id: SYSTEM, planets, with_game_data: true }),
-    initializerClasses: new Map([[INITIALIZER, starClass]]),
+    rolledLayout: true,
     roll,
   });
 }
