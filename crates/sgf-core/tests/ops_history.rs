@@ -71,52 +71,114 @@ fn details_of(session: &mut Session) -> BTreeMap<u32, RawSystemDetails> {
         .collect()
 }
 
-/// The galaxy as the map reads it, with what an inverse may write in another order (a
-/// system's lanes, the nebulae) put in one.
-fn settled(session: &Session) -> (BTreeMap<u32, SystemNode>, Vec<String>, String) {
-    let mut systems: BTreeMap<u32, SystemNode> =
-        session.graph().systems.clone().into_iter().collect();
-    systems
-        .values_mut()
-        .for_each(|system| system.lanes.sort_by_key(|lane| lane.to));
-    let mut nebulae: Vec<String> = session
-        .graph()
+/// The galaxy as the map reads it, with what an inverse may write in another order put in
+/// one: a system's lanes, the nebulae, and the nebula a system is in, named by what it is
+/// rather than where it stands in the list.
+#[derive(Debug, PartialEq)]
+struct Settled {
+    systems: BTreeMap<u32, SystemNode>,
+    nebula_of: BTreeMap<u32, String>,
+    nebulae: Vec<String>,
+    header: Vec<(String, String)>,
+}
+
+fn settled(session: &Session) -> Settled {
+    let graph = session.graph();
+    let mut nebulae: Vec<String> = graph
         .nebulae
         .iter()
         .map(|nebula| format!("{nebula:?}"))
         .collect();
+    let mut systems = BTreeMap::new();
+    let mut nebula_of = BTreeMap::new();
+    for (&id, system) in &graph.systems {
+        let mut system = system.clone();
+        system.lanes.sort_by_key(|lane| lane.to);
+        if let Some(index) = system.nebula.take() {
+            nebula_of.insert(id, nebulae[index].clone());
+        }
+        systems.insert(id, system);
+    }
     nebulae.sort();
-    (systems, nebulae, format!("{:?}", session.graph().header))
+    // A header statement's line is where the file as opened had it, which a statement
+    // written back has none of.
+    let header = graph
+        .header
+        .iter()
+        .map(|field| (field.key.clone(), field.value.clone()))
+        .collect();
+    Settled {
+        systems,
+        nebula_of,
+        nebulae,
+        header,
+    }
 }
 
-/// Ops whose inverse restores the body it moved or the site it removed under another
-/// stored value (an orbit's slack, the next free id, a pair's numbers), so their details
-/// read back near, not equal.
-const DETAILS_READ_BACK_NEAR: [&str; 5] = [
-    "MoveBody",
-    "SetBodyParent",
-    "MoveBodyToSystem",
-    "RemoveDigSite",
-    "RemoveWormholePair",
+/// The galaxy without the ids an inverse may write an entry back under. A system's
+/// `bypasses` list goes with them: the game writes it on load.
+fn without_ids(mut galaxy: Settled) -> Settled {
+    galaxy
+        .systems
+        .values_mut()
+        .for_each(|system| system.bypass_ids.clear());
+    galaxy
+}
+
+/// The details without the ids an inverse may write an entry back under.
+fn details_without_ids(
+    mut details: BTreeMap<u32, RawSystemDetails>,
+) -> BTreeMap<u32, RawSystemDetails> {
+    for system in details.values_mut() {
+        for wormhole in &mut system.wormholes {
+            (wormhole.id, wormhole.bypass) = (0, 0);
+        }
+        system.sites.iter_mut().for_each(|site| site.id = 0);
+    }
+    details
+}
+
+const LANE_LAST: &str = "a lane comes back last in its system or the scenario";
+const ORBIT_AGAIN: &str = "the orbit is worked out again from the coordinate put back";
+
+/// Ops whose inverse writes other bytes than the op took away, and why. Only these are
+/// checked by what the galaxy and the details read back, without the ids.
+const BYTES_DIFFER: [(&str, &str); 17] = [
+    ("RemoveLane", LANE_LAST),
+    ("RemoveLanes", LANE_LAST),
+    ("IsolateSystem", LANE_LAST),
+    ("RemoveLanePairs", LANE_LAST),
+    ("IsolateSystems", LANE_LAST),
+    ("Batch", LANE_LAST),
+    ("AllowLane", "a prevented lane comes back last"),
+    ("RemoveNebula", "a nebula comes back last"),
+    ("RemoveSystem", "a system comes back last in the scenario"),
+    ("RemoveSystems", "a system comes back last in the scenario"),
+    ("RemoveAnomaly", "the body comes back last in the list"),
+    ("RemoveDeposit", "a deposit comes back under a new id"),
+    ("RemoveDigSite", "a site comes back under a new id"),
+    (
+        "RemoveWormholePair",
+        "a pair comes back under new ids, without the bypasses lists the game writes on load",
+    ),
+    ("MoveBody", ORBIT_AGAIN),
+    ("SetBodyParent", ORBIT_AGAIN),
+    (
+        "MoveBodyToSystem",
+        "the orbit and the system's radii are worked out again from the body put back",
+    ),
 ];
 
-/// Ops whose inverse writes the galaxy back in another shape: a nebula comes back last and
-/// renumbers the ones after it, a header list comes back in another order, a wormhole pair
-/// takes another bypass number, and the initializer a seat was given stays when the seat
-/// is cleared.
-const GALAXY_READS_BACK_NEAR: [&str; 4] = [
-    "RemoveNebula",
-    "SetHeaderList",
-    "RemoveWormholePair",
-    "SetSpawnScript",
-];
+/// Ops whose inverse puts a body back at its coordinate and works its orbit out from it,
+/// so the details read back near, not equal.
+const DETAILS_READ_BACK_NEAR: [&str; 3] = ["MoveBody", "SetBodyParent", "MoveBodyToSystem"];
 
 /// The inverse an op returns is itself an op: applied, it puts back the bytes and `meta`
-/// the op changed. Where it writes the same statements in another order, as lanes and
-/// restored entities do, the galaxy and the details read back as they were.
+/// the op changed, and the galaxy and the details read back as they were.
 #[test]
 fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
     let mut failed = Vec::new();
+    let mut differed = Vec::new();
     for example in one_of_each() {
         let name = example.name();
         let mut cases = vec![];
@@ -140,19 +202,37 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
                 .unwrap_or_else(|e| panic!("{label}: the inverse: {e}"));
             if session.doc().meta() != meta {
                 failed.push(format!("{label}: meta"));
-            } else if current(&session) != bytes {
-                if !GALAXY_READS_BACK_NEAR.contains(&name) && settled(&session) != galaxy {
+            }
+            if current(&session) == bytes {
+                if settled(&session) != galaxy {
                     failed.push(format!("{label}: galaxy"));
-                } else if !DETAILS_READ_BACK_NEAR.contains(&name)
-                    && details_of(&mut session) != details
-                {
+                }
+                if details_of(&mut session) != details {
                     failed.push(format!("{label}: details"));
                 }
-            } else if !GALAXY_READS_BACK_NEAR.contains(&name) && settled(&session) != galaxy {
-                failed.push(format!("{label}: galaxy"));
+                continue;
+            }
+            let Some((_, why)) = BYTES_DIFFER.iter().find(|(listed, _)| *listed == name) else {
+                failed.push(format!("{label}: bytes"));
+                continue;
+            };
+            differed.push(name);
+            if without_ids(settled(&session)) != without_ids(galaxy) {
+                failed.push(format!("{label}: galaxy, beyond what differs ({why})"));
+            }
+            if !DETAILS_READ_BACK_NEAR.contains(&name)
+                && details_without_ids(details_of(&mut session)) != details_without_ids(details)
+            {
+                failed.push(format!("{label}: details, beyond what differs ({why})"));
             }
         }
     }
+    failed.extend(
+        BYTES_DIFFER
+            .iter()
+            .filter(|(name, _)| !differed.contains(name))
+            .map(|(name, _)| format!("{name}: listed, but its inverse puts the bytes back")),
+    );
     assert!(failed.is_empty(), "{failed:#?}");
 }
 
