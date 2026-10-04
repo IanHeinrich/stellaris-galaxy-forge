@@ -5,13 +5,13 @@
 //! an index the new class has no model for goes back to 0.
 
 use crate::NULL_ID;
+use crate::emit::quoted;
 use crate::entity::facts::planet::is_star_class;
-use crate::format::save::read_spec::bodies;
 use crate::format::save::write::planet_entity::write_entity_name;
 use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
-use crate::ops::rules::{Form, check_text, quoted};
-use crate::ops::{ClassChange, Op, OpError, Plan, PlanetClassRule, PlanetLook, Planned};
+use crate::ops::rules::{Form, check_text};
+use crate::ops::{ClassChange, Op, OpError, Plan, PlanetClassRule, PlanetLook, Planned, StarEdit};
 use crate::projections::read;
 use crate::session::Session;
 
@@ -24,21 +24,20 @@ pub(crate) fn plan_set(
     look: Option<&PlanetLook>,
 ) -> Result<Planned, OpError> {
     check_text("a planet class", &to.class, Form::Bare)?;
-    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open_unless_star(s, id, StarEdit::Class)?;
     let class = read::text(&node, keys::PLANET_CLASS, src);
-    let primary = bodies(&s.doc, system)?.first() == Some(&id);
-    if primary || is_star_class(&class) {
-        return Err(OpError::StarPlanetClass(id));
-    }
     if from.class != class {
         return Err(OpError::PlanetClassMismatch {
-            planet: id,
+            body: id,
             class,
             from: from.class.clone(),
         });
     }
     if to.class == class {
-        return Err(OpError::PlanetClassUnchanged(id, class));
+        return Err(OpError::unchanged(
+            format!("planet {id}"),
+            format!("is already {class}"),
+        ));
     }
     for rule in [from, to] {
         if rule.change == ClassChange::Never || is_star_class(&rule.class) {
@@ -55,7 +54,7 @@ pub(crate) fn plan_set(
             .find(|r| r.change != ClassChange::Any)
     {
         return Err(OpError::ColonyPlanetClass {
-            planet: id,
+            body: id,
             class: rule.class.clone(),
         });
     }
@@ -79,7 +78,7 @@ pub(crate) fn plan_set(
     let entity = wanted.entity.filter(|&e| held.entity != Some(e));
     if let Some(entity) = entity.filter(|&e| look.is_some() && e >= to.models) {
         return Err(OpError::PlanetModelIndex {
-            planet: id,
+            body: id,
             entity,
             class: to.class.clone(),
             models: to.models,

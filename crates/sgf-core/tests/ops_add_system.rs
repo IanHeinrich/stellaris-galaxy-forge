@@ -508,7 +508,7 @@ fn refused(mut session: Session, spec: SystemSpec) -> OpError {
 #[test]
 fn what_the_op_refuses() {
     let old = open_3_4();
-    assert!(matches!(refused(old, dorellion()), OpError::SaveTooOld(v) if v.contains("v3.4")));
+    assert!(matches!(refused(old, dorellion()), OpError::VersionTooOld(v) if v.contains("v3.4")));
 
     let gap = open_edited(|text| {
         *text = text.replace("\nlast_created_system=790\n", "\nlast_created_system=795\n");
@@ -716,7 +716,7 @@ fn a_save_without_an_asteroid_pool_takes_no_asteroids() {
     round_trip(with_asteroid_pool(""), add(dorellion()));
     assert!(matches!(
         refused(with_asteroid_pool(""), belted(dorellion())),
-        OpError::MissingSaveKey("asteroid_prefix")
+        OpError::MissingKey("asteroid_prefix")
     ));
 }
 
@@ -768,7 +768,7 @@ fn a_save_without_a_deposit_table_takes_a_system_without_deposits() {
     spec.name = "Sgf_Deposits".to_owned();
     assert!(matches!(
         refused(without_section("deposit", ""), spec),
-        OpError::MissingSaveKey("deposit")
+        OpError::MissingKey("deposit")
     ));
 }
 
@@ -820,11 +820,11 @@ fn the_version_is_read_with_or_without_a_release_name() {
         .expect("a bare 4.x version");
     assert!(matches!(
         refused(with_version("v3.14.1"), dorellion()),
-        OpError::SaveTooOld(v) if v == "v3.14.1"
+        OpError::VersionTooOld(v) if v == "v3.14.1"
     ));
     assert!(matches!(
         refused(with_version("Pegasus"), dorellion()),
-        OpError::UnknownSaveVersion(v) if v == "Pegasus"
+        OpError::UnknownVersion(v) if v == "Pegasus"
     ));
 }
 

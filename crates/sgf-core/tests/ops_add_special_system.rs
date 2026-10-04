@@ -796,7 +796,7 @@ fn a_save_without_a_counter_refuses_only_a_capped_layout() {
     let error = session.apply(add(trappist(&at))).expect_err("refused");
     assert!(matches!(
         error,
-        OpError::MissingSaveKey("system_initializer_counter")
+        OpError::MissingKey("system_initializer_counter")
     ));
     assert_eq!(BTreeMap::new(), initializer_counts(&session.doc));
 }

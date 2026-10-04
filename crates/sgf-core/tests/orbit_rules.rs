@@ -2,7 +2,7 @@
 //! too, against its own copies of the rules.
 use serde::Deserialize;
 use sgf_core::ops::SystemRadii;
-use sgf_core::ops::rules::bodies::{Body, find, overlaps, point};
+use sgf_core::projections::geometry::{Body, find, overlaps, point};
 
 const CASES: &str = include_str!("../../../testdata/orbit_rules.json");
 

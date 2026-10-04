@@ -167,7 +167,7 @@ fn a_nebula_is_made_turbulent_and_calm_again_member_by_member() {
             nebula: DEMONS_EYE,
             turbulent: false,
         }),
-        Err(OpError::TurbulenceUnchanged { .. })
+        Err(OpError::Unchanged { .. })
     ));
     session.apply(result.inverse).expect("apply the inverse");
     assert!(
@@ -410,6 +410,6 @@ fn a_3_4_save_moves_members_and_writes_no_clouds() {
             nebula: 0,
             turbulent: true,
         }),
-        Err(OpError::SaveTooOld(_))
+        Err(OpError::VersionTooOld(_))
     ));
 }

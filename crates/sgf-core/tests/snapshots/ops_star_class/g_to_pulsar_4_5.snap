@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Set the star class of Xu Nur (#1) from sc_g to sc_pulsar
+Set the star class of Xu Nur #1 from sc_g to sc_pulsar
 inverse: SetStarClass { system: 1, class: "sc_g", bodies: [StarBody { body: 584, class: "pc_g_star" }] }
 
 --- gamestate

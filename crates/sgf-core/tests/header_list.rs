@@ -2,7 +2,7 @@
 //! statements: the diff a shorter list, a longer list and a cleared list each produce,
 //! undo byte for byte, a key the header lacks, and the refusals.
 
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::{Op, OpError, ParseAt};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -159,7 +159,13 @@ fn a_missing_key_with_no_values_a_bad_value_and_a_save_are_refused() {
     ] {
         let error = session.apply(op).expect_err(name);
         assert!(
-            matches!(error, OpError::HeaderParse { .. }),
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::Header,
+                    ..
+                }
+            ),
             "{name}: {error}"
         );
     }

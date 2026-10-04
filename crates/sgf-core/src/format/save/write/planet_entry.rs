@@ -4,10 +4,13 @@
 use crate::Span;
 use crate::cst::Node;
 use crate::emit::system::ANY_FLAG;
+use crate::entity::facts::planet::{self, BodyRole};
+use crate::format::save::read_spec::bodies;
 use crate::format::save::write::id_list::{Emptied, items, statement, unlist};
+use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::{Edit, OpError};
+use crate::ops::{Edit, OpError, StarEdit};
 use crate::projections::read;
 use crate::session::Session;
 
@@ -25,6 +28,28 @@ impl<'s> PlanetEntry<'s> {
         let system = planet_system(&node, src, id)?;
         Ok(Self { node, src, system })
     }
+
+    /// Planet `id`'s entity as [`Self::open`] reads it, refused with `edit` when the body is
+    /// a star.
+    pub fn open_unless_star(s: &'s Session, id: u32, edit: StarEdit) -> Result<Self, OpError> {
+        let entry = Self::open(s, id)?;
+        let primary = bodies(&s.doc, entry.system)?.first() == Some(&id);
+        if is_star(role(&entry.node, entry.src, primary)) {
+            return Err(OpError::StarRefused { body: id, edit });
+        }
+        Ok(entry)
+    }
+}
+
+/// What the body whose entity is `node` is in its system, `primary` saying whether the
+/// system lists it first.
+pub(crate) fn role(node: &Node, src: &[u8], primary: bool) -> BodyRole {
+    planet::read(node, src).role(primary)
+}
+
+/// Whether `role` is a star's: the system's primary or another star.
+pub(crate) fn is_star(role: BodyRole) -> bool {
+    matches!(role, BodyRole::Primary | BodyRole::Star)
 }
 
 /// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it
@@ -34,8 +59,8 @@ pub(crate) fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), Op
     match (parent, existing) {
         (Some(parent), Some(_)) => edit.set_scalar(&[keys::MOON_OF], parent.to_string())?,
         (Some(parent), None) => {
-            let next = successor(edit, &[keys::MOONS, keys::PLANET_ORBITALS])?;
-            edit.insert_before(next, &format!("{}={parent}", keys::MOON_OF));
+            let text = format!("{}={parent}", keys::MOON_OF);
+            insert_key(edit, &[], &place::planet::MOON_OF, |_| text)?;
         }
         (None, Some(span)) => edit.remove_statement(span),
         (None, None) => {}
@@ -61,8 +86,8 @@ pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpErr
         Some(span) if new & !ANY_FLAG == 0 => edit.remove_statement(span),
         Some(_) => edit.set_scalar(&[keys::BINARY_FLAGS], new.to_string())?,
         None => {
-            let next = successor(edit, &[keys::ENTITY_PLANET_CLASS, keys::COORDINATE])?;
-            edit.insert_before(next, &format!("{}={new}", keys::BINARY_FLAGS));
+            let text = format!("{}={new}", keys::BINARY_FLAGS);
+            insert_key(edit, &[], &place::planet::BINARY_FLAGS, |_| text)?;
         }
     }
     Ok(())
@@ -73,10 +98,8 @@ pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpErr
 pub(crate) fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
-        let next = successor(edit, &[keys::PLANET_ORBITALS])?;
-        let text = statement(&edit.indent(next.start), keys::MOONS, &[id]);
-        edit.insert_before(next, &text);
-        return Ok(());
+        let text = |indent: &[u8]| statement(indent, keys::MOONS, &[id]);
+        return insert_key(edit, &[], &place::planet::MOONS, text);
     };
     if block.scalar_span().is_some() {
         return Err(edit.parse_error(block.span().start, "moons is not a block"));
@@ -107,11 +130,6 @@ fn child(edit: &Edit, keys: &[&str]) -> Result<Option<Span>, OpError> {
         .iter()
         .find(|c| c.key.is_some_and(|k| keys.contains(&edit.text(k))))
         .map(Node::span))
-}
-
-/// The statement a new key goes in front of: the first of `keys` the entity holds.
-fn successor(edit: &Edit, keys: &[&str]) -> Result<Span, OpError> {
-    child(edit, keys)?.ok_or_else(|| edit.parse_error(0, format!("missing {}", keys.join(" or "))))
 }
 
 /// " and its moon", " and its 3 moons", or nothing, after the planet an op takes.

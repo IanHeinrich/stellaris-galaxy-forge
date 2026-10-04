@@ -4,7 +4,7 @@
 
 use sgf_core::entity::get_planet_page;
 use sgf_core::ops::NewName;
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::{Op, OpError, StarEdit};
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::session::Session;
 
@@ -177,7 +177,7 @@ fn what_a_rename_refuses() {
             .apply(rename(star, "Nova Terra"))
             .expect_err("a star");
         assert!(
-            matches!(error, OpError::StarNotRenamed(id) if id == star),
+            matches!(error, OpError::StarRefused { body, edit: StarEdit::Rename } if body == star),
             "{error}"
         );
     }

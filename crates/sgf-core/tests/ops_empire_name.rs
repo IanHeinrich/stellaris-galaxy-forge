@@ -214,7 +214,7 @@ fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written(
         .apply(rename(PLAYER, "Test Empire"))
         .expect_err("unchanged");
     assert!(
-        matches!(error, OpError::EmpireNameUnchanged(PLAYER)),
+        matches!(error, OpError::Unchanged { ref what, .. } if *what == format!("country {PLAYER}")),
         "{error:?}"
     );
     assert!(matches!(

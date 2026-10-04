@@ -6,13 +6,16 @@
 
 use crate::Span;
 use crate::cst::Node;
+use crate::emit::inline;
+use crate::emit::quoted;
 use crate::emit::system::anomalies_list;
 use crate::format;
 use crate::format::save::entity;
 use crate::format::save::write::id_list::{Emptied, append_in, unlist_in};
+use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
-use crate::ops::rules::{Form, check_text, quoted};
+use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
 use crate::projections::read;
 use crate::session::Session;
@@ -57,7 +60,7 @@ pub(crate) fn plan_add(
         countries => format!(", found by {}", country_names(countries)),
     };
     Ok(Planned {
-        description: format!("Add anomaly {category} to planet #{id}{found}"),
+        description: format!("Added anomaly {category} to planet #{id}{found}"),
         inverse: Op::RemoveAnomaly { body: id },
     })
 }
@@ -83,7 +86,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     }
 
     Ok(Planned {
-        description: format!("Remove anomaly {category} from planet #{id}"),
+        description: format!("Removed anomaly {category} from planet #{id}"),
         inverse: Op::AddAnomaly {
             body: id,
             category,
@@ -130,28 +133,14 @@ fn surveyed(s: &Session, node: &Node, src: &[u8], id: u32, country: u32) -> Resu
         }))
 }
 
-/// Write `anomaly="<category>"` after the planet's `planet_orbitals`, else before its
-/// `bombardment_damage`, else last.
+/// Write `anomaly="<category>"` where the game does.
 fn write_key(edit: &mut Edit, category: &str) -> Result<(), OpError> {
     let text = format!("{}={}", keys::ANOMALY, quoted(category));
-    let entity = edit.entity()?;
-    if let Some(orbitals) = entity.find(keys::PLANET_ORBITALS, &edit.buf) {
-        let end = orbitals.span().end;
-        edit.insert_after(end, &text);
-        return Ok(());
-    }
-    if let Some(damage) = entity.find(keys::BOMBARDMENT_DAMAGE, &edit.buf) {
-        let span = damage.span();
-        edit.insert_before(span, &text);
-        return Ok(());
-    }
-    let (at, indent) = edit.before_close(entity);
-    edit.insert(at, [&indent[..], text.as_bytes(), b"\n"].concat());
-    Ok(())
+    insert_key(edit, &[], &place::planet::ANOMALY, |_| text)
 }
 
-/// Put planet `id` last in the country's `events.anomalies`, writing the list before the
-/// block's `situations`, else last in it, when the country has none.
+/// Put planet `id` last in the country's `events.anomalies`, writing the list where the
+/// game does when the country has none.
 fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
     let entity = edit.entity()?;
     let events = entity
@@ -161,15 +150,8 @@ fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
         return Err(edit.parse_error(events.span().start, "events is not a block"));
     }
     let Some(anomalies) = events.find(keys::ANOMALIES, &edit.buf) else {
-        let (at, indent) = match events.find(keys::SITUATIONS, &edit.buf) {
-            Some(situations) => {
-                let start = situations.span().start;
-                (edit.line_start(start), edit.indent(start))
-            }
-            None => edit.before_close(events),
-        };
-        edit.insert(at, anomalies_list(&indent, &[id]));
-        return Ok(());
+        let text = |indent: &[u8]| inline(indent, &anomalies_list(indent, &[id]));
+        return insert_key(edit, &[keys::EVENTS], &place::country::ANOMALIES, text);
     };
     let anomalies = anomalies.clone();
     append_in(edit, &anomalies, keys::ANOMALIES, &[id])

@@ -9,6 +9,7 @@ use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
+use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SpawnScript;
 use crate::session::Session;
@@ -114,8 +115,12 @@ fn write_weight(
         (None, None) => {}
     }
     let description = match base {
-        Some(base) => format!("Set system {id} spawn weight to {}", coord(base)),
-        None => format!("Cleared system {id} spawn weight"),
+        Some(base) => format!(
+            "Set the spawn weight of {} to {}",
+            named(&s.graph, id),
+            coord(base)
+        ),
+        None => format!("Cleared the spawn weight of {}", named(&s.graph, id)),
     };
     let script = removed_block.then(|| system.spawn_script.clone()).flatten();
     Ok((description, (id, previous), script))

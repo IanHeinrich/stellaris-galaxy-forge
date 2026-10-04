@@ -6,9 +6,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::format::save::details::RawSystemDetails;
-use sgf_core::ops::rules::bodies;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::GalaxyGraph;
+use sgf_core::projections::geometry;
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{Capabilities, DocumentKind};
@@ -270,7 +270,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
         if op.reach().whole_entries {
             let error = applied.expect_err(name);
             assert!(
-                matches!(&error, OpError::SaveTooOld(version) if version.contains("3.4")),
+                matches!(&error, OpError::VersionTooOld(version) if version.contains("3.4")),
                 "{name}: {error:?}"
             );
             assert!(!session.doc.is_dirty(), "{name}");
@@ -278,7 +278,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             assert!(
                 !matches!(
                     error,
-                    OpError::SaveTooOld(_) | OpError::UnknownSaveVersion(_)
+                    OpError::VersionTooOld(_) | OpError::UnknownVersion(_)
                 ),
                 "{name}: {error:?}"
             );
@@ -321,8 +321,8 @@ fn an_op_that_rebuilds_the_details_keeps_the_overlap_findings() {
         .apply_inverse(Op::MoveBody {
             system: 1,
             body: 588,
-            radius: bodies::drawn_radius(at, centre, planet.orbit),
-            angle: bodies::angle_about(centre, at),
+            radius: geometry::drawn_radius(at, centre, planet.orbit),
+            angle: geometry::angle_about(centre, at),
         })
         .expect("move 588 onto 587");
     let overlaps = |issues: &[Issue]| common::coded(issues, IssueCode::BodiesOverlap).len();

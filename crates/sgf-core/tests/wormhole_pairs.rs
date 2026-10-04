@@ -146,7 +146,7 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
     );
     assert_eq!(
         result.entry.description,
-        "Join Ingress and Low Seat as wormhole pair 3"
+        "Joined Ingress #7 and Low Seat #13 as wormhole pair 3"
     );
     assert_eq!(
         session.graph.bypasses,
@@ -167,7 +167,7 @@ fn rejoining_one_end_inverts_end_by_end_and_the_links_follow() {
     );
     assert_eq!(
         result.entry.description,
-        "Remove the wormhole pair from Ingress and Egress"
+        "Removed the wormhole pair from Ingress #7 and Egress #8"
     );
     assert!(session.graph.bypasses.is_empty());
     assert_eq!(session.graph.systems[&13].wormhole_pair, Some(3));

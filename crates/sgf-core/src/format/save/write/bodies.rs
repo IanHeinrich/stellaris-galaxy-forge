@@ -11,11 +11,12 @@ use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::bodies::{
-    Body, centre, check_parent, check_placement, descendants, drawn_radius, movable, moved_reach,
-    normalised, placed, system_reach,
+use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
+use crate::ops::rules::named;
+use crate::ops::{Edit, Op, OpError, Parent, ParseAt, Plan, Planned};
+use crate::projections::geometry::{
+    Body, centre, descendants, drawn_radius, moved_reach, normalised, system_reach,
 };
-use crate::ops::{Edit, Op, OpError, Parent, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
@@ -52,7 +53,10 @@ pub(crate) fn plan_move(
     let after = placed(&before, body, old.parent, radius, angle)?;
     let moved = find(&after, body);
     if stored.iter().any(|b| b.body.id == body && b.holds(moved)) {
-        return Err(OpError::BodyUnchanged(body));
+        return Err(OpError::unchanged(
+            format!("planet {body}"),
+            "already stands there",
+        ));
     }
     write_points(plan, s, system, &stored, &after, body)?;
     let (from, inverse) = where_it_was(&before, &old);
@@ -141,10 +145,7 @@ fn frame_of(
     check_placement(radius, angle)?;
     let (node, src) = planet_entity(&s.doc, body)?;
     if planet_system(&node, src, body)? != system {
-        return Err(OpError::NotABody {
-            planet: body,
-            system,
-        });
+        return Err(OpError::NotABody { body, system });
     }
     frame(s, system)
 }
@@ -169,11 +170,7 @@ pub(crate) fn frame_bodies(s: &Session, system: u32) -> Result<Vec<Body>, OpErro
 }
 
 fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
-    let parse_error = |reason: String| OpError::PlanetParse {
-        planet: id,
-        offset: node.span().start,
-        reason,
-    };
+    let parse_error = |reason: String| OpError::parse(ParseAt::Body(id), node.span().start, reason);
     let at = read::coordinate(node, src).map_err(parse_error)?;
     let orbit = read::required(node, keys::ORBIT, src).map_err(parse_error)?;
     let axis = |key| {
@@ -364,7 +361,8 @@ fn grow_by(
         edit.set_scalar(&[keys::OUTER_RADIUS], coord(radii.outer(grown)))?;
     }
     let description = format!(
-        "{description}; set the inner radius of system #{system} from {} to {}",
+        "{description}; set the inner radius of {} from {} to {}",
+        named(&s.graph, system),
         number(current),
         number(grown)
     );

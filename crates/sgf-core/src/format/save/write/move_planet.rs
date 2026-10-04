@@ -9,22 +9,23 @@
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
-use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::bodies::{frame_bodies, grow};
 use crate::format::save::write::fleets::{move_fleet, stationed};
-use crate::format::save::write::id_list::{
-    Emptied, Place, append, list_planets, unlist, unlist_planets,
-};
+use crate::format::save::write::id_list::{Emptied, append, list_planets, unlist, unlist_planets};
 use crate::format::save::write::move_system::splice_coordinate;
+use crate::format::save::write::place;
+use crate::format::save::write::planet_entry::{self, role};
 use crate::format::save::write::planet_entry::{and_its_moons, set_flag, set_moon_of, unlist_moon};
 use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::bodies::{
-    Body, angle_about, check_placement, descendants, drawn_radius, normalised, point, system_reach,
+use crate::ops::rules::bodies::check_placement;
+use crate::ops::rules::named;
+use crate::ops::{Op, OpError, Plan, Planned, StarEdit};
+use crate::projections::geometry::{
+    Body, angle_about, descendants, drawn_radius, normalised, point, system_reach,
 };
-use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read;
 use crate::session::Session;
 use crate::views::{
@@ -47,7 +48,10 @@ pub(crate) fn plan_move(
         return Err(OpError::UnknownSystem(to));
     }
     if from == to {
-        return Err(OpError::AlreadyInSystem { planet, system: to });
+        return Err(OpError::AlreadyInSystem {
+            body: planet,
+            system: to,
+        });
     }
     if let Some(at) = at {
         check_placement(at.radius, at.angle)?;
@@ -93,14 +97,18 @@ pub(crate) fn plan_move(
         &colonies,
         Emptied::Drop,
     )?;
-    append(plan.edit(&s.doc, to)?, &COLONIES_AT, &colonies)?;
+    append(plan.edit(&s.doc, to)?, &place::system::COLONIES, &colonies)?;
     unlist(
         plan.edit(&s.doc, from)?,
         keys::FLEET_PRESENCE,
         &stations,
         Emptied::Drop,
     )?;
-    append(plan.edit(&s.doc, to)?, &FLEETS_AT, &stations)?;
+    append(
+        plan.edit(&s.doc, to)?,
+        &place::system::FLEET_PRESENCE,
+        &stations,
+    )?;
     for &station in &stations {
         move_fleet(plan, s, station, [from, to], Some(step))?;
     }
@@ -139,7 +147,7 @@ pub(crate) fn plan_move(
     let reach = moved
         .iter()
         .filter_map(|&id| after.iter().find(|b| b.id == id))
-        .map(|b| crate::ops::rules::bodies::reach(&after, b))
+        .map(|b| crate::projections::geometry::reach(&after, b))
         .fold(0.0, f64::max);
 
     let carrying = and_its_moons(moons.len());
@@ -155,7 +163,9 @@ pub(crate) fn plan_move(
         ("planet", "")
     };
     let description = format!(
-        "Moved {label} #{planet}{carrying}{stationed} from system #{from} to system #{to}{becomes}, at orbit {}",
+        "Moved {label} #{planet}{carrying}{stationed} from {} to {}{becomes}, at orbit {}",
+        named(&s.graph, from),
+        named(&s.graph, to),
         coord(orbit)
     );
     let radius = drawn_radius(body.at, (0.0, 0.0), Some(body.orbit));
@@ -269,7 +279,7 @@ pub(crate) fn move_op(
         return Ok(ops.remove(0));
     }
     Ok(Op::Batch {
-        description: format!("Moved {} planets to system #{to}", ops.len()),
+        description: format!("Moved {} planets to {}", ops.len(), named(&s.graph, to)),
         ops,
     })
 }
@@ -388,7 +398,7 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
         .iter()
         .find(|b| b.id == planet)
         .ok_or(OpError::NotABody {
-            planet,
+            body: planet,
             system: from,
         })?;
     let moons = descendants(&source, planet);
@@ -446,7 +456,10 @@ fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
 fn check_movable(s: &Session, frame: &[Body], body: &Body, moons: &[u32]) -> Result<bool, OpError> {
     let (node, src) = planet_entity(&s.doc, body.id)?;
     if is_star(frame, body.id, &node, src) {
-        return Err(OpError::StarNotMovable(body.id));
+        return Err(OpError::StarRefused {
+            body: body.id,
+            edit: StarEdit::Move,
+        });
     }
     let moon = match body.parent.map(|p| (p, planet_entity(&s.doc, p))) {
         None => false,
@@ -459,7 +472,10 @@ fn check_movable(s: &Session, frame: &[Body], body: &Body, moons: &[u32]) -> Res
         let (node, src) = planet_entity(&s.doc, id)?;
         let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
         if flags & MOON_FLAG == 0 {
-            return Err(OpError::StarNotMovable(body.id));
+            return Err(OpError::StarRefused {
+                body: body.id,
+                edit: StarEdit::Move,
+            });
         }
     }
     Ok(moon)
@@ -473,7 +489,7 @@ fn check_controller(node: &Node, src: &[u8], planet: u32) -> Result<(), OpError>
     };
     match read::scalar_u32(node, keys::CONTROLLER, src) {
         Some(controller) if controller != owner => Err(OpError::PlanetOccupied {
-            planet,
+            body: planet,
             owner,
             controller,
         }),
@@ -481,24 +497,9 @@ fn check_controller(node: &Node, src: &[u8], planet: u32) -> Result<(), OpError>
     }
 }
 
-/// Where a system's `colonies` goes when it has none: after `index`, else before `storm`.
-const COLONIES_AT: Place = Place {
-    key: keys::COLONIES,
-    after: &[keys::INDEX],
-    before: Some(keys::STORM),
-};
-
-/// Where a system's `fleet_presence` goes when it has none: after `init_parent` or
-/// `initializer`, else before `inner_radius`.
-const FLEETS_AT: Place = Place {
-    key: keys::FLEET_PRESENCE,
-    after: &[keys::INIT_PARENT, keys::INITIALIZER],
-    before: Some(keys::INNER_RADIUS),
-};
-
 /// Whether body `id` of `frame`, whose entity is `node`, is a star: the system's primary
 /// or a body of a star's class.
 fn is_star(frame: &[Body], id: u32, node: &Node, src: &[u8]) -> bool {
-    frame.first().is_some_and(|primary| primary.id == id)
-        || is_star_class(&read::text(node, keys::PLANET_CLASS, src))
+    let primary = frame.first().is_some_and(|b| b.id == id);
+    planet_entry::is_star(role(node, src, primary))
 }

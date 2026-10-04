@@ -72,7 +72,7 @@ fn a_site_is_added_last_with_the_next_id_and_the_page_and_details_read_it() {
     let result = snapshot_step(&mut session, "add_4_5", add(BARREN, LOST_MOMENTS, 1));
     assert_eq!(
         result.entry.description,
-        "Add dig site site_lost_moments (#4) to planet #585"
+        "Added dig site site_lost_moments (#4) to planet #585"
     );
     assert_eq!(result.inverse, remove(4));
     assert_eq!(result.details_stale, vec![system]);
@@ -94,7 +94,7 @@ fn a_site_is_added_last_with_the_next_id_and_the_page_and_details_read_it() {
         .expect("remove the added site");
     assert_eq!(
         removed.entry.description,
-        "Remove dig site site_lost_moments (#4) from planet #585"
+        "Removed dig site site_lost_moments (#4) from planet #585"
     );
     assert_eq!(removed.inverse, add(BARREN, LOST_MOMENTS, 1));
     assert_eq!(current(&session), session.doc.original());
@@ -113,7 +113,7 @@ fn the_4_4_sample_takes_a_site_after_its_last() {
     let result = snapshot_step(&mut session, "add_4_4", add(749, "site_krazura_dig", 3));
     assert_eq!(
         result.entry.description,
-        "Add dig site site_krazura_dig (#5) to planet #749"
+        "Added dig site site_krazura_dig (#5) to planet #749"
     );
     assert_eq!(
         site(&session, 749).map(|s| s.kind),
@@ -133,7 +133,7 @@ fn a_site_is_removed_whole_and_its_inverse_adds_one_of_its_type() {
     let result = snapshot_step(&mut session, "remove_4_5", remove(GRAVEYARD));
     assert_eq!(
         result.entry.description,
-        "Remove dig site site_tiyanki_graveyard (#1) from planet #1019"
+        "Removed dig site site_tiyanki_graveyard (#1) from planet #1019"
     );
     assert_eq!(
         result.inverse,
@@ -193,7 +193,7 @@ fn removing_a_site_being_dug_says_a_fleet_is_excavating_it() {
     let result = session.apply(remove(GRAVEYARD)).expect("remove it");
     assert_eq!(
         result.entry.description,
-        "Remove dig site site_tiyanki_graveyard (#1) from planet #1019, which a fleet is excavating"
+        "Removed dig site site_tiyanki_graveyard (#1) from planet #1019, which a fleet is excavating"
     );
 }
 

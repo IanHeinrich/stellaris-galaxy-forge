@@ -7,12 +7,13 @@
 
 use crate::Span;
 use crate::cst::Node;
+use crate::emit::quoted;
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::add_system::{NAME_VAR, PARENT_VAR};
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::write::remove_system::check_added;
 use crate::keys;
-use crate::ops::rules::{check_name, quoted};
+use crate::ops::rules::{check_name, named};
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::name::variable_values;
 use crate::session::Session;
@@ -31,12 +32,15 @@ pub(crate) fn plan_rename(
     let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
     let old = system.name.key.clone();
     if old == name {
-        return Err(OpError::NameUnchanged(id, old));
+        return Err(OpError::unchanged(
+            format!("system {id}"),
+            format!("is already named {old}"),
+        ));
     }
     rename_entries(plan, s, id, &old, name)?;
     swap_name(plan, s, id, &old, name)?;
     Ok(Planned {
-        description: format!("Renamed {old} (#{id}) to {name}"),
+        description: format!("Renamed {} to {name}", named(&s.graph, id)),
         inverse: Op::RenameSystem {
             system: id,
             name: old,

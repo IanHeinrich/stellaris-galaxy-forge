@@ -2,7 +2,7 @@
 //! produces is snapshotted, undo is checked byte for byte, and the rebuilt header is read
 //! back through the index the app lists it from.
 
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::{Op, OpError, ParseAt};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -160,7 +160,16 @@ fn raw_text_that_is_not_one_statements_value_is_refused() {
         let error = session
             .apply(set("num_empires", Some(value)))
             .expect_err("refused");
-        assert!(matches!(error, OpError::HeaderParse { .. }), "{error:?}");
+        assert!(
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::Header,
+                    ..
+                }
+            ),
+            "{error:?}"
+        );
     }
     // The lexer runs an open quote to the end of the file and a `#` comments out the rest
     // of a physical line, which a header shares with whatever statements follow it.
@@ -171,14 +180,29 @@ fn raw_text_that_is_not_one_statements_value_is_refused() {
     ] {
         let error = session.apply(set(key, Some(value))).expect_err("refused");
         assert!(
-            matches!(error, OpError::HeaderParse { .. }),
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::Header,
+                    ..
+                }
+            ),
             "{key} = {value}: {error:?}"
         );
     }
     let error = session
         .apply(set("nomad_empire_default", None))
         .expect_err("the header holds no such key");
-    assert!(matches!(error, OpError::HeaderParse { .. }), "{error:?}");
+    assert!(
+        matches!(
+            error,
+            OpError::Parse {
+                at: ParseAt::Header,
+                ..
+            }
+        ),
+        "{error:?}"
+    );
     assert!(!session.is_dirty());
 }
 
@@ -205,7 +229,13 @@ fn a_key_that_names_an_entity_statement_is_refused() {
     for key in ["system", "add_hyperlane", "prevent_hyperlane", "nebula"] {
         let error = session.apply(set(key, Some("5"))).expect_err("refused");
         assert!(
-            matches!(error, OpError::HeaderParse { .. }),
+            matches!(
+                error,
+                OpError::Parse {
+                    at: ParseAt::Header,
+                    ..
+                }
+            ),
             "{key}: {error:?}"
         );
     }
@@ -233,7 +263,12 @@ fn removing_a_key_the_header_holds_twice_is_refused() {
     let error = session
         .apply(set("supports_shape", None))
         .expect_err("which statement to remove is ambiguous");
-    let OpError::HeaderParse { reason, .. } = &error else {
+    let OpError::Parse {
+        at: ParseAt::Header,
+        reason,
+        ..
+    } = &error
+    else {
         panic!("{error:?}");
     };
     assert!(

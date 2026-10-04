@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Renamed Mura (#601) to Epsilon_Eridani
+Renamed Mura #601 to Epsilon_Eridani
 inverse: RenameSystem { system: 601, name: "Mura" }
 --- before
 +++ after

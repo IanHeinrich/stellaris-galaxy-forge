@@ -83,7 +83,7 @@ format sees it.
   the core refuses it from outside.
 - The description shows in the undo list and the CLI. It is one sentence
   in the past tense, in the player's words. It names the thing by name
-  and id as `wormhole::named` does ("Renamed Ferragon II (#99) to Kel"),
+  and id as `ops::rules::named` does ("Renamed Ferragon #489 to Kel"),
   and counts with `plural` ("Deleted planet #99 and its 2 moons").
 - The variant's doc says what it writes, what it refuses and what its
   inverse is. Which kinds accept it is in its row, not in the doc.

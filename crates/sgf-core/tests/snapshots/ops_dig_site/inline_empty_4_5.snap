@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Add dig site site_krazura_dig (#1) to planet #40
+Added dig site site_krazura_dig (#1) to planet #40
 inverse: RemoveDigSite { site: 1 }
 
 --- gamestate

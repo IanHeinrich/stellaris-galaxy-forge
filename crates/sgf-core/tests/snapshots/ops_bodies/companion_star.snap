@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of system #278 from 330 to 350.03
-inverse: Batch { description: "Undo of \"Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of system #278 from 330 to 350.03\"", ops: [MoveBody { system: 278, body: 327, radius: 240.019915814, angle: 310.061282735 }, SetInnerRadius { system: 278, radius: 330.0 }] }
+Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of Alpha Centauri #278 from 330 to 350.03
+inverse: Batch { description: "Undo of \"Moved star #327 from orbit 240.02 at 310.06° to orbit 260 at 100°, with #328 and #329; set the inner radius of Alpha Centauri #278 from 330 to 350.03\"", ops: [MoveBody { system: 278, body: 327, radius: 240.019915814, angle: 310.061282735 }, SetInnerRadius { system: 278, radius: 330.0 }] }
 
 --- gamestate
 +++ gamestate

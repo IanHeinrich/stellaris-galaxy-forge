@@ -55,7 +55,7 @@ impl Pool {
             return Ok(Vec::new());
         }
         if self.prefixes.is_empty() {
-            return Err(OpError::MissingSaveKey(keys::ASTEROID_PREFIX));
+            return Err(OpError::MissingKey(keys::ASTEROID_PREFIX));
         }
         let src = doc.original();
         let mut taken: HashSet<Span> = HashSet::new();
@@ -74,7 +74,7 @@ impl Pool {
                     let (prefix, suffix) = self
                         .walk(seed)
                         .find_map(|(prefix, block)| Some((prefix, *block.first()?)))
-                        .ok_or(OpError::MissingSaveKey(keys::ASTEROID_POSTFIX))?;
+                        .ok_or(OpError::MissingKey(keys::ASTEROID_POSTFIX))?;
                     (prefix, suffix, None)
                 }
             };

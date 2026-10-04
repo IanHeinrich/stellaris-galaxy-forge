@@ -27,7 +27,7 @@ use crate::format::save::write::{
     rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
-use crate::ops::{Op, OpError, Plan, Planned, Subject};
+use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::read;
@@ -412,8 +412,8 @@ pub(crate) fn check_version(doc: &Document) -> Result<(), OpError> {
         .and_then(|number| number.split('.').next()?.parse::<u32>().ok());
     match major {
         Some(major) if major >= WHOLE_ENTRIES_FROM_MAJOR => Ok(()),
-        Some(_) => Err(OpError::SaveTooOld(version)),
-        None => Err(OpError::UnknownSaveVersion(version)),
+        Some(_) => Err(OpError::VersionTooOld(version)),
+        None => Err(OpError::UnknownVersion(version)),
     }
 }
 
@@ -471,11 +471,8 @@ pub(crate) fn entity(
 /// Planet `id`'s entity as it stands now.
 pub(crate) fn planet_entity(doc: &Document, id: u32) -> Result<(Node, &[u8]), OpError> {
     let anchor = planet_statement(doc, id)?.ok_or(OpError::UnknownPlanet(id))?;
-    let parse_error = |offset, reason: &str| OpError::PlanetParse {
-        planet: id,
-        offset,
-        reason: reason.to_owned(),
-    };
+    let parse_error =
+        |offset, reason: &str| OpError::parse(ParseAt::Body(id), offset, reason.to_owned());
     entity_at(doc, anchor)
         .map_err(|e| parse_error(e.offset, e.reason))?
         .ok_or(OpError::UnknownPlanet(id))
@@ -483,10 +480,9 @@ pub(crate) fn planet_entity(doc: &Document, id: u32) -> Result<(Node, &[u8]), Op
 
 /// The system planet `id`, whose entity is `node`, is a body of: its `coordinate.origin`.
 pub(crate) fn planet_system(node: &Node, src: &[u8], id: u32) -> Result<u32, OpError> {
-    read::origin(node, src).ok_or_else(|| OpError::PlanetParse {
-        planet: id,
-        offset: node.span().start,
-        reason: format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN),
+    read::origin(node, src).ok_or_else(|| {
+        let reason = format!("missing {}.{}", keys::COORDINATE, keys::ORIGIN);
+        OpError::parse(ParseAt::Body(id), node.span().start, reason)
     })
 }
 

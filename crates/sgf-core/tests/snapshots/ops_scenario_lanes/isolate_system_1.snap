@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/ops_scenario_lanes.rs
 expression: "report(&session, &result)"
 ---
-Isolated Galactic Center (#1): removed 2 lanes (4 statements)
+Isolated Galactic Center #1: removed 2 lanes (4 statements)
 touched: [1, 2, 16]
 inverse: AddLanes { from: 1, to: [(2, false), (16, false)] }
 warning system_isolated: system 1 has no hyperlanes

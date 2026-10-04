@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Removed the belt at radius 40 from system #140
+Removed the belt at radius 40 from Tharbarite system #140
 inverse: AddBelt { system: 140, kind: "rocky_asteroid_belt", radius: 40.0 }
 
 --- gamestate

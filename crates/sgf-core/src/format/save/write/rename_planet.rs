@@ -6,17 +6,15 @@
 use std::collections::BTreeSet;
 
 use crate::Span;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::{Lines, quoted};
-use crate::entity::facts::planet::is_star_class;
-use crate::format::save::read_spec::bodies;
+use crate::emit::literal_name_value;
 use crate::format::save::write::add_system::PARENT_VAR;
 use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::check_name;
-use crate::ops::{NewName, Op, OpError, Plan, Planned};
+use crate::ops::rules::{check_name, check_name_value};
+use crate::ops::{NewName, Op, OpError, Plan, Planned, StarEdit};
 use crate::projections::name::{NameTemplate, variable_values};
 use crate::projections::read;
 use crate::session::Session;
@@ -34,11 +32,7 @@ pub(crate) fn plan_rename(
             Block::literal(name)
         }
     };
-    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
-    let primary = bodies(&s.doc, system)?.first() == Some(&id);
-    if primary || is_star_class(&read::text(&node, keys::PLANET_CLASS, src)) {
-        return Err(OpError::StarNotRenamed(id));
-    }
+    let PlanetEntry { node, src, system } = PlanetEntry::open_unless_star(s, id, StarEdit::Rename)?;
     let moons = read::ids(&node, keys::MOONS, src);
 
     let edit = plan.edit_planet(&s.doc, id, system)?;
@@ -51,7 +45,10 @@ pub(crate) fn plan_rename(
     let old_text = edit.text(value).to_owned();
     let written = new.at(&edit.indent(value.start));
     if written == old_text {
-        return Err(OpError::PlanetNameUnchanged(id, name.shown().to_owned()));
+        return Err(OpError::unchanged(
+            format!("planet {id}"),
+            format!("is already named {}", name.shown()),
+        ));
     }
     edit.replace_span(value, written);
 
@@ -126,35 +123,12 @@ struct Block(String);
 impl Block {
     /// `{ key="<name>" literal=yes }` in the game's multi-line shape.
     fn literal(name: &str) -> Self {
-        let mut w = Lines::new(b"");
-        w.line(0, "{");
-        w.pair(1, keys::KEY, &quoted(name));
-        w.pair(1, keys::LITERAL, "yes");
-        w.close(0);
-        let text = String::from_utf8_lossy(&w.into_bytes()).into_owned();
-        Self(text.trim_end_matches('\n').to_owned())
+        Self(String::from_utf8_lossy(&literal_name_value(b"", name)).into_owned())
     }
 
     /// A name value given whole, refused unless it reads as one block.
     fn parse(block: &str) -> Result<Self, OpError> {
-        let invalid = || OpError::InvalidText {
-            what: "a name block",
-            text: block.to_owned(),
-        };
-        let statement = format!("{}={block}", keys::NAME);
-        let root = cst::parse(statement.as_bytes(), 0).map_err(|_| invalid())?;
-        let [named] = root.children() else {
-            return Err(invalid());
-        };
-        let src = statement.as_bytes();
-        if named.key_str(src) != Some(keys::NAME)
-            || named.scalar_span().is_some()
-            || named.value_span().end != src.len()
-            || NameTemplate::parse(named, src).key.is_empty()
-            || !block.ends_with('}')
-        {
-            return Err(invalid());
-        }
+        check_name_value(block, true)?;
         Ok(Self(block.to_owned()))
     }
 

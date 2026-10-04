@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Remove anomaly AIANOM_LUMP_CAT from planet #7807
+Removed anomaly AIANOM_LUMP_CAT from planet #7807
 inverse: AddAnomaly { body: 7807, category: "AIANOM_LUMP_CAT", found_by: Some([16777220]) }
 
 --- gamestate

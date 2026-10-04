@@ -3,7 +3,8 @@
 
 use super::flags::rewrite_flags;
 use crate::format::scenario::fe_zone::{FeZone, flags, is_zone_flag};
-use crate::ops::rules::fe_zone::{decide_set, label};
+use crate::ops::rules::fe_zone::decide_set;
+use crate::ops::rules::labelled;
 use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::galaxy::SystemNode;
 use crate::session::Session;
@@ -43,10 +44,10 @@ fn write_zone(
 }
 
 fn describe(system: &SystemNode, zone: Option<&FeZone>) -> String {
-    let label = label(system);
+    let label = labelled(&system.name.key, system.name.literal, system.id);
     match (system.fe_zone.is_some(), zone.is_some()) {
-        (false, true) => format!("Add fallen empire zone to {label}"),
-        (true, false) => format!("Remove fallen empire zone from {label}"),
-        (_, _) => format!("Change fallen empire zone of {label}"),
+        (false, true) => format!("Added fallen empire zone to {label}"),
+        (true, false) => format!("Removed fallen empire zone from {label}"),
+        (_, _) => format!("Changed fallen empire zone of {label}"),
     }
 }

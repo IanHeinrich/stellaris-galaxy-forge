@@ -17,6 +17,7 @@ use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::write::add_system::write_slot;
 use crate::format::save::write::id_list::{Emptied, append_in, statement, unlist_in};
+use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{entity_at, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
@@ -139,16 +140,9 @@ fn free_entry(plan: &mut Plan, doc: &Document, id: u32, anchor: Anchor) -> Resul
 /// Put `id` last in the planet's `deposits`, writing the list last in the planet when it
 /// has none.
 fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(block) = entity.find(keys::DEPOSITS, &edit.buf) else {
-        let last = entity
-            .children()
-            .last()
-            .ok_or_else(|| edit.parse_error(entity.span().start, "the planet is empty"))?
-            .span();
-        let text = statement(&edit.indent(last.start), keys::DEPOSITS, &[id]);
-        edit.insert_after(last.end, &text);
-        return Ok(());
+    let Some(block) = edit.entity()?.find(keys::DEPOSITS, &edit.buf) else {
+        let text = |indent: &[u8]| statement(indent, keys::DEPOSITS, &[id]);
+        return insert_key(edit, &[], &place::planet::DEPOSITS, text);
     };
     let block = block.clone();
     append_in(edit, &block, keys::DEPOSITS, &[id])

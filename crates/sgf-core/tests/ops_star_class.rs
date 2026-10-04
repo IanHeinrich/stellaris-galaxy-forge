@@ -78,7 +78,7 @@ fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Set the star class of {} (#1) from sc_g to sc_pulsar",
+            "Set the star class of {} #1 from sc_g to sc_pulsar",
             session.graph.systems[&1].display_name()
         )
     );
@@ -245,7 +245,7 @@ fn a_refused_member_leaves_the_whole_batch_unapplied() {
         matches!(
             error,
             OpError::NotABody {
-                planet: 748,
+                body: 748,
                 system: 35
             }
         ),

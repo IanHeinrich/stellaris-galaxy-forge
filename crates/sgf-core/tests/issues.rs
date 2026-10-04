@@ -20,7 +20,7 @@ use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
 use sgf_core::ops::Op;
-use sgf_core::ops::rules::bodies;
+use sgf_core::projections::geometry;
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
 
@@ -155,8 +155,8 @@ fn radius_and_angle(session: &Session, system: u32, body: u32) -> (f64, f64) {
         .unwrap_or_else(|| panic!("planet {body} has a point"));
     let centre = (0.0, 0.0);
     (
-        bodies::drawn_radius(at, centre, planet.orbit),
-        bodies::angle_about(centre, at),
+        geometry::drawn_radius(at, centre, planet.orbit),
+        geometry::angle_about(centre, at),
     )
 }
 

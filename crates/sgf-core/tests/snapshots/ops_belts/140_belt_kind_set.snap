@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Set the belt at radius 40 in system #140 from rocky_asteroid_belt to icy_asteroid_belt
+Set the belt at radius 40 in Tharbarite system #140 from rocky_asteroid_belt to icy_asteroid_belt
 inverse: SetBeltKind { system: 140, index: 0, kind: "rocky_asteroid_belt" }
 
 --- gamestate

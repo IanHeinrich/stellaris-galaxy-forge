@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added NAME_Trappist (#601) at (-292.23404, -137.62265) with 8 bodies and 1 lane
+Added Trappist #601 at (-292.23404, -137.62265) with 8 bodies and 1 lane
 touched: [169, 601]
 inverse: RemoveSystem { system: 601 }
 … and 3 other issues
