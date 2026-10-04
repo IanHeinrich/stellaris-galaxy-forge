@@ -5,7 +5,6 @@ use std::collections::HashMap;
 
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::coord;
 use crate::emit::system::{RING_FLAG, STAR_CARRIER_FLAGS};
 use crate::entity::views::EntityKind;
 use crate::format::save::galaxy::bodies::planet_ids;
@@ -15,9 +14,9 @@ use crate::format::save::write::asteroid_names;
 use crate::format::save::write::initializer_counter::counted;
 use crate::format::save::{entity, planet_statement, system_statement};
 use crate::keys;
-use crate::ops::rules::bodies::{angle_about, normalised, point};
 use crate::ops::{OpError, Subject};
 use crate::overlay::Anchor;
+pub(crate) use crate::projections::geometry::written_angle;
 use crate::projections::read;
 use crate::session::Session;
 
@@ -106,23 +105,6 @@ impl ReadBody {
         let placed = polar(cx, cy, &spec);
         (spec, placed)
     }
-}
-
-/// The angle, in degrees, at which a body written at `at` stands `radius` from `centre`.
-/// The angle measured from the written coordinates can miss them in the last decimal, so
-/// the nearest hundredth of a degree, which the generator writes, is taken instead
-/// whenever it gives the same coordinates.
-pub(crate) fn written_angle(centre: (f64, f64), at: (f64, f64), radius: f64) -> f64 {
-    let measured = angle_about(centre, at);
-    let hundredth = (measured * 100.0).round() / 100.0;
-    let written = (coord(at.0), coord(at.1));
-    [hundredth, normalised(hundredth)]
-        .into_iter()
-        .find(|&angle| {
-            let (x, y) = point(centre, radius, angle);
-            (coord(x), coord(y)) == written
-        })
-        .unwrap_or(measured)
 }
 
 fn read_body(

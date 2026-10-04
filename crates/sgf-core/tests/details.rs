@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use sgf_core::entity::get_planet_page;
 use sgf_core::format::save::details::{
-    ArchaeologySite, Bounds, DepositCount, DetailsResolver, FleetPresence, FleetSummary,
+    ArchaeologySite, BodyRole, Bounds, DepositCount, DetailsResolver, FleetPresence, FleetSummary,
     HeuristicResolver, MegastructureSummary, ResourceAmount, SystemDetails,
 };
 use sgf_core::ops::Op;
@@ -57,7 +57,7 @@ fn planets_are_counted_colonised_populated_and_owned() {
         .flat_map(|s| &s.planets)
         .filter(|p| p.moon)
         .count();
-    assert_eq!(moons, 2027);
+    assert_eq!(moons, 1827);
     // 4.x keeps pops in `colony`, so exactly the colonised planets have any.
     let populated = systems
         .clone()
@@ -519,6 +519,27 @@ fn saturn_has_a_ring_and_earth_has_none() {
         sol.planets.iter().all(|p| p.ring.is_some()),
         "a save states every body's ring"
     );
+}
+
+/// Alpha Centauri's red dwarf companion, 327, has two planets: each names it as `moon_of`
+/// without the moon bit of `binary_flags`, 512.
+#[test]
+fn planets_of_a_companion_star_are_not_moons() {
+    let session = common::warmed();
+    let details = session.details().expect("build details");
+    let system = details
+        .resolve(278, &HeuristicResolver, false)
+        .expect("Alpha Centauri resolved");
+    let body = |id: u32| {
+        let p = system.planets.iter().find(|p| p.id == id).expect("a body");
+        (p.moon, p.parent, p.role)
+    };
+    assert_eq!(body(328), (false, Some(327), BodyRole::Planet));
+    assert_eq!(body(329), (false, Some(327), BodyRole::Planet));
+    assert_eq!(body(327).2, BodyRole::Star);
+    assert!(body(331).0, "331 is a moon");
+    assert_eq!(body(331).2, BodyRole::Moon);
+    assert_eq!(system.planets[0].role, BodyRole::Primary);
 }
 
 #[test]

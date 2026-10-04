@@ -208,6 +208,7 @@ export function planetSummary(over: Partial<PlanetSummary> = {}): PlanetSummary 
     habitable: null,
     owner: null,
     moon: false,
+    role: over.moon ? "moon" : "planet",
     parent: null,
     layout: null,
     ring: null,

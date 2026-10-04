@@ -21,6 +21,7 @@ mod planet_views;
 mod precursors;
 mod registries;
 mod reload;
+mod save_bodies;
 mod scripts_bypasses;
 mod scripts_claims;
 mod scripts_lgate;
