@@ -8,7 +8,7 @@ use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script;
 
-const DIR: &str = "map/galaxy";
+pub(crate) const DIR: &str = "map/galaxy";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GalaxyShape {

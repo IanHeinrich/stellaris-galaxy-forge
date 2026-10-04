@@ -14,7 +14,7 @@ use sgf_core::cst::Node;
 use crate::condition::Condition;
 use crate::install::layers::Layout;
 use crate::install::script;
-use crate::scripts::index::ScriptIndex;
+use crate::scripts::index::{ON_ACTIONS_DIR, ScriptIndex};
 use crate::scripts::scope::{
     SAVES_TARGET, Scopes, country_flag, is_call, is_country_scope, is_guard,
 };
@@ -284,7 +284,7 @@ pub(crate) fn build(index: &ScriptIndex, layout: &Layout) -> Claims {
 /// lists them.
 fn seeds(index: &ScriptIndex, layout: &Layout) -> Vec<String> {
     let mut found = Vec::new();
-    for file in layout.files_in("common/on_actions") {
+    for file in layout.files_in(ON_ACTIONS_DIR) {
         let Some(parsed) = index.parsed(&file) else {
             continue;
         };

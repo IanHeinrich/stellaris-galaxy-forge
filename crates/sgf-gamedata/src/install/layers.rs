@@ -1,7 +1,11 @@
 //! Vanilla plus the loaded mods, in load order, and the file-level
 //! override rules (`docs/game-data-notes.md`, "Override semantics").
 
+#[cfg(test)]
+use std::cell::RefCell;
 use std::collections::BTreeMap;
+#[cfg(test)]
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -12,6 +16,11 @@ use crate::install::mods::{ModInfo, ModStatus};
 
 /// The name of the base game's layer, the first of every [`Layout`].
 pub const VANILLA: &str = "vanilla";
+
+#[cfg(test)]
+thread_local! {
+    static WALKED: RefCell<Option<BTreeSet<String>>> = const { RefCell::new(None) };
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layer {
@@ -90,6 +99,12 @@ impl Layout {
     /// names `rel_dir` discards everything before it.
     pub fn files_in(&self, rel_dir: &str) -> Vec<PathBuf> {
         let rel_dir = normalize(rel_dir);
+        #[cfg(test)]
+        WALKED.with_borrow_mut(|walked| {
+            if let Some(walked) = walked {
+                walked.insert(rel_dir.clone());
+            }
+        });
         let mut winners: BTreeMap<String, PathBuf> = BTreeMap::new();
         for layer in &self.layers {
             if layer.replace_paths.contains(&rel_dir) {
@@ -107,6 +122,14 @@ impl Layout {
         winners.into_values().collect()
     }
 
+    /// `run`, with every directory [`Layout::files_in`] walked on this thread meanwhile.
+    #[cfg(test)]
+    pub(crate) fn record_walks<R>(run: impl FnOnce() -> R) -> (R, BTreeSet<String>) {
+        WALKED.set(Some(BTreeSet::new()));
+        let result = run();
+        (result, WALKED.take().unwrap_or_default())
+    }
+
     /// The winning file of extension `ext` (matched case-insensitively, so
     /// `.DDS` is found too) per filename directly under `rel_dir`
     /// (`flags/aquatic`; subfolders not walked, so a category's own
@@ -117,7 +140,11 @@ impl Layout {
     /// not only when it names `rel_dir` exactly: a mod whose `replace_path`
     /// is `flags` replaces every category folder under it, not just a
     /// folder literally called `flags`.
-    pub fn files_with_ext_in(&self, rel_dir: &str, ext: &str) -> Vec<(PathBuf, Option<String>)> {
+    pub(crate) fn files_with_ext_in(
+        &self,
+        rel_dir: &str,
+        ext: &str,
+    ) -> Vec<(PathBuf, Option<String>)> {
         let rel_dir = normalize(rel_dir);
         let ext = ext.to_ascii_lowercase();
         let mut winners: BTreeMap<String, (PathBuf, Option<String>)> = BTreeMap::new();
@@ -144,7 +171,7 @@ impl Layout {
     /// whichever layer's spelling was seen first. Same override rules as
     /// [`Layout::files_in`]: a layer whose `replace_path` names `rel_dir`
     /// discards the subdirectories seen before it.
-    pub fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
+    pub(crate) fn subdirs_in(&self, rel_dir: &str) -> Vec<String> {
         let rel_dir = normalize(rel_dir);
         let mut names: BTreeMap<String, String> = BTreeMap::new();
         for layer in &self.layers {

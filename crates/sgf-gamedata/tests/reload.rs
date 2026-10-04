@@ -179,6 +179,34 @@ fn rebuilding_the_variables_rereads_everything_that_reads_them() {
 }
 
 #[test]
+fn rebuilding_the_galaxy_options_reads_a_new_size_and_nothing_else() {
+    let tree = fixture_copy();
+    let before = load(tree.path());
+    fs::write(
+        tree.path()
+            .join("userdata/mod/one/map/setup_scenarios/zz_size.txt"),
+        "setup_scenario = {\n\tname = \"fixture_size\"\n\tnum_stars = 900\n}\n",
+    )
+    .expect("write a size");
+
+    let (rebuilt, replaced) = before.rebuild(&kinds([RegistryKind::GalaxyOptions]));
+    let full = load(tree.path());
+
+    let stars = |gd: &GameData| {
+        GameDataSummary::from(gd)
+            .largest_galaxy
+            .map(|s| s.num_stars)
+    };
+    assert_eq!(stars(&rebuilt), Some(900));
+    assert_ne!(stars(&before), Some(900));
+    assert_eq!(summary(&rebuilt), summary(&full));
+    assert_eq!(replaced, kinds([RegistryKind::GalaxyOptions]));
+    assert!(Arc::ptr_eq(&before.initializers, &rebuilt.initializers));
+    assert!(Arc::ptr_eq(&before.deposits, &rebuilt.deposits));
+    assert!(Arc::ptr_eq(&before.loc, &rebuilt.loc));
+}
+
+#[test]
 fn a_reread_that_finds_nothing_keeps_the_old_registry_and_is_not_named_replaced() {
     let tree = fixture_copy();
     let before = load(tree.path());
@@ -230,7 +258,23 @@ fn a_changed_path_names_the_registry_that_reads_it() {
     let install = tree.path().join("install");
     let one = tree.path().join("userdata/mod/one");
 
-    let table: [(PathBuf, Option<RegistryKind>); 20] = [
+    let table: [(PathBuf, Option<RegistryKind>); 24] = [
+        (
+            install.join("common/terraform/00_links.txt"),
+            Some(RegistryKind::Definitions),
+        ),
+        (
+            install.join("common/game_rules/00_rules.txt"),
+            Some(RegistryKind::Definitions),
+        ),
+        (
+            install.join("map/galaxy/00_shapes.txt"),
+            Some(RegistryKind::GalaxyOptions),
+        ),
+        (
+            one.join("map/setup_scenarios/shared.txt"),
+            Some(RegistryKind::GalaxyOptions),
+        ),
         (
             install.join("common/deposits/00_fixture.txt"),
             Some(RegistryKind::Definitions),

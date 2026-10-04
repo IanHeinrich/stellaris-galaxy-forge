@@ -114,22 +114,15 @@ pub struct ScriptIndex {
 /// The directories read for their own sake, and whether a CST failure in one
 /// is news: nobody else parses `events` or `common/on_actions`.
 const DIRS: [(&str, Dir, SiteKind, bool); 3] = [
-    (
-        "common/scripted_effects",
-        Dir::Effects,
-        SiteKind::ScriptedEffect,
-        false,
-    ),
-    ("events", Dir::Events, SiteKind::Event, true),
-    (
-        "common/on_actions",
-        Dir::OnActions,
-        SiteKind::OnAction,
-        true,
-    ),
+    (EFFECTS_DIR, Dir::Effects, SiteKind::ScriptedEffect, false),
+    (EVENTS_DIR, Dir::Events, SiteKind::Event, true),
+    (ON_ACTIONS_DIR, Dir::OnActions, SiteKind::OnAction, true),
 ];
 
-const PRESCRIPTED_DIR: &str = "prescripted_countries";
+pub(crate) const EFFECTS_DIR: &str = "common/scripted_effects";
+pub(crate) const EVENTS_DIR: &str = "events";
+pub(crate) const ON_ACTIONS_DIR: &str = "common/on_actions";
+pub(crate) const PRESCRIPTED_DIR: &str = "prescripted_countries";
 
 impl ScriptIndex {
     pub(crate) fn load(
@@ -145,7 +138,7 @@ impl ScriptIndex {
         // A mod overriding a vanilla effect is the point of a mod, not a
         // diagnostic; anything else this parse finds still is.
         let mut parsing = Vec::new();
-        index.effects = script::parse_dir(layout, "common/scripted_effects", globals, &mut parsing);
+        index.effects = script::parse_dir(layout, EFFECTS_DIR, globals, &mut parsing);
         diagnostics.extend(
             parsing
                 .into_iter()

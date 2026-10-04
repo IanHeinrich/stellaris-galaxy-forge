@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
-use crate::loc::localisation::Localisation;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -41,10 +40,7 @@ impl GameData {
                 let first = def.difficulties.first().copied().flatten();
                 DigSiteChoice {
                     key: def.key.clone(),
-                    name: self
-                        .loc
-                        .name(&def.key)
-                        .unwrap_or_else(|| Localisation::readable(&def.key)),
+                    name: self.loc.name_or_readable(&def.key),
                     description: def
                         .desc
                         .as_deref()

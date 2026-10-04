@@ -2,6 +2,7 @@
 //! localisation with its `$slot$`s filled from the template's variables, plus
 //! the two formats the engine resolves in code, `%SEQ%` and `%ACRONYM%`.
 
+use sgf_core::emit::roman;
 use sgf_core::projections::galaxy::display_name;
 use sgf_core::projections::name::NameTemplate;
 
@@ -21,22 +22,6 @@ const ADJECTIVE_KEY: &str = "%ADJECTIVE%";
 const ADJECTIVE_PATTERN: &str = "adj_NN";
 const ADJECTIVE_FORMAT: &str = "adj_format";
 const ADJECTIVE_SLOT: &str = "$1$";
-
-const ROMAN: [(i64, &str); 13] = [
-    (1000, "M"),
-    (900, "CM"),
-    (500, "D"),
-    (400, "CD"),
-    (100, "C"),
-    (90, "XC"),
-    (50, "L"),
-    (40, "XL"),
-    (10, "X"),
-    (9, "IX"),
-    (5, "V"),
-    (4, "IV"),
-    (1, "I"),
-];
 
 impl Localisation {
     /// The text the game shows for a templated name: the key's localisation with every
@@ -227,24 +212,12 @@ fn sequential(format: &str, num: i64) -> String {
         "CC" => format!("{num:0>2}"),
         "CCC" => format!("{num:0>3}"),
         "CC0" => format!("{:0>2}", num - 1),
-        "R" => roman(num),
+        "R" => roman(usize::try_from(num).unwrap_or(0)),
         "HEX" => format!("{num:x}"),
         "ORD" => ordinal(num),
         "ORD0" => ordinal(num - 1),
         _ => num.to_string(),
     })
-}
-
-fn roman(num: i64) -> String {
-    let mut rest = num.max(0);
-    let mut out = String::new();
-    for (value, glyph) in ROMAN {
-        while rest >= value {
-            out.push_str(glyph);
-            rest -= value;
-        }
-    }
-    out
 }
 
 fn ordinal(num: i64) -> String {

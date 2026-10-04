@@ -8,6 +8,7 @@
 
 pub mod anomaly_choices;
 pub mod body_effects;
+pub mod choices;
 pub mod condition;
 pub mod deposit_choices;
 pub mod deposit_roll;
@@ -26,7 +27,7 @@ pub(crate) mod orbit_walk;
 pub mod planet_models;
 pub mod planet_views;
 pub mod registries;
-pub mod reload;
+pub(crate) mod reload;
 pub(crate) mod resolver;
 pub mod rng;
 pub mod scripts;
@@ -34,7 +35,7 @@ pub mod special;
 pub mod summary;
 pub mod textures;
 pub mod views;
-pub mod weight;
+pub(crate) mod weight;
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
@@ -80,6 +81,8 @@ pub use registries::terraform_links::TerraformLinks;
 pub use reload::RegistryKind;
 pub use resolver::{export_resolvers, resolver};
 pub use scripts::ScriptIndex;
+
+pub(crate) const DEFINES_DIR: &str = "common/defines";
 
 /// Every registry is an [`Arc`] so a partial rebuild
 /// ([`GameData::rebuild`]) can replace one and share the rest.
@@ -331,7 +334,7 @@ impl GameData {
         let sprites = gfx::load(&layout, &mut diagnostics);
         let colors = colors::load(&layout, &mut diagnostics);
         let flags = flags::Flags::load(&layout);
-        let define_files = ParsedDir::load(&layout, "common/defines", &mut diagnostics);
+        let define_files = ParsedDir::load(&layout, DEFINES_DIR, &mut diagnostics);
         let border = BorderDefines::load(&define_files);
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);

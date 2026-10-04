@@ -40,8 +40,15 @@ const NEVER_ON_A_NEW_BODY: [&str; 9] = [
 pub struct RollBody<'a> {
     pub class: &'a str,
     pub size: u32,
-    pub star: bool,
-    pub moon: bool,
+    pub kind: Kind,
+}
+
+/// Whether a body is its system's star, a planet or a moon.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Star,
+    Planet,
+    Moon,
 }
 
 /// What the roll reads from a deposit definition.
@@ -106,8 +113,10 @@ impl Subject for NewBody<'_> {
             Condition::InsideNebula(want) => Some(!want),
             Condition::PlanetClass(key) => Some(body.class == key),
             Condition::Climate(climate) => Some(class?.climate.as_deref() == Some(climate)),
-            Condition::Star(want) | Condition::PrimaryStar(want) => Some(body.star == *want),
-            Condition::Moon(want) => Some(body.moon == *want),
+            Condition::Star(want) | Condition::PrimaryStar(want) => {
+                Some((body.kind == Kind::Star) == *want)
+            }
+            Condition::Moon(want) => Some((body.kind == Kind::Moon) == *want),
             Condition::Asteroid(want) => Some(class?.asteroid == *want),
             Condition::Colonizable(want) => Some(class?.colonizable == *want),
             Condition::Size(cmp, n) => Some(cmp.holds(f64::from(body.size), *n)),
@@ -145,7 +154,7 @@ pub fn fitting<'a>(
     deposits: &[String],
 ) -> Vec<&'a DepositDef> {
     let class_def = gd.planet_classes.get(body.class);
-    let colonizable = !body.star && class_def.is_some_and(|c| c.colonizable);
+    let colonizable = body.kind != Kind::Star && class_def.is_some_and(|c| c.colonizable);
     let subject = NewBody {
         body,
         class_def,
@@ -179,7 +188,7 @@ pub(crate) fn roll(
         return Vec::new();
     }
     let class_def = gd.planet_classes.get(body.class);
-    let colonizable = !body.star && class_def.is_some_and(|c| c.colonizable);
+    let colonizable = body.kind != Kind::Star && class_def.is_some_and(|c| c.colonizable);
     let defines = &gd.deposit_defines;
     let size = f64::from(body.size);
     let mut roll = Roll {
@@ -197,7 +206,7 @@ pub(crate) fn roll(
         rng,
     };
 
-    if body.star {
+    if body.kind == Kind::Star {
         roll.draw(false, Part::Any);
     } else if colonizable {
         for _ in 0..defines.colony.draws(size) {

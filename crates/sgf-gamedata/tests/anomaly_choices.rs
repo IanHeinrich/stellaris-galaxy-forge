@@ -6,7 +6,7 @@ use crate::common;
 use common::scripts::install_with_mod;
 
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
-use sgf_gamedata::deposit_choices::AskedBody;
+use sgf_gamedata::choices::AskedBody;
 
 const FILES: [(&str, &str); 4] = [
     (
@@ -26,6 +26,7 @@ const FILES: [(&str, &str); 4] = [
         "@fx_hard = 7\n\
          fx_rock_cat = {\n\tlevel = 2\n\tspawn_chance = { modifier = { add = 3 is_asteroid = no } }\n}\n\
          fx_asteroid_cat = {\n\tdesc = fx_asteroid_text\n\tlevel = @fx_hard\n\tspawn_chance = { modifier = { add = 3 is_asteroid = yes } }\n}\n\
+         fx_debris_cat = {\n\tdesc = fx_debris_text\n\tlevel = 1\n\tspawn_chance = { base = 1 }\n}\n\
          fx_pulsar_cat = {\n\tlevel = 3\n\tspawn_chance = { modifier = { add = 1 is_star = yes is_star_class = sc_fx_pulsar } }\n}\n\
          fx_ship_cat = {\n\tlevel = 1\n\tspawn_chance = { modifier = { add = 3 from = { has_scientist = yes } } }\n}\n\
          fx_spawn_cat = {\n\tlevel = 4\n\tspawn_chance = { base = 5 }\n\ton_spawn = { set_planet_flag = fx }\n}\n\
@@ -34,7 +35,7 @@ const FILES: [(&str, &str); 4] = [
     ),
     (
         "localisation/english/fx_l_english.yml",
-        "l_english:\n fx_rock_cat:0 \"Strange Rock\"\n fx_rock_cat_desc:0 \"§YA rock§! £energy£that $fx_word$.\"\n fx_word:0 \"hums\"\n fx_asteroid_text:0 \"It tumbles.\"\n",
+        "l_english:\n fx_rock_cat:0 \"Strange Rock\"\n fx_rock_cat_desc:0 \"§YA rock§! £energy£that $fx_word$.\"\n fx_word:0 \"hums\"\n fx_asteroid_text:0 \"It tumbles.\"\n fx_debris_text:0 \"Debris drifts in orbit of [Root.GetName].\"\n",
     ),
 ];
 
@@ -62,6 +63,7 @@ fn categories_run_on_spawn_gated_by_a_chain_or_the_ais_own_are_left_out() {
         keys,
         [
             "fx_asteroid_cat",
+            "fx_debris_cat",
             "fx_pulsar_cat",
             "fx_rock_cat",
             "fx_ship_cat"
@@ -77,9 +79,18 @@ fn categories_run_on_spawn_gated_by_a_chain_or_the_ais_own_are_left_out() {
         "colour and icon codes stripped, references resolved"
     );
     let asteroid = choice(&choices, "fx_asteroid_cat");
-    assert_eq!(asteroid.name, "fx_asteroid_cat", "no name: the key");
+    assert_eq!(
+        asteroid.name, "Fx Asteroid Cat",
+        "no name: the key made readable"
+    );
     assert_eq!(asteroid.level, Some(7), "the level through its variable");
     assert_eq!(asteroid.description.as_deref(), Some("It tumbles."));
+    let debris = choice(&choices, "fx_debris_cat");
+    assert_eq!(
+        debris.description.as_deref(),
+        Some("Debris drifts in orbit of it."),
+        "a scope's name reads as a stand-in"
+    );
 }
 
 #[test]
@@ -94,14 +105,28 @@ fn a_category_is_usual_where_its_spawn_chance_could_be_above_zero() {
     };
     // Whether the surveying ship has a scientist is not the body's to answer, so
     // fx_ship_cat could turn up anywhere.
-    assert_eq!(usual("pc_fx_rock"), ["fx_rock_cat", "fx_ship_cat"]);
-    assert_eq!(usual("pc_fx_asteroid"), ["fx_asteroid_cat", "fx_ship_cat"]);
+    assert_eq!(
+        usual("pc_fx_rock"),
+        ["fx_debris_cat", "fx_rock_cat", "fx_ship_cat"]
+    );
+    assert_eq!(
+        usual("pc_fx_asteroid"),
+        ["fx_asteroid_cat", "fx_debris_cat", "fx_ship_cat"]
+    );
     assert_eq!(
         usual("pc_fx_pulsar"),
-        ["fx_pulsar_cat", "fx_rock_cat", "fx_ship_cat"],
+        [
+            "fx_debris_cat",
+            "fx_pulsar_cat",
+            "fx_rock_cat",
+            "fx_ship_cat"
+        ],
         "a pulsar body is the star of a pulsar system"
     );
-    assert_eq!(usual("pc_fx_dwarf"), ["fx_rock_cat", "fx_ship_cat"]);
+    assert_eq!(
+        usual("pc_fx_dwarf"),
+        ["fx_debris_cat", "fx_rock_cat", "fx_ship_cat"]
+    );
     let none = gd.anomaly_choices(&AskedBody {
         class: None,
         size: None,
@@ -140,6 +165,15 @@ fn real_anomaly_choices_leave_out_those_the_game_would_not_run() {
     assert!(!offered("vultaum_1_cat"), "runs on_spawn");
     assert!(!offered("transmitter_cat"), "an event chain gates it");
     assert!(choices.iter().all(|c| c.level.is_some()));
+    let rubricator = choices
+        .iter()
+        .find(|c| c.key == "ANCREL_RUBRICATOR_CAT")
+        .and_then(|c| c.description.as_deref())
+        .expect("ANCREL_RUBRICATOR_CAT has a description");
+    assert!(
+        rubricator.ends_with("detected on it."),
+        "scope text kept: {rubricator}"
+    );
 }
 
 #[test]
