@@ -8,6 +8,7 @@ import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { Op } from "../../generated/Op";
 import { BELT_SCATTER, VANILLA_SYSTEM_RADII } from "../../generated/constants";
+import { systemLabel } from "../systemLabel";
 import { counted } from "../text";
 import {
   GEOMETRY_REASONS,
@@ -324,7 +325,7 @@ function beltRadiusOp(
     angle: to.angle,
   }));
   const description =
-    `Moved the belt at radius ${rounded(belt.radius)} in system #${system} to ` +
+    `Moved the belt at radius ${rounded(belt.radius)} in ${frame.systemLabel ?? systemLabel("", system, false)} to ` +
     `${rounded(radius)}, with ${counted(moves.length, "asteroid")}`;
   return { op: { type: "Batch", description, ops: [op, ...moves] } };
 }
