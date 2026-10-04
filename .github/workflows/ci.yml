@@ -101,12 +101,6 @@ jobs:
           shared-key: test-${{ matrix.os }}-${{ matrix.shard == 0 && 'all' || 'core' }}
           save: ${{ github.ref == 'refs/heads/main' && (matrix.shard == 0 || matrix.shard == 1) }}
 
-      # Every job compiles sgf-core from scratch, and at opt-level 1 that is quicker while the
-      # tests run about as fast. The repo's own profile stays at 2 for `tauri dev`.
-      - name: Compile sgf-core at opt-level 1
-        shell: bash
-        run: printf '[profile.dev.package.sgf-core]\nopt-level = 1\n' >> "${CARGO_HOME:-$HOME/.cargo}/config.toml"
-
       - name: Version file agrees with the manifests
         if: matrix.shard == 0
         run: bash scripts/version.sh check
