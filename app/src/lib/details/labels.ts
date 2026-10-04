@@ -7,6 +7,7 @@ import type { MegastructureSummary } from "../../generated/MegastructureSummary"
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 import type { SystemDetails } from "../../generated/SystemDetails";
+import type { WormholeSummary } from "../../generated/WormholeSummary";
 import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
@@ -355,14 +356,25 @@ export function scenarioBypassIcon(kind: BypassKind, kinds?: BypassKinds): Icon 
   }
 }
 
-/** One icon per bypass touching system `id`, in the galaxy's order. */
+/** Whether `link` is one of the system's `holes`, listed in its own right. */
+function coveredBy(holes: readonly WormholeSummary[], link: BypassLink): boolean {
+  if (link.type === "wormhole") return holes.some((hole) => hole.kind === "wormhole");
+  return link.type === "other" && holes.some((hole) => hole.kind === link.kind);
+}
+
+/**
+ * One icon per bypass touching system `id`, in the galaxy's order, but for the ones its
+ * `holes` already list.
+ */
 export function bypassIcons(
   bypasses: readonly BypassLink[],
   id: number,
   kinds?: BypassKinds,
+  holes: readonly WormholeSummary[] = [],
 ): Icon[] {
   const icons: Icon[] = [];
   for (const b of bypasses) {
+    if (coveredBy(holes, b)) continue;
     switch (b.type) {
       case "wormhole":
         if (b.a === id || b.b === id) icons.push(bypassIcon("wormhole", "Natural wormhole", kinds));

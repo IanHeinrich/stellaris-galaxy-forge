@@ -11,20 +11,11 @@ import {
 } from "../../../../../lib/feZone";
 import { useSystemName, useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
-import { useCanEdit, usePaintLayer } from "../../../../../store/fileSessionStore";
+import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
 import { Section } from "../../../parts";
-
-/** What a zone is, in four short lines: the ring is empty space the mod fills at game start. */
-export const FE_ZONE_INTRO = [
-  "A fallen empire zone is empty space.",
-  "At game start the Paint a Galaxy mod creates a fallen empire's home system at the centre " +
-    "of the ring, its other systems around it, and hyperlanes to systems nearby.",
-  "Nothing already on the map is used or moved, so keep the ring clear of your systems.",
-  "Every zone belongs to one of your systems, which the ring is measured from: add it from " +
-    "the system you want it near.",
-] as const;
+import { FE_ZONE_INTRO } from "./sectionCopy";
 
 export const ADD_ZONE_HINT =
   "Marks empty space nearby where the mod will create a fallen empire's systems at game start.";
@@ -63,9 +54,8 @@ function placementHint(anchor: string): string {
  * at game start. Every change writes the whole zone back as the user's own.
  */
 export function FeZoneSection({ system }: { system: SystemNode }) {
-  const editable = useCanEdit("create_systems");
   const paint = usePaintLayer();
-  if (!editable || !paint) return null;
+  if (!paint) return null;
   return (
     <Section id="system.feZone" title="Fallen empire zone">
       <ul className="muted ins-hint ins-fe-zone-intro">
