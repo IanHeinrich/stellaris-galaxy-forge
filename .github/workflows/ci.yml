@@ -105,12 +105,18 @@ jobs:
       # corpus binaries skip without their variables; clippy already builds them.
       - name: Unit tests
         if: matrix.shard == 0
-        run: cargo test --workspace --lib --bins
+        run: cargo test --workspace --lib --bins --timings
       - name: Integration and doc tests outside sgf-core
         if: matrix.shard == 0
         run: |
-          cargo test --workspace --exclude sgf-core --test integration
+          cargo test --workspace --exclude sgf-core --test integration --timings
           cargo test --workspace --doc
+      - name: Upload the build timings
+        if: always() && matrix.shard == 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-timings-${{ matrix.os }}
+          path: target/cargo-timings/cargo-timing-*.html
 
       - name: sgf-core integration tests
         if: matrix.shard != 0
