@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::GameData;
+use crate::choices::AskedBody;
 use crate::deposit_roll::fitting;
 use crate::registries::deposits::DepositDef;
 
@@ -44,17 +45,6 @@ pub struct DepositChoice {
     /// No roll ever places it: only events and scripts do. A blocker is filed under
     /// [`DepositCategory::Blockers`] all the same, so this says it.
     pub event_only: bool,
-}
-
-pub use crate::choices::AskedBody;
-
-/// [`GameData::deposit_choices`], for callers not yet moved to the method.
-pub fn deposit_choices(
-    gd: &GameData,
-    asked: &AskedBody<'_>,
-    deposits: &[String],
-) -> Vec<DepositChoice> {
-    gd.deposit_choices(asked, deposits)
 }
 
 impl GameData {

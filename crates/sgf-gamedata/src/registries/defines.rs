@@ -10,8 +10,8 @@ use ts_rs::TS;
 use crate::install::script::ParsedDir;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct BorderDefines {
+#[ts(export, rename = "BorderDefines")]
+pub struct GraphicsDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
     /// `NGraphics.BORDER_INFLUENCE_MAX_DISTANCE_FACTOR`: how far an owned system or lane
@@ -33,7 +33,7 @@ pub struct BorderDefines {
     pub name_min_width: f64,
 }
 
-impl Default for BorderDefines {
+impl Default for GraphicsDefines {
     fn default() -> Self {
         Self {
             system_radius: 35.0,
@@ -48,7 +48,7 @@ impl Default for BorderDefines {
     }
 }
 
-impl BorderDefines {
+impl GraphicsDefines {
     /// Every file under `common/defines` in order, a later value replacing an earlier one.
     pub(crate) fn load(files: &ParsedDir) -> Self {
         let mut out = Self::default();

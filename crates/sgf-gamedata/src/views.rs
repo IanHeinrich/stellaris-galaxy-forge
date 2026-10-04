@@ -16,7 +16,7 @@ use crate::install::script::whole;
 use crate::registries::asteroid_belts::{AsteroidBeltDef, BeltLook};
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
-use crate::registries::defines::BorderDefines;
+use crate::registries::defines::GraphicsDefines;
 use crate::registries::deposits::DepositDef;
 use crate::registries::flags::{EmblemCategory, FlagFile, Flags};
 use crate::registries::galaxy_shapes::GalaxyShape;
@@ -169,7 +169,7 @@ pub struct GameDataSummary {
     pub deposits: u32,
     pub planet_classes: u32,
     pub starbase_levels: u32,
-    pub border: BorderDefines,
+    pub border: GraphicsDefines,
     /// How far out a system's inner and outer radii lie, from `NGameplay`.
     pub system_radii: SystemRadii,
     pub belt_kinds: Vec<BeltKindView>,

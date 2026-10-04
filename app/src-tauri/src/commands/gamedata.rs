@@ -7,7 +7,8 @@ use std::sync::Arc;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
-use sgf_gamedata::deposit_choices::{AskedBody, DepositChoice, deposit_choices};
+use sgf_gamedata::choices::AskedBody;
+use sgf_gamedata::deposit_choices::DepositChoice;
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_models::PlanetModelChoice;
@@ -221,7 +222,7 @@ pub fn get_deposit_choices(
             size,
             moon,
         };
-        deposit_choices(&gd, &asked, &deposits)
+        gd.deposit_choices(&asked, &deposits)
     })
 }
 
