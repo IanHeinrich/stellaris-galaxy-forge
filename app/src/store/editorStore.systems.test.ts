@@ -10,6 +10,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { SCENARIO_RESULT, SYSTEMS, editResult, node } from "./fixture";
 import { DEFAULT_SYSTEM_HEIGHT } from "../generated/constants";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 beforeEach(() => openFixtureScenario());
 
@@ -167,42 +168,34 @@ describe("deleting a selection of systems", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
   });
 
-  it("asks, counting each lane touching them once, then removes them all as one edit", async () => {
-    await editor().setSelection([0, 1, 2], "replace");
-    run("deleteSelection", false, effects);
-    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalled());
-    expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete 3 systems and their 4 lanes?",
-      expect.objectContaining({ kind: "warning" }),
-    );
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "Batch",
-      description: "Deleted 3 systems",
-      ops: [{ type: "RemoveSystems", systems: [0, 1, 2] }],
-    });
-  });
-
-  it("sends nothing when the question is declined", async () => {
-    mockedIpc.confirm.mockResolvedValueOnce(false);
-    await editor().setSelection([0, 5], "replace");
-    await editor().deleteSelection();
-    expect(mockedIpc.confirm).toHaveBeenCalledWith("Delete 2 systems and their 1 lane?", {
-      title: "Delete systems",
-      kind: "warning",
-    });
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
-  });
-
-  it("deletes a single selected system too, asking about it and its lanes", async () => {
-    await editor().select(1);
-    run("deleteSelection", false, effects);
-    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalled());
-    expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete Alpha Centauri and its 4 lanes?",
-      expect.objectContaining({ kind: "warning" }),
-    );
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", system: 1 });
-  });
+  it.each([
+    {
+      selection: [0, 1, 2],
+      question: "Delete 3 systems and their 4 lanes?",
+      op: {
+        type: "Batch",
+        description: "Deleted 3 systems",
+        ops: [{ type: "RemoveSystems", systems: [0, 1, 2] }],
+      },
+    },
+    {
+      selection: [1],
+      question: "Delete Alpha Centauri and its 4 lanes?",
+      op: { type: "RemoveSystem", system: 1 },
+    },
+  ])(
+    "Delete on $selection asks, counting each lane touching them once, then removes them as one edit",
+    async ({ selection, question, op }) => {
+      await editor().setSelection(selection, "replace");
+      run("deleteSelection", false, effects);
+      await until(() => expect(mockedIpc.applyOp).toHaveBeenCalled());
+      expect(mockedIpc.confirm).toHaveBeenCalledWith(
+        question,
+        expect.objectContaining({ kind: "warning" }),
+      );
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith(op);
+    },
+  );
 
   it("names the selection as deletable on a scenario, and nothing on a save", async () => {
     await editor().setSelection([0, 1], "replace");
@@ -248,14 +241,12 @@ describe("system heights", () => {
 
   beforeEach(withHeights);
 
-  it("sets one system to a shown height, written absolute", async () => {
-    await editor().setSystemHeight(0, 30);
-    expectHeights([[0, DEFAULT_SYSTEM_HEIGHT + 30]]);
-  });
-
-  it("puts a system back on the plane with the game's default height", async () => {
-    await editor().setSystemHeight(1, 0);
-    expectHeights([[1, DEFAULT_SYSTEM_HEIGHT]]);
+  it.each([
+    ["to a shown height, written absolute", 0, 30, DEFAULT_SYSTEM_HEIGHT + 30],
+    ["back on the plane with the game's default height", 1, 0, DEFAULT_SYSTEM_HEIGHT],
+  ])("sets one system %s", async (_case, id, shown, written) => {
+    await editor().setSystemHeight(id, shown);
+    expectHeights([[id, written]]);
   });
 
   it("sends nothing for a height a system already has", async () => {

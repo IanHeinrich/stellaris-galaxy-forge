@@ -10,6 +10,7 @@ import { OPEN_RESULT } from "./fixture";
 import { PREF_KEYS } from "./prefKeys";
 import { resetSession, session, stored } from "./sessionFixture";
 import { storedWatchlist, useWatchlistStore } from "./watchlistStore";
+import { until } from "../test/wait";
 
 const search = vi.mocked(ipc.search);
 const watch = () => useWatchlistStore.getState();
@@ -118,32 +119,24 @@ describe("results", () => {
     expect(watch().results.size).toBe(0);
   });
 
-  it("runs every entry when a document opens, and drops the answers when it closes", async () => {
+  it("runs every entry when a document opens, drops an unpinned one's, and drops the answers on close", async () => {
     watch().pin("salvager");
     watch().pin("alpha refuge");
 
     await session().openSave(OPEN_RESULT.path);
-    await vi.waitFor(() => expect(watch().results.size).toBe(2));
+    await until(() => expect(watch().results.size).toBe(2));
 
     expect(search).toHaveBeenCalledWith("salvager", expect.any(Number));
     expect(search).toHaveBeenCalledWith("alpha refuge", expect.any(Number));
     expect(watch().results.get("salvager")).toEqual([2]);
     expect(watch().results.get("alpha refuge")).toEqual([0, 1]);
 
+    watch().togglePin("SALVAGER");
+    expect([...watch().results.keys()], "unpinned search dropped").toEqual(["alpha refuge"]);
+
     await session().close();
 
-    expect(watch().results.size).toBe(0);
-  });
-
-  it("drops an unpinned search's systems", async () => {
-    watch().pin("salvager");
-    watch().pin("alpha refuge");
-    await session().openSave(OPEN_RESULT.path);
-    await vi.waitFor(() => expect(watch().results.size).toBe(2));
-
-    watch().togglePin("SALVAGER");
-
-    expect([...watch().results.keys()]).toEqual(["alpha refuge"]);
+    expect(watch().results.size, "answers dropped on close").toBe(0);
   });
 
   it("runs a search pinned while a document is open", async () => {
@@ -151,7 +144,7 @@ describe("results", () => {
 
     watch().pin("salvager");
 
-    await vi.waitFor(() => expect(watch().results.get("salvager")).toEqual([2]));
+    await until(() => expect(watch().results.get("salvager")).toEqual([2]));
   });
 
   it("keeps only the answers of the latest refresh", async () => {

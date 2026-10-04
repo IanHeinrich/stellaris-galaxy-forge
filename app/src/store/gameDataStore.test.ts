@@ -17,7 +17,6 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import {
   armGameData,
-  flush,
   GALAXY_KEYS,
   listeners,
   releaseGameData,
@@ -28,6 +27,8 @@ import {
 import { OPEN_RESULT, SCENARIO_BYPASSES, SCENARIO_OWNERS, TERRITORY } from "./fixture";
 import { clearTextures } from "../lib/visual/textures";
 import { mockedIpc } from "../test/ipc";
+import { flush } from "../test/flush";
+import { until } from "../test/wait";
 
 beforeEach(armGameData);
 afterEach(releaseGameData);
@@ -36,7 +37,7 @@ describe("load", () => {
   it("sets the summary, loads the registries and names, and reports progress meanwhile", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     const p = useGameDataStore.getState().load();
-    await vi.waitFor(() => expect(listeners.progress).not.toBeNull());
+    await until(() => expect(listeners.progress).not.toBeNull());
     expect(useGameDataStore.getState().status).toBe("loading");
     const progress: Progress = { phase: "definitions", fraction: 0.4 };
     listeners.progress!(progress);
@@ -214,7 +215,7 @@ describe("resolveNames", () => {
     useGameDataStore.getState().requestName(country(2001));
     expect(mockedIpc.resolveNames).not.toHaveBeenCalled();
 
-    await vi.waitFor(() =>
+    await until(() =>
       expect(useGameDataStore.getState().names.get(templateKey(country(2002)))).toBe("SPEC_2002"),
     );
     expect(mockedIpc.resolveNames).toHaveBeenCalledTimes(1);
@@ -327,7 +328,7 @@ describe("initializers", () => {
     useFileSessionStore.setState({ kind: "scenario", capabilities: SCENARIO_CAPABILITIES });
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
-    await vi.waitFor(() => expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS));
+    await until(() => expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS));
   });
 
   it("another install reads them again", async () => {
@@ -371,8 +372,8 @@ describe("save hooks", () => {
     useDetailsStore.setState({ version: 0 });
 
     useGameDataStore.getState().onSaveOpened();
-    await vi.waitFor(() => expect(useGameDataStore.getState().special.size).toBe(1));
-    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    await until(() => expect(useGameDataStore.getState().special.size).toBe(1));
+    await until(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
     expect(useDetailsStore.getState().version).toBe(1);
   });
 
@@ -381,7 +382,7 @@ describe("save hooks", () => {
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, countries: [RIHINAR] });
 
     useGameDataStore.getState().onSaveOpened();
-    await vi.waitFor(() => expect(mockedIpc.resolveNames).toHaveBeenCalledWith([RIHINAR.name]));
+    await until(() => expect(mockedIpc.resolveNames).toHaveBeenCalledWith([RIHINAR.name]));
     expect(mockedIpc.getNames).toHaveBeenLastCalledWith(GALAXY_KEYS);
     expect(useGameDataStore.getState().names.get(templateKey(RIHINAR.name))).toBe(
       "SPEC_RihiNar Sovereignty",
@@ -391,7 +392,7 @@ describe("save hooks", () => {
   it("onSaveOpened without game data only classifies by flags", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     useGameDataStore.getState().onSaveOpened();
-    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
+    await until(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
     expect(mockedIpc.getNames).not.toHaveBeenCalled();
   });
 
@@ -434,12 +435,14 @@ describe("save hooks", () => {
 });
 
 describe("scenario owners", () => {
-  it("hands the scripted ownership to the galaxy and takes it back on unload", async () => {
+  it("hands the scripted ownership and bypasses to the galaxy and takes them back on unload", async () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
+    mockedIpc.getScenarioBypasses.mockResolvedValue(SCENARIO_BYPASSES);
 
     await useGameDataStore.getState().load();
 
+    expect(useGameDataStore.getState().scenarioBypasses, "bypasses read").toBe(SCENARIO_BYPASSES);
     expect(useGameDataStore.getState().scenarioOwners).toBe(SCENARIO_OWNERS);
     expect(useGameDataStore.getState().scenarioOwnersPending).toBe(false);
     expect(useGalaxyStore.getState().systems.get(1)?.owner).toBe(TERRITORY.id);
@@ -447,27 +450,13 @@ describe("scenario owners", () => {
     expect(useGalaxyStore.getState().countries.get(TERRITORY.id)).toBe(TERRITORY);
 
     mockedIpc.getScenarioOwners.mockResolvedValue(null);
-    await useGameDataStore.getState().unload();
-
-    expect(useGameDataStore.getState().scenarioOwners).toBeNull();
-    expect(useGalaxyStore.getState().systems.get(1)?.owner).toBeNull();
-    expect(useGalaxyStore.getState().countries.size).toBe(0);
-  });
-
-  it("reads the bypasses with the owners and drops them with the game data", async () => {
-    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    mockedIpc.getScenarioOwners.mockResolvedValue(SCENARIO_OWNERS);
-    mockedIpc.getScenarioBypasses.mockResolvedValue(SCENARIO_BYPASSES);
-
-    await useGameDataStore.getState().load();
-
-    expect(useGameDataStore.getState().scenarioBypasses).toBe(SCENARIO_BYPASSES);
-
-    mockedIpc.getScenarioOwners.mockResolvedValue(null);
     mockedIpc.getScenarioBypasses.mockResolvedValue(null);
     await useGameDataStore.getState().unload();
 
-    expect(useGameDataStore.getState().scenarioBypasses).toBeNull();
+    expect(useGameDataStore.getState().scenarioBypasses, "bypasses dropped").toBeNull();
+    expect(useGameDataStore.getState().scenarioOwners).toBeNull();
+    expect(useGalaxyStore.getState().systems.get(1)?.owner).toBeNull();
+    expect(useGalaxyStore.getState().countries.size).toBe(0);
   });
 
   it("reads them again when a document opens, and asks for nothing without one", async () => {
@@ -478,9 +467,7 @@ describe("scenario owners", () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     useGameDataStore.getState().onSaveOpened();
 
-    await vi.waitFor(() =>
-      expect(useGameDataStore.getState().scenarioOwners).toBe(SCENARIO_OWNERS),
-    );
+    await until(() => expect(useGameDataStore.getState().scenarioOwners).toBe(SCENARIO_OWNERS));
     expect(useGalaxyStore.getState().systems.get(1)?.owner).toBe(TERRITORY.id);
   });
 });

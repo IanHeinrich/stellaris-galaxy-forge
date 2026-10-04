@@ -22,6 +22,7 @@ import {
   withPaintMod,
 } from "./sessionFixture";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 beforeEach(resetSession);
 
@@ -65,7 +66,7 @@ describe("save", () => {
     let finish!: (r: SaveResult) => void;
     mockedIpc.save.mockReturnValueOnce(new Promise<SaveResult>((r) => (finish = r)));
     const p = session().save();
-    await vi.waitFor(() => expect(listen.progress).not.toBeNull());
+    await until(() => expect(listen.progress).not.toBeNull());
     expect(session().saving).toBe(true);
     listen.progress!({ phase: "write", fraction: 0.43 });
     expect(session().progress).toEqual({ phase: "write", fraction: 0.43 });
@@ -205,7 +206,7 @@ describe("issues a save stops on", () => {
   /** Runs `start`, answers the dialog it raises, and waits for the save to settle. */
   async function answering(answer: SaveIssuesAnswer, start: () => Promise<void>): Promise<number> {
     const done = start();
-    await vi.waitFor(() => expect(session().saveIssuesPrompt).not.toBeNull());
+    await until(() => expect(session().saveIssuesPrompt).not.toBeNull());
     const { count } = session().saveIssuesPrompt!;
     session().answerSaveIssues(answer);
     await done;
@@ -324,7 +325,7 @@ describe("the paused save bar", () => {
   /** Leaves `start` paused on the one issue the sample save opens with. */
   async function pause(start: () => Promise<void> = () => session().save()): Promise<void> {
     const done = start();
-    await vi.waitFor(() => expect(session().saveIssuesPrompt).not.toBeNull());
+    await until(() => expect(session().saveIssuesPrompt).not.toBeNull());
     session().answerSaveIssues("review");
     await done;
     expect(session().pausedSave).not.toBeNull();
@@ -392,7 +393,7 @@ describe("a file changed on disk", () => {
   /** Runs `start`, answers the dialog it raises, and waits for the save to settle. */
   async function answering(answer: ChangedOnDiskAnswer, start: () => Promise<void>) {
     const done = start();
-    await vi.waitFor(() => expect(session().changedOnDiskPrompt).not.toBeNull());
+    await until(() => expect(session().changedOnDiskPrompt).not.toBeNull());
     expect(session().error).toBeNull();
     expect(session().saving).toBe(false);
     session().answerChangedOnDisk(answer);
@@ -438,7 +439,7 @@ describe("a file changed on disk", () => {
 
   it("Ctrl+S or Save As while the prompt is open writes nothing", async () => {
     const done = session().save();
-    await vi.waitFor(() => expect(session().changedOnDiskPrompt).not.toBeNull());
+    await until(() => expect(session().changedOnDiskPrompt).not.toBeNull());
 
     await session().save();
     await session().saveAs();

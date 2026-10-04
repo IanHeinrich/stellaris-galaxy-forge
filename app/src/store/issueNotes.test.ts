@@ -24,6 +24,7 @@ import { useGameDataStore } from "./gameDataStore";
 import { useIssuesStore } from "./issuesStore";
 import { resetSession, session, withPaintMod } from "./sessionFixture";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 const SCENARIO_PATH = SCENARIO_RESULT.path;
 const PAINT_DIR = "C:/mods/pag/map/setup_scenarios";
@@ -70,7 +71,7 @@ describe("scenario names the mod's folder already lists", () => {
       ["third.txt", "Arcadia"],
     ]);
     await session().requestOpen(mine, { listings: null });
-    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toHaveLength(2));
+    await until(() => expect(useIssuesStore.getState().issues).toHaveLength(2));
     expect(mockedIpc.siblingScenarioNames).toHaveBeenCalledWith(mine);
     expect(useIssuesStore.getState().issues[1]).toEqual({
       severity: "warning",
@@ -92,7 +93,7 @@ describe("scenario names the mod's folder already lists", () => {
     mockedIpc.save.mockResolvedValueOnce(saveResult({ path: mine, dirty: false }));
     mockedIpc.siblingScenarioNames.mockResolvedValueOnce([["other.txt", "Renamed"]]);
     await session().save();
-    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toEqual([]));
+    await until(() => expect(useIssuesStore.getState().issues).toEqual([]));
     expect(useIssuesStore.getState().notes).toEqual([]);
   });
   it("notes nothing for a scenario outside the mod's folder, or when the folder cannot be read", async () => {
@@ -112,7 +113,7 @@ describe("scenario names the mod's folder already lists", () => {
     });
     mockedIpc.siblingScenarioNames.mockRejectedValueOnce(new Error("unreadable"));
     await session().requestOpen(mine, { listings: null });
-    await vi.waitFor(() => expect(mockedIpc.siblingScenarioNames).toHaveBeenCalledWith(mine));
+    await until(() => expect(mockedIpc.siblingScenarioNames).toHaveBeenCalledWith(mine));
     expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
       "system_isolated",
     ]);

@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import { GEOMETRY_REASONS } from "../lib/details/orbitIntent";
+import { DETAILS_DEBOUNCE_MS } from "./batching";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
@@ -77,8 +78,13 @@ describe("applyGeometry", () => {
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 
-  it("says why a refused intent is refused in the status bar, and sends nothing", async () => {
+  it("says why a refused intent is refused where the caller asks, in the status bar by default", async () => {
+    const said: string[] = [];
     const intent = { kind: "move", system: SOL, body: STAR, radius: 10, angle: 0 } as const;
+    expect(await applyGeometry(intent, (reason) => said.push(reason))).toBe(false);
+    expect(said).toEqual([GEOMETRY_REASONS.star]);
+    expect(useMapChromeStore.getState().sceneHint).toBeNull();
+
     expect(await applyGeometry(intent)).toBe(false);
     expect(useMapChromeStore.getState().sceneHint).toBe(GEOMETRY_REASONS.star);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
@@ -134,10 +140,20 @@ describe("quick edits in a row", () => {
     mockedIpc.getSystemDetails.mockResolvedValue([orbitSystem({ id: SOL, ...over })]);
   }
 
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("builds each edit on the details the one before it left", async () => {
     answerWith({ belts: [{ kind: "rocky_asteroid_belt", inner_radius: 120 }] });
     const remove = { kind: "removeBelt", system: SOL, index: 1 } as const;
-    const [first, second] = await Promise.all([applyGeometry(remove), applyGeometry(remove)]);
+    const edits = Promise.all([applyGeometry(remove), applyGeometry(remove)]);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+    const [first, second] = await edits;
     expect([first, second]).toEqual([true, false]);
     expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
@@ -154,17 +170,12 @@ describe("quick edits in a row", () => {
       p.id === LONE ? saveBody(LONE, "pc_arid", [turned.x, turned.y], 100, 12) : p,
     );
     answerWith({ planets });
-    await Promise.all([nudgeBody({ turn: 1, out: 0 }), nudgeBody({ turn: 1, out: 0 })]);
+    const nudges = Promise.all([nudgeBody({ turn: 1, out: 0 }), nudgeBody({ turn: 1, out: 0 })]);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+    await nudges;
     expect(mockedIpc.applyOp.mock.calls.map(([op]) => (op as { angle: number }).angle)).toEqual([
       121, 122,
     ]);
-  });
-
-  it("says a refusal where the caller asks, and in the status bar by default", async () => {
-    const said: string[] = [];
-    const intent = { kind: "move", system: SOL, body: STAR, radius: 10, angle: 0 } as const;
-    expect(await applyGeometry(intent, (reason) => said.push(reason))).toBe(false);
-    expect(said).toEqual([GEOMETRY_REASONS.star]);
-    expect(useMapChromeStore.getState().sceneHint).toBeNull();
   });
 });

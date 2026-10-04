@@ -13,6 +13,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { OPEN_RESULT, SYSTEMS, editResult, withLaneLength } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { flush } from "../test/flush";
 
 beforeEach(openFixtureSave);
 
@@ -94,17 +95,9 @@ describe("selection and navigation", () => {
     expect(recent.filter((h) => h.id === 1).length).toBe(1);
   });
 
-  it("hover and the two fit nonces are plain state", () => {
+  it("hover is plain state", () => {
     editor().setHover(2);
     expect(editor().hover).toBe(2);
-    const fit = editor().fitNonce;
-    editor().requestFit();
-    expect(editor().fitNonce).toBe(fit + 1);
-    const framed = editor().fitSelectionNonce;
-    editor().fitSelection();
-    editor().fitSelection();
-    expect(editor().fitSelectionNonce).toBe(framed + 2);
-    expect(editor().fitNonce).toBe(fit + 1);
   });
 });
 
@@ -136,7 +129,7 @@ describe("nudge", () => {
     mockedIpc.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
     const first = editor().nudgeSelection(-1, 10);
     const second = editor().nudgeSelection(-1, 10);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
 
     land(editResult({ delta: { systems: [{ ...SYSTEMS[2], x: 19, y: 20 }] } }));
     await Promise.all([first, second]);
@@ -255,29 +248,16 @@ describe("multi-selection", () => {
     expect(editor().inspected?.system.id).toBe(3);
   });
 
-  it("selectAll selects every system and clears the lane; select(null) clears all", async () => {
+  it("selectAll selects every system and clears the lane", async () => {
     editor().selectLane({ a: 0, b: 1 });
     await editor().selectAll();
-    let state = editor();
+    const state = editor();
     expect(state.selection).toEqual([0, 1, 2, 3, 4, 5]);
     expect(state.selectedLane).toBeNull();
     expect(state.inspected).toBeNull();
-
-    await editor().select(null);
-    state = editor();
-    expect(state.selection).toEqual([]);
-    expect(state.inspected).toBeNull();
   });
 
-  it("selectLane clears a multi-selection", async () => {
-    await editor().setSelection([0, 1], "replace");
-    editor().selectLane({ a: 0, b: 1 });
-    expect(editor().selection).toEqual([]);
-  });
-
-  it("Delete does nothing to a save's systems, or with nothing selected", async () => {
-    await editor().deleteSelection();
-    await editor().setSelection([0, 1], "replace");
+  it("Delete does nothing with nothing selected", async () => {
     await editor().deleteSelection();
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });

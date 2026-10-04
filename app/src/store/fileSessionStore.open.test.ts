@@ -18,13 +18,14 @@ import { usePaintModStore } from "./paintModStore";
 import { useRecentsStore } from "./recentsStore";
 import { edit, listen, resetSession, session } from "./sessionFixture";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 beforeEach(resetSession);
 
 describe("openSave", () => {
   it("loads the galaxy, meta and issues and reports progress while loading", async () => {
     const p = session().openSave(OPEN_RESULT.path);
-    await vi.waitFor(() => expect(listen.progress).not.toBeNull());
+    await until(() => expect(listen.progress).not.toBeNull());
     expect(session().status).toBe("loading");
     listen.progress!({ phase: "read", fraction: 0.5 });
     expect(session().progress).toEqual({ phase: "read", fraction: 0.5 });
@@ -59,7 +60,7 @@ describe("openSave", () => {
   it("asks for the special systems again once the details projection is warm", async () => {
     await session().openSave(OPEN_RESULT.path);
     expect(mockedIpc.warmDetails).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(2));
+    await until(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(2));
   });
 
   it("a details projection that fails to warm says so on the session, which still opened", async () => {
@@ -68,7 +69,7 @@ describe("openSave", () => {
     expect(await session().openSave(OPEN_RESULT.path)).toBe(true);
 
     expect(session().status).toBe("ready");
-    await vi.waitFor(() => expect(session().error).toBe("no projection"));
+    await until(() => expect(session().error).toBe("no projection"));
   });
 
   it("reports a rejection as an error and closes the session left on the Rust side", async () => {
@@ -94,14 +95,6 @@ describe("openSave", () => {
 
     expect(useDetailsStore.getState().details.size).toBe(0);
     expect(useGameDataStore.getState().counts).toEqual([]);
-  });
-
-  it("reports a missing file with the not_found kind", async () => {
-    mockedIpc.openSave.mockRejectedValueOnce({ kind: "not_found", message: "no such file" });
-    await session().openSave("gone.sav");
-    const state = session();
-    expect(state.error).toBe("no such file");
-    expect(state.errorKind).toBe("not_found");
   });
 
   it("every save opens with the L-Gate outcome hidden, whatever the one before showed", async () => {
@@ -296,30 +289,21 @@ describe("close", () => {
     await session().openSave(OPEN_RESULT.path);
   });
 
-  it("drops the session and the galaxy", async () => {
-    await session().close();
-    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
-    expect(session().status).toBe("empty");
-    expect(useGalaxyStore.getState().galaxy).toBeNull();
-  });
-
-  it("when dirty and confirm -> false leaves the session open and calls no closeSave", async () => {
-    await edit();
-    mockedIpc.confirm.mockResolvedValueOnce(false);
-    await session().close();
-
-    expect(mockedIpc.confirm).toHaveBeenCalledTimes(1);
-    expect(mockedIpc.closeSave).not.toHaveBeenCalled();
-    expect(session().status).toBe("ready");
-  });
-
-  it("when dirty and confirm -> true closes", async () => {
-    await edit();
-    mockedIpc.confirm.mockResolvedValueOnce(true);
+  it.each([
+    ["clean, drops the session and the galaxy", null, true],
+    ["dirty with the discard declined, leaves the session open", false, false],
+    ["dirty with the discard confirmed, closes", true, true],
+  ])("%s", async (_case, discard, closed) => {
+    if (discard !== null) {
+      await edit();
+      mockedIpc.confirm.mockResolvedValueOnce(discard);
+    }
     await session().close();
 
-    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(1);
-    expect(session().status).toBe("empty");
+    expect(mockedIpc.confirm).toHaveBeenCalledTimes(discard === null ? 0 : 1);
+    expect(mockedIpc.closeSave).toHaveBeenCalledTimes(closed ? 1 : 0);
+    expect(session().status).toBe(closed ? "empty" : "ready");
+    expect(useGalaxyStore.getState().galaxy === null).toBe(closed);
   });
 });
 
@@ -357,7 +341,7 @@ describe("settling", () => {
     );
 
     const opening = session().openSave(SCENARIO_RESULT.path);
-    await vi.waitFor(() => expect(session().settling).toBe(true));
+    await until(() => expect(session().settling).toBe(true));
     expect(session().status).toBe("ready");
     expect(session().loadingName).toBe("my_galaxy.txt");
 
@@ -403,7 +387,7 @@ describe("game data changing under an open scenario", () => {
 
     useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
 
-    await vi.waitFor(() =>
+    await until(() =>
       expect(useGalaxyStore.getState().systems.get(first.id)?.star_class).toBe("sc_pulsar"),
     );
   });

@@ -9,9 +9,10 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
 
 import * as ipc from "../api/ipc";
 import { depositTypeView } from "./fixture";
-import { armGameData, flush, releaseGameData } from "./gameDataFixture";
+import { armGameData, releaseGameData } from "./gameDataFixture";
 import { useGameDataStore } from "./gameDataStore";
 import { usePlanetDataStore } from "./planetDataStore";
+import { flush } from "../test/flush";
 
 const getDepositTypes = vi.mocked(ipc.getDepositTypes);
 const planetData = () => usePlanetDataStore.getState();

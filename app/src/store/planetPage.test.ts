@@ -9,6 +9,7 @@ import { useEntityStore } from "./entityStore";
 import { editResult, planetPage } from "./fixture";
 import { name } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 const getPlanetPage = mockedIpc.getPlanetPage;
 const entities = () => useEntityStore.getState();
@@ -31,7 +32,7 @@ const ALPHA_EDITED = editResult({
 async function readPages(): Promise<void> {
   entities().requestPlanetPage(STAR);
   entities().requestPlanetPage(WORLD);
-  await vi.waitFor(() => expect(entities().pages.size).toBe(2));
+  await until(() => expect(entities().pages.size).toBe(2));
 }
 
 beforeEach(async () => {
@@ -62,7 +63,7 @@ describe("a planet page after an edit", () => {
     entities().requestPlanetPage(STAR);
     expect(entities().pages.get(STAR)).toBe(before);
     answer();
-    await vi.waitFor(() => expect(entities().pages.get(STAR)?.class).toBe("pc_b_star"));
+    await until(() => expect(entities().pages.get(STAR)?.class).toBe("pc_b_star"));
     expect(entities().stalePages.size).toBe(0);
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
 
@@ -83,7 +84,7 @@ describe("a planet page after an edit", () => {
       planetPage({ id, system: SOL, moons: id === WORLD ? [moon] : [] }),
     );
     entities().requestPlanetPage(WORLD);
-    await vi.waitFor(() => expect(entities().pages.has(WORLD)).toBe(true));
+    await until(() => expect(entities().pages.has(WORLD)).toBe(true));
 
     entities().noteEdit(editResult({ touched_entities: [{ kind: "planet", id: MOON }] }));
     expect([...entities().stalePages]).toEqual([WORLD]);
@@ -97,7 +98,7 @@ describe("a planet page after an edit", () => {
     expect([...entities().stalePages]).toEqual([STAR]);
 
     entities().requestPlanetPage(STAR);
-    await vi.waitFor(() => expect(entities().stalePages.size).toBe(0));
+    await until(() => expect(entities().stalePages.size).toBe(0));
     expect(getPlanetPage).toHaveBeenCalledTimes(3);
   });
 

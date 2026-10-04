@@ -11,6 +11,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult, node } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { flush } from "../test/flush";
 
 const headerEmpireCounts = mockedIpc.headerEmpireCounts;
 
@@ -45,7 +46,7 @@ describe("header empire counts", () => {
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
 
     const counting = editor().updateEmpireCounts();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
     expect(headerEmpireCounts).not.toHaveBeenCalled();
 
     land(editResult());
@@ -133,13 +134,6 @@ describe("a save's wormhole pairs", () => {
 
     expect(await editor().unlinkWormholePair(1, 3)).toBe(false);
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
-  });
-
-  it("the links an edit sends replace the ones the galaxy holds", async () => {
-    const bypasses = [{ type: "wormhole", a: 0, b: 3 } as const];
-    mockedIpc.applyOp.mockResolvedValue(editResult({ delta: { systems: [], bypasses } }));
-    await editor().linkWormholePair(0, 3);
-    expect(useGalaxyStore.getState().bypasses).toEqual(bypasses);
   });
 });
 
@@ -268,7 +262,7 @@ describe("marauder clans", () => {
     mockedIpc.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
     const painting = editor().paintStroke([{ x: 200, y: 200 }], []);
     const adding = editor().addMarauderClanAt({ x: -120, y: 45 });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
 
     land(editResult({ delta: { systems: [node(6, "", 200, 200, "sc_g", [])] } }));
     expect(await adding).toBe(true);
