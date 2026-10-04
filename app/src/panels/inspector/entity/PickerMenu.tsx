@@ -12,6 +12,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
 import { useOutsidePress } from "../../useOutsidePress";
+import type { PickerKind } from "./PlanetPicker";
 
 export const NO_DESCRIPTION = "No description";
 /** The open picker's height where the page has room for it. */
@@ -22,8 +23,8 @@ export const PICKER_MIN_HEIGHT = 320;
 const PAGE_ROOM_MARGIN = 24;
 
 /** A picker's store, as the menu reads it. */
-export type PickerHook<C extends string> = <U>(
-  selector: (state: PickerState<C, unknown>) => U,
+export type PickerHook<C extends string, T = unknown> = <U>(
+  selector: (state: PickerState<C, T>) => U,
 ) => U;
 
 /** One of a row's add buttons. */
@@ -180,48 +181,32 @@ function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
  * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
  * rows, and Enter in the search adds the button they stand on.
  */
-export function PickerMenu<R, C extends string>({
-  usePicker,
-  name,
-  searchName,
-  placeholder,
+export function PickerMenu<R, C extends string, T, X>({
+  kind,
+  extra,
   chips,
-  chipsName,
   sections,
-  reading,
-  noneMatch,
   idPrefix,
-  item,
-  onAdd,
-  variants = false,
   controls,
   notice,
 }: {
-  usePicker: PickerHook<C>;
-  /** What the menu is called, for a screen reader. */
-  name: string;
-  searchName: string;
-  placeholder: string;
+  kind: PickerKind<R, C, T, X>;
+  /** What the page hands the kind's add. */
+  extra?: X;
+  /** The chips above the rows, resolved from the rows where the kind's follow them. */
   chips: readonly ChipItem<C>[];
-  chipsName: string;
   /** The rows the chip and search leave; `null` while the choices are read. */
   sections: readonly PickerSection<R>[] | null;
-  reading: string;
-  noneMatch: string;
   /** Starts each row's element id. */
   idPrefix: string;
-  item: (row: R) => PickerItem;
-  onAdd: (row: R, button: number) => void;
-  /**
-   * Left and Right step between a row's buttons, and typing outside the search goes to it. Off
-   * where `controls` take typing of their own.
-   */
-  variants?: boolean;
   /** Drawn under the chips. */
   controls?: ReactNode;
   /** Drawn in place of the line saying what was added. */
   notice?: ReactNode;
 }) {
+  const { store: usePicker, item, variants = false } = kind;
+  const { name, searchName, placeholder, chipsName, reading, noneMatch } = kind.words;
+  const onAdd = (row: R, button: number) => kind.onAdd(row, button, extra);
   const query = usePicker((s) => s.query);
   const chip = usePicker((s) => s.chip);
   const added = usePicker((s) => s.added);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gridPlace, gridStep, groupItems } from "./gridKeys";
+import { gridPlace, gridStep } from "./gridKeys";
 
 describe("gridStep", () => {
   // Ten tiles four to a row: 0-3, 4-7, 8-9.
@@ -38,20 +38,5 @@ describe("gridPlace", () => {
 
   it("opens on the first tile when the current item is not offered", () => {
     expect(gridPlace(groups, "z")).toEqual({ group: 0, index: 0 });
-  });
-});
-
-describe("groupItems", () => {
-  it("lists the groups without a section first, then each section's under its heading", () => {
-    const items = groupItems([
-      { key: "stars", label: "stars", section: "From mods" },
-      { key: "pointy", label: "pointy" },
-      { key: "blocky", label: "blocky" },
-    ]);
-    expect(items.map((i) => [i.key, i.group])).toEqual([
-      ["pointy", undefined],
-      ["blocky", undefined],
-      ["stars", "From mods"],
-    ]);
   });
 });

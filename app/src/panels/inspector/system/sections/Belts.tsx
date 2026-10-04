@@ -1,18 +1,16 @@
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import type { Named } from "../../../../generated/Named";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { applyGeometry, useSystemGeometry } from "../../../../store/systemGeometry";
 import type { GeometryIntent } from "../../../../lib/details/orbitIntent";
-import { EditNote, EditRow, PickerField, TextField } from "../../../EditField";
+import { rounded } from "../../../../lib/details/orbits";
+import { useSystemGeometry } from "../../../../store/systemGeometry";
+import { EditRow, PickerField, TextField } from "../../../EditField";
+import { useGeometryEdit } from "../../useGeometryEdit";
 import { LockedRow, Section } from "../../parts";
 
 const KINDS_NEED_GAME_DATA = "Load the game data to change a belt's kind";
 const NO_KINDS: readonly Named[] = [];
-
-function rounded(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 function kindName(kind: string, kinds: readonly Named[]): string {
   return kinds.find((k) => k.key === kind)?.name ?? kind;
@@ -88,23 +86,15 @@ export function BeltSection({ details }: { details: SystemDetails }) {
   const system = details.id;
   const { layout, editing } = useSystemGeometry(system);
   const kinds = useGameDataStore((s) => s.summary?.belt_kinds ?? NO_KINDS);
-  // Where a refusal shows: under the inner radius, or under the belt whose edit it refused.
-  const [refusal, setRefusal] = useState<{ at: "inner" | number; text: string } | null>(null);
+  // A refusal shows under the inner radius, or under the belt whose edit it refused.
+  const { send, note } = useGeometryEdit<"inner" | number>(system);
   const belts = layout.belts;
   const inner = details.inner_radius;
   if (inner === null && belts.length === 0) return null;
   const sender =
     (at: "inner" | number): Send =>
-    (intent) => {
-      setRefusal(null);
-      void applyGeometry(intent, (text) => setRefusal({ at, text }));
-    };
-  const note = (at: "inner" | number) =>
-    refusal?.at === at && (
-      <EditNote>
-        <span className="warn">{refusal.text}</span>
-      </EditNote>
-    );
+    (intent) =>
+      send(intent, at);
   return (
     <Section id="system.belts" title="Belts" count={belts.length}>
       <div className="edit-grid">
