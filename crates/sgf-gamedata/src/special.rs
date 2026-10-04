@@ -204,9 +204,9 @@ pub struct SpecialSystems {
 pub fn classify_session(session: &Session, gd: Option<&GameData>) -> SpecialSystems {
     let present = session
         .details()
-        .map(|details| present_countries(&session.graph, &details))
+        .map(|details| present_countries(session.graph(), &details))
         .unwrap_or_default();
-    classify_with_countries(&session.graph, gd, &present)
+    classify_with_countries(session.graph(), gd, &present)
 }
 
 /// Classify every system of `graph`; `gd` enriches the flag-only rules and

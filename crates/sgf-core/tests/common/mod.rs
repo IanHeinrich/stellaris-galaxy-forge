@@ -88,7 +88,7 @@ pub fn open_3_4() -> Session {
 }
 
 pub fn current(session: &Session) -> Vec<u8> {
-    session.doc.pieces().flatten().copied().collect()
+    session.doc().pieces().flatten().copied().collect()
 }
 
 /// The session's current bytes as text, for a scenario.
@@ -98,7 +98,7 @@ pub fn text(session: &Session) -> String {
 
 /// The projection the session's current bytes would build, with no file involved.
 pub fn reprojected(session: &Session) -> GalaxyGraph {
-    let doc = Document::from_bytes(current(session), session.doc.meta().to_vec())
+    let doc = Document::from_bytes(current(session), session.doc().meta().to_vec())
         .expect("index the current bytes");
     GalaxyGraph::build(&doc).expect("project the current bytes")
 }
@@ -106,24 +106,26 @@ pub fn reprojected(session: &Session) -> GalaxyGraph {
 /// The issues the session's document raised as it was opened.
 pub fn issues_at_open(session: &Session) -> Vec<Issue> {
     static SAMPLE_ISSUES: [OnceLock<Vec<Issue>>; 3] = [const { OnceLock::new() }; 3];
-    let original = session.doc.original();
+    let original = session.doc().original();
     for ((cache, path), issues) in CACHED.into_iter().zip(&SAMPLE_ISSUES) {
         if cache
             .get()
             .is_some_and(|sample| std::ptr::eq(sample.original(), original))
         {
             return issues
-                .get_or_init(|| validate(&open_cached(cache, path).graph))
+                .get_or_init(|| validate(open_cached(cache, path).graph()))
                 .clone();
         }
     }
     let doc = match session.kind() {
-        DocumentKind::Save => Document::from_bytes(original.to_vec(), session.doc.meta().to_vec()),
+        DocumentKind::Save => {
+            Document::from_bytes(original.to_vec(), session.doc().meta().to_vec())
+        }
         DocumentKind::Scenario => Document::from_scenario_bytes(original.to_vec()),
     };
     let opened = Session::from_document(None, doc.expect("index the original bytes"))
         .expect("project the original bytes");
-    validate(&opened.graph)
+    validate(opened.graph())
 }
 
 /// The 4.4 sample with `edit` applied to its gamestate: see [`open_edited_sample`].
@@ -271,7 +273,7 @@ pub fn meta_flag(meta: &[u8]) -> MetaFlag {
 /// The current text of entity `id` of `kind`, as the Source tab shows it.
 #[track_caller]
 pub fn entity_text(session: &Session, kind: EntityKind, id: u32) -> String {
-    get_entity_source(&session.doc, EntityAddr::new(kind, id))
+    get_entity_source(session.doc(), EntityAddr::new(kind, id))
         .unwrap_or_else(|e| panic!("{kind:?} {id}: {e}"))
         .text
 }

@@ -91,7 +91,7 @@ fn a_hand_written_install_lists_its_nebula_names_once_each_in_file_order() {
 fn a_save_names_a_nebula_from_its_pool_first() {
     let (_dir, gd) = install_naming(&[FREE]);
     let session = common::open_4_5();
-    let pool = free_nebula_names(&session.doc);
+    let pool = free_nebula_names(session.doc());
     for seed in 0..20 {
         let name = pick_nebula_name(&session, &gd, seed).expect("a name");
         assert_eq!(pick_pooled_nebula_name(&session, seed), Some(name.clone()));
@@ -103,9 +103,15 @@ fn a_save_names_a_nebula_from_its_pool_first() {
 fn a_spent_pool_falls_back_on_the_install_less_the_names_in_use_then_on_none() {
     let (_dir, gd) = install_naming(&[HELD_4_5, FREE]);
     let session = without_pool();
-    assert!(free_nebula_names(&session.doc).is_empty());
+    assert!(free_nebula_names(session.doc()).is_empty());
     assert_eq!(pick_pooled_nebula_name(&session, 3), None);
-    assert!(session.graph.nebulae.iter().any(|n| n.name.key == HELD_4_5));
+    assert!(
+        session
+            .graph()
+            .nebulae
+            .iter()
+            .any(|n| n.name.key == HELD_4_5)
+    );
     for seed in 0..20 {
         let name = pick_nebula_name(&session, &gd, seed).expect("a name from the install");
         assert!(name == FREE || name == "Fx_Mist", "seed {seed}: {name}");
@@ -139,14 +145,14 @@ fn the_real_install_lists_every_name_the_sample_pool_holds() {
         return;
     };
     let session = common::open_4_5();
-    let pool = free_nebula_names(&session.doc);
+    let pool = free_nebula_names(session.doc());
     assert_eq!(
-        pool.len() + session.graph.nebulae.len(),
+        pool.len() + session.graph().nebulae.len(),
         gd.nebula_names.len()
     );
     for name in pool
         .iter()
-        .chain(session.graph.nebulae.iter().map(|n| &n.name.key))
+        .chain(session.graph().nebulae.iter().map(|n| &n.name.key))
     {
         assert!(gd.nebula_names.contains(name), "{name}");
     }
@@ -181,7 +187,7 @@ fn the_real_installs_star_names_hold_the_sample_pool() {
         return;
     };
     let session = common::open_4_5();
-    let pool = free_star_names(&session.doc);
+    let pool = free_star_names(session.doc());
     assert!(
         pool.iter().all(|name| gd.star_names.contains(name)),
         "the pool is the install's list less the names the galaxy took"
@@ -193,14 +199,14 @@ fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
     let (_dir, gd) = install_with_stars();
     let gd = &gd;
     let session = common::open_4_5();
-    let pool = free_star_names(&session.doc);
+    let pool = free_star_names(session.doc());
     let name = pick_system_name(&session, gd, 5).expect("a name");
     assert!(pool.contains(&name));
 
     let mut session = with_star_pool("");
-    assert!(free_star_names(&session.doc).is_empty());
+    assert!(free_star_names(session.doc()).is_empty());
     let used: Vec<String> = session
-        .graph
+        .graph()
         .systems
         .values()
         .map(|s| s.name.key.clone())
@@ -217,10 +223,10 @@ fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
     session
         .apply(Op::AddSystemFromSpec { spec })
         .expect("the op takes a name the pool lacks");
-    let current: Vec<u8> = session.doc.pieces().flatten().copied().collect();
+    let current: Vec<u8> = session.doc().pieces().flatten().copied().collect();
     assert_eq!(
         star_pool(&current),
-        star_pool(session.doc.original()),
+        star_pool(session.doc().original()),
         "nothing taken from the pool"
     );
     assert_eq!(session.system(601).unwrap().name.key, name);
@@ -236,7 +242,7 @@ fn a_pooled_name_a_system_holds_is_passed_over_and_one_listed_twice_counts_once(
     let gd = &gd;
     let session = with_star_pool("\t\t\"Sgf_Twice\"\n\t\t\"Sgf_Twice\"\n\t\t\"Dristmak\"\n");
     assert_eq!(session.system(0).unwrap().name.key, "Dristmak");
-    assert_eq!(free_star_names(&session.doc).len(), 3);
+    assert_eq!(free_star_names(session.doc()).len(), 3);
     for seed in 0..20 {
         assert_eq!(
             pick_system_name(&session, gd, seed).as_deref(),

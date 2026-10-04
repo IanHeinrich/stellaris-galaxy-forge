@@ -35,7 +35,7 @@ fn synth_session(path: &Path, network: &[u32]) -> Session {
 
 fn pairs(session: &Session) -> Vec<(u32, u32, u32)> {
     session
-        .graph
+        .graph()
         .waylines
         .iter()
         .map(|w| (w.a, w.b, w.network))
@@ -48,7 +48,7 @@ fn a_network_runs_a_wayline_along_each_lane_it_holds() {
     let session = synth_session(&dir.path().join("synth.sav"), &[3, 7, 9]);
 
     let stations: Vec<(u32, u32, u32)> = session
-        .graph
+        .graph()
         .waystations
         .iter()
         .map(|w| (w.system, w.starbase, w.network))
@@ -57,9 +57,9 @@ fn a_network_runs_a_wayline_along_each_lane_it_holds() {
     // 3 and 9 are not linked, so the network runs two segments, not three.
     assert_eq!(pairs(&session), [(3, 7, 0), (7, 9, 0)]);
 
-    let view = GalaxyView::from(&session.graph);
-    assert_eq!(view.waystations, session.graph.waystations);
-    assert_eq!(view.waylines, session.graph.waylines);
+    let view = GalaxyView::from(session.graph());
+    assert_eq!(view.waystations, session.graph().waystations);
+    assert_eq!(view.waylines, session.graph().waylines);
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn a_lane_removed_elsewhere_leaves_the_waylines_out_of_the_delta() {
 
     let stations = [3u32, 7, 9];
     let (a, b) = session
-        .graph
+        .graph()
         .systems
         .values()
         .flat_map(|s| s.lanes.iter().map(move |l| (s.id, l.to)))
@@ -120,9 +120,9 @@ fn a_lane_removed_elsewhere_leaves_the_waylines_out_of_the_delta() {
 #[test]
 fn a_scenario_holds_no_waystations() {
     let session = GRAMMAR.open();
-    assert!(session.graph.waystations.is_empty());
-    assert!(session.graph.waylines.is_empty());
-    let view = GalaxyView::from(&session.graph);
+    assert!(session.graph().waystations.is_empty());
+    assert!(session.graph().waylines.is_empty());
+    let view = GalaxyView::from(session.graph());
     assert!(view.waystations.is_empty());
     assert!(view.waylines.is_empty());
 }
@@ -140,7 +140,7 @@ fn the_real_save_runs_two_segments_in_its_third_network() {
     let session = Session::open(&path).expect("open the real save");
 
     let network: Vec<(u32, u32, u32)> = session
-        .graph
+        .graph()
         .waystations
         .iter()
         .filter(|w| w.network == 2)
@@ -149,7 +149,7 @@ fn the_real_save_runs_two_segments_in_its_third_network() {
     assert_eq!(network, [(20, 71, 2), (236, 73, 2), (577, 72, 2)]);
 
     let waylines: Vec<(u32, u32)> = session
-        .graph
+        .graph()
         .waylines
         .iter()
         .filter(|w| w.network == 2)

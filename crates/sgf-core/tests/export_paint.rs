@@ -73,13 +73,13 @@ galactic_object=",
 /// the capital's initializer.
 fn sample_fallen_empires(save: &Session) -> Vec<(u32, u32, FeKind)> {
     let mut fallen: Vec<(u32, u32, FeKind)> = save
-        .graph
+        .graph()
         .countries
         .iter()
         .filter(|c| c.country_type == "fallen_empire")
         .map(|c| {
             let capital = c.capital_system.expect("a fallen empire's capital");
-            let kind = match save.graph.systems[&capital].initializer.as_str() {
+            let kind = match save.graph().systems[&capital].initializer.as_str() {
                 "fallen_1" => FeKind::Materialist,
                 "fallen_2" => FeKind::Spiritualist,
                 "fallen_machine" => FeKind::Machine,
@@ -193,20 +193,20 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
         reopened,
         ..
     } = painted();
-    let galaxy: &Galaxy = &reopened.graph;
+    let galaxy: &Galaxy = reopened.graph();
     let fallen = sample_fallen_empires(&save);
     assert_eq!(
         fallen.iter().map(|f| f.2).collect::<Vec<_>>(),
         [FeKind::Machine, FeKind::Materialist, FeKind::Spiritualist]
     );
-    assert_eq!(save.graph.systems.keys().max(), Some(&790));
+    assert_eq!(save.graph().systems.keys().max(), Some(&790));
     assert_eq!(report.fallen_empires.len(), 3);
     for (i, ((country, capital, kind), fe)) in fallen.iter().zip(&report.fallen_empires).enumerate()
     {
         assert_eq!(fe.kind, *kind, "{country}");
         assert_eq!(fe.anchor, Some(ANCHORS[i]), "{country}");
         assert!(fe.exact, "{country}");
-        let named = save.graph.countries.iter().find(|c| c.id == *country);
+        let named = save.graph().countries.iter().find(|c| c.id == *country);
         assert_eq!(fe.name, named.unwrap().name_key, "{capital}");
     }
     assert_eq!(
@@ -218,11 +218,11 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
         [11, 5, 13]
     );
 
-    let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, report);
+    let typed = assert_paint_export_holds_together(save.graph(), reopened.graph(), report);
     assert_eq!(typed.keys().copied().collect::<Vec<_>>(), ANCHORS);
-    let missing = left_out(&save.graph, galaxy);
+    let missing = left_out(save.graph(), galaxy);
     let hubs: Vec<u32> = save
-        .graph
+        .graph()
         .systems
         .values()
         .filter(|s| s.initializer.starts_with("ai_system_"))
@@ -234,14 +234,14 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
     }
     for (country, capital, _) in &fallen {
         assert!(missing.contains(capital), "{country}: {capital} is written");
-        for system in save.graph.systems.values() {
+        for system in save.graph().systems.values() {
             if system.owner == Some(*country) {
                 assert!(missing.contains(&system.id), "{country} owns {}", system.id);
             }
         }
     }
     let mut kept_order: Vec<u32> = save
-        .graph
+        .graph()
         .order
         .iter()
         .filter(|id| !missing.contains(id))
@@ -270,7 +270,7 @@ fn each_fallen_empire_is_replaced_by_a_zone_anchored_on_its_capital() {
         let zone = &typed[anchor];
         assert_eq!(zone.distance, 40);
         let centre = fe_zone::centre((system.x, system.y), zone);
-        let old = &save.graph.systems[capital];
+        let old = &save.graph().systems[capital];
         let off = (centre.0 - old.x).hypot(centre.1 - old.y);
         assert!(off < 0.01, "{anchor}: {centre:?} is {off} from {capital}");
     }
@@ -287,8 +287,8 @@ fn each_zone_links_the_systems_that_had_a_lane_into_its_cluster() {
         reopened,
         ..
     } = painted();
-    let galaxy: &Galaxy = &reopened.graph;
-    let missing = left_out(&save.graph, galaxy);
+    let galaxy: &Galaxy = reopened.graph();
+    let missing = left_out(save.graph(), galaxy);
     assert_eq!(
         report
             .fallen_empires
@@ -326,7 +326,7 @@ fn each_zone_links_the_systems_that_had_a_lane_into_its_cluster() {
         );
         for n in &system.fe_link.to {
             assert!(usize::from(*n) < ANCHORS.len(), "{}: {n}", system.id);
-            let old = &save.graph.systems[&system.id];
+            let old = &save.graph().systems[&system.id];
             assert!(
                 old.lanes.iter().any(|lane| missing.contains(&lane.to)),
                 "{} links to {n} but had no lane into a cluster",
@@ -354,20 +354,20 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
         report,
         reopened,
     } = painted();
-    let galaxy: &Galaxy = &reopened.graph;
+    let galaxy: &Galaxy = reopened.graph();
     let player = save
-        .graph
+        .graph()
         .countries
         .iter()
         .find(|c| c.id == 0)
         .and_then(|c| c.capital_system)
         .expect("the capital of country 0");
-    assert_eq!(save.graph.player_country, Some(0));
+    assert_eq!(save.graph().player_country, Some(0));
     assert_eq!(report.player_seat, Some(player));
     assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Sol));
     assert_eq!(player, 217);
     assert!(
-        save.graph
+        save.graph()
             .countries
             .iter()
             .find(|c| c.id == 0)
@@ -420,7 +420,7 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
     assert_eq!(seated_as(PaintSpawnKind::Sol, true), [player]);
     assert_eq!(seated_as(PaintSpawnKind::Enabled, false).len(), 16);
 
-    let issues = sgf_core::validate::validate(&reopened.graph);
+    let issues = sgf_core::validate::validate(reopened.graph());
     assert!(
         !issues
             .iter()
@@ -447,7 +447,7 @@ fn every_home_initializer_on_a_seat_is_replaced_by_a_generic_start() {
     );
     for home in &report.home_initializers {
         assert_eq!(
-            reopened.graph.systems[&home.system].initializer,
+            reopened.graph().systems[&home.system].initializer,
             basic_initializer(home.system)
         );
     }
@@ -457,14 +457,14 @@ fn every_home_initializer_on_a_seat_is_replaced_by_a_generic_start() {
 #[test]
 fn the_export_isolates_no_system_the_save_linked() {
     let Painted { save, reopened, .. } = painted();
-    let issues = sgf_core::validate::validate(&reopened.graph);
+    let issues = sgf_core::validate::validate(reopened.graph());
     let isolated: Vec<u32> = issues
         .iter()
         .filter(|i| i.code == IssueCode::SystemIsolated)
         .flat_map(|i| i.systems.clone())
         .collect();
     let isolated_before: Vec<u32> = save
-        .graph
+        .graph()
         .systems
         .values()
         .filter(|s| s.lanes.is_empty())
@@ -489,9 +489,9 @@ fn sample_without_une_flag() -> Session {
 #[test]
 fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
     let save = sample_without_une_flag();
-    assert_eq!(save.graph.player_country, Some(0));
+    assert_eq!(save.graph().player_country, Some(0));
     assert!(
-        save.graph
+        save.graph()
             .countries
             .iter()
             .find(|c| c.id == 0)
@@ -524,7 +524,7 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
     );
     let reopened = from_scenario_text(text);
     assert_eq!(
-        reopened.graph.systems[&217].spawn_script,
+        reopened.graph().systems[&217].spawn_script,
         Some(SpawnScript::PaintAGalaxy {
             kind: PaintSpawnKind::Preferred,
             random_value: 7,
@@ -532,7 +532,7 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
         })
     );
     // The player's 1st Player seat is held for the host, so 16 are left to the AI.
-    let seats = seat_counts(&reopened.graph);
+    let seats = seat_counts(reopened.graph());
     assert_eq!(
         seats,
         SeatCounts {
@@ -542,7 +542,7 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
         }
     );
     assert_eq!(seats.safe(), 16);
-    let issues = sgf_core::validate::validate(&reopened.graph);
+    let issues = sgf_core::validate::validate(reopened.graph());
     assert!(
         !issues
             .iter()
@@ -554,17 +554,17 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
 #[test]
 fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flags_wormholes() {
     let committed = common::open();
-    let capitals = default_capitals(&committed);
+    let capitals = default_capitals(committed.graph());
     let first = *capitals.first().expect("a playable capital");
-    let neighbour = committed.graph.systems[&first]
+    let neighbour = committed.graph().systems[&first]
         .lanes
         .iter()
         .map(|lane| lane.to)
         .find(|to| !capitals.contains(to))
         .expect("a neighbour that is not a capital");
     let save = sample_without_initializer(neighbour);
-    assert_eq!(save.graph.systems[&neighbour].initializer, "");
-    assert_eq!(default_capitals(&save), capitals);
+    assert_eq!(save.graph().systems[&neighbour].initializer, "");
+    assert_eq!(default_capitals(save.graph()), capitals);
     let (text, report) = exported_as(&save, NAME, ScenarioProfile::PaintAGalaxy);
     let text = String::from_utf8(text).expect("utf-8");
     // Every pair's ends are written, so the comment lines above the mod's own say
@@ -630,11 +630,11 @@ static_galaxy_scenario = {{
     );
 
     let reopened = from_scenario_text(text);
-    let missing = left_out(&save.graph, &reopened.graph);
+    let missing = left_out(save.graph(), reopened.graph());
     assert!(!missing.contains(&neighbour));
     let review: BTreeSet<u32> = report.home_initializers.iter().map(|h| h.system).collect();
     for (i, id) in capitals.iter().enumerate() {
-        let system = &reopened.graph.systems[id];
+        let system = &reopened.graph().systems[id];
         let player = report.player_seat == Some(*id);
         let (kind, random_value) = if player {
             (PaintSpawnKind::Sol, 0)
@@ -651,7 +651,7 @@ static_galaxy_scenario = {{
             "{id}"
         );
         assert!(!system.initializer.is_empty(), "{id}");
-        let expected = match save.graph.systems[id].initializer.as_str() {
+        let expected = match save.graph().systems[id].initializer.as_str() {
             own if own.is_empty() || review.contains(id) || player => {
                 basic_initializer(*id).to_owned()
             }
@@ -660,11 +660,11 @@ static_galaxy_scenario = {{
         assert_eq!(system.initializer, expected, "{id}");
     }
 
-    let near = within(&save.graph, &capitals, 2);
+    let near = within(save.graph(), &capitals, 2);
     let mut filled = 0;
-    for id in save.graph.order.iter().filter(|id| !missing.contains(id)) {
-        let written = &reopened.graph.systems[id];
-        let own = &save.graph.systems[id].initializer;
+    for id in save.graph().order.iter().filter(|id| !missing.contains(id)) {
+        let written = &reopened.graph().systems[id];
+        let own = &save.graph().systems[id].initializer;
         let filler = own.is_empty() && near.contains(id) && !capitals.contains(id);
         assert_eq!(
             written.initializer == "painted_galaxy_rl_basic",
@@ -691,7 +691,7 @@ static_galaxy_scenario = {{
     assert_eq!(filled, 1, "the one blanked neighbour is filled");
 
     let mut pairs = 0;
-    for link in &save.graph.bypasses {
+    for link in &save.graph().bypasses {
         let BypassLink::Wormhole { a, b } = link else {
             continue;
         };
@@ -713,9 +713,9 @@ static_galaxy_scenario = {{
 #[test]
 fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
     let save = common::open();
-    let options = export::options_for(&save.graph, NAME);
+    let options = export::options_for(save.graph(), NAME);
     let (plain, report) = export::scenario_text(
-        &save.graph,
+        save.graph(),
         &options,
         &no_names,
         &no_sources,
@@ -729,7 +729,7 @@ fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
     );
 
     let (paint, report) = export::scenario_text(
-        &save.graph,
+        save.graph(),
         &options,
         &no_names,
         &no_sources,
@@ -750,7 +750,7 @@ fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
         &text[..1200]
     );
     let reopened = from_scenario_text(&paint);
-    let galaxy: &Galaxy = &reopened.graph;
+    let galaxy: &Galaxy = reopened.graph();
     let anchors: BTreeSet<u32> = report
         .fallen_empires
         .iter()
@@ -796,7 +796,7 @@ fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
         !placement::candidates(&placement::sites(galaxy)).is_empty(),
         "the mod's candidates stay available to Fit"
     );
-    let issues = sgf_core::validate::validate(&reopened.graph);
+    let issues = sgf_core::validate::validate(reopened.graph());
     assert!(
         issues
             .iter()
@@ -812,27 +812,26 @@ fn the_paint_a_galaxy_profile_places_only_the_saves_own_fallen_empires() {
 
 #[test]
 fn the_paint_a_galaxy_profile_writes_no_base_weight_on_a_home_that_is_no_capital() {
-    let mut save = common::open();
-    let capitals = default_capitals(&save);
-    let country = save
-        .graph
+    let mut graph = common::open().graph().clone();
+    let capitals = default_capitals(&graph);
+    let country = graph
         .countries
         .iter_mut()
         .find(|c| c.country_type == "default" && c.capital_system.is_some())
         .expect("a playable country with a capital");
     let home = country.capital_system.take().expect("its capital");
     assert!(
-        save.graph.systems[&home]
+        graph.systems[&home]
             .flags
             .iter()
             .any(|f| f == "empire_home_system")
     );
-    assert_eq!(default_capitals(&save).len(), capitals.len() - 1);
+    assert_eq!(default_capitals(&graph).len(), capitals.len() - 1);
 
-    let options = export::options_for(&save.graph, NAME);
+    let options = export::options_for(&graph, NAME);
     assert_eq!(options.num_empires, (0, capitals.len() as u32 - 1));
     let (plain, _) = export::scenario_text(
-        &save.graph,
+        &graph,
         &options,
         &no_names,
         &no_sources,
@@ -846,7 +845,7 @@ fn the_paint_a_galaxy_profile_writes_no_base_weight_on_a_home_that_is_no_capital
     );
 
     let (paint, _) = export::scenario_text(
-        &save.graph,
+        &graph,
         &options,
         &no_names,
         &no_sources,
@@ -865,6 +864,6 @@ fn the_paint_a_galaxy_profile_writes_no_base_weight_on_a_home_that_is_no_capital
         capitals.len() - 1
     );
     let reopened = from_scenario_text(paint);
-    assert_eq!(reopened.graph.systems[&home].spawn_weight, None);
-    assert_eq!(reopened.graph.systems[&home].spawn_script, None);
+    assert_eq!(reopened.graph().systems[&home].spawn_weight, None);
+    assert_eq!(reopened.graph().systems[&home].spawn_script, None);
 }

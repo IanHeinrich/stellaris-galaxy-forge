@@ -240,7 +240,7 @@ const SPECIALS: [Special; 6] = [
 /// `n` places near `at` inside the galaxy, each at least 10 from every system and from
 /// the others.
 fn free_spots(session: &Session, at: &SystemSpec, n: usize) -> Vec<(f64, f64)> {
-    let graph = &session.graph;
+    let graph = session.graph();
     let mut spots: Vec<(f64, f64)> = Vec::new();
     for step in 0..400_u32 {
         let (ring, turn) = (f64::from(step / 12), f64::from(step % 12));
@@ -321,7 +321,7 @@ fn all_of_them_added_and_removed_together_give_back_the_file_as_opened() {
             "remove all",
             Op::RemoveSystems { systems: ids },
         );
-        assert_eq!(current(&session), session.doc.original(), "{id}");
+        assert_eq!(current(&session), session.doc().original(), "{id}");
         session.apply(result.inverse).expect("add them back");
         for (i, (label, special)) in SPECIALS.into_iter().enumerate() {
             let back = session.system(id + i as u32).expect("the system");
@@ -416,8 +416,8 @@ fn a_saved_special_system_reopens_with_its_names_flags_and_modifiers() {
         assert!(star.contains("\t\t\torbit=40\n"), "{star}");
         assert!(!star.contains("\t\t\t\tx=0\n"), "{star}");
 
-        let counts = initializer_counts(&reopened.doc);
-        let opened = initializer_counts(&(sample.open)().doc);
+        let counts = initializer_counts(reopened.doc());
+        let opened = initializer_counts((sample.open)().doc());
         assert_eq!(
             counts.get("trappist_initializer"),
             opened.get("trappist_initializer").map(|n| n + 1).as_ref()
@@ -467,7 +467,7 @@ fn a_fixed_name_moon_takes_no_letter_and_an_entity_override_alone_is_66() {
 fn two_capped_systems_of_one_layout_each_count_and_uncount_one() {
     for sample in &SAMPLES {
         let (mut session, at, id) = opened(sample);
-        let opened = initializer_counts(&session.doc);
+        let opened = initializer_counts(session.doc());
         let before = opened.get("trappist_initializer").copied().unwrap_or(0);
         let spots = free_spots(&session, &at, 2);
         for (i, &(x, y)) in spots.iter().enumerate() {
@@ -479,7 +479,7 @@ fn two_capped_systems_of_one_layout_each_count_and_uncount_one() {
             };
             round_trip_step(&mut session, "add", add(spec));
         }
-        let count = |session: &Session| initializer_counts(&session.doc)["trappist_initializer"];
+        let count = |session: &Session| initializer_counts(session.doc())["trappist_initializer"];
         assert_eq!(count(&session), before + 2);
         let result = round_trip_step(&mut session, "remove one", Op::RemoveSystem { system: id });
         assert_eq!(count(&session), before + 1);
@@ -492,8 +492,8 @@ fn two_capped_systems_of_one_layout_each_count_and_uncount_one() {
             "remove the other",
             Op::RemoveSystem { system: id },
         );
-        assert_eq!(initializer_counts(&session.doc), opened);
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(initializer_counts(session.doc()), opened);
+        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -556,10 +556,10 @@ fn a_layout_added_capped_and_uncapped_in_one_session_is_refused() {
 fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
     for sample in &SAMPLES {
         let (mut session, at, id) = opened(sample);
-        let opened = initializer_counts(&session.doc);
+        let opened = initializer_counts(session.doc());
         assert!(!opened.is_empty());
         session.apply(add(black_hole(&at))).expect("add");
-        assert_eq!(initializer_counts(&session.doc), opened, "special_init_01");
+        assert_eq!(initializer_counts(session.doc()), opened, "special_init_01");
         session
             .apply(Op::RemoveSystem { system: id })
             .expect("remove");
@@ -571,7 +571,7 @@ fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
             spec.name = format!("Sgf_Refuge_{i}");
             session.apply(add(spec)).expect("add");
             changed.insert("unique_system_initializer_02".to_owned(), i as u32 + 1);
-            assert_eq!(initializer_counts(&session.doc), changed);
+            assert_eq!(initializer_counts(session.doc()), changed);
         }
         let text = text(&session);
         let counter = &text[text.find("\nsystem_initializer_counter=").unwrap()..];
@@ -585,12 +585,12 @@ fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
             .apply(Op::RemoveSystem { system: id })
             .expect("remove one");
         changed.insert("unique_system_initializer_02".to_owned(), 1);
-        assert_eq!(initializer_counts(&session.doc), changed);
+        assert_eq!(initializer_counts(session.doc()), changed);
         session
             .apply(Op::RemoveSystem { system: id })
             .expect("remove the other");
-        assert_eq!(initializer_counts(&session.doc), opened);
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(initializer_counts(session.doc()), opened);
+        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -604,7 +604,7 @@ fn each_special_layout_reads_back_exactly_for_a_reroll_and_a_removal() {
             let spec = special(&at);
             round_trip_step(&mut session, "add", add(spec.clone()));
             let added = current(&session);
-            let counted = initializer_counts(&session.doc);
+            let counted = initializer_counts(session.doc());
             let plain = SystemSpec {
                 name: spec.name.clone(),
                 ..rerolled(at.clone())
@@ -646,9 +646,17 @@ fn each_special_layout_reads_back_exactly_for_a_reroll_and_a_removal() {
                 })
                 .expect("reroll as itself");
             assert_eq!(current(&session), added, "{}: as itself", spec.initializer);
-            assert_eq!(initializer_counts(&session.doc), counted, "{label} on {id}");
+            assert_eq!(
+                initializer_counts(session.doc()),
+                counted,
+                "{label} on {id}"
+            );
             let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
-            assert_eq!(current(&session), session.doc.original(), "{label} on {id}");
+            assert_eq!(
+                current(&session),
+                session.doc().original(),
+                "{label} on {id}"
+            );
             assert_eq!(result.inverse, add(special(&at)), "{label} on {id}");
         }
     }
@@ -665,7 +673,7 @@ fn a_fixed_system_name_outside_the_pool_takes_nothing_from_it() {
             text[start..start + 200_000].to_owned()
         };
         session.apply(add(trappist(&at))).expect("add");
-        assert_eq!(pool(&current(&session)), pool(session.doc.original()));
+        assert_eq!(pool(&current(&session)), pool(session.doc().original()));
     }
 }
 
@@ -716,7 +724,7 @@ fn a_rename_leaves_fixed_names_alone_and_renames_a_star_named_by_class() {
         assert!(spec.star_named_by_class && spec.capped);
         assert_eq!(spec.name, "Sgf_Trappist");
         while session.undo().expect("undo").is_some() {}
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -767,7 +775,7 @@ fn what_the_op_refuses_of_the_new_fields() {
         edit(&mut spec);
         let mut session = open();
         let error = session.apply(add(spec.clone())).expect_err("refused");
-        assert!(!session.doc.is_dirty(), "{error}");
+        assert!(!session.doc().is_dirty(), "{error}");
         assert!(expected(&error), "{spec:?}: {error:?}");
     }
 }
@@ -789,13 +797,13 @@ fn a_save_without_a_counter_refuses_only_a_capped_layout() {
     let at = dorellion();
     round_trip(without(), add(black_hole(&at)));
     let mut session = without();
-    assert!(initializer_counts(&session.doc).is_empty());
+    assert!(initializer_counts(session.doc()).is_empty());
     let error = session.apply(add(trappist(&at))).expect_err("refused");
     assert!(matches!(
         error,
         OpError::MissingKey("system_initializer_counter")
     ));
-    assert_eq!(BTreeMap::new(), initializer_counts(&session.doc));
+    assert_eq!(BTreeMap::new(), initializer_counts(session.doc()));
 }
 
 /// System `id`'s `galactic_object` entry as `text` holds it.
@@ -835,7 +843,7 @@ fn a_unique_system_carries_its_flag_dated_day_one_as_the_games_own_do() {
         format!("\t\tflags=\n\t\t{{\n\t\t\tunique_system={game_started}\n\t\t}}\n")
     );
     let kira = session
-        .graph
+        .graph()
         .systems
         .values()
         .find(|s| s.initializer == "oasis_system")

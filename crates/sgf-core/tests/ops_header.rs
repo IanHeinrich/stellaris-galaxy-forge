@@ -19,7 +19,7 @@ fn set(key: &str, value: Option<&str>) -> Op {
 
 /// The key as the rebuilt index now reads it.
 fn field(session: &Session, key: &str) -> Option<String> {
-    let header = &session.doc.scenario().expect("a scenario").header;
+    let header = &session.doc().scenario().expect("a scenario").header;
     Some(header.get(key)?.field.value.clone())
 }
 
@@ -79,7 +79,7 @@ fn the_rebuilt_header_reads_back_what_the_op_wrote() {
         .apply(set("core_radius", Some("25")))
         .expect("set a scalar");
     assert_eq!(field(&session, "core_radius").as_deref(), Some("25"));
-    assert_eq!(session.graph.core_radius, 25.0);
+    assert_eq!(session.graph().core_radius, 25.0);
     let delta = session.edit_result(result).delta;
     assert!(delta.systems.is_empty() && delta.nebulae.is_none());
     let header = delta
@@ -150,7 +150,7 @@ fn an_edited_header_survives_a_save_and_reopen() {
     assert_eq!(reopened.title(), "Renamed Scenario");
     assert_eq!(field(&reopened, "nomad_empire_max").as_deref(), Some("2"));
     assert_eq!(field(&reopened, "supports_shape"), None);
-    assert_eq!(reopened.graph.order, session.graph.order);
+    assert_eq!(reopened.graph().order, session.graph().order);
 }
 
 #[test]
@@ -239,8 +239,8 @@ fn a_key_that_names_an_entity_statement_is_refused() {
             "{key}: {error:?}"
         );
     }
-    assert_eq!(session.graph.nebulae.len(), 2);
-    assert_eq!(session.graph.systems.len(), 8);
+    assert_eq!(session.graph().nebulae.len(), 2);
+    assert_eq!(session.graph().systems.len(), 8);
     assert!(!session.is_dirty());
 }
 

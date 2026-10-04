@@ -111,13 +111,18 @@ fn huge_scenario_text() -> String {
 }
 
 fn next_id(session: &Session) -> u32 {
-    session.graph.systems.keys().max().map_or(1, |max| max + 1)
+    session
+        .graph()
+        .systems
+        .keys()
+        .max()
+        .map_or(1, |max| max + 1)
 }
 
 /// What the app receives after an edit, built and serialised piece by piece.
 fn report_edit(session: &Session, label: &str, applied: Duration, result: OpResult) {
     let start = Instant::now();
-    let issues = sgf_core::validate::validate(&session.graph);
+    let issues = sgf_core::validate::validate(session.graph());
     let validate_time = start.elapsed();
     let start = Instant::now();
     let history = session.history();
@@ -147,7 +152,7 @@ fn report_edit(session: &Session, label: &str, applied: Duration, result: OpResu
 
 fn paint_and_undo(session: &mut Session, label: &str, origin: (f64, f64)) {
     let before = current(session);
-    let systems_before = session.graph.systems.len();
+    let systems_before = session.graph().systems.len();
     let (systems, lanes) = grid(next_id(session), origin, PAINT_COLS, PAINT_ROWS);
     let op = paint(systems, lanes);
     println!("{label}: paint op JSON {} B", to_json(&op).len());
@@ -159,7 +164,7 @@ fn paint_and_undo(session: &mut Session, label: &str, origin: (f64, f64)) {
         painted.entry.description,
         "Painted 300 systems and 565 lanes"
     );
-    assert_eq!(session.graph.systems.len(), systems_before + 300);
+    assert_eq!(session.graph().systems.len(), systems_before + 300);
     report_edit(session, "paint", apply_time, painted);
 
     let start = Instant::now();
@@ -167,12 +172,12 @@ fn paint_and_undo(session: &mut Session, label: &str, origin: (f64, f64)) {
     let undo_time = start.elapsed();
     report_edit(session, "paint undo", undo_time, undone);
     assert_eq!(current(session), before, "undo is not byte-identical");
-    assert_eq!(session.graph.systems.len(), systems_before);
+    assert_eq!(session.graph().systems.len(), systems_before);
 }
 
 fn delete_all_and_undo(session: &mut Session) {
     let before = current(session);
-    let mut ids: Vec<u32> = session.graph.systems.keys().copied().collect();
+    let mut ids: Vec<u32> = session.graph().systems.keys().copied().collect();
     ids.sort_unstable();
     let count = ids.len();
     let op = Op::Batch {
@@ -184,7 +189,7 @@ fn delete_all_and_undo(session: &mut Session) {
     let start = Instant::now();
     let removed = session.apply(op).expect("delete all");
     let apply_time = start.elapsed();
-    assert_eq!(session.graph.systems.len(), 0);
+    assert_eq!(session.graph().systems.len(), 0);
     report_edit(session, "delete all", apply_time, removed);
 
     let start = Instant::now();
@@ -192,7 +197,7 @@ fn delete_all_and_undo(session: &mut Session) {
     let undo_time = start.elapsed();
     report_edit(session, "delete all undo", undo_time, undone);
     assert_eq!(current(session), before, "undo is not byte-identical");
-    assert_eq!(session.graph.systems.len(), count);
+    assert_eq!(session.graph().systems.len(), count);
 }
 
 fn open_timed(path: &Path, label: &str) -> Session {
@@ -202,7 +207,7 @@ fn open_timed(path: &Path, label: &str) -> Session {
     println!(
         "{label}: open {:?} ({size} B, {} systems)",
         start.elapsed(),
-        session.graph.systems.len()
+        session.graph().systems.len()
     );
     session
 }
@@ -225,8 +230,13 @@ fn huge_scenario_edit_timings() {
     std::fs::write(&path, huge_scenario_text()).expect("write the huge scenario");
     let mut session = open_timed(&path, "huge scenario");
     let grid = (GRID_COLS * GRID_ROWS) as usize;
-    assert_eq!(session.graph.systems.len(), grid);
-    let lane_ends: usize = session.graph.systems.values().map(|s| s.lanes.len()).sum();
+    assert_eq!(session.graph().systems.len(), grid);
+    let lane_ends: usize = session
+        .graph()
+        .systems
+        .values()
+        .map(|s| s.lanes.len())
+        .sum();
     assert_eq!(
         lane_ends,
         2 * ((GRID_COLS - 1) * GRID_ROWS + GRID_COLS * (GRID_ROWS - 1)) as usize
@@ -258,7 +268,7 @@ fn huge_scenario_edit_timings() {
         start.elapsed()
     );
     assert_eq!(
-        session.graph.systems.len(),
+        session.graph().systems.len(),
         grid + (SMALL_EDITS * SMALL_EDIT_SYSTEMS) as usize
     );
     assert_eq!(session.history().undo.len(), SMALL_EDITS as usize);

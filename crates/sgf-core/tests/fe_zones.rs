@@ -21,7 +21,7 @@ use common::paint::PREFERRED_FLAG;
 fn open_with_automatic_9() -> Session {
     let session = PAINTED.open_edited(&[(PREFERRED_FLAG, "")]);
     assert!(
-        !session.graph.systems[&9]
+        !session.graph().systems[&9]
             .fe_zone
             .as_ref()
             .unwrap()
@@ -278,7 +278,7 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 #[test]
 fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_ones() {
     let session = PAINTED.open();
-    let sites = placement::sites(&session.graph);
+    let sites = placement::sites(session.graph());
     assert_eq!(placement::candidate_count(&sites), 9);
     let entries = placement::fit(&sites, usize::MAX);
     assert_eq!(entries.len(), 9);
@@ -292,7 +292,7 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     snapshot_step(&mut PAINTED.open(), "recompute", fe_zones(entries.clone()));
 
     let session = open_with_automatic_9();
-    let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
+    let entries = placement::fit(&placement::sites(session.graph()), usize::MAX);
     assert_eq!(
         entries.iter().find(|(id, _)| *id == 9),
         Some(&(9, Some(automatic(FeDirection::E)))),
@@ -302,10 +302,10 @@ fn fitting_every_candidate_keeps_the_placed_zones_and_replaces_the_automatic_one
     assert!(entries.iter().all(|(id, _)| *id != 12));
 
     let mut session = PAINTED.open();
-    let entries = placement::fit(&placement::sites(&session.graph), usize::MAX);
+    let entries = placement::fit(&placement::sites(session.graph()), usize::MAX);
     session.apply(fe_zones(entries)).expect("fit applies");
     assert!(
-        placement::fit(&placement::sites(&session.graph), usize::MAX).is_empty(),
+        placement::fit(&placement::sites(session.graph()), usize::MAX).is_empty(),
         "a second pass has nothing left to change"
     );
 }
@@ -315,17 +315,17 @@ fn fitting_a_count_spreads_that_many_candidates_away_from_the_placed_zones() {
     let mut session = PAINTED.open();
     session
         .apply(fe_zones(placement::fit(
-            &placement::sites(&session.graph),
+            &placement::sites(session.graph()),
             usize::MAX,
         )))
         .expect("fill the map with automatic zones");
-    let sites = placement::sites(&session.graph);
+    let sites = placement::sites(session.graph());
     let cleared = placement::fit(&sites, 0);
     assert_eq!(cleared.len(), 9, "{cleared:?}");
     assert!(cleared.iter().all(|(_, zone)| zone.is_none()));
 
     let session = PAINTED.open();
-    let sites = placement::sites(&session.graph);
+    let sites = placement::sites(session.graph());
     let two = placement::fit(&sites, 2);
     assert_eq!(two, placement::fit(&sites, 2), "deterministic");
     assert_eq!(two.len(), 2, "{two:?}");
@@ -383,7 +383,7 @@ fn rounded((x, y): (f64, f64)) -> (f64, f64) {
 #[test]
 fn each_zone_reads_back_with_its_centre() {
     let session = PAINTED.open();
-    let systems = &session.graph.systems;
+    let systems = &session.graph().systems;
     let old_seat = zone(FeDirection::N, FeKind::Random, 40, true);
     assert_eq!(systems[&9].fe_zone, Some(old_seat.clone()));
     let high_seat = FeZone {
@@ -405,7 +405,7 @@ fn each_zone_reads_back_with_its_centre() {
     );
 
     let save = common::open();
-    assert!(save.graph.systems.values().all(|s| s.fe_zone.is_none()));
+    assert!(save.graph().systems.values().all(|s| s.fe_zone.is_none()));
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn a_zone_is_written_at_the_end_of_the_effect_and_the_other_flags_stay() {
     for (name, id, zone, written) in cases {
         let mut session = PAINTED.open();
         snapshot_step(&mut session, name, set_zone(id, zone.clone()));
-        assert_eq!(session.graph.systems[&id].fe_zone, zone, "{name}");
+        assert_eq!(session.graph().systems[&id].fe_zone, zone, "{name}");
         assert!(
             common::text(&session).contains(written),
             "{name}: {}",
@@ -582,7 +582,7 @@ fn a_custom_connection_flag_survives_a_removal_on_its_own_line() {
 ";
     let mut session = from_scenario_text(multi_line);
     assert_eq!(
-        session.graph.systems[&7].fe_zone,
+        session.graph().systems[&7].fe_zone,
         Some(zone(FeDirection::W, FeKind::Random, 50, false))
     );
     session.apply(set_zone(7, None)).expect("remove 7");

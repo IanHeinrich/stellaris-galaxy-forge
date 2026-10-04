@@ -86,7 +86,7 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
             .apply(reroll(first, rerolled(spike)))
             .expect("reroll again");
         round_trip_step(session, "remove", Op::RemoveSystem { system: first });
-        assert_eq!(current(session), session.doc.original(), "{first}");
+        assert_eq!(current(session), session.doc().original(), "{first}");
     }
 }
 
@@ -118,7 +118,7 @@ fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
         assert_eq!(planet_ids(session, last), third_planets);
 
         let reopened = common::reopened(session);
-        let ids: BTreeSet<u32> = reopened.graph.systems.keys().copied().collect();
+        let ids: BTreeSet<u32> = reopened.graph().systems.keys().copied().collect();
         assert_eq!(ids, (0..=last).collect(), "{first}: dense ids");
         let system = reopened.system(middle).expect("the middle, reopened");
         assert_eq!(system.star_class, "sc_m");
@@ -218,12 +218,12 @@ fn deposits_added_to_its_planets_later_leave_with_them() {
         let with_deposit = current(session);
         round_trip_step(session, "reroll", reroll(first, rerolled(spike.clone())));
         round_trip_step(session, "remove", Op::RemoveSystem { system: first });
-        assert_eq!(current(session), session.doc.original(), "{first}");
+        assert_eq!(current(session), session.doc().original(), "{first}");
         session.undo().expect("undo").expect("the removal");
         session.undo().expect("undo").expect("the reroll");
         assert_eq!(current(session), with_deposit);
         round_trip_step(session, "remove", Op::RemoveSystem { system: first });
-        assert_eq!(current(session), session.doc.original(), "{first}");
+        assert_eq!(current(session), session.doc().original(), "{first}");
     }
 }
 
@@ -233,7 +233,7 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
     let (mut session, spike) = ((sample.open)(), (sample.spike)());
     let first = sample.id;
     let session = &mut session;
-    let other = sgf_core::ops::free_star_names(&session.doc)
+    let other = sgf_core::ops::free_star_names(session.doc())
         .into_iter()
         .find(|name| *name != spike.name)
         .expect("a free name");
@@ -252,7 +252,7 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
     session
         .apply(Op::RemoveSystem { system: first })
         .expect("remove");
-    assert_eq!(current(session), session.doc.original());
+    assert_eq!(current(session), session.doc().original());
 }
 
 #[test]
@@ -317,22 +317,27 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
     let (mut session, spike) = ((sample.open)(), (sample.spike)());
     let (first, home) = (sample.id, sample.near[0]);
     let session = &mut session;
-    assert!(added_ids(&GalaxyView::from(&session.graph)).is_empty());
+    assert!(added_ids(&GalaxyView::from(session.graph())).is_empty());
 
     let result = session.apply(add(spike.clone())).expect("add");
     let delta = session.edit_result(result).delta;
     let sent: Vec<(u32, bool)> = delta.systems.iter().map(|s| (s.id, s.added)).collect();
     assert!(sent.contains(&(first, true)), "{sent:?}");
     assert!(sent.iter().all(|&(id, added)| added == (id == first)));
-    let detail = SystemDetail::of(&session.graph, first).expect("the detail");
+    let detail = SystemDetail::of(session.graph(), first).expect("the detail");
     assert!(detail.system.added);
-    assert!(!SystemDetail::of(&session.graph, home).unwrap().system.added);
+    assert!(
+        !SystemDetail::of(session.graph(), home)
+            .unwrap()
+            .system
+            .added
+    );
 
     session
         .apply(add(small("Tau_Ceti", sample.spots[0], vec![home])))
         .expect("add a second");
     assert_eq!(
-        added_ids(&GalaxyView::from(&session.graph)),
+        added_ids(&GalaxyView::from(session.graph())),
         [first, first + 1]
     );
     let removed = session
@@ -344,18 +349,18 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
     );
     let moved = session.system(first).expect("the second, renumbered");
     assert_eq!((moved.name.key.as_str(), moved.added), ("Tau_Ceti", true));
-    assert_eq!(added_ids(&GalaxyView::from(&session.graph)), [first]);
+    assert_eq!(added_ids(&GalaxyView::from(session.graph())), [first]);
 
     session.undo().expect("undo").expect("the removal");
     assert_eq!(
-        added_ids(&GalaxyView::from(&session.graph)),
+        added_ids(&GalaxyView::from(session.graph())),
         [first, first + 1]
     );
     session.undo().expect("undo").expect("the second add");
     session.undo().expect("undo").expect("the first add");
-    assert!(added_ids(&GalaxyView::from(&session.graph)).is_empty());
+    assert!(added_ids(&GalaxyView::from(session.graph())).is_empty());
     session.redo().expect("redo").expect("the first add");
-    assert_eq!(added_ids(&GalaxyView::from(&session.graph)), [first]);
+    assert_eq!(added_ids(&GalaxyView::from(session.graph())), [first]);
 
     let mut scenario = examples::scenario();
     scenario
@@ -369,5 +374,5 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
             spawn_script: None,
         })
         .expect("a scenario system");
-    assert!(added_ids(&GalaxyView::from(&scenario.graph)).is_empty());
+    assert!(added_ids(&GalaxyView::from(scenario.graph())).is_empty());
 }

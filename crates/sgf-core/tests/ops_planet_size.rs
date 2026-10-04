@@ -89,7 +89,7 @@ fn a_batch_of_a_star_class_and_its_bodys_size_is_one_step() {
     assert_eq!(session.history().undo.len(), 1);
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert_eq!(planet_size(&session, 1, 748), Some(25));
 }
 
@@ -158,7 +158,7 @@ fn a_star_bodys_new_size_reaches_the_map() {
     let size_of = |system: &sgf_core::projections::galaxy::SystemNode| {
         system.bodies.as_ref().expect("the system's bodies")[1].size
     };
-    assert_eq!(size_of(&session.graph.systems[&5]), Some(20));
+    assert_eq!(size_of(&session.graph().systems[&5]), Some(20));
     let result = session.apply(set(619, 31)).expect("grow the second star");
     let edit = session.edit_result(result);
     let sent = edit

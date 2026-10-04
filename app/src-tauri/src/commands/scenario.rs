@@ -66,7 +66,7 @@ pub async fn get_scenario_bypasses<R: Runtime>(
                 with_game_data: false,
             },
         };
-        add_flagged_pairs(&mut bypasses, &session.graph.bypasses);
+        add_flagged_pairs(&mut bypasses, &session.graph().bypasses);
         Ok(Some(bypasses))
     })
     .await

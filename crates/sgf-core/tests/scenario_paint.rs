@@ -52,7 +52,7 @@ fn saving_an_untouched_painted_scenario_is_byte_identical() {
 #[test]
 fn each_scripted_spawn_reads_as_its_kind_and_random_value() {
     let session = PAINTED.open();
-    let systems = &session.graph.systems;
+    let systems = &session.graph().systems;
     assert_eq!(systems[&0].spawn_script, script(PaintSpawnKind::Enabled, 3));
     assert_eq!(
         systems[&1].spawn_script,
@@ -69,20 +69,20 @@ fn each_scripted_spawn_reads_as_its_kind_and_random_value() {
     }
     assert_eq!(systems[&3].initializer, "sol_system_initializer");
     assert_eq!(systems[&5].initializer, "painted_galaxy_rl_basic");
-    assert_eq!(session.graph.nebulae.len(), 2);
+    assert_eq!(session.graph().nebulae.len(), 2);
     assert_eq!(session.title(), "Painted Reach");
 
     let plain = GRAMMAR.open();
     assert!(
         plain
-            .graph
+            .graph()
             .systems
             .values()
             .all(|system| system.spawn_script.is_none())
     );
     let save = common::open();
     assert!(
-        save.graph
+        save.graph()
             .systems
             .values()
             .all(|system| system.spawn_script.is_none())
@@ -100,8 +100,8 @@ fn each_kind_rewrites_the_weight_of_a_scripted_system_whole() {
         let mut session = PAINTED.open();
         let written = script(kind, random_value);
         snapshot_step(&mut session, name, set(id, written.clone()));
-        assert_eq!(session.graph.systems[&id].spawn_script, written);
-        assert_eq!(session.graph.systems[&id].spawn_weight, Some(0.0));
+        assert_eq!(session.graph().systems[&id].spawn_script, written);
+        assert_eq!(session.graph().systems[&id].spawn_weight, Some(0.0));
     }
     // A reserved seat varies over three values, so the value written is the residue.
     let mut session = PAINTED.open();
@@ -109,7 +109,7 @@ fn each_kind_rewrites_the_weight_of_a_scripted_system_whole() {
         .apply(set(1, script(reserved("c"), 7)))
         .expect("reserve");
     assert_eq!(
-        session.graph.systems[&1].spawn_script,
+        session.graph().systems[&1].spawn_script,
         script(reserved("c"), 1)
     );
 }
@@ -121,8 +121,8 @@ fn each_kind_rewrites_the_weight_of_a_scripted_system_whole() {
 fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     let mut session = PAINTED.open();
     snapshot_step(&mut session, "script_1_player", set(1, player(1)));
-    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
-    assert_eq!(session.graph.systems[&1].spawn_weight, Some(0.0));
+    assert_eq!(session.graph().systems[&1].spawn_script, player(1));
+    assert_eq!(session.graph().systems[&1].spawn_weight, Some(0.0));
     assert!(common::text(&session).contains(
         "name = \"Beta\" initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| modifier = { add = 100000 has_country_flag = painted_galaxy_host } } }"
     ));
@@ -131,7 +131,7 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
         .apply(set(1, script(PaintSpawnKind::Enabled, 4)))
         .expect("replace the player's seat");
     assert_eq!(
-        session.graph.systems[&1].spawn_script,
+        session.graph().systems[&1].spawn_script,
         script(PaintSpawnKind::Enabled, 4)
     );
     assert!(!common::text(&session).contains("100000"));
@@ -139,7 +139,7 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
     session
         .apply(set(1, None))
         .expect("clear the player's seat");
-    assert_eq!(session.graph.systems[&1].spawn_script, None);
+    assert_eq!(session.graph().systems[&1].spawn_script, None);
     assert!(
         common::text(&session).contains("name = \"Beta\" initializer = random_empire_init_02 }")
     );
@@ -151,11 +151,11 @@ fn the_players_seat_carries_its_marker_and_is_rewritten_whole() {
             base: None,
         })
         .expect("clear the weight of the player's seat");
-    assert_eq!(session.graph.systems[&1].spawn_script, None);
-    assert_eq!(session.graph.systems[&1].spawn_weight, None);
+    assert_eq!(session.graph().systems[&1].spawn_script, None);
+    assert_eq!(session.graph().systems[&1].spawn_weight, None);
     assert_eq!(result.inverse, set(1, player(1)));
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
+    assert_eq!(session.graph().systems[&1].spawn_script, player(1));
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(common::current(&session), PAINTED.bytes());
 }
@@ -172,7 +172,7 @@ fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none
         set(1, seat(PaintSpawnKind::Sol, 0)),
     );
     assert_eq!(
-        session.graph.systems[&1].spawn_script,
+        session.graph().systems[&1].spawn_script,
         seat(PaintSpawnKind::Sol, 0)
     );
     assert!(common::text(&session).contains(
@@ -192,7 +192,7 @@ fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none
         set(1, seat(reserved("a"), 2)),
     );
     assert_eq!(
-        session.graph.systems[&1].spawn_script,
+        session.graph().systems[&1].spawn_script,
         seat(reserved("a"), 2)
     );
     assert!(common::text(&session).contains(
@@ -232,7 +232,7 @@ fn a_system_without_an_initializer_is_given_the_basic_one_before_its_weight() {
     let result = session
         .apply(set(10, script(PaintSpawnKind::Enabled, 0)))
         .expect("script");
-    let system = &session.graph.systems[&10];
+    let system = &session.graph().systems[&10];
     assert_eq!(system.initializer, "random_empire_init_05");
     assert_eq!(system.spawn_script, script(PaintSpawnKind::Enabled, 0));
     assert!(common::text(&session).contains(
@@ -243,7 +243,7 @@ fn a_system_without_an_initializer_is_given_the_basic_one_before_its_weight() {
 
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(common::current(&session), PAINTED.bytes());
-    assert_eq!(session.graph.systems[&10].initializer, "");
+    assert_eq!(session.graph().systems[&10].initializer, "");
     round_trip(
         PAINTED.open(),
         set(11, script(PaintSpawnKind::Preferred, 1)),
@@ -308,7 +308,7 @@ fn a_custom_initializer_and_the_effect_beside_it_are_kept() {
     let result = session
         .apply(set(4, script(reserved("b"), 2)))
         .expect("script");
-    let system = &session.graph.systems[&4];
+    let system = &session.graph().systems[&4];
     assert_eq!(system.initializer, "custom_starting_init_01");
     assert_eq!(system.spawn_script, script(reserved("b"), 2));
     assert_eq!(session.scenario_system_effect(4), Some(effect));
@@ -326,7 +326,7 @@ fn a_custom_initializer_and_the_effect_beside_it_are_kept() {
         .expect("script the anchor");
     assert_eq!(session.scenario_system_effect(9), Some(anchor));
     assert_eq!(
-        session.graph.systems[&9].initializer,
+        session.graph().systems[&9].initializer,
         "random_empire_init_04"
     );
     assert!(common::text(&session).contains(
@@ -342,7 +342,7 @@ fn a_custom_initializer_and_the_effect_beside_it_are_kept() {
 fn clearing_removes_the_weight_statement_and_nothing_else() {
     let mut session = PAINTED.open();
     snapshot_step(&mut session, "clear_3", set(3, None));
-    let system = &session.graph.systems[&3];
+    let system = &session.graph().systems[&3];
     assert_eq!(system.spawn_script, None);
     assert_eq!(system.spawn_weight, None);
     assert_eq!(system.initializer, "sol_system_initializer");
@@ -420,7 +420,7 @@ fn a_reserved_seat_takes_a_greek_name() {
         "Made Beta #1 a Paint a Galaxy spawn (reserved omega, the player's seat)"
     );
     assert_eq!(
-        session.graph.systems[&1].spawn_script,
+        session.graph().systems[&1].spawn_script,
         seat(reserved("omega"), 2)
     );
     assert!(common::text(&session).contains(
@@ -428,7 +428,7 @@ fn a_reserved_seat_takes_a_greek_name() {
     ));
     let reread = from_scenario_text(common::current(&session));
     assert_eq!(
-        reread.graph.systems[&1].spawn_script,
+        reread.graph().systems[&1].spawn_script,
         seat(reserved("omega"), 2)
     );
     session.undo().expect("undo").expect("an op to undo");
@@ -443,7 +443,7 @@ fn a_first_player_marker_without_the_host_flag_is_still_the_players_seat() {
     let mut session =
         PAINTED.open_edited(&[("PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|1| }", legacy)]);
     let original = common::current(&session);
-    assert_eq!(session.graph.systems[&1].spawn_script, player(1));
+    assert_eq!(session.graph().systems[&1].spawn_script, player(1));
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("legacy.txt");
@@ -502,7 +502,7 @@ fn a_scripted_seat_with_a_modifier_beside_it_is_neither_cleared_nor_written_over
 ";
     let mut session = from_scenario_text(text);
     assert_eq!(
-        session.graph.systems[&7].spawn_script,
+        session.graph().systems[&7].spawn_script,
         script(PaintSpawnKind::Enabled, 7)
     );
     let error = session.apply(set(7, None)).expect_err("clear");
@@ -567,8 +567,8 @@ fn a_plain_weight_with_the_markers_shape_is_still_a_block_of_modifiers() {
 }
 ";
     let mut session = from_scenario_text(text);
-    assert_eq!(session.graph.systems[&7].spawn_script, None);
-    assert_eq!(session.graph.systems[&7].spawn_weight, Some(10.0));
+    assert_eq!(session.graph().systems[&7].spawn_script, None);
+    assert_eq!(session.graph().systems[&7].spawn_weight, Some(10.0));
     let error = session.apply(set(7, player(7))).expect_err("seat");
     assert!(
         matches!(
@@ -614,7 +614,7 @@ fn a_marker_of_another_kinds_shape_is_neither_read_nor_rewritten() {
 ";
     let mut session = from_scenario_text(text);
     assert_eq!(
-        session.graph.systems[&7].spawn_script,
+        session.graph().systems[&7].spawn_script,
         script(PaintSpawnKind::Sol, 0)
     );
     for op in [
@@ -657,7 +657,7 @@ fn the_players_marker_beside_a_foreign_modifier_is_neither_read_nor_rewritten() 
 ";
     let mut session = from_scenario_text(text);
     assert_eq!(
-        session.graph.systems[&7].spawn_script,
+        session.graph().systems[&7].spawn_script,
         script(PaintSpawnKind::Preferred, 7)
     );
     for op in [
@@ -695,7 +695,7 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
             base: None,
         },
     );
-    let system = &session.graph.systems[&2];
+    let system = &session.graph().systems[&2];
     assert_eq!(system.spawn_script, None);
     assert_eq!(system.spawn_weight, None);
 
@@ -704,7 +704,7 @@ fn clearing_the_plain_weight_of_a_scripted_system_removes_its_block() {
     assert_eq!(inverse, set(2, script(reserved("a"), 2)));
     session.apply(inverse).expect("apply the inverse");
     assert_eq!(
-        session.graph.systems[&2].spawn_script,
+        session.graph().systems[&2].spawn_script,
         script(reserved("a"), 2)
     );
     assert_eq!(common::current(&session), PAINTED.bytes());
@@ -736,8 +736,8 @@ fn clearing_a_scripted_seat_among_plain_weights_inverts_each_its_own_way() {
         "clear_weights_2_and_10",
         spawn_weights(entries),
     );
-    assert_eq!(session.graph.systems[&2].spawn_script, None);
-    assert_eq!(session.graph.systems[&10].spawn_weight, Some(1.0));
+    assert_eq!(session.graph().systems[&2].spawn_script, None);
+    assert_eq!(session.graph().systems[&10].spawn_weight, Some(1.0));
     assert_eq!(
         result.inverse,
         Op::Batch {
@@ -792,7 +792,7 @@ fn a_scripted_seat_cleared_inside_a_batch_inverts_to_one_flat_batch() {
     );
     session.apply(result.inverse).expect("apply the inverse");
     assert_eq!(
-        session.graph.systems[&2].spawn_script,
+        session.graph().systems[&2].spawn_script,
         script(reserved("a"), 2)
     );
     assert_eq!(common::current(&session), PAINTED.bytes());
@@ -847,7 +847,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
         "add_system_scripted",
         add(None, script(PaintSpawnKind::Enabled, 5)),
     );
-    let system = &session.graph.systems[&14];
+    let system = &session.graph().systems[&14];
     assert_eq!(system.initializer, "random_empire_init_03");
     assert_eq!(system.spawn_script, script(PaintSpawnKind::Enabled, 5));
     assert_eq!(system.spawn_weight, Some(0.0));
@@ -861,7 +861,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
         .expect("remove the seat");
     session.apply(removed.inverse).expect("put the seat back");
     assert_eq!(
-        session.graph.systems[&14].spawn_script,
+        session.graph().systems[&14].spawn_script,
         script(PaintSpawnKind::Enabled, 5)
     );
 
@@ -891,7 +891,7 @@ fn the_grammar_fixture_still_takes_a_plain_base_and_a_script_on_its_own_line() {
     let text = String::from_utf8(common::current(&session)).expect("utf-8");
     assert!(text.contains("initializer = misc_system_init_01 spawn_weight = { base = 2 } }"));
     assert!(!text.contains("painted_galaxy"));
-    assert_eq!(session.graph.systems[&1].spawn_script, None);
+    assert_eq!(session.graph().systems[&1].spawn_script, None);
 
     snapshot_step(
         &mut GRAMMAR.open(),

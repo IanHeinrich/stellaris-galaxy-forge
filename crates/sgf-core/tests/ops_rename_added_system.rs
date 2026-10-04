@@ -34,7 +34,7 @@ fn keyed(session: &Session, name: &str) -> usize {
 
 /// A name the pool holds that is not the spike's.
 fn free_name(session: &Session, spike: &SystemSpec) -> String {
-    free_star_names(&session.doc)
+    free_star_names(session.doc())
         .into_iter()
         .find(|name| *name != spike.name)
         .expect("a free name")
@@ -127,7 +127,7 @@ fn rename_then_remove_gives_back_the_file_as_opened() {
         );
         round_trip_step(&mut session, "rename again", rename(id, UNPOOLED));
         round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
-        assert_eq!(current(&session), session.doc.original(), "{id}");
+        assert_eq!(current(&session), session.doc().original(), "{id}");
     }
 }
 

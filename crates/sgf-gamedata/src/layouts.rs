@@ -207,11 +207,11 @@ pub struct SaveFacts {
 
 impl SaveFacts {
     pub fn read(session: &Session) -> Self {
-        let dlcs = archive::parse_meta(session.doc.meta())
+        let dlcs = archive::parse_meta(session.doc().meta())
             .map(|meta| meta.required_dlcs.into_iter().collect())
             .unwrap_or_default();
         let mut layouts: HashMap<String, u32> = HashMap::new();
-        for system in session.graph.systems.values() {
+        for system in session.graph().systems.values() {
             *layouts.entry(system.initializer.clone()).or_default() += 1;
         }
         Self { dlcs, layouts }

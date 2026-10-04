@@ -97,7 +97,7 @@ fn corpus_round_trips_within_budget() {
         let t = Instant::now();
         let mut session = Session::open(path).expect("Session::open");
         let open_ms = t.elapsed().as_millis();
-        let setup = session.graph.setup.as_ref().expect("a setup");
+        let setup = session.graph().setup.as_ref().expect("a setup");
         assert_eq!(
             settings.shape.as_deref(),
             Some(setup.shape.as_str()),
@@ -125,8 +125,13 @@ fn corpus_round_trips_within_budget() {
         );
         assert_eq!(written.meta, raw.meta, "{name}: meta diverged");
 
-        let systems = session.graph.systems.len();
-        let lanes: usize = session.graph.systems.values().map(|s| s.lanes.len()).sum();
+        let systems = session.graph().systems.len();
+        let lanes: usize = session
+            .graph()
+            .systems
+            .values()
+            .map(|s| s.lanes.len())
+            .sum();
         let timed = add_and_remove(&mut session, &name);
         took_a_system += usize::from(timed.is_some());
         let (add_column, remove_column) = timed.map_or_else(
@@ -172,11 +177,11 @@ fn corpus_round_trips_within_budget() {
 /// add. Returns how long the add and the removal took to apply, in ms, or `None` when the
 /// save takes no added system.
 fn add_and_remove(session: &mut Session, name: &str) -> Option<(u128, u128)> {
-    if !Capabilities::of(&session.doc).added_systems {
+    if !Capabilities::of(session.doc()).added_systems {
         return None;
     }
-    let id = u32::try_from(session.graph.systems.len()).expect("a system count");
-    let home = &session.graph.systems[&0];
+    let id = u32::try_from(session.graph().systems.len()).expect("a system count");
+    let home = &session.graph().systems[&0];
     let (x0, y0) = (home.x, home.y);
     let spots = (1..=8).flat_map(|ring| {
         (0..12).map(move |turn| {
@@ -184,7 +189,7 @@ fn add_and_remove(session: &mut Session, name: &str) -> Option<(u128, u128)> {
             (x0 + distance * angle.cos(), y0 + distance * angle.sin())
         })
     });
-    let original = session.doc.original().to_vec();
+    let original = session.doc().original().to_vec();
     for (x, y) in spots {
         let spec = sgf_core::ops::SystemSpec {
             x,
@@ -250,10 +255,10 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
         let options = export::ScenarioOptions {
             exported_from: Some(name.clone()),
-            ..export::options_for(&save.graph, &stem)
+            ..export::options_for(save.graph(), &stem)
         };
         let (text, report) = export::scenario_text(
-            &save.graph,
+            save.graph(),
             &options,
             &no_names,
             &no_sources,
@@ -261,11 +266,11 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         );
         let doc = Document::from_scenario_bytes(text).expect("the export reads back");
         let reopened = Session::from_document(None, doc).expect("project the export");
-        let typed = assert_paint_export_holds_together(&save.graph, &reopened.graph, &report);
-        let missing = left_out(&save.graph, &reopened.graph);
+        let typed = assert_paint_export_holds_together(save.graph(), reopened.graph(), &report);
+        let missing = left_out(save.graph(), reopened.graph());
 
         let fallen: Vec<&sgf_core::projections::galaxy::CountryNode> = save
-            .graph
+            .graph()
             .countries
             .iter()
             .filter(|c| {
@@ -274,7 +279,7 @@ fn corpus_paint_exports_read_back_and_hold_together() {
                     "fallen_empire" | "awakened_fallen_empire"
                 ) && c
                     .capital_system
-                    .is_some_and(|id| save.graph.systems.contains_key(&id))
+                    .is_some_and(|id| save.graph().systems.contains_key(&id))
             })
             .collect();
         assert_eq!(report.fallen_empires.len(), fallen.len(), "{name}");
@@ -291,9 +296,9 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         assert_eq!(typed.len(), fallen.len(), "{name}");
         let exact = report.fallen_empires.iter().filter(|f| f.exact).count();
 
-        let capitals = default_capitals(&save);
+        let capitals = default_capitals(save.graph());
         let lcluster: Vec<u32> = save
-            .graph
+            .graph()
             .systems
             .values()
             .filter(|s| {
@@ -311,13 +316,13 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         assert_eq!(omitted as usize, lcluster.len(), "{name}");
 
         let isolated_before: Vec<u32> = save
-            .graph
+            .graph()
             .systems
             .values()
             .filter(|s| s.lanes.is_empty())
             .map(|s| s.id)
             .collect();
-        let isolated: Vec<u32> = sgf_core::validate::validate(&reopened.graph)
+        let isolated: Vec<u32> = sgf_core::validate::validate(reopened.graph())
             .iter()
             .filter(|i| i.code == IssueCode::SystemIsolated)
             .flat_map(|i| i.systems.clone())
@@ -330,7 +335,7 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         assert!(stranded.is_empty(), "{name}: {stranded:?} lost every lane");
 
         let zones = reopened
-            .graph
+            .graph()
             .systems
             .values()
             .filter(|s| s.fe_zone.is_some())
@@ -338,8 +343,8 @@ fn corpus_paint_exports_read_back_and_hold_together() {
         println!(
             "{:<40} {:>8} {:>8} {:>6} {:>8} {:>8} {:>8} {:>8} {:>8}",
             name,
-            save.graph.systems.len(),
-            reopened.graph.systems.len(),
+            save.graph().systems.len(),
+            reopened.graph().systems.len(),
             report.seats,
             report.fallen_empires.len(),
             exact,

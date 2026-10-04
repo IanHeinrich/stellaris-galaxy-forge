@@ -73,7 +73,7 @@ fn move_nebula_1_moves_the_centre_only() {
 #[test]
 fn add_nebula_takes_coruscant_from_the_heart_of_the_galaxy() {
     let mut session = GRAMMAR.open();
-    assert_eq!(session.graph.systems[&2].nebula, Some(0));
+    assert_eq!(session.graph().systems[&2].nebula, Some(0));
     let result = session
         .apply(Op::AddNebula {
             x: 0.0,
@@ -82,10 +82,10 @@ fn add_nebula_takes_coruscant_from_the_heart_of_the_galaxy() {
             name: Some("Test Cloud".to_owned()),
         })
         .expect("add");
-    assert_eq!(session.graph.nebulae.len(), 3);
-    assert_eq!(session.graph.nebulae[2].systems, [2]);
-    assert_eq!(session.graph.nebulae[0].systems, [1, 111]);
-    assert_eq!(session.graph.systems[&2].nebula, Some(2));
+    assert_eq!(session.graph().nebulae.len(), 3);
+    assert_eq!(session.graph().nebulae[2].systems, [2]);
+    assert_eq!(session.graph().nebulae[0].systems, [1, 111]);
+    assert_eq!(session.graph().systems[&2].nebula, Some(2));
     common::snapshot("add_nebula", &report(&session, &result));
 }
 
@@ -95,8 +95,8 @@ fn remove_nebula_1_releases_the_lonely_system() {
     let result = session
         .apply(Op::RemoveNebula { index: 1 })
         .expect("remove");
-    assert_eq!(session.graph.nebulae.len(), 1);
-    assert_eq!(session.graph.systems[&9].nebula, None);
+    assert_eq!(session.graph().nebulae.len(), 1);
+    assert_eq!(session.graph().systems[&9].nebula, None);
     assert_eq!(
         result.inverse,
         Op::AddNebula {
@@ -118,16 +118,16 @@ fn shrinking_the_heart_of_the_galaxy_lets_two_systems_go() {
             radius: 30.0,
         })
         .expect("shrink");
-    assert_eq!(session.graph.nebulae[0].systems, [1]);
-    assert_eq!(session.graph.systems[&2].nebula, None);
-    assert_eq!(session.graph.systems[&111].nebula, None);
+    assert_eq!(session.graph().nebulae[0].systems, [1]);
+    assert_eq!(session.graph().systems[&2].nebula, None);
+    assert_eq!(session.graph().systems[&111].nebula, None);
     common::snapshot("set_nebula_radius_0", &report(&session, &result));
 }
 
 #[test]
 fn renaming_a_nebula_writes_the_literal_over_its_loc_key() {
     let mut session = GRAMMAR.open();
-    assert_eq!(session.graph.nebulae[0].name.key, "NAME_N_Heart_Galaxy");
+    assert_eq!(session.graph().nebulae[0].name.key, "NAME_N_Heart_Galaxy");
     let result = session
         .apply(Op::RenameNebula {
             index: 0,
@@ -135,9 +135,9 @@ fn renaming_a_nebula_writes_the_literal_over_its_loc_key() {
         })
         .expect("rename");
 
-    assert_eq!(session.graph.nebulae[0].name.key, "Heart of the Galaxy");
-    assert!(session.graph.nebulae[0].name.literal);
-    assert_eq!(session.graph.nebulae[0].systems, [1, 2, 111]);
+    assert_eq!(session.graph().nebulae[0].name.key, "Heart of the Galaxy");
+    assert!(session.graph().nebulae[0].name.literal);
+    assert_eq!(session.graph().nebulae[0].systems, [1, 2, 111]);
     common::snapshot("set_nebula_name", &report(&session, &result));
 }
 
@@ -160,8 +160,8 @@ fn a_nebula_edit_reports_every_system_whose_membership_changed() {
         })
         .expect("move");
     assert_eq!(systems(&moved), [9, 16]);
-    assert_eq!(session.graph.systems[&16].nebula, Some(1));
-    assert_eq!(session.graph.systems[&9].nebula, None);
+    assert_eq!(session.graph().systems[&16].nebula, Some(1));
+    assert_eq!(session.graph().systems[&9].nebula, None);
     assert!(
         session.edit_result(moved).delta.nebulae.is_some(),
         "the map is told the nebulae changed"
@@ -212,8 +212,8 @@ fn a_nebula_edited_earlier_can_still_be_removed() {
     session
         .apply(Op::RemoveNebula { index: 0 })
         .expect("remove a nebula an earlier op rewrote");
-    assert_eq!(session.graph.nebulae.len(), 1);
-    assert_eq!(session.graph.nebulae[0].name.key, "Far Cloud");
+    assert_eq!(session.graph().nebulae.len(), 1);
+    assert_eq!(session.graph().nebulae[0].name.key, "Far Cloud");
 
     session.undo().unwrap().expect("undo the removal");
     session.undo().unwrap().expect("undo the resize");
@@ -236,6 +236,6 @@ fn adding_a_nebula_and_removing_it_again_is_byte_identical() {
         .apply(Op::RemoveNebula { index: 2 })
         .expect("remove the nebula just added");
     assert_eq!(current(&session), fixture);
-    assert_eq!(session.graph.nebulae.len(), 2);
-    assert_eq!(session.graph.systems[&2].nebula, Some(0));
+    assert_eq!(session.graph().nebulae.len(), 2);
+    assert_eq!(session.graph().systems[&2].nebula, Some(0));
 }

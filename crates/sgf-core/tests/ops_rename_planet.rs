@@ -29,7 +29,7 @@ fn literal(name: &str) -> NameTemplate {
 }
 
 fn name(session: &Session, planet: u32) -> NameTemplate {
-    get_planet_page(&session.doc, planet)
+    get_planet_page(session.doc(), planet)
         .expect("the planet's page")
         .name
 }
@@ -88,7 +88,7 @@ fn a_planet_and_its_moons_take_the_new_name_and_the_inverse_puts_back_the_bytes(
         }
 
         session.apply(result.inverse).expect("apply the inverse");
-        assert_eq!(current(&session), session.doc.original(), "{label}");
+        assert_eq!(current(&session), session.doc().original(), "{label}");
         assert_eq!(name(&session, planet), old, "{label}");
     }
 }
@@ -134,7 +134,7 @@ fn the_details_read_the_new_name() {
     let mut session = open_4_5();
     session.warm_details().expect("build details");
     session.apply(rename(140, "Nova Terra")).expect("rename");
-    let system = get_planet_page(&session.doc, 140).unwrap().system.unwrap();
+    let system = get_planet_page(session.doc(), 140).unwrap().system.unwrap();
     let planets = common::planets(&session, system);
     let renamed = planets.iter().find(|p| p.id == 140).expect("planet 140");
     assert_eq!(renamed.name, literal("Nova Terra"));
@@ -181,7 +181,7 @@ fn what_a_rename_refuses() {
             "{error}"
         );
     }
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 
     session.apply(rename(140, "Nova Terra")).expect("rename");
     let error = session

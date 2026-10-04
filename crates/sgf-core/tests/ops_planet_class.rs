@@ -40,7 +40,7 @@ fn set(planet: u32, from: &str, to: &str) -> Op {
 
 /// Planet `id`'s class, model index and model, as its page reads them from the bytes.
 fn look(session: &Session, id: u32) -> (String, Option<String>) {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     (page.class, page.entity_name)
 }
 
@@ -62,7 +62,7 @@ fn change(planet: u32, from: &str, to: &str, snapshot: &str) {
     session.apply(applied.inverse).expect("apply the inverse");
     assert_eq!(
         current(&session),
-        session.doc.original(),
+        session.doc().original(),
         "{snapshot}: inverse"
     );
 }
@@ -217,7 +217,7 @@ fn a_look_is_written_only_when_it_is_a_model_the_class_has() {
         let error = session.apply(with_look(look)).expect_err(message);
         assert_eq!(error.to_string(), message);
     }
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 
     session
         .apply(with_look(PlanetLook {
@@ -256,7 +256,7 @@ fn a_planet_with_a_megastructure_keeps_its_class() {
         error.to_string(),
         "planet 936 has a megastructure, so it keeps its class"
     );
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 /// `colony=4294967295` is the null id: the planet has no colony, as its page reads it.

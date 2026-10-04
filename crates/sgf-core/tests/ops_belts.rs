@@ -205,7 +205,7 @@ fn a_below_rule_systems_inner_radius_inverse_reapplies_as_an_op() {
     session
         .apply(raised.inverse)
         .expect("the inverse takes it back");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// A move that grows system 148 past 6331's old, inflated reach: the batched inverse moves

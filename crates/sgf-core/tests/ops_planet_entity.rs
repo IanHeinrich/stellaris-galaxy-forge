@@ -23,14 +23,14 @@ fn set(planet: u32, entity: Option<&str>) -> Op {
 
 /// Planet `id`'s model, as its page reads it from the session's bytes.
 fn model(session: &Session, id: u32) -> Option<String> {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     page.entity_name
 }
 
 /// Planet `id`'s model as its system's details read it, from the projection built before the
 /// edit.
 fn drawn_model(session: &Session, id: u32) -> Option<String> {
-    let page = get_planet_page(&session.doc, id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
+    let page = get_planet_page(session.doc(), id).unwrap_or_else(|e| panic!("planet {id}: {e}"));
     let system = page.system.expect("the planet's system");
     let details = session.built_details().expect("the details kept");
     let resolved = details.resolve(system, &HeuristicResolver, false);
@@ -175,6 +175,6 @@ fn a_model_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         .apply(set(585, Some("two words")))
         .expect_err("not an identifier");
     assert!(error.to_string().contains("two words"), "{error}");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
     assert!(session.history().undo.is_empty());
 }

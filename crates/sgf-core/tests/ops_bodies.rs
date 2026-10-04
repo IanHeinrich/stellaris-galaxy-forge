@@ -235,7 +235,7 @@ fn a_move_along_the_ring_keeps_the_stored_orbit() {
         .expect("move 585 along its ring");
     assert!(common::entity_text(&session, EntityKind::Planet, 585).contains("\t\t\torbit=65\n"));
     session.apply(result.inverse).expect("move it back");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// Planet 587 made a moon of 588, which has none: 588 gains a `moons` list before its
@@ -552,7 +552,7 @@ fn the_4_5_samples_systems_below_the_inner_radius_rule() {
     let session = open_4_5();
     let details = session.details().expect("details");
     let below = session
-        .graph
+        .graph()
         .systems
         .keys()
         .filter(|&&id| {
@@ -730,7 +730,7 @@ fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
         ),
         "{planet_330}"
     );
-    assert!(!planet_330.contains("			binary_flags="), "{planet_330}");
+    assert!(!planet_330.contains("\t\t\tbinary_flags="), "{planet_330}");
 }
 
 /// A planet with moons may orbit a star but not a planet, and the asteroids of the 4.5

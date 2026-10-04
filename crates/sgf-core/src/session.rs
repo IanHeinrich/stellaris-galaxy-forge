@@ -79,12 +79,12 @@ pub struct OpResult {
 #[derive(Debug)]
 pub struct Session {
     /// Where the document was opened from or last saved to; `None` for one never saved.
-    pub path: Option<PathBuf>,
+    pub(crate) path: Option<PathBuf>,
     /// How the file at `path` stood when it was opened or last saved, so a save in place can
     /// tell that something else wrote it since.
     stamp: Option<DiskStamp>,
-    pub doc: Document,
-    pub graph: GalaxyGraph,
+    pub(crate) doc: Document,
+    pub(crate) graph: GalaxyGraph,
     details: OnceCell<Arc<DetailsProjection>>,
     history: History,
     /// Undo-stack length when the document was last opened or saved; `None` once that
@@ -127,6 +127,21 @@ impl Session {
             radii: SystemRadii::VANILLA,
             stars: Arc::default(),
         })
+    }
+
+    /// Where the document was opened from or last saved to; `None` for one never saved.
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_deref()
+    }
+
+    /// The document: its bytes, edits and meta.
+    pub fn doc(&self) -> &Document {
+        &self.doc
+    }
+
+    /// The galaxy as the ops and the map read it.
+    pub fn graph(&self) -> &GalaxyGraph {
+        &self.graph
     }
 
     /// How the geometry ops size a system.

@@ -126,7 +126,7 @@ fn normalising_a_lane_writes_the_floor_of_the_distance() {
 #[test]
 fn normalise_lane_length_is_refused_where_there_is_nothing_to_do() {
     let mut session = open();
-    assert!(!session.graph.lane(0, 752).unwrap().stale);
+    assert!(!session.graph().lane(0, 752).unwrap().stale);
     assert!(matches!(
         session.apply(Op::NormaliseLaneLength { a: 0, b: 752 }),
         Err(OpError::AlreadyNormal)
@@ -172,7 +172,7 @@ fn isolating_a_system_takes_its_block_and_every_neighbours_entry() {
 #[test]
 fn moving_two_linked_systems_together_keeps_the_length_between_them() {
     let mut session = open();
-    let before = session.graph.lane(0, 86).unwrap().length;
+    let before = session.graph().lane(0, 86).unwrap().length;
     let result = session
         .apply(Op::MoveSystems {
             moves: vec![
@@ -189,8 +189,8 @@ fn moving_two_linked_systems_together_keeps_the_length_between_them() {
             ],
         })
         .unwrap();
-    assert_eq!(session.graph.lane(0, 86).unwrap().length, before);
-    assert_eq!(session.graph.lane(86, 0).unwrap().length, before);
+    assert_eq!(session.graph().lane(0, 86).unwrap().length, before);
+    assert_eq!(session.graph().lane(86, 0).unwrap().length, before);
     common::snapshot("move_systems_0_and_86", &report(&session, &result));
 }
 
@@ -240,8 +240,8 @@ fn isolating_two_linked_systems_removes_their_shared_lane_once() {
             systems: vec![0, 86],
         })
         .unwrap();
-    assert!(session.graph.systems[&0].lanes.is_empty());
-    assert!(session.graph.systems[&86].lanes.is_empty());
+    assert!(session.graph().systems[&0].lanes.is_empty());
+    assert!(session.graph().systems[&86].lanes.is_empty());
     let Op::AddLanePairs { lanes } = &result.inverse else {
         panic!("{:?}", result.inverse);
     };
@@ -298,19 +298,19 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
             y: -190.0,
         })
         .unwrap();
-    assert!(session.graph.systems[&786].lanes.iter().all(|l| l.stale));
+    assert!(session.graph().systems[&786].lanes.iter().all(|l| l.stale));
     let result = session
         .apply(Op::NormaliseLaneLengths { systems: vec![786] })
         .unwrap();
-    assert!(session.graph.systems[&786].lanes.iter().all(|l| !l.stale));
-    assert_eq!(session.graph.systems, reprojected(&session).systems);
+    assert!(session.graph().systems[&786].lanes.iter().all(|l| !l.stale));
+    assert_eq!(session.graph().systems, reprojected(&session).systems);
     common::snapshot(
         "normalise_lane_lengths_after_move",
         &report(&session, &result),
     );
 
     session.apply(result.inverse).unwrap();
-    assert!(session.graph.systems[&786].lanes.iter().all(|l| l.stale));
+    assert!(session.graph().systems[&786].lanes.iter().all(|l| l.stale));
 }
 
 /// The game lists 154-708 twice on both ends. While every entry holds one length, one
@@ -326,16 +326,16 @@ fn a_lane_listed_twice_is_normalised_on_every_entry_and_put_back() {
         })
         .unwrap();
     let lengthened = current(&session);
-    assert!(session.graph.lane(154, 708).unwrap().stale);
+    assert!(session.graph().lane(154, 708).unwrap().stale);
 
     let normalised = session
         .apply(Op::NormaliseLaneLengths { systems: vec![154] })
         .expect("normalise");
-    let floor = (session.graph.systems[&154].x - session.graph.systems[&708].x)
-        .hypot(session.graph.systems[&154].y - session.graph.systems[&708].y)
+    let floor = (session.graph().systems[&154].x - session.graph().systems[&708].x)
+        .hypot(session.graph().systems[&154].y - session.graph().systems[&708].y)
         .floor();
     for (a, b) in [(154, 708), (708, 154)] {
-        let lengths: Vec<f64> = (session.graph.systems[&a].lanes.iter())
+        let lengths: Vec<f64> = (session.graph().systems[&a].lanes.iter())
             .filter(|lane| lane.to == b)
             .map(|lane| lane.length)
             .collect();
@@ -345,7 +345,7 @@ fn a_lane_listed_twice_is_normalised_on_every_entry_and_put_back() {
     assert_eq!(current(&session), lengthened);
 
     session.apply(set.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -414,7 +414,7 @@ fn bulk_ops_refuse_duplicates() {
         }),
         Err(OpError::DuplicateLane(752, 0))
     ));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -427,21 +427,21 @@ fn adding_then_removing_a_lane_is_byte_identical() {
             bridge: false,
         })
         .unwrap();
-    assert!(session.graph.lane(789, 790).is_some());
+    assert!(session.graph().lane(789, 790).is_some());
     session.apply(Op::RemoveLane { a: 789, b: 790 }).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert!(session.graph.systems[&789].lanes.is_empty());
-    assert!(session.graph.systems[&790].lanes.is_empty());
+    assert_eq!(current(&session), session.doc().original());
+    assert!(session.graph().systems[&789].lanes.is_empty());
+    assert!(session.graph().systems[&790].lanes.is_empty());
 }
 
 #[test]
 fn the_inverse_of_an_isolation_restores_every_lane() {
     let mut session = open();
-    let before = session.graph.systems[&0].clone();
+    let before = session.graph().systems[&0].clone();
     let result = session.apply(Op::IsolateSystem { system: 0 }).unwrap();
-    assert!(session.graph.systems[&0].lanes.is_empty());
+    assert!(session.graph().systems[&0].lanes.is_empty());
     session.apply(result.inverse).unwrap();
-    let after = &session.graph.systems[&0];
+    let after = &session.graph().systems[&0];
     let mut expected: Vec<_> = before.lanes.iter().map(|l| (l.to, l.bridge)).collect();
     let mut actual: Vec<_> = after.lanes.iter().map(|l| (l.to, l.bridge)).collect();
     expected.sort_unstable();
@@ -449,7 +449,7 @@ fn the_inverse_of_an_isolation_restores_every_lane() {
     assert_eq!(actual, expected);
     for lane in &after.lanes {
         assert!(
-            session.graph.lane(lane.to, 0).is_some(),
+            session.graph().lane(lane.to, 0).is_some(),
             "{} lost 0",
             lane.to
         );
@@ -473,7 +473,7 @@ fn the_inverse_of_adding_lanes_removes_only_what_it_added() {
         }),
         Err(OpError::NoEntries)
     ));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 
     let result = session
         .apply(Op::AddLanes {
@@ -489,8 +489,8 @@ fn the_inverse_of_adding_lanes_removes_only_what_it_added() {
         }
     );
     let undo = session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(session.graph.systems[&0].lanes.len(), 5);
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(session.graph().systems[&0].lanes.len(), 5);
     assert_eq!(
         undo.inverse,
         Op::AddLanes {
@@ -511,14 +511,19 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
             "\t\t\t\tto=999\n\t\t\t\tlength=33",
         );
     });
-    assert!(session.graph.systems[&0].lanes.iter().any(|l| l.to == 999));
-    assert!(!session.graph.systems.contains_key(&999));
+    assert!(
+        session.graph().systems[&0]
+            .lanes
+            .iter()
+            .any(|l| l.to == 999)
+    );
+    assert!(!session.graph().systems.contains_key(&999));
 
     assert!(matches!(
         session.apply(Op::RemoveLane { a: 0, b: 999 }),
         Err(OpError::NoSuchLane(0, 999))
     ));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 
     let result = session
         .apply(Op::RemoveLanes {
@@ -535,7 +540,7 @@ fn removing_a_lane_to_a_missing_system_is_refused_singly_and_left_out_of_a_bulk_
         "the inverse names no system the graph does not hold"
     );
     session.apply(result.inverse).expect("the inverse applies");
-    assert!(session.graph.lane(0, 200).is_some());
+    assert!(session.graph().lane(0, 200).is_some());
 }
 
 /// A lane whose two ends hold different lengths cannot be set or normalised: the one
@@ -550,8 +555,8 @@ fn a_lane_whose_ends_disagree_is_refused_a_new_length() {
             "\t\t\t\tto=752\n\t\t\t\tlength=40",
         );
     });
-    assert_eq!(session.graph.lane(0, 752).map(|l| l.length), Some(40.0));
-    assert_eq!(session.graph.lane(752, 0).map(|l| l.length), Some(33.0));
+    assert_eq!(session.graph().lane(0, 752).map(|l| l.length), Some(40.0));
+    assert_eq!(session.graph().lane(752, 0).map(|l| l.length), Some(33.0));
     let disagree =
         |result: Result<_, OpError>| matches!(result, Err(OpError::LaneEndsDisagree(0, 752)));
 
@@ -576,12 +581,12 @@ fn a_lane_whose_ends_disagree_is_refused_a_new_length() {
     );
     // The plural leaves the lane as it is and normalises the rest of system 0's.
     let normalised = session.apply(Op::NormaliseLaneLengths { systems: vec![0] });
-    assert_eq!(session.graph.lane(0, 752).map(|l| l.length), Some(40.0));
-    assert_eq!(session.graph.lane(752, 0).map(|l| l.length), Some(33.0));
+    assert_eq!(session.graph().lane(0, 752).map(|l| l.length), Some(40.0));
+    assert_eq!(session.graph().lane(752, 0).map(|l| l.length), Some(33.0));
     if normalised.is_ok() {
         session.undo().expect("undo");
     }
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// `text` with `from`, which it holds exactly once, replaced by `to`.

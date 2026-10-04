@@ -64,8 +64,8 @@ fn change(mut session: Session, id: u32, snapshot: &str) -> Op {
     let result = round_trip_step(&mut session, snapshot, rename(id, NEW_NAME));
     common::snapshot(snapshot, &plain_report(&session, &result));
     let expected = literal(NEW_NAME);
-    assert_eq!(country(&session.graph.countries, id).name, expected);
-    assert_eq!(country(&session.graph.countries, id).name_key, NEW_NAME);
+    assert_eq!(country(&session.graph().countries, id).name, expected);
+    assert_eq!(country(&session.graph().countries, id).name_key, NEW_NAME);
     assert_eq!(
         country(&reprojected(&session).countries, id).name,
         expected,
@@ -82,12 +82,12 @@ fn change(mut session: Session, id: u32, snapshot: &str) -> Op {
         .expect("apply the inverse");
     assert_eq!(
         current(&session),
-        session.doc.original(),
+        session.doc().original(),
         "{snapshot}: the inverse"
     );
     assert_eq!(
-        session.doc.meta(),
-        session.doc.original_meta(),
+        session.doc().meta(),
+        session.doc().original_meta(),
         "{snapshot}: the inverse puts meta back"
     );
     result.inverse
@@ -100,7 +100,7 @@ fn the_player_s_name_changes_in_the_country_the_header_and_meta() {
     let mut renamed = open_4_5();
     renamed.apply(rename(PLAYER, NEW_NAME)).expect("apply");
     assert_eq!(header_name(&renamed), NEW_NAME);
-    assert_eq!(meta_name(renamed.doc.meta()), NEW_NAME);
+    assert_eq!(meta_name(renamed.doc().meta()), NEW_NAME);
     assert_eq!(renamed.title(), NEW_NAME);
 
     let inverse = change(session, PLAYER, "player_literal");
@@ -141,14 +141,14 @@ fn an_ai_empire_s_generated_name_changes_and_the_header_and_meta_stay() {
     let mut renamed = open_4_5();
     renamed.apply(rename(AI, NEW_NAME)).expect("apply");
     assert_eq!(header_name(&renamed), "Test Empire");
-    assert_eq!(renamed.doc.meta(), renamed.doc.original_meta());
+    assert_eq!(renamed.doc().meta(), renamed.doc().original_meta());
 }
 
 #[test]
 fn a_primitive_can_be_renamed() {
     let mut session = open_4_5();
     round_trip_step(&mut session, "primitive", rename(PRIMITIVE, NEW_NAME));
-    let primitive = country(&session.graph.countries, PRIMITIVE);
+    let primitive = country(&session.graph().countries, PRIMITIVE);
     assert_eq!(primitive.name, literal(NEW_NAME));
     assert_eq!(primitive.country_type, "primitive");
 }
@@ -163,10 +163,10 @@ fn a_renamed_player_reads_back_from_the_file() {
 
     let reopened = Session::open(&path).expect("reopen");
     assert_eq!(
-        country(&reopened.graph.countries, PLAYER).name,
+        country(&reopened.graph().countries, PLAYER).name,
         literal(NEW_NAME)
     );
-    assert_eq!(meta_name(reopened.doc.meta()), NEW_NAME);
+    assert_eq!(meta_name(reopened.doc().meta()), NEW_NAME);
     assert_eq!(header_name(&reopened), NEW_NAME);
 }
 
@@ -175,11 +175,11 @@ fn undo_puts_the_header_and_meta_back() {
     let mut session = open();
     session.apply(rename(PLAYER, NEW_NAME)).expect("apply");
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(session.doc.meta(), session.doc.original_meta());
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(session.doc().meta(), session.doc().original_meta());
     assert!(!session.is_dirty());
     session.redo().expect("redo").expect("an op to redo");
-    assert_eq!(meta_name(session.doc.meta()), NEW_NAME);
+    assert_eq!(meta_name(session.doc().meta()), NEW_NAME);
     assert_eq!(header_name(&session), NEW_NAME);
 }
 
@@ -225,7 +225,7 @@ fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written(
         })
         .unwrap_err();
     assert!(matches!(error, OpError::InvalidText { .. }), "{error:?}");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 #[test]
@@ -236,11 +236,11 @@ fn a_batch_renaming_the_player_twice_undoes_to_the_original_meta() {
         ops: vec![rename(PLAYER, "First Name"), rename(PLAYER, NEW_NAME)],
     };
     session.apply(batch).expect("apply");
-    assert_eq!(meta_name(session.doc.meta()), NEW_NAME);
+    assert_eq!(meta_name(session.doc().meta()), NEW_NAME);
     assert_eq!(header_name(&session), NEW_NAME);
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(session.doc.meta(), session.doc.original_meta());
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(session.doc().meta(), session.doc().original_meta());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]

@@ -54,7 +54,7 @@ pub fn planet_class(
     opts: &LoadOptions,
 ) -> Run {
     let session = Session::open(sav)?;
-    let held = get_planet_page(&session.doc, planet)?.class;
+    let held = get_planet_page(session.doc(), planet)?.class;
     let gd = game_data(opts)?;
     let named = |class: &str| PlanetClassRule {
         class: class.to_owned(),

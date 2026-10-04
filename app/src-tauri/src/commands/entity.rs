@@ -23,7 +23,7 @@ use crate::state::{GameDataState, SpecialLabels};
 pub async fn get_system<R: Runtime>(app: AppHandle<R>, id: u32) -> Result<SystemDetail, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        SystemDetail::of(&session.graph, id)
+        SystemDetail::of(session.graph(), id)
             .ok_or_else(|| SgfError::not_found(format!("system {id}")))
     })
     .await
@@ -38,7 +38,7 @@ pub async fn get_entity<R: Runtime>(
 ) -> Result<EntityView, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(entity::get_entity(&session.doc, addr, &path)?)
+        Ok(entity::get_entity(session.doc(), addr, &path)?)
     })
     .await
 }
@@ -51,7 +51,7 @@ pub async fn get_entity_source<R: Runtime>(
 ) -> Result<EntitySource, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(entity::get_entity_source(&session.doc, addr)?)
+        Ok(entity::get_entity_source(session.doc(), addr)?)
     })
     .await
 }
@@ -64,7 +64,7 @@ pub async fn get_planet_page<R: Runtime>(
 ) -> Result<PlanetPage, SgfError> {
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(entity::get_planet_page(&session.doc, id)?)
+        Ok(entity::get_planet_page(session.doc(), id)?)
     })
     .await
 }
@@ -135,7 +135,7 @@ pub async fn search<R: Runtime>(
         let resolve = |key: &str| gd.and_then(|gd| gd.loc.get(key));
         let kinds = snapshot
             .as_ref()
-            .map(|(generation, gd)| special_labels(&session.graph, gd, &game_data, *generation))
+            .map(|(generation, gd)| special_labels(session.graph(), gd, &game_data, *generation))
             .unwrap_or_default();
         let special = |id: u32| kinds.get(&id).cloned().unwrap_or_default();
         Ok(session.search(&query, limit, &resolve, &special))

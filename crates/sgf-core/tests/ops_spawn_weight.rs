@@ -153,8 +153,8 @@ fn a_base_cleared_and_written_again_stands_apart_from_the_modifier_beside_it() {
         text.contains("spawn_weight = { base = 5 modifier = { add = 10000"),
         "the base ran into the modifier"
     );
-    assert_eq!(session.graph.systems[&2].spawn_weight, Some(5.0));
-    assert_eq!(session.graph.systems[&2].spawn_modifiers.len(), 1);
+    assert_eq!(session.graph().systems[&2].spawn_weight, Some(5.0));
+    assert_eq!(session.graph().systems[&2].spawn_modifiers.len(), 1);
     common::snapshot("clear_then_set_weight_2", &plain_report(&session, &result));
 
     session
@@ -169,7 +169,7 @@ fn a_base_cleared_and_written_again_stands_apart_from_the_modifier_beside_it() {
             base: Some(2.0),
         })
         .expect("write it back");
-    assert_eq!(session.graph.systems[&3018].spawn_weight, Some(2.0));
+    assert_eq!(session.graph().systems[&3018].spawn_weight, Some(2.0));
 
     for _ in 0..4 {
         session.undo().expect("undo").expect("an op to undo");
@@ -186,8 +186,8 @@ fn clearing_the_weight_of_2_leaves_the_modifier_standing() {
             base: None,
         })
         .expect("clear");
-    assert_eq!(session.graph.systems[&2].spawn_weight, None);
-    assert_eq!(session.graph.systems[&2].spawn_modifiers.len(), 1);
+    assert_eq!(session.graph().systems[&2].spawn_weight, None);
+    assert_eq!(session.graph().systems[&2].spawn_modifiers.len(), 1);
     common::snapshot("clear_weight_2", &plain_report(&session, &result));
     round_trip(
         GRAMMAR.open(),
@@ -207,7 +207,7 @@ fn clearing_the_weight_of_3018_removes_the_whole_block() {
             base: None,
         })
         .expect("clear");
-    assert_eq!(session.graph.systems[&3018].spawn_weight, None);
+    assert_eq!(session.graph().systems[&3018].spawn_weight, None);
     common::snapshot("clear_weight_3018", &plain_report(&session, &result));
     round_trip(
         GRAMMAR.open(),

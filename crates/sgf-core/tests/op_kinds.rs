@@ -64,7 +64,7 @@ fn raw_details(session: &Session) -> BTreeMap<u32, RawSystemDetails> {
     }
     let details = session.details().expect("details");
     session
-        .graph
+        .graph()
         .systems
         .keys()
         .filter_map(|&id| Some((id, details.raw(id)?.clone())))
@@ -94,7 +94,7 @@ fn assert_refused(mut session: Session, op: &Op, kind: DocumentKind) {
         op.name()
     );
     assert_eq!(error.to_string(), message);
-    assert!(!session.doc.is_dirty(), "{}", op.name());
+    assert!(!session.doc().is_dirty(), "{}", op.name());
 }
 
 #[test]
@@ -160,12 +160,12 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
     for (mut session, op) in cases {
         let name = format!("{} on a {:?}", op.name(), session.kind());
         session.warm_details().expect("build details");
-        let before = session.graph.clone();
+        let before = session.graph().clone();
         let before_raw = raw_details(&session);
         let result = session
             .apply_inverse(op)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
-        let mut changed: BTreeSet<u32> = details_changed(&before, &session.graph)
+        let mut changed: BTreeSet<u32> = details_changed(&before, session.graph())
             .into_iter()
             .collect();
         changed.extend(raw_details_changed(&before_raw, &raw_details(&session)));
@@ -174,9 +174,9 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
             changed.into_iter().collect::<Vec<_>>(),
             "{name}: details stale"
         );
-        let reclassified = every_id(&before, &session.graph)
+        let reclassified = every_id(&before, session.graph())
             .into_iter()
-            .any(|id| classification(&before, id) != classification(&session.graph, id));
+            .any(|id| classification(&before, id) != classification(session.graph(), id));
         assert_eq!(result.reclassifies, reclassified, "{name}: reclassifies");
         let edit = session.edit_result(result.clone());
         assert_eq!(
@@ -273,7 +273,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
                 matches!(&error, OpError::VersionTooOld(version) if version.contains("3.4")),
                 "{name}: {error:?}"
             );
-            assert!(!session.doc.is_dirty(), "{name}");
+            assert!(!session.doc().is_dirty(), "{name}");
         } else if let Err(error) = applied {
             assert!(
                 !matches!(
@@ -284,10 +284,10 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             );
         }
     }
-    let four = Capabilities::of(&common::open().doc);
-    assert_eq!(four, Capabilities::of(&common::open_4_5().doc));
+    let four = Capabilities::of(common::open().doc());
+    assert_eq!(four, Capabilities::of(common::open_4_5().doc()));
     assert_eq!(
-        Capabilities::of(&common::open_3_4().doc),
+        Capabilities::of(common::open_3_4().doc()),
         Capabilities {
             added_systems: false,
             deposits: false,

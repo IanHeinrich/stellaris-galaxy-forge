@@ -19,7 +19,7 @@ use common::fixture::{GRAMMAR, PAINTED, from_scenario_text};
 /// Every distinct lane with its length, ascending.
 fn lanes(session: &Session) -> Vec<(u32, u32, f64)> {
     let mut lanes: BTreeSet<(u32, u32, u64)> = BTreeSet::new();
-    for system in session.graph.systems.values() {
+    for system in session.graph().systems.values() {
         for lane in &system.lanes {
             let (a, b) = (system.id.min(lane.to), system.id.max(lane.to));
             lanes.insert((a, b, lane.length.to_bits()));
@@ -37,7 +37,7 @@ fn the_grammar_fixture_projects_into_the_galaxy() {
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), "sgf_grammar");
 
-    let g = &session.graph;
+    let g = session.graph();
     assert_eq!(g.order, [1, 2, 16, 111, 3018, 9, 512, 888]);
     assert_eq!(g.systems.len(), 8);
 
@@ -99,7 +99,7 @@ fn the_grammar_fixture_projects_into_the_galaxy() {
         "{issues:?}"
     );
 
-    let view = GalaxyView::from(&session.graph);
+    let view = GalaxyView::from(session.graph());
     let mut report = String::new();
     writeln!(
         report,
@@ -239,7 +239,7 @@ fn saving_as_another_path_ignores_a_change_to_the_opened_file() {
     let other = dir.path().join("elsewhere.txt");
 
     session.save_as(&other).expect("save as another path");
-    assert_eq!(session.path.as_deref(), Some(other.as_path()));
+    assert_eq!(session.path(), Some(other.as_path()));
     assert_eq!(
         std::fs::read(&path).unwrap(),
         outside,
@@ -308,10 +308,10 @@ fn a_bridge_is_refused_and_leaves_the_scenario_untouched() {
             .is_err()
     );
 
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
     assert!(!session.is_dirty());
     assert_eq!(session.history().undo.len(), 0);
-    assert_eq!(session.graph.systems[&1].x, 0.0);
+    assert_eq!(session.graph().systems[&1].x, 0.0);
 }
 
 #[test]
@@ -424,7 +424,7 @@ fn a_system_effect_block_is_read_with_its_line() {
 #[test]
 fn the_header_is_listed_in_file_order_and_survives_an_op_that_leaves_it_alone() {
     let mut session = GRAMMAR.open();
-    let header = |session: &Session| GalaxyView::from(&session.graph).header;
+    let header = |session: &Session| GalaxyView::from(session.graph()).header;
     let before = header(&session);
     let keys: Vec<&str> = before.iter().map(|f| f.key.as_str()).collect();
     assert_eq!(
@@ -480,35 +480,35 @@ fn the_header_is_listed_in_file_order_and_survives_an_op_that_leaves_it_alone() 
 fn a_spawn_weight_and_its_modifiers_reach_the_projection() {
     let session = GRAMMAR.open();
     // `base = 0` beside a modifier is still a stated base; a system with no block has none.
-    assert_eq!(session.graph.systems[&2].spawn_weight, Some(0.0));
-    assert_eq!(session.graph.systems[&3018].spawn_weight, Some(1.0));
-    assert_eq!(session.graph.systems[&1].spawn_weight, None);
-    assert_eq!(session.graph.systems[&16].spawn_weight, None);
+    assert_eq!(session.graph().systems[&2].spawn_weight, Some(0.0));
+    assert_eq!(session.graph().systems[&3018].spawn_weight, Some(1.0));
+    assert_eq!(session.graph().systems[&1].spawn_weight, None);
+    assert_eq!(session.graph().systems[&16].spawn_weight, None);
     // A block of modifiers with no `base` states no base weight, so it reads as none
     // rather than as 0: the modifiers that would decide it are script we do not read.
-    assert_eq!(session.graph.systems[&512].spawn_weight, None);
+    assert_eq!(session.graph().systems[&512].spawn_weight, None);
 
-    assert_eq!(session.graph.systems[&2].spawn_modifiers.len(), 1);
-    assert_eq!(session.graph.systems[&512].spawn_modifiers.len(), 1);
-    assert_eq!(session.graph.systems[&3018].spawn_modifiers.len(), 0);
-    assert_eq!(session.graph.systems[&16].spawn_modifiers.len(), 0);
+    assert_eq!(session.graph().systems[&2].spawn_modifiers.len(), 1);
+    assert_eq!(session.graph().systems[&512].spawn_modifiers.len(), 1);
+    assert_eq!(session.graph().systems[&3018].spawn_modifiers.len(), 0);
+    assert_eq!(session.graph().systems[&16].spawn_modifiers.len(), 0);
 }
 
 #[test]
 fn a_prevented_pair_reaches_both_ends_and_is_no_lane() {
     let session = GRAMMAR.open();
-    assert_eq!(session.graph.systems[&9].prevented, [1]);
-    assert_eq!(session.graph.systems[&1].prevented, [9]);
-    assert!(session.graph.systems[&2].prevented.is_empty());
-    assert!(session.graph.lane(9, 1).is_none());
-    assert!(session.graph.lane(1, 9).is_none());
+    assert_eq!(session.graph().systems[&9].prevented, [1]);
+    assert_eq!(session.graph().systems[&1].prevented, [9]);
+    assert!(session.graph().systems[&2].prevented.is_empty());
+    assert!(session.graph().lane(9, 1).is_none());
+    assert!(session.graph().lane(1, 9).is_none());
 }
 
 #[test]
 fn an_axis_written_as_a_range_is_warned_about_until_a_move_fixes_it() {
     let mut session = GRAMMAR.open();
-    assert!(session.graph.systems[&111].position_range);
-    assert!(!session.graph.systems[&2].position_range);
+    assert!(session.graph().systems[&111].position_range);
+    assert!(!session.graph().systems[&2].position_range);
     let ranged = |session: &Session| {
         session
             .validate()
@@ -526,7 +526,7 @@ fn an_axis_written_as_a_range_is_warned_about_until_a_move_fixes_it() {
             y: 18.0,
         })
         .expect("move the system with the ranged axis");
-    assert!(!session.graph.systems[&111].position_range);
+    assert!(!session.graph().systems[&111].position_range);
     assert!(ranged(&session).is_empty());
 }
 
@@ -581,7 +581,10 @@ fn a_new_system_is_never_given_the_null_id() {
         sgf_core::NULL_ID - 1
     );
     let mut session = from_scenario_text(text);
-    assert_ne!(session.doc.scenario().unwrap().next_id(), sgf_core::NULL_ID);
+    assert_ne!(
+        session.doc().scenario().unwrap().next_id(),
+        sgf_core::NULL_ID
+    );
 
     session
         .apply(Op::AddSystem {
@@ -595,9 +598,9 @@ fn a_new_system_is_never_given_the_null_id() {
         })
         .expect("add a system beside one holding the highest id but one");
     assert!(
-        !session.graph.systems.contains_key(&sgf_core::NULL_ID),
+        !session.graph().systems.contains_key(&sgf_core::NULL_ID),
         "{:?}",
-        session.graph.order
+        session.graph().order
     );
 }
 

@@ -93,7 +93,7 @@ fn nebula_ops_dress_the_systems_they_take_in_and_undress_the_ones_they_let_go() 
     ];
     for (name, op) in cases {
         let mut session = open_4_5();
-        let original = session.doc.original().to_vec();
+        let original = session.doc().original().to_vec();
         let result = round_trip_step(&mut session, name, op);
         common::snapshot(name, &report(&session, &result));
 
@@ -117,12 +117,12 @@ fn nebula_ops_dress_the_systems_they_take_in_and_undress_the_ones_they_let_go() 
 #[test]
 fn a_nebula_is_made_turbulent_and_calm_again_member_by_member() {
     let mut session = open_4_5();
-    let original = session.doc.original().to_vec();
+    let original = session.doc().original().to_vec();
     assert_eq!(
-        session.graph.nebulae[DEMONS_EYE].turbulence,
+        session.graph().nebulae[DEMONS_EYE].turbulence,
         Some(Turbulence::Some)
     );
-    assert!(session.graph.systems[&0].turbulent);
+    assert!(session.graph().systems[&0].turbulent);
 
     let result = round_trip_step(
         &mut session,
@@ -134,7 +134,7 @@ fn a_nebula_is_made_turbulent_and_calm_again_member_by_member() {
     );
     common::snapshot("footprint_turbulent", &report(&session, &result));
     assert_eq!(
-        session.graph.nebulae[DEMONS_EYE].turbulence,
+        session.graph().nebulae[DEMONS_EYE].turbulence,
         Some(Turbulence::All)
     );
     assert!(
@@ -158,10 +158,10 @@ fn a_nebula_is_made_turbulent_and_calm_again_member_by_member() {
     );
     common::snapshot("footprint_calm", &report(&session, &result));
     assert_eq!(
-        session.graph.nebulae[DEMONS_EYE].turbulence,
+        session.graph().nebulae[DEMONS_EYE].turbulence,
         Some(Turbulence::None)
     );
-    assert!(!session.graph.systems[&0].turbulent);
+    assert!(!session.graph().systems[&0].turbulent);
     assert!(matches!(
         session.apply(Op::SetNebulaTurbulent {
             nebula: DEMONS_EYE,
@@ -305,7 +305,7 @@ fn a_game_cloud_comes_back_as_the_file_held_it_after_its_star_changed() {
 #[test]
 fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     let mut session = open_4_5();
-    let original = session.doc.original().to_vec();
+    let original = session.doc().original().to_vec();
     round_trip_step(
         &mut session,
         "add Mura",
@@ -345,7 +345,7 @@ fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
 #[test]
 fn a_system_added_inside_a_nebula_joins_it() {
     let mut session = common::open_4_5();
-    let original = session.doc.original().to_vec();
+    let original = session.doc().original().to_vec();
     let mut spec = mura();
     (spec.x, spec.y) = IN_NYTHRAN_EXPANSE;
     let added = round_trip_step(
@@ -353,7 +353,7 @@ fn a_system_added_inside_a_nebula_joins_it() {
         "add Mura inside",
         Op::AddSystemFromSpec { spec },
     );
-    assert_eq!(session.graph.systems[&MURA].nebula, Some(NYTHRAN_EXPANSE));
+    assert_eq!(session.graph().systems[&MURA].nebula, Some(NYTHRAN_EXPANSE));
     let diff = common::diff::unified_diff(&session, None);
     assert!(
         diff.contains(&format!("+\tgalactic_object={MURA}\n")),
@@ -375,8 +375,8 @@ fn a_system_added_inside_a_nebula_joins_it() {
 #[test]
 fn a_3_4_save_moves_members_and_writes_no_clouds() {
     let mut session = open_3_4();
-    let nebula = session.graph.nebulae[0].clone();
-    let outsider = (session.graph.systems.values())
+    let nebula = session.graph().nebulae[0].clone();
+    let outsider = (session.graph().systems.values())
         .filter(|s| s.nebula.is_none())
         .map(|s| s.id)
         .min()
@@ -398,7 +398,7 @@ fn a_3_4_save_moves_members_and_writes_no_clouds() {
             y: nebula.y,
         },
     );
-    let members = &session.graph.nebulae[0].systems;
+    let members = &session.graph().nebulae[0].systems;
     assert!(members.contains(&outsider), "{members:?}");
     assert!(members.len() < nebula.systems.len(), "{members:?}");
     let diff = common::diff::unified_diff(&session, None);

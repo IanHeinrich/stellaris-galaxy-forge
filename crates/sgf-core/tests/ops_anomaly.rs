@@ -28,7 +28,7 @@ fn remove(planet: u32) -> Op {
 
 /// The anomaly planet `id`'s page shows.
 fn anomaly(session: &Session, id: u32) -> Option<PlanetPageAnomaly> {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .unwrap_or_else(|e| panic!("planet {id}: {e}"))
         .anomaly
 }
@@ -83,7 +83,7 @@ fn a_planet_the_player_has_surveyed_is_listed_for_the_player() {
                 found_by: Some(vec![PLAYER]),
             }
         );
-        assert_eq!(current(&session), session.doc.original(), "{name}");
+        assert_eq!(current(&session), session.doc().original(), "{name}");
     }
 }
 
@@ -132,7 +132,11 @@ fn the_inverse_of_a_removal_writes_the_file_back() {
         assert_eq!(anomaly(&session, planet), None);
         session.apply(removed.inverse).expect("add it back");
         assert_eq!(anomaly(&session, planet), before);
-        assert_eq!(current(&session), session.doc.original(), "planet {planet}");
+        assert_eq!(
+            current(&session),
+            session.doc().original(),
+            "planet {planet}"
+        );
     }
     let mut session = open();
     snapshot_step(&mut session, "remove_only_entry_4_4", remove(7807));
@@ -181,7 +185,7 @@ fn a_country_named_twice_lists_the_planet_once() {
     let removed = session.apply(remove(749)).expect("remove");
     assert_eq!(
         current(&session),
-        session.doc.original(),
+        session.doc().original(),
         "no second copy left"
     );
     assert_eq!(

@@ -71,7 +71,7 @@ fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy
     );
     let text = String::from_utf8(text).expect("utf-8");
 
-    let capitals = default_capitals(&save);
+    let capitals = default_capitals(save.graph());
     let seats = capitals.len();
     assert_eq!(seats, 17);
     let empires = seats - 1;
@@ -120,7 +120,7 @@ static_galaxy_scenario = {{
             home(787, "custom_starting_init_02"),
         ]
     );
-    assert_sample_bypasses(&save.graph);
+    assert_sample_bypasses(save.graph());
     assert_eq!(
         report.dropped,
         DroppedBypasses {
@@ -194,10 +194,10 @@ static_galaxy_scenario = {{
     let scenario = EXPORTED.open();
     assert_eq!(scenario.kind(), DocumentKind::Scenario);
     assert_eq!(scenario.title(), NAME);
-    assert_eq!(scenario.graph.order, save.graph.order);
-    assert_eq!(scenario.graph.systems.len(), 791);
-    for (id, system) in &save.graph.systems {
-        let written = &scenario.graph.systems[id];
+    assert_eq!(scenario.graph().order, save.graph().order);
+    assert_eq!(scenario.graph().systems.len(), 791);
+    for (id, system) in &save.graph().systems {
+        let written = &scenario.graph().systems[id];
         assert_eq!(
             (written.x, written.y),
             (rounded(system.x), rounded(system.y))
@@ -209,8 +209,8 @@ static_galaxy_scenario = {{
             "{id}"
         );
     }
-    assert_eq!(lanes(&scenario.graph), lanes(&save.graph));
-    assert_eq!(scenario.graph.nebulae.len(), 9);
+    assert_eq!(lanes(scenario.graph()), lanes(save.graph()));
+    assert_eq!(scenario.graph().nebulae.len(), 9);
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("roundtrip.txt");
@@ -219,9 +219,9 @@ static_galaxy_scenario = {{
     assert_eq!(std::fs::read(&path).unwrap(), committed);
 
     // The save's shape leads the list; the sample's is elliptical, which leads anyway.
-    let mut ring = common::open();
-    ring.graph.setup.as_mut().expect("the sample's setup").shape = "ring".to_owned();
-    let (text, report) = exported(&ring, NAME);
+    let mut ring = common::open().graph().clone();
+    ring.setup.as_mut().expect("the sample's setup").shape = "ring".to_owned();
+    let (text, report) = common::export::exported_graph_as(&ring, NAME, ScenarioProfile::Plain);
     let text = String::from_utf8(text).expect("utf-8");
     assert!(
         text.contains(
@@ -254,7 +254,7 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     .expect("open as scenario");
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), NAME);
-    assert_eq!(session.path, None);
+    assert_eq!(session.path(), None);
     assert!(session.is_dirty());
     assert_eq!(report, exported(&common::open(), NAME).1);
     assert!(
@@ -274,12 +274,12 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("from_save.txt");
     session.save_as(&path).expect("save_as names the file");
-    assert_eq!(session.path.as_deref(), Some(path.as_path()));
+    assert_eq!(session.path(), Some(path.as_path()));
     assert!(!session.is_dirty());
 
     let reopened = Session::open(&path).expect("reopen what was saved");
-    assert_eq!(reopened.graph.order, session.graph.order);
-    assert_eq!(lanes(&reopened.graph), lanes(&session.graph));
+    assert_eq!(reopened.graph().order, session.graph().order);
+    assert_eq!(lanes(reopened.graph()), lanes(session.graph()));
 
     let error = export::open_save_as_scenario(
         Path::new(GRAMMAR.path),
@@ -297,10 +297,10 @@ fn a_new_scenario_is_a_header_with_nothing_in_it() {
         export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::Plain).expect("new scenario");
     assert_eq!(session.kind(), DocumentKind::Scenario);
     assert_eq!(session.title(), "sgf_test");
-    assert!(session.graph.systems.is_empty());
-    assert!(session.graph.nebulae.is_empty());
-    assert_eq!(session.graph.galaxy_radius, 0.0);
-    assert_eq!(session.path, None);
+    assert!(session.graph().systems.is_empty());
+    assert!(session.graph().nebulae.is_empty());
+    assert_eq!(session.graph().galaxy_radius, 0.0);
+    assert_eq!(session.path(), None);
     assert!(session.is_dirty());
 
     let dir = tempfile::tempdir().unwrap();
@@ -309,7 +309,7 @@ fn a_new_scenario_is_a_header_with_nothing_in_it() {
 
     let reopened = Session::open(&path).expect("reopen the new scenario");
     assert_eq!(reopened.title(), "sgf_test");
-    assert!(reopened.graph.systems.is_empty());
+    assert!(reopened.graph().systems.is_empty());
     common::snapshot(
         "new_scenario",
         &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
@@ -321,7 +321,7 @@ fn a_new_paint_a_galaxy_scenario_is_the_mods_header_with_nothing_in_it() {
     let mut session = export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::PaintAGalaxy)
         .expect("new scenario");
     assert_eq!(session.title(), "sgf_test");
-    assert!(session.graph.systems.is_empty());
+    assert!(session.graph().systems.is_empty());
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("sgf_test.txt");
@@ -348,5 +348,5 @@ fn a_scenario_name_that_cannot_be_quoted_is_refused_or_dropped() {
     let save = common::open();
     let scenario = from_scenario_text(exported(&save, "My \"Best\" Galaxy").0);
     assert_eq!(scenario.title(), "My Best Galaxy");
-    assert_eq!(scenario.graph.order, save.graph.order);
+    assert_eq!(scenario.graph().order, save.graph().order);
 }

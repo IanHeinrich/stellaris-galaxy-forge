@@ -20,7 +20,7 @@ pub fn run(sav: &Path, id: Option<u32>) -> Run {
             .unwrap_or_default()
     };
     let Some(id) = id else {
-        for &id in &session.graph.order {
+        for &id in &session.graph().order {
             let Some(d) = resolve(id) else {
                 continue;
             };

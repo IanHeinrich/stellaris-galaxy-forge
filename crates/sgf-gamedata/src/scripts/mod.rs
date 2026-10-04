@@ -61,7 +61,7 @@ impl<'a> ScenarioSystem<'a> {
             .map(|(id, text, _)| (*id, text.as_str()))
             .collect();
         let systems: Vec<ScenarioSystem<'_>> = session
-            .graph
+            .graph()
             .systems
             .values()
             .map(|s| ScenarioSystem::new(s.id, &s.initializer, by_system.get(&s.id).copied()))

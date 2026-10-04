@@ -64,7 +64,7 @@ fn details_of(session: &mut Session) -> BTreeMap<u32, RawSystemDetails> {
     session.warm_details().expect("build details");
     let details = session.details().expect("details");
     session
-        .graph
+        .graph()
         .systems
         .keys()
         .filter_map(|&id| Some((id, details.raw(id)?.clone())))
@@ -75,18 +75,18 @@ fn details_of(session: &mut Session) -> BTreeMap<u32, RawSystemDetails> {
 /// system's lanes, the nebulae) put in one.
 fn settled(session: &Session) -> (BTreeMap<u32, SystemNode>, Vec<String>, String) {
     let mut systems: BTreeMap<u32, SystemNode> =
-        session.graph.systems.clone().into_iter().collect();
+        session.graph().systems.clone().into_iter().collect();
     systems
         .values_mut()
         .for_each(|system| system.lanes.sort_by_key(|lane| lane.to));
     let mut nebulae: Vec<String> = session
-        .graph
+        .graph()
         .nebulae
         .iter()
         .map(|nebula| format!("{nebula:?}"))
         .collect();
     nebulae.sort();
-    (systems, nebulae, format!("{:?}", session.graph.header))
+    (systems, nebulae, format!("{:?}", session.graph().header))
 }
 
 /// Ops whose inverse restores the body it moved or the site it removed under another
@@ -129,7 +129,7 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
         for (mut session, op) in cases {
             let label = format!("{name} on a {:?}", session.kind());
             let bytes = current(&session);
-            let meta = session.doc.meta().to_vec();
+            let meta = session.doc().meta().to_vec();
             let galaxy = settled(&session);
             let details = details_of(&mut session);
             let result = session
@@ -138,7 +138,7 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
             session
                 .apply_inverse(result.inverse)
                 .unwrap_or_else(|e| panic!("{label}: the inverse: {e}"));
-            if session.doc.meta() != meta {
+            if session.doc().meta() != meta {
                 failed.push(format!("{label}: meta"));
             } else if current(&session) != bytes {
                 if !GALAXY_READS_BACK_NEAR.contains(&name) && settled(&session) != galaxy {
@@ -172,9 +172,9 @@ fn two_ops_on_one_entity_undo_one_at_a_time() {
 
     session.undo().unwrap().expect("undo remove");
     assert_eq!(current(&session), moved);
-    assert!(session.graph.lane(0, 752).is_some());
+    assert!(session.graph().lane(0, 752).is_some());
     session.undo().unwrap().expect("undo move");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert!(session.undo().unwrap().is_none());
 }
 
@@ -227,12 +227,13 @@ fn moved_system_projection_matches_a_reload_of_the_saved_file() {
     assert!(!session.is_dirty());
 
     let reloaded = GalaxyGraph::build(&Document::load(&path).unwrap()).unwrap();
-    let zero = &session.graph.systems[&0];
+    let zero = &session.graph().systems[&0];
     assert_eq!((zero.x, zero.y), (-150.0, 60.0));
     assert_eq!(zero, &reloaded.systems[&0]);
     for lane in &zero.lanes {
         assert_eq!(
-            session.graph.systems[&lane.to], reloaded.systems[&lane.to],
+            session.graph().systems[&lane.to],
+            reloaded.systems[&lane.to],
             "neighbour {}",
             lane.to
         );
@@ -258,12 +259,12 @@ fn added_lane_survives_save_and_reload() {
     session.save_as(&path).unwrap();
 
     let reopened = Session::open(&path).unwrap();
-    let (a, b) = (&reopened.graph.systems[&0], &reopened.graph.systems[&1]);
+    let (a, b) = (&reopened.graph().systems[&0], &reopened.graph().systems[&1]);
     let dist = (a.x - b.x).hypot(a.y - b.y);
-    let lane = reopened.graph.lane(0, 1).expect("lane 0 -> 1");
+    let lane = reopened.graph().lane(0, 1).expect("lane 0 -> 1");
     assert_eq!(lane.length, dist.floor());
     assert!(!lane.bridge);
-    assert_eq!(reopened.graph.lane(1, 0).unwrap().length, dist.floor());
+    assert_eq!(reopened.graph().lane(1, 0).unwrap().length, dist.floor());
     assert!(
         reopened
             .validate()

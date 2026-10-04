@@ -28,10 +28,10 @@ fn seats(seats: u32, reserved: u32, player_on_reserved: bool) -> SeatCounts {
 }
 
 fn counts_op(session: &Session) -> Op {
-    let zones = zone_count(&session.graph);
-    let clans = clan_count(&session.graph);
+    let zones = zone_count(session.graph());
+    let clans = clan_count(session.graph());
     Op::SetHeaderKeys {
-        entries: empire_counts(seat_counts(&session.graph), zones, clans)
+        entries: empire_counts(seat_counts(session.graph()), zones, clans)
             .into_iter()
             .map(|(key, value)| (key.to_owned(), value))
             .collect(),
@@ -41,19 +41,22 @@ fn counts_op(session: &Session) -> Op {
 #[test]
 fn the_fixture_has_four_seats_three_held_and_a_header_that_allows_too_many() {
     let session = PAINTED.open();
-    assert_eq!(seat_counts(&session.graph), seats(4, 3, true));
-    assert_eq!(zone_count(&session.graph), 2);
-    assert_eq!(clan_count(&session.graph), 0);
+    assert_eq!(seat_counts(session.graph()), seats(4, 3, true));
+    assert_eq!(zone_count(session.graph()), 2);
+    assert_eq!(clan_count(session.graph()), 0);
     assert_eq!(
-        session.graph.header_block_count("num_empires", "max"),
+        session.graph().header_block_count("num_empires", "max"),
         Some(3)
     );
-    assert_eq!(session.graph.header_count("num_empire_default"), Some(3));
-    assert_eq!(session.graph.header_count("fallen_empire_max"), Some(6));
-    assert_eq!(session.graph.header_count("fallen_empire_default"), Some(0));
-    assert_eq!(session.graph.header_count("marauder_empire_max"), Some(3));
+    assert_eq!(session.graph().header_count("num_empire_default"), Some(3));
+    assert_eq!(session.graph().header_count("fallen_empire_max"), Some(6));
     assert_eq!(
-        session.graph.header_count("marauder_empire_default"),
+        session.graph().header_count("fallen_empire_default"),
+        Some(0)
+    );
+    assert_eq!(session.graph().header_count("marauder_empire_max"), Some(3));
+    assert_eq!(
+        session.graph().header_count("marauder_empire_default"),
         Some(1)
     );
     let issues = session.validate();
@@ -69,9 +72,9 @@ fn the_fixture_has_four_seats_three_held_and_a_header_that_allows_too_many() {
     assert!(coded(&issues, IssueCode::LClusterSystem).is_empty());
 
     let save = common::open();
-    assert_eq!(save.graph.header_block_count("num_empires", "max"), None);
-    assert_eq!(save.graph.header_count("fallen_empire_max"), None);
-    assert_eq!(save.graph.header_count("marauder_empire_max"), None);
+    assert_eq!(save.graph().header_block_count("num_empires", "max"), None);
+    assert_eq!(save.graph().header_count("fallen_empire_max"), None);
+    assert_eq!(save.graph().header_count("marauder_empire_max"), None);
     let plain = GRAMMAR.open();
     for session in [&save, &plain] {
         let issues = session.validate();
@@ -122,12 +125,15 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
         }
     );
     assert!(coded(&result.issues, IssueCode::HeaderEmpireCount).is_empty());
-    assert_eq!(session.graph.header_count("num_empire_default"), Some(1));
-    assert_eq!(session.graph.header_count("fallen_empire_max"), Some(2));
-    assert_eq!(session.graph.header_count("fallen_empire_default"), Some(2));
-    assert_eq!(session.graph.header_count("marauder_empire_max"), Some(0));
+    assert_eq!(session.graph().header_count("num_empire_default"), Some(1));
+    assert_eq!(session.graph().header_count("fallen_empire_max"), Some(2));
     assert_eq!(
-        session.graph.header_count("marauder_empire_default"),
+        session.graph().header_count("fallen_empire_default"),
+        Some(2)
+    );
+    assert_eq!(session.graph().header_count("marauder_empire_max"), Some(0));
+    assert_eq!(
+        session.graph().header_count("marauder_empire_default"),
         Some(0)
     );
     assert_eq!(session.history().undo.len(), 1);
@@ -168,7 +174,7 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
         },
         "a key this added has nothing to put back"
     );
-    assert_eq!(session.graph.core_radius, 40.0);
+    assert_eq!(session.graph().core_radius, 40.0);
 
     let mut session = PAINTED.open();
     let cases: [Refused<Vec<(String, String)>>; 3] = [
@@ -202,7 +208,7 @@ fn a_wrong_maximum_is_reported_even_when_the_default_fits() {
         "num_empires = { min = 0 max = 5 }\n\tnum_empire_default = 1",
     )]);
     assert_eq!(
-        session.graph.header_block_count("num_empires", "max"),
+        session.graph().header_block_count("num_empires", "max"),
         Some(5)
     );
     assert_eq!(
@@ -228,7 +234,7 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         no_clans,
         no_clan_default,
     ]);
-    assert_eq!(fits.graph.header_count("fallen_empire_max"), Some(2));
+    assert_eq!(fits.graph().header_count("fallen_empire_max"), Some(2));
     assert!(coded(&fits.validate(), IssueCode::HeaderEmpireCount).is_empty());
 
     let default_high = PAINTED.open_edited(&[
@@ -237,7 +243,7 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         ("fallen_empire_default = 0", "fallen_empire_default = 3"),
     ]);
     assert_eq!(
-        default_high.graph.header_count("fallen_empire_default"),
+        default_high.graph().header_count("fallen_empire_default"),
         Some(3)
     );
     assert_eq!(
@@ -260,7 +266,7 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
         no_clans,
         no_clan_default,
     ]);
-    assert_eq!(unreadable.graph.header_count("fallen_empire_max"), None);
+    assert_eq!(unreadable.graph().header_count("fallen_empire_max"), None);
     assert!(coded(&unreadable.validate(), IssueCode::HeaderEmpireCount).is_empty());
 
     let fallen_fit = ("fallen_empire_max = 6", "fallen_empire_max = 2");
@@ -315,7 +321,7 @@ fn a_letter_or_sol_on_two_systems_names_them_all() {
         "Reserved A is on 2 systems: only one empire holds the trait."
     );
     assert_eq!(duplicate[0].systems, [2, 11]);
-    assert_eq!(seat_counts(&session.graph), seats(5, 4, true));
+    assert_eq!(seat_counts(session.graph()), seats(5, 4, true));
 
     let session = PAINTED.open_edited(&[(
         "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }",
@@ -358,7 +364,7 @@ fn the_players_seat_on_two_systems_names_them_both() {
     );
     assert_eq!(duplicate[0].severity, Severity::Warning);
     assert_eq!(duplicate[0].systems, [1, 2]);
-    assert_eq!(seat_counts(&session.graph), seats(4, 3, true));
+    assert_eq!(seat_counts(session.graph()), seats(4, 3, true));
 }
 
 /// Paint a Galaxy's own count: `spawns - preferred - reserved - (preferred > 0 ? 0 : 1)`,
@@ -445,7 +451,7 @@ fn the_players_seat_is_set_aside_once_whichever_kind_it_is() {
         vec![default_two, letter],
     ] {
         let session = PAINTED.open_edited(&edits);
-        assert_eq!(seat_counts(&session.graph), seats(4, 3, true), "{edits:?}");
+        assert_eq!(seat_counts(session.graph()), seats(4, 3, true), "{edits:?}");
         assert_eq!(default_of(&session), one, "{edits:?}");
         assert_eq!(
             header_issue(&session),
@@ -457,16 +463,16 @@ fn the_players_seat_is_set_aside_once_whichever_kind_it_is() {
     // Without a 1st Player seat, the player's seat on Sol is among the two reserved, so
     // the other two seats are open.
     let on_sol = PAINTED.open_edited(&[no_first_player, default_two, sol]);
-    assert_eq!(seat_counts(&on_sol.graph), seats(4, 2, true));
+    assert_eq!(seat_counts(on_sol.graph()), seats(4, 2, true));
     assert_eq!(default_of(&on_sol), two);
     assert_eq!(header_issue(&on_sol), fallen_issue);
     let on_letter = PAINTED.open_edited(&[no_first_player, default_two, letter]);
-    assert_eq!(seat_counts(&on_letter.graph), seats(4, 2, true));
+    assert_eq!(seat_counts(on_letter.graph()), seats(4, 2, true));
     assert_eq!(default_of(&on_letter), two);
 
     // No seat carries the player's marker: the player takes one of the two open seats.
     let unmarked = PAINTED.open_edited(&[no_first_player, default_two]);
-    assert_eq!(seat_counts(&unmarked.graph), seats(4, 2, false));
+    assert_eq!(seat_counts(unmarked.graph()), seats(4, 2, false));
     assert_eq!(default_of(&unmarked), one);
     assert_eq!(
         header_issue(&unmarked),

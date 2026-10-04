@@ -94,7 +94,7 @@ fn a_terraforming_planet_says_so() {
 ";
         *text = text.replacen(list, &format!("{process}{list}"), 1);
     });
-    assert!(page(&session.doc, 2).terraforming);
+    assert!(page(session.doc(), 2).terraforming);
 }
 
 #[test]
@@ -106,9 +106,9 @@ fn the_page_reads_the_bytes_an_op_wrote() {
             size: 20,
         })
         .expect("resize Nekkar I");
-    assert_eq!(page(&session.doc, 731).size, Some(20));
+    assert_eq!(page(session.doc(), 731).size, Some(20));
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(page(&session.doc, 731).size, Some(16));
+    assert_eq!(page(session.doc(), 731).size, Some(16));
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn an_absent_planet_and_a_scenarios_are_not_found() {
     assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 
     let scenario = GRAMMAR.open();
-    let err = get_planet_page(&scenario.doc, 0).unwrap_err();
+    let err = get_planet_page(scenario.doc(), 0).unwrap_err();
     assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 }
 

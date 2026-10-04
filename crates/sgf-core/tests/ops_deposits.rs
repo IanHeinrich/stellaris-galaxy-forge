@@ -28,7 +28,7 @@ fn remove(deposit: u32) -> Op {
 
 /// The deposits planet `id`'s page lists, as (id, type).
 fn page(session: &Session, id: u32) -> Vec<(u32, String)> {
-    get_planet_page(&session.doc, id)
+    get_planet_page(session.doc(), id)
         .unwrap_or_else(|e| panic!("planet {id}: {e}"))
         .deposits
         .into_iter()
@@ -231,7 +231,7 @@ fn a_batch_add_takes_the_slot_its_removal_freed_and_undoes_to_the_original() {
         }
     );
     session.undo().expect("undo").expect("the batch");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// The 4.4 sample with an empty `deposits` list last in planet 2, which the game never
@@ -273,7 +273,7 @@ fn removing_a_deposit_added_in_the_session_gives_back_the_original_bytes() {
         assert_eq!((first, second), (GENERATION, GENERATION + 1));
         round_trip_step(&mut session, "remove the first", remove(first));
         round_trip_step(&mut session, "remove the second", remove(second));
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -307,7 +307,7 @@ fn an_appended_deposit_leaves_the_table_when_it_goes_last() {
     round_trip_step(&mut session, "remove the first", remove(first));
     assert!(text(&session).contains(&format!("\n\t{first}=none\n\t{second}=\n")));
     round_trip_step(&mut session, "remove the second", remove(second));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -370,7 +370,7 @@ fn removing_an_added_system_takes_the_deposits_added_to_it() {
         );
 
         let removed = round_trip_step(&mut session, "the system", Op::RemoveSystem { system: id });
-        assert_eq!(current(&session), session.doc.original(), "{id}");
+        assert_eq!(current(&session), session.doc().original(), "{id}");
         let Op::AddSystemFromSpec { spec } = removed.inverse else {
             panic!("{:?}", removed.inverse);
         };
@@ -382,10 +382,10 @@ fn removing_an_added_system_takes_the_deposits_added_to_it() {
 #[test]
 fn a_station_deposit_a_blocker_and_a_moons_deposit_can_be_removed() {
     let mut session = open_4_5();
-    let station = get_planet_page(&session.doc, 13).unwrap().station;
+    let station = get_planet_page(session.doc(), 13).unwrap().station;
     assert!(station.is_some());
     round_trip_step(&mut session, "under a station", remove(21));
-    assert_eq!(get_planet_page(&session.doc, 13).unwrap().station, station);
+    assert_eq!(get_planet_page(session.doc(), 13).unwrap().station, station);
     assert!(page(&session, 13).is_empty());
     round_trip_step(&mut session, "a blocker", remove(262));
     assert!(page(&session, 135).iter().all(|(id, _)| *id != 262));
@@ -417,7 +417,7 @@ fn a_deposit_type_is_checked_the_same_way_by_both_ops() {
 
 fn refused(session: &mut Session, op: Op) -> OpError {
     let error = session.apply(op).expect_err("refused");
-    assert!(!session.doc.is_dirty(), "{error}");
+    assert!(!session.doc().is_dirty(), "{error}");
     error
 }
 
@@ -489,7 +489,7 @@ fn clearing_wildlife() -> Session {
 #[test]
 fn a_blocker_being_cleared_leaves_its_item_to_the_game() {
     let mut session = clearing_wildlife();
-    let before = get_planet_page(&session.doc, 5172).expect("Olbers II");
+    let before = get_planet_page(session.doc(), 5172).expect("Olbers II");
     assert_eq!(before.clearing.len(), 1);
     assert_eq!(before.clearing[0].deposit, 3401);
     assert_eq!(
@@ -497,7 +497,7 @@ fn a_blocker_being_cleared_leaves_its_item_to_the_game() {
         [("energy".to_owned(), 750.0), ("minerals".to_owned(), 250.0)]
     );
     assert!(
-        get_planet_page(&open().doc, 5172)
+        get_planet_page(open().doc(), 5172)
             .unwrap()
             .clearing
             .is_empty()
@@ -513,14 +513,14 @@ fn a_blocker_being_cleared_leaves_its_item_to_the_game() {
 "
     ));
     assert!(text(&session).contains(item));
-    let after = get_planet_page(&session.doc, 5172).expect("Olbers II");
+    let after = get_planet_page(session.doc(), 5172).expect("Olbers II");
     assert!(after.clearing.is_empty());
 }
 
 #[test]
 fn a_colonys_other_deposits_and_its_districts_are_left_as_they_were() {
     let mut session = open_4_5();
-    let colony = |s: &Session| get_planet_page(&s.doc, 2).unwrap().colony.unwrap();
+    let colony = |s: &Session| get_planet_page(s.doc(), 2).unwrap().colony.unwrap();
     let before = colony(&session);
     round_trip_step(&mut session, "remove", remove(441));
     round_trip_step(&mut session, "add", add(2, "d_rich_mountain"));

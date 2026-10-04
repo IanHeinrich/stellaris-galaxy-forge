@@ -378,9 +378,10 @@ fn a_document_without_the_section_is_not_found() {
 #[test]
 fn the_source_is_the_entity_bytes() {
     let session = common::open();
-    let view = get_entity(&session.doc, addr(EntityKind::Planet, 0), &[]).expect("read planet");
-    let source = get_entity_source(&session.doc, addr(EntityKind::Planet, 0)).expect("read source");
-    let bytes = &session.doc.original()[view.span[0]..view.span[1]];
+    let view = get_entity(session.doc(), addr(EntityKind::Planet, 0), &[]).expect("read planet");
+    let source =
+        get_entity_source(session.doc(), addr(EntityKind::Planet, 0)).expect("read source");
+    let bytes = &session.doc().original()[view.span[0]..view.span[1]];
     assert_eq!(source.text.as_bytes(), bytes);
     assert_eq!(source.text.len(), view.bytes as usize);
     assert!(source.changed.is_empty());
@@ -400,7 +401,7 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
         })
         .expect("move the system");
 
-    let view = get_entity(&session.doc, system, &[]).expect("read the moved system");
+    let view = get_entity(session.doc(), system, &[]).expect("read the moved system");
     assert!(view.dirty);
     let changed: Vec<&str> = view
         .nodes
@@ -410,7 +411,7 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
         .collect();
     assert_eq!(changed, ["coordinate", "x", "y", "hyperlane"]);
 
-    let coordinate = get_entity(&session.doc, system, &path(&["coordinate"])).expect("drill");
+    let coordinate = get_entity(session.doc(), system, &path(&["coordinate"])).expect("drill");
     let changed: Vec<&str> = coordinate
         .nodes
         .iter()
@@ -419,7 +420,7 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
         .collect();
     assert_eq!(changed, ["x", "y"]);
 
-    let source = get_entity_source(&session.doc, system).expect("read source");
+    let source = get_entity_source(session.doc(), system).expect("read source");
     let ranges: Vec<&str> = source
         .changed
         .iter()
@@ -437,10 +438,10 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
     common::snapshot("system_0_moved_spans", &format!("{ranges:#?}"));
 
     session.undo().expect("undo").expect("an op to undo");
-    let view = get_entity(&session.doc, system, &[]).expect("read the restored system");
+    let view = get_entity(session.doc(), system, &[]).expect("read the restored system");
     assert!(!view.dirty);
     assert!(view.nodes.iter().all(|n| !n.changed));
-    let source = get_entity_source(&session.doc, system).expect("read source");
+    let source = get_entity_source(session.doc(), system).expect("read source");
     assert!(source.changed.is_empty());
 }
 
@@ -448,7 +449,7 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
 fn a_block_an_op_created_marks_every_node_in_it_changed() {
     let mut session = common::open();
     let isolated = session
-        .graph
+        .graph()
         .systems
         .values()
         .find(|s| s.lanes.is_empty())
@@ -463,7 +464,7 @@ fn a_block_an_op_created_marks_every_node_in_it_changed() {
         .expect("connect it");
 
     let lanes = get_entity(
-        &session.doc,
+        session.doc(),
         addr(EntityKind::System, isolated),
         &path(&["hyperlane"]),
     )
@@ -478,7 +479,7 @@ fn a_block_an_op_created_marks_every_node_in_it_changed() {
 fn a_scenario_system_reads_its_own_nodes() {
     let session = GRAMMAR.open();
     let system = addr(EntityKind::System, 3018);
-    let view = get_entity(&session.doc, system, &[]).expect("read the scenario system");
+    let view = get_entity(session.doc(), system, &[]).expect("read the scenario system");
 
     let keys: Vec<&str> = view
         .nodes
@@ -503,7 +504,7 @@ fn a_scenario_system_reads_its_own_nodes() {
     // A scenario carries none of the keys the curated rows read.
     assert!(view.overview.is_empty() && view.contents.is_empty());
 
-    let position = get_entity(&session.doc, system, &path(&["position"])).expect("drill");
+    let position = get_entity(session.doc(), system, &path(&["position"])).expect("drill");
     let keys: Vec<&str> = position
         .nodes
         .iter()
@@ -515,7 +516,7 @@ fn a_scenario_system_reads_its_own_nodes() {
     // System 111 writes `x = { min = 20 max = 30 }`, which the projection collapses to a
     // midpoint: here the range stands as a block of its own that drills one level further.
     let ranged = addr(EntityKind::System, 111);
-    let position = get_entity(&session.doc, ranged, &path(&["position"])).expect("drill");
+    let position = get_entity(session.doc(), ranged, &path(&["position"])).expect("drill");
     let x = position
         .nodes
         .iter()
@@ -527,7 +528,7 @@ fn a_scenario_system_reads_its_own_nodes() {
         x.value
     );
 
-    let range = get_entity(&session.doc, ranged, &path(&["position", "x"])).expect("drill again");
+    let range = get_entity(session.doc(), ranged, &path(&["position", "x"])).expect("drill again");
     let bounds: Vec<(&str, &str)> = range
         .nodes
         .iter()
@@ -544,7 +545,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
     let mut session = GRAMMAR.open();
     let system = addr(EntityKind::System, 3018);
 
-    let before = get_entity_source(&session.doc, system).expect("read source");
+    let before = get_entity_source(session.doc(), system).expect("read source");
     assert!(before.text.starts_with("system = {"), "{}", before.text);
     assert!(before.changed.is_empty());
     assert!(!before.truncated);
@@ -557,7 +558,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
         })
         .expect("move the system");
 
-    let after = get_entity_source(&session.doc, system).expect("read source");
+    let after = get_entity_source(session.doc(), system).expect("read source");
     let ranges: Vec<&str> = after
         .changed
         .iter()
@@ -566,7 +567,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
     assert_eq!(ranges.len(), 1, "{ranges:?}");
     assert!(ranges[0].contains("x = 41"), "{ranges:?}");
 
-    let view = get_entity(&session.doc, system, &[]).expect("read the moved system");
+    let view = get_entity(session.doc(), system, &[]).expect("read the moved system");
     assert!(view.dirty);
     let changed: Vec<&str> = view
         .nodes
@@ -578,7 +579,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
 
     session.undo().expect("undo").expect("an op to undo");
     assert!(
-        get_entity_source(&session.doc, system)
+        get_entity_source(session.doc(), system)
             .expect("read source")
             .changed
             .is_empty()
@@ -601,13 +602,13 @@ fn a_scenario_system_an_op_added_reads_as_new() {
         .expect("add a system");
 
     let system = addr(EntityKind::System, 4242);
-    let view = get_entity(&session.doc, system, &[]).expect("read the new system");
+    let view = get_entity(session.doc(), system, &[]).expect("read the new system");
     assert!(view.dirty);
     assert!(view.nodes.iter().all(|n| n.changed), "{:?}", view.nodes);
     // An inserted statement stands at one offset, holding none of the original bytes.
     assert_eq!(view.span[0], view.span[1]);
 
-    let source = get_entity_source(&session.doc, system).expect("read source");
+    let source = get_entity_source(session.doc(), system).expect("read source");
     assert!(source.text.contains("id = \"4242\""), "{}", source.text);
     assert_eq!(source.changed, [[0, source.text.len()]]);
 }
@@ -619,10 +620,10 @@ fn only_a_scenarios_systems_are_addressable_and_the_save_path_is_unchanged() {
         .into_iter()
         .filter(|k| *k != EntityKind::System)
     {
-        let err = get_entity(&session.doc, addr(kind, 1), &[]).unwrap_err();
+        let err = get_entity(session.doc(), addr(kind, 1), &[]).unwrap_err();
         assert!(matches!(err, EntityError::NotFound(_)), "{kind}: {err}");
     }
-    let err = get_entity(&session.doc, addr(EntityKind::System, 999_999), &[]).unwrap_err();
+    let err = get_entity(session.doc(), addr(EntityKind::System, 999_999), &[]).unwrap_err();
     assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 
     let doc = common::load();

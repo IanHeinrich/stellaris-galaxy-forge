@@ -31,7 +31,7 @@ fn add_lane_is_refused_when_the_pair_is_already_linked() {
         })
         .expect_err("1 and 16 are linked twice over");
     assert!(matches!(error, OpError::LaneExists(1, 16)), "{error:?}");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn remove_lane_pairs_is_refused_when_one_pair_is_not_linked() {
         })
         .expect_err("9 and 512 are not linked");
     assert!(matches!(error, OpError::NoSuchLane(9, 512)), "{error:?}");
-    assert!(!session.doc.is_dirty());
+    assert!(!session.doc().is_dirty());
 }
 
 #[test]
