@@ -5,6 +5,7 @@ import { starTypeChoices, starTypeRows } from "../../../lib/details/starBody";
 import { currentStarBodies, STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { BoundsField } from "../../BoundsField";
 import { EditBlock, EditRow, PickerField, TextField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
@@ -73,8 +74,8 @@ function StarTypeField({
 }
 
 /**
- * A body's size as a whole number of at least 1, sent to `edits` as a fixed range; anything else
- * puts the field back.
+ * A body's size, sent to `edits`, which refuses what its source can't take: a range, a fraction
+ * or less than 1. A refused size puts the field back.
  */
 export function SizeField({
   edits,
@@ -97,12 +98,12 @@ export function SizeField({
     );
   }
   return (
-    <TextField
-      kind="number"
+    <BoundsField
       label="Size"
       title={title}
-      value={size}
-      onCommit={(next) => void edits.setSize({ min: next, max: next }, size)}
+      value={{ min: size, max: size }}
+      ranges={edits.ranges}
+      onCommit={(next) => void edits.setSize(next, size)}
     />
   );
 }
