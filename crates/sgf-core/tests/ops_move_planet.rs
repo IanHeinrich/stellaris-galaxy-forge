@@ -151,12 +151,7 @@ fn moves_are_refused() {
             "planet 1140 is a star: only a planet can move to another system",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// Colony 402 of country 16777226 goes to system 216, which nobody owns. Country 11 owns

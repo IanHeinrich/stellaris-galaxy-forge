@@ -248,12 +248,7 @@ fn a_modifier_is_refused_for_a_star_an_unknown_planet_or_no_change() {
             "17 copies of a modifier: an op adds or restores 1 to 16",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]

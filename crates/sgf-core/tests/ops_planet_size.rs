@@ -68,12 +68,7 @@ fn a_planet_size_is_refused_for_an_unknown_planet_zero_or_no_change() {
         (set(748, 0), "a planet size may not be zero"),
         (set(748, 25), "planet 748 is already size 25"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]

@@ -168,7 +168,8 @@ fn write_script(
         (None, Some(block)) => edit.remove_statement(block.statement),
         (None, None) => {}
     }
-    Ok((paint::description(id, script), (id, previous)))
+    let description = paint::description(&named(&s.graph, id), script);
+    Ok((description, (id, previous)))
 }
 
 /// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites

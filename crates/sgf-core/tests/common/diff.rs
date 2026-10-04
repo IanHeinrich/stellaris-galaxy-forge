@@ -42,6 +42,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
         writeln!(out, "… and {others} other issues").unwrap();
     }
     write!(out, "{}", unified_diff(session, None)).unwrap();
+    write!(out, "{}", meta_diff(session)).unwrap();
     out
 }
 
@@ -52,7 +53,24 @@ pub fn plain_report(session: &Session, result: &OpResult) -> String {
     writeln!(out, "{}", result.entry.description).unwrap();
     writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
     write!(out, "{}", unified_diff(session, None)).unwrap();
+    write!(out, "{}", meta_diff(session)).unwrap();
     out
+}
+
+/// The save's `meta` as a unified diff against the one it was opened with, led by a blank
+/// line like the gamestate's; empty while `meta` stands as opened.
+pub fn meta_diff(session: &Session) -> String {
+    let before = String::from_utf8_lossy(session.doc.original_meta()).into_owned();
+    let after = String::from_utf8_lossy(session.doc.meta()).into_owned();
+    if before == after {
+        return String::new();
+    }
+    let diff = TextDiff::from_lines(&before, &after);
+    format!(
+        "
+{}",
+        diff.unified_diff().context_radius(3).header("meta", "meta")
+    )
 }
 
 /// Apply `op` and describe it: its description, its inverse, the renumbering it made if
@@ -171,6 +189,7 @@ pub fn round_trip(mut session: Session, op: Op) {
 /// returned.
 pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     let before = current(session);
+    let before_meta = session.doc.meta().to_vec();
     let before_graph = session.graph.clone();
     let before_view = GalaxyView::from(&session.graph);
     let done = session.history().undo.len();
@@ -179,7 +198,11 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
         .apply_inverse(op)
         .unwrap_or_else(|e| panic!("{label}: {e}"));
     let edited = current(session);
-    assert_ne!(edited, before, "{label}: the op changed nothing");
+    let edited_meta = session.doc.meta().to_vec();
+    assert!(
+        edited != before || edited_meta != before_meta,
+        "{label}: the op changed nothing"
+    );
     assert!(
         session.is_dirty(),
         "{label}: an edit leaves the session dirty"
@@ -193,6 +216,11 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
         current(session),
         before,
         "{label}: undo is not byte-identical"
+    );
+    assert_eq!(
+        session.doc.meta(),
+        before_meta,
+        "{label}: undo left a different meta"
     );
     assert_eq!(
         GalaxyView::from(&session.graph),
@@ -212,6 +240,11 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
         current(session),
         edited,
         "{label}: redo wrote different bytes"
+    );
+    assert_eq!(
+        session.doc.meta(),
+        edited_meta,
+        "{label}: redo wrote a different meta"
     );
     assert_history(session, label, done + 1, 0);
     assert!(session.redo().expect("redo").is_none());

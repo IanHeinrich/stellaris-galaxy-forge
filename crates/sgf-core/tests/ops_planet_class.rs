@@ -168,12 +168,7 @@ fn a_class_change_is_refused_for_stars_fixed_classes_and_colonies() {
         ),
         (set(585, "pc_barren", ""), "a planet class may not be empty"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// A colony may still go to a class open to colonies whose one model it lacks the index of.

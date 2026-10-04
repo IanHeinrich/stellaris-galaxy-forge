@@ -24,5 +24,3 @@ inverse: SetEmpireFlag { country: 1, flag: EmpireFlag { icon_category: "blocky",
  			}
  		}
  		name=
-
-meta unchanged

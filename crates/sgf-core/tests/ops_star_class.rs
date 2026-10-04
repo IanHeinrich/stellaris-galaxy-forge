@@ -145,12 +145,7 @@ fn a_star_class_is_refused_where_it_names_no_body_of_the_system_or_changes_nothi
             "system 1 is already sc_g with those star bodies",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]

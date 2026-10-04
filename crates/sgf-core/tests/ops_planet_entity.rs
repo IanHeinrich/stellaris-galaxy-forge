@@ -2,6 +2,7 @@
 //! planet page and the system details read the model back, and undo puts the original bytes
 //! back.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::entity::get_planet_page;
 use sgf_core::format::save::details::HeuristicResolver;
 use sgf_core::ops::Op;
@@ -9,7 +10,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open_4_5, text};
+use common::{current, open_4_5};
 
 const PARADISE: &str = "ocean_paradise_planet_01_entity";
 
@@ -43,15 +44,13 @@ fn drawn_model(session: &Session, id: u32) -> Option<String> {
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
 fn flags(session: &Session, id: u32) -> Option<String> {
-    let text = text(session);
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets
-        + text[planets..]
-            .find(&format!("\n\t\t{id}=\n\t\t{{\n"))
-            .unwrap_or_else(|| panic!("planet {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t\t}\n").expect("its end");
-    let entity = &text[start..end];
-    let at = entity.find("\n\t\t\tbinary_flags=")? + "\n\t\t\tbinary_flags=".len();
+    let entity = common::entity_text(session, EntityKind::Planet, id);
+    let at = entity.find(
+        "
+			binary_flags=",
+    )? + "
+			binary_flags="
+        .len();
     Some(entity[at..].lines().next().unwrap_or_default().to_owned())
 }
 
@@ -192,10 +191,7 @@ fn a_model_is_refused_for_a_star_an_unknown_planet_or_no_change() {
         ),
         (set(585, Some("")), "a planet model may not be empty"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(&mut session, refusals);
     let error = session
         .apply(set(585, Some("two words")))
         .expect_err("not an identifier");

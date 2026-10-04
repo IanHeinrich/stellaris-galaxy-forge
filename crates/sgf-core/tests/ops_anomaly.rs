@@ -210,9 +210,5 @@ fn an_anomaly_is_refused_for_a_held_one_none_or_a_bad_category() {
             "\"two words\" cannot be written as an anomaly category",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 }

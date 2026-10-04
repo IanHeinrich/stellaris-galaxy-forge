@@ -2,8 +2,9 @@
 //! is numbered with, byte-exact undo, the inverse that takes it out again, and what is
 //! refused.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::{NewBody, Op, OpError};
-use sgf_core::session::{OpResult, Session};
+use sgf_core::session::OpResult;
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
@@ -49,18 +50,6 @@ fn added(result: &OpResult) -> u32 {
     }
 }
 
-/// Planet `id`'s entry as the session's bytes now hold it.
-fn planet_entry(session: &Session, id: u32) -> String {
-    let text = text(session);
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets
-        + text[planets..]
-            .find(&format!("\n\t\t{id}=\n\t\t{{\n"))
-            .unwrap_or_else(|| panic!("planet {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t\t}\n").expect("its end");
-    text[start..end].to_owned()
-}
-
 /// The literal keys of a name's `NUMERAL` variables, outermost last.
 fn numerals(entry: &str) -> Vec<&str> {
     entry
@@ -95,7 +84,7 @@ fn a_planet_added_to_an_owned_system() {
         )
     );
     assert_eq!(result.details_stale, [169]);
-    let entry = planet_entry(&session, id);
+    let entry = common::entity_text(&session, EntityKind::Planet, id);
     assert!(entry.contains("key=\"SPEC_Alari_system\""), "{entry}");
     assert_eq!(numerals(&entry), ["I"]);
     assert!(!entry.contains("	binary_flags"), "{entry}");
@@ -116,7 +105,7 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
         )
     );
     assert_eq!(result.inverse, Op::RemoveBody { body: id });
-    let entry = planet_entry(&session, id);
+    let entry = common::entity_text(&session, EntityKind::Planet, id);
     assert!(entry.contains("key=\"Meissa\""), "{entry}");
     assert_eq!(numerals(&entry), ["V"]);
 }
@@ -145,7 +134,7 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
         text(&session).contains("\t\tinner_radius=175\n\t\touter_radius=275\n"),
         "the radii stay"
     );
-    let entry = planet_entry(&session, a);
+    let entry = common::entity_text(&session, EntityKind::Planet, a);
     assert!(entry.contains("binary_flags=576"), "{entry}");
     assert!(entry.contains("moon_of=138"), "{entry}");
     assert_eq!(numerals(&entry), ["IV", "a"]);
@@ -154,8 +143,11 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
         .apply(add(408, moon("pc_frozen", 5, 138), 20.0, 180.0))
         .expect("a second moon");
     let b = added(&second);
-    assert_eq!(numerals(&planet_entry(&session, b)), ["IV", "b"]);
-    let parent = planet_entry(&session, 138);
+    assert_eq!(
+        numerals(&common::entity_text(&session, EntityKind::Planet, b)),
+        ["IV", "b"]
+    );
+    let parent = common::entity_text(&session, EntityKind::Planet, 138);
     assert!(
         parent.contains(&format!("moons=\n\t\t\t{{\n\t\t\t\t{b} {a} \n")),
         "{parent}"
@@ -172,13 +164,27 @@ fn a_planet_and_a_moon_added_on_the_4_4_sample() {
         "planet_added_to_4_4_system_8",
         add(8, body("pc_toxic", 15), 210.0, 45.0),
     );
-    assert_eq!(numerals(&planet_entry(&session, added(&planet))), ["IX"]);
+    assert_eq!(
+        numerals(&common::entity_text(
+            &session,
+            EntityKind::Planet,
+            added(&planet)
+        )),
+        ["IX"]
+    );
     let moon = snapshot_step(
         &mut session,
         "moon_added_to_4_4_planet_151",
         add(8, moon("pc_barren", 7, 151), 30.0, 10.0),
     );
-    assert_eq!(numerals(&planet_entry(&session, added(&moon))), ["VI", "d"]);
+    assert_eq!(
+        numerals(&common::entity_text(
+            &session,
+            EntityKind::Planet,
+            added(&moon)
+        )),
+        ["VI", "d"]
+    );
 }
 
 #[test]
@@ -192,7 +198,7 @@ fn a_typed_name_and_a_ring_are_written_as_given() {
     let result = session
         .apply(add(408, spec, 250.0, 10.0))
         .expect("a named ringed giant");
-    let entry = planet_entry(&session, added(&result));
+    let entry = common::entity_text(&session, EntityKind::Planet, added(&result));
     assert!(
         entry.contains("key=\"New Hope\"\n\t\t\t\tliteral=yes"),
         "{entry}"
@@ -281,11 +287,7 @@ fn adds_and_removals_are_refused() {
             "planet 138 was in the save when it was opened: only a body added since then can be taken out again",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 
     let planet = session.apply(meissa_v()).expect("a planet");
     let id = added(&planet);

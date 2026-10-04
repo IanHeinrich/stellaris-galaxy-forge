@@ -272,7 +272,7 @@ pub(crate) fn obstacles<'a>(galaxy: &'a Galaxy, anchor: u32, centre: (f64, f64))
 /// holds none of `sites`, stands its own width from every centre in `placed` and lies on
 /// the map. An anchor that already carries a zone is passed over. `None` when no such
 /// zone exists.
-pub fn nearest_zone(
+pub(crate) fn nearest_zone(
     point: (f64, f64),
     kind: FeKind,
     anchors: &[Site<'_>],

@@ -417,7 +417,7 @@ fn a_reserved_seat_takes_a_greek_name() {
         .expect("reserve omega");
     assert_eq!(
         result.entry.description,
-        "Made system 1 a Paint a Galaxy spawn (reserved omega, the player's seat)"
+        "Made Beta #1 a Paint a Galaxy spawn (reserved omega, the player's seat)"
     );
     assert_eq!(
         session.graph.systems[&1].spawn_script,

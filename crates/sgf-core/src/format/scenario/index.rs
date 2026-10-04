@@ -21,8 +21,8 @@ use crate::scan::{self, Index, Value};
 /// The sign each axis is read with: a scenario's `position` runs the same way as a
 /// save's `coordinate`, checked in-game (`docs/adr/0004-scenario-documents.md`). This is
 /// the one place a scenario's coordinates become the map's.
-pub const SCENARIO_X_SIGN: f64 = 1.0;
-pub const SCENARIO_Y_SIGN: f64 = 1.0;
+pub(crate) const SCENARIO_X_SIGN: f64 = 1.0;
+pub(crate) const SCENARIO_Y_SIGN: f64 = 1.0;
 
 /// A scenario document always holds its index: the kind is that field.
 pub(crate) fn index(doc: &Document) -> &ScenarioIndex {

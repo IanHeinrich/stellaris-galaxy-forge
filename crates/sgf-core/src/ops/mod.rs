@@ -9,7 +9,7 @@
 
 mod edit;
 mod error;
-pub mod history;
+pub(crate) mod history;
 mod op;
 mod plan;
 pub mod rules;
@@ -41,7 +41,7 @@ pub(crate) use plan::{Emitted, Plan, Planned, slots};
 /// The record of one committed op: what changed, how to describe it, and the bytes
 /// needed to undo and redo it without re-running the op.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Applied {
+pub(crate) struct Applied {
     pub op: Op,
     pub description: String,
     pub inverse: Op,
@@ -63,7 +63,7 @@ pub struct Applied {
 
 /// The `meta` bytes an op displaced and wrote, each `None` for the bytes as loaded.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MetaEdit {
+pub(crate) struct MetaEdit {
     pub before: Option<Vec<u8>>,
     pub after: Option<Vec<u8>>,
 }
@@ -82,7 +82,7 @@ impl MetaEdit {
 }
 
 /// Apply `op` to the session's document and projection.
-pub fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
+pub(crate) fn apply(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     match op {
         Op::Batch { description, ops } => apply_batch(session, description, ops),
         op => apply_one(session, op),
@@ -106,8 +106,7 @@ fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     match second {
         Ok(second) => Ok(joined(first, second)),
         Err(e) => {
-            rollback(session, &first.before, &first.touched);
-            restore_meta(session, &first);
+            rollback_with_meta(session, &first.before, &first.touched, first.meta.as_ref());
             Err(e)
         }
     }
@@ -152,10 +151,10 @@ fn apply_batch(
             Err(e) => {
                 let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
                 let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
-                rollback(session, &before, &touched);
-                for member in members.iter().rev() {
-                    restore_meta(session, member);
-                }
+                let meta = members.iter().fold(None, |meta, member| {
+                    MetaEdit::then(meta, member.meta.clone())
+                });
+                rollback_with_meta(session, &before, &touched, meta.as_ref());
                 return Err(e);
             }
         }
@@ -227,9 +226,17 @@ pub(crate) fn projected_lane(graph: &GalaxyGraph, a: u32, b: u32) -> Option<&Lan
 
 /// Put back `before` (in reverse) and re-project what it covers.
 fn rollback(session: &mut Session, before: &[(Anchor, Option<Vec<u8>>)], touched: &[Subject]) {
-    for (anchor, prev) in before.iter().rev() {
-        session.doc.restore(*anchor, prev.clone());
-    }
+    rollback_with_meta(session, before, touched, None);
+}
+
+/// [`rollback`], putting back the `meta` the op rewrote too.
+fn rollback_with_meta(
+    session: &mut Session,
+    before: &[(Anchor, Option<Vec<u8>>)],
+    touched: &[Subject],
+    meta: Option<&MetaEdit>,
+) {
+    history::restore_before(&mut session.doc, before, meta);
     // The bytes being restored were projected successfully before the op began.
     let _ = refresh(
         &mut session.doc,
@@ -237,13 +244,6 @@ fn rollback(session: &mut Session, before: &[(Anchor, Option<Vec<u8>>)], touched
         touched,
         &slots(before),
     );
-}
-
-/// Put back the `meta` bytes `applied` displaced, if it rewrote them.
-fn restore_meta(session: &mut Session, applied: &Applied) {
-    if let Some(meta) = &applied.meta {
-        session.doc.restore_meta(meta.before.clone());
-    }
 }
 
 /// Re-extract each touched entity from its current bytes, as the document's format

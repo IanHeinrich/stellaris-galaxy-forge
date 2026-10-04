@@ -179,22 +179,19 @@ impl Session {
         let before = Derived::of(&self.graph);
         let applied = ops::apply(self, op)?;
         self.draw_stars();
-        let mut result = result(
+        let result = result(
             &self.graph,
             self.history.undo_len() + 1,
             &applied,
             &before,
             false,
-            Vec::new(),
         );
         if self.saved_at.is_some_and(|at| at > self.history.undo_len()) {
             self.saved_at = None;
         }
         let in_place = in_place(&applied.op);
         self.history.push(applied);
-        self.update_details(in_place, &result);
-        result.issues = self.validate();
-        Ok(result)
+        Ok(self.finish(result, in_place))
     }
 
     /// Undo the last op; `None` when there is nothing to undo. The details are brought up
@@ -206,11 +203,9 @@ impl Session {
             return Ok(None);
         };
         draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
-        let mut result = result(&self.graph, seq, applied, &before, true, Vec::new());
+        let result = result(&self.graph, seq, applied, &before, true);
         let in_place = in_place(&applied.op);
-        self.update_details(in_place, &result);
-        result.issues = self.validate();
-        Ok(Some(result))
+        Ok(Some(self.finish(result, in_place)))
     }
 
     /// Redo the last undone op; `None` when there is nothing to redo. The details are
@@ -222,11 +217,9 @@ impl Session {
             return Ok(None);
         };
         draw_scenario_stars_of(self.doc.kind(), &mut self.graph, &self.stars);
-        let mut result = result(&self.graph, seq, applied, &before, false, Vec::new());
+        let result = result(&self.graph, seq, applied, &before, false);
         let in_place = in_place(&applied.op);
-        self.update_details(in_place, &result);
-        result.issues = self.validate();
-        Ok(Some(result))
+        Ok(Some(self.finish(result, in_place)))
     }
 
     /// What opening the document reports to the app: where it is, what it is, its galaxy,
@@ -325,6 +318,14 @@ impl Session {
             }
         }
         delta
+    }
+
+    /// Bring the details up to date with `result`, then validate: the tail of an apply, an
+    /// undo and a redo.
+    fn finish(&mut self, mut result: OpResult, in_place: bool) -> OpResult {
+        self.update_details(in_place, &result);
+        result.issues = self.validate();
+        result
     }
 
     /// Bring a built details projection up to date with `result`: reread the planets and
@@ -627,14 +628,14 @@ impl Derived {
     }
 }
 
-/// What `applied` did, or what undoing it did when `undone`, with the `issues` it left.
+/// What `applied` did, or what undoing it did when `undone`. Its issues are left for
+/// [`Session::finish`] to fill.
 fn result(
     graph: &GalaxyGraph,
     seq: usize,
     applied: &Applied,
     before: &Derived,
     undone: bool,
-    issues: Vec<Issue>,
 ) -> OpResult {
     let mut touched: Vec<u32> = applied.touched.iter().flat_map(|s| s.systems()).collect();
     touched.sort_unstable();
@@ -671,7 +672,7 @@ fn result(
         waylines: (graph.waylines != before.waylines).then(|| graph.waylines.clone()),
         bypasses: (graph.bypasses != before.bypasses).then(|| graph.bypasses.clone()),
         renumbered,
-        issues,
+        issues: Vec::new(),
     }
 }
 

@@ -14,11 +14,12 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex, MutexGuard, OnceLock};
 
-use sgf_core::archive;
+use sgf_core::archive::{self, MetaFlag};
 use sgf_core::document::Document;
+use sgf_core::entity::{EntityAddr, EntityKind, get_entity_source};
 use sgf_core::format::save::details::RawPlanet;
-use sgf_core::ops::OpError;
-use sgf_core::projections::galaxy::GalaxyGraph;
+use sgf_core::ops::{Op, OpError};
+use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph};
 use sgf_core::session::Session;
 use sgf_core::validate::{Issue, IssueCode, validate};
 use sgf_core::views::DocumentKind;
@@ -242,4 +243,67 @@ pub fn pool_names(session: &Session, list: &str) -> Vec<String> {
         .filter_map(|line| line.strip_prefix("\t\t\"")?.strip_suffix('"'))
         .map(str::to_owned)
         .collect()
+}
+
+/// The country `id` among `countries`.
+#[track_caller]
+pub fn country(countries: &[CountryNode], id: u32) -> &CountryNode {
+    countries
+        .iter()
+        .find(|c| c.id == id)
+        .unwrap_or_else(|| panic!("country {id}"))
+}
+
+/// `names` as owned strings, to compare with a country's colours.
+pub fn names(names: &[&str]) -> Vec<String> {
+    names.iter().map(|&n| n.to_owned()).collect()
+}
+
+/// The flag `meta` holds.
+#[track_caller]
+pub fn meta_flag(meta: &[u8]) -> MetaFlag {
+    archive::parse_meta(meta)
+        .expect("read meta")
+        .flag
+        .expect("a flag in meta")
+}
+
+/// The current text of entity `id` of `kind`, as the Source tab shows it.
+#[track_caller]
+pub fn entity_text(session: &Session, kind: EntityKind, id: u32) -> String {
+    get_entity_source(&session.doc, EntityAddr::new(kind, id))
+        .unwrap_or_else(|e| panic!("{kind:?} {id}: {e}"))
+        .text
+}
+
+/// Apply each op of `refusals` to `session`, which refuses it with exactly its message.
+/// Nothing is written: the bytes, the history and the dirty flag stand as they did.
+#[track_caller]
+pub fn assert_refusals<'a>(
+    session: &mut Session,
+    refusals: impl IntoIterator<Item = (Op, &'a str)>,
+) {
+    let bytes = current(session);
+    let done = session.history().undo.len();
+    let dirty = session.is_dirty();
+    for (op, message) in refusals {
+        let error = session.apply(op).expect_err(message);
+        assert_eq!(error.to_string(), message);
+    }
+    assert_eq!(current(session), bytes, "a refusal wrote bytes");
+    assert_eq!(session.history().undo.len(), done, "a refusal made history");
+    assert_eq!(session.is_dirty(), dirty, "a refusal dirtied the session");
+}
+
+/// `session` saved to a file and opened again from it.
+#[track_caller]
+pub fn reopened(session: &mut Session) -> Session {
+    let dir = tempfile::tempdir().expect("a temp dir");
+    let extension = match session.kind() {
+        DocumentKind::Save => "sav",
+        DocumentKind::Scenario => "txt",
+    };
+    let path = dir.path().join(format!("reopened.{extension}"));
+    session.save_as(&path).expect("save");
+    Session::open(&path).expect("reopen")
 }

@@ -6,14 +6,12 @@
 use sgf_core::archive;
 use sgf_core::entity::{EntityAddr, EntityKind};
 use sgf_core::ops::{Op, OpError};
-use sgf_core::projections::galaxy::CountryNode;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::session::Session;
-use similar::TextDiff;
 
 use crate::common;
 use common::diff::{plain_report, round_trip_step};
-use common::{current, open, open_3_4, open_4_5, reprojected};
+use common::{country, current, open, open_3_4, open_4_5, reprojected};
 
 /// The player empire in both samples: a literal "Test Empire" in 4.5, and a name from the
 /// empire designs in 4.4, which the header and `meta` hold as the text it reads.
@@ -31,13 +29,6 @@ fn rename(country: u32, name: &str) -> Op {
         value: None,
         custom_name: true,
     }
-}
-
-fn country(countries: &[CountryNode], id: u32) -> &CountryNode {
-    countries
-        .iter()
-        .find(|c| c.id == id)
-        .unwrap_or_else(|| panic!("country {id}"))
 }
 
 fn literal(name: &str) -> NameTemplate {
@@ -66,27 +57,12 @@ fn meta_name(meta: &[u8]) -> String {
     archive::parse_meta(meta).expect("read meta").name
 }
 
-/// The session's `meta` as a unified diff against the one it was opened with.
-fn meta_diff(session: &Session) -> String {
-    let before = String::from_utf8_lossy(session.doc.original_meta()).into_owned();
-    let after = String::from_utf8_lossy(session.doc.meta()).into_owned();
-    if before == after {
-        return "\nmeta unchanged\n".to_owned();
-    }
-    let diff = TextDiff::from_lines(&before, &after);
-    format!(
-        "\n{}",
-        diff.unified_diff().context_radius(3).header("meta", "meta")
-    )
-}
-
 /// Round-trip and snapshot a rename of `id` to [`NEW_NAME`] on `session`, check the
 /// projection, a reload of the bytes and the app's delta read the new name, then apply the
 /// inverse and check it writes the original gamestate and `meta` back. Returns the inverse.
 fn change(mut session: Session, id: u32, snapshot: &str) -> Op {
     let result = round_trip_step(&mut session, snapshot, rename(id, NEW_NAME));
-    let report = format!("{}{}", plain_report(&session, &result), meta_diff(&session));
-    common::snapshot(snapshot, &report);
+    common::snapshot(snapshot, &plain_report(&session, &result));
     let expected = literal(NEW_NAME);
     assert_eq!(country(&session.graph.countries, id).name, expected);
     assert_eq!(country(&session.graph.countries, id).name_key, NEW_NAME);

@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Made system 3018 a Paint a Galaxy spawn (enabled)
+Made Iridonia #3018 a Paint a Galaxy spawn (enabled)
 inverse: SetSpawnScript { system: 3018, script: None }
 
 --- scenario

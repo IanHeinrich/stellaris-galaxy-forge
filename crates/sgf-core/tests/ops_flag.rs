@@ -2,15 +2,13 @@
 //! to `meta` is snapshotted, the countries projection, a reload of the edited bytes and
 //! the app's delta read the new flag, and the inverse writes the original bytes back.
 
-use sgf_core::archive::{self, MetaFlag};
 use sgf_core::ops::{EmpireFlag, Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
 use sgf_core::session::Session;
-use similar::TextDiff;
 
 use crate::common;
 use common::diff::{plain_report, round_trip_step};
-use common::{current, open, open_4_5, reprojected};
+use common::{country, current, meta_flag, names, open, open_4_5, reprojected};
 
 /// The player empire in both samples; in 4.5 it has Independent Map Color on.
 const PLAYER: u32 = 0;
@@ -21,13 +19,6 @@ const PRIMITIVE: u32 = 34;
 
 fn set(country: u32, flag: EmpireFlag) -> Op {
     Op::SetEmpireFlag { country, flag }
-}
-
-fn country(countries: &[CountryNode], id: u32) -> &CountryNode {
-    countries
-        .iter()
-        .find(|c| c.id == id)
-        .unwrap_or_else(|| panic!("country {id}"))
 }
 
 /// The flag country `id` projects to.
@@ -47,31 +38,6 @@ fn colours(countries: &[CountryNode], id: u32) -> Vec<String> {
     country(countries, id).colors.clone()
 }
 
-fn names(names: &[&str]) -> Vec<String> {
-    names.iter().map(|&n| n.to_owned()).collect()
-}
-
-fn meta_flag(meta: &[u8]) -> MetaFlag {
-    archive::parse_meta(meta)
-        .expect("read meta")
-        .flag
-        .expect("a flag in meta")
-}
-
-/// The session's `meta` as a unified diff against the one it was opened with.
-fn meta_diff(session: &Session) -> String {
-    let before = String::from_utf8_lossy(session.doc.original_meta()).into_owned();
-    let after = String::from_utf8_lossy(session.doc.meta()).into_owned();
-    if before == after {
-        return "\nmeta unchanged\n".to_owned();
-    }
-    let diff = TextDiff::from_lines(&before, &after);
-    format!(
-        "\n{}",
-        diff.unified_diff().context_radius(3).header("meta", "meta")
-    )
-}
-
 /// Round-trip and snapshot `op` on `session`, check the projection, a reload of the bytes
 /// and the app's delta read the new flag, then apply the inverse and check it writes the
 /// original gamestate and `meta` back. Returns `meta` as the op left it.
@@ -85,8 +51,7 @@ fn change(mut session: Session, op: Op, snapshot: &str) -> Vec<u8> {
     };
     let before = flag(&session.graph.countries, id);
     let result = round_trip_step(&mut session, snapshot, op);
-    let report = format!("{}{}", plain_report(&session, &result), meta_diff(&session));
-    common::snapshot(snapshot, &report);
+    common::snapshot(snapshot, &plain_report(&session, &result));
     assert_eq!(flag(&session.graph.countries, id), expected, "{snapshot}");
     assert_eq!(
         flag(&reprojected(&session).countries, id),

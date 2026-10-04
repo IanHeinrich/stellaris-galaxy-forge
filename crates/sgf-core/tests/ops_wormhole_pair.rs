@@ -172,11 +172,7 @@ fn wormhole_pairs_are_refused() {
         ),
         (remove(99_999, 1), "system 99999 does not exist"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// The 4.4 sample writes its wormholes as 4.5 does: wormhole 1 stands in system 52,

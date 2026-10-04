@@ -3,14 +3,12 @@
 //! edited bytes read the new colours, undo puts the original bytes back, and the inverse
 //! op writes them back too.
 
-use sgf_core::archive::{self, MetaFlag};
 use sgf_core::ops::{MapColorPair, Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
-use similar::TextDiff;
 
 use crate::common;
 use common::diff::snapshot_step;
-use common::{current, open, open_4_5, reprojected};
+use common::{current, meta_flag, names, open, open_4_5, reprojected};
 
 /// The player empire, created with Independent Map Color on.
 const PLAYER: u32 = 0;
@@ -29,37 +27,12 @@ fn set(country: u32, colors: Option<MapColorPair>) -> Op {
 }
 
 fn country(countries: &[CountryNode], id: u32) -> (Option<String>, Option<String>) {
-    let country = countries
-        .iter()
-        .find(|c| c.id == id)
-        .unwrap_or_else(|| panic!("country {id}"));
+    let country = common::country(countries, id);
     (country.border_color.clone(), country.fill_color.clone())
 }
 
 fn colours(border: &str, fill: &str) -> (Option<String>, Option<String>) {
     (Some(border.to_owned()), Some(fill.to_owned()))
-}
-
-fn names(names: &[&str]) -> Vec<String> {
-    names.iter().map(|&n| n.to_owned()).collect()
-}
-
-fn meta_flag(meta: &[u8]) -> MetaFlag {
-    archive::parse_meta(meta)
-        .expect("read meta")
-        .flag
-        .expect("a flag in meta")
-}
-
-/// `meta` as a unified diff against `original`.
-fn meta_diff(original: &[u8], meta: &[u8]) -> String {
-    let before = String::from_utf8_lossy(original);
-    let after = String::from_utf8_lossy(meta);
-    let diff = TextDiff::from_lines(&before, &after);
-    format!(
-        "{}",
-        diff.unified_diff().context_radius(3).header("meta", "meta")
-    )
 }
 
 /// Round-trip and snapshot `op` on a fresh 4.5 sample, check the projection, a reload of
@@ -134,10 +107,6 @@ fn the_player_empire_s_map_colours_change() {
         set(PLAYER, pair("intense_red", "light_pink")),
         "player_empire_changed",
     );
-    common::snapshot(
-        "player_empire_changed_meta",
-        &meta_diff(before.doc.original_meta(), &meta),
-    );
     let flag = meta_flag(&meta);
     assert_eq!(
         flag.colors,
@@ -153,10 +122,6 @@ fn the_player_empire_goes_back_to_its_flag_colours() {
         (None, None),
         set(PLAYER, pair("intense_red", "light_pink")),
         "player_empire_flag_colours",
-    );
-    common::snapshot(
-        "player_empire_flag_colours_meta",
-        &meta_diff(open_4_5().doc.original_meta(), &meta),
     );
     let flag = meta_flag(&meta);
     assert_eq!(

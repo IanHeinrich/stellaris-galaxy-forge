@@ -1,12 +1,13 @@
 //! The ring op on the 4.5 sample: the diff each change produces is snapshotted, the
 //! details read the ring back in place, and undo puts the original bytes back.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open_4_5, text};
+use common::{current, open_4_5};
 
 fn set(planet: u32, ring: bool) -> Op {
     Op::SetBodyRing { body: planet, ring }
@@ -22,15 +23,13 @@ fn ring(session: &Session, planet: u32) -> bool {
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
 fn flags(session: &Session, id: u32) -> Option<String> {
-    let text = text(session);
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets
-        + text[planets..]
-            .find(&format!("\n\t\t{id}=\n\t\t{{\n"))
-            .unwrap_or_else(|| panic!("planet {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t\t}\n").expect("its end");
-    let entity = &text[start..end];
-    let at = entity.find("\n\t\t\tbinary_flags=")? + "\n\t\t\tbinary_flags=".len();
+    let entity = common::entity_text(session, EntityKind::Planet, id);
+    let at = entity.find(
+        "
+			binary_flags=",
+    )? + "
+			binary_flags="
+        .len();
     Some(entity[at..].lines().next().unwrap_or_default().to_owned())
 }
 
@@ -98,10 +97,5 @@ fn a_ring_is_refused_for_an_unknown_planet_or_no_change() {
         (set(589, true), "planet 589 already has a ring"),
         (set(585, false), "planet 585 has no ring"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }

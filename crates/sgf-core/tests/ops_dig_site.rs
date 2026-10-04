@@ -230,12 +230,7 @@ fn a_site_is_refused_for_a_star_a_planet_with_one_or_an_unknown_id() {
         ),
         (remove(99), "dig site 99 does not exist"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]

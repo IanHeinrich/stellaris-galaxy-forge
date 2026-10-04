@@ -147,11 +147,7 @@ fn wormhole_moves_are_refused() {
             "value is not a finite number",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]
