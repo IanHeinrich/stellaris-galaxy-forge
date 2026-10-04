@@ -9,7 +9,14 @@ import type { PlanetClassRule } from "../generated/PlanetClassRule";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { PlanetPageDeposit } from "../generated/PlanetPageDeposit";
-import type { PickerTarget, PlanetBody, PlanetEditAdapter, RowRefs } from "../lib/details/picker";
+import type { PlanetSummary } from "../generated/PlanetSummary";
+import type {
+  HeldAnomaly,
+  PickerTarget,
+  PlanetBody,
+  PlanetEditAdapter,
+  RowRefs,
+} from "../lib/details/picker";
 import type { ModifierRow } from "../lib/details/planetPage";
 import { DEFAULT_MODEL } from "../lib/details/planetModel";
 import { PERMANENT } from "../lib/details/planetEdits";
@@ -137,16 +144,49 @@ export function planetEditAdapterFor(
   return kind === null ? NO_PLANET_EDITS : PLANET_EDITS[kind](body);
 }
 
-/** The save body `page` shows as its pickers read it, a moon when `moon`, with its adapter. */
-export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarget<SaveRowRefs> {
+/** What a body holds that its pickers read. */
+export interface HeldRows {
+  /** Its deposit types, one entry per deposit. */
+  deposits: readonly string[];
+  /** The modifiers and planet features it has. */
+  modifiers: readonly string[];
+  anomaly: HeldAnomaly | null;
+}
+
+/** Body `summary` of system `system`, in a document of `kind`, as its pickers read it. */
+export function bodyPickerTarget<R extends RowRefs>(
+  kind: DocumentKind,
+  system: number,
+  summary: PlanetSummary,
+  held: HeldRows,
+  edits: PlanetEditAdapter<R>,
+): PickerTarget<R> {
   return {
-    key: `save-planet:${page.id}`,
-    planetClass: page.class,
-    size: page.size ?? 0,
-    moon,
+    key: `${kind}:${system}:${summary.id}`,
+    planetClass: summary.class,
+    size: summary.size,
+    moon: summary.moon,
+    ...held,
+    edits,
+  };
+}
+
+/** The anomaly save body `page` holds, with the countries that have found it. */
+export function heldAnomaly(page: PlanetPage): HeldAnomaly | null {
+  return page.anomaly && { category: page.anomaly.category, foundBy: page.anomaly.found_by };
+}
+
+/** Save body `page`, listed as `summary` in system `system` and holding `anomaly`, with its adapter. */
+export function savePickerTarget(
+  system: number,
+  summary: PlanetSummary,
+  page: PlanetPage,
+  anomaly: HeldAnomaly | null,
+): PickerTarget<SaveRowRefs> {
+  const held = {
     deposits: page.deposits.map((d) => d.kind),
     modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
-    anomaly: page.anomaly,
-    edits: saveEdits({ system: page.system, id: page.id }),
+    anomaly,
   };
+  return bodyPickerTarget("save", system, summary, held, saveEdits({ system, id: summary.id }));
 }

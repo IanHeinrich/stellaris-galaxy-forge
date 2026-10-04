@@ -3,7 +3,6 @@ import type { Op } from "../generated/Op";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { editor, joinBoth, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useMapChromeStore } from "./mapChromeStore";
@@ -164,7 +163,7 @@ describe("preventing and allowing lanes", () => {
     await editor().preventLanes([[0, 1]]);
     expect(sent()).toEqual({
       type: "Batch",
-      description: "Cut and prevented lane 0 <-> 1",
+      description: "Cut and prevented lane Sol #0 <-> Alpha Centauri #1",
       ops: [
         { type: "RemoveLane", a: 0, b: 1 },
         { type: "PreventLane", a: 0, b: 1 },

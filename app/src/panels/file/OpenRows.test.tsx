@@ -3,16 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 
 import { SCENARIO_FOR_PAINT, SCENARIO_PLAIN } from "../../lib/paintCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { paintModView } from "../../test/builders";
+import { paintModView, saveRow, scenarioListing, scenarioRow } from "../../test/builders";
 import { buttons, shown } from "../../test/elements";
-import { saveRow, scenarioListing, scenarioRow } from "../../test/openRows";
 import type { RecentRow, Section } from "../../lib/openRows";
 import { RowLine, SectionRows } from "./OpenRows";
 

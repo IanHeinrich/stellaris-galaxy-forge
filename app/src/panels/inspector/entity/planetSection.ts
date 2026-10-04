@@ -1,13 +1,10 @@
-import type { PlanetPage } from "../../../generated/PlanetPage";
-import type { PickerTarget } from "../../../lib/details/picker";
 import type { PlanetOffers } from "../../../lib/details/planetOffers";
-import type { SaveRowRefs } from "../../../store/planetEditAdapter";
+import type { BodyRead } from "./bodySources";
 
-/** What each section of a planet's page reads: the page, what it offers to edit, and the target it edits. */
+/** What each section of a body's page reads: the body, and what the page offers to edit. */
 export interface PlanetSectionProps {
-  page: PlanetPage;
+  read: BodyRead;
   offers: PlanetOffers;
-  target: PickerTarget<SaveRowRefs>;
-  /** The body's orbit radius, where no Orbit block edits it. */
-  radius: number | null;
+  /** The Orbit block edits the body's orbit, or says it has none, so no section repeats it. */
+  orbitEdited: boolean;
 }

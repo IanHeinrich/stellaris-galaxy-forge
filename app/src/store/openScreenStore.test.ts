@@ -4,12 +4,18 @@ import type { GalaxySettings } from "../generated/GalaxySettings";
 import type { SaveFile } from "../generated/SaveFile";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { ScenarioListings } from "../generated/ScenarioListings";
-import { paintModView, saveMeta, scenarioSummary } from "../test/builders";
+import {
+  TERRAN,
+  VOID,
+  campaignListing,
+  campaignSave,
+  modScenario,
+  paintModView,
+} from "../test/builders";
 import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { mockedIpc } from "../test/ipc";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -22,53 +28,9 @@ import { useRecentsStore, type RecentDoc } from "./recentsStore";
 
 const screen = () => useOpenScreenStore.getState();
 
-function campaign(over: Partial<CampaignListing> = {}): CampaignListing {
-  return {
-    dir: "C:/saves/terran",
-    name: "terran_1",
-    empire: "Terran Federation",
-    files: 2,
-    newest: 200,
-    meta: null,
-    cloud: false,
-    ...over,
-  };
-}
-
-function save(over: Partial<SaveFile> = {}): SaveFile {
-  return {
-    path: "C:/saves/terran/2206.11.16.sav",
-    campaign: "terran_1",
-    file_name: "2206.11.16.sav",
-    meta: saveMeta({ name: "Terran Federation", planets: 4, fleets: 7, color: "blue" }),
-    modified: 200,
-    size: 4096,
-    cloud: false,
-    ...over,
-  };
-}
-
 /** What `list_scenarios` resolves to: the files, and what the mod descriptors could not say. */
 function listed(scenarios: ScenarioListing[], diagnostics: string[] = []): ScenarioListings {
   return { scenarios, diagnostics };
-}
-
-function scenario(over: Partial<ScenarioListing> = {}): ScenarioListing {
-  return {
-    path: "C:/mods/a/map/setup_scenarios/a.txt",
-    name: "a_galaxy",
-    systems: 100,
-    source: "mod",
-    mod_name: "A Mod",
-    enabled: true,
-    shadowed_by: null,
-    modified: 10,
-    size: 1024,
-    error: null,
-    summary: scenarioSummary(),
-    painted: false,
-    ...over,
-  };
 }
 
 const RECENT: RecentDoc = {
@@ -78,14 +40,6 @@ const RECENT: RecentDoc = {
   subtitle: "Terran Federation · 2206.11.16 · v4.4.6",
   openedAt: 5,
 };
-
-const TERRAN = campaign();
-const VOID = campaign({
-  dir: "C:/saves/void",
-  name: "void_2",
-  empire: "Void Compact",
-  newest: 100,
-});
 
 /** The sections as the screen shows them for the current state. */
 function sections(): Section[] {
@@ -107,8 +61,8 @@ function rowKeys(id: string): string[] {
 beforeEach(() => {
   resetStores();
   mockedIpc.listCampaigns.mockResolvedValue([VOID, TERRAN]);
-  mockedIpc.listCampaignSaves.mockResolvedValue([save()]);
-  mockedIpc.listScenarios.mockResolvedValue(listed([scenario()]));
+  mockedIpc.listCampaignSaves.mockResolvedValue([campaignSave()]);
+  mockedIpc.listScenarios.mockResolvedValue(listed([modScenario()]));
   mockedIpc.missingPaths.mockResolvedValue([]);
   mockedIpc.closeSave.mockResolvedValue();
   mockedIpc.warmDetails.mockResolvedValue([]);
@@ -145,12 +99,12 @@ describe("load", () => {
     const newer = screen().load("C:/saves/terran/2206.11.16.sav");
     await newer;
 
-    landOld([campaign({ dir: "C:/saves/stale", newest: 999 })]);
-    landOldScenarios(listed([scenario({ path: "C:/stale.txt" })]));
+    landOld([campaignListing({ dir: "C:/saves/stale", newest: 999 })]);
+    landOldScenarios(listed([modScenario({ path: "C:/stale.txt" })]));
     await older;
 
     expect(screen().campaigns?.map((c) => c.dir)).toEqual([TERRAN.dir, VOID.dir]);
-    expect(screen().scenarios?.map((s) => s.path)).toEqual([scenario().path]);
+    expect(screen().scenarios?.map((s) => s.path)).toEqual([modScenario().path]);
     expect(screen().expanded).toBe(TERRAN.dir);
   });
 
@@ -160,9 +114,11 @@ describe("load", () => {
     mockedIpc.listCampaignSaves.mockReturnValueOnce(new Promise((resolve) => (landOld = resolve)));
     const expanding = screen().expand(VOID.dir);
 
-    mockedIpc.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/new.sav" })]);
+    mockedIpc.listCampaignSaves.mockResolvedValue([
+      campaignSave({ path: "C:/saves/void/new.sav" }),
+    ]);
     await screen().load("C:/saves/terran/2206.11.16.sav");
-    landOld([save({ path: "C:/saves/void/old.sav" })]);
+    landOld([campaignSave({ path: "C:/saves/void/old.sav" })]);
     await expanding;
     await screen().expand(VOID.dir);
 
@@ -174,7 +130,7 @@ describe("load", () => {
     await screen().load(null);
 
     expect(section("saves").note).toBe("Could not list saves: no save folder");
-    expect(rowKeys("scenarios")).toContain(`scenario:${scenario().path}`);
+    expect(rowKeys("scenarios")).toContain(`scenario:${modScenario().path}`);
   });
 });
 
@@ -228,7 +184,7 @@ describe("recent documents", () => {
 describe("expand", () => {
   it("reads a campaign's saves when it opens, and keeps them for the next time", async () => {
     await screen().load(null);
-    mockedIpc.listCampaignSaves.mockResolvedValue([save({ path: "C:/saves/void/a.sav" })]);
+    mockedIpc.listCampaignSaves.mockResolvedValue([campaignSave({ path: "C:/saves/void/a.sav" })]);
 
     await screen().toggle(VOID.dir);
     expect(mockedIpc.listCampaignSaves).toHaveBeenCalledTimes(2);
@@ -255,14 +211,14 @@ describe("expand", () => {
 });
 
 describe("scenarios", () => {
-  const mine = scenario({ path: "C:/user/mine.txt", name: "mine", source: "user_mod" });
-  const off = scenario({ path: "C:/mods/b.txt", name: "b_galaxy", enabled: false });
-  const shadowed = scenario({
+  const mine = modScenario({ path: "C:/user/mine.txt", name: "mine", source: "user_mod" });
+  const off = modScenario({ path: "C:/mods/b.txt", name: "b_galaxy", enabled: false });
+  const shadowed = modScenario({
     path: "C:/mods/c.txt",
     name: "c_galaxy",
     shadowed_by: "A Mod",
   });
-  const vanilla = scenario({
+  const vanilla = modScenario({
     path: "C:/Stellaris/map/setup_scenarios/default.txt",
     name: "default",
     source: "install",
@@ -396,8 +352,8 @@ describe("open", () => {
 });
 
 describe("opening a scenario file", () => {
-  const PAINTED = scenario({ path: "C:/mods/a/map/setup_scenarios/painted.txt", painted: true });
-  const PLAIN = scenario({ path: "C:/mods/a/map/setup_scenarios/plain.txt" });
+  const PAINTED = modScenario({ path: "C:/mods/a/map/setup_scenarios/painted.txt", painted: true });
+  const PLAIN = modScenario({ path: "C:/mods/a/map/setup_scenarios/plain.txt" });
   const prompt = () => useFileSessionStore.getState().scenarioPrompt;
   const session = () => useFileSessionStore.getState();
 
@@ -571,7 +527,7 @@ describe("loadDetails", () => {
     ironman: false,
     core_radius: 120,
   };
-  const PATH = save().path;
+  const PATH = campaignSave().path;
 
   it("reads a save once however often it is asked, and again once it was written", async () => {
     mockedIpc.saveDetails.mockResolvedValue(SETTINGS);

@@ -104,7 +104,7 @@ fn plan_country(
     let marked = custom_name && mark.is_none();
     match (custom_name, mark) {
         (true, None) => mark_custom(edit, &entity, four)?,
-        (false, Some(span)) => edit.remove_lines(span),
+        (false, Some(span)) => edit.bytes().remove_lines(span),
         _ => {}
     }
     changed |= marked || (!custom_name && mark.is_some());

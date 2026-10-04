@@ -1,0 +1,11 @@
+# `test/`
+
+Builders and stand-ins that tests of every layer share.
+
+Two ways to open a document in a panel test. `inspectorFixture.open(kind)`
+opens the sample save or scenario through the stores and selects its first
+system, which suits a test of a page under the inspector. `armSession()` from
+`store/storeFixture` answers the commands any open needs, and
+`test/session.openWith(result, patch)` then opens any result with fields
+changed, which suits a test of a bar, menu or dialog that needs a particular
+document.

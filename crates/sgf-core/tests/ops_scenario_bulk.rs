@@ -19,9 +19,14 @@ use common::fixture::EXPORTED;
 /// existing systems with the lowest ids.
 fn paint_stroke(session: &Session) -> (Vec<NewSystem>, Vec<LanePair>) {
     const COLS: u32 = 20;
-    let first = session.graph.systems.keys().max().map_or(1, |max| max + 1);
+    let first = session
+        .graph()
+        .systems
+        .keys()
+        .max()
+        .map_or(1, |max| max + 1);
     let (systems, mut lanes) = grid(first, (1000.0, -200.0), COLS, 25);
-    let mut existing: Vec<u32> = session.graph.systems.keys().copied().collect();
+    let mut existing: Vec<u32> = session.graph().systems.keys().copied().collect();
     existing.sort_unstable();
     for (row, &old) in (0..20).zip(&existing) {
         lanes.push(lane(first + row * COLS, old));
@@ -33,7 +38,7 @@ fn paint_stroke(session: &Session) -> (Vec<NewSystem>, Vec<LanePair>) {
 /// Neighbours in id order are often linked, so some lanes lose both ends at once.
 fn erase_stroke(session: &Session) -> Vec<u32> {
     let mut ids: Vec<u32> = session
-        .graph
+        .graph()
         .systems
         .iter()
         .filter(|(_, s)| s.spawn_weight.is_none())
@@ -61,7 +66,7 @@ fn summary(session: &Session, result: &OpResult, systems_before: usize) -> Strin
     writeln!(
         summary,
         "systems: {systems_before} -> {}",
-        session.graph.systems.len()
+        session.graph().systems.len()
     )
     .unwrap();
     writeln!(summary, "issues: {}", result.issues.len()).unwrap();
@@ -72,8 +77,13 @@ fn summary(session: &Session, result: &OpResult, systems_before: usize) -> Strin
 #[test]
 fn a_paint_stroke_adds_500_systems_and_their_lanes_as_one_step() {
     let mut session = EXPORTED.open();
-    let systems_before = session.graph.systems.len();
-    let lane_ends_before: usize = session.graph.systems.values().map(|s| s.lanes.len()).sum();
+    let systems_before = session.graph().systems.len();
+    let lane_ends_before: usize = session
+        .graph()
+        .systems
+        .values()
+        .map(|s| s.lanes.len())
+        .sum();
     let (systems, lanes) = paint_stroke(&session);
     assert_eq!(systems.len(), 500);
     assert_eq!(lanes.len(), 975);
@@ -81,23 +91,28 @@ fn a_paint_stroke_adds_500_systems_and_their_lanes_as_one_step() {
     let result = session
         .apply(paint(systems.clone(), lanes.clone()))
         .expect("paint 500 systems");
-    assert_eq!(session.graph.systems.len(), systems_before + 500);
+    assert_eq!(session.graph().systems.len(), systems_before + 500);
     for system in &systems {
         assert!(
-            session.graph.systems.contains_key(&system.system),
+            session.graph().systems.contains_key(&system.system),
             "{}",
             system.system
         );
     }
     for lane in &lanes {
         assert!(
-            session.graph.lane(lane.a, lane.b).is_some(),
+            session.graph().lane(lane.a, lane.b).is_some(),
             "lane {} <-> {} missing",
             lane.a,
             lane.b
         );
     }
-    let lane_ends_after: usize = session.graph.systems.values().map(|s| s.lanes.len()).sum();
+    let lane_ends_after: usize = session
+        .graph()
+        .systems
+        .values()
+        .map(|s| s.lanes.len())
+        .sum();
     assert_eq!(lane_ends_after, lane_ends_before + 2 * lanes.len());
     assert_eq!(session.history().undo.len(), 1, "one stroke, one undo step");
     no_errors(&session);
@@ -123,7 +138,7 @@ fn an_erase_stroke_removes_200_systems_and_every_lane_naming_one_as_one_step() {
     let ids = erase_stroke(&session);
     assert_eq!(ids.len(), 200);
     let both_ends = session
-        .graph
+        .graph()
         .systems
         .values()
         .filter(|s| ids.contains(&s.id))
@@ -131,18 +146,18 @@ fn an_erase_stroke_removes_200_systems_and_every_lane_naming_one_as_one_step() {
         .filter(|&(a, b)| a < b && ids.contains(&b))
         .count();
     assert!(both_ends > 0, "some lane loses both ends");
-    let systems_before = session.graph.systems.len();
+    let systems_before = session.graph().systems.len();
 
     let result = session
         .apply(erase(ids.clone()))
         .expect("erase 200 systems");
-    assert_eq!(session.graph.systems.len(), systems_before - 200);
+    assert_eq!(session.graph().systems.len(), systems_before - 200);
     for id in &ids {
-        assert!(!session.graph.systems.contains_key(id));
+        assert!(!session.graph().systems.contains_key(id));
     }
     assert!(
         session
-            .graph
+            .graph()
             .systems
             .values()
             .all(|s| s.lanes.iter().all(|l| !ids.contains(&l.to))),
@@ -194,7 +209,7 @@ const CLUSTER_LANES: [(u32, u32); 9] = [
 fn assert_cluster_linked(session: &Session, when: &str) {
     for &(a, b) in &CLUSTER_LANES {
         assert!(
-            session.graph.lane(a, b).is_some() || session.graph.lane(b, a).is_some(),
+            session.graph().lane(a, b).is_some() || session.graph().lane(b, a).is_some(),
             "{when}: lane {a} <-> {b} is missing"
         );
     }
@@ -209,7 +224,10 @@ fn erasing_a_linked_cluster_in_either_order_restores_every_lane_on_undo() {
             .apply(erase(order.to_vec()))
             .expect("erase the linked cluster");
         for id in LINKED_CLUSTER {
-            assert!(!session.graph.systems.contains_key(&id), "{order:?}: {id}");
+            assert!(
+                !session.graph().systems.contains_key(&id),
+                "{order:?}: {id}"
+            );
         }
         session.undo().expect("undo").expect("the erase to undo");
         assert_eq!(common::current(&session), EXPORTED.bytes(), "{order:?}");
@@ -234,7 +252,7 @@ fn a_connect_stroke_lays_every_lane_as_one_step() {
     let session = EXPORTED.open();
     let lanes = vec![lane(0, 1), lane(1, 2), lane(2, 3)];
     for lane in &lanes {
-        assert!(session.graph.lane(lane.a, lane.b).is_none());
+        assert!(session.graph().lane(lane.a, lane.b).is_none());
     }
     round_trip(session, connect(lanes));
 }
@@ -245,7 +263,7 @@ fn a_cut_stroke_takes_every_lane_as_one_step() {
     let lanes = CLUSTER_LANES.to_vec();
     session.apply(cut(lanes.clone())).expect("cut the cluster");
     for (a, b) in &lanes {
-        assert!(session.graph.lane(*a, *b).is_none(), "{a} <-> {b}");
+        assert!(session.graph().lane(*a, *b).is_none(), "{a} <-> {b}");
     }
     assert_eq!(session.history().undo.len(), 1, "one stroke, one undo step");
 

@@ -8,6 +8,7 @@ import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { Op } from "../../generated/Op";
 import { BELT_SCATTER, VANILLA_SYSTEM_RADII } from "../../generated/constants";
+import { systemLabel } from "../systemLabel";
 import { counted } from "../text";
 import {
   GEOMETRY_REASONS,
@@ -87,10 +88,15 @@ const FIXED_RING_SEGMENT: BodyEditing = {
 };
 
 /** Why another body may not orbit `body`, or undefined when it may. */
-function hostRefusalOf(body: BodyPlacement, asteroid: boolean): BodyRefusal | undefined {
+function hostRefusalOf(
+  body: BodyPlacement,
+  asteroid: boolean,
+  byId: ReadonlyMap<number, BodyPlacement>,
+): BodyRefusal | undefined {
   if (body.star) return undefined;
   if (body.moon) return "moonHost";
   if (asteroid) return "asteroidHost";
+  if (body.parent !== null && !byId.get(body.parent)?.star) return "aboutPlanet";
   return undefined;
 }
 
@@ -121,7 +127,7 @@ function bodyEditing(
   }
   const asteroid = isAsteroid(classOf.get(body.id), frame.planetClasses);
   const hasMoons = parents.has(body.id);
-  const hostRefusal = hostRefusalOf(body, asteroid);
+  const hostRefusal = hostRefusalOf(body, asteroid, byId);
   const editing: BodyEditing = {
     move: body.ring !== null,
     host: hostRefusal === undefined,
@@ -287,8 +293,7 @@ function reparentOp(
     if (!host) return { refused: GEOMETRY_REASONS.elsewhere };
     const hostEditing = editing.get(parent);
     if (!hostEditing?.host) {
-      const asteroid = isAsteroid(classOfBody(frame, parent), frame.planetClasses);
-      const refusal = hostRefusalOf(host, asteroid) ?? hostEditing?.refusal;
+      const refusal = hostEditing?.hostRefusal ?? hostEditing?.refusal;
       return { refused: reasonOf(refusal) ?? GEOMETRY_REASONS.moonHost };
     }
     if (!host.star && !own.asMoon) return { refused: GEOMETRY_REASONS.hasMoons };
@@ -324,7 +329,7 @@ function beltRadiusOp(
     angle: to.angle,
   }));
   const description =
-    `Moved the belt at radius ${rounded(belt.radius)} in system #${system} to ` +
+    `Moved the belt at radius ${rounded(belt.radius)} in ${frame.systemLabel ?? systemLabel("", system, false)} to ` +
     `${rounded(radius)}, with ${counted(moves.length, "asteroid")}`;
   return { op: { type: "Batch", description, ops: [op, ...moves] } };
 }

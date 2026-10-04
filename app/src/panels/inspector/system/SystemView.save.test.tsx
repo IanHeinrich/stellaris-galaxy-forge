@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { detailOf, name, planetClassView, starClassView } from "../../../store/fixture";
+import { detailOf, name } from "../../../store/fixture";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog"));
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
@@ -31,6 +30,8 @@ import {
   sections,
   SYSTEM,
 } from "../inspectorFixture";
+import { armStarClasses } from "../../../store/storeFixture";
+import { buttons, shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 import { heightToSlider } from "../../../lib/height";
 import { HEIGHT_HINT } from "./SystemHeight";
@@ -62,7 +63,7 @@ describe("a save system's overview", () => {
     ]);
     expect(html).toContain('role="group" aria-label="Position"');
     expect(html).toContain("System total");
-    expect(html).toContain('class="ins-prow" role="button"');
+    expect(html).toContain('role="button"');
     expect(html).not.toContain("static");
   });
 
@@ -165,9 +166,7 @@ describe("a save system's overview", () => {
     await land(details());
 
     const html = overview();
-    expect(html).toContain(
-      `<div class="ins-line">${kindTitle("contingency")}</div><div class="ins-line">${kindTitle("cutholoid")}</div>`,
-    );
+    expect(shown(html)).toContain(`${kindTitle("contingency")} ${kindTitle("cutholoid")}`);
     expect(html).toContain("<div>AI_system_2</div>");
   });
 
@@ -192,27 +191,12 @@ describe("a save system's overview", () => {
 });
 
 /** The install's classes for the binary under test, its bodies and a class to change it to. */
-function armStarClasses(): void {
-  useGameDataStore.setState({
-    names: new Map([
-      ["sc_binary_1", "X-ray Binary"],
-      ["sc_binary_2", "Neutron Binary"],
-    ]),
-    starClasses: new Map(
-      [
-        starClassView("sc_g", "pc_g_star"),
-        starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
-        starClassView("sc_binary_2", "pc_b_star", "pc_neutron_star"),
-      ].map((c) => [c.key, c]),
-    ),
-    planetClasses: new Map(
-      ["pc_a_star", "pc_pulsar", "pc_b_star", "pc_neutron_star", "pc_g_star"].map((k) => [
-        k,
-        planetClassView(k),
-      ]),
-    ),
-  });
-}
+const CLASSES = {
+  sc_g: ["pc_g_star"],
+  sc_binary_1: ["pc_a_star", "pc_pulsar"],
+  sc_binary_2: ["pc_b_star", "pc_neutron_star"],
+};
+const NAMES = { sc_binary_1: "X-ray Binary", sc_binary_2: "Neutron Binary" };
 
 describe("a save system's wormhole pair", () => {
   it("names the natural wormhole's other end and says how to take the pair out", async () => {
@@ -239,21 +223,19 @@ describe("the star class at the head", () => {
     });
 
   it("names a multiple star by its class's bodies, as plain text on a save", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(stars());
 
     const html = overview();
     // The fixture has no names for the bodies.
-    expect(html).toMatch(
-      /<div class="ins-sub muted">pc_a_star \+ pc_pulsar · \d+ planets · nebula/,
-    );
+    expect(shown(html)).toMatch(/pc_a_star \+ pc_pulsar · \d+ planets · nebula/);
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
   });
 
   it("notes stars no class has, by their names, and what the game treats the system as", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     useGameDataStore.setState({
       names: new Map([
         ["pc_a_star", "Class A Star"],
@@ -277,7 +259,7 @@ describe("the star class at the head", () => {
   });
 
   it("leaves the note out when the stars match the class, in any order", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(
       details({
@@ -292,17 +274,17 @@ describe("the star class at the head", () => {
   });
 
   it("marks each star and planet in the planet list as a page with fields to edit", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(stars());
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(3);
     expect(html).toContain("Open this star&#x27;s page to change its type and size");
   });
 
   it("marks every planet as editable, and a star with its own hint", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("save");
     await land(
       details({
@@ -315,7 +297,7 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(3);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(3);
     expect(html).toContain(
       "Open this planet&#x27;s page to rename it or change its modifiers, deposits and anomaly",
     );
@@ -329,12 +311,12 @@ describe("the star class at the head", () => {
     );
 
     const html = overview();
-    expect(html.match(/class="ins-edit-chip"/g)).toHaveLength(2);
+    expect(shown(html).match(/✎ Edit/g)).toHaveLength(2);
     expect(html.indexOf("Alpha")).toBeLessThan(html.indexOf("Tarkin"));
   });
 
   it("stays plain text on a scenario", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, NAMES);
     await open("scenario");
     await land(stars());
 
@@ -342,7 +324,7 @@ describe("the star class at the head", () => {
     expect(html).toContain("X-ray Binary · ");
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
-    expect(html).not.toContain("ins-edit-chip");
+    expect(shown(html)).not.toContain("✎ Edit");
   });
 });
 
@@ -442,7 +424,7 @@ describe("a system added this session", () => {
     await land(details({ planets: [planet(100, "Tarkin")] }));
 
     const html = overview();
-    expect(html).toContain('class="edit-block added" role="group" aria-label="Added this session"');
+    expect(html).toContain('role="group" aria-label="Added this session"');
     expect(html).toContain("+ added this session");
     expect(html).toContain('aria-label="System name"');
     expect(html).toContain("Red star");
@@ -467,7 +449,7 @@ describe("the Planets header's system view button", () => {
   it("offers the view on a save or a scenario until it shows this system", async () => {
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
+    expect(buttons(overview())).toContain("Open system view");
 
     useSceneStore.getState().enterSystem(SYSTEM);
     expect(overview()).not.toContain("Open system view");
@@ -475,7 +457,7 @@ describe("the Planets header's system view button", () => {
     useSceneStore.getState().exitScene();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(overview()).toContain('<button type="button" class="link">Open system view</button>');
+    expect(buttons(overview())).toContain("Open system view");
   });
 });
 

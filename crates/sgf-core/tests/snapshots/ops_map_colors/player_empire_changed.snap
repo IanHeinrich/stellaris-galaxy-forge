@@ -16,3 +16,15 @@ inverse: SetEmpireMapColors { country: 0, colors: Some(MapColorPair { border: "i
  				"light_pink"
  			}
  			use_map_color=yes
+
+--- meta
++++ meta
+@@ -51,7 +51,7 @@
+ 		"dark_blue"
+ 		"black"
+ 		"grey"
+-		"intense_red"
++		"green"
+ 		"light_pink"
+ 	}
+ 	use_map_color=yes

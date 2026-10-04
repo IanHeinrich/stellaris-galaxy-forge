@@ -16,7 +16,7 @@ use crate::projections::galaxy::{Galaxy, SystemNode};
 /// How many clans the game's initializers name.
 pub const CLANS: u8 = 3;
 /// How close to a seat a clan's home may stand before its raids hit that empire first.
-pub const SEAT_CLEARANCE: f64 = 30.0;
+pub(crate) const SEAT_CLEARANCE: f64 = 30.0;
 
 pub(crate) const MARAUDER_PREFIX: &str = "marauder_";
 const HOME: &str = "1";
@@ -79,12 +79,16 @@ pub fn clan_count(galaxy: &Galaxy) -> u32 {
 }
 
 /// Whether a home at `home` stands within [`SEAT_CLEARANCE`] of a seat at `seat`.
-pub fn near_seat(home: (f64, f64), seat: (f64, f64)) -> bool {
+pub(crate) fn near_seat(home: (f64, f64), seat: (f64, f64)) -> bool {
     fe_zone::distance(home, seat) < SEAT_CLEARANCE
 }
 
 /// The systems hyperlaned to `system` that carry `role`, ascending by id.
-pub fn neighbours_with_role(galaxy: &Galaxy, system: &SystemNode, role: MarauderRole) -> Vec<u32> {
+pub(crate) fn neighbours_with_role(
+    galaxy: &Galaxy,
+    system: &SystemNode,
+    role: MarauderRole,
+) -> Vec<u32> {
     let mut ids: Vec<u32> = system
         .lanes
         .iter()

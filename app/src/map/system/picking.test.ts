@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/gamedata", () => ({ getTextures: () => new Promise(() => {}) }));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem } from "../../test/builders";
+import { textureFetch } from "../../test/textures";
 import { Camera } from "../Camera";
 import { systemContext } from "./context";
 import { handleOwnerAt, pickHandle } from "./picking";
 import { NO_SOURCES } from "./sources";
+
+textureFetch.mode = "never";
 
 describe("the handles shown", () => {
   const base = systemContext({

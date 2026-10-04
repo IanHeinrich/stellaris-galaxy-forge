@@ -79,7 +79,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         .map(Node::span)
         .collect();
     for span in keys {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     for &country in &finders {
         unlist(plan.edit_country(&s.doc, country)?, id)?;

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { SystemNode } from "../generated/SystemNode";

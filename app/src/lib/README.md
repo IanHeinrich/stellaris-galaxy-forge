@@ -7,7 +7,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
   territories between edits, `territories.worker.ts` runs it off the UI thread
   and `territoryClient.ts` is how the map talks to either. `territory.ts` is
-  the influence field the territories are traced from, `contour.ts` turns the
+  the influence field the territories are traced from. It measures each tile
+  in `influenceRaster.ts` and traces it in `influenceMarch.ts`, from the
+  sources in `influenceSources.ts`, the tile layout in `influenceTiles.ts` and
+  the rounding in `influenceSmoothing.ts`. `contour.ts` turns the
   traced segments into rings, and `polygon.ts` holds the ring helpers: area,
   point in ring, and nesting rings into polygons with holes. `pairs.ts` and
   `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
@@ -34,8 +37,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   candidate needs. `planetEdits` is the words a planet's page shows beside
   its edits, and the hint of a body's Edit chip. `planetModel` is the Model
   field's rows, usual models first, and `planetClass` is the Class field's
-  rows, with a colony's narrower choice. The save adapter in
-  `store/planetEditAdapter` builds every op a save body's page sends.
+  rows, with a colony's narrower choice. A body's page reads its body through
+  a `BodySource`, one per kind of document (`panels/inspector/entity/bodySources.ts`),
+  which also gives it the adapter that edits the body. The save's adapter,
+  `store/planetEditAdapter.ts`, builds every op a save body's page sends.
   `planetOffers` says which edits a body's page and the system view's menus
   offer, from the document's capabilities.
   `planetRemoval` is the ops that delete a body or remove its colony and
@@ -43,7 +48,7 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   dig site and anomaly pickers share: the search, the usual rows first, and
   the target and edit adapter they add
   through, so a source other than a save can plug in its own adapter
-  (`store/planetEditAdapter` holds the save's). `depositPicker` groups
+  (`store/planetEditAdapter.ts` holds the save's). `depositPicker` groups
   the deposit types its picker offers into families, sections and chips,
   `modifierPicker` is the modifier picker's rows and chips,
   `digSitePicker` is the dig site picker's rows and chips and the line a
@@ -59,8 +64,12 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `saveGeometry` picks an adapter per document: a save's builds the save
   ops, and a scenario's makes nothing editable. Its `layoutEditing` and
   `layoutPreview` say what may be edited and preview an edit as a layout
-  override for any source, so the scene and the pages never check what
-  kind of file is open.
+  override for any source, so the scene and the geometry fields read the
+  adapter and not the kind of file. `geometry` works one system's layout, what
+  may be edited and the frame an edit is built in from its details, roll
+  and adapter, once for the scene, the pages and the nudge. A place that
+  has to differ by kind picks a row of `documentKinds` or a `BodySource`,
+  and a new kind fails to compile until each has its row.
   `discs` sizes each body's disc.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
@@ -86,7 +95,9 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   sentences each screen uses for one subject, and `names`, `text` and
   `version` turn keys, counts and version strings into English.
   `releaseNotes` reads a release's notes into the spans the update dialog
-  shows.
+  shows. `systemLabel` names a system in an undo line the way the core does,
+  as `Name #id`. `systemsBatch` builds the one op, or the named batch, that
+  edits many systems at once.
 - The rows a screen lists, as pure functions of what has been read:
   `openRows` for the Open screen, `browserRows` for the dock's lists.
 - The editor's own vocabulary: `tools` (the rail's tools), `keys` (every key

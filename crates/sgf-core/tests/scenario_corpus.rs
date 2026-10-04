@@ -53,7 +53,7 @@ fn every_scenario_opens_and_round_trips() {
             }
             Err(e) => panic!("{name}: {e}"),
         };
-        let scenario = session.doc.scenario().expect("a scenario document");
+        let scenario = session.doc().scenario().expect("a scenario document");
         let statements: Vec<_> = scenario.lane_statements().collect();
         let added = statements.iter().filter(|l| !l.prevent).count();
 
@@ -61,16 +61,16 @@ fn every_scenario_opens_and_round_trips() {
             "{:<40} {:>8} {:>8} {:>8} {:>8}",
             name,
             original.len() / 1024,
-            session.graph.systems.len(),
+            session.graph().systems.len(),
             added,
-            session.graph.nebulae.len()
+            session.graph().nebulae.len()
         );
 
         if name == KNOWN {
             // The file's text holds 1662 `system` and 2234 `add_hyperlane` occurrences;
             // 4 and 12 of those are inside comments and are not statements.
-            assert_eq!(session.graph.systems.len(), 1658, "{name}: systems");
-            assert_eq!(session.graph.nebulae.len(), 15, "{name}: nebulae");
+            assert_eq!(session.graph().systems.len(), 1658, "{name}: systems");
+            assert_eq!(session.graph().nebulae.len(), 15, "{name}: nebulae");
             assert_eq!(added, 2222, "{name}: add_hyperlane statements");
         }
 

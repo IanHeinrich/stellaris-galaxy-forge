@@ -409,7 +409,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
 fn free_ground(session: &Session) -> (f64, f64) {
     let clear = |(x, y): (f64, f64)| {
         session
-            .graph
+            .graph()
             .systems
             .values()
             .all(|s| (s.x - x).hypot(s.y - y) >= 10.0)
@@ -506,7 +506,7 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
             .collect()
     };
     let before = findings(&session);
-    let known: BTreeSet<u32> = session.graph.systems.keys().copied().collect();
+    let known: BTreeSet<u32> = session.graph().systems.keys().copied().collect();
     for layout in &CONVERTED_LAYOUTS {
         let key = layout.key;
         let mut spec = by_name(gd, 1, "Gen", free_ground(&session), key).unwrap();
@@ -569,7 +569,7 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
     assert_eq!(findings(&reopened), before);
     let details = reopened.details().expect("details");
     let added: Vec<u32> = reopened
-        .graph
+        .graph()
         .systems
         .keys()
         .copied()

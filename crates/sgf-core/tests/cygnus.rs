@@ -66,7 +66,7 @@ fn every_country_is_painted_in_its_map_colours_or_its_flag_colours() {
         assert_eq!(text.matches(border).count(), 1, "the player's map pair");
         *text = text.replacen(border, "\t\t\t\t\"null\"\n\t\t\t\t\"light_pink\"\n", 1);
     });
-    let g = edited.graph;
+    let g = edited.graph();
     let player = g.countries.iter().find(|c| c.id == 0).expect("country 0");
     assert_eq!(player.painted_border.as_deref(), Some("grey"));
     assert_eq!(player.painted_fill.as_deref(), Some("light_pink"));

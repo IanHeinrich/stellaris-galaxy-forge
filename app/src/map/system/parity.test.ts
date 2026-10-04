@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/gamedata", () => ({ getTextures: () => new Promise(() => {}) }));
+vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import { BitmapText, Container, Graphics, Sprite } from "pixi.js";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -16,6 +16,7 @@ import {
   systemDetails,
 } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
+import { textureFetch } from "../../test/textures";
 import { systemContext, type SceneBody, type SystemContext } from "./context";
 import { blankSceneTextures, stubTextMeasurement, viewport } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
@@ -23,6 +24,7 @@ import { LabelsLayer } from "./layers/LabelsLayer";
 import { NO_SOURCES, placeIn } from "./sources";
 
 stubTextMeasurement();
+textureFetch.mode = "never";
 
 const SYSTEM = 5;
 const INITIALIZER = "parity_init";

@@ -52,15 +52,15 @@ pub(crate) fn plan_set_outcome(
     match (present.first(), last) {
         (Some(&first), _) => {
             for text in &written {
-                edit.insert_before(first, text);
+                edit.bytes().insert_before(first, text);
             }
             for span in present {
-                edit.remove_statement(span);
+                edit.bytes().remove_statement(span);
             }
         }
         (None, Some(last)) => {
             for text in &written {
-                edit.insert_after(last.end, text);
+                edit.bytes().insert_after(last.end, text);
             }
         }
         (None, None) => {

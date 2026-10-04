@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Made system 1 a Paint a Galaxy spawn (reserved c)
+Made Beta #1 a Paint a Galaxy spawn (reserved c)
 inverse: SetSpawnScript { system: 1, script: Some(PaintAGalaxy { kind: Preferred, random_value: 1, player: false }) }
 
 --- scenario

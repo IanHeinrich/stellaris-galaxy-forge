@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import * as ipc from "../../api/ipc";
@@ -60,7 +59,6 @@ describe("the Paint a Galaxy badge", () => {
     const html = badge();
     expect(html).toContain('aria-label="Paint a Galaxy"');
     expect(html).toContain(">PaG</span>");
-    expect(html).toContain('class="badge paint-badge"');
     expect(html).toContain('title="This scenario is set up for the Paint a Galaxy mod"');
     expect(html).not.toContain("⚠");
   });
@@ -72,7 +70,6 @@ describe("the Paint a Galaxy badge", () => {
     const html = badge();
     expect(html).toContain('aria-label="⚠ Paint a Galaxy mod not enabled"');
     expect(html).toContain(">⚠ PaG</span>");
-    expect(html).toContain('<span class="badge warn paint-badge"');
     expect(html).toContain(
       'title="The Paint a Galaxy mod is installed but not enabled. Turn it on in your playset in the launcher."',
     );
@@ -85,7 +82,6 @@ describe("the Paint a Galaxy badge", () => {
     const html = badge();
     expect(html).toContain('aria-label="⚠ Paint a Galaxy mod not installed"');
     expect(html).toContain(">⚠ PaG</button>");
-    expect(html).toContain('<button type="button" class="badge warn paint-badge"');
     expect(html).toContain(
       "The Paint a Galaxy mod is not installed. Subscribe to it on the Steam Workshop",
     );

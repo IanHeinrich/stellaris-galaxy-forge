@@ -77,7 +77,7 @@ pub(crate) const WORMHOLE_FLAG_PREFIX: &str = "painted_galaxy_wormhole_";
 /// The star flag beside it that keeps an empire from spawning on the pair.
 pub(crate) const EMPIRE_CLUSTER: &str = "empire_cluster";
 /// The game's own initializer for Sol, the one a Sol seat is meant to stand on.
-pub const SOL_INITIALIZER: &str = "sol_system_initializer";
+pub(crate) const SOL_INITIALIZER: &str = "sol_system_initializer";
 /// The mod's Steam Workshop item.
 pub const WORKSHOP_ID: &str = "3532904115";
 
@@ -102,7 +102,7 @@ pub fn wormhole_pair_of(flag: &str) -> Option<u32> {
 }
 
 /// Whether a star flag names a wormhole pair.
-pub fn is_wormhole_flag(flag: &str) -> bool {
+pub(crate) fn is_wormhole_flag(flag: &str) -> bool {
     flag.starts_with(WORMHOLE_FLAG_PREFIX)
 }
 
@@ -312,16 +312,14 @@ pub(crate) fn check(script: &SpawnScript) -> Result<(), OpError> {
     Ok(())
 }
 
-/// What to call the change [`Op::SetSpawnScript`] makes to system `id`.
+/// What to call the change [`Op::SetSpawnScript`] makes to `system`, as
+/// [`named`](crate::ops::rules::named) calls it.
 ///
 /// [`Op::SetSpawnScript`]: crate::ops::Op::SetSpawnScript
-pub(crate) fn description(id: u32, script: Option<&SpawnScript>) -> String {
+pub(crate) fn description(system: &str, script: Option<&SpawnScript>) -> String {
     match script {
-        Some(script) => format!(
-            "Made system {id} a Paint a Galaxy spawn ({})",
-            label(script)
-        ),
-        None => format!("Cleared system {id}'s Paint a Galaxy spawn"),
+        Some(script) => format!("Made {system} a Paint a Galaxy spawn ({})", label(script)),
+        None => format!("Cleared {system}'s Paint a Galaxy spawn"),
     }
 }
 

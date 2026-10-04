@@ -5,7 +5,6 @@ import { buttonIn } from "../../test/elements";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 
 import type { UpdateView } from "../../generated/UpdateView";
 import { UpdateBody, type UpdateBodyProps } from "./UpdateDialog";

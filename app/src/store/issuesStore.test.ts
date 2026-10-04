@@ -4,7 +4,6 @@ import { OPEN_RESULT, appIssue, editResult } from "./fixture";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { mockedIpc } from "../test/ipc";
 import { bindStores } from "./bindStores";

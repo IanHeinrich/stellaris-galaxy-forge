@@ -1,6 +1,7 @@
 import type { Container } from "pixi.js";
 import type { Camera } from "../../Camera";
 import type { SystemContext } from "../context";
+import type { SceneTarget } from "../picking";
 
 /** Where a lone cut planet would land: its point, its orbit's radius about the centre, its disc. */
 export interface PasteGhost {
@@ -11,15 +12,12 @@ export interface PasteGhost {
 }
 
 /**
- * What the scene marks: the body, wormhole and arrow under the pointer, the body or wormhole selected, the lane
+ * What the scene marks: what is under the pointer, the body or wormhole selected, the lane
  * clicked, the body a panel's link names while the pointer is on the link, and the planets being
  * moved.
  */
 export interface SceneHighlight {
-  readonly hoverBody: number | null;
-  /** The neighbour whose arrow is under the pointer. */
-  readonly hoverExit: number | null;
-  readonly hoverWormhole: number | null;
+  readonly hover: SceneTarget | null;
   readonly selectedBody: number | null;
   /** The wormhole whose page is on top of the inspector's stack. */
   readonly selectedWormhole: number | null;
@@ -35,9 +33,7 @@ export interface SceneHighlight {
 }
 
 export const NO_HIGHLIGHT: SceneHighlight = Object.freeze({
-  hoverBody: null,
-  hoverExit: null,
-  hoverWormhole: null,
+  hover: null,
   selectedBody: null,
   selectedWormhole: null,
   lane: null,

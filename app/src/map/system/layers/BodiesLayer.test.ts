@@ -1,24 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/** The texture fetch, held until a test lets it answer, failing the keys `fails` names. */
-const fetch = vi.hoisted(() => ({
-  release: null as (() => void) | null,
-  fails: (() => false) as (key: string) => boolean,
-}));
-
-vi.mock("../../../api/gamedata", () => ({
-  getTextures: (keys: string[]) =>
-    new Promise((resolve) => {
-      fetch.release = () =>
-        resolve(
-          keys.map((key) =>
-            fetch.fails(key)
-              ? { key, width: 0, height: 0, png_base64: null, error: "no map" }
-              : { key, width: 1, height: 1, png_base64: "", error: null },
-          ),
-        );
-    }),
-}));
+vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
 
 import { BitmapText, Container, Graphics, Mesh, Sprite, Texture } from "pixi.js";
 import type { PlanetClassView } from "../../../generated/PlanetClassView";
@@ -29,9 +11,11 @@ import {
   byId,
   placedNode,
   planetClassView,
+  saveBody,
   starClassView,
   systemDetails,
 } from "../../../test/builders";
+import { resetTextureFetch, textureFetch } from "../../../test/textures";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import { systemContext } from "../context";
 import {
@@ -43,7 +27,6 @@ import {
   blankSceneTextures,
   fixed,
   rollOf,
-  saveBody,
   scenarioBody,
   strokes,
   viewport,
@@ -56,18 +39,18 @@ import { BodiesLayer } from "./BodiesLayer";
 
 /** Drops the last fetch's answer, so a test waits for its own. */
 function forgetFetch(): void {
-  fetch.release = null;
+  textureFetch.release = null;
 }
 
 /** Answers every lit-disc request with an error, as for a class with no surface map. */
 function noLitDiscs(): void {
-  fetch.fails = (key) => key.startsWith("planet_disc:");
+  textureFetch.fails = (key) => key.startsWith("planet_disc:");
 }
 
 /** Lets the held fetch answer, once the layer has asked. */
 async function answerFetch(): Promise<void> {
-  await vi.waitFor(() => expect(fetch.release).not.toBeNull());
-  const release = fetch.release;
+  await vi.waitFor(() => expect(textureFetch.release).not.toBeNull());
+  const release = textureFetch.release;
   forgetFetch();
   release?.();
 }
@@ -86,10 +69,12 @@ function decodeByKey(): (key: string) => Texture {
 
 function resetTextures(): void {
   clearTextures();
-  forgetFetch();
-  fetch.fails = () => false;
+  resetTextureFetch();
+  textureFetch.mode = "held";
   setTextureDecoder(null);
 }
+
+beforeEach(resetTextures);
 
 describe("the system scene's bodies layer", () => {
   /** A system of the one star `planetClass`, of the star class `starClass`. */
@@ -100,7 +85,7 @@ describe("the system scene's bodies layer", () => {
       systems: byId(placedNode(SYSTEM, 0, 0)),
       details: systemDetails({
         id: SYSTEM,
-        planets: [{ ...saveBody(1, planetClass, [0, 0], 0), star_class: starClass }],
+        planets: [{ ...saveBody(1, planetClass, [0, 0], 0, 16), star_class: starClass }],
       }),
       starClasses: new Map([[starClass, starClassView(starClass, planetClass)]]),
     });
@@ -168,7 +153,7 @@ describe("the system scene's bodies layer", () => {
 
   it("keeps a star's tinted disc when the install bakes no surface for it", async () => {
     resetTextures();
-    fetch.fails = (key) => key.startsWith("star_disc:");
+    textureFetch.fails = (key) => key.startsWith("star_disc:");
     const textureFor = decodeByKey();
     const layer = new BodiesLayer(blankSceneTextures());
     layer.rebuild(starContext("pc_modded_star", "sc_modded"));
@@ -292,7 +277,7 @@ describe("the system scene's bodies layer", () => {
       systems: byId(placedNode(SYSTEM, 0, 0)),
       details: systemDetails({
         id: SYSTEM,
-        planets: [{ ...saveBody(1, "pc_black_hole", [0, 0], 0), star_class: "sc_black_hole" }],
+        planets: [{ ...saveBody(1, "pc_black_hole", [0, 0], 0, 16), star_class: "sc_black_hole" }],
       }),
       starClasses: new Map([["sc_black_hole", starClassView("sc_black_hole", "pc_black_hole")]]),
     });
@@ -463,7 +448,7 @@ describe("the system scene's bodies layer", () => {
     resetTextures();
     const textureFor = decodeByKey();
     const textures = blankSceneTextures();
-    const bare = saveBody(5, "pc_barren", [-150, 0], 150, 1);
+    const bare = saveBody(5, "pc_barren", [-150, 0], 150, 16, SUN);
     const layer = new BodiesLayer(textures);
     layer.rebuild(
       classedContext(
@@ -532,7 +517,7 @@ describe("the system scene's bodies layer", () => {
   it("swaps the tinted disc for the class's lit disc once it lands, turned to face the star under the same shading, or for its icon when it has none", async () => {
     resetTextures();
     const textureFor = decodeByKey();
-    fetch.fails = (key) => key === "planet_disc:pc_continental";
+    textureFetch.fails = (key) => key === "planet_disc:pc_continental";
     const layer = new BodiesLayer(blankSceneTextures());
     layer.rebuild(classedContext([EARTH, MARS], [iconed("pc_continental"), iconed("pc_arid")]));
     viewport(layer, 2);
@@ -567,7 +552,7 @@ describe("the system scene's bodies layer", () => {
   it("draws a planet's own model as its lit disc, and its class's disc when the model has none", async () => {
     resetTextures();
     const textureFor = decodeByKey();
-    fetch.fails = (key) => key === "planet_model:modded_planet_entity";
+    textureFetch.fails = (key) => key === "planet_model:modded_planet_entity";
     const layer = new BodiesLayer(blankSceneTextures());
     const paradise = { ...EARTH, entity_name: "ocean_paradise_planet_01_entity" };
     const modded = { ...MARS, entity_name: "modded_planet_entity" };
@@ -620,7 +605,7 @@ describe("the system scene's bodies layer", () => {
     const textureFor = decodeByKey();
     const layer = new BodiesLayer(blankSceneTextures());
     const rock = { ...EARTH, class: "pc_asteroid" };
-    layer.rebuild(classedContext([rock], [iconed("pc_asteroid")]));
+    layer.rebuild(classedContext([rock], [{ ...iconed("pc_asteroid"), asteroid: true }]));
     viewport(layer, 2);
     const drawn = holderAt(layer, ...EARTH_AT);
     expect(sprite(drawn, "disc").visible).toBe(true);
@@ -632,6 +617,17 @@ describe("the system scene's bodies layer", () => {
     expect(sprite(drawn, "art").texture).toBe(textureFor("sprite:GFX_pc_asteroid"));
     expect(sprite(drawn, "disc").visible).toBe(false);
     resetTextures();
+    layer.destroy();
+  });
+
+  it("draws a modded asteroid class whose key does not say so with no shading, as its class view says", () => {
+    const layer = new BodiesLayer(blankSceneTextures());
+    const rock = { ...EARTH, class: "pc_mod_rock" };
+    layer.rebuild(classedContext([rock], [{ ...iconed("pc_mod_rock"), asteroid: true }]));
+    viewport(layer, 2);
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "lit")).toBeUndefined();
     layer.destroy();
   });
 
@@ -672,7 +668,8 @@ describe("the system scene's bodies layer", () => {
     const textureFor = decodeByKey();
     const glazeOf = async (planetClass: string) => {
       const layer = new BodiesLayer(blankSceneTextures());
-      layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [iconed(planetClass)]));
+      const rock = { ...iconed(planetClass), asteroid: true };
+      layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [rock]));
       viewport(layer, 2);
       const drawn = holderAt(layer, ...EARTH_AT);
       await answerFetch();

@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added lane 591 <-> 590 (length 29)
+Added lane Occidan #591 <-> Murust #590 (length 29)
 inverse: RemoveLane { a: 591, b: 590 }
 
 --- gamestate

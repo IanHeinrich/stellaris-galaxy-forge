@@ -27,6 +27,7 @@ import { useScriptsStore } from "./scriptsStore";
 import { useToolStore } from "./toolStore";
 import { useUpdateStore } from "./updateStore";
 import { useWatchlistStore } from "./watchlistStore";
+import { starClassesOf } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
 const STORES: StoreApi<object>[] = [
@@ -82,4 +83,19 @@ export function armSession(): void {
   mockedIpc.checkOp.mockResolvedValue(null);
   mockedIpc.getSpecialSystems.mockResolvedValue({ systems: [], counts: [], with_game_data: false });
   mockedIpc.getScenarioOwners.mockResolvedValue(null);
+}
+
+/**
+ * Lands the install's star classes (`class key -> its star bodies`), the planet classes of those
+ * bodies and of any `worlds`, and the `names` the game localises them to.
+ */
+export function armStarClasses(
+  stars: Record<string, string[]>,
+  names: Record<string, string> = {},
+  worlds: string[] = [],
+): void {
+  useGameDataStore.setState({
+    names: new Map(Object.entries(names)),
+    ...starClassesOf(stars, worlds),
+  });
 }

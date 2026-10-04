@@ -61,7 +61,7 @@ fn write_height(edit: &mut Edit, text: Option<&str>) -> Result<(), OpError> {
         .find(keys::VISUAL_HEIGHT, &edit.buf)
         .map(Node::span);
     match (written, text) {
-        (Some(span), None) => edit.remove_statement(span),
+        (Some(span), None) => edit.bytes().remove_statement(span),
         (Some(_), Some(text)) => {
             edit.set_scalar(&[keys::COORDINATE, keys::VISUAL_HEIGHT], text)?;
         }

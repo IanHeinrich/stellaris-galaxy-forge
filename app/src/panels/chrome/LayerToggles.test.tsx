@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import {
@@ -56,8 +55,6 @@ describe("the split layer bar", () => {
     expect(html.indexOf(label("scenario"))).toBeLessThan(html.indexOf(label("initializers")));
     expect(html.indexOf(label("initializers"))).toBeLessThan(html.indexOf(label("scripts")));
     expect(html).toContain("Spawn points");
-    expect(html).toContain('class="layer-group init"');
-    expect(html).toContain('class="layer-group src"');
   });
 
   it("gives each master a pill of its own rather than one more layer icon", () => {

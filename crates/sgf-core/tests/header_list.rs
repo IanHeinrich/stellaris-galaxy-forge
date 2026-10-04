@@ -36,7 +36,7 @@ fn shapes(values: &[&str]) -> Op {
 
 /// Every statement of `key` as the rebuilt index now reads it.
 fn values(session: &Session, key: &str) -> Vec<String> {
-    let header = &session.doc.scenario().expect("a scenario").header;
+    let header = &session.doc().scenario().expect("a scenario").header;
     header.all(key).map(|s| s.field.value.clone()).collect()
 }
 
@@ -92,7 +92,7 @@ fn an_empty_list_removes_every_statement_and_undo_puts_them_back() {
     assert!(values(&session, "supports_shape").is_empty());
     session.undo().expect("undo").expect("an op to undo");
     assert_eq!(values(&session, "supports_shape"), owned(&SHAPES));
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn the_extra_values_step_over_a_line_an_earlier_removal_emptied() {
     );
     session.undo().expect("undo").expect("an op to undo");
     session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]

@@ -149,12 +149,12 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
     constant(
         "What a Stellaris 4.x save supports.",
         "SAVE_CAPABILITIES: Capabilities",
-        capabilities(Capabilities::of(&common::open().doc)),
+        capabilities(Capabilities::of(common::open().doc())),
     );
     constant(
         "What a static galaxy scenario supports.",
         "SCENARIO_CAPABILITIES: Capabilities",
-        capabilities(Capabilities::of(&GRAMMAR.open().doc)),
+        capabilities(Capabilities::of(GRAMMAR.open().doc())),
     );
     let out = out.trim_end().to_owned() + "\n";
 

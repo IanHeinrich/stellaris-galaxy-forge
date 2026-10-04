@@ -68,25 +68,43 @@ function classTint(planetClass: string, starClass: string | null): number {
   return planetTint(planetClass);
 }
 
+/** What `bodyLook` reads of a body. */
+export interface LookOf {
+  readonly planetClass: string;
+  /** The star class a star is drawn as; null for a planet. */
+  readonly starClass: string | null;
+  /** Its class is left to a draw, with no surface of its own. */
+  readonly drawn: boolean;
+  /** The install draws its class from its icon alone. */
+  readonly flat?: boolean;
+  /** Its class is an asteroid, as the install's class says. */
+  readonly asteroid?: boolean;
+  /** The model the save names for it. */
+  readonly model?: string | null;
+  /** What breaks a shattered class apart: the planet's id. */
+  readonly shatterSeed?: number | null;
+}
+
 /**
  * How a body of `planetClass` is drawn: a star as `starClass`, a body whose class is left to a
- * draw with no surface of its own, and a `flat` class from its icon alone. A planet whose save
- * names a `model` shows that model's surface where the install has one, else its class's. A class
- * the install draws broken apart shows its shattered disc, broken as `shatterSeed`, the planet's
- * id, says, so each planet breaks its own way and always the same way.
+ * draw with no surface of its own, and a `flat` class or an asteroid from its icon alone. A planet
+ * whose save names a `model` shows that model's surface where the install has one, else its
+ * class's. A class the install draws broken apart shows its shattered disc, broken as
+ * `shatterSeed`, the planet's id, says, so each planet breaks its own way and always the same way.
  */
-export function bodyLook(
-  planetClass: string,
-  starClass: string | null,
-  drawn: boolean,
+export function bodyLook({
+  planetClass,
+  starClass,
+  drawn,
   flat = false,
-  model: string | null = null,
-  shatterSeed: number | null = null,
-): BodyLook {
+  asteroid = false,
+  model = null,
+  shatterSeed = null,
+}: LookOf): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
   const flatArt = flat && starClass === null && !drawn && !luminous;
-  const irregular = /asteroid/.test(planetClass) || luminous || flatArt;
+  const irregular = asteroid || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";
   const seed = starClass === null && baked ? shatterSeed : null;

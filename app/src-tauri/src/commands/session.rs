@@ -109,7 +109,7 @@ pub async fn export_scenario<R: Runtime>(
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| session.title());
             let (text, report) = export::scenario_text(
-                &session.graph,
+                session.graph(),
                 &export::options_for_session(session, &name),
                 &resolve,
                 &sources,
@@ -144,7 +144,7 @@ pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportRepor
         let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (_, report) = export::draft(
-            &session.graph,
+            session.graph(),
             &export::options_for_session(session, &session.title()),
             &resolve,
             &sources,
@@ -200,7 +200,7 @@ async fn install_reporting<R: Runtime>(
 pub async fn get_galaxy<R: Runtime>(app: AppHandle<R>) -> Result<GalaxyView, SgfError> {
     with_session(app, |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-        Ok(GalaxyView::from(&session.graph))
+        Ok(GalaxyView::from(session.graph()))
     })
     .await
 }

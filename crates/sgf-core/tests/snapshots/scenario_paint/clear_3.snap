@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Cleared system 3's Paint a Galaxy spawn
+Cleared Sol #3's Paint a Galaxy spawn
 inverse: SetSpawnScript { system: 3, script: Some(PaintAGalaxy { kind: Sol, random_value: 0, player: false }) }
 
 --- scenario

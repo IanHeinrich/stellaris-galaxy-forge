@@ -5,10 +5,7 @@ import type { DigSiteChip, DigSitePickRow } from "../lib/details/digSitePicker";
 import type { PickerTarget } from "../lib/details/picker";
 import { pickerSlice, stillOn, type PickerState } from "./pickerSlice";
 
-/**
- * The dig site picker on a planet's page, and the site types the game data offers, which a site's
- * row reads its stage count from too. A planet holds one site, so an add closes the picker.
- */
+/** The dig site picker on a planet's page. A planet holds one site, so an add closes the picker. */
 export interface DigSitePickerState extends PickerState<DigSiteChip, DigSiteChoice> {
   open(target: PickerTarget): void;
   /** Adds a site of `row`'s type to the open body, then closes the picker. */

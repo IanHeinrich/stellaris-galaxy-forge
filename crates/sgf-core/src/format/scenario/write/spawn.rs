@@ -22,10 +22,9 @@ pub(super) fn set_weight(
 ) -> Result<Planned, OpError> {
     let (description, previous, script) = write_weight(plan, s, id, base)?;
     let inverse = match script {
-        Some(script) => Op::SetSpawnScript {
-            system: id,
-            script: Some(script),
-        },
+        Some((script, without_initializer)) => {
+            restore_seat(s, id, Some(script), without_initializer)
+        }
         None => Op::SetSpawnWeight {
             system: id,
             base: previous.1,
@@ -43,19 +42,37 @@ pub(super) fn set_script(
     id: u32,
     script: Option<&SpawnScript>,
 ) -> Result<Planned, OpError> {
-    let (description, previous) = write_script(plan, s, id, script)?;
+    let (description, (_, previous), gave_initializer) = write_script(plan, s, id, script)?;
     Ok(Planned {
         description,
-        inverse: Op::SetSpawnScript {
-            system: id,
-            script: previous.1,
-        },
+        inverse: restore_seat(s, id, previous, gave_initializer),
     })
 }
 
+/// The op that puts a seat back. A seat the edit gave its initializer takes the
+/// initializer away again.
+fn restore_seat(s: &Session, id: u32, script: Option<SpawnScript>, remove_initializer: bool) -> Op {
+    let description = paint::description(&named(&s.graph, id), script.as_ref());
+    let restore = Op::SetSpawnScript { system: id, script };
+    if !remove_initializer {
+        return restore;
+    }
+    Op::Batch {
+        description: format!("{description} and removed its initializer"),
+        ops: vec![
+            restore,
+            Op::SetInitializer {
+                system: id,
+                initializer: None,
+            },
+        ],
+    }
+}
+
 /// What to call a weight change, the entry that puts the base back and, when the whole
-/// block went with it, the script that block was, which only a script puts back.
-type WeightWritten = (String, (u32, Option<f64>), Option<SpawnScript>);
+/// block went with it, the script that block was, which only a script puts back, and
+/// whether the system names no initializer for that script to seat.
+type WeightWritten = (String, (u32, Option<f64>), Option<(SpawnScript, bool)>);
 
 /// Write one system's spawn weight. A weight that is script is not a number to set:
 /// only its kind changes.
@@ -76,6 +93,7 @@ fn write_weight(
     let mut removed_block = false;
     let edit = plan.edit(&s.doc, id)?;
     let standing = block(edit)?;
+    let without_initializer = edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none();
     // A script's base is not a number to set, and a script beside modifiers is only
     // ever a hand edit: taking its base would leave a block no op can put back.
     if let Some(block) = &standing
@@ -106,10 +124,10 @@ fn write_weight(
         // A block of modifiers alone states no base, so there is nothing to clear.
         (None, Some(block)) => match block.base {
             Some(_) if block.foreign_modifiers.is_empty() => {
-                edit.remove_statement(block.statement);
+                edit.bytes().remove_statement(block.statement);
                 removed_block = true;
             }
-            Some(span) => edit.remove_statement(span),
+            Some(span) => edit.bytes().remove_statement(span),
             None => {}
         },
         (None, None) => {}
@@ -122,13 +140,20 @@ fn write_weight(
         ),
         None => format!("Cleared the spawn weight of {}", named(&s.graph, id)),
     };
-    let script = removed_block.then(|| system.spawn_script.clone()).flatten();
+    let script = removed_block
+        .then(|| system.spawn_script.clone())
+        .flatten()
+        .map(|script| (script, without_initializer));
     Ok((description, (id, previous), script))
 }
 
-/// Write one system's scripted seat whole, returning what to call the change and the
-/// entry that puts it back. A seat needs a starting initializer, so a system naming
-/// none is given the dialect's basic one, before the weight as the dialect orders them.
+/// What to call a seat change, the entry that puts the seat back and whether the system
+/// was given an initializer for it.
+type ScriptWritten = (String, (u32, Option<SpawnScript>), bool);
+
+/// Write one system's scripted seat whole. A seat needs a starting initializer, so a
+/// system naming none is given the dialect's basic one, before the weight as the dialect
+/// orders them.
 /// A block of modifiers is script this editor does not rewrite, so a seat is neither
 /// written over one nor cleared with one.
 fn write_script(
@@ -136,7 +161,7 @@ fn write_script(
     s: &Session,
     id: u32,
     script: Option<&SpawnScript>,
-) -> Result<(String, (u32, Option<SpawnScript>)), OpError> {
+) -> Result<ScriptWritten, OpError> {
     if let Some(script) = script {
         paint::check(script)?;
     }
@@ -152,23 +177,26 @@ fn write_script(
     if let Some(block) = &standing {
         refuse_modifiers(edit, block)?;
     }
+    let mut gave_initializer = false;
     match (script, standing) {
         (Some(script), standing) => {
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
+                gave_initializer = true;
                 let after = last_of_id_name_position(edit)?;
                 let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
-                edit.insert_after(after, &text);
+                edit.bytes().insert_after(after, &text);
             }
             let text = paint::weight_statement(script);
             match standing {
-                Some(block) => edit.replace_statement(block.statement, &text),
+                Some(block) => edit.bytes().replace_statement(block.statement, &text),
                 None => insert_statement(edit, &text)?,
             }
         }
-        (None, Some(block)) => edit.remove_statement(block.statement),
+        (None, Some(block)) => edit.bytes().remove_statement(block.statement),
         (None, None) => {}
     }
-    Ok((paint::description(id, script), (id, previous)))
+    let description = paint::description(&named(&s.graph, id), script);
+    Ok((description, (id, previous), gave_initializer))
 }
 
 /// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites
@@ -232,7 +260,7 @@ fn insert_statement(edit: &mut Edit, text: &str) -> Result<(), OpError> {
         Some(node) => node.span().end,
         None => last_of_id_name_position(edit)?,
     };
-    edit.insert_after(after, text);
+    edit.bytes().insert_after(after, text);
     Ok(())
 }
 

@@ -86,7 +86,7 @@ pub fn generated(
 /// The system added last, which takes the highest id of those added.
 fn last_added(session: &Session) -> u32 {
     session
-        .graph
+        .graph()
         .systems
         .values()
         .filter(|s| s.added)

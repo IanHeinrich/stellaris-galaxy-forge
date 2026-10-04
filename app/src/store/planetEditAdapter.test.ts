@@ -1,8 +1,9 @@
+import type { PlanetPage } from "../generated/PlanetPage";
+import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { PlanetClassView } from "../generated/PlanetClassView";
@@ -11,7 +12,16 @@ import { mockedIpc } from "../test/ipc";
 import { planetClassView, planetPage, starClassView } from "../test/builders";
 import { openFixtureSave } from "./editorFixture";
 import { editResult } from "./fixture";
-import { planetEditAdapterFor, planetPickerTarget } from "./planetEditAdapter";
+import { heldAnomaly, planetEditAdapterFor, savePickerTarget } from "./planetEditAdapter";
+
+/** Save body `page` in system 1, as its page hands it to the pickers. */
+const pickerTarget = (page: PlanetPage) =>
+  savePickerTarget(
+    1,
+    planetSummary({ id: page.id, class: page.class, size: page.size }),
+    page,
+    heldAnomaly(page),
+  );
 
 const BODY = { system: 4, id: 41 };
 const save = () => planetEditAdapterFor("save", BODY);
@@ -194,7 +204,7 @@ describe("a save body's rows", () => {
       ],
     });
     const [feature, timed] = modifierRows(page, new Map([["pm_mineral_poor", MINERAL_POOR.view]]));
-    const { edits } = planetPickerTarget(page, false);
+    const { edits } = pickerTarget(page);
     expect((await sent(edits.removeModifier(feature)))[1]).toEqual({
       type: "RemoveBodyModifier",
       body: 7,
@@ -213,7 +223,7 @@ describe("a save body's rows", () => {
       id: 7,
       deposits: [{ id: 3, kind: "d_minerals_2", swap_type: null }],
     });
-    const { edits } = planetPickerTarget(page, false);
+    const { edits } = pickerTarget(page);
     expect((await sent(edits.removeDeposit(page.deposits[0])))[1]).toEqual({
       type: "RemoveDeposit",
       deposit: 3,

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 vi.mock("../useTextureUrl", () => ({ useTextureUrl: vi.fn(() => undefined) }));
 
@@ -14,7 +13,7 @@ import { PAINT_CHECK } from "../../lib/paintCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { buttons, shown } from "../../test/elements";
-import { saveFile, scenarioListing } from "../../test/openRows";
+import { saveFile, scenarioListing } from "../../test/builders";
 import { OpenSave } from "./OpenSave";
 
 beforeEach(() => {

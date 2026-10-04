@@ -162,7 +162,7 @@ fn a_black_hole_is_named_from_the_black_hole_names() {
     let gd = &gd;
     let session = common::open_4_5();
     let used: BTreeSet<&str> = session
-        .graph
+        .graph()
         .systems
         .values()
         .map(|s| s.name.key.as_str())

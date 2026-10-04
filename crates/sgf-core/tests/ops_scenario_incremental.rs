@@ -32,11 +32,11 @@ fn set_header(key: &str, value: Option<&str>) -> Op {
 }
 
 fn unlinked_pair(session: &Session) -> (u32, u32) {
-    let ids = &session.graph.order;
+    let ids = &session.graph().order;
     ids.iter()
         .flat_map(|&a| ids.iter().map(move |&b| (a, b)))
         .find(|&(a, b)| {
-            a != b && session.graph.lane(a, b).is_none() && session.graph.lane(b, a).is_none()
+            a != b && session.graph().lane(a, b).is_none() && session.graph().lane(b, a).is_none()
         })
         .expect("two systems without a lane")
 }
@@ -44,10 +44,10 @@ fn unlinked_pair(session: &Session) -> (u32, u32) {
 /// Edits any scenario takes.
 fn edits(session: &mut Session) {
     assert_fresh(session, "open");
-    let ids: Vec<u32> = session.graph.order.clone();
+    let ids: Vec<u32> = session.graph().order.clone();
     let (a, b, c) = (ids[0], ids[1], ids[2]);
-    let next = session.graph.systems.keys().max().unwrap() + 1;
-    let nebula = session.graph.nebulae[0].clone();
+    let next = session.graph().systems.keys().max().unwrap() + 1;
+    let nebula = session.graph().nebulae[0].clone();
 
     step(
         session,
@@ -318,7 +318,7 @@ fn painted_fixture_edits_match_a_fresh_open() {
     edits(&mut session);
 
     let mut session = PAINTED.open();
-    let zone = session.graph.systems[&9].fe_zone.clone();
+    let zone = session.graph().systems[&9].fe_zone.clone();
     assert!(zone.is_some(), "system 9 anchors a zone");
     step(
         &mut session,
@@ -429,16 +429,16 @@ fn removing_a_rewritten_statement_takes_its_line() {
 fn removing_a_rewritten_statement_inverts_to_the_rewritten_text() {
     let statement = |session: &Session| -> String {
         let anchor = session
-            .doc
+            .doc()
             .scenario()
             .expect("a scenario")
             .system(9)
             .expect("system 9");
-        let bytes = session.doc.current(anchor).expect("its bytes");
+        let bytes = session.doc().current(anchor).expect("its bytes");
         String::from_utf8_lossy(bytes).trim().to_owned()
     };
     let lanes = |session: &Session| {
-        let mut lanes = session.graph.systems[&9].lanes.clone();
+        let mut lanes = session.graph().systems[&9].lanes.clone();
         lanes.sort_by_key(|lane| lane.to);
         lanes
     };
@@ -456,7 +456,7 @@ fn removing_a_rewritten_statement_inverts_to_the_rewritten_text() {
     let linked = lanes(&session);
 
     let removed = step(&mut session, "remove", Op::RemoveSystem { system: 9 });
-    assert!(!session.graph.systems.contains_key(&9), "9 is gone");
+    assert!(!session.graph().systems.contains_key(&9), "9 is gone");
 
     step(&mut session, "inverse", removed.inverse);
     assert_eq!(statement(&session), renamed);
@@ -467,7 +467,7 @@ fn removing_a_rewritten_statement_inverts_to_the_rewritten_text() {
 fn removing_the_first_system_beside_an_inserted_header_key() {
     for rewrite in [false, true] {
         let mut session = GRAMMAR.open();
-        let first = session.graph.order[0];
+        let first = session.graph().order[0];
         step(
             &mut session,
             "a header key the file lacks",

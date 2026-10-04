@@ -41,7 +41,7 @@ fn without_game_data_a_save_still_names_the_nebula_from_its_pool() {
         )),
         ErrorKind::NoSession
     );
-    let pool = free_nebula_names(&Session::open(SAMPLE).expect("open").doc);
+    let pool = free_nebula_names(Session::open(SAMPLE).expect("open").doc());
     let opened = open(&w, SAMPLE);
     let first = place(&w, 1);
     let name = placed(&first);
@@ -70,7 +70,7 @@ fn with_game_data_a_save_names_the_nebula_from_its_pool() {
     let Some((w, opened)) = with_game_data(SAMPLE_45) else {
         return;
     };
-    let pool = free_nebula_names(&Session::open(SAMPLE_45).expect("open").doc);
+    let pool = free_nebula_names(Session::open(SAMPLE_45).expect("open").doc());
 
     let result = place(&w, 42);
     let name = placed(&result);

@@ -31,7 +31,7 @@ fn planets_are_counted_colonised_populated_and_owned() {
     let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
-    let systems = session.graph.systems.keys().map(|&id| raw(id));
+    let systems = session.graph().systems.keys().map(|&id| raw(id));
     let planets: usize = systems.clone().map(|s| s.planets.len()).sum();
     assert_eq!(planets, 8403);
     let colonised = systems
@@ -73,7 +73,7 @@ fn starbases_carry_their_level_modules_and_hull() {
     let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
-    let systems = session.graph.systems.keys().map(|&id| raw(id));
+    let systems = session.graph().systems.keys().map(|&id| raw(id));
     let mut levels: HashMap<&str, usize> = HashMap::new();
     for starbase in systems.clone().flat_map(|s| &s.starbases) {
         *levels.entry(starbase.level.as_str()).or_default() += 1;
@@ -127,7 +127,7 @@ fn fleets_carry_their_ships_orders_owner_and_power() {
     let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
-    let systems = session.graph.systems.keys().map(|&id| raw(id));
+    let systems = session.graph().systems.keys().map(|&id| raw(id));
     let with_fleets = systems.clone().filter(|s| !s.fleets.is_empty()).count();
     assert_eq!(with_fleets, 230);
     let military = systems
@@ -153,7 +153,7 @@ fn fleets_carry_their_ships_orders_owner_and_power() {
             .all(|f| counted(f) == f.ships)
     );
     let strongest = session
-        .graph
+        .graph()
         .systems
         .keys()
         .map(|&id| (id, details.resolve(id, &HeuristicResolver, false).unwrap()))
@@ -253,7 +253,7 @@ fn megastructures_name_their_kind_owner_and_orbit() {
     let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
-    let systems = session.graph.systems.keys().map(|&id| raw(id));
+    let systems = session.graph().systems.keys().map(|&id| raw(id));
     let megastructures: Vec<&MegastructureSummary> =
         systems.clone().flat_map(|s| &s.megastructures).collect();
     assert_eq!(megastructures.len(), 25);
@@ -308,9 +308,9 @@ fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
     let session = common::warmed();
     let details = session.details().expect("build details");
     let raw = |id: u32| details.raw(id).expect("system in projection");
-    let systems = session.graph.systems.keys().map(|&id| raw(id));
+    let systems = session.graph().systems.keys().map(|&id| raw(id));
     let sites: Vec<(u32, &ArchaeologySite)> = session
-        .graph
+        .graph()
         .order
         .iter()
         .flat_map(|&id| raw(id).sites.iter().map(move |s| (id, s)))
@@ -340,7 +340,7 @@ fn sites_and_pre_ftl_planets_are_where_the_save_puts_them() {
     );
 
     let pre_ftl: Vec<(u32, u32, Option<u32>)> = session
-        .graph
+        .graph()
         .order
         .iter()
         .flat_map(|&id| {
@@ -395,7 +395,7 @@ fn sol_reads_as_the_inspector_lists_it() {
     assert_eq!(earth.owner, Some(0));
     assert_eq!(earth.habitable, None);
     assert_eq!(earth.size, Some(18));
-    let page = sgf_core::entity::get_planet_page(&session.doc, 3).expect("Earth's page");
+    let page = sgf_core::entity::get_planet_page(session.doc(), 3).expect("Earth's page");
     assert!(earth.orbit.is_some_and(|orbit| orbit > 0.0));
     assert_eq!(earth.orbit, page.orbit, "the orbit the planet page reads");
     assert!(
@@ -559,7 +559,7 @@ fn names_are_templates_with_the_stand_in_as_name_key() {
     let session = common::warmed();
     let country = |id: u32| {
         session
-            .graph
+            .graph()
             .countries
             .iter()
             .find(|c| c.id == id)
@@ -591,7 +591,7 @@ fn names_are_templates_with_the_stand_in_as_name_key() {
     assert_eq!(united.name_key, "United");
     assert!(
         session
-            .graph
+            .graph()
             .countries
             .iter()
             .all(|c| c.name.stand_in() == c.name_key)
@@ -626,7 +626,7 @@ fn names_are_templates_with_the_stand_in_as_name_key() {
 fn countries_carry_their_flag_layers() {
     let session = common::warmed();
     let humans = session
-        .graph
+        .graph()
         .countries
         .iter()
         .find(|c| c.id == 0)
@@ -791,7 +791,7 @@ fn a_belt_with_no_radius_leaves_its_system_without_belts() {
 #[test]
 fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
     let mut session = common::open_4_5();
-    let system = get_planet_page(&session.doc, 585)
+    let system = get_planet_page(session.doc(), 585)
         .expect("planet 585")
         .system
         .expect("planet 585 orbits a system");
@@ -831,7 +831,7 @@ fn a_terraform_candidate_modifier_reaches_the_resolved_planet() {
 fn a_planet_summary_names_the_anomaly_it_holds() {
     let session = common::open_4_5();
     let anomaly_of = |id: u32| {
-        let system = get_planet_page(&session.doc, id)
+        let system = get_planet_page(session.doc(), id)
             .expect("the planet")
             .system
             .expect("it orbits a system");
@@ -887,7 +887,7 @@ fn the_build_path_keeps_only_permanent_modifiers() {
 ";
         gamestate.insert_str(at + anchor.len(), block);
     });
-    let system = get_planet_page(&session.doc, 585)
+    let system = get_planet_page(session.doc(), 585)
         .expect("planet 585")
         .system
         .expect("planet 585 orbits a system");

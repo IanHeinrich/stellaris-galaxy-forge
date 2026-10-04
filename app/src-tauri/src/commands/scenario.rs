@@ -58,15 +58,9 @@ pub async fn get_scenario_bypasses<R: Runtime>(
             Some((generation, gd)) => {
                 (*scenario_bypasses(session, &gd, &game_data, generation)).clone()
             }
-            None => ScenarioBypasses {
-                bypasses: Vec::new(),
-                open_endpoints: 0,
-                random_wormhole_pairs: 0,
-                random_gateways: 0,
-                with_game_data: false,
-            },
+            None => ScenarioBypasses::default(),
         };
-        add_flagged_pairs(&mut bypasses, &session.graph.bypasses);
+        add_flagged_pairs(&mut bypasses, &session.graph().bypasses);
         Ok(Some(bypasses))
     })
     .await

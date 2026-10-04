@@ -1,3 +1,5 @@
+import type { PlanetPage } from "../generated/PlanetPage";
+import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
@@ -10,9 +12,18 @@ import { planetPage } from "../test/builders";
 import { bindStores } from "./bindStores";
 import { useDepositPickerStore } from "./depositPickerStore";
 import { editResult } from "./fixture";
-import { planetPickerTarget } from "./planetEditAdapter";
+import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
+
+/** Save body `page` in system 1, as its page hands it to the pickers. */
+const pickerTarget = (page: PlanetPage) =>
+  savePickerTarget(
+    1,
+    planetSummary({ id: page.id, class: page.class, size: page.size }),
+    page,
+    heldAnomaly(page),
+  );
 
 bindStores();
 
@@ -49,7 +60,7 @@ beforeEach(() => {
 describe("the deposit picker", () => {
   it("holds an add with warnings until it is asked for again, and drops it on cancel", async () => {
     const store = useDepositPickerStore.getState();
-    store.open(planetPickerTarget(PAGE, false), "deposits");
+    store.open(pickerTarget(PAGE), "deposits");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
     mockedIpc.applyOp.mockResolvedValue(editResult());
     const [row] = depositRows(CHOICES, new Map(), "deposits");
@@ -80,7 +91,7 @@ describe("the deposit picker", () => {
 
   it("stays open with its search after an add, and says what it added", async () => {
     const store = useDepositPickerStore.getState();
-    store.open(planetPickerTarget(PAGE, false), "deposits");
+    store.open(pickerTarget(PAGE), "deposits");
     store.setQuery("energy");
     await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
     mockedIpc.applyOp.mockResolvedValue(editResult());
@@ -93,13 +104,13 @@ describe("the deposit picker", () => {
       kind: "d_energy_3",
     });
     const state = useDepositPickerStore.getState();
-    expect(state.target?.key).toBe("save-planet:40");
+    expect(state.target?.key).toBe("save:1:40");
     expect(state.query).toBe("energy");
     expect(state.added).toBe("Added +3 d_energy_1");
 
     // The planet read again holds the new deposit, so the types are read again for it.
     const reread = { ...PAGE, deposits: [{ id: 9, kind: "d_energy_3", swap_type: null }] };
-    store.open(planetPickerTarget(reread, false), "deposits");
+    store.open(pickerTarget(reread), "deposits");
     expect(mockedIpc.getDepositChoices).toHaveBeenLastCalledWith("pc_barren", 16, false, [
       "d_energy_3",
     ]);

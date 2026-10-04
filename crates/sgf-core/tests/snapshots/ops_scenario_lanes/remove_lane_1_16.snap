@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops_scenario_lanes.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Removed lane 1 <-> 16 (2 statements)
+Removed lane Galactic Center #1 <-> system #16 (2 statements)
 touched: [1, 16]
 inverse: AddLane { a: 1, b: 16, bridge: false }
 warning disconnected: galaxy has 3 components, 2 at load; newly separated: 1, 2

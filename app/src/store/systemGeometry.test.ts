@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { GEOMETRY_REASONS } from "../lib/details/orbitIntent";
 import { useDetailsStore } from "./detailsStore";
@@ -58,6 +57,15 @@ describe("applyGeometry", () => {
       radius: 110,
       angle: 90,
     });
+  });
+
+  it("names the system in the description of a belt move by its name and id", async () => {
+    await applyGeometry({ kind: "setBeltRadius", system: SOL, index: 0, radius: 130 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "Moved the belt at radius 120 in Sol #0 to 130, with 1 asteroid",
+      }),
+    );
   });
 
   it("sends nothing on a scenario", async () => {

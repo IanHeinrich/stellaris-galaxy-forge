@@ -175,7 +175,7 @@ pub fn star_pick_summary(
     let mut summary = merge(gd, &layouts);
     summary.star_classes = vec![named(gd, class)];
     summary.star_description = description(gd, class);
-    let systems = session.graph.systems.values();
+    let systems = session.graph().systems.values();
     summary.in_galaxy = Some(systems.filter(|s| s.star_class == class).count() as u32);
     Ok(summary)
 }

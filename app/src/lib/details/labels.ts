@@ -149,6 +149,11 @@ export function randomListLabel(key: string): string {
   return `random from ${key.slice(3).replace(/_/g, " ")}`;
 }
 
+/** A belt kind as a readout names it: `rocky_asteroid_belt` is "rocky". */
+export function beltLabel(kind: string): string {
+  return kind.replace(/_asteroid_belt$|_belt$/, "").replace(/_/g, " ");
+}
+
 /** What a body's class is called: a planet class, one of the random kinds, or a random list. */
 export function initClassLabel(planetClass: string): string {
   const random = RANDOM_CLASSES[planetClass];

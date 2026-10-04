@@ -69,5 +69,3 @@ inverse: RenameEmpire { country: 1, name: "SPEC_Nagyari Allied", value: Some("{\
  		}
  		adjective=
  		{
-
-meta unchanged

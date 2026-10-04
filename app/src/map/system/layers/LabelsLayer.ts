@@ -29,7 +29,7 @@ import {
   type SystemContext,
 } from "../context";
 import { bodyTier, drawnDisc, drawnWormhole } from "../geometry";
-import { pickPlate, type PlatePick } from "../picking";
+import { idOf, pickPlate, type PlatePick } from "../picking";
 import { LabelRow } from "./labelRow";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
 import { NAME_FRAME, NameMarks } from "./nameMarks";
@@ -311,6 +311,10 @@ export class LabelsLayer implements SystemLayer {
   private labelsShown = EMPTY_SYSTEM_CONTEXT.sceneLayers.labels;
   private fitRadius = EMPTY_SYSTEM_CONTEXT.layout.fitRadius;
   private labels: Label[] = [];
+  /** The labels of bodies that are not moons of a labelled planet, which head their groups. */
+  private heads: Label[] = [];
+  /** Each labelled planet's moons' labels, the outermost orbit first. */
+  private moonsOf = new Map<number, Label[]>();
   private wormholes: readonly SceneWormhole[] = EMPTY_SYSTEM_CONTEXT.wormholes;
   private wormholeLabels: WormholeLabel[] = [];
   private shown: PlatePick[] = [];
@@ -380,6 +384,7 @@ export class LabelsLayer implements SystemLayer {
         return [label];
       })
       .sort(rank);
+    this.group();
     for (const label of this.labels) this.mark(label);
     this.labelWormholes(ctx);
     this.shown = [];
@@ -432,6 +437,7 @@ export class LabelsLayer implements SystemLayer {
     this.bodies = ctx.bodies;
     this.fitRadius = ctx.layout.fitRadius;
     for (const label of this.labels) label.body = byId.get(label.body.placement.id)!;
+    this.group();
     if (stale) {
       this.tips = tipContext(ctx);
       this.redress();
@@ -439,6 +445,24 @@ export class LabelsLayer implements SystemLayer {
     this.drawnRev = -1;
     this.place();
     return true;
+  }
+
+  /** Puts each moon's label in a group under its planet's, where its planet has one. */
+  private group(): void {
+    const byId = new Map(this.labels.map((l) => [l.body.placement.id, l]));
+    const parentOf = (l: Label) => {
+      const parent = l.body.placement.parent;
+      return l.body.moon && parent !== null && byId.has(parent) ? parent : null;
+    };
+    const moonsOf = new Map<number, Label[]>();
+    for (const l of this.labels) {
+      const parent = parentOf(l);
+      if (parent !== null) moonsOf.set(parent, [...(moonsOf.get(parent) ?? []), l]);
+    }
+    const orbit = (l: Label) => l.body.placement.ring?.radius ?? 0;
+    for (const moons of moonsOf.values()) moons.sort((a, b) => orbit(b) - orbit(a));
+    this.moonsOf = moonsOf;
+    this.heads = this.labels.filter((l) => parentOf(l) === null);
   }
 
   /**
@@ -466,22 +490,23 @@ export class LabelsLayer implements SystemLayer {
   }
 
   setHighlighted(ref: SceneHighlight): void {
-    const hoverMoved = ref.hoverBody !== this.ref.hoverBody;
-    const changed = hoverMoved || ref.selectedBody !== this.ref.selectedBody;
     const was = this.ref;
+    const hovered = idOf(ref.hover, "body");
+    const wasHovered = idOf(was.hover, "body");
+    const hoverMoved = hovered !== wasHovered;
+    const changed = hoverMoved || ref.selectedBody !== was.selectedBody;
     if (hoverMoved) {
       // Only a hidden plate is brought out: a shown one may be under the pointer, and pinning could move it away.
-      this.hoverPinned =
-        ref.hoverBody !== null && !this.shown.some((plate) => plate.id === ref.hoverBody);
+      this.hoverPinned = hovered !== null && !this.shown.some((plate) => plate.id === hovered);
     }
     this.ref = ref;
     const holeSelected = ref.selectedWormhole !== was.selectedWormhole;
-    if (ref.hoverWormhole !== was.hoverWormhole || holeSelected) {
+    if (idOf(ref.hover, "wormhole") !== idOf(was.hover, "wormhole") || holeSelected) {
       for (const label of this.wormholeLabels) this.markWormhole(label);
     }
     if (holeSelected && !changed) this.place();
     if (!changed) return;
-    const touched = [was.hoverBody, was.selectedBody, ref.hoverBody, ref.selectedBody];
+    const touched = [wasHovered, was.selectedBody, hovered, ref.selectedBody];
     for (const label of this.labels) {
       if (touched.includes(label.body.placement.id)) this.mark(label);
     }
@@ -491,8 +516,8 @@ export class LabelsLayer implements SystemLayer {
   private mark({ body, plate }: Label): void {
     if (!plate) return;
     const id = body.placement.id;
-    const state =
-      id === this.ref.selectedBody ? "selected" : id === this.ref.hoverBody ? "hovered" : "rest";
+    const hovered = idOf(this.ref.hover, "body");
+    const state = id === this.ref.selectedBody ? "selected" : id === hovered ? "hovered" : "rest";
     drawPlate(plate, state);
   }
 
@@ -500,7 +525,7 @@ export class LabelsLayer implements SystemLayer {
     const state =
       hole.id === this.ref.selectedWormhole
         ? "selected"
-        : hole.id === this.ref.hoverWormhole
+        : hole.id === idOf(this.ref.hover, "wormhole")
           ? "hovered"
           : "rest";
     drawPlate(plate, state);
@@ -517,25 +542,14 @@ export class LabelsLayer implements SystemLayer {
     if (!cam) return;
     this.drawnRev = cam.rev;
     const k = plateScaleAt(cam, this.fitRadius);
-    const byId = new Map(this.labels.map((l) => [l.body.placement.id, l]));
-    const parentOf = (l: Label) => {
-      const parent = l.body.placement.parent;
-      return l.body.moon && parent !== null && byId.has(parent) ? parent : null;
-    };
-    const moonsOf = new Map<number, Label[]>();
-    for (const l of this.labels) {
-      const parent = parentOf(l);
-      if (parent !== null) moonsOf.set(parent, [...(moonsOf.get(parent) ?? []), l]);
-    }
-    const orbit = (l: Label) => l.body.placement.ring?.radius ?? 0;
-    for (const moons of moonsOf.values()) moons.sort((a, b) => orbit(b) - orbit(a));
-    const moonsOfLabel = (l: Label) => moonsOf.get(l.body.placement.id) ?? [];
+    const moonsOfLabel = (l: Label) => this.moonsOf.get(l.body.placement.id) ?? [];
+    const hovered = idOf(this.ref.hover, "body");
     const pinned = (l: Label) => {
       const id = l.body.placement.id;
-      return id === this.ref.selectedBody || (this.hoverPinned && id === this.ref.hoverBody);
+      return id === this.ref.selectedBody || (this.hoverPinned && id === hovered);
     };
     const groupPinned = (l: Label) => pinned(l) || moonsOfLabel(l).some(pinned);
-    const heads = this.labels.filter((l) => parentOf(l) === null);
+    const heads = this.heads;
     const order = [...heads.filter(groupPinned), ...heads.filter((l) => !groupPinned(l))];
     const item = (l: Label): LabelItem => {
       const { x, y, disc } = l.body.placement;

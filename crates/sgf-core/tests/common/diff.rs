@@ -42,6 +42,7 @@ pub fn report(session: &Session, result: &OpResult) -> String {
         writeln!(out, "… and {others} other issues").unwrap();
     }
     write!(out, "{}", unified_diff(session, None)).unwrap();
+    write!(out, "{}", meta_diff(session)).unwrap();
     out
 }
 
@@ -52,7 +53,23 @@ pub fn plain_report(session: &Session, result: &OpResult) -> String {
     writeln!(out, "{}", result.entry.description).unwrap();
     writeln!(out, "inverse: {}", steady(&format!("{:?}", result.inverse))).unwrap();
     write!(out, "{}", unified_diff(session, None)).unwrap();
+    write!(out, "{}", meta_diff(session)).unwrap();
     out
+}
+
+/// The save's `meta` as a unified diff against the one it was opened with, led by a blank
+/// line like the gamestate's; empty while `meta` stands as opened.
+pub fn meta_diff(session: &Session) -> String {
+    let before = String::from_utf8_lossy(session.doc().original_meta()).into_owned();
+    let after = String::from_utf8_lossy(session.doc().meta()).into_owned();
+    if before == after {
+        return String::new();
+    }
+    let diff = TextDiff::from_lines(&before, &after);
+    format!(
+        "\n{}",
+        diff.unified_diff().context_radius(3).header("meta", "meta")
+    )
 }
 
 /// Apply `op` and describe it: its description, its inverse, the renumbering it made if
@@ -84,7 +101,7 @@ pub fn step_report(session: &mut Session, op: Op) -> String {
 /// The session's edits as a unified diff against the document as it was opened, cut to
 /// its first `cap` lines and a count of the rest when a cap is given.
 pub fn unified_diff(session: &Session, cap: Option<usize>) -> String {
-    let original = String::from_utf8_lossy(session.doc.original()).into_owned();
+    let original = String::from_utf8_lossy(session.doc().original()).into_owned();
     let edited = String::from_utf8_lossy(&current(session)).into_owned();
     let diff = TextDiff::configure()
         .algorithm(Algorithm::Myers)
@@ -136,13 +153,13 @@ pub fn snapshot_step(session: &mut Session, name: &str, op: Op) -> OpResult {
 /// [`round_trip_step`]. The second undo too puts back the bytes and the galaxy the
 /// session was opened with, and leaves nothing in the overlay.
 pub fn round_trip(mut session: Session, op: Op) {
-    let original = session.doc.original().to_vec();
+    let original = session.doc().original().to_vec();
     assert_eq!(
         current(&session),
         original,
         "a round trip starts from the document as it was opened"
     );
-    let opened = GalaxyView::from(&session.graph);
+    let opened = GalaxyView::from(session.graph());
     let label = format!("{op:?}");
 
     round_trip_step(&mut session, &label, op);
@@ -154,12 +171,12 @@ pub fn round_trip(mut session: Session, op: Op) {
         "{label}: the second undo drifted"
     );
     assert_eq!(
-        GalaxyView::from(&session.graph),
+        GalaxyView::from(session.graph()),
         opened,
         "{label}: the second undo left a different galaxy"
     );
     assert!(
-        !session.doc.is_dirty(),
+        !session.doc().is_dirty(),
         "{label}: undo left slots in the overlay"
     );
 }
@@ -171,15 +188,20 @@ pub fn round_trip(mut session: Session, op: Op) {
 /// returned.
 pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     let before = current(session);
-    let before_graph = session.graph.clone();
-    let before_view = GalaxyView::from(&session.graph);
+    let before_meta = session.doc().meta().to_vec();
+    let before_graph = session.graph().clone();
+    let before_view = GalaxyView::from(session.graph());
     let done = session.history().undo.len();
 
     let applied = session
         .apply_inverse(op)
         .unwrap_or_else(|e| panic!("{label}: {e}"));
     let edited = current(session);
-    assert_ne!(edited, before, "{label}: the op changed nothing");
+    let edited_meta = session.doc().meta().to_vec();
+    assert!(
+        edited != before || edited_meta != before_meta,
+        "{label}: the op changed nothing"
+    );
     assert!(
         session.is_dirty(),
         "{label}: an edit leaves the session dirty"
@@ -195,14 +217,19 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
         "{label}: undo is not byte-identical"
     );
     assert_eq!(
-        GalaxyView::from(&session.graph),
+        session.doc().meta(),
+        before_meta,
+        "{label}: undo left a different meta"
+    );
+    assert_eq!(
+        GalaxyView::from(session.graph()),
         before_view,
         "{label}: undo left a different galaxy"
     );
     assert_history(session, label, done, 1);
     let undone_label = format!("{label} undone");
     match session.kind() {
-        DocumentKind::Save => assert_same_galaxy(&session.graph, &before_graph, &undone_label),
+        DocumentKind::Save => assert_same_galaxy(session.graph(), &before_graph, &undone_label),
         DocumentKind::Scenario => assert_fresh(session, &undone_label),
     }
 
@@ -212,6 +239,11 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
         current(session),
         edited,
         "{label}: redo wrote different bytes"
+    );
+    assert_eq!(
+        session.doc().meta(),
+        edited_meta,
+        "{label}: redo wrote a different meta"
     );
     assert_history(session, label, done + 1, 0);
     assert!(session.redo().expect("redo").is_none());
@@ -234,16 +266,16 @@ pub fn assert_fresh(session: &Session, step: &str) {
     match session.kind() {
         DocumentKind::Save => {
             // Bytes read afresh hold no system an op added: that is the session's to know.
-            let mut graph = session.graph.clone();
+            let mut graph = session.graph().clone();
             graph.systems.values_mut().for_each(|s| s.added = false);
             assert_same_galaxy(&graph, &reprojected(session), step);
         }
         DocumentKind::Scenario => {
             let fresh = from_scenario_text(current(session));
-            assert_same_galaxy(&session.graph, &fresh.graph, step);
+            assert_same_galaxy(session.graph(), fresh.graph(), step);
             assert_eq!(index_view(session), index_view(&fresh), "{step}: index");
             let edited =
-                Session::from_document(None, session.doc.clone()).expect("project the doc");
+                Session::from_document(None, session.doc().clone()).expect("project the doc");
             assert_eq!(
                 String::from_utf8_lossy(&probed(edited, probe(session))),
                 String::from_utf8_lossy(&probed(fresh, probe(session))),
@@ -266,7 +298,7 @@ fn assert_same_galaxy(now: &GalaxyGraph, then: &GalaxyGraph, step: &str) {
 /// What a scenario's index says, without the anchors, which differ between an edited
 /// document and a fresh open of its bytes.
 fn index_view(session: &Session) -> String {
-    let scenario = session.doc.scenario().expect("a scenario");
+    let scenario = session.doc().scenario().expect("a scenario");
     let mut view = format!(
         "name {:?} core {:?} transform {} next {} nebulae {}\n",
         scenario.header.name,
@@ -279,7 +311,7 @@ fn index_view(session: &Session) -> String {
         writeln!(view, "header {} = {}", stmt.field.key, stmt.field.value).unwrap();
     }
     for (id, anchor) in scenario.systems() {
-        let bytes = session.doc.current(anchor).expect("the system's bytes");
+        let bytes = session.doc().current(anchor).expect("the system's bytes");
         writeln!(
             view,
             "system {id}: {}",
@@ -296,7 +328,12 @@ fn index_view(session: &Session) -> String {
 /// Insertions at the header, among the systems, lanes and nebulae, and a removal, as one
 /// edit: every place `session`'s index says a statement goes or stands.
 fn probe(session: &Session) -> Op {
-    let next = session.graph.systems.keys().max().map_or(1, |max| max + 1);
+    let next = session
+        .graph()
+        .systems
+        .keys()
+        .max()
+        .map_or(1, |max| max + 1);
     let mut ops = vec![
         Op::SetHeaderField {
             key: "sgf_probe".to_owned(),
@@ -321,16 +358,16 @@ fn probe(session: &Session) -> Op {
             name: None,
         },
     ];
-    if let Some(&first) = session.graph.order.first() {
+    if let Some(&first) = session.graph().order.first() {
         ops.push(Op::AddLane {
             a: next,
             b: first,
             bridge: false,
         });
     }
-    if !session.graph.order.is_empty() {
+    if !session.graph().order.is_empty() {
         let last = session
-            .graph
+            .graph()
             .order
             .last()
             .expect("a system for the probe to remove");
@@ -352,11 +389,11 @@ fn probed(mut session: Session, probe: Op) -> Vec<u8> {
 /// projects it, lanes in any order since the restored statements land last.
 pub fn assert_removal_inverts_exactly(mut session: Session, ids: &[u32]) {
     let statements = |session: &Session| -> Vec<String> {
-        let scenario = session.doc.scenario().expect("a scenario");
+        let scenario = session.doc().scenario().expect("a scenario");
         ids.iter()
             .map(|&id| {
                 let anchor = scenario.system(id).expect("the system");
-                let bytes = session.doc.current(anchor).expect("its bytes");
+                let bytes = session.doc().current(anchor).expect("its bytes");
                 String::from_utf8_lossy(bytes).trim().to_owned()
             })
             .collect()
@@ -369,7 +406,7 @@ pub fn assert_removal_inverts_exactly(mut session: Session, ids: &[u32]) {
         })
         .expect("remove the systems");
     for id in ids {
-        assert!(!session.graph.systems.contains_key(id), "{id} is gone");
+        assert!(!session.graph().systems.contains_key(id), "{id} is gone");
     }
     session.apply(result.inverse).expect("apply the inverse");
     assert_eq!(statements(&session), before);
@@ -379,7 +416,7 @@ pub fn assert_removal_inverts_exactly(mut session: Session, ids: &[u32]) {
 
 fn systems(session: &Session) -> BTreeMap<u32, SystemNode> {
     session
-        .graph
+        .graph()
         .systems
         .iter()
         .map(|(&id, system)| {
@@ -395,11 +432,11 @@ fn systems(session: &Session) -> BTreeMap<u32, SystemNode> {
 pub fn section_report(session: &Session, result: &OpResult, key: &str) -> String {
     let full = report(session, result);
     let head = &full[..full.find("\n--- ").map_or(full.len(), |at| at + 1)];
-    let original = String::from_utf8_lossy(session.doc.original()).into_owned();
+    let original = String::from_utf8_lossy(session.doc().original()).into_owned();
     let edited = String::from_utf8_lossy(&current(session)).into_owned();
-    let reindexed = Document::from_bytes(current(session), session.doc.meta().to_vec())
+    let reindexed = Document::from_bytes(current(session), session.doc().meta().to_vec())
         .expect("index the edited bytes");
-    let before = blocks(session.doc.index(), session.doc.original(), key);
+    let before = blocks(session.doc().index(), session.doc().original(), key);
     let after = blocks(reindexed.index(), reindexed.original(), key);
     let diff = TextDiff::configure()
         .algorithm(Algorithm::Myers)

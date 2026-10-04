@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../../api/__mocks__/dialog"));
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
@@ -15,13 +14,9 @@ import { useEditorStore } from "../../../store/editorStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
-import {
-  planetClassView,
-  planetSummary,
-  starClassView,
-  systemDetails,
-} from "../../../test/builders";
+import { planetSummary, systemDetails } from "../../../test/builders";
 import { open, resetStores } from "../inspectorFixture";
+import { armStarClasses } from "../../../store/storeFixture";
 import { SelectionView } from "./SelectionView";
 import { mockedIpc } from "../../../test/ipc";
 
@@ -86,21 +81,12 @@ describe("the bulk star class", () => {
     2: ["pc_m_star"],
   };
 
-  function armStarClasses(): void {
-    const bodies = Object.values(STARS).flat();
-    useGameDataStore.setState({
-      names: new Map([["sc_pulsar", "Pulsar"]]),
-      starClasses: new Map(
-        [
-          starClassView("sc_g", "pc_g_star"),
-          starClassView("sc_m", "pc_m_star"),
-          starClassView("sc_pulsar", "pc_pulsar"),
-          starClassView("sc_binary_1", "pc_a_star", "pc_pulsar"),
-        ].map((c) => [c.key, c]),
-      ),
-      planetClasses: new Map(bodies.map((key) => [key, planetClassView(key)])),
-    });
-  }
+  const CLASSES = {
+    sc_g: ["pc_g_star"],
+    sc_m: ["pc_m_star"],
+    sc_pulsar: ["pc_pulsar"],
+    sc_binary_1: ["pc_a_star", "pc_pulsar"],
+  };
 
   async function landChain(): Promise<void> {
     mockedIpc.getSystemDetails.mockResolvedValue(
@@ -117,7 +103,7 @@ describe("the bulk star class", () => {
   }
 
   it("offers a star class picker for a save selection without reading its details", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, { sc_pulsar: "Pulsar" });
     await open("save");
     await useEditorStore.getState().setSelection(CHAIN, "replace");
     mockedIpc.getSystemDetails.mockClear();
@@ -130,7 +116,7 @@ describe("the bulk star class", () => {
   });
 
   it("is not offered on a scenario", async () => {
-    armStarClasses();
+    armStarClasses(CLASSES, { sc_pulsar: "Pulsar" });
     await open("scenario");
     await useEditorStore.getState().setSelection(CHAIN, "replace");
     await landChain();

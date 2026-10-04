@@ -16,7 +16,8 @@ import { usePlanetDataStore } from "./planetDataStore";
 const getDepositTypes = vi.mocked(ipc.getDepositTypes);
 const planetData = () => usePlanetDataStore.getState();
 const GLACIER = ["d_massive_glacier"];
-const keys = (deposits: string[]) => ({ deposits, modifiers: [], colonyTypes: [] });
+const NONE = { deposits: [], modifiers: [], colonyTypes: [], anomalies: [], digSites: [] };
+const keys = (deposits: string[]) => ({ ...NONE, deposits });
 
 beforeEach(async () => {
   armGameData();
@@ -59,6 +60,24 @@ describe("the planet page's game data", () => {
     await flush();
     expect(planetData().depositTypes.has("d_massive_glacier")).toBe(true);
     expect(getDepositTypes).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the anomaly and dig site lists once, whatever categories and types the pages show", async () => {
+    const anomalies = vi.mocked(ipc.getAnomalyChoices);
+    const sites = vi.mocked(ipc.getDigSiteChoices);
+    anomalies.mockResolvedValue([
+      { key: "time_loop_world", name: "Time Loop", level: 8, description: "Again.", usual: false },
+    ]);
+    sites.mockResolvedValue([]);
+    planetData().request(NONE);
+    expect(anomalies).not.toHaveBeenCalled();
+
+    planetData().request({ ...NONE, anomalies: ["time_loop_world"], digSites: ["site_a"] });
+    planetData().request({ ...NONE, anomalies: ["no_such_category"], digSites: ["site_b"] });
+    await flush();
+    expect(planetData().anomalies.get("time_loop_world")?.description).toBe("Again.");
+    expect(anomalies).toHaveBeenCalledTimes(1);
+    expect(sites).toHaveBeenCalledTimes(1);
   });
 
   it("asks nothing without game data", async () => {

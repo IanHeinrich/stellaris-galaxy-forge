@@ -35,8 +35,13 @@ pub fn run(
         str::to_owned,
     );
     let options = export::options_for_session(&session, &name);
-    let (text, report) =
-        export::scenario_text(&session.graph, &options, &resolve, &sources, profile.core());
+    let (text, report) = export::scenario_text(
+        session.graph(),
+        &options,
+        &resolve,
+        &sources,
+        profile.core(),
+    );
     let outcome = export::write_scenario(out, &text)?;
     println!(
         "{} system(s), {} hyperlane(s), {} nebula(e) as \"{name}\"",

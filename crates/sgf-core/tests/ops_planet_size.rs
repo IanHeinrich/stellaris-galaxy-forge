@@ -6,7 +6,7 @@ use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
+use common::diff::round_trip;
 use common::{current, open, open_4_5};
 
 fn set(id: u32, size: u32) -> Op {
@@ -21,13 +21,11 @@ fn planet_size(session: &Session, system: u32, planet: u32) -> Option<u32> {
 
 /// Round-trip and snapshot a size for `planet` of `system`, and check the details read it.
 fn change(session: &mut Session, system: u32, planet: u32, size: u32, snapshot: &str) -> OpResult {
-    let result = snapshot_step(session, snapshot, set(planet, size));
-    assert_eq!(
-        planet_size(session, system, planet),
-        Some(size),
-        "{snapshot}: details"
-    );
-    result
+    let step = common::field_step(session, snapshot, set(planet, size), |s| {
+        planet_size(s, system, planet)
+    });
+    assert_eq!(step.after, Some(size), "{snapshot}: details");
+    step.result
 }
 
 #[test]
@@ -40,9 +38,6 @@ fn the_4_5_samples_star_body_grows_and_back() {
         "Set the size of planet #584 from 29 to 40"
     );
     assert_eq!(result.inverse, set(584, 29));
-    session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(planet_size(&session, 1, 584), Some(29));
 }
 
 #[test]
@@ -68,12 +63,7 @@ fn a_planet_size_is_refused_for_an_unknown_planet_zero_or_no_change() {
         (set(748, 0), "a planet size may not be zero"),
         (set(748, 25), "planet 748 is already size 25"),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 #[test]
@@ -99,7 +89,7 @@ fn a_batch_of_a_star_class_and_its_bodys_size_is_one_step() {
     assert_eq!(session.history().undo.len(), 1);
 
     session.undo().expect("undo").expect("something to undo");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
     assert_eq!(planet_size(&session, 1, 748), Some(25));
 }
 
@@ -168,7 +158,7 @@ fn a_star_bodys_new_size_reaches_the_map() {
     let size_of = |system: &sgf_core::projections::galaxy::SystemNode| {
         system.bodies.as_ref().expect("the system's bodies")[1].size
     };
-    assert_eq!(size_of(&session.graph.systems[&5]), Some(20));
+    assert_eq!(size_of(&session.graph().systems[&5]), Some(20));
     let result = session.apply(set(619, 31)).expect("grow the second star");
     let edit = session.edit_result(result);
     let sent = edit

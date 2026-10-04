@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops_scenario_positions.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Moved Coruscant (#2) from (0, -56) to (12.5, -60.25)
+Moved Coruscant #2 from (0, -56) to (12.5, -60.25)
 touched: [2]
 inverse: MoveSystem { system: 2, x: 0.0, y: -56.0 }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed

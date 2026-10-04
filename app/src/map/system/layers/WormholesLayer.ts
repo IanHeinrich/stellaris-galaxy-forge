@@ -5,7 +5,8 @@ import { GHOST_ALPHA } from "../../../lib/visual/style";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SceneWormhole, type SystemContext } from "../context";
 import { drawnWormhole } from "../geometry";
-import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./SystemLayer";
+import { idOf } from "../picking";
+import type { SceneHighlight, SystemLayer } from "./SystemLayer";
 import type { SceneTextures } from "./textures";
 import { WORMHOLE_ART_SCALE } from "./wormholeField";
 
@@ -44,7 +45,7 @@ export class WormholesLayer implements SystemLayer {
   private drawn: Drawn[] = [];
   private wormholes: readonly SceneWormhole[] = EMPTY_SYSTEM_CONTEXT.wormholes;
   private dragged: number | null = null;
-  private hovered: number | null = NO_HIGHLIGHT.hoverWormhole;
+  private hovered: number | null = null;
   private scale = -1;
 
   constructor(private readonly textures: WormholeTextures) {
@@ -60,8 +61,9 @@ export class WormholesLayer implements SystemLayer {
   }
 
   setHighlighted(ref: SceneHighlight): void {
-    if (ref.hoverWormhole === this.hovered) return;
-    this.hovered = ref.hoverWormhole;
+    const hovered = idOf(ref.hover, "wormhole");
+    if (hovered === this.hovered) return;
+    this.hovered = hovered;
     this.size();
   }
 

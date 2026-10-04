@@ -48,7 +48,7 @@ fn pick(names: &[&String], seed: u64) -> Option<String> {
 /// pool of unused star names, else one of the install's star names no system of the save
 /// holds. `None` when neither has one left.
 pub fn pick_system_name(session: &Session, gd: &GameData, seed: u64) -> Option<String> {
-    let pool = free_star_names(&session.doc);
+    let pool = free_star_names(session.doc());
     pick_unused(&pool, &gd.star_names, &system_names(session), seed)
 }
 
@@ -62,7 +62,7 @@ pub fn pick_black_hole_name(session: &Session, gd: &GameData, seed: u64) -> Opti
 /// pool of unused nebula names, else one of the install's nebula names no nebula of the
 /// document holds. `None` when neither has one left.
 pub fn pick_nebula_name(session: &Session, gd: &GameData, seed: u64) -> Option<String> {
-    let pool = free_nebula_names(&session.doc);
+    let pool = free_nebula_names(session.doc());
     pick_unused(&pool, &gd.nebula_names, &nebula_names(session), seed)
 }
 
@@ -70,7 +70,7 @@ pub fn pick_nebula_name(session: &Session, gd: &GameData, seed: u64) -> Option<S
 /// drawn from `seed`; `None` when the pool has none, as a scenario's never does. Needs no
 /// game data.
 pub fn pick_pooled_nebula_name(session: &Session, seed: u64) -> Option<String> {
-    let pool = free_nebula_names(&session.doc);
+    let pool = free_nebula_names(session.doc());
     pick_unused(&pool, &[], &nebula_names(session), seed)
 }
 
@@ -95,7 +95,7 @@ pub fn nebula_name(session: &Session, gd: Option<&GameData>, seed: u64) -> Strin
 /// The names the systems of `session`'s document hold.
 pub(crate) fn system_names(session: &Session) -> HashSet<&str> {
     session
-        .graph
+        .graph()
         .systems
         .values()
         .map(|system| system.name.key.as_str())
@@ -104,7 +104,7 @@ pub(crate) fn system_names(session: &Session) -> HashSet<&str> {
 
 fn nebula_names(session: &Session) -> HashSet<&str> {
     session
-        .graph
+        .graph()
         .nebulae
         .iter()
         .map(|nebula| nebula.name.key.as_str())

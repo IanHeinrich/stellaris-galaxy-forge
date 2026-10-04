@@ -2,6 +2,7 @@
 //! and given a new radius or kind, and the inner radius set, with each edit's diff, byte-exact
 //! undo, and what is refused.
 
+use sgf_core::entity::EntityKind;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::geometry::{BELT_SCATTER, drawn_radius};
 
@@ -39,20 +40,6 @@ fn set_belt_kind(system: u32, index: usize, kind: &str) -> Op {
 
 fn set_inner_radius(system: u32, radius: f64) -> Op {
     Op::SetInnerRadius { system, radius }
-}
-
-/// System `id`'s own `galactic_object` entry, as the session's bytes now hold it.
-fn system_entity(session: &sgf_core::session::Session, id: u32) -> String {
-    let text = common::text(session);
-    let table = text
-        .find("\ngalactic_object=\n")
-        .expect("the galactic_object table");
-    let start = table
-        + text[table..]
-            .find(&format!("\n\t{id}=\n\t{{\n"))
-            .unwrap_or_else(|| panic!("system {id}"));
-    let end = start + 1 + text[start + 1..].find("\n\t}\n").expect("its end");
-    text[start..end].to_owned()
 }
 
 /// System 1 has no belts, `discovery` or `asteroid_belts`: the block lands after
@@ -97,7 +84,7 @@ fn a_third_belt_added_then_every_belt_of_140_is_removed() {
     snapshot_step(&mut session, "140_belt_1_removed", remove_belt(140, 1));
     snapshot_step(&mut session, "140_belt_0_removed", remove_belt(140, 0));
     assert!(
-        !system_entity(&session, 140).contains("asteroid_belts"),
+        !common::entity_text(&session, EntityKind::System, 140).contains("asteroid_belts"),
         "the block leaves with the last belt"
     );
 }
@@ -156,12 +143,7 @@ fn belt_edits_are_refused() {
             "radius 0 is invalid: a belt's inner radius must be greater than zero",
         ),
     ];
-    for (op, message) in refusals {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
-    assert!(!session.doc.is_dirty());
-    assert!(session.history().undo.is_empty());
+    common::assert_refusals(&mut session, refusals);
 }
 
 /// System 1's bodies reach 157.41 at most, so its inner radius (186.71) can shrink toward
@@ -223,7 +205,7 @@ fn a_below_rule_systems_inner_radius_inverse_reapplies_as_an_op() {
     session
         .apply(raised.inverse)
         .expect("the inverse takes it back");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// A move that grows system 148 past 6331's old, inflated reach: the batched inverse moves
@@ -337,7 +319,7 @@ fn a_belt_round_trips() {
 #[test]
 fn a_belt_added_to_a_system_with_discovery_lands_before_it() {
     let mut session = open_4_5();
-    let before = system_entity(&session, 15);
+    let before = common::entity_text(&session, EntityKind::System, 15);
     assert!(
         !before.contains("asteroid_belts")
             && before.contains("discovery=")
@@ -349,7 +331,7 @@ fn a_belt_added_to_a_system_with_discovery_lands_before_it() {
         "belt_added_before_discovery",
         add_belt(15, "rocky_asteroid_belt", 500.0),
     );
-    let after = system_entity(&session, 15);
+    let after = common::entity_text(&session, EntityKind::System, 15);
     let belts_at = after.find("\n\t\tasteroid_belts=").expect("asteroid_belts");
     let discovery_at = after.find("\n\t\tdiscovery=").expect("discovery");
     let arm_at = after.find("\n\t\tarm=").expect("arm");
@@ -389,9 +371,9 @@ fn a_belt_moved_past_the_inner_radius_grows_it() {
         set_belt_radius(140, 1, 400.0),
     );
     assert!(
-        system_entity(&session, 140).contains("\t\tinner_radius=430\n"),
+        common::entity_text(&session, EntityKind::System, 140).contains("\t\tinner_radius=430\n"),
         "{}",
-        system_entity(&session, 140)
+        common::entity_text(&session, EntityKind::System, 140)
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);

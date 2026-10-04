@@ -68,12 +68,11 @@ fn lanes_of(session: &Session, id: u32) -> BTreeSet<u32> {
 }
 
 fn system_entity(session: &Session, id: u32) -> bool {
-    get_entity(&session.doc, EntityAddr::new(EntityKind::System, id), &[]).is_ok()
+    get_entity(session.doc(), EntityAddr::new(EntityKind::System, id), &[]).is_ok()
 }
 
 #[test]
 fn removing_the_middle_of_three_renumbers_the_third() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         let before = findings(&(sample.open)());
         let (mut session, third) = three(sample);
@@ -103,7 +102,7 @@ fn removing_the_middle_of_three_renumbers_the_third() {
         assert_eq!(planet_ids(session, middle), third_planets);
         for planet in &third_planets {
             let addr = EntityAddr::new(EntityKind::Planet, *planet);
-            let origin = get_entity(&session.doc, addr, &["coordinate".to_owned()])
+            let origin = get_entity(session.doc(), addr, &["coordinate".to_owned()])
                 .expect("the planet")
                 .nodes
                 .into_iter()
@@ -135,11 +134,9 @@ fn removing_the_middle_of_three_renumbers_the_third() {
         assert_eq!(planet_ids(session, middle), third_planets);
         assert!(!system_entity(session, last));
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(session);
         let ids: Vec<u32> = reopened
-            .graph
+            .graph()
             .systems
             .keys()
             .copied()
@@ -254,7 +251,7 @@ fn the_name_returns_to_the_pool_and_is_taken_again() {
         assert_eq!(result.inverse, remove(first));
         let added = current(session);
         session.apply(result.inverse).expect("apply the inverse");
-        assert_eq!(current(session), session.doc.original());
+        assert_eq!(current(session), session.doc().original());
         assert_fresh(session, "the inverse applied");
 
         session.apply(add(spike.clone())).expect("add");
@@ -266,7 +263,7 @@ fn the_name_returns_to_the_pool_and_is_taken_again() {
         assert_eq!(names(session), 0, "the other still holds the name");
         session.apply(remove(first)).expect("remove the other");
         assert_eq!(names(session), 1);
-        assert_eq!(current(session), session.doc.original());
+        assert_eq!(current(session), session.doc().original());
 
         round_trip_step(session, "add it again", add(spike.clone()));
         assert_eq!(names(session), 0);
@@ -351,7 +348,7 @@ fn a_removals_inverse_puts_back_bridges_first_and_a_cloud_when_a_later_system_re
     spike.lanes.clear();
     let (mura, later) = (SAMPLE_4_5.id, SAMPLE_4_5.id + 1);
     let other = session
-        .graph
+        .graph()
         .systems
         .values()
         .filter(|s| ![PHARGIS, home].contains(&s.id))
@@ -479,7 +476,7 @@ fn a_moved_and_restyled_system_comes_out_whole() {
         }
         let result = round_trip_step(session, "remove", remove(first));
         assert_eq!(result.renumbered, [(first, None)]);
-        assert_eq!(current(session), session.doc.original());
+        assert_eq!(current(session), session.doc().original());
         assert!(session.system(first).is_none());
         assert!(!system_entity(session, first));
     }
@@ -509,7 +506,7 @@ fn nebula_member_lines_follow_the_renumbering() {
             ],
         },
     );
-    let members = |session: &Session| session.graph.nebulae[0].systems.clone();
+    let members = |session: &Session| session.graph().nebulae[0].systems.clone();
     assert!(
         members(session).ends_with(&[middle, last]),
         "{:?}",
@@ -555,7 +552,6 @@ fn no_slot_missing(session: &Session) -> bool {
 
 #[test]
 fn a_removal_leaves_no_slot_missing_and_the_next_add_takes_its_tombstones() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         assert!(no_slot_missing(&(sample.open)()), "the sample as opened");
         let (mut session, _) = three(sample);
@@ -572,9 +568,7 @@ fn a_removal_leaves_no_slot_missing_and_the_next_add_takes_its_tombstones() {
             );
         }
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let mut reopened = Session::open(&path).expect("reopen");
+        let mut reopened = common::reopened(session);
         assert!(no_slot_missing(&reopened), "{first}: reopened");
         let again = small("Tau_Ceti", sample.spots[0], vec![first]);
         let expected: Vec<u32> = freed.iter().map(|&p| p | GENERATION).collect();
@@ -630,7 +624,7 @@ fn a_belted_system_comes_out_whole_and_its_removal_adds_it_back() {
         round_trip_step(session, "remove the other", remove(first + 1));
         assert_eq!(current(session), added);
         let result = round_trip_step(session, "remove it", remove(first));
-        assert_eq!(current(session), session.doc.original());
+        assert_eq!(current(session), session.doc().original());
         session.apply(result.inverse).expect("apply the inverse");
         assert_eq!(current(session), added, "the same text at the same id");
     }

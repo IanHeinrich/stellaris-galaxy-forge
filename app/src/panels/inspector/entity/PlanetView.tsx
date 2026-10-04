@@ -1,19 +1,19 @@
-import { documentCapabilities } from "../../../lib/capabilities";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { BODY_SOURCES } from "./bodySources";
+import { BodyPage } from "./BodyPage";
 import { EntityView } from "./EntityView";
-import { PlanetPageView } from "./PlanetPage";
-import { ScenarioBodyView } from "./ScenarioBodyView";
 
 /**
- * A body: one the document rolls is drawn from its system's details. A save planet's Overview is
- * its own page, and its other tabs are the generic entity view, which reads the planet by its id.
+ * A body: its page, read through the source of the open document's kind. Where that source has
+ * an entity behind the body, its other tabs are the generic entity view, which reads it by its id.
  */
 export function PlanetView({ entry }: { entry: Entry }) {
   const tab = useInspectorStore((s) => s.tab);
-  const capabilities = useFileSessionStore(documentCapabilities);
-  if (entry.ref.kind !== "body") return <EntityView entry={entry} />;
-  if (capabilities.rolled_layout) return <ScenarioBodyView entry={entry} />;
-  if (tab !== "overview" || !capabilities.bodies) return <EntityView entry={entry} />;
-  return <PlanetPageView entry={entry} id={entry.ref.id} />;
+  const kind = useFileSessionStore((s) => s.kind);
+  const ref = entry.ref;
+  if (ref.kind !== "body" || kind === null) return <EntityView entry={entry} />;
+  if (tab !== "overview" && BODY_SOURCES[kind].entityTabs) return <EntityView entry={entry} />;
+  const key = `${kind}:${ref.system}:${ref.id}`;
+  return <BodyPage key={key} entry={entry} kind={kind} system={ref.system} id={ref.id} />;
 }

@@ -23,8 +23,8 @@ fn heights(entries: &[(u32, Option<f64>)]) -> Op {
 #[test]
 fn heights_are_rewritten_in_place_and_zero_is_written_as_the_least_height() {
     let mut session = open_4_5();
-    assert_eq!(session.graph.systems[&0].height, Some(3.65056));
-    assert_eq!(session.graph.systems[&593].height, Some(5.11847));
+    assert_eq!(session.graph().systems[&0].height, Some(3.65056));
+    assert_eq!(session.graph().systems[&593].height, Some(5.11847));
 
     let op = heights(&[(0, Some(12.5)), (408, Some(0.0)), (593, Some(-2.25))]);
     let applied = snapshot_step(&mut session, "set_system_heights_4_5", op);
@@ -37,15 +37,15 @@ fn heights_are_rewritten_in_place_and_zero_is_written_as_the_least_height() {
             (593, Some(5.11847))
         ])
     );
-    assert_eq!(session.graph.systems[&0].height, Some(12.5));
-    assert_eq!(session.graph.systems[&408].height, Some(0.00001));
-    assert_eq!(session.graph.systems[&593].height, Some(-2.25));
+    assert_eq!(session.graph().systems[&0].height, Some(12.5));
+    assert_eq!(session.graph().systems[&408].height, Some(0.00001));
+    assert_eq!(session.graph().systems[&593].height, Some(-2.25));
 }
 
 #[test]
 fn one_system_is_described_by_name_with_the_height_it_had() {
     let mut session = open_4_5();
-    let name = session.graph.systems[&0].display_name();
+    let name = session.graph().systems[&0].display_name();
     let applied = session
         .apply(heights(&[(0, Some(0.000004))]))
         .expect("set the height");
@@ -60,20 +60,20 @@ fn one_system_is_described_by_name_with_the_height_it_had() {
 #[test]
 fn a_3_4_system_gets_the_height_it_lacked_and_the_inverse_takes_it_out() {
     let mut session = open_3_4();
-    assert_eq!(session.graph.systems[&0].height, None);
-    assert_eq!(session.graph.systems[&1].height, None);
+    assert_eq!(session.graph().systems[&0].height, None);
+    assert_eq!(session.graph().systems[&1].height, None);
 
     let op = heights(&[(0, Some(7.5)), (1, Some(-3.0))]);
     let applied = snapshot_step(&mut session, "set_system_heights_3_4", op);
     assert_eq!(applied.inverse, heights(&[(0, None), (1, None)]));
-    assert_eq!(session.graph.systems[&0].height, Some(7.5));
-    assert_eq!(session.graph.systems[&1].height, Some(-3.0));
+    assert_eq!(session.graph().systems[&0].height, Some(7.5));
+    assert_eq!(session.graph().systems[&1].height, Some(-3.0));
 
-    let name = session.graph.systems[&0].display_name();
+    let name = session.graph().systems[&0].display_name();
     let undone = session.apply(applied.inverse).expect("apply the inverse");
     assert_eq!(undone.entry.description, "Set the height of 2 systems");
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(session.graph.systems[&0].height, None);
+    assert_eq!(current(&session), session.doc().original());
+    assert_eq!(session.graph().systems[&0].height, None);
 
     let added = session
         .apply(heights(&[(0, Some(1.0))]))
@@ -87,7 +87,7 @@ fn a_3_4_system_gets_the_height_it_lacked_and_the_inverse_takes_it_out() {
         cleared.entry.description,
         format!("Cleared the height of {name} #0")
     );
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// Dorellion, added as 791, comes back from a spec, which the game writes at 4.31213: the
@@ -107,7 +107,7 @@ fn removing_an_added_system_inverts_to_the_height_it_was_given() {
         .apply(Op::RemoveSystem { system: 791 })
         .expect("remove it");
     session.apply(removed.inverse).expect("add it back");
-    assert_eq!(session.graph.systems[&791].height, Some(20.0));
+    assert_eq!(session.graph().systems[&791].height, Some(20.0));
 }
 
 #[test]
@@ -137,11 +137,17 @@ fn an_empty_list_a_repeated_or_unknown_system_and_a_height_that_is_no_number_are
 
 #[test]
 fn a_save_of_any_version_takes_heights_and_a_scenario_does_not() {
-    assert!(Capabilities::of(&open_4_5().doc).system_heights);
-    assert!(Capabilities::of(&open_3_4().doc).system_heights);
+    assert!(Capabilities::of(open_4_5().doc()).system_heights);
+    assert!(Capabilities::of(open_3_4().doc()).system_heights);
     let mut scenario = PAINTED.open();
-    assert!(!Capabilities::of(&scenario.doc).system_heights);
-    assert!(scenario.graph.systems.values().all(|s| s.height.is_none()));
+    assert!(!Capabilities::of(scenario.doc()).system_heights);
+    assert!(
+        scenario
+            .graph()
+            .systems
+            .values()
+            .all(|s| s.height.is_none())
+    );
     let error = scenario
         .apply(heights(&[(0, Some(1.0))]))
         .expect_err("a scenario");

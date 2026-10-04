@@ -91,7 +91,10 @@ fn a_saved_system_reopens_with_its_lanes_bodies_and_the_saves_findings() {
             !system.lanes[0].stale,
             "the length is the floor of the distance"
         );
-        let back = reopened.graph.lane(home, id).expect("the lane's other end");
+        let back = reopened
+            .graph()
+            .lane(home, id)
+            .expect("the lane's other end");
         assert_eq!(back.length, system.lanes[0].length);
         let classes: Vec<String> = system
             .bodies
@@ -351,22 +354,26 @@ fn two_adds_take_consecutive_ids_share_no_slot_and_one_name_from_the_pool() {
             .hits;
         assert!(hits.iter().any(|h| h.id == id), "{hits:?}");
         let star = bodies(&session, id)[0].0;
-        let system = get_entity(&session.doc, EntityAddr::new(EntityKind::System, id), &[])
+        let system = get_entity(session.doc(), EntityAddr::new(EntityKind::System, id), &[])
             .expect("the system's entity");
         assert_eq!(system.addr.id, id);
-        get_entity(&session.doc, EntityAddr::new(EntityKind::Planet, star), &[])
-            .expect("the star's entity");
+        get_entity(
+            session.doc(),
+            EntityAddr::new(EntityKind::Planet, star),
+            &[],
+        )
+        .expect("the star's entity");
 
         round_trip_step(&mut session, "second", add(beside(&spec, id)));
         assert_eq!(pool(&current(&session)), pool(&first_added));
         assert!(text(&session).contains("key=\"Sgf_Second\""));
         assert!(session.system(id + 1).is_some());
         assert_eq!(
-            session.graph.order[session.graph.order.len() - 2..],
+            session.graph().order[session.graph().order.len() - 2..],
             [id, id + 1]
         );
         let lane = session
-            .graph
+            .graph()
             .lane(id, id + 1)
             .expect("the lane between them");
         assert!(!lane.stale);
@@ -378,7 +385,7 @@ fn two_adds_take_consecutive_ids_share_no_slot_and_one_name_from_the_pool() {
             "{first:?} {next:?}"
         );
         let deposits = |id: u32| -> BTreeSet<String> {
-            let doc = &session.doc;
+            let doc = session.doc();
             bodies(&session, id)
                 .iter()
                 .flat_map(|&(planet, ..)| {
@@ -395,7 +402,7 @@ fn two_adds_take_consecutive_ids_share_no_slot_and_one_name_from_the_pool() {
 
         session.undo().unwrap().unwrap();
         session.undo().unwrap().unwrap();
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
         assert!(session.system(id).is_none());
         session.apply(add(spec)).expect("add again");
         assert_eq!(
@@ -414,10 +421,12 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
         round_trip_step(&mut session, "add", add(spec.clone()));
         let star = bodies(&session, id)[0].0;
         let far = *session
-            .graph
+            .graph()
             .order
             .iter()
-            .find(|&&other| other != home && other != id && session.graph.lane(id, other).is_none())
+            .find(|&&other| {
+                other != home && other != id && session.graph().lane(id, other).is_none()
+            })
             .expect("a system to link");
         let x = spec.x + 3.0;
         let steps = [
@@ -453,9 +462,9 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
         assert_eq!((system.x, system.star_class.as_str()), (x, "sc_m"));
         assert_eq!(bodies(&session, id)[0].1, "pc_m_star");
         while session.undo().expect("undo").is_some() {}
-        assert_eq!(current(&session), session.doc.original());
+        assert_eq!(current(&session), session.doc().original());
         assert!(session.system(id).is_none());
-        assert!(!session.doc.is_dirty());
+        assert!(!session.doc().is_dirty());
     }
 }
 
@@ -488,7 +497,7 @@ fn the_lowest_dead_slots_are_taken_first_one_generation_on() {
         assert!(table.contains(&format!("\n\t{id}=\n\t{{\n\t\ttype=\"{deposit}\"")));
     }
     let deposit = get_entity(
-        &session.doc,
+        session.doc(),
         EntityAddr::new(EntityKind::Deposit, GENERATION),
         &[],
     )
@@ -501,7 +510,7 @@ type Case = Refused<fn(&mut SystemSpec)>;
 
 fn refused(mut session: Session, spec: SystemSpec) -> OpError {
     let error = session.apply(add(spec)).expect_err("refused");
-    assert!(!session.doc.is_dirty(), "{error}");
+    assert!(!session.doc().is_dirty(), "{error}");
     error
 }
 
@@ -691,10 +700,10 @@ fn a_refused_batch_forgets_the_system_it_wrote() {
             matches!(error, OpError::EmptyText { what: "a name" }),
             "{error}"
         );
-        assert!(!session.doc.is_dirty());
+        assert!(!session.doc().is_dirty());
         assert!(session.system(id).is_none());
         let planet = EntityAddr::new(EntityKind::System, id);
-        assert!(get_entity(&session.doc, planet, &[]).is_err());
+        assert!(get_entity(session.doc(), planet, &[]).is_err());
         session.apply(add(spec)).expect("add");
         assert_eq!(current(&session), fresh);
     }
@@ -742,7 +751,7 @@ fn a_spent_asteroid_pool_names_asteroids_again() {
     session
         .apply(Op::RemoveSystem { system: 791 })
         .expect("remove");
-    assert_eq!(current(&session), session.doc.original());
+    assert_eq!(current(&session), session.doc().original());
 }
 
 /// The 4.4 sample with a top-level section swapped for `replacement`, which is empty
@@ -831,7 +840,7 @@ fn the_version_is_read_with_or_without_a_release_name() {
 #[test]
 fn a_save_that_refuses_the_add_offers_no_added_systems_but_keeps_bodies() {
     let offered = |session: &Session| {
-        let capabilities = Capabilities::of(&session.doc);
+        let capabilities = Capabilities::of(session.doc());
         (
             capabilities.added_systems,
             capabilities.bodies,

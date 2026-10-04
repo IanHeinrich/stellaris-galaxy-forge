@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../api/ipc");
 vi.mock("../../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../../api/__mocks__/dialog"));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -17,9 +16,8 @@ import {
   PAINT_MOD_NOT_ENABLED,
   PAINT_UNTICKED,
 } from "../../lib/paintCopy";
-import { paintModView } from "../../test/builders";
+import { paintModView, scenarioListing } from "../../test/builders";
 import { buttons, shown } from "../../test/elements";
-import { scenarioListing } from "../../test/openRows";
 import { OpenScenarioDialog } from "./OpenScenarioDialog";
 
 const noop = () => undefined;

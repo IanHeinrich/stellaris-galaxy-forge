@@ -1,5 +1,4 @@
-import { daysLeft, modifierRows, type ModifierRow } from "../../../lib/details/planetPage";
-import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { daysLeft, type ModifierRow } from "../../../lib/details/planetPage";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
@@ -40,20 +39,20 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
 
 /**
  * The planet's modifiers; where the page offers them, each with its remove button and the picker
- * below, both through `target`'s adapter.
+ * below, both through the target's adapter.
  */
-export function PlanetModifiers({ page, offers, target }: PlanetSectionProps) {
-  const views = usePlanetDataStore((s) => s.modifiers);
+export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
   const editable = offers.modifiers;
-  const rows = modifierRows(page, views);
-  if (rows.length === 0 && !editable) return null;
+  const { modifiers } = read.rows;
+  const { target } = read;
+  if (modifiers.length === 0 && !editable) return null;
   return (
-    <Section id="planet.modifiers" title="Modifiers" count={rows.length}>
-      {rows.map((row) => (
+    <Section id="planet.modifiers" title="Modifiers" count={modifiers.length}>
+      {modifiers.map(({ row, ref }) => (
         <ModifierRowView
           key={row.key}
           row={row}
-          onRemove={editable ? () => void target.edits.removeModifier(row) : null}
+          onRemove={editable ? () => void target.edits.removeModifier(ref) : null}
         />
       ))}
       {editable && <PlanetPicker kind={MODIFIER_PICKER} target={target} />}

@@ -7,7 +7,7 @@ use common::fixture::GRAMMAR;
 #[test]
 fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_its_country_flag() {
     let session = GRAMMAR.open();
-    let modifiers = |id: u32| session.graph.systems[&id].spawn_modifiers.clone();
+    let modifiers = |id: u32| session.graph().systems[&id].spawn_modifiers.clone();
 
     let [flagged] = &modifiers(2)[..] else {
         panic!("system 2 has one modifier")
@@ -37,13 +37,13 @@ fn a_modifier_is_read_as_its_numbers_its_trigger_text_and_its_country_flag() {
 fn a_spawn_design_is_read_and_a_save_states_none_of_this() {
     let session = GRAMMAR.open();
     assert_eq!(
-        session.graph.systems[&111].spawn_design.as_deref(),
+        session.graph().systems[&111].spawn_design.as_deref(),
         Some("my_design")
     );
-    assert_eq!(session.graph.systems[&2].spawn_design, None);
+    assert_eq!(session.graph().systems[&2].spawn_design, None);
 
     let save = common::open();
-    let system = save.graph.systems.values().next().expect("a system");
+    let system = save.graph().systems.values().next().expect("a system");
     assert!(system.spawn_modifiers.is_empty());
     assert_eq!(system.spawn_design, None);
 }

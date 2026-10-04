@@ -252,6 +252,15 @@ describe("the op each intent makes", () => {
     });
   });
 
+  it("names the system in a belt move's description by the frame's label", () => {
+    const frame = { ...frameOf(), systemLabel: "Ferragon #140" };
+    expect(
+      op({ kind: "setBeltRadius", system: SYSTEM, index: 0, radius: 130 }, frame),
+    ).toMatchObject({
+      op: { description: "Moved the belt at radius 120 in Ferragon #140 to 130, with 1 asteroid" },
+    });
+  });
+
   it("makes nothing of an intent that changes nothing", () => {
     const frame = frameOf();
     const here = bodyOrbit(frame.layout, LONE)!;
@@ -303,6 +312,29 @@ describe("an asteroid with a moon of its own", () => {
       refused: GEOMETRY_REASONS.asteroidHost,
     });
     expect(op(reparent(ASTEROID, LONE), frame)).toEqual({ refused: GEOMETRY_REASONS.hasMoons });
+  });
+});
+
+describe("a body that orbits a planet without being a moon", () => {
+  const HABITAT = 7;
+  const details = orbitSystem();
+  details.planets.push({
+    ...saveBody(HABITAT, "pc_habitat", ORBIT_SYSTEM_AT.firstMoon, 10, 4, PLANET),
+    moon: false,
+    role: "planet",
+  });
+  const frame = frameOf(details);
+
+  it("cannot be a parent, as Add moon refuses it", () => {
+    const editing = SAVE_GEOMETRY.editing(frame).bodies.get(HABITAT);
+    expect(editing).toMatchObject({ host: false, hostRefusal: "aboutPlanet" });
+    expect(editing?.moonRing).toBeUndefined();
+  });
+
+  it("refuses a planet and a moon dropped on it, saying why", () => {
+    const refused = { refused: GEOMETRY_REASONS.aboutPlanet };
+    expect(op(reparent(LONE, HABITAT), frame)).toEqual(refused);
+    expect(op(reparent(MOON, HABITAT), frame)).toEqual(refused);
   });
 });
 

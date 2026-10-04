@@ -174,11 +174,6 @@ export function visiblePlanets(d: SystemDetails): PlanetSummary[] {
   return d.planets.filter(planetShown);
 }
 
-/** The first country holding a planet here that is not a pre-FTL civilisation. */
-export function colonyOwner(d: SystemDetails): number | null {
-  return colonyOwnerOf(d.planets);
-}
-
 function colonyOwnerOf(planets: readonly PlanetSummary[]): number | null {
   return planets.find((p) => p.owner !== null && !p.pre_ftl)?.owner ?? null;
 }

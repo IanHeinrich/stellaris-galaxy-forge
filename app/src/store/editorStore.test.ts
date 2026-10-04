@@ -4,7 +4,6 @@ import type { SearchHit } from "../generated/SearchHit";
 
 vi.mock("../api/ipc");
 vi.mock("../api/events");
-vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import { editor, openFixtureSave, sessionError } from "./editorFixture";
 import { RECENT_HITS } from "./editorStore";

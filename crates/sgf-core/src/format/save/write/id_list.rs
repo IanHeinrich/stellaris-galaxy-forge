@@ -59,7 +59,7 @@ pub(crate) fn unlist_in(edit: &mut Edit, block: &Node, ids: &[u32], emptied: Emp
     let mut gone = listed.as_slice();
     match emptied {
         Emptied::Drop if all => {
-            edit.remove_statement(block.span());
+            edit.bytes().remove_statement(block.span());
             return listed.len();
         }
         Emptied::Null if all => {
@@ -109,7 +109,7 @@ pub(crate) fn append_in(
         None => {
             let span = block.span();
             let text = statement(&edit.indent(span.start), key, ids);
-            edit.replace_statement(span, &text);
+            edit.bytes().replace_statement(span, &text);
         }
     }
     Ok(())
@@ -140,7 +140,7 @@ fn planet_statements(edit: &Edit, ids: &[u32]) -> Result<Vec<Span>, OpError> {
 pub(crate) fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
     for span in planet_statements(edit, ids)? {
         edit.require_alone_on_line(span, "a planet statement")?;
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     Ok(())
 }

@@ -9,7 +9,7 @@ use crate::emit::{coord, hyperlane_block, lane_entry};
 use crate::format::save::write::bulk;
 use crate::keys;
 use crate::ops::rules::lanes as rules;
-use crate::ops::rules::named;
+use crate::ops::rules::{named, named_all};
 use crate::ops::{Edit, LaneLength, Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::projections::galaxy::bypass_between;
@@ -28,8 +28,10 @@ pub(crate) fn plan_add(
     insert_entries(plan.edit(&s.doc, b)?, &[(a, length, bridge)])?;
     Ok(Planned {
         description: format!(
-            "Added {}lane {a} <-> {b} (length {length})",
-            if bridge { "bridge " } else { "" }
+            "Added {}lane {} <-> {} (length {length})",
+            if bridge { "bridge " } else { "" },
+            named(&s.graph, a),
+            named(&s.graph, b)
         ),
         inverse: Op::RemoveLane { a, b },
     })
@@ -54,12 +56,13 @@ pub(crate) fn plan_add_many(
         insert_entries(plan.edit(&s.doc, other)?, &[(from, length, bridge)])?;
     }
     insert_entries(plan.edit(&s.doc, from)?, &entries)?;
-    let ids: Vec<String> = to.iter().map(|(id, _)| id.to_string()).collect();
+    let ids: Vec<u32> = to.iter().map(|&(id, _)| id).collect();
     Ok(Planned {
         description: format!(
-            "Added {} from {from} to {}",
+            "Added {} from {} to {}",
             plural(to.len(), "lane"),
-            ids.join(", ")
+            named(&s.graph, from),
+            named_all(&s.graph, &ids)
         ),
         inverse: Op::RemoveLanes {
             from,
@@ -82,7 +85,9 @@ pub(crate) fn plan_remove(
     }
     Ok(Planned {
         description: format!(
-            "Removed lane {a} <-> {b} ({removed} entries){}",
+            "Removed lane {} <-> {} ({removed} entries){}",
+            named(&s.graph, a),
+            named(&s.graph, b),
             wayline_note(&s.graph, &[(a, b)])
         ),
         inverse: Op::AddLane { a, b, bridge },
@@ -103,12 +108,12 @@ pub(crate) fn plan_remove_many(
             removed += remove_entries(plan.edit(&s.doc, other)?, &[from])?;
         }
     }
-    let ids: Vec<String> = to.iter().map(u32::to_string).collect();
     Ok(Planned {
         description: format!(
-            "Removed {} from {from} to {} ({removed} entries){}",
+            "Removed {} from {} to {} ({removed} entries){}",
             plural(to.len(), "lane"),
-            ids.join(", "),
+            named(&s.graph, from),
+            named_all(&s.graph, to),
             wayline_note(&s.graph, &pairs)
         ),
         inverse: Op::AddLanes {
@@ -132,7 +137,9 @@ pub(crate) fn plan_set_length(
     let (old, updated) = set_one_length(plan, s, a, b, length)?;
     Ok(Planned {
         description: format!(
-            "Set lane {a} <-> {b} length from {} to {} ({updated} entries)",
+            "Set lane {} <-> {} length from {} to {} ({updated} entries)",
+            named(&s.graph, a),
+            named(&s.graph, b),
             coord(old),
             coord(length)
         ),
@@ -160,7 +167,9 @@ pub(crate) fn plan_normalise_length(
     let (old, updated) = set_one_length(plan, s, a, b, length)?;
     Ok(Planned {
         description: format!(
-            "Normalised lane {a} <-> {b} length from {} to {} ({updated} entries)",
+            "Normalised lane {} <-> {} length from {} to {} ({updated} entries)",
+            named(&s.graph, a),
+            named(&s.graph, b),
             coord(old),
             coord(length)
         ),
@@ -302,7 +311,7 @@ pub(crate) fn remove_entries(edit: &mut Edit, targets: &[u32]) -> Result<usize, 
         removing = vec![block.span()];
     }
     for span in removing {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     Ok(removed)
 }

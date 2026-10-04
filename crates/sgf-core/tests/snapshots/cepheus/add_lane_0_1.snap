@@ -2,7 +2,7 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added lane 0 <-> 1 (length 410)
+Added lane Lavis system #0 <-> Gianfar #1 (length 410)
 inverse: RemoveLane { a: 0, b: 1 }
 
 --- gamestate

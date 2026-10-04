@@ -58,6 +58,7 @@ export type BodyRefusal =
   | "hasMoons"
   | "moonHost"
   | "asteroidHost"
+  | "aboutPlanet"
   | "ringworld"
   | "noOrbit";
 
@@ -109,6 +110,8 @@ export interface GeometryFrame {
   planetClasses: ReadonlyMap<string, PlanetClassView>;
   /** How the install sizes a system; `VANILLA_SYSTEM_RADII` before game data gives them. */
   radii: SystemRadii;
+  /** What an edit's description calls the system, as `systemLabel` says; set when the edit is sent. */
+  systemLabel?: string;
 }
 
 /** The op an intent makes, or why it is refused; null when it changes nothing. */
@@ -132,6 +135,7 @@ export const GEOMETRY_REASONS = {
   hasMoons: "A planet with moons can't become a moon",
   moonHost: "A moon can't have moons of its own",
   asteroidHost: "An asteroid can't have moons",
+  aboutPlanet: "A body orbiting a planet can't have moons",
   ringworld: "A ring world segment stays where it is",
   noOrbit: "Its planet is missing, so it has no orbit to move along",
   itself: "A body can't orbit itself",

@@ -29,16 +29,16 @@ pub(super) fn rewrite_flags(
                 .ok_or_else(|| edit.parse_error(0, "empty system"))?
                 .span()
                 .end;
-            edit.insert_after(last, &text);
+            edit.bytes().insert_after(last, &text);
         }
         return Ok(());
     };
     if new_flags.is_empty() && block.flags.len() == block.children {
-        edit.remove_statement(block.statement);
+        edit.bytes().remove_statement(block.statement);
         return Ok(());
     }
     for span in &block.flags {
-        edit.remove_statement(*span);
+        edit.bytes().remove_statement(*span);
     }
     for flag in new_flags {
         append(edit, &block, &statement(flag));
