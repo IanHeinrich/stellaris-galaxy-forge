@@ -208,3 +208,16 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
         .apply(Op::RemoveSystem { id: 791 })
         .expect("then the system goes");
 }
+
+/// The 4.4 sample's highest pair joins 788 and 789 at rows 11 and 12, bypasses 25 and 26.
+/// A fleet's path may name a removed bypass, so a pair added after it takes the next ids.
+#[test]
+fn a_pair_added_after_a_removal_takes_new_ids() {
+    let mut session = open();
+    session.apply(remove(788, 789)).expect("the removal");
+    session.apply(add(278, 0)).expect("the add");
+    let one = wormholes(&session, 278);
+    let other = wormholes(&session, 0);
+    assert_eq!((one[0].id, one[0].bypass), (13, 27));
+    assert_eq!((other[0].id, other[0].bypass), (14, 28));
+}

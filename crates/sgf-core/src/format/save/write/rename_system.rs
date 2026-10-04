@@ -14,6 +14,7 @@ use crate::format::save::write::remove_system::check_added;
 use crate::keys;
 use crate::ops::rules::{check_name, quoted};
 use crate::ops::{Op, OpError, Plan, Planned};
+use crate::projections::name::variable_values;
 use crate::session::Session;
 
 /// The variables a body's name carries its system's name in.
@@ -85,29 +86,16 @@ fn plain_name(name: &Node, src: &[u8], old: &str) -> Option<Span> {
 /// name that is the value of a `NAME` or `PARENT` variable, at any depth, as a moon names
 /// its planet and the planet its system.
 fn system_names(name: &Node, src: &[u8], old: &str, out: &mut Vec<Span>) {
-    let Some(variables) = name.find(keys::VARIABLES, src) else {
-        return;
-    };
-    for variable in variables.children() {
-        let Some(value) = variable.find(keys::VALUE, src) else {
-            continue;
-        };
-        let of_system = variable
-            .find(keys::KEY, src)
-            .and_then(|key| key.scalar_str(src))
-            .is_some_and(|key| SYSTEM_VARS.contains(&key));
+    let key = |value: &Node| value.find(keys::KEY, src).and_then(Node::scalar_span);
+    let names = variable_values(name, src, &SYSTEM_VARS, &|value| {
         let plain =
             value.find(keys::LITERAL, src).is_none() && value.find(keys::VARIABLES, src).is_none();
-        let key = value.find(keys::KEY, src);
-        if let Some(span) = key.and_then(Node::scalar_span)
-            && of_system
-            && plain
-            && key.and_then(|key| key.scalar_str(src)) == Some(old)
-        {
-            out.push(span);
-        }
-        system_names(value, src, old, out);
-    }
+        let named = value
+            .find(keys::KEY, src)
+            .and_then(|key| key.scalar_str(src));
+        plain && key(value).is_some() && named == Some(old)
+    });
+    out.extend(names.into_iter().filter_map(key));
 }
 
 /// Put `old` back in the pool of unused star or black hole names system `id`'s add took

@@ -12,11 +12,12 @@ use crate::emit::{Lines, quoted};
 use crate::format::save::read_spec::bodies;
 use crate::format::save::write::add_system::PARENT_VAR;
 use crate::format::save::write::move_planet::is_star_class;
+use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::check_name;
 use crate::ops::{Op, OpError, Plan, Planned};
-use crate::projections::name::NameTemplate;
+use crate::projections::name::{NameTemplate, variable_values};
 use crate::projections::read;
 use crate::session::Session;
 
@@ -34,8 +35,7 @@ pub(crate) fn plan_rename(
             Block::literal(name)
         }
     };
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     let primary = bodies(&s.doc, system)?.first() == Some(&id);
     if primary || is_star_class(&read::text(&node, keys::PLANET_CLASS, src)) {
         return Err(OpError::StarNotRenamed(id));
@@ -113,23 +113,10 @@ fn rename_copies(
 
 /// The value of every `PARENT` variable inside `name`, at any depth, that is `old`.
 fn parent_copies(name: &Node, src: &[u8], old: &NameTemplate, out: &mut Vec<Span>) {
-    let Some(variables) = name.find(keys::VARIABLES, src) else {
-        return;
-    };
-    for variable in variables.children() {
-        let Some(value) = variable.find(keys::VALUE, src) else {
-            continue;
-        };
-        let parent = variable
-            .find(keys::KEY, src)
-            .and_then(|key| key.scalar_str(src))
-            == Some(PARENT_VAR);
-        if parent && NameTemplate::parse(value, src) == *old {
-            out.push(value.value_span());
-        } else {
-            parent_copies(value, src, old, out);
-        }
-    }
+    let copies = variable_values(name, src, &[PARENT_VAR], &|value| {
+        NameTemplate::parse(value, src) == *old
+    });
+    out.extend(copies.into_iter().map(Node::value_span));
 }
 
 /// A name's `{ … }` value as text, its closing brace's line indented as the block stands.

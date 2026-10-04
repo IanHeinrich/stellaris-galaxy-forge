@@ -29,7 +29,7 @@ use crate::format::save::added::Table;
 use crate::keys;
 use crate::ops::{OpError, Plan, Subject};
 use crate::overlay::Anchor;
-use crate::projections::galaxy::GalaxyGraph;
+use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::scan::{self, Entity, Value};
 
 const GENERATION_SHIFT: u32 = 24;
@@ -95,6 +95,19 @@ pub(crate) fn next_system(doc: &Document, graph: &GalaxyGraph) -> Result<u32, Op
     next.ok_or(OpError::SystemIdsNotDense { last, count })
 }
 
+/// The id a new row of `table` takes: one past the highest it has held since the save was
+/// opened. A removed row's id may still be named by a fleet's order or path, so it is never
+/// taken again, and the game loads the gap this leaves.
+pub(crate) fn next_id(doc: &Document, table: Table) -> Result<u32, ProjectionError> {
+    let loaded = table
+        .loaded(doc)?
+        .into_iter()
+        .flat_map(|(index, key)| index.entities(key))
+        .filter_map(|entity| u32::try_from(entity.id).ok());
+    let added = doc.added().entries(table).map(|(id, _)| id);
+    Ok(loaded.chain(added).max().map_or(0, |highest| highest + 1))
+}
+
 /// The slot a new entity takes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Slot {
@@ -123,13 +136,21 @@ pub(crate) struct TableEnd {
 }
 
 impl TableEnd {
+    /// The end of `table` in the save.
+    pub fn of(doc: &Document, table: impl Into<Table>) -> Result<Self, OpError> {
+        let table = table.into();
+        let (index, key) = table
+            .loaded(doc)?
+            .ok_or(OpError::MissingSaveKey(table.section()))?;
+        let missing = || OpError::MissingSaveKey(key);
+        let Value::Block { close, .. } = index.section(key).ok_or_else(missing)?.value else {
+            return Err(missing());
+        };
+        Ok(Self::read(doc, table, close, index.entities(key)))
+    }
+
     /// The end of `table`, whose block closes at `close` and holds `entities`.
-    pub fn read(
-        doc: &Document,
-        table: impl Into<Table>,
-        close: usize,
-        entities: &[Entity],
-    ) -> Self {
+    fn read(doc: &Document, table: impl Into<Table>, close: usize, entities: &[Entity]) -> Self {
         let table = table.into();
         let src = doc.original();
         let close_indent = cst::indent_of(src, close).to_vec();

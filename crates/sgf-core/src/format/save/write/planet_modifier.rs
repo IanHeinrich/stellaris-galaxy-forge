@@ -6,8 +6,8 @@
 
 use crate::cst::Node;
 use crate::format::save::read_spec::bodies;
+use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::format::save::write::timed_modifiers::{self, Place};
-use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -28,9 +28,7 @@ fn planet<'a>(
     modifier: &str,
     feature: Option<&str>,
 ) -> Result<(Node, &'a [u8], u32), OpError> {
-    check_version(&s.doc)?;
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     check_text("a modifier", modifier, Form::Bare)?;
     if let Some(feature) = feature {
         check_text("a planet feature", feature, Form::Bare)?;

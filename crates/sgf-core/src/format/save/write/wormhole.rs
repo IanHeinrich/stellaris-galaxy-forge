@@ -1,7 +1,6 @@
 //! `MoveSaveWormhole`: where a save's natural wormhole stands in its system.
 
 use crate::emit::coord;
-use crate::format::save::check_version;
 use crate::format::save::galaxy::bypasses::natural_wormholes;
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::write::bodies::number;
@@ -23,7 +22,6 @@ pub(crate) fn plan_move(
     radius: f64,
     angle: f64,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_radius(radius, "a wormhole's distance from the star")?;
     if !angle.is_finite() {
         return Err(OpError::NotFinite);

@@ -7,10 +7,8 @@ use crate::Span;
 use crate::cst::Node;
 use crate::emit::system::{belt_entry, belts_block};
 use crate::emit::{coord, quoted};
-use crate::format::save::check_version;
-use crate::format::save::write::bodies;
+use crate::format::save::write::bodies::{self, number};
 use crate::keys;
-use crate::ops::rules::bodies::Body;
 use crate::ops::rules::bodies::{check_radius, system_reach};
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -24,10 +22,9 @@ pub(crate) fn plan_add(
     kind: &str,
     radius: f64,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_radius(radius, "a belt's inner radius")?;
     check_text("a belt type", kind, Form::Bare)?;
-    let before = body_frame(s, system)?;
+    let before = bodies::frame_bodies(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let block = entity.find(keys::ASTEROID_BELTS, &edit.buf);
@@ -63,7 +60,6 @@ pub(crate) fn plan_remove(
     system: u32,
     index: usize,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let block = entity
@@ -104,9 +100,8 @@ pub(crate) fn plan_set_radius(
     index: usize,
     radius: f64,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_radius(radius, "a belt's inner radius")?;
-    let before = body_frame(s, system)?;
+    let before = bodies::frame_bodies(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let block = entity
@@ -148,7 +143,6 @@ pub(crate) fn plan_set_kind(
     index: usize,
     kind: &str,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_text("a belt type", kind, Form::Bare)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
@@ -190,10 +184,9 @@ pub(crate) fn plan_inner_radius(
     system: u32,
     radius: f64,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_radius(radius, "a system's inner radius")?;
     let radii = s.radii();
-    let frame = body_frame(s, system)?;
+    let frame = bodies::frame_bodies(s, system)?;
     let edit = plan.edit(&s.doc, system)?;
     let entity = edit.entity()?;
     let span = entity
@@ -234,14 +227,6 @@ pub(crate) fn plan_inner_radius(
     })
 }
 
-/// The system's bodies as their entries stand.
-fn body_frame(s: &Session, system: u32) -> Result<Vec<Body>, OpError> {
-    Ok(bodies::frame(s, system)?
-        .into_iter()
-        .map(|b| b.body)
-        .collect())
-}
-
 /// The radius of each of the system's belts that has one, in order.
 pub(crate) fn belt_radii(edit: &Edit, entity: &Node) -> Vec<f64> {
     entity
@@ -274,11 +259,4 @@ fn belts_before(edit: &Edit, entity: &Node) -> Result<Span, OpError> {
         .map(Node::span)
         .ok_or_else(|| edit.parse_error(0, "the system has no initializer"))?;
     Ok(discovery.or(arm).or(flags).unwrap_or(initializer))
-}
-
-/// A radius as a description names it: up to two decimals.
-fn number(v: f64) -> String {
-    let text = format!("{v:.2}");
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    if text == "-0" { "0" } else { text }.to_owned()
 }

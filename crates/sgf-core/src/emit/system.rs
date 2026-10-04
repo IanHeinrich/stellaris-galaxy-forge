@@ -236,13 +236,6 @@ pub fn deposit_entry(indent: &[u8], d: &DepositEntry<'_>) -> Vec<u8> {
     w.into_bytes()
 }
 
-/// A planet's `deposits` list, for a planet entry that has none.
-pub fn deposits_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
-    let mut w = Lines::new(indent);
-    w.list(0, keys::DEPOSITS, ids);
-    w.into_bytes()
-}
-
 /// A country's `events.anomalies` list, for an `events` block that has none.
 pub fn anomalies_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
     let mut w = Lines::new(indent);
@@ -331,13 +324,6 @@ pub fn wormhole_bypass_entry(indent: &[u8], end: &WormholeEnd) -> Vec<u8> {
     w.pair(2, keys::ID, &end.id.to_string());
     w.close(1);
     w.close(0);
-    w.into_bytes()
-}
-
-/// A system's `natural_wormholes` list, for a system that has none.
-pub fn natural_wormholes_list(indent: &[u8], ids: &[u32]) -> Vec<u8> {
-    let mut w = Lines::new(indent);
-    w.list(0, keys::NATURAL_WORMHOLES, ids);
     w.into_bytes()
 }
 
