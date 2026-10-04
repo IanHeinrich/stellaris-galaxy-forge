@@ -203,6 +203,11 @@ const FRESH_DATA = {
   planetModelsPending: false,
 };
 
+/** The registry a scenario saved into `map/setup_scenarios` rebuilds, which only the galaxy reads. */
+const GALAXY_OPTIONS = "galaxy_options";
+
+const GALAXY_DATA = { galaxyShapes: null, galaxyShapesPending: false };
+
 /**
  * The fields game data that has just landed starts from, with the details and scripts read from
  * what it replaces dropped.
@@ -461,6 +466,10 @@ async function gameDataChanged(changed: GameDataChanged): Promise<void> {
   try {
     const summary = await ipc.gameDataSummary();
     if (!alive()) return;
+    if (changed.registries.every((r) => r === GALAXY_OPTIONS)) {
+      useGameDataStore.setState(summary === null ? GALAXY_DATA : { summary, ...GALAXY_DATA });
+      return;
+    }
     const fresh = freshData();
     useGameDataStore.setState(summary === null ? fresh : { summary, ...fresh });
     await refetch(alive);

@@ -82,6 +82,22 @@ describe("auto-reload", () => {
     expect(mockedIpc.loadGameData).not.toHaveBeenCalled();
   });
 
+  it("a scenario saved into the install rereads the summary and the galaxy shapes alone", async () => {
+    const changed = await ready();
+    useGameDataStore.setState({ galaxyShapes: [] });
+    const summary = { ...SUMMARY, generation: 2 };
+    mockedIpc.gameDataSummary.mockResolvedValue(summary);
+
+    changed({ ...CHANGED, registries: ["galaxy_options"] });
+
+    await vi.waitFor(() => expect(useGameDataStore.getState().summary).toEqual(summary));
+    expect(useGameDataStore.getState().galaxyShapes).toBeNull();
+    await flush();
+    expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
+  });
+
   it("subscribes once and drops the subscription with the game data", async () => {
     await ready();
     await useGameDataStore.getState().load();
