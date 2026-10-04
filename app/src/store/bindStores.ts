@@ -3,6 +3,7 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { documentCapabilities } from "../lib/capabilities";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
+import { useEntityStore } from "./entityStore";
 import { getPaintLayer, redrawStars, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -57,6 +58,7 @@ export function bindStores(): void {
   followWatchlist();
   followPlanetMove();
   followBodySelectionPage();
+  followBodyPages();
   followHeightPreview();
 }
 
@@ -164,6 +166,23 @@ function followBodySelectionPage(): void {
   };
   useSceneStore.subscribe(follow);
   useInspectorStore.subscribe(follow);
+}
+
+// A save body's page says which system its planet is in. A move, or the undo or redo of one,
+// stales the page; it is read again, and every inspector page on the planet follows that system.
+function followBodyPages(): void {
+  useEntityStore.subscribe((state, previous) => {
+    if (state.pages === previous.pages && state.stalePages === previous.stalePages) return;
+    for (const { ref } of useInspectorStore.getState().stack) {
+      if (ref.kind !== "body") continue;
+      const page = state.pages.get(ref.id);
+      if (page === undefined) continue;
+      if (state.stalePages.has(ref.id)) useEntityStore.getState().requestPlanetPage(ref.id);
+      else if (page.system !== null && page.system !== ref.system) {
+        useInspectorStore.getState().moveBodies([ref.id], page.system);
+      }
+    }
+  });
 }
 
 // The galaxy the document holds decides the notes raised on it: a seat's kind or a system count

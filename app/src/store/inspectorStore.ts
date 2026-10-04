@@ -1,13 +1,11 @@
 import { create } from "zustand";
-import * as ipc from "../api/ipc";
 import type { EntityAddr } from "../generated/EntityAddr";
 import type { Capabilities } from "../generated/Capabilities";
 import type { EntityKind } from "../generated/EntityKind";
 import { documentCapabilities } from "../lib/capabilities";
-import { findPlanet } from "../lib/details/starBody";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
 import { useDetailsStore } from "./detailsStore";
-import { useEntityStore } from "./entityStore";
+import { planetPageKey, useEntityStore, type EntityState } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
@@ -209,30 +207,46 @@ function planetPages(): boolean {
   return !documentCapabilities(useFileSessionStore.getState()).rolled_layout;
 }
 
-/** The system save planet `id` is in, as the read details or its read page say; null while neither does. */
+/**
+ * The system save planet `id` is in, as its page or the details say where neither is stale; null
+ * while no fresh read places it.
+ */
 function planetSystem(id: number): number | null {
-  const found = findPlanet(useDetailsStore.getState().details, id);
-  return found?.system ?? useEntityStore.getState().pages.get(id)?.system ?? null;
+  const { pages, stalePages } = useEntityStore.getState();
+  const page = pages.get(id);
+  if (page?.system != null && !stalePages.has(id)) return page.system;
+  const { details, stale } = useDetailsStore.getState();
+  for (const read of details.values()) {
+    if (!stale.has(read.id) && read.planets.some((p) => p.id === id)) return read.id;
+  }
+  return null;
 }
 
 /**
  * What a drill onto `addr` opens. A station or a wormhole carries the system it stands in, so a
- * link with no system to give it stays where it is. So does a planet that no read places yet.
+ * link with no system to give it stays where it is. A planet goes through `openPlanet`.
  */
 export function refFor(addr: EntityAddr, system: number | null): EntityRef | null {
-  if (addr.kind === "planet") {
-    const home = planetSystem(addr.id);
-    return home === null ? null : { kind: "body", system: home, id: addr.id };
-  }
+  if (addr.kind === "planet") return null;
   if (addr.kind !== "starbase" && addr.kind !== "wormhole") return { kind: addr.kind, id: addr.id };
   return system === null ? null : { kind: addr.kind, system, id: addr.id };
 }
 
+/** Bumped by every `openPlanet` and by another document, so only the last click opens its page. */
+let planetAsk = 0;
+
+/** Forgets the planet pages `openPlanet` is waiting on. */
+export function forgetPlanetOpens(): void {
+  planetAsk += 1;
+}
+
 /**
- * Drills onto save planet `id` from a link that knows only its id. A planet that no read places
- * yet opens once its own page says which system it is in, unless another page opened meanwhile.
+ * Drills onto save planet `id` from a link that knows only its id. A planet that no fresh read
+ * places yet opens once its page is read, on the system the page names, unless another page or
+ * another such link was opened meanwhile.
  */
 export function openPlanet(id: number, label: string): void {
+  const ask = ++planetAsk;
   const inspector = useInspectorStore.getState();
   const known = planetSystem(id);
   if (known !== null) {
@@ -240,15 +254,19 @@ export function openPlanet(id: number, label: string): void {
     return;
   }
   const top = inspector.stack[inspector.stack.length - 1];
-  ipc
-    .getPlanetPage(id)
-    .then((page) => {
-      const { stack, open } = useInspectorStore.getState();
-      if (page.system !== null && stack[stack.length - 1] === top) {
-        open(bodyEntry(page.system, id, label));
-      }
-    })
-    .catch((e: unknown) => console.warn("planet page", ipc.errorMessage(e)));
+  const land = (state: EntityState) => {
+    if (ask !== planetAsk || state.errors.has(planetPageKey(id))) return stop();
+    const page = state.pages.get(id);
+    if (page === undefined || state.stalePages.has(id)) return;
+    stop();
+    const { stack, open } = useInspectorStore.getState();
+    if (page.system !== null && stack[stack.length - 1] === top) {
+      open(bodyEntry(page.system, id, label));
+    }
+  };
+  const stop = useEntityStore.subscribe(land);
+  useEntityStore.getState().requestPlanetPage(id);
+  land(useEntityStore.getState());
 }
 
 /** The page body `id` of `system` opens. */

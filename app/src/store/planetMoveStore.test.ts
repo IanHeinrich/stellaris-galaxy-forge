@@ -7,10 +7,12 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import type { Op } from "../generated/Op";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
+import { planetPage } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 import { run, type CommandEffects } from "./commands";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
+import { useEntityStore } from "./entityStore";
 import { editResult } from "./fixture";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
@@ -439,5 +441,105 @@ describe("Esc", () => {
     expect(moves().cut).toBeNull();
     esc();
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH, MARS] });
+  });
+});
+
+describe("a moved planet's page", () => {
+  const MOVED = editResult({ touched_entities: [{ kind: "planet", id: EARTH }] });
+
+  /** Earth's page as its read says, standing in `system`. */
+  async function readEarth(system: number): Promise<void> {
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: EARTH, system }));
+    useEntityStore.getState().requestPlanetPage(EARTH);
+    await vi.waitFor(() => expect(useEntityStore.getState().pages.get(EARTH)?.system).toBe(system));
+  }
+
+  /** Earth's page open above Sol's, and Earth moved to Barnard's Star from it. */
+  async function moveEarth(): Promise<void> {
+    await useEditorStore.getState().select(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openPage(bodyEntry(SOL, EARTH, "Earth"));
+    await readEarth(SOL);
+    mockedIpc.planetMoveOp.mockResolvedValue({
+      type: "MoveBodyToSystem",
+      body: EARTH,
+      to: BARNARD,
+    });
+    mockedIpc.applyOp.mockResolvedValueOnce(MOVED);
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: EARTH, system: BARNARD }));
+    await moves().movePlanet(EARTH, BARNARD);
+    await vi.waitFor(() => expect(useEntityStore.getState().stalePages.has(EARTH)).toBe(false));
+    expect(topPage()).toEqual({ kind: "body", system: BARNARD, id: EARTH });
+  }
+
+  it("follows the planet back on undo and out again on redo, as its page reads it", async () => {
+    await moveEarth();
+
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: EARTH, system: SOL }));
+    mockedIpc.undo.mockResolvedValueOnce(MOVED);
+    await useEditorStore.getState().undo();
+    await vi.waitFor(() => expect(topPage()).toEqual({ kind: "body", system: SOL, id: EARTH }));
+
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: EARTH, system: BARNARD }));
+    mockedIpc.redo.mockResolvedValueOnce(MOVED);
+    await useEditorStore.getState().redo();
+    await vi.waitFor(() => expect(topPage()).toEqual({ kind: "body", system: BARNARD, id: EARTH }));
+  });
+
+  it("closes with the system it is back in once that system goes", async () => {
+    await moveEarth();
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: EARTH, system: SOL }));
+    mockedIpc.undo.mockResolvedValueOnce(MOVED);
+    await useEditorStore.getState().undo();
+    await vi.waitFor(() => expect(topPage()).toEqual({ kind: "body", system: SOL, id: EARTH }));
+
+    useInspectorStore.getState().renumber([[SOL, null]]);
+    expect(useInspectorStore.getState().stack.map((e) => e.ref.kind)).toEqual(["galaxy"]);
+  });
+});
+
+describe("a planet page's System field", () => {
+  it("keeps the warnings a move met through the view following it, until the next edit", async () => {
+    useSceneStore.getState().enterSystem(SOL);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, EARTH, "Earth"));
+    mockedIpc.planetMoveOp.mockResolvedValue({
+      type: "MoveBodyToSystem",
+      body: EARTH,
+      to: BARNARD,
+    });
+
+    expect(await moves().movePlanet(EARTH, BARNARD, [COLONY])).toBe(true);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: BARNARD });
+    expect(moves().lastMove).toEqual({ planet: EARTH, warnings: [COLONY] });
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: SOL, x: 1, y: 1 });
+    expect(moves().lastMove).toBeNull();
+  });
+
+  it("forgets the warnings on undo", async () => {
+    await moves().movePlanet(EARTH, BARNARD, [COLONY]);
+    expect(moves().lastMove).toEqual({ planet: EARTH, warnings: [COLONY] });
+
+    mockedIpc.undo.mockResolvedValueOnce(editResult());
+    await useEditorStore.getState().undo();
+    expect(moves().lastMove).toBeNull();
+  });
+
+  it("reads where the planet may move, and again after an edit", async () => {
+    moves().followPlanet(EARTH);
+    await settle();
+    expect(moves().planetTargets).toEqual({ planet: EARTH, read: { targets: targets([EARTH]) } });
+    expect(mockedIpc.planetMoveTargets).toHaveBeenLastCalledWith([EARTH]);
+    mockedIpc.planetMoveTargets.mockClear();
+
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: SOL, x: 1, y: 1 });
+    await settle();
+    expect(mockedIpc.planetMoveTargets).toHaveBeenCalledWith([EARTH]);
+
+    moves().followPlanet(null);
+    expect(moves().planetTargets).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyClassName } from "../../../lib/details/labels";
 import { capabilityFor } from "../../../lib/entities";
 import type { Names } from "../../../lib/names";
 import { cutHint, cutLabel, movingBodies, selectionLine } from "../../../lib/planetMove";
@@ -10,8 +10,8 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { cutAvailability, cutPlanets, usePlanetMoveStore } from "../../../store/planetMoveStore";
-import { useSceneStore } from "../../../store/sceneStore";
-import { useBodyName } from "../entity/useBodyName";
+import { useSceneStore, type BodySelection } from "../../../store/sceneStore";
+import { useSystemBodyNamer } from "../entity/useBodyName";
 import { DrillLink, Empty, Section } from "../parts";
 
 /** Whether `a` and `b` hold the same ids. */
@@ -40,13 +40,14 @@ function bodyNote(
 function SelectedBody({
   system,
   id,
+  name,
   children,
 }: {
   system: number;
   id: number;
+  name: string;
   children: ReactNode;
 }) {
-  const name = useBodyName(id);
   const open = useInspectorStore((s) => s.open);
   const toggleBody = useSceneStore((s) => s.toggleBody);
   return (
@@ -81,23 +82,27 @@ function SelectedBody({
 export function BodySelectionView({ entry }: { entry: Entry }) {
   const system = entry.ref.kind === "bodies" ? entry.ref.system : null;
   const selection = useSceneStore((s) => s.bodySelection);
+  if (system === null || selection === null || selection.system !== system) {
+    return <Empty>No bodies are selected.</Empty>;
+  }
+  return <SelectedBodies selection={selection} />;
+}
+
+/** The summary of `selection`, two or more bodies of one system. */
+function SelectedBodies({ selection }: { selection: BodySelection }) {
+  const { system } = selection;
   const selectionTargets = usePlanetMoveStore((s) => s.selectionTargets);
   const cut = usePlanetMoveStore((s) => s.cut);
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const cancelCut = usePlanetMoveStore((s) => s.cancelCut);
-  const read = useDetailsStore((s) => (system === null ? undefined : s.details.get(system)));
+  const read = useDetailsStore((s) => s.details.get(system));
   const names = useGameDataStore((s) => s.names);
   const countryName = useGalaxyStore((s) => s.countryName);
-  if (system === null || selection === null || selection.system !== system) {
-    return <Empty>No bodies are selected.</Empty>;
-  }
+  const nameIn = useSystemBodyNamer(system);
 
   const planets = read?.planets ?? [];
   const bodyOf = (id: number) => planets.find((p) => p.id === id);
-  const nameOf = (id: number) => {
-    const body = bodyOf(id);
-    return body === undefined ? `#${id}` : bodyName(body, names);
-  };
+  const nameOf = (id: number) => nameIn(id) ?? `#${id}`;
   const moving = movingBodies(selection.ids, (id) => bodyOf(id)?.parent ?? null);
   const movingSet = new Set(moving);
   const moonsAlong = planets.filter((p) => p.parent !== null && movingSet.has(p.parent)).length;
@@ -124,7 +129,7 @@ export function BodySelectionView({ entry }: { entry: Entry }) {
         {selection.ids.map((id) => {
           const body = bodyOf(id);
           return (
-            <SelectedBody key={id} system={system} id={id}>
+            <SelectedBody key={id} system={system} id={id} name={nameOf(id)}>
               {body !== undefined && (
                 <span className="muted">
                   {" "}

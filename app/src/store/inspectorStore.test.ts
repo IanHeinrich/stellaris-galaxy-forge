@@ -21,7 +21,9 @@ import { openSystem } from "./commands";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { editResult } from "./fixture";
 import { listeners, loadGameData, SUMMARY } from "./gameDataFixture";
+import type { PlanetPage } from "../generated/PlanetPage";
 import { planetPage } from "../test/builders";
+import { useEntityStore } from "./entityStore";
 import { mockedIpc } from "../test/ipc";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -450,6 +452,25 @@ describe("a save body's page", () => {
     openPlanet(1207, "Earth");
 
     await vi.waitFor(() => expect(refs()).toEqual([SOL.ref, EARTH.ref]));
+  });
+
+  it("opens the last of two such links, whichever page is read first", async () => {
+    await openFixtureSave();
+    inspector().setRoot(SOL);
+    let earthRead: (page: PlanetPage) => void = () => undefined;
+    let lunaRead: (page: PlanetPage) => void = () => undefined;
+    mockedIpc.getPlanetPage
+      .mockReturnValueOnce(new Promise((resolve) => (earthRead = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (lunaRead = resolve)));
+
+    openPlanet(1207, "Earth");
+    openPlanet(1208, "Luna");
+    earthRead(planetPage({ id: 1207, system: 452 }));
+    await vi.waitFor(() => expect(useEntityStore.getState().pages.has(1207)).toBe(true));
+    expect(refs()).toEqual([SOL.ref]);
+
+    lunaRead(planetPage({ id: 1208, system: 452 }));
+    await vi.waitFor(() => expect(refs()).toEqual([SOL.ref, LUNA.ref]));
   });
 });
 
