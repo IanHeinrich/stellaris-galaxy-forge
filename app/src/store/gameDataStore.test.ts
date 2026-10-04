@@ -322,20 +322,12 @@ describe("initializers", () => {
     expect(useGameDataStore.getState().initializers).toBeNull();
   });
 
-  it("a scenario reads them as it loads, keeping the star class the core draws each one as", async () => {
+  it("a scenario reads them as it loads", async () => {
     mockedIpc.getInitializers.mockResolvedValue(INITIALIZERS);
     useFileSessionStore.setState({ kind: "scenario", capabilities: SCENARIO_CAPABILITIES });
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     await useGameDataStore.getState().load();
     await vi.waitFor(() => expect(useGameDataStore.getState().initializers).toEqual(INITIALIZERS));
-    const classes = useGameDataStore.getState().initializerClasses;
-    expect([...classes]).toEqual([
-      ["sol_system", "sc_g"],
-      ["hole_init", "sc_black_hole"],
-    ]);
-
-    await useGameDataStore.getState().unload();
-    expect(useGameDataStore.getState().initializerClasses.size).toBe(0);
   });
 
   it("another install reads them again", async () => {

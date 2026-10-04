@@ -51,7 +51,7 @@ import {
 import { FLAT_BODY_MAX_PX } from "../geometry";
 import { ICY_TINT } from "../look";
 import { pickBody } from "../picking";
-import { NO_SOURCES } from "../sources";
+import { NO_SOURCES, placeIn } from "../sources";
 import { BodiesLayer } from "./BodiesLayer";
 
 /** Drops the last fetch's answer, so a test waits for its own. */
@@ -108,15 +108,16 @@ describe("the system scene's bodies layer", () => {
   it("draws a pulsar's beams about a scenario's star of that class", () => {
     const ctx = systemContext({
       ...NO_SOURCES,
-      kind: "scenario",
       id: SYSTEM,
-      systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: "pulsar_init" }),
+      ...placeIn(
+        byId({ ...placedNode(SYSTEM, 0, 0), star_class: "sc_pulsar", initializer: "pulsar_init" }),
+        SYSTEM,
+      ),
       details: systemDetails({
         id: SYSTEM,
         planets: [scenarioBody(1, "pc_pulsar", { orbit: fixed(0), angle: fixed(0) })],
       }),
       starClasses: new Map([["sc_pulsar", starClassView("sc_pulsar", "pc_pulsar")]]),
-      initializerClasses: new Map([["pulsar_init", "sc_pulsar"]]),
     });
     const layer = new BodiesLayer(blankSceneTextures());
     layer.rebuild(ctx);
@@ -255,7 +256,6 @@ describe("the system scene's bodies layer", () => {
     const src = {
       ...NO_SOURCES,
       id: SYSTEM,
-      kind: "save" as const,
       systems: byId(placedNode(SYSTEM, 0, 0)),
       details: systemDetails({ id: SYSTEM, planets: [SUN, EARTH, MARS] }),
       planetClasses: new Map([

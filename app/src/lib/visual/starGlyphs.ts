@@ -1,4 +1,3 @@
-import type { DocumentKind } from "../../generated/DocumentKind";
 import type { StarClassView } from "../../generated/StarClassView";
 
 export interface StarGlyph {
@@ -62,18 +61,16 @@ export function starTextureKey(
   return view ? { key: view.texture_key, scale: view.icon_scale } : null;
 }
 
-/** Stands in for "the game picks one" on a scenario system the initializer leaves open. */
-export const RANDOM_STAR_CLASS = "sc_g";
+/**
+ * The class drawn for any system that names none: a scenario system whose initializer draws from
+ * a random list, names none or is missing from the install, or any before game data loads.
+ */
+const RANDOM_STAR_CLASS = "sc_g";
 
 /**
- * The class a system's art is chosen by: its own, else the one the core resolved for its
- * initializer, else the stand-in a scenario draws for an initializer the install lacks.
+ * The class a system's art is chosen by: its own, which the core gives a scenario system from its
+ * initializer, else the stand-in for a star the game picks only when it generates the galaxy.
  */
-export function effectiveStarClass(
-  node: { star_class: string },
-  initializerClass: string | undefined,
-  kind: DocumentKind | null,
-): string {
-  if (node.star_class !== "") return node.star_class;
-  return initializerClass ?? (kind === "scenario" ? RANDOM_STAR_CLASS : "");
+export function drawnStarClass(node: { star_class: string }): string {
+  return node.star_class === "" ? RANDOM_STAR_CLASS : node.star_class;
 }

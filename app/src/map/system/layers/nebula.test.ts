@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { byId, placedNode } from "../../../test/builders";
 import { systemContext, type SystemContext } from "../context";
 import { context as systemAt, viewport } from "../fixture";
+import { placeIn } from "../sources";
 import { NebulaLayer } from "./NebulaLayer";
 
 const INNER = 120;
@@ -14,7 +15,7 @@ function context(id: number, nebula: number | null, nebulaShown = true): SystemC
     ...ctx,
     sceneLayers: { ...ctx.sceneLayers, nebulae: nebulaShown },
     id,
-    systems: byId({ ...placedNode(id, 0, 0), nebula }),
+    ...placeIn(byId({ ...placedNode(id, 0, 0), nebula }), id),
   });
 }
 

@@ -166,7 +166,6 @@ function orbitFrame(): SystemContext {
   return systemContext({
     ...NO_SOURCES,
     id: ORBITS,
-    kind: "save",
     details: { ...details, planets },
     planetClasses: orbitClasses(),
     geometry: SAVE_GEOMETRY,
@@ -435,7 +434,6 @@ describe("a body dragged in the system scene", () => {
       systemContext({
         ...NO_SOURCES,
         id: ORBITS,
-        kind: "save",
         details: { ...frame.details!, planets: named8 },
         planetClasses,
         geometry: SAVE_GEOMETRY,
@@ -460,7 +458,6 @@ describe("a body dragged in the system scene", () => {
       systemContext({
         ...NO_SOURCES,
         id: ORBITS,
-        kind: "save",
         details: { ...details, planets },
         planetClasses: orbitClasses(),
         geometry: SAVE_GEOMETRY,
@@ -508,7 +505,6 @@ describe("a body dragged in the system scene", () => {
       systemContext({
         ...NO_SOURCES,
         id: ORBITS,
-        kind: "save",
         details: { ...details, planets },
         planetClasses: orbitClasses(),
         geometry: SAVE_GEOMETRY,
@@ -651,7 +647,6 @@ describe("a body dragged onto a companion star", () => {
     return systemContext({
       ...NO_SOURCES,
       id: ORBITS,
-      kind: "save",
       details: { ...details, planets },
       planetClasses: orbitClasses(),
       geometry: SAVE_GEOMETRY,

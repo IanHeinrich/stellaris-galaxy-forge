@@ -20,7 +20,7 @@ const renderer = { generateTexture: () => Texture.EMPTY } as unknown as Renderer
 
 describe("a delta that removes a system", () => {
   it("takes its star with it", () => {
-    const layer = new SystemsLayer(renderer);
+    const layer = new SystemsLayer(renderer, new DrawnPositions());
     layer.rebuild(mapContext(NODES));
     expect(layer.container.children).toHaveLength(2);
 
@@ -44,7 +44,7 @@ describe("a delta that removes a system", () => {
 describe("a delta that removes most systems at once", () => {
   it("takes their stars and keeps the rest where they were", () => {
     const nodes = Array.from({ length: 40 }, (_, i) => mapNode(i, i * 10, `S${i}`));
-    const layer = new SystemsLayer(renderer);
+    const layer = new SystemsLayer(renderer, new DrawnPositions());
     layer.rebuild(mapContext(nodes));
     const kept = nodes.filter((n) => n.id % 4 === 0);
     layer.rebuild(mapContext(kept));

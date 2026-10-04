@@ -22,16 +22,45 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { moonScaleOf, systemRadiiOf, useGameDataStore } from "../../store/gameDataStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { currentOwnership } from "../../store/ownership";
+import { currentOwnership, subscribeOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
-import { sameFields } from "../follows";
+import { follows, sameFields, type Binding } from "../follows";
 import type { Systems } from "../RenderContext";
 
-/** What the scene reads from the stores for the one system it shows. */
-export interface SystemSources {
-  readonly id: number | null;
-  readonly systems: Systems;
+/** A system a hyperlane leads to from the one the scene shows. */
+export interface Neighbour {
+  readonly node: SystemNode;
+  /** The lane's length. */
+  readonly length: number;
+}
+
+/** The system the scene shows, as its document holds it. */
+export interface SceneSubject {
   readonly details: SystemDetails | null;
+  /** Where the roll drawn lands the system's bodies, or the planets the game rolls; null until one is in. */
+  readonly roll: SystemRoll | null;
+  /** Its node in the open galaxy; null for a system shown outside one. */
+  readonly node: SystemNode | null;
+  /** The systems its hyperlanes lead to, each drawn as an exit. */
+  readonly neighbours: readonly Neighbour[];
+}
+
+/** A store field the scene's sources are read from: a change to it re-reads them. */
+export type SourceFollow = Binding<{ refresh(): void }, never>;
+
+/** Where the scene reads the system it shows from, for one kind of document. */
+export interface SubjectProvider {
+  /** System `id`'s subject as the stores hold it, asking for the roll it draws. */
+  read(id: number | null): SceneSubject;
+  /** The store fields `read` reads. */
+  readonly follows: readonly SourceFollow[];
+}
+
+/** What the scene reads from the stores for the one system it shows. */
+export interface SystemSources extends SceneSubject {
+  readonly id: number | null;
+  /** The open galaxy's systems, which name a wormhole's partner. */
+  readonly systems: Systems;
   readonly names: ReadonlyMap<string, string>;
   readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
   /** The install's `NGraphics.MOON_SCALE`; `VANILLA_MOON_SCALE` before game data gives one. */
@@ -43,15 +72,15 @@ export interface SystemSources {
   readonly beltKinds: ReadonlyMap<string, BeltKindView>;
   /** Each bypass kind the game data defines, for the glyph a wormhole's plate shows. */
   readonly bypassKinds: BypassKinds;
-  /** The star class each initializer gives its system, for a scenario system with none of its own. */
-  readonly initializerClasses: ReadonlyMap<string, string>;
-  readonly kind: DocumentKind | null;
+  /**
+   * The system's bodies are rolled from its initializer, so a system listing none draws its star
+   * class's stars.
+   */
+  readonly rolledLayout: boolean;
   readonly gameDataReady: boolean;
   readonly resourceIcons: ReadonlyMap<string, string>;
   /** Which of the scene's switches are on: names, resources, clouds, wormholes and orbit radii. */
   readonly sceneLayers: Readonly<Record<SceneLayerId, boolean>>;
-  /** Where the roll drawn lands the system's bodies, or the planets the game rolls; null until one is in. */
-  readonly roll: SystemRoll | null;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
   /** Each country, for the flag a colonised body's name shows with details on. */
@@ -69,6 +98,8 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   id: null,
   systems: new Map<number, SystemNode>(),
   details: null,
+  node: null,
+  neighbours: [],
   names: new Map<string, string>(),
   planetClasses: new Map<string, PlanetClassView>(),
   moonScale: VANILLA_MOON_SCALE,
@@ -76,8 +107,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
   bypassKinds: new Map(),
-  initializerClasses: new Map<string, string>(),
-  kind: null,
+  rolledLayout: false,
   gameDataReady: false,
   resourceIcons: new Map<string, string>(),
   sceneLayers: Object.freeze({
@@ -102,6 +132,8 @@ export const sameSources = sameFields<SystemSources>({
   id: true,
   systems: true,
   details: true,
+  node: true,
+  neighbours: true,
   names: true,
   planetClasses: true,
   moonScale: true,
@@ -109,8 +141,7 @@ export const sameSources = sameFields<SystemSources>({
   starClasses: true,
   beltKinds: true,
   bypassKinds: true,
-  initializerClasses: true,
-  kind: true,
+  rolledLayout: true,
   gameDataReady: true,
   resourceIcons: true,
   sceneLayers: true,
@@ -134,14 +165,97 @@ function beltKindsBy(kinds: readonly BeltKindView[]): ReadonlyMap<string, BeltKi
   return map;
 }
 
-/** The stores' state for system `id`, as the scene reads it, asking for the roll it draws. */
-export function readSystemSources(id: number | null): SystemSources {
+const NO_NEIGHBOURS: readonly Neighbour[] = [];
+const neighbourLists = new WeakMap<Systems, WeakMap<SystemNode, readonly Neighbour[]>>();
+
+/** The systems `node`'s lanes lead to in `systems`, the same list while both stand. */
+function neighboursIn(systems: Systems, node: SystemNode): readonly Neighbour[] {
+  let byNode = neighbourLists.get(systems);
+  if (!byNode) neighbourLists.set(systems, (byNode = new WeakMap()));
+  let list = byNode.get(node);
+  if (!list) {
+    list = node.lanes.flatMap((lane) => {
+      const other = systems.get(lane.to);
+      return other ? [{ node: other, length: lane.length }] : [];
+    });
+    byNode.set(node, list);
+  }
+  return list;
+}
+
+/** System `id` of `systems`: its node, and the systems its lanes lead to. */
+export function placeIn(
+  systems: Systems,
+  id: number | null,
+): Pick<SceneSubject, "node" | "neighbours"> {
+  const node = id === null ? undefined : systems.get(id);
+  return node
+    ? { node, neighbours: neighboursIn(systems, node) }
+    : { node: null, neighbours: NO_NEIGHBOURS };
+}
+
+const refresh = (_state: unknown, view: { refresh(): void }) => view.refresh();
+
+/** A system of the open galaxy, a save's or a scenario's, read by its id. */
+const GALAXY_SUBJECT: SubjectProvider = {
+  read(id) {
+    const details = useDetailsStore.getState();
+    if (id !== null) details.requestRoll(id, useSceneStore.getState().roll);
+    return {
+      details: id === null ? null : (details.details.get(id) ?? null),
+      roll: shownRoll(details.rolls, id),
+      ...placeIn(useGalaxyStore.getState().systems, id),
+    };
+  },
+  follows: [
+    follows(useGalaxyStore, [(s) => s.systems], refresh),
+    follows(useDetailsStore, [(s) => s.details, (s) => s.version, (s) => s.rolls], refresh),
+    follows(useSceneStore, [(s) => s.roll], refresh),
+  ],
+};
+
+const SUBJECTS: Record<DocumentKind, SubjectProvider> = {
+  save: GALAXY_SUBJECT,
+  scenario: GALAXY_SUBJECT,
+};
+
+/** Where the open document's systems are read from; a galaxy's before a document opens. */
+export function documentSubject(): SubjectProvider {
+  const { kind } = useFileSessionStore.getState();
+  return kind === null ? GALAXY_SUBJECT : SUBJECTS[kind];
+}
+
+/** Every store field `readSystemSources` reads, whichever subject it is given. */
+export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
+  ...[...new Set(Object.values(SUBJECTS))].flatMap((subject) => subject.follows),
+  follows(
+    useGameDataStore,
+    [
+      (s) => s.names,
+      (s) => s.status,
+      (s) => s.planetClasses,
+      (s) => s.starClasses,
+      (s) => s.summary,
+      (s) => s.bypasses,
+    ],
+    refresh,
+  ),
+  follows(useDetailsStore, [(s) => s.resourceIcons], refresh),
+  follows(useGalaxyStore, [(s) => s.systems, (s) => s.countries], refresh),
+  follows(useFileSessionStore, [(s) => s.kind, (s) => s.capabilities], refresh),
+  follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
+  follows(useSceneStore, [(s) => s.lockedBodies], refresh),
+  { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
+];
+
+/** The stores' state for system `id`, as the scene reads it, with `subject` giving the system. */
+export function readSystemSources(id: number | null, subject: SubjectProvider): SystemSources {
   const galaxy = useGalaxyStore.getState();
   const data = useGameDataStore.getState();
   const details = useDetailsStore.getState();
-  const { roll, lockedBodies } = useSceneStore.getState();
+  const { lockedBodies } = useSceneStore.getState();
   const session = useFileSessionStore.getState();
-  if (id !== null) details.requestRoll(id, roll);
+  const capabilities = documentCapabilities(session);
   const names = data.names;
   const ready = data.status === "ready";
   const resolve = (t: NameTemplate): string | undefined => {
@@ -151,8 +265,8 @@ export function readSystemSources(id: number | null): SystemSources {
   };
   return Object.freeze({
     id,
+    ...subject.read(id),
     systems: galaxy.systems,
-    details: id === null ? null : (details.details.get(id) ?? null),
     names,
     planetClasses: data.planetClasses,
     moonScale: moonScaleOf(data),
@@ -160,19 +274,17 @@ export function readSystemSources(id: number | null): SystemSources {
     starClasses: data.starClasses,
     beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),
     bypassKinds: data.bypasses,
-    initializerClasses: data.initializerClasses,
-    kind: session.kind,
+    rolledLayout: capabilities.rolled_layout,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,
     sceneLayers: useMapChromeStore.getState().sceneLayers,
-    roll: shownRoll(details.rolls, id),
     ownership: currentOwnership(),
     countries: galaxy.countries,
     nodeName: (name: NameTemplate) => nodeNameIn(names, name),
     templateName: (named: { name: NameTemplate; name_key: string }) =>
       templateNameIn(names, ready, resolve, named),
     countryName: galaxy.countryName,
-    geometry: geometryAdapterFor(session.kind, documentCapabilities(session), id),
+    geometry: geometryAdapterFor(session.kind, capabilities, id),
     lockedBodies,
   });
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../../api/ipc");
 vi.mock("../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
 
 import { BitmapText, Container } from "pixi.js";
@@ -8,12 +9,14 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
 import type { GeometryIntent } from "../../lib/details/orbitIntent";
-import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { geometryAdapterFor, SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import {
   beltKind,
   bodyLayout,
   byId,
   countryNode,
+  gameDataSummary,
   orbitClasses,
   orbitSystem,
   placedNode,
@@ -23,9 +26,7 @@ import {
   systemDetails,
 } from "../../test/builders";
 import { systemRoll } from "../../test/rolls";
-import { Camera } from "../Camera";
 import { systemContext } from "./context";
-import { handleOwnerAt, pickHandle } from "./picking";
 import {
   blankSceneTextures,
   context as fixtureContext,
@@ -38,8 +39,22 @@ import {
 } from "./fixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
+import { useDetailsStore } from "../../store/detailsStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useGalaxyStore } from "../../store/galaxyStore";
+import { useGameDataStore } from "../../store/gameDataStore";
+import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
-import { NO_SOURCES, readSystemSources, sameSources, type SystemSources } from "./sources";
+import {
+  documentSubject,
+  NO_SOURCES,
+  placeIn,
+  readSystemSources,
+  sameSources,
+  SOURCE_FOLLOWS,
+  type SceneSubject,
+  type SystemSources,
+} from "./sources";
 
 stubTextMeasurement();
 
@@ -73,22 +88,38 @@ const sources: SystemSources = {
 function save(planets: PlanetSummary[], over: Partial<SystemSources> = {}) {
   return systemContext({
     ...sources,
-    kind: "save",
-    systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "sc_g" }),
+    ...placeIn(byId({ ...placedNode(SYSTEM, 0, 0), star_class: "sc_g" }), SYSTEM),
     details: systemDetails({ id: SYSTEM, planets }),
     ...over,
   });
 }
 
-/** A scenario system of `planets` drawn in `roll`, its initializer's star class `sc_g`. */
-function scenario(planets: PlanetSummary[] | null, roll: SystemRoll | null, over = {}) {
+/** The scenario system's node and neighbours, of the star class the core draws for it. */
+const scenarioNode = (starClass: string) =>
+  placeIn(
+    byId({ ...placedNode(SYSTEM, 0, 0), star_class: starClass, initializer: INITIALIZER }),
+    SYSTEM,
+  );
+
+/**
+ * A scenario system of `planets` drawn in `roll`, its initializer's star class `sc_g`, edited by
+ * the adapter a scenario's capabilities choose.
+ */
+function scenario(
+  planets: PlanetSummary[] | null,
+  roll: SystemRoll | null,
+  over: Partial<SystemSources> = {},
+) {
+  const subject: SceneSubject = {
+    details: planets && systemDetails({ id: SYSTEM, planets, with_game_data: true }),
+    roll,
+    ...scenarioNode("sc_g"),
+  };
   return systemContext({
     ...sources,
-    kind: "scenario",
-    systems: byId({ ...placedNode(SYSTEM, 0, 0), star_class: "", initializer: INITIALIZER }),
-    details: planets && systemDetails({ id: SYSTEM, planets, with_game_data: true }),
-    initializerClasses: new Map([[INITIALIZER, "sc_g"]]),
-    roll,
+    ...subject,
+    rolledLayout: SCENARIO_CAPABILITIES.rolled_layout,
+    geometry: geometryAdapterFor("scenario", SCENARIO_CAPABILITIES, SYSTEM),
     ...over,
   });
 }
@@ -333,9 +364,7 @@ describe("the bodies of a system", () => {
   });
 
   it("draws both stars of a binary scenario system still loading", () => {
-    const ctx = scenario(null, null, {
-      initializerClasses: new Map([[INITIALIZER, "sc_binary_ab"]]),
-    });
+    const ctx = scenario(null, null, scenarioNode("sc_binary_ab"));
     expect(ctx.bodies.map((b) => [b.surfaceClass, b.starClass])).toEqual([
       ["pc_a_star", "sc_a"],
       ["pc_b_star", "sc_b"],
@@ -343,9 +372,7 @@ describe("the bodies of a system", () => {
   });
 
   it("draws a scenario system still loading as its initializer's star, with no question mark", () => {
-    const ctx = scenario(null, null, {
-      initializerClasses: new Map([[INITIALIZER, "sc_pulsar"]]),
-    });
+    const ctx = scenario(null, null, scenarioNode("sc_pulsar"));
     const [pulsar] = ctx.bodies;
     expect(pulsar.starClass).toBe("sc_pulsar");
     expect(pulsar.surfaceClass).toBe("pc_pulsar");
@@ -506,7 +533,6 @@ describe("a system shown under a preview", () => {
   const src: SystemSources = {
     ...sources,
     id: 140,
-    kind: "save",
     details: orbitSystem(),
     planetClasses: orbitClasses(),
     geometry: SAVE_GEOMETRY,
@@ -514,13 +540,7 @@ describe("a system shown under a preview", () => {
 
   function previewed(intent: GeometryIntent) {
     const base = systemContext(src);
-    const frame = {
-      layout: base.layout,
-      details: src.details,
-      planetClasses: src.planetClasses,
-      radii: base.radii,
-    };
-    const override = SAVE_GEOMETRY.preview(intent, frame);
+    const override = SAVE_GEOMETRY.preview(intent, base);
     return { base, shown: systemContext(src, { override, marks: null }) };
   }
 
@@ -577,37 +597,6 @@ describe("a system shown under a preview", () => {
       ...Array(6).fill(180),
       ...Array(6).fill(210),
     ]);
-  });
-
-  describe("the handles shown", () => {
-    const { base } = previewed({ kind: "setBeltRadius", system: 140, index: 1, radius: 180 });
-    const cam = new Camera();
-    cam.setViewport(800, 800);
-    const first = { kind: "belt", index: 0 } as const;
-    /** The world point `px` screen pixels out from the centre, straight up the screen. */
-    const up = (px: number) => cam.screenToWorld(400, 400 - px);
-
-    it("are the band's the pointer is over, or the inner radius's it is near, and none elsewhere", () => {
-      const half = (base.belts[0].outer - base.belts[0].inner) / 2;
-      expect(handleOwnerAt(base, cam, up(120))).toEqual(first);
-      expect(handleOwnerAt(base, cam, up(120 + half + 4))).toEqual(first);
-      expect(handleOwnerAt(base, cam, up(170 - half))).toEqual({ kind: "belt", index: 1 });
-      expect(handleOwnerAt(base, cam, up(203))).toEqual({ kind: "innerRadius" });
-      expect(handleOwnerAt(base, cam, up(60))).toBeNull();
-      expect(handleOwnerAt(base, cam, up(260))).toBeNull();
-    });
-
-    it("pick a belt from any of its six handles, and a hidden handle never", () => {
-      for (const { x, y } of base.handles.slice(0, 6)) {
-        const s = cam.worldToScreen(x, y);
-        const at = cam.screenToWorld(s.x + 2, s.y - 1);
-        expect(pickHandle(base.handles, cam, at, first), `${x},${y}`).toEqual(first);
-        expect(pickHandle(base.handles, cam, at, null)).toBeNull();
-        expect(pickHandle(base.handles, cam, at, { kind: "innerRadius" })).toBeNull();
-      }
-      const between = cam.screenToWorld(400 + 120, 400);
-      expect(pickHandle(base.handles, cam, between, first)).toBeNull();
-    });
   });
 
   it("lets nothing of a scenario system be edited, with no handles", () => {
@@ -678,13 +667,97 @@ describe("the lanes out of a system", () => {
 
 describe("the bodies locked to what they orbit", () => {
   it("are read from the scene store into the context, and a lock changes what the scene reads", () => {
-    const before = readSystemSources(null);
+    const before = readSystemSources(null, documentSubject());
     useSceneStore.getState().lockBody(3);
-    const after = readSystemSources(null);
+    const after = readSystemSources(null, documentSubject());
     expect(sameSources(before, after)).toBe(false);
     expect(systemContext(after).lockedBodies.has(3)).toBe(true);
     useSceneStore.getState().unlockBody(3);
-    expect(systemContext(readSystemSources(null)).lockedBodies.has(3)).toBe(false);
+    expect(systemContext(readSystemSources(null, documentSubject())).lockedBodies.has(3)).toBe(
+      false,
+    );
+  });
+});
+
+/** A store whose fields a test sets and puts back. */
+interface Settable {
+  getState(): object;
+  setState(state: object, replace?: boolean): void;
+}
+
+const READ_STORES: Readonly<Record<string, Settable>> = {
+  galaxy: useGalaxyStore,
+  gameData: useGameDataStore,
+  details: useDetailsStore,
+  scene: useSceneStore,
+  session: useFileSessionStore,
+  chrome: useMapChromeStore,
+};
+
+/** Runs `change`, puts every store back, and says whether the sources and the follows moved. */
+function afterChange(change: () => void): { changed: boolean; followed: boolean } {
+  const kept = Object.values(READ_STORES).map((store) => [store, store.getState()] as const);
+  let followed = false;
+  const view = { refresh: () => (followed = true) };
+  const offs = SOURCE_FOLLOWS.map((follow) => follow.subscribe(view));
+  const before = readSystemSources(SYSTEM, documentSubject());
+  change();
+  const changed = !sameSources(before, readSystemSources(SYSTEM, documentSubject()));
+  for (const off of offs) off();
+  for (const [store, state] of kept) store.setState(state, true);
+  return { changed, followed };
+}
+
+/** Another value of `value`'s kind, or undefined for one a sweep leaves alone. */
+function another(value: unknown): unknown {
+  if (value instanceof Map) return new Map(value);
+  if (value instanceof Set) return new Set(value);
+  if (Array.isArray(value)) return [...value];
+  if (typeof value === "number") return value + 1;
+  if (typeof value === "boolean") return !value;
+  if (value !== null && typeof value === "object") return { ...value };
+  return undefined;
+}
+
+describe("the store fields the scene reads", () => {
+  it("each change what the scene reads, and the scene follows each", () => {
+    const changes: Record<string, () => void> = {
+      systems: () => useGalaxyStore.setState({ systems: byId(placedNode(SYSTEM, 0, 0)) }),
+      countries: () =>
+        useGalaxyStore.setState({ countries: new Map([[9, countryNode({ id: 9 })]]) }),
+      details: () =>
+        useDetailsStore.setState({ details: new Map([[SYSTEM, systemDetails({ id: SYSTEM })]]) }),
+      rolls: () =>
+        useDetailsStore.setState({ rolls: new Map([[SYSTEM, systemRoll({ system: SYSTEM })]]) }),
+      resourceIcons: () => useDetailsStore.setState({ resourceIcons: new Map([["food", "f"]]) }),
+      names: () => useGameDataStore.setState({ names: new Map([["NAME", "Name"]]) }),
+      status: () => useGameDataStore.setState({ status: "ready" }),
+      planetClasses: () => useGameDataStore.setState({ planetClasses: new Map() }),
+      starClasses: () => useGameDataStore.setState({ starClasses: new Map() }),
+      summary: () => useGameDataStore.setState({ summary: gameDataSummary() }),
+      bypasses: () => useGameDataStore.setState({ bypasses: new Map() }),
+      kind: () => useFileSessionStore.setState({ kind: "scenario" }),
+      capabilities: () => useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES }),
+      sceneLayers: () => useMapChromeStore.setState({ sceneLayers: { ...NO_SOURCES.sceneLayers } }),
+      lockedBodies: () => useSceneStore.setState({ lockedBodies: new Set([3]) }),
+    };
+    const moved = Object.entries(changes).map(([field, change]) => [field, afterChange(change)]);
+    expect(moved).toEqual(
+      Object.keys(changes).map((field) => [field, { changed: true, followed: true }]),
+    );
+  });
+
+  it("are all followed: no field of the stores it reads changes the scene unfollowed", () => {
+    const unfollowed: string[] = [];
+    for (const [name, store] of Object.entries(READ_STORES)) {
+      for (const [field, value] of Object.entries(store.getState())) {
+        const next = another(value);
+        if (next === undefined) continue;
+        const { changed, followed } = afterChange(() => store.setState({ [field]: next }));
+        if (changed && !followed) unfollowed.push(`${name}.${field}`);
+      }
+    }
+    expect(unfollowed).toEqual([]);
   });
 });
 
@@ -693,7 +766,6 @@ describe("a system's wormholes", () => {
     const wormholes = [{ id: 30, bypass: 31, kind: "wormhole", partner: 6, x: 0, y: 100 }];
     const saved = systemContext({
       ...fixtureContext({ wormholes }),
-      kind: "save",
       geometry: SAVE_GEOMETRY,
     });
     const intent: GeometryIntent = {
