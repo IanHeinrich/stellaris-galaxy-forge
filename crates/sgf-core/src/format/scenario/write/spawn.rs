@@ -22,10 +22,9 @@ pub(super) fn set_weight(
 ) -> Result<Planned, OpError> {
     let (description, previous, script) = write_weight(plan, s, id, base)?;
     let inverse = match script {
-        Some(script) => Op::SetSpawnScript {
-            system: id,
-            script: Some(script),
-        },
+        Some((script, without_initializer)) => {
+            restore_seat(s, id, Some(script), without_initializer)
+        }
         None => Op::SetSpawnWeight {
             system: id,
             base: previous.1,
@@ -44,36 +43,36 @@ pub(super) fn set_script(
     script: Option<&SpawnScript>,
 ) -> Result<Planned, OpError> {
     let (description, (_, previous), gave_initializer) = write_script(plan, s, id, script)?;
-    let restore = Op::SetSpawnScript {
-        system: id,
-        script: previous.clone(),
-    };
-    let inverse = if gave_initializer {
-        Op::Batch {
-            description: format!(
-                "{} and removed its initializer",
-                paint::description(&named(&s.graph, id), previous.as_ref())
-            ),
-            ops: vec![
-                restore,
-                Op::SetInitializer {
-                    system: id,
-                    initializer: None,
-                },
-            ],
-        }
-    } else {
-        restore
-    };
     Ok(Planned {
         description,
-        inverse,
+        inverse: restore_seat(s, id, previous, gave_initializer),
     })
 }
 
+/// The op that puts a seat back. A seat the edit gave its initializer takes the
+/// initializer away again.
+fn restore_seat(s: &Session, id: u32, script: Option<SpawnScript>, remove_initializer: bool) -> Op {
+    let description = paint::description(&named(&s.graph, id), script.as_ref());
+    let restore = Op::SetSpawnScript { system: id, script };
+    if !remove_initializer {
+        return restore;
+    }
+    Op::Batch {
+        description: format!("{description} and removed its initializer"),
+        ops: vec![
+            restore,
+            Op::SetInitializer {
+                system: id,
+                initializer: None,
+            },
+        ],
+    }
+}
+
 /// What to call a weight change, the entry that puts the base back and, when the whole
-/// block went with it, the script that block was, which only a script puts back.
-type WeightWritten = (String, (u32, Option<f64>), Option<SpawnScript>);
+/// block went with it, the script that block was, which only a script puts back, and
+/// whether the system names no initializer for that script to seat.
+type WeightWritten = (String, (u32, Option<f64>), Option<(SpawnScript, bool)>);
 
 /// Write one system's spawn weight. A weight that is script is not a number to set:
 /// only its kind changes.
@@ -94,6 +93,7 @@ fn write_weight(
     let mut removed_block = false;
     let edit = plan.edit(&s.doc, id)?;
     let standing = block(edit)?;
+    let without_initializer = edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none();
     // A script's base is not a number to set, and a script beside modifiers is only
     // ever a hand edit: taking its base would leave a block no op can put back.
     if let Some(block) = &standing
@@ -140,7 +140,10 @@ fn write_weight(
         ),
         None => format!("Cleared the spawn weight of {}", named(&s.graph, id)),
     };
-    let script = removed_block.then(|| system.spawn_script.clone()).flatten();
+    let script = removed_block
+        .then(|| system.spawn_script.clone())
+        .flatten()
+        .map(|script| (script, without_initializer));
     Ok((description, (id, previous), script))
 }
 

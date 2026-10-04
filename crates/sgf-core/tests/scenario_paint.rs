@@ -227,6 +227,26 @@ fn the_sol_and_reserved_seats_carry_their_own_marker_and_an_enabled_one_has_none
 }
 
 #[test]
+fn clearing_a_scripted_seat_on_a_system_without_an_initializer_is_undone_exactly() {
+    let mut session = PAINTED.open_edited(&[(" initializer = random_empire_init_01", "")]);
+    let original = common::current(&session);
+    assert_eq!(session.graph().systems[&0].initializer, "");
+    assert!(session.graph().systems[&0].spawn_script.is_some());
+
+    let cleared = session
+        .apply(Op::SetSpawnWeight {
+            system: 0,
+            base: None,
+        })
+        .expect("clear");
+    assert_eq!(session.graph().systems[&0].spawn_script, None);
+
+    session.apply_inverse(cleared.inverse).expect("the inverse");
+    assert_eq!(common::current(&session), original);
+    assert_eq!(session.graph().systems[&0].initializer, "");
+}
+
+#[test]
 fn a_system_without_an_initializer_is_given_the_basic_one_before_its_weight() {
     let mut session = PAINTED.open();
     let result = session
