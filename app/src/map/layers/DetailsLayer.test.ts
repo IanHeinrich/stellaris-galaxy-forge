@@ -1,5 +1,6 @@
 import { DrawnPositions } from "../drawnPositions";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { until } from "../../test/wait";
 
 vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
@@ -133,7 +134,7 @@ describe("the details layer's rows", () => {
         .filter((t) => t.text !== "Sol")
         .sort((a, b) => a.x - b.x)
         .map((t) => t.text);
-    await vi.waitFor(() => {
+    await until(() => {
       viewport(layer, CLOSE);
       expect(glyphs()).toEqual(["◈", "⚱", "☗"]);
     });

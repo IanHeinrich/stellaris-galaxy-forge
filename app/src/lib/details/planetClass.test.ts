@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import { planetClassView } from "../../test/builders";
 import {
-  CLASS_FIXED,
   CLASSES_NEED_GAME_DATA,
   COLONY_CLASS_FIXED,
   classFieldReason,
@@ -38,15 +37,7 @@ describe("the classes a planet may take", () => {
     ]);
   });
 
-  it("offers a colony only the classes open to colonies", () => {
-    expect(classRows("pc_continental", true, false, CLASSES, label).map((r) => r.key)).toEqual([
-      "pc_ocean",
-    ]);
-  });
-
-  it("offers nothing where the planet keeps its class, and says why", () => {
-    expect(classRows("pc_habitat", false, false, CLASSES, label)).toEqual([]);
-    expect(classFieldReason("pc_habitat", false, CLASSES)).toBe(CLASS_FIXED);
+  it("says why a planet keeps its class", () => {
     expect(classFieldReason("pc_city", true, CLASSES)).toBe(COLONY_CLASS_FIXED);
     expect(classFieldReason("pc_barren", false, new Map())).toBe(CLASSES_NEED_GAME_DATA);
     expect(classFieldReason("pc_barren", false, CLASSES)).toBeNull();

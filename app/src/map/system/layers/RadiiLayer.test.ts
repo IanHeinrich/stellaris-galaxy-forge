@@ -15,7 +15,7 @@ import {
   scenarioBody,
   stubTextMeasurement,
   viewport,
-} from "../fixture";
+} from "../drawFixture";
 import { saveBody } from "../../../test/builders";
 import { drawnDisc, SELECTED_GAP_PX, SELECTED_WIDTH_PX } from "../geometry";
 import { RadiiLayer } from "./RadiiLayer";

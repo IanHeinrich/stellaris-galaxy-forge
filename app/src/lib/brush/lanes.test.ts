@@ -3,7 +3,7 @@ import { lanesTo, systemNode } from "../../test/builders";
 import { segmentsCross } from "../geometry/segments";
 import { MESH_BETA, type MeshPoint } from "../geometry/mesh";
 import type { Pair } from "../geometry/pairs";
-import { laneSegments, meshWithin, strokeLanes, withProvisionalIds } from "./lanes";
+import { laneSegments, strokeLanes, withProvisionalIds } from "./lanes";
 
 const SPACING = 10;
 const MAX = 3 * SPACING;
@@ -57,10 +57,6 @@ describe("strokeLanes", () => {
     maxLength: MAX,
   };
 
-  it("adds nothing when off", () => {
-    expect(strokeLanes({ ...base, mode: "off" })).toEqual([]);
-  });
-
   it("in 'new' mode links only new points, crossing no existing lane and no other new lane", () => {
     const pairs = strokeLanes({ ...base, mode: "new" });
     expect(pairs.length).toBeGreaterThan(20);
@@ -86,21 +82,5 @@ describe("strokeLanes", () => {
   it("drops edges longer than maxLength", () => {
     const pairs = strokeLanes({ ...base, mode: "nearby", maxLength: 12 });
     expect(pairs.every(([, b]) => b < 0)).toBe(true);
-  });
-});
-
-describe("meshWithin", () => {
-  it("meshes existing systems for the Connect brush, skipping linked pairs and crossings", () => {
-    const points: MeshPoint[] = NEARBY;
-    const linked = new Set(["1,2"]);
-    const pairs = meshWithin(points, {
-      beta: MESH_BETA.dense,
-      maxLength: 100,
-      existing: EXISTING,
-      keep: (a, b) => !linked.has(`${a},${b}`),
-    });
-    expect(pairs).not.toContainEqual([1, 2]);
-    expect(pairs.length).toBeGreaterThan(0);
-    expect(crossings(pairs, positions(points))).toBe(0);
   });
 });

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { mapNode } from "./layers/fixture";
+import { systemNode } from "../test/builders";
 import { matchingSystems } from "./matchingSystems";
 
 const NODES = [
-  mapNode(0, 0, "Sol", "guardian_dragon"),
-  mapNode(1, 10, "Alpha", "guardian_dragon"),
-  mapNode(2, 20, "Beta", ""),
-  mapNode(3, 30, "Gamma", "guardian_hive"),
+  systemNode({ id: 0, initializer: "guardian_dragon" }),
+  systemNode({ id: 1, initializer: "guardian_dragon" }),
+  systemNode({ id: 2, initializer: "" }),
+  systemNode({ id: 3, initializer: "guardian_hive" }),
 ];
 const SYSTEMS = new Map(NODES.map((n) => [n.id, n]));
 

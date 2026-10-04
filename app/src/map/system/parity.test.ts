@@ -18,7 +18,7 @@ import {
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { textureFetch } from "../../test/textures";
 import { systemContext, type SceneBody, type SystemContext } from "./context";
-import { blankSceneTextures, stubTextMeasurement, viewport } from "./fixture";
+import { blankSceneTextures, stubTextMeasurement, viewport } from "./drawFixture";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { LabelsLayer } from "./layers/LabelsLayer";
 import { NO_SOURCES, placeIn } from "./sources";

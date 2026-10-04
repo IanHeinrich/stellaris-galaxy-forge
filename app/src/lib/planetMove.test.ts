@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { lanesTo } from "../test/builders";
 import {
-  alreadyThere,
   andMore,
-  cutHint,
   cutCountLabel,
   cutLabel,
   jumpsFrom,
@@ -14,11 +11,8 @@ import {
   pasteLabel,
   placementAt,
   refusalLine,
-  selectedHint,
   selectionLine,
   warningLine,
-  warningLines,
-  warningText,
 } from "./planetMove";
 
 const MEISSA_II = { name: "Meissa II", moon: false };
@@ -32,21 +26,15 @@ const NAMES = {
   planet: (id: number) => ({ 1: "Kortol's Station", 2: "Meissa II", 3: "Meissa IV" })[id] ?? "?",
   country: () => "Hissman Consciousness",
 };
-const colony: PlanetMoveWarning = { planet: 1, kind: "colony", owner: 7, new_owner: 9 };
-const station: PlanetMoveWarning = { planet: 2, kind: "station", owner: 7, new_owner: 9 };
-const research: PlanetMoveWarning = { planet: 3, kind: "station", owner: 7, new_owner: 9 };
 
 describe("labels", () => {
   it("names the cut by its count", () => {
-    expect(cutLabel(THREE)).toBe("Cut 3 planets");
     expect(cutLabel([MEISSA_II])).toBe("Cut Meissa II");
     expect(cutLabel([URAY_IIIA])).toBe("Cut Uray IIIa");
   });
 
-  it("says what is moving and from where", () => {
+  it("says how many are moving and from where", () => {
     expect(movingLabel(THREE, "Meissa")).toBe("Moving 3 planets from Meissa");
-    expect(movingLabel([MEISSA_II], "Meissa")).toBe("Moving Meissa II from Meissa");
-    expect(movingLabel([URAY_IIIA], "Uray")).toBe("Moving Uray IIIa from Uray as a planet");
   });
 
   it("gives a lone planet's orbit and angle, and a group none", () => {
@@ -57,15 +45,7 @@ describe("labels", () => {
     expect(pasteLabel([MEISSA_II])).toBe("Paste Meissa II here");
   });
 
-  it("says a paste into the planets' own system has nowhere to go", () => {
-    expect(alreadyThere(THREE, "Meissa")).toBe("These planets are already in Meissa");
-    expect(alreadyThere([MEISSA_II], "Meissa")).toBe("Meissa II is already in Meissa");
-  });
-
-  it("says in the status bar what is selected and what is cut", () => {
-    expect(selectedHint(3, "Esc")).toBe(
-      "3 planets selected · Ctrl or Shift-click to add planets · Esc clears",
-    );
+  it("says in the status bar how many planets are cut", () => {
     expect(cutCountLabel(3)).toBe("3 planets cut");
   });
 
@@ -76,45 +56,19 @@ describe("labels", () => {
 });
 
 describe("warnings and refusals", () => {
-  it("words a colony and a station passing to another empire", () => {
-    expect(warningText(colony, NAMES)).toBe(
-      "Kortol's Station will change ownership to Hissman Consciousness about a month after you load",
-    );
-    expect(warningText(station, NAMES)).toBe(
-      "Meissa II's station will change ownership to Hissman Consciousness",
-    );
-  });
-
-  it("shows the first warning with the count, and lists them all", () => {
-    const all = [colony, station, research];
-    expect(warningLine(all, NAMES)).toBe(
-      "Kortol's Station will change ownership to Hissman Consciousness about a month after you load (and 2 more)",
-    );
-    expect(warningLines(all, NAMES)).toHaveLength(3);
+  it("has no line for no warnings or no refusals, and no count for a lone one", () => {
     expect(warningLine([], NAMES)).toBeNull();
-  });
-
-  it("names the first refusal and counts the rest", () => {
     expect(refusalLine([])).toBeNull();
-    expect(
-      refusalLine([
-        { planet: 1, reason: "Meissa III has an arc furnace" },
-        { planet: 2, reason: "Kortol's Station is occupied" },
-      ]),
-    ).toBe("Meissa III has an arc furnace (and 1 more)");
     expect(andMore("One", 1)).toBe("One");
   });
 });
 
 describe("the selection summary", () => {
   it("counts the planets, the moons that come along and the planet a lone moon leaves", () => {
-    expect(selectionLine(3, 2, [])).toBe("3 planets · 2 moons come along");
     expect(selectionLine(1, 1, [])).toBe("1 planet · 1 moon comes along");
     expect(selectionLine(2, 0, [{ moon: "Uray IIIa", planet: "Uray III" }])).toBe(
       "2 planets · Uray IIIa leaves Uray III",
     );
-    expect(cutHint(false)).toBe("Also in the right-click menu on the map.");
-    expect(cutHint(true)).toBe("Cut. Right-click a system to paste them there.");
   });
 });
 

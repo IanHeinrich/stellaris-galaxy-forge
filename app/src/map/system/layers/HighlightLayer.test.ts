@@ -18,7 +18,7 @@ import {
   stubTextMeasurement,
   viewport,
   WORMHOLE,
-} from "../fixture";
+} from "../drawFixture";
 import { drawnWormhole, SELECTED_GAP_PX } from "../geometry";
 import { HighlightLayer } from "./HighlightLayer";
 import { NO_HIGHLIGHT } from "./SystemLayer";

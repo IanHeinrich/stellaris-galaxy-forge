@@ -11,7 +11,7 @@ import {
   fixed,
   scenarioBody,
   viewport,
-} from "../fixture";
+} from "../drawFixture";
 import { saveBody } from "../../../test/builders";
 import { OrbitsLayer } from "./OrbitsLayer";
 
