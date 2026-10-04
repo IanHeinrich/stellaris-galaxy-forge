@@ -26,12 +26,16 @@ pub struct InstallArg {
     /// Game root, instead of searching the Steam libraries.
     #[arg(long = "install", id = "install")]
     pub path: Option<PathBuf>,
+    /// Read vanilla only, ignoring the enabled mods.
+    #[arg(long)]
+    pub no_mods: bool,
 }
 
 impl InstallArg {
     pub fn options(&self) -> LoadOptions {
         LoadOptions {
             install: self.path.clone(),
+            mods: !self.no_mods,
             ..LoadOptions::default()
         }
     }
@@ -240,9 +244,6 @@ pub enum Command {
         /// Localisation language folder.
         #[arg(long, default_value = "english")]
         lang: String,
-        /// Read vanilla only, ignoring the enabled mods.
-        #[arg(long)]
-        no_mods: bool,
     },
     /// List the special systems of a save (leviathans, enclaves, landmarks …).
     Special {

@@ -6,6 +6,7 @@ mod common;
 mod add_body;
 mod add_system;
 mod apply;
+mod details;
 mod export;
 mod gamedata;
 mod inspect;

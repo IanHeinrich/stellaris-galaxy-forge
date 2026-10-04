@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod deposits;
+pub mod generate;
 pub mod layouts;
 pub mod scripts;
 
@@ -11,6 +13,7 @@ use image::RgbaImage;
 use tempfile::TempDir;
 
 use sgf_core::document::Document;
+use sgf_core::format::save::details::Bounds;
 use sgf_core::session::Session;
 use sgf_gamedata::install::discovery::find_install;
 use sgf_gamedata::{GameData, LoadOptions, Phase};
@@ -343,4 +346,12 @@ pub fn temp_textures() -> (TempDir, sgf_gamedata::textures::Textures) {
     let dir = tempfile::tempdir().expect("temp dir");
     let textures = sgf_gamedata::textures::Textures::new(Some(dir.path().join("cache")));
     (dir, textures)
+}
+
+pub fn fixed(n: f64) -> Bounds {
+    Bounds::fixed(n)
+}
+
+pub fn range(min: f64, max: f64) -> Bounds {
+    Bounds { min, max }
 }

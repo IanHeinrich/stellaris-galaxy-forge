@@ -156,13 +156,8 @@ fn run(cli: Cli) -> commands::Run {
             waystations,
             out,
         }) => commands::synth::run(systems, seed, &waystations, out),
-        Some(Command::Gamedata {
-            install,
-            lang,
-            no_mods,
-        }) => commands::gamedata::run(&LoadOptions {
+        Some(Command::Gamedata { install, lang }) => commands::gamedata::run(&LoadOptions {
             language: lang,
-            mods: !no_mods,
             ..install.options()
         }),
         Some(Command::Special {
