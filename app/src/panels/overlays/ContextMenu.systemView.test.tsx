@@ -50,6 +50,7 @@ import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import { until } from "../../test/wait";
+import { flush } from "../../test/flush";
 
 bindStores();
 
@@ -334,7 +335,6 @@ describe("moving planets", () => {
   const colony = { planet: MARS, kind: "colony", owner: 0, new_owner: HISSMAN } as const;
   const station = { planet: EARTH, kind: "station", owner: 0, new_owner: HISSMAN } as const;
   const moves = () => usePlanetMoveStore.getState();
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   const targets = (planets: number[], over: Partial<PlanetMoveTargets> = {}) => ({
     planets,
     refused: [],
@@ -363,7 +363,7 @@ describe("moving planets", () => {
   async function selectBoth(): Promise<void> {
     useSceneStore.getState().selectBody(SOL, EARTH);
     useSceneStore.getState().toggleBody(SOL, MARS);
-    await settle();
+    await flush();
   }
 
   const openOn = (target: ContextTarget) =>
@@ -376,7 +376,7 @@ describe("moving planets", () => {
     openOn(body);
     expect(menu()).toMatch(/<button[^>]*disabled=""[^>]*>Cut 2 planets<\/button>/);
 
-    await settle();
+    await flush();
     expect(menu()).toContain('role="menuitem">Cut 2 planets</button>');
     menuItem(<BodyMenu target={body} frame={{}} />, "Cut 2 planets").props.onClick();
     expect(moves().cut).toMatchObject({ planets: [EARTH, MARS], from: SOL });
@@ -387,7 +387,7 @@ describe("moving planets", () => {
     );
     useSceneStore.getState().toggleBody(SOL, MARS);
     useSceneStore.getState().toggleBody(SOL, MARS);
-    await settle();
+    await flush();
     openOn(body);
     expect(menu()).toContain(`disabled="" title="${escaped(reason)}">Cut 2 planets</button>`);
   });
@@ -426,7 +426,7 @@ describe("moving planets", () => {
     );
 
     useSceneStore.getState().selectBody(SOL, EARTH);
-    await settle();
+    await flush();
     moves().cutSelection();
     openOn({ kind: "systemSpace", system: SOL, x: 0, y: 50 });
     expect(menu()).toContain('disabled="" title="Earth is already in Sol">Paste Earth here');
@@ -435,7 +435,7 @@ describe("moving planets", () => {
 
   it("pastes a lone planet where the system view's space was pressed, and names the orbit", async () => {
     useSceneStore.getState().selectBody(SOL, EARTH);
-    await settle();
+    await flush();
     moves().cutSelection();
     useSceneStore.getState().enterSystem(CENTAURI);
     const target = { kind: "systemSpace", system: CENTAURI, x: 0, y: 108 } as const;
@@ -453,7 +453,7 @@ describe("moving planets", () => {
 
   it("names a lone body in its Cut", async () => {
     useSceneStore.getState().selectBody(SOL, EARTH);
-    await settle();
+    await flush();
     openOn({ kind: "body", system: SOL, id: EARTH });
     expect(menu()).toContain('role="menuitem">Cut Earth</button>');
   });
