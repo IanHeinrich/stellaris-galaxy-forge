@@ -3,7 +3,7 @@ import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual
 import { documentCapabilities } from "../lib/capabilities";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
-import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, redrawStars, useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useHeightPreviewStore } from "./heightPreviewStore";
@@ -276,7 +276,8 @@ function paintModPollWanted(): boolean {
   return getPaintLayer() || !noticeDismissed;
 }
 
-// Game data loading, reloading or going away drops everything read from what it replaces.
+// Game data loading, reloading or going away drops everything read from what it replaces, and
+// redraws the stars a scenario takes from its initializers.
 function followGameData(): void {
   useGameDataStore.subscribe((state, previous) => {
     if (
@@ -285,6 +286,7 @@ function followGameData(): void {
       state.summary !== previous.summary
     ) {
       for (const reset of GAME_DATA_SCOPED) reset();
+      void redrawStars();
     }
   });
 }

@@ -391,3 +391,21 @@ describe("settling", () => {
     expect(session().loadingName).toBeNull();
   });
 });
+
+describe("game data changing under an open scenario", () => {
+  it("redraws each system with the star its initializer now names", async () => {
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openScenario(SCENARIO_RESULT.path!);
+    const [first] = SCENARIO_RESULT.galaxy.systems;
+    mockedIpc.getGalaxy.mockResolvedValueOnce({
+      ...SCENARIO_RESULT.galaxy,
+      systems: [{ ...first, star_class: "sc_pulsar" }],
+    });
+
+    useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
+
+    await vi.waitFor(() =>
+      expect(useGalaxyStore.getState().systems.get(first.id)?.star_class).toBe("sc_pulsar"),
+    );
+  });
+});
