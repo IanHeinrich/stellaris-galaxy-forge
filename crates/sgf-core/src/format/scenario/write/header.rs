@@ -12,7 +12,7 @@ use crate::document::Document;
 use crate::format::scenario::header_counts::KEYS;
 use crate::format::scenario::index::{ENTITY_KEYS, HeaderStmt};
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, blank_slot};
+use crate::ops::{Emitted, Op, OpError, ParseAt, Plan, Planned, Subject, blank_slot};
 use crate::overlay::Anchor;
 use crate::plural;
 use crate::session::Session;
@@ -262,8 +262,5 @@ fn check_value(key: &str, raw: &str, at: usize) -> Result<(), OpError> {
 }
 
 fn refuse(at: usize, reason: impl Into<String>) -> OpError {
-    OpError::HeaderParse {
-        offset: at,
-        reason: reason.into(),
-    }
+    OpError::parse(ParseAt::Header, at, reason.into())
 }

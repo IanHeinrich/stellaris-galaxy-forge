@@ -286,14 +286,17 @@ fn a_batch_is_refused_whole_when_a_later_member_fails() {
         ops: vec![set(PLAYER, new), set(AI, unchanged_ai)],
     };
     let error = session.apply(batch).unwrap_err();
-    assert!(matches!(error, OpError::FlagUnchanged(AI)), "{error:?}");
+    assert!(
+        matches!(error, OpError::Unchanged { ref what, .. } if *what == format!("country {AI}'s flag")),
+        "{error:?}"
+    );
     assert_eq!(flag(&session.graph.countries, PLAYER), player_before);
     assert_eq!(session.doc.meta(), session.doc.original_meta());
     assert!(!session.is_dirty());
 }
 
 // The rollback in `apply_one` at ops/mod.rs (around line 103) only runs for an op with
-// a `follow_up` second step: `Op::AddSaveSystem` and `Op::ReplaceSaveSystem`.
+// a `follow_up` second step: `Op::AddSystemFromSpec` and `Op::ReplaceSystemFromSpec`.
 // `Op::SetEmpireFlag` has no follow-up, so no batch built from flag ops alone can reach
 // it; reaching it for real needs an add/replace-system follow-up that itself fails,
 // which is unrelated to flag coverage and is not attempted here.
@@ -303,7 +306,10 @@ fn a_flag_is_refused_where_nothing_would_change_or_a_name_cannot_be_written() {
     let mut session = open_4_5();
     let unchanged = flag(&session.graph.countries, AI);
     let error = session.apply(set(AI, unchanged.clone())).unwrap_err();
-    assert!(matches!(error, OpError::FlagUnchanged(AI)), "{error:?}");
+    assert!(
+        matches!(error, OpError::Unchanged { ref what, .. } if *what == format!("country {AI}'s flag")),
+        "{error:?}"
+    );
     assert!(matches!(
         session.apply(set(999_999, unchanged.clone())),
         Err(OpError::UnknownCountry(999_999))

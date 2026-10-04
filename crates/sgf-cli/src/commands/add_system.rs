@@ -37,7 +37,7 @@ pub fn from_specs(sav: &Path, out: Option<&Path>, specs: &[PathBuf], then_remove
     let ops = specs
         .iter()
         .map(|path| {
-            Ok(Op::AddSaveSystem {
+            Ok(Op::AddSystemFromSpec {
                 spec: mutate::system_spec(path)?,
             })
         })
@@ -79,7 +79,7 @@ pub fn generated(
         return Ok(Outcome::Ok);
     }
     print_summary(&spec, seed);
-    let mut issues = mutate::apply(&mut session, vec![Op::AddSaveSystem { spec }])?;
+    let mut issues = mutate::apply(&mut session, vec![Op::AddSystemFromSpec { spec }])?;
     if let Some(seed) = generating.then_reroll {
         let system = last_added(&session);
         let pick = Pick::of_added(
@@ -91,7 +91,10 @@ pub fn generated(
         )?;
         let spec = generate::reroll(&gd, &session, seed, system, &pick)?;
         print_summary(&spec, seed);
-        issues = mutate::apply(&mut session, vec![Op::ReplaceSaveSystem { system, spec }])?;
+        issues = mutate::apply(
+            &mut session,
+            vec![Op::ReplaceSystemFromSpec { system, spec }],
+        )?;
     }
     remove_added(&mut session, then_remove, &mut issues)?;
     mutate::save(session, out, &issues)
@@ -122,7 +125,7 @@ fn remove_added(
     if added.is_empty() {
         return Err(NONE_ADDED.into());
     }
-    *issues = mutate::apply(session, vec![Op::RemoveSystems { ids: added }])?;
+    *issues = mutate::apply(session, vec![Op::RemoveSystems { systems: added }])?;
     Ok(())
 }
 

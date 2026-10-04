@@ -6,13 +6,14 @@
 //! inverse op is exact too: it carries a generated name's whole old value.
 
 use crate::Span;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit;
+use crate::emit::quoted;
 use crate::format::save::check_version;
 use crate::keys;
-use crate::ops::rules::{check_name, quoted};
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::rules::{check_name, check_name_value};
+use crate::ops::{Edit, Op, OpError, ParseAt, Plan, Planned};
 use crate::overlay::Anchor;
 use crate::session::Session;
 
@@ -26,7 +27,7 @@ pub(crate) fn plan_rename(
 ) -> Result<Planned, OpError> {
     check_name(name)?;
     if let Some(value) = value {
-        check_value(value)?;
+        check_name_value(value, false)?;
     }
     let written = plan_country(plan, s, country, (name, value), custom_name)?;
     let mut changed = written.changed;
@@ -42,7 +43,10 @@ pub(crate) fn plan_rename(
         changed |= plan_meta(plan, &s.doc, name)?;
     }
     if !changed {
-        return Err(OpError::EmpireNameUnchanged(country));
+        return Err(OpError::unchanged(
+            format!("country {country}"),
+            "already has that name",
+        ));
     }
     let value =
         (written.old_literal.as_deref() != Some(old_name.as_str())).then_some(written.old_value);
@@ -52,7 +56,7 @@ pub(crate) fn plan_rename(
             country,
             name: old_name,
             value,
-            custom_name: written.marked.then_some(false),
+            custom_name: !written.marked,
         },
     })
 }
@@ -161,36 +165,6 @@ fn stand_in(s: &Session, country: u32) -> String {
         .unwrap_or_else(|| format!("Empire {country}"))
 }
 
-/// Refuse a `name` value that does not read as one value. The lexer runs an unterminated
-/// quote to the end of its input, so a quoted value is checked for its closing quote too.
-fn check_value(value: &str) -> Result<(), OpError> {
-    let what = "a name value";
-    if value.trim().is_empty() {
-        return Err(OpError::EmptyText { what });
-    }
-    let text = format!("{}={value}", keys::NAME);
-    let bytes = text.as_bytes();
-    let whole = cst::parse(bytes, 0).is_ok_and(|root| match root.children() {
-        [only] => only.span().end == bytes.len() && !open_quote(only, bytes),
-        _ => false,
-    });
-    if !whole {
-        return Err(OpError::InvalidText {
-            what,
-            text: value.to_owned(),
-        });
-    }
-    Ok(())
-}
-
-/// Whether `node` is a quoted scalar that never closes its quote.
-fn open_quote(node: &Node, src: &[u8]) -> bool {
-    node.scalar_span().is_some_and(|span| {
-        let scalar = span.slice(src);
-        scalar.first() == Some(&b'"') && (scalar.len() < 2 || scalar.last() != Some(&b'"'))
-    })
-}
-
 /// Write `name` as the gamestate header's `name`, returning the name it held; `None` when
 /// the header has none.
 fn plan_header(plan: &mut Plan, doc: &Document, name: &str) -> Result<Option<String>, OpError> {
@@ -212,23 +186,16 @@ fn plan_header(plan: &mut Plan, doc: &Document, name: &str) -> Result<Option<Str
 /// Write `name` as the `name` in the save's `meta`, returning whether it changed. A `meta`
 /// with no name is left as it is.
 fn plan_meta(plan: &mut Plan, doc: &Document, name: &str) -> Result<bool, OpError> {
-    let meta = doc.meta();
-    let parse_error = |offset, reason: &str| OpError::MetaParse {
-        offset,
-        reason: reason.to_owned(),
-    };
-    let root = cst::parse(meta, 0).map_err(|e| parse_error(e.offset, e.reason))?;
-    let Some(node) = root.find(keys::NAME, meta) else {
+    let (root, mut out) = plan.edit_meta(doc)?;
+    let Some(node) = root.find(keys::NAME, out.buf) else {
         return Ok(false);
     };
     let span = node
         .scalar_span()
-        .ok_or_else(|| parse_error(node.span().start, "the name is a block"))?;
-    if node.scalar_str(meta) == Some(name) {
+        .ok_or_else(|| OpError::parse(ParseAt::Meta, node.span().start, "the name is a block"))?;
+    if node.scalar_str(out.buf) == Some(name) {
         return Ok(false);
     }
-    let mut bytes = meta.to_vec();
-    bytes.splice(span.range(), quoted(name).into_bytes());
-    plan.replace_meta(bytes);
+    out.replace_span(span, quoted(name));
     Ok(true)
 }

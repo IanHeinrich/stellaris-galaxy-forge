@@ -8,6 +8,7 @@
 //! module applies an op, or a batch of them, and rolls a failed one back.
 
 mod edit;
+mod error;
 pub mod history;
 mod op;
 mod plan;
@@ -23,18 +24,19 @@ pub use crate::format::save::system_spec::{BeltSpec, BodySpec, SystemSpec};
 pub use crate::format::save::write::game_tables::SPAWN_BUFFER;
 pub use crate::format::save::write::initializer_counter::initializer_counts;
 pub use crate::format::save::write::name_pool::{free_nebula_names, free_star_names};
-pub use edit::Subject;
-pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths, spliced};
-pub use op::{
-    ClassChange, DetailsReach, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair,
-    NebulaCloud, NebulaFootprint, NewBody, NewSystem, Op, OpError, OpReach, PlanetClassRule,
-    PlanetLook, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
-};
-pub(crate) use plan::{Emitted, Plan, Planned, slots};
-pub use rules::bodies::{
+pub use crate::projections::geometry::{
     BELT_SCATTER, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, STORED_ORBIT_SLACK,
     SystemRadii,
 };
+pub use edit::Subject;
+pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths};
+pub use error::{OpError, ParseAt, StarEdit};
+pub use op::{
+    ClassChange, DetailsReach, EmpireFlag, LaneLength, LanePair, MapColorPair, NebulaCloud,
+    NebulaFootprint, NewBody, NewName, NewSystem, Op, OpReach, PairPoints, Parent, PlanetClassRule,
+    PlanetLook, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
+};
+pub(crate) use plan::{Emitted, Plan, Planned, slots};
 
 /// The record of one committed op: what changed, how to describe it, and the bytes
 /// needed to undo and redo it without re-running the op.

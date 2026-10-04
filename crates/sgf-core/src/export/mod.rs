@@ -305,9 +305,11 @@ pub fn write_scenario(path: &Path, text: &[u8]) -> Result<SaveOutcome, document:
 }
 
 /// A scenario with no systems, never saved: Forge's `# created by` line, the header and
-/// its closing brace.
+/// its closing brace. The map is `radius` across until systems give it an extent of their
+/// own.
 pub fn new_scenario(
     name: &str,
+    radius: f64,
     core_radius: f64,
     profile: ScenarioProfile,
 ) -> Result<Session, SessionError> {
@@ -328,7 +330,9 @@ pub fn new_scenario(
         }
     });
     text.extend_from_slice(FOOTER);
-    Session::from_document(None, Document::from_scenario_bytes(text)?)
+    let mut session = Session::from_document(None, Document::from_scenario_bytes(text)?)?;
+    session.graph.galaxy_radius = radius;
+    Ok(session)
 }
 
 /// Open a save's galaxy as a new, unsaved scenario named after the save's file stem,

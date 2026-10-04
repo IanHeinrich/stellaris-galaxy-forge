@@ -117,7 +117,7 @@ describe("nudge", () => {
   it("moves a single selected system with MoveSystem and several with one MoveSystems", async () => {
     await editor().select(2);
     await editor().nudgeSelection(-1, 10);
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "MoveSystem", id: 2, x: 19, y: 20 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "MoveSystem", system: 2, x: 19, y: 20 });
 
     mockedIpc.applyOp.mockClear();
     await editor().setSelection([0, 5], "replace");
@@ -125,8 +125,8 @@ describe("nudge", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "MoveSystems",
       moves: [
-        { id: 0, x: 1, y: -1 },
-        { id: 5, x: -39, y: 39 },
+        { system: 0, x: 1, y: -1 },
+        { system: 5, x: -39, y: 39 },
       ],
     });
   });
@@ -143,8 +143,8 @@ describe("nudge", () => {
     await Promise.all([first, second]);
 
     expect(mockedIpc.applyOp.mock.calls.map(([op]) => op)).toEqual([
-      { type: "MoveSystem", id: 2, x: 19, y: 20 },
-      { type: "MoveSystem", id: 2, x: 18, y: 30 },
+      { type: "MoveSystem", system: 2, x: 19, y: 20 },
+      { type: "MoveSystem", system: 2, x: 18, y: 30 },
     ]);
   });
 
@@ -198,7 +198,7 @@ describe("lane selection", () => {
     const isolatedSol = { ...SYSTEMS[0], lanes: [] };
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [isolatedSol] } }));
 
-    await editor().applyOp({ type: "IsolateSystem", id: 0 });
+    await editor().applyOp({ type: "IsolateSystem", system: 0 });
 
     expect(editor().selectedLane).toBeNull();
   });
@@ -288,13 +288,13 @@ describe("multi-selection", () => {
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: -5, y: 5 }] } }),
     );
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: -5, y: 5 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: -5, y: 5 });
     expect(editor().selection).toEqual([0, 2, 5]);
     expect(mockedIpc.getSystem).not.toHaveBeenCalled();
 
     useGalaxyStore.getState().load({ ...OPEN_RESULT.galaxy, systems: SYSTEMS.slice(0, 5) });
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 0, y: 0 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 0, y: 0 });
     expect(editor().selection).toEqual([0, 2]);
   });
 });
@@ -319,7 +319,7 @@ describe("the dock follows the selection", () => {
     mockedIpc.applyOp.mockResolvedValue(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 5, y: 5 }] } }),
     );
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 5, y: 5 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 5, y: 5 });
     expect(useLayoutStore.getState().tab).toBe("changes");
   });
 

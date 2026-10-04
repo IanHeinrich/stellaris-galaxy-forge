@@ -106,7 +106,7 @@ function PreventedRow({ system, other }: { system: number; other: number }) {
         type="button"
         className="link"
         title={`Allow a lane between #${system} and #${other}`}
-        onClick={() => applyOp({ type: "UnpreventLane", a: system, b: other })}
+        onClick={() => applyOp({ type: "AllowLane", a: system, b: other })}
       >
         Allow
       </button>

@@ -436,7 +436,7 @@ describe("the tilted map", () => {
 
     expect(applyOp).toHaveBeenCalledTimes(1);
     expect(applyOp.mock.calls[0]).toEqual([
-      { type: "MoveSystem", id: 1, x: expect.closeTo(60), y: expect.closeTo(10) },
+      { type: "MoveSystem", system: 1, x: expect.closeTo(60), y: expect.closeTo(10) },
     ]);
   });
 
@@ -595,7 +595,7 @@ describe("the height brush", () => {
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
     expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual(
       expect.objectContaining({
-        heights: expect.arrayContaining([{ id: 1, height: absoluteHeight(10) }]),
+        heights: expect.arrayContaining([{ system: 1, height: absoluteHeight(10) }]),
       }),
     );
 
@@ -604,7 +604,7 @@ describe("the height brush", () => {
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2));
     expect(mockedIpc.applyOp.mock.calls[1][0]).toEqual(
       expect.objectContaining({
-        heights: expect.arrayContaining([{ id: 1, height: absoluteHeight(20) }]),
+        heights: expect.arrayContaining([{ system: 1, height: absoluteHeight(20) }]),
       }),
     );
   });

@@ -9,7 +9,7 @@ use common::diff::{round_trip, snapshot_step};
 use common::{current, open_4_5, text};
 
 fn set(planet: u32, ring: bool) -> Op {
-    Op::SetPlanetRing { planet, ring }
+    Op::SetBodyRing { body: planet, ring }
 }
 
 /// Whether system 1's `planet` has a ring, as the details built before the edit read it.

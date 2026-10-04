@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the size of planet #748 from 25 to 30
-inverse: SetPlanetSize { id: 748, size: 25 }
+inverse: SetBodySize { body: 748, size: 25 }
 
 --- gamestate
 +++ gamestate

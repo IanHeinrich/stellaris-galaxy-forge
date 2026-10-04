@@ -5,6 +5,7 @@
 
 use crate::emit::inline;
 use crate::emit::system::{timed_modifier_item, timed_modifiers};
+use crate::format::save::write::place::{Place, insert_key};
 use crate::keys;
 use crate::ops::{Edit, OpError};
 use crate::projections::read;
@@ -12,33 +13,37 @@ use crate::span::Span;
 
 /// Where a modifier the entity lacks goes among the items it already has.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Place {
+pub(crate) enum End {
     First,
     Last,
 }
 
-/// Give the entity each permanent modifier of `modifiers` placed `Some`, where it lacks one,
-/// and take out every item of one placed `None`: see [`set_items`].
-pub(crate) fn set(
-    edit: &mut Edit,
-    after: &str,
-    modifiers: &[(&str, Option<Place>)],
-) -> Result<bool, OpError> {
-    let items: Vec<(&str, Option<(Place, i32)>)> = modifiers
-        .iter()
-        .map(|&(m, place)| (m, place.map(|p| (p, -1))))
-        .collect();
-    set_items(edit, after, &items)
+/// What [`set_items`] does with one modifier.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ItemEdit {
+    /// Add it at that end, lasting `days` (`-1` for ever), where the entity lacks it.
+    Add { at: End, days: i32 },
+    /// Take out every item of it.
+    Remove,
 }
 
-/// Give the entity each modifier of `modifiers` placed `Some`, lasting the days given, where
-/// it lacks one, and take out every item of one placed `None`. The block goes after `after=`
-/// when it is new, else last in the entity, and with the last item it held. Returns whether
-/// anything changed.
+impl ItemEdit {
+    /// A modifier that never expires, added at `at` when `on` and taken out otherwise.
+    pub(crate) fn permanent(on: bool, at: End) -> Self {
+        if on {
+            Self::Add { at, days: -1 }
+        } else {
+            Self::Remove
+        }
+    }
+}
+
+/// Apply each of `modifiers` to the entity's timed modifiers. The block goes where `place`
+/// says when it is new, and with the last item it held. Returns whether anything changed.
 pub(crate) fn set_items(
     edit: &mut Edit,
-    after: &str,
-    modifiers: &[(&str, Option<(Place, i32)>)],
+    place: &Place,
+    modifiers: &[(&str, ItemEdit)],
 ) -> Result<bool, OpError> {
     let entity = edit.entity()?;
     let block = entity.find(keys::TIMED_MODIFIER, &edit.buf);
@@ -55,12 +60,15 @@ pub(crate) fn set_items(
     let has = |m: &str| listed.iter().any(|(_, name)| name == m);
     let removing: Vec<Span> = listed
         .iter()
-        .filter(|(_, name)| modifiers.contains(&(name.as_str(), None)))
+        .filter(|(_, name)| modifiers.contains(&(name.as_str(), ItemEdit::Remove)))
         .map(|&(span, _)| span)
         .collect();
-    let adding: Vec<(&str, Place, i32)> = modifiers
+    let adding: Vec<(&str, End, i32)> = modifiers
         .iter()
-        .filter_map(|&(m, add)| add.map(|(place, days)| (m, place, days)))
+        .filter_map(|&(m, item)| match item {
+            ItemEdit::Add { at, days } => Some((m, at, days)),
+            ItemEdit::Remove => None,
+        })
         .filter(|&(m, _, _)| !has(m))
         .collect();
     if removing.is_empty() && adding.is_empty() {
@@ -75,16 +83,7 @@ pub(crate) fn set_items(
                 let indent = edit.indent(span.start);
                 edit.replace_statement(span, &inline(&indent, &text(&indent)));
             }
-            None => {
-                let (at, indent) = match entity.find(after, &edit.buf) {
-                    Some(anchor) => (
-                        edit.line_end(anchor.span().end),
-                        edit.indent(anchor.span().start),
-                    ),
-                    None => edit.before_close(entity),
-                };
-                edit.insert(at, text(&indent));
-            }
+            None => insert_key(edit, &[], place, |indent| inline(indent, &text(indent)))?,
         }
         return Ok(true);
     };
@@ -99,10 +98,10 @@ pub(crate) fn set_items(
     for span in removing {
         edit.remove_lines(span);
     }
-    for (modifier, place, days) in adding {
-        let at = match place {
-            Place::First => edit.line_start(first),
-            Place::Last => at_close,
+    for (modifier, end, days) in adding {
+        let at = match end {
+            End::First => edit.line_start(first),
+            End::Last => at_close,
         };
         edit.insert(at, timed_modifier_item(&indent, modifier, days));
     }

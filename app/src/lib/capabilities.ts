@@ -1,74 +1,7 @@
 import type { Capabilities } from "../generated/Capabilities";
+import { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES } from "../generated/constants";
 
-/** What a `.sav` supports: every save edit, but no scenario statements and no symmetry. */
-export const SAVE_CAPABILITIES: Capabilities = {
-  empires: true,
-  details: true,
-  lane_lengths: true,
-  nebulae: true,
-  bypasses: true,
-  special: true,
-  precursors: true,
-  create_systems: false,
-  lane_bridges: true,
-  waylines: true,
-  added_systems: true,
-  bodies: true,
-  deposits: true,
-  geometry: true,
-  map_colors: true,
-  lgate: true,
-  symmetry: false,
-  wormhole_pairs: true,
-  system_heights: true,
-  planet_moves: true,
-  rolled_layout: false,
-  add_bodies: true,
-  remove_bodies: true,
-  planet_classes: true,
-  modifiers: true,
-  anomalies: true,
-  dig_sites: true,
-  rename_systems: false,
-  header: false,
-  scripted_owners: false,
-  scripts: false,
-};
-
-/** What a static galaxy scenario supports: scripted empires and system statements, no lengths. */
-export const SCENARIO_CAPABILITIES: Capabilities = {
-  empires: true,
-  details: false,
-  lane_lengths: false,
-  nebulae: true,
-  bypasses: false,
-  special: true,
-  precursors: false,
-  create_systems: true,
-  lane_bridges: false,
-  waylines: false,
-  added_systems: false,
-  bodies: false,
-  deposits: false,
-  geometry: false,
-  map_colors: false,
-  lgate: false,
-  symmetry: true,
-  wormhole_pairs: false,
-  system_heights: false,
-  planet_moves: false,
-  rolled_layout: true,
-  add_bodies: false,
-  remove_bodies: false,
-  planet_classes: false,
-  modifiers: false,
-  anomalies: false,
-  dig_sites: false,
-  rename_systems: true,
-  header: true,
-  scripted_owners: true,
-  scripts: true,
-};
+export { SAVE_CAPABILITIES, SCENARIO_CAPABILITIES };
 
 /** The file session, as a capability read sees it. */
 export interface CapabilitySource {

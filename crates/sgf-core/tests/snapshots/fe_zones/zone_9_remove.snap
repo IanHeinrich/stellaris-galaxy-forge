@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Remove fallen empire zone from Old Seat
-inverse: SetFeZone { id: 9, zone: Some(FeZone { direction: N, kind: Random, distance: 40, preferred: true, fallback: false }) }
+Removed fallen empire zone from Old Seat #9
+inverse: SetFeZone { system: 9, zone: Some(FeZone { direction: N, kind: Random, distance: 40, preferred: true, fallback: false }) }
 
 --- scenario
 +++ scenario

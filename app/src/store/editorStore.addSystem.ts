@@ -18,7 +18,7 @@ import type { EditorState } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { systemNameOf, useGalaxyStore, type Systems } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { usePlanetMoveStore } from "./planetMoveStore";
+import { useSceneStore } from "./sceneStore";
 
 type AddSystemActions = Pick<
   EditorState,
@@ -124,7 +124,7 @@ export function addSystemActions(
           return added.edit;
         });
         if (result === null || planet === null) return false;
-        usePlanetMoveStore.getState().showBody(system, planet);
+        useSceneStore.getState().showBody(system, planet);
         return true;
       });
     },
@@ -149,7 +149,7 @@ export function addSystemActions(
         const result = await runEdit(async () => {
           const system = addedNow(tracked);
           if (!system) return null;
-          return ipc.applyOp({ type: "RenameSaveSystem", system: system.id, name: text });
+          return ipc.applyOp({ type: "RenameSystem", system: system.id, name: text });
         });
         return result !== null;
       });

@@ -8,6 +8,27 @@ use sgf_core::views::{EditResult, ErrorKind, OpenResult, SystemDetail};
 use crate::common;
 use common::{SAMPLE, SAMPLE_45, invoke, kind, opened, webview, with_game_data};
 
+const SAMPLE_34: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/3.4.sav");
+
+/// A 3.4 save is a save to the commands that add systems and bodies: what its version cannot
+/// take is the core's to refuse, not the shell's.
+#[test]
+fn a_3_4_save_reaches_the_core() {
+    let w = opened(SAMPLE_34);
+    let refused = invoke::<EditResult>(&w, "remove_added_systems", json!({ "ids": [1] }))
+        .expect_err("none added");
+    assert_eq!(
+        refused.message,
+        "none of these systems was added this session"
+    );
+    let args = json!({
+        "system": 1, "parent": 2, "class": null, "size": null,
+        "radius": 10.0, "angle": 0.0, "seed": 7
+    });
+    let refused = invoke::<EditResult>(&w, "add_body", args).expect_err("no game data");
+    assert_eq!(refused.message, "load game data to add a moon");
+}
+
 #[test]
 fn edit_undo_redo() {
     let w = webview();
@@ -16,7 +37,7 @@ fn edit_undo_redo() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "MoveSystem", "id": 0, "x": 1.0, "y": 1.0 } })
+            json!({ "op": { "type": "MoveSystem", "system": 0, "x": 1.0, "y": 1.0 } })
         )),
         ErrorKind::NoSession,
         "apply_op before any open"
@@ -50,7 +71,7 @@ fn edit_undo_redo() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 0, "x": -150.0, "y": 60.0 } }),
+        json!({ "op": { "type": "MoveSystem", "system": 0, "x": -150.0, "y": 60.0 } }),
     )
     .expect("move system 0");
     assert!(moved.dirty, "move dirties the session");
@@ -120,7 +141,7 @@ fn edit_undo_redo() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "MoveSystem", "id": 999999, "x": 0.0, "y": 0.0 } })
+            json!({ "op": { "type": "MoveSystem", "system": 999999, "x": 0.0, "y": 0.0 } })
         )),
         ErrorKind::NotFound,
         "system 999999 does not exist"
@@ -181,7 +202,7 @@ fn edit_undo_redo() {
     let isolated: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "IsolateSystem", "id": 0 } }),
+        json!({ "op": { "type": "IsolateSystem", "system": 0 } }),
     )
     .expect("isolate system 0");
     assert!(
@@ -226,7 +247,7 @@ fn a_body_moved_onto_another_raises_an_overlap_and_undo_names_the_move() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSaveBody", "system": 1, "body": 588, "radius": radius, "angle": angle } }),
+        json!({ "op": { "type": "MoveBody", "system": 1, "body": 588, "radius": radius, "angle": angle } }),
     )
     .expect("move 588 onto 587");
     assert!(
@@ -261,7 +282,7 @@ fn a_wormhole_pair_added_and_undone_sends_the_bypass_links() {
     let added: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "AddSaveWormholePair", "a": 1, "b": 140 } }),
+        json!({ "op": { "type": "AddWormholePair", "a": 1, "b": 140 } }),
     )
     .expect("add the pair");
     let links = added.delta.bypasses.expect("the delta lists the links");
@@ -276,8 +297,8 @@ fn a_wormhole_pair_added_and_undone_sends_the_bypass_links() {
 
 fn class_op(from: &str, from_change: &str, to: &str, to_change: &str) -> serde_json::Value {
     json!({
-        "type": "SetPlanetClass",
-        "planet": 585,
+        "type": "SetBodyClass",
+        "body": 585,
         "from": { "class": from, "change": from_change, "models": 3 },
         "to": { "class": to, "change": to_change, "models": 3 },
     })

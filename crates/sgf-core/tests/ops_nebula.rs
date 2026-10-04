@@ -15,7 +15,7 @@ fn move_system_108_out_of_its_nebula_removes_the_member_line() {
     assert_eq!(session.graph.systems[&108].nebula, Some(0));
     let result = session
         .apply(Op::MoveSystem {
-            id: 108,
+            system: 108,
             x: 200.0,
             y: -50.0,
         })
@@ -40,7 +40,7 @@ fn move_system_455_into_a_nebula_adds_the_member_line() {
     let mut session = open();
     assert_eq!(session.graph.systems[&455].nebula, None);
     let (x, y) = NEBULA_0_CENTRE;
-    let result = session.apply(Op::MoveSystem { id: 455, x, y }).unwrap();
+    let result = session.apply(Op::MoveSystem { system: 455, x, y }).unwrap();
     assert_eq!(session.graph.systems[&455].nebula, Some(0));
     assert_eq!(
         session.graph.nebulae[0].systems,
@@ -65,12 +65,12 @@ fn move_systems_across_a_nebula_boundary_names_each_change() {
         .apply(Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: 455,
+                    system: 455,
                     x,
                     y: y + 1.0,
                 },
                 SystemMove {
-                    id: 108,
+                    system: 108,
                     x: 200.0,
                     y: -50.0,
                 },
@@ -352,7 +352,7 @@ fn renaming_a_nebula_to_free_text_writes_a_literal_the_game_shows_as_typed() {
     let mut session = open();
     let before = session.graph.nebulae[0].clone();
     let result = session
-        .apply(Op::SetNebulaName {
+        .apply(Op::RenameNebula {
             index: 0,
             name: "Sea of Ghosts".to_owned(),
         })
@@ -368,7 +368,7 @@ fn renaming_a_nebula_to_free_text_writes_a_literal_the_game_shows_as_typed() {
     assert_eq!(session.graph.nebulae, reprojected(&session).nebulae);
     assert_eq!(
         result.inverse,
-        Op::SetNebulaName {
+        Op::RenameNebula {
             index: 0,
             name: before.name.key.clone(),
         }
@@ -388,13 +388,13 @@ fn renaming_a_nebula_to_free_text_writes_a_literal_the_game_shows_as_typed() {
 fn renaming_a_nebula_to_a_key_writes_the_key_alone_and_drops_a_literal() {
     let mut session = open();
     session
-        .apply(Op::SetNebulaName {
+        .apply(Op::RenameNebula {
             index: 0,
             name: "Sea of Ghosts".to_owned(),
         })
         .unwrap();
     let result = session
-        .apply(Op::SetNebulaName {
+        .apply(Op::RenameNebula {
             index: 0,
             name: "NAME_N_Maw".to_owned(),
         })
@@ -415,21 +415,21 @@ fn renaming_a_nebula_to_a_key_writes_the_key_alone_and_drops_a_literal() {
 fn renaming_a_nebula_refuses_an_empty_name_an_unquotable_one_and_an_unknown_index() {
     let mut session = open();
     assert!(matches!(
-        session.apply(Op::SetNebulaName {
+        session.apply(Op::RenameNebula {
             index: 0,
             name: String::new(),
         }),
         Err(OpError::EmptyText { what: "a name" })
     ));
     assert!(matches!(
-        session.apply(Op::SetNebulaName {
+        session.apply(Op::RenameNebula {
             index: 0,
             name: "a \"quoted\" name".to_owned(),
         }),
         Err(OpError::InvalidText { what: "a name", .. })
     ));
     assert!(matches!(
-        session.apply(Op::SetNebulaName {
+        session.apply(Op::RenameNebula {
             index: 99,
             name: "Nowhere".to_owned(),
         }),

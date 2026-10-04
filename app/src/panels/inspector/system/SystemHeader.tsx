@@ -32,7 +32,7 @@ const ASSUMED_OWNER_TITLE = "A claim whose conditions this editor cannot judge i
 
 function PositionBlock({ system }: { system: SystemNode }) {
   const applyOp = useApplySymmetricOp();
-  const move = (x: number, y: number) => applyOp({ type: "MoveSystem", id: system.id, x, y });
+  const move = (x: number, y: number) => applyOp({ type: "MoveSystem", system: system.id, x, y });
   return (
     <EditBlock title="Position">
       <EditRow label="x">

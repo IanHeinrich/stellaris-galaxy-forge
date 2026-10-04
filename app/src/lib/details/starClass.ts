@@ -145,9 +145,9 @@ export function setStarClassOp(
   const at = positions(bodies, order);
   return {
     type: "SetStarClass",
-    id: system.id,
+    system: system.id,
     class: target.key,
-    bodies: bodies.map((body, i) => ({ planet: body.id, class: target.planet_keys[at[i]] })),
+    bodies: bodies.map((body, i) => ({ body: body.id, class: target.planet_keys[at[i]] })),
   };
 }
 

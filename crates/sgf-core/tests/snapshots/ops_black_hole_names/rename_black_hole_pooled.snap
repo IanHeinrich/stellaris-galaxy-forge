@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Renamed Demons_Maw (#601) to Devils_Maw
-inverse: RenameSaveSystem { system: 601, name: "Demons_Maw" }
+Renamed Demons Maw #601 to Devils_Maw
+inverse: RenameSystem { system: 601, name: "Demons_Maw" }
 --- before
 +++ after
 @@ -71419,7 +71419,7 @@

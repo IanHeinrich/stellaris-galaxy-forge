@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added d_minerals_3 (#16777216) to planet #2
-inverse: RemoveSaveDeposit { deposit: 16777216 }
+inverse: RemoveDeposit { deposit: 16777216 }
 
 --- gamestate
 +++ gamestate

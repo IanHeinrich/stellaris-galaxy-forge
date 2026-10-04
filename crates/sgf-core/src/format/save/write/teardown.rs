@@ -135,7 +135,10 @@ impl Teardown {
         src: &[u8],
     ) -> Result<Self, OpError> {
         let doc = &s.doc;
-        let refuse = |reason: String| OpError::ColonyKept { planet, reason };
+        let refuse = |reason: String| OpError::ColonyKept {
+            body: planet,
+            reason,
+        };
         let colony = read::scalar_u32(node, keys::COLONY, src).ok_or(OpError::NoColony(planet))?;
         let owner = some_id(node, keys::OWNER, src)
             .ok_or_else(|| refuse("the planet has no owner".to_owned()))?;

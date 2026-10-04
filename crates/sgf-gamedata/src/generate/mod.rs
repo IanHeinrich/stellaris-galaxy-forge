@@ -1,6 +1,6 @@
 //! A random star system rolled from the install's own rules: the initializer, star class,
 //! planet classes, rings, asteroid belts and deposits a fresh galaxy would draw, as the
-//! spec [`sgf_core::ops::Op::AddSaveSystem`] writes. The same seed, star class or layout,
+//! spec [`sgf_core::ops::Op::AddSystemFromSpec`] writes. The same seed, star class or layout,
 //! abundance and install give the same spec.
 
 use sgf_core::ops::{BeltSpec, BodySpec, SystemSpec};
@@ -21,7 +21,10 @@ use crate::rng::Rng;
 
 mod save;
 
-pub use save::{ForSaveError, Pick, added_among, body_for_save, for_save, reroll, settle_name};
+pub use save::{
+    BodyAsk, ClassRulesError, ForSaveError, Pick, added_among, body_for_save, for_save, reroll,
+    settle_name,
+};
 
 /// Separates the deposit draw from the system draw of the same seed.
 const DEPOSIT_STREAM: u64 = 0x6465_706F;

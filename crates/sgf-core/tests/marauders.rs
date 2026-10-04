@@ -172,7 +172,7 @@ fn clans_count_their_homes_and_an_op_keeps_the_role_in_step() {
     let mut session = PAINTED.open();
     session
         .apply(Op::SetInitializer {
-            id: 10,
+            system: 10,
             initializer: Some("marauder_3_1".to_owned()),
         })
         .expect("set the initializer");

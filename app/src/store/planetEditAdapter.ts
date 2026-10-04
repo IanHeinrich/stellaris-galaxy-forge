@@ -1,48 +1,144 @@
 /**
- * How a planet's page adds and removes deposits, modifiers, dig sites and an anomaly, whatever the
- * document is.
- * `planetEditAdapterFor` is the one place a source is chosen.
+ * How a body's page and menus edit it, whatever the document is: its fields, its removal, and its
+ * deposits, modifiers, dig site and anomaly. `planetEditAdapterFor` is the one place a source is
+ * chosen, and the save's ops are built here.
  */
+import type { DocumentKind } from "../generated/DocumentKind";
 import type { Op } from "../generated/Op";
+import type { PlanetClassRule } from "../generated/PlanetClassRule";
+import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
-import type { PickerTarget, PlanetEditAdapter } from "../lib/details/picker";
+import type { PlanetPageDeposit } from "../generated/PlanetPageDeposit";
+import type { PickerTarget, PlanetBody, PlanetEditAdapter, RowRefs } from "../lib/details/picker";
 import type { ModifierRow } from "../lib/details/planetPage";
-import {
-  addAnomalyOp,
-  addDepositOp,
-  addDigSiteOp,
-  addModifierOp,
-  removeAnomalyOp,
-  removeModifierOp,
-} from "../lib/details/planetEdits";
+import { DEFAULT_MODEL } from "../lib/details/planetModel";
+import { PERMANENT } from "../lib/details/planetEdits";
+import { classForBodies } from "../lib/details/starBody";
 import { useEditorStore } from "./editorStore";
+import { deletePlanet, removeColony } from "./planetRemoval";
+
+/** What a save's rows give back to remove one: the deposit, the page's modifier row, the site's id. */
+export interface SaveRowRefs {
+  deposit: PlanetPageDeposit;
+  modifier: ModifierRow;
+  digSite: number;
+}
 
 /**
- * A save planet's edits, made by the save's own ops. A deposit row's ref is the deposit's id, a
- * modifier row's is the page's `ModifierRow`, and a dig site's is the site's id.
+ * The refs of an adapter picked by kind alone: a row's ref comes with the target that listed it,
+ * so no row can be removed through this one.
  */
-function saveEdits(planet: number): PlanetEditAdapter {
-  const apply = (op: Op) => useEditorStore.getState().applyOp(op);
+type NoRowRefs = { [K in keyof RowRefs]: never };
+
+const NOTHING = Promise.resolve(false);
+
+function rule(view: PlanetClassView): PlanetClassRule {
+  return { class: view.key, change: view.change, models: view.models };
+}
+
+/** A save body's edits, made by the save's own ops on body `id`. A save takes no ranges. */
+function saveEdits({ id }: PlanetBody): PlanetEditAdapter<SaveRowRefs> {
+  const apply = (op: Op | null) => (op === null ? NOTHING : useEditorStore.getState().applyOp(op));
   return {
+    ranges: false,
     timedModifiers: true,
-    addDeposit: (key) => apply(addDepositOp(planet, key)),
-    removeDeposit: (ref) => apply({ type: "RemoveSaveDeposit", deposit: ref as number }),
-    addModifier: (choice, days) => apply(addModifierOp(planet, choice, days)),
-    removeModifier: (ref) => apply(removeModifierOp(planet, ref as ModifierRow)),
-    addAnomaly: (category) => apply(addAnomalyOp(planet, category)),
-    removeAnomaly: () => apply(removeAnomalyOp(planet)),
-    addDigSite: (choice) => apply(addDigSiteOp(planet, choice)),
-    removeDigSite: (ref) => apply({ type: "RemoveDigSite", site: ref as number }),
+    rename(text, current) {
+      const name = text.trim();
+      if (name === "" || name === current) return NOTHING;
+      return apply({ type: "RenameBody", body: id, name: { Literal: name } });
+    },
+    setSize({ min, max }, current) {
+      if (min !== max || !Number.isInteger(min) || min < 1 || min === current) return NOTHING;
+      return apply({ type: "SetBodySize", body: id, size: min });
+    },
+    setClass(key, current, planetClasses) {
+      const from = planetClasses.get(current);
+      const to = planetClasses.get(key);
+      if (from === undefined || to === undefined || key === current) return NOTHING;
+      return apply({ type: "SetBodyClass", body: id, from: rule(from), to: rule(to) });
+    },
+    setModel(key, current) {
+      const entity = key === DEFAULT_MODEL ? null : key;
+      if (entity === current) return NOTHING;
+      return apply({ type: "SetBodyModel", body: id, entity });
+    },
+    setRing: (ring) => apply({ type: "SetBodyRing", body: id, ring }),
+    setStarType(planetClass, system, starClasses) {
+      const next = system.bodies.map((b) => (b.id === id ? planetClass : b.class));
+      return apply({
+        type: "SetStarClass",
+        system: system.id,
+        class: classForBodies(next, system.star_class, starClasses) ?? system.star_class,
+        bodies: [{ body: id, class: planetClass }],
+      });
+    },
+    remove: (name, moon) => deletePlanet(id, name, moon),
+    removeColony: (name) => removeColony(id, name),
+    addDeposit: (kind) => apply({ type: "AddDeposit", body: id, kind }),
+    removeDeposit: (deposit) => apply({ type: "RemoveDeposit", deposit: deposit.id }),
+    addModifier: (choice, days) =>
+      apply({
+        type: "AddBodyModifier",
+        body: id,
+        modifier: choice.modifier,
+        days: [days ?? PERMANENT],
+        ...(choice.feature === null ? {} : { feature: choice.feature }),
+      }),
+    removeModifier: (row) =>
+      apply({
+        type: "RemoveBodyModifier",
+        body: id,
+        modifier: row.modifier,
+        ...(row.feature ? { feature: row.key } : {}),
+      }),
+    addAnomaly: (category) => apply({ type: "AddAnomaly", body: id, category }),
+    removeAnomaly: () => apply({ type: "RemoveAnomaly", body: id }),
+    addDigSite: (choice) =>
+      apply({ type: "AddDigSite", body: id, site_type: choice.key, difficulty: choice.difficulty }),
+    removeDigSite: (site) => apply({ type: "RemoveDigSite", site }),
   };
 }
 
-/** The adapter that edits the body `page` shows. */
-export function planetEditAdapterFor(page: PlanetPage): PlanetEditAdapter {
-  return saveEdits(page.id);
+/** A document whose bodies take no edits: every one writes nothing. */
+const NO_PLANET_EDITS: PlanetEditAdapter<NoRowRefs> = {
+  ranges: false,
+  timedModifiers: false,
+  rename: () => NOTHING,
+  setSize: () => NOTHING,
+  setClass: () => NOTHING,
+  setModel: () => NOTHING,
+  setRing: () => NOTHING,
+  setStarType: () => NOTHING,
+  remove: () => NOTHING,
+  removeColony: () => NOTHING,
+  addDeposit: () => NOTHING,
+  removeDeposit: () => NOTHING,
+  addModifier: () => NOTHING,
+  removeModifier: () => NOTHING,
+  addAnomaly: () => NOTHING,
+  removeAnomaly: () => NOTHING,
+  addDigSite: () => NOTHING,
+  removeDigSite: () => NOTHING,
+};
+
+/** Each kind's edits for a body. A new kind fails to compile until its row is written. */
+const PLANET_EDITS: Readonly<
+  Record<DocumentKind, (body: PlanetBody) => PlanetEditAdapter<NoRowRefs>>
+> = {
+  save: saveEdits,
+  scenario: () => NO_PLANET_EDITS,
+};
+
+/** The adapter that edits `body` in a document of `kind`; with no document, one that writes nothing. */
+export function planetEditAdapterFor(
+  kind: DocumentKind | null,
+  body: PlanetBody,
+): PlanetEditAdapter<NoRowRefs> {
+  return kind === null ? NO_PLANET_EDITS : PLANET_EDITS[kind](body);
 }
 
-/** The body `page` shows as its pickers read it, a moon when `moon`, with its adapter. */
-export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarget {
+/** The save body `page` shows as its pickers read it, a moon when `moon`, with its adapter. */
+export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarget<SaveRowRefs> {
   return {
     key: `save-planet:${page.id}`,
     planetClass: page.class,
@@ -51,6 +147,6 @@ export function planetPickerTarget(page: PlanetPage, moon: boolean): PickerTarge
     deposits: page.deposits.map((d) => d.kind),
     modifiers: [...page.planet_modifiers, ...page.timed_modifiers.map((t) => t.modifier)],
     anomaly: page.anomaly,
-    edits: planetEditAdapterFor(page),
+    edits: saveEdits({ system: page.system, id: page.id }),
   };
 }

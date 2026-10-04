@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { EntityAddr } from "../generated/EntityAddr";
-import type { DocumentKind } from "../generated/DocumentKind";
+import type { Capabilities } from "../generated/Capabilities";
 import type { EntityKind } from "../generated/EntityKind";
 import { documentCapabilities } from "../lib/capabilities";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
@@ -66,41 +66,136 @@ export interface Entry {
 
 export const GALAXY_ENTRY: Entry = { ref: { kind: "galaxy" }, label: "Galaxy" };
 
+/** The ref of kind `K`. */
+type RefOf<K extends EntityRef["kind"]> = Extract<EntityRef, { kind: K }>;
+
+/** Which tabs a kind's page offers; `tabsFor` turns it into the list. */
+type TabPlan = "overview" | "data" | "system" | "wormhole" | "entity";
+
+/**
+ * Where a ref's page lives, as an edit asks whether it touched it: in `systems`, in the cached
+ * details of whichever system lists it under `listedIn`, or nowhere an edit reaches.
+ */
+export type RefHome =
+  | { systems: readonly number[] }
+  | { listedIn: "planets" | "fleets_present" | "megastructures"; id: number }
+  | null;
+
+/** What the inspector does with a ref of one kind. */
+interface RefKind<R extends EntityRef> {
+  key(ref: R): string;
+  /** The entity it reads from, or null for what the map alone knows about. */
+  addr(ref: R): EntityAddr | null;
+  tabs: TabPlan;
+  /** The ref with the system ids it names moved as `pairs` move them; null when its system is gone. */
+  renumber(ref: R, pairs: Renumbering): R | null;
+  home(ref: R): RefHome;
+}
+
+const unmoved = <R extends EntityRef>(ref: R) => ref;
+const nothing = () => null;
+const byId = (ref: { kind: string; id: number }) => `${ref.kind}:${ref.id}`;
+const addrOf = (ref: { kind: EntityKind; id: number }): EntityAddr => ({
+  kind: ref.kind,
+  id: ref.id,
+});
+
+/** A ref that only the map knows about, with no system to follow. */
+function mapOnly<R extends EntityRef>(key: (ref: R) => string): RefKind<R> {
+  return { key, addr: nothing, tabs: "overview", renumber: unmoved, home: nothing };
+}
+
+/** A ref in a system it names, whose page goes when the system goes. */
+function inSystem<R extends EntityRef & { system: number }>(
+  key: (ref: R) => string,
+  addr: (ref: R) => EntityAddr | null,
+  tabs: TabPlan,
+): RefKind<R> {
+  return {
+    key,
+    addr,
+    tabs,
+    renumber(ref, pairs) {
+      const system = renumberedId(pairs, ref.system);
+      return system === null ? null : system === ref.system ? ref : { ...ref, system };
+    },
+    home: (ref) => ({ systems: [ref.system] }),
+  };
+}
+
+/** An entity read by its id, whose page no renumbering moves. */
+function entity<R extends EntityRef & { kind: EntityKind; id: number }>(
+  home: (ref: R) => RefHome = nothing,
+): RefKind<R> {
+  return { key: byId, addr: addrOf, tabs: "entity", renumber: unmoved, home };
+}
+
+/** Every kind of ref, so a new kind fails to compile until its row is written. */
+const REF_KINDS: { [K in EntityRef["kind"]]: RefKind<RefOf<K>> } = {
+  galaxy: mapOnly(() => "galaxy"),
+  selection: mapOnly(() => "selection"),
+  bodies: inSystem((ref) => `bodies:${ref.system}`, nothing, "overview"),
+  lane: {
+    key: (ref) => `lane:${ref.a}-${ref.b}`,
+    addr: nothing,
+    tabs: "overview",
+    renumber: (ref, pairs) => renumberedLane(pairs, ref),
+    home: (ref) => ({ systems: [ref.a, ref.b] }),
+  },
+  nebula: mapOnly((ref) => `nebula:${ref.index}`),
+  system: {
+    key: byId,
+    addr: addrOf,
+    tabs: "system",
+    renumber(ref, pairs) {
+      const next = renumberedId(pairs, ref.id);
+      return next === null ? null : next === ref.id ? ref : { ...ref, id: next };
+    },
+    home: (ref) => ({ systems: [ref.id] }),
+  },
+  planet: entity((ref) => ({ listedIn: "planets", id: ref.id })),
+  colony: entity(),
+  fleet: entity((ref) => ({ listedIn: "fleets_present", id: ref.id })),
+  ship: entity(),
+  starbase: inSystem<RefOf<"starbase">>(byId, addrOf, "entity"),
+  megastructure: entity((ref) => ({ listedIn: "megastructures", id: ref.id })),
+  country: entity(),
+  pop_group: entity(),
+  sector: entity(),
+  deposit: entity(),
+  wormhole: inSystem<RefOf<"wormhole">>(byId, addrOf, "wormhole"),
+  body: inSystem((ref) => `body:${ref.system}:${ref.id}`, nothing, "overview"),
+  nodelist: {
+    key: (ref) => `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`,
+    addr: (ref) => ref.parent,
+    tabs: "data",
+    renumber(ref, pairs) {
+      if (ref.parent.kind !== "system") return ref;
+      const parent = renumberedId(pairs, ref.parent.id);
+      if (parent === null) return null;
+      return parent === ref.parent.id ? ref : { ...ref, parent: { ...ref.parent, id: parent } };
+    },
+    home: nothing,
+  },
+};
+
+/** The row for `ref`'s kind, typed for `ref`. */
+function kindOf<R extends EntityRef>(ref: R): RefKind<R> {
+  return REF_KINDS[ref.kind] as unknown as RefKind<R>;
+}
+
 export function refKey(ref: EntityRef): string {
-  switch (ref.kind) {
-    case "galaxy":
-    case "selection":
-      return ref.kind;
-    case "lane":
-      return `lane:${ref.a}-${ref.b}`;
-    case "nebula":
-      return `nebula:${ref.index}`;
-    case "body":
-      return `body:${ref.system}:${ref.id}`;
-    case "bodies":
-      return `bodies:${ref.system}`;
-    case "nodelist":
-      return `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`;
-    default:
-      return `${ref.kind}:${ref.id}`;
-  }
+  return kindOf(ref).key(ref);
 }
 
 /** The entity a ref reads from, or null for what the map alone knows about. */
 export function entityAddr(ref: EntityRef): EntityAddr | null {
-  switch (ref.kind) {
-    case "galaxy":
-    case "selection":
-    case "bodies":
-    case "lane":
-    case "nebula":
-    case "body":
-      return null;
-    case "nodelist":
-      return ref.parent;
-    default:
-      return { kind: ref.kind, id: ref.id };
-  }
+  return kindOf(ref).addr(ref);
+}
+
+/** Where `ref`'s page lives, as an edit asks whether it touched it. */
+export function refHome(ref: EntityRef): RefHome {
+  return kindOf(ref).home(ref);
 }
 
 /**
@@ -118,7 +213,7 @@ export function refFor(addr: EntityAddr, system: number | null): EntityRef | nul
  */
 export function bodyEntry(system: number, id: number, label: string): Entry {
   return bodyEntryOf(
-    documentCapabilities(useFileSessionStore.getState()).details,
+    !documentCapabilities(useFileSessionStore.getState()).rolled_layout,
     system,
     id,
     label,
@@ -147,7 +242,7 @@ export function tabsFor(
   hasContents = true,
   system: SystemTabs = { scripts: true, data: true },
 ): InspectorTab[] {
-  switch (ref.kind) {
+  switch (kindOf(ref).tabs) {
     case "system": {
       const tabs: InspectorTab[] = ["overview"];
       if (system.scripts) tabs.push("scripts");
@@ -156,18 +251,13 @@ export function tabsFor(
       tabs.push("source");
       return tabs;
     }
-    case "galaxy":
-    case "selection":
-    case "bodies":
-    case "lane":
-    case "nebula":
-    case "body":
+    case "overview":
       return ["overview"];
-    case "nodelist":
+    case "data":
       return ["data"];
     case "wormhole":
       return ["overview", "data", "source"];
-    default:
+    case "entity":
       return hasContents
         ? ["overview", "contents", "data", "source"]
         : ["overview", "data", "source"];
@@ -176,30 +266,7 @@ export function tabsFor(
 
 /** `ref` with the system ids it names moved as `pairs` move them; null when its system is gone. */
 export function renumberedRef(ref: EntityRef, pairs: Renumbering): EntityRef | null {
-  const id = (n: number) => renumberedId(pairs, n);
-  switch (ref.kind) {
-    case "system": {
-      const next = id(ref.id);
-      return next === null ? null : next === ref.id ? ref : { ...ref, id: next };
-    }
-    case "lane":
-      return renumberedLane(pairs, ref);
-    case "starbase":
-    case "wormhole":
-    case "bodies":
-    case "body": {
-      const system = id(ref.system);
-      return system === null ? null : system === ref.system ? ref : { ...ref, system };
-    }
-    case "nodelist": {
-      if (ref.parent.kind !== "system") return ref;
-      const parent = id(ref.parent.id);
-      if (parent === null) return null;
-      return parent === ref.parent.id ? ref : { ...ref, parent: { ...ref.parent, id: parent } };
-    }
-    default:
-      return ref;
-  }
+  return kindOf(ref).renumber(ref, pairs);
 }
 
 export interface InspectorState {
@@ -265,15 +332,14 @@ export function wormholeEntry(system: number, id: number, label: string): Entry 
   return { ref: { kind: "wormhole", system, id }, label };
 }
 
-/** What a system's strip offers on a document of `kind`: scripts on a scenario with game data, data on a save. */
-export function systemTabsOf(kind: DocumentKind | null, gameDataReady: boolean): SystemTabs {
-  const scenario = kind === "scenario";
-  return { scripts: scenario && gameDataReady, data: !scenario };
+/** What a system's strip offers on a document with `capabilities`: its scripts while game data is loaded, and its field table. */
+export function systemTabsOf(capabilities: Capabilities, gameDataReady: boolean): SystemTabs {
+  return { scripts: capabilities.scripts && gameDataReady, data: capabilities.details };
 }
 
 function systemTabsNow(): SystemTabs {
   return systemTabsOf(
-    useFileSessionStore.getState().kind,
+    documentCapabilities(useFileSessionStore.getState()),
     useGameDataStore.getState().status === "ready",
   );
 }

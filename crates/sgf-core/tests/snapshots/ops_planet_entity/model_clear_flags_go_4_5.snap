@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Took the model previously_terraformed_planet_entity off planet #3318
-inverse: SetPlanetEntity { planet: 3318, entity: Some("previously_terraformed_planet_entity") }
+inverse: SetBodyModel { body: 3318, entity: Some("previously_terraformed_planet_entity") }
 
 --- gamestate
 +++ gamestate

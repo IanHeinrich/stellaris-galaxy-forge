@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Issue } from "../generated/Issue";
 import type { CountryNode } from "../generated/CountryNode";
 import type { EditResult } from "../generated/EditResult";
 import type { SearchHit } from "../generated/SearchHit";
@@ -47,7 +46,7 @@ describe("editing", () => {
     const result = editResult({ delta: { systems: [moved] } });
     mockedIpc.applyOp.mockResolvedValueOnce(result);
 
-    expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: -150, y: 60 })).toBe(true);
+    expect(await editor().applyOp({ type: "MoveSystem", system: 0, x: -150, y: 60 })).toBe(true);
 
     const node = useGalaxyStore.getState().systems.get(0);
     expect(node?.x).toBe(-150);
@@ -69,7 +68,7 @@ describe("editing", () => {
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 3, y: 3 }] } }),
     );
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 3, y: 3 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 3, y: 3 });
     expect(useGalaxyStore.getState().systems).not.toBe(before);
     expect(before.get(0)).toEqual(SYSTEMS[0]);
   });
@@ -213,7 +212,7 @@ describe("editing", () => {
     expect(useFileSessionStore.getState().title).toBe(OPEN_RESULT.title);
   });
 
-  it("stale details stay cached, the projection is warmed again and the system is re-read", async () => {
+  it("stale details stay cached and the system is re-read, with no second ask for the findings", async () => {
     useDetailsStore.setState({
       details: new Map([[1, systemDetails({ id: 1 })]]),
       pending: new Set([2]),
@@ -223,59 +222,26 @@ describe("editing", () => {
     mockedIpc.warmDetails.mockClear();
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1, 2] }));
 
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
 
     const details = useDetailsStore.getState();
     expect(details.details.has(1)).toBe(true);
     expect(details.pending.has(2)).toBe(false);
-    expect(mockedIpc.warmDetails).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.warmDetails).not.toHaveBeenCalled();
     expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
   });
 
-  it("a projection rebuild that fails says so on the session, and the edit still stands", async () => {
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    mockedIpc.warmDetails.mockRejectedValueOnce({ kind: "internal", message: "no projection" });
-
-    expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 })).toBe(true);
-
-    await vi.waitFor(() => expect(sessionError()).toBe("no projection"));
-    expect(useFileSessionStore.getState().dirty).toBe(true);
-  });
-
-  it("drops a projection rebuild's findings once a later edit has landed", async () => {
-    let warmed: (issues: Issue[]) => void = () => undefined;
-    const warm = new Promise<Issue[]>((resolve) => {
-      warmed = resolve;
-    });
-    mockedIpc.warmDetails.mockReturnValueOnce(warm);
+  it("shows the overlap findings an edit that staled the details returns", async () => {
     const overlap = appIssue({ code: "bodies_overlap", message: "overlap", systems: [1] });
     const lane = appIssue({ code: "system_isolated", message: "isolated", systems: [2] });
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [lane] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1], issues: [overlap] }));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [lane, overlap] }));
 
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
+    expect(useIssuesStore.getState().issues).toEqual([overlap]);
     await editor().applyOp({ type: "RemoveLane", a: 0, b: 1 });
-    warmed([overlap]);
-    await warm;
-    await Promise.resolve();
 
-    expect(useIssuesStore.getState().issues).toEqual([lane]);
-  });
-
-  it("a projection rebuild that fails once the document is gone says nothing", async () => {
-    let fail: (e: unknown) => void = () => undefined;
-    const warm = new Promise<Issue[]>((_warmed, rejected) => {
-      fail = rejected;
-    });
-    mockedIpc.warmDetails.mockReturnValueOnce(warm);
-    mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
-    editor().resetSession();
-    fail({ kind: "internal", message: "no projection" });
-    await warm.catch(() => undefined);
-
-    expect(sessionError()).toBeNull();
+    expect(useIssuesStore.getState().issues).toEqual([lane, overlap]);
   });
 
   it("re-reads the selected system when the inspector shows a planet of a system gone stale", async () => {
@@ -289,7 +255,7 @@ describe("editing", () => {
     mockedIpc.getSystem.mockClear();
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [7] }));
 
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
 
     expect(mockedIpc.getSystem).toHaveBeenCalledWith(1);
   });
@@ -302,7 +268,7 @@ describe("editing", () => {
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 1, y: 1 }] } }),
     );
 
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
 
     expect(mockedIpc.getSystem).not.toHaveBeenCalled();
   });
@@ -314,8 +280,8 @@ describe("editing", () => {
       editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 20, y: 20 }] } }),
     );
 
-    const first = editor().applyOp({ type: "MoveSystem", id: 0, x: 10, y: 10 });
-    const second = editor().applyOp({ type: "MoveSystem", id: 0, x: 20, y: 20 });
+    const first = editor().applyOp({ type: "MoveSystem", system: 0, x: 10, y: 10 });
+    const second = editor().applyOp({ type: "MoveSystem", system: 0, x: 20, y: 20 });
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
 
     finishFirst(editResult({ delta: { systems: [{ ...SYSTEMS[0], x: 10, y: 10 }] } }));
@@ -344,7 +310,7 @@ describe("history navigation", () => {
       return applied === entries.length ? null : at(applied + 1);
     });
     mockedIpc.applyOp.mockResolvedValueOnce(at(3));
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
   });
 
   it("undoTo undoes until the entry is the last applied and redoTo redoes forward to it", async () => {
@@ -378,7 +344,7 @@ describe("the systems the core reports stale", () => {
     mockedIpc.getSystemDetails.mockResolvedValue([]);
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
 
-    await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "guardian_dragon" });
+    await editor().applyOp({ type: "SetInitializer", system: 1, initializer: "guardian_dragon" });
     useDetailsStore.getState().request([1]);
 
     expect(useDetailsStore.getState().details.get(1)).toBeDefined();
@@ -391,7 +357,7 @@ describe("re-classifying after an edit", () => {
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
     mockedIpc.getSpecialSystems.mockClear();
 
-    await editor().applyOp({ type: "SetInitializer", id: 0, initializer: "guardian_dragon" });
+    await editor().applyOp({ type: "SetInitializer", system: 0, initializer: "guardian_dragon" });
 
     expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
   });
@@ -403,7 +369,7 @@ describe("re-classifying after an edit", () => {
 
     await editor().applyOp({
       type: "SetInitializer",
-      id: 0,
+      system: 0,
       initializer: "empire_capital_init",
     });
 
@@ -416,7 +382,7 @@ describe("re-classifying after an edit", () => {
     mockedIpc.getSpecialSystems.mockClear();
     mockedIpc.getScenarioOwners.mockClear();
 
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 2 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 2 });
 
     expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
     expect(mockedIpc.getScenarioOwners).not.toHaveBeenCalled();
@@ -426,14 +392,14 @@ describe("re-classifying after an edit", () => {
     mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "no" });
     mockedIpc.getSpecialSystems.mockClear();
 
-    expect(await editor().applyOp({ type: "RemoveSystem", id: 5 })).toBe(false);
+    expect(await editor().applyOp({ type: "RemoveSystem", system: 5 })).toBe(false);
 
     expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
   });
 
   it("undoing an initializer edit re-classifies too", async () => {
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ reclassifies: true }));
-    await editor().applyOp({ type: "SetInitializer", id: 0, initializer: "guardian_dragon" });
+    await editor().applyOp({ type: "SetInitializer", system: 0, initializer: "guardian_dragon" });
     mockedIpc.getSpecialSystems.mockClear();
     mockedIpc.undo.mockResolvedValueOnce(editResult({ reclassifies: true }));
 
@@ -460,12 +426,12 @@ describe("re-classifying after an edit", () => {
       .mockResolvedValueOnce(reclassifying);
 
     const run = [0, 1, 2].map((id) =>
-      editor().applyOp({ type: "SetInitializer", id, initializer: "guardian_dragon" }),
+      editor().applyOp({ type: "SetInitializer", system: id, initializer: "guardian_dragon" }),
     );
     await vi.waitFor(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1));
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({}));
-    expect(await editor().applyOp({ type: "MoveSystem", id: 0, x: 9, y: 9 })).toBe(true);
+    expect(await editor().applyOp({ type: "MoveSystem", system: 0, x: 9, y: 9 })).toBe(true);
 
     release();
     await Promise.all(run);
@@ -489,7 +455,7 @@ describe("following a delete that renumbers", () => {
         },
       }),
     );
-    return editor().applyOp({ type: "RemoveSystem", id: 6 });
+    return editor().applyOp({ type: "RemoveSystem", system: 6 });
   }
 
   it("moves the selection, the pages and the pinned searches to the new id", async () => {
@@ -555,7 +521,7 @@ describe("following a delete that renumbers", () => {
       }),
     );
 
-    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    await editor().applyOp({ type: "RemoveSystem", system: 6 });
 
     expect(editor().hover).toBeNull();
     expect(editor().selectedLane).toEqual({ a: 3, b: 6 });
@@ -607,7 +573,7 @@ describe("history steps that bring an added system back", () => {
         },
       }),
     );
-    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    await editor().applyOp({ type: "RemoveSystem", system: 6 });
     mockedIpc.undo.mockResolvedValueOnce(
       editResult({ delta: { systems: [six, seven], renumbered: [[6, 7]] } }),
     );

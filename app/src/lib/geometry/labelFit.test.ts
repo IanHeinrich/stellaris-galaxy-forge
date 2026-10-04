@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  fitLabel,
+  HOLE_CLEARANCE,
+  NAME_SPILL,
   placeLabels,
   scanPiece,
-  scanRing,
+  WINDOW,
   type LabelFit,
   type LabelShape,
+  type PieceScan,
 } from "./labelFit";
+import { inRing, type Rect } from "./polygon";
 import type { Pt } from "./pt";
 
 const ring = (...xy: number[]): Pt[] => {
@@ -18,40 +21,35 @@ const ring = (...xy: number[]): Pt[] => {
 const rect = (x0: number, y0: number, x1: number, y1: number): Pt[] =>
   ring(x0, y0, x1, y0, x1, y1, x0, y1);
 
-/** Whether (`x`, `y`) lies inside `poly`, by ray crossing. */
-function contains(poly: Pt[], x: number, y: number): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const a = poly[i];
-    const b = poly[j];
-    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
-  }
-  return inside;
-}
+const scanRing = (outer: Pt[], rows?: number): PieceScan => scanPiece([outer], rows);
 
-/** The name bar and emblem of a fitted label, as `[x0, y0, x1, y1]`. */
-function rectsOf(shape: LabelShape, fit: LabelFit): number[][] {
+/** The label a piece takes when it is the only one placed. */
+const fitLabel = (scan: PieceScan, shape: LabelShape, maxScale: number, minScale: number) =>
+  placeLabels([{ scan, shape, maxScale, minScale }])[0]!;
+
+/** The name bar and emblem of a fitted label, the emblem reaching `drop` down into the bar. */
+function rectsOf(shape: LabelShape, fit: LabelFit): Rect[] {
   const w = (shape.nameWidth * fit.scale) / 2;
-  const bar = [fit.x - w, fit.y, fit.x + w, fit.y + shape.nameHeight * fit.scale];
+  const bar = { x0: fit.x - w, y0: fit.y, x1: fit.x + w, y1: fit.y + shape.nameHeight * fit.scale };
   const e = shape.emblem * fit.scale;
-  return e > 0 ? [bar, [fit.x - e / 2, fit.y - e, fit.x + e / 2, fit.y]] : [bar];
+  const bottom = fit.y + shape.drop * fit.scale;
+  const emblem = { x0: fit.x - e / 2, y0: bottom - e, x1: fit.x + e / 2, y1: bottom };
+  return e > 0 ? [bar, emblem] : [bar];
 }
 
 function labelInside(poly: Pt[], shape: LabelShape, fit: LabelFit): boolean {
-  return rectsOf(shape, fit).every(([x0, y0, x1, y1]) =>
+  return rectsOf(shape, fit).every(({ x0, y0, x1, y1 }) =>
     [
-      [x0, y0],
-      [x1, y0],
-      [x1, y1],
-      [x0, y1],
-    ].every(([x, y]) => contains(poly, x, y)),
+      { x: x0, y: y0 },
+      { x: x1, y: y0 },
+      { x: x1, y: y1 },
+      { x: x0, y: y1 },
+    ].every((p) => inRing(p, poly)),
   );
 }
 
-function overlap(a: number[][], b: number[][]): boolean {
-  return a.some(([ax0, ay0, ax1, ay1]) =>
-    b.some(([bx0, by0, bx1, by1]) => ax0 < bx1 && bx0 < ax1 && ay0 < by1 && by0 < ay1),
-  );
+function overlap(a: Rect[], b: Rect[]): boolean {
+  return a.some((r) => b.some((t) => r.x0 < t.x1 && t.x0 < r.x1 && r.y0 < t.y1 && t.y0 < r.y1));
 }
 
 /** A name six times as wide as it is tall, with no emblem: one solid box. */
@@ -59,7 +57,7 @@ const BAR: LabelShape = { nameWidth: 6, nameHeight: 1, emblem: 0, drop: 0 };
 /** A long name with an emblem three name-heights square on top of it. */
 const T: LabelShape = { nameWidth: 10, nameHeight: 1, emblem: 3, drop: 0.3 };
 
-describe("scanRing", () => {
+describe("scanPiece", () => {
   it("lists each line's stretches inside the ring, left to right", () => {
     const u = ring(0, 0, 30, 0, 30, 100, 20, 100, 20, 10, 10, 10, 10, 100, 0, 100);
     const scan = scanRing(u, 10);
@@ -89,18 +87,18 @@ describe("scanRing", () => {
 });
 
 /**
- * The name with half a letter (half a font size) off each end, which may run past the piece,
- * and a hair more so an end that just touches the edge counts as inside.
+ * The name without the part of each end that may run past the piece, and a hair more so an
+ * end that just touches the edge counts as inside.
  */
 const trimmed = (shape: LabelShape): LabelShape => ({
   ...shape,
-  nameWidth: shape.nameWidth - 1.02,
+  nameWidth: shape.nameWidth - 2 * NAME_SPILL - 0.02,
 });
 
 /** The middle of a fitted label's name bar. */
 const barMiddle = (shape: LabelShape, fit: LabelFit) => fit.y + (shape.nameHeight * fit.scale) / 2;
 
-describe("fitLabel", () => {
+describe("placeLabels for one piece", () => {
   it("sizes a long thin piece's name to its width, centred on it and inside it", () => {
     const strip = rect(0, 0, 300, 120);
     const fit = fitLabel(scanRing(strip), BAR, 100, 5);
@@ -137,7 +135,7 @@ describe("fitLabel", () => {
     const tower = ring(100, 0, 300, 0, 300, 300, 400, 300, 400, 400, 0, 400, 0, 300, 100, 300);
     const scan = scanRing(tower, 48);
     const fit = fitLabel(scan, T, 100, 5);
-    expect(Math.abs(barMiddle(T, fit) - scan.cy)).toBeLessThanOrEqual(0.15 * 400);
+    expect(Math.abs(barMiddle(T, fit) - scan.cy)).toBeLessThanOrEqual(WINDOW * 400);
     expect(barMiddle(T, fit)).toBeLessThan(300);
     expect(fit.x).toBeCloseTo(200, 0);
     expect(fit.scale * T.nameWidth).toBeLessThan(230);
@@ -149,7 +147,7 @@ describe("fitLabel", () => {
     const scan = scanRing(notched, 48);
     const fit = fitLabel(scan, BAR, 100, 5);
     const row = barMiddle(BAR, fit);
-    expect(Math.abs(row - scan.cy)).toBeLessThanOrEqual(0.15 * 400);
+    expect(Math.abs(row - scan.cy)).toBeLessThanOrEqual(WINDOW * 400);
     expect(Math.abs(row - 200)).toBeGreaterThan(20);
     expect(fit.scale * BAR.nameWidth).toBeGreaterThan(350);
   });
@@ -158,10 +156,10 @@ describe("fitLabel", () => {
     const hole = rect(180, 180, 220, 220);
     const scan = scanPiece([rect(0, 0, 400, 400), hole], 48);
     const fit = fitLabel(scan, T, 100, 5);
-    for (const [x0, y0, x1, y1] of rectsOf(T, fit)) {
+    for (const { x0, y0, x1, y1 } of rectsOf(T, fit)) {
       const dx = Math.max(x0 - 200, 0, 200 - x1);
       const dy = Math.max(y0 - 200, 0, 200 - y1);
-      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(Math.hypot(20, 20) + 25 - 1e-9);
+      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(Math.hypot(20, 20) + HOLE_CLEARANCE - 1e-9);
     }
   });
 
@@ -204,6 +202,16 @@ describe("placeLabels", () => {
   it("leaves out a label with no clear room even at half its floor", () => {
     const under = { ...pocket, scan: scanRing(rect(140, 40, 160, 60)), minScale: 40 };
     const [placed, left] = placeLabels([big, under]);
+    expect(placed).not.toBeNull();
+    expect(left).toBeNull();
+  });
+
+  it("settles every label when the floor asked for is 0", () => {
+    const holed = scanPiece([rect(0, 500, 60, 560), rect(25, 525, 35, 535)]);
+    const under = { ...pocket, scan: scanRing(rect(140, 40, 160, 60)), minScale: 0 };
+    const [crowded, placed, left] = placeLabels([{ ...big, scan: holed, minScale: 0 }, big, under]);
+    expect(crowded!.inside).toBe(false);
+    expect(crowded!.scale).toBeGreaterThan(0);
     expect(placed).not.toBeNull();
     expect(left).toBeNull();
   });

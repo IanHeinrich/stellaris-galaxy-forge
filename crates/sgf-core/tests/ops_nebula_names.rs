@@ -29,7 +29,7 @@ fn add(name: &str) -> Op {
 }
 
 fn rename(index: usize, name: &str) -> Op {
-    Op::SetNebulaName {
+    Op::RenameNebula {
         index,
         name: name.to_owned(),
     }

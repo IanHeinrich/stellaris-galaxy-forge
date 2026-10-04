@@ -108,7 +108,7 @@ function ModifierMenu({ target }: { target: PickerTarget }) {
     () =>
       choices === null
         ? null
-        : modifierPickRows(choices, target.modifiers, usual, (m) =>
+        : modifierPickRows(choices.list, target.modifiers, usual, (m) =>
             terraformCandidateTitle(m, candidates),
           ),
     [choices, target.modifiers, usual, candidates],

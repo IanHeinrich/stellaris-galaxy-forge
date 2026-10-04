@@ -29,7 +29,7 @@ fn rename(country: u32, name: &str) -> Op {
         country,
         name: name.to_owned(),
         value: None,
-        custom_name: None,
+        custom_name: true,
     }
 }
 
@@ -140,7 +140,7 @@ fn a_4_4_player_s_designed_name_becomes_a_literal_and_the_inverse_carries_the_ol
         country: PLAYER,
         name,
         value: Some(value),
-        custom_name: None,
+        custom_name: true,
     } = inverse
     else {
         panic!("{inverse:?}");
@@ -154,7 +154,7 @@ fn an_ai_empire_s_generated_name_changes_and_the_header_and_meta_stay() {
     let inverse = change(open_4_5(), AI, "ai_generated");
     let Op::RenameEmpire {
         value: Some(value),
-        custom_name: Some(false),
+        custom_name: false,
         ..
     } = inverse
     else {
@@ -214,7 +214,7 @@ fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written(
         .apply(rename(PLAYER, "Test Empire"))
         .expect_err("unchanged");
     assert!(
-        matches!(error, OpError::EmpireNameUnchanged(PLAYER)),
+        matches!(error, OpError::Unchanged { ref what, .. } if *what == format!("country {PLAYER}")),
         "{error:?}"
     );
     assert!(matches!(
@@ -236,7 +236,7 @@ fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written(
             country: AI,
             name: NEW_NAME.to_owned(),
             value: Some("{ key=\"X\"".to_owned()),
-            custom_name: None,
+            custom_name: true,
         })
         .unwrap_err();
     assert!(matches!(error, OpError::InvalidText { .. }), "{error:?}");
@@ -245,7 +245,7 @@ fn a_rename_is_refused_where_nothing_would_change_or_the_name_cannot_be_written(
             country: AI,
             name: NEW_NAME.to_owned(),
             value: Some("\"abc".to_owned()),
-            custom_name: None,
+            custom_name: true,
         })
         .unwrap_err();
     assert!(matches!(error, OpError::InvalidText { .. }), "{error:?}");
@@ -281,7 +281,7 @@ fn a_3_4_empire_is_marked_custom_after_its_adjective() {
     let Op::RenameEmpire { custom_name, .. } = &result.inverse else {
         panic!("{:?}", result.inverse);
     };
-    assert_eq!(*custom_name, Some(false));
+    assert!(!*custom_name);
     let text = String::from_utf8_lossy(&current(&session)).into_owned();
     let at = text
         .find(&format!("key=\"{NEW_NAME}\""))

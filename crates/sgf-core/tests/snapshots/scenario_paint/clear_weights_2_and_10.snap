@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the spawn weight of 2 systems
-inverse: Batch { description: "Set the spawn weight of 2 systems", ops: [SetSpawnScript { id: 2, script: Some(PaintAGalaxy { kind: Reserved("a"), random_value: 2, player: false }) }, SetSpawnWeight { id: 10, base: None }] }
+inverse: Batch { description: "Set the spawn weight of 2 systems", ops: [SetSpawnWeight { system: 10, base: None }, SetSpawnScript { system: 2, script: Some(PaintAGalaxy { kind: Reserved("a"), random_value: 2, player: false }) }] }
 
 --- scenario
 +++ scenario

@@ -4,7 +4,7 @@ expression: value
 ---
 Added d_minerals_3 (#16777216) to planet #2
 touched: [217]
-inverse: RemoveSaveDeposit { deposit: 16777216 }
+inverse: RemoveDeposit { deposit: 16777216 }
 … and 3 other issues
 
 --- gamestate

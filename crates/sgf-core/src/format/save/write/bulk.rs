@@ -51,9 +51,10 @@ pub(crate) fn move_systems(
     moves: &[SystemMove],
 ) -> Result<(Vec<SystemMove>, usize), OpError> {
     let origin = decide_moves(&s.graph, moves)?;
-    let destination: BTreeMap<u32, (f64, f64)> = moves.iter().map(|m| (m.id, (m.x, m.y))).collect();
+    let destination: BTreeMap<u32, (f64, f64)> =
+        moves.iter().map(|m| (m.system, (m.x, m.y))).collect();
     for m in moves {
-        splice_coordinate(plan.edit(&s.doc, m.id)?, m.x, m.y)?;
+        splice_coordinate(plan.edit(&s.doc, m.system)?, m.x, m.y)?;
     }
 
     let position = |id: u32| {
@@ -63,7 +64,7 @@ pub(crate) fn move_systems(
         })
     };
     let mut updated = 0;
-    for (a, b, _) in touching_lanes(&s.graph, moves.iter().map(|m| m.id)) {
+    for (a, b, _) in touching_lanes(&s.graph, moves.iter().map(|m| m.system)) {
         if a == b || !s.graph.systems.contains_key(&b) {
             continue;
         }

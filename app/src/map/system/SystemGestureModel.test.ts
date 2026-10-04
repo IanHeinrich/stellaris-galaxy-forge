@@ -2,11 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DRAG_HINTS,
   GEOMETRY_REASONS,
-  NO_GEOMETRY,
-  SAVE_GEOMETRY,
   toMoonHint,
   toStarHint,
-} from "../../lib/details/orbitEdits";
+} from "../../lib/details/orbitIntent";
+import { NO_GEOMETRY, SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import { polar } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import type { ContextTarget } from "../../store/mapChromeStore";

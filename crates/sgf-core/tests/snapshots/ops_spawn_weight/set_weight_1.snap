@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
-Set system 1 spawn weight to 1
-inverse: SetSpawnWeight { id: 1, base: None }
+Set the spawn weight of Galactic Center #1 to 1
+inverse: SetSpawnWeight { system: 1, base: None }
 
 --- scenario
 +++ scenario

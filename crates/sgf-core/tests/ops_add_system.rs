@@ -25,7 +25,7 @@ use common::{
 const GENERATION: u32 = 1 << 24;
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 /// The planets the details list for system `id`, as (planet, class, deposit keys).
@@ -421,7 +421,11 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
             .expect("a system to link");
         let x = spec.x + 3.0;
         let steps = [
-            Op::MoveSystem { id, x, y: spec.y },
+            Op::MoveSystem {
+                system: id,
+                x,
+                y: spec.y,
+            },
             Op::AddLane {
                 a: far,
                 b: id,
@@ -429,14 +433,17 @@ fn later_ops_work_on_the_new_system_and_undo_back_to_the_original() {
             },
             Op::RemoveLane { a: id, b: home },
             Op::SetStarClass {
-                id,
+                system: id,
                 class: "sc_m".to_owned(),
                 bodies: vec![StarBody {
-                    planet: star,
+                    body: star,
                     class: "pc_m_star".to_owned(),
                 }],
             },
-            Op::SetPlanetSize { id: star, size: 30 },
+            Op::SetBodySize {
+                body: star,
+                size: 30,
+            },
         ];
         for op in steps {
             let label = format!("{op:?}");
@@ -501,7 +508,7 @@ fn refused(mut session: Session, spec: SystemSpec) -> OpError {
 #[test]
 fn what_the_op_refuses() {
     let old = open_3_4();
-    assert!(matches!(refused(old, dorellion()), OpError::SaveTooOld(v) if v.contains("v3.4")));
+    assert!(matches!(refused(old, dorellion()), OpError::VersionTooOld(v) if v.contains("v3.4")));
 
     let gap = open_edited(|text| {
         *text = text.replace("\nlast_created_system=790\n", "\nlast_created_system=795\n");
@@ -709,7 +716,7 @@ fn a_save_without_an_asteroid_pool_takes_no_asteroids() {
     round_trip(with_asteroid_pool(""), add(dorellion()));
     assert!(matches!(
         refused(with_asteroid_pool(""), belted(dorellion())),
-        OpError::MissingSaveKey("asteroid_prefix")
+        OpError::MissingKey("asteroid_prefix")
     ));
 }
 
@@ -732,7 +739,9 @@ fn a_spent_asteroid_pool_names_asteroids_again() {
         "the one suffix leaves the pool"
     );
 
-    session.apply(Op::RemoveSystem { id: 791 }).expect("remove");
+    session
+        .apply(Op::RemoveSystem { system: 791 })
+        .expect("remove");
     assert_eq!(current(&session), session.doc.original());
 }
 
@@ -759,7 +768,7 @@ fn a_save_without_a_deposit_table_takes_a_system_without_deposits() {
     spec.name = "Sgf_Deposits".to_owned();
     assert!(matches!(
         refused(without_section("deposit", ""), spec),
-        OpError::MissingSaveKey("deposit")
+        OpError::MissingKey("deposit")
     ));
 }
 
@@ -811,11 +820,11 @@ fn the_version_is_read_with_or_without_a_release_name() {
         .expect("a bare 4.x version");
     assert!(matches!(
         refused(with_version("v3.14.1"), dorellion()),
-        OpError::SaveTooOld(v) if v == "v3.14.1"
+        OpError::VersionTooOld(v) if v == "v3.14.1"
     ));
     assert!(matches!(
         refused(with_version("Pegasus"), dorellion()),
-        OpError::UnknownSaveVersion(v) if v == "Pegasus"
+        OpError::UnknownVersion(v) if v == "Pegasus"
     ));
 }
 

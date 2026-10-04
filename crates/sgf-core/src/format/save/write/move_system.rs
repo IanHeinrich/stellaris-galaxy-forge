@@ -38,7 +38,7 @@ pub(crate) fn plan(
         updated += replace_lengths(plan.edit(&s.doc, id)?, n, text)?;
         updated += replace_lengths(plan.edit(&s.doc, n)?, id, text)?;
     }
-    let (membership, had) = plan_membership(plan, s, &[SystemMove { id, x, y }])?;
+    let (membership, had) = plan_membership(plan, s, &[SystemMove { system: id, x, y }])?;
     let description = format!(
         "{}; updated {updated} lane lengths{}",
         moved.describe(),

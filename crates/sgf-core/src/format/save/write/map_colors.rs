@@ -7,20 +7,14 @@
 //! it, so turning map colours off and on again restores the block's bytes.
 
 use crate::Span;
-use crate::cst::{self, Node};
+use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::quoted;
+use crate::format::save::write::flag_colors::{FOLLOWS, MAP_BORDER, MAP_FILL, Unreadable};
 use crate::keys;
-use crate::ops::rules::{Form, check_text, quoted};
-use crate::ops::{BufEdit, MapColorPair, Op, OpError, Plan, Planned, spliced};
+use crate::ops::rules::{Form, check_text};
+use crate::ops::{BufEdit, MapColorPair, Op, OpError, ParseAt, Plan, Planned};
 use crate::session::Session;
-
-const FLAG_FIRST: usize = 0;
-const FLAG_SECOND: usize = 1;
-const MAP_BORDER: usize = 4;
-const MAP_FILL: usize = 5;
-
-/// A place in the bytes the flag cannot be read at, and why.
-type Unreadable = (usize, String);
 
 pub(crate) fn plan_set(
     plan: &mut Plan,
@@ -50,7 +44,12 @@ pub(crate) fn plan_set(
     let old = current
         .write(&mut out, colors)
         .map_err(parse_error)?
-        .ok_or(OpError::MapColorsUnchanged(country))?;
+        .ok_or_else(|| {
+            OpError::unchanged(
+                format!("country {country}\'s map colours"),
+                "are already set that way",
+            )
+        })?;
     edit.splices.extend(splices);
     if s.graph.player_country == Some(country) {
         plan_meta(plan, &s.doc, colors)?;
@@ -80,30 +79,15 @@ fn plan_meta(
     doc: &Document,
     colors: Option<&MapColorPair>,
 ) -> Result<(), OpError> {
-    let meta = doc.meta();
-    let parse_error = |(offset, reason): Unreadable| OpError::MetaParse { offset, reason };
-    let root = cst::parse(meta, 0).map_err(|e| parse_error((e.offset, e.reason.to_owned())))?;
-    let Some(flag) = root.find(keys::FLAG, meta) else {
+    let parse_error = |(offset, reason): Unreadable| OpError::parse(ParseAt::Meta, offset, reason);
+    let (root, mut out) = plan.edit_meta(doc)?;
+    let Some(flag) = root.find(keys::FLAG, out.buf) else {
         return Ok(());
     };
-    let Some(current) = MapColors::read(flag, meta).map_err(parse_error)? else {
+    let Some(current) = MapColors::read(flag, out.buf).map_err(parse_error)? else {
         return Ok(());
     };
-    let mut splices = Vec::new();
-    let mut out = BufEdit {
-        buf: meta,
-        splices: &mut splices,
-    };
-    if current
-        .write(&mut out, colors)
-        .map_err(parse_error)?
-        .is_none()
-    {
-        return Ok(());
-    }
-    let bytes = spliced(meta, splices)
-        .map_err(|offset| parse_error((offset, "edit ranges overlap".to_owned())))?;
-    plan.replace_meta(bytes);
+    current.write(&mut out, colors).map_err(parse_error)?;
     Ok(())
 }
 
@@ -167,7 +151,10 @@ impl<'n> MapColors<'n> {
         let on = self.on();
         let (border, fill) = match colors {
             Some(pair) => (pair.border.clone(), pair.fill.clone()),
-            None => (self.entry(FLAG_FIRST)?.1, self.entry(FLAG_SECOND)?.1),
+            None => {
+                let [(_, under_border), (_, under_fill)] = FOLLOWS;
+                (self.entry(under_border)?.1, self.entry(under_fill)?.1)
+            }
         };
         let unchanged = match colors {
             Some(_) => on,

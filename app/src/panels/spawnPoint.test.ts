@@ -12,17 +12,19 @@ describe("weighing a selection", () => {
 
     expect(spawnTargets([0, 1, 2], map, false).map((s) => s.id)).toEqual([0, 2]);
     expect(spawnPointsOp([0, 1, 2], map, true, false)).toEqual({
-      type: "SetSpawnWeights",
-      entries: [
-        [0, 1],
-        [2, 1],
+      type: "Batch",
+      description: "Set the spawn weight of 2 systems",
+      ops: [
+        { type: "SetSpawnWeight", system: 0, base: 1 },
+        { type: "SetSpawnWeight", system: 2, base: 1 },
       ],
     });
     expect(spawnPointsOp([0, 1, 2], map, false, false)).toEqual({
-      type: "SetSpawnWeights",
-      entries: [
-        [0, null],
-        [2, null],
+      type: "Batch",
+      description: "Set the spawn weight of 2 systems",
+      ops: [
+        { type: "SetSpawnWeight", system: 0, base: null },
+        { type: "SetSpawnWeight", system: 2, base: null },
       ],
     });
   });
@@ -32,7 +34,7 @@ describe("weighing a selection", () => {
 
     expect(spawnPointsOp([0, 1], map, true, false)).toEqual({
       type: "SetSpawnWeight",
-      id: 0,
+      system: 0,
       base: 1,
     });
   });
@@ -52,14 +54,23 @@ describe("weighing a selection", () => {
     expect(spawnTargets([0, 1], map, true).map((s) => s.id)).toEqual([0, 1]);
     expect(spawnPointsOp([1], map, true, true)).toEqual({
       type: "SetSpawnScript",
-      id: 1,
+      system: 1,
       script: { paint_a_galaxy: { kind: "enabled", random_value: 1, player: false } },
     });
     expect(spawnPointsOp([0, 1], map, true, true)).toEqual({
-      type: "SetSpawnScripts",
-      entries: [
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
-        [1, { paint_a_galaxy: { kind: "enabled", random_value: 1, player: false } }],
+      type: "Batch",
+      description: "Set the scripted spawn of 2 systems",
+      ops: [
+        {
+          type: "SetSpawnScript",
+          system: 0,
+          script: { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } },
+        },
+        {
+          type: "SetSpawnScript",
+          system: 1,
+          script: { paint_a_galaxy: { kind: "enabled", random_value: 1, player: false } },
+        },
       ],
     });
     expect(spawnPointsOp([1], map, true, false)).toBeNull();
@@ -73,15 +84,20 @@ describe("weighing a selection", () => {
     const map = byId(seated, weighable(0));
 
     expect(spawnPointsOp([3, 0], map, true, true)).toEqual({
-      type: "SetSpawnScripts",
-      entries: [
-        [3, preferred],
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
+      type: "Batch",
+      description: "Set the scripted spawn of 2 systems",
+      ops: [
+        { type: "SetSpawnScript", system: 3, script: preferred },
+        {
+          type: "SetSpawnScript",
+          system: 0,
+          script: { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } },
+        },
       ],
     });
     expect(spawnPointOp(seated, 1, true)).toEqual({
       type: "SetSpawnScript",
-      id: 3,
+      system: 3,
       script: preferred,
     });
   });
@@ -91,36 +107,46 @@ describe("weighing a selection", () => {
 
     expect(spawnPointOp(weighable(12), 1, true)).toEqual({
       type: "SetSpawnScript",
-      id: 12,
+      system: 12,
       script: { paint_a_galaxy: { kind: "enabled", random_value: 2, player: false } },
     });
     expect(spawnPointOp(weighable(12), null, true)).toEqual({
       type: "SetSpawnScript",
-      id: 12,
+      system: 12,
       script: null,
     });
     expect(spawnPointOp(weighable(12), 1, false)).toEqual({
       type: "SetSpawnWeight",
-      id: 12,
+      system: 12,
       base: 1,
     });
     expect(spawnPointsOp([0, 12], map, true, true)).toEqual({
-      type: "SetSpawnScripts",
-      entries: [
-        [0, { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } }],
-        [12, { paint_a_galaxy: { kind: "enabled", random_value: 2, player: false } }],
+      type: "Batch",
+      description: "Set the scripted spawn of 2 systems",
+      ops: [
+        {
+          type: "SetSpawnScript",
+          system: 0,
+          script: { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } },
+        },
+        {
+          type: "SetSpawnScript",
+          system: 12,
+          script: { paint_a_galaxy: { kind: "enabled", random_value: 2, player: false } },
+        },
       ],
     });
     expect(spawnPointsOp([0, 12], map, false, true)).toEqual({
-      type: "SetSpawnScripts",
-      entries: [
-        [0, null],
-        [12, null],
+      type: "Batch",
+      description: "Set the scripted spawn of 2 systems",
+      ops: [
+        { type: "SetSpawnScript", system: 0, script: null },
+        { type: "SetSpawnScript", system: 12, script: null },
       ],
     });
     expect(spawnPointsOp([0], map, true, true)).toEqual({
       type: "SetSpawnScript",
-      id: 0,
+      system: 0,
       script: { paint_a_galaxy: { kind: "enabled", random_value: 0, player: false } },
     });
   });

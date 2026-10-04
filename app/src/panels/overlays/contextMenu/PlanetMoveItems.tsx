@@ -9,6 +9,7 @@ import {
 } from "../../../lib/planetMove";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { cutAvailability, usePasteCheck, usePlanetMoveStore } from "../../../store/planetMoveStore";
+import { useSceneStore } from "../../../store/sceneStore";
 import { useCut, useMovedPlanets, useWarningNames } from "../../usePlanetMove";
 import { MenuItem } from "./MenuItem";
 
@@ -85,11 +86,11 @@ function CheckedPaste({
  * may go, and says why when the core refuses it.
  */
 export function CutItem({ system }: { system: number }) {
-  const selection = usePlanetMoveStore((s) => s.selection);
+  const selection = useSceneStore((s) => s.bodySelection);
   const selectionTargets = usePlanetMoveStore((s) => s.selectionTargets);
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const read = useDetailsStore((s) => s.details.get(system));
-  const availability = cutAvailability({ selection, selectionTargets });
+  const availability = cutAvailability(selection, selectionTargets);
   const moving =
     availability.kind === "ready"
       ? availability.planets

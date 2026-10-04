@@ -31,7 +31,8 @@ pub use lgate::{LGate, LGateOutcome};
 pub(crate) use nebulae::nearest_prospective;
 pub use nebulae::{Nebula, Turbulence};
 pub use spawn::{PaintSpawnKind, SpawnModifier, SpawnScript};
-pub use systems::{Lane, SystemBody, SystemNode, lane_length};
+pub(crate) use systems::draw_scenario_stars;
+pub use systems::{Lane, StarClasses, SystemBody, SystemNode, lane_length};
 pub(crate) use waylines::bypass_between;
 pub use waylines::{Wayline, Waystation};
 

@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added moon #16777273 of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°
-inverse: RemoveAddedBody { planet: 16777273 }
+Added moon #16777273 of planet #138 in Meissa #408 (pc_barren, size 6) at orbit 15 at 90°
+inverse: RemoveBody { body: 16777273 }
 
 --- gamestate
 +++ gamestate

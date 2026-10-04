@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Removed the wormhole pair between Aulderaan #152 and Ferragon #489
-inverse: AddSaveWormholePair { a: 152, b: 489, at: Some(((57.61222, 347.70984), (4.20498, 459.52851))) }
+inverse: AddWormholePair { a: 152, b: 489, at: Some(PairPoints { a: (57.61222, 347.70984), b: (4.20498, 459.52851) }) }
 
 --- gamestate
 +++ gamestate

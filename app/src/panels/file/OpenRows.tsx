@@ -8,6 +8,7 @@ import {
   type ScenarioRow,
   type Section,
 } from "../../lib/openRows";
+import { DOCUMENT_KINDS } from "../../lib/documentKinds";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { Twisty } from "../Twisty";
@@ -71,7 +72,7 @@ function RecentRowLine({ row, onForget }: { row: RecentRow; onForget: () => void
     <>
       <span className="open-main">
         <span className={row.missing ? "open-title gone" : "open-title"}>
-          <span className="flag kind">{row.doc.kind === "save" ? "SAVE" : "SCENARIO"}</span>
+          <span className="flag kind">{DOCUMENT_KINDS[row.doc.kind].label.toUpperCase()}</span>
           {recentTitle(row.doc)}
           {row.doc.kind === "scenario" && <PaintTag path={row.doc.path} listings={scenarios} />}
         </span>

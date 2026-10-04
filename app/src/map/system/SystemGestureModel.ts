@@ -1,4 +1,4 @@
-import type { GeometryIntent } from "../../lib/details/orbitEdits";
+import type { GeometryIntent } from "../../lib/details/orbitIntent";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";

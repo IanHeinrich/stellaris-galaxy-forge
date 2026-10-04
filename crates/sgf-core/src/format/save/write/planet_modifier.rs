@@ -5,12 +5,14 @@
 //! them; an older save puts both elsewhere and is refused.
 
 use crate::cst::Node;
+use crate::emit::quoted;
 use crate::format::save::read_spec::bodies;
+use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::PlanetEntry;
-use crate::format::save::write::timed_modifiers::{self, Place};
+use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Edit, Op, OpError, Plan, Planned};
+use crate::ops::{Edit, Op, OpError, ParseAt, Plan, Planned, StarEdit};
 use crate::projections::read;
 use crate::session::Session;
 use crate::span::Span;
@@ -34,7 +36,10 @@ fn planet<'a>(
         check_text("a planet feature", feature, Form::Bare)?;
     }
     if bodies(&s.doc, system)?.first() == Some(&id) {
-        return Err(OpError::StarModifier(id));
+        return Err(OpError::StarRefused {
+            body: id,
+            edit: StarEdit::Modifier,
+        });
     }
     Ok((node, src, system))
 }
@@ -66,16 +71,24 @@ pub(crate) fn plan_add(
     let edit = plan.edit_planet(&s.doc, id, system)?;
     let items: Vec<_> = days
         .iter()
-        .map(|&d| (modifier, Some((Place::Last, d))))
+        .map(|&days| {
+            (
+                modifier,
+                ItemEdit::Add {
+                    at: End::Last,
+                    days,
+                },
+            )
+        })
         .collect();
-    timed_modifiers::set_items(edit, keys::BOMBARDMENT_DAMAGE, &items)?;
+    timed_modifiers::set_items(edit, &place::planet::TIMED_MODIFIER, &items)?;
     if let Some(feature) = written {
         add_feature_line(edit, feature)?;
     }
     Ok(Planned {
         description: add_description(id, modifier, days, written),
-        inverse: Op::RemovePlanetModifier {
-            planet: id,
+        inverse: Op::RemoveBodyModifier {
+            body: id,
             modifier: modifier.to_owned(),
             feature: written.map(str::to_owned),
         },
@@ -92,10 +105,9 @@ pub(crate) fn plan_remove(
     let (node, src, system) = planet(s, id, modifier, feature)?;
     let days: Vec<i32> = timed_days(&node, src, modifier)
         .map(|(offset, days)| {
-            days.parse().map_err(|_| OpError::PlanetParse {
-                planet: id,
-                offset,
-                reason: format!("{modifier} lasts {days:?} days, which is not a number"),
+            days.parse().map_err(|_| {
+                let reason = format!("{modifier} lasts {days:?} days, which is not a number");
+                OpError::parse(ParseAt::Body(id), offset, reason)
             })
         })
         .collect::<Result<_, _>>()?;
@@ -111,7 +123,8 @@ pub(crate) fn plan_remove(
         ));
     }
     let edit = plan.edit_planet(&s.doc, id, system)?;
-    timed_modifiers::set_items(edit, keys::BOMBARDMENT_DAMAGE, &[(modifier, None)])?;
+    let items = [(modifier, ItemEdit::Remove)];
+    timed_modifiers::set_items(edit, &place::planet::TIMED_MODIFIER, &items)?;
     if let Some(feature) = taken {
         let lines: Vec<Span> = feature_lines(edit.entity()?, &edit.buf, feature)
             .map(|n| n.span())
@@ -121,13 +134,13 @@ pub(crate) fn plan_remove(
         }
     }
     let description = match taken {
-        Some(feature) => format!("Remove planet feature {feature} ({modifier}) from planet #{id}"),
-        None => format!("Remove modifier {modifier} from planet #{id}"),
+        Some(feature) => format!("Removed planet feature {feature} ({modifier}) from planet #{id}"),
+        None => format!("Removed modifier {modifier} from planet #{id}"),
     };
     Ok(Planned {
         description,
-        inverse: Op::AddPlanetModifier {
-            planet: id,
+        inverse: Op::AddBodyModifier {
+            body: id,
             modifier: modifier.to_owned(),
             days,
             feature: taken.map(str::to_owned),
@@ -144,26 +157,13 @@ fn add_description(id: u32, modifier: &str, days: &[i32], feature: Option<&str>)
         [days] if *days > 0 => format!(" for {days} days"),
         _ => String::new(),
     };
-    format!("Add {what} to planet #{id}{lasting}")
+    format!("Added {what} to planet #{id}{lasting}")
 }
 
-/// Write `planet_modifier="<feature>"` on its own line before `entity`, as the game does.
+/// Write `planet_modifier="<feature>"` where the game does.
 fn add_feature_line(edit: &mut Edit, feature: &str) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let (at, indent) = match entity.find(keys::ENTITY, &edit.buf) {
-        Some(anchor) => (
-            edit.line_start(anchor.span().start),
-            edit.indent(anchor.span().start),
-        ),
-        None => edit.before_close(entity),
-    };
-    let line = [
-        &indent[..],
-        format!("{}=\"{feature}\"\n", keys::PLANET_MODIFIER).as_bytes(),
-    ]
-    .concat();
-    edit.insert(at, line);
-    Ok(())
+    let text = format!("{}={}", keys::PLANET_MODIFIER, quoted(feature));
+    insert_key(edit, &[], &place::planet::PLANET_MODIFIER, |_| text)
 }
 
 /// The planet's `planet_modifier` lines naming `feature`.

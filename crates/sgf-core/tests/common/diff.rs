@@ -175,7 +175,9 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     let before_view = GalaxyView::from(&session.graph);
     let done = session.history().undo.len();
 
-    let applied = session.apply(op).unwrap_or_else(|e| panic!("{label}: {e}"));
+    let applied = session
+        .apply_inverse(op)
+        .unwrap_or_else(|e| panic!("{label}: {e}"));
     let edited = current(session);
     assert_ne!(edited, before, "{label}: the op changed nothing");
     assert!(
@@ -302,7 +304,7 @@ fn probe(session: &Session) -> Op {
         },
         Op::AddSystems {
             systems: vec![NewSystem {
-                id: next,
+                system: next,
                 x: 1.0,
                 y: 1.0,
                 name: None,
@@ -332,7 +334,7 @@ fn probe(session: &Session) -> Op {
             .order
             .last()
             .expect("a system for the probe to remove");
-        ops.push(Op::RemoveSystem { id: *last });
+        ops.push(Op::RemoveSystem { system: *last });
     }
     Op::Batch {
         description: "Probe".to_owned(),
@@ -362,7 +364,9 @@ pub fn assert_removal_inverts_exactly(mut session: Session, ids: &[u32]) {
     let before = statements(&session);
     let opened = systems(&from_scenario_text(current(&session)));
     let result = session
-        .apply(Op::RemoveSystems { ids: ids.to_vec() })
+        .apply(Op::RemoveSystems {
+            systems: ids.to_vec(),
+        })
         .expect("remove the systems");
     for id in ids {
         assert!(!session.graph.systems.contains_key(id), "{id} is gone");

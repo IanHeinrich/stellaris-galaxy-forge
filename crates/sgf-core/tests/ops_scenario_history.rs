@@ -24,7 +24,7 @@ fn add_system_undo_and_redo_are_byte_identical() {
     round_trip(
         GRAMMAR.open(),
         Op::AddSystem {
-            id: None,
+            system: None,
             x: 20.0,
             y: -30.5,
             name: Some("Alderaan".to_owned()),
@@ -41,7 +41,7 @@ fn add_system_with_a_spawn_weight_writes_it_on_one_history_entry() {
         "add_system_with_spawn_weight",
         GRAMMAR.open(),
         Op::AddSystem {
-            id: None,
+            system: None,
             x: 20.0,
             y: -30.5,
             name: Some("Alderaan".to_owned()),
@@ -57,7 +57,7 @@ fn add_system_with_a_spawn_weight_undo_and_redo_are_byte_identical() {
     round_trip(
         GRAMMAR.open(),
         Op::AddSystem {
-            id: None,
+            system: None,
             x: 20.0,
             y: -30.5,
             name: Some("Alderaan".to_owned()),
@@ -70,12 +70,12 @@ fn add_system_with_a_spawn_weight_undo_and_redo_are_byte_identical() {
 
 #[test]
 fn remove_system_undo_and_redo_are_byte_identical() {
-    round_trip(GRAMMAR.open(), Op::RemoveSystem { id: 1 });
+    round_trip(GRAMMAR.open(), Op::RemoveSystem { system: 1 });
 }
 
 fn add_system(id: u32, x: f64, y: f64, initializer: &str) -> Op {
     Op::AddSystem {
-        id: Some(id),
+        system: Some(id),
         x,
         y,
         name: None,
@@ -125,8 +125,8 @@ fn a_batch_that_rewrites_a_statement_it_inserted_undoes_and_redoes_byte_for_byte
             description: "Added and named a system".to_owned(),
             ops: vec![
                 add_system(4000, 10.0, 10.0, "random_empire_init_01"),
-                Op::SetSystemName {
-                    id: 4000,
+                Op::RenameSystem {
+                    system: 4000,
                     name: "Nowhere".to_owned(),
                 },
             ],

@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved the belt at radius 90 in system #140 to 400; set the inner radius of system #140 from 190 to 430
-inverse: Batch { description: "Undo of \"Moved the belt at radius 90 in system #140 to 400; set the inner radius of system #140 from 190 to 430\"", ops: [SetSaveBeltRadius { system: 140, index: 1, radius: 90.0 }, SetSaveInnerRadius { system: 140, radius: 190.0 }] }
+Moved the belt at radius 90 in Tharbarite system #140 to 400; set the inner radius of Tharbarite system #140 from 190 to 430
+inverse: Batch { description: "Undo of \"Moved the belt at radius 90 in Tharbarite system #140 to 400; set the inner radius of Tharbarite system #140 from 190 to 430\"", ops: [SetBeltRadius { system: 140, index: 1, radius: 90.0 }, SetInnerRadius { system: 140, radius: 190.0 }] }
 
 --- gamestate
 +++ gamestate

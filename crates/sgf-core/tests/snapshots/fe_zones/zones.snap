@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the fallen empire zone of 3 systems
-inverse: SetFeZones { entries: [(9, Some(FeZone { direction: N, kind: Random, distance: 40, preferred: true, fallback: false })), (11, None), (12, Some(FeZone { direction: Se, kind: Materialist, distance: 60, preferred: true, fallback: true }))] }
+inverse: Batch { description: "Set the fallen empire zone of 3 systems", ops: [SetFeZone { system: 12, zone: Some(FeZone { direction: Se, kind: Materialist, distance: 60, preferred: true, fallback: true }) }, SetFeZone { system: 11, zone: None }, SetFeZone { system: 9, zone: Some(FeZone { direction: N, kind: Random, distance: 40, preferred: true, fallback: false }) }] }
 
 --- scenario
 +++ scenario

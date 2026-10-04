@@ -4,7 +4,7 @@ expression: value
 ---
 Removed d_decrepit_dwellings (#440) from planet #2
 touched: [169]
-inverse: AddSaveDeposit { planet: 2, kind: "d_decrepit_dwellings" }
+inverse: AddDeposit { body: 2, kind: "d_decrepit_dwellings" }
 … and 3 other issues
 
 --- gamestate

@@ -3,12 +3,12 @@
 
 use super::{index, nebula_indent, set_position};
 use crate::emit::coord;
+use crate::emit::quoted;
 use crate::format;
 use crate::format::scenario::emit::nebula_stmt;
 use crate::format::scenario::index::{SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::keys::scenario as keys;
 use crate::ops::rules::nebula as nebula_rules;
-use crate::ops::rules::quoted;
 use crate::ops::{Emitted, OpError, Plan, Planned, Subject};
 use crate::session::Session;
 

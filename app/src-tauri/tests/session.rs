@@ -131,7 +131,7 @@ fn save_and_save_as() {
     let moved: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 0, "x": -150.0, "y": 60.0 } }),
+        json!({ "op": { "type": "MoveSystem", "system": 0, "x": -150.0, "y": 60.0 } }),
     )
     .expect("move system 0");
     assert!(moved.dirty, "move dirties the session");
@@ -206,8 +206,8 @@ fn a_scenario_adds_and_removes_several_systems_through_apply_op() {
         &w,
         "apply_op",
         json!({ "op": { "type": "AddSystems", "systems": [
-            { "id": 4000, "x": 20.0, "y": -30.5, "name": "Alderaan", "initializer": null, "spawn_weight": null },
-            { "id": 4001, "x": 30.0, "y": -40.0, "name": null, "initializer": null, "spawn_weight": 5.0 },
+            { "system": 4000, "x": 20.0, "y": -30.5, "name": "Alderaan", "initializer": null, "spawn_weight": null },
+            { "system": 4001, "x": 30.0, "y": -40.0, "name": null, "initializer": null, "spawn_weight": 5.0 },
         ] } }),
     )
     .expect("add two systems");
@@ -216,7 +216,7 @@ fn a_scenario_adds_and_removes_several_systems_through_apply_op() {
     let removed: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "RemoveSystems", "ids": [1, 16, 4000] } }),
+        json!({ "op": { "type": "RemoveSystems", "systems": [1, 16, 4000] } }),
     )
     .expect("remove three systems");
     assert_eq!(removed.history.undo.len(), 2);
@@ -225,7 +225,7 @@ fn a_scenario_adds_and_removes_several_systems_through_apply_op() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "RemoveSystems", "ids": [2, 2] } }),
+            json!({ "op": { "type": "RemoveSystems", "systems": [2, 2] } }),
         )),
         ErrorKind::Op,
         "an id listed twice"
@@ -234,7 +234,7 @@ fn a_scenario_adds_and_removes_several_systems_through_apply_op() {
         kind(invoke::<EditResult>(
             &w,
             "apply_op",
-            json!({ "op": { "type": "RemoveSystems", "ids": [77] } }),
+            json!({ "op": { "type": "RemoveSystems", "systems": [77] } }),
         )),
         ErrorKind::NotFound,
         "no system 77"
@@ -398,7 +398,14 @@ fn fe_zone_fit_keeps_the_placed_zones_and_spreads_the_count_asked_for() {
     let edited: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "SetFeZones", "entries": entries } }),
+        json!({ "op": {
+            "type": "Batch",
+            "description": "Set the fallen empire zone of 2 systems",
+            "ops": entries
+                .iter()
+                .map(|(system, zone)| json!({ "type": "SetFeZone", "system": system, "zone": zone }))
+                .collect::<Vec<_>>(),
+        } }),
     )
     .expect("apply the entries");
     assert_eq!(
@@ -505,7 +512,7 @@ fn set_fe_links_writes_the_connection_flags_as_one_step_and_undo_takes_them_back
         .expect("link Sol and Gamma to Old Seat");
     assert_eq!(
         edited.entry.description,
-        "Link 2 systems to the fallen empire zone at Old Seat"
+        "Linked 2 systems to the fallen empire zone at Old Seat #9"
     );
     assert!(edited.dirty);
     assert!(!edited.reclassifies);
@@ -689,7 +696,7 @@ fn an_entity_reads_by_address_and_an_op_names_what_it_touched() {
     let moved: serde_json::Value = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "MoveSystem", "id": 0, "x": -150.0, "y": 60.0 } }),
+        json!({ "op": { "type": "MoveSystem", "system": 0, "x": -150.0, "y": 60.0 } }),
     )
     .expect("move");
     assert_eq!(

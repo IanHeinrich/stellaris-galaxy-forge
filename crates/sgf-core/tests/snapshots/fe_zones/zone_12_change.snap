@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Change fallen empire zone of High Seat
-inverse: SetFeZone { id: 12, zone: Some(FeZone { direction: Se, kind: Materialist, distance: 60, preferred: true, fallback: true }) }
+Changed fallen empire zone of High Seat #12
+inverse: SetFeZone { system: 12, zone: Some(FeZone { direction: Se, kind: Materialist, distance: 60, preferred: true, fallback: true }) }
 
 --- scenario
 +++ scenario

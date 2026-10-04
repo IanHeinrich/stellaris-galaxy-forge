@@ -6,6 +6,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
 import type { PaintSpawnKind } from "../generated/PaintSpawnKind";
 import type { SystemNode } from "../generated/SystemNode";
+import { SAVE_CAPABILITIES } from "../generated/constants";
 import { paintModView } from "../test/builders";
 import { useEditorStore } from "./editorStore";
 import {
@@ -84,7 +85,7 @@ describe("scenario names the mod's folder already lists", () => {
     expect(useIssuesStore.getState().notes).toEqual([useIssuesStore.getState().issues[1]]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ issues: [] }));
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
     expect(useIssuesStore.getState().issues.map((issue) => issue.code)).toEqual([
       "scenario_name_duplicate",
     ]);
@@ -160,19 +161,19 @@ describe("reserved seats", () => {
     expect(codes()).toEqual(["system_isolated", "reserved_spawns_missing"]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ delta: { systems: [seated("sol")] } }));
-    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
+    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", system: 2, script: null });
     expect(codes()).toEqual(["system_isolated"]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [seated({ reserved: "b" })] } }),
     );
-    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
+    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", system: 2, script: null });
     expect(codes()).toEqual(["system_isolated", "reserved_spawns_missing"]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(
       editResult({ delta: { systems: [seated("enabled")] } }),
     );
-    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", id: 2, script: null });
+    await useEditorStore.getState().applyOp({ type: "SetSpawnScript", system: 2, script: null });
     expect(codes()).toEqual(["system_isolated"]);
   });
 });
@@ -198,13 +199,13 @@ describe("the galaxy size note", () => {
     mockedIpc.applyOp.mockResolvedValue(
       editResult({ issues: [], delta: { systems: [], removed } }),
     );
-    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 1250 });
+    await useEditorStore.getState().applyOp({ type: "RemoveSystem", system: 1250 });
     expect(useGalaxyStore.getState().systems.size).toBe(1250);
     expect(sizeMessages()).toEqual([]);
 
     const added = [systemNode({ id: 1250 })];
     mockedIpc.applyOp.mockResolvedValue(editResult({ issues: [], delta: { systems: added } }));
-    await useEditorStore.getState().applyOp({ type: "MoveSystem", id: 1250, x: 0, y: 0 });
+    await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 1250, x: 0, y: 0 });
     expect(sizeMessages()).toEqual([
       "1,251 systems is well above Huge, the game's largest galaxy (1,000 stars). " +
         "Very large galaxies can make the game slow.",
@@ -229,6 +230,7 @@ describe("the galaxy size note", () => {
     mockedIpc.openSave.mockResolvedValue({
       ...scenarioOf(2000),
       kind: "save",
+      capabilities: SAVE_CAPABILITIES,
       path: OPEN_RESULT.path,
     });
     await session().openSave(OPEN_RESULT.path);
@@ -272,7 +274,7 @@ describe("the initializer limit note", () => {
     mockedIpc.applyOp.mockResolvedValue(
       editResult({ issues: [], delta: { systems: [], removed: [2] } }),
     );
-    await useEditorStore.getState().applyOp({ type: "RemoveSystem", id: 2 });
+    await useEditorStore.getState().applyOp({ type: "RemoveSystem", system: 2 });
     expect(limited()).toEqual([]);
   });
 });

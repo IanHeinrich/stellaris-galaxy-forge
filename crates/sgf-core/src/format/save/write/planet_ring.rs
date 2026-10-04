@@ -22,7 +22,7 @@ pub(crate) fn plan_set(
         } else {
             "has no ring"
         };
-        return Err(OpError::RingUnchanged { planet: id, state });
+        return Err(OpError::unchanged(format!("planet {id}"), state));
     }
     set_flag(plan.edit_planet(&s.doc, id, system)?, RING_FLAG, ring)?;
     let description = match ring {
@@ -31,8 +31,8 @@ pub(crate) fn plan_set(
     };
     Ok(Planned {
         description,
-        inverse: Op::SetPlanetRing {
-            planet: id,
+        inverse: Op::SetBodyRing {
+            body: id,
             ring: held,
         },
     })

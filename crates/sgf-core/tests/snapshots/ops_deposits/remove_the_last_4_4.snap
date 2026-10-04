@@ -4,7 +4,7 @@ expression: value
 ---
 Removed d_minerals_3 (#26) from planet #5
 touched: [217]
-inverse: AddSaveDeposit { planet: 5, kind: "d_minerals_3" }
+inverse: AddDeposit { body: 5, kind: "d_minerals_3" }
 … and 3 other issues
 
 --- gamestate

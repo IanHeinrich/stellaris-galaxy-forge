@@ -390,7 +390,7 @@ impl NebulaName {
     }
 
     pub fn inverse(&self) -> Op {
-        Op::SetNebulaName {
+        Op::RenameNebula {
             index: self.index,
             name: self.from.clone(),
         }

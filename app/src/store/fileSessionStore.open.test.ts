@@ -8,7 +8,7 @@ import type { Capabilities } from "../generated/Capabilities";
 import { systemDetails } from "../test/builders";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
-import { getPaintLayer } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT } from "./fixture";
 import { laneCount, useGalaxyStore } from "./galaxyStore";
 import { loadGameData } from "./gameDataFixture";
@@ -125,6 +125,40 @@ describe("openSave", () => {
     expect(editor.selection).toEqual([]);
     expect(editor.inspected).toBeNull();
     expect(editor.history).toEqual({ undo: [], redo: [] });
+  });
+
+  it("a save renamed to .txt opens as a save, without the Paint a Galaxy question", async () => {
+    usePaintModStore.setState({ warnNotForPaint: true });
+    mockedIpc.documentKind.mockResolvedValue("save");
+    mockedIpc.scenarioPainted.mockResolvedValue(false);
+    let asked = false;
+    // The fixture answers a prompt as it is set, so a listener may only see it as `previous`.
+    const unsubscribe = useFileSessionStore.subscribe((state, previous) => {
+      if (state.scenarioPrompt !== null || previous.scenarioPrompt !== null) asked = true;
+    });
+    await session().openPath("C:/saves/renamed.txt", "save", { listings: null });
+    unsubscribe();
+    expect(asked).toBe(false);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/renamed.txt");
+    expect(session().kind).toBe("save");
+  });
+
+  it("a file the probe cannot read opens by its name, so a missing save shows its read error", async () => {
+    usePaintModStore.setState({ warnNotForPaint: true });
+    mockedIpc.documentKind.mockRejectedValue({ kind: "not_found", message: "gone.sav not found" });
+    mockedIpc.openSave.mockRejectedValueOnce({ kind: "not_found", message: "gone.sav not found" });
+    let asked = false;
+    const unsubscribe = useFileSessionStore.subscribe((state, previous) => {
+      if (state.scenarioPrompt !== null || previous.scenarioPrompt !== null) asked = true;
+    });
+    await session().openPath("C:/saves/gone.sav", "save", { listings: null });
+    unsubscribe();
+    expect(asked).toBe(false);
+    expect(mockedIpc.openSave).toHaveBeenCalledWith("C:/saves/gone.sav");
+    expect(session().error).toBe("gone.sav not found");
+
+    await session().requestOpen("C:/saves/gone.sav", { listings: null });
+    expect(session().pendingOpen).toBe("C:/saves/gone.sav");
   });
 
   it("pickAndOpen asks how to open the picked save and does nothing when cancelled", async () => {
@@ -355,5 +389,23 @@ describe("settling", () => {
     await session().openSave(SCENARIO_RESULT.path);
     expect(session().settling).toBe(false);
     expect(session().loadingName).toBeNull();
+  });
+});
+
+describe("game data changing under an open scenario", () => {
+  it("redraws each system with the star its initializer now names", async () => {
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().openScenario(SCENARIO_RESULT.path!);
+    const [first] = SCENARIO_RESULT.galaxy.systems;
+    mockedIpc.getGalaxy.mockResolvedValueOnce({
+      ...SCENARIO_RESULT.galaxy,
+      systems: [{ ...first, star_class: "sc_pulsar" }],
+    });
+
+    useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
+
+    await vi.waitFor(() =>
+      expect(useGalaxyStore.getState().systems.get(first.id)?.star_class).toBe("sc_pulsar"),
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { DOCUMENT_KINDS } from "../../lib/documentKinds";
 import { shortcutLabel } from "../../lib/keys";
 import { recentTitle } from "../../lib/openRows";
 import { isUnder } from "../../lib/paths";
@@ -35,7 +36,7 @@ ${doc.subtitle}`}
         >
           <span className="menu-file">{recentTitle(doc)}</span>
           <span className="menu-detail muted">
-            {doc.kind === "save" ? "save" : "scenario"} · {formatWhen(doc.openedAt / 1000)}
+            {DOCUMENT_KINDS[doc.kind].label.toLowerCase()} · {formatWhen(doc.openedAt / 1000)}
           </span>
         </button>
       ))}

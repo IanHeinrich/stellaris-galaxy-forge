@@ -5,16 +5,21 @@ use std::collections::BTreeSet;
 use super::{index, set_position, some_text, system_indent, undirected};
 use crate::cst::{self, Node};
 use crate::emit::coord;
+use crate::emit::quoted;
 use crate::format::scenario::emit::{SpawnStmt, SystemStmt, system_stmt};
 use crate::format::scenario::index::{LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, statement_id};
 use crate::format::scenario::paint;
 use crate::keys::scenario as keys;
+use crate::ops::rules;
 use crate::ops::rules::systems::{decide_move, decide_moves};
-use crate::ops::rules::{Form, bulk_description, check_name, check_text, each_once, quoted};
+use crate::ops::rules::{
+    Form, bulk_description, check_name, check_text, each_once, labelled, named,
+};
 use crate::ops::{
-    Emitted, InitializerSet, LanePair, NewSystem, Op, OpError, Plan, Planned, Subject, SystemMove,
+    Emitted, LanePair, NewSystem, Op, OpError, ParseAt, Plan, Planned, Subject, SystemMove,
 };
 use crate::projections::galaxy::SpawnScript;
+use crate::projections::name::looks_like_key;
 use crate::session::Session;
 use crate::{NULL_ID, plural};
 
@@ -40,7 +45,7 @@ pub(super) fn move_many(
 ) -> Result<Planned, OpError> {
     let origin = decide_moves(&s.graph, moves)?;
     for m in moves {
-        set_position(plan.edit(&s.doc, m.id)?, m.x, m.y)?;
+        set_position(plan.edit(&s.doc, m.system)?, m.x, m.y)?;
     }
     Ok(Planned {
         description: format!("Moved {}", plural(moves.len(), "system")),
@@ -63,7 +68,7 @@ pub(super) struct SystemFields<'a> {
 impl<'a> From<&'a NewSystem> for SystemFields<'a> {
     fn from(new: &'a NewSystem) -> Self {
         Self {
-            id: Some(new.id),
+            id: Some(new.system),
             x: new.x,
             y: new.y,
             name: new.name.as_deref(),
@@ -84,7 +89,7 @@ pub(super) fn add_system(
     let (id, description) = emit_system(plan, s, &indent, new)?;
     Ok(Planned {
         description,
-        inverse: Op::RemoveSystem { id },
+        inverse: Op::RemoveSystem { system: id },
     })
 }
 
@@ -93,7 +98,7 @@ pub(super) fn add_systems(
     s: &Session,
     systems: &[NewSystem],
 ) -> Result<Planned, OpError> {
-    each_once(systems, |new| new.id)?;
+    each_once(systems, |new| new.system)?;
     let indent = system_indent(&s.doc, index(&s.doc));
     let mut one = String::new();
     for new in systems {
@@ -102,7 +107,7 @@ pub(super) fn add_systems(
     Ok(Planned {
         description: bulk_description(systems.len(), one, "Added"),
         inverse: Op::RemoveSystems {
-            ids: systems.iter().map(|new| new.id).collect(),
+            systems: systems.iter().map(|new| new.system).collect(),
         },
     })
 }
@@ -164,13 +169,18 @@ fn emit_system(
         }
     };
     plan.emit(Emitted::System(id), scenario.insert_at, text);
+    let label = labelled(
+        name.unwrap_or(""),
+        name.is_some_and(|n| !looks_like_key(n)),
+        id,
+    );
     let seat = match spawn_script {
         Some(script) => format!(" as a Paint a Galaxy spawn ({})", paint::label(script)),
         None => String::new(),
     };
     Ok((
         id,
-        format!("Added system {id} at ({}, {}){seat}", coord(x), coord(y)),
+        format!("Added {label} at ({}, {}){seat}", coord(x), coord(y)),
     ))
 }
 
@@ -205,10 +215,8 @@ fn check_initializer(initializer: &str) -> Result<(), OpError> {
 /// with nothing before or after it.
 fn verbatim(indent: &[u8], id: u32, statement: &str) -> Result<Vec<u8>, OpError> {
     let bytes = statement.trim().as_bytes();
-    let refuse = |offset: usize, reason: &str| OpError::Parse {
-        system: id,
-        offset,
-        reason: reason.to_owned(),
+    let refuse = |offset: usize, reason: &str| {
+        OpError::parse(ParseAt::System(id), offset, reason.to_owned())
     };
     let root = cst::parse_script(bytes, 0).map_err(|e| refuse(e.offset, e.reason))?;
     match root.children() {
@@ -234,7 +242,7 @@ pub(super) fn remove_systems(
     let (inverse, lanes) = erase_systems(plan, s, ids)?;
     let lanes = plural(lanes, "lane");
     let description = match ids {
-        [id] => format!("Removed system {id} ({lanes})"),
+        [id] => format!("Removed {} ({lanes})", named(&s.graph, *id)),
         _ => format!("Removed {} ({lanes})", plural(ids.len(), "system")),
     };
     Ok(Planned {
@@ -253,14 +261,15 @@ fn erase_systems(plan: &mut Plan, s: &Session, ids: &[u32]) -> Result<(Op, usize
     for &id in ids {
         let anchor = scenario.system(id).ok_or(OpError::UnknownSystem(id))?;
         let system = s.graph.systems.get(&id).ok_or(OpError::UnknownSystem(id))?;
-        let statement =
-            std::str::from_utf8(s.doc.current(anchor)?).map_err(|e| OpError::Parse {
-                system: id,
-                offset: e.valid_up_to(),
-                reason: "the statement is not UTF-8 text".to_owned(),
-            })?;
+        let statement = std::str::from_utf8(s.doc.current(anchor)?).map_err(|e| {
+            OpError::parse(
+                ParseAt::System(id),
+                e.valid_up_to(),
+                "the statement is not UTF-8 text".to_owned(),
+            )
+        })?;
         restore.push(NewSystem {
-            id,
+            system: id,
             x: system.x,
             y: system.y,
             name: some_text(&system.name.key),
@@ -342,8 +351,11 @@ pub(super) fn set_name(
         }
     }
     Ok(Planned {
-        description: format!("Renamed system {id} from \"{old}\" to \"{name}\""),
-        inverse: Op::SetSystemName { id, name: old },
+        description: format!("Renamed {} to {name}", rules::named(&s.graph, id)),
+        inverse: Op::RenameSystem {
+            system: id,
+            name: old,
+        },
     })
 }
 
@@ -357,41 +369,21 @@ pub(super) fn set_initializer(
     Ok(Planned {
         description,
         inverse: Op::SetInitializer {
-            id: previous.id,
-            initializer: previous.initializer,
+            system: id,
+            initializer: previous,
         },
     })
 }
 
-pub(super) fn set_initializers(
-    plan: &mut Plan,
-    s: &Session,
-    entries: &[InitializerSet],
-) -> Result<Planned, OpError> {
-    each_once(entries, |entry| entry.id)?;
-    let mut one = String::new();
-    let mut previous = Vec::with_capacity(entries.len());
-    for entry in entries {
-        let (description, was) =
-            write_initializer(plan, s, entry.id, entry.initializer.as_deref())?;
-        one = description;
-        previous.push(was);
-    }
-    Ok(Planned {
-        description: bulk_description(entries.len(), one, "Set initializer of"),
-        inverse: Op::SetInitializers { entries: previous },
-    })
-}
-
-/// Write one system's initializer, returning what to call the change and the entry that
-/// puts it back. The `spawn_weight` beside it is not this op's to touch: a weight is a
+/// Write one system's initializer, returning what to call the change and the initializer
+/// that puts it back. The `spawn_weight` beside it is not this op's to touch: a weight is a
 /// separate statement with its own op, and a modifier-only one is script we do not read.
 fn write_initializer(
     plan: &mut Plan,
     s: &Session,
     id: u32,
     initializer: Option<&str>,
-) -> Result<(String, InitializerSet), OpError> {
+) -> Result<(String, Option<String>), OpError> {
     if !s.graph.systems.contains_key(&id) {
         return Err(OpError::UnknownSystem(id));
     }
@@ -424,14 +416,8 @@ fn write_initializer(
     }
 
     let description = match initializer {
-        Some(text) => format!("Set system {id} initializer to {text}"),
-        None => format!("Cleared system {id} initializer"),
+        Some(text) => format!("Set the initializer of {} to {text}", named(&s.graph, id)),
+        None => format!("Cleared the initializer of {}", named(&s.graph, id)),
     };
-    Ok((
-        description,
-        InitializerSet {
-            id,
-            initializer: old_initializer,
-        },
-    ))
+    Ok((description, old_initializer))
 }

@@ -6,7 +6,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - `lib/geometry/`: points, the mesh and the drawn territory: the maths,
   which knows no game vocabulary at all. `territories.ts` keeps one galaxy's
   territories between edits, `territories.worker.ts` runs it off the UI thread
-  and `territoryClient.ts` is how the map talks to either. `pairs.ts` and
+  and `territoryClient.ts` is how the map talks to either. `territory.ts` is
+  the influence field the territories are traced from, `contour.ts` turns the
+  traced segments into rings, and `polygon.ts` holds the ring helpers: area,
+  point in ring, and nesting rings into polygons with holes. `pairs.ts` and
   `segments.ts` are id pairs and segment crossings, `symmetry.ts` a point's
   images about the centre, and `joinIslands.ts` the fewest short edges that
   join separate components.
@@ -28,11 +31,13 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   is a star and what a star body's type and size can change to, and
   `starClass` is the star class pickers and the bulk plan that sets one
   class on many systems. `terraform` says what making a body a terraforming
-  candidate needs. `planetEdits` builds the ops a planet's page sends for
-  its name, size, deposits, modifiers, dig site and anomaly, and the hint
-  of a body's Edit chip. `planetModel` is the Model field's rows, usual models
-  first, and the edit a pick sends. `planetClass` is the Class field's
-  rows, with a colony's narrower choice, and the edit a pick sends.
+  candidate needs. `planetEdits` is the words a planet's page shows beside
+  its edits, and the hint of a body's Edit chip. `planetModel` is the Model
+  field's rows, usual models first, and `planetClass` is the Class field's
+  rows, with a colony's narrower choice. The save adapter in
+  `store/planetEditAdapter` builds every op a save body's page sends.
+  `planetOffers` says which edits a body's page and the system view's menus
+  offer, from the document's capabilities.
   `planetRemoval` is the ops that delete a body or remove its colony and
   the sentences their confirms ask. `picker` is what the deposit, modifier,
   dig site and anomaly pickers share: the search, the usual rows first, and
@@ -46,11 +51,16 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   and level chips. The system view's layout is `orbits`: where each body,
   orbit, belt and hyperlane exit sits, from the
   roll and the details gamedata sends. It walks no initializer itself.
-  `orbitEdits` turns a geometry edit, a body or belt at an absolute radius
-  and angle, into an op. It picks an adapter per document: a save's builds
-  the save ops, and a scenario's makes nothing editable. The adapter also
-  says what may be edited and previews an edit as a layout override, so the
-  scene and the pages never check what kind of file is open.
+  `orbitIntent` is what a geometry edit asks for, a body or belt at an
+  absolute radius and angle, and what an adapter answers: what may be
+  edited, why not, and the words for both. `orbitReach` holds the layout
+  rules the core holds too: what a body orbits, which body another would
+  stand on, and how the inner radius grows and how low it may go.
+  `saveGeometry` picks an adapter per document: a save's builds the save
+  ops, and a scenario's makes nothing editable. Its `layoutEditing` and
+  `layoutPreview` say what may be edited and preview an edit as a layout
+  override for any source, so the scene and the pages never check what
+  kind of file is open.
   `discs` sizes each body's disc.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
@@ -77,7 +87,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
 - The rows a screen lists, as pure functions of what has been read:
   `openRows` for the Open screen, `browserRows` for the dock's lists.
 - The editor's own vocabulary: `tools` (the rail's tools), `keys` (every key
-  binding), `capabilities` (what the open document can take), `flagKey` (the
+  binding), `capabilities` (what the open document can take), `documentKinds`
+  (what differs between a save and a scenario in data: the label, file filter,
+  bar, default layers and the rest, one row per kind so a new kind fails to
+  compile until it has one), `flagKey` (the
   texture key of an empire's flag), `paths` and `random` (a seeded sequence,
   and fresh seeds).
   `menuAim` keeps a submenu open while the pointer heads for it, `watchlist`
@@ -90,7 +103,9 @@ the core's tests write. `guides`, `addSystem` and `feZone` re-export what they
 use of it.
 
 `lib/visual/` is how it looks: colours, fonts, textures, layer ids and badge
-styles, shared by the map and the panels so both draw the same thing.
+styles, shared by the map and the panels so both draw the same thing. The
+colour and icon key of each special kind sit with its label in `lib/special.ts`,
+and `specialStyle` reads them.
 `color` mixes two colours. `barMode` is which bar the chrome shows (a
 save's, a scenario's or a system's) and which layer buttons, controls and
 number keys each offers. It stays beside `layerIds` because most of what it

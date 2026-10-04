@@ -4,10 +4,10 @@
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 
-use super::edit::{Edit, load, owns_line, parsed, splice};
-use super::{Applied, MetaEdit, Op, OpError, Subject, refresh, rollback};
+use super::edit::{BufEdit, Edit, Splice, load, owns_line, parsed, splice, spliced};
+use super::{Applied, MetaEdit, Op, OpError, ParseAt, Subject, refresh, rollback};
 use crate::Span;
-use crate::cst;
+use crate::cst::{self, Node};
 use crate::document::Document;
 use crate::format;
 use crate::overlay::{Anchor, OverlayError};
@@ -59,7 +59,7 @@ impl Emitted {
 pub(crate) struct Plan {
     edits: BTreeMap<Subject, Edit>,
     emits: Vec<(Emitted, usize, Vec<u8>)>,
-    meta: Option<Vec<u8>>,
+    meta: Option<Meta>,
     /// The slot of a statement an earlier op rewrote, which its erasure's line replaces.
     absorbed: BTreeMap<Subject, Anchor>,
     /// See [`Applied::renumbered`].
@@ -151,9 +151,27 @@ impl Plan {
         Ok(())
     }
 
-    /// Write `bytes` as the save's whole `meta` once the gamestate edits are in.
-    pub fn replace_meta(&mut self, bytes: Vec<u8>) {
-        self.meta = Some(bytes);
+    /// The save's `meta`, parsed on first use, and the splices to make in it once the
+    /// gamestate edits are in.
+    pub fn edit_meta(&mut self, doc: &Document) -> Result<(&Node, BufEdit<'_>), OpError> {
+        let meta = match &mut self.meta {
+            Some(meta) => meta,
+            empty => {
+                let buf = doc.meta().to_vec();
+                let root = cst::parse(&buf, 0)
+                    .map_err(|e| OpError::parse(ParseAt::Meta, e.offset, e.reason))?;
+                empty.insert(Meta {
+                    buf,
+                    root,
+                    splices: Vec::new(),
+                })
+            }
+        };
+        let out = BufEdit {
+            buf: &meta.buf,
+            splices: &mut meta.splices,
+        };
+        Ok((&meta.root, out))
     }
 
     /// Emit `bytes` as a new statement at original offset `at`.
@@ -208,6 +226,14 @@ impl Plan {
         op: Op,
         planned: Planned,
     ) -> Result<Applied, OpError> {
+        let meta = match self.meta {
+            Some(meta) if !meta.splices.is_empty() => {
+                Some(spliced(&meta.buf, meta.splices).map_err(|offset| {
+                    OpError::parse(ParseAt::Meta, offset, "edit ranges overlap")
+                })?)
+            }
+            _ => None,
+        };
         let mut before = Vec::new();
         let mut after = Vec::new();
         let mut touched = Vec::new();
@@ -270,7 +296,7 @@ impl Plan {
                 return Err(e);
             }
         }
-        let meta = self.meta.map(|bytes| {
+        let meta = meta.map(|bytes| {
             let before = session.doc.replace_meta(bytes);
             let after = session.doc.edited_meta().map(<[u8]>::to_vec);
             MetaEdit { before, after }
@@ -286,6 +312,13 @@ impl Plan {
             meta,
         })
     }
+}
+
+/// The save's `meta` as an op plans its edits in it.
+struct Meta {
+    buf: Vec<u8>,
+    root: Node,
+    splices: Vec<Splice>,
 }
 
 /// Take away the slot `inner`, returning its bytes, so the line enclosing it can have one.

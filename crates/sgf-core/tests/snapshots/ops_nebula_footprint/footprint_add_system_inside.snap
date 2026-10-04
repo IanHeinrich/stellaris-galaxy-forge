@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added Mura (#601) at (-330, -75) with 9 bodies and 1 lane; joined Nythran Expanse
+Added Mura #601 at (-330, -75) with 9 bodies and 1 lane; joined Nythran Expanse
 touched: [169, 601]
-inverse: RemoveSystem { id: 601 }
+inverse: RemoveSystem { system: 601 }
 … and 3 other issues
 
 --- gamestate

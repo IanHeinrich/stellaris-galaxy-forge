@@ -238,7 +238,7 @@ fn map_colours_are_refused_without_a_4_5_colours_list_or_where_nothing_would_cha
     ] {
         let error = session.apply(unchanged.clone()).unwrap_err();
         assert!(
-            matches!(error, OpError::MapColorsUnchanged(_)),
+            matches!(error, OpError::Unchanged { .. }),
             "{unchanged:?}: {error:?}"
         );
     }

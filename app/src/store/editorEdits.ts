@@ -12,9 +12,8 @@ import { useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { linked, useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useInspectorStore, type EntityRef } from "./inspectorStore";
-import { useIssuesStore } from "./issuesStore";
-import { resetOpChecks, useOpCheckStore } from "./opCheckStore";
+import { refHome, useInspectorStore } from "./inspectorStore";
+import { useOpCheckStore } from "./opCheckStore";
 import { useSceneStore } from "./sceneStore";
 import { useScriptsStore } from "./scriptsStore";
 import { symmetricOp, symmetricSeat } from "./symmetricEdits";
@@ -45,8 +44,6 @@ type EditActions = Pick<
 export interface EditPipeline {
   actions: EditActions;
   runEdit: RunEdit;
-  /** Leaves every late answer to the document that was open before to nobody. */
-  newSession(): void;
 }
 
 /**
@@ -59,13 +56,7 @@ export function editPipeline(
   get: StoreApi<EditorState>["getState"],
   reselect: (ids: number[]) => Promise<void>,
 ): EditPipeline {
-  /** The session a late answer still belongs to; a document closing or opening leaves it to nobody. */
-  let session = 0;
-  /** How many edits have landed, so a projection's findings older than the last edit's are dropped. */
-  let landed = 0;
-
   function applyEdit(result: EditResult): void {
-    landed += 1;
     useGalaxyStore.getState().applyDelta(result.delta);
     useFileSessionStore
       .getState()
@@ -88,17 +79,6 @@ export function editPipeline(
       useDetailsStore.getState().invalidate(result.details_stale);
       useOpCheckStore.getState().staled(result.details_stale);
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
-      const mine = session;
-      const sent = landed;
-      // The details projection, and the planet and fleet search index over it, are rebuilt lazily.
-      void ipc
-        .warmDetails()
-        .then((findings) => {
-          if (mine === session && sent === landed) useIssuesStore.getState().setFindings(findings);
-        })
-        .catch((e: unknown) => {
-          if (mine === session) useFileSessionStore.getState().setError(ipc.errorMessage(e));
-        });
     }
     if (stale) void reselect(kept);
     if (selectedLane && !linked(systems(), selectedLane.a, selectedLane.b))
@@ -221,10 +201,6 @@ export function editPipeline(
   return {
     actions,
     runEdit,
-    newSession() {
-      session += 1;
-      resetOpChecks();
-    },
   };
 }
 
@@ -383,6 +359,11 @@ function enqueue<T>(run: () => Promise<T>): Promise<T> {
 /** The reclassification that still counts; a later edit's takes it over. */
 let reclassification = 0;
 
+/** Leaves a reclassification still waiting to the document that asked for it, which is gone. */
+export function forgetReclassify(): void {
+  reclassification += 1;
+}
+
 /** What an initializer change moves: how a system is classified, and who its scripts give it to. */
 async function reclassify(): Promise<void> {
   const mine = ++reclassification;
@@ -403,43 +384,23 @@ function touchedSystems(result: EditResult): Set<number> {
   return touched;
 }
 
-/** The entities the inspector reaches through a system's details. */
-type DetailRef = Extract<EntityRef, { kind: "planet" | "fleet" | "megastructure" }>;
-
 /** True when what the inspector is looking at lives in a system the edit touched. */
 function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
   const { stack } = useInspectorStore.getState();
-  const ref = stack[stack.length - 1].ref;
-  switch (ref.kind) {
-    case "system":
-      return touched.has(ref.id);
-    case "starbase":
-    case "wormhole":
-    case "body":
-      return touched.has(ref.system);
-    case "lane":
-      return touched.has(ref.a) || touched.has(ref.b);
-    case "planet":
-    case "fleet":
-    case "megastructure": {
-      const owner = owningSystem(ref);
-      return owner === null ? detailsStale.length > 0 : detailsStale.includes(owner);
-    }
-    default:
-      return false;
-  }
+  const home = refHome(stack[stack.length - 1].ref);
+  if (home === null) return false;
+  if ("systems" in home) return home.systems.some((id) => touched.has(id));
+  const owner = owningSystem(home.listedIn, home.id);
+  return owner === null ? detailsStale.length > 0 : detailsStale.includes(owner);
 }
 
-/** The system whose cached details list `ref`, or null while they are not cached. */
-function owningSystem(ref: DetailRef): number | null {
+/** The system whose cached details list `id` under `listedIn`, or null while they are not cached. */
+function owningSystem(
+  listedIn: "planets" | "fleets_present" | "megastructures",
+  id: number,
+): number | null {
   for (const details of useDetailsStore.getState().details.values()) {
-    const members =
-      ref.kind === "planet"
-        ? details.planets
-        : ref.kind === "fleet"
-          ? details.fleets_present
-          : details.megastructures;
-    if (members.some((m) => m.id === ref.id)) return details.id;
+    if (details[listedIn].some((m) => m.id === id)) return details.id;
   }
   return null;
 }

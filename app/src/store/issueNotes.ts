@@ -8,6 +8,7 @@ import {
   reservedSpawnsNote,
   type AppIssue,
 } from "../lib/issues";
+import { documentCapabilities } from "../lib/capabilities";
 import { reservedSeatIds, scenarioHeaderName } from "../lib/paint";
 import { isUnder } from "../lib/paths";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
@@ -23,11 +24,18 @@ import { paintScenariosDir, usePaintModStore } from "./paintModStore";
  */
 export async function noteDuplicateNames(): Promise<void> {
   const mine = issuesDocument();
-  const { kind, path } = useFileSessionStore.getState();
+  const session = useFileSessionStore.getState();
+  const { path } = session;
   const dir = paintScenariosDir();
   const name = scenarioHeaderName(useGalaxyStore.getState().header);
   let notes: AppIssue[] = [];
-  if (kind === "scenario" && path !== null && dir !== null && isUnder(path, dir) && name !== null) {
+  if (
+    documentCapabilities(session).header &&
+    path !== null &&
+    dir !== null &&
+    isUnder(path, dir) &&
+    name !== null
+  ) {
     const siblings = await ipc.siblingScenarioNames(path).catch(() => []);
     if (mine !== issuesDocument() || useFileSessionStore.getState().path !== path) return;
     notes = siblings
@@ -60,7 +68,7 @@ export function noteGalaxySize(): void {
   const { status, summary } = useGameDataStore.getState();
   const largest = status === "ready" ? (summary?.largest_galaxy ?? null) : null;
   let notes: AppIssue[] = [];
-  if (largest !== null && useFileSessionStore.getState().kind === "scenario") {
+  if (largest !== null && documentCapabilities(useFileSessionStore.getState()).header) {
     const systems = useGalaxyStore.getState().systems.size;
     if (exceedsGalaxySize(systems, largest)) notes = [galaxySizeNote(systems, largest)];
   }
@@ -74,7 +82,7 @@ export function noteGalaxySize(): void {
 export function noteInitializerLimits(): void {
   const initializers = useGameDataStore.getState().initializers;
   let notes: AppIssue[] = [];
-  if (initializers !== null && useFileSessionStore.getState().kind === "scenario") {
+  if (initializers !== null && documentCapabilities(useFileSessionStore.getState()).scripts) {
     const limits = new Map(
       initializers.flatMap((i): Array<[string, number]> =>
         i.max_instances === null ? [] : [[i.name, i.max_instances]],

@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Set the class of planet #39 from pc_gas_giant to pc_barren
-inverse: SetPlanetClass { planet: 39, from: PlanetClassRule { class: "pc_barren", change: Uncolonised, models: 3 }, to: PlanetClassRule { class: "pc_gas_giant", change: Uncolonised, models: 5 }, look: Some(PlanetLook { entity: Some(3), entity_name: None }) }
+inverse: SetBodyClass { body: 39, from: PlanetClassRule { class: "pc_barren", change: Uncolonised, models: 3 }, to: PlanetClassRule { class: "pc_gas_giant", change: Uncolonised, models: 5 }, look: Some(PlanetLook { entity: Some(3), entity_name: None }) }
 
 --- gamestate
 +++ gamestate

@@ -9,7 +9,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { WormholeSummary } from "../../../generated/WormholeSummary";
-import { GEOMETRY_REASONS } from "../../../lib/details/orbitEdits";
+import { GEOMETRY_REASONS } from "../../../lib/details/orbitIntent";
 import { bindStores } from "../../../store/bindStores";
 import { editResult } from "../../../store/fixture";
 import { useInspectorStore, wormholeEntry } from "../../../store/inspectorStore";
@@ -74,7 +74,7 @@ describe("a wormhole's page", () => {
     distance.onCommit(300);
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-        type: "MoveSaveWormhole",
+        type: "MoveWormhole",
         wormhole: WORMHOLE.id,
         radius: 300,
         angle: 90,

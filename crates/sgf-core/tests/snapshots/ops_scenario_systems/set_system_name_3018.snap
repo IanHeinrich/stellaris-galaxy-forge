@@ -2,9 +2,9 @@
 source: crates/sgf-core/tests/ops_scenario_systems.rs
 expression: "report(&session, &result)"
 ---
-Renamed system 3018 from "Iridonia" to "NAME_Iridonia"
+Renamed Iridonia #3018 to NAME_Iridonia
 touched: [3018]
-inverse: SetSystemName { id: 3018, name: "Iridonia" }
+inverse: RenameSystem { system: 3018, name: "Iridonia" }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 … and 2 other issues
 

@@ -23,7 +23,7 @@ export function PreventedMenu({
   return (
     <MenuFrame {...frame} label={label}>
       <div className="context-menu-header">{label}</div>
-      <MenuItem disabled={!prevented} run={() => applySymmetric({ type: "UnpreventLane", a, b })}>
+      <MenuItem disabled={!prevented} run={() => applySymmetric({ type: "AllowLane", a, b })}>
         Allow
       </MenuItem>
     </MenuFrame>

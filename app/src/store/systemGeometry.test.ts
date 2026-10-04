@@ -4,7 +4,7 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 
-import { GEOMETRY_REASONS } from "../lib/details/orbitEdits";
+import { GEOMETRY_REASONS } from "../lib/details/orbitIntent";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { polar } from "../lib/details/orbits";
@@ -52,7 +52,7 @@ describe("applyGeometry", () => {
     expect(applied).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "MoveSaveBody",
+      type: "MoveBody",
       system: SOL,
       body: LONE,
       radius: 110,
@@ -92,7 +92,7 @@ describe("nudgeBody", () => {
     inspect(LONE);
     expect(await nudgeBody({ turn: 1, out: 0 })).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-      type: "MoveSaveBody",
+      type: "MoveBody",
       system: SOL,
       body: LONE,
       radius: 100,
@@ -133,7 +133,7 @@ describe("quick edits in a row", () => {
     expect([first, second]).toEqual([true, false]);
     expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "RemoveSaveBelt",
+      type: "RemoveBelt",
       system: SOL,
       index: 1,
     });

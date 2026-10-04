@@ -9,22 +9,15 @@ import {
   type PickerMode,
 } from "../lib/details/depositPicker";
 import type { PickerTarget } from "../lib/details/picker";
-import { PICKER_CLOSED, pickerSlice, type PickerState } from "./pickerSlice";
+import { PICKER_CLOSED, pickerSlice, stillOn, type PickerState } from "./pickerSlice";
 import { usePlanetDataStore } from "./planetDataStore";
 
-/** The body the offered types were read for: its class, size, whether a moon, what it holds. */
-function bodyKey(target: PickerTarget): string {
-  return [target.planetClass, target.size, target.moon, ...target.deposits].join("|");
-}
-
 /** The deposit picker on a planet's page, and the add waiting on its warnings. */
-export interface DepositPickerState extends PickerState<DepositChip> {
+export interface DepositPickerState extends PickerState<DepositChip, DepositChoice> {
   /** Which of its two pickers is open. */
   mode: PickerMode;
   /** An add waiting for the user to confirm what the game will take away for it. */
   pending: { row: DepositRow; amount: DepositAmount; warnings: readonly string[] } | null;
-  /** The types offered, read for the body `body` names; `null` until read. */
-  choices: { body: string; list: DepositChoice[] } | null;
   open(target: PickerTarget, mode: PickerMode): void;
   /**
    * Adds `amount` of `row` to the open body and says so; with `warnings`, first holds the add
@@ -37,56 +30,65 @@ export interface DepositPickerState extends PickerState<DepositChip> {
   cancel(): void;
 }
 
-export const useDepositPickerStore = create<DepositPickerState>((set, get) => ({
-  ...pickerSlice<DepositChip>(set),
-  mode: "deposits",
-  pending: null,
-  choices: null,
+/** The types offered `target`'s body, with the pages of each asked for as they land. */
+async function depositChoices(target: PickerTarget): Promise<DepositChoice[]> {
+  const list = await ipc.getDepositChoices(target.planetClass, target.size, target.moon, [
+    ...target.deposits,
+  ]);
+  usePlanetDataStore
+    .getState()
+    .request({ deposits: list.map((c) => c.key), modifiers: [], colonyTypes: [] });
+  return list;
+}
 
-  open(target, mode) {
-    const was = get().target;
-    if (was?.key !== target.key || get().mode !== mode) {
-      set({ ...PICKER_CLOSED, target, mode, pending: null });
-    } else if (was !== target) {
-      set({ target });
-    }
-    const body = bodyKey(target);
-    if (get().choices?.body === body) return;
-    ipc.getDepositChoices(target.planetClass, target.size, target.moon, [...target.deposits]).then(
-      (list) => {
-        usePlanetDataStore
-          .getState()
-          .request({ deposits: list.map((c) => c.key), modifiers: [], colonyTypes: [] });
-        set({ choices: { body, list } });
-      },
-      (e: unknown) => {
-        console.warn("deposit choices", ipc.errorMessage(e));
-        set({ choices: { body, list: [] } });
-      },
-    );
-  },
+export const useDepositPickerStore = create<DepositPickerState>((set, get) => {
+  const slice = pickerSlice<DepositChip, DepositChoice>(set, get, {
+    keyOf: (target) => [target.planetClass, target.size, target.moon, ...target.deposits].join("|"),
+    read: depositChoices,
+    name: "deposit choices",
+  });
+  return {
+    ...slice,
+    mode: "deposits",
+    pending: null,
 
-  close() {
-    set({ ...PICKER_CLOSED, pending: null });
-  },
+    open(target, mode) {
+      if (get().mode !== mode) set({ ...PICKER_CLOSED, mode, pending: null });
+      if (get().target?.key !== target.key) set({ pending: null });
+      get().openOn(target);
+      get().load(target);
+    },
 
-  async add(row, amount, warnings = []) {
-    const target = get().target;
-    if (target === null) return;
-    if (warnings.length > 0 && get().pending?.amount.key !== amount.key) {
-      set({ pending: { row, amount, warnings } });
-      return;
-    }
-    set({ pending: null });
-    if (await target.edits.addDeposit(amount.key)) set({ added: addedLine(row, amount) });
-  },
+    close() {
+      slice.close();
+      set({ pending: null });
+    },
 
-  async confirm() {
-    const pending = get().pending;
-    if (pending !== null) await get().add(pending.row, pending.amount);
-  },
+    reset() {
+      slice.reset();
+      set({ mode: "deposits", pending: null });
+    },
 
-  cancel() {
-    set({ pending: null });
-  },
-}));
+    async add(row, amount, warnings = []) {
+      const target = get().target;
+      if (target === null) return;
+      if (warnings.length > 0 && get().pending?.amount.key !== amount.key) {
+        set({ pending: { row, amount, warnings } });
+        return;
+      }
+      set({ pending: null });
+      if ((await target.edits.addDeposit(amount.key)) && stillOn(get(), target)) {
+        set({ added: addedLine(row, amount) });
+      }
+    },
+
+    async confirm() {
+      const pending = get().pending;
+      if (pending !== null) await get().add(pending.row, pending.amount);
+    },
+
+    cancel() {
+      set({ pending: null });
+    },
+  };
+});

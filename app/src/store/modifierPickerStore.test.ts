@@ -43,14 +43,6 @@ beforeEach(() => {
 });
 
 describe("the modifier picker", () => {
-  it("reads the modifiers once while open", async () => {
-    useModifierPickerStore.getState().open(TARGET);
-    await vi.waitFor(() => expect(useModifierPickerStore.getState().choices).toEqual(CHOICES));
-    useModifierPickerStore.getState().open(TARGET);
-    expect(mockedIpc.getModifierChoices).toHaveBeenCalledTimes(1);
-    expect(useModifierPickerStore.getState().target?.key).toBe("save-planet:40");
-  });
-
   it("adds for the days set, stays open with its search, and says what it added", async () => {
     const store = useModifierPickerStore.getState();
     store.open(TARGET);
@@ -59,8 +51,8 @@ describe("the modifier picker", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     await useModifierPickerStore.getState().add(ROW);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-      type: "AddPlanetModifier",
-      planet: 40,
+      type: "AddBodyModifier",
+      body: 40,
       modifier: "mineral_poor",
       days: [360],
       feature: "pm_mineral_poor",

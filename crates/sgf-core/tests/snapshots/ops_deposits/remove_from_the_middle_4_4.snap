@@ -4,7 +4,7 @@ expression: value
 ---
 Removed d_boggy_fens (#367) from planet #230
 touched: [694]
-inverse: AddSaveDeposit { planet: 230, kind: "d_boggy_fens" }
+inverse: AddDeposit { body: 230, kind: "d_boggy_fens" }
 … and 3 other issues
 
 --- gamestate

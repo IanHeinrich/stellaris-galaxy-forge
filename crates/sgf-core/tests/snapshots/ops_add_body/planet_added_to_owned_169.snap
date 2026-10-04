@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added planet #16777273 to system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of system #169 from 215 to 270
-inverse: Batch { description: "Undo of \"Added planet #16777273 to system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of system #169 from 215 to 270\"", ops: [RemoveAddedBody { planet: 16777273 }, SetSaveInnerRadius { system: 169, radius: 215.0 }] }
+Added planet #16777273 to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of Alari system #169 from 215 to 270
+inverse: Batch { description: "Undo of \"Added planet #16777273 to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, with 2 deposits; set the inner radius of Alari system #169 from 215 to 270\"", ops: [RemoveBody { body: 16777273 }, SetInnerRadius { system: 169, radius: 215.0 }] }
 
 --- gamestate
 +++ gamestate

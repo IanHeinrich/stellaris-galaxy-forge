@@ -1,10 +1,9 @@
 /**
  * The Class field of a save planet's page: the classes the planet may take, with the colony rules
- * applied, and the edit a pick sends.
+ * applied.
  */
-import type { Op } from "../../generated/Op";
-import type { PlanetClassRule } from "../../generated/PlanetClassRule";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
+import type { GroupedRow } from "./picker";
 
 /** The Class field's hover text. */
 export const CLASS_TITLE = "Change this planet's class. Deposits, modifiers and any colony stay.";
@@ -16,12 +15,6 @@ export const CLASS_LOOK_NOTE = "Changing the class resets the planet's look.";
 export const CLASSES_NEED_GAME_DATA = "Load game data to pick a class";
 export const CLASS_FIXED = "This kind of planet keeps its class";
 export const COLONY_CLASS_FIXED = "A colony on this class keeps it";
-
-export interface ClassRow {
-  key: string;
-  label: string;
-  group: "Habitable" | "Other";
-}
 
 /** Why a planet of `current` cannot change class, or `null` when it can. */
 export function classFieldReason(
@@ -47,30 +40,13 @@ export function classRows(
   moon: boolean,
   planetClasses: ReadonlyMap<string, PlanetClassView>,
   label: (key: string) => string,
-): ClassRow[] {
+): GroupedRow[] {
   if (classFieldReason(current, colonised, planetClasses) !== null) return [];
   const group = (view: PlanetClassView) => (view.habitable ? "Habitable" : "Other");
   return [...planetClasses.values()]
     .filter((c) => c.key !== current && c.change !== "never")
     .filter((c) => !colonised || c.change === "any")
     .filter((c) => !moon || c.moonless !== true)
-    .map((c): ClassRow => ({ key: c.key, label: label(c.key), group: group(c) }))
+    .map((c) => ({ key: c.key, label: label(c.key), group: group(c) }))
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
-}
-
-function rule(view: PlanetClassView): PlanetClassRule {
-  return { class: view.key, change: view.change, models: view.models };
-}
-
-/** The edit that makes planet `planet` of class `current` into `key`; `null` when unchanged or unknown. */
-export function setPlanetClassOp(
-  planet: number,
-  current: string,
-  key: string,
-  planetClasses: ReadonlyMap<string, PlanetClassView>,
-): Op | null {
-  const from = planetClasses.get(current);
-  const to = planetClasses.get(key);
-  if (from === undefined || to === undefined || key === current) return null;
-  return { type: "SetPlanetClass", planet, from: rule(from), to: rule(to) };
 }

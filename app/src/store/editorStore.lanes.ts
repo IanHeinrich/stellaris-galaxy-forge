@@ -135,7 +135,7 @@ export function laneActions(
     async isolateSelected() {
       await get().applySymmetric(() => {
         const ids = linkedSystems(systems(), get().selection);
-        return ids.length === 0 ? null : { type: "IsolateSystems", ids };
+        return ids.length === 0 ? null : { type: "IsolateSystems", systems: ids };
       });
     },
 

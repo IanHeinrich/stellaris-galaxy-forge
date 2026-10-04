@@ -1,4 +1,4 @@
-//! `AddSaveBody` and `RemoveAddedBody`: one planet or moon added to a save system, and
+//! `AddBody` and `RemoveBody`: one planet or moon added to a save system, and
 //! taken out again. The body's entry and its deposits' take slots as
 //! [`super::add_system`] gives them, the system lists it after its last `planet=` line, a
 //! moon's planet lists it in `moons`, and the inner radius grows when the body lies past it.
@@ -7,7 +7,6 @@
 use crate::document::Document;
 use crate::emit::roman;
 use crate::emit::system::{MOON_FLAG, RING_FLAG};
-use crate::entity::facts::planet::is_star_class;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
@@ -19,13 +18,16 @@ use crate::format::save::write::add_system::{
 use crate::format::save::write::asteroid_names;
 use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
+use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::planet_entry::{list_moon, unlist_moon};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::bodies::{Body, check_placement, drawn_radius, normalised, point, reach};
+use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::check_name;
+use crate::ops::rules::named;
 use crate::ops::{NewBody, Op, OpError, Plan, Planned, Subject};
 use crate::plural;
+use crate::projections::geometry::{Body, drawn_radius, normalised, point, reach};
 use crate::projections::name::{NameTemplate, NameVariable};
 use crate::projections::name::{format, letter, literal};
 use crate::projections::read;
@@ -120,13 +122,14 @@ pub(crate) fn plan_add(
         n => format!(", with {}", plural(n, "deposit")),
     };
     let description = format!(
-        "Added {whose} system #{system} ({}, size {}) at orbit {} at {}°{with}",
+        "Added {whose} {} ({}, size {}) at orbit {} at {}°{with}",
+        named(&s.graph, system),
         spec.class,
         spec.size,
         number(at.radius),
         number(angle),
     );
-    let inverse = Op::RemoveAddedBody { planet: id };
+    let inverse = Op::RemoveBody { body: id };
     grow_past(plan, s, system, reach(&after, &added), description, inverse)
 }
 
@@ -140,7 +143,10 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     let own = stored
         .iter()
         .find(|b| b.body.id == planet)
-        .ok_or(OpError::NotABody { planet, system })?;
+        .ok_or(OpError::NotABody {
+            body: planet,
+            system,
+        })?;
     if stored.iter().any(|b| b.body.parent == Some(planet)) {
         return Err(OpError::BodyHasMoons(planet));
     }
@@ -149,7 +155,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         .parent
         .filter(|&p| stored.iter().any(|b| b.body.id == p));
     let moon_of = parent.filter(|_| own.moon);
-    let inverse = Op::AddSaveBody {
+    let inverse = Op::AddBody {
         system,
         spec: spec_of(&s.doc, &node, src, moon_of),
         at: placement(&stored, &own.body, moon_of),
@@ -183,7 +189,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         None => format!("planet #{planet}"),
     };
     Ok(Planned {
-        description: format!("Removed {whose} from system #{system}"),
+        description: format!("Removed {whose} from {}", named(&s.graph, system)),
         inverse,
     })
 }
@@ -208,14 +214,14 @@ fn moon_parent(s: &Session, stored: &[Stored], system: u32, parent: u32) -> Resu
         .iter()
         .find(|b| b.body.id == parent)
         .ok_or(OpError::NotABody {
-            planet: parent,
+            body: parent,
             system,
         })?;
     let (node, src) = planet_entity(&s.doc, parent)?;
-    let star = stored
+    let primary = stored
         .first()
-        .is_some_and(|primary| primary.body.id == parent)
-        || is_star_class(&read::text(&node, keys::PLANET_CLASS, src))
+        .is_some_and(|primary| primary.body.id == parent);
+    let star = is_star(role(&node, src, primary, s.star_classes()))
         || stored
             .iter()
             .any(|b| b.body.parent == Some(parent) && !b.moon);

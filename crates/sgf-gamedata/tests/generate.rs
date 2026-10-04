@@ -497,7 +497,7 @@ fn a_rolled_system_is_added_to_a_save_and_reopens_with_its_findings() {
         .map(|p| 1 + p.moons.len())
         .sum::<usize>();
     session
-        .apply(Op::AddSaveSystem { spec: spec.clone() })
+        .apply(Op::AddSystemFromSpec { spec: spec.clone() })
         .expect("the op takes the spec");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("gen.sav");
@@ -682,7 +682,7 @@ fn a_name_comes_from_the_pool_then_from_the_install_then_from_no_one() {
     let mut spec = generate(gd, 5, &name, SPOT, None, ABUNDANCE).unwrap();
     spec.lanes = vec![169];
     session
-        .apply(Op::AddSaveSystem { spec })
+        .apply(Op::AddSystemFromSpec { spec })
         .expect("the op takes a name the pool lacks");
     let current: Vec<u8> = session.doc.pieces().flatten().copied().collect();
     assert_eq!(
@@ -1234,7 +1234,7 @@ fn bodies_rolled_from_the_real_install_are_added_to_a_save() {
         let class = gd.planet_classes.get(&spec.class).expect("a real class");
         assert!(body_classes(gd, moon_of.is_some()).contains(&class));
         session
-            .apply(Op::AddSaveBody {
+            .apply(Op::AddBody {
                 system: 408,
                 spec: NewBody {
                     class: spec.class,

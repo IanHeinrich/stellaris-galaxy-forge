@@ -3,4 +3,4 @@
 /**
  * One system's destination in [`Op::MoveSystems`].
  */
-export type SystemMove = { id: number, x: number, y: number, };
+export type SystemMove = { system: number, x: number, y: number, };

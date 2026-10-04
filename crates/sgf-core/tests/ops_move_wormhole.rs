@@ -10,7 +10,7 @@ use common::diff::{round_trip, snapshot_step};
 use common::{current, open, open_4_5};
 
 fn move_wormhole(wormhole: u32, radius: f64, angle: f64) -> Op {
-    Op::MoveSaveWormhole {
+    Op::MoveWormhole {
         wormhole,
         radius,
         angle,
@@ -50,7 +50,7 @@ fn a_wormhole_moved_about_its_star() {
         "Moved the wormhole in Ferragon #489 from 459.55 at 89.48° to 300 at 45°, \
          linked to Aulderaan #152"
     );
-    let Op::MoveSaveWormhole {
+    let Op::MoveWormhole {
         wormhole: 1,
         radius,
         angle,

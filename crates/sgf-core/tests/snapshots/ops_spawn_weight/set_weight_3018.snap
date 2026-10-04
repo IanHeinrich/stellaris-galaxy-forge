@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
-Set system 3018 spawn weight to 4
-inverse: SetSpawnWeight { id: 3018, base: Some(1.0) }
+Set the spawn weight of Iridonia #3018 to 4
+inverse: SetSpawnWeight { system: 3018, base: Some(1.0) }
 
 --- scenario
 +++ scenario

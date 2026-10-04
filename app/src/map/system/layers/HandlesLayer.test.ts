@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Graphics } from "pixi.js";
-import { SAVE_GEOMETRY } from "../../../lib/details/orbitEdits";
+import { SAVE_GEOMETRY } from "../../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem } from "../../../test/builders";
 import type { DragMarks } from "../bodyDrag";
 import { systemContext, type SystemContext } from "../context";

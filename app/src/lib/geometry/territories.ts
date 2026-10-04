@@ -1,12 +1,6 @@
 import { scanPiece, type PieceScan } from "./labelFit";
-import {
-  bandOf,
-  InfluenceField,
-  trimmedInner,
-  type Region,
-  type TerritoryParams,
-  type TerritorySystem,
-} from "./territory";
+import { bandOf, trimmedInner, type Region } from "./polygon";
+import { InfluenceField, type TerritoryParams, type TerritorySystem } from "./territory";
 
 /** A country's band and seam, each the territory less its inner part, and the band's inner part. */
 export interface Banding {
@@ -21,12 +15,12 @@ export interface BandWidths {
   seam: number;
 }
 
-export const NO_BAND: BandWidths = { band: 0, seam: 0 };
+const NO_BAND: BandWidths = { band: 0, seam: 0 };
 
 /** What the map draws of one country: its outline and band, and each piece scanned for its label. */
 export interface Shape extends Banding {
   /** The outline, traced from a field smooth enough to need no rounding. */
-  smoothed: Region;
+  outline: Region;
   scans: PieceScan[];
 }
 
@@ -95,20 +89,25 @@ export class Territories {
 
   /** One request answered, as the worker and the inline client both do it. */
   handle(request: Request): Reply {
-    if (request.kind === "reset") {
-      const { systems, params, bordered, widths } = request;
-      const shapes = this.reset(systems, params, bordered, widths);
-      return { kind: "reset", epoch: request.epoch, shapes: [...shapes] };
+    switch (request.kind) {
+      case "reset": {
+        const { systems, params, bordered, widths } = request;
+        const shapes = this.reset(systems, params, bordered, widths);
+        return { kind: "reset", epoch: request.epoch, shapes: [...shapes] };
+      }
+      case "apply": {
+        const { shapes, removed } = this.apply(request.changed, request.removed);
+        return { kind: "apply", epoch: request.epoch, shapes: [...shapes], removed };
+      }
+      case "band":
+        return { kind: "band", epoch: request.epoch, bands: [...this.band(request.widths)] };
+      default:
+        return request satisfies never;
     }
-    if (request.kind === "band") {
-      return { kind: "band", epoch: request.epoch, bands: [...this.band(request.widths)] };
-    }
-    const { shapes, removed } = this.apply(request.changed, request.removed);
-    return { kind: "apply", epoch: request.epoch, shapes: [...shapes], removed };
   }
 
   private shapesOf(owners: Iterable<number>): { shapes: Map<number, Shape>; removed: number[] } {
-    const field = this.field as InfluenceField;
+    const field = this.loaded();
     const shapes = new Map<number, Shape>();
     const removed: number[] = [];
     for (const owner of owners) {
@@ -119,7 +118,7 @@ export class Territories {
       } else {
         this.regions.set(owner, region);
         const scans = region.map((piece) => scanPiece(piece));
-        shapes.set(owner, { smoothed: region, scans, ...this.bandingOf(owner, region) });
+        shapes.set(owner, { outline: region, scans, ...this.bandingOf(owner, region) });
       }
     }
     return { shapes, removed };
@@ -127,13 +126,18 @@ export class Territories {
 
   /** None while the field traces no band. */
   private bandingOf(owner: number, region: Region): Banding {
-    const field = this.field as InfluenceField;
+    const field = this.loaded();
     const inner = trimmedInner(region, field.inner(owner));
-    const seamInner = field.seamInner(owner);
+    const seamInner = trimmedInner(region, field.seamInner(owner));
     return {
       band: this.widths.band > 0 ? bandOf(region, inner) : [],
       seam: this.widths.seam > 0 ? bandOf(region, seamInner) : [],
       inner,
     };
+  }
+
+  private loaded(): InfluenceField {
+    if (!this.field) throw new Error("territories asked for a shape before any reset");
+    return this.field;
   }
 }

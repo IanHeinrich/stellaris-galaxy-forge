@@ -1,14 +1,17 @@
 import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
 import { bodyName } from "../../../lib/details/labels";
-import { lockedToName, nextMoonRing, orbitParent } from "../../../lib/details/orbitEdits";
+import { lockedToName } from "../../../lib/details/orbitIntent";
+import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
+import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
+import { documentCapabilities } from "../../../lib/capabilities";
 import { isStarBody } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useEditorStore } from "../../../store/editorStore";
-import { useCanEdit } from "../../../store/fileSessionStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import { deletePlanet } from "../../../store/planetRemoval";
+import { planetEditAdapterFor } from "../../../store/planetEditAdapter";
 import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
@@ -36,7 +39,6 @@ export function BodyMenu({
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const addBodyAt = useEditorStore((s) => s.addBodyAt);
-  const canAddBodies = useCanEdit("added_systems");
   const { layout, editing, frame: geometry } = useSystemGeometry(target.system);
   const locked = useSceneStore((s) => s.lockedBodies.has(target.id));
   const lockBody = useSceneStore((s) => s.lockBody);
@@ -46,22 +48,26 @@ export function BodyMenu({
     return planet === undefined ? undefined : bodyName(planet, names);
   };
   const name = nameOf(target.id);
-  const deletable = useCanEdit("deposits");
   const placed = layout.bodies.find((b) => b.id === target.id);
   const lockable = placed !== undefined && editing.bodies.get(target.id)?.move === true;
   const planet = details?.planets.find((p) => p.id === target.id);
   const moon = planet?.moon === true;
-  const moonHost =
-    canAddBodies &&
-    planet !== undefined &&
-    takesMoons(
-      planet,
-      details?.planets.find((p) => p.id === planet.parent),
-      {
-        star: isStarBody(planet.class, planetClasses, starClasses),
-        asteroid: planetClasses.get(planet.class)?.asteroid === true,
-      },
-    );
+  const capabilities = useFileSessionStore((s) => documentCapabilities(s));
+  const star = planet !== undefined && isStarBody(planet.class, planetClasses, starClasses);
+  const offers = planetPageOffers(capabilities, {
+    star,
+    ringable: false,
+    moonHost:
+      planet !== undefined &&
+      takesMoons(
+        planet,
+        details?.planets.find((p) => p.id === planet.parent),
+        {
+          star,
+          asteroid: planetClasses.get(planet.class)?.asteroid === true,
+        },
+      ),
+  });
   const addMoon = (planetClass: string | null) =>
     addBodyAt(
       target.system,
@@ -89,8 +95,8 @@ export function BodyMenu({
             {`Lock to ${lockedToName(orbitParent(layout, placed), nameOf)}`}
           </MenuItem>
         ))}
-      {moonHost && <AddBodyItems label={ADD_MOON_LABEL} moon add={addMoon} />}
-      {deletable && name !== undefined && (
+      {offers.addMoon && <AddBodyItems label={ADD_MOON_LABEL} moon add={addMoon} />}
+      {offers.deleteBody && name !== undefined && (
         <DeleteItem system={target.system} planet={target.id} name={name} moon={moon} />
       )}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
@@ -113,12 +119,13 @@ function DeleteItem({
   moon: boolean;
 }) {
   const refusal = useOpCheck(deleteOp(planet), system);
+  const kind = useFileSessionStore((s) => s.kind);
   return (
     <MenuItem
       disabled={refusal !== null}
       className={refusal ? "hinted" : undefined}
       title={refusal ?? undefined}
-      run={() => deletePlanet(planet, name, moon)}
+      run={() => planetEditAdapterFor(kind, { system, id: planet }).remove(name, moon)}
     >
       {deleteLabel(moon)}
       {refusal && <span className="muted">{refusal}</span>}

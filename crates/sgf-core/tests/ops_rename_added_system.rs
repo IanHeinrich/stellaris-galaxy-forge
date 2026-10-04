@@ -14,11 +14,11 @@ use common::{current, text};
 const UNPOOLED: &str = "Sgf_Renamed";
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 fn rename(system: u32, name: &str) -> Op {
-    Op::RenameSaveSystem {
+    Op::RenameSystem {
         system,
         name: name.to_owned(),
     }
@@ -120,13 +120,13 @@ fn rename_then_remove_gives_back_the_file_as_opened() {
         round_trip_step(
             &mut session,
             "reroll",
-            Op::ReplaceSaveSystem {
+            Op::ReplaceSystemFromSpec {
                 system: id,
                 spec: again,
             },
         );
         round_trip_step(&mut session, "rename again", rename(id, UNPOOLED));
-        round_trip_step(&mut session, "remove", Op::RemoveSystem { id });
+        round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
         assert_eq!(current(&session), session.doc.original(), "{id}");
     }
 }
@@ -158,7 +158,7 @@ fn what_a_rename_refuses() {
             ("Bad\"Name", |e| {
                 matches!(e, OpError::InvalidText { what: "a name", .. })
             }),
-            (name.as_str(), |e| matches!(e, OpError::NameUnchanged(..))),
+            (name.as_str(), |e| matches!(e, OpError::Unchanged { .. })),
         ] {
             let error = session.apply(rename(id, bad)).expect_err("refused");
             assert!(check(&error), "{bad:?}: {error}");

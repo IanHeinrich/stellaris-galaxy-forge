@@ -3,7 +3,7 @@ import type { Named } from "../../../../generated/Named";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { applyGeometry, useSystemGeometry } from "../../../../store/systemGeometry";
-import type { GeometryIntent } from "../../../../lib/details/orbitEdits";
+import type { GeometryIntent } from "../../../../lib/details/orbitIntent";
 import { EditNote, EditRow, PickerField, TextField } from "../../../EditField";
 import { LockedRow, Section } from "../../parts";
 

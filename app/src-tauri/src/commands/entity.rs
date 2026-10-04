@@ -14,85 +14,103 @@ use sgf_core::views::{
 };
 use sgf_gamedata::GameData;
 use sgf_gamedata::special::{self, SpecialKind};
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime};
 
-use super::lock;
-use crate::state::{AppState, GameDataState, SpecialLabels};
+use super::with_session;
+use crate::state::{GameDataState, SpecialLabels};
 
-#[tauri::command(async)]
-pub fn get_system(state: State<'_, AppState>, id: u32) -> Result<SystemDetail, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    SystemDetail::of(&session.graph, id).ok_or_else(|| SgfError::not_found(format!("system {id}")))
+#[tauri::command]
+pub async fn get_system<R: Runtime>(app: AppHandle<R>, id: u32) -> Result<SystemDetail, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        SystemDetail::of(&session.graph, id)
+            .ok_or_else(|| SgfError::not_found(format!("system {id}")))
+    })
+    .await
 }
 
 /// One level of an entity's current bytes: the children at `path`, with what an op changed.
-#[tauri::command(async)]
-pub fn get_entity(
-    state: State<'_, AppState>,
+#[tauri::command]
+pub async fn get_entity<R: Runtime>(
+    app: AppHandle<R>,
     addr: EntityAddr,
     path: Vec<String>,
 ) -> Result<EntityView, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(entity::get_entity(&session.doc, addr, &path)?)
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(entity::get_entity(&session.doc, addr, &path)?)
+    })
+    .await
 }
 
 /// An entity's current bytes with the ranges an op changed.
-#[tauri::command(async)]
-pub fn get_entity_source(
-    state: State<'_, AppState>,
+#[tauri::command]
+pub async fn get_entity_source<R: Runtime>(
+    app: AppHandle<R>,
     addr: EntityAddr,
 ) -> Result<EntitySource, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(entity::get_entity_source(&session.doc, addr)?)
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(entity::get_entity_source(&session.doc, addr)?)
+    })
+    .await
 }
 
 /// A save body's own Overview; `not_found` on a scenario, whose planets have no entities.
-#[tauri::command(async)]
-pub fn get_planet_page(state: State<'_, AppState>, id: u32) -> Result<PlanetPage, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(entity::get_planet_page(&session.doc, id)?)
+#[tauri::command]
+pub async fn get_planet_page<R: Runtime>(
+    app: AppHandle<R>,
+    id: u32,
+) -> Result<PlanetPage, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(entity::get_planet_page(&session.doc, id)?)
+    })
+    .await
 }
 
 /// Where the save planets `planets` may move together, and which of them cannot move.
-#[tauri::command(async)]
-pub fn planet_move_targets(
-    state: State<'_, AppState>,
+#[tauri::command]
+pub async fn planet_move_targets<R: Runtime>(
+    app: AppHandle<R>,
     planets: Vec<u32>,
 ) -> Result<PlanetMoveTargets, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(session.planet_move_targets(&planets))
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.planet_move_targets(&planets))
+    })
+    .await
 }
 
 /// Why moving `planets` to system `to` would be refused, or else the colonies and stations
 /// it takes into another country's system. The session is left as it was.
-#[tauri::command(async)]
-pub fn planet_move_check(
-    state: State<'_, AppState>,
+#[tauri::command]
+pub async fn planet_move_check<R: Runtime>(
+    app: AppHandle<R>,
     planets: Vec<u32>,
     to: u32,
     at: Option<OrbitPlacement>,
 ) -> Result<PlanetMoveCheck, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(session.planet_move_check(&planets, to, at))
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.planet_move_check(&planets, to, at))
+    })
+    .await
 }
 
 /// The op that moves `planets` to system `to`, for `apply_op`.
-#[tauri::command(async)]
-pub fn planet_move_op(
-    state: State<'_, AppState>,
+#[tauri::command]
+pub async fn planet_move_op<R: Runtime>(
+    app: AppHandle<R>,
     planets: Vec<u32>,
     to: u32,
     at: Option<OrbitPlacement>,
 ) -> Result<Op, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    Ok(session.planet_move_op(&planets, to, at)?)
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.planet_move_op(&planets, to, at)?)
+    })
+    .await
 }
 
 /// The fields the Data tab labels for a kind; unknown keys render raw.
@@ -103,24 +121,26 @@ pub fn get_entity_schema(kind: EntityKind) -> EntitySchema {
 
 /// Hits carry the localised name when game data is loaded, which also lets a system match
 /// on its special kinds.
-#[tauri::command(async)]
-pub fn search(
-    state: State<'_, AppState>,
-    game_data: State<'_, GameDataState>,
+#[tauri::command]
+pub async fn search<R: Runtime>(
+    app: AppHandle<R>,
     query: String,
     limit: usize,
 ) -> Result<SearchResult, SgfError> {
-    let guard = lock(&state);
-    let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
-    let snapshot = game_data.snapshot();
-    let gd = snapshot.as_ref().map(|(_, gd)| gd);
-    let resolve = |key: &str| gd.and_then(|gd| gd.loc.get(key));
-    let kinds = snapshot
-        .as_ref()
-        .map(|(generation, gd)| special_labels(&session.graph, gd, &game_data, *generation))
-        .unwrap_or_default();
-    let special = |id: u32| kinds.get(&id).cloned().unwrap_or_default();
-    Ok(session.search(&query, limit, &resolve, &special))
+    with_session(app.clone(), move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        let game_data = app.state::<GameDataState>();
+        let snapshot = game_data.snapshot();
+        let gd = snapshot.as_ref().map(|(_, gd)| gd);
+        let resolve = |key: &str| gd.and_then(|gd| gd.loc.get(key));
+        let kinds = snapshot
+            .as_ref()
+            .map(|(generation, gd)| special_labels(&session.graph, gd, &game_data, *generation))
+            .unwrap_or_default();
+        let special = |id: u32| kinds.get(&id).cloned().unwrap_or_default();
+        Ok(session.search(&query, limit, &resolve, &special))
+    })
+    .await
 }
 
 /// Each special system's kinds by their labels, kept until the game data or a system's

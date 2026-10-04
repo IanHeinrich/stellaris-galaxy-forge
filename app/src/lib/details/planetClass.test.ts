@@ -7,7 +7,6 @@ import {
   COLONY_CLASS_FIXED,
   classFieldReason,
   classRows,
-  setPlanetClassOp,
 } from "./planetClass";
 
 const CLASSES = new Map<string, PlanetClassView>(
@@ -51,16 +50,5 @@ describe("the classes a planet may take", () => {
     expect(classFieldReason("pc_city", true, CLASSES)).toBe(COLONY_CLASS_FIXED);
     expect(classFieldReason("pc_barren", false, new Map())).toBe(CLASSES_NEED_GAME_DATA);
     expect(classFieldReason("pc_barren", false, CLASSES)).toBeNull();
-  });
-
-  it("sends both classes' rules, and nothing for the class it has", () => {
-    expect(setPlanetClassOp(585, "pc_barren", "pc_ocean", CLASSES)).toEqual({
-      type: "SetPlanetClass",
-      planet: 585,
-      from: { class: "pc_barren", change: "uncolonised", models: 3 },
-      to: { class: "pc_ocean", change: "any", models: 3 },
-    });
-    expect(setPlanetClassOp(585, "pc_barren", "pc_barren", CLASSES)).toBeNull();
-    expect(setPlanetClassOp(585, "pc_barren", "pc_unknown", CLASSES)).toBeNull();
   });
 });

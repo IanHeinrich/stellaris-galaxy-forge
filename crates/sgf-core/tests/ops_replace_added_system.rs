@@ -16,11 +16,11 @@ use common::spec::{SAMPLE_4_5, SAMPLES, belted, mura, rerolled, small};
 use common::{current, examples, findings, planet_ids, pooled};
 
 fn add(spec: SystemSpec) -> Op {
-    Op::AddSaveSystem { spec }
+    Op::AddSystemFromSpec { spec }
 }
 
 fn reroll(system: u32, spec: SystemSpec) -> Op {
-    Op::ReplaceSaveSystem { system, spec }
+    Op::ReplaceSystemFromSpec { system, spec }
 }
 
 /// A belted system, given a lane from a system the file held and moved, rolled again:
@@ -46,7 +46,7 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
             session,
             "move",
             Op::MoveSystem {
-                id: first,
+                system: first,
                 x: spike.x + 2.0,
                 y: spike.y,
             },
@@ -86,7 +86,7 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
         session
             .apply(reroll(first, rerolled(spike)))
             .expect("reroll again");
-        round_trip_step(session, "remove", Op::RemoveSystem { id: first });
+        round_trip_step(session, "remove", Op::RemoveSystem { system: first });
         assert_eq!(current(session), session.doc.original(), "{first}");
     }
 }
@@ -171,11 +171,14 @@ fn the_inverse_writes_back_the_text_the_reroll_replaced() {
             session.apply(add(spike.clone())).expect("add");
             let star = planet_ids(session, first)[0];
             session
-                .apply(Op::SetPlanetSize { id: star, size: 30 })
+                .apply(Op::SetBodySize {
+                    body: star,
+                    size: 30,
+                })
                 .expect("an edit to the old star");
             session
                 .apply(Op::MoveSystem {
-                    id: first,
+                    system: first,
                     x: spike.x + 2.0,
                     y: spike.y,
                 })
@@ -184,7 +187,7 @@ fn the_inverse_writes_back_the_text_the_reroll_replaced() {
             let result = session
                 .apply(reroll(first, rerolled(spike.clone())))
                 .expect("reroll");
-            let Op::ReplaceSaveSystem { system, spec } = &result.inverse else {
+            let Op::ReplaceSystemFromSpec { system, spec } = &result.inverse else {
                 panic!("{:?}", result.inverse);
             };
             assert_eq!(*system, first);
@@ -211,19 +214,19 @@ fn deposits_added_to_its_planets_later_leave_with_them() {
         round_trip_step(
             session,
             "a deposit on the added planet",
-            Op::AddSaveDeposit {
-                planet,
+            Op::AddDeposit {
+                body: planet,
                 kind: "d_minerals_3".to_owned(),
             },
         );
         let with_deposit = current(session);
         round_trip_step(session, "reroll", reroll(first, rerolled(spike.clone())));
-        round_trip_step(session, "remove", Op::RemoveSystem { id: first });
+        round_trip_step(session, "remove", Op::RemoveSystem { system: first });
         assert_eq!(current(session), session.doc.original(), "{first}");
         session.undo().expect("undo").expect("the removal");
         session.undo().expect("undo").expect("the reroll");
         assert_eq!(current(session), with_deposit);
-        round_trip_step(session, "remove", Op::RemoveSystem { id: first });
+        round_trip_step(session, "remove", Op::RemoveSystem { system: first });
         assert_eq!(current(session), session.doc.original(), "{first}");
     }
 }
@@ -245,13 +248,13 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
     let result = round_trip_step(session, "reroll renamed", reroll(first, again));
     assert_eq!(
         result.entry.description,
-        format!("Rolled Mura (#601) again as {other}, sc_m, with 4 bodies")
+        format!("Rolled Mura #601 again as {other}, sc_m, with 4 bodies")
     );
     assert_eq!(session.system(first).unwrap().name.key, other);
     assert_eq!(pooled(session, "star_names", &spike.name), 1);
     assert_eq!(pooled(session, "star_names", &other), 0);
     session
-        .apply(Op::RemoveSystem { id: first })
+        .apply(Op::RemoveSystem { system: first })
         .expect("remove");
     assert_eq!(current(session), session.doc.original());
 }
@@ -340,7 +343,7 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
         [first, first + 1]
     );
     let removed = session
-        .apply(Op::RemoveSystem { id: first })
+        .apply(Op::RemoveSystem { system: first })
         .expect("remove the first");
     assert_eq!(
         removed.renumbered,
@@ -364,7 +367,7 @@ fn the_added_flag_follows_adds_undo_redo_and_renumbering() {
     let mut scenario = examples::scenario();
     scenario
         .apply(Op::AddSystem {
-            id: Some(77),
+            system: Some(77),
             x: 10.0,
             y: 10.0,
             name: None,

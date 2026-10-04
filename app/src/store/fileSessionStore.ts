@@ -512,9 +512,10 @@ async function askScenarioOpen(
 
 /** A scenario opens once any Paint a Galaxy question is answered; a save first asks how to open it. */
 async function routeOpen(path: string, listings: readonly ScenarioListing[] | null): Promise<void> {
-  if (isSavePath(path))
+  const kind = await kindOf(path);
+  if (kind === "save")
     useFileSessionStore.setState({ pendingOpen: path, pendingAsScenario: false });
-  else await openAs(path, "save", false, listings);
+  else await OPENERS[kind](path, false, listings);
 }
 
 /**
@@ -527,16 +528,44 @@ async function openAs(
   asPaint: boolean,
   listings: readonly ScenarioListing[] | null,
 ): Promise<OpenOutcome> {
-  const { getState } = useFileSessionStore;
-  let opened: boolean;
-  if (mode === "scenario") {
-    opened = await getState().openScenarioFrom(path, standingProfile());
-  } else if (isSavePath(path)) {
-    opened = await getState().openSave(path);
-  } else {
-    const profile = await askScenarioOpen(path, listings, asPaint);
-    if (profile === null) return "cancelled";
-    opened = await getState().openSave(path, profile);
-  }
+  const opened =
+    mode === "scenario"
+      ? await useFileSessionStore.getState().openScenarioFrom(path, standingProfile())
+      : await OPENERS[await kindOf(path)](path, asPaint, listings);
+  if (opened === null) return "cancelled";
   return opened ? "opened" : "failed";
+}
+
+/** The kind the file at `path` holds, read from its bytes; by its extension if the probe fails. */
+function kindOf(path: string): Promise<DocumentKind> {
+  return ipc.documentKind(path).catch(() => (isSavePath(path) ? "save" : "scenario"));
+}
+
+/** Opens a file of each kind as itself: true once it opened, null when the user cancelled. */
+type Opener = (
+  path: string,
+  asPaint: boolean,
+  listings: readonly ScenarioListing[] | null,
+) => Promise<boolean | null>;
+
+const OPENERS: Record<DocumentKind, Opener> = {
+  save: (path) => useFileSessionStore.getState().openSave(path),
+  async scenario(path, asPaint, listings) {
+    const profile = await askScenarioOpen(path, listings, asPaint);
+    return profile === null ? null : useFileSessionStore.getState().openSave(path, profile);
+  },
+};
+
+/**
+ * Reads the open scenario's galaxy again, for when game data changes the star each of its
+ * systems is drawn as. A save's stars are its own, and a galaxy that can't be read keeps the
+ * stars it has.
+ */
+export async function redrawStars(): Promise<void> {
+  const mine = opens;
+  if (useFileSessionStore.getState().kind !== "scenario") return;
+  const galaxy = await ipc.getGalaxy().catch(() => null);
+  if (galaxy !== null && mine === opens && useFileSessionStore.getState().kind === "scenario") {
+    useGalaxyStore.getState().applyDelta({ systems: galaxy.systems });
+  }
 }

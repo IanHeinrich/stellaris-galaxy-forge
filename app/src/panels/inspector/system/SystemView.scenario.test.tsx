@@ -362,7 +362,7 @@ describe("a scenario system's spawn weight", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnWeight",
-        id: SYSTEM,
+        system: SYSTEM,
         base: DEFAULT_SPAWN_WEIGHT,
       }),
     );
@@ -374,7 +374,7 @@ describe("a scenario system's spawn weight", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnWeight",
-        id: SYSTEM,
+        system: SYSTEM,
         base: null,
       }),
     );
@@ -612,7 +612,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     for (const paint of [true, false]) {
       expect(spawnPointOp(system, null, paint || system.spawn_script !== null)).toEqual({
         type: "SetSpawnScript",
-        id: SYSTEM,
+        system: SYSTEM,
         script: null,
       });
     }
@@ -623,7 +623,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     expect(overview()).not.toContain('aria-label="Spawn kind"');
     expect(spawnPointOp(plain, DEFAULT_SPAWN_WEIGHT, false)).toEqual({
       type: "SetSpawnWeight",
-      id: SYSTEM,
+      system: SYSTEM,
       base: 1,
     });
   });
@@ -648,7 +648,7 @@ describe("a scenario system Paint a Galaxy seats", () => {
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetSpawnScript",
-        id: SYSTEM,
+        system: SYSTEM,
         script: { paint_a_galaxy: { kind: "enabled", random_value: SYSTEM % 10, player: false } },
       }),
     );
@@ -709,7 +709,7 @@ describe("a scenario system's prevented lanes", () => {
 
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "UnpreventLane",
+        type: "AllowLane",
         a: SYSTEM,
         b: 3,
       }),
@@ -912,8 +912,8 @@ describe("the head of a scenario system", () => {
 
     await vi.waitFor(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetSystemName",
-        id: SYSTEM,
+        type: "RenameSystem",
+        system: SYSTEM,
         name: "Sea of Ghosts",
       }),
     );

@@ -666,7 +666,7 @@ fn parse_star_body(text: &str) -> Result<StarBody, String> {
         .parse()
         .map_err(|_| format!("{planet} is not a planet id"))?;
     Ok(StarBody {
-        planet,
+        body: planet,
         class: class.to_owned(),
     })
 }

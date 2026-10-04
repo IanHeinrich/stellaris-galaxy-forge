@@ -44,7 +44,7 @@ function DigSiteMenu({ target }: { target: PickerTarget }) {
   const chip = useDigSitePickerStore((s) => s.chip);
   const choices = useDigSitePickerStore((s) => s.choices);
   useEffect(() => useDigSitePickerStore.getState().open(target), [target]);
-  const rows = useMemo(() => (choices === null ? null : digSitePickRows(choices)), [choices]);
+  const rows = useMemo(() => (choices === null ? null : digSitePickRows(choices.list)), [choices]);
   return (
     <PickerMenu
       usePicker={useDigSitePickerStore}
@@ -83,18 +83,20 @@ function DigSitePicker({ target }: { target: PickerTarget }) {
  */
 function DigSiteRow({
   site,
+  target,
   onRemove,
 }: {
   site: PlanetPageDigSite;
+  target: PickerTarget;
   onRemove: (() => void) | null;
 }) {
   const named = useNamed([site.kind], siteLabel);
   const ready = useGameDataStore((s) => s.status === "ready");
   const choices = useDigSitePickerStore((s) => s.choices);
   useEffect(() => {
-    if (ready) useDigSitePickerStore.getState().read();
-  }, [ready, choices]);
-  const choice = choices?.find((c) => c.key === site.kind);
+    if (ready) useDigSitePickerStore.getState().load(target);
+  }, [ready, choices, target]);
+  const choice = choices?.list.find((c) => c.key === site.kind);
   const stages = choice?.stages ?? null;
   const description = choice?.description ?? null;
   const name = named(site.kind);
@@ -146,6 +148,7 @@ export function PlanetDigSite({
       {site !== null && (
         <DigSiteRow
           site={site}
+          target={target}
           onRemove={editable ? () => void target.edits.removeDigSite(site.id) : null}
         />
       )}

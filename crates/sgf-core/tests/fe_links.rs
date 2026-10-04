@@ -83,7 +83,7 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
     let result = snapshot_step(&mut session, "link_9_to_2_3", set_links(9, &[3, 2]));
     assert_eq!(
         result.entry.description,
-        "Link 2 systems to the fallen empire zone at Old Seat"
+        "Linked 2 systems to the fallen empire zone at Old Seat #9"
     );
     assert_eq!(
         result.inverse,
@@ -145,7 +145,7 @@ fn linking_writes_the_anchor_and_the_linked_and_relinking_touches_only_what_chan
     let result = snapshot_step(&mut session, "unlink_9", set_links(9, &[]));
     assert_eq!(
         result.entry.description,
-        "Let the mod link the fallen empire zone at Old Seat to its nearest systems"
+        "Let the mod link the fallen empire zone at Old Seat #9 to its nearest systems"
     );
     assert_eq!(
         result.inverse,
@@ -179,7 +179,7 @@ fn a_second_anchor_takes_the_next_free_id_and_a_freed_id_is_taken_again() {
         .expect("link Beta to High Seat");
     assert_eq!(
         result.entry.description,
-        "Link 1 system to the fallen empire zone at High Seat"
+        "Linked 1 system to the fallen empire zone at High Seat #12"
     );
     assert_eq!(session.graph.systems[&12].fe_link, link(true, Some(1), &[]));
     assert_eq!(session.graph.systems[&1].fe_link, link(false, None, &[1]));
@@ -627,7 +627,7 @@ fn a_fit_keeps_an_automatic_zone_that_systems_are_linked_to() {
 
     session
         .apply(Op::MoveSystem {
-            id: 7,
+            system: 7,
             x: 10.0,
             y: -210.0,
         })

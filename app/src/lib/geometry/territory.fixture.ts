@@ -3,6 +3,17 @@ import type { SystemNode } from "../../generated/SystemNode";
 import { name, systemNode } from "../../test/builders";
 import { seeded } from "../random";
 import { dist2 } from "./pt";
+import type { TerritoryParams } from "./territory";
+
+/** Vanilla's `NGraphics` border defines, as gamedata reads them from an unmodded install. */
+export const PARAMS: TerritoryParams = {
+  radius: 35,
+  laneHalfWidth: 10,
+  ownerlessRadius: 30,
+  ownerlessLaneThickness: 20,
+  reachFactor: 1.88,
+  ownerlessReachFactor: 1.88,
+};
 
 const GALAXY_SEED = 0xc0ffee;
 const GALAXY_RADIUS = 500;

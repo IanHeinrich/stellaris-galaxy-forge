@@ -74,7 +74,7 @@ function removeSix(seven: SystemNode) {
       },
     }),
   );
-  return editor().applyOp({ type: "RemoveSystem", id: 6 });
+  return editor().applyOp({ type: "RemoveSystem", system: 6 });
 }
 
 /** The map's canvas, as far as Enter asks about it. */
@@ -474,7 +474,7 @@ describe("a body's lock", () => {
     const [, seven] = withAddedSystems();
     scene().lockBody(1207);
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
-    await editor().applyOp({ type: "MoveSystem", id: 0, x: 1, y: 1 });
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
     expect(scene().lockedBodies.has(1207)).toBe(true);
 
     await removeSix(seven);

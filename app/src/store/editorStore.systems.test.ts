@@ -24,7 +24,7 @@ describe("adding and removing systems", () => {
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "AddSystem",
-      id: null,
+      system: null,
       x: -120,
       y: 45,
       name: null,
@@ -68,7 +68,7 @@ describe("adding and removing systems", () => {
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "AddSystem",
-      id: null,
+      system: null,
       x: 10,
       y: -4,
       name: null,
@@ -90,7 +90,7 @@ describe("adding and removing systems", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "AddSystem",
-      id: null,
+      system: null,
       x: 10,
       y: -4,
       name: null,
@@ -145,7 +145,7 @@ describe("adding and removing systems", () => {
 
     await editor().removeSystems([1]);
 
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", system: 1 });
     expect(useGalaxyStore.getState().systems.has(1)).toBe(false);
     expect(useGalaxyStore.getState().systems.get(0)?.lanes).toEqual([]);
     expect(editor().selection).toEqual([]);
@@ -179,7 +179,7 @@ describe("deleting a selection of systems", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Deleted 3 systems",
-      ops: [{ type: "RemoveSystems", ids: [0, 1, 2] }],
+      ops: [{ type: "RemoveSystems", systems: [0, 1, 2] }],
     });
   });
 
@@ -202,7 +202,7 @@ describe("deleting a selection of systems", () => {
       "Delete Alpha Centauri and its 4 lanes?",
       expect.objectContaining({ kind: "warning" }),
     );
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 1 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", system: 1 });
   });
 
   it("names the selection as deletable on a scenario, and nothing on a save", async () => {
@@ -238,7 +238,7 @@ describe("system heights", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
     const op = mockedIpc.applyOp.mock.calls[0][0];
     if (op.type !== "SetSystemHeights") throw new Error(`sent ${op.type}`);
-    return op.heights.map((h): [number, number] => [h.id, h.height ?? Number.NaN]);
+    return op.heights.map((h): [number, number] => [h.system, h.height ?? Number.NaN]);
   }
 
   function expectHeights(expected: Array<[number, number]>): void {

@@ -10,15 +10,16 @@ import {
 } from "../../store/symmetricEdits";
 import type { DrawnPositions } from "../drawnPositions";
 import type { DragState, MapLayer } from "../layers/MapLayer";
+import type { SystemMove } from "../../generated/SystemMove";
 import type { MoveGhost } from "../moveGhosts";
 import { SettlingPreview } from "./settlingPreview";
 
 /** The systems of `ids` the galaxy holds, each offset by (dx, dy). */
-function groupGhosts(ids: readonly number[], dx: number, dy: number): MoveGhost[] {
+function groupGhosts(ids: readonly number[], dx: number, dy: number): SystemMove[] {
   const systems = useGalaxyStore.getState().systems;
   return ids.flatMap((id) => {
     const s = systems.get(id);
-    return s ? [{ id, x: s.x + dx, y: s.y + dy }] : [];
+    return s ? [{ system: id, x: s.x + dx, y: s.y + dy }] : [];
   });
 }
 
@@ -40,11 +41,11 @@ export class MoveDrag {
 
   /** System `id` with its centre at (x, y). */
   move(id: number, x: number, y: number): void {
-    this.update([id], [{ id, x, y }]);
+    this.update([id], [{ system: id, x, y }]);
   }
 
   commitMove(id: number, x: number, y: number): void {
-    this.commit({ type: "MoveSystem", id, x, y });
+    this.commit({ type: "MoveSystem", system: id, x, y });
   }
 
   /** The systems of `ids`, each offset by (dx, dy). */
@@ -65,9 +66,11 @@ export class MoveDrag {
     return (this.plan ??= movePlan(ids));
   }
 
-  private update(ids: readonly number[], moves: MoveGhost[]): void {
+  private update(ids: readonly number[], moves: SystemMove[]): void {
     this.preview.update();
-    this.show(plannedMoves(this.planFor(ids), moves));
+    this.show(
+      plannedMoves(this.planFor(ids), moves).map(({ system, x, y }) => ({ id: system, x, y })),
+    );
   }
 
   private commit(op: MoveOp): void {

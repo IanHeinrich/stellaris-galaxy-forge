@@ -421,7 +421,7 @@ fn a_system_of_a_layout_the_generator_draws_is_no_unique_system() {
     assert_eq!(spec.initializer, "fx_hole");
     spec.lanes = vec![169];
     session
-        .apply(Op::AddSaveSystem { spec })
+        .apply(Op::AddSystemFromSpec { spec })
         .expect("add the system");
     let special = |gd: Option<&GameData>| {
         classify_session(&session, gd)
@@ -677,7 +677,7 @@ fn the_real_install_has_the_special_layouts_the_research_found() {
         let mut spec = by_name(gd, 1, "Gen", SPOT, layout).unwrap();
         spec.lanes = vec![169];
         session
-            .apply(Op::AddSaveSystem { spec })
+            .apply(Op::AddSystemFromSpec { spec })
             .unwrap_or_else(|e| panic!("{layout}: {e}"));
         session.undo().expect("undo the add");
     }
@@ -879,7 +879,7 @@ fn converted_layouts_come_without_their_empires_civilisations_and_story_flags() 
         assert_eq!(spec.flags, kept, "{key}: no story flags");
         spec.lanes = vec![169];
         session
-            .apply(Op::AddSaveSystem { spec })
+            .apply(Op::AddSystemFromSpec { spec })
             .unwrap_or_else(|e| panic!("{key}: {e}"));
     }
 
@@ -997,7 +997,7 @@ fn a_fixed_name_a_system_already_holds_gives_way_to_a_pool_name() {
     let mut haven = by_name(gd, 1, "Gen", SPOT, "fx_haven").unwrap();
     haven.lanes = vec![169];
     session
-        .apply(Op::AddSaveSystem { spec: haven })
+        .apply(Op::AddSystemFromSpec { spec: haven })
         .expect("add Fx Haven");
     assert_eq!(settled(&session, "fx_haven"), "Pooled");
 }

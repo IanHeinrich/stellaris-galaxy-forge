@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Moved 3 planets to system #2
-inverse: Batch { description: "Moved 3 planets to system #2", ops: [MoveSavePlanet { planet: 14, to: 169, at: Some(OrbitPlacement { radius: 180.281865384, angle: 102.495983874 }) }, SetSaveInnerRadius { system: 2, radius: 356.0 }, MoveSavePlanet { planet: 10, to: 169, at: Some(OrbitPlacement { radius: 160.075270303, angle: 203.989469506 }) }, SetSaveInnerRadius { system: 2, radius: 276.0 }, MoveSavePlanet { planet: 8, to: 169, at: Some(OrbitPlacement { radius: 129.896099788, angle: 291.642065017 }) }, SetSaveInnerRadius { system: 2, radius: 244.88 }] }
+Moved 3 planets to Millistamu #2
+inverse: Batch { description: "Moved 3 planets to Millistamu #2", ops: [MoveBodyToSystem { body: 14, to: 169, at: Some(OrbitPlacement { radius: 180.281865384, angle: 102.495983874 }) }, SetInnerRadius { system: 2, radius: 356.0 }, MoveBodyToSystem { body: 10, to: 169, at: Some(OrbitPlacement { radius: 160.075270303, angle: 203.989469506 }) }, SetInnerRadius { system: 2, radius: 276.0 }, MoveBodyToSystem { body: 8, to: 169, at: Some(OrbitPlacement { radius: 129.896099788, angle: 291.642065017 }) }, SetInnerRadius { system: 2, radius: 244.88 }] }
 
 --- gamestate
 +++ gamestate

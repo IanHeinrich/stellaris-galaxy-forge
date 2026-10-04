@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Add fallen empire zone to Ingress
-inverse: SetFeZone { id: 7, zone: None }
+Added fallen empire zone to Ingress #7
+inverse: SetFeZone { system: 7, zone: None }
 
 --- scenario
 +++ scenario

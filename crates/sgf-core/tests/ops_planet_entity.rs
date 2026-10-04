@@ -14,8 +14,8 @@ use common::{current, open_4_5, text};
 const PARADISE: &str = "ocean_paradise_planet_01_entity";
 
 fn set(planet: u32, entity: Option<&str>) -> Op {
-    Op::SetPlanetEntity {
-        planet,
+    Op::SetBodyModel {
+        body: planet,
         entity: entity.map(str::to_owned),
     }
 }
@@ -116,8 +116,8 @@ fn a_model_is_taken_off_with_its_initializer_bit() {
 fn a_model_is_taken_off_and_a_flags_statement_left_with_64_goes() {
     let mut session = open_4_5();
     session
-        .apply(Op::SetPlanetRing {
-            planet: 3318,
+        .apply(Op::SetBodyRing {
+            body: 3318,
             ring: false,
         })
         .expect("take the ring off");

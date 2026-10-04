@@ -1,5 +1,6 @@
 import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
+import { DOCUMENT_KINDS, type GalaxyBarMode } from "../documentKinds";
 import type { KeyAction } from "../keys";
 import {
   BORROWED_KEYS,
@@ -13,11 +14,11 @@ import {
 } from "./layerIds";
 
 /** Which bar the chrome shows: a save's galaxy map, a scenario's, or one system in its place. */
-export type BarMode = "save" | "scenario" | "system";
+export type BarMode = GalaxyBarMode | "system";
 
 export function barModeOf(kind: DocumentKind | null, inSystem: boolean): BarMode {
   if (inSystem) return "system";
-  return kind === "scenario" ? "scenario" : "save";
+  return DOCUMENT_KINDS[kind ?? "save"].barMode;
 }
 
 /**
@@ -26,8 +27,10 @@ export function barModeOf(kind: DocumentKind | null, inSystem: boolean): BarMode
  */
 export type BarControl = LayerId | "kinds" | "masters" | "tools";
 
-const GALAXY: readonly BarMode[] = ["save", "scenario"];
-const EVERYWHERE: readonly BarMode[] = ["save", "scenario", "system"];
+const GALAXY: readonly BarMode[] = [
+  ...new Set(Object.values(DOCUMENT_KINDS).map((info) => info.barMode)),
+];
+const EVERYWHERE: readonly BarMode[] = [...GALAXY, "system"];
 const SYSTEM: readonly BarMode[] = ["system"];
 
 /** A layer shows on the galaxy's bars, the system's, or both, as the scene's layer list says. */

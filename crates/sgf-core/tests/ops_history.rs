@@ -33,12 +33,12 @@ fn every_op_undoes_to_the_original_and_redoes_to_the_edit() {
     for op in [
         Op::RemoveLane { a: 708, b: 154 },
         Op::MoveSystem {
-            id: 108,
+            system: 108,
             x: 200.0,
             y: -50.0,
         },
         Op::MoveSystem {
-            id: 455,
+            system: 455,
             x: NEBULA_0_CENTRE.0,
             y: NEBULA_0_CENTRE.1,
         },
@@ -56,7 +56,7 @@ fn two_ops_on_one_entity_undo_one_at_a_time() {
     let mut session = open();
     session
         .apply(Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         })
@@ -111,7 +111,7 @@ fn moved_system_projection_matches_a_reload_of_the_saved_file() {
     let mut session = open();
     session
         .apply(Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         })

@@ -13,7 +13,7 @@ fn a_move_rewrites_every_lane_length_on_both_ends() {
         "move_system_0",
         open(),
         Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         },
@@ -148,7 +148,7 @@ fn a_move_keeps_lengths_an_event_wrote_as_decimals() {
         "move_system_786",
         open(),
         Op::MoveSystem {
-            id: 786,
+            system: 786,
             x: -60.0,
             y: -190.0,
         },
@@ -166,7 +166,7 @@ fn removing_a_duplicated_lane_takes_every_entry() {
 
 #[test]
 fn isolating_a_system_takes_its_block_and_every_neighbours_entry() {
-    snapshot("isolate_system_0", open(), Op::IsolateSystem { id: 0 });
+    snapshot("isolate_system_0", open(), Op::IsolateSystem { system: 0 });
 }
 
 #[test]
@@ -177,12 +177,12 @@ fn moving_two_linked_systems_together_keeps_the_length_between_them() {
         .apply(Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: 0,
+                    system: 0,
                     x: -134.22,
                     y: 67.36,
                 },
                 SystemMove {
-                    id: 86,
+                    system: 86,
                     x: -143.47,
                     y: 40.99,
                 },
@@ -236,7 +236,9 @@ fn removing_lane_pairs_takes_bridges_and_plain_lanes_alike() {
 fn isolating_two_linked_systems_removes_their_shared_lane_once() {
     let mut session = open();
     let result = session
-        .apply(Op::IsolateSystems { ids: vec![0, 86] })
+        .apply(Op::IsolateSystems {
+            systems: vec![0, 86],
+        })
         .unwrap();
     assert!(session.graph.systems[&0].lanes.is_empty());
     assert!(session.graph.systems[&86].lanes.is_empty());
@@ -275,7 +277,7 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
     let mut session = open();
     session
         .apply(Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         })
@@ -291,7 +293,7 @@ fn normalising_after_a_move_rewrites_only_the_decimal_lengths() {
     let mut session = open();
     session
         .apply(Op::MoveSystem {
-            id: 786,
+            system: 786,
             x: -60.0,
             y: -190.0,
         })
@@ -353,12 +355,12 @@ fn bulk_ops_refuse_duplicates() {
         session.apply(Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: 0,
+                    system: 0,
                     x: -150.0,
                     y: 60.0,
                 },
                 SystemMove {
-                    id: 0,
+                    system: 0,
                     x: -151.0,
                     y: 60.0,
                 },
@@ -391,7 +393,7 @@ fn bulk_ops_refuse_duplicates() {
     ));
     assert!(matches!(
         session.apply(Op::IsolateSystems {
-            ids: vec![0, 86, 0]
+            systems: vec![0, 86, 0]
         }),
         Err(OpError::DuplicateSystem(0))
     ));
@@ -436,7 +438,7 @@ fn adding_then_removing_a_lane_is_byte_identical() {
 fn the_inverse_of_an_isolation_restores_every_lane() {
     let mut session = open();
     let before = session.graph.systems[&0].clone();
-    let result = session.apply(Op::IsolateSystem { id: 0 }).unwrap();
+    let result = session.apply(Op::IsolateSystem { system: 0 }).unwrap();
     assert!(session.graph.systems[&0].lanes.is_empty());
     session.apply(result.inverse).unwrap();
     let after = &session.graph.systems[&0];

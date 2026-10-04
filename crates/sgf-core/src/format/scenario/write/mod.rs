@@ -43,7 +43,7 @@ use crate::views::DocumentKind;
 
 pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, OpError> {
     match op {
-        Op::MoveSystem { id, x, y } => system::move_one(plan, s, *id, *x, *y),
+        Op::MoveSystem { system, x, y } => system::move_one(plan, s, *system, *x, *y),
         Op::MoveSystems { moves } => system::move_many(plan, s, moves),
         Op::AddLane { a, b, bridge } => lanes::add_lane(plan, s, *a, *b, *bridge),
         Op::AddLanes { from, to } => lanes::add_lanes(plan, s, *from, to),
@@ -51,19 +51,19 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::RemoveLane { a, b } => lanes::remove_lane(plan, s, *a, *b),
         Op::RemoveLanes { from, to } => lanes::remove_lanes(plan, s, *from, to),
         Op::RemoveLanePairs { lanes } => lanes::remove_lane_pairs(plan, s, lanes),
-        Op::IsolateSystem { id } => lanes::isolate_one(plan, s, *id),
-        Op::IsolateSystems { ids } => lanes::isolate_many(plan, s, ids),
+        Op::IsolateSystem { system } => lanes::isolate_one(plan, s, *system),
+        Op::IsolateSystems { systems } => lanes::isolate_many(plan, s, systems),
         Op::PreventLane { a, b } => lanes::prevent_lane(plan, s, *a, *b),
-        Op::UnpreventLane { a, b } => lanes::unprevent_lane(plan, s, *a, *b),
+        Op::AllowLane { a, b } => lanes::unprevent_lane(plan, s, *a, *b),
         Op::MoveNebula { index, x, y } => nebula::move_nebula(plan, s, *index, *x, *y),
         Op::AddNebula { x, y, radius, name } => {
             nebula::add_nebula(plan, s, *x, *y, *radius, name.as_deref())
         }
         Op::RemoveNebula { index } => nebula::remove_nebula(plan, s, *index),
         Op::SetNebulaRadius { index, radius } => nebula::set_radius(plan, s, *index, *radius),
-        Op::SetNebulaName { index, name } => nebula::set_name(plan, s, *index, name),
+        Op::RenameNebula { index, name } => nebula::set_name(plan, s, *index, name),
         Op::AddSystem {
-            id,
+            system,
             x,
             y,
             name,
@@ -74,7 +74,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
             plan,
             s,
             system::SystemFields {
-                id: *id,
+                id: *system,
                 x: *x,
                 y: *y,
                 name: name.as_deref(),
@@ -84,23 +84,22 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
                 statement: None,
             },
         ),
-        Op::RemoveSystem { id } => system::remove_system(plan, s, *id),
+        Op::RemoveSystem { system } => system::remove_system(plan, s, *system),
         Op::AddSystems { systems } => system::add_systems(plan, s, systems),
-        Op::RemoveSystems { ids } => system::remove_systems(plan, s, ids),
-        Op::SetSystemName { id, name } => system::set_name(plan, s, *id, name),
-        Op::SetInitializer { id, initializer } => {
-            system::set_initializer(plan, s, *id, initializer.as_deref())
-        }
-        Op::SetInitializers { entries } => system::set_initializers(plan, s, entries),
+        Op::RemoveSystems { systems } => system::remove_systems(plan, s, systems),
+        Op::RenameSystem { system, name } => system::set_name(plan, s, *system, name),
+        Op::SetInitializer {
+            system,
+            initializer,
+        } => system::set_initializer(plan, s, *system, initializer.as_deref()),
         Op::SetHeaderField { key, value } => header::set_field(plan, s, key, value.as_deref()),
         Op::SetHeaderKeys { entries } => header::set_fields(plan, s, entries),
         Op::SetHeaderList { key, values } => header::set_list(plan, s, key, values),
-        Op::SetSpawnWeight { id, base } => spawn::set_weight(plan, s, *id, *base),
-        Op::SetSpawnWeights { entries } => spawn::set_weights(plan, s, entries),
-        Op::SetSpawnScript { id, script } => spawn::set_script(plan, s, *id, script.as_ref()),
-        Op::SetSpawnScripts { entries } => spawn::set_scripts(plan, s, entries),
-        Op::SetFeZone { id, zone } => fe_zone::set_zone(plan, s, *id, zone.as_ref()),
-        Op::SetFeZones { entries } => fe_zone::set_zones(plan, s, entries),
+        Op::SetSpawnWeight { system, base } => spawn::set_weight(plan, s, *system, *base),
+        Op::SetSpawnScript { system, script } => {
+            spawn::set_script(plan, s, *system, script.as_ref())
+        }
+        Op::SetFeZone { system, zone } => fe_zone::set_zone(plan, s, *system, zone.as_ref()),
         Op::SetWormholePair { a, b, pair } => wormhole::set_pair(plan, s, *a, *b, *pair),
         Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
         Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),

@@ -253,7 +253,7 @@ describe("editing a system added this session", () => {
     expect(await editor().renameAddedSystem(6, "  Dorellion ")).toBe(true);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "RenameSaveSystem",
+      type: "RenameSystem",
       system: 6,
       name: "Dorellion",
     });
@@ -268,7 +268,7 @@ describe("editing a system added this session", () => {
     await editor().removeSystems([7]);
 
     expect(mockedIpc.confirm).toHaveBeenCalled();
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", system: 7 });
     expect(useGalaxyStore.getState().systems.has(7)).toBe(false);
   });
 });
@@ -287,7 +287,7 @@ describe("pressing Delete on a save", () => {
     run("deleteSelection", false, effects);
 
     await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", id: 7 }),
+      expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveSystem", system: 7 }),
     );
   });
 
@@ -391,7 +391,7 @@ describe("deleting several added systems at once", () => {
     mockedIpc.applyOp.mockReturnValueOnce(removal.promise);
     removeAddedSystems.mockResolvedValueOnce(editResult());
 
-    const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
+    const removing = editor().applyOp({ type: "RemoveSystem", system: 6 });
     const bulk = editor().removeSystems([7, 8]);
     removal.resolve(
       editResult({
@@ -420,7 +420,7 @@ describe("edits queued behind others", () => {
   function holdRemovalOfSix() {
     const removal = deferred<EditResult>();
     mockedIpc.applyOp.mockReturnValueOnce(removal.promise).mockResolvedValueOnce(editResult());
-    const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
+    const removing = editor().applyOp({ type: "RemoveSystem", system: 6 });
     const land = () =>
       removal.resolve(
         editResult({
@@ -447,7 +447,7 @@ describe("edits queued behind others", () => {
     await Promise.all([removing, deleting]);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2);
-    expect(lastSent()).toEqual({ type: "RemoveSystem", id: 6 });
+    expect(lastSent()).toEqual({ type: "RemoveSystem", system: 6 });
   });
 
   it("nudge the selection where a delete ahead of it moved it", async () => {
@@ -458,7 +458,7 @@ describe("edits queued behind others", () => {
     land();
     await Promise.all([removing, nudging]);
 
-    expect(lastSent()).toEqual({ type: "MoveSystem", id: 6, x: 51, y: 20 });
+    expect(lastSent()).toEqual({ type: "MoveSystem", system: 6, x: 51, y: 20 });
   });
 
   it("work out a lane edit on the selection where a delete ahead of it moved it", async () => {
@@ -470,7 +470,7 @@ describe("edits queued behind others", () => {
     land();
     await Promise.all([removing, isolating]);
 
-    expect(lastSent()).toEqual({ type: "IsolateSystems", ids: [6] });
+    expect(lastSent()).toEqual({ type: "IsolateSystems", systems: [6] });
   });
 
   it("send a reroll to the id a delete ahead of it moved the system to", async () => {
@@ -479,7 +479,7 @@ describe("edits queued behind others", () => {
     mockedIpc.applyOp.mockReturnValueOnce(removal.promise);
     rerollSystem.mockResolvedValueOnce(editResult());
 
-    const removing = editor().applyOp({ type: "RemoveSystem", id: 6 });
+    const removing = editor().applyOp({ type: "RemoveSystem", system: 6 });
     const rolling = editor().rerollSystem(7);
     removal.resolve(
       editResult({
@@ -507,7 +507,7 @@ describe("edits queued behind others", () => {
       )
       .mockResolvedValueOnce(editResult());
 
-    const removing = editor().applyOp({ type: "RemoveSystem", id: 7 });
+    const removing = editor().applyOp({ type: "RemoveSystem", system: 7 });
     const rolling = editor().rerollSystem(7);
     const renaming = editor().renameAddedSystem(7, "Dorellion");
 

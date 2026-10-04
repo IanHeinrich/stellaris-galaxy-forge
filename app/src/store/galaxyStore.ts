@@ -57,22 +57,29 @@ export interface GalaxyState {
   toggleCountryHidden(id: number): void;
 }
 
+/** The store with no galaxy loaded, each collection new. */
+function empty() {
+  return {
+    galaxy: null,
+    header: [],
+    waystations: [],
+    waylines: [],
+    bypasses: [],
+    lgate: null,
+    systems: new Map(),
+    nebulae: [],
+    countries: new Map(),
+    scriptedOwners: new Map(),
+    scriptedCountries: [],
+    grid: null,
+    hiddenCountries: new Set<number>(),
+    lastDelta: null,
+  };
+}
+
 export const useGalaxyStore = create<GalaxyState>((set, get) => ({
-  galaxy: null,
-  header: [],
-  waystations: [],
-  waylines: [],
-  bypasses: [],
-  lgate: null,
-  systems: new Map(),
-  nebulae: [],
-  countries: new Map(),
-  scriptedOwners: new Map(),
-  scriptedCountries: [],
-  grid: null,
-  hiddenCountries: new Set(),
+  ...empty(),
   version: 0,
-  lastDelta: null,
 
   load(view) {
     const systems = new Map<number, SystemNode>();
@@ -159,23 +166,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   },
 
   clear() {
-    set({
-      galaxy: null,
-      header: [],
-      waystations: [],
-      waylines: [],
-      bypasses: [],
-      lgate: null,
-      systems: new Map(),
-      nebulae: [],
-      countries: new Map(),
-      scriptedOwners: new Map(),
-      scriptedCountries: [],
-      grid: null,
-      hiddenCountries: new Set(),
-      lastDelta: null,
-      version: get().version + 1,
-    });
+    set({ ...empty(), version: get().version + 1 });
   },
 
   countryName(id) {

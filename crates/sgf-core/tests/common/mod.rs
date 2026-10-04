@@ -1,6 +1,7 @@
 //! Shared sample-save scaffolding for sgf-core's integration tests.
 #![allow(dead_code)]
 
+pub mod batch;
 pub mod brush;
 pub mod diff;
 pub mod examples;

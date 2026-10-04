@@ -1,12 +1,14 @@
 import { ADD_PLANET_LABEL } from "../../../lib/addBody";
-import { defaultBeltKind } from "../../../lib/details/orbitEdits";
+import { documentCapabilities } from "../../../lib/capabilities";
+import { defaultBeltKind } from "../../../lib/details/orbitIntent";
+import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { placementAt } from "../../../lib/planetMove";
 import { useSystemNames } from "../../../store/browserRows";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { backToGalaxy } from "../../../store/commands";
 import { useEditorStore } from "../../../store/editorStore";
-import { useCanEdit } from "../../../store/fileSessionStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { applyGeometry, useSystemGeometry } from "../../../store/systemGeometry";
 import { AddBodyItems } from "./AddBodyItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
@@ -30,7 +32,8 @@ export function SceneSpaceMenu({
   const radius = Math.round(Math.hypot(target.x, target.y));
   const belt = editing.belts && radius > 0;
   const addBodyAt = useEditorStore((s) => s.addBodyAt);
-  const planet = useCanEdit("added_systems") && radius > 0;
+  const capabilities = useFileSessionStore((s) => documentCapabilities(s));
+  const planet = planetPageOffers(capabilities).addPlanet && radius > 0;
   const addBelt = () =>
     applyGeometry({
       kind: "addBelt",

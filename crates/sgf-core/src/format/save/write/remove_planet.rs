@@ -1,11 +1,11 @@
-//! `RemoveColony` and `DeleteSavePlanet`, which invert to `RestoreSaveEntities`.
+//! `RemoveColony` and `DeleteBody`, which invert to `RestoreEntities`.
 //!
 //! A deleted body is left as the game's `remove_planet` leaves one: `<id>=none` in its slot
 //! and no `planet=` line in its system. Deposits, survey lists, fleets in orbit and orphaned
 //! construction queues are the game's to tidy, which it does at load or lets stand. A dig
 //! site on a deleted body goes as `RemoveDigSite` takes one: its entry alone. The body
 //! leaves each country's `events.anomalies` as `RemoveAnomaly` takes one out. A body added
-//! since the file was opened goes as `RemoveAddedBody` takes it, its slots given back.
+//! since the file was opened goes as `RemoveBody` takes it, its slots given back.
 //!
 //! A colony goes as the game's `destroy_colony` takes it: the planet loses its owner,
 //! controller, colonisation date and orbital defence; the colony, its pops, jobs,
@@ -19,12 +19,12 @@ use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
-use crate::entity::facts::planet::is_star_class;
 use crate::entity::views::EntityKind;
 use crate::format::save::dig_sites::{self, DigSite};
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::id_list::unlist_planets;
 use crate::format::save::write::planet_entry::{PlanetEntry, and_its_moons, unlist_moon};
+use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::restore::{Saved, country_edit, tombstoned};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
 use crate::format::save::write::{add_body, anomaly};
@@ -32,9 +32,9 @@ use crate::format::save::{
     entity_at, entity_in, planet_entity, planet_statement, system_statement,
 };
 use crate::keys;
-use crate::ops::rules::bodies::descendants;
-use crate::ops::{Op, OpError, Plan, Planned, SavedTable, Subject};
+use crate::ops::{Op, OpError, Plan, Planned, SavedTable, StarEdit, Subject};
 use crate::overlay::Anchor;
+use crate::projections::geometry::descendants;
 use crate::projections::read;
 use crate::session::Session;
 
@@ -48,7 +48,10 @@ pub(crate) fn plan_remove_colony(
         return Err(OpError::NoColony(planet));
     }
     let teardown = Teardown::read(s, planet, system, &node, src)?;
-    let refuse = |reason: String| OpError::ColonyKept { planet, reason };
+    let refuse = |reason: String| OpError::ColonyKept {
+        body: planet,
+        reason,
+    };
     check_planet(s, planet, &node, src, refuse)?;
     let mut saved = Saved::default();
     teardown.write(plan, s, &mut saved, true)?;
@@ -84,11 +87,13 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     let sites = sites_on(s, &deleted)?;
     for &id in &deleted {
         let (node, src) = planet_entity(&s.doc, id)?;
-        let refuse = |reason: String| OpError::PlanetKept { planet: id, reason };
-        if bodies.first().is_some_and(|primary| primary.id == id)
-            || is_star_class(&read::text(&node, keys::PLANET_CLASS, src))
-        {
-            return Err(OpError::StarNotDeleted(id));
+        let refuse = |reason: String| OpError::PlanetKept { body: id, reason };
+        let primary = bodies.first().is_some_and(|primary| primary.id == id);
+        if is_star(role(&node, src, primary, s.star_classes())) {
+            return Err(OpError::StarRefused {
+                body: id,
+                edit: StarEdit::Delete,
+            });
         }
         if read::scalar_u32(&node, keys::COLONY, src).is_some() {
             teardowns.push(Teardown::read(s, id, system, &node, src)?);
@@ -159,7 +164,7 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     })
 }
 
-/// A body added since the file was opened goes as [`Op::RemoveAddedBody`] takes it, its
+/// A body added since the file was opened goes as [`Op::RemoveBody`] takes it, its
 /// slots given back, once its dig site and its place in the finders' anomaly lists have
 /// gone. The inverse adds the body back, then its site and anomaly.
 fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
@@ -179,7 +184,7 @@ fn plan_delete_added(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planne
     let label = if moon { "moon" } else { "planet" };
     let dug = dug(sites.len());
     let found = category.map(|category| Op::AddAnomaly {
-        planet,
+        body: planet,
         category,
         found_by: Some(finders),
     });
@@ -207,7 +212,7 @@ fn sites_on(s: &Session, planets: &[u32]) -> Result<Vec<(Anchor, DigSite)>, OpEr
 fn site_adds(sites: Vec<(Anchor, DigSite)>) -> impl Iterator<Item = Op> {
     sites.into_iter().filter_map(|(_, site)| {
         Some(Op::AddDigSite {
-            planet: site.planet?,
+            body: site.planet?,
             site_type: site.kind,
             difficulty: site.difficulty,
         })

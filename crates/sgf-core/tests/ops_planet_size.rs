@@ -10,7 +10,7 @@ use common::diff::{round_trip, snapshot_step};
 use common::{current, open, open_4_5};
 
 fn set(id: u32, size: u32) -> Op {
-    Op::SetPlanetSize { id, size }
+    Op::SetBodySize { body: id, size }
 }
 
 fn planet_size(session: &Session, system: u32, planet: u32) -> Option<u32> {
@@ -83,10 +83,10 @@ fn a_batch_of_a_star_class_and_its_bodys_size_is_one_step() {
         description: "Made system 1 a large pulsar".to_owned(),
         ops: vec![
             Op::SetStarClass {
-                id: 1,
+                system: 1,
                 class: "sc_pulsar".to_owned(),
                 bodies: vec![sgf_core::ops::StarBody {
-                    planet: 748,
+                    body: 748,
                     class: "pc_pulsar".to_owned(),
                 }],
             },

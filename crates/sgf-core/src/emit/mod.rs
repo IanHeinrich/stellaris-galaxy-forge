@@ -123,14 +123,12 @@ pub fn member_line(indent: &[u8], id: u32) -> Vec<u8> {
 /// `name` key indented by `indent`: it opens with the brace, where the old value began, and
 /// ends with the closing one.
 pub fn literal_name_value(indent: &[u8], name: &str) -> Vec<u8> {
-    let indent = String::from_utf8_lossy(indent);
-    format!(
-        "{{\n{indent}\t{}={}\n{indent}\t{}=yes\n{indent}}}",
-        keys::KEY,
-        quoted(name),
-        keys::LITERAL
-    )
-    .into_bytes()
+    let mut w = Lines::new(indent);
+    w.line(0, "{");
+    w.pair(1, keys::KEY, &quoted(name));
+    w.pair(1, keys::LITERAL, "yes");
+    w.close(0);
+    inline(indent, &w.into_bytes()).into_bytes()
 }
 
 /// `custom_name=yes`, the line that keeps the game from generating a new name for an empire.

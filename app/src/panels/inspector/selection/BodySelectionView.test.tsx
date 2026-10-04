@@ -66,9 +66,9 @@ beforeEach(async () => {
     ]),
   });
   mockedIpc.planetMoveTargets.mockImplementation(async (ids) => targets(ids));
-  moves().selectBody(SYSTEM, KORTOL);
-  moves().toggleBody(SYSTEM, GIANT);
-  moves().toggleBody(SYSTEM, URAY_A);
+  useSceneStore.getState().selectBody(SYSTEM, KORTOL);
+  useSceneStore.getState().toggleBody(SYSTEM, GIANT);
+  useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
 });
 
 describe("the selected bodies' summary", () => {
@@ -85,14 +85,14 @@ describe("the selected bodies' summary", () => {
   it("drops a body from the selection with its ×", () => {
     page();
     drawnButton("Remove Meissa IV from the selection").onClick();
-    expect(moves().selection?.ids).toEqual([KORTOL, URAY_A]);
+    expect(useSceneStore.getState().bodySelection?.ids).toEqual([KORTOL, URAY_A]);
   });
 
   it("opens the last body's page when its × leaves one", () => {
-    moves().toggleBody(SYSTEM, URAY_A);
+    useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
     page();
     drawnButton("Remove Meissa IV from the selection").onClick();
-    expect(moves().selection?.ids).toEqual([KORTOL]);
+    expect(useSceneStore.getState().bodySelection?.ids).toEqual([KORTOL]);
     const { stack } = useInspectorStore.getState();
     expect(stack[stack.length - 1]).toEqual({
       ref: { kind: "planet", id: KORTOL },
@@ -122,8 +122,8 @@ describe("the selected bodies' summary", () => {
         systems: [],
       }),
     );
-    moves().toggleBody(SYSTEM, URAY_A);
-    moves().toggleBody(SYSTEM, URAY_A);
+    useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
+    useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
     await settle();
     expect(page()).toContain(`disabled="" title="${escaped(reason)}">Cut 3 planets</button>`);
   });

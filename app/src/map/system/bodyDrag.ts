@@ -2,17 +2,16 @@ import { MOON_RING_FIRST } from "../../generated/constants";
 import {
   DRAG_HINTS,
   GEOMETRY_REASONS,
-  isCentreStar,
   lockedHint,
   lockedToName,
-  orbitParent,
-  overlapOf,
   toMoonHint,
   toStarHint,
   type BodyEditing,
+  type BodyRefusal,
   type GeometryIntent,
-} from "../../lib/details/orbitEdits";
-import { wrapDegrees, type BodyPlacement } from "../../lib/details/orbits";
+} from "../../lib/details/orbitIntent";
+import { isCentreStar, orbitParent, overlapOf } from "../../lib/details/orbitReach";
+import { near, polar, polarAbout, wrapDegrees, type BodyPlacement } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import type { SceneWormhole, SystemContext } from "./context";
 import { drawnDisc } from "./geometry";
@@ -116,22 +115,10 @@ export interface Drag {
 
 const ORIGIN: Pt = { x: 0, y: 0 };
 
-/** Degrees from `from` to `to` in the save frame, in [0, 360). */
-function angleAbout(from: Pt, to: Pt): number {
-  return wrapDegrees((Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI);
-}
-
 /** `angle` in whole degrees, or in Shift's steps. */
 function snapAngle(angle: number, shift: boolean): number {
   const step = shift ? SHIFT_STEP_DEG : 1;
   return wrapDegrees(Math.round(angle / step) * step);
-}
-
-/** How near two values must be to count as the same. */
-const SAME = 1e-6;
-
-function near(a: number, b: number): boolean {
-  return Math.abs(a - b) < SAME;
 }
 
 function whole(value: number): string {
@@ -176,17 +163,17 @@ function subtree(bodies: readonly BodyPlacement[], id: number): Set<number> {
   return found;
 }
 
-/** Why `target` cannot take a moon, and what the readout calls it. */
-function hostRefusal(target: BodyPlacement, editing: BodyEditing | undefined) {
-  if (isCentreStar(target)) {
-    return { reason: GEOMETRY_REASONS.orbitsCentre, what: "the star it orbits" };
-  }
-  if (target.moon) return { reason: GEOMETRY_REASONS.moonHost, what: "a moon" };
-  if (editing?.reason === GEOMETRY_REASONS.ringworld) {
-    return { reason: GEOMETRY_REASONS.ringworld, what: "a ring world segment" };
-  }
-  return { reason: editing?.reason ?? GEOMETRY_REASONS.asteroidHost, what: "an asteroid" };
-}
+/** What the readout calls a body that refuses to be orbited, by why it refuses. */
+const REFUSING_HOST: Readonly<Record<BodyRefusal, string>> = {
+  star: "the star at the centre",
+  orbitsCentre: "the star it orbits",
+  starMoon: "a star",
+  hasMoons: "a planet with moons",
+  moonHost: "a moon",
+  asteroidHost: "an asteroid",
+  ringworld: "a ring world segment",
+  noOrbit: "a moon",
+};
 
 type Axis = "along" | "across";
 
@@ -229,7 +216,7 @@ export class BodyDrag implements Drag {
     private readonly lockedTo: string | null,
   ) {
     const centre = { x: body.ring.cx, y: body.ring.cy };
-    this.last = { radius: body.ring.radius, angle: angleAbout(centre, body) };
+    this.last = { radius: body.ring.radius, angle: polarAbout(body, centre).angle };
   }
 
   /** The host that took the body on the last move, which keeps it while the pointer stays near. */
@@ -300,8 +287,7 @@ export class BodyDrag implements Drag {
    */
   private holdAt(pointer: DragPointer): Hold {
     const { radius, angle } = this.last;
-    const ux = Math.cos((angle * Math.PI) / 180);
-    const uy = Math.sin((angle * Math.PI) / 180);
+    const { x: ux, y: uy } = polar(0, 0, 1, angle);
     const at = this.held(pointer);
     const dx = at.x - this.body.x;
     const dy = at.y - this.body.y;
@@ -317,9 +303,9 @@ export class BodyDrag implements Drag {
   private unmoored(pointer: DragPointer, why?: string): DragStep {
     const step = this.onOrbit(pointer);
     if (step.marks.tone === "overlap") return step;
+    const own = this.own.refusal === undefined ? undefined : GEOMETRY_REASONS[this.own.refusal];
     const text =
-      why ??
-      (this.body.star ? GEOMETRY_REASONS.starMoon : (this.own.reason ?? GEOMETRY_REASONS.hasMoons));
+      why ?? (this.body.star ? GEOMETRY_REASONS.starMoon : (own ?? GEOMETRY_REASONS.hasMoons));
     return { ...step, readout: { text, tone: "warn" } };
   }
 
@@ -420,7 +406,7 @@ export class BodyDrag implements Drag {
     const { parent, ring } = this.body;
     const centre = { x: ring.cx, y: ring.cy };
     const hold = this.hold;
-    const turned = () => snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
+    const turned = () => snapAngle(polarAbout(this.held(pointer), centre).angle, pointer.shift);
     const landing: Landing =
       hold === null
         ? { parent, angle: turned(), ...this.radiusAbout(parent, centre, pointer) }
@@ -495,7 +481,8 @@ export class BodyDrag implements Drag {
       const text = `${lead}orbit ${whole(radius)} · shared with ${this.name(shared)}`;
       return this.step(landing, { ...marks, tone: "shared", other: shared }, { text }, hint);
     }
-    return this.step(landing, marks, { text: lead + this.orbitText(landing) }, hint);
+    const note = this.own.note === undefined ? "" : ` · ${this.own.note}`;
+    return this.step(landing, marks, { text: lead + this.orbitText(landing) + note }, hint);
   }
 
   private orbitText({ parent, radius, angle }: Landing): string {
@@ -508,7 +495,10 @@ export class BodyDrag implements Drag {
   /** Dropped on `host`, it would orbit it on its next moon ring at the pointer's angle about it. */
   private hosted(host: BodyPlacement, pointer: DragPointer): DragStep {
     const radius = this.frame.editing.bodies.get(host.id)?.moonRing ?? MOON_RING_FIRST;
-    const angle = snapAngle(angleAbout(host, { x: pointer.wx, y: pointer.wy }), pointer.shift);
+    const angle = snapAngle(
+      polarAbout({ x: pointer.wx, y: pointer.wy }, host).angle,
+      pointer.shift,
+    );
     const landing = { parent: host.id, radius, angle, shared: null };
     const name = this.name(host.id);
     const text = `moon of ${name} · orbit ${whole(radius)} · ${degrees(angle)}`;
@@ -521,7 +511,7 @@ export class BodyDrag implements Drag {
    */
   private aboutStar(star: BodyPlacement, pointer: DragPointer): DragStep {
     const at = { x: pointer.wx, y: pointer.wy };
-    const angle = snapAngle(angleAbout(star, at), pointer.shift);
+    const angle = snapAngle(polarAbout(at, star).angle, pointer.shift);
     const disc = drawnDisc(star.disc, pointer.scale);
     const floor = Math.max(STAR_ORBIT_LEAST, Math.ceil(disc + STAR_ORBIT_PAST));
     const { radius, shared } = this.radiusAt(star.id, star, at, pointer.scale);
@@ -537,8 +527,7 @@ export class BodyDrag implements Drag {
 
   /** Dropped on the star at the centre, it would orbit the centre where it stands now. */
   private toCentre(star: BodyPlacement): DragStep {
-    const radius = Math.hypot(this.body.x, this.body.y);
-    const landing = { parent: null, radius, angle: angleAbout(ORIGIN, this.body), shared: null };
+    const landing = { parent: null, ...polarAbout(this.body, ORIGIN), shared: null };
     const lead = `orbits ${this.name(star.id)} · `;
     return this.marked(landing, DRAG_HINTS.toPlanet, lead, { host: star.id });
   }
@@ -549,8 +538,9 @@ export class BodyDrag implements Drag {
     editing: BodyEditing | undefined,
     pointer: DragPointer,
   ): DragStep {
-    const { reason, what } = hostRefusal(target, editing);
-    const text = `${this.name(target.id)} is ${what}`;
+    const refusal = editing?.hostRefusal ?? "asteroidHost";
+    const reason = GEOMETRY_REASONS[refusal];
+    const text = `${this.name(target.id)} is ${REFUSING_HOST[refusal]}`;
     const marks = { tone: "refused" as const, other: target.id };
     return this.step(this.landing(pointer), marks, { text, tone: "warn" }, reason, reason);
   }
@@ -559,7 +549,7 @@ export class BodyDrag implements Drag {
   private detached(pointer: DragPointer): DragStep {
     const parent = this.own.detachTo ?? null;
     const centre = this.pointOf(parent);
-    const angle = snapAngle(angleAbout(centre, this.held(pointer)), pointer.shift);
+    const angle = snapAngle(polarAbout(this.held(pointer), centre).angle, pointer.shift);
     const landing = { parent, angle, ...this.radiusAbout(parent, centre, pointer) };
     return this.marked(landing, DRAG_HINTS.toPlanet, "planet · ");
   }
@@ -587,9 +577,9 @@ export class WormholeDrag implements Drag {
   move(pointer: DragPointer): DragStep {
     const at = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
     const radius = Math.max(1, Math.round(Math.hypot(at.x, at.y)));
-    const angle = snapAngle(angleAbout(ORIGIN, at), pointer.shift);
-    const { id, x, y } = this.wormhole;
-    const was = { radius: Math.hypot(x, y), angle: angleAbout(ORIGIN, this.wormhole) };
+    const angle = snapAngle(polarAbout(at, ORIGIN).angle, pointer.shift);
+    const id = this.wormhole.id;
+    const was = polarAbout(this.wormhole, ORIGIN);
     const from = whole(was.radius);
     const to = whole(radius);
     const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);

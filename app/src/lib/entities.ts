@@ -1,9 +1,7 @@
 import type { Capabilities } from "../generated/Capabilities";
+import { NULL_ID } from "../generated/constants";
 import type { EntityKind } from "../generated/EntityKind";
 import type { ScalarForm } from "../generated/ScalarForm";
-
-/** The save's null reference: a field holding it names nothing. */
-export const NULL_ID = 4294967295;
 
 /** What a value reads as, with the title it needs when the text alone does not say it. */
 export interface ValueText {

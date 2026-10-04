@@ -5,7 +5,7 @@ expression: value
 ---
 Renamed nebula 0 from "Sea of Ghosts" to "NAME_N_Maw"
 touched: []
-inverse: SetNebulaName { index: 0, name: "Sea of Ghosts" }
+inverse: RenameNebula { index: 0, name: "Sea of Ghosts" }
 … and 3 other issues
 
 --- nebula

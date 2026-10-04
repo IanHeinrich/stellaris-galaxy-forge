@@ -68,23 +68,14 @@ describe("the deposit picker", () => {
     // Asking again for the held amount, as Enter in the search does, confirms it.
     await store.add(row, row.amounts[0], warnings);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "AddSaveDeposit",
-      planet: 40,
+      type: "AddDeposit",
+      body: 40,
       kind: "d_energy_1",
     });
     expect(useDepositPickerStore.getState()).toMatchObject({
       pending: null,
       added: "Added +1 d_energy_1",
     });
-  });
-
-  it("reads the types offered for the planet once, when it opens", async () => {
-    useDepositPickerStore.getState().open(planetPickerTarget(PAGE, true), "deposits");
-    await vi.waitFor(() => expect(useDepositPickerStore.getState().choices?.list).toEqual(CHOICES));
-    expect(mockedIpc.getDepositChoices).toHaveBeenCalledWith("pc_barren", 16, true, []);
-    useDepositPickerStore.getState().open(planetPickerTarget(PAGE, true), "deposits");
-    expect(mockedIpc.getDepositChoices).toHaveBeenCalledTimes(1);
-    expect(useDepositPickerStore.getState().target?.key).toBe("save-planet:40");
   });
 
   it("stays open with its search after an add, and says what it added", async () => {
@@ -97,8 +88,8 @@ describe("the deposit picker", () => {
     await store.add(row, row.amounts[1]);
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "AddSaveDeposit",
-      planet: 40,
+      type: "AddDeposit",
+      body: 40,
       kind: "d_energy_3",
     });
     const state = useDepositPickerStore.getState();

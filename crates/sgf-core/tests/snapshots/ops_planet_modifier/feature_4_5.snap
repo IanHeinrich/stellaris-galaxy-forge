@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Add planet feature pm_mineral_poor (mineral_poor) to planet #585
-inverse: RemovePlanetModifier { planet: 585, modifier: "mineral_poor", feature: Some("pm_mineral_poor") }
+Added planet feature pm_mineral_poor (mineral_poor) to planet #585
+inverse: RemoveBodyModifier { body: 585, modifier: "mineral_poor", feature: Some("pm_mineral_poor") }
 
 --- gamestate
 +++ gamestate

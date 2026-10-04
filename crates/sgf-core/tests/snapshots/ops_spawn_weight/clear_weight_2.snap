@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/ops_spawn_weight.rs
 expression: "report(&session, &result)"
 ---
-Cleared system 2 spawn weight
-inverse: SetSpawnWeight { id: 2, base: Some(0.0) }
+Cleared the spawn weight of Coruscant #2
+inverse: SetSpawnWeight { system: 2, base: Some(0.0) }
 
 --- scenario
 +++ scenario

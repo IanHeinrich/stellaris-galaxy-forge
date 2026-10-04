@@ -1,9 +1,11 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::format::scenario::FeLinkFlags;
+use sgf_core::ops::NewName;
+use sgf_core::ops::Parent;
 use sgf_core::ops::{
-    ClassChange, EmpireFlag, InitializerSet, LaneLength, LanePair, MapColorPair, NebulaFootprint,
-    NewBody, Op, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
+    ClassChange, EmpireFlag, LaneLength, LanePair, MapColorPair, NebulaFootprint, NewBody, Op,
+    PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove,
 };
 use sgf_core::projections::galaxy::{LGateOutcome, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -113,7 +115,7 @@ pub fn save() -> Session {
 pub fn save_with_added() -> Session {
     let mut session = open();
     session
-        .apply(Op::AddSaveSystem {
+        .apply(Op::AddSystemFromSpec {
             spec: super::spec::dorellion(),
         })
         .expect("add Dorellion");
@@ -137,7 +139,7 @@ pub const ADDED_BODY: u32 = 57 | 1 << 24;
 
 /// A barren planet added to the 4.5 sample's Meissa (408), which nobody owns.
 pub fn meissa_v() -> Op {
-    Op::AddSaveBody {
+    Op::AddBody {
         system: 408,
         spec: NewBody {
             class: "pc_barren".to_owned(),
@@ -168,7 +170,7 @@ pub fn scenario() -> Session {
 pub fn one_of_each() -> Vec<Example> {
     let examples = vec![
         Example::both(Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         }),
@@ -213,7 +215,10 @@ pub fn one_of_each() -> Vec<Example> {
             b: 760,
             length: 21.5,
         }),
-        Example::each(Op::IsolateSystem { id: 0 }, Op::IsolateSystem { id: 3 }),
+        Example::each(
+            Op::IsolateSystem { system: 0 },
+            Op::IsolateSystem { system: 3 },
+        ),
         Example::each(
             Op::MoveSystems {
                 moves: vec![moved(0, -134.22, 67.36), moved(86, -143.47, 40.99)],
@@ -243,8 +248,12 @@ pub fn one_of_each() -> Vec<Example> {
             },
         ),
         Example::each(
-            Op::IsolateSystems { ids: vec![0, 86] },
-            Op::IsolateSystems { ids: vec![3, 11] },
+            Op::IsolateSystems {
+                systems: vec![0, 86],
+            },
+            Op::IsolateSystems {
+                systems: vec![3, 11],
+            },
         ),
         Example::save(Op::SetLaneLengths {
             lanes: vec![
@@ -293,12 +302,12 @@ pub fn one_of_each() -> Vec<Example> {
             index: 0,
             radius: 45.0,
         }),
-        Example::both(Op::SetNebulaName {
+        Example::both(Op::RenameNebula {
             index: 0,
             name: "Sgf_Test_Cloud".to_owned(),
         }),
         Example::scenario(Op::AddSystem {
-            id: None,
+            system: None,
             x: 200.0,
             y: 200.0,
             name: Some("Fresh".to_owned()),
@@ -306,33 +315,32 @@ pub fn one_of_each() -> Vec<Example> {
             spawn_weight: None,
             spawn_script: None,
         }),
-        Example::each_added(Op::RemoveSystem { id: 791 }, Op::RemoveSystem { id: 10 }),
+        Example::each_added(
+            Op::RemoveSystem { system: 791 },
+            Op::RemoveSystem { system: 10 },
+        ),
         Example::scenario(Op::AddSystems {
             systems: vec![new_system(20, 200.0, 200.0), new_system(21, 210.0, 200.0)],
         }),
         Example::each_added(
-            Op::RemoveSystems { ids: vec![791] },
-            Op::RemoveSystems { ids: vec![10, 11] },
+            Op::RemoveSystems { systems: vec![791] },
+            Op::RemoveSystems {
+                systems: vec![10, 11],
+            },
         ),
-        Example::scenario(Op::SetSystemName {
-            id: 10,
-            name: "Renamed".to_owned(),
-        }),
+        Example::each_added(
+            Op::RenameSystem {
+                system: 791,
+                name: "Sgf_Renamed".to_owned(),
+            },
+            Op::RenameSystem {
+                system: 10,
+                name: "Renamed".to_owned(),
+            },
+        ),
         Example::scenario(Op::SetInitializer {
-            id: 10,
+            system: 10,
             initializer: Some("misc_system_init_01".to_owned()),
-        }),
-        Example::scenario(Op::SetInitializers {
-            entries: vec![
-                InitializerSet {
-                    id: 10,
-                    initializer: Some("misc_system_init_01".to_owned()),
-                },
-                InitializerSet {
-                    id: 11,
-                    initializer: Some("misc_system_init_02".to_owned()),
-                },
-            ],
         }),
         Example::scenario(Op::SetHeaderField {
             key: "name".to_owned(),
@@ -349,22 +357,16 @@ pub fn one_of_each() -> Vec<Example> {
             values: vec!["elliptical".to_owned(), "ring".to_owned()],
         }),
         Example::scenario(Op::SetSpawnWeight {
-            id: 10,
+            system: 10,
             base: Some(5.0),
         }),
-        Example::scenario(Op::SetSpawnWeights {
-            entries: vec![(10, Some(5.0)), (11, Some(2.0))],
-        }),
         Example::scenario(Op::SetSpawnScript {
-            id: 10,
+            system: 10,
             script: seat(1),
         }),
-        Example::scenario(Op::SetSpawnScripts {
-            entries: vec![(10, seat(1)), (11, seat(2))],
-        }),
-        Example::scenario(Op::SetFeZone { id: 9, zone: None }),
-        Example::scenario(Op::SetFeZones {
-            entries: vec![(9, None), (12, None)],
+        Example::scenario(Op::SetFeZone {
+            system: 9,
+            zone: None,
         }),
         Example::scenario(Op::SetWormholePair {
             a: 10,
@@ -389,36 +391,39 @@ pub fn one_of_each() -> Vec<Example> {
             )],
         }),
         Example::scenario(Op::PreventLane { a: 0, b: 1 }),
-        Example::scenario(Op::UnpreventLane { a: 10, b: 12 }),
+        Example::scenario(Op::AllowLane { a: 10, b: 12 }),
         Example::save(Op::SetLGateOutcome {
             outcome: LGateOutcome::LDrakes,
         }),
         Example::save(Op::SetStarClass {
-            id: 1,
+            system: 1,
             class: "sc_pulsar".to_owned(),
             bodies: vec![StarBody {
-                planet: 748,
+                body: 748,
                 class: "pc_pulsar".to_owned(),
             }],
         }),
-        Example::save(Op::SetPlanetSize { id: 748, size: 30 }),
-        Example::save(Op::AddPlanetModifier {
-            planet: 749,
+        Example::save(Op::SetBodySize {
+            body: 748,
+            size: 30,
+        }),
+        Example::save(Op::AddBodyModifier {
+            body: 749,
             modifier: "terraforming_candidate".to_owned(),
             days: vec![-1],
             feature: None,
         }),
-        Example::save_4_5(Op::RemovePlanetModifier {
-            planet: 151,
+        Example::save_4_5(Op::RemoveBodyModifier {
+            body: 151,
             modifier: "mineral_poor".to_owned(),
             feature: Some("pm_mineral_poor".to_owned()),
         }),
         Example::save_4_5(Op::AddAnomaly {
-            planet: 3,
+            body: 3,
             category: "asteroid_uninhabitable_category".to_owned(),
             found_by: None,
         }),
-        Example::save_4_5(Op::RemoveAnomaly { planet: 185 }),
+        Example::save_4_5(Op::RemoveAnomaly { body: 185 }),
         Example::save_4_5(Op::SetEmpireMapColors {
             country: 1,
             colors: Some(MapColorPair {
@@ -440,23 +445,19 @@ pub fn one_of_each() -> Vec<Example> {
             country: 0,
             name: "Sgf Dominion".to_owned(),
             value: None,
-            custom_name: None,
+            custom_name: true,
         }),
-        Example::save(Op::AddSaveSystem {
+        Example::save(Op::AddSystemFromSpec {
             spec: super::spec::dorellion(),
         }),
-        Example::save(Op::AddSaveDeposit {
-            planet: 2,
+        Example::save(Op::AddDeposit {
+            body: 2,
             kind: "d_minerals_3".to_owned(),
         }),
-        Example::save(Op::RemoveSaveDeposit { deposit: 26 }),
-        Example::added(Op::ReplaceSaveSystem {
+        Example::save(Op::RemoveDeposit { deposit: 26 }),
+        Example::added(Op::ReplaceSystemFromSpec {
             system: 791,
             spec: super::spec::rerolled(super::spec::dorellion()),
-        }),
-        Example::added(Op::RenameSaveSystem {
-            system: 791,
-            name: "Sgf_Renamed".to_owned(),
         }),
         Example::save(Op::SetNebulaTurbulent {
             nebula: 0,
@@ -470,41 +471,40 @@ pub fn one_of_each() -> Vec<Example> {
                 turbulent: false,
             }],
         }),
-        Example::save_4_5(Op::MoveSaveBody {
+        Example::save_4_5(Op::MoveBody {
             system: 1,
             body: 585,
             radius: 70.0,
             angle: 40.0,
         }),
-        Example::save_4_5(Op::SetSaveBodyParent {
+        Example::save_4_5(Op::SetBodyParent {
             system: 1,
             body: 588,
-            parent: Some(589),
-            star: false,
+            parent: Parent::Body(589),
             radius: 20.0,
             angle: 90.0,
         }),
-        Example::save_4_5(Op::MoveSaveWormhole {
+        Example::save_4_5(Op::MoveWormhole {
             wormhole: 1,
             radius: 300.0,
             angle: 45.0,
         }),
-        Example::save_4_5(Op::AddSaveWormholePair {
+        Example::save_4_5(Op::AddWormholePair {
             a: 1,
             b: 140,
             at: None,
         }),
-        Example::save_4_5(Op::RemoveSaveWormholePair { a: 489, b: 152 }),
-        Example::save_4_5(Op::SetPlanetRing {
-            planet: 585,
+        Example::save_4_5(Op::RemoveWormholePair { a: 489, b: 152 }),
+        Example::save_4_5(Op::SetBodyRing {
+            body: 585,
             ring: true,
         }),
-        Example::save_4_5(Op::SetPlanetEntity {
-            planet: 585,
+        Example::save_4_5(Op::SetBodyModel {
+            body: 585,
             entity: Some("ocean_paradise_planet_01_entity".to_owned()),
         }),
-        Example::save_4_5(Op::SetPlanetClass {
-            planet: 585,
+        Example::save_4_5(Op::SetBodyClass {
+            body: 585,
             from: PlanetClassRule {
                 class: "pc_barren".to_owned(),
                 change: ClassChange::Uncolonised,
@@ -517,42 +517,41 @@ pub fn one_of_each() -> Vec<Example> {
             },
             look: None,
         }),
-        Example::save_4_5(Op::AddSaveBelt {
+        Example::save_4_5(Op::AddBelt {
             system: 140,
             kind: "rocky_asteroid_belt".to_owned(),
             radius: 120.0,
         }),
-        Example::save_4_5(Op::RemoveSaveBelt {
+        Example::save_4_5(Op::RemoveBelt {
             system: 140,
             index: 1,
         }),
-        Example::save_4_5(Op::SetSaveBeltRadius {
+        Example::save_4_5(Op::SetBeltRadius {
             system: 140,
             index: 0,
             radius: 55.0,
         }),
-        Example::save_4_5(Op::SetSaveBeltKind {
+        Example::save_4_5(Op::SetBeltKind {
             system: 140,
             index: 0,
             kind: "icy_asteroid_belt".to_owned(),
         }),
-        Example::save_4_5(Op::SetSaveInnerRadius {
+        Example::save_4_5(Op::SetInnerRadius {
             system: 1,
             radius: 200.0,
         }),
-        Example::save_4_5(Op::MoveSavePlanet {
-            planet: 99,
+        Example::save_4_5(Op::MoveBodyToSystem {
+            body: 99,
             to: 216,
             at: None,
         }),
-        Example::save_4_5(Op::RenameSavePlanet {
-            planet: 140,
-            name: "Nova Terra".to_owned(),
-            block: None,
+        Example::save_4_5(Op::RenameBody {
+            body: 140,
+            name: NewName::Literal("Nova Terra".to_owned()),
         }),
-        Example::save(Op::RemoveColony { planet: 217 }),
-        Example::save(Op::DeleteSavePlanet { planet: 12 }),
-        Example::save_4_5(Op::RestoreSaveEntities {
+        Example::save(Op::RemoveColony { body: 217 }),
+        Example::save(Op::DeleteBody { body: 12 }),
+        Example::save_4_5(Op::RestoreEntities {
             description: "Left queue 0 with no owner".to_owned(),
             entities: vec![SavedEntity {
                 table: SavedTable::ConstructionQueue,
@@ -572,16 +571,16 @@ pub fn one_of_each() -> Vec<Example> {
             }],
         }),
         Example::save_4_5(meissa_v()),
-        Example::added_body(Op::RemoveAddedBody { planet: ADDED_BODY }),
+        Example::added_body(Op::RemoveBody { body: ADDED_BODY }),
         Example::save(Op::AddDigSite {
-            planet: 749,
+            body: 749,
             site_type: "site_lost_moments".to_owned(),
             difficulty: 1,
         }),
         Example::save(Op::RemoveDigSite { site: 0 }),
         Example::save(Op::SetSystemHeights {
             heights: vec![SystemHeight {
-                id: 0,
+                system: 0,
                 height: Some(10.0),
             }],
         }),
@@ -590,7 +589,7 @@ pub fn one_of_each() -> Vec<Example> {
                 description: "Moved system 0 and cut its lane to 752".to_owned(),
                 ops: vec![
                     Op::MoveSystem {
-                        id: 0,
+                        system: 0,
                         x: -150.0,
                         y: 60.0,
                     },
@@ -601,7 +600,7 @@ pub fn one_of_each() -> Vec<Example> {
                 description: "Moved system 0 and cut its lane to 5".to_owned(),
                 ops: vec![
                     Op::MoveSystem {
-                        id: 0,
+                        system: 0,
                         x: -150.0,
                         y: 60.0,
                     },
@@ -641,7 +640,7 @@ fn variant_names() -> Vec<String> {
 }
 
 fn moved(id: u32, x: f64, y: f64) -> SystemMove {
-    SystemMove { id, x, y }
+    SystemMove { system: id, x, y }
 }
 
 fn pair(a: u32, b: u32, bridge: bool) -> LanePair {

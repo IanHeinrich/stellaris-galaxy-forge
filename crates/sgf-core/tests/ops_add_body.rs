@@ -30,7 +30,7 @@ fn moon(class: &str, size: u32, of: u32) -> NewBody {
 }
 
 fn add(system: u32, spec: NewBody, radius: f64, angle: f64) -> Op {
-    Op::AddSaveBody {
+    Op::AddBody {
         system,
         spec,
         at: OrbitPlacement { radius, angle },
@@ -44,7 +44,7 @@ fn added(result: &OpResult) -> u32 {
         inverse => inverse,
     };
     match removal {
-        Op::RemoveAddedBody { planet } => *planet,
+        Op::RemoveBody { body: planet } => *planet,
         other => panic!("a removal, not {other:?}"),
     }
 }
@@ -90,8 +90,8 @@ fn a_planet_added_to_an_owned_system() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added planet #{id} to system #169 (pc_desert, size 12) at orbit 240 at 200°, \
-             with 2 deposits; set the inner radius of system #169 from 215 to 270"
+            "Added planet #{id} to Alari system #169 (pc_desert, size 12) at orbit 240 at 200°, \
+             with 2 deposits; set the inner radius of Alari system #169 from 215 to 270"
         )
     );
     assert_eq!(result.details_stale, [169]);
@@ -111,11 +111,11 @@ fn a_planet_added_to_an_unowned_system_takes_the_next_numeral() {
     assert_eq!(
         result.entry.description,
         format!(
-            "Added planet #{id} to system #408 (pc_barren, size 10) at orbit 45 at 300°, \
+            "Added planet #{id} to Meissa #408 (pc_barren, size 10) at orbit 45 at 300°, \
              with 1 deposit"
         )
     );
-    assert_eq!(result.inverse, Op::RemoveAddedBody { planet: id });
+    assert_eq!(result.inverse, Op::RemoveBody { body: id });
     let entry = planet_entry(&session, id);
     assert!(entry.contains("key=\"Meissa\""), "{entry}");
     assert_eq!(numerals(&entry), ["V"]);
@@ -137,10 +137,10 @@ fn moons_added_to_a_planet_are_lettered_in_turn() {
     assert_eq!(
         first.entry.description,
         format!(
-            "Added moon #{a} of planet #138 in system #408 (pc_barren, size 6) at orbit 15 at 90°"
+            "Added moon #{a} of planet #138 in Meissa #408 (pc_barren, size 6) at orbit 15 at 90°"
         )
     );
-    assert_eq!(first.inverse, Op::RemoveAddedBody { planet: a });
+    assert_eq!(first.inverse, Op::RemoveBody { body: a });
     assert!(
         text(&session).contains("\t\tinner_radius=175\n\t\touter_radius=275\n"),
         "the radii stay"
@@ -277,7 +277,7 @@ fn adds_and_removals_are_refused() {
             "radius 0 is invalid: a body's orbit must be greater than zero",
         ),
         (
-            Op::RemoveAddedBody { planet: 138 },
+            Op::RemoveBody { body: 138 },
             "planet 138 was in the save when it was opened: only a body added since then can be taken out again",
         ),
     ];
@@ -293,7 +293,7 @@ fn adds_and_removals_are_refused() {
         .apply(add(408, moon("pc_barren", 5, id), 15.0, 0.0))
         .expect("a moon of it");
     let error = session
-        .apply(Op::RemoveAddedBody { planet: id })
+        .apply(Op::RemoveBody { body: id })
         .expect_err("it has a moon");
     assert!(
         matches!(error, OpError::BodyHasMoons(p) if p == id),

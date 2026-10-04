@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
-import { usePlanetMoveStore, type BodySelection } from "../../../store/planetMoveStore";
-import { useSceneSystem } from "../../../store/sceneStore";
+import { useSceneStore, useSceneSystem, type BodySelection } from "../../../store/sceneStore";
 
 /** What the inspector's stack does to follow the body selection. */
 export type SummaryStep =
@@ -38,7 +37,7 @@ export function summaryStep(
 
 /** Follows the body selection with the summary page, as `summaryStep` says. */
 export function useBodySelectionPage(): void {
-  const selection = usePlanetMoveStore((s) => s.selection);
+  const selection = useSceneStore((s) => s.bodySelection);
   const shown = useSceneSystem();
   const stack = useInspectorStore((s) => s.stack);
   const seen = useRef({ selection, stack });
@@ -48,6 +47,6 @@ export function useBodySelectionPage(): void {
     if (step === null) return;
     if (step.kind === "open") useInspectorStore.getState().openFromMap(step.entry);
     else if (step.kind === "pop") useInspectorStore.getState().popTo(0);
-    else usePlanetMoveStore.getState().clearBodies();
+    else useSceneStore.getState().clearBodies();
   }, [selection, shown, stack]);
 }

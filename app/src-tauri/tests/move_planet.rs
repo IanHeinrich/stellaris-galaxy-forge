@@ -57,18 +57,17 @@ fn planet_moves_are_queried_and_applied() {
     .expect("the op");
     assert_eq!(
         op,
-        Op::MoveSavePlanet {
-            planet: 99,
+        Op::MoveBodyToSystem {
+            body: 99,
             to: 216,
             at: None
         }
     );
     let applied: EditResult = invoke(&w, "apply_op", json!({ "op": op })).expect("apply");
     assert!(
-        applied
-            .entry
-            .description
-            .starts_with("Moved planet #99 and its 2 moons from system #140 to system #216"),
+        applied.entry.description.starts_with(
+            "Moved planet #99 and its 2 moons from Tharbarite system #140 to Kazam system #216"
+        ),
         "{}",
         applied.entry.description
     );

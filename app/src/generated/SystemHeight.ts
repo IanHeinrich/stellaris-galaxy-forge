@@ -4,4 +4,4 @@
  * One system's height in [`Op::SetSystemHeights`]: its `coordinate.visual_height`, or
  * `None` for none.
  */
-export type SystemHeight = { id: number, height: number | null, };
+export type SystemHeight = { system: number, height: number | null, };

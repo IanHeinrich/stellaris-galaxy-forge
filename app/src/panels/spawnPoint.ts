@@ -2,6 +2,7 @@ import type { Op } from "../generated/Op";
 import type { SpawnModifier } from "../generated/SpawnModifier";
 import type { SystemNode } from "../generated/SystemNode";
 import { enabledScript } from "../lib/paint";
+import { spawnScriptsOp, spawnWeightsOp } from "../lib/systemsBatch";
 
 /** The weight a system takes the moment it is made a spawn point. */
 export const DEFAULT_SPAWN_WEIGHT = 1;
@@ -36,11 +37,11 @@ export function spawnPointOp(system: SystemNode, weight: number | null, paint: b
   if (paint) {
     return {
       type: "SetSpawnScript",
-      id: system.id,
+      system: system.id,
       script: weight === null ? null : (system.spawn_script ?? enabledScript(system)),
     };
   }
-  return { type: "SetSpawnWeight", id: system.id, base: weight };
+  return { type: "SetSpawnWeight", system: system.id, base: weight };
 }
 
 /**
@@ -58,12 +59,11 @@ export function spawnPointsOp(
   if (targets.length === 0) return null;
   if (targets.length === 1) return spawnPointOp(targets[0], base, paint);
   if (paint) {
-    return {
-      type: "SetSpawnScripts",
-      entries: targets.map((s) => [s.id, on ? (s.spawn_script ?? enabledScript(s)) : null]),
-    };
+    return spawnScriptsOp(
+      targets.map((s) => [s.id, on ? (s.spawn_script ?? enabledScript(s)) : null]),
+    );
   }
-  return { type: "SetSpawnWeights", entries: targets.map((s) => [s.id, base]) };
+  return spawnWeightsOp(targets.map((s) => [s.id, base]));
 }
 
 /** What a modifier does to the weight, as the file writes it; empty when it states neither. */

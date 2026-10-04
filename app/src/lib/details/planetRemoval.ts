@@ -13,11 +13,11 @@ export function deleteLabel(moon: boolean): string {
 export const REMOVE_COLONY = "Remove colony";
 
 export function deleteOp(planet: number): Op {
-  return { type: "DeleteSavePlanet", planet };
+  return { type: "DeleteBody", body: planet };
 }
 
 export function removeColonyOp(planet: number): Op {
-  return { type: "RemoveColony", planet };
+  return { type: "RemoveColony", body: planet };
 }
 
 /** What goes with the colony on `page`, as one clause: its pops, buildings, armies and ring. */

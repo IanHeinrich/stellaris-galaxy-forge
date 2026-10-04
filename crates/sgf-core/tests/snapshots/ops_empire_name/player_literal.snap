@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Renamed empire 0 to Sgf Dominion of Tests
-inverse: RenameEmpire { country: 0, name: "Test Empire", value: None, custom_name: None }
+inverse: RenameEmpire { country: 0, name: "Test Empire", value: None, custom_name: true }
 
 --- gamestate
 +++ gamestate

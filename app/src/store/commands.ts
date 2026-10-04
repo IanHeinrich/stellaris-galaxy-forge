@@ -191,7 +191,7 @@ export function closeDocument(): void {
 
 /** Clears two or more bodies selected in the system shown, with the inspector back on the system. */
 function clearShownBodies(): boolean {
-  const { selection, clearBodies } = usePlanetMoveStore.getState();
+  const { bodySelection: selection, clearBodies } = useSceneStore.getState();
   if (selection === null || selection.ids.length < 2 || selection.system !== sceneSystem()) {
     return false;
   }

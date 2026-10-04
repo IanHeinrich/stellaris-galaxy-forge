@@ -1,10 +1,11 @@
 //! Rolling a planet or moon into a system of the real sample save, end to end.
 use serde_json::json;
-use sgf_app_lib::views::{AddedBody, BodyClassPick};
+use sgf_app_lib::views::AddedBody;
 use sgf_core::views::{EditResult, ErrorKind};
+use sgf_gamedata::picks::BodyClassPick;
 
 use crate::common;
-use common::{SAMPLE_45, invoke, kind, open, webview, with_game_data};
+use common::{SAMPLE_45, invoke, open, webview, with_game_data};
 
 #[test]
 fn adding_a_body_needs_game_data() {
@@ -17,10 +18,9 @@ fn adding_a_body_needs_game_data() {
         "system": 408, "parent": null, "class": null, "size": null,
         "radius": 170.0, "angle": 200.0, "seed": 7
     });
-    assert_eq!(
-        kind(invoke::<AddedBody>(&w, "add_body", args)),
-        ErrorKind::Op
-    );
+    let refused = invoke::<AddedBody>(&w, "add_body", args).expect_err("refused");
+    assert_eq!(refused.kind, ErrorKind::Op);
+    assert_eq!(refused.message, "load game data to add a planet");
 }
 
 /// Meissa (408): a random planet, then a desert moon of Meissa IV (138), each one edit that
@@ -56,7 +56,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
             .edit
             .entry
             .description
-            .starts_with(&format!("Added planet #{} to system #408", planet.planet)),
+            .starts_with(&format!("Added planet #{} to Meissa #408", planet.planet)),
         "{}",
         planet.edit.entry.description
     );
@@ -74,7 +74,7 @@ fn a_planet_and_a_moon_are_rolled_into_a_system() {
     assert_ne!(moon.planet, planet.planet);
     assert!(
         moon.edit.entry.description.starts_with(&format!(
-            "Added moon #{} of planet #138 in system #408 (pc_desert, size 8)",
+            "Added moon #{} of planet #138 in Meissa #408 (pc_desert, size 8)",
             moon.planet
         )),
         "{}",

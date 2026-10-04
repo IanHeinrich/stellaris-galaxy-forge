@@ -115,7 +115,7 @@ describe("a save's wormhole pairs", () => {
       layers: { ...useMapChromeStore.getState().layers, bypasses: false },
     });
     expect(await editor().linkWormholePair(0, 3)).toBe(true);
-    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "AddSaveWormholePair", a: 0, b: 3 });
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "AddWormholePair", a: 0, b: 3 });
     expect(useMapChromeStore.getState().layers.bypasses).toBe(true);
   });
 
@@ -127,7 +127,7 @@ describe("a save's wormhole pairs", () => {
     });
     expect(await editor().unlinkWormholePair(2, 1)).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-      type: "RemoveSaveWormholePair",
+      type: "RemoveWormholePair",
       a: 2,
       b: 1,
     });
@@ -179,11 +179,11 @@ describe("marauder clans", () => {
       const write = (system: SystemNode) => changed.set(system.id, system);
       const answer = (member: Op) => {
         if (member.type === "AddSystem") {
-          if (changed.has(member.id!) || current().has(member.id!)) {
-            throw { kind: "op", message: `system ${member.id} already exists` };
+          if (changed.has(member.system!) || current().has(member.system!)) {
+            throw { kind: "op", message: `system ${member.system} already exists` };
           }
           write(
-            node(member.id!, "", member.x, member.y, "sc_g", [], {
+            node(member.system!, "", member.x, member.y, "sc_g", [], {
               initializer: member.initializer ?? "",
               marauder: roleOf(member.initializer),
             }),
@@ -198,10 +198,9 @@ describe("marauder clans", () => {
             write({ ...s, lanes: [...s.lanes, lane(member.from)] });
           }
         }
-        if (member.type === "SetInitializers") {
-          for (const { id, initializer } of member.entries) {
-            write({ ...get(id), initializer: initializer ?? "", marauder: roleOf(initializer) });
-          }
+        if (member.type === "SetInitializer") {
+          const { system, initializer } = member;
+          write({ ...get(system), initializer: initializer ?? "", marauder: roleOf(initializer) });
         }
       };
       if (op.type === "Batch") op.ops.forEach(answer);
@@ -248,9 +247,9 @@ describe("marauder clans", () => {
       type: "Batch",
       description: "Added marauder clan 2",
       ops: [
-        expect.objectContaining({ type: "AddSystem", id: 6, initializer: "marauder_2_1" }),
-        expect.objectContaining({ type: "AddSystem", id: 7, initializer: "marauder_2_2" }),
-        expect.objectContaining({ type: "AddSystem", id: 8, initializer: "marauder_2_3" }),
+        expect.objectContaining({ type: "AddSystem", system: 6, initializer: "marauder_2_1" }),
+        expect.objectContaining({ type: "AddSystem", system: 7, initializer: "marauder_2_2" }),
+        expect.objectContaining({ type: "AddSystem", system: 8, initializer: "marauder_2_3" }),
         {
           type: "AddLanes",
           from: 6,
@@ -278,7 +277,9 @@ describe("marauder clans", () => {
 
     const [, [clan]] = mockedIpc.applyOp.mock.calls;
     const ids =
-      clan.type === "Batch" ? clan.ops.flatMap((o) => (o.type === "AddSystem" ? [o.id] : [])) : [];
+      clan.type === "Batch"
+        ? clan.ops.flatMap((o) => (o.type === "AddSystem" ? [o.system] : []))
+        : [];
     expect(ids).toEqual([7, 8, 9]);
     expect(galaxy().get(7)!.initializer).toBe("marauder_2_1");
     expect(sessionError()).toBeNull();
@@ -370,7 +371,7 @@ describe("marauder clans", () => {
       type: "Batch",
       description: "Added outposts for marauder clan 1",
       ops: [
-        expect.objectContaining({ type: "AddSystem", id: 6, initializer: "marauder_1_3" }),
+        expect.objectContaining({ type: "AddSystem", system: 6, initializer: "marauder_1_3" }),
         { type: "AddLanes", from: 1, to: [[6, false]] },
       ],
     });

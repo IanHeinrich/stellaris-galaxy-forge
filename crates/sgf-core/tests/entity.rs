@@ -394,7 +394,7 @@ fn an_op_marks_the_nodes_and_spans_it_changed() {
     let system = addr(EntityKind::System, 0);
     session
         .apply(Op::MoveSystem {
-            id: 0,
+            system: 0,
             x: -150.0,
             y: 60.0,
         })
@@ -551,7 +551,7 @@ fn a_scenario_systems_source_marks_what_a_move_changed() {
 
     session
         .apply(Op::MoveSystem {
-            id: 3018,
+            system: 3018,
             x: 41.0,
             y: 75.0,
         })
@@ -590,7 +590,7 @@ fn a_scenario_system_an_op_added_reads_as_new() {
     let mut session = GRAMMAR.open();
     session
         .apply(Op::AddSystem {
-            id: Some(4242),
+            system: Some(4242),
             x: 5.0,
             y: -5.0,
             name: Some("Fresh".to_owned()),

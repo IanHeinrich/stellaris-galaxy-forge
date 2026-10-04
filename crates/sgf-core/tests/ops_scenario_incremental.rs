@@ -2,7 +2,8 @@
 //! the projection and the index must agree with a fresh open of the current bytes, and the
 //! same follow-up edit must write the same bytes on both.
 
-use sgf_core::ops::{InitializerSet, LanePair, Op, SystemMove};
+use crate::common::batch::{fe_zones, initializers, spawn_scripts, spawn_weights};
+use sgf_core::ops::{LanePair, Op, SystemMove};
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 
@@ -85,7 +86,7 @@ fn edits(session: &mut Session) {
         description: "Fails at the last member".to_owned(),
         ops: vec![
             Op::MoveSystem {
-                id: a,
+                system: a,
                 x: 7.0,
                 y: 7.0,
             },
@@ -111,12 +112,12 @@ fn edits(session: &mut Session) {
         Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: a,
+                    system: a,
                     x: nebula.x + 1.0,
                     y: nebula.y + 1.0,
                 },
                 SystemMove {
-                    id: next + 2,
+                    system: next + 2,
                     x: -1000.0,
                     y: 3.0,
                 },
@@ -127,14 +128,14 @@ fn edits(session: &mut Session) {
     let before = current(session);
     session
         .apply(Op::MoveSystem {
-            id: b,
+            system: b,
             x: 3.0,
             y: 4.0,
         })
         .expect("move");
     session
-        .apply(Op::SetSystemName {
-            id: b,
+        .apply(Op::RenameSystem {
+            system: b,
             name: "Twice".to_owned(),
         })
         .expect("rename");
@@ -145,14 +146,14 @@ fn edits(session: &mut Session) {
     assert_eq!(current(session), before, "undo past both");
     assert_fresh(session, "move undone");
 
-    step(session, "isolate", Op::IsolateSystem { id: next + 1 });
+    step(session, "isolate", Op::IsolateSystem { system: next + 1 });
     step(session, "prevent", Op::PreventLane { a: b, b: next });
-    step(session, "unprevent", Op::UnpreventLane { a: b, b: next });
+    step(session, "unprevent", Op::AllowLane { a: b, b: next });
     step(
         session,
         "rename",
-        Op::SetSystemName {
-            id: b,
+        Op::RenameSystem {
+            system: b,
             name: "Renamed".to_owned(),
         },
     );
@@ -160,46 +161,33 @@ fn edits(session: &mut Session) {
         session,
         "initializer",
         Op::SetInitializer {
-            id: b,
+            system: b,
             initializer: Some("random_empire_init_04".to_owned()),
         },
     );
     step(
         session,
         "initializers",
-        Op::SetInitializers {
-            entries: vec![
-                InitializerSet {
-                    id: b,
-                    initializer: None,
-                },
-                InitializerSet {
-                    id: c,
-                    initializer: Some("misc_system_init_03".to_owned()),
-                },
-            ],
-        },
+        initializers(vec![(b, None), (c, Some("misc_system_init_03".to_owned()))]),
     );
     step(
         session,
         "spawn weight",
         Op::SetSpawnWeight {
-            id: next,
+            system: next,
             base: Some(5.0),
         },
     );
     step(
         session,
         "spawn weights",
-        Op::SetSpawnWeights {
-            entries: vec![(next, None), (next + 2, Some(2.0))],
-        },
+        spawn_weights(vec![(next, None), (next + 2, Some(2.0))]),
     );
     step(
         session,
         "spawn script",
         Op::SetSpawnScript {
-            id: next,
+            system: next,
             script: Some(SpawnScript::PaintAGalaxy {
                 kind: PaintSpawnKind::Enabled,
                 random_value: 1,
@@ -207,13 +195,7 @@ fn edits(session: &mut Session) {
             }),
         },
     );
-    step(
-        session,
-        "spawn scripts",
-        Op::SetSpawnScripts {
-            entries: vec![(next, None)],
-        },
-    );
+    step(session, "spawn scripts", spawn_scripts(vec![(next, None)]));
     step(
         session,
         "header",
@@ -263,7 +245,7 @@ fn edits(session: &mut Session) {
         Op::Batch {
             description: "Erased".to_owned(),
             ops: vec![Op::RemoveSystems {
-                ids: vec![c, next, next + 2],
+                systems: vec![c, next, next + 2],
             }],
         },
     );
@@ -271,7 +253,7 @@ fn edits(session: &mut Session) {
         session,
         "re-add a removed id",
         Op::AddSystem {
-            id: Some(c),
+            system: Some(c),
             x: 1.0,
             y: 2.0,
             name: None,
@@ -286,7 +268,7 @@ fn edits(session: &mut Session) {
         Op::Batch {
             description: "Replaced".to_owned(),
             ops: vec![
-                Op::RemoveSystems { ids: vec![b] },
+                Op::RemoveSystems { systems: vec![b] },
                 Op::AddSystems {
                     systems: vec![new_system(b, 3.0, 4.0)],
                 },
@@ -316,7 +298,7 @@ fn grammar_fixture_edits_match_a_fresh_open() {
     step(
         &mut session,
         "first entity removed",
-        Op::RemoveSystem { id: 1 },
+        Op::RemoveSystem { system: 1 },
     );
     step(
         &mut session,
@@ -349,15 +331,12 @@ fn painted_fixture_edits_match_a_fresh_open() {
     step(
         &mut session,
         "fe zone cleared",
-        Op::SetFeZone { id: 9, zone: None },
-    );
-    step(
-        &mut session,
-        "fe zones",
-        Op::SetFeZones {
-            entries: vec![(9, zone)],
+        Op::SetFeZone {
+            system: 9,
+            zone: None,
         },
     );
+    step(&mut session, "fe zones", fe_zones(vec![(9, zone)]));
     step(
         &mut session,
         "wormhole pair",
@@ -384,7 +363,7 @@ fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
         &mut session,
         "move a shared line's second",
         Op::MoveSystem {
-            id: 2,
+            system: 2,
             x: 11.0,
             y: 1.0,
         },
@@ -392,8 +371,8 @@ fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
     step(
         &mut session,
         "rename the repeated id",
-        Op::SetSystemName {
-            id: 1,
+        Op::RenameSystem {
+            system: 1,
             name: "One".to_owned(),
         },
     );
@@ -405,19 +384,19 @@ fn duplicate_ids_and_shared_lines_match_a_fresh_open() {
     step(
         &mut session,
         "remove the repeated id's winner",
-        Op::RemoveSystem { id: 1 },
+        Op::RemoveSystem { system: 1 },
     );
     step(
         &mut session,
         "remove a shared line's first",
-        Op::RemoveSystem { id: 3 },
+        Op::RemoveSystem { system: 3 },
     );
 }
 
 #[test]
 fn removing_a_rewritten_statement_takes_its_line() {
-    let rename = Op::SetSystemName {
-        id: 9,
+    let rename = Op::RenameSystem {
+        system: 9,
         name: "Renamed".to_owned(),
     };
     let mut edited = GRAMMAR.open();
@@ -427,10 +406,10 @@ fn removing_a_rewritten_statement_takes_its_line() {
     let mut fresh = from_scenario_text(current(&edited));
 
     edited
-        .apply(Op::RemoveSystem { id: 9 })
+        .apply(Op::RemoveSystem { system: 9 })
         .expect("remove the rewritten statement");
     fresh
-        .apply(Op::RemoveSystem { id: 9 })
+        .apply(Op::RemoveSystem { system: 9 })
         .expect("remove the statement as a fresh open reads it");
     assert_eq!(
         String::from_utf8_lossy(&current(&edited)),
@@ -441,7 +420,7 @@ fn removing_a_rewritten_statement_takes_its_line() {
         GRAMMAR.open(),
         Op::Batch {
             description: "Rename and remove".to_owned(),
-            ops: vec![rename, Op::RemoveSystem { id: 9 }],
+            ops: vec![rename, Op::RemoveSystem { system: 9 }],
         },
     );
 }
@@ -468,15 +447,15 @@ fn removing_a_rewritten_statement_inverts_to_the_rewritten_text() {
     step(
         &mut session,
         "rename",
-        Op::SetSystemName {
-            id: 9,
+        Op::RenameSystem {
+            system: 9,
             name: "Renamed".to_owned(),
         },
     );
     let renamed = statement(&session);
     let linked = lanes(&session);
 
-    let removed = step(&mut session, "remove", Op::RemoveSystem { id: 9 });
+    let removed = step(&mut session, "remove", Op::RemoveSystem { system: 9 });
     assert!(!session.graph.systems.contains_key(&9), "9 is gone");
 
     step(&mut session, "inverse", removed.inverse);
@@ -498,8 +477,8 @@ fn removing_the_first_system_beside_an_inserted_header_key() {
             step(
                 &mut session,
                 "rename the first system",
-                Op::SetSystemName {
-                    id: first,
+                Op::RenameSystem {
+                    system: first,
                     name: "Renamed".to_owned(),
                 },
             );
@@ -507,7 +486,7 @@ fn removing_the_first_system_beside_an_inserted_header_key() {
         step(
             &mut session,
             "remove the first system",
-            Op::RemoveSystem { id: first },
+            Op::RemoveSystem { system: first },
         );
     }
 }

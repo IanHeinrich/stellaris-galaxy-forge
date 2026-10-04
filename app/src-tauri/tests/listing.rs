@@ -5,10 +5,29 @@ use serde_json::json;
 use sgf_core::archive::GalaxySettings;
 use sgf_core::format::scenario::listings::{ScenarioListings, ScenarioSource};
 use sgf_core::library::CampaignListing;
-use sgf_core::views::{ErrorKind, SaveFile, SystemDetail};
+use sgf_core::views::{DocumentKind, ErrorKind, SaveFile, SystemDetail};
 
 use crate::common;
 use common::{PAINTED, SAMPLE, SCENARIO, invoke, kind, webview};
+
+/// A file's kind is read from its bytes; one that cannot be read, or is too short to tell,
+/// gets an error, so the app goes by the name instead.
+#[test]
+fn a_documents_kind_is_read_from_its_bytes() {
+    let w = webview();
+    let kind_of = |path: &str| invoke::<DocumentKind>(&w, "document_kind", json!({ "path": path }));
+    assert_eq!(kind_of(SAMPLE).expect("a save"), DocumentKind::Save);
+    assert_eq!(
+        kind_of(SCENARIO).expect("a scenario"),
+        DocumentKind::Scenario
+    );
+    let dir = tempfile::tempdir().expect("tempdir");
+    let missing = dir.path().join("gone.sav");
+    assert_eq!(kind(kind_of(&missing.to_string_lossy())), ErrorKind::Io);
+    let short = dir.path().join("short.sav");
+    std::fs::write(&short, b"PK").expect("write");
+    assert_eq!(kind(kind_of(&short.to_string_lossy())), ErrorKind::Io);
+}
 
 #[test]
 fn campaigns_saves_and_scenarios_are_listed_on_a_seeded_root() {

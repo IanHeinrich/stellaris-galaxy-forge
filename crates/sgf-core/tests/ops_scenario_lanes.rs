@@ -80,7 +80,7 @@ fn isolating_a_system_cuts_every_lane_and_leaves_prevent_hyperlane() {
     snapshot(
         "isolate_system_1",
         GRAMMAR.open(),
-        Op::IsolateSystem { id: 1 },
+        Op::IsolateSystem { system: 1 },
     );
 }
 

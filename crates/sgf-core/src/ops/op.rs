@@ -1,24 +1,21 @@
-//! The op vocabulary: every edit the editor can make, the entries its plural ops take,
-//! and the errors an op is refused with.
+//! The op vocabulary: every edit the editor can make and the entries its plural ops take.
 
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 use ts_rs::TS;
 
-use crate::document;
 use crate::format::save::system_spec::SystemSpec;
-use crate::format::save::write::planet_modifier::MAX_MODIFIER_COPIES;
 use crate::format::scenario::{FeLinkFlags, FeZone};
-use crate::overlay::OverlayError;
-use crate::projections::galaxy::{LGateOutcome, ProjectionError, SpawnScript};
-use crate::views::{DocumentKind, ErrorKind, OrbitPlacement};
+use crate::ops::OpError;
+use crate::projections::galaxy::{LGateOutcome, SpawnScript};
+use crate::views::{DocumentKind, OrbitPlacement};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS, IntoStaticStr)]
 #[ts(export)]
 #[serde(tag = "type")]
 pub enum Op {
     MoveSystem {
-        id: u32,
+        system: u32,
         x: f64,
         y: f64,
     },
@@ -27,8 +24,10 @@ pub enum Op {
         b: u32,
         bridge: bool,
     },
-    /// Several lanes from one system at once; the inverse of [`Op::IsolateSystem`] and
-    /// of [`Op::RemoveLanes`].
+    /// Several lanes from one system as one op: `from`'s new entries are written together, in
+    /// the order given, and a system listed twice in `to` is refused. It is what
+    /// [`Op::IsolateSystem`] and [`Op::RemoveLanes`] invert to, so that undo puts `from`'s
+    /// list back in its order.
     AddLanes {
         from: u32,
         to: Vec<(u32, bool)>,
@@ -37,7 +36,8 @@ pub enum Op {
         a: u32,
         b: u32,
     },
-    /// Several lanes of one system at once; the inverse of [`Op::AddLanes`].
+    /// Several lanes of one system as one op, `from`'s entries taken out together. The
+    /// inverse is one [`Op::AddLanes`], which puts them back in their order.
     RemoveLanes {
         from: u32,
         to: Vec<u32>,
@@ -48,30 +48,33 @@ pub enum Op {
         length: f64,
     },
     IsolateSystem {
-        id: u32,
+        system: u32,
     },
     /// Several systems moved as one; every lane touching any of them gets its length
     /// recomputed from the new positions of both ends.
     MoveSystems {
         moves: Vec<SystemMove>,
     },
-    /// Several unrelated lanes at once; the inverse of [`Op::RemoveLanePairs`] and of
-    /// [`Op::IsolateSystems`].
+    /// Several unrelated lanes as one op, each system's new entries written together. A lane
+    /// listed twice, either way round, is refused. It is what [`Op::RemoveLanePairs`] and
+    /// [`Op::IsolateSystems`] invert to.
     AddLanePairs {
         lanes: Vec<LanePair>,
     },
-    /// The inverse of [`Op::AddLanePairs`].
+    /// Several unrelated lanes taken out as one op, each system's entries together. The
+    /// inverse is one [`Op::AddLanePairs`] that carries each lane's bridge flag.
     RemoveLanePairs {
         lanes: Vec<(u32, u32)>,
     },
-    /// Every lane touching any of `ids`; a lane between two of them is removed once.
+    /// Every lane touching any of `systems`; a lane between two of them is removed once.
     /// Systems without lanes are allowed, but the op refuses with
     /// [`OpError::NoLanes`] (naming the first id) when no lane is removed at all.
     IsolateSystems {
-        ids: Vec<u32>,
+        systems: Vec<u32>,
     },
-    /// Several lane lengths at once; its own inverse. Lengths follow the
-    /// [`Op::SetLaneLength`] rules.
+    /// Several lane lengths as one op, each following the [`Op::SetLaneLength`] rules. A lane
+    /// listed twice, either way round, is refused. Its own inverse, and what
+    /// [`Op::NormaliseLaneLengths`] inverts to.
     SetLaneLengths {
         lanes: Vec<LaneLength>,
     },
@@ -117,15 +120,15 @@ pub enum Op {
     /// The `index`th nebula's name, written as it stands: a cloud named by a localisation
     /// key is left naming the text instead. Empty is refused; the inverse carries the name
     /// it displaced.
-    SetNebulaName {
+    RenameNebula {
         index: usize,
         name: String,
     },
-    /// A new `system` statement, `id` defaulting to one past the highest held. Scenario
-    /// documents only; a save adds a system through [`Op::AddSaveSystem`]. A weight and a
+    /// A new `system` statement, its id `system` defaulting to one past the highest held.
+    /// Scenario documents only; a save adds a system through [`Op::AddSystemFromSpec`]. A weight and a
     /// script together are refused (see [`Op::SetSpawnScript`]).
     AddSystem {
-        id: Option<u32>,
+        system: Option<u32>,
         x: f64,
         y: f64,
         name: Option<String>,
@@ -139,7 +142,7 @@ pub enum Op {
     /// each distinct lane and prevented pair between systems the graph holds. Undo through
     /// history stays byte-exact in either kind of document.
     ///
-    /// A save removes only a system [`Op::AddSaveSystem`] added since the file was opened,
+    /// A save removes only a system [`Op::AddSystemFromSpec`] added since the file was opened,
     /// with its bodies, their deposits, its lanes on both ends and its nebula member lines.
     /// A reused slot gets its tombstone back, the name returns to the pool of unused star
     /// or black hole names the add took it from, and `last_created_system` goes down. The
@@ -154,10 +157,11 @@ pub enum Op {
     /// generation on in the slots they had. A lane whose two ends disagreed comes back with
     /// one length. Undo through history is byte-exact either way.
     RemoveSystem {
-        id: u32,
+        system: u32,
     },
-    /// Several systems as one undo step, each following the [`Op::AddSystem`] rules with
-    /// its id given. An id listed twice is refused. Scenario documents only.
+    /// Several systems as one op, each following the [`Op::AddSystem`] rules with its id
+    /// given. An id listed twice is refused. The inverse is one [`Op::RemoveSystems`], and it
+    /// is what that op's inverse puts back. Scenario documents only.
     AddSystems {
         systems: Vec<NewSystem>,
     },
@@ -166,23 +170,23 @@ pub enum Op {
     /// what [`Op::RemoveSystem`]'s does, for every system; undo through history stays
     /// byte-exact.
     RemoveSystems {
-        ids: Vec<u32>,
+        systems: Vec<u32>,
     },
-    /// Scenario documents only.
-    SetSystemName {
-        id: u32,
+    /// A system's name. In a scenario, the `name` of its `system` statement. In a save,
+    /// only a system [`Op::AddSystemFromSpec`] added since the file was opened: its own name
+    /// and the names of its star, planets and moons, which carry it as text. The old name
+    /// goes back to the pool of unused star or black hole names the add took it from, and
+    /// the new one leaves whichever of those pools holds it. Empty is refused; the inverse
+    /// carries the name displaced.
+    RenameSystem {
+        system: u32,
         name: String,
     },
     /// The system's `initializer`, which `None` removes. The `spawn_weight` beside it is
     /// not touched: only [`Op::SetSpawnWeight`] writes one. Scenario documents only.
     SetInitializer {
-        id: u32,
+        system: u32,
         initializer: Option<String>,
-    },
-    /// Several systems' initializers as one undo step; each entry follows the
-    /// [`Op::SetInitializer`] rules. Scenario documents only.
-    SetInitializers {
-        entries: Vec<InitializerSet>,
     },
     /// One header key, scenario documents only: `value` is the raw text right of `=`, and
     /// `None` removes the statement. A repeated key is read and written at its first
@@ -208,37 +212,22 @@ pub enum Op {
     /// it when no `modifier` remains. A base that is not a number inverts to `None`.
     /// Scenario documents only.
     SetSpawnWeight {
-        id: u32,
+        system: u32,
         base: Option<f64>,
-    },
-    /// Several systems' spawn weights as one undo step, each entry following the
-    /// [`Op::SetSpawnWeight`] rules. Scenario documents only.
-    SetSpawnWeights {
-        entries: Vec<(u32, Option<f64>)>,
     },
     /// The scripted seat a system's `spawn_weight` states; `None` removes the statement.
     /// A system with no `initializer` gets the dialect's basic one, which the inverse
     /// omits: undo puts the bytes back exactly. Scenario documents only.
     SetSpawnScript {
-        id: u32,
+        system: u32,
         script: Option<SpawnScript>,
-    },
-    /// Several systems' scripted seats as one undo step, each entry following the
-    /// [`Op::SetSpawnScript`] rules. Scenario documents only.
-    SetSpawnScripts {
-        entries: Vec<(u32, Option<SpawnScript>)>,
     },
     /// The Paint a Galaxy fallen empire zone a system anchors; `None` clears it. A zone
     /// whose ring holds another system, or whose centre lies off the map, is refused: the
     /// mod builds the fallen empire's systems in that ring. Scenario documents only.
     SetFeZone {
-        id: u32,
+        system: u32,
         zone: Option<FeZone>,
-    },
-    /// Several systems' fallen empire zones as one undo step, each entry following the
-    /// [`Op::SetFeZone`] rules. Scenario documents only.
-    SetFeZones {
-        entries: Vec<(u32, Option<FeZone>)>,
     },
     /// The Paint a Galaxy wormhole pair joining `a` and `b`; `None` unpairs both. The two
     /// must differ and exist, and a number another system carries is refused. The inverse
@@ -275,7 +264,7 @@ pub enum Op {
     },
     /// Every `prevent_hyperlane` naming `a` and `b`, whichever way round. Scenario
     /// documents only.
-    UnpreventLane {
+    AllowLane {
         a: u32,
         b: u32,
     },
@@ -290,15 +279,15 @@ pub enum Op {
     /// to say from the install's star classes; each must be one the system lists, once.
     /// The inverse carries the class and body classes displaced. Save documents only.
     SetStarClass {
-        id: u32,
+        system: u32,
         class: String,
         bodies: Vec<StarBody>,
     },
     /// A save planet's `planet_size`, star bodies included, written as given: nothing
     /// holds it to the range its class allows. Zero is refused; the inverse carries the
     /// size displaced. Save documents only.
-    SetPlanetSize {
-        id: u32,
+    SetBodySize {
+        body: u32,
         size: u32,
     },
     /// A save planet's timed `modifier`, written as given: one `timed_modifier` item per
@@ -309,8 +298,8 @@ pub enum Op {
     /// that a save holds included. A system's star is refused, and so are a modifier the
     /// planet has, days of 0, more than `MAX_MODIFIER_COPIES` items and a save before
     /// Stellaris 4.0. The inverse removes what it wrote. Save documents only.
-    AddPlanetModifier {
-        planet: u32,
+    AddBodyModifier {
+        body: u32,
         modifier: String,
         days: Vec<i32>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -322,8 +311,8 @@ pub enum Op {
     /// naming that. A system's star is refused, and so are a planet with neither, an item
     /// whose days are not a number and a save before Stellaris 4.0. The inverse adds back
     /// what it took, each item with its days. Save documents only.
-    RemovePlanetModifier {
-        planet: u32,
+    RemoveBodyModifier {
+        body: u32,
         modifier: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -337,7 +326,7 @@ pub enum Op {
     /// and so is a save before Stellaris 4.0. The inverse removes what it wrote. Save
     /// documents only.
     AddAnomaly {
-        planet: u32,
+        body: u32,
         category: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -348,7 +337,7 @@ pub enum Op {
     /// save before Stellaris 4.0. The inverse adds it back with the countries that had
     /// found it. Save documents only.
     RemoveAnomaly {
-        planet: u32,
+        body: u32,
     },
     /// An empire's map border and fill, the fifth and sixth entries of its `flag.colors`,
     /// which the game paints its territory in only under `flag.use_map_color=yes`. `Some`
@@ -388,11 +377,11 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         value: Option<String>,
-        /// `Some(false)` takes the country's `custom_name=yes` away: what the inverse
-        /// carries when the rename added it. Otherwise the mark is added when missing.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        custom_name: Option<bool>,
+        /// `false` takes the country's `custom_name=yes` away: what the inverse carries
+        /// when the rename added it. `true`, the default, adds the mark when missing.
+        #[serde(default = "yes")]
+        #[ts(optional, as = "Option<bool>")]
+        custom_name: bool,
     },
     /// A new save system with its bodies, their deposits and its lanes, written as the
     /// game writes a system it spawns by script. It takes `last_created_system + 1`, which
@@ -401,7 +390,7 @@ pub enum Op {
     /// names, or failing that of black hole names, when one holds it. A system standing
     /// in a nebula's radius joins that nebula, as a system moved there does. The inverse
     /// is [`Op::RemoveSystem`]. Stellaris 4.x save documents only.
-    AddSaveSystem {
+    AddSystemFromSpec {
         spec: SystemSpec,
     },
     /// A new deposit of type `kind` on a save planet, a star, moon or colony included,
@@ -409,41 +398,32 @@ pub enum Op {
     /// slot one generation on, or past the highest, and its id last in the planet's
     /// `deposits`, which the planet gains when it has none. The type is written as given:
     /// only an empty one, or one that is not an identifier, is refused. The inverse is
-    /// [`Op::RemoveSaveDeposit`]. Stellaris 4.x save documents only.
-    AddSaveDeposit {
-        planet: u32,
+    /// [`Op::RemoveDeposit`]. Stellaris 4.x save documents only.
+    AddDeposit {
+        body: u32,
         kind: String,
     },
     /// A deposit of a save planet, a colony included, as the game removes one: its entry becomes
     /// the tombstone `<id>=none` and its id leaves the planet's `deposits`, which goes with
     /// its last id. A station working it is left standing. A deposit an
-    /// [`Op::AddSaveDeposit`] wrote gives its slot back: a reused slot gets back the
+    /// [`Op::AddDeposit`] wrote gives its slot back: a reused slot gets back the
     /// tombstone that stood there before the add, and an appended one goes when it is last,
     /// else becomes a tombstone. A deposit held by no planet is refused. The inverse adds
     /// one of the same type to the same planet. Stellaris 4.x save documents only.
-    RemoveSaveDeposit {
+    RemoveDeposit {
         deposit: u32,
     },
-    /// A save system [`Op::AddSaveSystem`] added since the file was opened, rolled again
+    /// A save system [`Op::AddSystemFromSpec`] added since the file was opened, rolled again
     /// in place: its star class, initializer, belts, radii and bodies with their deposits
     /// become the spec's, and its id, position and lanes stay: the spec's `x`, `y` and
     /// `lanes` are ignored. The old bodies' slots and asteroid names are freed before the
     /// new bodies take theirs, and a new name swaps places in the pools of unused star
-    /// and black hole names as [`Op::RenameSaveSystem`] does. The inverse rolls the old system back in,
+    /// and black hole names as [`Op::RenameSystem`] does. The inverse rolls the old system back in,
     /// read back as a spec that carries the system's position and lanes as they stand.
     /// Save documents only.
-    ReplaceSaveSystem {
+    ReplaceSystemFromSpec {
         system: u32,
         spec: SystemSpec,
-    },
-    /// A save system [`Op::AddSaveSystem`] added since the file was opened, renamed: its
-    /// own name and the names of its star, planets and moons, which carry it as text. The
-    /// old name goes back to the pool of unused star or black hole names the add took it
-    /// from, and the new one leaves whichever of those pools holds it. Empty is refused;
-    /// the inverse carries the name displaced. Save documents only.
-    RenameSaveSystem {
-        system: u32,
-        name: String,
     },
     /// The `nebula`th nebula's members made turbulent or calm. A turbulent member carries
     /// `turbulent_nebula` and a `turbulent_nebula_*` cloud; a calm one neither, its cloud
@@ -473,38 +453,35 @@ pub enum Op {
     /// outside its `inner_radius`, that radius grows to the body's reach plus its margin, and
     /// the inverse is a [`Op::Batch`] that also puts it back. Stellaris 4.x save documents
     /// only.
-    MoveSaveBody {
+    MoveBody {
         system: u32,
         body: u32,
         radius: f64,
         angle: f64,
     },
-    /// A save body made a moon of `parent`, a planet of it when `star`, or a planet of the
-    /// system's centre when `None`, then put at `radius` and `angle` about its new parent as
-    /// [`Op::MoveSaveBody`] puts it. `moon_of` and both parents' `moons` are written, and
+    /// A save body made a moon of the body `parent` names, a planet of it when that is a
+    /// star, or a planet of the system's centre, then put at `radius` and `angle` about its
+    /// new parent as
+    /// [`Op::MoveBody`] puts it. `moon_of` and both parents' `moons` are written, and
     /// the moon bit of `binary_flags` is set for a moon and cleared otherwise. A parent
     /// outside the system, a moon, the body itself or one of its moons, and a parent at the
     /// system's centre are refused, and so are the primary body and a body with moons made
     /// a moon of a planet. The inverse puts the old parent back. Stellaris 4.x save
     /// documents only.
-    SetSaveBodyParent {
+    SetBodyParent {
         system: u32,
         body: u32,
-        parent: Option<u32>,
-        /// `parent` is a star: the body orbits it as a planet, with its moons, and takes no
-        /// moon bit. The core cannot tell a star from the bytes, so the caller says. Ignored
-        /// with no parent.
-        star: bool,
+        parent: Parent,
         radius: f64,
         angle: f64,
     },
     /// A save's natural wormhole put at `radius` and `angle` about its system's star, as
-    /// [`Op::MoveSaveBody`] places a planet. Angles are degrees, written normalised to
+    /// [`Op::MoveBody`] places a planet. Angles are degrees, written normalised to
     /// [0, 360). Only `coordinate.x` and `.y` of the `natural_wormholes` entry are written: a
     /// wormhole has no orbit, and the system's `inner_radius` is left as it is. An entry
     /// whose bypass is not a `wormhole`, such as a shroud tunnel, is refused. The inverse
     /// moves it back to its old point. Stellaris 4.x save documents only.
-    MoveSaveWormhole {
+    MoveWormhole {
         wormhole: u32,
         radius: f64,
         angle: f64,
@@ -519,17 +496,16 @@ pub enum Op {
     /// `usable_bypasses` on load. `a`'s end stands at 180° and `b`'s at 90°, just outside
     /// each system's `inner_radius`, where the game puts a pair it spawns without a random
     /// position. A pair of one system, and a system that already has a natural wormhole or
-    /// a shroud tunnel, are refused. The inverse is [`Op::RemoveSaveWormholePair`].
+    /// a shroud tunnel, are refused. The inverse is [`Op::RemoveWormholePair`].
     /// Stellaris 4.x save documents only.
-    AddSaveWormholePair {
+    AddWormholePair {
         a: u32,
         b: u32,
-        /// `a`'s end and `b`'s, each as x/y about its star, in place of the points the op
-        /// picks: what the inverse of [`Op::RemoveSaveWormholePair`] carries, so that the
-        /// pair comes back where it stood.
+        /// The two ends' points in place of the ones the op picks: what the inverse of
+        /// [`Op::RemoveWormholePair`] carries, so that the pair comes back where it stood.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        at: Option<((f64, f64), (f64, f64))>,
+        at: Option<PairPoints>,
     },
     /// The natural wormhole pair between save systems `a` and `b`, named in either order.
     /// Both ends' `natural_wormholes` and `bypasses` entries are erased, and their ids leave
@@ -538,9 +514,9 @@ pub enum Op {
     /// fleet's `bypass_from` and `bypass_to` are left as they are. Two systems that are not
     /// the ends of one wormhole are refused, a shroud tunnel included, and so is a wormhole
     /// whose other end has no `natural_wormholes` entry. The inverse adds the pair back at
-    /// the points it stood at, numbered as [`Op::AddSaveWormholePair`] numbers a new one.
+    /// the points it stood at, numbered as [`Op::AddWormholePair`] numbers a new one.
     /// Stellaris 4.x save documents only.
-    RemoveSaveWormholePair {
+    RemoveWormholePair {
         a: u32,
         b: u32,
     },
@@ -548,10 +524,10 @@ pub enum Op {
     /// the statement is written before `entity_planet_class` or `coordinate` when the body
     /// has none, and goes when only the bit set beside any other is left. The body's class
     /// is not checked. A ring bit already as asked is refused with
-    /// [`OpError::RingUnchanged`]; the inverse flips `ring`. Stellaris 4.x save documents
+    /// [`OpError::Unchanged`]; the inverse flips `ring`. Stellaris 4.x save documents
     /// only.
-    SetPlanetRing {
-        planet: u32,
+    SetBodyRing {
+        body: u32,
         ring: bool,
     },
     /// A save planet's model: `entity_name="<entity>"` written on the line after its
@@ -560,8 +536,8 @@ pub enum Op {
     /// only one that is not an identifier is refused, and so are a star and a model already
     /// as asked. A class change in game drops the model. The inverse sets the old one back,
     /// without that bit. Stellaris 4.x save documents only.
-    SetPlanetEntity {
-        planet: u32,
+    SetBodyModel {
+        body: u32,
         entity: Option<String>,
     },
     /// A save planet's class, written as the game's `change_pc` writes one: `planet_class`
@@ -575,8 +551,8 @@ pub enum Op {
     /// has are refused. `look`, when given, is written in place of that model and index, and
     /// its index must be below the `models` `to` has: it is what the inverse carries, so that
     /// undoing a change puts back the look the planet had. Stellaris 4.x save documents only.
-    SetPlanetClass {
-        planet: u32,
+    SetBodyClass {
+        body: u32,
         from: PlanetClassRule,
         to: PlanetClassRule,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -586,31 +562,31 @@ pub enum Op {
     /// A new asteroid belt of type `kind` at `radius`, last in the system's
     /// `asteroid_belts`, which the system gains when it has none. A belt reaching past the
     /// system's bodies and belts, or outside its `inner_radius`, grows that radius as a moved
-    /// body does. The inverse is [`Op::RemoveSaveBelt`] at the new last index, batched with
+    /// body does. The inverse is [`Op::RemoveBelt`] at the new last index, batched with
     /// the old inner radius when it grew. Stellaris 4.x save documents only.
-    AddSaveBelt {
+    AddBelt {
         system: u32,
         kind: String,
         radius: f64,
     },
     /// The `index`th belt of the system's `asteroid_belts`, counted from 0; the block goes
     /// with its last belt. The inverse adds it back, last. Stellaris 4.x save documents only.
-    RemoveSaveBelt {
+    RemoveBelt {
         system: u32,
         index: usize,
     },
     /// The `index`th belt's `inner_radius`. Its asteroids stay where they are; the app
     /// moves them in the same [`Op::Batch`]. A belt moved past the system's reach grows its
-    /// `inner_radius` as [`Op::AddSaveBelt`] does. Its own inverse, batched with the old
+    /// `inner_radius` as [`Op::AddBelt`] does. Its own inverse, batched with the old
     /// inner radius when it grew. Stellaris 4.x save documents only.
-    SetSaveBeltRadius {
+    SetBeltRadius {
         system: u32,
         index: usize,
         radius: f64,
     },
     /// The `index`th belt's `type`, written as given: only one that is not an identifier
     /// is refused. Its own inverse. Stellaris 4.x save documents only.
-    SetSaveBeltKind {
+    SetBeltKind {
         system: u32,
         index: usize,
         kind: String,
@@ -619,7 +595,7 @@ pub enum Op {
     /// it. A radius inside the system's outermost body or belt, or below the session's
     /// smallest inner radius, is refused unless it is no smaller than the value the system
     /// already holds. Its own inverse. Stellaris 4.x save documents only.
-    SetSaveInnerRadius {
+    SetInnerRadius {
         system: u32,
         radius: f64,
     },
@@ -627,7 +603,7 @@ pub enum Op {
     /// `planet=` lines leave the old system and follow the new one's last, and their
     /// `origin` becomes `to`. The planet keeps its angle about the centre on an orbit the
     /// inner radius offset past the new system's reach, or goes to `at` when given, as
-    /// [`Op::MoveSaveBody`] places a body. Its moons keep their places about it, and the
+    /// [`Op::MoveBody`] places a body. Its moons keep their places about it, and the
     /// new system's `inner_radius` grows as a moved body's does. A moon, or a planet of a
     /// companion star, becomes a planet of the new system's centre: it leaves its parent's
     /// `moons` and loses `moon_of` and the moon bit. The colony of each colonised body
@@ -638,8 +614,8 @@ pub enum Op {
     /// owned planet or moon another country controls. The
     /// inverse moves it back to its old point, batched with the old inner radius when it
     /// grew. Stellaris 4.x save documents only.
-    MoveSavePlanet {
-        planet: u32,
+    MoveBodyToSystem {
+        body: u32,
         to: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -649,18 +625,14 @@ pub enum Op {
     /// `name={ key="<name>" literal=yes }`. Each moon, and each moon of a moon, whose name
     /// holds the body's old name as the value of a `PARENT` variable, as
     /// `SUBPLANET_NAME_FORMAT` names a moon after its planet, holds the new one there. A
-    /// moon holding something else there keeps it. `block`, when given, is written in place
-    /// of the name instead: a whole `{ … }` name value, which `name` then only describes.
-    /// It is what the inverse carries, so that undoing a rename puts back the name as it
-    /// stood. An empty name, a name the body already has, and a star are refused: the
+    /// moon holding something else there keeps it. A [`NewName::Block`] is written in place
+    /// of the literal instead: it is what the inverse carries, so that undoing a rename puts
+    /// back the name as it stood. An empty name, a name the body already has, and a star are refused: the
     /// system's primary body, or a body of a star's class, whose planets hold its name in
     /// copies of their own. Save documents only.
-    RenameSavePlanet {
-        planet: u32,
-        name: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        block: Option<String>,
+    RenameBody {
+        body: u32,
+        name: NewName,
     },
     /// The colony on a save planet or moon, as the game's `destroy_colony` leaves it, while
     /// the planet stays: the planet loses `colony`, `owner`, `controller`, `colonize_date`
@@ -674,10 +646,10 @@ pub enum Op {
     /// and a species' `home_planet` are left for the game. Refused for an army aboard a
     /// ship, a ring world segment, and a megastructure on or around the planet. The inverse
     /// is the
-    /// [`Op::RestoreSaveEntities`] that writes back every entity it rewrote. Stellaris 4.x
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x
     /// save documents only.
     RemoveColony {
-        planet: u32,
+        body: u32,
     },
     /// A save planet and its moons, or a moon alone, as the game's `remove_planet` leaves
     /// it: each body's entry becomes `<id>=none` and its `planet=` line leaves the system.
@@ -690,19 +662,21 @@ pub enum Op {
     /// [`Op::RemoveDigSite`] takes it, and the body leaves each country's `events.anomalies`
     /// as [`Op::RemoveAnomaly`] takes it out. A star, an uncolonised body a starbase orbits,
     /// a ring world segment and a megastructure on or around it are refused, as is any colony
-    /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreSaveEntities`] that
+    /// [`Op::RemoveColony`] refuses. The inverse is the [`Op::RestoreEntities`] that
     /// writes back every entity it rewrote, batched with an [`Op::AddDigSite`] per site it
-    /// removed. A body [`Op::AddSaveBody`] added since the file was opened goes as
-    /// [`Op::RemoveAddedBody`] takes it, and is refused while it has moons; its inverse adds
+    /// removed. A body [`Op::AddBody`] added since the file was opened goes as
+    /// [`Op::RemoveBody`] takes it, and is refused while it has moons; its inverse adds
     /// it back, then its site and anomaly. Stellaris 4.x save documents only.
-    DeleteSavePlanet {
-        planet: u32,
+    DeleteBody {
+        body: u32,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
-    /// [`Op::RemoveColony`] and [`Op::DeleteSavePlanet`] invert to. Each text must be one
-    /// statement keyed by its id, the entity or its tombstone. The app never sends it: undo
-    /// reaches it through the bytes. The inverse carries the texts displaced. Save documents only.
-    RestoreSaveEntities {
+    /// [`Op::RemoveColony`] and [`Op::DeleteBody`] invert to. Each text must be one
+    /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
+    /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
+    /// bytes. The inverse carries the texts displaced. Save documents only.
+    #[ts(skip)]
+    RestoreEntities {
         description: String,
         entities: Vec<SavedEntity>,
     },
@@ -717,20 +691,20 @@ pub enum Op {
     /// `inner_radius`, that radius grows to the body's reach plus its margin. The game builds
     /// its construction queue when it loads, and nobody has surveyed it. A moon of a star, a
     /// moon or an asteroid, and a parent outside the system, are refused. The inverse is
-    /// [`Op::RemoveAddedBody`], batched with the old inner radius when it grew. Stellaris 4.x
+    /// [`Op::RemoveBody`], batched with the old inner radius when it grew. Stellaris 4.x
     /// save documents only.
-    AddSaveBody {
+    AddBody {
         system: u32,
         spec: NewBody,
         at: OrbitPlacement,
     },
-    /// A save planet or moon [`Op::AddSaveBody`] added since the file was opened, taken out
+    /// A save planet or moon [`Op::AddBody`] added since the file was opened, taken out
     /// again: its entry and its deposits' give their slots back as a removed system's bodies
     /// do, its `planet=` line goes, and so does its id from its planet's `moons`. A body the
     /// file held, and one with moons, are refused. The inverse adds it back, read as a spec,
     /// at the radius and angle it stood at. Stellaris 4.x save documents only.
-    RemoveAddedBody {
-        planet: u32,
+    RemoveBody {
+        body: u32,
     },
     /// A new archaeological dig site of type `site_type` on a save planet, a moon or colony
     /// included: an entry last in `archaeological_sites.sites`, its id one past the highest
@@ -739,7 +713,7 @@ pub enum Op {
     /// type is written as given: only an empty one, or one that is not an identifier, is
     /// refused, and so are a star, a planet that has a site and a save before Stellaris 4.0. The inverse is [`Op::RemoveDigSite`]. Save documents only.
     AddDigSite {
-        planet: u32,
+        body: u32,
         site_type: String,
         difficulty: i32,
     },
@@ -757,8 +731,9 @@ pub enum Op {
     /// 3.x saves write them, gets it last in its `coordinate` block. A height that would be
     /// written as 0 is written as 0.00001, because the game reads 0 as unset and puts a
     /// height of its own in its place. An empty list, an id listed twice and a height that
-    /// is not a finite number are refused. The inverse carries the heights displaced,
-    /// `None` where there was none. Save documents only.
+    /// is not a finite number are refused. There is no op for one system's height: it is a
+    /// list of one. The inverse carries the heights displaced, `None` where there was none.
+    /// Save documents only.
     SetSystemHeights {
         heights: Vec<SystemHeight>,
     },
@@ -780,7 +755,7 @@ impl Op {
     /// details it stales, whether it reclassifies, whether it needs a 4.x save and whether it
     /// takes a second step.
     pub fn reach(&self) -> OpReach {
-        use DetailsReach::{Bodies, InPlace, Rebuild};
+        use DetailsReach::{Bodies, InPlace, Rebuild, SaveBodies};
         match self {
             Self::MoveSystem { .. }
             | Self::AddLane { .. }
@@ -796,7 +771,8 @@ impl Op {
             | Self::AddNebula { .. }
             | Self::RemoveNebula { .. }
             | Self::SetNebulaRadius { .. }
-            | Self::SetNebulaName { .. } => OpReach::of(BOTH),
+            | Self::RenameNebula { .. } => OpReach::of(BOTH),
+            Self::RenameSystem { .. } => OpReach::of(BOTH).details(SaveBodies).reclassifies(),
             Self::RemoveSystem { .. } | Self::RemoveSystems { .. } => {
                 OpReach::of(BOTH).details(Bodies).reclassifies()
             }
@@ -813,49 +789,51 @@ impl Op {
             | Self::SetEmpireFlag { .. }
             | Self::RenameEmpire { .. }
             | Self::SetSystemHeights { .. } => OpReach::of(SAVE),
-            Self::SetStarClass { .. }
-            | Self::SetPlanetSize { .. }
-            | Self::RenameSavePlanet { .. } => OpReach::of(SAVE).details(InPlace),
-            Self::AddSaveSystem { .. } => OpReach::of(SAVE)
+            Self::SetStarClass { .. } | Self::SetBodySize { .. } | Self::RenameBody { .. } => {
+                OpReach::of(SAVE).details(InPlace)
+            }
+            Self::AddSystemFromSpec { .. } => OpReach::of(SAVE)
                 .details(Bodies)
                 .reclassifies()
                 .whole_entries()
                 .follow_up(),
-            Self::ReplaceSaveSystem { .. } => {
+            Self::ReplaceSystemFromSpec { .. } => {
                 OpReach::of(SAVE).details(Bodies).reclassifies().follow_up()
             }
-            Self::RenameSaveSystem { .. } => OpReach::of(SAVE).details(Bodies).reclassifies(),
             // The game dresses a scenario's nebula members itself when it starts.
             Self::SetNebulaTurbulent { .. } | Self::SetNebulaFootprints { .. } => {
                 OpReach::of(SAVE).whole_entries()
             }
-            Self::AddPlanetModifier { .. }
-            | Self::RemovePlanetModifier { .. }
+            Self::AddBodyModifier { .. }
+            | Self::RemoveBodyModifier { .. }
             | Self::AddAnomaly { .. }
             | Self::RemoveAnomaly { .. }
-            | Self::MoveSaveBody { .. }
-            | Self::SetSaveBodyParent { .. }
-            | Self::MoveSaveWormhole { .. }
-            | Self::SetPlanetRing { .. }
-            | Self::SetPlanetEntity { .. }
-            | Self::SetPlanetClass { .. }
-            | Self::AddSaveBelt { .. }
-            | Self::RemoveSaveBelt { .. }
-            | Self::SetSaveBeltRadius { .. }
-            | Self::SetSaveBeltKind { .. }
-            | Self::SetSaveInnerRadius { .. } => OpReach::of(SAVE).details(InPlace).whole_entries(),
-            Self::AddSaveDeposit { .. }
-            | Self::RemoveSaveDeposit { .. }
+            | Self::MoveBody { .. }
+            | Self::SetBodyParent { .. }
+            | Self::MoveWormhole { .. }
+            | Self::SetBodyRing { .. }
+            | Self::SetBodyModel { .. }
+            | Self::SetBodyClass { .. }
+            | Self::AddBelt { .. }
+            | Self::RemoveBelt { .. }
+            | Self::SetBeltRadius { .. }
+            | Self::SetBeltKind { .. }
+            | Self::SetInnerRadius { .. } => OpReach::of(SAVE).details(InPlace).whole_entries(),
+            Self::AddDeposit { .. }
+            | Self::RemoveDeposit { .. }
             | Self::RemoveColony { .. }
-            | Self::DeleteSavePlanet { .. }
-            | Self::RestoreSaveEntities { .. }
-            | Self::AddSaveBody { .. }
-            | Self::RemoveAddedBody { .. }
+            | Self::DeleteBody { .. }
+            | Self::AddBody { .. }
+            | Self::RemoveBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
-            Self::AddSaveWormholePair { .. }
-            | Self::RemoveSaveWormholePair { .. }
-            | Self::MoveSavePlanet { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            Self::RestoreEntities { .. } => OpReach::of(SAVE)
+                .details(Bodies)
+                .whole_entries()
+                .inverse_only(),
+            Self::AddWormholePair { .. }
+            | Self::RemoveWormholePair { .. }
+            | Self::MoveBodyToSystem { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
             // to set, and it has neither a scenario header nor a generator to prevent a lane
             // from. It adds and names a system through the save ops, which write the bodies a
@@ -864,27 +842,32 @@ impl Op {
             | Self::SetHeaderKeys { .. }
             | Self::SetHeaderList { .. }
             | Self::SetSpawnWeight { .. }
-            | Self::SetSpawnWeights { .. }
             | Self::SetFeZone { .. }
-            | Self::SetFeZones { .. }
             | Self::SetFeLinks { .. }
             | Self::SetFeLinkFlags { .. }
             | Self::PreventLane { .. }
-            | Self::UnpreventLane { .. } => OpReach::of(SCENARIO),
-            Self::SetSystemName { .. }
-            | Self::SetWormholePair { .. }
-            | Self::SetWormholeEnds { .. } => OpReach::of(SCENARIO).reclassifies(),
+            | Self::AllowLane { .. } => OpReach::of(SCENARIO),
+            Self::SetWormholePair { .. } | Self::SetWormholeEnds { .. } => {
+                OpReach::of(SCENARIO).reclassifies()
+            }
             // A scripted seat may bring an initializer with it.
             Self::AddSystem { .. }
             | Self::AddSystems { .. }
             | Self::SetInitializer { .. }
-            | Self::SetInitializers { .. }
-            | Self::SetSpawnScript { .. }
-            | Self::SetSpawnScripts { .. } => OpReach::of(SCENARIO).details(Rebuild).reclassifies(),
+            | Self::SetSpawnScript { .. } => OpReach::of(SCENARIO).details(Rebuild).reclassifies(),
             Self::Batch { ops, .. } => ops
                 .iter()
                 .map(Self::reach)
                 .fold(OpReach::of(BOTH), OpReach::with),
+        }
+    }
+
+    /// Refuse an op that is only an inverse, alone or in a batch, when it is sent from outside.
+    pub fn check_sendable(&self) -> Result<(), OpError> {
+        if self.reach().inverse_only {
+            Err(OpError::InverseOnly(self.name()))
+        } else {
+            Ok(())
         }
     }
 
@@ -905,6 +888,10 @@ const BOTH: &[DocumentKind] = &[DocumentKind::Save, DocumentKind::Scenario];
 const SAVE: &[DocumentKind] = &[DocumentKind::Save];
 const SCENARIO: &[DocumentKind] = &[DocumentKind::Scenario];
 const NEITHER: &[DocumentKind] = &[];
+
+fn yes() -> bool {
+    true
+}
 
 fn shared_kinds(a: &'static [DocumentKind], b: &'static [DocumentKind]) -> &'static [DocumentKind] {
     match (
@@ -932,6 +919,8 @@ pub struct OpReach {
     pub whole_entries: bool,
     /// Whether the op has a second step, planned once its first is committed.
     pub follow_up: bool,
+    /// Whether the op is only ever an inverse, which the session refuses from outside.
+    pub inverse_only: bool,
 }
 
 impl OpReach {
@@ -942,6 +931,7 @@ impl OpReach {
             reclassifies: false,
             whole_entries: false,
             follow_up: false,
+            inverse_only: false,
         }
     }
 
@@ -970,6 +960,13 @@ impl OpReach {
         }
     }
 
+    const fn inverse_only(self) -> Self {
+        Self {
+            inverse_only: true,
+            ..self
+        }
+    }
+
     /// A batch's row with `member` added to it.
     fn with(self, member: Self) -> Self {
         Self {
@@ -978,6 +975,7 @@ impl OpReach {
             reclassifies: self.reclassifies || member.reclassifies,
             whole_entries: self.whole_entries || member.whole_entries,
             follow_up: self.follow_up || member.follow_up,
+            inverse_only: self.inverse_only || member.inverse_only,
         }
     }
 }
@@ -993,6 +991,9 @@ pub enum DetailsReach {
     /// rewrite its neighbours; in a scenario, whose systems have no bodies, every system it
     /// rewrote. The projection is built again.
     Bodies,
+    /// [`Self::Bodies`] in a save and nothing in a scenario, where the op writes only a
+    /// statement's own text.
+    SaveBodies,
     /// Every system it rewrote, with the projection built again.
     Rebuild,
 }
@@ -1006,28 +1007,21 @@ impl DetailsReach {
         match (self, other) {
             (Self::Untouched, reach) | (reach, Self::Untouched) => reach,
             (a, b) if a == b => a,
+            (Self::Bodies, Self::SaveBodies) | (Self::SaveBodies, Self::Bodies) => Self::Bodies,
             _ => Self::Rebuild,
         }
     }
-}
-
-/// One system's initializer in [`Op::SetInitializers`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct InitializerSet {
-    pub id: u32,
-    pub initializer: Option<String>,
 }
 
 /// One star body's new planet class in [`Op::SetStarClass`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct StarBody {
-    pub planet: u32,
+    pub body: u32,
     pub class: String,
 }
 
-/// What the install says about one planet class, for [`Op::SetPlanetClass`].
+/// What the install says about one planet class, for [`Op::SetBodyClass`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PlanetClassRule {
@@ -1038,7 +1032,7 @@ pub struct PlanetClassRule {
     pub models: u32,
 }
 
-/// Which planets a class may be given to, or taken from, in [`Op::SetPlanetClass`].
+/// Which planets a class may be given to, or taken from, in [`Op::SetBodyClass`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
@@ -1052,7 +1046,7 @@ pub enum ClassChange {
     Uncolonised,
 }
 
-/// A save planet's model in [`Op::SetPlanetClass`]: its `entity` index and the
+/// A save planet's model in [`Op::SetBodyClass`]: its `entity` index and the
 /// `entity_name` it has in place of its class's own, each `None` where the planet has none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -1061,7 +1055,7 @@ pub struct PlanetLook {
     pub entity_name: Option<String>,
 }
 
-/// The body [`Op::AddSaveBody`] writes, every value chosen by the caller.
+/// The body [`Op::AddBody`] writes, every value chosen by the caller.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct NewBody {
@@ -1086,7 +1080,7 @@ pub struct NewBody {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct NewSystem {
-    pub id: u32,
+    pub system: u32,
     pub x: f64,
     pub y: f64,
     pub name: Option<String>,
@@ -1100,6 +1094,58 @@ pub struct NewSystem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub statement: Option<String>,
+}
+
+/// The body [`Op::SetBodyParent`] makes a body orbit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum Parent {
+    /// The system's centre: the body becomes a planet of it.
+    Centre,
+    /// Another body of the system: a planet of it when it is a star, a moon otherwise.
+    Body(u32),
+}
+
+impl Parent {
+    pub fn body(self) -> Option<u32> {
+        match self {
+            Self::Centre => None,
+            Self::Body(id) => Some(id),
+        }
+    }
+}
+
+impl From<Option<u32>> for Parent {
+    fn from(parent: Option<u32>) -> Self {
+        parent.map_or(Self::Centre, Self::Body)
+    }
+}
+
+/// The name [`Op::RenameBody`] writes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum NewName {
+    /// A name as typed, written `{ key="<name>" literal=yes }`.
+    Literal(String),
+    /// A whole `{ … }` name value written as it stands, which `name` only describes.
+    Block { value: String, name: String },
+}
+
+impl NewName {
+    /// The name as the player reads it.
+    pub fn shown(&self) -> &str {
+        match self {
+            Self::Literal(name) | Self::Block { name, .. } => name,
+        }
+    }
+}
+
+/// The two ends of a pair in [`Op::AddWormholePair`], each as x/y about its star.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PairPoints {
+    pub a: (f64, f64),
+    pub b: (f64, f64),
 }
 
 /// The map border and fill in [`Op::SetEmpireMapColors`], each a colour name from
@@ -1147,7 +1193,7 @@ pub struct NebulaCloud {
     pub kind: String,
 }
 
-/// One save entity in [`Op::RestoreSaveEntities`]: the table it stands in, its id, and its
+/// One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
 /// whole `<id>={ … }` statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -1184,7 +1230,7 @@ pub enum SavedTable {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct SystemMove {
-    pub id: u32,
+    pub system: u32,
     pub x: f64,
     pub y: f64,
 }
@@ -1194,7 +1240,7 @@ pub struct SystemMove {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct SystemHeight {
-    pub id: u32,
+    pub system: u32,
     pub height: Option<f64>,
 }
 
@@ -1214,492 +1260,4 @@ pub struct LaneLength {
     pub a: u32,
     pub b: u32,
     pub length: f64,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum OpError {
-    #[error("system {0} does not exist")]
-    UnknownSystem(u32),
-    #[error("system {0} already exists")]
-    SystemExists(u32),
-    #[error("{0} is the null id, which no system may take")]
-    NullSystemId(u32),
-    #[error("{what} may not be empty")]
-    EmptyText { what: &'static str },
-    #[error("{text:?} cannot be written as {what}")]
-    InvalidText { what: &'static str, text: String },
-    #[error("planet {planet}: {error}")]
-    OnPlanet { planet: u32, error: Box<OpError> },
-    #[error("nebula {0} does not exist")]
-    UnknownNebula(usize),
-    #[error("system {0} cannot have a lane to itself")]
-    SelfLane(u32),
-    #[error("systems {0} and {1} are already linked")]
-    LaneExists(u32, u32),
-    #[error("systems {0} and {1} are not linked")]
-    NoSuchLane(u32, u32),
-    #[error("lane {0} <-> {1} holds a different length on each end")]
-    LaneEndsDisagree(u32, u32),
-    #[error("lane {0} <-> {1} is already prevented")]
-    PreventExists(u32, u32),
-    #[error("a hyperlane already runs between {0} and {1}: remove it before preventing the pair")]
-    PreventLinked(u32, u32),
-    #[error("lane {0} <-> {1} is not prevented")]
-    NotPrevented(u32, u32),
-    #[error("system {0} has no hyperlanes")]
-    NoLanes(u32),
-    #[error("value is not a finite number")]
-    NotFinite,
-    #[error("length {length} is invalid: {reason}")]
-    InvalidLength { length: f64, reason: String },
-    #[error("radius {radius} is invalid: {reason}")]
-    InvalidRadius { radius: f64, reason: String },
-    #[error("spawn weight {weight} is invalid: {reason}")]
-    InvalidWeight { weight: f64, reason: String },
-    #[error("system {0}'s spawn weight is script; change its spawn kind instead")]
-    ScriptedSpawn(u32),
-    #[error("a system takes a spawn weight or a spawn script, not both")]
-    WeightAndScript,
-    #[error(
-        "a reserved seat is named by a letter a to z or a Greek letter alpha to omega, not {0:?}"
-    )]
-    InvalidSeatLetter(String),
-    #[error(
-        "an enabled seat has no marker to make it the player's; choose a 1st Player, Sol or reserved seat"
-    )]
-    EnabledSeatPlayer,
-    #[error(
-        "Fallen empire zone from {anchor} is blocked by {blocker}: the mod needs the ring empty"
-    )]
-    FeZoneBlocked { anchor: String, blocker: String },
-    #[error("Fallen empire zone from {anchor} is off the map")]
-    FeZoneOffMap { anchor: String },
-    #[error("system {0} cannot be paired with itself")]
-    WormholeSelf(u32),
-    #[error("wormhole pair {0} is already in use")]
-    WormholePairInUse(u32),
-    #[error("system {0} anchors no fallen empire zone")]
-    FeLinkNoZone(u32),
-    #[error("system {0} cannot link to its own fallen empire zone")]
-    FeLinkSelf(u32),
-    #[error("every fallen empire connection id is taken")]
-    FeLinkIdsExhausted,
-    #[error("fallen empire connection id {0} is beyond the {1} the mod reads")]
-    FeLinkIdOutOfRange(u8, u8),
-    #[error("random value {0} is beyond the {1} a Paint a Galaxy seat is drawn from")]
-    RandomValueOutOfRange(u8, u8),
-    #[error("no entries given")]
-    NoEntries,
-    #[error("every lane already has the length the game writes")]
-    AlreadyNormal,
-    #[error("a batch with nothing in it")]
-    EmptyBatch,
-    #[error("no planets to move")]
-    NoPlanets,
-    #[error("a batch may not hold another batch")]
-    NestedBatch,
-    #[error("system {0} is listed more than once")]
-    DuplicateSystem(u32),
-    #[error("lane {0} <-> {1} is listed more than once")]
-    DuplicateLane(u32, u32),
-    #[error("system {system}: {reason} at byte {offset}")]
-    Parse {
-        system: u32,
-        offset: usize,
-        reason: String,
-    },
-    #[error("nebula {nebula}: {reason} at byte {offset}")]
-    NebulaParse {
-        nebula: usize,
-        offset: usize,
-        reason: String,
-    },
-    #[error("scenario header: {reason} at byte {offset}")]
-    HeaderParse { offset: usize, reason: String },
-    #[error("global flags: {reason} at byte {offset}")]
-    FlagsParse { offset: usize, reason: String },
-    #[error("planet {planet}: {reason} at byte {offset}")]
-    PlanetParse {
-        planet: u32,
-        offset: usize,
-        reason: String,
-    },
-    #[error("the document has no global flags")]
-    NoFlags,
-    #[error("the galaxy has no L-Gate")]
-    NoLGate,
-    #[error("a gate has opened: the outcome has already spawned")]
-    LGateOpened,
-    #[error("the L-Gate outcome is already {0}")]
-    LGateUnchanged(&'static str),
-    #[error("planet {0} does not exist")]
-    UnknownPlanet(u32),
-    #[error("no star bodies given")]
-    NoStarBodies,
-    #[error("planet {planet} is not a body of system {system}")]
-    NotABody { planet: u32, system: u32 },
-    #[error("planet {0} is listed more than once")]
-    DuplicatePlanet(u32),
-    #[error("system {0} is already {1} with those star bodies")]
-    StarClassUnchanged(u32, String),
-    #[error("a planet size may not be zero")]
-    ZeroPlanetSize,
-    #[error("planet {0} is already size {1}")]
-    PlanetSizeUnchanged(u32, u32),
-    #[error("planet {0} is its system's star, which takes no planet modifiers")]
-    StarModifier(u32),
-    #[error("planet {0} already has {1}")]
-    ModifierPresent(u32, String),
-    #[error("planet {0} does not have {1}")]
-    ModifierAbsent(u32, String),
-    #[error("a modifier cannot last 0 days: -1 keeps it for ever")]
-    ModifierDays,
-    #[error("{0} copies of a modifier: an op adds or restores 1 to {max}", max = MAX_MODIFIER_COPIES)]
-    ModifierCopies(u32),
-    #[error("planet {0} already has anomaly {1}")]
-    AnomalyPresent(u32, String),
-    #[error("planet {0} has no anomaly")]
-    AnomalyAbsent(u32),
-    #[error("country {0} does not exist")]
-    UnknownCountry(u32),
-    #[error("country {0} has no map colours: map colours need a Stellaris 4.5 save")]
-    NoMapColors(u32),
-    #[error("country {0}'s map colours are already set that way")]
-    MapColorsUnchanged(u32),
-    #[error("country {0}'s flag is already set that way")]
-    FlagUnchanged(u32),
-    #[error("country {0} already has that name")]
-    EmpireNameUnchanged(u32),
-    #[error("save meta: {reason} at byte {offset}")]
-    MetaParse { offset: usize, reason: String },
-    #[error("save statement: {reason} at byte {offset}")]
-    RecordParse { offset: usize, reason: String },
-    #[error("this edit needs a save from Stellaris 4.0 or later, not {0}")]
-    SaveTooOld(String),
-    #[error("the save's version {0:?} names no major version, so it cannot take this edit")]
-    UnknownSaveVersion(String),
-    #[error("the save has no `{0}`")]
-    MissingSaveKey(&'static str),
-    #[error(
-        "the save's last system is {last} but it holds {count} systems: a new system needs ids 0 to {last} held, without a gap"
-    )]
-    SystemIdsNotDense { last: u32, count: usize },
-    #[error("system {id} is {distance:.2} away; a new system needs 10 between them")]
-    TooClose { id: u32, distance: f64 },
-    #[error("({x}, {y}) is outside the galaxy's radius of {radius}")]
-    OutsideGalaxy { x: f64, y: f64, radius: f64 },
-    #[error("{0} cannot have moons")]
-    MoonsNotAllowed(&'static str),
-    #[error("{0} cannot be an asteroid")]
-    AsteroidNotAllowed(&'static str),
-    #[error("{0} cannot have a fixed name")]
-    FixedNameNotAllowed(&'static str),
-    #[error("{0} cannot have a ring")]
-    RingNotAllowed(&'static str),
-    #[error(
-        "system {other}, added since the file was opened, has layout {initializer} with capped set to {capped}: a system of the same layout must match it"
-    )]
-    CappedMismatch {
-        initializer: String,
-        other: u32,
-        capped: bool,
-    },
-    #[error(
-        "system {0} was in the save when it was opened: only a system added since then can be removed, rolled again or renamed"
-    )]
-    SystemNotAdded(u32),
-    #[error("deposit {0} does not exist")]
-    UnknownDeposit(u32),
-    #[error("deposit {0} is not held by a planet")]
-    DepositNotOnPlanet(u32),
-    #[error("planet {0} is a star, which takes no dig site")]
-    StarDigSite(u32),
-    #[error("planet {planet} already has dig site {site}")]
-    DigSitePresent { planet: u32, site: u32 },
-    #[error("dig site {0} does not exist")]
-    UnknownDigSite(u32),
-    #[error("dig site {0} is not on a planet")]
-    DigSiteNotOnPlanet(u32),
-    #[error("every system of {nebula} is already {state}")]
-    TurbulenceUnchanged { nebula: String, state: &'static str },
-    #[error("{0:?} is not a nebula cloud type")]
-    InvalidCloudType(String),
-    #[error("ambient object {0} cannot be written back: its slot is taken")]
-    AmbientSlotTaken(u32),
-    #[error("system {0} is already named {1}")]
-    NameUnchanged(u32, String),
-    #[error("planet {0} is already named {1}")]
-    PlanetNameUnchanged(u32, String),
-    #[error("planet {0} is a star: only a planet or moon can be renamed")]
-    StarNotRenamed(u32),
-    #[error("planet {0} stands at the system's centre")]
-    AtCentre(u32),
-    #[error(
-        "planet {body} is a moon of planet {parent}, which the save does not hold: make it a planet first"
-    )]
-    ParentMissing { body: u32, parent: u32 },
-    #[error("planet {0} already stands there")]
-    BodyUnchanged(u32),
-    #[error("natural wormhole {0} does not exist")]
-    UnknownWormhole(u32),
-    #[error("natural wormhole {wormhole} has bypass type \"{kind}\": only a wormhole can be moved")]
-    NotAWormhole { wormhole: u32, kind: String },
-    #[error("wormhole {0} already stands there")]
-    WormholeUnchanged(u32),
-    #[error(
-        "system {system} already has a natural wormhole of bypass type \"{kind}\", and a system holds one at most"
-    )]
-    HasNaturalWormhole { system: u32, kind: String },
-    #[error("systems {0} and {1} are not the two ends of a wormhole")]
-    NotAWormholePair(u32, u32),
-    #[error(
-        "the wormhole in system {system} is linked to system {partner}, which has no natural wormhole for it"
-    )]
-    WormholeEndMissing { system: u32, partner: u32 },
-    #[error("system {0} has a wormhole: remove the wormhole pair first")]
-    HoldsWormhole(u32),
-    #[error("{reason}")]
-    InvalidParent { reason: String },
-    #[error("planet {0} has moons, so it cannot become a moon")]
-    HasMoons(u32),
-    #[error("planet {0} already has that parent")]
-    ParentUnchanged(u32),
-    #[error("planet {planet} {state}")]
-    RingUnchanged { planet: u32, state: &'static str },
-    #[error("planet {0} is a star, which takes no planet model")]
-    StarModel(u32),
-    #[error("planet {planet} {state}")]
-    ModelUnchanged { planet: u32, state: String },
-    #[error("planet {0} is a star; its star type is changed on the star's page")]
-    StarPlanetClass(u32),
-    #[error("{0} is a class no planet is changed to or from")]
-    FixedPlanetClass(String),
-    #[error("planet {planet} is a colony, and a colony cannot be changed to or from {class}")]
-    ColonyPlanetClass { planet: u32, class: String },
-    #[error("planet {planet} is {class}, not {from}")]
-    PlanetClassMismatch {
-        planet: u32,
-        class: String,
-        from: String,
-    },
-    #[error("planet {0} is already {1}")]
-    PlanetClassUnchanged(u32, String),
-    #[error("system {system} has no belt {index}")]
-    UnknownBelt { system: u32, index: usize },
-    #[error("belt {index} of system {system} is already that way")]
-    BeltUnchanged { system: u32, index: usize },
-    #[error(
-        "the inner radius cannot go below {least:.2}, which the system's bodies and belts reach"
-    )]
-    InnerRadiusTooSmall { least: f64 },
-    #[error("system {0} already has that inner radius")]
-    InnerRadiusUnchanged(u32),
-    #[error("planet {planet} is already a body of system {system}")]
-    AlreadyInSystem { planet: u32, system: u32 },
-    #[error("planet {0} is a star: only a planet can move to another system")]
-    StarNotMovable(u32),
-    #[error("system {0} lists no bodies, so a planet cannot join it")]
-    NoBodies(u32),
-    #[error("system {system} holds planet {planet} from the save; move it out first")]
-    HoldsSavePlanet { system: u32, planet: u32 },
-    #[error("planet {0} has a megastructure, so it cannot move to another system")]
-    MegastructurePlanet(u32),
-    #[error("planet {0} has a megastructure, so it keeps its class")]
-    MegastructureClass(u32),
-    #[error("{class} has {models} models, so planet {planet} cannot take model {entity}")]
-    PlanetModelIndex {
-        planet: u32,
-        entity: u32,
-        class: String,
-        models: u32,
-    },
-    #[error(
-        "planet {0} was in the save when it was opened: only a body added since then can be taken out again"
-    )]
-    BodyNotAdded(u32),
-    #[error("planet {0} has moons: take them out first")]
-    BodyHasMoons(u32),
-    #[error("planet {planet} is owned by country {owner} but controlled by country {controller}")]
-    PlanetOccupied {
-        planet: u32,
-        owner: u32,
-        controller: u32,
-    },
-    #[error("planet {0} has no colony")]
-    NoColony(u32),
-    #[error("planet {0} is a star: only a planet or moon can be deleted")]
-    StarNotDeleted(u32),
-    #[error("planet {planet} cannot be deleted: {reason}")]
-    PlanetKept { planet: u32, reason: String },
-    #[error("the colony on planet {planet} cannot be removed: {reason}")]
-    ColonyKept { planet: u32, reason: String },
-    #[error("{table:?} {id} does not exist")]
-    UnknownEntity { table: SavedTable, id: u32 },
-    #[error("the text for {table:?} {id} is not one entity with that id")]
-    EntityMismatch { table: SavedTable, id: u32 },
-    #[error("country {country}: {reason} at byte {offset}")]
-    CountryParse {
-        country: u32,
-        offset: usize,
-        reason: String,
-    },
-    #[error("{op} is not supported for a {kind} document")]
-    Unsupported {
-        op: &'static str,
-        kind: DocumentKind,
-    },
-    #[error(transparent)]
-    Overlay(#[from] OverlayError),
-    #[error(transparent)]
-    Projection(#[from] ProjectionError),
-    #[error(transparent)]
-    Document(#[from] document::Error),
-}
-
-impl OpError {
-    /// How the refusal crosses to the app: an entity the document does not hold, text it
-    /// could not read, or an edit refused.
-    pub fn kind(&self) -> ErrorKind {
-        match self {
-            Self::UnknownSystem { .. }
-            | Self::UnknownNebula { .. }
-            | Self::UnknownPlanet { .. }
-            | Self::UnknownCountry { .. }
-            | Self::UnknownDeposit { .. }
-            | Self::UnknownDigSite { .. }
-            | Self::UnknownBelt { .. }
-            | Self::UnknownWormhole { .. }
-            | Self::UnknownEntity { .. } => ErrorKind::NotFound,
-            Self::Parse { .. }
-            | Self::NebulaParse { .. }
-            | Self::HeaderParse { .. }
-            | Self::FlagsParse { .. }
-            | Self::PlanetParse { .. }
-            | Self::RecordParse { .. }
-            | Self::CountryParse { .. }
-            | Self::MetaParse { .. }
-            | Self::Overlay { .. }
-            | Self::Projection { .. }
-            | Self::Document { .. } => ErrorKind::Format,
-            Self::SystemExists { .. }
-            | Self::NullSystemId { .. }
-            | Self::EmptyText { .. }
-            | Self::InvalidText { .. }
-            | Self::OnPlanet { .. }
-            | Self::SelfLane { .. }
-            | Self::LaneExists { .. }
-            | Self::NoSuchLane { .. }
-            | Self::LaneEndsDisagree { .. }
-            | Self::PreventExists { .. }
-            | Self::PreventLinked { .. }
-            | Self::NotPrevented { .. }
-            | Self::NoLanes { .. }
-            | Self::NotFinite { .. }
-            | Self::InvalidLength { .. }
-            | Self::InvalidRadius { .. }
-            | Self::InvalidWeight { .. }
-            | Self::ScriptedSpawn { .. }
-            | Self::WeightAndScript { .. }
-            | Self::InvalidSeatLetter { .. }
-            | Self::EnabledSeatPlayer { .. }
-            | Self::FeZoneBlocked { .. }
-            | Self::FeZoneOffMap { .. }
-            | Self::WormholeSelf { .. }
-            | Self::WormholePairInUse { .. }
-            | Self::FeLinkNoZone { .. }
-            | Self::FeLinkSelf { .. }
-            | Self::FeLinkIdsExhausted { .. }
-            | Self::FeLinkIdOutOfRange { .. }
-            | Self::RandomValueOutOfRange { .. }
-            | Self::NoEntries { .. }
-            | Self::AlreadyNormal { .. }
-            | Self::EmptyBatch { .. }
-            | Self::NoPlanets
-            | Self::NestedBatch { .. }
-            | Self::DuplicateSystem { .. }
-            | Self::DuplicateLane { .. }
-            | Self::NoFlags { .. }
-            | Self::NoLGate { .. }
-            | Self::LGateOpened { .. }
-            | Self::LGateUnchanged { .. }
-            | Self::NoStarBodies { .. }
-            | Self::NotABody { .. }
-            | Self::DuplicatePlanet { .. }
-            | Self::StarClassUnchanged { .. }
-            | Self::ZeroPlanetSize { .. }
-            | Self::PlanetSizeUnchanged { .. }
-            | Self::StarModifier { .. }
-            | Self::ModifierPresent { .. }
-            | Self::ModifierAbsent { .. }
-            | Self::ModifierDays { .. }
-            | Self::ModifierCopies { .. }
-            | Self::AnomalyPresent { .. }
-            | Self::AnomalyAbsent { .. }
-            | Self::NoMapColors { .. }
-            | Self::MapColorsUnchanged { .. }
-            | Self::FlagUnchanged { .. }
-            | Self::EmpireNameUnchanged { .. }
-            | Self::SaveTooOld { .. }
-            | Self::UnknownSaveVersion { .. }
-            | Self::MissingSaveKey { .. }
-            | Self::SystemIdsNotDense { .. }
-            | Self::TooClose { .. }
-            | Self::OutsideGalaxy { .. }
-            | Self::MoonsNotAllowed { .. }
-            | Self::AsteroidNotAllowed { .. }
-            | Self::FixedNameNotAllowed { .. }
-            | Self::RingNotAllowed { .. }
-            | Self::CappedMismatch { .. }
-            | Self::SystemNotAdded { .. }
-            | Self::DepositNotOnPlanet { .. }
-            | Self::StarDigSite { .. }
-            | Self::DigSitePresent { .. }
-            | Self::DigSiteNotOnPlanet { .. }
-            | Self::TurbulenceUnchanged { .. }
-            | Self::InvalidCloudType { .. }
-            | Self::AmbientSlotTaken { .. }
-            | Self::NameUnchanged { .. }
-            | Self::PlanetNameUnchanged { .. }
-            | Self::StarNotRenamed { .. }
-            | Self::AtCentre { .. }
-            | Self::ParentMissing { .. }
-            | Self::BodyUnchanged { .. }
-            | Self::NotAWormhole { .. }
-            | Self::WormholeUnchanged { .. }
-            | Self::HasNaturalWormhole { .. }
-            | Self::NotAWormholePair { .. }
-            | Self::WormholeEndMissing { .. }
-            | Self::HoldsWormhole { .. }
-            | Self::InvalidParent { .. }
-            | Self::HasMoons { .. }
-            | Self::ParentUnchanged { .. }
-            | Self::RingUnchanged { .. }
-            | Self::StarModel { .. }
-            | Self::ModelUnchanged { .. }
-            | Self::StarPlanetClass { .. }
-            | Self::FixedPlanetClass { .. }
-            | Self::ColonyPlanetClass { .. }
-            | Self::PlanetClassMismatch { .. }
-            | Self::PlanetClassUnchanged { .. }
-            | Self::BeltUnchanged { .. }
-            | Self::InnerRadiusTooSmall { .. }
-            | Self::InnerRadiusUnchanged { .. }
-            | Self::AlreadyInSystem { .. }
-            | Self::StarNotMovable { .. }
-            | Self::NoBodies { .. }
-            | Self::HoldsSavePlanet { .. }
-            | Self::MegastructurePlanet { .. }
-            | Self::MegastructureClass { .. }
-            | Self::PlanetModelIndex { .. }
-            | Self::BodyNotAdded { .. }
-            | Self::BodyHasMoons { .. }
-            | Self::PlanetOccupied { .. }
-            | Self::NoColony { .. }
-            | Self::StarNotDeleted { .. }
-            | Self::PlanetKept { .. }
-            | Self::ColonyKept { .. }
-            | Self::EntityMismatch { .. }
-            | Self::Unsupported { .. } => ErrorKind::Op,
-        }
-    }
 }

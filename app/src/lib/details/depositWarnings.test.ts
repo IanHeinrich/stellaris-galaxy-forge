@@ -4,7 +4,6 @@ import type { PlanetPageColony } from "../../generated/PlanetPageColony";
 import { depositTypeView, modifierLine } from "../../store/fixtures/planet";
 import { planetPage } from "../../test/builders";
 import { addWarnings, removalTarget, removalWarnings, warningNameKeys } from "./depositWarnings";
-import { removeDepositOp } from "./planetEdits";
 
 const VIEWS = new Map(
   [
@@ -184,10 +183,6 @@ describe("what a deposit edit on a colony costs", () => {
       clearing: [{ deposit: 2, cost: [["energy", 300]] }],
     });
     expect(removalTarget(page, "d_mountain_range", null)?.id).toBe(1);
-    expect(removeDepositOp(page, "d_mountain_range", null)).toEqual({
-      type: "RemoveSaveDeposit",
-      deposit: 1,
-    });
     const cleared = { ...page, deposits: page.deposits.slice(1) };
     expect(removalTarget(cleared, "d_mountain_range", null)?.id).toBe(2);
   });

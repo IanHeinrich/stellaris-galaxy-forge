@@ -4,7 +4,7 @@ expression: value
 ---
 Removed d_prosperous_mesa (#257) from planet #135
 touched: [408]
-inverse: AddSaveDeposit { planet: 135, kind: "d_prosperous_mesa" }
+inverse: AddDeposit { body: 135, kind: "d_prosperous_mesa" }
 … and 3 other issues
 
 --- gamestate

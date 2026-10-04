@@ -1,4 +1,4 @@
-//! `ReplaceSaveSystem`, for the systems [`super::add_system`] wrote since the file was
+//! `ReplaceSystemFromSpec`, for the systems [`super::add_system`] wrote since the file was
 //! opened, in two steps. The first takes the old bodies out as a removal does, which
 //! frees their slots and asteroid names and uncounts its layout. The second writes the new
 //! bodies as an add does, taking the lowest free slots, counts the new layout, and
@@ -12,6 +12,7 @@ use std::collections::BTreeSet;
 use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
+use crate::emit::quoted;
 use crate::emit::system::{belts_block, flags_block, planet_lines};
 use crate::format::save::check_version;
 use crate::format::save::read_spec::spec_of;
@@ -25,7 +26,7 @@ use crate::format::save::write::remove_system::{
 };
 use crate::format::save::write::rename_system::swap_name;
 use crate::keys;
-use crate::ops::rules::quoted;
+use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::session::Session;
 
@@ -45,7 +46,7 @@ pub(crate) fn plan_strip(
             lanes.push(lane.to);
         }
     }
-    let inverse = Op::ReplaceSaveSystem {
+    let inverse = Op::ReplaceSystemFromSpec {
         system: id,
         spec: spec_of(s, id, lanes)?,
     };
@@ -72,8 +73,8 @@ pub(crate) fn plan_strip(
         .sum::<usize>();
     Ok(Planned {
         description: format!(
-            "Rolled {} (#{id}) again{became}, with {}",
-            system.name.key,
+            "Rolled {} again{became}, with {}",
+            named(&s.graph, id),
             bodies(spec, count)
         ),
         inverse,
@@ -102,7 +103,7 @@ pub(crate) fn plan_fill(
     }
     Ok(Planned {
         description: String::new(),
-        inverse: Op::RemoveSystem { id },
+        inverse: Op::RemoveSystem { system: id },
     })
 }
 

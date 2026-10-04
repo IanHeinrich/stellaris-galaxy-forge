@@ -24,6 +24,7 @@ import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import type { SaveRowRefs } from "../../../store/planetEditAdapter";
 import { Icon } from "../../parts";
 import { DrillLink, Section } from "../parts";
 import { DepositPicker } from "./DepositPicker";
@@ -251,7 +252,7 @@ export function PlanetDeposits({
 }: {
   page: PlanetPage;
   editable: boolean;
-  target: PickerTarget;
+  target: PickerTarget<SaveRowRefs>;
 }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const ready = useGameDataStore((s) => s.status === "ready");
@@ -267,7 +268,7 @@ export function PlanetDeposits({
     if (deposit === null) return null;
     const remove = () => {
       setConfirming(null);
-      void target.edits.removeDeposit(deposit.id);
+      void target.edits.removeDeposit(deposit);
     };
     const warnings = removalWarnings(page, deposit, views, names);
     const worked = page.station !== null && (group.view?.yields.length ?? 0) > 0;

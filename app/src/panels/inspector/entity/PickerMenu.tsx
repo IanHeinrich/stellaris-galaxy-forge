@@ -22,7 +22,9 @@ export const PICKER_MIN_HEIGHT = 320;
 const PAGE_ROOM_MARGIN = 24;
 
 /** A picker's store, as the menu reads it. */
-export type PickerHook<C extends string> = <U>(selector: (state: PickerState<C>) => U) => U;
+export type PickerHook<C extends string> = <U>(
+  selector: (state: PickerState<C, unknown>) => U,
+) => U;
 
 /** One of a row's add buttons. */
 export interface PickerButton {

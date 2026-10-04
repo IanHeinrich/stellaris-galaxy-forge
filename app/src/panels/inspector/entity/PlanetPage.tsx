@@ -3,33 +3,33 @@ import type { PlanetPage } from "../../../generated/PlanetPage";
 import type { PlanetPageAnomaly } from "../../../generated/PlanetPageAnomaly";
 import type { PlanetPageMoon } from "../../../generated/PlanetPageMoon";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
-import { findPlanet, isStarBody, starBodyEditable } from "../../../lib/details/starBody";
+import { findPlanet, isStarBody } from "../../../lib/details/starBody";
 import {
   daysLeft,
   modifierRows,
   planetDataKeys,
   type ModifierRow,
 } from "../../../lib/details/planetPage";
-import type { PickerTarget } from "../../../lib/details/picker";
-import { hasRingCheckbox, setPlanetRingOp } from "../../../lib/details/ring";
-import { bodyEditHint, COLONY_SIZE, renamePlanetOp } from "../../../lib/details/planetEdits";
+import type { PickerTarget, PlanetEditAdapter } from "../../../lib/details/picker";
+import { planetPageOffers } from "../../../lib/details/planetOffers";
+import { hasRingCheckbox } from "../../../lib/details/ring";
+import { bodyEditHint, COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
-import { bodyOrbit } from "../../../lib/details/orbitEdits";
+import { bodyOrbit } from "../../../lib/details/orbitIntent";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { openSystem } from "../../../store/commands";
-import type { Entry } from "../../../store/inspectorStore";
+import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
-import { planetPickerTarget } from "../../../store/planetEditAdapter";
+import { planetPickerTarget, type SaveRowRefs } from "../../../store/planetEditAdapter";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
-import { useApplyOp } from "../../useApplyOp";
 import { useNamed } from "../../useNamed";
 import { Icon } from "../../parts";
 import {
@@ -57,6 +57,7 @@ import { DeletePlanetAction, RemoveColonyAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { SizeField, StarBlock } from "./StarBlock";
+import { useBodyName } from "./useBodyName";
 import { useSingleStarClasses } from "./useBodyClasses";
 import "./entity.css";
 import { useOpenEntity, usePlanetPage } from "./useEntity";
@@ -115,15 +116,16 @@ function hasFields(fields: PlanetFields): boolean {
   return Object.values(fields).some((field) => field !== null);
 }
 
-/** Planet `id`'s fields. */
+/** Planet `id`'s fields, each sent to `edits`. */
 function PlanetBlock({
   id,
+  edits,
   fields: { name, size, planetClass, model, ring, system },
 }: {
   id: number;
+  edits: PlanetEditAdapter;
   fields: PlanetFields;
 }) {
-  const applyOp = useApplyOp();
   return (
     <EditBlock title="Planet">
       {name !== null && (
@@ -133,35 +135,33 @@ function PlanetBlock({
             label="Name"
             title="Rename this planet. Its moons named after it follow."
             value={name}
-            onCommit={(text) => {
-              const op = renamePlanetOp(id, name, text);
-              if (op !== null) applyOp(op);
-            }}
+            onCommit={(text) => void edits.rename(text, name)}
           />
         </EditRow>
       )}
       {size !== null && (
         <EditRow label="Size">
-          <SizeField id={id} size={size.value} title={size.title} />
+          <SizeField edits={edits} size={size.value} title={size.title} />
         </EditRow>
       )}
       {planetClass !== null && (
         <PlanetClassField
           id={id}
+          edits={edits}
           planetClass={planetClass.current}
           colonised={planetClass.colonised}
           moon={planetClass.moon}
         />
       )}
       {model !== null && (
-        <PlanetModelField id={id} planetClass={model.planetClass} current={model.current} />
+        <PlanetModelField edits={edits} planetClass={model.planetClass} current={model.current} />
       )}
       {ring !== null && (
         <ToggleField
           label="Ring"
           title="Draws a ring around this body"
           checked={ring}
-          onChange={(on) => applyOp(setPlanetRingOp(id, on))}
+          onChange={(on) => void edits.setRing(on)}
         />
       )}
       {system !== null && <PlanetSystemField id={id} system={system} />}
@@ -211,7 +211,7 @@ function PlanetModifiers({
 }: {
   page: PlanetPage;
   editable: boolean;
-  target: PickerTarget;
+  target: PickerTarget<SaveRowRefs>;
 }) {
   const views = usePlanetDataStore((s) => s.modifiers);
   const rows = modifierRows(page, views);
@@ -251,8 +251,16 @@ function CountryRow({ label, id }: { label: string; id: number }) {
   );
 }
 
-/** The colony's facts, and its removal when `removable` names the body. */
-function Colony({ page, removable }: { page: PlanetPage; removable: string | null }) {
+/** The colony's facts, and its removal through `edits` when `removable` names the body. */
+function Colony({
+  page,
+  removable,
+  edits,
+}: {
+  page: PlanetPage;
+  removable: string | null;
+  edits: PlanetEditAdapter;
+}) {
   const colonyTypes = usePlanetDataStore((s) => s.colonyTypes);
   const opener = useOpenEntity();
   const colony = page.colony;
@@ -288,7 +296,7 @@ function Colony({ page, removable }: { page: PlanetPage; removable: string | nul
           #{colony.id}
         </LinkRow>
       </Properties>
-      {removable !== null && <RemoveColonyAction page={page} name={removable} />}
+      {removable !== null && <RemoveColonyAction page={page} name={removable} edits={edits} />}
     </Section>
   );
 }
@@ -299,22 +307,32 @@ function useFoundPlanet(id: number) {
   return useMemo(() => findPlanet(details, id), [details, id]);
 }
 
-/** The body this one orbits, named as the system list names it. */
-function useBodyName(id: number): string {
-  const names = useGameDataStore((s) => s.names);
-  const found = useFoundPlanet(id);
-  return found === null ? `#${id}` : bodyName(found.planet, names);
+/**
+ * Opens body `id` of system `system` as the system view opens it; one outside any system opens as
+ * a planet.
+ */
+function openBody(system: number | null, id: number, label: string): void {
+  const entry: Entry =
+    system === null ? { ref: { kind: "planet", id }, label } : bodyEntry(system, id, label);
+  useInspectorStore.getState().open(entry);
 }
 
-function Orbits({ parent, radius }: { parent: number; radius: number | null }) {
-  const opener = useOpenEntity();
+function Orbits({
+  system,
+  parent,
+  radius,
+}: {
+  system: number | null;
+  parent: number;
+  radius: number | null;
+}) {
   const name = useBodyName(parent);
   return (
     <PropertyRow label="Orbits">
       <DrillLink
         requires={capabilityFor("planet")}
         title="Open the page of the body it orbits"
-        onOpen={() => opener.open({ kind: "planet", id: parent }, name)}
+        onOpen={() => openBody(system, parent, name)}
       >
         {name}
       </DrillLink>
@@ -424,7 +442,7 @@ function About({
             {systemName(system)}
           </LinkRow>
         )}
-        {page.parent !== null && <Orbits parent={page.parent} radius={radius} />}
+        {page.parent !== null && <Orbits system={system} parent={page.parent} radius={radius} />}
         {page.surveyed_by !== null && <CountryRow label="Surveyed by" id={page.surveyed_by} />}
         {page.anomaly !== null && !anomalyEditable && <AnomalyRow anomaly={page.anomaly} />}
         {occupied && page.controller !== null && (
@@ -436,18 +454,14 @@ function About({
   );
 }
 
-/** A moon no read system lists: its class and size, opening its own page. */
-function MoonFallbackRow({ moon }: { moon: PlanetPageMoon }) {
+/** A moon of system `system` that no read system lists: its class and size, opening its own page. */
+function MoonFallbackRow({ system, moon }: { system: number | null; moon: PlanetPageMoon }) {
   const names = useGameDataStore((s) => s.names);
   const classes = useGameDataStore((s) => s.planetClasses);
-  const opener = useOpenEntity();
   const named = templateName(moon);
   const name = bodyName(moon, names);
   return (
-    <DrillRow
-      requires={capabilityFor("planet")}
-      onOpen={() => opener.open({ kind: "planet", id: moon.id }, name)}
-    >
+    <DrillRow requires={capabilityFor("planet")} onOpen={() => openBody(system, moon.id, name)}>
       <PlanetIcon
         planetClass={moon.class}
         sprite={classes.get(moon.class)?.icon_sprite}
@@ -477,7 +491,7 @@ function Moons({ page }: { page: PlanetPage }) {
       {page.moons.map((moon) => {
         const summary = read?.planets.find((p) => p.id === moon.id);
         if (read === undefined || summary === undefined) {
-          return <MoonFallbackRow key={moon.id} moon={moon} />;
+          return <MoonFallbackRow key={moon.id} system={page.system} moon={moon} />;
         }
         return (
           <PlanetRow
@@ -501,42 +515,31 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
-  const bodies = useCanEdit("bodies");
-  const geometry = useCanEdit("geometry");
+  const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const found = useFoundPlanet(page.id);
   const system = useGalaxyStore((s) => (found === null ? undefined : s.systems.get(found.system)));
-  const star = starBodyEditable(page.class, bodies, planetClasses, starClasses);
-  const starBlock = star && found !== null && system !== undefined;
-  const starBody = isStarBody(page.class, planetClasses, starClasses);
-  const ring =
-    geometry && found !== null && hasRingCheckbox(page.class, planetClasses, starClasses)
-      ? found.planet.ring === true
-      : null;
-  const movable = useFileSessionStore((s) => documentCapabilities(s).details);
-  const moveFrom = movable ? page.system : null;
-  const planetBody = bodies && !starBody;
-  const resizable = planetBody;
-  // A 4.x save: the deposit, modifier, dig site and anomaly ops refuse an older one.
-  const depositsEditable = useCanEdit("deposits");
-  const modifiersEditable = planetBody && depositsEditable;
-  // The game places some anomalies on stars, so a star's page takes one too.
-  const anomalyEditable = depositsEditable;
+  const offers = planetPageOffers(capabilities, {
+    star: isStarBody(page.class, planetClasses, starClasses),
+    ringable: found !== null && hasRingCheckbox(page.class, planetClasses, starClasses),
+    moonHost: false,
+  });
+  const starBlock = offers.starFields && found !== null && system !== undefined;
   const moon = found?.planet.moon ?? false;
-  // A 4.x save's planet or moon: the core says why one of them cannot go.
-  const removable = depositsEditable && !starBody;
   const target = useMemo(() => planetPickerTarget(page, moon), [page, moon]);
+  const name = bodyName(page, names);
   const fields: PlanetFields = {
-    name: planetBody ? bodyName(page, names) : null,
-    size: resizable
+    name: offers.planetFields ? name : null,
+    size: offers.planetFields
       ? { value: page.size, title: page.colony === null ? undefined : COLONY_SIZE }
       : null,
-    planetClass: modifiersEditable
+    planetClass: offers.planetClass
       ? { current: page.class, colonised: page.colony !== null, moon }
       : null,
-    model: modifiersEditable ? { planetClass: page.class, current: page.entity_name } : null,
-    ring,
-    system: moveFrom,
+    model: offers.planetClass ? { planetClass: page.class, current: page.entity_name } : null,
+    ring: offers.ring ? found?.planet.ring === true : null,
+    system: offers.move ? page.system : null,
   };
+  const editsAny = offers.deposits || offers.modifiers || offers.digSite || offers.anomaly;
   const requestDetails = useDetailsStore((s) => s.request);
   const detailsVersion = useDetailsStore((s) => s.version);
   const waiting = useDetailsStore((s) => page.system !== null && !s.failed.has(page.system));
@@ -552,29 +555,31 @@ function PlanetOverview({ page }: { page: PlanetPage }) {
   return (
     <>
       <Head page={page} />
-      {hasFields(fields) && <PlanetBlock id={page.id} fields={fields} />}
-      {starBlock && <StarBlock planet={found.planet} system={system} />}
-      {!starBlock && star && waiting && <Empty>{READING_STARS}</Empty>}
+      {hasFields(fields) && <PlanetBlock id={page.id} edits={target.edits} fields={fields} />}
+      {starBlock && <StarBlock planet={found.planet} system={system} edits={target.edits} />}
+      {!starBlock && offers.starFields && waiting && <Empty>{READING_STARS}</Empty>}
       {page.system !== null && <OrbitBlock system={page.system} body={page.id} />}
-      {!starBlock && !(star && waiting) && (
+      {!starBlock && !(offers.starFields && waiting) && (
         <Properties>
-          {!modifiersEditable && (
+          {!offers.planetClass && (
             <PropertyRow label="Class">{bodyClassName(page.class, names)}</PropertyRow>
           )}
-          {page.size !== null && !resizable && <PropertyRow label="Size">{page.size}</PropertyRow>}
+          {page.size !== null && !offers.planetFields && (
+            <PropertyRow label="Size">{page.size}</PropertyRow>
+          )}
         </Properties>
       )}
-      <PlanetDeposits page={page} editable={depositsEditable} target={target} />
-      <PlanetModifiers page={page} editable={modifiersEditable} target={target} />
-      {anomalyEditable && <PlanetAnomaly target={target} />}
-      <PlanetDigSite site={page.dig_site} editable={modifiersEditable} target={target} />
-      <Colony page={page} removable={removable ? bodyName(page, names) : null} />
-      <About page={page} radius={radius} anomalyEditable={anomalyEditable} />
+      <PlanetDeposits page={page} editable={offers.deposits} target={target} />
+      <PlanetModifiers page={page} editable={offers.modifiers} target={target} />
+      {offers.anomaly && <PlanetAnomaly target={target} />}
+      <PlanetDigSite site={page.dig_site} editable={offers.digSite} target={target} />
+      <Colony page={page} removable={offers.pageRemoval ? name : null} edits={target.edits} />
+      <About page={page} radius={radius} anomalyEditable={offers.anomaly} />
       <Moons page={page} />
-      {removable && <DeletePlanetAction page={page} name={bodyName(page, names)} moon={moon} />}
-      {(starBlock || hasFields(fields) || depositsEditable || modifiersEditable || orbitable) && (
-        <EditKey />
+      {offers.pageRemoval && (
+        <DeletePlanetAction page={page} name={name} moon={moon} edits={target.edits} />
       )}
+      {(starBlock || hasFields(fields) || editsAny || orbitable) && <EditKey />}
     </>
   );
 }

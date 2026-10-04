@@ -63,7 +63,7 @@ function placeSeats(): void {
 
 function added(id: number, x: number, y: number, extra: Partial<NewSystem> = {}): NewSystem {
   return {
-    id,
+    system: id,
     x,
     y,
     name: null,
@@ -86,7 +86,7 @@ describe("with symmetry off", () => {
     await editor().addSystemAt(150, 60);
     expect(sent()).toEqual({
       type: "AddSystem",
-      id: null,
+      system: null,
       x: 150,
       y: 60,
       name: null,
@@ -96,11 +96,11 @@ describe("with symmetry off", () => {
     });
     await editor().setSelection([10], "replace");
     await editor().nudgeSelection(5, 3);
-    expect(sent()).toEqual({ type: "MoveSystem", id: 10, x: 105, y: 53 });
+    expect(sent()).toEqual({ type: "MoveSystem", system: 10, x: 105, y: 53 });
     await editor().applySymmetric({ type: "AddLane", a: 10, b: 12, bridge: false });
     expect(sent()).toEqual({ type: "AddLane", a: 10, b: 12, bridge: false });
     await editor().removeSystems([10]);
-    expect(sent()).toEqual({ type: "RemoveSystem", id: 10 });
+    expect(sent()).toEqual({ type: "RemoveSystem", system: 10 });
   });
 });
 
@@ -209,15 +209,15 @@ describe("moving systems under symmetry", () => {
         {
           type: "MoveSystems",
           moves: [
-            { id: 10, x: 105, y: 53 },
-            { id: 11, x: 105, y: -53 },
+            { system: 10, x: 105, y: 53 },
+            { system: 11, x: 105, y: -53 },
           ],
         },
       ],
     });
 
     sym(QUARTER);
-    await editor().applySymmetric({ type: "MoveSystem", id: 20, x: 310, y: 100 });
+    await editor().applySymmetric({ type: "MoveSystem", system: 20, x: 310, y: 100 });
     expect(sent()).toEqual({
       type: "Batch",
       description: "Moved 4 systems",
@@ -225,10 +225,10 @@ describe("moving systems under symmetry", () => {
         {
           type: "MoveSystems",
           moves: [
-            { id: 20, x: 310, y: 100 },
-            { id: 21, x: -100, y: 310 },
-            { id: 22, x: -310, y: -100 },
-            { id: 23, x: 100, y: -310 },
+            { system: 20, x: 310, y: 100 },
+            { system: 21, x: -100, y: 310 },
+            { system: 22, x: -310, y: -100 },
+            { system: 23, x: 100, y: -310 },
           ],
         },
       ],
@@ -242,16 +242,16 @@ describe("moving systems under symmetry", () => {
     expect(sent()).toEqual({
       type: "MoveSystems",
       moves: [
-        { id: 10, x: 105, y: 50 },
-        { id: 11, x: 105, y: -50 },
+        { system: 10, x: 105, y: 50 },
+        { system: 11, x: 105, y: -50 },
       ],
     });
     await editor().setSelection([12], "replace");
     await editor().nudgeSelection(0, 5);
-    expect(sent()).toEqual({ type: "MoveSystem", id: 12, x: 200, y: 5 });
+    expect(sent()).toEqual({ type: "MoveSystem", system: 12, x: 200, y: 5 });
     await editor().setSelection([13], "replace");
     await editor().nudgeSelection(1, 1);
-    expect(sent()).toEqual({ type: "MoveSystem", id: 13, x: 151, y: 81 });
+    expect(sent()).toEqual({ type: "MoveSystem", system: 13, x: 151, y: 81 });
   });
 
   it("moves a selection holding its own quarter turn as one symmetric shape", async () => {
@@ -259,10 +259,10 @@ describe("moving systems under symmetry", () => {
     await editor().setSelection([20, 21], "replace");
     await editor().nudgeSelection(10, 5);
     const moves = [
-      { id: 20, x: 310, y: 105 },
-      { id: 21, x: -105, y: 310 },
-      { id: 22, x: -310, y: -105 },
-      { id: 23, x: 105, y: -310 },
+      { system: 20, x: 310, y: 105 },
+      { system: 21, x: -105, y: 310 },
+      { system: 22, x: -310, y: -105 },
+      { system: 23, x: 105, y: -310 },
     ];
     expect(sent()).toEqual({
       type: "Batch",
@@ -275,7 +275,7 @@ describe("moving systems under symmetry", () => {
         type: "MoveSystems",
         moves: order.map((id) => {
           const s = useGalaxyStore.getState().systems.get(id)!;
-          return { id, x: s.x + 10, y: s.y + 5 };
+          return { system: id, x: s.x + 10, y: s.y + 5 };
         }),
       });
     await dragged([20, 21, 22]);
@@ -394,13 +394,13 @@ describe("preventing and allowing lanes under symmetry", () => {
     });
 
     bar([10, 12], [11, 12]);
-    await editor().applySymmetric({ type: "UnpreventLane", a: 12, b: 11 });
+    await editor().applySymmetric({ type: "AllowLane", a: 12, b: 11 });
     expect(sent()).toEqual({
       type: "Batch",
       description: "Allowed 2 lanes",
       ops: [
-        { type: "UnpreventLane", a: 12, b: 11 },
-        { type: "UnpreventLane", a: 12, b: 10 },
+        { type: "AllowLane", a: 12, b: 11 },
+        { type: "AllowLane", a: 12, b: 10 },
       ],
     });
   });
@@ -411,8 +411,8 @@ describe("preventing and allowing lanes under symmetry", () => {
     await editor().preventLanes([[10, 12]]);
     expect(sent()).toEqual({ type: "PreventLane", a: 10, b: 12 });
 
-    await editor().applySymmetric({ type: "UnpreventLane", a: 11, b: 12 });
-    expect(sent()).toEqual({ type: "UnpreventLane", a: 11, b: 12 });
+    await editor().applySymmetric({ type: "AllowLane", a: 11, b: 12 });
+    expect(sent()).toEqual({ type: "AllowLane", a: 11, b: 12 });
 
     sym(QUARTER);
     link([20, 0]);
@@ -438,15 +438,15 @@ describe("isolating systems under symmetry", () => {
     expect(sent()).toEqual({
       type: "Batch",
       description: "Isolated 2 systems",
-      ops: [{ type: "IsolateSystems", ids: [10, 11] }],
+      ops: [{ type: "IsolateSystems", systems: [10, 11] }],
     });
   });
 
   it("isolates a system alone when its counterparts have no lanes", async () => {
     sym(QUARTER);
     link([20, 0]);
-    await editor().applySymmetric({ type: "IsolateSystem", id: 20 });
-    expect(sent()).toEqual({ type: "IsolateSystem", id: 20 });
+    await editor().applySymmetric({ type: "IsolateSystem", system: 20 });
+    expect(sent()).toEqual({ type: "IsolateSystem", system: 20 });
   });
 });
 
@@ -462,7 +462,7 @@ describe("deleting systems under symmetry", () => {
     expect(sent()).toEqual({
       type: "Batch",
       description: "Deleted 4 systems",
-      ops: [{ type: "RemoveSystems", ids: [20, 21, 22, 23] }],
+      ops: [{ type: "RemoveSystems", systems: [20, 21, 22, 23] }],
     });
 
     sym(MIRROR_X);
@@ -470,7 +470,7 @@ describe("deleting systems under symmetry", () => {
     expect(sent()).toEqual({
       type: "Batch",
       description: "Deleted 3 systems",
-      ops: [{ type: "RemoveSystems", ids: [10, 13, 11] }],
+      ops: [{ type: "RemoveSystems", systems: [10, 13, 11] }],
     });
   });
 
@@ -478,60 +478,52 @@ describe("deleting systems under symmetry", () => {
     sym(MIRROR_X);
     await editor().removeSystems([13]);
     expect(mockedIpc.confirm).toHaveBeenCalledWith("Delete Lone?", expect.anything());
-    expect(sent()).toEqual({ type: "RemoveSystem", id: 13 });
+    expect(sent()).toEqual({ type: "RemoveSystem", system: 13 });
   });
 });
 
 describe("initializers and spawns under symmetry", () => {
   it("set the same initializer, weight or seat on every counterpart, as one edit", async () => {
     sym(MIRROR_X);
-    await editor().applySymmetric({ type: "SetInitializer", id: 10, initializer: "init_twin" });
+    await editor().applySymmetric({ type: "SetInitializer", system: 10, initializer: "init_twin" });
     expect(sent()).toEqual({
       type: "Batch",
       description: "Set the initializer of 2 systems",
       ops: [
-        {
-          type: "SetInitializers",
-          entries: [
-            { id: 10, initializer: "init_twin" },
-            { id: 11, initializer: "init_twin" },
-          ],
-        },
+        { type: "SetInitializer", system: 10, initializer: "init_twin" },
+        { type: "SetInitializer", system: 11, initializer: "init_twin" },
       ],
     });
 
     sym(QUARTER);
-    await editor().applySymmetric({ type: "SetSpawnWeight", id: 21, base: null });
+    await editor().applySymmetric({ type: "SetSpawnWeight", system: 21, base: null });
     expect(sent()).toEqual({
       type: "Batch",
       description: "Set the spawn weight of 4 systems",
       ops: [
-        {
-          type: "SetSpawnWeights",
-          entries: [
-            [21, null],
-            [22, null],
-            [23, null],
-            [20, null],
-          ],
-        },
+        { type: "SetSpawnWeight", system: 21, base: null },
+        { type: "SetSpawnWeight", system: 22, base: null },
+        { type: "SetSpawnWeight", system: 23, base: null },
+        { type: "SetSpawnWeight", system: 20, base: null },
       ],
     });
 
-    await editor().applySymmetric({ type: "SetSpawnScripts", entries: [[20, seat("enabled", 4)]] });
+    await editor().applySymmetric({
+      type: "Batch",
+      description: "Set the scripted spawn of 2 systems",
+      ops: [
+        { type: "SetSpawnScript", system: 20, script: seat("enabled", 4) },
+        { type: "SetSpawnScript", system: 21, script: seat("enabled", 1) },
+      ],
+    });
     expect(sent()).toEqual({
       type: "Batch",
       description: "Set the seat of 4 systems",
       ops: [
-        {
-          type: "SetSpawnScripts",
-          entries: [
-            [20, seat("enabled", 4)],
-            [21, seat("enabled", 1)],
-            [22, seat("enabled", 2)],
-            [23, seat("enabled", 3)],
-          ],
-        },
+        { type: "SetSpawnScript", system: 20, script: seat("enabled", 4) },
+        { type: "SetSpawnScript", system: 21, script: seat("enabled", 1) },
+        { type: "SetSpawnScript", system: 22, script: seat("enabled", 2) },
+        { type: "SetSpawnScript", system: 23, script: seat("enabled", 3) },
       ],
     });
   });
@@ -546,14 +538,9 @@ describe("initializers and spawns under symmetry", () => {
       type: "Batch",
       description: "Set the seat of 3 systems",
       ops: [
-        {
-          type: "SetSpawnScripts",
-          entries: [
-            [20, seat("preferred", 3, true)],
-            [21, seat("sol", 7, true)],
-            [22, seat("enabled", 2, true)],
-          ],
-        },
+        { type: "SetSpawnScript", system: 20, script: seat("preferred", 3, true) },
+        { type: "SetSpawnScript", system: 21, script: seat("sol", 7, true) },
+        { type: "SetSpawnScript", system: 22, script: seat("enabled", 2, true) },
       ],
     });
 
@@ -562,15 +549,10 @@ describe("initializers and spawns under symmetry", () => {
       type: "Batch",
       description: "Set the seat of 4 systems",
       ops: [
-        {
-          type: "SetSpawnScripts",
-          entries: [
-            [21, seat("preferred", 7)],
-            [22, seat("preferred", 2)],
-            [23, seat("preferred", 5)],
-            [20, seat("preferred", 3)],
-          ],
-        },
+        { type: "SetSpawnScript", system: 21, script: seat("preferred", 7) },
+        { type: "SetSpawnScript", system: 22, script: seat("preferred", 2) },
+        { type: "SetSpawnScript", system: 23, script: seat("preferred", 5) },
+        { type: "SetSpawnScript", system: 20, script: seat("preferred", 3) },
       ],
     });
   });
@@ -582,19 +564,19 @@ describe("initializers and spawns under symmetry", () => {
     const reserved: SpawnScript = {
       paint_a_galaxy: { kind: { reserved: "a" }, random_value: 3, player: false },
     };
-    expect(sent()).toEqual({ type: "SetSpawnScript", id: 20, script: reserved });
+    expect(sent()).toEqual({ type: "SetSpawnScript", system: 20, script: reserved });
 
-    await editor().applySymmetric({ type: "SetSpawnScript", id: 21, script: reserved });
-    expect(sent()).toEqual({ type: "SetSpawnScript", id: 21, script: reserved });
+    await editor().applySymmetric({ type: "SetSpawnScript", system: 21, script: reserved });
+    expect(sent()).toEqual({ type: "SetSpawnScript", system: 21, script: reserved });
 
     const sol: SpawnScript = { paint_a_galaxy: { kind: "sol", random_value: 3, player: false } };
-    await editor().applySymmetric({ type: "SetSpawnScript", id: 21, script: sol });
-    expect(sent()).toEqual({ type: "SetSpawnScript", id: 21, script: sol });
+    await editor().applySymmetric({ type: "SetSpawnScript", system: 21, script: sol });
+    expect(sent()).toEqual({ type: "SetSpawnScript", system: 21, script: sol });
   });
 
   it("set a system with no counterpart alone", async () => {
     sym(MIRROR_X);
-    await editor().applySymmetric({ type: "SetInitializer", id: 13, initializer: "init_twin" });
-    expect(sent()).toEqual({ type: "SetInitializer", id: 13, initializer: "init_twin" });
+    await editor().applySymmetric({ type: "SetInitializer", system: 13, initializer: "init_twin" });
+    expect(sent()).toEqual({ type: "SetInitializer", system: 13, initializer: "init_twin" });
   });
 });

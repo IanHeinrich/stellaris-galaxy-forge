@@ -6,7 +6,7 @@ import {
   GEOMETRY_REASONS,
   wormholeFieldIntent,
   wormholePlace,
-} from "../../../lib/details/orbitEdits";
+} from "../../../lib/details/orbitIntent";
 import { openSystem } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";

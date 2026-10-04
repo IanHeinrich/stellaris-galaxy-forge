@@ -1,5 +1,5 @@
-//! The Tauri commands. Names and argument names match `app/src/api/ipc.ts`;
-//! the event name matches `app/src/api/events.ts`.
+//! The Tauri commands. Names and argument names match the wrappers in `app/src/api/`;
+//! the event names match `app/src/api/events.ts`.
 
 pub mod add_body;
 pub mod add_system;
@@ -24,15 +24,15 @@ pub use session::*;
 pub use update::*;
 
 use std::ops::Deref;
-use std::sync::MutexGuard;
+use std::sync::{Arc, MutexGuard};
 
 use sgf_core::ops::SystemRadii;
 use sgf_core::session::Session;
-use sgf_core::views::{DocumentKind, ErrorKind, Progress, ProgressPhase, SgfError};
+use sgf_core::views::{Capabilities, ErrorKind, Progress, ProgressPhase, SgfError};
 use sgf_gamedata::{GameData, LoadError};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
-use crate::state::{AppState, GameDataState};
+use crate::state::{AppState, GameDataState, relock};
 
 pub const PROGRESS_EVENT: &str = "sgf://progress";
 pub const GAME_DATA_CHANGED_EVENT: &str = "sgf://gamedata-changed";
@@ -46,24 +46,37 @@ const DISCOVER_AT: f64 = 0.1;
 const DEFINITIONS_AT: f64 = 0.4;
 const LOCALISATION_AT: f64 = 0.7;
 
-/// Size `session`'s systems by the loaded game data's defines, or vanilla's without any.
-pub(crate) fn size_systems<R: Runtime>(app: &AppHandle<R>, session: &mut Session) {
-    let radii = app
-        .state::<GameDataState>()
-        .loaded()
-        .map_or(SystemRadii::VANILLA, |gd| gd.system_radii);
-    session.set_radii(radii);
+/// Fit `session` to the loaded game data: systems sized by its defines and stars as the
+/// install names them, or vanilla's sizes and the name rule without any.
+pub(crate) fn fit_to_game_data<R: Runtime>(app: &AppHandle<R>, session: &mut Session) {
+    let gd = app.state::<GameDataState>().loaded();
+    session.set_radii(
+        gd.as_ref()
+            .map_or(SystemRadii::VANILLA, |gd| gd.system_radii),
+    );
+    session.set_star_classes(gd.map(|gd| gd.session_star_classes()).unwrap_or_default());
 }
 
-/// [`size_systems`] for the open session, once game data has loaded, unloaded or reloaded.
-pub(crate) fn resize_open_session<R: Runtime>(app: &AppHandle<R>) {
+/// [`fit_to_game_data`] for the open session, once game data has loaded, unloaded or reloaded.
+pub(crate) fn refit_open_session<R: Runtime>(app: &AppHandle<R>) {
     if let Some(session) = lock(&app.state::<AppState>()).as_mut() {
-        size_systems(app, session);
+        fit_to_game_data(app, session);
     }
 }
 
+/// The loaded game data, or a refusal saying it is needed to `action`.
+pub(crate) fn game_data<R: Runtime>(
+    app: &AppHandle<R>,
+    action: &str,
+) -> Result<Arc<GameData>, SgfError> {
+    app.state::<GameDataState>()
+        .loaded()
+        .ok_or_else(|| SgfError::no_game_data(action))
+}
+
 /// Run `f` over the open scenario and the loaded game data, off the caller's thread.
-/// `None` on a save, without game data, or when `f` finds nothing; fails when nothing is open.
+/// `None` without game data, on a document whose systems name no scripts, or when `f` finds
+/// nothing; fails when nothing is open.
 async fn with_scenario<R: Runtime, T: Send + 'static>(
     app: AppHandle<R>,
     f: impl FnOnce(&Session, &GameData, &GameDataState, u64) -> Option<T> + Send + 'static,
@@ -74,7 +87,7 @@ async fn with_scenario<R: Runtime, T: Send + 'static>(
         let Some((generation, gd)) = game_data.snapshot() else {
             return Ok(None);
         };
-        if session.kind() != DocumentKind::Scenario {
+        if !Capabilities::of(&session.doc).scripted_owners {
             return Ok(None);
         }
         Ok(f(session, &gd, &game_data, generation))
@@ -93,21 +106,28 @@ async fn with_session<R: Runtime, T: Send + 'static>(
         .map_err(io_error)?
 }
 
-/// The open session when it is a document of `kind`; else `refusal`, as an `Op` error.
+/// The open session when its document can do what `can` asks of its capabilities; else
+/// `refusal`, as an `Op` error.
 fn require<S: Deref<Target = Session>>(
     session: Option<S>,
-    kind: DocumentKind,
+    can: impl Fn(Capabilities) -> bool,
     refusal: &str,
 ) -> Result<S, SgfError> {
     let session = session.ok_or_else(SgfError::no_session)?;
-    if session.kind() != kind {
+    if !can(Capabilities::of(&session.doc)) {
         return Err(SgfError::new(ErrorKind::Op, refusal));
     }
     Ok(session)
 }
 
+/// A document with its own details is a save, of any version: the core refuses what that
+/// version cannot take.
+fn is_save(capabilities: Capabilities) -> bool {
+    capabilities.details
+}
+
 fn lock<'a>(state: &'a State<'_, AppState>) -> MutexGuard<'a, Option<Session>> {
-    state.0.lock().unwrap_or_else(|e| e.into_inner())
+    relock(&state.0)
 }
 
 fn load_error(e: LoadError) -> SgfError {

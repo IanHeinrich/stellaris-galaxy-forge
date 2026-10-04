@@ -3,4 +3,4 @@
 /**
  * One star body's new planet class in [`Op::SetStarClass`].
  */
-export type StarBody = { planet: number, class: string, };
+export type StarBody = { body: number, class: string, };

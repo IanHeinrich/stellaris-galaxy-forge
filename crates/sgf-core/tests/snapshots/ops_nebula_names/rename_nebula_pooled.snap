@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Renamed nebula 9 from "Picaress_Drift" to "Yinarim_Nebula"
-inverse: SetNebulaName { index: 9, name: "Picaress_Drift" }
+inverse: RenameNebula { index: 9, name: "Picaress_Drift" }
 --- before
 +++ after
 @@ -6223,7 +6223,7 @@

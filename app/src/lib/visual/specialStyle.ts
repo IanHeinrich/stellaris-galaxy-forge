@@ -4,34 +4,13 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import type { SpecialSystem } from "../../generated/SpecialSystem";
 import { megastructureLabel, shownMegastructures } from "../details/labels";
 import { displayNameIn } from "../names";
-import { kindLabel } from "../special";
+import { KIND_ORDER, kindColor, kindIcon, kindLabel, kindNotable } from "../special";
 import { titleCase } from "../text";
 import type { LabelTier } from "./labels";
 
-export const KIND_STYLE: Record<SpecialKind, { color: number }> = {
-  leviathan: { color: 0xff5533 },
-  enclave: { color: 0x2dd4bf },
-  marauder: { color: 0x9333ea },
-  holy_world: { color: 0xfacc15 },
-  fallen_empire: { color: 0xd4af37 },
-  landmark: { color: 0x8b5cf6 },
-  contingency: { color: 0xef4444 },
-  horizon_signal: { color: 0x38bdf8 },
-  cutholoid: { color: 0xa3a3a3 },
-  unique: { color: 0x22c55e },
-};
-
-/** Rare and always worth a badge, even zoomed all the way out. */
-export const NOTABLE_KINDS: ReadonlySet<SpecialKind> = new Set([
-  "leviathan",
-  "enclave",
-  "marauder",
-  "holy_world",
-  "fallen_empire",
-  "landmark",
-  "contingency",
-  "horizon_signal",
-]);
+export const KIND_STYLE = Object.fromEntries(
+  KIND_ORDER.map((kind) => [kind, { color: kindColor(kind) }]),
+) as Record<SpecialKind, { color: number }>;
 
 /** Kinds that own whole territories: the owners layer emphasises their borders instead of badging each system. */
 export const TERRITORY_KINDS: ReadonlySet<SpecialKind> = new Set(["marauder", "fallen_empire"]);
@@ -41,7 +20,7 @@ export const EMPHASIS_COLOR = 0xffe08a;
 /** Whether a kind's badge shows at the given zoom tier. */
 export function badgeVisible(kind: SpecialKind, tier: LabelTier): boolean {
   if (TERRITORY_KINDS.has(kind)) return false;
-  return NOTABLE_KINDS.has(kind) || tier !== "none";
+  return kindNotable(kind) || tier !== "none";
 }
 
 /** Screen-pixel geometry of a badge plate: large on the whole-galaxy view, compact once names show. */
@@ -194,19 +173,6 @@ export function badgeLabel(
   }
 }
 
-const KIND_ICONS: Record<SpecialKind, string> = {
-  leviathan: "symbol:pirate/flag_pirate_3.dds",
-  enclave: "symbol:enclaves/enclaves_flag_curator.dds",
-  marauder: "symbol:pirate/flag_pirate_5.dds",
-  holy_world: "symbol:special/the_empire.dds",
-  fallen_empire: "symbol:special/the_empire.dds",
-  landmark: "sprite:GFX_point_of_interest_levels#1",
-  contingency: "symbol:special/ai_01.dds",
-  horizon_signal: "symbol:special/unknown.dds",
-  cutholoid: "symbol:zoological/flag_zoological_1.dds",
-  unique: "symbol:pointy/flag_pointy_16.dds",
-};
-
 /** The texture key for a flag symbol, the game's white-on-transparent emblem art. */
 export function symbolKey(icon: FlagIcon | null | undefined): string | null {
   return icon ? `symbol:${icon.category}/${icon.file}` : null;
@@ -220,12 +186,12 @@ export function badgeIconKey(kind: SpecialKind, special: SpecialSystem | undefin
   const countryIcon = symbolKey(special?.countries[0]?.icon);
   switch (kind) {
     case "leviathan":
-      return countryIcon ?? vanilla(special, LEVIATHANS)?.icon ?? KIND_ICONS.leviathan;
+      return countryIcon ?? vanilla(special, LEVIATHANS)?.icon ?? kindIcon(kind);
     case "enclave":
     case "holy_world":
     case "fallen_empire":
-      return countryIcon ?? KIND_ICONS[kind];
+      return countryIcon ?? kindIcon(kind);
     default:
-      return KIND_ICONS[kind];
+      return kindIcon(kind);
   }
 }

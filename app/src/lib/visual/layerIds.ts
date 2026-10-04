@@ -1,6 +1,7 @@
 import type { Capabilities } from "../../generated/Capabilities";
 import type { DocumentKind } from "../../generated/DocumentKind";
 import type { SpecialKind } from "../../generated/SpecialKind";
+import { DOCUMENT_KINDS } from "../documentKinds";
 
 export const LAYER_IDS = [
   "nebulae",
@@ -185,67 +186,10 @@ export const LAYER_LABELS: Record<LayerId, string> = {
  */
 export const BORROWED_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
 
-/** What is on when the app starts, and what a scenario opens with: the map as the game first
- * shows it, with the scripts' day-one overlays left off until asked for, and the two guides on
- * because a scenario is drawn to fit them. `special` is always on because the shown
- * point-of-interest kinds decide what that layer draws. */
-export const DEFAULT_LAYERS: GalaxyLayers = {
-  nebulae: false,
-  lanes: true,
-  owners: true,
-  bypasses: true,
-  waylines: false,
-  systems: true,
-  classes: true,
-  heights: true,
-  special: true,
-  precursors: false,
-  initializers: true,
-  spawns: true,
-  feZones: true,
-  marauders: true,
-  mapBorder: true,
-  lCluster: true,
-  issues: false,
-  labels: true,
-  details: true,
-  colonies: true,
-  claims: false,
-  day_one_bypasses: false,
-  watchlist: true,
-  highlights: true,
-};
-
-/** What a save opens with: the galaxy map the game itself draws, with star classes, colonies and
- * the two guides. */
-const SAVE_LAYERS: GalaxyLayers = {
-  nebulae: true,
-  lanes: true,
-  owners: true,
-  bypasses: false,
-  waylines: false,
-  systems: true,
-  classes: true,
-  heights: true,
-  special: false,
-  precursors: false,
-  initializers: false,
-  spawns: false,
-  feZones: false,
-  marauders: false,
-  mapBorder: true,
-  lCluster: true,
-  issues: false,
-  labels: true,
-  details: true,
-  colonies: true,
-  claims: false,
-  day_one_bypasses: false,
-  watchlist: true,
-  highlights: true,
-};
+/** What is on when the app starts: what a scenario opens with. */
+export const DEFAULT_LAYERS: GalaxyLayers = DOCUMENT_KINDS.scenario.layers;
 
 /** What a document of `kind` opens with, under whatever the user has since set by hand. */
 export function defaultLayers(kind: DocumentKind): GalaxyLayers {
-  return { ...(kind === "save" ? SAVE_LAYERS : DEFAULT_LAYERS) };
+  return { ...DOCUMENT_KINDS[kind].layers };
 }

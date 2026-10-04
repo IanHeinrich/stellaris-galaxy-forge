@@ -4,6 +4,7 @@ import type { MapColor } from "../generated/MapColor";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { SystemNode } from "../generated/SystemNode";
 import { drawsBorders, isMarauder, territoryKind, type CountryTypes } from "./countryKinds";
+import { kindCapabilities } from "./documentKinds";
 import { basesBeside, clanOf, isHome } from "./marauder";
 import { MARAUDER_COLORS, ownerColors, type OwnerColors } from "./visual/ownerColors";
 
@@ -76,7 +77,7 @@ export function composeOwnership(input: OwnershipInput): Ownership {
       country,
     });
   }
-  if (kind !== "scenario") return { owners, table };
+  if (!kindCapabilities(kind).scripted_owners) return { owners, table };
   const scriptedClans = new Set<number>();
   for (const home of systems.values()) {
     if (!isHome(home) || home.marauder === null) continue;

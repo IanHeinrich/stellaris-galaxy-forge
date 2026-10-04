@@ -2,6 +2,6 @@
 //! names it carries, and the statement readers both formats build it from.
 
 pub mod galaxy;
-pub(crate) mod geometry;
+pub mod geometry;
 pub mod name;
 pub(crate) mod read;

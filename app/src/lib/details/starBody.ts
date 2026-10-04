@@ -1,19 +1,13 @@
 /** What one star body of a save system can become, and whether its system's class still fits. */
-import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
+import type { GroupedRow } from "./picker";
 
 export interface FoundPlanet {
   system: number;
   planet: PlanetSummary;
-}
-
-export interface StarTypeRow {
-  key: string;
-  label: string;
-  group: string;
 }
 
 /** Planet `id` and the system it is in, from whichever system's read details list it. */
@@ -60,16 +54,6 @@ export function isStarBody(
   return planetClasses.get(planetClass)?.star ?? starClasses.has(planetClass);
 }
 
-/** Whether a body's page has star fields to edit: a star, where the document's bodies can change. */
-export function starBodyEditable(
-  planetClass: string,
-  bodies: boolean,
-  planetClasses: ReadonlyMap<string, PlanetClassView>,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): boolean {
-  return bodies && isStarBody(planetClass, planetClasses, starClasses);
-}
-
 /** Whether two lists hold the same classes, in any order. */
 export function sameBodies(a: readonly string[], b: readonly string[]): boolean {
   const sorted = (keys: readonly string[]) => [...keys].sort().join("|");
@@ -88,8 +72,8 @@ export function starTypeChoices(
 export function starTypeRows(
   choices: readonly string[],
   label: (key: string) => string,
-): StarTypeRow[] {
-  const exotic = (row: StarTypeRow) => (row.group === "Exotic" ? 1 : 0);
+): GroupedRow[] {
+  const exotic = (row: GroupedRow) => (row.group === "Exotic" ? 1 : 0);
   return choices
     .map((key) => ({ key, label: label(key), group: starGroup(key) }))
     .sort((a, b) => exotic(a) - exotic(b) || a.label.localeCompare(b.label));
@@ -126,32 +110,6 @@ export function classForBodies(
   const fits = [...starClasses.values()].filter((c) => sameBodies(c.planet_keys, bodies));
   const pick = fits.find((c) => c.key === current) ?? fits.find((c) => c.spawn_odds > 0) ?? fits[0];
   return pick?.key ?? null;
-}
-
-/**
- * The edit that turns star body `body` into `planetClass`. The system's star class, which draws
- * its map icon and applies its modifier, follows when some class has the stars it leaves.
- */
-export function setStarTypeOp(
-  system: { id: number; star_class: string },
-  bodies: readonly { id: number; class: string }[],
-  body: number,
-  planetClass: string,
-  starClasses: ReadonlyMap<string, StarClassView>,
-): Op {
-  const next = bodies.map((b) => (b.id === body ? planetClass : b.class));
-  return {
-    type: "SetStarClass",
-    id: system.id,
-    class: classForBodies(next, system.star_class, starClasses) ?? system.star_class,
-    bodies: [{ planet: body, class: planetClass }],
-  };
-}
-
-/** The edit that gives planet `id` `size`, or `null` for a size under 1, fractional or unchanged. */
-export function setPlanetSizeOp(id: number, current: number, size: number): Op | null {
-  if (!Number.isInteger(size) || size < 1 || size === current) return null;
-  return { type: "SetPlanetSize", id, size };
 }
 
 /**

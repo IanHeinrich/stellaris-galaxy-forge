@@ -82,6 +82,22 @@ describe("auto-reload", () => {
     expect(mockedIpc.loadGameData).not.toHaveBeenCalled();
   });
 
+  it("a scenario saved into the install rereads the summary and the galaxy shapes alone", async () => {
+    const changed = await ready();
+    useGameDataStore.setState({ galaxyShapes: [] });
+    const summary = { ...SUMMARY, generation: 2 };
+    mockedIpc.gameDataSummary.mockResolvedValue(summary);
+
+    changed({ ...CHANGED, registries: ["galaxy_options"] });
+
+    await vi.waitFor(() => expect(useGameDataStore.getState().summary).toEqual(summary));
+    expect(useGameDataStore.getState().galaxyShapes).toBeNull();
+    await flush();
+    expect(mockedIpc.getSpecialSystems).not.toHaveBeenCalled();
+    expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
+    expect(mockedIpc.getNames).not.toHaveBeenCalled();
+  });
+
   it("subscribes once and drops the subscription with the game data", async () => {
     await ready();
     await useGameDataStore.getState().load();
@@ -143,6 +159,27 @@ describe("auto-reload", () => {
     expect(useGameDataStore.getState().version).toBe(3);
     expect(useGameDataStore.getState().summary?.generation).toBe(3);
     expect(mockedIpc.getStarClasses).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["planet models", "getPlanetModels", "loadPlanetModels", "planetModels"],
+    ["initializers", "getInitializers", "loadInitializers", "initializers"],
+    ["galaxy shapes", "getGalaxyShapes", "loadGalaxyShapes", "galaxyShapes"],
+  ] as const)("drops %s read before a rebuild", async (_name, ask, loader, field) => {
+    const changed = await ready();
+    let answer: (list: never[]) => void = () => {};
+    mockedIpc[ask].mockImplementationOnce(
+      () => new Promise<never[]>((resolve) => (answer = resolve)),
+    );
+    mockedIpc.gameDataSummary.mockResolvedValue({ ...SUMMARY, generation: 2 });
+
+    const loading = useGameDataStore.getState()[loader]();
+    changed(CHANGED);
+    await vi.waitFor(() => expect(mockedIpc.getNames).toHaveBeenCalledWith(GALAXY_KEYS));
+    answer([]);
+    await loading;
+
+    expect(useGameDataStore.getState()[field]).toBeNull();
   });
 
   it("an abandoned tail leaves no spinner behind", async () => {

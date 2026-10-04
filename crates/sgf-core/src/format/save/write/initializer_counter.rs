@@ -45,7 +45,7 @@ pub(crate) fn count(
     if changes.values().all(|&change| change == 0) {
         return Ok(());
     }
-    let anchor = anchor(doc).ok_or(OpError::MissingSaveKey(keys::SYSTEM_INITIALIZER_COUNTER))?;
+    let anchor = anchor(doc).ok_or(OpError::MissingKey(keys::SYSTEM_INITIALIZER_COUNTER))?;
     let loaded = loaded(doc);
     let edit = plan.edit_record(doc, anchor)?;
     let counter = edit.entity()?.clone();

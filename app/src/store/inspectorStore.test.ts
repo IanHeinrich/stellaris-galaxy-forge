@@ -360,11 +360,11 @@ describe("a body opened from the system view", () => {
     inspector().openFromMap(bodyEntry(1, 100, "Tarkin"));
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [2] }));
-    await editor().applyOp({ type: "SetInitializer", id: 2, initializer: "basic_init_01" });
+    await editor().applyOp({ type: "SetInitializer", system: 2, initializer: "basic_init_01" });
     expect(refs()).toEqual([ALPHA.ref, TARKIN.ref]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [1] }));
-    await editor().applyOp({ type: "SetInitializer", id: 1, initializer: "basic_init_01" });
+    await editor().applyOp({ type: "SetInitializer", system: 1, initializer: "basic_init_01" });
     expect(refs()).toEqual([ALPHA.ref]);
   });
 
@@ -387,14 +387,14 @@ describe("a body opened from the system view", () => {
         details_stale: [6, 7],
       }),
     );
-    await editor().applyOp({ type: "RemoveSystem", id: 6 });
+    await editor().applyOp({ type: "RemoveSystem", system: 6 });
     expect(refs()).toEqual([
       { kind: "system", id: 6 },
       { kind: "body", system: 6, id: 100 },
     ]);
 
     mockedIpc.applyOp.mockResolvedValueOnce(editResult({ details_stale: [6] }));
-    await editor().applyOp({ type: "SetInitializer", id: 6, initializer: "basic_init_01" });
+    await editor().applyOp({ type: "SetInitializer", system: 6, initializer: "basic_init_01" });
     expect(refs()).toEqual([{ kind: "system", id: 6 }]);
   });
 

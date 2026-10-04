@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Gave planet #3318 the model ocean_paradise_planet_01_entity
-inverse: SetPlanetEntity { planet: 3318, entity: Some("previously_terraformed_planet_entity") }
+inverse: SetBodyModel { body: 3318, entity: Some("previously_terraformed_planet_entity") }
 
 --- gamestate
 +++ gamestate

@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Added a belt (rocky_asteroid_belt) at radius 500 to system #15; set the inner radius of system #15 from 157 to 530
-inverse: Batch { description: "Undo of \"Added a belt (rocky_asteroid_belt) at radius 500 to system #15; set the inner radius of system #15 from 157 to 530\"", ops: [RemoveSaveBelt { system: 15, index: 0 }, SetSaveInnerRadius { system: 15, radius: 157.0 }] }
+Added a belt (rocky_asteroid_belt) at radius 500 to Canopus #15; set the inner radius of Canopus #15 from 157 to 530
+inverse: Batch { description: "Undo of \"Added a belt (rocky_asteroid_belt) at radius 500 to Canopus #15; set the inner radius of Canopus #15 from 157 to 530\"", ops: [RemoveBelt { system: 15, index: 0 }, SetInnerRadius { system: 15, radius: 157.0 }] }
 
 --- gamestate
 +++ gamestate

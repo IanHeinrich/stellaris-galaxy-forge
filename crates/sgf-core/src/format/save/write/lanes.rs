@@ -9,6 +9,7 @@ use crate::emit::{coord, hyperlane_block, lane_entry};
 use crate::format::save::write::bulk;
 use crate::keys;
 use crate::ops::rules::lanes as rules;
+use crate::ops::rules::named;
 use crate::ops::{Edit, LaneLength, Op, OpError, Plan, Planned};
 use crate::plural;
 use crate::projections::galaxy::bypass_between;
@@ -188,8 +189,8 @@ pub(crate) fn plan_isolate(plan: &mut Plan, s: &Session, id: u32) -> Result<Plan
         .collect();
     Ok(Planned {
         description: format!(
-            "Isolated {} (#{id}): removed {} ({removed} entries){}",
-            s.graph.systems[&id].display_name(),
+            "Isolated {}: removed {} ({removed} entries){}",
+            named(&s.graph, id),
             plural(lanes.len(), "lane"),
             wayline_note(&s.graph, &pairs(&lanes))
         ),

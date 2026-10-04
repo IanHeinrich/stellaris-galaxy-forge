@@ -15,7 +15,7 @@ fn move_system_2_writes_decimals_over_an_integer_position() {
         "move_system_2",
         GRAMMAR.open(),
         Op::MoveSystem {
-            id: 2,
+            system: 2,
             x: 12.5,
             y: -60.25,
         },
@@ -28,7 +28,7 @@ fn move_system_111_fixes_a_range_axis_to_a_point() {
         "move_system_111",
         GRAMMAR.open(),
         Op::MoveSystem {
-            id: 111,
+            system: 111,
             x: 30.0,
             y: 20.0,
         },
@@ -43,12 +43,12 @@ fn move_systems_moves_several_at_once() {
         Op::MoveSystems {
             moves: vec![
                 SystemMove {
-                    id: 2,
+                    system: 2,
                     x: 1.0,
                     y: -50.0,
                 },
                 SystemMove {
-                    id: 16,
+                    system: 16,
                     x: -50.0,
                     y: -80.0,
                 },
@@ -129,7 +129,7 @@ fn renaming_a_nebula_writes_the_literal_over_its_loc_key() {
     let mut session = GRAMMAR.open();
     assert_eq!(session.graph.nebulae[0].name.key, "NAME_N_Heart_Galaxy");
     let result = session
-        .apply(Op::SetNebulaName {
+        .apply(Op::RenameNebula {
             index: 0,
             name: "Heart of the Galaxy".to_owned(),
         })

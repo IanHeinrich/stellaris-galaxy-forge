@@ -2,8 +2,8 @@
 source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
-Set the star class of Escont (#35) from sc_binary_2 to sc_binary_7
-inverse: SetStarClass { id: 35, class: "sc_binary_2", bodies: [StarBody { planet: 1063, class: "pc_b_star" }, StarBody { planet: 1064, class: "pc_neutron_star" }] }
+Set the star class of Escont #35 from sc_binary_2 to sc_binary_7
+inverse: SetStarClass { system: 35, class: "sc_binary_2", bodies: [StarBody { body: 1063, class: "pc_b_star" }, StarBody { body: 1064, class: "pc_neutron_star" }] }
 
 --- gamestate
 +++ gamestate

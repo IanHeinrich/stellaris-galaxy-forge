@@ -121,7 +121,7 @@ describe("editing nebulae", () => {
     await editor().setNebulaName(0, "Sea of Ghosts");
 
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "SetNebulaName",
+      type: "RenameNebula",
       index: 0,
       name: "Sea of Ghosts",
     });

@@ -220,7 +220,7 @@ fn saving_in_place_twice_with_nothing_else_writing_is_not_refused() {
     for x in [12.5, 30.0] {
         session
             .apply(Op::MoveSystem {
-                id: 2,
+                system: 2,
                 x,
                 y: -60.25,
             })
@@ -466,7 +466,7 @@ fn the_header_is_listed_in_file_order_and_survives_an_op_that_leaves_it_alone() 
     // elsewhere leaves it whole and an undo does not strand a stale copy.
     session
         .apply(Op::MoveSystem {
-            id: 2,
+            system: 2,
             x: 12.5,
             y: -60.25,
         })
@@ -521,7 +521,7 @@ fn an_axis_written_as_a_range_is_warned_about_until_a_move_fixes_it() {
 
     session
         .apply(Op::MoveSystem {
-            id: 111,
+            system: 111,
             x: 25.0,
             y: 18.0,
         })
@@ -551,7 +551,7 @@ fn every_effect_block_in_the_scenario_is_listed_in_one_pass() {
     // A system added with no effect adds nothing to the list.
     session
         .apply(Op::AddSystem {
-            id: None,
+            system: None,
             x: 10.0,
             y: -20.0,
             name: Some("Effectless".to_owned()),
@@ -563,7 +563,7 @@ fn every_effect_block_in_the_scenario_is_listed_in_one_pass() {
     assert_eq!(session.scenario_system_effects(), effects);
 
     session
-        .apply(Op::RemoveSystem { id: 3018 })
+        .apply(Op::RemoveSystem { system: 3018 })
         .expect("remove the system carrying the effect");
     assert!(
         session.scenario_system_effects().is_empty(),
@@ -585,7 +585,7 @@ fn a_new_system_is_never_given_the_null_id() {
 
     session
         .apply(Op::AddSystem {
-            id: None,
+            system: None,
             x: 10.0,
             y: 10.0,
             name: Some("Late".to_owned()),
@@ -611,7 +611,7 @@ fn an_edit_undo_and_redo_keep_the_scenarios_own_issues() {
     };
     let applied = session
         .apply(Op::MoveSystem {
-            id: 1,
+            system: 1,
             x: 5.0,
             y: 5.0,
         })

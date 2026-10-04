@@ -3,7 +3,8 @@
 //! what the op refuses.
 
 use sgf_core::entity::get_planet_page;
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::NewName;
+use sgf_core::ops::{Op, OpError, StarEdit};
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::session::Session;
 
@@ -13,10 +14,9 @@ use common::fixture::GRAMMAR;
 use common::{current, open, open_4_5};
 
 fn rename(planet: u32, name: &str) -> Op {
-    Op::RenameSavePlanet {
-        planet,
-        name: name.to_owned(),
-        block: None,
+    Op::RenameBody {
+        body: planet,
+        name: NewName::Literal(name.to_owned()),
     }
 }
 
@@ -154,17 +154,21 @@ fn what_a_rename_refuses() {
         let error = session.apply(op).expect_err(message);
         assert!(error.to_string().contains(message), "{error}");
     }
-    let bad_block = Op::RenameSavePlanet {
-        planet: 140,
-        name: "Nova Terra".to_owned(),
-        block: Some("key=\"Nova Terra\"".to_owned()),
+    let bad_block = Op::RenameBody {
+        body: 140,
+        name: NewName::Block {
+            value: "key=\"Nova Terra\"".to_owned(),
+            name: "Nova Terra".to_owned(),
+        },
     };
     let error = session.apply(bad_block).expect_err("not a block");
     assert!(matches!(error, OpError::InvalidText { .. }), "{error}");
-    let trailing = Op::RenameSavePlanet {
-        planet: 140,
-        name: "Nova Terra".to_owned(),
-        block: Some("{ key=\"Nova Terra\" } # }".to_owned()),
+    let trailing = Op::RenameBody {
+        body: 140,
+        name: NewName::Block {
+            value: "{ key=\"Nova Terra\" } # }".to_owned(),
+            name: "Nova Terra".to_owned(),
+        },
     };
     let error = session.apply(trailing).expect_err("text after the block");
     assert!(matches!(error, OpError::InvalidText { .. }), "{error}");
@@ -173,7 +177,7 @@ fn what_a_rename_refuses() {
             .apply(rename(star, "Nova Terra"))
             .expect_err("a star");
         assert!(
-            matches!(error, OpError::StarNotRenamed(id) if id == star),
+            matches!(error, OpError::StarRefused { body, edit: StarEdit::Rename } if body == star),
             "{error}"
         );
     }

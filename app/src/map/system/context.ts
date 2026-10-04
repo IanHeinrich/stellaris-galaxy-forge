@@ -12,7 +12,7 @@ import {
   isNaturalWormhole,
   type LayoutOverride,
   type SceneEditing,
-} from "../../lib/details/orbitEdits";
+} from "../../lib/details/orbitIntent";
 import {
   exitBearing,
   FIT_MARGIN,

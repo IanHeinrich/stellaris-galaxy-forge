@@ -5,8 +5,6 @@ import { details, planet } from "./fixture";
 import {
   findPlanet,
   isStarBody,
-  setPlanetSizeOp,
-  setStarTypeOp,
   singleStarClasses,
   starMismatch,
   starTypeChoices,
@@ -92,66 +90,6 @@ describe("the star type picker", () => {
     expect(singles.get("pc_g_star")?.key).toBe("sc_g");
     expect(singles.get("pc_black_hole")?.key).toBe("sc_black_hole");
     expect(singles.has("pc_b_star")).toBe(false);
-  });
-});
-
-describe("setStarTypeOp", () => {
-  const binary = { id: 4, star_class: "sc_binary_2" };
-  const pair = [
-    { id: 41, class: "pc_b_star" },
-    { id: 42, class: "pc_neutron_star" },
-  ];
-
-  it("changes the one body and keeps the class when no class has the stars it leaves", () => {
-    expect(setStarTypeOp(binary, pair, 41, "pc_g_star", CLASSES)).toEqual({
-      type: "SetStarClass",
-      id: 4,
-      class: "sc_binary_2",
-      bodies: [{ planet: 41, class: "pc_g_star" }],
-    });
-  });
-
-  it("moves the system to the class whose stars the bodies now are", () => {
-    const single = { id: 7, star_class: "sc_g" };
-    expect(
-      setStarTypeOp(single, [{ id: 70, class: "pc_g_star" }], 70, "pc_black_hole", CLASSES),
-    ).toMatchObject({ class: "sc_black_hole", bodies: [{ planet: 70, class: "pc_black_hole" }] });
-
-    const mixed = [
-      { id: 41, class: "pc_g_star" },
-      { id: 42, class: "pc_neutron_star" },
-    ];
-    expect(setStarTypeOp(binary, mixed, 41, "pc_b_star", CLASSES)).toMatchObject({
-      class: "sc_binary_2",
-    });
-  });
-
-  it("prefers a class a new galaxy rolls over a variant with the same stars", () => {
-    const variant = { ...starClassView("sc_crisis_hole", "pc_black_hole"), spawn_odds: 0 };
-    const classes = new Map([[variant.key, variant], ...CLASSES]);
-    const single = { id: 7, star_class: "sc_g" };
-    const op = setStarTypeOp(
-      single,
-      [{ id: 70, class: "pc_g_star" }],
-      70,
-      "pc_black_hole",
-      classes,
-    );
-    expect(op).toMatchObject({ class: "sc_black_hole" });
-  });
-});
-
-describe("setPlanetSizeOp", () => {
-  it("sets a whole size of at least 1", () => {
-    expect(setPlanetSizeOp(10, 20, 35)).toEqual({ type: "SetPlanetSize", id: 10, size: 35 });
-    expect(setPlanetSizeOp(10, 20, 1)).toEqual({ type: "SetPlanetSize", id: 10, size: 1 });
-  });
-
-  it("sends nothing for a size the core refuses or a fraction", () => {
-    expect(setPlanetSizeOp(10, 20, 20)).toBeNull();
-    expect(setPlanetSizeOp(10, 20, 0)).toBeNull();
-    expect(setPlanetSizeOp(10, 20, -3)).toBeNull();
-    expect(setPlanetSizeOp(10, 20, 2.5)).toBeNull();
   });
 });
 

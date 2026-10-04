@@ -89,7 +89,7 @@ export function SystemMenu({
         <>
           <MenuItem
             disabled={!canIsolate}
-            run={() => applySymmetric({ type: "IsolateSystem", id: target.id })}
+            run={() => applySymmetric({ type: "IsolateSystem", system: target.id })}
           >
             Isolate
           </MenuItem>

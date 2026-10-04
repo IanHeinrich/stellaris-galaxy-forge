@@ -16,14 +16,14 @@ const PLAYER: u32 = 0;
 
 fn add(planet: u32, category: &str) -> Op {
     Op::AddAnomaly {
-        planet,
+        body: planet,
         category: category.to_owned(),
         found_by: None,
     }
 }
 
 fn remove(planet: u32) -> Op {
-    Op::RemoveAnomaly { planet }
+    Op::RemoveAnomaly { body: planet }
 }
 
 /// The anomaly planet `id`'s page shows.
@@ -51,7 +51,7 @@ fn a_planet_no_one_has_surveyed_takes_the_key_alone() {
         let result = snapshot_step(&mut session, name, add(planet, ASTEROID));
         assert_eq!(
             result.entry.description,
-            format!("Add anomaly {ASTEROID} to planet #{planet}")
+            format!("Added anomaly {ASTEROID} to planet #{planet}")
         );
         assert_eq!(result.inverse, remove(planet));
         assert_eq!(anomaly(&session, planet), waiting(ASTEROID, &[]));
@@ -70,7 +70,7 @@ fn a_planet_the_player_has_surveyed_is_listed_for_the_player() {
         let result = snapshot_step(&mut session, name, add(planet, ASTEROID));
         assert_eq!(
             result.entry.description,
-            format!("Add anomaly {ASTEROID} to planet #{planet}, found by empire 0")
+            format!("Added anomaly {ASTEROID} to planet #{planet}, found by empire 0")
         );
         assert_eq!(anomaly(&session, planet), waiting(ASTEROID, &[PLAYER]));
 
@@ -78,7 +78,7 @@ fn a_planet_the_player_has_surveyed_is_listed_for_the_player() {
         assert_eq!(
             removed.inverse,
             Op::AddAnomaly {
-                planet,
+                body: planet,
                 category: ASTEROID.to_owned(),
                 found_by: Some(vec![PLAYER]),
             }
@@ -95,12 +95,12 @@ fn a_removal_takes_the_key_and_the_planet_from_every_finder() {
     let result = snapshot_step(&mut session, "remove_4_5", remove(185));
     assert_eq!(
         result.entry.description,
-        "Remove anomaly AIANOM_RESEARCHDEPO_CAT from planet #185"
+        "Removed anomaly AIANOM_RESEARCHDEPO_CAT from planet #185"
     );
     assert_eq!(
         result.inverse,
         Op::AddAnomaly {
-            planet: 185,
+            body: 185,
             category: "AIANOM_RESEARCHDEPO_CAT".to_owned(),
             found_by: Some(vec![16_777_221]),
         }
@@ -148,7 +148,7 @@ fn an_anomaly_round_trips_from_the_file_as_opened() {
     round_trip(
         open(),
         Op::AddAnomaly {
-            planet: 749,
+            body: 749,
             category: ASTEROID.to_owned(),
             found_by: Some(vec![PLAYER, 17]),
         },
@@ -168,14 +168,14 @@ fn a_country_named_twice_lists_the_planet_once() {
     let mut session = open();
     let result = session
         .apply(Op::AddAnomaly {
-            planet: 749,
+            body: 749,
             category: ASTEROID.to_owned(),
             found_by: Some(vec![PLAYER, 17, PLAYER]),
         })
         .expect("add");
     assert_eq!(
         result.entry.description,
-        format!("Add anomaly {ASTEROID} to planet #749, found by empires 0 and 17")
+        format!("Added anomaly {ASTEROID} to planet #749, found by empires 0 and 17")
     );
     assert_eq!(anomaly(&session, 749), waiting(ASTEROID, &[PLAYER, 17]));
     let removed = session.apply(remove(749)).expect("remove");
@@ -187,7 +187,7 @@ fn a_country_named_twice_lists_the_planet_once() {
     assert_eq!(
         removed.inverse,
         Op::AddAnomaly {
-            planet: 749,
+            body: 749,
             category: ASTEROID.to_owned(),
             found_by: Some(vec![PLAYER, 17]),
         }

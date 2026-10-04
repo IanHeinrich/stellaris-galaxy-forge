@@ -7,6 +7,7 @@ use sgf_gamedata::summary::AddSystemPicks;
 
 use crate::common;
 use common::{SAMPLE, SAMPLE_45, SCENARIO, invoke, kind, open, webview, with_game_data};
+use sgf_gamedata::picks::StarClassPick;
 
 /// A point inside the galaxy at least `clear` from every system.
 fn free_spot(galaxy: &GalaxyView, clear: f64) -> (f64, f64) {
@@ -51,7 +52,7 @@ fn added(result: &EditResult) -> &SystemNode {
 fn adding_a_system_needs_game_data_and_a_save() {
     let w = webview();
     let args = json!({ "seed": 7, "x": 0.0, "y": 0.0, "starClass": null });
-    let classes: Vec<(String, String)> =
+    let classes: Vec<StarClassPick> =
         invoke(&w, "get_generator_star_classes", json!({})).expect("star classes");
     assert!(classes.is_empty(), "no game data, no classes: {classes:?}");
     assert_eq!(
@@ -70,13 +71,16 @@ fn add_reroll_rename_delete_and_undo() {
         return;
     };
 
-    let classes: Vec<(String, String)> =
+    let classes: Vec<StarClassPick> =
         invoke(&w, "get_generator_star_classes", json!({})).expect("star classes");
-    let (key, label) = classes
+    let red = classes
         .iter()
-        .find(|(key, _)| key == "sc_m")
+        .find(|c| c.key == "sc_m")
         .expect("a red star is among the classes the layouts roll");
-    assert_ne!(label, key, "the class is named from the localisation");
+    assert_ne!(
+        red.name, red.key,
+        "the class is named from the localisation"
+    );
 
     let (x, y) = free_spot(&opened.galaxy, 12.0);
     let (near, _) = opened
@@ -132,7 +136,7 @@ fn add_reroll_rename_delete_and_undo() {
     let renamed: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "RenameSaveSystem", "system": system.id, "name": "Dorellion" } }),
+        json!({ "op": { "type": "RenameSystem", "system": system.id, "name": "Dorellion" } }),
     )
     .expect("rename it");
     assert_eq!(added(&renamed).name.key, "Dorellion");
@@ -140,7 +144,7 @@ fn add_reroll_rename_delete_and_undo() {
     let deleted: EditResult = invoke(
         &w,
         "apply_op",
-        json!({ "op": { "type": "RemoveSystem", "id": system.id } }),
+        json!({ "op": { "type": "RemoveSystem", "system": system.id } }),
     )
     .expect("delete it");
     assert_eq!(deleted.delta.removed, [system.id]);

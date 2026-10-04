@@ -7,7 +7,8 @@ import type { BodyLayout } from "../../generated/BodyLayout";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemRoll } from "../../generated/SystemRoll";
-import { SAVE_GEOMETRY, type GeometryIntent } from "../../lib/details/orbitEdits";
+import type { GeometryIntent } from "../../lib/details/orbitIntent";
+import { SAVE_GEOMETRY } from "../../lib/details/saveGeometry";
 import {
   beltKind,
   bodyLayout,

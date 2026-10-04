@@ -16,8 +16,8 @@ use common::{
 };
 
 fn move_planet(planet: u32, to: u32) -> Op {
-    Op::MoveSavePlanet {
-        planet,
+    Op::MoveBodyToSystem {
+        body: planet,
         to,
         at: None,
     }
@@ -50,8 +50,8 @@ fn a_neutral_planet_with_moons_moves_to_an_unowned_system() {
     let result = snapshot_step(&mut session, "neutral_with_moons", move_planet(99, 216));
     assert_eq!(
         result.entry.description,
-        "Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 246; \
-         set the inner radius of system #216 from 230 to 291.02"
+        "Moved planet #99 and its 2 moons from Tharbarite system #140 to Kazam system #216, at orbit 246; \
+         set the inner radius of Kazam system #216 from 230 to 291.02"
     );
     let Op::Batch { ops, .. } = &result.inverse else {
         panic!("a batch, not {:?}", result.inverse);
@@ -59,8 +59,8 @@ fn a_neutral_planet_with_moons_moves_to_an_unowned_system() {
     assert!(
         matches!(
             ops[0],
-            Op::MoveSavePlanet {
-                planet: 99,
+            Op::MoveBodyToSystem {
+                body: 99,
                 to: 140,
                 at: Some(_)
             }
@@ -93,7 +93,7 @@ fn a_colony_moves_to_a_system_without_colonies() {
         result
             .entry
             .description
-            .starts_with("Moved planet #402 from system #449 to system #378, at orbit "),
+            .starts_with("Moved planet #402 from Linkirk #449 to Niamba #378, at orbit "),
         "{}",
         result.entry.description
     );
@@ -206,10 +206,9 @@ fn a_planet_with_a_colonised_moon_moves_between_its_owners_systems() {
     let mut session = open();
     let result = snapshot_step(&mut session, "colonised_moon", move_planet(59, 718));
     assert!(
-        result
-            .entry
-            .description
-            .starts_with("Moved planet #59 and its 2 moons from system #189 to system #718"),
+        result.entry.description.starts_with(
+            "Moved planet #59 and its 2 moons from Valmennax system #189 to Roschon #718"
+        ),
         "{}",
         result.entry.description
     );
@@ -248,12 +247,12 @@ fn a_system_without_bodies_is_refused() {
 fn an_added_system_holding_a_planet_from_the_save_is_not_removed() {
     let mut session = open_4_5();
     session
-        .apply(Op::AddSaveSystem { spec: mura() })
+        .apply(Op::AddSystemFromSpec { spec: mura() })
         .expect("add Mura");
     session.apply(move_planet(99, 601)).expect("move 99 in");
     for op in [
-        Op::RemoveSystem { id: 601 },
-        Op::RemoveSystems { ids: vec![601] },
+        Op::RemoveSystem { system: 601 },
+        Op::RemoveSystems { systems: vec![601] },
     ] {
         let error = session.apply(op).expect_err("it holds 99");
         assert_eq!(
@@ -282,7 +281,7 @@ fn a_planet_with_stations_takes_them_along() {
     let result = snapshot_step(&mut session, "stations", move_planet(10, 2));
     assert!(
         result.entry.description.starts_with(
-            "Moved planet #10 and its 3 moons, with 2 stations, from system #169 to system #2"
+            "Moved planet #10 and its 3 moons, with 2 stations, from Alari system #169 to Millistamu #2"
         ),
         "{}",
         result.entry.description
@@ -303,10 +302,9 @@ fn a_station_joins_a_systems_fleets() {
     let mut session = open_4_5();
     let result = session.apply(move_planet(14, 216)).expect("move 14");
     assert!(
-        result
-            .entry
-            .description
-            .starts_with("Moved planet #14 and its station from system #169 to system #216"),
+        result.entry.description.starts_with(
+            "Moved planet #14 and its station from Alari system #169 to Kazam system #216"
+        ),
         "{}",
         result.entry.description
     );
@@ -343,7 +341,7 @@ fn a_moon_moved_alone_becomes_a_planet() {
         result
             .entry
             .description
-            .starts_with("Moved moon #100 from system #140 to system #216 as a planet, at orbit "),
+            .starts_with("Moved moon #100 from Tharbarite system #140 to Kazam system #216 as a planet, at orbit "),
         "{}",
         result.entry.description
     );
@@ -361,7 +359,7 @@ fn a_planet_of_a_companion_star_and_a_moon_without_its_planet_move() {
         let result = session
             .apply(move_planet(planet, 216))
             .unwrap_or_else(|e| panic!("move {planet}: {e}"));
-        let described = format!("Moved {label} #{planet} from system #");
+        let described = format!("Moved {label} #{planet} from ");
         assert!(
             result.entry.description.starts_with(&described),
             "{}",
@@ -376,8 +374,8 @@ fn a_planet_of_a_companion_star_and_a_moon_without_its_planet_move() {
 /// and 101 keep their places about it.
 #[test]
 fn a_planet_goes_where_it_is_placed() {
-    let place = |radius, angle| Op::MoveSavePlanet {
-        planet: 99,
+    let place = |radius, angle| Op::MoveBodyToSystem {
+        body: 99,
         to: 216,
         at: Some(OrbitPlacement { radius, angle }),
     };
@@ -394,7 +392,7 @@ fn a_planet_goes_where_it_is_placed() {
     let result = session.apply(place(120.0, -45.0)).expect("place 99");
     assert_eq!(
         result.entry.description,
-        "Moved planet #99 and its 2 moons from system #140 to system #216, at orbit 120"
+        "Moved planet #99 and its 2 moons from Tharbarite system #140 to Kazam system #216, at orbit 120"
     );
     let angle = 315f64.to_radians();
     let new = point_of(&session, 216, 99);
@@ -407,8 +405,8 @@ fn a_planet_goes_where_it_is_placed() {
     assert!(
         matches!(
             result.inverse,
-            Op::MoveSavePlanet {
-                planet: 99,
+            Op::MoveBodyToSystem {
+                body: 99,
                 to: 140,
                 at: Some(_)
             }
@@ -550,7 +548,7 @@ fn a_batch_moves_station_planets_together() {
     let Op::Batch { description, ops } = &op else {
         panic!("a batch, not {op:?}");
     };
-    assert_eq!(description, "Moved 3 planets to system #2");
+    assert_eq!(description, "Moved 3 planets to Millistamu #2");
     assert_eq!(ops.len(), 3);
     snapshot_step(&mut session, "batch_of_station_planets", op);
 
@@ -694,7 +692,7 @@ fn a_station_that_is_gone_or_elsewhere_stays_out_of_the_move() {
 fn a_renumbered_system_takes_its_stations_along() {
     let mut session = open_4_5();
     for spec in [mura(), dorellion()] {
-        session.apply(Op::AddSaveSystem { spec }).expect("add");
+        session.apply(Op::AddSystemFromSpec { spec }).expect("add");
     }
     session.apply(move_planet(10, 602)).expect("move 10");
     assert!(fleets(&session, 602).contains(&364));
@@ -702,7 +700,7 @@ fn a_renumbered_system_takes_its_stations_along() {
     assert!(text(&session).contains("origin=602\n"));
 
     session
-        .apply(Op::RemoveSystem { id: 601 })
+        .apply(Op::RemoveSystem { system: 601 })
         .expect("remove 601");
     let after = text(&session);
     assert!(

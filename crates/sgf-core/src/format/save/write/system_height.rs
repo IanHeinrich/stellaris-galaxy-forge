@@ -4,8 +4,10 @@
 
 use crate::cst::Node;
 use crate::emit::coord;
+use crate::format::save::write::place::{self, insert_key};
 use crate::keys;
 use crate::ops::rules::bulk_description;
+use crate::ops::rules::named;
 use crate::ops::rules::systems::decide_heights;
 use crate::ops::{Edit, Op, OpError, Plan, Planned, SystemHeight};
 use crate::session::Session;
@@ -24,16 +26,14 @@ pub(crate) fn plan_set(
     let mut one = String::new();
     for (new, old) in heights.iter().zip(&restore) {
         let text = new.height.map(height_text);
-        write_height(plan.edit(&s.doc, new.id)?, text.as_deref())?;
-        let name = s.graph.systems[&new.id].display_name();
+        write_height(plan.edit(&s.doc, new.system)?, text.as_deref())?;
+        let name = named(&s.graph, new.system);
         one = match (old.height, &text) {
-            (Some(old), Some(text)) => format!(
-                "Set the height of {name} (#{}) from {} to {text}",
-                new.id,
-                coord(old)
-            ),
-            (None, Some(text)) => format!("Set the height of {name} (#{}) to {text}", new.id),
-            (_, None) => format!("Cleared the height of {name} (#{})", new.id),
+            (Some(old), Some(text)) => {
+                format!("Set the height of {name} from {} to {text}", coord(old))
+            }
+            (None, Some(text)) => format!("Set the height of {name} to {text}"),
+            (_, None) => format!("Cleared the height of {name}"),
         };
     }
     Ok(Planned {
@@ -60,17 +60,19 @@ fn write_height(edit: &mut Edit, text: Option<&str>) -> Result<(), OpError> {
     let written = coordinate
         .find(keys::VISUAL_HEIGHT, &edit.buf)
         .map(Node::span);
-    let last = coordinate.children().last().map(Node::span);
     match (written, text) {
         (Some(span), None) => edit.remove_statement(span),
         (Some(_), Some(text)) => {
             edit.set_scalar(&[keys::COORDINATE, keys::VISUAL_HEIGHT], text)?;
         }
         (None, Some(text)) => {
-            let last = last.ok_or_else(|| {
-                edit.parse_error(0, format!("{} holds no keys", keys::COORDINATE))
-            })?;
-            edit.insert_after(last.end, &format!("{}={text}", keys::VISUAL_HEIGHT));
+            let text = format!("{}={text}", keys::VISUAL_HEIGHT);
+            insert_key(
+                edit,
+                &[keys::COORDINATE],
+                &place::system::VISUAL_HEIGHT,
+                |_| text,
+            )?;
         }
         (None, None) => {}
     }

@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added a wormhole pair between Xu Nur #1 and Tharbarite system #140
-inverse: RemoveSaveWormholePair { a: 1, b: 140 }
+inverse: RemoveWormholePair { a: 1, b: 140 }
 
 --- gamestate
 +++ gamestate

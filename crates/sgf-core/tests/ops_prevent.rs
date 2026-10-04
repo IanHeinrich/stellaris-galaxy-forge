@@ -1,4 +1,4 @@
-//! `PreventLane` and `UnpreventLane` on the grammar fixture: the diff each one produces
+//! `PreventLane` and `AllowLane` on the grammar fixture: the diff each one produces
 //! is snapshotted, the pairs each end reports are checked, and undo is checked for byte
 //! identity against the file as it was opened.
 
@@ -61,7 +61,7 @@ fn unprevent_erases_the_whole_line() {
     snapshot(
         "unprevent_9_1",
         GRAMMAR.open(),
-        Op::UnpreventLane { a: 1, b: 9 },
+        Op::AllowLane { a: 1, b: 9 },
     );
 }
 
@@ -69,7 +69,7 @@ fn unprevent_erases_the_whole_line() {
 fn unprevent_is_refused_when_the_pair_is_not_prevented() {
     let mut session = GRAMMAR.open();
     let error = session
-        .apply(Op::UnpreventLane { a: 1, b: 2 })
+        .apply(Op::AllowLane { a: 1, b: 2 })
         .expect_err("refused");
     assert!(matches!(error, OpError::NotPrevented(1, 2)), "{error}");
     assert!(!session.is_dirty());
@@ -100,7 +100,7 @@ fn a_prevention_this_session_inserted_can_be_taken_out_again() {
         .apply(Op::PreventLane { a: 2, b: 9 })
         .expect("prevent");
     session
-        .apply(Op::UnpreventLane { a: 9, b: 2 })
+        .apply(Op::AllowLane { a: 9, b: 2 })
         .expect("unprevent the statement just inserted");
     assert!(session.graph.systems[&2].prevented.is_empty());
     for _ in 0..2 {
@@ -123,9 +123,7 @@ fn a_prevented_pair_reaches_both_ends_and_an_unprevented_one_leaves_them() {
     assert_eq!(session.graph.systems[&9].prevented, [1, 2]);
     assert!(session.graph.lane(2, 9).is_none(), "prevention is no lane");
 
-    session
-        .apply(Op::UnpreventLane { a: 9, b: 1 })
-        .expect("apply");
+    session.apply(Op::AllowLane { a: 9, b: 1 }).expect("apply");
     assert_eq!(session.graph.systems[&9].prevented, [2]);
     assert!(session.graph.systems[&1].prevented.is_empty());
 }
@@ -133,7 +131,9 @@ fn a_prevented_pair_reaches_both_ends_and_an_unprevented_one_leaves_them() {
 #[test]
 fn removing_an_endpoint_drops_the_prevent_statement() {
     let mut session = GRAMMAR.open();
-    session.apply(Op::RemoveSystem { id: 9 }).expect("remove");
+    session
+        .apply(Op::RemoveSystem { system: 9 })
+        .expect("remove");
     assert!(session.graph.systems[&1].prevented.is_empty());
     let text = String::from_utf8(current(&session)).expect("utf-8");
     assert!(!text.contains("prevent_hyperlane"), "{text}");

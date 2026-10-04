@@ -23,7 +23,7 @@ function heightsOp(ids: Iterable<number>, to: (relative: number, id: number) => 
     if (!system) return [];
     const from = relativeHeight(system.height);
     const next = to(from, id);
-    return isFlat(next - from) ? [] : [{ id, height: absoluteHeight(next) }];
+    return isFlat(next - from) ? [] : [{ system: id, height: absoluteHeight(next) }];
   });
   return heights.length === 0 ? null : { type: "SetSystemHeights", heights };
 }

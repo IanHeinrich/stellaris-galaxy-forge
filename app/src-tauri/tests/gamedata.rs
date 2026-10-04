@@ -267,6 +267,28 @@ fn game_data_commands_degrade_without_an_install() {
     assert_eq!(summary, None, "a failed load leaves nothing loaded");
 }
 
+/// A planet model is offered under its own name, for the classes that use it.
+#[test]
+fn a_planet_model_is_offered_for_the_classes_that_use_it() {
+    if !have_install() {
+        return;
+    }
+    let w = webview();
+    // Vanilla only: a mod in the playset may add classes that use the same model.
+    invoke::<GameDataSummary>(&w, "load_game_data", json!({ "mods": false }))
+        .expect("load game data");
+    let planet_models: Vec<PlanetModelChoice> =
+        invoke(&w, "get_planet_models", json!({})).expect("planet models");
+    let paradise = planet_models
+        .iter()
+        .find(|m| m.entity == "ocean_paradise_planet_01_entity")
+        .expect("Ocean Paradise is offered");
+    assert_eq!(
+        (paradise.label.as_str(), paradise.classes.as_slice()),
+        ("Ocean Paradise", &["pc_ocean".to_owned()][..])
+    );
+}
+
 /// The class a scenario system is drawn as until the game generates the galaxy: its
 /// initializer's star class, and a G star for one that draws from a random list.
 #[test]
@@ -543,16 +565,6 @@ fn game_data_commands_with_the_install() {
         .find(|c| c.key == "site_the_library")
         .expect("the Library's stages are listed");
     assert!(!library.offered);
-    let planet_models: Vec<PlanetModelChoice> =
-        invoke(&w, "get_planet_models", json!({})).expect("planet models");
-    let paradise = planet_models
-        .iter()
-        .find(|m| m.entity == "ocean_paradise_planet_01_entity")
-        .expect("Ocean Paradise is offered");
-    assert_eq!(
-        (paradise.label.as_str(), paradise.classes.as_slice()),
-        ("Ocean Paradise", &["pc_ocean".to_owned()][..])
-    );
     let candidates: Vec<TerraformCandidateView> =
         invoke(&w, "get_terraform_candidates", json!({})).expect("terraform candidates");
     assert_eq!(
@@ -819,7 +831,7 @@ fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
         std::fs::write(file, text).expect("an install file");
     }
     let far_belt = json!({ "op": {
-        "type": "AddSaveBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
+        "type": "AddBelt", "system": 1, "kind": "rocky_asteroid_belt", "radius": 1000.0
     } });
     let grown = |w: &_| {
         let result: sgf_core::views::EditResult =

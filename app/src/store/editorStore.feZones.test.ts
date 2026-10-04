@@ -41,12 +41,16 @@ describe("fallen empire zones", () => {
     const zone = { ...newFeZone("n"), kind: "hive" as const };
     answersWith(3, zone);
     expect(await editor().setFeZone(3, zone)).toBe(true);
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "SetFeZone", id: 3, zone });
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "SetFeZone", system: 3, zone });
     expect(useGalaxyStore.getState().systems.get(3)?.fe_zone).toEqual(zone);
 
     answersWith(3, null);
     await editor().setFeZone(3, null);
-    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "SetFeZone", id: 3, zone: null });
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "SetFeZone",
+      system: 3,
+      zone: null,
+    });
   });
 
   it("addFeZone writes a random zone in the first clear direction at 40, shows the rings and selects the anchor", async () => {
@@ -55,7 +59,7 @@ describe("fallen empire zones", () => {
     expect(await editor().addFeZone(3)).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetFeZone",
-      id: 3,
+      system: 3,
       zone: { direction: "s", kind: "random", distance: 40, preferred: true, fallback: false },
     });
     expect(useMapChromeStore.getState().layers.feZones).toBe(true);
@@ -90,7 +94,7 @@ describe("fallen empire zones", () => {
     expect(await editor().addFeZoneAt({ x: -38, y: 102 })).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetFeZone",
-      id: 5,
+      system: 5,
       zone: { direction: "s", kind: "random", distance: 60, preferred: true, fallback: false },
     });
     expect(editor().selection).toEqual([5]);
@@ -102,7 +106,7 @@ describe("fallen empire zones", () => {
     await editor().addFeZoneAt({ x: -40, y: 100 });
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetFeZone",
-      id: 5,
+      system: 5,
       zone: { direction: "s", kind: "machine", distance: 60, preferred: true, fallback: true },
     });
   });
@@ -122,7 +126,7 @@ describe("fallen empire zones", () => {
     expect(await editor().moveFeZone(3, "w", 80)).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "SetFeZone",
-      id: 3,
+      system: 3,
       zone: { direction: "w", kind: "xenophobe", distance: 80, preferred: true, fallback: true },
     });
 
@@ -136,7 +140,7 @@ describe("fallen empire zones", () => {
     expect(sessionError()).toBe("ring covers Sol");
   });
 
-  it("fitFeZones applies what the backend answers as one SetFeZones under the fit's name, and shows the rings", async () => {
+  it("fitFeZones applies what the backend answers as one Batch of SetFeZone under the fit's name, and shows the rings", async () => {
     const entries: Array<[number, FeZone | null]> = [
       [3, { ...newFeZone("n"), preferred: false }],
       [5, null],
@@ -150,7 +154,10 @@ describe("fallen empire zones", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "Batch",
       description: "Recompute automatic fallen empire zones",
-      ops: [{ type: "SetFeZones", entries }],
+      ops: [
+        { type: "SetFeZone", system: 3, zone: entries[0][1] },
+        { type: "SetFeZone", system: 5, zone: null },
+      ],
     });
     expect(useMapChromeStore.getState().layers.feZones).toBe(true);
   });
@@ -168,7 +175,7 @@ describe("fallen empire zones", () => {
   it("fitFeZones reads the fit only once the edits queued before it have landed", async () => {
     let land: (result: EditResult) => void = () => undefined;
     mockedIpc.applyOp.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
-    const removing = editor().applyOp({ type: "RemoveSystem", id: 5 });
+    const removing = editor().applyOp({ type: "RemoveSystem", system: 5 });
     const entries: Array<[number, FeZone | null]> = [[3, null]];
     feZoneFit.mockResolvedValueOnce(entries);
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());

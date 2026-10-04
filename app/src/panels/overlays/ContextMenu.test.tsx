@@ -606,7 +606,7 @@ describe("the system view's menus", () => {
     vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
     menuItem(<BodyMenu target={body} frame={{}} />, "Delete moon").props.onClick();
     await vi.waitFor(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteSavePlanet", planet: 13 }),
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteBody", body: 13 }),
     );
     expect(dialog.confirm).toHaveBeenCalledWith(
       "Delete Luna? The moon is removed from the save.",
@@ -684,11 +684,9 @@ describe("a belt's handle in the system view", () => {
     expect(html.indexOf("Remove belt")).toBeLessThan(html.indexOf("Back to galaxy"));
     menuItem(<BeltMenu target={target} frame={{}} />, "Remove belt").props.onClick();
     await vi.waitFor(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveSaveBelt", system: 0, index: 0 }),
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "RemoveBelt", system: 0, index: 0 }),
     );
-    const removes = vi
-      .mocked(ipc.applyOp)
-      .mock.calls.filter(([op]) => op.type === "RemoveSaveBelt");
+    const removes = vi.mocked(ipc.applyOp).mock.calls.filter(([op]) => op.type === "RemoveBelt");
     expect(removes).toHaveLength(1);
   });
 
@@ -723,7 +721,7 @@ describe("the system view's empty space", () => {
     ).props.onClick();
     await vi.waitFor(() =>
       expect(ipc.applyOp).toHaveBeenCalledWith({
-        type: "AddSaveBelt",
+        type: "AddBelt",
         system: 0,
         kind: "icy_asteroid_belt",
         radius: 150,
@@ -800,7 +798,7 @@ describe("adding a planet or moon in the system view", () => {
     useDetailsStore.setState({
       details: new Map([[0, { ...read, planets: [...read.planets, added] }]]),
     });
-    expect(usePlanetMoveStore.getState().selection).toEqual({ system: 0, ids: [20] });
+    expect(useSceneStore.getState().bodySelection).toEqual({ system: 0, ids: [20] });
   });
 
   it("rolls a random planet, of no class asked for", async () => {
@@ -827,7 +825,7 @@ describe("adding a planet or moon in the system view", () => {
 
   it("is not offered on a scenario or a save that cannot take it", async () => {
     useFileSessionStore.setState({
-      capabilities: { ...useFileSessionStore.getState().capabilities!, added_systems: false },
+      capabilities: { ...useFileSessionStore.getState().capabilities!, add_bodies: false },
     });
     expect(menuOn(space)).not.toContain("Add planet here");
     expect(menuOn(body(2))).not.toContain("Add moon");
@@ -874,8 +872,8 @@ describe("moving planets", () => {
   });
 
   async function selectBoth(): Promise<void> {
-    moves().selectBody(SOL, EARTH);
-    moves().toggleBody(SOL, MARS);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    useSceneStore.getState().toggleBody(SOL, MARS);
     await settle();
   }
 
@@ -883,8 +881,8 @@ describe("moving planets", () => {
     useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
 
   it("cuts the selection from a body's menu, and says why it cannot", async () => {
-    moves().selectBody(SOL, EARTH);
-    moves().toggleBody(SOL, MARS);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    useSceneStore.getState().toggleBody(SOL, MARS);
     const body = { kind: "body", system: SOL, id: EARTH } as const;
     openOn(body);
     expect(menu()).toMatch(/<button[^>]*disabled=""[^>]*>Cut 2 planets<\/button>/);
@@ -898,8 +896,8 @@ describe("moving planets", () => {
     vi.mocked(ipc.planetMoveTargets).mockResolvedValue(
       targets([EARTH, MARS], { refused: [{ planet: EARTH, reason }], systems: [] }),
     );
-    moves().toggleBody(SOL, MARS);
-    moves().toggleBody(SOL, MARS);
+    useSceneStore.getState().toggleBody(SOL, MARS);
+    useSceneStore.getState().toggleBody(SOL, MARS);
     await settle();
     openOn(body);
     expect(menu()).toContain(`disabled="" title="${escaped(reason)}">Cut 2 planets</button>`);
@@ -941,7 +939,7 @@ describe("moving planets", () => {
       'disabled="" title="These planets are already in Sol">Paste 2 planets here</button>',
     );
 
-    moves().selectBody(SOL, EARTH);
+    useSceneStore.getState().selectBody(SOL, EARTH);
     await settle();
     moves().cutSelection();
     openOn({ kind: "systemSpace", system: SOL, x: 0, y: 50 });
@@ -950,7 +948,7 @@ describe("moving planets", () => {
   });
 
   it("pastes a lone planet where the system view's space was pressed, and names the orbit", async () => {
-    moves().selectBody(SOL, EARTH);
+    useSceneStore.getState().selectBody(SOL, EARTH);
     await settle();
     moves().cutSelection();
     useSceneStore.getState().enterSystem(CENTAURI);
@@ -968,7 +966,7 @@ describe("moving planets", () => {
   });
 
   it("names a lone body in its Cut", async () => {
-    moves().selectBody(SOL, EARTH);
+    useSceneStore.getState().selectBody(SOL, EARTH);
     await settle();
     openOn({ kind: "body", system: SOL, id: EARTH });
     expect(menu()).toContain('role="menuitem">Cut Earth</button>');

@@ -15,11 +15,12 @@
 //! sixteen `system = { ... }` statements replaced to move zones, seats and marauder clans
 //! into the states each check looks for, and a `coordinate_transform` added to the header.
 
+use sgf_core::ops::Parent;
 use std::collections::BTreeSet;
 
 use sgf_core::document::Document;
 use sgf_core::ops::Op;
-use sgf_core::ops::rules::bodies;
+use sgf_core::projections::geometry;
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
 
@@ -154,8 +155,8 @@ fn radius_and_angle(session: &Session, system: u32, body: u32) -> (f64, f64) {
         .unwrap_or_else(|| panic!("planet {body} has a point"));
     let centre = (0.0, 0.0);
     (
-        bodies::drawn_radius(at, centre, planet.orbit),
-        bodies::angle_about(centre, at),
+        geometry::drawn_radius(at, centre, planet.orbit),
+        geometry::angle_about(centre, at),
     )
 }
 
@@ -192,7 +193,7 @@ fn moving_a_body_onto_another_raises_the_overlap() {
     let (radius, angle) = radius_and_angle(&session, 1, 587);
 
     let applied = session
-        .apply(Op::MoveSaveBody {
+        .apply(Op::MoveBody {
             system: 1,
             body: 588,
             radius,
@@ -231,7 +232,7 @@ fn a_move_one_degree_away_does_not_overlap() {
     let (radius, angle) = radius_and_angle(&session, 1, 587);
 
     let applied = session
-        .apply(Op::MoveSaveBody {
+        .apply(Op::MoveBody {
             system: 1,
             body: 588,
             radius,
@@ -262,20 +263,19 @@ fn moons_stacked_near_a_belts_radius_overlap() {
     let mut session = common::open_4_5();
     session.warm_details().expect("build details");
     for op in [
-        Op::AddSaveBelt {
+        Op::AddBelt {
             system: 1,
             kind: "rocky_asteroid_belt".to_owned(),
             radius: 20.0,
         },
-        Op::SetSaveBodyParent {
+        Op::SetBodyParent {
             system: 1,
             body: 588,
-            parent: Some(589),
-            star: false,
+            parent: Parent::Body(589),
             radius: 20.0,
             angle: 90.0,
         },
-        Op::MoveSaveBody {
+        Op::MoveBody {
             system: 1,
             body: 590,
             radius: 20.0,
@@ -297,7 +297,7 @@ fn warm_details_returns_the_overlap_after_a_move() {
     let mut session = common::open_4_5();
     let (radius, angle) = radius_and_angle(&session, 1, 587);
     session
-        .apply(Op::MoveSaveBody {
+        .apply(Op::MoveBody {
             system: 1,
             body: 588,
             radius,

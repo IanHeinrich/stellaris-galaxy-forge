@@ -7,6 +7,7 @@ use super::{erase, index, lane_indent, matching, undirected};
 use crate::format::scenario::emit::{hyperlane_stmt, prevent_hyperlane_stmt};
 use crate::format::scenario::index::LaneStmt;
 use crate::ops::rules::lanes as lane_rules;
+use crate::ops::rules::named;
 use crate::ops::{Emitted, LanePair, Op, OpError, Plan, Planned, projected_lane};
 use crate::plural;
 use crate::session::Session;
@@ -167,8 +168,8 @@ pub(super) fn isolate_one(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     let (erased, _) = erase_lanes(plan, s, &ends(&cut))?;
     Ok(Planned {
         description: format!(
-            "Isolated {} (#{id}): removed {} ({erased} statements)",
-            s.graph.systems[&id].display_name(),
+            "Isolated {}: removed {} ({erased} statements)",
+            named(&s.graph, id),
             plural(cut.len(), "lane")
         ),
         inverse: Op::AddLanes {
@@ -265,7 +266,7 @@ pub(super) fn prevent_lane(
     );
     Ok(Planned {
         description: format!("Prevented lane {a} <-> {b}"),
-        inverse: Op::UnpreventLane { a, b },
+        inverse: Op::AllowLane { a, b },
     })
 }
 

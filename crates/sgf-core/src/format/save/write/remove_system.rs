@@ -33,6 +33,7 @@ use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::{check_version, entity, system_statement};
 use crate::keys;
 use crate::ops::rules::each_once;
+use crate::ops::rules::named;
 use crate::ops::{
     Edit, LaneLength, NebulaFootprint, Op, OpError, Plan, Planned, Subject, SystemHeight,
 };
@@ -107,7 +108,10 @@ fn check_own_bodies(s: &Session, id: u32) -> Result<(), OpError> {
         .into_iter()
         .find(|&planet| s.doc.added().get(EntityKind::Planet, planet).is_none());
     match held {
-        Some(planet) => Err(OpError::HoldsSavePlanet { system: id, planet }),
+        Some(planet) => Err(OpError::HoldsBody {
+            system: id,
+            body: planet,
+        }),
         None => Ok(()),
     }
 }
@@ -425,10 +429,7 @@ pub(crate) fn return_asteroid_names(
 fn describe(s: &Session, removed: &BTreeSet<u32>, renumber: &BTreeMap<u32, u32>) -> String {
     let ids: Vec<u32> = removed.iter().copied().collect();
     let what = match ids.as_slice() {
-        &[id] => {
-            let name = s.graph.systems.get(&id).map(|system| system.display_name());
-            format!("{} (#{id})", name.unwrap_or_default())
-        }
+        &[id] => named(&s.graph, id),
         ids => {
             let listed: Vec<String> = ids.iter().map(|id| format!("#{id}")).collect();
             format!("{} ({})", plural(ids.len(), "system"), listed.join(", "))
@@ -510,7 +511,7 @@ fn restoring(
         let plain = lanes.iter().take_while(|&&(_, bridge)| !bridge).count();
         let rest = lanes.split_off(plain);
         let spec_lanes = lanes.into_iter().map(|(to, _)| to).collect();
-        ops.push(Op::AddSaveSystem {
+        ops.push(Op::AddSystemFromSpec {
             spec: spec_of(s, id, spec_lanes)?,
         });
         if !rest.is_empty() {
@@ -521,7 +522,7 @@ fn restoring(
         }
         if system.height != Some(SPAWNED_SYSTEM_HEIGHT) {
             heights.push(SystemHeight {
-                id: again,
+                system: again,
                 height: system.height,
             });
         }

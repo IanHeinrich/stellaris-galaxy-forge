@@ -83,7 +83,7 @@ fn isolating_a_system_removes_its_whole_block_and_every_neighbours_entry() {
     let before = session.graph.systems[&0].clone();
     assert!(!before.lanes.is_empty());
 
-    let op = Op::IsolateSystem { id: 0 };
+    let op = Op::IsolateSystem { system: 0 };
     let applied = round_trip_step(&mut session, "IsolateSystem(0)", op);
     assert!(session.graph.systems[&0].lanes.is_empty());
     for lane in &before.lanes {
@@ -127,7 +127,7 @@ fn edited_bytes_reload_and_validate_clean() {
         .apply(Op::RemoveLane { a: 0, b: 398 })
         .expect("remove 0-398");
     session
-        .apply(Op::IsolateSystem { id: 5 })
+        .apply(Op::IsolateSystem { system: 5 })
         .expect("isolate 5");
 
     let dir = tempfile::tempdir().expect("tempdir");

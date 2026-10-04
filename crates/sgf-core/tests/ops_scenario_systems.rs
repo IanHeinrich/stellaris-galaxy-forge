@@ -1,8 +1,9 @@
 //! Systems on the grammar fixture: what adding, removing, renaming and re-initialising
 //! one writes into the file, and what each op refuses.
 
+use crate::common::batch::initializers;
 use sgf_core::document::Document;
-use sgf_core::ops::{InitializerSet, NewSystem, Op, OpError};
+use sgf_core::ops::{NewSystem, Op, OpError};
 use sgf_core::session::Session;
 
 use crate::common;
@@ -15,19 +16,19 @@ fn a_system_edited_earlier_can_still_be_removed() {
     let mut session = GRAMMAR.open();
     session
         .apply(Op::MoveSystem {
-            id: 2,
+            system: 2,
             x: 5.0,
             y: -50.0,
         })
         .expect("move");
     session
-        .apply(Op::SetSystemName {
-            id: 2,
+        .apply(Op::RenameSystem {
+            system: 2,
             name: "Imperial Center".into(),
         })
         .expect("rename");
     session
-        .apply(Op::RemoveSystem { id: 2 })
+        .apply(Op::RemoveSystem { system: 2 })
         .expect("remove a system that earlier ops rewrote");
     assert!(!session.graph.systems.contains_key(&2));
     assert!(session.graph.lane(1, 2).is_none());
@@ -44,15 +45,15 @@ fn a_system_the_file_left_nameless_gets_its_statement_back_on_undo() {
     let mut session = Session::from_document(None, doc).expect("project");
 
     let named = session
-        .apply(Op::SetSystemName {
-            id: 1,
+        .apply(Op::RenameSystem {
+            system: 1,
             name: "Sol".into(),
         })
         .expect("name a system the file left nameless");
     assert_eq!(
         named.inverse,
-        Op::SetSystemName {
-            id: 1,
+        Op::RenameSystem {
+            system: 1,
             name: String::new(),
         }
     );
@@ -75,15 +76,15 @@ fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it
     let mut session = GRAMMAR.open();
 
     let cleared = session
-        .apply(Op::SetSystemName {
-            id: 9,
+        .apply(Op::RenameSystem {
+            system: 9,
             name: String::new(),
         })
         .expect("clear the name of a system the file named");
     assert_eq!(
         cleared.inverse,
-        Op::SetSystemName {
-            id: 9,
+        Op::RenameSystem {
+            system: 9,
             name: "Lonely".into(),
         }
     );
@@ -104,8 +105,8 @@ fn a_name_that_cannot_be_quoted_is_refused() {
     let mut session = GRAMMAR.open();
     for name in ["Sol \"Prime\"", "back\\slash", "two\nlines"] {
         let err = session
-            .apply(Op::SetSystemName {
-                id: 16,
+            .apply(Op::RenameSystem {
+                system: 16,
                 name: name.into(),
             })
             .expect_err("refused");
@@ -115,7 +116,7 @@ fn a_name_that_cannot_be_quoted_is_refused() {
         );
         let err = session
             .apply(Op::AddSystem {
-                id: None,
+                system: None,
                 x: 1.0,
                 y: 1.0,
                 name: Some(name.into()),
@@ -131,7 +132,7 @@ fn a_name_that_cannot_be_quoted_is_refused() {
     }
     let err = session
         .apply(Op::AddSystem {
-            id: None,
+            system: None,
             x: 1.0,
             y: 1.0,
             name: Some(String::new()),
@@ -153,7 +154,7 @@ fn add_system_takes_the_next_id_and_lands_before_the_closing_brace() {
         "add_system",
         GRAMMAR.open(),
         Op::AddSystem {
-            id: None,
+            system: None,
             x: 20.0,
             y: -30.5,
             name: Some("Alderaan".to_owned()),
@@ -169,7 +170,7 @@ fn add_system_is_refused_when_the_id_is_taken() {
     let mut session = GRAMMAR.open();
     let error = session
         .apply(Op::AddSystem {
-            id: Some(2),
+            system: Some(2),
             x: 0.0,
             y: 0.0,
             name: None,
@@ -188,14 +189,16 @@ fn remove_system_1_takes_its_line_and_every_lane_naming_it() {
     snapshot(
         "remove_system_1",
         GRAMMAR.open(),
-        Op::RemoveSystem { id: 1 },
+        Op::RemoveSystem { system: 1 },
     );
 }
 
 #[test]
 fn removing_a_system_tells_the_map_to_drop_it_and_redraw_its_neighbours() {
     let mut session = GRAMMAR.open();
-    let result = session.apply(Op::RemoveSystem { id: 1 }).expect("remove");
+    let result = session
+        .apply(Op::RemoveSystem { system: 1 })
+        .expect("remove");
     let delta = session.edit_result(result).delta;
     assert_eq!(delta.removed, [1]);
     let mut redrawn: Vec<u32> = delta.systems.iter().map(|s| s.id).collect();
@@ -209,7 +212,7 @@ fn adding_a_system_and_removing_it_again_is_byte_identical() {
     let mut session = GRAMMAR.open();
     session
         .apply(Op::AddSystem {
-            id: None,
+            system: None,
             x: 20.0,
             y: -30.5,
             name: None,
@@ -220,7 +223,7 @@ fn adding_a_system_and_removing_it_again_is_byte_identical() {
         .expect("add");
     assert!(session.graph.systems.contains_key(&3019));
     session
-        .apply(Op::RemoveSystem { id: 3019 })
+        .apply(Op::RemoveSystem { system: 3019 })
         .expect("remove the system just added");
     assert_eq!(current(&session), fixture);
     assert!(!session.graph.systems.contains_key(&3019));
@@ -231,8 +234,8 @@ fn set_system_name_writes_a_name_the_statement_had_empty() {
     snapshot(
         "set_system_name_16",
         GRAMMAR.open(),
-        Op::SetSystemName {
-            id: 16,
+        Op::RenameSystem {
+            system: 16,
             name: "Alderaan".to_owned(),
         },
     );
@@ -243,8 +246,8 @@ fn set_system_name_reaches_into_a_multi_line_system() {
     snapshot(
         "set_system_name_3018",
         GRAMMAR.open(),
-        Op::SetSystemName {
-            id: 3018,
+        Op::RenameSystem {
+            system: 3018,
             name: "NAME_Iridonia".to_owned(),
         },
     );
@@ -256,7 +259,7 @@ fn set_initializer_adds_one_to_a_system_that_had_none() {
         "set_initializer_16",
         GRAMMAR.open(),
         Op::SetInitializer {
-            id: 16,
+            system: 16,
             initializer: Some("random_empire_init_01".to_owned()),
         },
     );
@@ -268,27 +271,18 @@ fn set_initializer_leaves_the_spawn_weight_beside_it_alone() {
         "set_initializer_2",
         GRAMMAR.open(),
         Op::SetInitializer {
-            id: 2,
+            system: 2,
             initializer: Some("misc_system_init_01".to_owned()),
         },
     );
 }
 
 /// One that already names an initializer, one that names none, and one cleared.
-fn three_entries() -> Vec<InitializerSet> {
+fn three_entries() -> Vec<(u32, Option<String>)> {
     vec![
-        InitializerSet {
-            id: 1,
-            initializer: Some("sol_system_initializer".to_owned()),
-        },
-        InitializerSet {
-            id: 16,
-            initializer: Some("random_empire_init_01".to_owned()),
-        },
-        InitializerSet {
-            id: 3018,
-            initializer: None,
-        },
+        (1, Some("sol_system_initializer".to_owned())),
+        (16, Some("random_empire_init_01".to_owned())),
+        (3018, None),
     ]
 }
 
@@ -297,9 +291,7 @@ fn set_initializers_writes_three_systems_at_once() {
     snapshot(
         "set_initializers_1_16_3018",
         GRAMMAR.open(),
-        Op::SetInitializers {
-            entries: three_entries(),
-        },
+        initializers(three_entries()),
     );
 }
 
@@ -307,9 +299,7 @@ fn set_initializers_writes_three_systems_at_once() {
 fn set_initializers_is_one_history_entry_and_stales_every_system() {
     let mut session = GRAMMAR.open();
     let result = session
-        .apply(Op::SetInitializers {
-            entries: three_entries(),
-        })
+        .apply(initializers(three_entries()))
         .expect("set three initializers");
     assert_eq!(result.entry.description, "Set initializer of 3 systems");
     assert_eq!(result.details_stale, [1, 16, 3018]);
@@ -320,12 +310,7 @@ fn set_initializers_is_one_history_entry_and_stales_every_system() {
 
 #[test]
 fn set_initializers_undo_and_redo_are_byte_identical() {
-    round_trip(
-        GRAMMAR.open(),
-        Op::SetInitializers {
-            entries: three_entries(),
-        },
-    );
+    round_trip(GRAMMAR.open(), initializers(three_entries()));
 }
 
 #[test]
@@ -334,7 +319,7 @@ fn clearing_an_initializer_leaves_the_spawn_weight_standing() {
         "clear_initializer_3018",
         GRAMMAR.open(),
         Op::SetInitializer {
-            id: 3018,
+            system: 3018,
             initializer: None,
         },
     );
@@ -343,7 +328,7 @@ fn clearing_an_initializer_leaves_the_spawn_weight_standing() {
 /// One named with an initializer, one weighted, one bare.
 fn three_new_systems() -> Vec<NewSystem> {
     let new = |id, x, y| NewSystem {
-        id,
+        system: id,
         x,
         y,
         name: None,
@@ -389,7 +374,7 @@ fn add_systems_is_one_history_entry_and_undo_and_redo_are_byte_identical() {
     assert_eq!(
         result.inverse,
         Op::RemoveSystems {
-            ids: vec![4000, 4001, 4002]
+            systems: vec![4000, 4001, 4002]
         }
     );
     assert_eq!(
@@ -411,7 +396,7 @@ fn remove_systems_takes_each_line_and_every_lane_naming_one_once() {
         "remove_systems_1_16_888",
         GRAMMAR.open(),
         Op::RemoveSystems {
-            ids: vec![1, 16, 888],
+            systems: vec![1, 16, 888],
         },
     );
 }
@@ -421,7 +406,7 @@ fn remove_systems_undo_and_redo_are_byte_identical_and_its_inverse_puts_them_bac
     round_trip(
         GRAMMAR.open(),
         Op::RemoveSystems {
-            ids: vec![1, 16, 888],
+            systems: vec![1, 16, 888],
         },
     );
     // 2 and 888 weigh by a modifier, 16 has a z, 111 a range and a spawn design, 3018 an
@@ -441,7 +426,7 @@ fn clearing_an_initializer_keeps_the_comment_that_follows_it() {
     let mut session = Session::from_document(None, doc).expect("project the bytes");
     session
         .apply(Op::SetInitializer {
-            id: 3018,
+            system: 3018,
             initializer: None,
         })
         .expect("clear the initializer");
@@ -454,21 +439,21 @@ fn clearing_an_initializer_keeps_the_comment_that_follows_it() {
 fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alone() {
     let mut session = GRAMMAR.open();
     let mut repeated = three_new_systems();
-    repeated[2].id = 4000;
+    repeated[2].system = 4000;
     let error = session
         .apply(Op::AddSystems { systems: repeated })
         .expect_err("4000 twice");
     assert!(matches!(error, OpError::DuplicateSystem(4000)), "{error:?}");
 
     let mut taken = three_new_systems();
-    taken[1].id = 2;
+    taken[1].system = 2;
     let error = session
         .apply(Op::AddSystems { systems: taken })
         .expect_err("2 is Coruscant");
     assert!(matches!(error, OpError::SystemExists(2)), "{error:?}");
 
     let mut null = three_new_systems();
-    null[0].id = u32::MAX;
+    null[0].system = u32::MAX;
     let error = session
         .apply(Op::AddSystems { systems: null })
         .expect_err("the null id");
@@ -486,18 +471,22 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
 
     let error = session
         .apply(Op::RemoveSystems {
-            ids: vec![1, 16, 1],
+            systems: vec![1, 16, 1],
         })
         .expect_err("1 twice");
     assert!(matches!(error, OpError::DuplicateSystem(1)), "{error:?}");
 
     let error = session
-        .apply(Op::RemoveSystems { ids: vec![1, 77] })
+        .apply(Op::RemoveSystems {
+            systems: vec![1, 77],
+        })
         .expect_err("no system 77");
     assert!(matches!(error, OpError::UnknownSystem(77)), "{error:?}");
 
     let error = session
-        .apply(Op::RemoveSystems { ids: Vec::new() })
+        .apply(Op::RemoveSystems {
+            systems: Vec::new(),
+        })
         .expect_err("nothing to remove");
     assert!(matches!(error, OpError::NoEntries), "{error:?}");
 
@@ -509,7 +498,7 @@ fn bulk_system_ops_refuse_a_repeated_taken_or_unknown_id_and_leave_the_file_alon
 #[test]
 fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
     let bare = |id| NewSystem {
-        id,
+        system: id,
         x: 20.0,
         y: -30.5,
         name: None,
@@ -522,7 +511,7 @@ fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
         let bad = Some(text.to_owned());
         let ops = [
             Op::AddSystem {
-                id: Some(4000),
+                system: Some(4000),
                 x: 20.0,
                 y: -30.5,
                 name: None,
@@ -540,21 +529,13 @@ fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
                 ],
             },
             Op::SetInitializer {
-                id: 16,
+                system: 16,
                 initializer: bad.clone(),
             },
-            Op::SetInitializers {
-                entries: vec![
-                    InitializerSet {
-                        id: 16,
-                        initializer: Some("misc_system_init_01".to_owned()),
-                    },
-                    InitializerSet {
-                        id: 1,
-                        initializer: bad.clone(),
-                    },
-                ],
-            },
+            initializers(vec![
+                (16, Some("misc_system_init_01".to_owned())),
+                (1, bad.clone()),
+            ]),
         ];
         for op in ops {
             let mut session = GRAMMAR.open();
@@ -572,6 +553,8 @@ fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
 #[test]
 fn a_system_with_one_lane_is_removed_with_one_lane() {
     let mut session = GRAMMAR.open();
-    let removed = session.apply(Op::RemoveSystem { id: 888 }).expect("remove");
-    assert_eq!(removed.entry.description, "Removed system 888 (1 lane)");
+    let removed = session
+        .apply(Op::RemoveSystem { system: 888 })
+        .expect("remove");
+    assert_eq!(removed.entry.description, "Removed Reserved #888 (1 lane)");
 }
