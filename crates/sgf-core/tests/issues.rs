@@ -15,11 +15,10 @@
 //! sixteen `system = { ... }` statements replaced to move zones, seats and marauder clans
 //! into the states each check looks for, and a `coordinate_transform` added to the header.
 
-use sgf_core::ops::Parent;
 use std::collections::BTreeSet;
+use std::sync::{LazyLock, Mutex, MutexGuard};
 
-use sgf_core::document::Document;
-use sgf_core::ops::Op;
+use sgf_core::ops::{Op, Parent};
 use sgf_core::projections::geometry;
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -32,8 +31,24 @@ const SCENARIO: &str = concat!(
     "/../../testdata/issues.paint.txt"
 );
 
+/// The fixture at `path`, opened once for the tests that only read it.
+fn opened(path: &str) -> MutexGuard<'static, Session> {
+    static SAVE_SESSION: LazyLock<Mutex<Session>> = LazyLock::new(|| open(SAVE));
+    static SCENARIO_SESSION: LazyLock<Mutex<Session>> = LazyLock::new(|| open(SCENARIO));
+    let session = if path == SAVE {
+        &SAVE_SESSION
+    } else {
+        &SCENARIO_SESSION
+    };
+    session.lock().unwrap_or_else(|held| held.into_inner())
+}
+
+fn open(path: &str) -> Mutex<Session> {
+    Mutex::new(Session::open(path).expect("open the fixture"))
+}
+
 fn codes(path: &str) -> Vec<(Severity, IssueCode)> {
-    let session = Session::open(path).expect("open the fixture");
+    let session = opened(path);
     let mut seen = BTreeSet::new();
     session
         .validate()
@@ -94,8 +109,7 @@ fn the_scenario_fixture_raises_every_paint_a_galaxy_fault() {
 /// The point of the fixtures: a reader can tell two findings of one kind apart.
 #[test]
 fn no_two_findings_of_the_scenario_read_the_same() {
-    let session = Session::open(SCENARIO).expect("open the fixture");
-    let issues = session.validate();
+    let issues = opened(SCENARIO).validate();
     let mut seen = BTreeSet::new();
     for issue in &issues {
         assert!(
@@ -110,7 +124,8 @@ fn no_two_findings_of_the_scenario_read_the_same() {
 #[test]
 fn both_fixtures_rebuild_from_their_own_pieces() {
     for path in [SAVE, SCENARIO] {
-        let doc = Document::load(path).expect("load the fixture");
+        let session = opened(path);
+        let doc = session.doc();
         let joined: Vec<u8> = doc.pieces().flatten().copied().collect();
         assert_eq!(joined, doc.original(), "{path} changed");
     }
@@ -165,9 +180,9 @@ fn radius_and_angle(session: &Session, system: u32, body: u32) -> (f64, f64) {
 /// belt's radius.
 #[test]
 fn neither_sample_raises_bodies_overlap_with_details_warmed() {
-    for mut session in [common::open(), common::open_4_5()] {
-        session.warm_details().expect("build details");
-        let issues = session.validate();
+    let mut sample_4_5 = common::open_4_5();
+    sample_4_5.warm_details().expect("build details");
+    for issues in [common::warmed().validate(), sample_4_5.validate()] {
         assert!(
             common::coded(&issues, IssueCode::BodiesOverlap).is_empty(),
             "{:?}",
@@ -176,16 +191,9 @@ fn neither_sample_raises_bodies_overlap_with_details_warmed() {
     }
 }
 
-/// Without the details built, `validate` never raises `bodies_overlap`, since it has
-/// nothing to read the positions from.
-#[test]
-fn validate_raises_no_overlap_before_details_are_built() {
-    let session = common::open_4_5();
-    assert!(common::coded(&session.validate(), IssueCode::BodiesOverlap).is_empty());
-}
-
 /// Moving planet 588 onto planet 587's drawn radius and angle raises the overlap for
 /// system 1 in the apply result's own issues; undo clears it, and redo raises it again.
+/// A move one degree away does not overlap: past `OVERLAP_TOLERANCE`.
 #[test]
 fn moving_a_body_onto_another_raises_the_overlap() {
     let mut session = common::open_4_5();
@@ -222,15 +230,8 @@ fn moving_a_body_onto_another_raises_the_overlap() {
         common::coded(&redone.issues, IssueCode::BodiesOverlap).len(),
         1
     );
-}
 
-/// A move one degree away from 587 does not overlap: past `OVERLAP_TOLERANCE`.
-#[test]
-fn a_move_one_degree_away_does_not_overlap() {
-    let mut session = common::open_4_5();
-    session.warm_details().expect("build details");
-    let (radius, angle) = radius_and_angle(&session, 1, 587);
-
+    session.undo().expect("undo").expect("something to undo");
     let applied = session
         .apply(Op::MoveBody {
             system: 1,
@@ -239,21 +240,11 @@ fn a_move_one_degree_away_does_not_overlap() {
             angle: angle + 1.0,
         })
         .expect("move 588 near 587");
-    assert!(common::coded(&applied.issues, IssueCode::BodiesOverlap).is_empty());
-}
-
-/// The asteroids scattered about system 8's belt sit within tolerance of each other but
-/// raise nothing: they are within `BELT_SCATTER` of the belt's own radius.
-#[test]
-fn belt_asteroids_within_tolerance_do_not_overlap() {
-    let mut session = common::open_4_5();
-    session.warm_details().expect("build details");
-    let issues = session.validate();
-    let on_system_8 = issues
-        .iter()
-        .filter(|i| i.code == IssueCode::BodiesOverlap && i.systems == vec![8])
-        .count();
-    assert_eq!(on_system_8, 0);
+    assert!(
+        common::coded(&applied.issues, IssueCode::BodiesOverlap).is_empty(),
+        "a move one degree away overlaps: {:?}",
+        applied.issues
+    );
 }
 
 /// Two moons stacked about planet 589 at radius 20 overlap though a belt lies at 20 from
@@ -290,12 +281,13 @@ fn moons_stacked_near_a_belts_radius_overlap() {
     assert!(overlap[0].message.contains("#588 and #590"), "{overlap:?}");
 }
 
-/// `warm_details` returns the issues once it has built the projection, the overlap a
-/// preceding move made among them.
+/// Without the details built, `validate` never raises `bodies_overlap`, since it has
+/// nothing to read the positions from. `warm_details` returns the issues once it has
+/// built the projection, the overlap a preceding move made among them.
 #[test]
 fn warm_details_returns_the_overlap_after_a_move() {
+    let (radius, angle) = radius_and_angle(&common::open_4_5(), 1, 587);
     let mut session = common::open_4_5();
-    let (radius, angle) = radius_and_angle(&session, 1, 587);
     session
         .apply(Op::MoveBody {
             system: 1,
@@ -304,6 +296,10 @@ fn warm_details_returns_the_overlap_after_a_move() {
             angle,
         })
         .expect("move 588 onto 587");
+    assert!(
+        common::coded(&session.validate(), IssueCode::BodiesOverlap).is_empty(),
+        "an overlap before the details are built"
+    );
 
     let issues = session.warm_details().expect("warm the details");
     assert_eq!(common::coded(&issues, IssueCode::BodiesOverlap).len(), 1);

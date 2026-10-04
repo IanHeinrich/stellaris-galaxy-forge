@@ -1,12 +1,16 @@
 //! What every Paint a Galaxy export of a save must hold to, for the sample and the
-//! corpus alike.
+//! corpus alike, and the scripted spawns and zones the scenario tests write.
 use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::export::ExportReport;
 use sgf_core::export::policy::is_generic_home;
-use sgf_core::format::scenario::fe_zone::FeZone;
-use sgf_core::projections::galaxy::{Galaxy, GalaxyGraph};
+use sgf_core::format::scenario::fe_zone::{FeDirection, FeKind, FeZone};
+use sgf_core::ops::Op;
+use sgf_core::projections::galaxy::{Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
+use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
+
+use super::fixture::PAINTED;
 
 /// The ids of the save that the export holds no longer, ascending.
 pub fn left_out(save: &Galaxy, written: &Galaxy) -> BTreeSet<u32> {
@@ -147,3 +151,61 @@ pub fn assert_paint_export_holds_together(
 
 /// The flag a painted scenario sets on a fallen empire's preferred zone.
 pub const PREFERRED_FLAG: &str = " set_star_flag = painted_galaxy_fe_spawn_preferred";
+
+/// A Paint a Galaxy spawn of `kind`, nobody's seat.
+pub fn script(kind: PaintSpawnKind, random_value: u8) -> Option<SpawnScript> {
+    Some(SpawnScript::PaintAGalaxy {
+        kind,
+        random_value,
+        player: false,
+    })
+}
+
+/// The 1st Player spawn as the player's seat.
+pub fn player(random_value: u8) -> Option<SpawnScript> {
+    seat(PaintSpawnKind::Preferred, random_value)
+}
+
+/// A Paint a Galaxy spawn of `kind` as the player's seat.
+pub fn seat(kind: PaintSpawnKind, random_value: u8) -> Option<SpawnScript> {
+    Some(SpawnScript::PaintAGalaxy {
+        kind,
+        random_value,
+        player: true,
+    })
+}
+
+pub fn reserved(letter: &str) -> PaintSpawnKind {
+    PaintSpawnKind::Reserved(letter.to_owned())
+}
+
+pub fn set(id: u32, script: Option<SpawnScript>) -> Op {
+    Op::SetSpawnScript { system: id, script }
+}
+
+/// The fixture with system 9's zone made automatic: its `preferred` flag dropped.
+pub fn open_with_automatic_9() -> Session {
+    let session = PAINTED.open_edited(&[(PREFERRED_FLAG, "")]);
+    assert!(
+        !session.graph().systems[&9]
+            .fe_zone
+            .as_ref()
+            .unwrap()
+            .preferred
+    );
+    session
+}
+
+pub fn zone(direction: FeDirection, kind: FeKind, distance: u16, preferred: bool) -> FeZone {
+    FeZone {
+        direction,
+        kind,
+        distance,
+        preferred,
+        fallback: false,
+    }
+}
+
+pub fn automatic(direction: FeDirection) -> FeZone {
+    zone(direction, FeKind::Random, 40, false)
+}

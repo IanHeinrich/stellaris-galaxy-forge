@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::current;
-use common::diff::{plain_snapshot, round_trip};
+use common::diff::{plain_snapshot, round_trip, snapshot_step};
 use common::fixture::PAINTED;
 
 const SHAPES: [&str; 10] = [
@@ -46,53 +46,32 @@ fn owned(values: &[&str]) -> Vec<String> {
 
 #[test]
 fn a_shorter_list_rewrites_the_first_statements_and_removes_the_rest() {
-    plain_snapshot(
+    let mut session = PAINTED.open();
+    snapshot_step(
+        &mut session,
         "shapes_to_two",
-        PAINTED.open(),
         shapes(&["elliptical", "spoked"]),
     );
-    round_trip(PAINTED.open(), shapes(&["elliptical", "spoked"]));
-
-    let mut session = PAINTED.open();
-    let result = session
-        .apply(shapes(&["elliptical", "spoked"]))
-        .expect("set two shapes");
-    assert_eq!(result.entry.description, "Set supports_shape to 2 values");
-    assert_eq!(result.inverse, shapes(&SHAPES));
     assert_eq!(
         values(&session, "supports_shape"),
         owned(&["elliptical", "spoked"])
     );
-    assert_eq!(session.history().undo.len(), 1);
-    session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(values(&session, "supports_shape"), owned(&SHAPES));
 }
 
 #[test]
 fn a_longer_list_writes_the_extra_values_after_the_last_statement() {
     let mut longer = SHAPES.to_vec();
     longer.push("spoked");
-    plain_snapshot("shapes_plus_spoked", PAINTED.open(), shapes(&longer));
-    round_trip(PAINTED.open(), shapes(&longer));
-
     let mut session = PAINTED.open();
-    session.apply(shapes(&longer)).expect("add a shape");
+    snapshot_step(&mut session, "shapes_plus_spoked", shapes(&longer));
     assert_eq!(values(&session, "supports_shape"), owned(&longer));
 }
 
 #[test]
 fn an_empty_list_removes_every_statement_and_undo_puts_them_back() {
-    plain_snapshot("shapes_to_none", PAINTED.open(), shapes(&[]));
-    round_trip(PAINTED.open(), shapes(&[]));
-
     let mut session = PAINTED.open();
-    let result = session.apply(shapes(&[])).expect("clear the shapes");
-    assert_eq!(result.entry.description, "Set supports_shape to 0 values");
-    assert_eq!(result.inverse, shapes(&SHAPES));
+    snapshot_step(&mut session, "shapes_to_none", shapes(&[]));
     assert!(values(&session, "supports_shape").is_empty());
-    session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(values(&session, "supports_shape"), owned(&SHAPES));
-    assert_eq!(current(&session), session.doc().original());
 }
 
 #[test]

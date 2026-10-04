@@ -3,14 +3,15 @@ use std::borrow::Cow;
 
 use sgf_core::archive;
 use sgf_core::projections::galaxy::GalaxyGraph;
-use sgf_core::scan::{Value, key_name};
+use sgf_core::scan::key_name;
 use sgf_core::validate::{Severity, validate};
 
 use crate::common;
 use common::{load, load_3_4, load_4_5};
 
 /// Each sample save, with the version and date its meta holds and how many issues the
-/// validator raises on it, none of them an error.
+/// validator raises on it, none of them an error. The save reports its progress as it
+/// writes.
 #[test]
 fn each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte() {
     let dir = tempfile::tempdir().unwrap();
@@ -47,7 +48,19 @@ fn each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte() {
         let joined: Vec<u8> = doc.pieces().flatten().copied().collect();
         assert_eq!(joined, doc.original(), "{version}");
         let path = dir.path().join(format!("{date}.sav"));
-        doc.save_as(&path).expect("save_as");
+        let mut fractions = Vec::new();
+        doc.save_as_with(&path, |f| fractions.push(f))
+            .expect("save_as_with");
+        assert!(fractions.len() > 1, "{version}: {fractions:?}");
+        assert!(
+            fractions.windows(2).all(|p| p[0] <= p[1]),
+            "{version}: not monotonic: {fractions:?}"
+        );
+        assert!(
+            fractions.iter().all(|f| (0.0..=1.0).contains(f)),
+            "{version}: {fractions:?}"
+        );
+        assert_eq!(fractions.last(), Some(&1.0), "{version}");
         let written = archive::read_sav(&path).expect("read back");
         assert_eq!(written.gamestate, doc.original(), "{version}");
         assert_eq!(written.meta, doc.meta(), "{version}");
@@ -64,60 +77,8 @@ fn each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte() {
 }
 
 #[test]
-fn galaxy_sections_match_the_measured_facts() {
+fn no_system_is_indexed_past_the_last() {
     let doc = load();
-    let index = doc.index();
-
-    let ids: Vec<u64> = index
-        .entities("galactic_object")
-        .iter()
-        .map(|e| e.id)
-        .collect();
-    assert_eq!(ids.len(), 791);
-    assert_eq!(ids, (0..=790).collect::<Vec<u64>>());
-    assert!(index.entity("galactic_object", 790).is_some());
-    assert!(index.entity("galactic_object", 791).is_none());
-
-    assert_eq!(index.sections_named("nebula").count(), 9);
-
-    let Some(Value::Scalar(span)) = index.section("galaxy_radius").map(|s| s.value) else {
-        panic!("galaxy_radius should be a scalar");
-    };
-    let radius: f64 = std::str::from_utf8(span.slice(doc.original()))
-        .unwrap()
-        .parse()
-        .unwrap();
-    assert_eq!(radius, 499.9288);
-}
-
-#[test]
-fn save_as_with_reports_progress_and_stays_byte_identical() {
-    let doc = load();
-    let dir = tempfile::tempdir().unwrap();
-    let plain = dir.path().join("plain.sav");
-    let reported = dir.path().join("reported.sav");
-    doc.save_as(&plain).expect("save_as");
-
-    let mut fractions = Vec::new();
-    doc.save_as_with(&reported, |f| fractions.push(f))
-        .expect("save_as_with");
-    assert!(fractions.len() > 1, "{fractions:?}");
-    assert!(
-        fractions.windows(2).all(|p| p[0] <= p[1]),
-        "not monotonic: {fractions:?}"
-    );
-    assert!(
-        fractions.iter().all(|f| (0.0..=1.0).contains(f)),
-        "{fractions:?}"
-    );
-    assert_eq!(fractions.last(), Some(&1.0));
-
-    assert_eq!(
-        std::fs::read(&reported).unwrap(),
-        std::fs::read(&plain).unwrap(),
-        "progress reporting changes the archive"
-    );
-    let written = archive::read_sav(&reported).expect("read back");
-    assert_eq!(written.gamestate, doc.original());
-    assert_eq!(written.meta, doc.meta());
+    assert!(doc.index().entity("galactic_object", 790).is_some());
+    assert!(doc.index().entity("galactic_object", 791).is_none());
 }

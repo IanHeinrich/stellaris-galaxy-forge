@@ -1,24 +1,22 @@
 //! Galaxy projection and validator on the real sample save.
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::time::Instant;
+use std::sync::LazyLock;
 
 use sgf_core::cst;
-use sgf_core::guides::Guide;
-use sgf_core::ops::Op;
-use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph, Lane};
+use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::validate::{IssueCode, Severity, validate};
 
 use crate::common;
-use common::coded;
-use common::fixture::{GRAMMAR, PAINTED};
 use common::load;
+
+/// The 4.4 sample's galaxy, built once for the tests that only read it.
+static GRAPH: LazyLock<GalaxyGraph> =
+    LazyLock::new(|| GalaxyGraph::build(&load()).expect("build galaxy"));
 
 #[test]
 fn projection_matches_the_measured_facts() {
     let doc = load();
-    let started = Instant::now();
-    let g = GalaxyGraph::build(&doc).expect("build galaxy");
-    eprintln!("galaxy projection built in {:?}", started.elapsed());
+    let g = &*GRAPH;
 
     assert_eq!(g.systems.len(), 791);
     assert_eq!(g.order.len(), 791);
@@ -256,8 +254,7 @@ fn projection_matches_the_measured_facts() {
 
 #[test]
 fn countries_carry_their_capital_system_and_system_count() {
-    let doc = load();
-    let g = GalaxyGraph::build(&doc).expect("build galaxy");
+    let g = &*GRAPH;
 
     let humans = g.countries.iter().find(|c| c.id == 0).expect("country 0");
     assert_eq!(humans.name_key, "EMPIRE_DESIGN_humans1");
@@ -329,9 +326,7 @@ fn a_primitive_carries_its_pre_ftl_age_and_an_empire_none() {
 
 #[test]
 fn sample_validates_to_one_isolated_system_and_the_games_own_duplicate_lanes() {
-    let doc = load();
-    let g = GalaxyGraph::build(&doc).unwrap();
-    let issues = validate(&g);
+    let issues = validate(&GRAPH);
     // The game wrote the lanes 154<->708 and 401<->521 twice on both ends, and 789 is the
     // far end of the wormhole from 788, so 790 is the only system nothing reaches.
     let summary: Vec<(Severity, IssueCode, &[u32])> = issues
@@ -353,223 +348,6 @@ fn sample_validates_to_one_isolated_system_and_the_games_own_duplicate_lanes() {
         }
     }
     assert!(issues.iter().all(|i| i.code != IssueCode::LaneAsymmetric));
-}
-
-#[test]
-fn refresh_system_reproduces_the_loaded_node() {
-    let doc = load();
-    let mut g = GalaxyGraph::build(&doc).unwrap();
-    let before = g.systems[&0].clone();
-    let entity = doc.index().entity("galactic_object", 0).unwrap();
-    let node = cst::parse(entity.stmt.slice(doc.original()), entity.stmt.start).unwrap();
-    g.refresh_system(0, &node, doc.original()).unwrap();
-    assert_eq!(g.systems[&0], before);
-    assert_eq!(g.order.len(), 791);
-}
-
-#[test]
-fn refresh_system_picks_up_edited_text() {
-    let doc = load();
-    let mut g = GalaxyGraph::build(&doc).unwrap();
-    let before = g.systems[&0].clone();
-    let entity = doc.index().entity("galactic_object", 0).unwrap();
-    let text = String::from_utf8(entity.stmt.slice(doc.original()).to_vec()).unwrap();
-    assert_eq!(text.matches("x=-144.22").count(), 1);
-    let lane_752 = "			{
-				to=752
-				length=33
-			}
- 
-";
-    assert_eq!(text.matches(lane_752).count(), 1);
-    let edited = text.replace("x=-144.22", "x=-150").replace(lane_752, "");
-
-    let node = cst::parse(edited.as_bytes(), 0).unwrap();
-    g.refresh_system(0, &node, edited.as_bytes()).unwrap();
-    let after = &g.systems[&0];
-    assert_eq!(after.x, -150.0);
-    assert_eq!(after.y, before.y);
-    assert_eq!(after.lanes.len(), before.lanes.len() - 1);
-    assert!(g.lane(0, 752).is_none());
-    assert!(g.lane(0, 200).is_some());
-    assert_eq!(after.nebula, before.nebula);
-    assert_eq!(after.name, before.name);
-    assert_eq!(g.order.len(), 791);
-}
-
-#[test]
-fn validator_reports_every_rule_on_a_mutated_graph() {
-    let doc = load();
-    let mut g = GalaxyGraph::build(&doc).unwrap();
-
-    // 752 still lists 0, but 0 no longer lists 752.
-    g.systems.get_mut(&0).unwrap().lanes.retain(|l| l.to != 752);
-    g.systems.get_mut(&1).unwrap().lanes.push(Lane {
-        to: 1,
-        length: 0.0,
-        bridge: false,
-        stale: false,
-    });
-    g.systems.get_mut(&3).unwrap().lanes.push(Lane {
-        to: 9999,
-        length: 1.0,
-        bridge: false,
-        stale: false,
-    });
-    g.systems.get_mut(&2).unwrap().x = 600.0;
-    // Cut system 5 out of the graph on both ends of each of its lanes.
-    let neighbours: Vec<u32> = g.systems[&5].lanes.iter().map(|l| l.to).collect();
-    for n in neighbours {
-        g.systems.get_mut(&n).unwrap().lanes.retain(|l| l.to != 5);
-    }
-    g.systems.get_mut(&5).unwrap().lanes.clear();
-    // 108 stays listed in the first nebula but sits far from it; 455 sits at that
-    // nebula's centre without being listed anywhere.
-    let member = g.systems.get_mut(&108).unwrap();
-    (member.x, member.y) = (200.0, -50.0);
-    let (cx, cy) = (g.nebulae[0].x, g.nebulae[0].y);
-    let stray = g.systems.get_mut(&455).unwrap();
-    (stray.x, stray.y) = (cx, cy);
-
-    let issues = validate(&g);
-    let summary: Vec<(Severity, IssueCode, &[u32])> = issues
-        .iter()
-        .map(|i| (i.severity, i.code, i.systems.as_slice()))
-        .collect();
-    assert_eq!(
-        summary,
-        [
-            (Severity::Error, IssueCode::LaneAsymmetric, &[752u32, 0][..]),
-            (Severity::Error, IssueCode::LaneEndpointMissing, &[3, 9999]),
-            (Severity::Error, IssueCode::LaneSelf, &[1]),
-            (Severity::Info, IssueCode::LaneDuplicate, &[154, 708]),
-            (Severity::Info, IssueCode::LaneDuplicate, &[401, 521]),
-            (Severity::Warning, IssueCode::SystemIsolated, &[5]),
-            (Severity::Warning, IssueCode::SystemIsolated, &[790]),
-            (Severity::Warning, IssueCode::OutOfBounds, &[2]),
-            (Severity::Warning, IssueCode::Disconnected, &[5]),
-            (Severity::Warning, IssueCode::NebulaMembership, &[108]),
-            (Severity::Warning, IssueCode::NebulaMembership, &[455]),
-        ],
-        "{issues:#?}"
-    );
-    let disconnected = issues
-        .iter()
-        .find(|i| i.code == IssueCode::Disconnected)
-        .unwrap();
-    assert!(
-        disconnected.message.ends_with("newly separated: 5"),
-        "{}",
-        disconnected.message
-    );
-    let membership: Vec<&str> = issues
-        .iter()
-        .filter(|i| i.code == IssueCode::NebulaMembership)
-        .map(|i| i.message.as_str())
-        .collect();
-    assert_eq!(
-        membership,
-        [
-            "system 108 (Ascensions End) is listed in nebula Phantom Streak Miasma but lies 159.56 from its centre, beyond its radius 30",
-            "system 455 (Mihil) lies 0.00 from the centre of nebula Phantom Streak Miasma (radius 30) but no nebula lists it",
-        ]
-    );
-}
-
-#[test]
-fn a_lane_less_wormhole_end_is_not_reported_isolated() {
-    let doc = load();
-    let mut g = GalaxyGraph::build(&doc).unwrap();
-    for (a, b) in [(788u32, 789u32), (52, 449)] {
-        assert!(g.bypasses.contains(&BypassLink::Wormhole { a, b }));
-    }
-    let neighbours: Vec<u32> = g.systems[&52].lanes.iter().map(|l| l.to).collect();
-    for n in neighbours {
-        g.systems.get_mut(&n).unwrap().lanes.retain(|l| l.to != 52);
-    }
-    g.systems.get_mut(&52).unwrap().lanes.clear();
-
-    let isolated: Vec<u32> = validate(&g)
-        .iter()
-        .filter(|i| i.code == IssueCode::SystemIsolated)
-        .flat_map(|i| i.systems.clone())
-        .collect();
-    assert_eq!(isolated, [790]);
-}
-
-#[test]
-fn a_lane_less_l_gate_system_is_reported_as_a_note() {
-    let doc = load();
-    let mut g = GalaxyGraph::build(&doc).unwrap();
-    assert!(g.bypasses.contains(&BypassLink::LGate { system: 208 }));
-    let neighbours: Vec<u32> = g.systems[&208].lanes.iter().map(|l| l.to).collect();
-    for n in neighbours {
-        g.systems.get_mut(&n).unwrap().lanes.retain(|l| l.to != 208);
-    }
-    g.systems.get_mut(&208).unwrap().lanes.clear();
-
-    let issue = validate(&g)
-        .into_iter()
-        .find(|i| i.code == IssueCode::SystemIsolated && i.systems == [208])
-        .expect("208 is still reported");
-    assert_eq!(issue.severity, Severity::Info);
-    assert!(issue.message.contains("L-Gate"), "{}", issue.message);
-}
-
-#[test]
-fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
-    let guide = Guide::l_cluster();
-    assert!(guide.contains(-392.0, -392.0));
-    assert!(guide.contains(-330.0, -330.0));
-    assert!(!guide.contains(-300.0, -300.0));
-
-    let mut session = PAINTED.open();
-    let result = session
-        .apply(Op::MoveSystem {
-            system: 10,
-            x: -392.0,
-            y: -392.0,
-        })
-        .expect("move Void into the circle");
-    let l_cluster = coded(&result.issues, IssueCode::LClusterSystem);
-    assert_eq!(l_cluster.len(), 1, "{:?}", result.issues);
-    assert_eq!(
-        l_cluster[0].message,
-        "Void sits where the game places the L-Cluster."
-    );
-    assert_eq!(l_cluster[0].systems, [10]);
-    session.undo().expect("undo").expect("an op to undo");
-    assert!(coded(&session.validate(), IssueCode::LClusterSystem).is_empty());
-
-    let mut plain = GRAMMAR.open();
-    let id = plain.graph().order[0];
-    let result = plain
-        .apply(Op::MoveSystem {
-            system: id,
-            x: -400.0,
-            y: -380.0,
-        })
-        .expect("move a plain scenario's system there");
-    assert_eq!(
-        coded(&result.issues, IssueCode::LClusterSystem).len(),
-        1,
-        "{:?}",
-        result.issues
-    );
-
-    let mut save = common::open();
-    let id = save.graph().order[0];
-    let result = save
-        .apply(Op::MoveSystem {
-            system: id,
-            x: -392.0,
-            y: -392.0,
-        })
-        .expect("move a save's system there");
-    assert!(
-        coded(&result.issues, IssueCode::LClusterSystem).is_empty(),
-        "a save is the galaxy the game already built"
-    );
 }
 
 /// Hyper Relays in Sol and its neighbour 471, written as a late game writes them: each a

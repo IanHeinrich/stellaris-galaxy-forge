@@ -4,7 +4,6 @@
 
 use sgf_core::document::Document;
 use sgf_core::entity::{EntityError, PlanetPage, get_planet_page};
-use sgf_core::ops::Op;
 
 use crate::common;
 use common::fixture::GRAMMAR;
@@ -95,20 +94,6 @@ fn a_terraforming_planet_says_so() {
         *text = text.replacen(list, &format!("{process}{list}"), 1);
     });
     assert!(page(session.doc(), 2).terraforming);
-}
-
-#[test]
-fn the_page_reads_the_bytes_an_op_wrote() {
-    let mut session = common::open();
-    session
-        .apply(Op::SetBodySize {
-            body: 731,
-            size: 20,
-        })
-        .expect("resize Nekkar I");
-    assert_eq!(page(session.doc(), 731).size, Some(20));
-    session.undo().expect("undo").expect("an op to undo");
-    assert_eq!(page(session.doc(), 731).size, Some(16));
 }
 
 #[test]

@@ -377,32 +377,6 @@ mod tests {
     }
 
     #[test]
-    fn every_kind_renders_as_paint_a_galaxy_writes_it_and_reads_back() {
-        for (script, params) in [
-            (
-                script(PaintSpawnKind::Enabled, 7),
-                "RANDOM_MODULO|10|RANDOM_VALUE|7",
-            ),
-            (
-                script(PaintSpawnKind::Preferred, 4),
-                "PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|4",
-            ),
-            (
-                script(PaintSpawnKind::Reserved("b".to_owned()), 2),
-                "RESERVED|b|RANDOM_MODULO|3|RANDOM_VALUE|2",
-            ),
-            (
-                script(PaintSpawnKind::Sol, 0),
-                "SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0",
-            ),
-        ] {
-            let add = format!("value:painted_galaxy_spawn_weight|{params}|");
-            assert_eq!(render(&script), add);
-            assert_eq!(recognised(&add), Some(script));
-        }
-    }
-
-    #[test]
     fn a_reserved_seat_folds_its_random_value_and_sol_writes_none() {
         assert_eq!(
             render(&script(PaintSpawnKind::Reserved("a".to_owned()), 8)),
@@ -584,43 +558,5 @@ mod tests {
             recognised("value:painted_galaxy_spawn_weight|RANDOM_VALUE|"),
             Some(script(PaintSpawnKind::Enabled, 0))
         );
-    }
-
-    #[test]
-    fn the_basic_initializers_cycle_by_id_and_a_seat_is_a_latin_or_greek_letter() {
-        assert_eq!(basic_initializer(0), "random_empire_init_01");
-        assert_eq!(basic_initializer(5), "random_empire_init_06");
-        assert_eq!(basic_initializer(6), "random_empire_init_01");
-        assert_eq!(basic_initializer(10), "random_empire_init_05");
-        let reserved = |name: &str| script(PaintSpawnKind::Reserved(name.to_owned()), 0);
-        for name in ["a", "z", "alpha", "omega"] {
-            assert!(check(&reserved(name)).is_ok(), "{name}");
-        }
-        assert!(check(&script(PaintSpawnKind::Sol, 0)).is_ok());
-        for name in [
-            "", "Z", "ab", "1", "|", " ", "é", "Alpha", "sol", "aa", "alph", "α",
-        ] {
-            assert!(
-                matches!(check(&reserved(name)), Err(OpError::InvalidSeatName(_))),
-                "{name:?}"
-            );
-        }
-        let alpha = seat(PaintSpawnKind::Reserved("alpha".to_owned()), 4);
-        let statement = weight_statement(&alpha);
-        assert_eq!(
-            statement,
-            "spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RESERVED|alpha|RANDOM_MODULO|3|RANDOM_VALUE|1| modifier = { add = 100000 has_trait = trait_painted_galaxy_reserved_spawn_alpha } }"
-        );
-        assert_eq!(
-            read(&statement),
-            Some(seat(PaintSpawnKind::Reserved("alpha".to_owned()), 1))
-        );
-        assert_eq!(label(&alpha), "reserved alpha, the player's seat");
-        assert!(check(&seat(PaintSpawnKind::Sol, 0)).is_ok());
-        assert!(check(&seat(PaintSpawnKind::Reserved("a".to_owned()), 0)).is_ok());
-        assert!(matches!(
-            check(&seat(PaintSpawnKind::Enabled, 0)),
-            Err(OpError::EnabledSeatPlayer)
-        ));
     }
 }

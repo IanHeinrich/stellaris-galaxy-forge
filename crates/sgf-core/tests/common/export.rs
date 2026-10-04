@@ -1,7 +1,9 @@
 //! The sample save's scenario export as `sgf export-scenario` writes it, and the facts
 //! about the sample the export tests read it against.
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
+use sgf_core::document::Document;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::projections::galaxy::Galaxy;
 use sgf_core::projections::galaxy::GalaxyGraph;
@@ -97,4 +99,35 @@ pub fn default_capitals(graph: &GalaxyGraph) -> BTreeSet<u32> {
         .filter(|c| c.country_type == "default")
         .filter_map(|c| c.capital_system)
         .collect()
+}
+
+/// The sample's plain export and its report, made once per test binary.
+pub static PLAIN_EXPORT: LazyLock<(Vec<u8>, ExportReport)> =
+    LazyLock::new(|| exported_as(&super::open(), NAME, ScenarioProfile::Plain));
+
+/// The sample's Paint a Galaxy export, its report, and the export indexed as the mod
+/// reads it, made once per test binary.
+pub static EXPORT: LazyLock<(String, ExportReport, Document)> = LazyLock::new(|| {
+    let (text, report) = exported_as(&super::open(), NAME, ScenarioProfile::PaintAGalaxy);
+    let text = String::from_utf8(text).expect("utf-8");
+    let reopened = Document::from_scenario_bytes(text.clone().into_bytes()).expect("index it");
+    (text, report, reopened)
+});
+
+/// The sample, its Paint a Galaxy export, and the export opened as the mod reads it.
+pub struct Painted {
+    pub save: Session,
+    pub text: &'static str,
+    pub report: &'static ExportReport,
+    pub reopened: Session,
+}
+
+pub fn painted() -> Painted {
+    let (text, report, reopened) = &*EXPORT;
+    Painted {
+        save: super::open(),
+        text,
+        report,
+        reopened: Session::from_document(None, reopened.clone()).expect("project the export"),
+    }
 }
