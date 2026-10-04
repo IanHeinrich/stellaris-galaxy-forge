@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Texture } from "pixi.js";
 import type { TextureView } from "../../generated/TextureView";
 
-vi.mock("../../api/textures", () => ({
+vi.mock("../../api/gamedata", () => ({
   getTextures: vi.fn(),
 }));
 
-import * as api from "../../api/textures";
+import * as api from "../../api/gamedata";
 import {
   clearTextures,
   getTexture,

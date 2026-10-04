@@ -107,8 +107,6 @@ export interface RenderContext {
   readonly bypassKinds: ReadonlyMap<string, BypassView>;
   readonly countryTypes: CountryTypes;
   readonly special: ReadonlyMap<number, SpecialSystem>;
-  /** Each initializer's own star class, drawn for a scenario system until the game rolls one. */
-  readonly initializerClasses: ReadonlyMap<string, string>;
   /** Initializer keys filtered out in the legend: their systems are dimmed and left unlabelled. */
   readonly hiddenInitializers: ReadonlySet<string>;
   /** Each system's precursor regions, and the legend of the precursors the galaxy has. */
@@ -167,7 +165,6 @@ export const sameContext = sameFields<RenderContext>({
   bypassKinds: true,
   countryTypes: true,
   special: true,
-  initializerClasses: true,
   hiddenInitializers: true,
   precursors: true,
   hiddenPrecursors: true,
@@ -276,7 +273,6 @@ export const EMPTY_CONTEXT: RenderContext = Object.freeze({
   bypassKinds: new Map<string, BypassView>(),
   countryTypes: new Map<string, CountryTypeView>(),
   special: new Map<number, SpecialSystem>(),
-  initializerClasses: new Map<string, string>(),
   hiddenInitializers: new Set<string>(),
   precursors: NO_PRECURSORS,
   hiddenPrecursors: NO_KEYS,
@@ -348,7 +344,6 @@ export function renderContext(): RenderContext {
     bypassKinds: data.bypasses,
     countryTypes: data.countryTypes,
     special: data.special,
-    initializerClasses: data.initializerClasses,
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
     precursors: chrome.layers.precursors ? currentPrecursors() : NO_PRECURSORS,
     hiddenPrecursors: chrome.hiddenPrecursors,

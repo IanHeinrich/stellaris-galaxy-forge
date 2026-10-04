@@ -559,3 +559,36 @@ fn install_planet_classes_say_who_may_take_them_and_their_models() {
     assert_eq!(rule("pc_ice_asteroid").1, 1);
     assert!(gd.planet_class_rule("pc_no_such_class").is_none());
 }
+
+#[test]
+fn install_views_of_several_keys_come_in_order_and_leave_the_unknown_out() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let keys = |keys: &[&str]| -> Vec<String> { keys.iter().map(|k| (*k).to_owned()).collect() };
+
+    let deposits = gd.deposit_type_views(&keys(&[
+        "d_massive_glacier",
+        "d_no_such_deposit",
+        "d_energy_3",
+    ]));
+    let found: Vec<&str> = deposits.iter().map(|d| d.key.as_str()).collect();
+    assert_eq!(found, ["d_massive_glacier", "d_energy_3"]);
+
+    let modifiers = gd.modifier_views(&keys(&[
+        "pm_abundant_geothermal_activity",
+        "pm_no_such_modifier",
+        "abundant_geothermal_activity",
+    ]));
+    let [planet, timed] = modifiers.as_slice() else {
+        panic!("{modifiers:?}");
+    };
+    assert_eq!(
+        planet.static_modifier.as_deref(),
+        Some("abundant_geothermal_activity")
+    );
+    assert_eq!(
+        planet.name, timed.name,
+        "the pm_ key shares its static modifier's name"
+    );
+}

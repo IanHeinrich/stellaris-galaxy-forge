@@ -12,7 +12,8 @@ import { detailOf } from "../../../../../store/fixture";
 import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
-import { ADD_BASES, homeIntro, NO_HOME_BESIDE } from "./MarauderSection";
+import { ADD_BASES, NO_HOME_BESIDE } from "./MarauderSection";
+import { homeIntro } from "./sectionCopy";
 import { escaped } from "../../../../../test/elements";
 import { mockedIpc } from "../../../../../test/ipc";
 

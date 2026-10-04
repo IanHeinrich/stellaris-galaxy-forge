@@ -146,7 +146,7 @@ describe("the system scene's turn wedge", () => {
   const wedged = (kind: "save" | "scenario", selected: number | null) => {
     const layer = new HighlightLayer();
     const ctx = context({ planets: walk });
-    layer.rebuild(systemContext({ ...ctx, kind, roll: kind === "save" ? null : ctx.roll }));
+    layer.rebuild(systemContext({ ...ctx, roll: kind === "save" ? null : ctx.roll }));
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected });
     const drawn = {
@@ -174,7 +174,7 @@ describe("the system scene's turn wedge", () => {
   ) => {
     const layer = new HighlightLayer();
     const ctx = context({ planets: walk });
-    layer.rebuild(systemContext({ ...ctx, kind, roll: kind === "save" ? null : ctx.roll }));
+    layer.rebuild(systemContext({ ...ctx, roll: kind === "save" ? null : ctx.roll }));
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected, linkedBody: linked });
     const texts = plateTexts(layer.container, "step");

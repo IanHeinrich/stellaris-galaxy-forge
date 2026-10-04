@@ -214,6 +214,20 @@ function armStarClasses(): void {
   });
 }
 
+describe("a save system's wormhole pair", () => {
+  it("names the natural wormhole's other end and says how to take the pair out", async () => {
+    await open("save");
+    await land(details());
+    useGalaxyStore.setState({ bypasses: [{ type: "wormhole", a: SYSTEM, b: 3 }] });
+
+    const html = overview();
+    expect(sections(html)).toContain("Wormhole pair");
+    expect(html).toContain("Wormhole pair with ");
+    expect(html).toContain("Sirius");
+    expect(html).toContain("To take the pair out");
+  });
+});
+
 describe("the star class at the head", () => {
   const stars = () =>
     details({

@@ -11,7 +11,7 @@ import { Camera } from "../Camera";
 import { systemContext, type SystemContext } from "./context";
 import type { SystemLayer } from "./layers/SystemLayer";
 import type { SceneTextures } from "./layers/textures";
-import { NO_SOURCES } from "./sources";
+import { NO_SOURCES, placeIn } from "./sources";
 
 export { drawOps, strokes, stubTextMeasurement } from "../layers/fixture";
 
@@ -176,15 +176,17 @@ export const SHROUD_TUNNEL: WormholeSummary = {
 /** System 5 of `details`, with lanes to 6 and 7, a bypass to 8, and its two wormholes. */
 export function context(details: Partial<SystemDetails>): SystemContext {
   const home = placedNode(SYSTEM, 0, 0, [6, 7]);
+  const systems = byId(
+    { ...home, bypass_ids: [8] },
+    placedNode(6, 100, 0, [SYSTEM]),
+    placedNode(7, 0, 100, [SYSTEM]),
+    placedNode(8, -100, 0),
+  );
   return systemContext({
     ...NO_SOURCES,
     id: SYSTEM,
-    systems: byId(
-      { ...home, bypass_ids: [8] },
-      placedNode(6, 100, 0, [SYSTEM]),
-      placedNode(7, 0, 100, [SYSTEM]),
-      placedNode(8, -100, 0),
-    ),
+    systems,
+    ...placeIn(systems, SYSTEM),
     details: systemDetails({
       id: SYSTEM,
       inner_radius: 160,

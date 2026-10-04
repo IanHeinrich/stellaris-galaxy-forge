@@ -19,7 +19,7 @@ import {
   systemContext,
   type SystemContext,
 } from "./context";
-import { readSystemSources, sameSources } from "./sources";
+import { documentSubject, readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
 import { pickPlate } from "./picking";
@@ -203,7 +203,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     if (this.id !== null) details.request([this.id]);
     // No fresh details will come to end the hold.
     if (this.holding() && this.id !== null && details.failed.has(this.id)) this.setStep(null);
-    const sources = readSystemSources(this.id);
+    const sources = readSystemSources(this.id, documentSubject());
     if (sameSources(sources, this.base)) return;
     // Another system, or its details answered afresh after an edit, undo or reload: a drag's
     // preview was measured on what went.
@@ -227,13 +227,7 @@ export class SystemScene implements Scene, SceneView, SceneTarget {
     const step = this.step;
     const base = this.base;
     if (step) {
-      const frame = {
-        layout: base.layout,
-        details: base.details,
-        planetClasses: base.planetClasses,
-        radii: base.radii,
-      };
-      const override = base.geometry.preview(step.intent, frame);
+      const override = base.geometry.preview(step.intent, base);
       this.ctx = systemContext(base, { override, marks: step.marks });
     } else {
       this.ctx = base;

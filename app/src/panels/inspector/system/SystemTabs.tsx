@@ -1,114 +1,26 @@
-import { useEffect } from "react";
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemDetails } from "../../../generated/SystemDetails";
+import { documentCapabilities } from "../../../lib/capabilities";
 import { nodeName } from "../../../lib/names";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
-import { useInspectorStore } from "../../../store/inspectorStore";
-import { useScriptsStore } from "../../../store/scriptsStore";
 import { DataTab } from "../entity/DataTab";
 import { SourceTab } from "../entity/SourceTab";
-import { SourceChip } from "../../parts";
 import { Empty, Properties, PropertyRow, Section } from "../parts";
+import { OVERVIEW_SECTIONS, overviewSectionsFor } from "./overviewSections";
 import { FleetSection } from "./sections/Fleets";
-import { FlagsSection } from "./sections/Flags";
 import { BypassSection, HyperlaneSection } from "./sections/Hyperlanes";
-import { InitializerSection } from "./sections/InitializerSection";
 import { MegastructureSection } from "./sections/Megastructures";
-import { BeltSection } from "./sections/Belts";
 import { PlanetSection } from "./sections/Planets";
-import { ResourceSection } from "./sections/Resources";
-import { FeLinksSection } from "./sections/scenario/FeLinksSection";
-import { FeZoneSection } from "./sections/scenario/FeZoneSection";
-import { MarauderSection } from "./sections/scenario/MarauderSection";
-import { ScriptsTab, SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
-import { SpawnPointSection } from "./sections/scenario/SpawnPointSection";
-import { WormholePairSection } from "./sections/scenario/WormholePairSection";
+import { ScriptsTab } from "./sections/scenario/ScriptsTab";
 import { SiteSection } from "./sections/Sites";
 import { StationSection } from "./sections/Station";
-import { SaveWormholePairSection } from "./sections/WormholePair";
 import { Header, OverviewHead } from "./SystemHeader";
 
-/** How many hyperlanes the Overview lists before sending the reader to the Lanes tab. */
-const OVERVIEW_LANES = 5;
-
-/** What the closed row says for the count: still reading, unavailable, or what came back. */
-function scriptsCount(
-  scripts: { rows: unknown[] } | undefined,
-  missing: boolean,
-  failed: boolean,
-): string {
-  if (failed) return "unavailable";
-  if (scripts !== undefined) return String(scripts.rows.length);
-  return missing ? "0" : "…";
-}
-
-/** The closed row the overview ends with: how many scripts reach the system, and the way to them. */
-function ScriptsRow({ system }: { system: number }) {
-  const setTab = useInspectorStore((s) => s.setTab);
-  const request = useScriptsStore((s) => s.request);
-  const scripts = useScriptsStore((s) => s.scripts.get(system));
-  const missing = useScriptsStore((s) => s.missing.has(system));
-  const failed = useScriptsStore((s) => s.failed.has(system));
-  const version = useScriptsStore((s) => s.version);
-
-  // The cache bumps its version when it drops what it held, and asking again is how it refills.
-  useEffect(() => request(system), [system, request, version]);
-
-  return (
-    <button
-      type="button"
-      className="ins-sec ins-sec-link"
-      title={SCRIPTS_TAB_TITLE}
-      onClick={() => setTab("scripts")}
-    >
-      <span className={`ins-sec-title${failed ? " muted" : ""}`}>
-        Scripts · {scriptsCount(scripts, missing, failed)}
-      </span>
-      <SourceChip source="scripts" />
-    </button>
-  );
-}
-
 /**
- * A scenario system holds nothing of its own: its contents are what the initializer will spawn,
- * which the details cache reads from the game data. Each section waits for data of its own, and
- * the initializer lists the bodies only while the planet list does not.
+ * The system's Overview: the head, then every section the document can answer for. A document
+ * that holds its systems' contents shows them once they are read; one whose bodies are rolled
+ * has each section wait for data of its own.
  */
-function ScenarioOverview({
-  detail,
-  details,
-}: {
-  detail: SystemDetail;
-  details: SystemDetails | undefined;
-}) {
-  const { system } = detail;
-  const ready = useGameDataStore((s) => s.status === "ready");
-  const planets = details?.planets.length ?? 0;
-  return (
-    <>
-      <OverviewHead detail={detail} />
-      <SpawnPointSection system={system} />
-      <FeZoneSection system={system} />
-      <FeLinksSection system={system} />
-      <MarauderSection system={system} />
-      <WormholePairSection system={system} />
-      <InitializerSection system={system} spawn={planets === 0} />
-      {details &&
-        (planets > 0 ? <PlanetSection details={details} /> : <ResourceSection details={details} />)}
-      {details?.starbase && <StationSection starbase={details.starbase} system={system.id} />}
-      {details && (
-        <MegastructureSection megastructures={details.megastructures} system={system.id} />
-      )}
-      <BypassSection system={system.id} />
-      {details && details.sites.length > 0 && <SiteSection sites={details.sites} />}
-      {system.flags.length > 0 && <FlagsSection system={system} />}
-      <HyperlaneSection detail={detail} limit={OVERVIEW_LANES} startClosed />
-      {ready && <ScriptsRow system={system.id} />}
-    </>
-  );
-}
-
 export function Overview({
   detail,
   details,
@@ -116,10 +28,8 @@ export function Overview({
   detail: SystemDetail;
   details: SystemDetails | undefined;
 }) {
-  const scenario = useFileSessionStore((s) => s.kind === "scenario");
-  const { system } = detail;
-  if (scenario) return <ScenarioOverview detail={detail} details={details} />;
-  if (!details) {
+  const capabilities = useFileSessionStore(documentCapabilities);
+  if (!capabilities.rolled_layout && !details) {
     return (
       <>
         <OverviewHead detail={detail} />
@@ -127,27 +37,13 @@ export function Overview({
       </>
     );
   }
-  const military = details.fleets_present.filter((f) => f.military);
-  const utility = details.fleets_present.filter((f) => !f.military);
   return (
     <>
       <OverviewHead detail={detail} />
-      <HyperlaneSection detail={detail} limit={OVERVIEW_LANES} />
-      <BypassSection system={system.id} />
-      <SaveWormholePairSection system={system.id} />
-      <PlanetSection details={details} />
-      <BeltSection details={details} />
-      {details.starbase && <StationSection starbase={details.starbase} system={system.id} />}
-      <MegastructureSection megastructures={details.megastructures} system={system.id} />
-      <FleetSection
-        id="system.military"
-        title="Military fleets"
-        fleets={military}
-        system={system.id}
-      />
-      <FleetSection id="system.utility" title="Utility ships" fleets={utility} system={system.id} />
-      <FlagsSection system={system} />
-      <InitializerSection system={system} spawn={false} />
+      {overviewSectionsFor(capabilities).map((key) => {
+        const Entry = OVERVIEW_SECTIONS[key].component;
+        return <Entry key={key} detail={detail} details={details} />;
+      })}
     </>
   );
 }

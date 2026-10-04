@@ -3,9 +3,9 @@ import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { SystemNode } from "../../generated/SystemNode";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext } from "../RenderContext";
-import { DrawnPositions, type DrawnChange } from "../drawnPositions";
+import type { DrawnChange, DrawnPositions } from "../drawnPositions";
 import { dimmedByInitializer } from "../../lib/initializer/initializerLabels";
-import { effectiveStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
+import { drawnStarClass, starGlyph, starTextureKey } from "../../lib/visual/starGlyphs";
 import { STAR_BASE_PX, starDiameterPx } from "../../lib/visual/starSize";
 import { FILTERED_ALPHA, ORIGIN_ALPHA } from "../../lib/visual/style";
 import { getTexture, onTextures, requestTextures } from "../../lib/visual/textures";
@@ -99,7 +99,7 @@ export class SystemsLayer implements MapLayer {
 
   constructor(
     private readonly renderer: Renderer,
-    private readonly drawn = new DrawnPositions(),
+    private readonly drawn: DrawnPositions,
   ) {
     this.glow = acquireGlow(renderer);
     this.ring = ringTexture(renderer);
@@ -114,8 +114,6 @@ export class SystemsLayer implements MapLayer {
       if (
         ctx.starClasses !== prev.starClasses ||
         ctx.planetClasses !== prev.planetClasses ||
-        ctx.initializerClasses !== prev.initializerClasses ||
-        ctx.kind !== prev.kind ||
         ctx.starTints !== prev.starTints ||
         ctx.hiddenInitializers !== prev.hiddenInitializers
       ) {
@@ -268,9 +266,7 @@ export class SystemsLayer implements MapLayer {
     }
     sprite.position.set(s.x, this.drawn.y(s));
 
-    const starClass = this.ctx.starTints
-      ? effectiveStarClass(s, this.ctx.initializerClasses.get(s.initializer), this.ctx.kind)
-      : NO_CLASS;
+    const starClass = this.ctx.starTints ? drawnStarClass(s) : NO_CLASS;
     const resolved = starTextureKey(starClass, this.ctx.starClasses);
     let tex: Texture | null | undefined;
     if (resolved) {
