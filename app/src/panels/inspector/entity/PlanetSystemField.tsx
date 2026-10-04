@@ -15,7 +15,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { ComboField, type ComboItem } from "../../ComboField";
 import { EditRow } from "../../EditField";
-import { useWarningNames } from "../../usePlanetMove";
+import { useWarningNames } from "../../useCut";
 
 /** What the field says while the core is first asked where the planet may go. */
 export const READING_TARGETS = "Reading where this planet can move…";

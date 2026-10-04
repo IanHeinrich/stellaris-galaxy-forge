@@ -1,5 +1,4 @@
 import { ADD_MOON_LABEL, takesMoons } from "../../../lib/addBody";
-import { bodyName } from "../../../lib/details/labels";
 import { lockedToName } from "../../../lib/details/orbitIntent";
 import { nextMoonRing, orbitParent } from "../../../lib/details/orbitReach";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
@@ -16,6 +15,7 @@ import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
+import { useSystemBodyNamer } from "../../inspector/entity/useBodyName";
 import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
@@ -35,7 +35,6 @@ export function BodyMenu({
 }) {
   const openFromMap = useInspectorStore((s) => s.openFromMap);
   const details = useDetailsStore((s) => s.details.get(target.system));
-  const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const addBodyAt = useEditorStore((s) => s.addBodyAt);
@@ -43,10 +42,7 @@ export function BodyMenu({
   const locked = useSceneStore((s) => s.lockedBodies.has(target.id));
   const lockBody = useSceneStore((s) => s.lockBody);
   const unlockBody = useSceneStore((s) => s.unlockBody);
-  const nameOf = (id: number) => {
-    const planet = details?.planets.find((p) => p.id === id);
-    return planet === undefined ? undefined : bodyName(planet, names);
-  };
+  const nameOf = useSystemBodyNamer(target.system);
   const name = nameOf(target.id);
   const placed = layout.bodies.find((b) => b.id === target.id);
   const lockable = placed !== undefined && editing.bodies.get(target.id)?.move === true;
