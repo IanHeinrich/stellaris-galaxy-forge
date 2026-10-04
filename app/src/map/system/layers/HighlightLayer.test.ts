@@ -44,15 +44,15 @@ describe("the system scene's radius line", () => {
     const layer = new HighlightLayer();
     layer.rebuild(context({ planets: [SUN, EARTH, LUNA, MARS] }));
     viewport(layer, 2);
-    expect(strokes(layer.radiusLine)).toEqual([]);
+    expect(strokes(layer.walk.radiusLine)).toEqual([]);
     expect(readouts(layer.container)).toEqual([]);
 
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: EARTH.id });
-    expect(strokes(layer.radiusLine)).toHaveLength(1);
+    expect(strokes(layer.walk.radiusLine)).toHaveLength(1);
     expect(readouts(layer.container)).toEqual(["90"]);
 
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: SUN.id });
-    expect(strokes(layer.radiusLine)).toEqual([]);
+    expect(strokes(layer.walk.radiusLine)).toEqual([]);
     expect(readouts(layer.container)).toEqual([]);
     layer.destroy();
   });
@@ -93,8 +93,8 @@ describe("the system scene's orbit band", () => {
       highlight.rebuild(context({ planets: [SCENARIO_STAR, banded, turning] }));
       viewport(highlight, 2);
       highlight.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected });
-      const band = drawOps(highlight.band);
-      const holes = holeRadii(highlight.band);
+      const band = drawOps(highlight.walk.band);
+      const holes = holeRadii(highlight.walk.band);
       highlight.destroy();
       return { fills: band.filter((op) => op.action === "fill"), holes };
     };
@@ -150,8 +150,8 @@ describe("the system scene's turn wedge", () => {
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected });
     const drawn = {
-      rays: [layer.turnRayMin, layer.turnRayMax].map((g) => strokes(g).length),
-      arc: strokes(layer.turnArc).length,
+      rays: [layer.walk.turnRayMin, layer.walk.turnRayMax].map((g) => strokes(g).length),
+      arc: strokes(layer.walk.turnArc).length,
       labels: turns(layer.container),
     };
     layer.destroy();
@@ -178,14 +178,14 @@ describe("the system scene's turn wedge", () => {
     viewport(layer, 2);
     layer.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: selected, linkedBody: linked });
     const texts = plateTexts(layer.container, "step");
-    const outline = strokes(layer.anchorRing);
+    const outline = strokes(layer.walk.anchorRing);
     const drawn = {
       anchor: outline.length,
       anchorColor: outline[0]?.color,
       anchorAlpha: outline[0]?.alpha,
-      ray: strokes(layer.anchorRay).length,
-      base: strokes(layer.baseCircle).length,
-      step: strokes(layer.stepLine).length,
+      ray: strokes(layer.walk.anchorRay).length,
+      base: strokes(layer.walk.baseCircle).length,
+      step: strokes(layer.walk.stepLine).length,
       steps: texts,
     };
     layer.destroy();
@@ -244,7 +244,7 @@ describe("the system scene's selected wormhole", () => {
     layer.setHighlighted({
       ...NO_HIGHLIGHT,
       selectedWormhole: WORMHOLE.id,
-      hoverWormhole: WORMHOLE.id,
+      hover: { kind: "wormhole", id: WORMHOLE.id },
     });
     const [grown] = strokes(layer.wormholeRing);
     expect(grown.segments[0][2]).toBeCloseTo(drawnWormhole(1) * HOVER_GROW + SELECTED_GAP_PX);

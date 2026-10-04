@@ -620,7 +620,7 @@ describe("the system scene's bodies layer", () => {
     const textureFor = decodeByKey();
     const layer = new BodiesLayer(blankSceneTextures());
     const rock = { ...EARTH, class: "pc_asteroid" };
-    layer.rebuild(classedContext([rock], [iconed("pc_asteroid")]));
+    layer.rebuild(classedContext([rock], [{ ...iconed("pc_asteroid"), asteroid: true }]));
     viewport(layer, 2);
     const drawn = holderAt(layer, ...EARTH_AT);
     expect(sprite(drawn, "disc").visible).toBe(true);
@@ -632,6 +632,17 @@ describe("the system scene's bodies layer", () => {
     expect(sprite(drawn, "art").texture).toBe(textureFor("sprite:GFX_pc_asteroid"));
     expect(sprite(drawn, "disc").visible).toBe(false);
     resetTextures();
+    layer.destroy();
+  });
+
+  it("draws a modded asteroid class whose key does not say so with no shading, as its class view says", () => {
+    const layer = new BodiesLayer(blankSceneTextures());
+    const rock = { ...EARTH, class: "pc_mod_rock" };
+    layer.rebuild(classedContext([rock], [{ ...iconed("pc_mod_rock"), asteroid: true }]));
+    viewport(layer, 2);
+    const drawn = holderAt(layer, ...EARTH_AT);
+    expect(part(drawn, "shade")).toBeUndefined();
+    expect(part(drawn, "lit")).toBeUndefined();
     layer.destroy();
   });
 
@@ -672,7 +683,8 @@ describe("the system scene's bodies layer", () => {
     const textureFor = decodeByKey();
     const glazeOf = async (planetClass: string) => {
       const layer = new BodiesLayer(blankSceneTextures());
-      layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [iconed(planetClass)]));
+      const rock = { ...iconed(planetClass), asteroid: true };
+      layer.rebuild(classedContext([{ ...EARTH, class: planetClass }], [rock]));
       viewport(layer, 2);
       const drawn = holderAt(layer, ...EARTH_AT);
       await answerFetch();

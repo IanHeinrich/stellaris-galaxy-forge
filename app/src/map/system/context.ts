@@ -319,7 +319,7 @@ function freshArt(
   src: SystemSources,
 ): BodyArt {
   if (starClass !== null) {
-    const look = bodyLook(planetClass, starClass, drawn);
+    const look = bodyLook({ planetClass, starClass, drawn });
     const view = src.starClasses.get(starClass);
     const iconKeys = view?.texture_key ? [view.texture_key] : [];
     return {
@@ -333,7 +333,15 @@ function freshArt(
   }
   const view = drawn ? undefined : src.planetClasses.get(planetClass);
   const seed = view?.shattered === true ? id : null;
-  const look = bodyLook(planetClass, null, drawn, view?.flat_art === true, model, seed);
+  const look = bodyLook({
+    planetClass,
+    starClass: null,
+    drawn,
+    flat: view?.flat_art === true,
+    asteroid: view?.asteroid === true,
+    model,
+    shatterSeed: seed,
+  });
   const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {

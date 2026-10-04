@@ -8,12 +8,19 @@ import type { WormholeSummary } from "../../generated/WormholeSummary";
 import { bodyLayout, byId, placedNode, planetSummary, systemDetails } from "../../test/builders";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { Camera } from "../Camera";
+import type { HandleRef } from "./bodyDrag";
 import { systemContext, type SystemContext } from "./context";
 import type { SystemLayer } from "./layers/SystemLayer";
 import type { SceneTextures } from "./layers/textures";
+import type { SceneTarget } from "./picking";
 import { NO_SOURCES, placeIn } from "./sources";
 
 export { drawOps, strokes, stubTextMeasurement } from "../layers/fixture";
+
+/** The body, wormhole or arrow `id` as an input's target. */
+export const over = (kind: "body" | "wormhole" | "exit", id: number): SceneTarget => ({ kind, id });
+/** A handle as an input's target. */
+export const grip = (ref: HandleRef): SceneTarget => ({ kind: "handle", ref });
 
 /** Drives one viewport pass at `scale`, centred on `at`, as the scene's tick would. */
 export function viewport(layer: SystemLayer, scale: number, at = { x: 0, y: 0 }): Camera {

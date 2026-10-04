@@ -1,17 +1,12 @@
 import type { GeometryIntent } from "../../lib/details/orbitIntent";
+import type { Pt } from "../../lib/geometry/pt";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
-import {
-  BodyDrag,
-  HandleDrag,
-  WormholeDrag,
-  type Drag,
-  type DragPointer,
-  type DragStep,
-  type HandleRef,
-} from "./bodyDrag";
+import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
+import { HandleDrag, WormholeDrag } from "./drags";
+import type { SceneTarget } from "./picking";
 
 /** One pointer event in the system scene, with the body, wormhole, handle or arrow under it. */
 export interface SystemInput {
@@ -29,15 +24,10 @@ export interface SystemInput {
   scale: number;
   /** The event's `timeStamp` in milliseconds. */
   time: number;
-  /** The system the scene shows. */
-  system: number;
-  body: number | null;
-  /** The wormhole whose marker is under the pointer, where no body is. */
-  wormhole: number | null;
-  /** The belt or inner-radius handle under the pointer, where no body or wormhole is. */
-  handle: HandleRef | null;
-  /** The neighbour whose hyperlane arrow is under the pointer. */
-  exit: number | null;
+  /** The system the scene shows, or null while it shows none. */
+  system: number | null;
+  /** What the pointer is over, or null for empty space. */
+  target: SceneTarget | null;
   /**
    * Whether a left drag from here moves something: the body or wormhole picked can move, or a
    * handle is.
@@ -47,15 +37,8 @@ export interface SystemInput {
 
 /** What the scene's gestures ask of the scene and the stores. */
 export interface SystemIntent {
-  /** What the pointer rests on, at (sx, sy); all null when it rests on nothing or pans. */
-  hover(
-    body: number | null,
-    exit: number | null,
-    handle: HandleRef | null,
-    wormhole: number | null,
-    sx: number,
-    sy: number,
-  ): void;
+  /** What the pointer rests on, at (sx, sy); null when it rests on nothing or pans. */
+  hover(target: SceneTarget | null, sx: number, sy: number): void;
   /** Highlights the lane to `neighbour`, or drops the highlight. */
   selectLane(neighbour: number | null): void;
   enterSystem(id: number): void;
@@ -77,11 +60,8 @@ export interface SystemIntent {
 }
 
 type Press = Tap & {
-  system: number;
-  body: number | null;
-  wormhole: number | null;
-  handle: HandleRef | null;
-  exit: number | null;
+  system: number | null;
+  target: SceneTarget | null;
   draggable: boolean;
   wx: number;
   wy: number;
@@ -91,13 +71,36 @@ type State =
   | { kind: "idle" }
   | { kind: "pressed"; press: Press }
   | { kind: "panning" }
-  | { kind: "bodyDrag" | "handleDrag" | "wormholeDrag"; drag: Drag; step: DragStep };
+  | { kind: "drag"; drag: Drag; step: DragStep };
 
 const IDLE: State = { kind: "idle" };
 
 function pointerOf(input: SystemInput): DragPointer {
   const { wx, wy, shift, ctrl, scale } = input;
   return { wx, wy, shift, ctrl, scale };
+}
+
+/** The menu a right-click opens: a body's, a belt's, or the space's at the pointer. */
+function menuTarget(system: number, { target, wx, wy }: SystemInput): ContextTarget {
+  if (target?.kind === "body") return { kind: "body", system, id: target.id };
+  if (target?.kind === "handle" && target.ref.kind === "belt") {
+    return { kind: "belt", system, index: target.ref.index };
+  }
+  return { kind: "systemSpace", system, x: wx, y: wy };
+}
+
+/** The drag of what `target` names, pressed at `from`, or null where it may not move. */
+function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | null {
+  switch (target.kind) {
+    case "body":
+      return BodyDrag.start(frame, target.id, from);
+    case "wormhole":
+      return WormholeDrag.start(frame, target.id, from);
+    case "handle":
+      return HandleDrag.start(frame, target.ref, from);
+    case "exit":
+      return null;
+  }
 }
 
 /**
@@ -135,8 +138,7 @@ export class SystemGestureModel {
 
   /** Whether a body, a wormhole or a handle is being dragged. */
   dragging(): boolean {
-    const { kind } = this.state;
-    return kind === "bodyDrag" || kind === "handleDrag" || kind === "wormholeDrag";
+    return this.state.kind === "drag";
   }
 
   /** Drops the gesture in progress, and a drag's preview with it. */
@@ -154,19 +156,13 @@ export class SystemGestureModel {
   private down(input: SystemInput, intent: SystemIntent): void {
     if (this.state.kind !== "idle") return;
     if (input.button === 2) {
-      const { system, body, handle } = input;
-      const target: ContextTarget =
-        body !== null
-          ? { kind: "body", system, id: body }
-          : handle?.kind === "belt"
-            ? { kind: "belt", system, index: handle.index }
-            : { kind: "systemSpace", system, x: input.wx, y: input.wy };
-      intent.contextMenu(target, input.sx, input.sy);
+      if (input.system === null) return;
+      intent.contextMenu(menuTarget(input.system, input), input.sx, input.sy);
     } else if (input.button === 1) {
       this.state = { kind: "panning" };
     } else if (input.button === 0) {
-      const { sx, sy, wx, wy, time, system, body, wormhole, handle, exit, draggable } = input;
-      const press = { sx, sy, wx, wy, time, system, body, wormhole, handle, exit, draggable };
+      const { sx, sy, wx, wy, time, system, target, draggable } = input;
+      const press = { sx, sy, wx, wy, time, system, target, draggable };
       this.state = { kind: "pressed", press };
     }
   }
@@ -175,21 +171,19 @@ export class SystemGestureModel {
     const state = this.state;
     switch (state.kind) {
       case "idle":
-        intent.hover(input.body, input.exit, input.handle, input.wormhole, input.sx, input.sy);
+        intent.hover(input.target, input.sx, input.sy);
         return "consumed";
       case "pressed":
         if (!pastThreshold(state.press, input)) return "consumed";
         this.lastExit = null;
-        intent.hover(null, null, null, null, input.sx, input.sy);
+        intent.hover(null, input.sx, input.sy);
         if (state.press.draggable && this.startDrag(state.press, input, intent)) return "consumed";
         this.state = { kind: "panning" };
         return "pan";
       case "panning":
-        intent.hover(null, null, null, null, input.sx, input.sy);
+        intent.hover(null, input.sx, input.sy);
         return "pan";
-      case "bodyDrag":
-      case "handleDrag":
-      case "wormholeDrag": {
+      case "drag": {
         const step = state.drag.move(pointerOf(input));
         this.state = { ...state, step };
         intent.preview(step);
@@ -200,29 +194,22 @@ export class SystemGestureModel {
 
   /** Starts the drag the press asks for, if the scene lets it; a body's or wormhole's page opens first. */
   private startDrag(press: Press, input: SystemInput, intent: SystemIntent): boolean {
-    const frame = intent.frame();
-    const from = { x: press.wx, y: press.wy };
-    let state: State | null = null;
-    if (press.handle !== null) {
-      const drag = HandleDrag.start(frame, press.handle, from);
-      if (drag) state = { kind: "handleDrag", drag, step: drag.move(pointerOf(input)) };
-    } else if (press.body !== null) {
-      const drag = BodyDrag.start(frame, press.body, from);
-      if (drag) {
-        intent.openBody(press.system, press.body);
-        state = { kind: "bodyDrag", drag, step: drag.move(pointerOf(input)) };
-      }
-    } else if (press.wormhole !== null) {
-      const drag = WormholeDrag.start(frame, press.wormhole, from);
-      if (drag) {
-        intent.openWormhole(press.system, press.wormhole);
-        state = { kind: "wormholeDrag", drag, step: drag.move(pointerOf(input)) };
-      }
-    }
-    if (state === null) return false;
-    this.state = state;
-    intent.preview(state.step);
+    const { target } = press;
+    if (target === null) return false;
+    const drag = dragOf(target, intent.frame(), { x: press.wx, y: press.wy });
+    if (drag === null) return false;
+    this.open(press, intent);
+    const step = drag.move(pointerOf(input));
+    this.state = { kind: "drag", drag, step };
+    intent.preview(step);
     return true;
+  }
+
+  /** Opens the page of the body or wormhole pressed, if it is one. */
+  private open({ system, target }: Press, intent: SystemIntent): void {
+    if (system === null || target === null) return;
+    if (target.kind === "body") intent.openBody(system, target.id);
+    else if (target.kind === "wormhole") intent.openWormhole(system, target.id);
   }
 
   /** A pointer up comes once the last button is released, so it ends whatever gesture is going. */
@@ -238,9 +225,7 @@ export class SystemGestureModel {
       case "panning":
         this.state = IDLE;
         return;
-      case "bodyDrag":
-      case "handleDrag":
-      case "wormholeDrag": {
+      case "drag": {
         if (input.button !== 0) {
           this.cancel(intent);
           return;
@@ -249,7 +234,7 @@ export class SystemGestureModel {
         const { step } = state;
         if (step.changed) intent.commit(step.intent);
         else intent.preview(null);
-        intent.hover(input.body, input.exit, input.handle, input.wormhole, input.sx, input.sy);
+        intent.hover(input.target, input.sx, input.sy);
         if (step.refused !== undefined) intent.refuse(step.refused);
       }
     }
@@ -258,17 +243,17 @@ export class SystemGestureModel {
   private click(press: Press, intent: SystemIntent): void {
     const last = this.lastExit;
     this.lastExit = null;
-    if (press.exit !== null) {
-      if (last?.exit === press.exit && doubles(last, press)) {
-        intent.enterSystem(press.exit);
+    const { target } = press;
+    if (target?.kind === "exit") {
+      const exit = target.id;
+      if (last?.exit === exit && doubles(last, press)) {
+        intent.enterSystem(exit);
         return;
       }
-      intent.selectLane(press.exit);
-      this.lastExit = { exit: press.exit, sx: press.sx, sy: press.sy, time: press.time };
-    } else if (press.body !== null) {
-      intent.openBody(press.system, press.body);
-    } else if (press.wormhole !== null) {
-      intent.openWormhole(press.system, press.wormhole);
+      intent.selectLane(exit);
+      this.lastExit = { exit, sx: press.sx, sy: press.sy, time: press.time };
+    } else if (target?.kind === "body" || target?.kind === "wormhole") {
+      this.open(press, intent);
     } else {
       intent.selectLane(null);
       intent.showSystem();

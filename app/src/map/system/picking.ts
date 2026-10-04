@@ -7,6 +7,30 @@ import { drawnDisc, drawnWormhole, exitCentre } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
 
+/** What the pointer can rest on in the scene: a body, a wormhole, a hyperlane arrow or a handle. */
+export type SceneTarget =
+  | { readonly kind: "body" | "wormhole" | "exit"; readonly id: number }
+  | { readonly kind: "handle"; readonly ref: HandleRef };
+
+export function sameTarget(a: SceneTarget | null, b: SceneTarget | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.kind === "handle") return b.kind === "handle" && sameHandle(a.ref, b.ref);
+  return b.kind !== "handle" && a.kind === b.kind && a.id === b.id;
+}
+
+/** The body, wormhole or arrow `target` names, as `kind`; null for anything else. */
+export function idOf(
+  target: SceneTarget | null,
+  kind: "body" | "wormhole" | "exit",
+): number | null {
+  return target !== null && target.kind !== "handle" && target.kind === kind ? target.id : null;
+}
+
+/** The handle `target` names, or null. */
+export function handleOf(target: SceneTarget | null): HandleRef | null {
+  return target?.kind === "handle" ? target.ref : null;
+}
+
 /**
  * The body nearest the world point `at` within its drawn disc or the pick radius, whichever is
  * larger; a star drawn from the galaxy's record while the system loads is never picked.
@@ -102,6 +126,28 @@ export function pickHandle(
       sameHandle(h.ref, shown) && Math.hypot(h.x - at.x, h.y - at.y) * cam.scale <= PICK_RADIUS_PX,
   );
   return near ? shown : null;
+}
+
+/**
+ * What the world point `at` is over: a body's disc, else the body whose plate `plateAt` finds there,
+ * a wormhole, one of the `shown` band's handles, or a hyperlane arrow.
+ */
+export function pickTarget(
+  ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits">,
+  cam: Camera,
+  at: Pt,
+  plateAt: () => number | null,
+  shown: HandleRef | null,
+): SceneTarget | null {
+  // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
+  const body = pickBody(ctx.bodies, cam, at) ?? plateAt();
+  if (body !== null) return { kind: "body", id: body };
+  const wormhole = pickWormhole(ctx.wormholes, cam, at);
+  if (wormhole !== null) return { kind: "wormhole", id: wormhole };
+  const handle = pickHandle(ctx.handles, cam, at, shown);
+  if (handle !== null) return { kind: "handle", ref: handle };
+  const exit = pickExit(ctx.exits, cam, at);
+  return exit === null ? null : { kind: "exit", id: exit };
 }
 
 /** A shown name plate: its top-left in world units and its size in screen pixels. */
