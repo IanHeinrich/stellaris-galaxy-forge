@@ -13,7 +13,7 @@ fn add_system_writes_the_spec_and_the_new_system_reads_back() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Added Mura (#601) at (-292.23404, -137.62265) with 9 bodies and 1 lane"),
+        text.contains("Added Mura #601 at (-292.23404, -137.62265) with 9 bodies and 1 lane"),
         "{text}"
     );
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
@@ -77,7 +77,7 @@ fn add_system_then_remove_removes_only_the_systems_it_added() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Removed Tau Ceti (#602) and 3 lanes; renumbered 603 to 602"),
+        text.contains("Removed Tau Ceti #602 and 3 lanes; renumbered 603 to 602"),
         "{text}"
     );
     assert!(
@@ -158,7 +158,7 @@ fn add_system_generates_a_system_from_a_seed_and_writes_it() {
     ok(&out);
     let text = stdout(&out);
     assert!(text.contains(&format!("seed 11: {name} ")), "{text}");
-    assert!(text.contains(&format!("Added {name} (#601)")), "{text}");
+    assert!(text.contains(&format!("Added {name} #601")), "{text}");
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
 }
 

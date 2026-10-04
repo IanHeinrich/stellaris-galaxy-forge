@@ -387,7 +387,7 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Add planet feature pm_mineral_poor (mineral_poor) to planet #585"),
+        text.contains("Added planet feature pm_mineral_poor (mineral_poor) to planet #585"),
         "{text}"
     );
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
@@ -406,7 +406,7 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
     ok(&removed);
     assert!(
         stdout(&removed)
-            .contains("Remove planet feature pm_mineral_poor (mineral_poor) from planet #585"),
+            .contains("Removed planet feature pm_mineral_poor (mineral_poor) from planet #585"),
         "{}",
         stdout(&removed)
     );
@@ -522,7 +522,7 @@ fn anomaly_writes_one_a_later_run_takes_away() {
     ok(&out);
     assert!(
         stdout(&out).contains(
-            "Add anomaly asteroid_uninhabitable_category to planet #3, found by empire 0"
+            "Added anomaly asteroid_uninhabitable_category to planet #3, found by empire 0"
         ),
         "{}",
         stdout(&out)
@@ -539,7 +539,7 @@ fn anomaly_writes_one_a_later_run_takes_away() {
     ]);
     ok(&removed);
     assert!(
-        stdout(&removed).contains("Remove anomaly asteroid_uninhabitable_category from planet #3"),
+        stdout(&removed).contains("Removed anomaly asteroid_uninhabitable_category from planet #3"),
         "{}",
         stdout(&removed)
     );
@@ -632,7 +632,7 @@ fn dig_site_writes_a_site_a_later_run_takes_away() {
     ok(&out);
     let text = stdout(&out);
     assert!(
-        text.contains("Add dig site site_lost_moments (#4) to planet #585"),
+        text.contains("Added dig site site_lost_moments (#4) to planet #585"),
         "{text}"
     );
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
@@ -647,7 +647,7 @@ fn dig_site_writes_a_site_a_later_run_takes_away() {
     ]);
     ok(&removed);
     assert!(
-        stdout(&removed).contains("Remove dig site site_lost_moments (#4) from planet #585"),
+        stdout(&removed).contains("Removed dig site site_lost_moments (#4) from planet #585"),
         "{}",
         stdout(&removed)
     );
@@ -684,7 +684,7 @@ fn add_body_writes_a_planet_and_a_rolled_moon() {
     let text = stdout(&out);
     assert!(
         text.contains(
-            "Added planet #16777273 to system #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit"
+            "Added planet #16777273 to Meissa #408 (pc_desert, size 12) at orbit 45 at 300°, with 1 deposit"
         ),
         "{text}"
     );
@@ -711,7 +711,7 @@ fn add_body_writes_a_planet_and_a_rolled_moon() {
     ok(&out);
     let text = stdout(&out);
     assert!(text.contains("Added moon #"), "{text}");
-    assert!(text.contains("of planet #138 in system #408"), "{text}");
+    assert!(text.contains("of planet #138 in Meissa #408"), "{text}");
 }
 
 #[test]
