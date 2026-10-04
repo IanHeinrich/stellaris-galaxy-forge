@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/textures", () => ({ getTextures: () => new Promise(() => {}) }));
+vi.mock("../../api/gamedata", () => ({ getTextures: () => new Promise(() => {}) }));
 
 import { BitmapText, Container, Graphics, Sprite } from "pixi.js";
 import type { PlanetClassView } from "../../generated/PlanetClassView";

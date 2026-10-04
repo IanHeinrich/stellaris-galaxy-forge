@@ -154,6 +154,29 @@ fn the_view_says_which_initializers_a_country_starts_in() {
     assert!(!spawns("basic_init_01"), "usage = misc_system_init");
 }
 
+/// The class a scenario system is drawn as until the game generates the galaxy: its
+/// initializer's star class, and a G star for one that draws from a random list.
+#[test]
+fn the_view_gives_the_star_class_a_scenario_system_is_drawn_as() {
+    let (Some(lifting), Some(relic)) = (
+        initializer("star_lifting_system"),
+        initializer("relic_system_1"),
+    ) else {
+        return;
+    };
+    let lifting = view(lifting);
+    assert_eq!(
+        (lifting.class.as_deref(), lifting.star_class.as_str()),
+        (Some("sc_pulsar"), "sc_pulsar")
+    );
+    let relic = view(relic);
+    assert_eq!(
+        (relic.class.as_deref(), relic.star_class.as_str()),
+        (Some("rl_binary_stars"), "sc_g"),
+        "the raw class stays for the initializer browser"
+    );
+}
+
 #[test]
 fn an_initializer_that_names_itself_carries_the_localisation_key() {
     let gd = common::cached_fixture();

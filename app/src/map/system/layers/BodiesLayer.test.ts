@@ -6,7 +6,7 @@ const fetch = vi.hoisted(() => ({
   fails: (() => false) as (key: string) => boolean,
 }));
 
-vi.mock("../../../api/textures", () => ({
+vi.mock("../../../api/gamedata", () => ({
   getTextures: (keys: string[]) =>
     new Promise((resolve) => {
       fetch.release = () =>

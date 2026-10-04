@@ -2,7 +2,7 @@ import { DrawnPositions } from "../drawnPositions";
 import { Container, Graphics } from "pixi.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../api/textures", () => ({ getTextures: () => Promise.resolve([]) }));
+vi.mock("../../api/gamedata", () => ({ getTextures: () => Promise.resolve([]) }));
 vi.mock("../../lib/visual/textures", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/visual/textures")>();
   return { ...actual, requestTextures: vi.fn(actual.requestTextures) };

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 /** The texture fetch, which answers with nothing, or once a test asks, that no key can render. */
 const fetch = vi.hoisted(() => ({ fails: false }));
 
-vi.mock("../../api/textures", () => ({
+vi.mock("../../api/gamedata", () => ({
   getTextures: (keys: string[]) =>
     Promise.resolve(
       fetch.fails
