@@ -205,16 +205,6 @@ impl Edit {
         self.splices.push((at..at, text));
     }
 
-    /// See [`BufEdit::remove_statement`].
-    pub fn remove_statement(&mut self, span: Span) {
-        self.bytes().remove_statement(span);
-    }
-
-    /// See [`BufEdit::remove_lines`].
-    pub fn remove_lines(&mut self, span: Span) {
-        self.bytes().remove_lines(span);
-    }
-
     /// The start of the line holding `at`.
     pub fn line_start(&self, at: usize) -> usize {
         cst::line_start(&self.buf, at)
@@ -278,11 +268,6 @@ impl Edit {
         starts_line(&self.buf, at)
     }
 
-    /// See [`BufEdit::insert_after`].
-    pub fn insert_after(&mut self, after: usize, text: &str) {
-        self.bytes().insert_after(after, text);
-    }
-
     /// Where a line goes last in `node`'s block, and the indentation it takes: the start of
     /// the closing brace's line, one tab deeper than the brace.
     pub fn before_close(&self, node: &Node) -> (usize, Vec<u8>) {
@@ -290,11 +275,6 @@ impl Edit {
         let mut indent = self.indent(close);
         indent.push(b'\t');
         (self.line_start(close), indent)
-    }
-
-    /// See [`BufEdit::insert_before`].
-    pub fn insert_before(&mut self, span: Span, text: &str) {
-        self.bytes().insert_before(span, text);
     }
 
     /// Write `text` as the first statement of the block whose braces `value` spans, in the
@@ -309,13 +289,8 @@ impl Edit {
         }
     }
 
-    /// See [`BufEdit::replace_statement`].
-    pub fn replace_statement(&mut self, span: Span, text: &str) {
-        self.bytes().replace_statement(span, text);
-    }
-
     /// The statement's bytes and the splices planned in them, to plan more through.
-    fn bytes(&mut self) -> BufEdit<'_> {
+    pub fn bytes(&mut self) -> BufEdit<'_> {
         BufEdit {
             buf: &self.buf,
             splices: &mut self.splices,

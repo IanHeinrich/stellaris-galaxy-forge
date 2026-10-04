@@ -81,7 +81,8 @@ pub(crate) fn set_items(
             Some(block) => {
                 let span = block.span();
                 let indent = edit.indent(span.start);
-                edit.replace_statement(span, &inline(&indent, &text(&indent)));
+                edit.bytes()
+                    .replace_statement(span, &inline(&indent, &text(&indent)));
             }
             None => insert_key(edit, &[], place, |indent| inline(indent, &text(indent)))?,
         }
@@ -90,13 +91,14 @@ pub(crate) fn set_items(
     edit.require_block_shape(block)?;
     edit.require_block_shape(items)?;
     if listed.len() - removing.len() + adding.len() == 0 {
-        edit.remove_statement(block.span());
+        let span = block.span();
+        edit.bytes().remove_statement(span);
         return Ok(true);
     }
     let first = listed[0].0.start;
     let (at_close, indent) = edit.before_close(items);
     for span in removing {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     for (modifier, end, days) in adding {
         let at = match end {

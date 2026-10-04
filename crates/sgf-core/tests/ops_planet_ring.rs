@@ -6,8 +6,8 @@ use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
-use common::{current, open_4_5};
+use common::diff::round_trip;
+use common::open_4_5;
 
 fn set(planet: u32, ring: bool) -> Op {
     Op::SetBodyRing { body: planet, ring }
@@ -23,13 +23,9 @@ fn ring(session: &Session, planet: u32) -> bool {
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
 fn flags(session: &Session, id: u32) -> Option<String> {
+    const KEY: &str = "\n\t\t\tbinary_flags=";
     let entity = common::entity_text(session, EntityKind::Planet, id);
-    let at = entity.find(
-        "
-			binary_flags=",
-    )? + "
-			binary_flags="
-        .len();
+    let at = entity.find(KEY)? + KEY.len();
     Some(entity[at..].lines().next().unwrap_or_default().to_owned())
 }
 
@@ -38,22 +34,11 @@ fn flags(session: &Session, id: u32) -> Option<String> {
 fn change(planet: u32, on: bool, snapshot: &str) -> Session {
     let mut session = open_4_5();
     session.warm_details().expect("build details");
-    assert_eq!(ring(&session, planet), !on, "{snapshot}: before");
-    let result = snapshot_step(&mut session, snapshot, set(planet, on));
-    assert_eq!(result.inverse, set(planet, !on));
-    assert_eq!(result.details_stale, [1]);
-    assert!(!result.reclassifies);
-    assert_eq!(ring(&session, planet), on, "{snapshot}: after");
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(
-        current(&session),
-        session.doc.original(),
-        "{snapshot}: undo"
-    );
-    assert_eq!(ring(&session, planet), !on, "{snapshot}: undone");
-    session.redo().expect("redo").expect("something to redo");
-    assert_eq!(ring(&session, planet), on, "{snapshot}: redone");
+    let step = common::field_step(&mut session, snapshot, set(planet, on), |s| ring(s, planet));
+    assert_eq!((step.before, step.after), (!on, on), "{snapshot}");
+    assert_eq!(step.result.inverse, set(planet, !on));
+    assert_eq!(step.result.details_stale, [1]);
+    assert!(!step.result.reclassifies);
     session
 }
 

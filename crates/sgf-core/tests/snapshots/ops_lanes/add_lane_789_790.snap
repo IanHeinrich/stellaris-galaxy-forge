@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Added lane 789 <-> 790 (length 794)
+Added lane Gidzerak #789 <-> Ultima Vigilis #790 (length 794)
 touched: [789, 790]
 inverse: RemoveLane { a: 789, b: 790 }
 … and 2 other issues

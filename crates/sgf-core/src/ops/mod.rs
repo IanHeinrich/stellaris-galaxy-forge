@@ -106,7 +106,7 @@ fn apply_one(session: &mut Session, op: Op) -> Result<Applied, OpError> {
     match second {
         Ok(second) => Ok(joined(first, second)),
         Err(e) => {
-            rollback_with_meta(session, &first.before, &first.touched, first.meta.as_ref());
+            rollback(session, &first.before, &first.touched, first.meta.as_ref());
             Err(e)
         }
     }
@@ -154,7 +154,7 @@ fn apply_batch(
                 let meta = members.iter().fold(None, |meta, member| {
                     MetaEdit::then(meta, member.meta.clone())
                 });
-                rollback_with_meta(session, &before, &touched, meta.as_ref());
+                rollback(session, &before, &touched, meta.as_ref());
                 return Err(e);
             }
         }
@@ -224,13 +224,9 @@ pub(crate) fn projected_lane(graph: &GalaxyGraph, a: u32, b: u32) -> Option<&Lan
     graph.lane(a, b).or_else(|| graph.lane(b, a))
 }
 
-/// Put back `before` (in reverse) and re-project what it covers.
-fn rollback(session: &mut Session, before: &[(Anchor, Option<Vec<u8>>)], touched: &[Subject]) {
-    rollback_with_meta(session, before, touched, None);
-}
-
-/// [`rollback`], putting back the `meta` the op rewrote too.
-fn rollback_with_meta(
+/// Put back `before` (in reverse) and the `meta` the op rewrote, if any, and re-project what
+/// they cover.
+fn rollback(
     session: &mut Session,
     before: &[(Anchor, Option<Vec<u8>>)],
     touched: &[Subject],

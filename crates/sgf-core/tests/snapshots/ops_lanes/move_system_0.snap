@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Moved Gamma Refuge (#0) from (-144.22, 57.36) to (-150, 60); updated 10 lane lengths
+Moved Gamma Refuge #0 from (-144.22, 57.36) to (-150, 60); updated 10 lane lengths
 touched: [0, 64, 86, 200, 246, 752]
 inverse: MoveSystem { system: 0, x: -144.22, y: 57.36 }
 … and 3 other issues

@@ -444,7 +444,10 @@ fn relist(edit: &mut Edit, drop: Option<u32>, add: Option<(u32, bool)>) -> Resul
     }
     let text: Vec<String> = ids.iter().map(u32::to_string).collect();
     match (list, items.first(), items.last()) {
-        (Some(list), _, _) if ids.is_empty() => edit.remove_statement(list.span()),
+        (Some(list), _, _) if ids.is_empty() => {
+            let span = list.span();
+            edit.bytes().remove_statement(span);
+        }
         (Some(_), Some(&(first, _)), Some(&(last, _))) => {
             edit.replace_span(Span::new(first.start, last.end), text.join(" "));
         }
@@ -467,7 +470,11 @@ fn relist(edit: &mut Edit, drop: Option<u32>, add: Option<(u32, bool)>) -> Resul
             };
             let block = ambient_list(&indent, &ids);
             match list {
-                Some(list) => edit.replace_statement(list.span(), &inline(&indent, &block)),
+                Some(list) => {
+                    let span = list.span();
+                    edit.bytes()
+                        .replace_statement(span, &inline(&indent, &block));
+                }
                 None => edit.insert(at, block),
             }
         }

@@ -1,9 +1,8 @@
 ---
 source: crates/sgf-core/tests/common/mod.rs
-assertion_line: 212
 expression: value
 ---
-Moved Mihil (#455) from (100.07, -134.13) to (66.15, -136.85); updated 6 lane lengths; joined Phantom Streak Miasma
+Moved Mihil #455 from (100.07, -134.13) to (66.15, -136.85); updated 6 lane lengths; joined Phantom Streak Miasma
 touched: [108, 164, 455, 753]
 inverse: MoveSystem { system: 455, x: 100.07, y: -134.13 }
 … and 3 other issues

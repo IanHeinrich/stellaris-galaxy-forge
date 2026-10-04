@@ -429,13 +429,10 @@ fn a_saved_special_system_reopens_with_its_names_flags_and_modifiers() {
 
 #[test]
 fn a_fixed_name_moon_takes_no_letter_and_an_entity_override_alone_is_66() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         let (mut session, at, id) = opened(sample);
         session.apply(add(wenkwort(&at))).expect("add the system");
-        let path = dir.path().join(format!("{id}.sav"));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(&mut session);
         let listed = names(&reopened, id);
         assert_eq!(listed, names(&session, id), "{id}: before the save");
         let keys: Vec<&str> = listed.iter().map(|(_, key, _)| key.as_str()).collect();

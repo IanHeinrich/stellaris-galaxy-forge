@@ -2,12 +2,12 @@
 //! and the inverse each put the original bytes back, and the refusals name what they refuse.
 //! The install's rules for each class are written out here, as the app sends them.
 
-use sgf_core::entity::get_planet_page;
+use sgf_core::entity::{EntityKind, get_planet_page};
 use sgf_core::ops::{ClassChange, Op, PlanetClassRule, PlanetLook};
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, round_trip_step, snapshot_step};
+use common::diff::{round_trip, round_trip_step};
 use common::examples::{ADDED_BODY, meissa_v};
 use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
 
@@ -49,18 +49,13 @@ fn look(session: &Session, id: u32) -> (String, Option<String>) {
 fn change(planet: u32, from: &str, to: &str, snapshot: &str) {
     let mut session = open_4_5();
     session.warm_details().expect("build details");
-    let result = snapshot_step(&mut session, snapshot, set(planet, from, to));
-    assert_eq!(result.details_stale.len(), 1, "{snapshot}: stale");
-    assert!(!result.reclassifies);
+    let step = common::field_step(&mut session, snapshot, set(planet, from, to), |s| {
+        look(s, planet)
+    });
+    assert_eq!(step.result.details_stale.len(), 1, "{snapshot}: stale");
+    assert!(!step.result.reclassifies);
     assert!(session.built_details().is_some(), "{snapshot}: kept");
-    assert_eq!(look(&session, planet), (to.to_owned(), None));
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(
-        current(&session),
-        session.doc.original(),
-        "{snapshot}: undo"
-    );
+    assert_eq!(step.after, (to.to_owned(), None));
 
     let mut session = open_4_5();
     let applied = session.apply(set(planet, from, to)).expect("apply");
@@ -178,10 +173,7 @@ fn a_colony_made_nuked_takes_its_one_model() {
     session
         .apply(set(2, "pc_continental", "pc_nuked"))
         .expect("a colony made a tomb world");
-    let text = String::from_utf8_lossy(&current(&session)).into_owned();
-    let planets = text.find("\nplanets=\n").expect("the planets");
-    let start = planets + text[planets..].find("\n\t\t2=\n").expect("planet 2");
-    let entity = &text[start..start + text[start..].find("\n\t\t}\n").expect("its end")];
+    let entity = common::entity_text(&session, EntityKind::Planet, 2);
     assert!(entity.contains("\n\t\t\tplanet_class=\"pc_nuked\"\n"));
     assert!(entity.contains("\n\t\t\tentity=0\n"), "{entity}");
 }

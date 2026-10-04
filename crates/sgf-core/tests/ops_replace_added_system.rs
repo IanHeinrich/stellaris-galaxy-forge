@@ -7,7 +7,6 @@
 use std::collections::BTreeSet;
 
 use sgf_core::ops::{Op, OpError, SystemSpec};
-use sgf_core::session::Session;
 use sgf_core::views::{GalaxyView, SystemDetail};
 
 use crate::common;
@@ -93,7 +92,6 @@ fn a_reroll_keeps_the_id_position_name_and_lanes_and_replaces_the_rest() {
 
 #[test]
 fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         let mut session = (sample.open)();
         let opened = findings(&session);
@@ -119,9 +117,7 @@ fn rerolling_a_middle_system_keeps_the_ids_after_it_and_reopens() {
         assert_eq!((kept.name.key.as_str(), kept.x), ("Altair", third.x));
         assert_eq!(planet_ids(session, last), third_planets);
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(session);
         let ids: BTreeSet<u32> = reopened.graph.systems.keys().copied().collect();
         assert_eq!(ids, (0..=last).collect(), "{first}: dense ids");
         let system = reopened.system(middle).expect("the middle, reopened");
@@ -261,7 +257,6 @@ fn a_reroll_under_another_name_swaps_it_in_the_pool() {
 
 #[test]
 fn what_a_reroll_refuses() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         let (mut session, spike) = ((sample.open)(), (sample.spike)());
         let first = sample.id;
@@ -296,9 +291,7 @@ fn what_a_reroll_refuses() {
         );
         assert_eq!(current(session), written, "a refusal writes nothing");
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let mut reopened = Session::open(&path).expect("reopen");
+        let mut reopened = common::reopened(session);
         let error = reopened
             .apply(reroll(first, rerolled(spike.clone())))
             .expect_err("added before the file was reopened");

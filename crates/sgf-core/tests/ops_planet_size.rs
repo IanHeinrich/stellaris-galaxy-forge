@@ -6,7 +6,7 @@ use sgf_core::ops::Op;
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
+use common::diff::round_trip;
 use common::{current, open, open_4_5};
 
 fn set(id: u32, size: u32) -> Op {
@@ -21,13 +21,11 @@ fn planet_size(session: &Session, system: u32, planet: u32) -> Option<u32> {
 
 /// Round-trip and snapshot a size for `planet` of `system`, and check the details read it.
 fn change(session: &mut Session, system: u32, planet: u32, size: u32, snapshot: &str) -> OpResult {
-    let result = snapshot_step(session, snapshot, set(planet, size));
-    assert_eq!(
-        planet_size(session, system, planet),
-        Some(size),
-        "{snapshot}: details"
-    );
-    result
+    let step = common::field_step(session, snapshot, set(planet, size), |s| {
+        planet_size(s, system, planet)
+    });
+    assert_eq!(step.after, Some(size), "{snapshot}: details");
+    step.result
 }
 
 #[test]
@@ -40,9 +38,6 @@ fn the_4_5_samples_star_body_grows_and_back() {
         "Set the size of planet #584 from 29 to 40"
     );
     assert_eq!(result.inverse, set(584, 29));
-    session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(planet_size(&session, 1, 584), Some(29));
 }
 
 #[test]

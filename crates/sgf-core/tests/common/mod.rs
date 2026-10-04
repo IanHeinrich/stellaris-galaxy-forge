@@ -20,7 +20,7 @@ use sgf_core::entity::{EntityAddr, EntityKind, get_entity_source};
 use sgf_core::format::save::details::RawPlanet;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::{CountryNode, GalaxyGraph};
-use sgf_core::session::Session;
+use sgf_core::session::{OpResult, Session};
 use sgf_core::validate::{Issue, IssueCode, validate};
 use sgf_core::views::DocumentKind;
 
@@ -306,4 +306,37 @@ pub fn reopened(session: &mut Session) -> Session {
     let path = dir.path().join(format!("reopened.{extension}"));
     session.save_as(&path).expect("save");
     Session::open(&path).expect("reopen")
+}
+
+/// What [`field_step`] read of a field, and what the op returned.
+pub struct FieldStep<T> {
+    pub result: OpResult,
+    pub before: T,
+    pub after: T,
+}
+
+/// Round-trip and snapshot `op` on `session`, and read a field of the session before it, after
+/// it, undone and redone: undo puts the field and the bytes back, redo the new field. Leaves
+/// the op applied.
+#[track_caller]
+pub fn field_step<T: PartialEq + std::fmt::Debug>(
+    session: &mut Session,
+    name: &str,
+    op: Op,
+    read: impl Fn(&Session) -> T,
+) -> FieldStep<T> {
+    let before = read(session);
+    let bytes = current(session);
+    let result = diff::snapshot_step(session, name, op);
+    let after = read(session);
+    session.undo().expect("undo").expect("something to undo");
+    assert_eq!(current(session), bytes, "{name}: undo");
+    assert_eq!(read(session), before, "{name}: undone");
+    session.redo().expect("redo").expect("something to redo");
+    assert_eq!(read(session), after, "{name}: redone");
+    FieldStep {
+        result,
+        before,
+        after,
+    }
 }

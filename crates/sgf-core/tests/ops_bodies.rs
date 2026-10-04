@@ -739,33 +739,33 @@ fn a_planet_dropped_on_a_modded_companion_star_is_its_planet() {
 #[test]
 fn what_a_star_parent_refuses() {
     let mut session = open();
-    for (op, message) in [
-        (
-            set_parent(278, 330, Some(328), 15.0, 0.0),
-            "planet 330 has moons, so it cannot become a moon",
-        ),
-        (
-            orbit_star(278, 328, 327, 90.0, 0.0),
-            "planet 328 already has that parent",
-        ),
-    ] {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(
+        &mut session,
+        [
+            (
+                set_parent(278, 330, Some(328), 15.0, 0.0),
+                "planet 330 has moons, so it cannot become a moon",
+            ),
+            (
+                orbit_star(278, 328, 327, 90.0, 0.0),
+                "planet 328 already has that parent",
+            ),
+        ],
+    );
     let mut session = open_4_5();
-    for (op, message) in [
-        (
-            set_parent(76, 1271, None, 40.0, 0.0),
-            "planet 1271 already has that parent",
-        ),
-        (
-            orbit_star(76, 1271, 1270, 40.0, 0.0),
-            "planet 1270 is the system's primary body: to make planet 1271 a planet, give it no parent",
-        ),
-    ] {
-        let error = session.apply(op).expect_err(message);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(
+        &mut session,
+        [
+            (
+                set_parent(76, 1271, None, 40.0, 0.0),
+                "planet 1271 already has that parent",
+            ),
+            (
+                orbit_star(76, 1271, 1270, 40.0, 0.0),
+                "planet 1270 is the system's primary body: to make planet 1271 a planet, give it no parent",
+            ),
+        ],
+    );
 }
 
 /// A session given other radii, as an install's defines can set them, grows system 1 by

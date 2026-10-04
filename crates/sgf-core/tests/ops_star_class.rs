@@ -7,7 +7,6 @@ use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::{OpResult, Session};
 
 use crate::common;
-use common::diff::snapshot_step;
 use common::examples;
 use common::{current, open, open_4_5, reprojected};
 
@@ -46,8 +45,9 @@ fn change(session: &mut Session, op: Op, snapshot: &str) -> OpResult {
     else {
         unreachable!("a star class op")
     };
-    let result = snapshot_step(session, snapshot, op);
-    assert_eq!(star_class(session, id), class, "{snapshot}");
+    let step = common::field_step(session, snapshot, op, |s| star_class(s, id));
+    assert_eq!(step.after, class, "{snapshot}");
+    let result = step.result;
     let edit = session.edit_result(result.clone());
     let delta = edit
         .delta
@@ -83,9 +83,6 @@ fn the_4_5_samples_g_star_becomes_a_pulsar_and_back() {
         )
     );
     assert_eq!(result.inverse, set(1, "sc_g", &[(584, "pc_g_star")]));
-    session.apply(result.inverse).unwrap();
-    assert_eq!(current(&session), session.doc.original());
-    assert_eq!(star_class(&session, 1), "sc_g");
 }
 
 #[test]

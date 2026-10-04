@@ -316,7 +316,7 @@ impl Teardown {
             })
             .collect();
             for span in spans {
-                edit.remove_statement(span);
+                edit.bytes().remove_statement(span);
             }
         }
         Ok(())
@@ -378,7 +378,7 @@ fn unlist_fleet(edit: &mut Edit, fleet: u32) -> Result<(), OpError> {
         .map(Node::span)
         .collect();
     for span in entries {
-        edit.remove_lines(span);
+        edit.bytes().remove_lines(span);
     }
     Ok(())
 }

@@ -308,7 +308,7 @@ fn rewrite_members(
             edit.require_alone_on_line(span, "member line")?;
         }
         for span in cut {
-            edit.remove_lines(span);
+            edit.bytes().remove_lines(span);
         }
         for (span, new) in splices {
             edit.replace_span(span, new.to_string());

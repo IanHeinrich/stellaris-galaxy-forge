@@ -44,13 +44,9 @@ fn drawn_model(session: &Session, id: u32) -> Option<String> {
 
 /// Planet `id`'s `binary_flags`, as the session's bytes now hold it.
 fn flags(session: &Session, id: u32) -> Option<String> {
+    const KEY: &str = "\n\t\t\tbinary_flags=";
     let entity = common::entity_text(session, EntityKind::Planet, id);
-    let at = entity.find(
-        "
-			binary_flags=",
-    )? + "
-			binary_flags="
-        .len();
+    let at = entity.find(KEY)? + KEY.len();
     Some(entity[at..].lines().next().unwrap_or_default().to_owned())
 }
 
@@ -58,29 +54,12 @@ fn flags(session: &Session, id: u32) -> Option<String> {
 /// original bytes and model back and redo the new one.
 fn change(planet: u32, entity: Option<&str>, snapshot: &str) -> Session {
     let mut session = open_4_5();
-    let before = model(&session, planet);
-    let result = snapshot_step(&mut session, snapshot, set(planet, entity));
-    assert_eq!(result.inverse, set(planet, before.as_deref()));
-    assert!(!result.reclassifies);
-    assert_eq!(
-        model(&session, planet).as_deref(),
-        entity,
-        "{snapshot}: after"
-    );
-
-    session.undo().expect("undo").expect("something to undo");
-    assert_eq!(
-        current(&session),
-        session.doc.original(),
-        "{snapshot}: undo"
-    );
-    assert_eq!(model(&session, planet), before, "{snapshot}: undone");
-    session.redo().expect("redo").expect("something to redo");
-    assert_eq!(
-        model(&session, planet).as_deref(),
-        entity,
-        "{snapshot}: redone"
-    );
+    let step = common::field_step(&mut session, snapshot, set(planet, entity), |s| {
+        model(s, planet)
+    });
+    assert_eq!(step.after.as_deref(), entity, "{snapshot}");
+    assert_eq!(step.result.inverse, set(planet, step.before.as_deref()));
+    assert!(!step.result.reclassifies);
     session
 }
 

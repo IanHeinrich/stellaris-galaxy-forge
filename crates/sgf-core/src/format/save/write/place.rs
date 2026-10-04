@@ -156,7 +156,7 @@ pub(crate) fn insert_key(
         (Some(after), _, _) => insert_after(edit, after, text),
         (None, Some(before), _) => {
             let text = text(&edit.indent(before.start));
-            edit.insert_before(before, &text);
+            edit.bytes().insert_before(before, &text);
         }
         (None, None, Some(last)) if place.last => insert_after(edit, last, text),
         (None, None, None) if place.last => {
@@ -183,5 +183,5 @@ pub(crate) fn insert_key(
 
 fn insert_after(edit: &mut Edit, after: Span, text: impl FnOnce(&[u8]) -> String) {
     let text = text(&edit.indent(after.start));
-    edit.insert_after(after.end, &text);
+    edit.bytes().insert_after(after.end, &text);
 }

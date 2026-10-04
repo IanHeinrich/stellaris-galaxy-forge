@@ -67,8 +67,7 @@ pub fn meta_diff(session: &Session) -> String {
     }
     let diff = TextDiff::from_lines(&before, &after);
     format!(
-        "
-{}",
+        "\n{}",
         diff.unified_diff().context_radius(3).header("meta", "meta")
     )
 }

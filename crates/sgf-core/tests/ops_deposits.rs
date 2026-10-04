@@ -162,7 +162,6 @@ fn the_ids_the_edits_take_and_their_inverses() {
 
 #[test]
 fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for case in cases() {
         let mut session = (case.session)();
         let before_findings = findings(&session);
@@ -184,9 +183,7 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
             _ => unreachable!(),
         }
 
-        let path = dir.path().join(format!("{}.sav", case.name));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(&mut session);
         assert_eq!(page(&reopened, case.planet), edited, "{}", case.name);
         assert_eq!(
             details(&reopened, case.system, case.planet),
@@ -442,10 +439,7 @@ fn what_the_ops_refuse() {
             "\"d_\\\"x\" cannot be written as a deposit type",
         ),
     ];
-    for (op, message) in cases {
-        let error = refused(&mut session, op);
-        assert_eq!(error.to_string(), message);
-    }
+    common::assert_refusals(&mut session, cases);
 
     session.apply(remove(257)).expect("remove");
     assert!(matches!(

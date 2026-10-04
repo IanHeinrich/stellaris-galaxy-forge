@@ -367,13 +367,10 @@ fn a_dig_site_comes_back_on_its_planet_last_in_the_table() {
 
 #[test]
 fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for case in cases() {
         let mut session = (case.session)();
         let result = session.apply(case.op.clone()).expect(case.name);
-        let path = dir.path().join(format!("{}.sav", case.name));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(&mut session);
         let listed: Vec<u32> = common::planets(&reopened, case.system)
             .iter()
             .map(|p| p.id)

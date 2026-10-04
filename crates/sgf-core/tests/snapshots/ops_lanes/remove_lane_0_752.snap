@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Removed lane 0 <-> 752 (2 entries)
+Removed lane Gamma Refuge #0 <-> Mira #752 (2 entries)
 touched: [0, 752]
 inverse: AddLane { a: 0, b: 752, bridge: false }
 … and 3 other issues

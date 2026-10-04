@@ -63,7 +63,7 @@ pub(crate) fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), Op
             let text = format!("{}={parent}", keys::MOON_OF);
             insert_key(edit, &[], &place::planet::MOON_OF, |_| text)?;
         }
-        (None, Some(span)) => edit.remove_statement(span),
+        (None, Some(span)) => edit.bytes().remove_statement(span),
         (None, None) => {}
     }
     Ok(())
@@ -84,7 +84,7 @@ pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpErr
         return Ok(());
     }
     match child(edit, &[keys::BINARY_FLAGS])? {
-        Some(span) if new & !ANY_FLAG == 0 => edit.remove_statement(span),
+        Some(span) if new & !ANY_FLAG == 0 => edit.bytes().remove_statement(span),
         Some(_) => edit.set_scalar(&[keys::BINARY_FLAGS], new.to_string())?,
         None => {
             let text = format!("{}={new}", keys::BINARY_FLAGS);
@@ -112,7 +112,7 @@ pub(crate) fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
         (None, None) => {
             let span = block.span();
             let text = statement(&edit.indent(span.start), keys::MOONS, &[id]);
-            edit.replace_statement(span, &text);
+            edit.bytes().replace_statement(span, &text);
         }
     }
     Ok(())

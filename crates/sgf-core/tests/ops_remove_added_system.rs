@@ -73,7 +73,6 @@ fn system_entity(session: &Session, id: u32) -> bool {
 
 #[test]
 fn removing_the_middle_of_three_renumbers_the_third() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         let before = findings(&(sample.open)());
         let (mut session, third) = three(sample);
@@ -135,9 +134,7 @@ fn removing_the_middle_of_three_renumbers_the_third() {
         assert_eq!(planet_ids(session, middle), third_planets);
         assert!(!system_entity(session, last));
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let reopened = Session::open(&path).expect("reopen");
+        let reopened = common::reopened(session);
         let ids: Vec<u32> = reopened
             .graph
             .systems
@@ -555,7 +552,6 @@ fn no_slot_missing(session: &Session) -> bool {
 
 #[test]
 fn a_removal_leaves_no_slot_missing_and_the_next_add_takes_its_tombstones() {
-    let dir = tempfile::tempdir().expect("a temp dir");
     for sample in &SAMPLES {
         assert!(no_slot_missing(&(sample.open)()), "the sample as opened");
         let (mut session, _) = three(sample);
@@ -572,9 +568,7 @@ fn a_removal_leaves_no_slot_missing_and_the_next_add_takes_its_tombstones() {
             );
         }
 
-        let path = dir.path().join(format!("{first}.sav"));
-        session.save_as(&path).expect("save");
-        let mut reopened = Session::open(&path).expect("reopen");
+        let mut reopened = common::reopened(session);
         assert!(no_slot_missing(&reopened), "{first}: reopened");
         let again = small("Tau_Ceti", sample.spots[0], vec![first]);
         let expected: Vec<u32> = freed.iter().map(|&p| p | GENERATION).collect();

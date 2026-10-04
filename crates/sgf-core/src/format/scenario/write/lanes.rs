@@ -7,7 +7,7 @@ use super::{erase, index, lane_indent, matching, undirected};
 use crate::format::scenario::emit::{hyperlane_stmt, prevent_hyperlane_stmt};
 use crate::format::scenario::index::LaneStmt;
 use crate::ops::rules::lanes as lane_rules;
-use crate::ops::rules::named;
+use crate::ops::rules::{named, named_all};
 use crate::ops::{Emitted, LanePair, Op, OpError, Plan, Planned, projected_lane};
 use crate::plural;
 use crate::session::Session;
@@ -22,7 +22,11 @@ pub(super) fn add_lane(
 ) -> Result<Planned, OpError> {
     emit_lanes(plan, s, &[LanePair { a, b, bridge }])?;
     Ok(Planned {
-        description: format!("Added lane {a} <-> {b}"),
+        description: format!(
+            "Added lane {} <-> {}",
+            named(&s.graph, a),
+            named(&s.graph, b)
+        ),
         inverse: Op::RemoveLane { a, b },
     })
 }
@@ -41,12 +45,13 @@ pub(super) fn add_lanes(
         .map(|&(b, bridge)| LanePair { a: from, b, bridge })
         .collect();
     emit_lanes(plan, s, &pairs)?;
-    let ids: Vec<String> = to.iter().map(|(id, _)| id.to_string()).collect();
+    let ids: Vec<u32> = to.iter().map(|&(id, _)| id).collect();
     Ok(Planned {
         description: format!(
-            "Added {} from {from} to {}",
+            "Added {} from {} to {}",
             plural(to.len(), "lane"),
-            ids.join(", ")
+            named(&s.graph, from),
+            named_all(&s.graph, &ids)
         ),
         inverse: Op::RemoveLanes {
             from,
@@ -113,7 +118,11 @@ pub(super) fn remove_lane(
     }
     let (erased, _) = erase_lanes(plan, s, &[(a, b)])?;
     Ok(Planned {
-        description: format!("Removed lane {a} <-> {b} ({erased} statements)"),
+        description: format!(
+            "Removed lane {} <-> {} ({erased} statements)",
+            named(&s.graph, a),
+            named(&s.graph, b)
+        ),
         inverse: Op::AddLane {
             a,
             b,
@@ -130,12 +139,12 @@ pub(super) fn remove_lanes(
 ) -> Result<Planned, OpError> {
     let pairs: Vec<(u32, u32)> = to.iter().map(|&other| (from, other)).collect();
     let (erased, restore) = erase_lanes(plan, s, &pairs)?;
-    let ids: Vec<String> = to.iter().map(u32::to_string).collect();
     Ok(Planned {
         description: format!(
-            "Removed {} from {from} to {} ({erased} statements)",
+            "Removed {} from {} to {} ({erased} statements)",
             plural(to.len(), "lane"),
-            ids.join(", ")
+            named(&s.graph, from),
+            named_all(&s.graph, to)
         ),
         inverse: Op::AddLanes {
             from,
@@ -265,7 +274,11 @@ pub(super) fn prevent_lane(
         prevent_hyperlane_stmt(&indent, a, b),
     );
     Ok(Planned {
-        description: format!("Prevented lane {a} <-> {b}"),
+        description: format!(
+            "Prevented lane {} <-> {}",
+            named(&s.graph, a),
+            named(&s.graph, b)
+        ),
         inverse: Op::AllowLane { a, b },
     })
 }
@@ -287,7 +300,9 @@ pub(super) fn unprevent_lane(
     }
     Ok(Planned {
         description: format!(
-            "Unprevented lane {a} <-> {b} ({} statements)",
+            "Unprevented lane {} <-> {} ({} statements)",
+            named(&s.graph, a),
+            named(&s.graph, b),
             statements.len()
         ),
         inverse: Op::PreventLane { a, b },

@@ -1,8 +1,8 @@
 ---
-source: crates/sgf-core/tests/ops.rs
-expression: "report(&session, &result)"
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
 ---
-Added 2 lanes from 789 to 790, 0
+Added 2 lanes from Gidzerak #789 to Ultima Vigilis #790, Gamma Refuge #0
 touched: [0, 789, 790]
 inverse: RemoveLanes { from: 789, to: [790, 0] }
 … and 2 other issues

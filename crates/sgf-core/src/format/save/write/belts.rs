@@ -77,9 +77,9 @@ pub(crate) fn plan_remove(
     let block_span = block.span();
     let entry_span = entry.span();
     if alone {
-        edit.remove_lines(block_span);
+        edit.bytes().remove_lines(block_span);
     } else {
-        edit.remove_lines(entry_span);
+        edit.bytes().remove_lines(entry_span);
     }
     Ok(Planned {
         description: format!(
