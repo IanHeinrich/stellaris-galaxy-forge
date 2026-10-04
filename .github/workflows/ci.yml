@@ -39,7 +39,7 @@ jobs:
         with:
           components: rustfmt, clippy
           shared-key: lint
-          save: true
+          save: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Changelog script tests
         run: bash scripts/changelog_test.sh
@@ -96,7 +96,7 @@ jobs:
         with:
           tauri: ${{ matrix.shard == 0 }}
           shared-key: test-${{ matrix.os }}-${{ matrix.shard == 0 && 'all' || 'core' }}
-          save: ${{ matrix.shard == 0 || matrix.shard == 1 }}
+          save: ${{ github.ref == 'refs/heads/main' && (matrix.shard == 0 || matrix.shard == 1) }}
 
       - name: Version file agrees with the manifests
         if: matrix.shard == 0
