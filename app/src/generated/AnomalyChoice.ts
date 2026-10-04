@@ -6,7 +6,7 @@ export type AnomalyChoice = {
  */
 key: string, 
 /**
- * Its localised name; the key when the install has none.
+ * Its localised name, or the key made readable.
  */
 name: string, 
 /**

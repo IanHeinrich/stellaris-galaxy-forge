@@ -6,6 +6,7 @@ pub(crate) mod alloc;
 pub mod details;
 pub(crate) mod dig_sites;
 pub(crate) mod galaxy;
+pub(crate) mod planet_extras;
 pub(crate) mod read_spec;
 pub mod system_spec;
 pub(crate) mod write;
@@ -23,7 +24,7 @@ use crate::format::save::write::{
     add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
     lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
     planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
-    rename_system, replace_system, star_class, system_height, wormhole, wormhole_pair,
+    rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
@@ -145,6 +146,9 @@ impl Format for Save {
     }
 
     fn write(&self, plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, OpError> {
+        if op.reach().whole_entries {
+            check_version(&s.doc)?;
+        }
         match op {
             Op::MoveSystem { id, x, y } => move_system::plan(plan, s, *id, *x, *y),
             Op::AddLane { a, b, bridge } => lanes::plan_add(plan, s, *a, *b, *bridge),
@@ -208,10 +212,7 @@ impl Format for Save {
                 value.as_deref(),
                 custom_name.unwrap_or(true),
             ),
-            Op::AddSaveSystem { spec } => {
-                check_version(&s.doc)?;
-                add_system::plan_add(plan, s, spec)
-            }
+            Op::AddSaveSystem { spec } => add_system::plan_add(plan, s, spec),
             Op::AddSaveDeposit { planet, kind } => deposits::plan_add(plan, s, *planet, kind),
             Op::RemoveSaveDeposit { deposit } => deposits::plan_remove(plan, s, *deposit),
             Op::AddDigSite {
@@ -271,7 +272,7 @@ impl Format for Save {
             Op::RestoreSaveEntities {
                 description,
                 entities,
-            } => remove_planet::plan_restore(plan, s, description, entities),
+            } => restore::plan_restore(plan, s, description, entities),
             Op::SetPlanetEntity { planet, entity } => {
                 planet_entity::plan_set(plan, s, *planet, entity.as_deref())
             }
@@ -301,34 +302,11 @@ impl Format for Save {
                 belts::plan_inner_radius(plan, s, *system, *radius)
             }
             Op::SetSystemHeights { heights } => system_height::plan_set(plan, s, heights),
-            // A save adds, renames and rerolls a system through the save ops, which write the
-            // bodies and names a scenario statement leaves out. Its initializers, spawns,
-            // fallen empire zones and wormholes are the game's to set, and it has neither a
-            // scenario header nor a generator to prevent a lane from.
-            Op::AddSystem { .. }
-            | Op::AddSystems { .. }
-            | Op::SetSystemName { .. }
-            | Op::SetInitializer { .. }
-            | Op::SetInitializers { .. }
-            | Op::SetHeaderField { .. }
-            | Op::SetHeaderKeys { .. }
-            | Op::SetHeaderList { .. }
-            | Op::SetSpawnWeight { .. }
-            | Op::SetSpawnWeights { .. }
-            | Op::SetSpawnScript { .. }
-            | Op::SetSpawnScripts { .. }
-            | Op::SetFeZone { .. }
-            | Op::SetFeZones { .. }
-            | Op::SetWormholePair { .. }
-            | Op::SetWormholeEnds { .. }
-            | Op::SetFeLinks { .. }
-            | Op::SetFeLinkFlags { .. }
-            | Op::PreventLane { .. }
-            | Op::UnpreventLane { .. } => Err(OpError::Unsupported {
+            Op::Batch { .. } => Err(OpError::NestedBatch),
+            _ => Err(OpError::Unsupported {
                 op: op.name(),
                 kind: DocumentKind::Save,
             }),
-            Op::Batch { .. } => Err(OpError::NestedBatch),
         }
     }
 
@@ -371,6 +349,7 @@ impl Format for Save {
     }
 
     fn capabilities(&self, doc: &Document) -> Capabilities {
+        let whole_entries = check_version(doc).is_ok();
         Capabilities {
             empires: true,
             details: true,
@@ -379,18 +358,24 @@ impl Format for Save {
             bypasses: true,
             special: true,
             precursors: true,
-            create_systems: false,
             lane_bridges: true,
             waylines: true,
-            added_systems: check_version(doc).is_ok(),
+            added_systems: whole_entries,
             bodies: true,
-            deposits: check_version(doc).is_ok(),
-            geometry: check_version(doc).is_ok(),
+            deposits: whole_entries,
+            geometry: whole_entries,
             map_colors: true,
             lgate: true,
-            symmetry: false,
-            wormhole_pairs: check_version(doc).is_ok(),
+            wormhole_pairs: whole_entries,
             system_heights: true,
+            planet_moves: whole_entries,
+            add_bodies: whole_entries,
+            remove_bodies: whole_entries,
+            planet_classes: whole_entries,
+            modifiers: whole_entries,
+            anomalies: whole_entries,
+            dig_sites: whole_entries,
+            ..Capabilities::default()
         }
     }
 }

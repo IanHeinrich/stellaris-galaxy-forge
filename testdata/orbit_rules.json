@@ -1,0 +1,81 @@
+{
+  "radii": { "min_inner": 150, "inner_offset": 30, "outer_offset": 100 },
+  "overlap": [
+    {
+      "name": "within the tolerance in radius and angle",
+      "bodies": [{ "id": 1, "parent": null, "radius": 50, "angle": 10 }],
+      "belts": [],
+      "body": { "id": 9, "parent": null, "radius": 50.3, "angle": 10.4 },
+      "overlaps": 1
+    },
+    {
+      "name": "too far apart in radius",
+      "bodies": [{ "id": 1, "parent": null, "radius": 50, "angle": 10 }],
+      "belts": [],
+      "body": { "id": 9, "parent": null, "radius": 50.6, "angle": 10 },
+      "overlaps": null
+    },
+    {
+      "name": "too far apart in angle",
+      "bodies": [{ "id": 1, "parent": null, "radius": 50, "angle": 10 }],
+      "belts": [],
+      "body": { "id": 9, "parent": null, "radius": 50, "angle": 10.6 },
+      "overlaps": null
+    },
+    {
+      "name": "close across 0 degrees",
+      "bodies": [{ "id": 1, "parent": null, "radius": 50, "angle": 359.8 }],
+      "belts": [],
+      "body": { "id": 9, "parent": null, "radius": 50, "angle": 0.1 },
+      "overlaps": 1
+    },
+    {
+      "name": "a moon of the primary and a planet in one place have different parents",
+      "bodies": [
+        { "id": 1, "parent": null, "radius": 0, "angle": 0 },
+        { "id": 2, "parent": 1, "radius": 50, "angle": 10 }
+      ],
+      "belts": [],
+      "body": { "id": 9, "parent": null, "radius": 50, "angle": 10 },
+      "overlaps": null
+    },
+    {
+      "name": "two moons of one planet",
+      "bodies": [
+        { "id": 1, "parent": null, "radius": 80, "angle": 45 },
+        { "id": 2, "parent": 1, "radius": 15, "angle": 90 }
+      ],
+      "belts": [],
+      "body": { "id": 9, "parent": 1, "radius": 15.2, "angle": 90.3 },
+      "overlaps": 2
+    },
+    {
+      "name": "two asteroids of one belt",
+      "bodies": [{ "id": 1, "parent": null, "radius": 100, "angle": 30 }],
+      "belts": [100],
+      "body": { "id": 9, "parent": null, "radius": 100.2, "angle": 30.2 },
+      "overlaps": null
+    },
+    {
+      "name": "outside the belt's scatter",
+      "bodies": [{ "id": 1, "parent": null, "radius": 111, "angle": 30 }],
+      "belts": [100],
+      "body": { "id": 9, "parent": null, "radius": 111.3, "angle": 30 },
+      "overlaps": 1
+    }
+  ],
+  "growth": [
+    { "name": "reaches further and past the radius less its offset", "reach": 200, "reached": 100, "current": 180, "inner": 230 },
+    { "name": "reaches further but within the radius less its offset", "reach": 140, "reached": 100, "current": 180, "inner": null },
+    { "name": "within the stored-orbit slack of the old reach", "reach": 100.005, "reached": 100, "current": 120, "inner": null },
+    { "name": "past the current radius, held up by the smallest radius", "reach": 100.005, "reached": 100, "current": 100, "inner": 150 },
+    { "name": "just past the smallest radius less its offset", "reach": 160, "reached": 100, "current": 150, "inner": 190 },
+    { "name": "well inside", "reach": 50, "reached": 40, "current": 150, "inner": null }
+  ],
+  "inner_floor": [
+    { "name": "the smallest radius above a short reach", "reach": 100, "current": 200, "floor": 150 },
+    { "name": "the reach", "reach": 180, "current": 200, "floor": 180 },
+    { "name": "the current radius when that is lower", "reach": 180, "current": 160, "floor": 160 },
+    { "name": "an empty system", "reach": 0, "current": 150, "floor": 150 }
+  ]
+}

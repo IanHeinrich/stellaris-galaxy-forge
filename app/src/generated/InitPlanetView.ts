@@ -2,6 +2,10 @@
 
 export type InitPlanetView = { name: string | null, class: string, 
 /**
- * `(min, max)`, equal for a fixed size.
+ * `(min, max)`, equal for a fixed size. The block's own size, else its class's.
  */
-size: [number, number] | null, orbit_distance: number | null, has_ring: boolean, count: number, home_planet: boolean, deposits: Array<string>, moons: Array<InitPlanetView>, };
+size: [number, number] | null, orbit_distance: number | null, 
+/**
+ * `None` when the game rolls the ring: the block states none and its class can roll one.
+ */
+has_ring: boolean | null, count: number, home_planet: boolean, deposits: Array<string>, moons: Array<InitPlanetView>, };

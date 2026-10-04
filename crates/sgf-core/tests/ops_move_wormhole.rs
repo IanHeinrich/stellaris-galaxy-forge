@@ -2,12 +2,12 @@
 //! byte-exact undo, what the details read back, and what is refused.
 
 use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open, open_3_4, open_4_5};
+use common::{current, open, open_4_5};
 
 fn move_wormhole(wormhole: u32, radius: f64, angle: f64) -> Op {
     Op::MoveSaveWormhole {
@@ -185,13 +185,4 @@ fn a_wormhole_moves_in_a_4_4_save() {
         wormholes(&session, 52),
         [wormhole(1, 15, 449, 212.13203, 212.13203)]
     );
-}
-
-#[test]
-fn a_3_x_save_is_refused() {
-    let mut session = open_3_4();
-    let error = session
-        .apply(move_wormhole(0, 100.0, 0.0))
-        .expect_err("a 3.4 save");
-    assert!(matches!(error, OpError::SaveTooOld(_)), "{error:?}");
 }

@@ -2,13 +2,16 @@
 //! borders, their names and moons, and the `NGameplay` ones that set how many deposits a new body rolls
 //! and how far out a system's inner and outer radii lie.
 
+use serde::{Deserialize, Serialize};
 use sgf_core::cst::Node;
 use sgf_core::ops::SystemRadii;
+use ts_rs::TS;
 
 use crate::install::script::ParsedDir;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct BorderDefines {
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, rename = "BorderDefines")]
+pub struct GraphicsDefines {
     pub system_radius: f64,
     pub hyperlane_thickness: f64,
     /// `NGraphics.BORDER_INFLUENCE_MAX_DISTANCE_FACTOR`: how far an owned system or lane
@@ -30,7 +33,7 @@ pub struct BorderDefines {
     pub name_min_width: f64,
 }
 
-impl Default for BorderDefines {
+impl Default for GraphicsDefines {
     fn default() -> Self {
         Self {
             system_radius: 35.0,
@@ -45,7 +48,7 @@ impl Default for BorderDefines {
     }
 }
 
-impl BorderDefines {
+impl GraphicsDefines {
     /// Every file under `common/defines` in order, a later value replacing an earlier one.
     pub(crate) fn load(files: &ParsedDir) -> Self {
         let mut out = Self::default();
@@ -71,11 +74,15 @@ impl BorderDefines {
                         "BORDER_OWNERLESS_INFLUENCE_MAX_DISTANCE_FACTOR",
                     ),
                     (&mut out.moon_scale, "MOON_SCALE"),
-                    (&mut out.name_min_width, "MAPNAME_BORDER_MIN_SIZE"),
                 ] {
                     if let Some(n) = field(graphics, key, src) {
                         *target = n;
                     }
+                }
+                if let Some(width) =
+                    field(graphics, "MAPNAME_BORDER_MIN_SIZE", src).filter(|w| *w > 0.0)
+                {
+                    out.name_min_width = width;
                 }
             }
         }

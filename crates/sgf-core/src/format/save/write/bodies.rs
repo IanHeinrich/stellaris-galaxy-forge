@@ -1,14 +1,14 @@
 //! `MoveSaveBody` and `SetSaveBodyParent`: where a save planet or moon stands in its
 //! system, and what it orbits.
 
-use crate::Span;
 use crate::cst::Node;
-use crate::emit::system::{ANY_FLAG, MOON_FLAG};
-use crate::emit::{Lines, coord, inline};
+use crate::emit::coord;
+use crate::emit::system::MOON_FLAG;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{
     Body, centre, check_parent, check_placement, descendants, drawn_radius, movable, moved_reach,
@@ -135,7 +135,6 @@ fn frame_of(
     radius: f64,
     angle: f64,
 ) -> Result<Vec<Stored>, OpError> {
-    check_version(&s.doc)?;
     check_placement(radius, angle)?;
     let (node, src) = planet_entity(&s.doc, body)?;
     if planet_system(&node, src, body)? != system {
@@ -159,6 +158,11 @@ pub(crate) fn frame(s: &Session, system: u32) -> Result<Vec<Stored>, OpError> {
         }
     }
     Ok(frame)
+}
+
+/// The system's bodies as their entries stand.
+pub(crate) fn frame_bodies(s: &Session, system: u32) -> Result<Vec<Body>, OpError> {
+    Ok(frame(s, system)?.into_iter().map(|b| b.body).collect())
 }
 
 fn stored(node: &Node, src: &[u8], id: u32) -> Result<Stored, OpError> {
@@ -366,133 +370,6 @@ fn grow_by(
         },
         description,
     })
-}
-
-/// Write `moon_of`, before `moons` or `planet_orbitals` when the body has none, or take it
-/// out for a planet.
-pub(crate) fn set_moon_of(edit: &mut Edit, parent: Option<u32>) -> Result<(), OpError> {
-    let existing = child(edit, &[keys::MOON_OF])?;
-    match (parent, existing) {
-        (Some(parent), Some(_)) => edit.set_scalar(&[keys::MOON_OF], parent.to_string())?,
-        (Some(parent), None) => {
-            let next = successor(edit, &[keys::MOONS, keys::PLANET_ORBITALS])?;
-            edit.insert_before(next, &format!("{}={parent}", keys::MOON_OF));
-        }
-        (None, Some(span)) => edit.remove_statement(span),
-        (None, None) => {}
-    }
-    Ok(())
-}
-
-/// Set or clear `flag` in the body's `binary_flags`, writing the statement before
-/// `entity_planet_class`, else `coordinate`, when the body has none and taking it out when
-/// only the bit set beside any other is left.
-pub(crate) fn set_flag(edit: &mut Edit, flag: u32, on: bool) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let old = read::scalar_u32(entity, keys::BINARY_FLAGS, &edit.buf);
-    let new = if on {
-        old.unwrap_or(0) | flag | ANY_FLAG
-    } else {
-        old.unwrap_or(0) & !flag
-    };
-    if old == Some(new) || (old.is_none() && !on) {
-        return Ok(());
-    }
-    match child(edit, &[keys::BINARY_FLAGS])? {
-        Some(span) if new & !ANY_FLAG == 0 => edit.remove_statement(span),
-        Some(_) => edit.set_scalar(&[keys::BINARY_FLAGS], new.to_string())?,
-        None => {
-            let next = successor(edit, &[keys::ENTITY_PLANET_CLASS, keys::COORDINATE])?;
-            edit.insert_before(next, &format!("{}={new}", keys::BINARY_FLAGS));
-        }
-    }
-    Ok(())
-}
-
-/// Put `id` in the planet's `moons` in ascending order, writing the list before
-/// `planet_orbitals` when the planet has none.
-pub(crate) fn list_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
-        let next = successor(edit, &[keys::PLANET_ORBITALS])?;
-        let text = moons_list(&edit.indent(next.start), id);
-        edit.insert_before(next, &text);
-        return Ok(());
-    };
-    if block.scalar_span().is_some() {
-        return Err(edit.parse_error(block.span().start, "moons is not a block"));
-    }
-    let items = listed_ids(edit, block);
-    match (items.iter().find(|(moon, _)| *moon > id), items.last()) {
-        (Some((_, next)), _) => edit.insert(next.start, format!("{id} ").into_bytes()),
-        (None, Some((_, last))) => edit.insert(last.end, format!(" {id}").into_bytes()),
-        (None, None) => {
-            let span = block.span();
-            let text = moons_list(&edit.indent(span.start), id);
-            edit.replace_statement(span, &text);
-        }
-    }
-    Ok(())
-}
-
-/// Take `id` out of the planet's `moons`, and the list with it when nothing else is left.
-pub(crate) fn unlist_moon(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(block) = entity.find(keys::MOONS, &edit.buf) else {
-        return Ok(());
-    };
-    let items = listed_ids(edit, block);
-    let listed: Vec<Span> = items
-        .iter()
-        .filter(|(moon, _)| *moon == id)
-        .map(|(_, span)| *span)
-        .collect();
-    if !listed.is_empty() && listed.len() == block.children().len() {
-        let span = block.span();
-        edit.remove_statement(span);
-        return Ok(());
-    }
-    for item in listed {
-        let end = item.end
-            + edit.buf[item.end..]
-                .iter()
-                .take_while(|&&b| b == b' ' || b == b'\t')
-                .count();
-        edit.replace_span(Span::new(item.start, end), Vec::new());
-    }
-    Ok(())
-}
-
-fn listed_ids(edit: &Edit, block: &Node) -> Vec<(u32, Span)> {
-    block
-        .children()
-        .iter()
-        .filter(|item| item.key.is_none())
-        .filter_map(|item| Some((item.scalar_str(&edit.buf)?.parse().ok()?, item.span())))
-        .collect()
-}
-
-/// A `moons` list of `id` alone, as a statement whose first line takes `indent` from the
-/// line it is written on.
-fn moons_list(indent: &[u8], id: u32) -> String {
-    let mut w = Lines::new(indent);
-    w.list(0, keys::MOONS, &[id]);
-    inline(indent, &w.into_bytes())
-}
-
-/// The span of the entity's first child keyed by one of `keys`.
-fn child(edit: &Edit, keys: &[&str]) -> Result<Option<Span>, OpError> {
-    let entity = edit.entity()?;
-    Ok(entity
-        .children()
-        .iter()
-        .find(|c| c.key.is_some_and(|k| keys.contains(&edit.text(k))))
-        .map(Node::span))
-}
-
-/// The statement a new key goes in front of: the first of `keys` the entity holds.
-fn successor(edit: &Edit, keys: &[&str]) -> Result<Span, OpError> {
-    child(edit, keys)?.ok_or_else(|| edit.parse_error(0, format!("missing {}", keys.join(" or "))))
 }
 
 /// A radius or an angle as a description names it: up to two decimals.

@@ -1,14 +1,17 @@
 //! What each document kind takes and what an op reports about its own reach, checked
-//! by applying one op of every variant to the sample save and to a scenario: the ops a
-//! kind refuses, the systems whose details an op stales, and whether it reclassifies.
+//! by applying one op of every variant to the sample saves and to a scenario: the ops a
+//! kind refuses, the ops a save before Stellaris 4.0 refuses, the systems whose details an
+//! op stales, and whether it reclassifies.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use sgf_core::format::save::details::RawSystemDetails;
+use sgf_core::ops::rules::bodies;
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::session::Session;
-use sgf_core::views::DocumentKind;
+use sgf_core::validate::{Issue, IssueCode};
+use sgf_core::views::{Capabilities, DocumentKind};
 
 use crate::common;
 use common::examples::{self, one_of_each};
@@ -82,26 +85,33 @@ fn raw_details_changed(
 }
 
 fn assert_refused(mut session: Session, op: &Op, kind: DocumentKind) {
+    let message = format!("{} is not supported for a {kind} document", op.name());
+    assert_eq!(session.check_op(op), Some(message.clone()), "{}", op.name());
     let error = session.apply(op.clone()).expect_err("refused");
     assert!(
         matches!(&error, OpError::Unsupported { op: name, kind: k } if *name == op.name() && *k == kind),
         "{}: {error:?}",
         op.name()
     );
-    assert_eq!(
-        error.to_string(),
-        format!("{} is not supported for a {kind} document", op.name())
-    );
+    assert_eq!(error.to_string(), message);
     assert!(!session.doc.is_dirty(), "{}", op.name());
 }
 
 #[test]
-fn each_kind_refuses_exactly_the_ops_it_has_no_statement_for() {
+fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
     for example in one_of_each() {
         let name = example.name();
-        assert!(
-            example.save.is_some() || example.scenario.is_some(),
-            "{name}: some kind takes it"
+        let kinds = example.op().reach().kinds;
+        assert!(!kinds.is_empty(), "{name}: some kind takes it");
+        assert_eq!(
+            example.save.is_some(),
+            kinds.contains(&DocumentKind::Save),
+            "{name}: a save example where the row names a save"
+        );
+        assert_eq!(
+            example.scenario.is_some(),
+            kinds.contains(&DocumentKind::Scenario),
+            "{name}: a scenario example where the row names a scenario"
         );
         match &example.save {
             Some(op) => {
@@ -242,4 +252,83 @@ fn the_ops_that_write_an_initializer_stale_the_systems_details() {
         })
         .expect("rename");
     assert!(named.details_stale.is_empty());
+}
+
+/// Every op that writes whole entries is refused on the 3.4 sample, with nothing written,
+/// and no other op is refused for its version. The capabilities of those ops are off there.
+#[test]
+fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
+    for example in one_of_each() {
+        let Some(op) = example.save else {
+            continue;
+        };
+        let name = op.name();
+        let mut session = common::open_3_4();
+        let applied = session.apply(op.clone());
+        if op.reach().whole_entries {
+            let error = applied.expect_err(name);
+            assert!(
+                matches!(&error, OpError::SaveTooOld(version) if version.contains("3.4")),
+                "{name}: {error:?}"
+            );
+            assert!(!session.doc.is_dirty(), "{name}");
+        } else if let Err(error) = applied {
+            assert!(
+                !matches!(
+                    error,
+                    OpError::SaveTooOld(_) | OpError::UnknownSaveVersion(_)
+                ),
+                "{name}: {error:?}"
+            );
+        }
+    }
+    let four = Capabilities::of(&common::open().doc);
+    assert_eq!(four, Capabilities::of(&common::open_4_5().doc));
+    assert_eq!(
+        Capabilities::of(&common::open_3_4().doc),
+        Capabilities {
+            added_systems: false,
+            deposits: false,
+            geometry: false,
+            wormhole_pairs: false,
+            planet_moves: false,
+            add_bodies: false,
+            remove_bodies: false,
+            planet_classes: false,
+            modifiers: false,
+            anomalies: false,
+            dig_sites: false,
+            ..four
+        }
+    );
+}
+
+/// Planet 588 moved onto 587 in the 4.5 sample overlaps it; adding a planet to Meissa then
+/// rebuilds the details, and the overlap stays in every result.
+#[test]
+fn an_op_that_rebuilds_the_details_keeps_the_overlap_findings() {
+    let mut session = common::open_4_5();
+    session.warm_details().expect("build details");
+    let planet = common::planets(&session, 1)
+        .into_iter()
+        .find(|p| p.id == 587)
+        .expect("planet 587");
+    let at = planet.at.expect("587 has a point");
+    let centre = (0.0, 0.0);
+    session
+        .apply(Op::MoveSaveBody {
+            system: 1,
+            body: 588,
+            radius: bodies::drawn_radius(at, centre, planet.orbit),
+            angle: bodies::angle_about(centre, at),
+        })
+        .expect("move 588 onto 587");
+    let overlaps = |issues: &[Issue]| common::coded(issues, IssueCode::BodiesOverlap).len();
+
+    let added = session.apply(examples::meissa_v()).expect("add Meissa V");
+    assert_eq!(overlaps(&added.issues), 1, "{:?}", added.issues);
+    let undone = session.undo().expect("undo").expect("something to undo");
+    assert_eq!(overlaps(&undone.issues), 1, "{:?}", undone.issues);
+    let redone = session.redo().expect("redo").expect("something to redo");
+    assert_eq!(overlaps(&redone.issues), 1, "{:?}", redone.issues);
 }

@@ -2,15 +2,14 @@
 //! byte-exact undo, what the galaxy and the details read back, and what is refused.
 
 use sgf_core::format::save::details::{HeuristicResolver, WormholeSummary};
-use sgf_core::ops::{Op, OpError};
+use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{BypassLink, GalaxyGraph};
 use sgf_core::session::Session;
-use sgf_core::views::Capabilities;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::examples::save_with_added;
-use common::{current, open, open_3_4, open_4_5};
+use common::{current, open, open_4_5};
 
 fn add(a: u32, b: u32) -> Op {
     Op::AddSaveWormholePair { a, b, at: None }
@@ -210,13 +209,15 @@ fn an_added_system_with_a_wormhole_is_not_removed() {
         .expect("then the system goes");
 }
 
+/// The 4.4 sample's highest pair joins 788 and 789 at rows 11 and 12, bypasses 25 and 26.
+/// A fleet's path may name a removed bypass, so a pair added after it takes the next ids.
 #[test]
-fn a_3_x_save_is_refused() {
-    assert!(Capabilities::of(&open_4_5().doc).wormhole_pairs);
-    assert!(Capabilities::of(&open().doc).wormhole_pairs);
-    assert!(!Capabilities::of(&open_3_4().doc).wormhole_pairs);
-    for op in [add(0, 1), remove(0, 1)] {
-        let error = open_3_4().apply(op).expect_err("a 3.4 save");
-        assert!(matches!(error, OpError::SaveTooOld(_)), "{error:?}");
-    }
+fn a_pair_added_after_a_removal_takes_new_ids() {
+    let mut session = open();
+    session.apply(remove(788, 789)).expect("the removal");
+    session.apply(add(278, 0)).expect("the add");
+    let one = wormholes(&session, 278);
+    let other = wormholes(&session, 0);
+    assert_eq!((one[0].id, one[0].bypass), (13, 27));
+    assert_eq!((other[0].id, other[0].bypass), (14, 28));
 }

@@ -3,10 +3,13 @@
 //! fills in itself. A removal takes the entry alone: the order of a fleet excavating the site
 //! is left as it stands.
 
+use crate::NULL_ID;
+use crate::entity::facts::planet::is_star_class;
+use crate::format::save::added::Table;
+use crate::format::save::alloc::{TableEnd, next_id};
 use crate::format::save::dig_sites::{self, PLANET_LOCATION};
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::move_planet::is_star_class;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject};
@@ -15,7 +18,6 @@ use crate::session::Session;
 
 /// `ARCHAEOLOGICAL_SITE_DISCOVERY_DAYS`, which every untouched site's `days_left` holds.
 const DISCOVERY_DAYS: u32 = 90;
-const NULL_ID: u32 = u32::MAX;
 
 pub(crate) fn plan_add(
     plan: &mut Plan,
@@ -24,10 +26,8 @@ pub(crate) fn plan_add(
     kind: &str,
     difficulty: i32,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_text("a dig site type", kind, Form::Bare)?;
-    let (node, src) = planet_entity(&s.doc, planet)?;
-    let system = planet_system(&node, src, planet)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, planet)?;
     let primary = bodies(&s.doc, system)?.first() == Some(&planet);
     if primary || is_star_class(&read::text(&node, keys::PLANET_CLASS, src)) {
         return Err(OpError::StarDigSite(planet));
@@ -39,8 +39,8 @@ pub(crate) fn plan_add(
             site: held.id,
         });
     }
-    let id = dig_sites::next_id(&s.doc)?;
-    let mut end = dig_sites::table_end(&s.doc)?;
+    let id = next_id(&s.doc, Table::DigSite)?;
+    let mut end = TableEnd::of(&s.doc, Table::DigSite)?;
     let entry = site_entry(end.indent(), id, planet, kind, difficulty);
     plan.emit(Emitted::Record, end.at(), end.shape(entry.into_bytes()));
     plan.stale(Subject::Planet { id: planet, system });
@@ -51,7 +51,6 @@ pub(crate) fn plan_add(
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, site: u32) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let (anchor, found) = dig_sites::sites(&s.doc)?
         .into_iter()
         .find(|(_, each)| each.id == site)
@@ -81,8 +80,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, site: u32) -> Result<Pla
 
 /// The system planet `id` is a body of.
 fn planet_of(s: &Session, id: u32) -> Result<u32, OpError> {
-    let (node, src) = planet_entity(&s.doc, id)?;
-    planet_system(&node, src, id)
+    Ok(PlanetEntry::open(s, id)?.system)
 }
 
 /// Site `id`'s entry, each line indented from `indent` and the last ending its line.

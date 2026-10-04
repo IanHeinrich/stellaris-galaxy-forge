@@ -16,8 +16,8 @@ use crate::install::layers::Layout;
 use crate::install::script;
 use crate::registries::static_modifiers::StaticModifiers;
 
-const TERRAFORM_DIR: &str = "common/terraform";
-const GAME_RULES_DIR: &str = "common/game_rules";
+pub(crate) const TERRAFORM_DIR: &str = "common/terraform";
+pub(crate) const GAME_RULES_DIR: &str = "common/game_rules";
 const CANDIDATE_RULE: &str = "is_terraforming_candidate";
 const HAS_MODIFIER: &str = "has_modifier";
 /// What a link's `condition` asks of the country, techs before perks.

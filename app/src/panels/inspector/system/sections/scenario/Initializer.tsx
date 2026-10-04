@@ -31,7 +31,8 @@ function BodyRow({ row }: { row: InitializerRow }) {
           {classText}
           {row.moon && <span>moon</span>}
           {row.size !== null && <PlanetSize size={row.size} />}
-          {row.ring && <span>ring</span>}
+          {row.ring === true && <span>ring</span>}
+          {row.ring === null && <span title="Rolled by the game">ring rolled</span>}
           {wide && <span>{row.resources.length} resources</span>}
         </span>
         {wide && (

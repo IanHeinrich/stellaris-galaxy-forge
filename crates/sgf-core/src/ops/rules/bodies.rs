@@ -1,120 +1,13 @@
-//! Where a system's planets and moons stand about their parents, and how close two of them
-//! may stand before they count as one place.
-//!
-//! Each format reads its bodies into [`Body`] frames; a move or a new parent is decided
-//! here, over the frame, and the format then writes the points that changed.
-
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
+//! Whether a body may move or take a new parent, and where it then stands, decided over a
+//! save system's [`Body`] frame; the format then writes the points that changed. The
+//! measuring is [`crate::projections::geometry`]'s.
 
 use crate::ops::OpError;
-
-/// How the game sizes a system about what it holds: `NGameplay`'s `SYSTEM_MIN_INNER_RADIUS`,
-/// `SYSTEM_INNER_RADIUS_OFFSET` and `SYSTEM_OUTER_RADIUS_OFFSET`, which mods can override.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct SystemRadii {
-    /// The smallest `inner_radius` a system has.
-    pub min_inner: f64,
-    /// How far past its outermost body a system's `inner_radius` lies.
-    pub inner_offset: f64,
-    /// How far past its `inner_radius` a system's `outer_radius` lies.
-    pub outer_offset: f64,
-}
-
-impl SystemRadii {
-    /// The values vanilla Stellaris defines.
-    pub const VANILLA: Self = Self {
-        min_inner: 150.0,
-        inner_offset: 30.0,
-        outer_offset: 100.0,
-    };
-
-    /// The `inner_radius` of a system whose furthest body reaches `reach`.
-    pub fn inner_about(self, reach: f64) -> f64 {
-        self.min_inner.max(reach + self.inner_offset)
-    }
-
-    /// The `outer_radius` of a system whose `inner_radius` is `inner`.
-    pub fn outer(self, inner: f64) -> f64 {
-        inner + self.outer_offset
-    }
-
-    /// The `inner_radius` something now reaching `reach` grows the system's `current` one to,
-    /// when that is past the current radius, or past both the current radius less its offset
-    /// and the `reached` the system reached before. `None` when the radius stays; it never
-    /// shrinks. A reach within the stored-orbit slack of the old one is no further: a body
-    /// moved round its ring lands where its drawn radius says, which can sit that far from the
-    /// point the game wrote. Some game-written belts lie past the inner radius, so something
-    /// put outside the radius but inside such a belt grows it too.
-    pub fn grown(self, reach: f64, reached: f64, current: f64) -> Option<f64> {
-        let further = reach > reached + STORED_ORBIT_SLACK && reach + self.inner_offset > current;
-        (further || reach > current).then(|| self.inner_about(reach))
-    }
-}
-
-impl Default for SystemRadii {
-    fn default() -> Self {
-        Self::VANILLA
-    }
-}
-
-/// The orbit of a planet's first moon, the one the game writes for most moons.
-pub const MOON_RING_FIRST: f64 = 15.0;
-
-/// How much further out each moon ring after the first lies.
-pub const MOON_RING_STEP: f64 = 5.0;
-
-/// How near, in units of radius and in degrees, two bodies about one parent stand before
-/// they overlap.
-pub const OVERLAP_TOLERANCE: f64 = 0.5;
-
-/// How far from its belt's radius an asteroid of that belt may lie: the game scatters them,
-/// so two asteroids of one belt that stand together do not overlap.
-pub const BELT_SCATTER: f64 = 10.0;
-
-/// How far a body's point may stray from its stored `orbit` for the stored value to be
-/// drawn: the rounding of a point written to five decimals, not a body placed elsewhere.
-pub const STORED_ORBIT_SLACK: f64 = 0.01;
-
-/// One body of a system, in the order the system lists them: the first is its primary.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Body {
-    pub id: u32,
-    /// The body it is a moon of, named even when the system no longer holds it.
-    pub parent: Option<u32>,
-    /// Relative to the system's centre.
-    pub at: (f64, f64),
-    /// The radius it stores about its parent.
-    pub orbit: f64,
-}
-
-/// Where a body `radius` from `centre` at `angle` degrees stands.
-pub fn point((cx, cy): (f64, f64), radius: f64, angle: f64) -> (f64, f64) {
-    let angle = angle.to_radians();
-    (cx + radius * angle.cos(), cy + radius * angle.sin())
-}
-
-/// The angle in degrees, in [0, 360), at which `at` stands about `centre`.
-pub fn angle_about((cx, cy): (f64, f64), (x, y): (f64, f64)) -> f64 {
-    normalised((y - cy).atan2(x - cx).to_degrees())
-}
-
-/// `angle` in [0, 360).
-pub fn normalised(angle: f64) -> f64 {
-    angle.rem_euclid(360.0) + 0.0
-}
-
-/// The radius a body at `at` is drawn at about `centre`: its stored `orbit` when that is
-/// its distance give or take the rounding of its point, else the distance. Some bodies
-/// store an `orbit` of 0 or less while they sit out from their parent.
-pub fn drawn_radius(at: (f64, f64), centre: (f64, f64), stored: Option<f64>) -> f64 {
-    let distance = (at.0 - centre.0).hypot(at.1 - centre.1);
-    match stored {
-        Some(stored) if (distance - stored).abs() <= STORED_ORBIT_SLACK => stored,
-        _ => distance,
-    }
-}
+pub use crate::projections::geometry::{
+    BELT_SCATTER, Body, MOON_RING_FIRST, MOON_RING_STEP, OVERLAP_TOLERANCE, Overlap,
+    STORED_ORBIT_SLACK, SystemRadii, angle_about, centre, descendants, drawn_radius, find,
+    moved_reach, normalised, overlaps, point, reach, system_reach,
+};
 
 /// Refuse a radius that is not a number above zero, `what` naming what it measures.
 pub(crate) fn check_radius(radius: f64, what: &str) -> Result<(), OpError> {
@@ -137,72 +30,6 @@ pub(crate) fn check_placement(radius: f64, angle: f64) -> Result<(), OpError> {
         return Err(OpError::NotFinite);
     }
     Ok(())
-}
-
-/// Body `id` of the frame.
-pub fn find(bodies: &[Body], id: u32) -> Option<&Body> {
-    bodies.iter().find(|b| b.id == id)
-}
-
-/// The point `body` orbits: its parent's, or the system's centre for a planet; `None` for
-/// a moon whose parent the frame lacks.
-pub fn centre(bodies: &[Body], body: &Body) -> Option<(f64, f64)> {
-    match body.parent {
-        None => Some((0.0, 0.0)),
-        Some(parent) => find(bodies, parent).map(|p| p.at),
-    }
-}
-
-/// Every body whose chain of parents leads to `id`, in frame order.
-pub fn descendants(bodies: &[Body], id: u32) -> Vec<u32> {
-    let under = |body: &Body| {
-        let mut parent = body.parent;
-        for _ in 0..bodies.len() {
-            match parent {
-                Some(p) if p == id => return true,
-                Some(p) => parent = find(bodies, p).and_then(|b| b.parent),
-                None => return false,
-            }
-        }
-        false
-    };
-    bodies
-        .iter()
-        .filter(|b| b.id != id && under(b))
-        .map(|b| b.id)
-        .collect()
-}
-
-/// How far from the system's centre `body` reaches: its drawn radius, plus for a moon its
-/// parent's distance from the centre.
-pub fn reach(bodies: &[Body], body: &Body) -> f64 {
-    match centre(bodies, body) {
-        Some(c) => c.0.hypot(c.1) + drawn_radius(body.at, c, Some(body.orbit)),
-        None => body.at.0.hypot(body.at.1),
-    }
-}
-
-/// Whether `body` counts toward the system's reach: the primary always does, and so does
-/// any other body whose stored `orbit` reads above zero. An event-placed body (a
-/// `pc_astral_scar`, say) can carry `orbit=0` while it stands far from its point at event
-/// time; that is not a place a player put it, and not what the generator's rule cares
-/// about. A body with no `orbit` at all still counts, since a caller can only reach this
-/// with one it read from the bytes.
-fn reaches_for_the_rule(bodies: &[Body], body: &Body) -> bool {
-    bodies.first().is_some_and(|primary| primary.id == body.id) || body.orbit > 0.0
-}
-
-/// How far the furthest body of the frame or belt of `belts` reaches, a belt reaching its
-/// radius and an event-placed body at `orbit` zero or less set aside (see
-/// [`reaches_for_the_rule`]). A caller measuring a body its own op is moving calls [`reach`]
-/// on it directly instead, which this exclusion does not touch.
-pub fn system_reach(bodies: &[Body], belts: &[f64]) -> f64 {
-    bodies
-        .iter()
-        .filter(|b| reaches_for_the_rule(bodies, b))
-        .map(|b| reach(bodies, b))
-        .chain(belts.iter().copied())
-        .fold(0.0, f64::max)
 }
 
 /// Body `id`, refused when the frame does not list it or it stands at the system's centre,
@@ -323,15 +150,4 @@ pub fn placed(
             _ => *b,
         })
         .collect())
-}
-
-/// How far body `id` of `after`, or the furthest body under it, reaches.
-pub fn moved_reach(after: &[Body], id: u32) -> f64 {
-    let mut moved = descendants(after, id);
-    moved.push(id);
-    moved
-        .iter()
-        .filter_map(|&m| find(after, m))
-        .map(|b| reach(after, b))
-        .fold(0.0, f64::max)
 }

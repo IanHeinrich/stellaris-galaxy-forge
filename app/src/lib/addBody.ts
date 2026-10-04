@@ -11,10 +11,16 @@ export function sizeRange(pick: BodyClassPick): string {
   return pick.min_size === pick.max_size ? `${pick.min_size}` : `${pick.min_size}–${pick.max_size}`;
 }
 
-/** Whether `planet` may take a new moon: a planet, not a moon, a star or an asteroid. */
+/**
+ * Whether `planet` may take a new moon: a planet that orbits the primary or a companion star,
+ * not a moon, a star or an asteroid. A habitat about a planet has no moon bit but takes none.
+ */
 export function takesMoons(
   planet: PlanetSummary,
+  parent: PlanetSummary | undefined,
   { star, asteroid }: { star: boolean; asteroid: boolean },
 ): boolean {
-  return !planet.moon && !star && !asteroid;
+  const aboutAStar =
+    planet.parent === null || parent?.role === "star" || parent?.role === "primary";
+  return !planet.moon && !star && !asteroid && aboutAStar;
 }

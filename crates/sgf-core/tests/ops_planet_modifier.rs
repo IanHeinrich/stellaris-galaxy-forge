@@ -7,7 +7,7 @@ use sgf_core::session::{OpResult, Session};
 
 use crate::common;
 use common::diff::{round_trip, round_trip_step, snapshot_step};
-use common::{SAMPLE_4_5, current, open, open_3_4, open_4_5, open_edited_sample};
+use common::{SAMPLE_4_5, current, open, open_4_5, open_edited_sample};
 
 const CANDIDATE: &str = "terraforming_candidate";
 const FROZEN: &str = "frozen_terraforming_candidate";
@@ -338,15 +338,5 @@ fn an_item_whose_days_are_not_a_number_is_not_removed() {
             .contains("harvested_resources_mining lasts \"soon\" days, which is not a number"),
         "{error}"
     );
-    assert!(!session.doc.is_dirty());
-}
-
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let mut session = open_3_4();
-    for op in [add(1, CANDIDATE, &[-1]), remove(1, CANDIDATE, None)] {
-        let error = session.apply(op).expect_err("a 3.4 save");
-        assert!(error.to_string().contains("3.4"), "{error}");
-    }
     assert!(!session.doc.is_dirty());
 }

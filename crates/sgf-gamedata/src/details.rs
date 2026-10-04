@@ -7,7 +7,7 @@
 use std::convert::Infallible;
 
 use sgf_core::format::save::details::{
-    ArchaeologySite, BodyLayout, Bounds, DepositCount, DetailsResolver, FleetPresence,
+    ArchaeologySite, BodyLayout, BodyRole, Bounds, DepositCount, DetailsResolver, FleetPresence,
     MegastructureSummary, PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
 };
 use sgf_core::projections::name::NameTemplate;
@@ -162,18 +162,14 @@ impl GameData {
     }
 
     /// Save system details with what the install says of each body: the star class each star
-    /// is drawn as, in a system of star class `system`, and which bodies orbit a planet.
+    /// is drawn as, in a system of star class `system`, and which planets are stars. Which
+    /// bodies are moons is the save's to say.
     pub fn resolve_save_bodies(&self, details: &mut SystemDetails, system: &str) {
-        let stars: Vec<(u32, bool)> = details
-            .planets
-            .iter()
-            .map(|p| (p.id, self.is_star_body(&p.class)))
-            .collect();
         for planet in &mut details.planets {
             planet.star_class = self.drawn_star_class(&planet.class, system);
-            planet.moon = planet
-                .parent
-                .is_some_and(|parent| !stars.iter().any(|&(id, star)| id == parent && star));
+            if planet.role == BodyRole::Planet && self.is_star_body(&planet.class) {
+                planet.role = BodyRole::Star;
+            }
         }
     }
 
@@ -255,16 +251,28 @@ impl GameData {
         let expanded: Vec<Body<'_>> = initializers::expand(&init.planets).collect();
         let classes =
             self.star_body_classes(system, expanded.iter().map(|b| b.block.class.written()));
-        let moons: Vec<bool> = expanded
+        let roles: Vec<BodyRole> = expanded
             .iter()
-            .map(|b| b.parent.is_some_and(|i| !self.is_star_body(&classes[i])))
+            .zip(&classes)
+            .enumerate()
+            .map(|(i, (b, class))| {
+                if i == 0 {
+                    BodyRole::Primary
+                } else if b.parent.is_some_and(|p| !self.is_star_body(&classes[p])) {
+                    BodyRole::Moon
+                } else if self.is_star_body(class) {
+                    BodyRole::Star
+                } else {
+                    BodyRole::Planet
+                }
+            })
             .collect();
         let layouts = Layouts::of(&init.planets);
-        let bodies = expanded.into_iter().zip(layouts).zip(classes).zip(moons);
-        for (((body, layout), class), moon) in bodies {
+        let bodies = expanded.into_iter().zip(layouts).zip(classes).zip(roles);
+        for (((body, layout), class), role) in bodies {
             let id = planet_id(out.planets.len());
             out.planets
-                .push(self.summary(body, class, id, layout, moon, system));
+                .push(self.summary(body, class, id, layout, role, system));
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -277,7 +285,7 @@ impl GameData {
     }
 
     /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`];
-    /// `moon` whether it orbits a planet, as the body is shown; its size and ring follow the
+    /// `role` what it is in its system, the first body being the primary; its size and ring follow the
     /// block it is written in, as the generator draws them. `system` is the system's star class.
     fn summary(
         &self,
@@ -285,7 +293,7 @@ impl GameData {
         class: String,
         id: u32,
         mut layout: BodyLayout,
-        moon: bool,
+        role: BodyRole,
         system: &str,
     ) -> PlanetSummary {
         let body = expanded.block;
@@ -306,7 +314,8 @@ impl GameData {
             capital: body.home_planet && !body.pre_ftl,
             habitable,
             owner: None,
-            moon,
+            moon: role == BodyRole::Moon,
+            role,
             pre_ftl: body.pre_ftl,
             size: layout.size.map(|size| size.min.round() as u32),
             orbit: None,
@@ -367,7 +376,7 @@ impl GameData {
     /// As the generator decides it: a moon and the star never have a ring, a written
     /// `has_ring` wins, and otherwise the body is left to a draw (`None`) only when its class,
     /// or one its list or draw could give, has a `chance_of_ring`.
-    fn ring(&self, body: &InitPlanet, moon: bool) -> Option<bool> {
+    pub(crate) fn ring(&self, body: &InitPlanet, moon: bool) -> Option<bool> {
         if moon || body.class == BodyClass::Star {
             return Some(false);
         }

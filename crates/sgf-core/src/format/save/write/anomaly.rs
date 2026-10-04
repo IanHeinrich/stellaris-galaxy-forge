@@ -6,10 +6,11 @@
 
 use crate::Span;
 use crate::cst::Node;
-use crate::emit::inline;
 use crate::emit::system::anomalies_list;
 use crate::format;
-use crate::format::save::{check_version, entity, planet_entity, planet_system};
+use crate::format::save::entity;
+use crate::format::save::write::id_list::{Emptied, append_in, unlist_in};
+use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
 use crate::ops::rules::{Form, check_text, quoted};
 use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
@@ -94,9 +95,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
 /// The planet `id`'s entity and system, once the save is known to be 4.x. A star takes an
 /// anomaly as any other body does: the game places some categories only on stars.
 fn planet(s: &Session, id: u32) -> Result<(Node, &[u8], u32), OpError> {
-    check_version(&s.doc)?;
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     Ok((node, src, system))
 }
 
@@ -172,53 +171,20 @@ fn list(edit: &mut Edit, id: u32) -> Result<(), OpError> {
         edit.insert(at, anomalies_list(&indent, &[id]));
         return Ok(());
     };
-    if anomalies.scalar_span().is_some() {
-        return Err(edit.parse_error(anomalies.span().start, "anomalies is not a block"));
-    }
-    match anomalies.children().last() {
-        Some(item) => {
-            let at = item.span().end;
-            edit.insert(at, format!(" {id}").into_bytes());
-        }
-        None => {
-            let span = anomalies.span();
-            let indent = edit.indent(span.start);
-            let text = inline(&indent, &anomalies_list(&indent, &[id]));
-            edit.replace_statement(span, &text);
-        }
-    }
-    Ok(())
+    let anomalies = anomalies.clone();
+    append_in(edit, &anomalies, keys::ANOMALIES, &[id])
 }
 
 /// Take planet `id` out of the country's `events.anomalies`, and the list with it when
 /// nothing else is left in it, as the game writes no empty one.
 pub(crate) fn unlist(edit: &mut Edit, id: u32) -> Result<(), OpError> {
-    let entity = edit.entity()?;
-    let Some(anomalies) = entity
+    let anomalies = edit
+        .entity()?
         .find(keys::EVENTS, &edit.buf)
         .and_then(|events| events.find(keys::ANOMALIES, &edit.buf))
-    else {
-        return Ok(());
-    };
-    let id = id.to_string();
-    let listed: Vec<Span> = anomalies
-        .children()
-        .iter()
-        .filter(|item| item.key.is_none() && item.scalar_str(&edit.buf) == Some(id.as_str()))
-        .map(Node::span)
-        .collect();
-    if listed.len() == anomalies.children().len() {
-        let span = anomalies.span();
-        edit.remove_statement(span);
-        return Ok(());
-    }
-    for item in listed {
-        let end = item.end
-            + edit.buf[item.end..]
-                .iter()
-                .take_while(|&&b| b == b' ' || b == b'\t')
-                .count();
-        edit.replace_span(Span::new(item.start, end), Vec::new());
+        .cloned();
+    if let Some(anomalies) = anomalies {
+        unlist_in(edit, &anomalies, &[id], Emptied::Drop);
     }
     Ok(())
 }

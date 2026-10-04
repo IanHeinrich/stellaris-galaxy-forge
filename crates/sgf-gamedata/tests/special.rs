@@ -310,3 +310,37 @@ fn hidden_content_is_marked_by_the_flags_generation_set() {
         );
     }
 }
+
+#[test]
+fn the_precedence_order_lists_every_kind_once() {
+    let every = [
+        SpecialKind::Leviathan,
+        SpecialKind::Enclave,
+        SpecialKind::Marauder,
+        SpecialKind::HolyWorld,
+        SpecialKind::FallenEmpire,
+        SpecialKind::Landmark,
+        SpecialKind::Unique,
+        SpecialKind::Contingency,
+        SpecialKind::HorizonSignal,
+        SpecialKind::Cutholoid,
+    ];
+    for kind in every {
+        match kind {
+            SpecialKind::Leviathan
+            | SpecialKind::Enclave
+            | SpecialKind::Marauder
+            | SpecialKind::HolyWorld
+            | SpecialKind::FallenEmpire
+            | SpecialKind::Landmark
+            | SpecialKind::Unique
+            | SpecialKind::Contingency
+            | SpecialKind::HorizonSignal
+            | SpecialKind::Cutholoid => {
+                let listed = KIND_ORDER.iter().filter(|k| **k == kind).count();
+                assert_eq!(listed, 1, "{kind:?}");
+            }
+        }
+    }
+    assert_eq!(KIND_ORDER.len(), every.len());
+}

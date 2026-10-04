@@ -234,7 +234,6 @@ pub(crate) fn plan_set_turbulent(
     index: usize,
     turbulent: bool,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let nebula = s
         .graph
         .nebulae
@@ -291,7 +290,6 @@ pub(crate) fn plan_set_footprints(
     s: &Session,
     targets: &[NebulaFootprint],
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     each_once(targets, |f| f.system)?;
     let mut footprints = Footprints::new(&s.doc, &s.graph);
     let mut had = Vec::new();

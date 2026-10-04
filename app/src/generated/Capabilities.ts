@@ -2,7 +2,8 @@
 
 /**
  * What the open document supports, so the app shows only the layers, tabs and ops it
- * can answer for. Each format fills it, and the app reads these flags, not the kind.
+ * can answer for. Each format fills it, and the app reads these flags, not the kind. The
+ * default supports nothing, so a format names only what it has.
  */
 export type Capabilities = { 
 /**
@@ -45,7 +46,7 @@ waylines: boolean,
  */
 added_systems: boolean, 
 /**
- * A body's star class and planet size can be changed.
+ * A body's star class, planet size and name can be changed.
  */
 bodies: boolean, 
 /**
@@ -76,4 +77,55 @@ wormhole_pairs: boolean,
 /**
  * A system's height above or below the galactic plane can be changed.
  */
-system_heights: boolean, };
+system_heights: boolean, 
+/**
+ * Planets can be selected in the system view and moved into another system.
+ */
+planet_moves: boolean, 
+/**
+ * A system's bodies are rolled from its initializer, not read from the document: the
+ * system view rolls them and a body opens the rolled body's page.
+ */
+rolled_layout: boolean, 
+/**
+ * Planets and moons can be added to a system.
+ */
+add_bodies: boolean, 
+/**
+ * A planet or moon can be deleted, and a colony removed from it.
+ */
+remove_bodies: boolean, 
+/**
+ * A planet's class and model can be changed.
+ */
+planet_classes: boolean, 
+/**
+ * A planet's timed modifiers and features can be added and removed.
+ */
+modifiers: boolean, 
+/**
+ * A body's anomaly can be added and removed.
+ */
+anomalies: boolean, 
+/**
+ * A planet's dig site can be added and removed.
+ */
+dig_sites: boolean, 
+/**
+ * Any system can be renamed from its header.
+ */
+rename_systems: boolean, 
+/**
+ * The document has a header of its own: the galaxy's name, sizes and core radius.
+ */
+header: boolean, 
+/**
+ * Empires are seated by the scripts the systems name: the territories, day-one claims
+ * and marauder clans the game data resolves.
+ */
+scripted_owners: boolean, 
+/**
+ * Systems name the initializers and scripts that generate them: the initializer
+ * labels, the scripts tab and the initializer a system opens.
+ */
+scripts: boolean, };

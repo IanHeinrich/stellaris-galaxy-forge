@@ -19,6 +19,7 @@ use crate::projections::galaxy::{GalaxyGraph, ProjectionError};
 use crate::projections::read;
 use crate::validate::{self, Issue};
 
+pub use crate::entity::facts::planet::BodyRole;
 pub use extract::{
     ArchaeologySite, FleetSummary, MegastructureSummary, RawPlanet, RawStarbase, RawSystemDetails,
     ShipSizeCount, WormholeSummary,
@@ -53,11 +54,11 @@ impl DetailsProjection {
             .keys()
             .map(|&id| (id, RawSystemDetails::default()))
             .collect();
+        extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
         let planet_system =
             extract::planets(doc, &countries, &deposit_kind, &colony_pops, &mut by_system)?;
         extract::megastructures(index, src, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
-        extract::present(doc, graph, &countries, &ship_sizes, &mut by_system)?;
         extract::wormholes(doc, graph, &mut by_system)?;
         let overlaps = by_system
             .iter()
@@ -69,9 +70,9 @@ impl DetailsProjection {
         })
     }
 
-    /// Read again the name, class, size, parent, modifiers, anomaly, model and placement of each of
-    /// `planets`, as (planet, system), from the bytes now standing for it, then the overlap
-    /// findings of every system touched.
+    /// Read again each of `planets`, as (planet, system), from the bytes now standing for it,
+    /// then the overlap findings of every system touched. What other tables say of a planet,
+    /// its capital, pre-FTL owner, deposits and pops, stays as the build read it.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
@@ -80,26 +81,21 @@ impl DetailsProjection {
         let mut touched = HashSet::new();
         for (id, system) in planets {
             touched.insert(system);
-            let Some(planet) = self
-                .by_system
-                .get_mut(&system)
-                .and_then(|d| d.planets.iter_mut().find(|p| p.id == id))
-            else {
+            let Some(details) = self.by_system.get_mut(&system) else {
                 continue;
             };
-            if let Some((facts, modifiers, placement)) = extract::planet_facts(doc, id)? {
-                planet.name = facts.name;
-                planet.name_key = facts.name_key;
-                planet.class = facts.class;
-                planet.size = facts.size;
-                planet.moon = facts.moon_of.is_some();
-                planet.parent = facts.moon_of;
-                planet.permanent_modifiers = modifiers;
-                planet.anomaly = facts.anomaly;
-                planet.entity_name = facts.entity_name;
-                planet.orbit = placement.orbit;
-                planet.at = placement.at;
-                planet.ring = placement.ring;
+            let primary = details.primary == Some(id);
+            let Some(planet) = details.planets.iter_mut().find(|p| p.id == id) else {
+                continue;
+            };
+            if let Some(fresh) = extract::planet(doc, id, primary)? {
+                *planet = RawPlanet {
+                    capital: planet.capital,
+                    pre_ftl: planet.pre_ftl,
+                    deposits: std::mem::take(&mut planet.deposits),
+                    pops: planet.pops,
+                    ..fresh
+                };
             }
         }
         for system in touched {

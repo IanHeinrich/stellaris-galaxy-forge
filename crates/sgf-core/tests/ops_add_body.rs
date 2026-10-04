@@ -9,7 +9,7 @@ use sgf_core::views::OrbitPlacement;
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::examples::{ADDED_BODY, meissa_v};
-use common::{current, open, open_3_4, open_4_5, open_edited_sample, text};
+use common::{current, open, open_4_5, open_edited_sample, text};
 
 fn body(class: &str, size: u32) -> NewBody {
     NewBody {
@@ -308,14 +308,4 @@ fn an_ironman_save_takes_a_planet() {
     session
         .apply(meissa_v())
         .expect("an Ironman save takes a planet");
-}
-
-#[test]
-fn a_3_x_save_is_refused() {
-    let mut session = open_3_4();
-    let system = *session.graph.order.first().expect("a system");
-    let error = session
-        .apply(add(system, body("pc_desert", 12), 50.0, 0.0))
-        .expect_err("3.x");
-    assert!(matches!(error, OpError::SaveTooOld(_)), "{error}");
 }

@@ -34,7 +34,17 @@ impl Rng {
     }
 
     pub fn between(&mut self, range: Range) -> f64 {
-        range.min + (range.max - range.min) * self.unit()
+        self.range(range.min, range.max)
+    }
+
+    /// In `[low, high)`.
+    pub fn range(&mut self, low: f64, high: f64) -> f64 {
+        low + (high - low) * self.unit()
+    }
+
+    /// In `[low, high]`, drawing a number even when the bounds meet.
+    pub fn count(&mut self, (low, high): (u64, u64)) -> usize {
+        (low + self.next() % (high - low + 1)) as usize
     }
 
     /// One of `items`, each alike; `None`, drawing nothing, when there are none.

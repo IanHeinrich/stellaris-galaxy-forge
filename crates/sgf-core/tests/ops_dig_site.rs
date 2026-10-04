@@ -8,7 +8,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{plain_report, round_trip, snapshot_step};
-use common::{SAMPLE_4_5, current, open, open_3_4, open_4_5, open_edited_sample};
+use common::{SAMPLE_4_5, current, open, open_4_5, open_edited_sample};
 
 /// A barren planet of the 4.5 sample without a site; 584 is its system's star.
 const BARREN: u32 = 585;
@@ -236,16 +236,6 @@ fn a_site_is_refused_for_a_star_a_planet_with_one_or_an_unknown_id() {
     }
     assert!(!session.doc.is_dirty());
     assert!(session.history().undo.is_empty());
-}
-
-#[test]
-fn a_save_before_stellaris_4_is_refused() {
-    let mut session = open_3_4();
-    for op in [add(1, LOST_MOMENTS, 1), remove(0)] {
-        let error = session.apply(op).expect_err("a 3.4 save");
-        assert!(error.to_string().contains("3.4"), "{error}");
-    }
-    assert!(!session.doc.is_dirty());
 }
 
 #[test]

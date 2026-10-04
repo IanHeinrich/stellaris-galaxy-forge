@@ -16,6 +16,7 @@ use crate::emit::system::{
 use crate::emit::{coord, inline, roman, rounded};
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, Slot, SlotTable, TableEnd};
+use crate::format::save::entity_at;
 use crate::format::save::system_spec::{BodySpec, SystemSpec, polar};
 use crate::format::save::write::asteroid_names::Pool;
 use crate::format::save::write::deposits::check_deposit_kind;
@@ -24,7 +25,6 @@ use crate::format::save::write::initializer_counter;
 use crate::format::save::write::lanes::insert_entries;
 use crate::format::save::write::name_pool::{self, SYSTEM_POOLS};
 use crate::format::save::write::nebula::plan_membership;
-use crate::format::save::{check_version, entity_at};
 use crate::keys::{self, GAME_STARTED};
 use crate::ops::rules::nebula::{Membership, describe_membership, prospective};
 use crate::ops::rules::{Form, check_name, check_text};
@@ -32,8 +32,7 @@ use crate::ops::{Emitted, Op, OpError, Plan, Planned, Subject, SystemMove};
 use crate::overlay::Anchor;
 use crate::plural;
 use crate::projections::galaxy::{GalaxyGraph, lane_length, nearest_prospective};
-use crate::projections::name::{NameTemplate, NameVariable};
-use crate::scan::Value;
+use crate::projections::name::{NameTemplate, format, letter, literal};
 use crate::session::Session;
 
 const STAR_NAME: &str = "STAR_NAME_1_OF_1";
@@ -48,7 +47,6 @@ pub(crate) fn plan_add(
     s: &Session,
     spec: &SystemSpec,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_spec(spec)?;
     check_capped(s, spec, None)?;
     let id = alloc::next_system(&s.doc, &s.graph)?;
@@ -57,7 +55,7 @@ pub(crate) fn plan_add(
     let lanes = lane_lengths(&s.graph, id, x, y, &spec.lanes)?;
 
     let written = write_bodies(plan, s, id, spec)?;
-    let mut end = systems_end(&s.doc)?;
+    let mut end = TableEnd::of(&s.doc, EntityKind::System)?;
     let text = system_text(&s.doc, end.indent(), id, (x, y), spec, &written, &lanes)?;
     let text = end.shape(text);
     plan.emit(Emitted::System(id), end.at(), text);
@@ -487,36 +485,6 @@ fn layout(spec: &SystemSpec, asteroid_names: Vec<NameTemplate>) -> Vec<Placed<'_
     placed
 }
 
-pub(crate) fn format(key: &str, variables: Vec<(&str, NameTemplate)>) -> NameTemplate {
-    NameTemplate {
-        key: key.to_owned(),
-        literal: false,
-        variables: variables
-            .into_iter()
-            .map(|(name, value)| NameVariable {
-                name: name.to_owned(),
-                value,
-            })
-            .collect(),
-    }
-}
-
-pub(crate) fn literal(text: &str) -> NameTemplate {
-    NameTemplate {
-        literal: true,
-        ..NameTemplate::plain(text)
-    }
-}
-
-/// `a`, `b`, … `z`, `aa`, `ab`, …
-pub(crate) fn letter(index: usize) -> String {
-    let this = char::from(b'a' + (index % 26) as u8);
-    match index / 26 {
-        0 => this.to_string(),
-        n => format!("{}{this}", letter(n - 1)),
-    }
-}
-
 fn check_spec(spec: &SystemSpec) -> Result<(), OpError> {
     if !spec.x.is_finite() || !spec.y.is_finite() {
         return Err(OpError::NotFinite);
@@ -632,15 +600,4 @@ fn lane_lengths(
         lanes.push((to, lane_length(other.position(), (x, y)) as u32));
     }
     Ok(lanes)
-}
-
-/// Where a new `galactic_object` entry goes, and how the entries it joins are indented.
-fn systems_end(doc: &Document) -> Result<TableEnd, OpError> {
-    let missing = OpError::MissingSaveKey(keys::GALACTIC_OBJECT);
-    let section = doc.index().section(keys::GALACTIC_OBJECT).ok_or(missing)?;
-    let Value::Block { close, .. } = section.value else {
-        return Err(OpError::MissingSaveKey(keys::GALACTIC_OBJECT));
-    };
-    let entities = doc.index().entities(keys::GALACTIC_OBJECT);
-    Ok(TableEnd::read(doc, EntityKind::System, close, entities))
 }

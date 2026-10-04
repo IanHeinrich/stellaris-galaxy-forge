@@ -5,10 +5,10 @@
 //! an index the new class has no model for goes back to 0.
 
 use crate::NULL_ID;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::move_planet::is_star_class;
 use crate::format::save::write::planet_entity::write_entity_name;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::keys;
 use crate::ops::rules::{Form, check_text, quoted};
 use crate::ops::{ClassChange, Op, OpError, Plan, PlanetClassRule, PlanetLook, Planned};
@@ -23,10 +23,8 @@ pub(crate) fn plan_set(
     to: &PlanetClassRule,
     look: Option<&PlanetLook>,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     check_text("a planet class", &to.class, Form::Bare)?;
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     let class = read::text(&node, keys::PLANET_CLASS, src);
     let primary = bodies(&s.doc, system)?.first() == Some(&id);
     if primary || is_star_class(&class) {

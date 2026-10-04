@@ -29,6 +29,11 @@ fn initializer(name: &str) -> Option<&'static Initializer> {
     )
 }
 
+/// `init` as the browser lists it, through the real install's classes.
+fn view(init: &Initializer) -> InitializerView {
+    InitializerView::new(init, INSTALL.as_ref().expect("an install"))
+}
+
 #[test]
 fn sol_spawns_its_star_its_planets_and_their_moons() {
     let Some(sol) = initializer("sol_system_initializer") else {
@@ -103,18 +108,51 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
 
     assert!(sol.planets.iter().all(|p| p.deposits.is_empty()));
 
-    let view = InitializerView::from(sol);
+    let view = view(sol);
     assert_eq!(view.planets.len(), 17);
     assert_eq!(view.planet_count, 24, "17 planets and 7 moons");
     assert_eq!(view.planets[3].moons[0].name.as_deref(), Some("NAME_Luna"));
 }
 
 #[test]
+fn the_view_gives_a_body_its_classs_size_and_leaves_a_ring_to_the_roll() {
+    let Some(init) = initializer("adSalivul_system") else {
+        return;
+    };
+    let view = view(init);
+    let broken = &view.planets[1];
+    assert_eq!(broken.class, "pc_broken");
+    assert_eq!(broken.size, Some((12, 30)), "pc_broken's planet_size");
+    assert_eq!(broken.has_ring, Some(false), "pc_broken rolls no ring");
+
+    let gd = INSTALL.as_ref().expect("an install");
+    let rolled: Vec<_> = gd
+        .initializers
+        .iter()
+        .flat_map(|init| {
+            init.planets
+                .iter()
+                .zip(InitializerView::new(init, gd).planets)
+        })
+        .filter(|(p, _)| p.class.written() == "pc_continental" && p.has_ring.is_none())
+        .map(|(_, shown)| shown.has_ring)
+        .collect();
+    assert!(!rolled.is_empty());
+    assert!(
+        rolled.iter().all(Option::is_none),
+        "a continental body that names no ring leaves it to the roll"
+    );
+}
+
+#[test]
 fn the_view_says_which_initializers_a_country_starts_in() {
     let gd = common::cached_fixture();
     let spawns = |key: &str| {
-        InitializerView::from(gd.initializers.get(key).unwrap_or_else(|| panic!("{key}")))
-            .empire_spawn
+        InitializerView::new(
+            gd.initializers.get(key).unwrap_or_else(|| panic!("{key}")),
+            gd,
+        )
+        .empire_spawn
     };
     assert!(spawns("home_init"), "usage = empire_init");
     assert!(spawns("custom_capital_init"), "usage = custom_empire");
@@ -127,7 +165,7 @@ fn an_initializer_that_names_itself_carries_the_localisation_key() {
     let home = gd.initializers.get("home_init").expect("home_init");
     assert_eq!(home.display_name.as_deref(), Some("NAME_Fixture"));
     assert_eq!(
-        InitializerView::from(home).display_name.as_deref(),
+        InitializerView::new(home, gd).display_name.as_deref(),
         Some("NAME_Fixture")
     );
     let bare = gd.initializers.get("basic_init_01").expect("basic_init_01");
@@ -202,7 +240,7 @@ fn the_grammar_documentation_file_is_a_definition_like_any_other() {
         2,
         "the midpoint of a 1-to-3 count"
     );
-    assert_eq!(InitializerView::from(example).planet_count, 5);
+    assert_eq!(view(example).planet_count, 5);
 }
 
 #[test]
@@ -1244,10 +1282,10 @@ fn an_initializer_placing_its_bodies_only_through_an_inline_script_rolls_its_pla
     }
 }
 
-/// A save's star bodies are drawn as the star class whose only star they are, and a body
-/// orbits a planet unless its parent is a star.
+/// A save's star bodies are drawn as the star class whose only star they are. Which bodies
+/// are moons stays as the save says.
 #[test]
-fn a_save_bodys_star_class_and_moon_come_from_the_install() {
+fn a_save_bodys_star_class_comes_from_the_install_and_its_moons_from_the_save() {
     let (_dir, gd) = common::hand_written(&[
         (
             "common/star_classes/00_stars.txt",
@@ -1274,10 +1312,6 @@ fn a_save_bodys_star_class_and_moon_come_from_the_install() {
         .map(|p| p.id)
         .collect();
     assert!(!moons.is_empty(), "Sol has moons");
-    let star = sol.planets[0].id;
-    let about_the_star = &mut sol.planets[1];
-    about_the_star.parent = Some(star);
-    about_the_star.moon = true;
     gd.resolve_save_bodies(&mut sol, &system.star_class);
 
     assert_eq!(sol.planets[0].class, "pc_g_star");
@@ -1288,12 +1322,11 @@ fn a_save_bodys_star_class_and_moon_come_from_the_install() {
     );
     assert!(sol.planets[1..].iter().all(|p| p.star_class.is_none()));
     assert!(sol.planets.iter().all(|p| p.drawn == Some(false)));
-    assert!(!sol.planets[1].moon, "a body about the star is no moon");
     let now: Vec<u32> = sol
         .planets
         .iter()
         .filter(|p| p.moon)
         .map(|p| p.id)
         .collect();
-    assert_eq!(now, moons, "Sol's moons orbit planets");
+    assert_eq!(now, moons, "Sol's moons are the save's");
 }

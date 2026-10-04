@@ -835,3 +835,13 @@ fn a_save_that_refuses_the_add_offers_no_added_systems_but_keeps_bodies() {
     let ironman = with_meta(|meta| meta.push_str("ironman=yes\n"));
     assert_eq!(offered(&ironman), (true, true, true));
 }
+
+#[test]
+fn an_add_is_not_checked_without_its_second_step() {
+    let session = open_4_5();
+    let refusal = session.check_op(&add(mura())).expect("refused");
+    assert!(
+        refusal.contains("its second step needs its first applied"),
+        "{refusal}"
+    );
+}

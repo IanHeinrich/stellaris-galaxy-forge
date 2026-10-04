@@ -6,10 +6,9 @@
 
 use crate::emit::quoted;
 use crate::emit::system::ENTITY_NAME_FLAG;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::bodies;
-use crate::format::save::write::bodies::set_flag;
-use crate::format::save::write::move_planet::is_star_class;
-use crate::format::save::{check_version, planet_entity, planet_system};
+use crate::format::save::write::planet_entry::{PlanetEntry, set_flag};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -22,12 +21,10 @@ pub(crate) fn plan_set(
     id: u32,
     entity: Option<&str>,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     if let Some(entity) = entity {
         check_text("a planet model", entity, Form::Bare)?;
     }
-    let (node, src) = planet_entity(&s.doc, id)?;
-    let system = planet_system(&node, src, id)?;
+    let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
     let primary = bodies(&s.doc, system)?.first() == Some(&id);
     if primary || is_star_class(&read::text(&node, keys::PLANET_CLASS, src)) {
         return Err(OpError::StarModel(id));

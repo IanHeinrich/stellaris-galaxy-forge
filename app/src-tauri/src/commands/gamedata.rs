@@ -7,17 +7,19 @@ use std::sync::Arc;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
-use sgf_gamedata::deposit_choices::{AskedBody, DepositChoice, deposit_choices};
+use sgf_gamedata::choices::AskedBody;
+use sgf_gamedata::deposit_choices::DepositChoice;
 use sgf_gamedata::dig_site_choices::DigSiteChoice;
 use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_models::PlanetModelChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
+use sgf_gamedata::registries::bypasses::BypassDef;
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    BypassView, CountryTypeView, DepositView, FlagParts, GalaxyShapeView, GameDataSummary,
-    InitializerView, MapColor, PaintModView, PlanetClassView, PrecursorView, ResourceIcon,
-    ShipSizeView, StarClassView, StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
+    CountryTypeView, DepositView, FlagParts, GalaxyShapeView, GameDataSummary, InitializerView,
+    MapColor, PaintModView, PlanetClassView, PrecursorView, ResourceIcon, ShipSizeView,
+    StarClassView, StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -220,7 +222,7 @@ pub fn get_deposit_choices(
             size,
             moon,
         };
-        deposit_choices(&gd, &asked, &deposits)
+        gd.deposit_choices(&asked, &deposits)
     })
 }
 
@@ -298,16 +300,19 @@ pub fn get_colony_types(
 }
 
 #[tauri::command(async)]
-pub fn get_bypasses(game_data: State<'_, GameDataState>) -> Vec<BypassView> {
-    game_data.loaded().map_or_else(Vec::new, |gd| {
-        gd.bypasses.iter().map(BypassView::from).collect()
-    })
+pub fn get_bypasses(game_data: State<'_, GameDataState>) -> Vec<BypassDef> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.bypasses.iter().cloned().collect())
 }
 
 #[tauri::command(async)]
 pub fn get_initializers(game_data: State<'_, GameDataState>) -> Vec<InitializerView> {
     game_data.loaded().map_or_else(Vec::new, |gd| {
-        gd.initializers.iter().map(InitializerView::from).collect()
+        gd.initializers
+            .iter()
+            .map(|i| InitializerView::new(i, &gd))
+            .collect()
     })
 }
 

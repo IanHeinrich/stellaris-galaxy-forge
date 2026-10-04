@@ -6,25 +6,26 @@
 //! their `fleet_presence`, its ships with it. The game re-anchors no fleet on load. No
 //! other fleet is touched.
 
-use crate::Span;
 use crate::cst::Node;
-use crate::emit::system::{MOON_FLAG, planet_lines};
-use crate::emit::{Lines, coord, inline};
+use crate::emit::coord;
+use crate::emit::system::MOON_FLAG;
+use crate::entity::facts::planet::is_star_class;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
-use crate::format::save::write::bodies::{frame, grow, set_flag, set_moon_of, unlist_moon};
-use crate::format::save::write::move_system::splice_coordinate;
-use crate::format::save::{
-    check_version, entity, entity_at, planet_entity, planet_system, system_statement,
+use crate::format::save::write::bodies::{frame_bodies, grow};
+use crate::format::save::write::fleets::{move_fleet, stationed};
+use crate::format::save::write::id_list::{
+    Emptied, Place, append, list_planets, unlist, unlist_planets,
 };
+use crate::format::save::write::move_system::splice_coordinate;
+use crate::format::save::write::planet_entry::{and_its_moons, set_flag, set_moon_of, unlist_moon};
+use crate::format::save::{check_version, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{
     Body, angle_about, check_placement, descendants, drawn_radius, normalised, point, system_reach,
 };
-use crate::ops::{Edit, Op, OpError, Plan, Planned, Subject};
-use crate::overlay::Anchor;
+use crate::ops::{Op, OpError, Plan, Planned};
 use crate::projections::read;
-use crate::scan::Value;
 use crate::session::Session;
 use crate::views::{
     DocumentKind, OrbitPlacement, PlanetMoveCheck, PlanetMoveTarget, PlanetMoveTargets,
@@ -34,10 +35,6 @@ use crate::views::{
 /// Whether a planet class is a star's: every vanilla star body's class ends in `_star`,
 /// and the black hole and pulsar classes are stars without it. `star` is the class an
 /// initializer writes for a system's own star.
-pub(crate) fn is_star_class(class: &str) -> bool {
-    class.ends_with("_star") || matches!(class, "star" | "pc_black_hole" | "pc_pulsar")
-}
-
 pub(crate) fn plan_move(
     plan: &mut Plan,
     s: &Session,
@@ -69,7 +66,7 @@ pub(crate) fn plan_move(
         return Err(OpError::NoBodies(to));
     }
 
-    let before: Vec<Body> = frame(s, to)?.into_iter().map(|b| b.body).collect();
+    let before = frame_bodies(s, to)?;
     let (orbit, angle) = match at {
         Some(at) => (at.radius, normalised(at.angle)),
         None => {
@@ -90,10 +87,20 @@ pub(crate) fn plan_move(
 
     unlist_planets(plan.edit(&s.doc, from)?, &moved)?;
     list_planets(plan.edit(&s.doc, to)?, &moved)?;
-    unlist(plan.edit(&s.doc, from)?, keys::COLONIES, &colonies);
-    list(plan.edit(&s.doc, to)?, &COLONIES_AT, &colonies)?;
-    unlist(plan.edit(&s.doc, from)?, keys::FLEET_PRESENCE, &stations);
-    list(plan.edit(&s.doc, to)?, &FLEETS_AT, &stations)?;
+    unlist(
+        plan.edit(&s.doc, from)?,
+        keys::COLONIES,
+        &colonies,
+        Emptied::Drop,
+    )?;
+    append(plan.edit(&s.doc, to)?, &COLONIES_AT, &colonies)?;
+    unlist(
+        plan.edit(&s.doc, from)?,
+        keys::FLEET_PRESENCE,
+        &stations,
+        Emptied::Drop,
+    )?;
+    append(plan.edit(&s.doc, to)?, &FLEETS_AT, &stations)?;
     for &station in &stations {
         move_fleet(plan, s, station, [from, to], Some(step))?;
     }
@@ -135,11 +142,7 @@ pub(crate) fn plan_move(
         .map(|b| crate::ops::rules::bodies::reach(&after, b))
         .fold(0.0, f64::max);
 
-    let carrying = match moons.len() {
-        0 => String::new(),
-        1 => " and its moon".to_owned(),
-        n => format!(" and its {n} moons"),
-    };
+    let carrying = and_its_moons(moons.len());
     let stationed = match (stations.len(), moons.is_empty()) {
         (0, _) => String::new(),
         (1, true) => " and its station".to_owned(),
@@ -345,10 +348,11 @@ fn parents(s: &Session, planet: u32) -> Vec<u32> {
     chain
 }
 
-/// Refuse a document other than a save, as the scenario format refuses the op.
+/// Refuse what the save format refuses the op for: a document other than a save, or a save
+/// it cannot write whole entries into.
 fn supported(s: &Session) -> Result<(), OpError> {
     match s.kind() {
-        DocumentKind::Save => Ok(()),
+        DocumentKind::Save => check_version(&s.doc),
         kind => Err(OpError::Unsupported {
             op: "MoveSavePlanet",
             kind,
@@ -356,9 +360,8 @@ fn supported(s: &Session) -> Result<(), OpError> {
     }
 }
 
-/// The system planet `planet` stands in, once the save's version is checked.
+/// The system planet `planet` stands in.
 fn origin(s: &Session, planet: u32) -> Result<u32, OpError> {
-    check_version(&s.doc)?;
     let (node, src) = planet_entity(&s.doc, planet)?;
     planet_system(&node, src, planet)
 }
@@ -380,7 +383,7 @@ struct Leaving {
 
 /// Check that `planet` may leave system `from`, wherever it goes.
 fn leaving(s: &Session, planet: u32, from: u32) -> Result<Leaving, OpError> {
-    let source: Vec<Body> = frame(s, from)?.into_iter().map(|b| b.body).collect();
+    let source = frame_bodies(s, from)?;
     let body = *source
         .iter()
         .find(|b| b.id == planet)
@@ -478,47 +481,11 @@ fn check_controller(node: &Node, src: &[u8], planet: u32) -> Result<(), OpError>
     }
 }
 
-/// The system's `planet=` statements naming one of `ids`.
-fn planet_statements(edit: &Edit, ids: &[u32]) -> Result<Vec<Span>, OpError> {
-    let entity = edit.entity()?;
-    Ok(entity
-        .find_all(keys::PLANET, &edit.buf)
-        .filter(|n| {
-            n.scalar_str(&edit.buf)
-                .and_then(|t| t.parse().ok())
-                .is_some_and(|id: u32| ids.contains(&id))
-        })
-        .map(Node::span)
-        .collect())
-}
-
-pub(crate) fn unlist_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
-    for span in planet_statements(edit, ids)? {
-        edit.require_alone_on_line(span, "a planet statement")?;
-        edit.remove_lines(span);
-    }
-    Ok(())
-}
-
-/// Write a `planet=` line per id after the system's last, in its indentation.
-pub(crate) fn list_planets(edit: &mut Edit, ids: &[u32]) -> Result<(), OpError> {
-    let last = edit
-        .entity()?
-        .find_all(keys::PLANET, &edit.buf)
-        .last()
-        .map(Node::span)
-        .ok_or_else(|| edit.parse_error(0, "the system lists no bodies"))?;
-    edit.require_alone_on_line(last, "a planet statement")?;
-    let indent = edit.indent(last.start);
-    edit.insert(edit.line_end(last.end), planet_lines(&indent, ids));
-    Ok(())
-}
-
 /// Where a system's `colonies` goes when it has none: after `index`, else before `storm`.
 const COLONIES_AT: Place = Place {
     key: keys::COLONIES,
     after: &[keys::INDEX],
-    before: keys::STORM,
+    before: Some(keys::STORM),
 };
 
 /// Where a system's `fleet_presence` goes when it has none: after `init_parent` or
@@ -526,208 +493,12 @@ const COLONIES_AT: Place = Place {
 const FLEETS_AT: Place = Place {
     key: keys::FLEET_PRESENCE,
     after: &[keys::INIT_PARENT, keys::INITIALIZER],
-    before: keys::INNER_RADIUS,
+    before: Some(keys::INNER_RADIUS),
 };
-
-/// An id list of a system's entry, and where the game writes it: after the first of
-/// `after` the entry holds, else before `before`.
-struct Place {
-    key: &'static str,
-    after: &'static [&'static str],
-    before: &'static str,
-}
-
-/// The ids of the list block, with their spans.
-fn list_items(edit: &Edit, block: &Node) -> Vec<(u32, Span)> {
-    block
-        .children()
-        .iter()
-        .filter(|item| item.key.is_none())
-        .filter_map(|item| Some((item.scalar_str(&edit.buf)?.parse().ok()?, item.span())))
-        .collect()
-}
-
-/// Take `ids` out of the system's list `key`, and the list with it when nothing else is
-/// left: the game writes no empty one.
-fn unlist(edit: &mut Edit, key: &str, ids: &[u32]) {
-    let Ok(entity) = edit.entity() else {
-        return;
-    };
-    let Some(block) = entity.find(key, &edit.buf).cloned() else {
-        return;
-    };
-    let items = list_items(edit, &block);
-    let listed: Vec<Span> = items
-        .iter()
-        .filter(|(id, _)| ids.contains(id))
-        .map(|(_, span)| *span)
-        .collect();
-    if !listed.is_empty() && listed.len() == block.children().len() {
-        edit.remove_statement(block.span());
-        return;
-    }
-    for item in listed {
-        let end = item.end
-            + edit.buf[item.end..]
-                .iter()
-                .take_while(|&&b| b == b' ' || b == b'\t')
-                .count();
-        edit.replace_span(Span::new(item.start, end), Vec::new());
-    }
-}
-
-/// Put `ids` last in the system's list `place.key`, writing the list where the game does
-/// when the system has none.
-fn list(edit: &mut Edit, place: &Place, ids: &[u32]) -> Result<(), OpError> {
-    if ids.is_empty() {
-        return Ok(());
-    }
-    let entity = edit.entity()?;
-    if let Some(block) = entity.find(place.key, &edit.buf).cloned() {
-        match list_items(edit, &block).last() {
-            Some((_, last)) => {
-                let items: String = ids.iter().map(|id| format!(" {id}")).collect();
-                edit.insert(last.end, items.into_bytes());
-            }
-            None => {
-                let span = block.span();
-                let text = id_list(&edit.indent(span.start), place.key, ids);
-                edit.replace_statement(span, &text);
-            }
-        }
-        return Ok(());
-    }
-    let after = place
-        .after
-        .iter()
-        .find_map(|key| entity.find(key, &edit.buf).map(Node::span));
-    if let Some(after) = after {
-        let text = id_list(&edit.indent(after.start), place.key, ids);
-        edit.insert_after(after.end, &text);
-        return Ok(());
-    }
-    let before = entity
-        .find(place.before, &edit.buf)
-        .map(Node::span)
-        .ok_or_else(|| {
-            let reason = format!("nowhere to write {}: missing {}", place.key, place.before);
-            edit.parse_error(0, reason)
-        })?;
-    let text = id_list(&edit.indent(before.start), place.key, ids);
-    edit.insert_before(before, &text);
-    Ok(())
-}
-
-/// A list `key` of `ids`, as a statement whose first line takes `indent` from the line it
-/// is written on.
-fn id_list(indent: &[u8], key: &str, ids: &[u32]) -> String {
-    let mut w = Lines::new(indent);
-    w.list(0, key, ids);
-    inline(indent, &w.into_bytes())
-}
 
 /// Whether body `id` of `frame`, whose entity is `node`, is a star: the system's primary
 /// or a body of a star's class.
 fn is_star(frame: &[Body], id: u32, node: &Node, src: &[u8]) -> bool {
     frame.first().is_some_and(|primary| primary.id == id)
         || is_star_class(&read::text(node, keys::PLANET_CLASS, src))
-}
-
-/// Whether fleet `fleet` is a fleet of the save standing in system `from`: its
-/// `movement_manager.coordinate` names `from`. A station fleet that is gone, or stands
-/// elsewhere, stays out of both systems' `fleet_presence`.
-fn stationed(s: &Session, fleet: u32, from: u32) -> bool {
-    let Some(anchor) = record(s, keys::FLEET, fleet) else {
-        return false;
-    };
-    let Ok(Some((node, src))) = entity_at(&s.doc, anchor) else {
-        return false;
-    };
-    node.find(keys::MOVEMENT_MANAGER, src)
-        .and_then(|m| m.find(keys::COORDINATE, src))
-        .and_then(|c| read::scalar_u32(c, keys::ORIGIN, src))
-        == Some(from)
-}
-
-/// The fleets system `id`'s `fleet_presence` lists.
-pub(crate) fn present_fleets(s: &Session, id: u32) -> Result<Vec<u32>, OpError> {
-    let anchor = system_statement(&s.doc, id).ok_or(OpError::UnknownSystem(id))?;
-    let (node, src) = entity(&s.doc, Subject::System(id), anchor)?;
-    Ok(read::ids(&node, keys::FLEET_PRESENCE, src))
-}
-
-/// Move fleet `fleet` and its ships from system `from` to `to`, by `step` when given: the
-/// fleet's `movement_manager.coordinate` and each ship's `coordinate` and
-/// `target_coordinate` shift, and the fleet's `combat.coordinate`, which stands at the
-/// system's centre, only takes the new `origin`. A coordinate with any other origin, the
-/// null one included, is left as it stands.
-pub(crate) fn move_fleet(
-    plan: &mut Plan,
-    s: &Session,
-    fleet: u32,
-    [from, to]: [u32; 2],
-    step: Option<(f64, f64)>,
-) -> Result<(), OpError> {
-    let Some(anchor) = record(s, keys::FLEET, fleet) else {
-        return Ok(());
-    };
-    let edit = plan.edit_record(&s.doc, anchor)?;
-    let systems = [from, to];
-    shift(
-        edit,
-        &[keys::MOVEMENT_MANAGER, keys::COORDINATE],
-        systems,
-        step,
-    )?;
-    shift(edit, &[keys::COMBAT, keys::COORDINATE], systems, None)?;
-    let ships = read::ids(edit.entity()?, keys::SHIPS, &edit.buf);
-    for ship in ships {
-        let Some(anchor) = record(s, keys::SHIPS, ship) else {
-            continue;
-        };
-        let edit = plan.edit_record(&s.doc, anchor)?;
-        shift(edit, &[keys::COORDINATE], systems, step)?;
-        shift(edit, &[keys::TARGET_COORDINATE], systems, step)?;
-    }
-    Ok(())
-}
-
-/// The statement of entity `id` of the top-level table `section`; `None` for one the save
-/// does not hold or holds as a tombstone.
-fn record(s: &Session, section: &str, id: u32) -> Option<Anchor> {
-    s.doc
-        .index()
-        .entity(section, u64::from(id))
-        .filter(|e| matches!(e.value, Value::Block { .. }))
-        .map(|e| Anchor::Original(e.stmt))
-}
-
-/// Give the coordinate at `path` origin `to` when its origin is `from`, and shift its point
-/// by `step` when there is one.
-fn shift(
-    edit: &mut Edit,
-    path: &[&str],
-    [from, to]: [u32; 2],
-    step: Option<(f64, f64)>,
-) -> Result<(), OpError> {
-    let mut node = edit.entity()?;
-    for key in path {
-        match node.find(key, &edit.buf) {
-            Some(child) => node = child,
-            None => return Ok(()),
-        }
-    }
-    if read::scalar_u32(node, keys::ORIGIN, &edit.buf) != Some(from) {
-        return Ok(());
-    }
-    let point = (
-        read::scalar_f64(node, keys::X, &edit.buf),
-        read::scalar_f64(node, keys::Y, &edit.buf),
-    );
-    let axis = |key| [path, &[key]].concat();
-    if let (Some(step), (Some(x), Some(y))) = (step, point) {
-        edit.set_scalar(&axis(keys::X), coord(x + step.0))?;
-        edit.set_scalar(&axis(keys::Y), coord(y + step.1))?;
-    }
-    edit.set_scalar(&axis(keys::ORIGIN), to.to_string())
 }

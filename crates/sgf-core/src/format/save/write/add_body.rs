@@ -7,28 +7,28 @@
 use crate::document::Document;
 use crate::emit::roman;
 use crate::emit::system::{MOON_FLAG, RING_FLAG};
+use crate::entity::facts::planet::is_star_class;
 use crate::entity::views::EntityKind;
+use crate::format::save::added::row;
 use crate::format::save::alloc::SlotTable;
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::system_spec::BodySpec;
 use crate::format::save::write::add_system::{
-    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, letter, literal, write_body,
+    self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
 };
 use crate::format::save::write::asteroid_names;
-use crate::format::save::write::bodies::{
-    Stored, frame, grow_past, list_moon, number, unlist_moon,
-};
-use crate::format::save::write::move_planet::{is_star_class, list_planets, unlist_planets};
-use crate::format::save::{check_version, entity_at, planet_entity, planet_system};
+use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
+use crate::format::save::write::id_list::{list_planets, unlist_planets};
+use crate::format::save::write::planet_entry::{list_moon, unlist_moon};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{Body, check_placement, drawn_radius, normalised, point, reach};
 use crate::ops::rules::check_name;
 use crate::ops::{NewBody, Op, OpError, Plan, Planned, Subject};
-use crate::overlay::Anchor;
 use crate::plural;
 use crate::projections::name::{NameTemplate, NameVariable};
+use crate::projections::name::{format, letter, literal};
 use crate::projections::read;
-use crate::scan::Value;
 use crate::session::Session;
 use crate::views::OrbitPlacement;
 
@@ -39,7 +39,6 @@ pub(crate) fn plan_add(
     spec: &NewBody,
     at: OrbitPlacement,
 ) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let angle = normalised(at.angle);
     let body_spec = BodySpec {
         class: spec.class.clone(),
@@ -132,7 +131,6 @@ pub(crate) fn plan_add(
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
-    check_version(&s.doc)?;
     let (node, src) = planet_entity(&s.doc, planet)?;
     let Some(slot) = s.doc.added().get(EntityKind::Planet, planet) else {
         return Err(OpError::BodyNotAdded(planet));
@@ -280,7 +278,7 @@ fn numbered(
             (PLANET_NAME, named, literal(&roman(highest + 1)))
         }
     };
-    Ok(add_system::format(
+    Ok(format(
         key,
         vec![(PARENT_VAR, parent), (NUMERAL_VAR, highest)],
     ))
@@ -322,12 +320,8 @@ fn spec_of(doc: &Document, node: &crate::cst::Node, src: &[u8], moon_of: Option<
 
 /// Deposit `id`'s type, when the save holds it live.
 fn deposit_kind(doc: &Document, id: u32) -> Option<String> {
-    let anchor = doc.added().get(EntityKind::Deposit, id).or_else(|| {
-        let entity = doc.index().entity(keys::DEPOSIT, u64::from(id))?;
-        matches!(entity.value, Value::Block { .. }).then_some(Anchor::Original(entity.stmt))
-    })?;
-    let (node, src) = entity_at(doc, anchor).ok()??;
-    read::scalar(&node, keys::TYPE, src).map(str::to_owned)
+    let deposit = row(doc, EntityKind::Deposit.into(), id).ok()??;
+    read::scalar(&deposit.node, keys::TYPE, deposit.src).map(str::to_owned)
 }
 
 /// Where `body` stands about the point a spec with `moon_of` places it from.

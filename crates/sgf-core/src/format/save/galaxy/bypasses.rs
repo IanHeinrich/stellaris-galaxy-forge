@@ -1,12 +1,12 @@
 //! Reading a save's `bypasses` table through the systems that own each bypass.
 
+use crate::format::save::added::rows;
 use std::collections::{HashMap, HashSet};
 
 use crate::cst::Node;
 use crate::document::Document;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
-use crate::format::save::entity_at;
 use crate::keys;
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{BypassLink, ProjectionError, SystemNode};
@@ -136,74 +136,6 @@ fn owners(
         owner.entry(bypass).or_insert(origin);
     }
     owner
-}
-
-/// One row of a keyed table as the bytes now standing for it hold it.
-pub(crate) struct Row<'d> {
-    pub(crate) id: u32,
-    pub(crate) anchor: Anchor,
-    pub(crate) node: Node,
-    pub(crate) src: &'d [u8],
-}
-
-/// Every live row of `table` in file order: each one loaded that no op took out, and each
-/// one an op wrote.
-pub(crate) fn rows(doc: &Document, table: Table) -> Result<Vec<Row<'_>>, ProjectionError> {
-    let mut anchors: Vec<(u32, Anchor)> = doc.added().entries(table).collect();
-    for entity in doc.index().entities(table.section()) {
-        let anchor = Anchor::Original(entity.stmt);
-        if let Ok(id) = u32::try_from(entity.id)
-            && !doc.overlay().removed(anchor, doc.original())
-        {
-            anchors.push((id, anchor));
-        }
-    }
-    anchors.sort_by_key(|&(_, anchor)| anchor);
-    let mut rows = Vec::new();
-    for (id, anchor) in anchors {
-        rows.extend(row_at(doc, table, id, anchor)?);
-    }
-    Ok(rows)
-}
-
-/// Row `id` of `table` as it stands now; `None` when the save holds no such row, holds its
-/// tombstone, or an op took it out.
-pub(crate) fn row(
-    doc: &Document,
-    table: Table,
-    id: u32,
-) -> Result<Option<Row<'_>>, ProjectionError> {
-    let anchor = doc.added().get(table, id).or_else(|| {
-        let entity = doc.index().entity(table.section(), u64::from(id))?;
-        let anchor = Anchor::Original(entity.stmt);
-        (!doc.overlay().removed(anchor, doc.original())).then_some(anchor)
-    });
-    match anchor {
-        Some(anchor) => row_at(doc, table, id, anchor),
-        None => Ok(None),
-    }
-}
-
-/// The entity `anchor` holds, when it is row `id` of `table`.
-fn row_at(
-    doc: &Document,
-    table: Table,
-    id: u32,
-    anchor: Anchor,
-) -> Result<Option<Row<'_>>, ProjectionError> {
-    let found = entity_at(doc, anchor).map_err(|source| ProjectionError::Entity {
-        section: table.section(),
-        id: u64::from(id),
-        source,
-    })?;
-    Ok(found
-        .filter(|(node, src)| node.key_str(src) == Some(id.to_string().as_str()))
-        .map(|(node, src)| Row {
-            id,
-            anchor,
-            node,
-            src,
-        }))
 }
 
 /// One `natural_wormholes` entry as the bytes now standing for it hold it.

@@ -4,6 +4,7 @@
 //! player's rename reaches the gamestate header and `meta`; any other empire's does not.
 
 use sgf_core::archive;
+use sgf_core::entity::{EntityAddr, EntityKind};
 use sgf_core::ops::{Op, OpError};
 use sgf_core::projections::galaxy::CountryNode;
 use sgf_core::projections::name::NameTemplate;
@@ -289,4 +290,17 @@ fn a_3_4_empire_is_marked_custom_after_its_adjective() {
     let adjective = after.find("\t\tadjective=").expect("the adjective");
     let mark = after.find("\t\tcustom_name=yes\n").expect("the mark");
     assert!(adjective < mark, "{}", &after[..mark + 20]);
+}
+
+#[test]
+fn a_rename_reaches_the_app_as_an_edit_of_the_country() {
+    let mut session = open_4_5();
+    let result = session.apply(rename(PLAYER, NEW_NAME)).expect("rename");
+    let edit = session.edit_result(result);
+    assert!(
+        edit.touched_entities
+            .contains(&EntityAddr::new(EntityKind::Country, PLAYER)),
+        "{:?}",
+        edit.touched_entities
+    );
 }

@@ -6,11 +6,11 @@ use crate::document::Document;
 use crate::entity::facts::{Sheet, reference};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
-use crate::format::save::galaxy::bypasses::{NATURAL, row, rows};
-use crate::format::save::read_spec::written_angle;
+use crate::format::save::added::{row, rows};
+use crate::format::save::galaxy::bypasses::NATURAL;
 use crate::format::save::write::bodies::number;
 use crate::keys;
-use crate::ops::rules::bodies::normalised;
+use crate::projections::geometry::{normalised, written_angle};
 use crate::projections::read;
 
 #[derive(Debug, Clone, PartialEq, Default)]
