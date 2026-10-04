@@ -367,7 +367,7 @@ impl GameData {
     /// As the generator decides it: a moon and the star never have a ring, a written
     /// `has_ring` wins, and otherwise the body is left to a draw (`None`) only when its class,
     /// or one its list or draw could give, has a `chance_of_ring`.
-    fn ring(&self, body: &InitPlanet, moon: bool) -> Option<bool> {
+    pub(crate) fn ring(&self, body: &InitPlanet, moon: bool) -> Option<bool> {
         if moon || body.class == BodyClass::Star {
             return Some(false);
         }

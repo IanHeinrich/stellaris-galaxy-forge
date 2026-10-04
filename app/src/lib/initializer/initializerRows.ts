@@ -21,7 +21,8 @@ export interface InitializerRow {
   size: string | null;
   count: number;
   homePlanet: boolean;
-  ring: boolean;
+  /** `null` when the game rolls the ring. */
+  ring: boolean | null;
   resources: ResourceRow[];
 }
 

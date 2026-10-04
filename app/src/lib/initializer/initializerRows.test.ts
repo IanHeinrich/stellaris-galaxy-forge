@@ -76,6 +76,18 @@ describe("initializerRows", () => {
     expect(rows.map((r) => r.size)).toEqual(["10–20", "16", "6", null]);
   });
 
+  it("leaves a ring the game rolls as null", () => {
+    const rolled = initializerRows(
+      initializerView({
+        name: "x",
+        planets: [initPlanetView({ class: "pc_continental", has_ring: null })],
+      }),
+      CLASSES,
+      DEPOSITS,
+    );
+    expect(rolled[0].ring).toBeNull();
+  });
+
   it("carries the count, the home planet and the ring", () => {
     expect(rows[0].count).toBe(3);
     expect(rows[1]).toMatchObject({

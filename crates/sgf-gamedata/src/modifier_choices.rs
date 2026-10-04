@@ -14,6 +14,9 @@ use crate::planet_views::ModifierView;
 use crate::registries::static_modifiers::StaticModifierDef;
 
 const PLANET_MODIFIER_ICONS: &str = "gfx/interface/icons/planet_modifiers/";
+/// The `icon_frame`s that mark a modifier positive (green) and negative (red).
+const GREEN_FRAME: u32 = 1;
+const RED_FRAME: u32 = 3;
 
 /// Where the picker files a modifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -79,8 +82,8 @@ impl GameData {
         for def in rest {
             let category = match (terraforming.contains(def.key.as_str()), def.icon_frame) {
                 (true, _) => ModifierCategory::Terraforming,
-                (false, Some(1)) => ModifierCategory::Positive,
-                (false, Some(3)) => ModifierCategory::Negative,
+                (false, Some(GREEN_FRAME)) => ModifierCategory::Positive,
+                (false, Some(RED_FRAME)) => ModifierCategory::Negative,
                 _ => ModifierCategory::Other,
             };
             choices.extend(self.choice(&def.key, None, category));

@@ -29,6 +29,11 @@ fn initializer(name: &str) -> Option<&'static Initializer> {
     )
 }
 
+/// `init` as the browser lists it, through the real install's classes.
+fn view(init: &Initializer) -> InitializerView {
+    InitializerView::new(init, INSTALL.as_ref().expect("an install"))
+}
+
 #[test]
 fn sol_spawns_its_star_its_planets_and_their_moons() {
     let Some(sol) = initializer("sol_system_initializer") else {
@@ -103,18 +108,51 @@ fn sol_spawns_its_star_its_planets_and_their_moons() {
 
     assert!(sol.planets.iter().all(|p| p.deposits.is_empty()));
 
-    let view = InitializerView::from(sol);
+    let view = view(sol);
     assert_eq!(view.planets.len(), 17);
     assert_eq!(view.planet_count, 24, "17 planets and 7 moons");
     assert_eq!(view.planets[3].moons[0].name.as_deref(), Some("NAME_Luna"));
 }
 
 #[test]
+fn the_view_gives_a_body_its_classs_size_and_leaves_a_ring_to_the_roll() {
+    let Some(init) = initializer("adSalivul_system") else {
+        return;
+    };
+    let view = view(init);
+    let broken = &view.planets[1];
+    assert_eq!(broken.class, "pc_broken");
+    assert_eq!(broken.size, Some((12, 30)), "pc_broken's planet_size");
+    assert_eq!(broken.has_ring, Some(false), "pc_broken rolls no ring");
+
+    let gd = INSTALL.as_ref().expect("an install");
+    let rolled: Vec<_> = gd
+        .initializers
+        .iter()
+        .flat_map(|init| {
+            init.planets
+                .iter()
+                .zip(InitializerView::new(init, gd).planets)
+        })
+        .filter(|(p, _)| p.class.written() == "pc_continental" && p.has_ring.is_none())
+        .map(|(_, shown)| shown.has_ring)
+        .collect();
+    assert!(!rolled.is_empty());
+    assert!(
+        rolled.iter().all(Option::is_none),
+        "a continental body that names no ring leaves it to the roll"
+    );
+}
+
+#[test]
 fn the_view_says_which_initializers_a_country_starts_in() {
     let gd = common::cached_fixture();
     let spawns = |key: &str| {
-        InitializerView::from(gd.initializers.get(key).unwrap_or_else(|| panic!("{key}")))
-            .empire_spawn
+        InitializerView::new(
+            gd.initializers.get(key).unwrap_or_else(|| panic!("{key}")),
+            gd,
+        )
+        .empire_spawn
     };
     assert!(spawns("home_init"), "usage = empire_init");
     assert!(spawns("custom_capital_init"), "usage = custom_empire");
@@ -127,7 +165,7 @@ fn an_initializer_that_names_itself_carries_the_localisation_key() {
     let home = gd.initializers.get("home_init").expect("home_init");
     assert_eq!(home.display_name.as_deref(), Some("NAME_Fixture"));
     assert_eq!(
-        InitializerView::from(home).display_name.as_deref(),
+        InitializerView::new(home, gd).display_name.as_deref(),
         Some("NAME_Fixture")
     );
     let bare = gd.initializers.get("basic_init_01").expect("basic_init_01");
@@ -202,7 +240,7 @@ fn the_grammar_documentation_file_is_a_definition_like_any_other() {
         2,
         "the midpoint of a 1-to-3 count"
     );
-    assert_eq!(InitializerView::from(example).planet_count, 5);
+    assert_eq!(view(example).planet_count, 5);
 }
 
 #[test]

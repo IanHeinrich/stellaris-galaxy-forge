@@ -6,17 +6,17 @@ use sgf_core::ops::{ClassChange, PlanetClassRule, SystemRadii};
 use ts_rs::TS;
 
 use crate::details;
-use crate::initializers::{InitPlanet, Initializer, SpawnedCountry};
+use crate::initializers::{BodyClass, InitPlanet, Initializer, SpawnedCountry, body_size};
 use crate::install::mods::{
     self, LOCAL_CLUSTER_WORKSHOP_ID, ModInfo, PAINT_MOD_WORKSHOP_ID, PaintModStatus,
     RESERVED_SPAWNS_WORKSHOP_ID,
 };
 use crate::install::scenarios::scenarios_dir;
+use crate::install::script::whole;
 use crate::registries::asteroid_belts::{AsteroidBeltDef, BeltLook};
-use crate::registries::bypasses::BypassDef;
 use crate::registries::colors::ColorDef;
 use crate::registries::country_types::CountryType;
-use crate::registries::defines::BorderDefines as BorderDefinesData;
+use crate::registries::defines::BorderDefines;
 use crate::registries::deposits::DepositDef;
 use crate::registries::flags::{EmblemCategory, FlagFile, Flags};
 use crate::registries::galaxy_shapes::GalaxyShape;
@@ -243,7 +243,7 @@ impl From<&GameData> for GameDataSummary {
             deposits: count(gd.deposits.len()),
             planet_classes: count(gd.planet_classes.len()),
             starbase_levels: count(gd.starbase_levels.len()),
-            border: BorderDefines::from(&*gd.border),
+            border: *gd.border,
             system_radii: gd.system_radii,
             belt_kinds: gd
                 .asteroid_belts
@@ -368,28 +368,33 @@ impl From<&DepositDef> for DepositView {
 pub struct InitPlanetView {
     pub name: Option<String>,
     pub class: String,
-    /// `(min, max)`, equal for a fixed size.
+    /// `(min, max)`, equal for a fixed size. The block's own size, else its class's.
     pub size: Option<(u32, u32)>,
     pub orbit_distance: Option<f64>,
-    pub has_ring: bool,
+    /// `None` when the game rolls the ring: the block states none and its class can roll one.
+    pub has_ring: Option<bool>,
     pub count: u32,
     pub home_planet: bool,
     pub deposits: Vec<String>,
     pub moons: Vec<InitPlanetView>,
 }
 
-impl From<&InitPlanet> for InitPlanetView {
-    fn from(p: &InitPlanet) -> Self {
+impl InitPlanetView {
+    fn new(p: &InitPlanet, moon: bool, gd: &GameData) -> Self {
+        let class = match &p.class {
+            BodyClass::Named(key) => gd.planet_classes.get(key),
+            BodyClass::Star | BodyClass::Random(_) => None,
+        };
         Self {
             name: p.name.clone(),
             class: p.class.written().to_owned(),
-            size: p.size,
+            size: body_size(Some(p), class, moon).map(|range| (whole(range.min), whole(range.max))),
             orbit_distance: p.orbit(),
-            has_ring: p.has_ring == Some(true),
+            has_ring: gd.ring(p, moon),
             count: p.instances(),
             home_planet: p.home_planet,
             deposits: p.deposits.clone(),
-            moons: p.moons.iter().map(Self::from).collect(),
+            moons: p.moons.iter().map(|m| Self::new(m, true, gd)).collect(),
         }
     }
 }
@@ -420,8 +425,8 @@ pub struct InitializerView {
     pub planet_count: u32,
 }
 
-impl From<&Initializer> for InitializerView {
-    fn from(i: &Initializer) -> Self {
+impl InitializerView {
+    pub fn new(i: &Initializer, gd: &GameData) -> Self {
         Self {
             name: i.name.clone(),
             source: i.source.display().to_string(),
@@ -434,7 +439,11 @@ impl From<&Initializer> for InitializerView {
             flags: i.flags.clone(),
             countries: i.countries.clone(),
             spawns: i.spawns.clone(),
-            planets: i.planets.iter().map(InitPlanetView::from).collect(),
+            planets: i
+                .planets
+                .iter()
+                .map(|p| InitPlanetView::new(p, false, gd))
+                .collect(),
             planet_count: i.planets.iter().map(InitPlanet::total).sum(),
         }
     }
@@ -465,52 +474,19 @@ fn hex(rgb: [u8; 3]) -> String {
     format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct FlagFileView {
-    pub file: String,
-    /// The mod this file is from; `null` for vanilla's.
-    pub source: Option<String>,
-}
-
-impl From<&FlagFile> for FlagFileView {
-    fn from(f: &FlagFile) -> Self {
-        Self {
-            file: f.file.clone(),
-            source: f.source.clone(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct EmblemCategoryView {
-    pub name: String,
-    pub files: Vec<FlagFileView>,
-}
-
-impl From<&EmblemCategory> for EmblemCategoryView {
-    fn from(c: &EmblemCategory) -> Self {
-        Self {
-            name: c.name.clone(),
-            files: c.files.iter().map(FlagFileView::from).collect(),
-        }
-    }
-}
-
 /// Every emblem category and every background of the loaded game data's `flags/`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct FlagParts {
-    pub emblems: Vec<EmblemCategoryView>,
-    pub backgrounds: Vec<FlagFileView>,
+    pub emblems: Vec<EmblemCategory>,
+    pub backgrounds: Vec<FlagFile>,
 }
 
 impl From<&Flags> for FlagParts {
     fn from(f: &Flags) -> Self {
         Self {
-            emblems: f.emblems.iter().map(EmblemCategoryView::from).collect(),
-            backgrounds: f.backgrounds.iter().map(FlagFileView::from).collect(),
+            emblems: f.emblems.clone(),
+            backgrounds: f.backgrounds.clone(),
         }
     }
 }
@@ -604,23 +580,6 @@ impl From<&StarbaseLevelDef> for StarbaseLevelView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct BypassView {
-    pub key: String,
-    /// The `GFX_ship_class_small` frame the map draws this kind with.
-    pub icon_frame: Option<u32>,
-}
-
-impl From<&BypassDef> for BypassView {
-    fn from(b: &BypassDef) -> Self {
-        Self {
-            key: b.key.clone(),
-            icon_frame: b.icon_frame,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export)]
 pub struct ShipSizeView {
     pub key: String,
     /// Bare `common/ship_sizes` icon key; the UI resolves `GFX_<icon>`.
@@ -680,35 +639,6 @@ pub struct ResourceIcon {
     pub resource: String,
     /// `GFX_` sprite name, for the `sprite:` texture key.
     pub sprite: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct BorderDefines {
-    pub system_radius: f64,
-    pub hyperlane_thickness: f64,
-    pub influence_max_distance_factor: f64,
-    pub ownerless_system_radius: f64,
-    pub ownerless_hyperlane_thickness: f64,
-    pub ownerless_influence_max_distance_factor: f64,
-    pub moon_scale: f64,
-    /// The narrowest an empire's name is written on the map, in world units.
-    pub name_min_width: f64,
-}
-
-impl From<&BorderDefinesData> for BorderDefines {
-    fn from(b: &BorderDefinesData) -> Self {
-        Self {
-            system_radius: b.system_radius,
-            hyperlane_thickness: b.hyperlane_thickness,
-            influence_max_distance_factor: b.influence_max_distance_factor,
-            ownerless_system_radius: b.ownerless_system_radius,
-            ownerless_hyperlane_thickness: b.ownerless_hyperlane_thickness,
-            ownerless_influence_max_distance_factor: b.ownerless_influence_max_distance_factor,
-            moon_scale: b.moon_scale,
-            name_min_width: b.name_min_width,
-        }
-    }
 }
 
 fn count(n: usize) -> u32 {
