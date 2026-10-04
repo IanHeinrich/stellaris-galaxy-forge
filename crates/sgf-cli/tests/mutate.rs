@@ -423,7 +423,8 @@ fn modifier_writes_a_planet_feature_a_later_run_takes_away() {
     ]);
     ok(&timed);
     assert!(
-        stdout(&timed).contains("Add modifier terraforming_candidate to planet #585 for 360 days"),
+        stdout(&timed)
+            .contains("Added modifier terraforming_candidate to planet #585 for 360 days"),
         "{}",
         stdout(&timed)
     );
