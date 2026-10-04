@@ -1,9 +1,9 @@
 /**
  * The Model field of a save planet's page: the models it offers, those the game uses on the
- * planet's class first, and the edit a pick sends.
+ * planet's class first.
  */
-import type { Op } from "../../generated/Op";
 import type { PlanetModelChoice } from "../../generated/PlanetModelChoice";
+import type { GroupedRow } from "./picker";
 
 /** The row that takes the planet's own model off, back to its class's. */
 export const DEFAULT_MODEL = "";
@@ -15,13 +15,6 @@ export const MODEL_TITLE =
 
 /** The Model field's hover text while no game data lists the models. */
 export const MODELS_NEED_GAME_DATA = "Load game data to pick a model";
-
-export interface ModelRow {
-  key: string;
-  label: string;
-  /** The header it sits under; the Default row has none. */
-  group?: string;
-}
 
 /** The label the field shows for `current`: its model's, its key where no model matches, or Default. */
 export function modelLabel(models: readonly PlanetModelChoice[], current: string | null): string {
@@ -38,10 +31,10 @@ export function modelRows(
   planetClass: string,
   className: string,
   current: string | null,
-): ModelRow[] {
+): GroupedRow[] {
   const usualGroup = `Usual for ${className}`;
-  const usual: ModelRow[] = [];
-  const other: ModelRow[] = [];
+  const usual: GroupedRow[] = [];
+  const other: GroupedRow[] = [];
   for (const model of models) {
     const row = { key: model.entity, label: model.label };
     if (model.classes.includes(planetClass)) usual.push({ ...row, group: usualGroup });
@@ -51,11 +44,4 @@ export function modelRows(
     usual.unshift({ key: current, label: current, group: usualGroup });
   }
   return [{ key: DEFAULT_MODEL, label: DEFAULT_MODEL_LABEL }, ...usual, ...other];
-}
-
-/** The edit that gives planet `planet` the model `key`, or takes its own off; `null` when unchanged. */
-export function setPlanetModelOp(planet: number, current: string | null, key: string): Op | null {
-  const entity = key === DEFAULT_MODEL ? null : key;
-  if (entity === current) return null;
-  return { type: "SetBodyModel", body: planet, entity };
 }

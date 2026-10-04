@@ -1,31 +1,34 @@
 import { bodyClassName } from "../../../lib/details/labels";
+import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import {
   CLASS_LOOK_NOTE,
   CLASS_TITLE,
   classFieldReason,
   classRows,
-  setPlanetClassOp,
 } from "../../../lib/details/planetClass";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { EditNote, EditRow, PickerField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
-import { useApplyOp } from "../../useApplyOp";
 import { useNamed } from "../../useNamed";
 import { PlanetIcon } from "../system/sections/bodies";
 
-/** Planet `id`'s class, picked from those the install lets it take; `colonised` and `moon` narrow them. */
+/**
+ * Planet `id`'s class, picked from those the install lets it take and sent to `edits`;
+ * `colonised` and `moon` narrow them.
+ */
 export function PlanetClassField({
   id,
+  edits,
   planetClass,
   colonised,
   moon,
 }: {
   id: number;
+  edits: PlanetEditAdapter;
   planetClass: string;
   colonised: boolean;
   moon: boolean;
 }) {
-  const applyOp = useApplyOp();
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
   const label = useNamed([planetClass, ...planetClasses.keys()], (key) =>
@@ -48,10 +51,7 @@ export function PlanetClassField({
             disabledReason={reason}
             current={{ key: planetClass, label: label(planetClass), icon: icon(planetClass, id) }}
             items={items}
-            onPick={(key) => {
-              const op = setPlanetClassOp(id, planetClass, key, planetClasses);
-              if (op !== null) applyOp(op);
-            }}
+            onPick={(key) => void edits.setClass(key, planetClass, planetClasses)}
           />
         </span>
       </EditRow>

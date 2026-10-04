@@ -124,6 +124,24 @@ describe("deleting a planet", () => {
     expect(labels()).toEqual(["Sol", "Terra", "Colony #18"]);
   });
 
+  it("says which moon it could not read, and asks nothing", async () => {
+    mockedIpc.getPlanetPage.mockImplementation(async (id) => {
+      if (id === 1207)
+        return planetPage({ moons: [{ ...MOON, name: name("Luna"), name_key: "Luna" }] });
+      throw { kind: "entity", message: "no planet 1208" };
+    });
+    onTheColony();
+
+    expect(await deletePlanet(1207, "Terra", false)).toBe(false);
+
+    expect(sessionError()).toBe(
+      "Couldn't read Luna, a moon of Terra, so nothing was deleted: no planet 1208",
+    );
+    expect(mockedIpc.confirm).not.toHaveBeenCalled();
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(labels()).toEqual(["Sol", "Terra", "Colony #18"]);
+  });
+
   it("keeps the pages open when the core refuses", async () => {
     mockedIpc.getPlanetPage.mockResolvedValue(planetPage());
     mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "planet 1207 is a star" });

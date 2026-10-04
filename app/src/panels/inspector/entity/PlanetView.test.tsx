@@ -557,7 +557,7 @@ describe("an unowned world's page", () => {
 
   it("names the anomaly waiting on it and who found it where it cannot be edited", async () => {
     await open("save");
-    useFileSessionStore.setState({ capabilities: { ...SAVE_CAPABILITIES, deposits: false } });
+    useFileSessionStore.setState({ capabilities: { ...SAVE_CAPABILITIES, anomalies: false } });
     useGalaxyStore.setState({ countries: new Map([[EMPIRE, EMPIRE_NODE]]) });
     await landPage({ ...OLBERS, anomaly: { category: "time_loop_world", found_by: [EMPIRE] } });
 
@@ -1436,6 +1436,16 @@ describe("the System field", () => {
   });
   const field = (read: TargetsRead | null) =>
     renderToStaticMarkup(<SystemChoice id={WORLD} system={SYSTEM} read={read} />);
+
+  it("is on the page only where the document moves planets", async () => {
+    await open("save");
+    await landPage(planetPage({ id: WORLD, system: SYSTEM }));
+    const moveTitle = `title="${READING_TARGETS}"`;
+    expect(render(WORLD)).toContain(moveTitle);
+
+    useFileSessionStore.setState({ capabilities: { ...SAVE_CAPABILITIES, planet_moves: false } });
+    expect(render(WORLD)).not.toContain(moveTitle);
+  });
 
   it("shows the planet's system, and waits for where it can move", async () => {
     await open("save");

@@ -1,28 +1,29 @@
 import { useEffect } from "react";
 import { bodyClassName } from "../../../lib/details/labels";
+import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import {
   DEFAULT_MODEL,
   modelLabel,
   modelRows,
   MODEL_TITLE,
   MODELS_NEED_GAME_DATA,
-  setPlanetModelOp,
 } from "../../../lib/details/planetModel";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { EditRow, PickerField } from "../../EditField";
-import { useApplyOp } from "../../useApplyOp";
 
-/** Planet `id`'s model, `current` being the one it has, picked from the install's models. */
+/**
+ * A planet's model, `current` being the one it has, picked from the install's models and sent to
+ * `edits`.
+ */
 export function PlanetModelField({
-  id,
+  edits,
   planetClass,
   current,
 }: {
-  id: number;
+  edits: PlanetEditAdapter;
   planetClass: string;
   current: string | null;
 }) {
-  const applyOp = useApplyOp();
   const ready = useGameDataStore((s) => s.status === "ready");
   const models = useGameDataStore((s) => s.planetModels);
   const names = useGameDataStore((s) => s.names);
@@ -38,10 +39,7 @@ export function PlanetModelField({
         disabledReason={reason}
         current={{ key: current ?? DEFAULT_MODEL, label: modelLabel(list, current) }}
         items={rows}
-        onPick={(key) => {
-          const op = setPlanetModelOp(id, current, key);
-          if (op !== null) applyOp(op);
-        }}
+        onPick={(key) => void edits.setModel(key, current)}
       />
     </EditRow>
   );

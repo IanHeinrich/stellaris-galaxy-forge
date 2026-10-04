@@ -825,7 +825,7 @@ describe("adding a planet or moon in the system view", () => {
 
   it("is not offered on a scenario or a save that cannot take it", async () => {
     useFileSessionStore.setState({
-      capabilities: { ...useFileSessionStore.getState().capabilities!, added_systems: false },
+      capabilities: { ...useFileSessionStore.getState().capabilities!, add_bodies: false },
     });
     expect(menuOn(space)).not.toContain("Add planet here");
     expect(menuOn(body(2))).not.toContain("Add moon");
