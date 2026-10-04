@@ -8,6 +8,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => import("../api/__mocks__/dialog"));
 import {
   bodyEntry,
   entityAddr,
+  openPlanet,
   refFor,
   refKey,
   renumberedRef,
@@ -20,6 +21,7 @@ import { openSystem } from "./commands";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { editResult } from "./fixture";
 import { listeners, loadGameData, SUMMARY } from "./gameDataFixture";
+import { planetPage } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -31,8 +33,8 @@ const inspector = () => useInspectorStore.getState();
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
 const ALPHARD: Entry = { ref: { kind: "system", id: 12 }, label: "Alphard" };
 const ALPHA: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
-const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
-const LUNA: Entry = { ref: { kind: "planet", id: 1208 }, label: "Luna" };
+const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
+const LUNA: Entry = { ref: { kind: "body", system: 452, id: 1208 }, label: "Luna" };
 const COLONY: Entry = { ref: { kind: "colony", id: 1207 }, label: "Earth colony" };
 const TARKIN: Entry = { ref: { kind: "body", system: 1, id: 100 }, label: "Tarkin" };
 const YAVIN: Entry = { ref: { kind: "body", system: 1, id: 101 }, label: "Yavin" };
@@ -157,7 +159,7 @@ describe("drilling across kinds", () => {
     inspector().open(EARTH);
     inspector().open(COLONY);
     expect(labels()).toEqual(["Sol", "Earth", "Earth colony"]);
-    expect(inspector().stack.map((e) => e.ref.kind)).toEqual(["system", "planet", "colony"]);
+    expect(inspector().stack.map((e) => e.ref.kind)).toEqual(["system", "body", "colony"]);
 
     inspector().back();
     expect(labels()).toEqual(["Sol", "Earth"]);
@@ -432,8 +434,28 @@ describe("a body opened from the system view", () => {
   });
 });
 
+describe("a save body's page", () => {
+  it("is keyed by its system and id, and reads the planet for its Data and Source tabs", async () => {
+    await openFixtureSave();
+    expect(refKey(EARTH.ref)).toBe("body:452:1207");
+    expect(entityAddr(EARTH.ref)).toEqual({ kind: "planet", id: 1207 });
+    expect(tabsFor(EARTH.ref, false)).toEqual(["overview", "data", "source"]);
+  });
+
+  it("opens from a link that knows only the planet's id, on the system its page names", async () => {
+    await openFixtureSave();
+    inspector().setRoot(SOL);
+    mockedIpc.getPlanetPage.mockResolvedValueOnce(planetPage({ id: 1207, system: 452 }));
+
+    openPlanet(1207, "Earth");
+
+    await vi.waitFor(() => expect(refs()).toEqual([SOL.ref, EARTH.ref]));
+  });
+});
+
 describe("a scenario body's page", () => {
-  it("is keyed by its system and id, reads no entity and offers the Overview alone", () => {
+  it("is keyed by its system and id, reads no entity and offers the Overview alone", async () => {
+    await openFixtureScenario();
     expect(refKey(TARKIN.ref)).toBe("body:1:100");
     expect(refKey({ kind: "body", system: 2, id: 100 })).not.toBe(refKey(TARKIN.ref));
     expect(entityAddr(TARKIN.ref)).toBeNull();
@@ -451,7 +473,8 @@ describe("a scenario body's page", () => {
     expect(renumberedRef(TARKIN.ref, [[1, null]])).toBeNull();
   });
 
-  it("closes with everything opened from it when its system's bodies are dropped", () => {
+  it("closes with everything opened from it when its system's bodies are dropped", async () => {
+    await openFixtureScenario();
     const alphard: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
     inspector().setRoot(alphard);
     inspector().setTab("lanes");

@@ -1,18 +1,16 @@
 import { useState } from "react";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
-import { bodyClassName, bodyName } from "../../../../lib/details/labels";
+import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
-import { capabilityFor } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { bodyEntryOf, useInspectorStore } from "../../../../store/inspectorStore";
+import { bodyEntry, useInspectorStore } from "../../../../store/inspectorStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
-import { useOpenEntity } from "../../entity/useEntity";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
@@ -27,7 +25,7 @@ import {
   POP_ICON_KEY,
 } from "../../rows";
 
-function SizeAndPops({ size, pops }: { size: number | null; pops: number }) {
+function SizeAndPops({ size, pops }: { size: string | number | null; pops: number }) {
   return (
     <>
       {size !== null && <PlanetSize size={size} />}
@@ -54,9 +52,7 @@ export function PlanetRow({
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
-  const opener = useOpenEntity();
   const open = useInspectorStore((s) => s.open);
-  const planetPages = useCanEdit("details");
   const sprite = classes.get(planet.class)?.icon_sprite;
   const rows = resourceRows({ ...details, resources: planet.deposits }, icons);
   const wide = rows.length > INLINE_RESOURCES;
@@ -64,15 +60,12 @@ export function PlanetRow({
   const classText = bodyClassName(planet.class, names, planet.moon);
   const named = templateName(planet);
   const name = bodyName(planet, names);
-  const entry = bodyEntryOf(planetPages, details.id, planet.id, name);
+  const size = planet.layout?.size ? boundsText(planet.layout.size) : planet.size;
   return (
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
-      requires={entry.ref.kind === "planet" ? capabilityFor("planet") : undefined}
       title={editHint ?? undefined}
-      onOpen={() =>
-        entry.ref.kind === "planet" ? opener.open(entry.ref, entry.label) : open(entry)
-      }
+      onOpen={() => open(bodyEntry(details.id, planet.id, name))}
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} seed={planet.id} />
       <span>
@@ -90,7 +83,7 @@ export function PlanetRow({
         <span className="l2">
           {named !== "" && classText}
           {planet.moon && !unrolled && <span>moon</span>}
-          <SizeAndPops size={planet.size} pops={planet.pops} />
+          <SizeAndPops size={size} pops={planet.pops} />
           {planet.orbit !== null && <span>orbit {Math.round(planet.orbit)}</span>}
           {!planet.colonised && habitable(planet) && (
             <span className="ok">habitable, unclaimed</span>

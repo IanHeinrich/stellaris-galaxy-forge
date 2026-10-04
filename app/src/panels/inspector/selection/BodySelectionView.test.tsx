@@ -8,7 +8,7 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { PlanetMoveTargets } from "../../../generated/PlanetMoveTargets";
-import { bindStores } from "../../../store/bindStores";
+import { bindStores, summaryStep } from "../../../store/bindStores";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { countryNode, systemDetails } from "../../../store/fixture";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -21,7 +21,6 @@ import { escaped, shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 import { open, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { BodySelectionView } from "./BodySelectionView";
-import { summaryStep } from "./bodySelectionPage";
 
 bindStores();
 
@@ -95,7 +94,7 @@ describe("the selected bodies' summary", () => {
     expect(useSceneStore.getState().bodySelection?.ids).toEqual([KORTOL]);
     const { stack } = useInspectorStore.getState();
     expect(stack[stack.length - 1]).toEqual({
-      ref: { kind: "planet", id: KORTOL },
+      ref: { kind: "body", system: SYSTEM, id: KORTOL },
       label: "Kortol's Station",
     });
   });
@@ -158,7 +157,10 @@ describe("the summary's place on the inspector's stack", () => {
   it("clears the selection when its crumbs leave it, and keeps a planet page opened from it", () => {
     const before = { selection: two, stack: [root, summary] };
     expect(summaryStep(two, SYSTEM, [root], before)).toEqual({ kind: "clear" });
-    const earth: Entry = { ref: { kind: "planet", id: KORTOL }, label: "Kortol's Station" };
+    const earth: Entry = {
+      ref: { kind: "body", system: SYSTEM, id: KORTOL },
+      label: "Kortol's Station",
+    };
     expect(summaryStep(two, SYSTEM, [root, summary, earth], before)).toBeNull();
     expect(useInspectorStore.getState().stack).toHaveLength(1);
   });

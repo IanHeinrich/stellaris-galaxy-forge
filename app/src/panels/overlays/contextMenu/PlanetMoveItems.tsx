@@ -2,13 +2,17 @@ import type { OrbitPlacement } from "../../../generated/OrbitPlacement";
 import {
   alreadyThere,
   cutLabel,
-  movingBodies,
   pasteLabel,
   warningLine,
   warningLines,
 } from "../../../lib/planetMove";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { cutAvailability, usePasteCheck, usePlanetMoveStore } from "../../../store/planetMoveStore";
+import {
+  cutAvailability,
+  cutPlanets,
+  usePasteCheck,
+  usePlanetMoveStore,
+} from "../../../store/planetMoveStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useCut, useMovedPlanets, useWarningNames } from "../../usePlanetMove";
 import { MenuItem } from "./MenuItem";
@@ -91,14 +95,7 @@ export function CutItem({ system }: { system: number }) {
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const read = useDetailsStore((s) => s.details.get(system));
   const availability = cutAvailability(selection, selectionTargets);
-  const moving =
-    availability.kind === "ready"
-      ? availability.planets
-      : movingBodies(
-          selection?.ids ?? [],
-          (id) => read?.planets.find((p) => p.id === id)?.parent ?? null,
-        );
-  const planets = useMovedPlanets(moving);
+  const planets = useMovedPlanets(cutPlanets(selection, selectionTargets, read));
   if (availability.kind === "none" || selection === null) return null;
   return (
     <MenuItem

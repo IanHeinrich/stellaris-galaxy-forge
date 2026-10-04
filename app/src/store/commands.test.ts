@@ -15,14 +15,14 @@ import { editResult, OPEN_RESULT, orbitClasses, orbitSystem } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { useInitializerBrowserStore } from "./initializerBrowserStore";
-import { bodyEntryOf, useInspectorStore, type Entry } from "./inspectorStore";
+import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
 import { resetStores } from "./storeFixture";
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
-const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
+const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
 
 const effects: CommandEffects = {
   focusSearch: vi.fn(),
@@ -123,7 +123,7 @@ describe("Shift+Arrow", () => {
   it("in a system view, steps the inspected body one unit out and leaves the selected systems alone", async () => {
     useEditorStore.setState({ selection: [SYSTEM] });
     useSceneStore.getState().enterSystem(SYSTEM);
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SYSTEM, LONE, "Body"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SYSTEM, LONE, "Body"));
 
     nudgeSelected({ dx: 0, dy: -SAVE_Y_SIGN });
     await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());

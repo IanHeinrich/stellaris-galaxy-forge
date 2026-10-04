@@ -283,7 +283,7 @@ describe("the system scene's name plates", () => {
     fire("pointerdown", earth.x, earth.y + dy);
     fire("pointerup", earth.x, earth.y + dy);
     const { stack } = useInspectorStore.getState();
-    expect(stack[stack.length - 1].ref).toEqual({ kind: "planet", id: EARTH.id });
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: EARTH.id });
   });
 });
 

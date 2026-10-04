@@ -4,9 +4,11 @@ import * as ipc from "../api/ipc";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
+import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { documentCapabilities } from "../lib/capabilities";
 import type { SystemDetails } from "../generated/SystemDetails";
 import { movingBodies, refusalLine } from "../lib/planetMove";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGalaxyStore } from "./galaxyStore";
@@ -23,6 +25,9 @@ export interface PlanetCut {
   targets: PlanetMoveTargets;
 }
 
+/** Where a planet may move as last read: its targets, or the failure to read them. */
+export type TargetsRead = { targets: PlanetMoveTargets } | { failed: true };
+
 /** Whether the selection can be cut now. */
 export type CutAvailability =
   | { kind: "none" }
@@ -36,6 +41,15 @@ export interface PlanetMoveState {
   cut: PlanetCut | null;
   /** The core's checks for destinations the cut's targets do not settle, by `checkKey`. */
   checks: ReadonlyMap<string, PlanetMoveCheck>;
+  /**
+   * The planet whose page offers its System field, and where it may move as last read. The last
+   * answer stays while the next is on its way; `read` is null only before the first.
+   */
+  planetTargets: { planet: number; read: TargetsRead | null } | null;
+  /** The warnings the last move from a planet's page met, until the next edit, undo or redo. */
+  lastMove: { planet: number; warnings: readonly PlanetMoveWarning[] } | null;
+  /** Reads where planet `id` may move, and again after every edit, undo and redo; null stops. */
+  followPlanet(id: number | null): void;
   /** Cuts the selection, replacing any cut. False when the selection cannot be cut now. */
   cutSelection(): boolean;
   /** Drops the cut, and says whether there was one. */
@@ -54,11 +68,11 @@ export interface PlanetMoveState {
    */
   move(planets: readonly number[], to: number, at?: OrbitPlacement | null): Promise<boolean>;
   /**
-   * Moves planet `id` to `to` from its page, in one edit. In a system view the view follows it:
-   * `to` is shown centred on the planet, with it selected alone and its page open. On the galaxy
-   * map it moves as `move` moves it.
+   * Moves planet `id` to `to` from its page, in one edit, keeping the `warnings` its targets gave
+   * as `lastMove`. In a system view the view follows it: `to` is shown centred on the planet, with
+   * it selected alone and its page open. On the galaxy map it moves as `move` moves it.
    */
-  movePlanet(id: number, to: number): Promise<boolean>;
+  movePlanet(id: number, to: number, warnings?: readonly PlanetMoveWarning[]): Promise<boolean>;
   /**
    * Reads what the last edit, undo or redo may have changed: the selection's and the cut's
    * targets again, pending until they land, and no cached check. A cut whose planets have left
@@ -88,6 +102,18 @@ let selectionAsk = 0;
 let cutAsk = 0;
 /** Bumped by every cut the user makes, which a fresh read of its targets does not change. */
 let cutMade = 0;
+/** Bumped by every read of a page's planet's targets and every reset. */
+let planetAsk = 0;
+
+/** `planets` and the moons that move with them, as the read details list them. */
+function withMoons(planets: readonly number[]): number[] {
+  const ids = new Set(planets);
+  for (const read of useDetailsStore.getState().details.values()) {
+    for (const p of read.planets)
+      if (p.moon && p.parent !== null && ids.has(p.parent)) ids.add(p.id);
+  }
+  return [...ids];
+}
 
 export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
   const scene = () => useSceneStore.getState();
@@ -132,10 +158,25 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       });
   }
 
+  function fetchPlanetTargets(planet: number): void {
+    const ask = ++planetAsk;
+    ipc
+      .planetMoveTargets([planet])
+      .then((targets) => {
+        if (ask === planetAsk) set({ planetTargets: { planet, read: { targets } } });
+      })
+      .catch((e: unknown) => {
+        console.warn("planet move targets", ipc.errorMessage(e));
+        if (ask === planetAsk) set({ planetTargets: { planet, read: { failed: true } } });
+      });
+  }
+
   return {
     selectionTargets: null,
     cut: null,
     checks: NO_CHECKS,
+    planetTargets: null,
+    lastMove: null,
 
     cutSelection() {
       const selection = scene().bodySelection;
@@ -202,20 +243,36 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
         useFileSessionStore.getState().setError(ipc.errorMessage(e));
         return false;
       }
-      return useEditorStore.getState().applyOp(op);
+      const moving = withMoons(planets);
+      if (!(await useEditorStore.getState().applyOp(op))) return false;
+      useInspectorStore.getState().moveBodies(moving, to);
+      return true;
     },
 
-    async movePlanet(id, to) {
+    async movePlanet(id, to, warnings = []) {
+      set({ lastMove: null });
       if (!(await get().move([id], to))) return false;
+      if (warnings.length > 0) set({ lastMove: { planet: id, warnings } });
       if (sceneSystem() !== null) followTo(to, id);
       return true;
     },
 
+    followPlanet(id) {
+      planetAsk += 1;
+      if (id === null) {
+        set({ planetTargets: null });
+        return;
+      }
+      if (get().planetTargets?.planet !== id) set({ planetTargets: { planet: id, read: null } });
+      fetchPlanetTargets(id);
+    },
+
     refresh() {
-      const { cut } = get();
-      set({ checks: NO_CHECKS });
+      const { cut, planetTargets } = get();
+      set({ checks: NO_CHECKS, lastMove: null });
       if (scene().bodySelection !== null) get().followSelection();
       if (cut !== null) fetchCutTargets(cut);
+      if (planetTargets !== null) fetchPlanetTargets(planetTargets.planet);
     },
 
     followSelection() {
@@ -227,7 +284,14 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     reset() {
       selectionAsk += 1;
       cutAsk += 1;
-      set({ selectionTargets: null, cut: null, checks: NO_CHECKS });
+      planetAsk += 1;
+      set({
+        selectionTargets: null,
+        cut: null,
+        checks: NO_CHECKS,
+        planetTargets: null,
+        lastMove: null,
+      });
     },
   };
 });
@@ -277,6 +341,19 @@ export function pasteCheckOf(
   if (at) return null;
   const target = cut.targets.systems.find((s) => s.system === to);
   return target ? { refusal: null, warnings: target.warnings } : null;
+}
+
+/** Where planet `id` may move, read while a page shows it; null before the first answer. */
+export function usePlanetTargets(id: number): TargetsRead | null {
+  const shown = usePlanetMoveStore((s) => s.planetTargets);
+  useEffect(() => {
+    usePlanetMoveStore.getState().followPlanet(id);
+    return () => {
+      const moves = usePlanetMoveStore.getState();
+      if (moves.planetTargets?.planet === id) moves.followPlanet(null);
+    };
+  }, [id]);
+  return shown?.planet === id ? shown.read : null;
 }
 
 /**

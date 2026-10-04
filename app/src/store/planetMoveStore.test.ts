@@ -12,7 +12,7 @@ import { run, type CommandEffects } from "./commands";
 import { openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
 import { editResult } from "./fixture";
-import { bodyEntryOf, useInspectorStore } from "./inspectorStore";
+import { bodyEntry, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { cutAvailability, pasteCheckOf, usePlanetMoveStore } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
@@ -89,11 +89,11 @@ describe("body selection", () => {
     useSceneStore.getState().enterSystem(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
     expect(useSceneStore.getState().toggleBody(SOL, EARTH)).toBe(EARTH);
-    expect(topPage()).toEqual({ kind: "planet", id: EARTH });
+    expect(topPage()).toEqual({ kind: "body", system: SOL, id: EARTH });
     expect(useSceneStore.getState().toggleBody(SOL, MARS)).toBeNull();
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH, MARS] });
     expect(useSceneStore.getState().toggleBody(SOL, EARTH)).toBe(MARS);
-    expect(topPage()).toEqual({ kind: "planet", id: MARS });
+    expect(topPage()).toEqual({ kind: "body", system: SOL, id: MARS });
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [MARS] });
     expect(useSceneStore.getState().toggleBody(SOL, MARS)).toBeNull();
     expect(useSceneStore.getState().bodySelection).toBeNull();
@@ -103,9 +103,9 @@ describe("body selection", () => {
   it("keeps a selection of one body on the page the inspector shows", () => {
     useSceneStore.getState().enterSystem(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, EARTH, "Earth"));
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH] });
-    useInspectorStore.getState().open(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    useInspectorStore.getState().open(bodyEntry(SOL, LUNA, "Luna"));
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [LUNA] });
     useInspectorStore.getState().back();
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH] });
@@ -117,7 +117,7 @@ describe("body selection", () => {
     useSceneStore.getState().enterSystem(SOL);
     useSceneStore.getState().selectBody(SOL, EARTH);
     useSceneStore.getState().toggleBody(SOL, MARS);
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, LUNA, "Luna"));
     useInspectorStore.getState().popTo(0);
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH, MARS] });
   });
@@ -224,11 +224,11 @@ describe("cut and paste", () => {
     expect(useSceneStore.getState().bodySelection).toEqual({ system: CENTAURI, ids: [EARTH] });
   });
 
-  it("moves a planet from its page on the galaxy map, leaving the selection and the inspector", async () => {
+  it("moves a planet from its page on the galaxy map, leaving the selection and the page on the planet", async () => {
     await useEditorStore.getState().select(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
-    useInspectorStore.getState().openPage(bodyEntryOf(true, SOL, EARTH, "Earth"));
-    const stack = useInspectorStore.getState().stack;
+    useInspectorStore.getState().openPage(bodyEntry(SOL, EARTH, "Earth"));
+    const [root] = useInspectorStore.getState().stack;
     mockedIpc.planetMoveOp.mockResolvedValue({
       type: "MoveBodyToSystem",
       body: EARTH,
@@ -237,7 +237,7 @@ describe("cut and paste", () => {
     expect(await moves().movePlanet(EARTH, BARNARD)).toBe(true);
     expect(mockedIpc.applyOp).toHaveBeenCalledOnce();
     expect(useEditorStore.getState().selection).toEqual([SOL]);
-    expect(useInspectorStore.getState().stack).toEqual(stack);
+    expect(useInspectorStore.getState().stack).toEqual([root, bodyEntry(BARNARD, EARTH, "Earth")]);
     expect(useSceneStore.getState().bodySelection).toBeNull();
     expect(useSceneStore.getState().bodyFocus).toBeNull();
   });
@@ -245,7 +245,7 @@ describe("cut and paste", () => {
   it("follows a planet moved from its page in the system view, centred on it with its page open", async () => {
     useSceneStore.getState().enterSystem(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, EARTH, "Earth"));
     mockedIpc.planetMoveOp.mockResolvedValue({
       type: "MoveBodyToSystem",
       body: EARTH,
@@ -256,7 +256,7 @@ describe("cut and paste", () => {
     expect(useEditorStore.getState().selection).toEqual([BARNARD]);
     expect(useInspectorStore.getState().stack.map((entry) => entry.ref)).toEqual([
       { kind: "system", id: BARNARD },
-      { kind: "planet", id: EARTH },
+      { kind: "body", system: BARNARD, id: EARTH },
     ]);
     expect(useSceneStore.getState().bodySelection).toEqual({ system: BARNARD, ids: [EARTH] });
     expect(useSceneStore.getState().bodyFocus?.id).toBe(EARTH);
@@ -379,7 +379,7 @@ describe("Esc", () => {
     await selectTwo();
     moves().cutSelection();
     useSceneStore.getState().selectBody(SOL, EARTH);
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, EARTH, "Earth"));
 
     esc();
     expect(moves().cut).toBeNull();
@@ -400,7 +400,7 @@ describe("Esc", () => {
     useSceneStore.getState().enterSystem(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
     await selectTwo();
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, LUNA, "Luna"));
 
     esc();
     expect(useSceneStore.getState().bodySelection).toBeNull();
@@ -415,12 +415,12 @@ describe("Esc", () => {
     useLayoutStore.setState({ tab: "inspector", collapsed: false });
     useSceneStore.getState().enterSystem(SOL);
     useInspectorStore.getState().setRoot({ ref: { kind: "system", id: SOL }, label: "Sol" });
-    useInspectorStore.getState().openFromMap(bodyEntryOf(true, SOL, EARTH, "Earth"));
-    useInspectorStore.getState().open(bodyEntryOf(true, SOL, LUNA, "Luna"));
+    useInspectorStore.getState().openFromMap(bodyEntry(SOL, EARTH, "Earth"));
+    useInspectorStore.getState().open(bodyEntry(SOL, LUNA, "Luna"));
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [LUNA] });
 
     esc();
-    expect(topPage()).toEqual({ kind: "planet", id: EARTH });
+    expect(topPage()).toEqual({ kind: "body", system: SOL, id: EARTH });
     expect(useSceneStore.getState().bodySelection).toEqual({ system: SOL, ids: [EARTH] });
 
     esc();

@@ -51,7 +51,7 @@ describe("the breadcrumb", () => {
 
   it("names an open planet page by the planet's name as its page was last read", async () => {
     await openWith(OPEN_RESULT, { galaxy: { countries: [] } });
-    const MOON: Entry = { ref: { kind: "planet", id: 141 }, label: "Shuckon Ia" };
+    const MOON: Entry = { ref: { kind: "body", system: 1, id: 141 }, label: "Shuckon Ia" };
     useInspectorStore.setState({ stack: [{ ref: { kind: "system", id: 1 }, label: "Sol" }, MOON] });
     useEntityStore.setState({
       pages: new Map([

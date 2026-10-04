@@ -106,7 +106,7 @@ describe("a save's empire rows", () => {
     useInspectorStore.setState({
       stack: [
         { ref: { kind: "system", id: 1 }, label: "Sol" },
-        { ref: { kind: "planet", id: 100 }, label: "Earth" },
+        { ref: { kind: "body", system: 1, id: 100 }, label: "Earth" },
       ],
       tab: "data",
     });

@@ -32,7 +32,7 @@ import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
 
 const SOL: Entry = { ref: { kind: "system", id: 0 }, label: "Sol" };
-const EARTH: Entry = { ref: { kind: "planet", id: 1207 }, label: "Earth" };
+const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
 const ALPHA: Entry = { ref: { kind: "system", id: 1 }, label: "Alpha Centauri" };
 
 const effects: CommandEffects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };

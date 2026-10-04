@@ -7,7 +7,7 @@ import type { EntityView } from "../../../generated/EntityView";
 import type { FieldSchema } from "../../../generated/FieldSchema";
 import type { PlanetPage } from "../../../generated/PlanetPage";
 import { addrKey, planetPageKey, useEntityStore, viewKey } from "../../../store/entityStore";
-import { refFor, useInspectorStore } from "../../../store/inspectorStore";
+import { openPlanet, refFor, useInspectorStore } from "../../../store/inspectorStore";
 
 /** The system the stack is rooted in: what a station drill needs and the map keeps selected. */
 export function useRootSystem(): number | null {
@@ -28,8 +28,9 @@ export function useOpenEntity(): EntityOpener {
   const open = useInspectorStore((s) => s.open);
   const system = useRootSystem();
   return {
-    opens: (addr) => refFor(addr, system) !== null,
+    opens: (addr) => addr.kind === "planet" || refFor(addr, system) !== null,
     open: (addr, label) => {
+      if (addr.kind === "planet") return openPlanet(addr.id, label);
       const ref = refFor(addr, system);
       if (ref !== null) open({ ref, label });
     },

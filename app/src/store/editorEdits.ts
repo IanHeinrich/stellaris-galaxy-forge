@@ -108,7 +108,7 @@ export function editPipeline(
     });
     for (const tracked of trackers)
       tracked.id = tracked.id === null ? null : renumberedId(pairs, tracked.id);
-    useInspectorStore.getState().renumber(pairs, planetsOf(removedBy(pairs)));
+    useInspectorStore.getState().renumber(pairs);
     useWatchlistStore.getState().renumber(pairs);
   }
 
@@ -252,18 +252,6 @@ function restaled(stale: readonly number[], pairs: Renumbering): number[] {
   return stale.filter((id) => !moved.has(id));
 }
 
-function removedBy(pairs: Renumbering): number[] {
-  return pairs.flatMap(([before, after]) => (after === null ? [before] : []));
-}
-
-/** The planets of `ids` as their cached details list them, read before the edit stales them. */
-function planetsOf(ids: readonly number[]): Set<number> {
-  const planets = new Set<number>();
-  const { details } = useDetailsStore.getState();
-  for (const id of ids) for (const p of details.get(id)?.planets ?? []) planets.add(p.id);
-  return planets;
-}
-
 /** Hits as the edit left them: one on a removed system, or in one, goes. */
 function renumberedHits(pairs: Renumbering, hits: SearchHit[]): SearchHit[] {
   let moved = false;
@@ -395,10 +383,7 @@ function showsTouched(touched: Set<number>, detailsStale: number[]): boolean {
 }
 
 /** The system whose cached details list `id` under `listedIn`, or null while they are not cached. */
-function owningSystem(
-  listedIn: "planets" | "fleets_present" | "megastructures",
-  id: number,
-): number | null {
+function owningSystem(listedIn: "fleets_present" | "megastructures", id: number): number | null {
   for (const details of useDetailsStore.getState().details.values()) {
     if (details[listedIn].some((m) => m.id === id)) return details.id;
   }

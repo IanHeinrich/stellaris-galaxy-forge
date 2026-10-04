@@ -1,9 +1,13 @@
 import { create } from "zustand";
+import * as ipc from "../api/ipc";
 import type { EntityAddr } from "../generated/EntityAddr";
 import type { Capabilities } from "../generated/Capabilities";
 import type { EntityKind } from "../generated/EntityKind";
 import { documentCapabilities } from "../lib/capabilities";
+import { findPlanet } from "../lib/details/starBody";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
+import { useDetailsStore } from "./detailsStore";
+import { useEntityStore } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useLayoutStore, type DockTab } from "./layoutStore";
@@ -38,7 +42,6 @@ export type EntityRef =
   | { kind: "lane"; a: number; b: number }
   | { kind: "nebula"; index: number }
   | { kind: "system"; id: number }
-  | { kind: "planet"; id: number }
   | { kind: "colony"; id: number }
   | { kind: "fleet"; id: number }
   | { kind: "ship"; id: number }
@@ -51,7 +54,7 @@ export type EntityRef =
   | { kind: "deposit"; id: number }
   /** A natural wormhole or shroud tunnel, keyed by its own id; the map focuses its system. */
   | { kind: "wormhole"; system: number; id: number }
-  /** A scenario's body: its id is the details' own, so it is keyed by the system that lists it. */
+  /** A body, by the id its system's details give it: a save's planet id, or a scenario's own. */
   | { kind: "body"; system: number; id: number }
   /** A list or block inside an entity: a Data row drills into it rather than nesting. */
   | { kind: "nodelist"; parent: EntityAddr; path: string[]; of: EntityKind | null };
@@ -70,7 +73,7 @@ export const GALAXY_ENTRY: Entry = { ref: { kind: "galaxy" }, label: "Galaxy" };
 type RefOf<K extends EntityRef["kind"]> = Extract<EntityRef, { kind: K }>;
 
 /** Which tabs a kind's page offers; `tabsFor` turns it into the list. */
-type TabPlan = "overview" | "data" | "system" | "wormhole" | "entity";
+type TabPlan = "overview" | "data" | "system" | "wormhole" | "entity" | "body";
 
 /**
  * Where a ref's page lives, as an edit asks whether it touched it: in `systems`, in the cached
@@ -78,7 +81,7 @@ type TabPlan = "overview" | "data" | "system" | "wormhole" | "entity";
  */
 export type RefHome =
   | { systems: readonly number[] }
-  | { listedIn: "planets" | "fleets_present" | "megastructures"; id: number }
+  | { listedIn: "fleets_present" | "megastructures"; id: number }
   | null;
 
 /** What the inspector does with a ref of one kind. */
@@ -153,7 +156,6 @@ const REF_KINDS: { [K in EntityRef["kind"]]: RefKind<RefOf<K>> } = {
     },
     home: (ref) => ({ systems: [ref.id] }),
   },
-  planet: entity((ref) => ({ listedIn: "planets", id: ref.id })),
   colony: entity(),
   fleet: entity((ref) => ({ listedIn: "fleets_present", id: ref.id })),
   ship: entity(),
@@ -164,7 +166,11 @@ const REF_KINDS: { [K in EntityRef["kind"]]: RefKind<RefOf<K>> } = {
   sector: entity(),
   deposit: entity(),
   wormhole: inSystem<RefOf<"wormhole">>(byId, addrOf, "wormhole"),
-  body: inSystem((ref) => `body:${ref.system}:${ref.id}`, nothing, "overview"),
+  body: inSystem(
+    (ref) => `body:${ref.system}:${ref.id}`,
+    (ref) => (planetPages() ? { kind: "planet", id: ref.id } : null),
+    "body",
+  ),
   nodelist: {
     key: (ref) => `nodelist:${ref.parent.kind}:${ref.parent.id}/${ref.path.join("/")}`,
     addr: (ref) => ref.parent,
@@ -198,31 +204,56 @@ export function refHome(ref: EntityRef): RefHome {
   return kindOf(ref).home(ref);
 }
 
+/** Whether the open document has planets the entity reader reads, rather than bodies it rolls. */
+function planetPages(): boolean {
+  return !documentCapabilities(useFileSessionStore.getState()).rolled_layout;
+}
+
+/** The system save planet `id` is in, as the read details or its read page say; null while neither does. */
+function planetSystem(id: number): number | null {
+  const found = findPlanet(useDetailsStore.getState().details, id);
+  return found?.system ?? useEntityStore.getState().pages.get(id)?.system ?? null;
+}
+
 /**
  * What a drill onto `addr` opens. A station or a wormhole carries the system it stands in, so a
- * link with no system to give it stays where it is.
+ * link with no system to give it stays where it is. So does a planet that no read places yet.
  */
 export function refFor(addr: EntityAddr, system: number | null): EntityRef | null {
+  if (addr.kind === "planet") {
+    const home = planetSystem(addr.id);
+    return home === null ? null : { kind: "body", system: home, id: addr.id };
+  }
   if (addr.kind !== "starbase" && addr.kind !== "wormhole") return { kind: addr.kind, id: addr.id };
   return system === null ? null : { kind: addr.kind, system, id: addr.id };
 }
 
 /**
- * The page a body in the system view opens: its planet where the document has planets of its
- * own, else the body its initializer rolls.
+ * Drills onto save planet `id` from a link that knows only its id. A planet that no read places
+ * yet opens once its own page says which system it is in, unless another page opened meanwhile.
  */
-export function bodyEntry(system: number, id: number, label: string): Entry {
-  return bodyEntryOf(
-    !documentCapabilities(useFileSessionStore.getState()).rolled_layout,
-    system,
-    id,
-    label,
-  );
+export function openPlanet(id: number, label: string): void {
+  const inspector = useInspectorStore.getState();
+  const known = planetSystem(id);
+  if (known !== null) {
+    inspector.open(bodyEntry(known, id, label));
+    return;
+  }
+  const top = inspector.stack[inspector.stack.length - 1];
+  ipc
+    .getPlanetPage(id)
+    .then((page) => {
+      const { stack, open } = useInspectorStore.getState();
+      if (page.system !== null && stack[stack.length - 1] === top) {
+        open(bodyEntry(page.system, id, label));
+      }
+    })
+    .catch((e: unknown) => console.warn("planet page", ipc.errorMessage(e)));
 }
 
-/** The same, where `planets` says whether the document has planets of its own. */
-export function bodyEntryOf(planets: boolean, system: number, id: number, label: string): Entry {
-  return { ref: planets ? { kind: "planet", id } : { kind: "body", system, id }, label };
+/** The page body `id` of `system` opens. */
+export function bodyEntry(system: number, id: number, label: string): Entry {
+  return { ref: { kind: "body", system, id }, label };
 }
 
 /** What the open document lets a system's strip offer beyond the tabs every system has. */
@@ -257,11 +288,15 @@ export function tabsFor(
       return ["data"];
     case "wormhole":
       return ["overview", "data", "source"];
+    case "body":
+      return entityAddr(ref) === null ? ["overview"] : entityTabs(hasContents);
     case "entity":
-      return hasContents
-        ? ["overview", "contents", "data", "source"]
-        : ["overview", "data", "source"];
+      return entityTabs(hasContents);
   }
+}
+
+function entityTabs(hasContents: boolean): InspectorTab[] {
+  return hasContents ? ["overview", "contents", "data", "source"] : ["overview", "data", "source"];
 }
 
 /** `ref` with the system ids it names moved as `pairs` move them; null when its system is gone. */
@@ -279,9 +314,9 @@ export interface InspectorState {
   setRoot(entry: Entry): void;
   /**
    * Follows an edit that renumbered systems: every page on a moved system names its new id, and
-   * a page on a removed one, or on a planet it held, closes with everything opened from it.
+   * a page on a removed one, or on a body it held, closes with everything opened from it.
    */
-  renumber(pairs: Renumbering, removedPlanets?: ReadonlySet<number>): void;
+  renumber(pairs: Renumbering): void;
   /** Drills into a child of the entity on top of the stack. */
   open(entry: Entry): void;
   /**
@@ -294,8 +329,13 @@ export interface InspectorState {
    * up crumbs, with the dock turned to the inspector as a selection turns it.
    */
   openFromMap(entry: Entry): void;
-  /** Closes every page on a scenario body, or on one in `systems`, with everything opened from it. */
+  /**
+   * Closes every page on a body the document rolls, or on one in `systems`, with everything
+   * opened from it. A document with planets of its own keeps them.
+   */
   dropBodies(systems?: readonly number[]): void;
+  /** Moves every page on one of `bodies` to `system`, where a move has taken them. */
+  moveBodies(bodies: readonly number[], system: number): void;
   /** Closes every page on one of `planets` or `colonies`, with everything opened from it. */
   dropPlanets(planets: readonly number[], colonies: readonly number[]): void;
   /**
@@ -364,12 +404,12 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     set({ stack: [entry], tab: tabFor(entry.ref, tab) });
   },
 
-  renumber(pairs, removedPlanets = new Set()) {
+  renumber(pairs) {
     const { stack, tab } = get();
     const next: Entry[] = [];
     for (const entry of stack) {
       const ref = renumberedRef(entry.ref, pairs);
-      if (ref === null || (ref.kind === "planet" && removedPlanets.has(ref.id))) break;
+      if (ref === null) break;
       next.push(ref === entry.ref ? entry : { ...entry, ref });
     }
     if (next.length === 0) next.push(GALAXY_ENTRY);
@@ -402,6 +442,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   },
 
   dropBodies(systems) {
+    if (planetPages()) return;
     const { stack, tab } = get();
     const at = stack.findIndex(
       ({ ref }) => ref.kind === "body" && (systems === undefined || systems.includes(ref.system)),
@@ -411,11 +452,25 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
+  moveBodies(bodies, system) {
+    const { stack } = get();
+    const moved = (ref: EntityRef) =>
+      ref.kind === "body" && ref.system !== system && bodies.includes(ref.id);
+    if (!stack.some(({ ref }) => moved(ref))) return;
+    set({
+      stack: stack.map((entry) =>
+        entry.ref.kind === "body" && moved(entry.ref)
+          ? { ...entry, ref: { ...entry.ref, system } }
+          : entry,
+      ),
+    });
+  },
+
   dropPlanets(planets, colonies) {
     const { stack, tab } = get();
     const at = stack.findIndex(
       ({ ref }) =>
-        (ref.kind === "planet" && planets.includes(ref.id)) ||
+        (ref.kind === "body" && planets.includes(ref.id)) ||
         (ref.kind === "colony" && colonies.includes(ref.id)),
     );
     if (at < 0) return;
