@@ -184,6 +184,7 @@ const REFUSING_HOST: Readonly<Record<BodyRefusal, string>> = {
   hasMoons: "a planet with moons",
   moonHost: "a moon",
   asteroidHost: "an asteroid",
+  aboutPlanet: "a body orbiting a planet",
   ringworld: "a ring world segment",
   noOrbit: "a moon",
 };
