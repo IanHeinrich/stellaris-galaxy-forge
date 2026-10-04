@@ -3,7 +3,7 @@ import { PLANET_ICON_KEYS, planetTint } from "../../../lib/details/icons";
 import { toCss } from "../../../lib/visual/ownerColors";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { Icon } from "../../parts";
-import { useBodyClasses } from "../../useGeneratorData";
+import { useBodyClasses } from "../../useBodyClasses";
 import { MenuItem } from "./MenuItem";
 import { Submenu } from "./Submenu";
 
