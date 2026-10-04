@@ -1,3 +1,5 @@
+import type { PlanetPage } from "../generated/PlanetPage";
+import { planetSummary } from "./fixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/ipc");
@@ -10,9 +12,18 @@ import { planetPage } from "../test/builders";
 import { bindStores } from "./bindStores";
 import { editResult } from "./fixture";
 import { useModifierPickerStore } from "./modifierPickerStore";
-import { planetPickerTarget } from "./planetEditAdapter";
+import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
+
+/** Save body `page` in system 1, as its page hands it to the pickers. */
+const pickerTarget = (page: PlanetPage) =>
+  savePickerTarget(
+    1,
+    planetSummary({ id: page.id, class: page.class, size: page.size }),
+    page,
+    heldAnomaly(page),
+  );
 
 bindStores();
 
@@ -34,7 +45,7 @@ const CHOICES: ModifierChoice[] = [
 ];
 
 const ROW = modifierPickRows(CHOICES, [], null, () => "")[0];
-const TARGET = planetPickerTarget(planetPage({ id: 40 }), false);
+const TARGET = pickerTarget(planetPage({ id: 40 }));
 
 beforeEach(() => {
   resetStores();
@@ -59,7 +70,7 @@ describe("the modifier picker", () => {
     });
     const after = useModifierPickerStore.getState();
     expect([after.target?.key, after.query, after.added]).toEqual([
-      "save-planet:40",
+      "save:1:40",
       "poor",
       "Added Mineral Poor for 360 days",
     ]);

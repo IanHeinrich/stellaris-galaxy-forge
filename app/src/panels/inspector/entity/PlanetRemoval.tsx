@@ -1,4 +1,3 @@
-import type { PlanetPage } from "../../../generated/PlanetPage";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import {
   deleteLabel,
@@ -34,33 +33,37 @@ function Action({
   );
 }
 
-/** Removes the colony on the body `page` shows, named `name`, through `edits`; the body stays. */
+/** Removes the colony on body `body` of system `system`, named `name`, through `edits`; the body stays. */
 export function RemoveColonyAction({
-  page,
+  body,
+  system,
   name,
   edits,
 }: {
-  page: PlanetPage;
+  body: number;
+  system: number;
   name: string;
   edits: PlanetEditAdapter;
 }) {
-  const refusal = useOpCheck(removeColonyOp(page.id), page.system);
+  const refusal = useOpCheck(removeColonyOp(body), system);
   return <Action refusal={refusal} label={REMOVE_COLONY} run={() => edits.removeColony(name)} />;
 }
 
-/** Deletes the body `page` shows, named `name`, with its moons and any colony on it, through `edits`. */
+/** Deletes body `body` of system `system`, named `name`, with its moons and any colony, through `edits`. */
 export function DeletePlanetAction({
-  page,
+  body,
+  system,
   name,
   moon,
   edits,
 }: {
-  page: PlanetPage;
+  body: number;
+  system: number;
   name: string;
   moon: boolean;
   edits: PlanetEditAdapter;
 }) {
-  const refusal = useOpCheck(deleteOp(page.id), page.system);
+  const refusal = useOpCheck(deleteOp(body), system);
   return (
     <Action refusal={refusal} label={deleteLabel(moon)} run={() => edits.remove(name, moon)} />
   );

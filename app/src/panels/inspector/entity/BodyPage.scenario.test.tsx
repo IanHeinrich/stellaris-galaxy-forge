@@ -11,6 +11,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bindStores } from "../../../store/bindStores";
 import { useDetailsStore } from "../../../store/detailsStore";
+import { useEntityStore } from "../../../store/entityStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useSceneStore } from "../../../store/sceneStore";
@@ -21,7 +22,8 @@ import { StarRowIcon } from "../StarIcon";
 import { bodyLayout, planetClassView, starClassView } from "../../../test/builders";
 import { mockedIpc } from "../../../test/ipc";
 import { rolledBody, systemRoll } from "../../../test/rolls";
-import { ScenarioBodyView } from "./ScenarioBodyView";
+import { planetPage } from "../../../test/builders";
+import { PlanetView } from "./PlanetView";
 
 bindStores();
 
@@ -46,6 +48,7 @@ const TARKIN = planet(100, "Tarkin", {
   capital: true,
   size: null,
   deposits: [{ resource: "minerals", amount: 7 }],
+  deposit_keys: [{ key: "d_mineral_fields", count: 2 }],
   layout: layout({
     orbit: { min: 40, max: 60 },
     orbit_step: { min: 40, max: 60 },
@@ -72,8 +75,10 @@ const entry = (id: number, label: string): Entry => ({
   label,
 });
 
-const page = (id: number, label: string) =>
-  renderToStaticMarkup(<ScenarioBodyView entry={entry(id, label)} />);
+const page = (id: number, label: string) => {
+  useInspectorStore.setState({ tab: "overview" });
+  return renderToStaticMarkup(<PlanetView entry={entry(id, label)} />);
+};
 
 /** Presses the last drawn element that passes `test`, as a click on it would. */
 function press(test: (el: { type: unknown; props: DrawnProps }) => boolean, what: string): void {
@@ -93,6 +98,14 @@ async function openTarkin(): Promise<void> {
 }
 
 describe("a scenario body's page", () => {
+  it("has no tabs of a save's entity behind it", async () => {
+    await openTarkin();
+    useInspectorStore.setState({ tab: "data" });
+    expect(renderToStaticMarkup(<PlanetView entry={entry(100, "Tarkin")} />)).toContain(
+      '<span class="k">Class</span><span>random</span>',
+    );
+  });
+
   it("shows the class, size, orbit and angle the initializer gives, ranges and random included", async () => {
     await openTarkin();
 
@@ -105,7 +118,10 @@ describe("a scenario body's page", () => {
     expect(head).toContain(">colonised</span>");
     expect(head).toContain(">capital</span>");
     expect(head).not.toContain("pre-FTL");
-    expect(html).toContain('title="Minerals 7"');
+    expect(html).toContain("Deposits · 2");
+    expect(html).toContain('<span class="l1 mono">d_mineral_fields</span>');
+    expect(html).not.toContain("pl-dep-remove");
+    expect(html).not.toContain("+ Add deposit…");
     expect(html).not.toContain("Orbits");
     expect(html).not.toContain("Terraforming");
     expect(html).not.toContain("Modifiers");
@@ -226,6 +242,15 @@ describe("a scenario body's page", () => {
     expect(page(103, "Naboo")).toContain('<span class="k">Angle step</span><span>+90–270°</span>');
   });
 
+  it("says the game places a body whose initializer gives no orbit", async () => {
+    await open("scenario");
+    await land(details({ planets: [planet(102, "Drifter", { class: "pc_barren" })] }));
+
+    expect(page(102, "Drifter")).toContain(
+      '<span class="k">Orbit radius</span><span>random</span>',
+    );
+  });
+
   it("says whether a body has a ring, or that the game rolls it", async () => {
     const ringed = planet(102, "Ringed", { class: "pc_gas_giant", ring: true });
     const bare = planet(103, "Bare", { class: "pc_barren", ring: false });
@@ -246,9 +271,12 @@ describe("a scenario body's page", () => {
     });
     await open("save");
     await land(details({ planets: [saved] }));
+    mockedIpc.getPlanetPage.mockResolvedValue(planetPage({ id: 100 }));
+    useEntityStore.getState().requestPlanetPage(100);
+    await vi.waitFor(() => expect(useEntityStore.getState().pages.has(100)).toBe(true));
 
     const html = page(100, "Tarkin");
-    expect(html).toContain('<span class="k">Orbit radius</span>');
+    expect(html).toContain("Orbit radius");
     expect(html).not.toContain("Orbit step");
     expect(html).not.toContain("Angle step");
   });

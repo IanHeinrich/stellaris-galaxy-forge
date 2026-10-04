@@ -35,9 +35,13 @@ async function depositChoices(target: PickerTarget): Promise<DepositChoice[]> {
   const list = await ipc.getDepositChoices(target.planetClass, target.size, target.moon, [
     ...target.deposits,
   ]);
-  usePlanetDataStore
-    .getState()
-    .request({ deposits: list.map((c) => c.key), modifiers: [], colonyTypes: [] });
+  usePlanetDataStore.getState().request({
+    deposits: list.map((c) => c.key),
+    modifiers: [],
+    colonyTypes: [],
+    anomalies: [],
+    digSites: [],
+  });
   return list;
 }
 

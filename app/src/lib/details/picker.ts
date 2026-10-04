@@ -6,7 +6,6 @@ import type { Bounds } from "../../generated/Bounds";
 import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
-import type { PlanetPageAnomaly } from "../../generated/PlanetPageAnomaly";
 import type { StarClassView } from "../../generated/StarClassView";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
@@ -153,9 +152,17 @@ export interface PlanetEditAdapter<R extends RowRefs = RowRefs> {
   removeDigSite(ref: R["digSite"]): Promise<boolean>;
 }
 
+/** The anomaly a body holds, and the countries that have found it where its source knows. */
+export interface HeldAnomaly {
+  /** The anomaly category's key, which is also its localisation key. */
+  category: string;
+  /** `null` where the source keeps no finders. */
+  foundBy: readonly number[] | null;
+}
+
 /** The body a picker adds to: what its choices are read for, and how it is edited. */
 export interface PickerTarget<R extends RowRefs = RowRefs> {
-  /** Tells one body from another across sources, as `save-planet:<id>`. */
+  /** Tells one body from another across documents and systems, as `<kind>:<system>:<id>`. */
   key: string;
   planetClass: string | null;
   size: number | null;
@@ -164,7 +171,7 @@ export interface PickerTarget<R extends RowRefs = RowRefs> {
   deposits: readonly string[];
   /** The modifiers and planet features it has. */
   modifiers: readonly string[];
-  /** The anomaly it holds and who has found it; `null` for none. */
-  anomaly: PlanetPageAnomaly | null;
+  /** The anomaly it holds; `null` for none. */
+  anomaly: HeldAnomaly | null;
   edits: PlanetEditAdapter<R>;
 }

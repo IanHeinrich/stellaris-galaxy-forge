@@ -1,10 +1,7 @@
-import { useEffect } from "react";
-import type { PlanetPageAnomaly } from "../../../generated/PlanetPageAnomaly";
-import type { PickerTarget } from "../../../lib/details/picker";
+import type { HeldAnomaly, PickerTarget } from "../../../lib/details/picker";
 import { templateName } from "../../../lib/names";
-import { useAnomalyPickerStore } from "../../../store/anomalyPickerStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
-import { useGameDataStore } from "../../../store/gameDataStore";
+import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useNamed } from "../../useNamed";
 import { Icon } from "../../parts";
 import { PropertyRow, Section } from "../parts";
@@ -13,10 +10,11 @@ import { ANOMALY_PICKER } from "./AnomalyPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
 
-/** Who has found `anomaly`: "found by …", or "not found yet". */
-function useFinders(anomaly: PlanetPageAnomaly): string {
+/** Who has found `anomaly`: "found by …", "not found yet", or `null` where its source keeps no finders. */
+function useFinders(anomaly: HeldAnomaly): string | null {
   const countries = useGalaxyStore((s) => s.countries);
-  const finders = anomaly.found_by.map((id) => {
+  if (anomaly.foundBy === null) return null;
+  const finders = anomaly.foundBy.map((id) => {
     const country = countries.get(id);
     return country === undefined ? `country #${id}` : templateName(country);
   });
@@ -24,44 +22,42 @@ function useFinders(anomaly: PlanetPageAnomaly): string {
 }
 
 /** The anomaly waiting on the planet, by the name the game gives its category, and who found it. */
-export function AnomalyRow({ anomaly }: { anomaly: PlanetPageAnomaly }) {
+export function AnomalyRow({ anomaly }: { anomaly: HeldAnomaly }) {
   const named = useNamed([anomaly.category]);
   const found = useFinders(anomaly);
   return (
     <PropertyRow label="Anomaly">
       {named(anomaly.category)}
-      <span className="muted">
-        {" · "}
-        {found}
-      </span>
+      {found !== null && (
+        <span className="muted">
+          {" · "}
+          {found}
+        </span>
+      )}
     </PropertyRow>
   );
 }
 
 /**
  * The anomaly as the Anomaly section lists it: its name, who found it, the game's description of
- * it once the anomaly choices are read, and its remove button.
+ * its category, and its remove button.
  */
-function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; target: PickerTarget }) {
+function AnomalyRowView({ anomaly, target }: { anomaly: HeldAnomaly; target: PickerTarget }) {
   const named = useNamed([anomaly.category]);
   const found = useFinders(anomaly);
   const name = named(anomaly.category);
-  const ready = useGameDataStore((s) => s.status === "ready");
-  const description = useAnomalyPickerStore(
-    (s) => s.choices?.list.find((c) => c.key === anomaly.category)?.description ?? null,
+  const description = usePlanetDataStore(
+    (s) => s.anomalies.get(anomaly.category)?.description ?? null,
   );
-  useEffect(() => {
-    if (ready) useAnomalyPickerStore.getState().load(target);
-  }, [ready, target]);
   return (
     <PickedRow
       art={<Icon keys={[]} glyph="?" />}
       name={name}
       lines={[
-        { className: "l2", text: found },
-        ...(ready && description !== null
-          ? [{ className: "pl-anomaly-desc" as const, text: description }]
-          : []),
+        ...(found === null ? [] : [{ className: "l2" as const, text: found }]),
+        ...(description === null
+          ? []
+          : [{ className: "pl-anomaly-desc" as const, text: description }]),
       ]}
       remove={{
         title: "Remove this anomaly",
@@ -73,17 +69,18 @@ function AnomalyRowView({ anomaly, target }: { anomaly: PlanetPageAnomaly; targe
 }
 
 /**
- * The body's anomaly as the page's target holds it, with its remove button, or the picker that
- * adds one; where the page offers anomalies.
+ * The body's anomaly, with its remove button, or the picker that adds one; where the page offers
+ * anomalies.
  */
-export function PlanetAnomaly({ offers, target }: PlanetSectionProps) {
+export function PlanetAnomaly({ read, offers }: PlanetSectionProps) {
   if (!offers.anomaly) return null;
+  const { anomaly } = read.rows;
   return (
     <Section id="planet.anomaly" title="Anomaly">
-      {target.anomaly === null ? (
-        <PlanetPicker kind={ANOMALY_PICKER} target={target} />
+      {anomaly === null ? (
+        <PlanetPicker kind={ANOMALY_PICKER} target={read.target} />
       ) : (
-        <AnomalyRowView anomaly={target.anomaly} target={target} />
+        <AnomalyRowView anomaly={anomaly} target={read.target} />
       )}
     </Section>
   );

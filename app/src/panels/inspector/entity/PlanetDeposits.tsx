@@ -1,21 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
 import { formatAmount, resourceAbbrev } from "../../../lib/details/resources";
 import {
   BLOCKER_ICON,
-  depositGroups,
   districtTotals,
   type DepositGroup,
   type DistrictTotal,
 } from "../../../lib/details/planetPage";
-import {
-  addWarnings,
-  removalTarget,
-  removalWarnings,
-  TERRAFORMING_NOTE,
-  warningNameKeys,
-} from "../../../lib/details/depositWarnings";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -23,7 +15,9 @@ import { counted, thousands } from "../../../lib/text";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { Icon } from "../../parts";
+import { useNamed } from "../../useNamed";
 import { DrillLink, Section } from "../parts";
+import type { HeldDeposit } from "./bodySources";
 import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
@@ -31,6 +25,8 @@ import type { PlanetSectionProps } from "./planetSection";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
+
+const groupKey = (group: DepositGroup) => `${group.kind}|${group.swapType ?? ""}`;
 
 /**
  * A button that takes one deposit of a row's type off the planet. With `warnings`, the row
@@ -237,60 +233,63 @@ function DepositRow({
 /**
  * A body's deposits: the district caps they add up to, one row per type, and the blockers apart.
  * Where the page offers deposits, each row can lose one of its deposits and a picker adds one,
- * both through `target`'s adapter.
+ * both through the target's adapter.
  */
-export function PlanetDeposits({ page, offers, target }: PlanetSectionProps) {
+export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const editable = offers.deposits;
-  const views = usePlanetDataStore((s) => s.depositTypes);
+  const { deposits } = read.rows;
+  const { target } = read;
   const ready = useGameDataStore((s) => s.status === "ready");
-  const names = useGameDataStore((s) => s.names);
-  const [confirming, setConfirming] = useState<number | null>(null);
-  useEffect(() => {
-    if (editable && ready) void useGameDataStore.getState().fetchNames(warningNameKeys(page));
-  }, [page, editable, ready]);
-  if (page.deposits.length === 0 && !editable) return null;
-  const addWarningsFor = (key: string) => addWarnings(page, key, views, names);
-  const removal = (group: DepositGroup): Removal | null => {
-    const deposit = editable ? removalTarget(page, group.kind, group.swapType) : null;
-    if (deposit === null) return null;
+  const [confirming, setConfirming] = useState<string | null>(null);
+  useNamed(editable ? deposits.nameKeys : []);
+  if (deposits.count === 0 && !editable) return null;
+  const removal = (group: HeldDeposit): Removal | null => {
+    const held = editable ? group.removal : null;
+    if (held === null) return null;
+    const key = groupKey(group);
     const remove = () => {
       setConfirming(null);
-      void target.edits.removeDeposit(deposit);
+      void target.edits.removeDeposit(held.ref);
     };
-    const warnings = removalWarnings(page, deposit, views, names);
-    const worked = page.station !== null && (group.view?.yields.length ?? 0) > 0;
+    const warnings = held.warnings;
+    const worked = deposits.station !== null && (group.view?.yields.length ?? 0) > 0;
     return {
       title: worked ? STATION_STAYS : "Remove one deposit of this type",
       label: `Remove ${group.view?.name ?? group.kind}`,
-      run: warnings.length === 0 ? remove : () => setConfirming(deposit.id),
+      run: warnings.length === 0 ? remove : () => setConfirming(key),
       warnings,
-      confirming: confirming === deposit.id && warnings.length > 0,
+      confirming: confirming === key && warnings.length > 0,
       confirm: remove,
       cancel: () => setConfirming(null),
     };
   };
-  const { features, blockers } = depositGroups(page.deposits, views);
+  const { features, blockers } = deposits;
   const totals = ready ? districtTotals([...features, ...blockers]) : [];
   const blocked = blockers.reduce((n, g) => n + g.count, 0);
+  const row = (g: HeldDeposit) => (
+    <DepositRow key={groupKey(g)} group={g} station={deposits.station} removal={removal(g)} />
+  );
   return (
     <Section
       id="planet.deposits"
       title="Deposits"
-      count={page.deposits.length}
+      count={deposits.count}
       summary={blocked > 0 ? counted(blocked, "blocker") : undefined}
     >
       {totals.length > 0 && <DistrictStrip totals={totals} />}
-      {editable && page.terraforming && <div className="pl-dep-note">{TERRAFORMING_NOTE}</div>}
-      {features.map((g) => (
-        <DepositRow
-          key={`${g.kind}|${g.swapType ?? ""}`}
-          group={g}
-          station={page.station}
-          removal={removal(g)}
-        />
-      ))}
+      {editable &&
+        deposits.notes.map((note) => (
+          <div key={note} className="pl-dep-note">
+            {note}
+          </div>
+        ))}
+      {features.map(row)}
       {editable && (
-        <PlanetPicker kind={DEPOSIT_PICKERS.deposits} target={target} extra={addWarningsFor} />
+        <PlanetPicker
+          kind={DEPOSIT_PICKERS.deposits}
+          target={target}
+          extra={deposits.addWarnings}
+        />
       )}
       {(blockers.length > 0 || editable) && (
         <>
@@ -298,18 +297,15 @@ export function PlanetDeposits({ page, offers, target }: PlanetSectionProps) {
             <Icon className="gi" keys={[BLOCKER_ICON]} glyph="" />
             Blockers · {blocked}
           </div>
-          {blockers.map((g) => (
-            <DepositRow
-              key={`${g.kind}|${g.swapType ?? ""}`}
-              group={g}
-              station={page.station}
-              removal={removal(g)}
-            />
-          ))}
+          {blockers.map(row)}
         </>
       )}
       {editable && (
-        <PlanetPicker kind={DEPOSIT_PICKERS.blockers} target={target} extra={addWarningsFor} />
+        <PlanetPicker
+          kind={DEPOSIT_PICKERS.blockers}
+          target={target}
+          extra={deposits.addWarnings}
+        />
       )}
     </Section>
   );
