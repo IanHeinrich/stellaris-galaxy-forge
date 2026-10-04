@@ -558,13 +558,14 @@ const OPENERS: Record<DocumentKind, Opener> = {
 
 /**
  * Reads the open scenario's galaxy again, for when game data changes the star each of its
- * systems is drawn as. A save's stars are its own.
+ * systems is drawn as. A save's stars are its own, and a galaxy that can't be read keeps the
+ * stars it has.
  */
 export async function redrawStars(): Promise<void> {
   const mine = opens;
   if (useFileSessionStore.getState().kind !== "scenario") return;
-  const galaxy = await ipc.getGalaxy();
-  if (mine === opens && useFileSessionStore.getState().kind === "scenario") {
+  const galaxy = await ipc.getGalaxy().catch(() => null);
+  if (galaxy !== null && mine === opens && useFileSessionStore.getState().kind === "scenario") {
     useGalaxyStore.getState().applyDelta({ systems: galaxy.systems });
   }
 }
