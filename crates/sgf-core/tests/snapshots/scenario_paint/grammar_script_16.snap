@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Made system #16 a Paint a Galaxy spawn (reserved z)
-inverse: SetSpawnScript { system: 16, script: None }
+inverse: Batch { description: "Cleared system #16's Paint a Galaxy spawn and removed its initializer", ops: [SetSpawnScript { system: 16, script: None }, SetInitializer { system: 16, initializer: None }] }
 
 --- scenario
 +++ scenario

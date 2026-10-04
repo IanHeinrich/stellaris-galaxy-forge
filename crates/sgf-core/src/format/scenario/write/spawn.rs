@@ -43,13 +43,31 @@ pub(super) fn set_script(
     id: u32,
     script: Option<&SpawnScript>,
 ) -> Result<Planned, OpError> {
-    let (description, previous) = write_script(plan, s, id, script)?;
+    let (description, (_, previous), gave_initializer) = write_script(plan, s, id, script)?;
+    let restore = Op::SetSpawnScript {
+        system: id,
+        script: previous.clone(),
+    };
+    let inverse = if gave_initializer {
+        Op::Batch {
+            description: format!(
+                "{} and removed its initializer",
+                paint::description(&named(&s.graph, id), previous.as_ref())
+            ),
+            ops: vec![
+                restore,
+                Op::SetInitializer {
+                    system: id,
+                    initializer: None,
+                },
+            ],
+        }
+    } else {
+        restore
+    };
     Ok(Planned {
         description,
-        inverse: Op::SetSpawnScript {
-            system: id,
-            script: previous.1,
-        },
+        inverse,
     })
 }
 
@@ -126,9 +144,13 @@ fn write_weight(
     Ok((description, (id, previous), script))
 }
 
-/// Write one system's scripted seat whole, returning what to call the change and the
-/// entry that puts it back. A seat needs a starting initializer, so a system naming
-/// none is given the dialect's basic one, before the weight as the dialect orders them.
+/// What to call a seat change, the entry that puts the seat back and whether the system
+/// was given an initializer for it.
+type ScriptWritten = (String, (u32, Option<SpawnScript>), bool);
+
+/// Write one system's scripted seat whole. A seat needs a starting initializer, so a
+/// system naming none is given the dialect's basic one, before the weight as the dialect
+/// orders them.
 /// A block of modifiers is script this editor does not rewrite, so a seat is neither
 /// written over one nor cleared with one.
 fn write_script(
@@ -136,7 +158,7 @@ fn write_script(
     s: &Session,
     id: u32,
     script: Option<&SpawnScript>,
-) -> Result<(String, (u32, Option<SpawnScript>)), OpError> {
+) -> Result<ScriptWritten, OpError> {
     if let Some(script) = script {
         paint::check(script)?;
     }
@@ -152,9 +174,11 @@ fn write_script(
     if let Some(block) = &standing {
         refuse_modifiers(edit, block)?;
     }
+    let mut gave_initializer = false;
     match (script, standing) {
         (Some(script), standing) => {
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
+                gave_initializer = true;
                 let after = last_of_id_name_position(edit)?;
                 let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
                 edit.bytes().insert_after(after, &text);
@@ -169,7 +193,7 @@ fn write_script(
         (None, None) => {}
     }
     let description = paint::description(&named(&s.graph, id), script);
-    Ok((description, (id, previous)))
+    Ok((description, (id, previous), gave_initializer))
 }
 
 /// A `modifier` block is script this editor keeps byte for byte, so nothing rewrites
