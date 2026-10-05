@@ -7,6 +7,7 @@ import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
+import { EDGE_PX, type Rect } from "../menuAim";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
 export type CommonChip = "All" | "Usual";
@@ -15,6 +16,34 @@ export type CommonChip = "All" | "Usual";
 export interface ChipItem<C extends string> {
   chip: C;
   label: string;
+  /** The drop-down it is a choice in, in place of a chip of its own. */
+  menu?: ChipMenu<C>;
+}
+
+/** A drop-down on the chip line holding a run of choices: what it is called, and its first choice. */
+export interface ChipMenu<C extends string> {
+  label: string;
+  /** The choice that leaves the rows unnarrowed by the drop-down. */
+  any: ChipItem<C>;
+}
+
+/** One place on the chip line: a chip, or a drop-down with its choices. */
+export type ChipPlace<C extends string> =
+  { chip: ChipItem<C> } | { menu: ChipMenu<C>; choices: ChipItem<C>[] };
+
+/** `chips` as the chip line shows them: each drop-down's choices in one place, where its first was. */
+export function chipLine<C extends string>(chips: readonly ChipItem<C>[]): ChipPlace<C>[] {
+  const line: ChipPlace<C>[] = [];
+  for (const chip of chips) {
+    if (chip.menu === undefined) {
+      line.push({ chip });
+      continue;
+    }
+    const held = line.find((place) => "menu" in place && place.menu === chip.menu);
+    if (held !== undefined && "menu" in held) held.choices.push(chip);
+    else line.push({ menu: chip.menu, choices: [chip] });
+  }
+  return line;
 }
 
 export const COMMON_CHIPS: readonly ChipItem<CommonChip>[] = [
@@ -39,6 +68,61 @@ export interface PickerSection<R> {
 
 export const USUAL_TITLE = "Usual for this planet";
 export const EVERYTHING_ELSE = "Everything else";
+
+/** A chip's label, or the chip itself where `chips` has none for it. */
+export function chipLabel<C extends string>(chips: readonly ChipItem<C>[], chip: C): string {
+  return chips.find((each) => each.chip === chip)?.label ?? chip;
+}
+
+/** How many effects a row names before it counts the rest. */
+export const ROW_EFFECTS = 2;
+
+/** A row's effects: the first two, joined, and "+N more" for the rest; empty for none. */
+export function effectSummary(effects: readonly string[]): { shown: string; more: string | null } {
+  const rest = effects.length - ROW_EFFECTS;
+  return {
+    shown: effects.slice(0, ROW_EFFECTS).join(", "),
+    more: rest > 0 ? `+${rest} more` : null,
+  };
+}
+
+/** The side card's width, the same for every row so it keeps its size as the rows change. */
+export const PICKER_CARD_WIDTH = 260;
+/** The space between the side card and the picker. */
+const PICKER_CARD_GAP = 6;
+
+/**
+ * Where the side card of `height` goes: left of `picker`, its top level with the row's at `rowTop`,
+ * kept inside a window `viewportHeight` tall. `null` where the window has no room left of the
+ * picker, and the card goes under the list.
+ */
+export function pickerCardPlace(
+  picker: Rect,
+  rowTop: number,
+  height: number,
+  viewportHeight: number,
+): { left: number; top: number } | null {
+  const left = picker.left - PICKER_CARD_GAP - PICKER_CARD_WIDTH;
+  if (left < EDGE_PX) return null;
+  const lowest = viewportHeight - EDGE_PX - height;
+  return { left, top: Math.max(EDGE_PX, Math.min(rowTop, lowest)) };
+}
+
+/** A stretch of the window from top to bottom, in pixels. */
+export interface Span {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The part of `row` that shows inside every one of `clips`, the boxes that scroll it; `null` when
+ * one of them has scrolled it out of sight.
+ */
+export function visibleSpan(row: Span, clips: readonly Span[]): Span | null {
+  const top = Math.max(row.top, ...clips.map((c) => c.top));
+  const bottom = Math.min(row.bottom, ...clips.map((c) => c.bottom));
+  return bottom > top ? { top, bottom } : null;
+}
 
 /** What the search matches of a row: `parts`, lower case. */
 export function searchText(parts: readonly string[]): string {

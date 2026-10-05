@@ -19,7 +19,8 @@ import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { bodyLayout } from "../../../test/builders";
-import { drawnBy, lastDrawn } from "../../../test/drawn";
+import { useSceneStore } from "../../../store/sceneStore";
+import { drawnBy, drawnButton, lastDrawn } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { DrillRow } from "../parts";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
@@ -265,6 +266,49 @@ describe("a save body its system's details can't list", () => {
     const html = render(WORLD);
     expect(html).toContain("Reading the planet…");
     expect(html).toContain(`#${WORLD}`);
+  });
+});
+
+describe("Show in system view", () => {
+  const SHOW = ">Show in system view</button>";
+
+  async function arm(): Promise<void> {
+    await open("save");
+    await land(details({ planets: [planet(WORLD, "Tarkin")] }));
+    await answerPage(planetPage({ id: WORLD }));
+  }
+
+  it("shows on a body's page, and opens the system view with the body selected and centred", async () => {
+    await arm();
+    expect(drawnBy(() => render(WORLD))).toContain(SHOW);
+
+    drawnButton("Show in system view").onClick();
+
+    const scene = useSceneStore.getState();
+    expect(scene.scene).toEqual({ kind: "system", id: SYSTEM });
+    expect(scene.bodySelection).toEqual({ system: SYSTEM, ids: [WORLD] });
+    expect(scene.bodyFocus?.id).toBe(WORLD);
+  });
+
+  it("hides while the system view shows the body selected, and shows again on the galaxy", async () => {
+    await arm();
+    useSceneStore.getState().goToBody(SYSTEM, WORLD);
+    const html = render(WORLD);
+    expect(html).toContain('<span class="name">Tarkin</span>');
+    expect(html).not.toContain(SHOW);
+
+    useSceneStore.getState().exitScene();
+    expect(render(WORLD)).toContain(SHOW);
+  });
+
+  it("hides on a body its system's details don't list, which the system view can't select", async () => {
+    await open("save");
+    await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
+    await answerPage(planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" }));
+
+    const html = render(WORLD);
+    expect(html).toContain('<span class="name">Tarkin</span>');
+    expect(html).not.toContain(SHOW);
   });
 });
 

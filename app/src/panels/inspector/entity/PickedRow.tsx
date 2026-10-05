@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** A line under a picked row's name; `className` is the line's own style. */
 export interface PickedLine {
   className: "l2" | "l3" | "pl-anomaly-desc";
-  text: string;
+  text: ReactNode;
 }
 
 /** The button that takes a picked row off its body. */
@@ -11,6 +11,8 @@ export interface PickedRemove {
   title: string;
   label: string;
   run: () => void;
+  /** The id of what describes the row, while it shows. */
+  describedBy?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export function PickedRow({
           className="pl-dep-remove pl-mod-remove"
           title={remove.title}
           aria-label={remove.label}
+          aria-describedby={remove.describedBy}
           onClick={remove.run}
         >
           ✕

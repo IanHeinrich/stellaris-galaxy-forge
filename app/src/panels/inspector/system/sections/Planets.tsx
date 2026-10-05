@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
@@ -10,6 +10,7 @@ import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { bodyEntry, useInspectorStore } from "../../../../store/inspectorStore";
+import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
@@ -39,6 +40,17 @@ function SizeAndPops({ size, pops }: { size: string | number | null; pops: numbe
   );
 }
 
+/** Opens the menu of body `id`'s row at the pointer, in the map area's pixels the menu is placed in. */
+function openRowMenu(e: MouseEvent, system: number, id: number): void {
+  e.preventDefault();
+  const area = document.querySelector(".map-area")?.getBoundingClientRect();
+  useMapChromeStore.getState().openContextMenu({
+    target: { kind: "bodyRow", system, id },
+    x: e.clientX - (area?.left ?? 0),
+    y: e.clientY - (area?.top ?? 0),
+  });
+}
+
 export function PlanetRow({
   planet,
   details,
@@ -53,6 +65,7 @@ export function PlanetRow({
   const classes = useGameDataStore((s) => s.planetClasses);
   const names = useGameDataStore((s) => s.names);
   const open = useInspectorStore((s) => s.open);
+  const enterable = useFileSessionStore(canEnterSystem);
   const sprite = classes.get(planet.class)?.icon_sprite;
   const rows = resourceRows({ ...details, resources: planet.deposits }, icons);
   const wide = rows.length > INLINE_RESOURCES;
@@ -66,6 +79,7 @@ export function PlanetRow({
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
       title={editHint ?? undefined}
       onOpen={() => open(bodyEntry(details.id, planet.id, name))}
+      onContextMenu={enterable ? (e) => openRowMenu(e, details.id, planet.id) : undefined}
     >
       <PlanetIcon planetClass={planet.class} sprite={sprite} seed={planet.id} />
       <span>

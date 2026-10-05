@@ -12,6 +12,7 @@ import {
   pickerSections,
   searchText,
   type ChipItem,
+  type ChipMenu,
   type CommonChip,
   type PickerSection,
 } from "./picker";
@@ -55,10 +56,10 @@ export interface DepositRow {
   view: DepositTypeView | undefined;
   label: string;
   /**
-   * What it gives, spelled out: "Energy per month", or "+2 Minerals, Blocks 1 district"; empty
-   * for a type that gives nothing.
+   * What it gives, a line each: "Energy per month", or "+2 Minerals" and "Blocks 1 district";
+   * empty for a type that gives nothing.
    */
-  gives: string;
+  effects: string[];
   /**
    * Its first type's localised description, for the row's hover text; `null` for a family,
    * whose types each describe themselves on their own button.
@@ -108,18 +109,18 @@ export function describes(text: string | null): string | null {
 }
 
 /** What one type gives: each yield with its amount, then each effect. */
-function typeGives(view: DepositTypeView | undefined): string {
-  if (view === undefined) return "";
+function typeEffects(view: DepositTypeView | undefined): string[] {
+  if (view === undefined) return [];
   return [
     ...view.yields.map((y) => `${signed(y.amount)} ${y.name}`),
     ...view.effects.map(effectText),
-  ].join(", ");
+  ];
 }
 
 /** What a family gives, whatever the amount picked: its resources per month. */
-function familyGives(view: DepositTypeView | undefined): string {
-  if (view === undefined || view.yields.length === 0) return typeGives(view);
-  return `${view.yields.map((y) => y.name).join(" and ")} per month`;
+function familyEffects(view: DepositTypeView | undefined): string[] {
+  if (view === undefined || view.yields.length === 0) return typeEffects(view);
+  return [`${view.yields.map((y) => y.name).join(" and ")} per month`];
 }
 
 /** The offered types `mode` adds as rows, one per family, by name; a family's types by amount. */
@@ -140,14 +141,14 @@ export function depositRows(
     const first = sorted[0];
     const view = views.get(first.key);
     const label = typeLabel(first.key, view);
-    const gives = sorted.length > 1 ? familyGives(view) : typeGives(view);
+    const effects = sorted.length > 1 ? familyEffects(view) : typeEffects(view);
     const category = sorted.find((m) => m.category !== "Special")?.category ?? "Special";
     const blocker = category === "Blockers";
     return {
       family,
       view,
       label,
-      gives,
+      effects,
       description: sorted.length > 1 ? null : describes(first.description),
       category,
       special: category === "Special" || (blocker && (first.event_only || !plainBlock(view))),
@@ -159,7 +160,7 @@ export function depositRows(
         const gives = amount === null ? label : `${signed(amount)} ${label}`;
         return { key: m.key, amount, title: own === null ? gives : `${gives}. ${own}` };
       }),
-      search: searchText([label, gives, category]),
+      search: searchText([label, effects.join(", "), category]),
     };
   });
   return byLabel(rows);
@@ -177,9 +178,15 @@ function plainBlock(view: DepositTypeView | undefined): boolean {
   );
 }
 
+/** The drop-down that holds the blocker picker's techs. */
+export const CLEARED_BY: ChipMenu<DepositChip> = {
+  label: "Cleared by",
+  any: { chip: "All", label: "Any technology" },
+};
+
 /**
- * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, then
- * No tech needed, Can't be cleared and Special where a blocker is so.
+ * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, in
+ * the Cleared by drop-down, then No tech needed, Can't be cleared and Special where a blocker is so.
  */
 export function blockerChips(rows: readonly DepositRow[]): ChipItem<DepositChip>[] {
   const techs = new Map<string, string>();
@@ -188,7 +195,11 @@ export function blockerChips(rows: readonly DepositRow[]): ChipItem<DepositChip>
   const some = (test: (row: DepositRow) => boolean) => rows.some(test);
   return [
     ...COMMON_CHIPS,
-    ...byName.map(([key, name]): ChipItem<DepositChip> => ({ chip: `tech:${key}`, label: name })),
+    ...byName.map(([key, name]): ChipItem<DepositChip> => ({
+      chip: `tech:${key}`,
+      label: name,
+      menu: CLEARED_BY,
+    })),
     ...(some((r) => r.clearedBy?.length === 0)
       ? [{ chip: "NoTech" as const, label: "No tech needed" }]
       : []),

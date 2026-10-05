@@ -3,7 +3,7 @@ import type { FleetSummary } from "../../generated/FleetSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { ShipSizeView } from "../../generated/ShipSizeView";
 import { fleetSummary, planetSummary } from "../../test/builders";
-import { fleetIcon, formatPops, orderedPlanets } from "./rows";
+import { fleetIcon, fleetIconKeys, formatPops, orderedPlanets } from "./rows";
 
 const planet = (p: Partial<PlanetSummary> & { id: number }): PlanetSummary =>
   planetSummary({ class: "pc_barren", habitable: false, ...p });
@@ -16,6 +16,11 @@ const SHIP_SIZES = new Map<string, ShipSizeView>([
   ["cruiser", { key: "cruiser", icon: "ship_size_military_8" }],
   ["battleship", { key: "battleship", icon: "ship_size_military_16" }],
   ["constructor", { key: "constructor", icon: "ship_size_constructor" }],
+  ["mining_station", { key: "mining_station", icon: null }],
+  ["research_station", { key: "research_station", icon: null }],
+  ["starbase_outpost", { key: "starbase_outpost", icon: "ship_size_military_station" }],
+  ["starbase_citadel", { key: "starbase_citadel", icon: "ship_size_military_station" }],
+  ["juggernaut", { key: "juggernaut", icon: "ship_size_military_station" }],
   ["unknown_hull", { key: "unknown_hull", icon: null }],
 ]);
 
@@ -74,5 +79,51 @@ describe("fleetIcon", () => {
     expect(fleetIcon(fleet([["constructor", 1]]), SHIP_SIZES)).toBe("ship_size_constructor");
     expect(fleetIcon(fleet([["unknown_hull", 1]]), SHIP_SIZES)).toBeNull();
     expect(fleetIcon(fleet([]), SHIP_SIZES)).toBeNull();
+  });
+});
+
+describe("fleetIconKeys", () => {
+  const keys = (size: string) => fleetIconKeys(fleet([[size, 1]]), SHIP_SIZES);
+
+  it("shows a station's resource and a starbase's level in the game's art", () => {
+    expect(keys("mining_station")).toEqual(["sprite:GFX_resource_minerals"]);
+    expect(keys("research_station")).toEqual(["sprite:GFX_research_icon"]);
+    expect(keys("starbase_outpost")).toEqual(["sprite:GFX_starbase_ship_size_small#1"]);
+    expect(keys("starbase_citadel")).toEqual(["sprite:GFX_starbase_ship_size_small#5"]);
+  });
+
+  it("shows the resource a station works first, then the station's own icon", () => {
+    const station = (size: string, works: string[]) =>
+      fleetSummary({ ships: 1, ship_sizes: [{ key: size, count: 1 }], works });
+    expect(fleetIconKeys(station("mining_station", ["energy"]), SHIP_SIZES)).toEqual([
+      "sprite:GFX_resource_energy",
+      "sprite:GFX_resource_minerals",
+    ]);
+    expect(
+      fleetIconKeys(
+        station("research_station", ["engineering", "physics"]),
+        SHIP_SIZES,
+        new Map([["engineering_research", "GFX_resource_engineering_alt"]]),
+      ),
+    ).toEqual(["sprite:GFX_resource_engineering_alt", "sprite:GFX_research_icon"]);
+    expect(fleetIconKeys(station("research_station", []), SHIP_SIZES)).toEqual([
+      "sprite:GFX_research_icon",
+    ]);
+  });
+
+  it("keeps every other ship's own ship-size icon, and nothing for a size without one", () => {
+    expect(keys("constructor")).toEqual(["sprite:GFX_ship_size_constructor"]);
+    expect(keys("juggernaut")).toEqual(["sprite:GFX_ship_size_military_station"]);
+    expect(
+      fleetIconKeys(
+        fleet([
+          ["corvette", 3],
+          ["cruiser", 1],
+        ]),
+        SHIP_SIZES,
+      ),
+    ).toEqual(["sprite:GFX_ship_size_military_8"]);
+    expect(keys("unknown_hull")).toEqual([]);
+    expect(keys("modded_mining_station")).toEqual([]);
   });
 });

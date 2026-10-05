@@ -34,8 +34,8 @@ export interface ModifierPickRow {
   /** The feature's key, else the modifier's: unique among the rows. */
   key: string;
   label: string;
-  /** Its effects, spelled out: "+10% Minerals, -1 Max Districts"; empty for none. */
-  gives: string;
+  /** Its effects, a line each as the game words them: "+10% Minerals"; empty for none. */
+  effects: string[];
   /** The row's hover text: its localised description and what it needs, when it has them. */
   description: string | null;
   /** The planet's class makes it a terraforming candidate with this modifier. */
@@ -60,18 +60,24 @@ export function modifierPickRows(
   const held = new Set(has);
   const rows = choices.map((choice): ModifierPickRow => {
     const label = choice.view.name || choice.view.key;
-    const gives = choice.view.effects.map((e) => e.text).join(", ");
+    const effects = choice.view.effects.map((e) => e.text);
     const need = choice.category === "Terraforming" ? needs(choice.modifier) : null;
     const described = [choice.description, need].filter((t): t is string => !!t).join("\n\n");
     return {
       choice,
       key: choice.feature ?? choice.modifier,
       label,
-      gives,
+      effects,
       description: described === "" ? null : described,
       usual: choice.modifier === usual,
       held: held.has(choice.modifier) || (choice.feature !== null && held.has(choice.feature)),
-      search: searchText([label, gives, choice.category, choice.feature ?? "", choice.modifier]),
+      search: searchText([
+        label,
+        effects.join(", "),
+        choice.category,
+        choice.feature ?? "",
+        choice.modifier,
+      ]),
     };
   });
   return byLabel(rows);

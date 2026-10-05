@@ -45,10 +45,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   offer, from the document's capabilities.
   `planetRemoval` is the ops that delete a body or remove its colony and
   the sentences their confirms ask. `picker` is what the deposit, modifier,
-  dig site and anomaly pickers share: the search, the usual rows first, and
-  the target and edit adapter they add
-  through, so a source other than a save can plug in its own adapter
-  (`store/planetEditAdapter.ts` holds the save's). `depositPicker` groups
+  dig site and anomaly pickers share: the search, the usual rows first,
+  a row's effect summary, where the side card goes, and the target and
+  edit adapter they add through, so a source other than a save can plug
+  in its own adapter (`store/planetEditAdapter.ts` holds the save's). `depositPicker` groups
   the deposit types its picker offers into families, sections and chips,
   `modifierPicker` is the modifier picker's rows and chips,
   `digSitePicker` is the dig site picker's rows and chips and the line a

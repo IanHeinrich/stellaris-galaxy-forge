@@ -1,4 +1,14 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { popupPlace, type Across } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { FilterField } from "./parts";
@@ -24,6 +34,62 @@ function Row({ item }: { item: IconPickerItem }) {
       {item.note !== undefined && <span className="icon-picker-note muted">{item.note}</span>}
     </>
   );
+}
+
+/** How far a popup stays inside the edge of the box that shows it. */
+const POPUP_EDGE_PX = 4;
+
+/** The part of the window `el` shows its overflow in: inside every ancestor that clips or scrolls it. */
+function shownAcross(el: HTMLElement): Across {
+  let left = 0;
+  let right = document.documentElement.clientWidth;
+  for (let at = el.parentElement; at !== null; at = at.parentElement) {
+    if (getComputedStyle(at).overflowX === "visible") continue;
+    const inner = at.getBoundingClientRect().left + at.clientLeft;
+    left = Math.max(left, inner);
+    right = Math.min(right, inner + at.clientWidth);
+  }
+  return { left: left + POPUP_EDGE_PX, right: right - POPUP_EDGE_PX };
+}
+
+/** Hangs `popup` from whichever edge of `picker` keeps it inside the box that shows it, narrowed where neither does. */
+function fitPopup(popup: HTMLElement, picker: HTMLElement) {
+  const { style } = popup;
+  style.left = style.right = style.minWidth = style.maxWidth = "";
+  const { edge, maxWidth } = popupPlace(
+    picker.getBoundingClientRect(),
+    shownAcross(picker),
+    popup.offsetWidth,
+  );
+  if (edge === "right") {
+    style.left = "auto";
+    style.right = "0";
+  }
+  if (maxWidth !== null) {
+    style.minWidth = "0";
+    style.maxWidth = `${maxWidth}px`;
+  }
+}
+
+/**
+ * While `open`, fits `popup` to the box that shows `picker`, so it never widens that box into
+ * scrolling sideways: before it paints, again as `rows` change and as the window resizes.
+ */
+function usePopupFit(
+  open: boolean,
+  picker: RefObject<HTMLElement | null>,
+  popup: RefObject<HTMLElement | null>,
+  rows: unknown,
+): void {
+  useLayoutEffect(() => {
+    const at = picker.current;
+    const el = popup.current;
+    if (!open || at === null || el === null) return undefined;
+    const place = () => fitPopup(el, at);
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open, picker, popup, rows]);
 }
 
 /**
@@ -63,6 +129,7 @@ export function IconPicker({
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const filter = useRef<HTMLInputElement>(null);
+  const filteredPop = useRef<HTMLDivElement>(null);
   const id = useId();
   const listId = `${id}-list`;
   const optionId = (i: number) => `${id}-${i}`;
@@ -72,6 +139,7 @@ export function IconPicker({
   const emptyRow = items.length > 0 ? "No matches" : empty;
 
   useOutsidePress(open, () => setOpen(false), root);
+  usePopupFit(open, root, filtered ? filteredPop : list, items);
   useEffect(() => {
     if (open) (filter.current ?? list.current)?.focus();
   }, [open]);
@@ -192,7 +260,7 @@ export function IconPicker({
       {open &&
         !disabled &&
         (filtered ? (
-          <div className="icon-picker-pop icon-picker-filtered">
+          <div className="icon-picker-pop icon-picker-filtered" ref={filteredPop}>
             <FilterField
               label={`Filter ${items.length} choices`}
               value={query}

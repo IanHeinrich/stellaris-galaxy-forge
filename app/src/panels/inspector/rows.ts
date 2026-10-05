@@ -3,7 +3,13 @@ import type { DepositCount } from "../../generated/DepositCount";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { ShipSizeView } from "../../generated/ShipSizeView";
+import {
+  MINING_STATION_ICON_KEY,
+  RESEARCH_STATION_ICON_KEY,
+  starbaseTileKey,
+} from "../../lib/details/icons";
 import { FALLBACK_HABITABLE, isColony } from "../../lib/details/labels";
+import { canonicalResource, resourceSprite } from "../../lib/resources";
 import { keyWords } from "../../lib/text";
 
 export const POP_ICON_KEY = "sprite:GFX_pop";
@@ -101,6 +107,36 @@ export function fleetIcon(
     }
   }
   return best ?? first;
+}
+
+/** The vanilla station ship sizes, which name no ship-size icon or only the one every starbase shares. */
+const STATION_ICON_KEYS = new Map<string, string>([
+  ["mining_station", MINING_STATION_ICON_KEY],
+  ["research_station", RESEARCH_STATION_ICON_KEY],
+  ["starbase_outpost", starbaseTileKey(1)],
+  ["starbase_starport", starbaseTileKey(2)],
+  ["starbase_starhold", starbaseTileKey(3)],
+  ["starbase_starfortress", starbaseTileKey(4)],
+  ["starbase_citadel", starbaseTileKey(5)],
+]);
+
+/**
+ * The texture keys a fleet row draws: the first resource a station works, then the station's own
+ * picture, else its ship-size icon.
+ */
+export function fleetIconKeys(
+  f: FleetSummary,
+  shipSizes: ReadonlyMap<string, ShipSizeView>,
+  resourceIcons: ReadonlyMap<string, string> = new Map(),
+): string[] {
+  const station = STATION_ICON_KEYS.get(f.ship_sizes[0]?.key ?? "");
+  if (station) {
+    const worked = f.works[0];
+    if (worked === undefined) return [station];
+    return [resourceSprite(canonicalResource(worked), resourceIcons), station];
+  }
+  const icon = fleetIcon(f, shipSizes);
+  return icon ? [`sprite:GFX_${icon}`] : [];
 }
 
 /** The glyph drawn when the ship-size sprite is unavailable. */

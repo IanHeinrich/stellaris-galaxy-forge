@@ -34,6 +34,8 @@
   --text-hint: 11px;
   --text-note: 11.5px;
   --text-control: 12px;
+  /* The label column of every edit block, wide enough for "Orbit radius". */
+  --edit-label-width: 78px;
 
   --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.5);
   --shadow-dialog: 0 10px 30px rgba(0, 0, 0, 0.5);

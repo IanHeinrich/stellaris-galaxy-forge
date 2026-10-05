@@ -26,8 +26,14 @@
 
 /* The icon may be taller than the line; it overflows its box so the line keeps its height. */
 .icon-picker-trigger .icon-picker-icon {
-  width: 18px;
+  width: 22px;
   height: 12px;
+}
+
+/* Inside the trigger's border, so a field that fills the row keeps a clean left edge. */
+.icon-picker-trigger .pi img {
+  width: 22px;
+  height: 22px;
 }
 
 /* A baked disc is larger than a planet sprite: draw every planet icon at a sprite's size. */
@@ -223,6 +229,16 @@
   cursor: pointer;
 }
 
+/* A choice's name gives way to the caret at the field's right edge. */
+.icon-picker-trigger.edit-field .icon-picker-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
 .edit-toggle input {
   margin: 0;
 }
@@ -257,22 +273,51 @@
   color: var(--fg-muted);
 }
 
+/* Every block shares one label column, so fields start at the same place on every page. */
 .edit-grid {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: var(--edit-label-width) minmax(0, 1fr);
   gap: 4px 10px;
   align-items: center;
 }
 
 .edit-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--fg-muted);
 }
 
+/* Every field takes the rest of its row, and gives way rather than run past the block. */
 .edit-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
-.edit-grid > .edit-toggle,
+.edit-cell > *,
+.edit-cell .icon-picker,
+.edit-bounds > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.edit-cell .icon-picker > .icon-picker-trigger {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-bounds {
+  display: flex;
+  gap: 6px;
+}
+
+/* A toggle is its checkbox then its label, from the field column to the row's end. */
+.edit-grid > .edit-toggle {
+  grid-column: 2 / -1;
+  justify-self: start;
+}
+
 .edit-grid > .edit-note {
   grid-column: 1 / -1;
   justify-self: start;

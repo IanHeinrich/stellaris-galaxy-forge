@@ -17,7 +17,7 @@ function anomalyItem(row: AnomalyPickRow): PickerItem {
   return {
     key: row.key,
     label: row.label,
-    gives: row.gives,
+    effects: row.effects,
     description: row.description,
     art: <Icon keys={[]} glyph="?" />,
     buttons: [{ text: "Add", label: `Add ${row.label}`, title: `Add ${row.label}` }],

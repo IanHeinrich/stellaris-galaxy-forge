@@ -150,7 +150,10 @@ export function SwatchField({
   return <PickerField current={swatchItem(current)} items={swatches.map(swatchItem)} {...rest} />;
 }
 
-/** A yes or no, as a labelled checkbox in the field style. */
+/**
+ * A yes or no, as a labelled checkbox in the field style. In an edit block it starts at the field
+ * column and takes the rest of the row, so a long label wraps after its checkbox.
+ */
 export function ToggleField({
   label,
   checked,

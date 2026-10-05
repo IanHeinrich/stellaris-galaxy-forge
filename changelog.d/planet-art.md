@@ -3,7 +3,6 @@
 
 ### Changed
 - The planet class picker shows each class's planet art.
-- The description in the deposit, modifier, anomaly and dig site pickers has one height, so the list no longer jumps as you move along it. A long description scrolls.
 
 ### Fixed
 - Modded planets that take their surface from another model show their art. This covers More Arcologies' arcologies and Planetary Diversity's tidally locked worlds.

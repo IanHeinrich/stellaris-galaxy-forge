@@ -10,6 +10,7 @@ import {
   type DepositRow,
   type PickerMode,
 } from "../../../lib/details/depositPicker";
+import { chipLabel } from "../../../lib/details/picker";
 import { resourceAbbrev } from "../../../lib/details/resources";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -27,7 +28,8 @@ function depositItem(row: DepositRow): PickerItem {
   return {
     key: row.family,
     label: row.label,
-    gives: row.gives,
+    effects: row.effects,
+    category: chipLabel(DEPOSIT_CHIPS, row.category),
     description: row.description,
     art: view !== undefined && <Icon className="pl-art" keys={[view.texture_key]} glyph="" />,
     yields: view?.yields.map((y) => (

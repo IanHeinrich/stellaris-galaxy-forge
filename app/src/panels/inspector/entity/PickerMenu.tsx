@@ -7,17 +7,26 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import type { ChipItem, PickerSection } from "../../../lib/details/picker";
+import {
+  chipLine,
+  type ChipItem,
+  type ChipMenu,
+  type PickerSection,
+} from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
+import { IconPicker } from "../../IconPicker";
 import { useOutsidePress } from "../../useOutsidePress";
+import { EffectSummary, PickerCard, type CardItem } from "./PickerCard";
 import type { PickerKind } from "./PlanetPicker";
 
-export const NO_DESCRIPTION = "No description";
 /** The open picker's height where the page has room for it. */
 export const PICKER_HEIGHT = 520;
-/** The least it shrinks to, which still leaves three rows above a capped description. */
+/**
+ * The least it shrinks to, which still leaves a few rows in the list, and the card under them
+ * where the window has no room for it beside the dock.
+ */
 export const PICKER_MIN_HEIGHT = 320;
 /** The page's padding and the picker's margins, which the picker leaves out of the room it takes. */
 const PAGE_ROOM_MARGIN = 24;
@@ -36,12 +45,8 @@ export interface PickerButton {
 }
 
 /** What a row shows. */
-export interface PickerItem {
+export interface PickerItem extends CardItem {
   key: string;
-  label: string;
-  /** What it gives, spelled out; empty for nothing. */
-  gives: string;
-  /** What the details under the list say about it. */
   description: string | null;
   art: ReactNode;
   /** Added to the art's class. */
@@ -62,6 +67,7 @@ function PickerRow({
   item,
   id,
   lit,
+  keyed,
   cursor,
   describedBy,
   onHover,
@@ -69,17 +75,24 @@ function PickerRow({
 }: {
   item: PickerItem;
   id: string;
-  /** The details under the list describe this row. */
+  /** The card describes this row. */
   lit: boolean;
+  /** The keyboard stands on this row, which scrolls into view before the card measures it. */
+  keyed: boolean;
   /** The button the keyboard stands on, when it stands on this row and nothing else is lit. */
   cursor: number | null;
-  /** The details' id, when they describe the row the keyboard stands on. */
+  /** The card's id, when it describes the row the keyboard stands on. */
   describedBy: string | undefined;
   onHover: () => void;
   onAdd: (button: number) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (keyed) ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [keyed]);
   return (
     <div
+      ref={ref}
       id={id}
       className={`dp-row${item.buttons.length > 1 ? " family" : ""}${lit ? " active" : ""}`}
       aria-describedby={describedBy}
@@ -92,7 +105,7 @@ function PickerRow({
         <span className="l1">{item.label}</span>
         <span className="l2">
           {item.yields}
-          {item.gives === "" ? <span className="muted">No effect</span> : item.gives}
+          <EffectSummary effects={item.effects} />
         </span>
       </span>
       <span className="dp-amounts">
@@ -114,24 +127,31 @@ function PickerRow({
   );
 }
 
-/**
- * The name and description of the row under the pointer or the keyboard, at a fixed height; empty
- * without rows.
- */
-function PickerDetails({ id, item }: { id: string; item: PickerItem | null }) {
+/** A drop-down on the chip line: `menu`'s label, then the choice picked of `choices`, else its first. */
+function ChipDropDown<C extends string>({
+  menu,
+  choices,
+  chip,
+  onPick,
+}: {
+  menu: ChipMenu<C>;
+  choices: readonly ChipItem<C>[];
+  chip: C;
+  onPick: (chip: C) => void;
+}) {
+  const chosen = choices.find((each) => each.chip === chip);
+  const choice = (each: ChipItem<C>) => ({ key: each.chip, label: each.label });
   return (
-    <div id={id} className="dp-details">
-      {item !== null && (
-        <>
-          <span className="dp-details-name">{item.label}</span>
-          {item.description === null ? (
-            <span className="muted">{NO_DESCRIPTION}</span>
-          ) : (
-            <span className="dp-details-text">{item.description}</span>
-          )}
-        </>
-      )}
-    </div>
+    <span className={chosen === undefined ? "dp-chip-menu" : "dp-chip-menu on"}>
+      {menu.label}:
+      <IconPicker
+        label={menu.label}
+        current={choice(chosen ?? menu.any)}
+        items={[menu.any, ...choices].map(choice)}
+        triggerClassName="dp-chip"
+        onPick={(key) => onPick(key as C)}
+      />
+    </span>
   );
 }
 
@@ -147,7 +167,7 @@ function scrollingPage(el: HTMLElement): HTMLElement | null {
 /**
  * The picker's height: its own where the page shows that much, else what the page shows, down to
  * its least. Once on open, the page scrolls the least that brings the whole picker into view, so
- * its details are never below the fold.
+ * the end of its list, and the card where it shows under the list, are never below the fold.
  */
 function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
   const [height, setHeight] = useState(PICKER_HEIGHT);
@@ -177,7 +197,7 @@ function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
 
 /**
  * The open picker: a search, the chips, the picker's own `controls`, a line saying what was added,
- * the rows under their headings, and the details of the row under the pointer, else the keyboard.
+ * the rows under their headings, and the card of the row under the pointer, else the keyboard.
  * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
  * rows, and Enter in the search adds the button they stand on.
  */
@@ -224,11 +244,9 @@ export function PickerMenu<R, C extends string, T, X>({
   const flat = (sections ?? []).flatMap((s) => s.rows);
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `${idPrefix}-${i}`;
-  useEffect(() => {
-    document.getElementById(`${idPrefix}-${at}`)?.scrollIntoView?.({ block: "nearest" });
-  }, [idPrefix, at]);
-
   const onKey = (e: KeyboardEvent) => {
+    const inMenu = e.target instanceof Element && e.target.closest(".icon-picker") !== null;
+    if (inMenu && e.key !== ESCAPE) return;
     const inSearch = e.target === search.current;
     const row = flat[at];
     const stepping = variants && !(inSearch && query !== "");
@@ -250,7 +268,8 @@ export function PickerMenu<R, C extends string, T, X>({
     else if (e.key === ENTER && inSearch && row !== undefined) onAdd(row, cursor.button);
     else {
       const typed = e.key.length === 1 && !e.ctrlKey && !e.metaKey;
-      if (variants && !inSearch && typed) search.current?.focus();
+      const inField = e.target instanceof HTMLInputElement;
+      if (variants && !inField && typed) search.current?.focus();
       return;
     }
     e.preventDefault();
@@ -260,6 +279,10 @@ export function PickerMenu<R, C extends string, T, X>({
   const restart = () => {
     setHovered(null);
     setCursor({ row: 0, button: 0 });
+  };
+  const pickChip = (each: C) => {
+    setChip(each);
+    restart();
   };
   const lit = hovered ?? at;
   const detailed = flat[lit];
@@ -293,20 +316,27 @@ export function PickerMenu<R, C extends string, T, X>({
       </div>
       {chips.length > 0 && (
         <div className="dp-chips" role="group" aria-label={chipsName}>
-          {chips.map(({ chip: each, label }) => (
-            <button
-              key={each}
-              type="button"
-              className="dp-chip"
-              aria-pressed={chip === each}
-              onClick={() => {
-                setChip(each);
-                restart();
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          {chipLine(chips).map((place) =>
+            "menu" in place ? (
+              <ChipDropDown
+                key={place.menu.label}
+                menu={place.menu}
+                choices={place.choices}
+                chip={chip}
+                onPick={pickChip}
+              />
+            ) : (
+              <button
+                key={place.chip.chip}
+                type="button"
+                className="dp-chip"
+                aria-pressed={chip === place.chip.chip}
+                onClick={() => pickChip(place.chip.chip)}
+              >
+                {place.chip.label}
+              </button>
+            ),
+          )}
         </div>
       )}
       {controls}
@@ -337,6 +367,7 @@ export function PickerMenu<R, C extends string, T, X>({
                   item={shown}
                   id={rowId(i)}
                   lit={i === lit}
+                  keyed={i === at}
                   cursor={
                     i === at && lit === at
                       ? Math.min(cursor.button, shown.buttons.length - 1)
@@ -354,7 +385,9 @@ export function PickerMenu<R, C extends string, T, X>({
           </div>
         ))}
       </div>
-      <PickerDetails id={detailsId} item={detailed === undefined ? null : item(detailed)} />
+      {detailed !== undefined && (
+        <PickerCard id={detailsId} item={item(detailed)} rowId={rowId(lit)} />
+      )}
     </div>
   );
 }

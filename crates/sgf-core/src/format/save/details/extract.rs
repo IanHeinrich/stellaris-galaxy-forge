@@ -83,6 +83,8 @@ pub struct RawPlanet {
     pub anomaly: Option<String>,
     /// `entity_name`: the model the planet is drawn as, in place of its class's.
     pub entity_name: Option<String>,
+    /// `shipclass_orbital_station`: the mining or research station's fleet.
+    pub station: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,6 +131,10 @@ pub struct FleetSummary {
     /// What the fleet is doing: the one child key of `current_order`
     /// (`survey_planet_order`, `orbit_planet_order`), absent when it is idle.
     pub order: Option<String>,
+    /// The resources a mining or research station gathers: what the deposits of the planet
+    /// naming it as `shipclass_orbital_station` produce, in deposit order without repeats.
+    /// Filled when the system is resolved; empty for any other fleet.
+    pub works: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -397,6 +403,7 @@ fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], role: Body
         permanent_modifiers: permanent_modifiers(node, src),
         anomaly: planet.anomaly.clone(),
         entity_name: planet.entity_name.clone(),
+        station: planet.station,
     }
 }
 
@@ -508,6 +515,7 @@ fn fleet_summary(
         disabled_ships: 0,
         ship_sizes: Vec::new(),
         order: None,
+        works: Vec::new(),
     };
     let Some(entity) = index.entity(keys::FLEET, u64::from(fleet)) else {
         return Ok(summary);

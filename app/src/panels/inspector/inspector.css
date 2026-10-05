@@ -207,11 +207,6 @@ button.chip.jump:hover {
   overflow-wrap: anywhere;
 }
 
-/* Room for a coordinate like -1000.00 beside the field's pencil. */
-.edit-cell > .coord {
-  width: 100px;
-}
-
 .ins-header-row {
   display: grid;
   grid-template-columns: 1fr 1fr auto;

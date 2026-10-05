@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ComponentType } from "react";
+import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import type { Bounds } from "../../../generated/Bounds";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
@@ -16,6 +16,7 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { canEnterSystem, useBodyShown, useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
 import { Chip } from "../../parts";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
@@ -62,8 +63,34 @@ function useIsStar(body: PlanetSummary | null): boolean {
   return body.star_class !== undefined || isStarBody(body.class, planetClasses, starClasses);
 }
 
-/** The body's icon, name and the chips that say who lives there; a save's entity id beside them. */
-function Head({ name, body, id }: { name: string; body: PlanetSummary | null; id: number | null }) {
+/** Opens the system view on body `body` of `system`, unless it can't open or already shows the body selected. */
+function ShowInSystemView({ system, body }: { system: number; body: number }) {
+  const enterable = useFileSessionStore(canEnterSystem);
+  const shown = useBodyShown(system, body);
+  const goToBody = useSceneStore((s) => s.goToBody);
+  if (!enterable || shown) return null;
+  return (
+    <button type="button" className="link ins-head-action" onClick={() => goToBody(system, body)}>
+      Show in system view
+    </button>
+  );
+}
+
+/**
+ * The body's icon, name and the chips that say who lives there; a save's entity id beside them,
+ * and `action` at the end of the line.
+ */
+function Head({
+  name,
+  body,
+  id,
+  action,
+}: {
+  name: string;
+  body: PlanetSummary | null;
+  id: number | null;
+  action?: ReactNode;
+}) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
   const own = body?.star_class === undefined ? undefined : starClasses.get(body.star_class);
@@ -85,6 +112,7 @@ function Head({ name, body, id }: { name: string; body: PlanetSummary | null; id
       {body?.colonised && <Chip>colonised</Chip>}
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
+      {action}
     </div>
   );
 }
@@ -242,7 +270,12 @@ function BodyOverview({ read }: { read: BodyRead }) {
   const showRing = !star && !offers.ring && read.listed;
   return (
     <>
-      <Head name={name} body={summary} id={read.page === null ? null : summary.id} />
+      <Head
+        name={name}
+        body={summary}
+        id={read.page === null ? null : summary.id}
+        action={read.listed && <ShowInSystemView system={details.id} body={summary.id} />}
+      />
       {hasFields(fields) && <PlanetBlock id={summary.id} edits={target.edits} fields={fields} />}
       {starBlock && <StarBlock planet={summary} system={system} edits={target.edits} />}
       {starWait && <Empty>{READING_STARS}</Empty>}

@@ -29,7 +29,7 @@ export interface AnomalyPickRow {
   key: string;
   label: string;
   /** "Level 3"; empty for a category without one. */
-  gives: string;
+  effects: string[];
   description: string | null;
   /** Its spawn chance is above zero for the planet. */
   usual: boolean;
@@ -43,7 +43,7 @@ export function anomalyPickRows(choices: readonly AnomalyChoice[]): AnomalyPickR
     choice,
     key: choice.key,
     label: choice.name || choice.key,
-    gives: choice.level === null ? "" : `Level ${choice.level}`,
+    effects: choice.level === null ? [] : [`Level ${choice.level}`],
     description: choice.description,
     usual: choice.usual,
     search: searchText([choice.name, choice.key]),

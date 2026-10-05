@@ -5,6 +5,7 @@ import {
   addedLine,
   amountText,
   blockerChips,
+  CLEARED_BY,
   depositRows,
   depositSections,
   describes,
@@ -73,20 +74,20 @@ describe("the deposit picker's rows", () => {
     ]);
     const energyRow = row("yields:energy");
     expect(energyRow.label).toBe("Energy");
-    expect(energyRow.gives).toBe("Energy per month");
+    expect(energyRow.effects).toEqual(["Energy per month"]);
     expect(energyRow.amounts.map(amountText)).toEqual(["+1", "+3", "+10"]);
     expect(energyRow.category).toBe("Energy");
     expect(energyRow.usual).toBe(true);
   });
 
   it("spells out what a single type gives, with one Add button", () => {
-    expect(row("d_rich_mountain").gives).toBe("+1 Max Mining Districts");
-    expect(blockers.map((r) => [r.family, r.gives])).toEqual([
-      ["d_massive_glacier", "Blocks 1 district"],
+    expect(row("d_rich_mountain").effects).toEqual(["+1 Max Mining Districts"]);
+    expect(blockers.map((r) => [r.family, r.effects])).toEqual([
+      ["d_massive_glacier", ["Blocks 1 district"]],
     ]);
     const alloys = row("d_alloys_gases");
     expect(alloys.label).toBe("Alloys and Exotic Gases");
-    expect(alloys.gives).toBe("+5 Alloys, +3 Exotic Gases");
+    expect(alloys.effects).toEqual(["+5 Alloys", "+3 Exotic Gases"]);
     expect(alloys.amounts.map(amountText)).toEqual(["Add"]);
   });
 
@@ -114,7 +115,7 @@ describe("the deposit picker's rows", () => {
       "deposits",
     );
     expect(placeholder.label).toBe("Teeming Mining Sites");
-    expect(placeholder.gives).toBe("");
+    expect(placeholder.effects).toEqual([]);
     expect(placeholder.description).toBe("Sealed caverns.");
   });
 
@@ -191,16 +192,17 @@ describe("the blocker picker's chips", () => {
   const families = (chip: Parameters<typeof depositSections>[1]) =>
     depositSections(rows, chip, "").flatMap((s) => s.rows.map((r) => r.family));
 
-  it("offers one chip per clearing tech by name, then no tech, can't be cleared and Special", () => {
-    expect(blockerChips(rows).map((c) => c.label)).toEqual([
-      "All",
-      "Usual here",
-      "Climate Control Network",
-      "Dangerous Wildlife Removal",
-      "No tech needed",
-      "Can't be cleared",
-      "Special",
+  it("offers each clearing tech by name in the Cleared by drop-down, then no tech, can't be cleared and Special", () => {
+    expect(blockerChips(rows).map((c) => [c.label, c.menu?.label ?? null])).toEqual([
+      ["All", null],
+      ["Usual here", null],
+      ["Climate Control Network", "Cleared by"],
+      ["Dangerous Wildlife Removal", "Cleared by"],
+      ["No tech needed", null],
+      ["Can't be cleared", null],
+      ["Special", null],
     ]);
+    expect(CLEARED_BY.any).toEqual({ chip: "All", label: "Any technology" });
   });
 
   it("keeps under a tech's chip every blocker that tech clears", () => {

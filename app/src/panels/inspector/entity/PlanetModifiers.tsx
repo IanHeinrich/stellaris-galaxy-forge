@@ -1,39 +1,90 @@
-import { daysLeft, type ModifierRow } from "../../../lib/details/planetPage";
+import { useId, useState } from "react";
+import type { CardItem } from "./PickerCard";
+import type { ModifierRow } from "../../../lib/details/planetPage";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
 import { PickedRow } from "./PickedRow";
+import { modifierCard } from "./modifierCard";
+import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
 
+/** A row's card while `shown`; nothing else. */
+function RowCard({
+  shown,
+  id,
+  item,
+  rowId,
+}: {
+  shown: boolean;
+  id: string;
+  item: CardItem;
+  rowId: string;
+}) {
+  return shown ? <PickerCard id={id} item={item} rowId={rowId} /> : null;
+}
+
+/**
+ * A modifier's row: its first two effects and how long it lasts, its card while the pointer or
+ * the focus is on it, and where editable its remove button. A row without the button takes the
+ * focus itself, and whichever has the focus names the card as its description.
+ */
 function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() => void) | null }) {
   const view = row.view;
-  const name = view?.name ?? row.key;
-  const line = [
-    ...(view?.effects.map((e) => e.text) ?? []),
-    ...(row.days === null ? [] : [daysLeft(row.days)]),
-  ].join(" · ");
+  const card = modifierCard(row);
+  const name = card.label;
+  const id = useId();
+  const [shown, setShown] = useState(false);
+  const show = () => setShown(true);
+  const hide = () => setShown(false);
+  const cardId = `${id}-card`;
+  const describedBy = shown ? cardId : undefined;
+  const focusable = onRemove === null;
+  const line =
+    card.effects.length === 0 ? (
+      card.note
+    ) : (
+      <>
+        <EffectSummary effects={card.effects} />
+        {card.note !== undefined && ` · ${card.note}`}
+      </>
+    );
   return (
-    <PickedRow
-      art={
-        <>
-          <Icon keys={view?.icon == null ? [] : [view.icon]} glyph="◆" />
-          {view?.icon_frame != null && <Icon className="pl-mod-frame" keys={[view.icon_frame]} />}
-        </>
-      }
-      name={name}
-      mono={view === undefined}
-      lines={line === "" ? [] : [{ className: "l2", text: line }]}
-      remove={
-        onRemove === null
-          ? null
-          : {
-              title: row.feature ? "Remove this planet feature" : "Remove this modifier",
-              label: `Remove ${name}`,
-              run: onRemove,
-            }
-      }
-    />
+    <div
+      id={id}
+      role={focusable ? "group" : undefined}
+      aria-label={focusable ? name : undefined}
+      tabIndex={focusable ? 0 : undefined}
+      aria-describedby={focusable ? describedBy : undefined}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+    >
+      <PickedRow
+        art={
+          <>
+            <Icon keys={view?.icon == null ? [] : [view.icon]} glyph="◆" />
+            {view?.icon_frame != null && <Icon className="pl-mod-frame" keys={[view.icon_frame]} />}
+          </>
+        }
+        name={name}
+        mono={view === undefined}
+        lines={line === undefined ? [] : [{ className: "l2", text: line }]}
+        remove={
+          onRemove === null
+            ? null
+            : {
+                title: row.feature ? "Remove this planet feature" : "Remove this modifier",
+                label: `Remove ${name}`,
+                run: onRemove,
+                describedBy,
+              }
+        }
+      />
+      <RowCard shown={shown} id={cardId} item={card} rowId={id} />
+    </div>
   );
 }
 

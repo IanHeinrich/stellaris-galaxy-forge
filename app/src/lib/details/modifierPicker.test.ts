@@ -54,7 +54,7 @@ describe("modifierPickRows", () => {
     expect(candidate.description).toBe(
       "Terraforming Candidate described\n\nNeeds research for terraforming_candidate",
     );
-    expect(candidate.gives).toBe("+5 Stability");
+    expect(candidate.effects).toEqual(["+5 Stability"]);
   });
 
   it("filters by category and by effect, and lists all as one when none is usual", () => {

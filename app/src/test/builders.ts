@@ -370,6 +370,7 @@ export function fleetSummary(over: Partial<FleetSummary> = {}): FleetSummary {
     planet_killer: false,
     disabled_ships: 0,
     ship_sizes: [],
+    works: [],
     ...over,
   };
 }

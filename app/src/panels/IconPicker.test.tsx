@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { IconPickerItem } from "./IconPicker";
+import { popupPlace } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { FILTER_MIN, FilterField } from "./parts";
 
@@ -66,6 +67,39 @@ describe("an icon picker's rows", () => {
   it("puts the first match first, where Enter picks after typing", () => {
     expect(iconPickerRows(CLASSES, "world")[0].item.key).toBe("pc_desert");
     expect(iconPickerRows(CLASSES, "giant")[0].item.key).toBe("pc_gas_giant");
+  });
+});
+
+describe("an icon picker's popup", () => {
+  const inspector = { left: 1000, right: 1400 };
+
+  it("hangs from the picker's left edge where it fits", () => {
+    expect(popupPlace({ left: 1020, right: 1100 }, inspector, 320)).toEqual({
+      edge: "left",
+      maxWidth: null,
+    });
+    expect(popupPlace({ left: 1080, right: 1160 }, inspector, 320)).toEqual({
+      edge: "left",
+      maxWidth: null,
+    });
+  });
+
+  it("hangs from the picker's right edge where its left edge would run past the box", () => {
+    expect(popupPlace({ left: 1200, right: 1380 }, inspector, 260)).toEqual({
+      edge: "right",
+      maxWidth: null,
+    });
+  });
+
+  it("narrows to the room on the roomier side where neither edge fits", () => {
+    expect(popupPlace({ left: 1100, right: 1250 }, { left: 1000, right: 1300 }, 320)).toEqual({
+      edge: "right",
+      maxWidth: 250,
+    });
+    expect(popupPlace({ left: 1040, right: 1100 }, { left: 1000, right: 1300 }, 320)).toEqual({
+      edge: "left",
+      maxWidth: 260,
+    });
   });
 });
 

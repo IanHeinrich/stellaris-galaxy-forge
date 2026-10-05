@@ -65,6 +65,12 @@ export interface SceneState {
   /** Selects body `id` of `system` alone, with its page open. */
   showBody(system: number, id: number): void;
   /**
+   * Shows system `system` centred on its body `id`, selected alone with its page open. The page
+   * opens above the system's own, which the inspector would otherwise restart on as the selection
+   * follows. On the system already shown it only selects and centres the body, keeping the roll.
+   */
+  goToBody(system: number, id: number): void;
+  /**
    * Adds body `id` to the selection, or takes it out. A body of another system starts a new
    * selection, and so does any toggle on a document whose planets cannot move. When one body is
    * left it opens that body's page and returns its id; when none is, the inspector goes back to
@@ -109,6 +115,19 @@ function shownSystem({ scene }: Pick<SceneState, "scene">): number | null {
 /** The system the map shows, as a component reads it. */
 export function useSceneSystem(): number | null {
   return useSceneStore(shownSystem);
+}
+
+/** Whether the system view shows system `system` with its body `id` selected alone. */
+export function useBodyShown(system: number, id: number): boolean {
+  return useSceneStore((s) => {
+    const selection = s.bodySelection;
+    return (
+      shownSystem(s) === system &&
+      selection?.system === system &&
+      selection.ids.length === 1 &&
+      selection.ids[0] === id
+    );
+  });
 }
 
 /** The bar the chrome shows now, for the commands that run outside React. */
@@ -218,6 +237,17 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   showBody(system, id) {
     get().selectBody(system, id);
     openBodyPage(system, id);
+  },
+
+  goToBody(system, id) {
+    if (sceneSystem() !== system) {
+      get().enterSystem(system);
+      if (sceneSystem() !== system) return;
+      const label = useGalaxyStore.getState().systemName(system);
+      useInspectorStore.getState().setRoot({ ref: { kind: "system", id: system }, label });
+    }
+    get().showBody(system, id);
+    get().focusBody(id);
   },
 
   toggleBody(system, id) {

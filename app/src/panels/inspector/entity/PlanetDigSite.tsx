@@ -30,7 +30,7 @@ function digSiteItem(row: DigSitePickRow): PickerItem {
   return {
     key: row.key,
     label: row.label,
-    gives: row.gives,
+    effects: row.effects,
     description: row.choice.description,
     artClass: "pl-mod-icon",
     art: <SiteArt />,

@@ -125,6 +125,71 @@ describe("a planet picker", () => {
   });
 });
 
+describe("a picker's rows and card", () => {
+  const effect = (text: string) => ({ key: "planet_stability_add", value: 1, text });
+  const ROCKY: ModifierChoice = {
+    modifier: "rocky_planet",
+    feature: null,
+    category: "Positive",
+    description: "A world of stone.",
+    view: {
+      key: "rocky_planet",
+      name: "Rocky Planet",
+      static_modifier: "rocky_planet",
+      icon: null,
+      icon_frame: null,
+      effects: [
+        effect("+10% Minerals"),
+        effect("+5 Stability"),
+        effect("-1 Max Districts"),
+        effect("+2 Housing"),
+      ],
+    },
+  };
+
+  it("names a row's first two effects and counts the rest, or says it has none", () => {
+    useModifierPickerStore.setState({
+      target: TARGET,
+      choices: { body: "", list: [ROCKY, ...MODIFIERS] },
+    });
+    const html = renderToStaticMarkup(<PlanetPicker kind={MODIFIER_PICKER} target={TARGET} />);
+    expect(html).toContain(
+      '<span class="l2"><span>+10% Minerals, +5 Stability<span class="muted dp-more"> +2 more</span></span></span>',
+    );
+    expect(html).toContain('<span class="l2"><span class="muted">No effect</span></span>');
+  });
+
+  it("shows the lit row's card, which the row names as its description", () => {
+    useModifierPickerStore.setState({
+      target: TARGET,
+      choices: { body: "", list: [ROCKY] },
+    });
+    const html = renderToStaticMarkup(<PlanetPicker kind={MODIFIER_PICKER} target={TARGET} />);
+    expect(html).toMatch(/class="dp-row active" aria-describedby="(mp-row-[^"]+-details)"/);
+    expect(html).toMatch(/<div id="mp-row-[^"]+-details" class="dp-card"/);
+    expect(html).toContain(
+      '<span class="dp-card-name">Rocky Planet</span>' +
+        '<span class="dp-card-category muted">Positive</span>' +
+        '<ul class="dp-card-effects"><li>+10% Minerals</li><li>+5 Stability</li>' +
+        "<li>-1 Max Districts</li><li>+2 Housing</li></ul>" +
+        '<span class="dp-card-text">A world of stone.</span></div>',
+    );
+  });
+
+  it("leaves a card without effects to its name, its category and the missing description", () => {
+    useModifierPickerStore.setState({
+      target: TARGET,
+      choices: { body: "", list: MODIFIERS },
+    });
+    const html = renderToStaticMarkup(<PlanetPicker kind={MODIFIER_PICKER} target={TARGET} />);
+    expect(html).toContain(
+      '<span class="dp-card-name">Mineral Poor</span>' +
+        '<span class="dp-card-category muted">Features</span>' +
+        '<span class="dp-card-text"><span class="muted">No description</span></span></div>',
+    );
+  });
+});
+
 describe("a confirm line", () => {
   it("lists the warnings above its confirm and cancel buttons", () => {
     const html = renderToStaticMarkup(

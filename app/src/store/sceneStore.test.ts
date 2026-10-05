@@ -20,10 +20,10 @@ import {
 import { useDetailsStore } from "./detailsStore";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
-import { OPEN_RESULT, editResult, planetSummary, systemDetails } from "./fixture";
+import { OPEN_RESULT, editResult, name, planetSummary, systemDetails } from "./fixture";
 import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
-import { useInspectorStore, type Entry } from "./inspectorStore";
+import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { GALAXY_SCENE, currentBarMode, useSceneStore } from "./sceneStore";
@@ -202,6 +202,53 @@ describe("Roll again", () => {
     scene().enterSystem(0);
     rollAgain();
     expect(scene().roll).toBe(0);
+  });
+});
+
+describe("going to a body", () => {
+  const PROXIMA = 1207;
+
+  function landProxima(): void {
+    const proxima = planetSummary({ id: PROXIMA, name: name("Proxima b"), name_key: "Proxima b" });
+    useDetailsStore.setState({
+      details: new Map([[1, systemDetails({ id: 1, planets: [proxima] })]]),
+    });
+  }
+
+  it("enters the body's system from its page on the galaxy, selected with its page open and centred", async () => {
+    landProxima();
+    await editor().select(0);
+    useInspectorStore.getState().setRoot(SOL);
+    useInspectorStore.getState().openPage(bodyEntry(1, PROXIMA, "Proxima b"));
+
+    scene().goToBody(1, PROXIMA);
+
+    expect(scene().scene).toEqual(inSystem(1));
+    expect(editor().selection).toEqual([1]);
+    expect(useInspectorStore.getState().stack.map((e) => e.ref)).toEqual([
+      { kind: "system", id: 1 },
+      { kind: "body", system: 1, id: PROXIMA },
+    ]);
+    expect(labels()[1]).toBe("Proxima b");
+    expect(scene().bodySelection).toEqual({ system: 1, ids: [PROXIMA] });
+    expect(scene().bodyFocus?.id).toBe(PROXIMA);
+  });
+
+  it("only selects and centres the body in the system shown, keeping the roll drawn", async () => {
+    await openFixtureScenario();
+    landProxima();
+    scene().enterSystem(1);
+    rollAgain();
+    const { visit } = scene();
+
+    scene().goToBody(1, PROXIMA);
+
+    expect(scene().visit).toBe(visit);
+    expect(scene().roll).toBe(1);
+    expect(scene().bodySelection).toEqual({ system: 1, ids: [PROXIMA] });
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: 1, id: PROXIMA });
+    expect(scene().bodyFocus?.id).toBe(PROXIMA);
   });
 });
 

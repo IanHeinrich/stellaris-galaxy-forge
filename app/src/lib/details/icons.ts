@@ -14,6 +14,16 @@ export const PRE_FTL_ICON_KEY = "sprite:GFX_firstcontact_icon";
 export const ANOMALY_ICON_KEY = "sprite:GFX_category_anomalies";
 /** The ring-with-structure frame of the ship-class sheet, the game's map glyph for a megastructure. */
 export const MEGASTRUCTURE_ICON_KEY = "sprite:GFX_ship_class_small#22";
+/** The minerals resource icon, which a mining station's row shows. */
+export const MINING_STATION_ICON_KEY = "sprite:GFX_resource_minerals";
+/** The research icon, which a research station's row shows. */
+export const RESEARCH_STATION_ICON_KEY = "sprite:GFX_research_icon";
+
+/** The starbase tile for a starbase `icon_frame`, 1 for an outpost to 5 for a citadel. */
+export function starbaseTileKey(frame: number): string {
+  return `sprite:GFX_starbase_ship_size_small#${frame}`;
+}
+
 /** The name plate the game draws behind the owner flag and name of a colonised system. */
 export const PLATE_KEY = "sprite:GFX_map_icon_bg";
 export const CAPITAL_PLATE_KEY = "sprite:GFX_map_icon_bg_capital";

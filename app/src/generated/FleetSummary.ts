@@ -29,4 +29,10 @@ ship_sizes: Array<ShipSizeCount>,
  * What the fleet is doing: the one child key of `current_order`
  * (`survey_planet_order`, `orbit_planet_order`), absent when it is idle.
  */
-order: string | null, };
+order: string | null, 
+/**
+ * The resources a mining or research station gathers: what the deposits of the planet
+ * naming it as `shipclass_orbital_station` produce, in deposit order without repeats.
+ * Filled when the system is resolved; empty for any other fleet.
+ */
+works: Array<string>, };
