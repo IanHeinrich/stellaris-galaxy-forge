@@ -45,7 +45,7 @@ SetWormholePair: 6
 -system = { id = "14" name = "Samderaan" position = { x = 14.18 y = -306.8 } initializer = neighbor_t2 }
 +system = { id = "14" position = { x = 14.18 y = -306.8 } }
 -system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = voidworms_spawn_system_medium }
-+system = { id = "15" position = { x = -249.08 y = 249.36 } }
++system = { id = "15" position = { x = -249.08 y = 249.36 } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_s set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_fallback } }
 -system = { id = "16" name = "Bas" position = { x = -103.3 y = 397.64 } initializer = shroudwalker_enclave_init_01 }
 +system = { id = "16" position = { x = -103.3 y = 397.64 } }
 -system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }

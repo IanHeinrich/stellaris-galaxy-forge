@@ -1345,3 +1345,34 @@ fn new_random_seats_keep_the_spacing_from_a_seat_that_stays() {
     );
     assert_eq!(header_count_issues(&session), Vec::<String>::new());
 }
+
+#[test]
+fn bare_shell_puts_at_most_two_new_zones_on_the_rim_of_the_galaxy() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let rows = classify(&session, gd);
+    let choices = PreparePreset::BareShell.choices(ScenarioProfile::PaintAGalaxy);
+    let radius = session
+        .graph()
+        .systems
+        .values()
+        .map(|s| s.x.hypot(s.y))
+        .fold(0.0, f64::max);
+    for seed in 0..8 {
+        let drawn = prepare::drawn(&session, &rows, &choices, &options(seed)).expect("draw");
+        let rim = drawn
+            .zones
+            .iter()
+            .map(|(id, zone)| centre(position(&session, *id), zone))
+            .filter(|&c| distance(c, (0.0, 0.0)) > 0.8 * radius)
+            .count();
+        assert!(rim <= 2, "seed {seed}: {rim} zones on the rim");
+        assert!(
+            drawn.zones.len() >= 3,
+            "seed {seed}: {} zones",
+            drawn.zones.len()
+        );
+    }
+}

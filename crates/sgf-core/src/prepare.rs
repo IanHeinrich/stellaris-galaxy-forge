@@ -919,7 +919,8 @@ impl<'a> Plan<'a> {
     /// New random zones: the zones Paint a Galaxy would place by itself once the old ones
     /// go, in an order the seed gives, each kept whose ring stands clear of every zone kept
     /// before it and whose centre stands [`RANDOM_START_DISTANCE`] from every seat, up to the
-    /// fallen empires the mod can seat. Each is a fallback of random kind.
+    /// fallen empires the mod can seat. The zones inside the rim are taken first, then at
+    /// most [`MOST_RIM_ZONES`] on it. Each is a fallback of random kind.
     fn draw_zones(&self) -> Vec<(u32, FeZone)> {
         let going: BTreeSet<u32> = in_row(&self.systems, PrepareRow::FallenEmpires)
             .iter()
@@ -940,29 +941,43 @@ impl<'a> Plan<'a> {
             .filter_map(|id| self.graph.systems.get(id))
             .map(|s| (s.x, s.y))
             .collect();
+        let rim = RIM_FRACTION * self.graph.galaxy_radius;
+        let placed: Vec<(u32, FeZone, (f64, f64))> = candidates
+            .into_iter()
+            .filter_map(|(id, zone)| {
+                let anchor = self.graph.systems.get(&id)?;
+                let centre = fe_zone::centre((anchor.x, anchor.y), &zone);
+                Some((id, zone, centre))
+            })
+            .collect();
+        let on_rim = |centre: (f64, f64)| fe_zone::distance(centre, (0.0, 0.0)) > rim;
         let mut centres: Vec<(f64, f64)> = Vec::new();
         let mut zones = Vec::new();
-        for (id, zone) in candidates {
-            if zones.len() == MOST_FALLEN_EMPIRES as usize {
-                break;
-            }
-            let Some(anchor) = self.graph.systems.get(&id) else {
-                continue;
-            };
-            let centre = fe_zone::centre((anchor.x, anchor.y), &zone);
-            let clear = !centres.iter().any(|&c| fe_zone::overlaps(c, centre))
-                && seats
-                    .iter()
-                    .all(|&seat| fe_zone::distance(centre, seat) >= RANDOM_START_DISTANCE);
-            if clear {
-                centres.push(centre);
-                zones.push((
-                    id,
-                    FeZone {
-                        fallback: true,
-                        ..zone
-                    },
-                ));
+        for (rim_pass, most) in [
+            (false, MOST_FALLEN_EMPIRES as usize),
+            (true, MOST_RIM_ZONES),
+        ] {
+            let mut taken = 0;
+            for (id, zone, centre) in &placed {
+                if zones.len() == MOST_FALLEN_EMPIRES as usize || taken == most {
+                    break;
+                }
+                let clear = on_rim(*centre) == rim_pass
+                    && !centres.iter().any(|&c| fe_zone::overlaps(c, *centre))
+                    && seats
+                        .iter()
+                        .all(|&seat| fe_zone::distance(*centre, seat) >= RANDOM_START_DISTANCE);
+                if clear {
+                    taken += 1;
+                    centres.push(*centre);
+                    zones.push((
+                        *id,
+                        FeZone {
+                            fallback: true,
+                            ..zone.clone()
+                        },
+                    ));
+                }
             }
         }
         zones
@@ -992,6 +1007,11 @@ impl<'a> Plan<'a> {
         }
     }
 }
+
+/// How far out, as a share of the map's radius, a new zone's centre stands on the rim.
+const RIM_FRACTION: f64 = 0.8;
+/// The most new zones New random zones puts on the rim.
+const MOST_RIM_ZONES: usize = 2;
 
 /// The rows whose systems New random seats leaves alone when they are kept.
 const KEPT_FROM_SEATS: [PrepareRow; 10] = [
