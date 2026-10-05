@@ -3,7 +3,9 @@
 
 use std::path::Path;
 
-use sgf_core::prepare::{self, PrepareOptions, PreparePreset, RowChoice};
+use sgf_core::prepare::{
+    self, PrepareChoice, PrepareOptions, PreparePreset, PrepareRow, RowChoice,
+};
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 use sgf_gamedata::LoadOptions;
@@ -13,8 +15,9 @@ use super::{Outcome, Run, game_data, mutate};
 use crate::cli::Preset;
 
 /// Print each row's count, then apply `preset` with `rows` over it and save (to `out`, or
-/// in place with a backup), saying how many systems were kept clear around the seats and
-/// which systems the edit cuts off. Nothing is written when the choices change nothing.
+/// in place with a backup), saying how many systems were kept clear around the seats, which
+/// systems the edit cuts off, and the seats and zones it drew. Nothing is written when the
+/// choices change nothing.
 pub fn run(
     scenario: &Path,
     out: Option<&Path>,
@@ -48,15 +51,33 @@ pub fn run(
         return Ok(Outcome::Ok);
     };
     if options.clear_around_seats {
-        let clear = prepare::kept_clear(&session, &classified, &choices, &draw)?;
+        let clear = prepare::kept_clear(&session, &classified, &choices, &draw, options)?;
         println!("kept clear around seats: {}", clear.len());
     }
     let cut_off = prepare::cut_off(&session, &op);
     if !cut_off.is_empty() {
-        let ids: Vec<String> = cut_off.iter().map(u32::to_string).collect();
-        println!("cut off: {}", ids.join(", "));
+        println!("cut off: {}", ids(&cut_off));
+    }
+    let drawn = prepare::drawn(&session, &classified, &choices, options)?;
+    if !drawn.seats.is_empty() {
+        println!("new seats: {}", ids(&drawn.seats));
+    }
+    if let Some(floor) = drawn.seat_floor {
+        println!("seat spacing: {floor}");
+    }
+    let zones = RowChoice {
+        row: PrepareRow::FallenEmpires,
+        choice: PrepareChoice::RandomZones,
+    };
+    if choices.contains(&zones) {
+        println!("new zones: {}", drawn.zones.len());
     }
     mutate::apply_all(session, out, vec![op])
+}
+
+fn ids(systems: &[u32]) -> String {
+    let ids: Vec<String> = systems.iter().map(u32::to_string).collect();
+    ids.join(", ")
 }
 
 impl Preset {

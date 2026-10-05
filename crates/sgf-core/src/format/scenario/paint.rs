@@ -84,7 +84,7 @@ pub(crate) const SOL_INITIALIZER: &str = "sol_system_initializer";
 pub const WORKSHOP_ID: &str = "3532904115";
 
 /// The starting initializers the mod's minimum asks of a spawn system, one per residue.
-const BASIC_INITIALIZERS: [&str; 6] = [
+pub(crate) const BASIC_INITIALIZERS: [&str; 6] = [
     "random_empire_init_01",
     "random_empire_init_02",
     "random_empire_init_03",

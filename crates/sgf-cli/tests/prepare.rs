@@ -118,3 +118,38 @@ fn bare_shell_says_how_many_systems_it_kept_clear_around_the_seats() {
     let text = stdout(&rolled);
     assert!(!text.contains("kept clear around seats"), "{text}");
 }
+
+#[test]
+fn bare_shell_lists_the_new_seats_and_another_seed_draws_others() {
+    let out = temp_scenario();
+    let path = out.to_str().expect("a UTF-8 path");
+    let seats = |seed: &str| {
+        let run = sgf(&[
+            "prepare",
+            SCENARIO,
+            "--preset",
+            "shell",
+            "--seed",
+            seed,
+            "--no-mods",
+            "-o",
+            path,
+        ]);
+        if without_install(&run) {
+            return None;
+        }
+        ok(&run);
+        let text = stdout(&run);
+        let line = text
+            .lines()
+            .find_map(|line| line.strip_prefix("new seats: "))
+            .unwrap_or_else(|| panic!("the new seats: {text}"));
+        Some(line.to_owned())
+    };
+    let Some(first) = seats("0") else {
+        return;
+    };
+    assert_eq!(first.split(", ").count(), 17, "{first}");
+    assert_eq!(seats("0").as_deref(), Some(first.as_str()));
+    assert_ne!(seats("1").as_deref(), Some(first.as_str()));
+}

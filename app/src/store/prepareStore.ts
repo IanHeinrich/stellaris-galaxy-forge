@@ -144,13 +144,6 @@ export function rowSystems(preview: PreparePreview | null, row: PrepareRow): rea
   return preview?.rows.find((r) => r.row === row)?.systems ?? [];
 }
 
-/** Choices the core refuses until they are built. */
-export const UNBUILT: ReadonlySet<PrepareChoice> = new Set<PrepareChoice>([
-  "random_seats",
-  "random_zones",
-  "game_decides",
-]);
-
 /** Choices only a Paint a Galaxy map offers. */
 const PAINT_ONLY: ReadonlySet<PrepareChoice> = new Set<PrepareChoice>(["une_seat", "random_zones"]);
 
@@ -165,7 +158,7 @@ export function offeredChoices(
   return PREPARE_ROW_CHOICES[row].filter((choice) => {
     if (profile !== "paint_a_galaxy" && PAINT_ONLY.has(choice)) return false;
     if (choice === "game_decides") return row !== "sol";
-    return !UNBUILT.has(choice);
+    return true;
   });
 }
 
