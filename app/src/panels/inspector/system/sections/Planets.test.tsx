@@ -18,6 +18,7 @@ bindStores();
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 beforeEach(() => {
@@ -74,7 +75,8 @@ describe("the Planets section", () => {
   });
 
   it("opens a body row's menu at the pointer on a right-click", async () => {
-    vi.stubGlobal("document", { querySelector: () => null });
+    const area = { getBoundingClientRect: () => ({ left: 10, top: 20 }) };
+    vi.stubGlobal("document", { querySelector: () => area });
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
 
@@ -89,9 +91,8 @@ describe("the Planets section", () => {
     expect(preventDefault).toHaveBeenCalled();
     expect(useMapChromeStore.getState().contextMenu).toEqual({
       target: { kind: "bodyRow", system: SYSTEM, id: 100 },
-      x: 40,
-      y: 30,
+      x: 30,
+      y: 10,
     });
-    vi.unstubAllGlobals();
   });
 });

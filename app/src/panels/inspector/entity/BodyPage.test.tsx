@@ -300,6 +300,16 @@ describe("Show in system view", () => {
     useSceneStore.getState().exitScene();
     expect(render(WORLD)).toContain(SHOW);
   });
+
+  it("hides on a body its system's details don't list, which the system view can't select", async () => {
+    await open("save");
+    await land(details({ planets: [planet(STAR, "Alpha", { class: "pc_a_star" })] }));
+    await answerPage(planetPage({ id: WORLD, name: name("Tarkin"), name_key: "Tarkin" }));
+
+    const html = render(WORLD);
+    expect(html).toContain('<span class="name">Tarkin</span>');
+    expect(html).not.toContain(SHOW);
+  });
 });
 
 describe("a save body's orbit radius", () => {

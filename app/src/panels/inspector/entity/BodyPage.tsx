@@ -274,7 +274,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
         name={name}
         body={summary}
         id={read.page === null ? null : summary.id}
-        action={<ShowInSystemView system={details.id} body={summary.id} />}
+        action={read.listed && <ShowInSystemView system={details.id} body={summary.id} />}
       />
       {hasFields(fields) && <PlanetBlock id={summary.id} edits={target.edits} fields={fields} />}
       {starBlock && <StarBlock planet={summary} system={system} edits={target.edits} />}

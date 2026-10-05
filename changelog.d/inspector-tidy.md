@@ -1,7 +1,7 @@
 ### Added
 
 - Planet, moon and star pages have a Show in system view link. It opens the system view with the body selected.
-- Right-click a body in a system's planet list to go to it in the system view.
+- Right-click a planet, moon or star in the inspector's lists to go to it in the system view.
 
 ### Changed
 

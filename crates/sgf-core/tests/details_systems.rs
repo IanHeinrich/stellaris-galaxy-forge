@@ -3,13 +3,15 @@
 use std::fmt::Write as _;
 
 use sgf_core::format::save::details::{
-    BodyRole, DepositCount, DetailsResolver, FleetPresence, HeuristicResolver, ResourceAmount,
-    SystemDetails,
+    BodyRole, DepositCount, DetailsResolver, FleetPresence, FleetSummary, HeuristicResolver,
+    ResourceAmount, SystemDetails,
 };
 use sgf_core::projections::galaxy::FlagRef;
 use sgf_core::projections::name::{NameTemplate, NameVariable};
+use sgf_core::session::Session;
 
 use crate::common;
+use crate::ops_move_planet::with_planet;
 
 #[test]
 fn sol_reads_as_the_inspector_lists_it() {
@@ -170,6 +172,48 @@ fn a_station_works_what_its_planets_deposits_produce() {
     let worked = works(&AlsoMinerals);
     assert_eq!(worked[1], (369, "energy,minerals".to_owned()));
     assert_eq!(worked[2], (370, "minerals".to_owned()));
+}
+
+/// Planet 14 of the 4.5 sample's system 169 names research station 363 as its
+/// `shipclass_orbital_station`. Pointed at a fleet of the system that is no station, as a
+/// link the station outlived can be, that fleet works nothing.
+#[test]
+fn a_station_link_to_a_fleet_that_is_no_station_works_nothing() {
+    let fleets = |session: &Session| {
+        let details = session.details().expect("build details");
+        let system = details.resolve(169, &HeuristicResolver, false);
+        system.expect("169 resolved").fleets_present
+    };
+    let before = fleets(&common::open_4_5());
+    let works = |id: u32, listed: &[FleetSummary]| {
+        listed
+            .iter()
+            .find(|f| f.id == id)
+            .expect("listed")
+            .works
+            .clone()
+    };
+    assert!(
+        !works(363, &before).is_empty(),
+        "the station works planet 14"
+    );
+    let other = before
+        .iter()
+        .find(|f| {
+            f.ship_sizes
+                .first()
+                .is_some_and(|s| !s.key.ends_with("_station"))
+        })
+        .expect("a fleet that is no station")
+        .id;
+
+    let session = with_planet(14, |entity| {
+        entity.replace(
+            "shipclass_orbital_station=363",
+            &format!("shipclass_orbital_station={other}"),
+        )
+    });
+    assert_eq!(works(other, &fleets(&session)), Vec::<String>::new());
 }
 
 /// Alpha Centauri's red dwarf companion, 327, has two planets: each names it as `moon_of`

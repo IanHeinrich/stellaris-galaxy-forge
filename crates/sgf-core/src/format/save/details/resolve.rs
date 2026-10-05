@@ -237,6 +237,18 @@ pub struct StarbaseSummary {
     pub max_hull: f64,
 }
 
+/// The ship sizes of the stations that gather what a planet's deposits produce.
+const GATHERING_STATIONS: [&str; 2] = ["mining_station", "research_station"];
+
+/// Whether `fleet` is a mining or research station. A planet's `shipclass_orbital_station`
+/// can outlive its station and name a fleet that has since taken the id.
+fn gathers(fleet: &FleetSummary) -> bool {
+    fleet
+        .ship_sizes
+        .first()
+        .is_some_and(|size| GATHERING_STATIONS.contains(&size.key.as_str()))
+}
+
 /// One system's raw details with each planet's deposits summed into resources by
 /// `resolver`, the system's resources the sum of those rows, and each station fleet's
 /// `works` the resources of the planet it works.
@@ -326,7 +338,11 @@ pub(super) fn resolve(
             .fleets
             .iter()
             .map(|f| FleetSummary {
-                works: works.remove(&f.id).unwrap_or_default(),
+                works: if gathers(f) {
+                    works.remove(&f.id).unwrap_or_default()
+                } else {
+                    Vec::new()
+                },
                 ..f.clone()
             })
             .collect(),

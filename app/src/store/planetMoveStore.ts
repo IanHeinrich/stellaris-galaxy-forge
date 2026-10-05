@@ -11,7 +11,6 @@ import { movingBodies, refusalLine } from "../lib/planetMove";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useGalaxyStore } from "./galaxyStore";
 import { useInspectorStore } from "./inspectorStore";
 import { sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 
@@ -117,18 +116,6 @@ function withMoons(planets: readonly number[]): number[] {
 
 export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
   const scene = () => useSceneStore.getState();
-
-  /**
-   * Shows system `to` centred on its body `id`, selected alone with its page open. The page opens
-   * above `to`'s own, which the inspector would otherwise restart on as the selection follows.
-   */
-  function followTo(to: number, id: number): void {
-    useSceneStore.getState().enterSystem(to);
-    const label = useGalaxyStore.getState().systemName(to);
-    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: to }, label });
-    scene().showBody(to, id);
-    scene().focusBody(id);
-  }
 
   function fetchSelectionTargets(): void {
     const selection = scene().bodySelection;
@@ -253,7 +240,7 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       set({ lastMove: null });
       if (!(await get().move([id], to))) return false;
       if (warnings.length > 0) set({ lastMove: { planet: id, warnings } });
-      if (sceneSystem() !== null) followTo(to, id);
+      if (sceneSystem() !== null) scene().goToBody(to, id);
       return true;
     },
 
