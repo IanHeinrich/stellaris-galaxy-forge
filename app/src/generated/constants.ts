@@ -60,6 +60,7 @@ export const RESERVED_SEAT_NAMES = ["a", "b", "c", "d", "e", "f", "g", "h", "i",
 export const PREPARE_ROW_CHOICES: Record<PrepareRow, readonly PrepareChoice[]> = {
   empire_seats: ["keep", "none"],
   home_starts: ["keep", "generic_start"],
+  sol: ["keep", "plain", "pre_ftl_earth", "une_seat"],
   home_neighbours: ["keep", "plain", "game_decides"],
   origin_and_event: ["keep", "plain", "game_decides"],
   fallen_empires: ["keep", "none"],
@@ -75,9 +76,9 @@ export const PREPARE_ROW_CHOICES: Record<PrepareRow, readonly PrepareChoice[]> =
 
 /** Each Prepare preset's choice for every row. */
 export const PREPARE_PRESETS: Record<PreparePreset, Record<PrepareRow, PrepareChoice>> = {
-  faithful: { empire_seats: "keep", home_starts: "keep", home_neighbours: "keep", origin_and_event: "keep", fallen_empires: "keep", marauder_clans: "keep", guardians: "keep", enclaves: "keep", primitives: "keep", special_systems: "keep", ordinary_systems: "keep", wormhole_pairs: "keep", system_names: "keep" },
-  fresh_start: { empire_seats: "keep", home_starts: "generic_start", home_neighbours: "keep", origin_and_event: "plain", fallen_empires: "keep", marauder_clans: "keep", guardians: "keep", enclaves: "keep", primitives: "keep", special_systems: "keep", ordinary_systems: "keep", wormhole_pairs: "keep", system_names: "keep" },
-  bare_shell: { empire_seats: "keep", home_starts: "keep", home_neighbours: "keep", origin_and_event: "game_decides", fallen_empires: "keep", marauder_clans: "game_decides", guardians: "game_decides", enclaves: "game_decides", primitives: "game_decides", special_systems: "game_decides", ordinary_systems: "game_decides", wormhole_pairs: "none", system_names: "keep" },
+  faithful: { empire_seats: "keep", home_starts: "keep", sol: "keep", home_neighbours: "keep", origin_and_event: "keep", fallen_empires: "keep", marauder_clans: "keep", guardians: "keep", enclaves: "keep", primitives: "keep", special_systems: "keep", ordinary_systems: "keep", wormhole_pairs: "keep", system_names: "keep" },
+  fresh_start: { empire_seats: "keep", home_starts: "generic_start", sol: "plain", home_neighbours: "keep", origin_and_event: "plain", fallen_empires: "keep", marauder_clans: "keep", guardians: "keep", enclaves: "keep", primitives: "keep", special_systems: "keep", ordinary_systems: "keep", wormhole_pairs: "keep", system_names: "keep" },
+  bare_shell: { empire_seats: "keep", home_starts: "keep", sol: "plain", home_neighbours: "keep", origin_and_event: "game_decides", fallen_empires: "keep", marauder_clans: "game_decides", guardians: "game_decides", enclaves: "game_decides", primitives: "game_decides", special_systems: "game_decides", ordinary_systems: "game_decides", wormhole_pairs: "none", system_names: "keep" },
 };
 
 /** What a Stellaris 4.x save supports. */

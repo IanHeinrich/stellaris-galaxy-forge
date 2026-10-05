@@ -5,18 +5,20 @@
 //! systems stand in each row is the install's to say (`sgf_gamedata::prepare`); the
 //! document's [`ScenarioProfile`] says how each choice is written.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::export::ScenarioProfile;
-use crate::format::scenario::header_counts::fallen_count;
+use crate::format::scenario::header_counts::{fallen_count, is_seat};
 use crate::format::scenario::is_painted;
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::keys::scenario as keys;
 use crate::ops::Op;
-use crate::projections::galaxy::{GalaxyGraph, SystemNode};
+use crate::projections::galaxy::{
+    BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript, SystemNode,
+};
 use crate::session::Session;
 use crate::{as_u32, plural};
 
@@ -31,6 +33,8 @@ pub enum PrepareRow {
     EmpireSeats,
     /// Seats whose initializer is not a generic empire start.
     HomeStarts,
+    /// Every system on one of the game's Sol initializers, seat or not.
+    Sol,
     /// The systems a home start places beside it, guaranteed colonies among them.
     HomeNeighbours,
     /// Origin and nomad homes away from a seat, and systems only an event places.
@@ -58,9 +62,11 @@ pub enum PrepareRow {
 pub enum PrepareChoice {
     /// As the scenario has it.
     Keep,
-    /// A seat gets one of the game's random empire starts.
+    /// A seat gets one of the game's random empire starts, and a system the batch unseats
+    /// a plain system.
     GenericStart,
-    /// An ordinary star in place of the initializer.
+    /// An ordinary star in place of the initializer; a generic start on a Sol that keeps
+    /// its seat.
     Plain,
     /// No initializer: the game rolls the system.
     GameDecides,
@@ -68,7 +74,37 @@ pub enum PrepareChoice {
     None,
     /// No name: the game names the system.
     GameNames,
+    /// One Sol, the seat if one is, with Earth and pre-FTL humans on it and no seat; any
+    /// other Sol as Plain.
+    PreFtlEarth,
+    /// Paint a Galaxy's Sol seat, which only the United Nations of Earth takes, on the one
+    /// Sol, its initializer kept.
+    UneSeat,
 }
+
+/// What [`build`] does beside the rows' choices.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PrepareOptions {
+    /// The systems the game would roll within [`CLEAR_JUMPS`] lanes of a seat get Plain
+    /// system instead.
+    pub clear_around_seats: bool,
+}
+
+impl Default for PrepareOptions {
+    fn default() -> Self {
+        Self {
+            clear_around_seats: true,
+        }
+    }
+}
+
+/// How many lane jumps from a seat the systems the game would roll get Plain system
+/// instead. A scenario's effects run after the roll, so no flag keeps a capital clear.
+pub const CLEAR_JUMPS: usize = 2;
+
+/// The game's Sol with Earth and pre-FTL humans on it.
+const PRE_FTL_SOL: &str = "pre_ftl_init_sol";
 
 /// A set of choices for every row. Custom is the app's name for any other set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -127,12 +163,24 @@ pub enum PrepareError {
     RowTwice(PrepareRow),
     #[error("no plain layout to draw a plain system from")]
     NoPlainLayouts,
+    #[error("only a Paint a Galaxy map has a UNE seat")]
+    UneSeatOnPlain,
+    #[error("system #{0} already holds the Sol seat")]
+    SolSeatTaken(u32),
+    #[error("a UNE seat goes on one Sol, and the map has {}", ids(.0))]
+    SeveralSols(Vec<u32>),
+}
+
+fn ids(systems: &[u32]) -> String {
+    let ids: Vec<String> = systems.iter().map(|id| format!("#{id}")).collect();
+    ids.join(", ")
 }
 
 impl PrepareRow {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::EmpireSeats,
         Self::HomeStarts,
+        Self::Sol,
         Self::HomeNeighbours,
         Self::OriginAndEvent,
         Self::FallenEmpires,
@@ -146,12 +194,16 @@ impl PrepareRow {
         Self::SystemNames,
     ];
 
-    /// The choices the row offers, [`PrepareChoice::Keep`] first.
+    /// The choices the row offers, [`PrepareChoice::Keep`] first. Sol offers UNE seat
+    /// whatever the dialect, and [`build`] refuses it on a plain scenario.
     pub const fn choices(self) -> &'static [PrepareChoice] {
-        use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, None, Plain};
+        use PrepareChoice::{
+            GameDecides, GameNames, GenericStart, Keep, None, Plain, PreFtlEarth, UneSeat,
+        };
         match self {
             Self::EmpireSeats | Self::FallenEmpires | Self::WormholePairs => &[Keep, None],
             Self::HomeStarts => &[Keep, GenericStart],
+            Self::Sol => &[Keep, Plain, PreFtlEarth, UneSeat],
             Self::HomeNeighbours
             | Self::OriginAndEvent
             | Self::MarauderClans
@@ -168,6 +220,7 @@ impl PrepareRow {
         match self {
             Self::EmpireSeats => "empire_seats",
             Self::HomeStarts => "home_starts",
+            Self::Sol => "sol",
             Self::HomeNeighbours => "home_neighbours",
             Self::OriginAndEvent => "origin_and_event",
             Self::FallenEmpires => "fallen_empires",
@@ -188,13 +241,15 @@ impl PrepareRow {
 }
 
 impl PrepareChoice {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 8] = [
         Self::Keep,
         Self::GenericStart,
         Self::Plain,
         Self::GameDecides,
         Self::None,
         Self::GameNames,
+        Self::PreFtlEarth,
+        Self::UneSeat,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -205,6 +260,8 @@ impl PrepareChoice {
             Self::GameDecides => "game_decides",
             Self::None => "none",
             Self::GameNames => "game_names",
+            Self::PreFtlEarth => "pre_ftl_earth",
+            Self::UneSeat => "une_seat",
         }
     }
 
@@ -221,7 +278,7 @@ impl PreparePreset {
         match (self, row) {
             (Self::Faithful, _) => Keep,
             (Self::FreshStart, PrepareRow::HomeStarts) => GenericStart,
-            (Self::FreshStart, PrepareRow::OriginAndEvent) => Plain,
+            (Self::FreshStart, PrepareRow::Sol | PrepareRow::OriginAndEvent) => Plain,
             (Self::FreshStart, _) => Keep,
             (
                 Self::BareShell,
@@ -232,6 +289,7 @@ impl PreparePreset {
                 | PrepareRow::SystemNames,
             ) => Keep,
             (Self::BareShell, PrepareRow::WormholePairs) => None,
+            (Self::BareShell, PrepareRow::Sol) => Plain,
             (Self::BareShell, _) => GameDecides,
         }
     }
@@ -288,33 +346,44 @@ pub fn profile(session: &Session) -> ScenarioProfile {
 
 /// The one batch that writes `choices` over `rows`, one member per change; `None` when they
 /// change nothing. A row left out of `choices` is kept. Members follow [`PrepareRow::ALL`],
-/// each row's systems in the order `rows` lists them.
+/// each row's systems in the order `rows` lists them. Under `options`, the systems
+/// [`kept_clear`] names get Plain system where their row's choice is Game decides.
 pub fn build(
     session: &Session,
     rows: &[RowSystems],
     choices: &[RowChoice],
     draw: &PlainDraw,
+    options: &PrepareOptions,
 ) -> Result<Option<Op>, PrepareError> {
-    use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, Plain};
-    let chosen = checked(choices)?;
-    let profile = profile(session);
-    let graph = session.graph();
-    let systems: BTreeMap<PrepareRow, &[u32]> = rows
-        .iter()
-        .map(|row| (row.row, row.systems.as_slice()))
-        .collect();
+    use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, Plain, PreFtlEarth, UneSeat};
+    let plan = Plan::new(session, rows, choices)?;
+    let Plan {
+        graph,
+        profile,
+        sol,
+        ..
+    } = plan;
+    let reseated = match plan.chosen.get(&PrepareRow::Sol) {
+        Some(UneSeat) => sol.map(|node| node.id),
+        _ => None,
+    };
+    let mut unseated = BTreeSet::new();
     let mut ops = Vec::new();
     for row in PrepareRow::ALL {
-        let Some(&choice) = chosen.get(&row) else {
+        let Some(&choice) = plan.chosen.get(&row) else {
             continue;
         };
-        let ids = systems.get(&row).copied().unwrap_or_default();
-        let nodes: Vec<&SystemNode> = ids.iter().filter_map(|id| graph.systems.get(id)).collect();
+        let nodes = nodes(graph, &plan.systems, row);
         match (row, choice) {
             (_, Keep) => {}
             (PrepareRow::WormholePairs, _) => ops.extend(dialect::unpaired(profile, &nodes)),
             (PrepareRow::EmpireSeats, _) => {
-                ops.extend(nodes.iter().filter_map(|n| dialect::unseated(profile, n)));
+                for node in nodes.iter().filter(|n| reseated != Some(n.id)) {
+                    if let Some(op) = dialect::unseated(profile, node) {
+                        unseated.insert(node.id);
+                        ops.push(op);
+                    }
+                }
             }
             (PrepareRow::FallenEmpires, _) => {
                 for node in nodes {
@@ -325,22 +394,36 @@ pub fn build(
                 ops.extend(nodes.iter().filter_map(|n| dialect::game_names(profile, n)));
             }
             (_, GameDecides) => {
-                ops.extend(
-                    nodes
-                        .iter()
-                        .filter_map(|n| dialect::game_decides(profile, n)),
-                );
-            }
-            (_, GenericStart) => {
                 for node in nodes {
-                    let start = dialect::generic_start(profile, node.id);
-                    ops.extend(initializer(node, Some(start)));
+                    let near = options.clear_around_seats && plan.near_seats.contains(&node.id);
+                    match near {
+                        true if dialect::is_plain(profile, &node.initializer, draw) => {}
+                        true => {
+                            let plain = dialect::plain_system(profile, node.id, draw)?;
+                            ops.extend(initializer(node, Some(plain)));
+                        }
+                        false => ops.extend(dialect::game_decides(profile, node)),
+                    }
                 }
             }
-            (_, Plain) => {
+            (_, GenericStart | Plain | PreFtlEarth | UneSeat) => {
                 for node in nodes {
-                    let plain = dialect::plain_system(profile, node.id, draw)?;
-                    ops.extend(initializer(node, Some(plain)));
+                    let target = sol.is_some_and(|sol| sol.id == node.id);
+                    match choice {
+                        PreFtlEarth if target => {
+                            ops.extend(initializer(node, Some(PRE_FTL_SOL.to_owned())));
+                            if !unseated.contains(&node.id) {
+                                ops.extend(dialect::unseated(profile, node));
+                            }
+                        }
+                        UneSeat if target => ops.extend(une_seat(profile, node)?),
+                        UneSeat => {}
+                        Plain if row != PrepareRow::Sol => {
+                            let plain = dialect::plain_system(profile, node.id, draw)?;
+                            ops.extend(initializer(node, Some(plain)));
+                        }
+                        _ => ops.extend(initializer(node, Some(plan.start(node, draw)?))),
+                    }
                 }
             }
             (_, PrepareChoice::None) => {}
@@ -355,6 +438,251 @@ pub fn build(
         description: format!("Prepared {} for a new game", plural(changed, "system")),
         ops,
     }))
+}
+
+/// The systems [`build`] gives Plain system when it keeps the space around seats clear:
+/// each one whose row's choice is Game decides, that lies within [`CLEAR_JUMPS`] lanes of a
+/// system that holds a seat once the batch applies, and that is not a plain system
+/// already. Wormholes are not jumps. Refused where [`build`] refuses. Sorted.
+pub fn kept_clear(
+    session: &Session,
+    rows: &[RowSystems],
+    choices: &[RowChoice],
+    draw: &PlainDraw,
+) -> Result<Vec<u32>, PrepareError> {
+    let plan = Plan::new(session, rows, choices)?;
+    let graph = plan.graph;
+    let changes = |id: &&u32| {
+        graph
+            .systems
+            .get(id)
+            .is_some_and(|node| !dialect::is_plain(plan.profile, &node.initializer, draw))
+    };
+    Ok(plan.near_seats.iter().filter(changes).copied().collect())
+}
+
+/// The systems connected to the rest of the map before `batch` and not after it, read as
+/// the validator's component count reads connections: lanes and wormholes. Only a
+/// wormhole pair the batch takes out cuts anything off. Sorted.
+pub fn cut_off(session: &Session, batch: &Op) -> Vec<u32> {
+    let members = match batch {
+        Op::Batch { ops, .. } => ops.as_slice(),
+        op => std::slice::from_ref(op),
+    };
+    let unpaired: BTreeSet<u32> = members
+        .iter()
+        .flat_map(|op| match op {
+            Op::SetWormholePair { a, b, pair: None } => vec![*a, *b],
+            Op::SetWormholeEnds { entries } => entries
+                .iter()
+                .filter(|(_, pair)| pair.is_none())
+                .map(|&(id, _)| id)
+                .collect(),
+            _ => Vec::new(),
+        })
+        .collect();
+    if unpaired.is_empty() {
+        return Vec::new();
+    }
+    let mut graph = GalaxyGraph::from_galaxy(Galaxy::clone(session.graph()));
+    graph.bypasses.retain(|link| match *link {
+        BypassLink::Wormhole { a, b } => !unpaired.contains(&a) && !unpaired.contains(&b),
+        _ => true,
+    });
+    let after = graph.components();
+    graph.separated_systems(&after)
+}
+
+/// The choices checked against the map, and what [`build`] and [`kept_clear`] both read
+/// from them.
+struct Plan<'a> {
+    graph: &'a GalaxyGraph,
+    profile: ScenarioProfile,
+    chosen: BTreeMap<PrepareRow, PrepareChoice>,
+    systems: BTreeMap<PrepareRow, &'a [u32]>,
+    /// The Sol that Pre-FTL Earth or UNE seat writes, when one of them is chosen.
+    sol: Option<&'a SystemNode>,
+    /// The systems that hold a seat once the batch applies.
+    seats: BTreeSet<u32>,
+    /// The systems in a Game decides row within [`CLEAR_JUMPS`] lanes of one of `seats`.
+    near_seats: BTreeSet<u32>,
+}
+
+impl<'a> Plan<'a> {
+    fn new(
+        session: &'a Session,
+        rows: &'a [RowSystems],
+        choices: &[RowChoice],
+    ) -> Result<Self, PrepareError> {
+        let chosen = checked(choices)?;
+        let profile = profile(session);
+        let graph = session.graph();
+        let systems = by_row(rows);
+        let sols = nodes(graph, &systems, PrepareRow::Sol);
+        let sol = match chosen.get(&PrepareRow::Sol) {
+            Some(PrepareChoice::PreFtlEarth) => sols
+                .iter()
+                .find(|node| is_seat(node))
+                .or(sols.first())
+                .copied(),
+            Some(PrepareChoice::UneSeat) => une_seat_target(profile, graph, &sols)?,
+            _ => None,
+        };
+        let mut plan = Self {
+            graph,
+            profile,
+            chosen,
+            systems,
+            sol,
+            seats: BTreeSet::new(),
+            near_seats: BTreeSet::new(),
+        };
+        plan.seats = plan.seats_after();
+        let near = within(graph, &plan.seats, CLEAR_JUMPS);
+        plan.near_seats = PrepareRow::ALL
+            .into_iter()
+            .filter(|row| plan.chosen.get(row) == Some(&PrepareChoice::GameDecides))
+            .flat_map(|row| in_row(&plan.systems, row))
+            .copied()
+            .filter(|id| near.contains(id))
+            .collect();
+        Ok(plan)
+    }
+
+    /// The systems that hold a seat once the chosen rows apply: Empire seats None takes
+    /// theirs away, Pre-FTL Earth its Sol's, and UNE seat gives its Sol one.
+    fn seats_after(&self) -> BTreeSet<u32> {
+        let mut seats: BTreeSet<u32> = self
+            .graph
+            .systems
+            .values()
+            .filter(|s| is_seat(s))
+            .map(|s| s.id)
+            .collect();
+        let unseat = |seats: &mut BTreeSet<u32>, node: &SystemNode| {
+            if dialect::unseated(self.profile, node).is_some() {
+                seats.remove(&node.id);
+            }
+        };
+        if self.chosen.get(&PrepareRow::EmpireSeats) == Some(&PrepareChoice::None) {
+            for node in nodes(self.graph, &self.systems, PrepareRow::EmpireSeats) {
+                unseat(&mut seats, node);
+            }
+        }
+        match (self.chosen.get(&PrepareRow::Sol), self.sol) {
+            (Some(PrepareChoice::PreFtlEarth), Some(sol)) => unseat(&mut seats, sol),
+            (Some(PrepareChoice::UneSeat), Some(sol)) => {
+                seats.insert(sol.id);
+            }
+            _ => {}
+        }
+        seats
+    }
+
+    /// What a home start or a Sol becomes when it is made ordinary: a generic start on a
+    /// system that still holds a seat once the batch applies, else a plain system.
+    fn start(&self, node: &SystemNode, draw: &PlainDraw) -> Result<String, PrepareError> {
+        match self.seats.contains(&node.id) {
+            true => Ok(dialect::generic_start(self.profile, node.id)),
+            false => dialect::plain_system(self.profile, node.id, draw),
+        }
+    }
+}
+
+fn by_row(rows: &[RowSystems]) -> BTreeMap<PrepareRow, &[u32]> {
+    rows.iter()
+        .map(|row| (row.row, row.systems.as_slice()))
+        .collect()
+}
+
+fn in_row<'a>(systems: &BTreeMap<PrepareRow, &'a [u32]>, row: PrepareRow) -> &'a [u32] {
+    systems.get(&row).copied().unwrap_or_default()
+}
+
+fn nodes<'g>(
+    graph: &'g GalaxyGraph,
+    systems: &BTreeMap<PrepareRow, &[u32]>,
+    row: PrepareRow,
+) -> Vec<&'g SystemNode> {
+    let ids = in_row(systems, row);
+    ids.iter().filter_map(|id| graph.systems.get(id)).collect()
+}
+
+/// `from` and every system within `jumps` lanes of it.
+fn within(graph: &GalaxyGraph, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> {
+    let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::new();
+    for system in graph.systems.values() {
+        for lane in system
+            .lanes
+            .iter()
+            .filter(|l| graph.systems.contains_key(&l.to))
+        {
+            adjacent.entry(system.id).or_default().push(lane.to);
+            adjacent.entry(lane.to).or_default().push(system.id);
+        }
+    }
+    let mut reached = from.clone();
+    let mut frontier: Vec<u32> = from.iter().copied().collect();
+    for _ in 0..jumps {
+        let mut next = Vec::new();
+        for id in frontier {
+            for &to in adjacent.get(&id).map(Vec::as_slice).unwrap_or_default() {
+                if reached.insert(to) {
+                    next.push(to);
+                }
+            }
+        }
+        frontier = next;
+    }
+    reached
+}
+
+/// The one Sol UNE seat seats. Several Sols are refused, and so is a Sol seat another
+/// system already holds.
+fn une_seat_target<'g>(
+    profile: ScenarioProfile,
+    graph: &'g GalaxyGraph,
+    sols: &[&'g SystemNode],
+) -> Result<Option<&'g SystemNode>, PrepareError> {
+    dialect::sol_seat(profile)?;
+    let node = match sols {
+        [] => return Ok(None),
+        [node] => *node,
+        _ => {
+            return Err(PrepareError::SeveralSols(
+                sols.iter().map(|n| n.id).collect(),
+            ));
+        }
+    };
+    let held = graph
+        .order
+        .iter()
+        .filter_map(|id| graph.systems.get(id))
+        .find(|s| s.id != node.id && holds_sol_seat(s));
+    match held {
+        Some(held) => Err(PrepareError::SolSeatTaken(held.id)),
+        None => Ok(Some(node)),
+    }
+}
+
+/// The op that makes `node` the Sol seat, keeping its Sol initializer; none when it holds
+/// one already, whoever's marker it carries.
+fn une_seat(profile: ScenarioProfile, node: &SystemNode) -> Result<Option<Op>, PrepareError> {
+    let seat = dialect::sol_seat(profile)?;
+    Ok((!holds_sol_seat(node)).then_some(Op::SetSpawnScript {
+        system: node.id,
+        script: Some(seat),
+    }))
+}
+
+fn holds_sol_seat(node: &SystemNode) -> bool {
+    matches!(
+        node.spawn_script,
+        Some(SpawnScript::PaintAGalaxy {
+            kind: PaintSpawnKind::Sol,
+            ..
+        })
+    )
 }
 
 /// The fallen empire zones and the marauder clans the map holds once `ops` apply.
@@ -473,7 +801,7 @@ mod dialect {
     use crate::export::ScenarioProfile;
     use crate::format::scenario::paint::{self, RL_BASIC};
     use crate::ops::Op;
-    use crate::projections::galaxy::SystemNode;
+    use crate::projections::galaxy::{PaintSpawnKind, SpawnScript, SystemNode};
 
     /// The initializer Plain system writes on `system`.
     pub(super) fn plain_system(
@@ -494,6 +822,29 @@ mod dialect {
             ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
                 paint::basic_initializer(system).to_owned()
             }
+        }
+    }
+
+    /// The seat UNE seat writes: Paint a Galaxy's Sol seat, which only the United Nations
+    /// of Earth weighs above zero, with no player's marker. A plain file has none.
+    pub(super) fn sol_seat(profile: ScenarioProfile) -> Result<SpawnScript, PrepareError> {
+        match profile {
+            ScenarioProfile::Plain => Err(PrepareError::UneSeatOnPlain),
+            ScenarioProfile::PaintAGalaxy => Ok(SpawnScript::PaintAGalaxy {
+                kind: PaintSpawnKind::Sol,
+                random_value: 0,
+                player: false,
+            }),
+        }
+    }
+
+    /// Whether `initializer` is a plain layout already: one the draw holds, or on Paint a
+    /// Galaxy its random list too. Keeping such a system clear of the roll needs no redraw.
+    pub(super) fn is_plain(profile: ScenarioProfile, initializer: &str, draw: &PlainDraw) -> bool {
+        let drawn = draw.layouts.iter().any(|l| l.key == initializer);
+        match profile {
+            ScenarioProfile::Plain => drawn,
+            ScenarioProfile::PaintAGalaxy => drawn || initializer == RL_BASIC,
         }
     }
 

@@ -2,7 +2,7 @@
 //! edit that writes them.
 
 use sgf_core::ops::Op;
-use sgf_core::prepare::{self, RowChoice, RowSystems};
+use sgf_core::prepare::{self, PrepareOptions, RowChoice, RowSystems};
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, SgfError};
 use sgf_gamedata::GameData;
@@ -76,6 +76,7 @@ fn build(
     choices: &[RowChoice],
     seed: u64,
 ) -> Result<Option<Op>, SgfError> {
-    prepare::build(session, rows, choices, &plain_draw(gd, seed))
+    let options = PrepareOptions::default();
+    prepare::build(session, rows, choices, &plain_draw(gd, seed), &options)
         .map_err(|e| SgfError::new(ErrorKind::Op, e.to_string()))
 }

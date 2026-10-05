@@ -2,12 +2,13 @@
 //! from what its initializer is in the install: its `usage`, its odds, its flags, the
 //! initializers that place it, and what [`crate::special`] makes of it.
 //!
-//! A seat's system is a home start, or in no initializer row when its start is generic. A
-//! fallen empire's system is in no initializer row. Every other system stands in the first
-//! of these it fits: Home neighbours, Marauder clans, Guardians and leviathans, Enclaves,
-//! Primitives, Origin and event, Ordinary systems, else Special systems. Ordinary systems
-//! are the layouts [`layouts::ordinary`] calls ordinary, the rule the generator's plain
-//! layouts are built on.
+//! A system on a Sol layout stands in Sol, seat or not. Any other seat's system is a home
+//! start, or in no initializer row when its start is generic. A fallen empire's system is
+//! in no initializer row. Every other system stands in the first of these it fits: Home
+//! neighbours, Marauder clans, Guardians and leviathans, Enclaves, Primitives, Origin and
+//! event, Ordinary systems, else Special systems. Ordinary systems are the layouts
+//! [`layouts::ordinary`] calls ordinary, the rule the generator's plain layouts are built
+//! on.
 
 use std::collections::HashMap;
 
@@ -33,6 +34,8 @@ const NOMAD_USAGE: &str = "nomad_init";
 const RANDOM_START_USAGE: &str = "empire_init";
 /// The star flag a prescripted empire's start carries.
 const HOME_FLAG: &str = "empire_home_system";
+/// The star flag every Sol layout sets.
+const SOL_FLAG: &str = "sol";
 /// What a layout whose odds follow the primitives setting states.
 const PRIMITIVE_KEY: &str = "primitive_system";
 
@@ -64,12 +67,18 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
             push(PrepareRow::WormholePairs);
         }
         push(PrepareRow::SystemNames);
-        if seat {
-            if !node.initializer.is_empty() && !generic_start(gd, &node.initializer) {
-                push(PrepareRow::HomeStarts);
-            }
-        } else if !fallen {
-            push(initializer_row(gd, node, kinds));
+        let row = if fallen {
+            None
+        } else if sol(gd, &node.initializer) {
+            Some(PrepareRow::Sol)
+        } else if seat {
+            let home = !node.initializer.is_empty() && !generic_start(gd, &node.initializer);
+            home.then_some(PrepareRow::HomeStarts)
+        } else {
+            Some(initializer_row(gd, node, kinds))
+        };
+        if let Some(row) = row {
+            push(row);
         }
     }
     PrepareRow::ALL
@@ -95,6 +104,14 @@ pub fn plain_draw(gd: &GameData, seed: u64) -> PlainDraw {
             .collect(),
         seed,
     }
+}
+
+/// One of the game's Sol layouts, by the star flag they all set: the empire starts, the
+/// origins' variants, the primitive, tomb world and geocentric Sols.
+fn sol(gd: &GameData, initializer: &str) -> bool {
+    gd.initializers
+        .get(initializer)
+        .is_some_and(|init| init.flags.iter().any(|f| f == SOL_FLAG))
 }
 
 /// A start the game seats any empire on.

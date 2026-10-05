@@ -2,6 +2,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 
+use sgf_core::prepare::PrepareOptions;
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::LoadOptions;
 use sgf_gamedata::generate::BodyAsk;
@@ -182,6 +183,7 @@ fn run(cli: Cli) -> commands::Run {
             preset,
             rows,
             seed,
+            roll_around_seats,
             install,
             out,
         }) => commands::prepare::run(
@@ -190,6 +192,9 @@ fn run(cli: Cli) -> commands::Run {
             preset.core(),
             &rows,
             seed,
+            &PrepareOptions {
+                clear_around_seats: !roll_around_seats,
+            },
             &install.options(),
         ),
         Some(Command::SpecialLayouts { sav, install }) => {

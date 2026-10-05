@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use sgf_core::prepare::{self, PreparePreset, RowChoice};
+use sgf_core::prepare::{self, PrepareOptions, PreparePreset, RowChoice};
 use sgf_core::session::Session;
 use sgf_core::views::DocumentKind;
 use sgf_gamedata::LoadOptions;
@@ -13,13 +13,15 @@ use super::{Outcome, Run, game_data, mutate};
 use crate::cli::Preset;
 
 /// Print each row's count, then apply `preset` with `rows` over it and save (to `out`, or
-/// in place with a backup). Nothing is written when the choices change nothing.
+/// in place with a backup), saying how many systems were kept clear around the seats and
+/// which systems the edit cuts off. Nothing is written when the choices change nothing.
 pub fn run(
     scenario: &Path,
     out: Option<&Path>,
     preset: PreparePreset,
     rows: &[RowChoice],
     seed: u64,
+    options: &PrepareOptions,
     opts: &LoadOptions,
 ) -> Run {
     let session = Session::open(scenario)?;
@@ -42,13 +44,20 @@ pub fn run(
         .collect();
     choices.extend_from_slice(rows);
     let draw = plain_draw(&gd, seed);
-    match prepare::build(&session, &classified, &choices, &draw)? {
-        Some(op) => mutate::apply_all(session, out, vec![op]),
-        None => {
-            println!("nothing to change");
-            Ok(Outcome::Ok)
-        }
+    let Some(op) = prepare::build(&session, &classified, &choices, &draw, options)? else {
+        println!("nothing to change");
+        return Ok(Outcome::Ok);
+    };
+    if options.clear_around_seats {
+        let clear = prepare::kept_clear(&session, &classified, &choices, &draw)?;
+        println!("kept clear around seats: {}", clear.len());
     }
+    let cut_off = prepare::cut_off(&session, &op);
+    if !cut_off.is_empty() {
+        let ids: Vec<String> = cut_off.iter().map(u32::to_string).collect();
+        println!("cut off: {}", ids.join(", "));
+    }
+    mutate::apply_all(session, out, vec![op])
 }
 
 impl Preset {

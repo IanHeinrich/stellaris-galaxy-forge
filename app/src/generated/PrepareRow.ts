@@ -5,4 +5,4 @@
  * starts to Ordinary systems, unless it is a seat or a fallen empire's; Empire seats,
  * Fallen empires, Wormhole pairs and System names cut across them.
  */
-export type PrepareRow = "empire_seats" | "home_starts" | "home_neighbours" | "origin_and_event" | "fallen_empires" | "marauder_clans" | "guardians" | "enclaves" | "primitives" | "special_systems" | "ordinary_systems" | "wormhole_pairs" | "system_names";
+export type PrepareRow = "empire_seats" | "home_starts" | "sol" | "home_neighbours" | "origin_and_event" | "fallen_empires" | "marauder_clans" | "guardians" | "enclaves" | "primitives" | "special_systems" | "ordinary_systems" | "wormhole_pairs" | "system_names";
