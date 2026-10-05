@@ -6,9 +6,10 @@
 //! fallen empire's system is in no initializer row. Every other system stands in the first
 //! of these it fits: Home neighbours, Marauder clans, Guardians and leviathans, Enclaves,
 //! Primitives, Origin and event, Ordinary systems, else Special systems. Ordinary systems
-//! are the layouts a star-class pick of Add system draws, so the two never disagree.
+//! are the layouts [`layouts::ordinary`] calls ordinary, the rule the generator's plain
+//! layouts are built on.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use sgf_core::export::policy::is_generic_home;
 use sgf_core::format::scenario::header_counts::is_seat;
@@ -19,9 +20,8 @@ use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::Session;
 
 use crate::GameData;
-use crate::generate::star_pick_layouts;
 use crate::initializers::{InitPlanet, Initializer};
-use crate::layouts::{odds, plain_initializers};
+use crate::layouts::{self, odds, plain_initializers};
 use crate::special::{SpecialKind, classify_session};
 
 /// The `usage` of the initializers an empire starts on: the game's random starts, the
@@ -44,10 +44,6 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
         .systems
         .iter()
         .map(|system| (system.id, system.kinds.as_slice()))
-        .collect();
-    let drawn: HashSet<&str> = star_pick_layouts(gd)
-        .into_iter()
-        .map(|init| init.name.as_str())
         .collect();
     let mut rows: HashMap<PrepareRow, Vec<u32>> = HashMap::new();
     let graph = session.graph();
@@ -73,7 +69,7 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
                 push(PrepareRow::HomeStarts);
             }
         } else if !fallen {
-            push(initializer_row(gd, node, kinds, &drawn));
+            push(initializer_row(gd, node, kinds));
         }
     }
     PrepareRow::ALL
@@ -110,12 +106,7 @@ fn generic_start(gd: &GameData, initializer: &str) -> bool {
             .is_some_and(|init| init.usage.as_deref() == Some(RANDOM_START_USAGE))
 }
 
-fn initializer_row(
-    gd: &GameData,
-    node: &SystemNode,
-    kinds: &[SpecialKind],
-    drawn: &HashSet<&str>,
-) -> PrepareRow {
+fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> PrepareRow {
     let key = node.initializer.as_str();
     if key.is_empty() || is_random_list(key) {
         return PrepareRow::OrdinarySystems;
@@ -150,7 +141,7 @@ fn initializer_row(
         || (placed_by.is_empty() && event_only(init))
     {
         PrepareRow::OriginAndEvent
-    } else if drawn.contains(key) {
+    } else if layouts::ordinary(init) {
         PrepareRow::OrdinarySystems
     } else {
         PrepareRow::SpecialSystems

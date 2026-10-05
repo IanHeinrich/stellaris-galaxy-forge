@@ -130,8 +130,8 @@ fn each_system_stands_in_one_initializer_row_unless_it_is_a_seat_or_a_fallen_emp
             (PrepareRow::Guardians, 6),
             (PrepareRow::Enclaves, 14),
             (PrepareRow::Primitives, 4),
-            (PrepareRow::SpecialSystems, 184),
-            (PrepareRow::OrdinarySystems, 497),
+            (PrepareRow::SpecialSystems, 88),
+            (PrepareRow::OrdinarySystems, 593),
             (PrepareRow::WormholePairs, 0),
             (PrepareRow::SystemNames, 791),
         ]
@@ -325,8 +325,8 @@ fn a_paint_a_galaxy_export_has_no_home_starts_left_to_make_generic() {
             (PrepareRow::Guardians, 6),
             (PrepareRow::Enclaves, 14),
             (PrepareRow::Primitives, 4),
-            (PrepareRow::SpecialSystems, 183),
-            (PrepareRow::OrdinarySystems, 495),
+            (PrepareRow::SpecialSystems, 87),
+            (PrepareRow::OrdinarySystems, 591),
             (PrepareRow::WormholePairs, 12),
             (PrepareRow::SystemNames, 765),
         ]
