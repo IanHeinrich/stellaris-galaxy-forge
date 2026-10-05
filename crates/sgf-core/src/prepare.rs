@@ -11,11 +11,14 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::export::ScenarioProfile;
+use crate::format::scenario::header_counts::fallen_count;
 use crate::format::scenario::is_painted;
+use crate::format::scenario::marauder::{self, MarauderRole};
+use crate::keys::scenario as keys;
 use crate::ops::Op;
-use crate::plural;
 use crate::projections::galaxy::{GalaxyGraph, SystemNode};
 use crate::session::Session;
+use crate::{as_u32, plural};
 
 /// One row of the panel. Each system stands in exactly one of the initializer rows, Home
 /// starts to Ordinary systems, unless it is a seat or a fallen empire's; Empire seats,
@@ -347,10 +350,95 @@ pub fn build(
         return Ok(None);
     }
     let changed = changed_in(graph, &ops);
+    ops.extend(header_counts(profile, graph, &ops));
     Ok(Some(Op::Batch {
         description: format!("Prepared {} for a new game", plural(changed, "system")),
         ops,
     }))
+}
+
+/// The fallen empire zones and the marauder clans the map holds once `ops` apply.
+struct Counted {
+    zones: u32,
+    clans: u32,
+}
+
+impl Counted {
+    fn after(graph: &GalaxyGraph, ops: &[Op]) -> Self {
+        let mut zoned = BTreeMap::new();
+        let mut roles = BTreeMap::new();
+        for op in ops {
+            match op {
+                Op::SetFeZone { system, zone } => {
+                    zoned.insert(*system, zone.is_some());
+                }
+                Op::SetInitializer {
+                    system,
+                    initializer,
+                } => {
+                    roles.insert(*system, initializer.as_deref().and_then(marauder::role));
+                }
+                _ => {}
+            }
+        }
+        let systems = graph.systems.values();
+        let zones = systems
+            .clone()
+            .filter(|s| zoned.get(&s.id).copied().unwrap_or(s.fe_zone.is_some()))
+            .count();
+        let clans: BTreeSet<u8> = systems
+            .filter_map(|s| match roles.get(&s.id).copied().unwrap_or(s.marauder) {
+                Some(MarauderRole::Home(clan)) => Some(clan),
+                _ => None,
+            })
+            .collect();
+        Self {
+            zones: as_u32(zones),
+            clans: as_u32(clans.len()),
+        }
+    }
+}
+
+/// The header keys that bring the fallen empire and marauder counts down to what the map
+/// holds once `ops` apply, for each of the two the ops change. A default above what is
+/// left comes down to it and one below stays; a max follows the map exactly where the
+/// dialect sizes it by the map, and comes down to it elsewhere. Only Paint a Galaxy states
+/// fallen empire zones. Keys the header lacks or does not state as a whole number are left
+/// alone.
+fn header_counts(profile: ScenarioProfile, graph: &GalaxyGraph, ops: &[Op]) -> Option<Op> {
+    let was = Counted::after(graph, &[]);
+    let now = Counted::after(graph, ops);
+    let held = |key| graph.header_count(key);
+    let clamp = |key: &'static str, to: u32| held(key).filter(|&n| n > to).map(|_| (key, to));
+    let max = |key: &'static str, to: u32| {
+        let capped = |n: u32| match dialect::exact_maxes(profile) {
+            true => to,
+            false => n.min(to),
+        };
+        held(key)
+            .filter(|&n| capped(n) != n)
+            .map(|n| (key, capped(n)))
+    };
+    let mut entries = Vec::new();
+    if now.zones != was.zones {
+        let fallen = fallen_count(now.zones);
+        entries.extend([
+            max(keys::FALLEN_EMPIRE_MAX, fallen),
+            clamp(keys::FALLEN_EMPIRE_DEFAULT, fallen),
+        ]);
+    }
+    if now.clans != was.clans {
+        entries.extend([
+            clamp(keys::MARAUDER_EMPIRE_DEFAULT, now.clans),
+            max(keys::MARAUDER_EMPIRE_MAX, now.clans),
+        ]);
+    }
+    let entries: Vec<(String, String)> = entries
+        .into_iter()
+        .flatten()
+        .map(|(key, n)| (key.to_owned(), n.to_string()))
+        .collect();
+    (!entries.is_empty()).then_some(Op::SetHeaderKeys { entries })
 }
 
 /// `choices` by row, each offered by its row and given once.
@@ -473,6 +561,15 @@ mod dialect {
                 };
                 Ok(unlinked.into_iter().chain([zone]).collect())
             }
+        }
+    }
+
+    /// Whether the header's maxes equal what the map holds, as Paint a Galaxy sizes them
+    /// and the Issues tab checks, rather than only staying within it.
+    pub(super) fn exact_maxes(profile: ScenarioProfile) -> bool {
+        match profile {
+            ScenarioProfile::Plain => false,
+            ScenarioProfile::PaintAGalaxy => true,
         }
     }
 

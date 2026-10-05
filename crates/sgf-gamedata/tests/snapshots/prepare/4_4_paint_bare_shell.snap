@@ -3,8 +3,13 @@ source: crates/sgf-gamedata/tests/prepare.rs
 expression: out
 ---
 Prepared 715 systems for a new game
+SetHeaderKeys: 1
 SetInitializer: 715
 SetWormholePair: 6
+-marauder_empire_max = 2
++marauder_empire_max = 0
+-marauder_empire_default = 2
++marauder_empire_default = 0
 -system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
 +system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } }
 -system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = ai_system_02 }
@@ -81,8 +86,4 @@ SetWormholePair: 6
 +system = { id = "41" name = "Phaidros" position = { x = -339.63 y = 198.48 } }
 -system = { id = "42" name = "Sigma_Draconis" position = { x = -9.97 y = 225.83 } initializer = guardians_artist_init_01 }
 +system = { id = "42" name = "Sigma_Draconis" position = { x = -9.97 y = 225.83 } }
--system = { id = "43" name = "Hagers" position = { x = 356.85 y = -203.8 } initializer = trinary_init_01 }
-+system = { id = "43" name = "Hagers" position = { x = 356.85 y = -203.8 } }
--system = { id = "44" name = "Turbick" position = { x = -134.14 y = -128.38 } initializer = basic_init_01 }
-+system = { id = "44" name = "Turbick" position = { x = -134.14 y = -128.38 } }
-… 675 more changed lines
+… 677 more changed lines
