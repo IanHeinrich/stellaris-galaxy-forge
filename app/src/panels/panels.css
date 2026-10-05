@@ -53,6 +53,9 @@
   left: 0;
   z-index: 4;
   min-width: 200px;
+  /* Sized by its rows, not squeezed to the trigger, whose width follows the chosen label. */
+  width: max-content;
+  max-width: 320px;
   max-height: 320px;
   overflow-y: auto;
   margin: 4px 0 0;
@@ -66,13 +69,15 @@
   box-shadow: var(--shadow-pop);
 }
 
+/* A fixed width, so the popup doesn't resize as the filter narrows the rows. */
 .icon-picker-pop.icon-picker-filtered {
+  width: 260px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.icon-picker-filter {
+.icon-picker-filtered > .filter-input {
   flex: none;
 }
 

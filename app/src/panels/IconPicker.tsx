@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { hasFilter, iconPickerRows } from "./iconPickerRows";
+import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { FilterField } from "./parts";
 import { useOutsidePress } from "./useOutsidePress";
@@ -57,26 +57,33 @@ export function IconPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [query, setQuery] = useState("");
+  // Set as the list opens, so rows added or removed while it is open keep the filter box.
+  const [filtered, setFiltered] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
-  const filterBox = useRef<HTMLDivElement>(null);
+  const filter = useRef<HTMLInputElement>(null);
   const id = useId();
+  const listId = `${id}-list`;
   const optionId = (i: number) => `${id}-${i}`;
-  const filtered = hasFilter(items);
   const rows = iconPickerRows(items, query);
+  const at = activeRow(active, rows.length);
+  const activeId = at >= 0 ? optionId(at) : undefined;
   const emptyRow = items.length > 0 ? "No matches" : empty;
 
   useOutsidePress(open, () => setOpen(false), root);
   useEffect(() => {
-    if (open) (filterBox.current?.querySelector("input") ?? list.current)?.focus();
+    if (open) (filter.current ?? list.current)?.focus();
   }, [open]);
   useEffect(() => {
-    if (open) document.getElementById(optionId(active))?.scrollIntoView({ block: "nearest" });
+    if (open && activeId !== undefined) {
+      document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
+    }
   });
 
   const show = () => {
     setQuery("");
+    setFiltered(hasFilter(items));
     setActive(
       Math.max(
         0,
@@ -106,11 +113,11 @@ export function IconPicker({
     if (e.key === "Tab") setOpen(false);
     if (e.key === ESCAPE) close();
     else if (rows.length === 0) return;
-    else if (e.key === "ArrowDown") move(active + 1);
-    else if (e.key === "ArrowUp") move(active - 1);
+    else if (e.key === "ArrowDown") move(at + 1);
+    else if (e.key === "ArrowUp") move(at - 1);
     else if (e.key === "Home") move(0);
     else if (e.key === "End") move(rows.length - 1);
-    else if (e.key === ENTER || e.key === SPACE) pick(rows[active].item.key);
+    else if (e.key === ENTER || e.key === SPACE) pick(rows[at].item.key);
     else return;
     e.preventDefault();
     e.stopPropagation();
@@ -132,12 +139,14 @@ export function IconPicker({
   const listbox = (
     <ul
       className={filtered ? "icon-picker-list" : "icon-picker-pop"}
+      id={listId}
       role="listbox"
       aria-label={label}
-      aria-activedescendant={rows.length > 0 ? optionId(active) : undefined}
+      aria-activedescendant={activeId}
       tabIndex={-1}
       ref={list}
       onKeyDown={onListKey}
+      onMouseDown={filtered ? (e) => e.preventDefault() : undefined}
     >
       {rows.length === 0 && emptyRow !== undefined && (
         <li className="icon-picker-empty muted" role="presentation">
@@ -150,7 +159,7 @@ export function IconPicker({
           id={optionId(i)}
           item={item}
           header={header}
-          active={i === active}
+          active={i === at}
           selected={item.key === current.key}
           onHover={() => setActive(i)}
           onPick={() => pick(item.key)}
@@ -184,13 +193,17 @@ export function IconPicker({
         !disabled &&
         (filtered ? (
           <div className="icon-picker-pop icon-picker-filtered">
-            <div className="icon-picker-filter" ref={filterBox} onKeyDown={onFilterKey}>
-              <FilterField
-                label={`Filter ${items.length} choices`}
-                value={query}
-                onChange={onQuery}
-              />
-            </div>
+            <FilterField
+              label={`Filter ${items.length} choices`}
+              value={query}
+              onChange={onQuery}
+              ref={filter}
+              role="combobox"
+              aria-expanded
+              aria-controls={listId}
+              aria-activedescendant={activeId}
+              onKeyDown={onFilterKey}
+            />
             {listbox}
           </div>
         ) : (

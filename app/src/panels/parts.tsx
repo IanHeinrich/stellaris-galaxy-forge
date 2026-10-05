@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import { splitsBySource, type Source } from "../lib/visual/layerGroups";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { useTextureUrl } from "./useTextureUrl";
@@ -79,18 +79,23 @@ export function SourceChip({ source, title }: { source: Source; title?: string }
 /** Above this many rows a list carries a filter of its own. */
 export const FILTER_MIN = 20;
 
-/** The filter a long list grows, in the shape the Layers menu's legend already uses. */
+/**
+ * The filter a long list grows, in the shape the Layers menu's legend already uses. Other input
+ * attributes, such as a ref or a combobox's ARIA, pass through to the input.
+ */
 export function FilterField({
   label,
   value,
   onChange,
+  ...input
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-}) {
+} & Omit<ComponentProps<"input">, "value" | "onChange">) {
   return (
     <input
+      {...input}
       className="filter-input"
       type="search"
       aria-label={label}

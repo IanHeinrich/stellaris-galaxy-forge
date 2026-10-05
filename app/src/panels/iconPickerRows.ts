@@ -14,11 +14,10 @@ export function hasFilter(items: readonly IconPickerItem[]): boolean {
 
 /**
  * The rows a picker of `items` lists for `query`: the items whose label or key holds it, ignoring
- * case, so a group shows its header only while it has a match. A picker without a filter box
- * lists every item.
+ * case, so a group shows its header only while it has a match.
  */
 export function iconPickerRows(items: readonly IconPickerItem[], query: string): IconPickerRow[] {
-  const needle = hasFilter(items) ? query.trim().toLowerCase() : "";
+  const needle = query.trim().toLowerCase();
   const shown =
     needle === ""
       ? items
@@ -30,4 +29,9 @@ export function iconPickerRows(items: readonly IconPickerItem[], query: string):
     item,
     header: item.group !== undefined && item.group !== shown[i - 1]?.group,
   }));
+}
+
+/** The row `active` stands on once the list has `count` rows: the last row if it fell off the end, -1 with none. */
+export function activeRow(active: number, count: number): number {
+  return Math.min(active, count - 1);
 }
