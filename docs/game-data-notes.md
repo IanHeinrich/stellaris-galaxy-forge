@@ -159,7 +159,11 @@ YAML**.
   is the one named `planet_geosphereShape`. The others are the poles,
   the clouds and the clouds' shadow. Its `texture_diffuse` is a bare
   file name. The file sits beside the `.asset` file, or in
-  `gfx/models/planets/` when it isn't there. Some entities name no
+  `gfx/models/planets/` when it isn't there. An entity with no mesh of
+  its own can `attach = { "planetloc" = "<entity>" }` other entities,
+  as More Arcologies' city worlds do. The editor takes the surface of
+  the first attached entity that has one, trying `planetloc` first.
+  Planetary Diversity's tidally locked worlds attach theirs at `tiltLoc`. Some entities name no
   surface map, and those planets keep a plain tinted disc. The vanilla
   maps are 2048x1024 DXT1 with 12 mip levels, and the disc is baked
   from level 3, 256x128. A class's `atmosphere_color` is written as

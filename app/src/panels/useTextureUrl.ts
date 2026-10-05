@@ -1,9 +1,10 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { getTexture, getTextureUrl, onTextures, requestTextures } from "../lib/visual/textures";
+import { firstTextureUrl, getTexture, onTextures, requestTextures } from "../lib/visual/textures";
 
 /**
- * The first of `keys` whose texture has landed, as a data URL for an `<img>`; the keys not yet
- * known are requested from the cache the map uses, and the caller redraws when they settle.
+ * The first of `keys` whose texture has landed, as a data URL for an `<img>`, waiting on a key
+ * still loading before it tries the next; the keys not yet known are requested from the cache the
+ * map uses, and the caller redraws when they settle.
  */
 export function useTextureUrl(keys: readonly string[]): string | undefined {
   // Every render, so a cleared cache is asked again as the map layers ask from their render path.
@@ -12,11 +13,5 @@ export function useTextureUrl(keys: readonly string[]): string | undefined {
     if (missing.length > 0) requestTextures(missing);
   });
 
-  return useSyncExternalStore(onTextures, () => {
-    for (const key of keys) {
-      const url = getTextureUrl(key);
-      if (url !== undefined) return url;
-    }
-    return undefined;
-  });
+  return useSyncExternalStore(onTextures, () => firstTextureUrl(keys));
 }

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../api/ipc");
@@ -13,7 +15,8 @@ import { planetClassView, editResult, planetPage } from "../../../store/fixture"
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { land, open, resetStores } from "../inspectorFixture";
 import { escaped as escapedText } from "../../../test/elements";
-import { drawnBy, drawnField } from "../../../test/drawn";
+import { drawnBy, drawnField, lastDrawn } from "../../../test/drawn";
+import { Icon } from "../../parts";
 import { mockedIpc } from "../../../test/ipc";
 import { PickerField } from "../../EditField";
 import { MODEL_TITLE } from "../../../lib/details/planetModel";
@@ -146,6 +149,21 @@ describe("a planet's class", () => {
       from: { class: "pc_arctic", change: "any", models: 3 },
       to: { class: "pc_barren", change: "uncolonised", models: 3 },
     });
+  });
+
+  it("shows each class's planet disc first, in the list and as the current value", async () => {
+    await arm();
+    drawnBy(() => render(WORLD));
+    const field = drawnField(PickerField, "Class");
+    const keysOf = (icon: ReactNode) => {
+      drawnBy(() => renderToStaticMarkup(<>{icon}</>));
+      return (lastDrawn((el) => el.type === Icon, "the class icon") as { keys: string[] }).keys;
+    };
+    expect(keysOf(field.current.icon)[0]).toBe("planet_disc:pc_arctic");
+    expect(field.items.map((item) => keysOf(item.icon)[0])).toEqual([
+      "planet_disc:pc_ocean",
+      "planet_disc:pc_barren",
+    ]);
   });
 
   it("offers a colony only the classes open to colonies", async () => {

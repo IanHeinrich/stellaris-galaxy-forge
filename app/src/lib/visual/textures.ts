@@ -30,6 +30,20 @@ export function getTextureUrl(key: string): string | undefined {
   return urls.get(key);
 }
 
+/**
+ * The PNG data URL of the first of `keys` that landed. A key still loading, or never asked for,
+ * holds the answer back, so a later key never shows in the first one's place; a key that could
+ * not be rendered is passed over.
+ */
+export function firstTextureUrl(keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const url = urls.get(key);
+    if (url !== undefined) return url;
+    if (key !== "" && cache.get(key) === undefined) return undefined;
+  }
+  return undefined;
+}
+
 /** Fetches the keys not yet known; every request made in the same macrotask goes out as one call. */
 export function requestTextures(keys: Iterable<string>): void {
   for (const key of keys) {

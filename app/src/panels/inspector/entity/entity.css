@@ -441,12 +441,11 @@
   overflow-wrap: anywhere;
 }
 
-/* As tall as its text, up to a share of the picker; only a very long description scrolls. */
+/* One height for every row, so the list doesn't jump as the pointer moves; a long description scrolls. */
 .dp > .dp-details {
-  flex: 0 1 auto;
+  flex: none;
   box-sizing: border-box;
-  min-height: 3em;
-  max-height: 40%;
+  height: 9em;
   margin-top: 6px;
   padding: 6px 2px 0;
   overflow-y: auto;

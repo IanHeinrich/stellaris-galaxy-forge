@@ -35,7 +35,12 @@ export function PlanetClassField({
     bodyClassName(key, names),
   );
   const icon = (key: string, seed?: number) => (
-    <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} seed={seed} />
+    <PlanetIcon
+      planetClass={key}
+      sprite={planetClasses.get(key)?.icon_sprite}
+      seed={seed}
+      discFirst
+    />
   );
   const items: IconPickerItem[] = classRows(planetClass, colonised, moon, planetClasses, label).map(
     (row) => ({ ...row, icon: icon(row.key) }),

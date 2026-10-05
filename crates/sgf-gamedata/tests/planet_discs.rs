@@ -265,6 +265,113 @@ fn a_duplicate_asset_key_reads_the_last_one() {
     assert_eq!(disc.dimensions(), (128, 128));
 }
 
+/// Entities with no map or mesh of their own, only `attach` lines, shaped as More Arcologies
+/// writes its city worlds: the first attached entity with a surface gives the disc, a wrapper
+/// of a wrapper is followed down, `planetloc` comes before a moon attached ahead of it, a
+/// wrapper too deep down one branch is still found by a shorter one, and a loop of wrappers
+/// has no disc.
+const WRAPPERS: &str = "entity = {
+\tname = \"wrapped_city_01_entity\"
+\tlocator = { name = \"planetloc\" position = { 0 0 0 } rotation = { 0 0 0 } }
+\tdefault_state = \"idle\"
+\tattach = { \"planetloc\" = \"wrapped_city_mesh\" }
+\tattach = { \"planetloc\" = \"city_cloud_mesh\" }
+\tgame_data = {
+\t\tshader_type = ship
+\t}
+\tscale = 1.0
+}
+entity = {
+\tname = \"wrapped_city_mesh\"
+\tpdxmesh = \"planet_non_clouded_mesh\"
+\tmeshsettings = {
+\t\tname = \"planet_geosphereShape\"
+\t\ttexture_diffuse = \"wrapped_city_diffuse.dds\"
+\t}
+}
+entity = {
+\tname = \"city_cloud_mesh\"
+\tpdxmesh = \"planet_clouds_mesh\"
+}
+entity = {
+\tname = \"nested_city_01_entity\"
+\tattach = { \"planetloc\" = \"city_cloud_mesh\" }
+\tattach = { \"planetloc\" = \"wrapped_city_01_entity\" }
+}
+entity = {
+\tname = \"mooned_city_01_entity\"
+\tattach = { \"moonloc\" = \"city_moon_mesh\" }
+\tattach = { \"planetloc\" = \"wrapped_city_mesh\" }
+}
+entity = {
+\tname = \"city_moon_mesh\"
+\tpdxmesh = \"planet_non_clouded_mesh\"
+\tmeshsettings = {
+\t\tname = \"planet_geosphereShape\"
+\t\ttexture_diffuse = \"city_moon_diffuse.dds\"
+\t}
+}
+entity = {
+\tname = \"chained_city_01_entity\"
+\tattach = { \"planetloc\" = \"chain_long_1\" }
+\tattach = { \"planetloc\" = \"chain_short\" }
+}
+entity = { name = \"chain_long_1\" attach = { \"planetloc\" = \"chain_long_2\" } }
+entity = { name = \"chain_long_2\" attach = { \"planetloc\" = \"chain_long_3\" } }
+entity = { name = \"chain_long_3\" attach = { \"planetloc\" = \"wrapped_city_01_entity\" } }
+entity = { name = \"chain_short\" attach = { \"planetloc\" = \"wrapped_city_01_entity\" } }
+entity = {
+\tname = \"looped_city_01_entity\"
+\tattach = { \"planetloc\" = \"looped_city_back\" }
+}
+entity = {
+\tname = \"looped_city_back\"
+\tattach = { \"planetloc\" = \"looped_city_01_entity\" }
+}
+";
+
+#[test]
+fn a_wrapper_entity_bakes_from_the_entity_it_attaches() {
+    let (_dir, gd) = common::hand_written_bytes(&[
+        (
+            "common/planet_classes/00_wrapped.txt",
+            b"pc_wrapped = {\n\tentity = \"wrapped_city\"\n}\npc_nested = {\n\tentity = \"nested_city\"\n}\npc_looped = {\n\tentity = \"looped_city\"\n}\npc_mooned = {\n\tentity = \"mooned_city\"\n}\npc_chained = {\n\tentity = \"chained_city\"\n}\n"
+                .to_vec(),
+        ),
+        (
+            "gfx/models/planets/_wrapped_city_entities.asset",
+            WRAPPERS.as_bytes().to_vec(),
+        ),
+        (
+            "gfx/models/planets/wrapped_city_diffuse.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+        (
+            "gfx/models/planets/city_moon_diffuse.dds",
+            b"not a texture".to_vec(),
+        ),
+    ]);
+    let wrapped = common::bake_disc(&gd, "planet_disc:pc_wrapped");
+    assert_disc(&wrapped, 50.0);
+    for class in ["pc_nested", "pc_mooned", "pc_chained"] {
+        let disc = common::bake_disc(&gd, &format!("planet_disc:{class}"));
+        assert_eq!(disc, wrapped, "{class}");
+    }
+    assert_eq!(
+        common::bake_disc(&gd, "planet_model:wrapped_city_01_entity"),
+        wrapped
+    );
+    assert_eq!(
+        gd.planet_class_rule("pc_wrapped").map(|r| r.models),
+        Some(1)
+    );
+
+    let (_cache, textures) = common::temp_textures();
+    let looped = gd.texture(&textures, "planet_disc:pc_looped");
+    assert!(looped.png_base64.is_none());
+    assert!(looped.error.is_some());
+}
+
 #[test]
 fn the_installs_continental_world_bakes_into_a_disc() {
     let Some(gd) = common::INSTALL.as_ref() else {

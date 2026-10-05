@@ -4,9 +4,11 @@
 //! `planet_geosphereShape` mesh, beside the `.asset` file. An entity with no such block
 //! (vanilla: the tomb world's) leaves the map to the material its `.mesh` file stores. A
 //! model with no such mesh whose `pieceShape1` a planet shader draws is a planet broken into
-//! pieces (vanilla: the shattered world's), and that map is its pieces' surface.
+//! pieces (vanilla: the shattered world's), and that map is its pieces' surface. An entity
+//! with neither, only `attach` lines (More Arcologies' city worlds), takes the surface of the
+//! first entity it attaches that has one, those at its `planetloc` first.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
@@ -25,6 +27,10 @@ const MODELS: &str = "gfx/models";
 const SURFACE_MESH: &str = "planet_geosphereShape";
 /// The mesh of a planet model broken into pieces.
 const PIECES_MESH: &str = "pieceShape1";
+/// The locator a wrapper entity attaches its planet's surface at.
+const PLANET_LOCATOR: &str = "planetloc";
+/// How many `attach` steps down from an entity its surface is looked for.
+const ATTACH_DEPTH: usize = 4;
 /// The disc's side, in pixels.
 const DISC: u32 = 128;
 /// How wide a map the disc is sampled from: a mip level of about this width, or the map
@@ -43,6 +49,9 @@ pub(crate) struct SurfaceMaps {
     meshes: BTreeMap<String, String>,
     /// `pdxmesh` name → its `.mesh` file, relative to a layer root.
     mesh_files: BTreeMap<String, String>,
+    /// Entity name → the entities it attaches, those at `planetloc` first and each in file
+    /// order, for an entity with neither a surface map nor a `pdxmesh`.
+    attached: BTreeMap<String, Vec<String>>,
 }
 
 /// What an entity's model has for a surface.
@@ -62,7 +71,11 @@ impl SurfaceMaps {
     /// How many models the game numbers for `entity`: `<entity>_01_entity`,
     /// `<entity>_02_entity` … in a row, else 1 for an entity of that name alone, else 0.
     pub(crate) fn model_count(&self, entity: &str) -> u32 {
-        let known = |name: &str| self.maps.contains_key(name) || self.meshes.contains_key(name);
+        let known = |name: &str| {
+            self.maps.contains_key(name)
+                || self.meshes.contains_key(name)
+                || self.attached.contains_key(name)
+        };
         let numbered = (1..)
             .take_while(|n| known(&format!("{entity}_{n:02}_entity")))
             .count();
@@ -75,25 +88,56 @@ impl SurfaceMaps {
 
 /// The surface of `entity` in `maps`. The game numbers a class's models `<entity>_01_entity`,
 /// `<entity>_02_entity` …; the first one stands for them all. A map an `.asset` names comes
-/// before one a `.mesh` stores, whichever name each is under, and a whole surface before
-/// pieces.
+/// before one a `.mesh` stores, whichever name each is under, a whole surface before pieces,
+/// and an entity's own model before the ones it attaches.
 pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surface {
     let names = [
         format!("{entity}_01_entity"),
         format!("{entity}_entity"),
         entity.to_owned(),
     ];
-    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.maps.get(name)) {
+    let names = names.each_ref().map(String::as_str);
+    surface_among(layout, maps, &names, &mut BTreeSet::new(), ATTACH_DEPTH)
+}
+
+fn surface_among<'m>(
+    layout: &Layout,
+    maps: &'m SurfaceMaps,
+    names: &[&str],
+    path: &mut BTreeSet<&'m str>,
+    depth: usize,
+) -> Surface {
+    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.maps.get(*name)) {
         return Surface::Map(beside_or_in_assets(layout, asset_dir, file));
     }
-    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.pieces.get(name)) {
+    if let Some((asset_dir, file)) = names.iter().find_map(|name| maps.pieces.get(*name)) {
         return Surface::Pieces(beside_or_in_assets(layout, asset_dir, file));
     }
-    let mesh = names
-        .iter()
-        .find_map(|name| maps.meshes.get(name))
-        .and_then(|mesh| maps.mesh_files.get(mesh));
-    let Some(mesh) = mesh else {
+    if let Some(mesh) = names.iter().find_map(|name| maps.meshes.get(*name)) {
+        return mesh_surface(layout, maps, mesh);
+    }
+    let Some(attached) = names.iter().find_map(|name| maps.attached.get(*name)) else {
+        return Surface::Unknown;
+    };
+    if depth == 0 {
+        return Surface::Unknown;
+    }
+    for target in attached {
+        if !path.insert(target) {
+            continue;
+        }
+        let surface = surface_among(layout, maps, &[target], path, depth - 1);
+        path.remove(target.as_str());
+        if matches!(surface, Surface::Map(_) | Surface::Pieces(_)) {
+            return surface;
+        }
+    }
+    Surface::Unknown
+}
+
+/// The surface the `.mesh` file of model `mesh` stores.
+fn mesh_surface(layout: &Layout, maps: &SurfaceMaps, mesh: &str) -> Surface {
+    let Some(mesh) = maps.mesh_files.get(mesh) else {
         return Surface::Unknown;
     };
     let Some(bytes) = layout.resolve_file(mesh).and_then(|p| fs::read(p).ok()) else {
@@ -247,7 +291,8 @@ fn layered_files(layout: &Layout, ext: &str) -> Vec<(String, PathBuf)> {
 }
 
 /// Every entity's surface map in the `.asset` files of `layout`, the model of each entity
-/// that names none, and the `.mesh` file of each model in the `.gfx` files. A later layer's
+/// that names none, the entities each entity with neither attaches, and the `.mesh` file of
+/// each model in the `.gfx` files. A later layer's
 /// file of the same path replaces the earlier one, and a later entity or model of the same
 /// name wins.
 pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
@@ -267,13 +312,16 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
             let Some(name) = last_scalar(entity, "name", &src) else {
                 continue;
             };
+            let attached = attached(entity, &src);
             if let Some(file) = mesh_map(entity, SURFACE_MESH, &src) {
                 maps.meshes.remove(name);
                 maps.pieces.remove(name);
+                maps.attached.remove(name);
                 maps.maps
                     .insert(name.to_owned(), (dir.clone(), file.to_owned()));
             } else if let Some(mesh) = last_scalar(entity, "pdxmesh", &src) {
                 maps.maps.remove(name);
+                maps.attached.remove(name);
                 match mesh_map(entity, PIECES_MESH, &src) {
                     Some(file) => maps
                         .pieces
@@ -281,6 +329,11 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
                     None => maps.pieces.remove(name),
                 };
                 maps.meshes.insert(name.to_owned(), mesh.to_owned());
+            } else if !attached.is_empty() {
+                maps.maps.remove(name);
+                maps.pieces.remove(name);
+                maps.meshes.remove(name);
+                maps.attached.insert(name.to_owned(), attached);
             }
         }
     }
@@ -307,6 +360,22 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
         }
     }
     maps
+}
+
+/// The entities `entity` attaches, each `attach = { "<locator>" = "<entity>" }`, those at
+/// `planetloc` first. The planet's surface is mostly there, but Planetary Diversity's
+/// tidally locked worlds use `tiltLoc` and vanilla's Uranus-like gas giant `part1`.
+fn attached(entity: &Node, src: &[u8]) -> Vec<String> {
+    let mut targets: Vec<(bool, String)> = entity
+        .find_all("attach", src)
+        .flat_map(Node::children)
+        .filter_map(|target| {
+            let name = target.scalar_str(src).filter(|name| !name.is_empty())?;
+            Some((target.key_str(src) != Some(PLANET_LOCATOR), name.to_owned()))
+        })
+        .collect();
+    targets.sort_by_key(|(elsewhere, _)| *elsewhere);
+    targets.into_iter().map(|(_, name)| name).collect()
 }
 
 fn mesh_map<'a>(entity: &Node, shape: &str, src: &'a [u8]) -> Option<&'a str> {
