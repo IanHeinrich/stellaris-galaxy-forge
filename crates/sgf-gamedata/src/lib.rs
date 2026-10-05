@@ -29,6 +29,7 @@ pub mod planet_models;
 pub mod planet_views;
 pub mod registries;
 pub(crate) mod reload;
+pub mod report;
 pub(crate) mod resolver;
 pub mod rng;
 pub mod scripts;

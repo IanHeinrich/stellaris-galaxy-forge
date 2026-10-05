@@ -243,6 +243,14 @@ pub enum Command {
         /// Read vanilla only, ignoring the enabled mods.
         #[arg(long)]
         no_mods: bool,
+        /// Instead of the summary, list what the install and mods define that the editor
+        /// cannot show: planet classes with no name, disc or size, star classes with no map
+        /// icon or with other than one star body, and the diagnostics by kind.
+        #[arg(long)]
+        report: bool,
+        /// Rows --report prints per list, 20 unless given; 0 prints them all.
+        #[arg(long, requires = "report")]
+        limit: Option<usize>,
     },
     /// List the special systems of a save (leviathans, enclaves, landmarks …).
     Special {

@@ -1,5 +1,7 @@
 //! `sgf gamedata`: what was read from the install and the enabled mods.
 
+use sgf_gamedata::report::PlaysetReport;
+use sgf_gamedata::textures::Textures;
 use sgf_gamedata::views::{GameDataSummary, PaintModView};
 use sgf_gamedata::{GameData, LoadOptions};
 
@@ -7,6 +9,9 @@ use super::{Outcome, Run};
 
 /// Diagnostics listed; a heavily modded playset produces hundreds.
 const DIAGNOSTIC_ROWS: usize = 20;
+
+/// Rows each list of `--report` prints unless `--limit` says otherwise.
+const REPORT_ROWS: usize = 20;
 
 pub fn run(opts: &LoadOptions) -> Run {
     let gd = super::game_data(opts)?;
@@ -55,6 +60,17 @@ pub fn run(opts: &LoadOptions) -> Run {
     for d in summary.diagnostics.iter().take(DIAGNOSTIC_ROWS) {
         println!("  {:<12} {}", d.kind, d.message);
     }
+    Ok(Outcome::Ok)
+}
+
+/// `--report`: what the install and the enabled mods define that the editor cannot show,
+/// each list cut to its first `limit` rows, [`REPORT_ROWS`] when not given; 0 keeps them all.
+pub fn report(opts: &LoadOptions, limit: Option<usize>) -> Run {
+    let gd = super::game_data(opts)?;
+    let report = PlaysetReport::new(&gd, &Textures::new(None));
+    let rows = limit.unwrap_or(REPORT_ROWS);
+    println!("mods: {}", gd.mods.len());
+    print!("{}", report.text((rows > 0).then_some(rows)));
     Ok(Outcome::Ok)
 }
 

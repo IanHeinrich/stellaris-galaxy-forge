@@ -20,6 +20,7 @@ mod naming;
 mod picks;
 mod planet_discs;
 mod planet_views;
+mod playset_report;
 mod precursors;
 mod registries;
 mod reload;

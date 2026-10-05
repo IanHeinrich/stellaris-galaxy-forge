@@ -160,11 +160,20 @@ fn run(cli: Cli) -> commands::Run {
             install,
             lang,
             no_mods,
-        }) => commands::gamedata::run(&LoadOptions {
-            language: lang,
-            mods: !no_mods,
-            ..install.options()
-        }),
+            report,
+            limit,
+        }) => {
+            let opts = LoadOptions {
+                language: lang,
+                mods: !no_mods,
+                ..install.options()
+            };
+            if report {
+                commands::gamedata::report(&opts, limit)
+            } else {
+                commands::gamedata::run(&opts)
+            }
+        }
         Some(Command::Special {
             sav,
             install,

@@ -13,7 +13,8 @@ usage: scripts/game-update.sh <save> [--against <sav>]
   the install parses, the save loads, validates, round-trips byte for
   byte and exports, its key shape is diffed against the sample save
   (or the one --against names), and the workspace tests pass with the
-  install required. One PASS/FAIL line per step; exits 1 if any failed.
+  install required. The playset report is printed and never fails.
+  One PASS/FAIL line per step; exits 1 if any failed.
 USAGE
 	exit 2
 }
@@ -76,6 +77,10 @@ sgf="target/release/sgf"
 [ -x "$sgf" ] || { printf 'no sgf binary under target/release\n' >&2; exit 1; }
 
 step "gamedata parses" "^version:" "$sgf" gamedata
+
+printf 'INFO  what the install and the enabled mods define that the editor cannot show\n'
+"$sgf" gamedata --report | sed 's/^/      /' || true
+
 step "save loads" "^version:" "$sgf" inspect "$save"
 step "save validates" "^validate:" "$sgf" validate "$save"
 step "save round-trips" "byte-identical" "$sgf" roundtrip "$save" "$tmp/roundtrip.sav" --check

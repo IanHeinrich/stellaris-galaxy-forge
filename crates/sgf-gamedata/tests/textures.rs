@@ -215,6 +215,29 @@ fn failures_are_errors_in_the_view_never_panics() {
 }
 
 #[test]
+fn a_flag_colour_of_six_bytes_but_not_six_hex_digits_is_unknown() {
+    let grey = || common::dds(4, &[vec![[128, 128, 128, 255]; 16]]);
+    let (_dir, gd) = common::hand_written_bytes(&[
+        ("common/defines/00_fx.txt", Vec::new()),
+        ("flags/backgrounds/bg.dds", grey()),
+        ("gfx/interface/flags/empire_flag_64_mask.dds", grey()),
+        ("gfx/interface/flags/empire_flag_64_frame.dds", grey()),
+    ]);
+    let (_cache, textures) = common::temp_textures();
+    let lookups = Lookups::none(gd.sprites.as_ref());
+    let view = textures.load(
+        &gd.layout,
+        &lookups,
+        "empire_flag:bg.dds::#aééb,null,null,null",
+    );
+    assert_eq!(
+        view.error.as_deref(),
+        Some("unknown flag colour `#aééb`"),
+        "{view:?}"
+    );
+}
+
+#[test]
 fn second_call_is_served_from_the_cache_file() {
     let gd = common::cached_fixture();
     let (_dir, textures) = common::temp_textures();
