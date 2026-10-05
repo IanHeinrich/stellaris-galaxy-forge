@@ -330,8 +330,29 @@ describe("the Prepare section", () => {
     expect(html).toContain("Changes 2 systems. One step to undo.");
     expect(html).toContain("2 systems");
     expect(drawnButton("Apply").disabled).toBe(false);
+    // Home starts holds no seat here, so its note stays out.
+    expect(html).not.toContain(PREPARE_COPY.plain.home_starts.note);
 
     useInspectorStore.getState().closeSection(PREPARE_SECTION);
-    expect(galaxy()).toContain(`${PREPARE_TITLE} · Custom · changes 2 systems`);
+    const closed = galaxy();
+    expect(closed).toContain(`<span class="ins-sec-title">${PREPARE_TITLE}</span>`);
+    expect(closed).toContain('<span class="ins-sec-aside" title="Custom · changes 2 systems">');
+  });
+
+  it("adds no line to a row while the pointer is on it, so the rows below stay put", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      preview: {
+        profile: "plain",
+        rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4] : [] })),
+        changes: 0,
+      },
+      current: true,
+    });
+    const before = galaxy();
+    usePrepareStore.getState().hover("enclaves");
+    const hovered = galaxy();
+    expect(hovered).not.toContain(enclaves.ifLeftOut);
+    expect(hovered.replace('prep-row hovered"', 'prep-row"')).toBe(before);
   });
 });

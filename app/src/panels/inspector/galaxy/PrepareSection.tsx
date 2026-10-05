@@ -79,7 +79,8 @@ function ChoiceRow({ row, copy }: { row: PrepareRow; copy: RowCopy }) {
   const leaves = usePrepareStore((s) => leavesOut(s, row));
   const offered = PREPARE_ROW_CHOICES[row];
   const consequence = leaves ? copy.consequences[choice] : undefined;
-  const keptLine = choice === "keep" && (count ?? 0) > 0 ? copy.consequences.keep : undefined;
+  const filled = (count ?? 0) > 0;
+  const keptLine = choice === "keep" && filled ? copy.consequences.keep : undefined;
   return (
     <div className={`prep-row${hovered ? " hovered" : ""}`} onPointerEnter={() => hover(row)}>
       <div className="prep-row-name">
@@ -97,8 +98,7 @@ function ChoiceRow({ row, copy }: { row: PrepareRow; copy: RowCopy }) {
       />
       {consequence !== undefined && <div className="ins-warn prep-note">{consequence}</div>}
       {keptLine !== undefined && <div className="muted prep-note">{keptLine}</div>}
-      {choice === "keep" && hovered && <div className="muted prep-note">{copy.ifLeftOut}</div>}
-      {copy.note !== undefined && <div className="muted prep-note">{copy.note}</div>}
+      {filled && copy.note !== undefined && <div className="muted prep-note">{copy.note}</div>}
     </div>
   );
 }
@@ -161,7 +161,7 @@ export function PrepareSection() {
   const copy = PREPARE_COPY[preview?.profile ?? (paint ? "paint_a_galaxy" : "plain")];
   const summary = summaryLine(presetOf(choices), preview?.changes ?? null, applied);
   return (
-    <Section id={PREPARE_SECTION} title={PREPARE_TITLE} summary={summary} startClosed>
+    <Section id={PREPARE_SECTION} title={PREPARE_TITLE} aside={summary} startClosed>
       <div className="prep">
         <div className="muted ins-hint">{PREPARE_INTRO}</div>
         <PresetSwitch />

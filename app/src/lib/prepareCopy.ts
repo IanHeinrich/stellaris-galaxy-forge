@@ -21,7 +21,7 @@ export interface RowCopy {
    * a plain line under a kept row where keeping it is not the whole story.
    */
   consequences: Partial<Record<PrepareChoice, string>>;
-  /** What leaving the row out does, shown while the pointer is on a kept row. */
+  /** What leaving the row out does, which the map caption shows while the pointer is on a kept row. */
   ifLeftOut: string;
   /** A further line under the row, whatever its choice. */
   note?: string;
@@ -87,6 +87,11 @@ export function summaryLine(
     return `${PRESET_LABELS[applied.preset]} · ${counted(applied.changed, "system")} changed`;
   }
   return `${PRESET_LABELS[preset]} · nothing changed`;
+}
+
+/** The map caption while a row is hovered: `3 systems ringed: Fallen empires`. */
+export function ringedLine(copy: RowCopy, n: number): string {
+  return `${counted(n, "system")} ringed: ${copy.label}`;
 }
 
 /** A row's count: `9 seats`, `1 system`. */

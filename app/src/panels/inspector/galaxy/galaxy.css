@@ -113,15 +113,21 @@
   font-size: var(--text-hint);
 }
 
+.prep-row > * {
+  min-width: 0;
+}
+
 .prep-note {
   grid-column: 1 / -1;
   margin-top: 0;
   font-size: var(--text-hint);
+  overflow-wrap: anywhere;
 }
 
+/* Down through the dock body's padding, which the sticky edge otherwise stops short of. */
 .prep-footer {
   position: sticky;
-  bottom: 0;
+  bottom: -10px;
   display: flex;
   flex-direction: column;
   gap: 6px;

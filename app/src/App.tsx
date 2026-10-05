@@ -16,6 +16,7 @@ import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { PaintNotice } from "./panels/chrome/PaintNotice";
 import { SceneCrumb } from "./panels/chrome/SceneCrumb";
 import { CutBar } from "./panels/chrome/CutBar";
+import { PrepareCaption } from "./panels/chrome/PrepareCaption";
 import { TiltControl } from "./panels/chrome/TiltControl";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
@@ -214,6 +215,7 @@ function App() {
           {status === "ready" && tools && <ToolOptions />}
           {status === "ready" && shown !== null && <SceneCrumb system={shown} />}
           {status === "ready" && <CutBar />}
+          {status === "ready" && <PrepareCaption />}
           <TiltControl />
           <ContextMenu />
           <MapTooltip />
