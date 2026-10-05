@@ -10,9 +10,10 @@ import { SAVE_CAPABILITIES } from "../lib/capabilities";
 import { bindStores } from "../store/bindStores";
 import { useEditorStore } from "../store/editorStore";
 import { useFileSessionStore } from "../store/fileSessionStore";
-import { SYSTEMS } from "../store/fixture";
+import { OPEN_RESULT, SCENARIO_RESULT, SYSTEMS } from "../store/fixture";
 import { useGalaxyStore } from "../store/galaxyStore";
-import { open, resetStores } from "./inspector/inspectorFixture";
+import { armSession, resetStores } from "../store/storeFixture";
+import { openWith } from "../test/session";
 import { BulkActions } from "./BulkActions";
 
 bindStores();
@@ -24,7 +25,11 @@ afterEach(() => {
 beforeEach(() => {
   vi.useFakeTimers();
   resetStores();
+  armSession();
 });
+
+const open = (kind: "save" | "scenario") =>
+  openWith(kind === "save" ? OPEN_RESULT : SCENARIO_RESULT);
 
 describe("the marauder clan button", () => {
   /** The button's markup: its label, the hint under it, and whether it is disabled. */

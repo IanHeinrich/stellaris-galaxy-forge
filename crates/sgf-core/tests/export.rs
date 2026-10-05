@@ -16,8 +16,8 @@ use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::export::{
-    NAME, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes, no_names,
-    no_sources, seated,
+    NAME, PLAIN_EXPORT, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes,
+    no_names, no_sources, seated,
 };
 use common::fixture::{EXPORTED, GRAMMAR, from_scenario_text};
 
@@ -63,7 +63,7 @@ fn assert_sample_bypasses(galaxy: &Galaxy) {
 fn the_sample_exports_to_the_committed_fixture_and_reads_back_as_the_same_galaxy() {
     let save = common::open();
     let committed = EXPORTED.bytes();
-    let (text, report) = exported(&save, NAME);
+    let (text, report) = PLAIN_EXPORT.clone();
     assert_eq!(
         at_fixture_version(&text),
         committed,
@@ -240,7 +240,7 @@ static_galaxy_scenario = {{
         text.lines().count(),
         committed.split(|&b| b == b'\n').count() - 1
     );
-    assert_eq!(report, exported(&save, NAME).1);
+    assert_eq!(report, PLAIN_EXPORT.1);
 }
 
 #[test]
@@ -256,7 +256,7 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     assert_eq!(session.title(), NAME);
     assert_eq!(session.path(), None);
     assert!(session.is_dirty());
-    assert_eq!(report, exported(&common::open(), NAME).1);
+    assert_eq!(report, PLAIN_EXPORT.1);
     assert!(
         common::current(&session).starts_with(
             format!(
@@ -293,45 +293,32 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
 
 #[test]
 fn a_new_scenario_is_a_header_with_nothing_in_it() {
-    let mut session =
-        export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::Plain).expect("new scenario");
-    assert_eq!(session.kind(), DocumentKind::Scenario);
-    assert_eq!(session.title(), "sgf_test");
-    assert!(session.graph().systems.is_empty());
-    assert!(session.graph().nebulae.is_empty());
-    assert_eq!(session.graph().galaxy_radius, 0.0);
-    assert_eq!(session.path(), None);
-    assert!(session.is_dirty());
+    for (profile, snapshot) in [
+        (ScenarioProfile::Plain, "new_scenario"),
+        (ScenarioProfile::PaintAGalaxy, "new_scenario_paint"),
+    ] {
+        let mut session =
+            export::new_scenario("sgf_test", 0.0, 0.0, profile).expect("new scenario");
+        assert_eq!(session.kind(), DocumentKind::Scenario, "{snapshot}");
+        assert_eq!(session.title(), "sgf_test", "{snapshot}");
+        assert!(session.graph().systems.is_empty(), "{snapshot}");
+        assert!(session.graph().nebulae.is_empty(), "{snapshot}");
+        assert_eq!(session.graph().galaxy_radius, 0.0, "{snapshot}");
+        assert_eq!(session.path(), None, "{snapshot}");
+        assert!(session.is_dirty(), "{snapshot}");
 
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sgf_test.txt");
-    session.save_as(&path).expect("save the new scenario");
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sgf_test.txt");
+        session.save_as(&path).expect("save the new scenario");
 
-    let reopened = Session::open(&path).expect("reopen the new scenario");
-    assert_eq!(reopened.title(), "sgf_test");
-    assert!(reopened.graph().systems.is_empty());
-    common::snapshot(
-        "new_scenario",
-        &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
-    );
-}
-
-#[test]
-fn a_new_paint_a_galaxy_scenario_is_the_mods_header_with_nothing_in_it() {
-    let mut session = export::new_scenario("sgf_test", 0.0, 0.0, ScenarioProfile::PaintAGalaxy)
-        .expect("new scenario");
-    assert_eq!(session.title(), "sgf_test");
-    assert!(session.graph().systems.is_empty());
-
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sgf_test.txt");
-    session.save_as(&path).expect("save the new scenario");
-    let reopened = Session::open(&path).expect("reopen the new scenario");
-    assert_eq!(reopened.title(), "sgf_test");
-    common::snapshot(
-        "new_scenario_paint",
-        &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
-    );
+        let reopened = Session::open(&path).expect("reopen the new scenario");
+        assert_eq!(reopened.title(), "sgf_test", "{snapshot}");
+        assert!(reopened.graph().systems.is_empty(), "{snapshot}");
+        common::snapshot(
+            snapshot,
+            &String::from_utf8(at_fixture_version(&std::fs::read(&path).unwrap())).unwrap(),
+        );
+    }
 }
 
 #[test]

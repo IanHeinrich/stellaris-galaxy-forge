@@ -9,6 +9,7 @@ import { bindStores } from "./bindStores";
 import { deferred, editor, openFixtureSave } from "./editorFixture";
 import { editResult, SYSTEMS } from "./fixture";
 import { useHeightPreviewStore } from "./heightPreviewStore";
+import { until } from "../test/wait";
 
 bindStores();
 
@@ -44,7 +45,7 @@ describe("a height preview", () => {
     previews().show(0, 30);
 
     const sent = previews().commit(0);
-    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
+    await until(() => expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1));
     expect(mockedIpc.applyOp.mock.calls[0][0]).toEqual({
       type: "SetSystemHeights",
       heights: [{ system: 0, height: DEFAULT_SYSTEM_HEIGHT + 30 }],

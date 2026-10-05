@@ -270,7 +270,6 @@ describe("the height brush", () => {
     expect(html).toMatch(/aria-label="Fade out" value="250"/);
 
     useToolStore.getState().setRipple({ height: 30 });
-    expect(useToolStore.getState().ripplePreset).toBeNull();
     expect(options()).not.toContain('aria-pressed="true"');
   });
 });

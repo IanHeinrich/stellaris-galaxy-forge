@@ -208,7 +208,8 @@ fn game_data_loads_reports_unloads_and_survives_a_failed_load() {
     let w = webview();
     common::open(&w, SAMPLE);
 
-    let summary: GameDataSummary = invoke(&w, "load_game_data", json!({})).expect("load game data");
+    let summary: GameDataSummary =
+        invoke(&w, "load_game_data", json!({ "mods": false })).expect("load game data");
     assert_eq!(summary.version, install_version());
     assert_eq!(summary.generation, 1, "the first load");
     assert!(

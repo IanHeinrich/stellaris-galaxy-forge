@@ -77,9 +77,8 @@ describe("a planet's dig site", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove Never Forget").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDigSite", site: 7 }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDigSite", site: 7 });
   });
 
   it("counts the stages of a site type the picker leaves out", async () => {
@@ -143,14 +142,13 @@ describe("a planet's dig site", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Add Repowered Complex").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "AddDigSite",
-        body: WORLD,
-        site_type: "site_repowered_complex",
-        difficulty: 2,
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "AddDigSite",
+      body: WORLD,
+      site_type: "site_repowered_complex",
+      difficulty: 2,
+    });
 
     useDigSitePickerStore.setState({
       target: pickerTarget(OLBERS),

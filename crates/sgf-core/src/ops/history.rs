@@ -7,7 +7,7 @@ use crate::overlay::Anchor;
 use crate::projections::galaxy::GalaxyGraph;
 use crate::views::{HistoryEntry, HistoryView};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct History {
     undo: Vec<Applied>,
     redo: Vec<Applied>,

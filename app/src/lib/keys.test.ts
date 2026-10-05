@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "./geometry/geometry";
 import {
   keyAction,
+  type KeyAction,
   layerKeyOf,
   nudgeOf,
   orbitNudge,
@@ -16,90 +17,71 @@ function press(key: string, mods: Partial<KeyLike> = {}): KeyLike {
   return { key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods };
 }
 
+const KEY_ACTIONS: [string, Partial<KeyLike>, boolean, boolean, KeyAction | null][] = [
+  // key, modifiers, typing, inspector can go back, action
+  ["k", { ctrlKey: true }, true, false, "focusSearch"],
+  ["i", {}, false, false, "issuesTab"],
+  ["i", {}, true, false, null],
+  ["I", { shiftKey: true }, false, false, "browseInitializers"],
+  ["I", { shiftKey: true, ctrlKey: true }, false, false, null],
+  ["I", { shiftKey: true }, true, false, null],
+  ["f", {}, false, false, "focusSearch"],
+  ["/", {}, false, false, "focusSearch"],
+  ["f", { ctrlKey: true }, false, false, null],
+  ["f", {}, true, false, null],
+  ["F", { shiftKey: true }, false, false, "fitSelection"],
+  ["F", { shiftKey: true, ctrlKey: true }, false, false, null],
+  ["F", { shiftKey: true }, true, false, null],
+  ["Home", {}, false, false, "fit"],
+  ["v", {}, false, false, "selectTool"],
+  ["v", {}, true, false, null],
+  ["V", { shiftKey: true }, false, false, null],
+  ["v", { ctrlKey: true }, false, false, null],
+  ["v", { altKey: true }, false, false, null],
+  ["b", {}, false, false, "paintTool"],
+  ["e", {}, false, false, "eraseTool"],
+  ["b", {}, true, false, null],
+  ["E", { shiftKey: true }, false, false, null],
+  ["e", { ctrlKey: true }, false, false, null],
+  ["b", { altKey: true }, false, false, null],
+  ["c", {}, false, false, "connectTool"],
+  ["x", {}, false, false, "cutTool"],
+  ["c", {}, true, false, null],
+  ["X", { shiftKey: true }, false, false, null],
+  ["c", { ctrlKey: true }, false, false, null],
+  ["x", { ctrlKey: true }, false, false, null],
+  ["x", { altKey: true }, false, false, null],
+  ["m", {}, false, false, "toggleSystemView"],
+  ["M", { shiftKey: true }, false, false, "toggleSymmetry"],
+  ["m", {}, true, false, null],
+  ["M", { shiftKey: true }, true, false, null],
+  ["m", { ctrlKey: true }, false, false, null],
+  ["m", { altKey: true }, false, false, null],
+  ["Tab", {}, false, false, "toggleDock"],
+  ["Tab", { shiftKey: true }, false, false, null],
+  ["Tab", {}, true, false, null],
+  ["Backspace", {}, false, false, "deleteSelection"],
+  ["Backspace", {}, false, true, "inspectorBack"],
+  ["Delete", {}, false, true, "deleteSelection"],
+  ["Backspace", {}, true, true, null],
+  ["Backspace", {}, true, false, null],
+  ["ArrowLeft", { altKey: true }, false, true, "inspectorBack"],
+  ["ArrowLeft", { altKey: true }, false, false, null],
+  ["ArrowLeft", { altKey: true }, true, true, null],
+  ["ArrowLeft", {}, false, true, null],
+  ["`", {}, false, false, "toggleScriptLayers"],
+  ["~", { shiftKey: true }, false, false, "toggleScriptLayers"],
+  ["`", { ctrlKey: true }, false, false, null],
+  ["`", {}, true, false, null],
+  ["1", {}, false, false, null],
+  ["0", {}, false, false, "toggleInitializerLayers"],
+  ["0", { ctrlKey: true }, false, false, null],
+  ["0", {}, true, false, null],
+];
+
 describe("keys", () => {
-  it("Ctrl+K focuses the search field, even while typing, and I opens the issues", () => {
-    expect(keyAction(press("k", { ctrlKey: true }), true)).toBe("focusSearch");
-    expect(keyAction(press("i"), false)).toBe("issuesTab");
-    expect(keyAction(press("i"), true)).toBeNull();
-  });
-
-  it("Shift+I browses the initializers, leaving bare I to the issues", () => {
-    expect(keyAction(press("I", { shiftKey: true }), false)).toBe("browseInitializers");
-    expect(keyAction(press("I", { shiftKey: true, ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("I", { shiftKey: true }), true)).toBeNull();
-  });
-
-  it("F focuses the search field as in the game, and / still does", () => {
-    expect(keyAction(press("f"), false)).toBe("focusSearch");
-    expect(keyAction(press("/"), false)).toBe("focusSearch");
-    expect(keyAction(press("f", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("f"), true)).toBeNull();
-  });
-
-  it("Shift+F fits the selection and Home stays the whole-galaxy fit", () => {
-    expect(keyAction(press("F", { shiftKey: true }), false)).toBe("fitSelection");
-    expect(keyAction(press("F", { shiftKey: true, ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("F", { shiftKey: true }), true)).toBeNull();
-    expect(keyAction(press("Home"), false)).toBe("fit");
-  });
-
-  it("V picks the select tool, except while typing, with Shift or with a modifier", () => {
-    expect(keyAction(press("v"), false)).toBe("selectTool");
-    expect(keyAction(press("v"), true)).toBeNull();
-    expect(keyAction(press("V", { shiftKey: true }), false)).toBeNull();
-    expect(keyAction(press("v", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("v", { altKey: true }), false)).toBeNull();
-  });
-
-  it("B picks the paint brush and E the eraser, except while typing, with Shift or with a modifier", () => {
-    expect(keyAction(press("b"), false)).toBe("paintTool");
-    expect(keyAction(press("e"), false)).toBe("eraseTool");
-    expect(keyAction(press("b"), true)).toBeNull();
-    expect(keyAction(press("E", { shiftKey: true }), false)).toBeNull();
-    expect(keyAction(press("e", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("b", { altKey: true }), false)).toBeNull();
-  });
-
-  it("C picks the connect brush and X the cut brush, except while typing, with Shift or with a modifier", () => {
-    expect(keyAction(press("c"), false)).toBe("connectTool");
-    expect(keyAction(press("x"), false)).toBe("cutTool");
-    expect(keyAction(press("c"), true)).toBeNull();
-    expect(keyAction(press("X", { shiftKey: true }), false)).toBeNull();
-    expect(keyAction(press("c", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("x", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("x", { altKey: true }), false)).toBeNull();
-  });
-
-  it("M opens or leaves the system view and Shift+M toggles symmetry, except while typing or with a modifier", () => {
-    expect(keyAction(press("m"), false)).toBe("toggleSystemView");
-    expect(keyAction(press("M", { shiftKey: true }), false)).toBe("toggleSymmetry");
-    expect(keyAction(press("m"), true)).toBeNull();
-    expect(keyAction(press("M", { shiftKey: true }), true)).toBeNull();
-    expect(keyAction(press("m", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("m", { altKey: true }), false)).toBeNull();
-    expect(shortcutLabel("toggleSymmetry")).toBe("Shift+M");
-  });
-
-  it("Tab collapses the dock, except while typing or with Shift", () => {
-    expect(keyAction(press("Tab"), false)).toBe("toggleDock");
-    expect(keyAction(press("Tab", { shiftKey: true }), false)).toBeNull();
-    expect(keyAction(press("Tab"), true)).toBeNull();
-  });
-
-  it("Backspace goes back in the inspector when it can, and deletes the selection when it cannot", () => {
-    expect(keyAction(press("Backspace"), false)).toBe("deleteSelection");
-    expect(keyAction(press("Backspace"), false, true)).toBe("inspectorBack");
-    expect(keyAction(press("Delete"), false, true)).toBe("deleteSelection");
-    expect(keyAction(press("Backspace"), true, true)).toBeNull();
-    expect(keyAction(press("Backspace"), true)).toBeNull();
-  });
-
-  it("Alt+← goes back in the inspector when it can, and is spelled as its shortcut", () => {
-    expect(keyAction(press("ArrowLeft", { altKey: true }), false, true)).toBe("inspectorBack");
-    expect(keyAction(press("ArrowLeft", { altKey: true }), false)).toBeNull();
-    expect(keyAction(press("ArrowLeft", { altKey: true }), true, true)).toBeNull();
-    expect(keyAction(press("ArrowLeft"), false, true)).toBeNull();
-    expect(shortcutLabel("inspectorBack")).toBe("Alt+←");
+  it.each(KEY_ACTIONS)("%s %o, typing %s, back %s: %s", (key, mods, typing, back, action) => {
+    expect(keyAction(press(key, mods), typing, back)).toBe(action);
   });
 
   it("number keys 1-9 pick a layer, except while typing or with a modifier", () => {
@@ -110,19 +92,8 @@ describe("keys", () => {
     expect(layerKeyOf(press("1"), true)).toBeNull();
   });
 
-  it("a bare backtick or tilde toggles the scripts layers, and leaves 1-9 alone", () => {
-    expect(keyAction(press("`"), false)).toBe("toggleScriptLayers");
-    expect(keyAction(press("~", { shiftKey: true }), false)).toBe("toggleScriptLayers");
-    expect(keyAction(press("`", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("`"), true)).toBeNull();
-    expect(keyAction(press("1"), false)).toBeNull();
+  it("leaves 1-9 to the layers, and 0 to the initializer layers", () => {
     expect(layerKeyOf(press("1"), false)).toBe(0);
-  });
-
-  it("a bare 0 toggles the initializer layers, the key 1-9 never reach", () => {
-    expect(keyAction(press("0"), false)).toBe("toggleInitializerLayers");
-    expect(keyAction(press("0", { ctrlKey: true }), false)).toBeNull();
-    expect(keyAction(press("0"), true)).toBeNull();
     expect(layerKeyOf(press("0"), false)).toBeNull();
   });
 
@@ -181,6 +152,8 @@ describe("keys", () => {
     expect(shortcutLabel("saveAs")).toBe("Ctrl+Shift+S");
     expect(shortcutLabel("fitSelection")).toBe("Shift+F");
     expect(shortcutLabel("clearSelection")).toBe("Esc");
+    expect(shortcutLabel("toggleSymmetry")).toBe("Shift+M");
+    expect(shortcutLabel("inspectorBack")).toBe("Alt+←");
     expect(TOOLS.map((t) => shortcutLabel(toolAction(t.id)))).toEqual([
       "V",
       "B",

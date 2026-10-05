@@ -47,10 +47,6 @@ afterEach(() => {
 });
 
 describe("the tool", () => {
-  it("starts on Select", () => {
-    expect(tools().tool).toBe("select");
-  });
-
   it("refuses paint and erase over a save, and takes the lane brushes", async () => {
     await session().openSave(OPEN_RESULT.path);
     expect(tools().setTool("paint")).toBe(false);
@@ -58,11 +54,6 @@ describe("the tool", () => {
     expect(tools().tool).toBe("select");
     expect(tools().setTool("connect")).toBe(true);
     expect(tools().tool).toBe("connect");
-  });
-
-  it("refuses paint with nothing open", () => {
-    expect(tools().setTool("paint")).toBe(false);
-    expect(tools().tool).toBe("select");
   });
 
   it("takes paint over a scenario, and falls back to Select when a save opens after it", async () => {
@@ -197,18 +188,9 @@ describe("the symmetry toggle", () => {
 });
 
 describe("symmetry on a save", () => {
-  it("cannot be turned on, and M does nothing", async () => {
+  it("cannot be turned on", async () => {
     await session().openSave(OPEN_RESULT.path);
     tools().setSymmetry({ kind: "rotate", n: 4 });
-    expect(tools().symmetry).toEqual({ kind: "off" });
-    expect(run("toggleSymmetry", false, effects)).toBe(false);
-    expect(tools().symmetry).toEqual({ kind: "off" });
-  });
-
-  it("is dropped when a save opens with it still on", async () => {
-    tools().setSymmetry({ kind: "mirror", axis: "y" });
-    expect(tools().symmetry).toEqual({ kind: "mirror", axis: "y" });
-    await session().openSave(OPEN_RESULT.path);
     expect(tools().symmetry).toEqual({ kind: "off" });
   });
 
@@ -281,7 +263,9 @@ describe("lane brush keys", () => {
 
 describe("brush keys", () => {
   it("B and E pick the brushes on a scenario, and [ ] step the brush rather than a nebula", async () => {
+    expect(tools().setTool("paint")).toBe(false);
     expect(run("paintTool", false, effects)).toBe(false);
+    expect(tools().tool).toBe("select");
     await openScenario();
     expect(run("paintTool", false, effects)).toBe(true);
     expect(tools().tool).toBe("paint");

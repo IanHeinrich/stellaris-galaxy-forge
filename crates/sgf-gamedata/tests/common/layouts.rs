@@ -5,12 +5,16 @@ use std::sync::LazyLock;
 use sgf_core::ops::SystemSpec;
 use sgf_gamedata::GameData;
 use sgf_gamedata::generate::{GenerateError, generate_layout_for};
-use sgf_gamedata::layouts::SaveFacts;
+use sgf_gamedata::layouts::{Eligibility, SaveFacts, eligibility};
 
 use super::{ABUNDANCE, hand_written as install_of, open_4_5};
 
 /// The 4.5 sample's DLC, which the `if`s of a layout's bodies read.
 static SAMPLE_4_5_FACTS: LazyLock<SaveFacts> = LazyLock::new(|| SaveFacts::read(&open_4_5()));
+
+pub fn of(gd: &GameData, layout: &str) -> Eligibility {
+    eligibility(gd, gd.initializers.get(layout).expect(layout))
+}
 
 /// A system of the layout `key`, added to the 4.5 sample.
 pub fn by_name(

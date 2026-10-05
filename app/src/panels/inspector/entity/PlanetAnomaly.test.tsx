@@ -87,9 +87,8 @@ describe("a planet's anomaly", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove time_loop_world").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", body: WORLD }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveAnomaly", body: WORLD });
   });
 
   it("offers a picker to add an anomaly when it has none", async () => {

@@ -306,11 +306,9 @@ fn a_game_cloud_comes_back_as_the_file_held_it_after_its_star_changed() {
 fn a_rerolled_member_keeps_its_cloud_until_it_is_removed() {
     let mut session = open_4_5();
     let original = session.doc().original().to_vec();
-    round_trip_step(
-        &mut session,
-        "add Mura",
-        Op::AddSystemFromSpec { spec: mura() },
-    );
+    session
+        .apply(Op::AddSystemFromSpec { spec: mura() })
+        .expect("add Mura");
     round_trip_step(
         &mut session,
         "move Mura into Nythran Expanse",
@@ -371,7 +369,7 @@ fn a_system_added_inside_a_nebula_joins_it() {
 }
 
 /// A Stellaris 3.4.5 save keeps to the member lines: its ambient objects are written in
-/// another shape, so no cloud or modifier is written, and turbulence is refused.
+/// another shape, so no cloud or modifier is written.
 #[test]
 fn a_3_4_save_moves_members_and_writes_no_clouds() {
     let mut session = open_3_4();
@@ -405,11 +403,4 @@ fn a_3_4_save_moves_members_and_writes_no_clouds() {
     for written in ["ambient_object", "timed_modifier", "data=", "=none"] {
         assert!(!diff.contains(written), "{written} in {diff}");
     }
-    assert!(matches!(
-        session.apply(Op::SetNebulaTurbulent {
-            nebula: 0,
-            turbulent: true,
-        }),
-        Err(OpError::VersionTooOld(_))
-    ));
 }

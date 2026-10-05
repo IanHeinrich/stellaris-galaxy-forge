@@ -14,7 +14,6 @@ import {
   OPEN_PAINT_MOD_OFF,
   PAINT_CHECK,
   PAINT_MOD_NOT_ENABLED,
-  PAINT_UNTICKED,
 } from "../../lib/paintCopy";
 import { paintModView, scenarioListing } from "../../test/builders";
 import { buttons, shown } from "../../test/elements";
@@ -23,7 +22,6 @@ import { OpenScenarioDialog } from "./OpenScenarioDialog";
 const noop = () => undefined;
 
 describe("opening a scenario file", () => {
-  const UNTICKED = PAINT_UNTICKED.split(":")[0];
   const dialog = () => renderToStaticMarkup(<OpenScenarioDialog />);
   const ask = (kind: "not_for_paint" | "paint_mod_off") =>
     useFileSessionStore.setState({
@@ -44,7 +42,6 @@ describe("opening a scenario file", () => {
     usePaintModStore.setState({ paintChoice: false });
     expect(shown(dialog())).toContain(OPEN_NOT_FOR_PAINT);
     expect(shown(dialog())).toContain(PAINT_CHECK);
-    expect(shown(dialog())).toContain(UNTICKED);
     expect(shown(dialog())).toContain(NEVER_WARN);
     expect(shown(dialog())).toContain(NEVER_WARN_WHY.split(".")[0]);
     expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);

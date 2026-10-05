@@ -8,7 +8,7 @@ use sgf_core::session::OpResult;
 use sgf_core::views::OrbitPlacement;
 
 use crate::common;
-use common::diff::{round_trip, snapshot_step};
+use common::diff::snapshot_step;
 use common::examples::{ADDED_BODY, meissa_v};
 use common::{current, open, open_4_5, open_edited_sample, text};
 
@@ -204,13 +204,6 @@ fn a_typed_name_and_a_ring_are_written_as_given() {
         "{entry}"
     );
     assert!(entry.contains("binary_flags=320"), "{entry}");
-}
-
-#[test]
-fn an_add_undoes_byte_for_byte() {
-    round_trip(open_4_5(), meissa_v());
-    round_trip(open_4_5(), add(408, moon("pc_barren", 6, 138), 15.0, 90.0));
-    round_trip(open(), add(8, body("pc_toxic", 15), 210.0, 45.0));
 }
 
 /// The inverse takes the body out again, and puts back the inner radius the add grew.

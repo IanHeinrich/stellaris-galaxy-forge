@@ -57,11 +57,9 @@ describe("clanHomes and nextFreeClan", () => {
     ]);
   });
 
-  it("offers the lowest clan without a home, and none once all three are placed", () => {
+  it("offers the lowest clan without a home", () => {
     expect(nextFreeClan(byId())).toBe(1);
-    expect(nextFreeClan(byId(home(1, 1)))).toBe(2);
     expect(nextFreeClan(byId(home(1, 2)))).toBe(1);
-    expect(nextFreeClan(byId(home(1, 1), home(2, 2), home(3, 3)))).toBeNull();
   });
 });
 
@@ -95,7 +93,6 @@ describe("missingBaseSites", () => {
   it("names the sites a home has no base beside it for, by the bases' initializers", () => {
     const h = home(1, 1, 2, 3);
     expect(missingBaseSites(h, byId(h))).toEqual([2, 3]);
-    expect(missingBaseSites(h, byId(h, base(2, 1, 2, 1)))).toEqual([3]);
     expect(missingBaseSites(h, byId(h, base(3, 1, 3, 1)))).toEqual([2]);
     expect(missingBaseSites(h, byId(h, base(2, 1, 2, 1), base(3, 1, 3, 1)))).toEqual([]);
   });

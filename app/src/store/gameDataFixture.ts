@@ -14,9 +14,6 @@ import { resetStores } from "./storeFixture";
 import { planetClassView } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
-/** Lets every pending answer land before a test asks what was written. */
-export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 export const SUMMARY: GameDataSummary = gameDataSummary();
 
 export const SPECIAL: SpecialSystems = {

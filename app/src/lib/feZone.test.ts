@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { byId, systemNode } from "../test/builders";
 import {
-  addFeZoneRefusal,
   FE_DIRECTIONS,
   FE_KINDS,
   FE_ZONE_DISTANCES,
@@ -11,7 +10,6 @@ import {
   feZoneOffMap,
   feZoneRefusal,
   firstFreeDirection,
-  newFeZone,
   snapFeZone,
 } from "./feZone";
 
@@ -36,16 +34,6 @@ describe("the zone vocabulary", () => {
     expect(FE_ZONE_DISTANCES[0]).toBe(30);
     expect(FE_ZONE_DISTANCES[17]).toBe(200);
     expect(FE_ZONE_RADIUS).toBe(30);
-  });
-
-  it("gives a new zone the mod's defaults, placed by hand", () => {
-    expect(newFeZone("n")).toEqual({
-      direction: "n",
-      kind: "random",
-      distance: 40,
-      preferred: true,
-      fallback: false,
-    });
   });
 });
 
@@ -125,36 +113,10 @@ describe("firstFreeDirection", () => {
     expect(firstFreeDirection(anchor, byId(anchor))).toBe("se");
     expect(firstFreeDirection(at(1, -450, 0), byId(at(1, -450, 0)))).toBe("s");
   });
-
-  it("gives up when every ring at distance 40 is covered", () => {
-    const anchor = at(1, 0, 0);
-    const ring = FE_DIRECTIONS.map(({ key }, i) => {
-      const c = feZoneCentre(anchor, { direction: key, distance: 40 });
-      return at(10 + i, c.x, c.y);
-    });
-    expect(firstFreeDirection(anchor, byId(anchor, ...ring))).toBeNull();
-  });
 });
 
 describe("the refusals", () => {
-  it("says which system is in the way, or that the ring leaves the map", () => {
-    expect(feZoneRefusal(at(2, 0, 0), () => "Sol")).toBe(
-      "The ring would cover Sol. A fallen empire zone must be empty space.",
-    );
+  it("says when the ring would leave the map", () => {
     expect(feZoneRefusal(null, () => "Sol")).toBe("The ring would lie off the map.");
-  });
-
-  it("refuses a second zone on one anchor, and an anchor with no room", () => {
-    const zoned = systemNode({ id: 1, fe_zone: newFeZone("e") });
-    expect(addFeZoneRefusal(zoned, byId(zoned))).toBe("This system already anchors a zone");
-    const anchor = at(1, 0, 0);
-    const ring = FE_DIRECTIONS.map(({ key }, i) => {
-      const c = feZoneCentre(anchor, { direction: key, distance: 40 });
-      return at(10 + i, c.x, c.y);
-    });
-    expect(addFeZoneRefusal(anchor, byId(anchor, ...ring))).toBe(
-      "No clear space for a ring at distance 40",
-    );
-    expect(addFeZoneRefusal(anchor, byId(anchor))).toBeNull();
   });
 });

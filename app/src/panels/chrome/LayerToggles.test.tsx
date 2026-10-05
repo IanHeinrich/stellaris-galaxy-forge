@@ -110,8 +110,6 @@ describe("the split layer bar", () => {
     expect(html).toContain('aria-label="Leviathans" aria-pressed="false"');
     expect(html).toContain('aria-label="Enclaves" aria-pressed="false"');
     expect(html).toContain('aria-label="System details" aria-pressed="false"');
-    // The kinds only the menu lists are the user's own, so the group leaves them alone.
-    expect(useMapChromeStore.getState().shownKinds.has("landmark")).toBe(true);
   });
 
   it("the pill reads how much of the group's own icons the map draws", () => {

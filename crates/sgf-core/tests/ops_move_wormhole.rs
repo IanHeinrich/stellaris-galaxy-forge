@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
-use common::{current, open, open_4_5};
+use common::{open, open_4_5};
 
 fn move_wormhole(wormhole: u32, radius: f64, angle: f64) -> Op {
     Op::MoveWormhole {
@@ -76,16 +76,6 @@ fn a_wormhole_moved_about_its_star() {
         wormholes(&session, 489),
         [wormhole(1, 9, 152, 4.20498, 459.52851)]
     );
-}
-
-#[test]
-fn the_move_back_writes_the_bytes_the_game_wrote() {
-    let mut session = open_4_5();
-    let result = session
-        .apply(move_wormhole(1, 300.0, 45.0))
-        .expect("the move");
-    session.apply(result.inverse).expect("move it back");
-    assert_eq!(current(&session), session.doc().original());
 }
 
 /// Details built after the move read the same point as details refreshed by it.

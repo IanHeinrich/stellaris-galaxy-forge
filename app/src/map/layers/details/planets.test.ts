@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planetClassView, planetSummary } from "../../../test/builders";
-import { mapContext } from "../fixture";
+import { mapContext } from "../contextFixture";
 import type { Textures } from "./cell";
 import { planetLines } from "./planets";
 

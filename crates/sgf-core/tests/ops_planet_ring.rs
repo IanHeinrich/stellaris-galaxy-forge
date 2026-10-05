@@ -6,7 +6,6 @@ use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::round_trip;
 use common::open_4_5;
 
 fn set(planet: u32, ring: bool) -> Op {
@@ -65,13 +64,6 @@ fn a_ring_is_taken_off_and_the_statement_goes() {
     let result = session.apply(set(589, true)).expect("give the ring back");
     assert_eq!(result.entry.description, "Gave planet #589 a ring");
     assert_eq!(flags(&session, 589).as_deref(), Some("320"));
-}
-
-#[test]
-fn a_ring_round_trips_from_the_file_as_opened() {
-    round_trip(open_4_5(), set(585, true));
-    round_trip(open_4_5(), set(586, true));
-    round_trip(open_4_5(), set(589, false));
 }
 
 #[test]

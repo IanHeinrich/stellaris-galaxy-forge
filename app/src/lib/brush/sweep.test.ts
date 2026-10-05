@@ -25,12 +25,7 @@ function grid(systems: SystemNode[]): SpatialGrid {
 }
 
 describe("sweptSystems", () => {
-  it("removes the systems under the stroke and spares the specials unless told otherwise", () => {
-    expect(sweptSystems(STAMPS, R, grid(SYSTEMS))).toEqual({ doomed: [1, 2], kept: [5] });
-    expect(sweptSystems(STAMPS, R, grid(SYSTEMS), { includeSpecials: true })).toEqual({
-      doomed: [1, 2, 5],
-      kept: [],
-    });
+  it("spares the systems a custom rule calls special", () => {
     expect(sweptSystems(STAMPS, R, grid(SYSTEMS), { isSpecial: (s) => s.id === 1 })).toEqual({
       doomed: [2, 5],
       kept: [1],

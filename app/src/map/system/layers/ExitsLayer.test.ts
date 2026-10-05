@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { context, drawOps, viewport } from "../fixture";
+import { context, drawOps, viewport } from "../drawFixture";
 import { ExitsLayer } from "./ExitsLayer";
 
 describe("the system scene's exits layer", () => {

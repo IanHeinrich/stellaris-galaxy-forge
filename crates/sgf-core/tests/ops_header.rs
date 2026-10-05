@@ -1,5 +1,5 @@
 //! `SetHeaderField` on the grammar fixture: the diff each rewrite, insertion and removal
-//! produces is snapshotted, undo is checked byte for byte, and the rebuilt header is read
+//! produces is snapshotted and round-tripped, and the rebuilt header is read
 //! back through the index the app lists it from.
 
 use sgf_core::ops::{Op, OpError, ParseAt};
@@ -7,7 +7,7 @@ use sgf_core::session::Session;
 
 use crate::common;
 use common::current;
-use common::diff::{plain_snapshot, round_trip};
+use common::diff::snapshot_step;
 use common::fixture::GRAMMAR;
 
 fn set(key: &str, value: Option<&str>) -> Op {
@@ -25,49 +25,38 @@ fn field(session: &Session, key: &str) -> Option<String> {
 
 #[test]
 fn setting_a_scalar_rewrites_it_where_it_stands() {
-    plain_snapshot(
+    snapshot_step(
+        &mut GRAMMAR.open(),
         "set_core_radius",
-        GRAMMAR.open(),
         set("core_radius", Some("25")),
     );
 }
 
 #[test]
 fn setting_a_block_writes_raw_text_over_the_whole_value() {
-    plain_snapshot(
+    snapshot_step(
+        &mut GRAMMAR.open(),
         "set_num_empires",
-        GRAMMAR.open(),
         set("num_empires", Some("{ min = 3 max = 5 }")),
     );
 }
 
 #[test]
 fn a_key_the_header_lacks_is_inserted_before_the_first_system() {
-    plain_snapshot(
+    snapshot_step(
+        &mut GRAMMAR.open(),
         "insert_nomad_empire_default",
-        GRAMMAR.open(),
         set("nomad_empire_default", Some("1")),
     );
 }
 
 #[test]
 fn clearing_a_key_takes_the_line_it_had_to_itself() {
-    plain_snapshot(
+    snapshot_step(
+        &mut GRAMMAR.open(),
         "remove_supports_shape",
-        GRAMMAR.open(),
         set("supports_shape", None),
     );
-}
-
-#[test]
-fn the_header_ops_undo_and_redo_byte_for_byte() {
-    round_trip(GRAMMAR.open(), set("core_radius", Some("25")));
-    round_trip(
-        GRAMMAR.open(),
-        set("num_empires", Some("{ min = 3 max = 5 }")),
-    );
-    round_trip(GRAMMAR.open(), set("nomad_empire_default", Some("1")));
-    round_trip(GRAMMAR.open(), set("supports_shape", None));
 }
 
 #[test]

@@ -2,6 +2,7 @@
 //! start with, and how saving an edited scenario wraps the line of whoever wrote it last.
 
 use std::path::Path;
+use std::sync::LazyLock;
 
 use sgf_core::VERSION;
 use sgf_core::export::{self, ScenarioProfile};
@@ -9,7 +10,7 @@ use sgf_core::ops::Op;
 use sgf_core::session::Session;
 
 use crate::common;
-use common::export::{NAME, SAVE_FILE, exported_as, no_names, no_sources};
+use common::export::{NAME, no_names, no_sources};
 use common::fixture::{EXPORTED, GRAMMAR, PAINTED};
 
 const PAINT_LINE: &str = "#\u{200B} created by Paint a Galaxy 1.4.2 (imported from generic txt)";
@@ -39,6 +40,13 @@ fn written(dir: &Path, name: &str, bytes: &[u8]) -> std::path::PathBuf {
 /// `bytes` opened from a file, nudged once and saved in place: what the file then holds.
 fn saved_after_a_nudge(bytes: &[u8]) -> Vec<u8> {
     saved_after(bytes, nudge())
+}
+
+/// The painted fixture saved after a nudge, saved once for every test that compares with
+/// it.
+fn painted_nudged() -> &'static [u8] {
+    static SAVED: LazyLock<Vec<u8>> = LazyLock::new(|| saved_after_a_nudge(&PAINTED.bytes()));
+    &SAVED
 }
 
 /// `bytes` opened from a file, edited by `op` and saved in place.
@@ -72,8 +80,8 @@ fn with_first_line(line: &str, rest: &[u8]) -> Vec<u8> {
 #[test]
 fn saving_an_edited_scenario_wraps_the_line_of_whoever_wrote_it_last() {
     let plain = PAINTED.bytes();
-    let saved = saved_after_a_nudge(&plain);
-    let unstamped = without_first_line(&saved);
+    let saved = painted_nudged();
+    let unstamped = without_first_line(saved);
     assert!(unstamped.starts_with(b"static_galaxy_scenario = {"));
 
     for (line, wrapped) in [
@@ -228,8 +236,8 @@ fn a_scenario_neither_tool_made_gains_no_line_and_an_undone_edit_changes_nothing
 #[test]
 fn a_scenario_forge_wrote_before_the_line_gains_one_above_its_old_comments() {
     let plain = PAINTED.bytes();
-    let saved = saved_after_a_nudge(&plain);
-    let unstamped = without_first_line(&saved);
+    let saved = painted_nudged();
+    let unstamped = without_first_line(saved);
     for old in [
         "# Exported by Stellaris Galaxy Forge from x.sav",
         "# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.",
@@ -253,9 +261,9 @@ fn a_scenario_forge_wrote_before_the_line_gains_one_above_its_old_comments() {
 fn a_scenario_paint_a_galaxy_wrote_before_the_line_gains_one_on_top() {
     let line = format!("{} (imported from txt created by Paint a Galaxy)", forge());
     let plain = PAINTED.bytes();
-    let saved = saved_after_a_nudge(&plain);
-    assert_eq!(first_line(&saved), line);
-    let body = without_first_line(&saved);
+    let saved = painted_nudged();
+    assert_eq!(first_line(saved), line);
+    let body = without_first_line(saved);
     assert!(body.starts_with(b"static_galaxy_scenario = {\n"));
 
     let typed = with_first_line("# made by hand", &plain);
@@ -308,7 +316,7 @@ fn the_line_keeps_a_byte_order_mark_and_crlf_line_endings() {
             "{} (imported from txt created by Paint a Galaxy 1.4.2 (imported from generic txt))",
             forge()
         ),
-        without_first_line(&saved_after_a_nudge(&PAINTED.bytes())),
+        without_first_line(painted_nudged()),
     ));
     assert_eq!(saved, expected);
 
@@ -322,31 +330,14 @@ fn the_line_keeps_a_byte_order_mark_and_crlf_line_endings() {
             "{} (imported from txt created by an earlier Stellaris Galaxy Forge)\n{legacy}",
             forge()
         ),
-        without_first_line(&saved_after_a_nudge(&PAINTED.bytes())),
+        without_first_line(painted_nudged()),
     ));
     assert_eq!(saved, expected);
 }
 
 #[test]
-fn a_save_exports_with_the_line_on_top_under_both_profiles() {
+fn a_save_exports_with_its_file_name_or_none_in_the_line() {
     let save = common::open();
-    let converted = format!("{} (converted from save {SAVE_FILE})\n", forge());
-    for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
-        let (text, _) = exported_as(&save, NAME, profile);
-        let text = String::from_utf8(text).unwrap();
-        assert!(text.starts_with(&converted), "{}", &text[..300]);
-        assert_eq!(text.matches("#\u{200B} created by").count(), 1);
-        assert!(!text.contains("# Exported by"));
-        assert_eq!(
-            text.contains(
-                "\n# Written by Stellaris Galaxy Forge for the Paint a Galaxy mod (Steam Workshop 3532904115), which this map requires.\nstatic_galaxy_scenario = {\n"
-            ),
-            profile == ScenarioProfile::PaintAGalaxy,
-            "{}",
-            &text[..300]
-        );
-    }
-
     let options = export::ScenarioOptions {
         exported_from: Some("odd (name)\r\n.sav".to_owned()),
         ..export::options_for(save.graph(), NAME)

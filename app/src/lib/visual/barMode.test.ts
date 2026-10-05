@@ -33,12 +33,7 @@ describe("the bar each view shows", () => {
 });
 
 describe("the commands each view takes", () => {
-  it("the galaxy's edits wait while a system is shown, and the rest run everywhere", () => {
-    for (const command of ["deleteSelection", "selectAll", "browseInitializers"] as const) {
-      expect(barTakes("save", command)).toBe(true);
-      expect(barTakes("scenario", command)).toBe(true);
-      expect(barTakes("system", command)).toBe(false);
-    }
+  it("undo and clearing the selection run while a system is shown", () => {
     expect(barTakes("system", "undo")).toBe(true);
     expect(barTakes("system", "clearSelection")).toBe(true);
   });

@@ -40,14 +40,13 @@ describe("a planet's modifiers", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove pm_abundant_geothermal_activity").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "RemoveBodyModifier",
-        body: WORLD,
-        modifier: "abundant_geothermal_activity",
-        feature: "pm_abundant_geothermal_activity",
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "RemoveBodyModifier",
+      body: WORLD,
+      modifier: "abundant_geothermal_activity",
+      feature: "pm_abundant_geothermal_activity",
+    });
   });
 
   it("reads a planet modifier with its timed twin as one permanent row", async () => {

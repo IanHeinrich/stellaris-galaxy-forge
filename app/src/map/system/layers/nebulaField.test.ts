@@ -31,27 +31,30 @@ function stepAcross(left: boolean): number {
   return sum / (half - 8);
 }
 
+function sameTexels(a: ArrayLike<number>, b: ArrayLike<number>): boolean {
+  if (a.length !== b.length) return false;
+  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false;
+  return true;
+}
+
 describe("nebulaField", () => {
   it("gives the same premultiplied white field for the same seed, and another for another", () => {
-    expect(nebulaField(7, SIZE)).toEqual(field);
-    expect(nebulaField(8, SIZE)).not.toEqual(field);
-    for (let k = 0; k < field.length; k += 4) {
-      expect(field[k]).toBe(field[k + 3]);
-    }
+    expect(sameTexels(nebulaField(7, SIZE), field), "same seed").toBe(true);
+    expect(sameTexels(nebulaField(8, SIZE), field), "another seed").toBe(false);
+    const unmatched = field.findIndex((value, k) => k % 4 === 0 && value !== field[k + 3]);
+    expect(unmatched, "first texel whose red is not its alpha").toBe(-1);
   });
 
   it("is clear about the centre, denser further out, and gone at its edge", () => {
     expect(ring(0, 0.1)).toBeLessThan(ring(0.4, 0.6) / 3);
+    const edge: number[] = [];
     for (let k = 0; k < SIZE; k++) {
-      for (const [i, j] of [
-        [k, 0],
-        [k, SIZE - 1],
-        [0, k],
-        [SIZE - 1, k],
-      ]) {
-        expect(alpha(i, j)).toBe(0);
-      }
+      edge.push(alpha(k, 0), alpha(k, SIZE - 1), alpha(0, k), alpha(SIZE - 1, k));
     }
+    expect(
+      edge.filter((a) => a !== 0),
+      "alpha on the edge",
+    ).toEqual([]);
   });
 
   it("has no seam where the angle wraps round", () => {

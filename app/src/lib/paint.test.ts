@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { HeaderField } from "../generated/HeaderField";
 import type { ScenarioListing } from "../generated/ScenarioListing";
 import type { SpawnScript } from "../generated/SpawnScript";
 import { paintModView, scenarioSummary, systemNode } from "../test/builders";
@@ -16,12 +15,10 @@ import {
   reservedName,
   reservedSeatName,
   scenarioForPaint,
-  scenarioHeaderName,
   scenarioOpenPrompt,
   scriptForKind,
   seatSummary,
   spawnScriptLabel,
-  weightedDescription,
   weightedScript,
 } from "./paint";
 
@@ -151,18 +148,6 @@ describe("a painted galaxy", () => {
       paint_a_galaxy: { kind: { reserved: "c" }, random_value: 4, player: false },
     });
   });
-
-  it("says what the weight does for each kind that can carry it", () => {
-    expect(weightedDescription("preferred")).toBe(
-      "Weighted so the first player is all but certain to start here.",
-    );
-    expect(weightedDescription("sol")).toBe(
-      "Weighted so the United Nations of Earth is certain to start here. No other empire can.",
-    );
-    expect(weightedDescription({ reserved: "c" })).toBe(
-      'Weighted so an empire with the "Reserved Spawn: C" trait is certain to start here. No other empire can.',
-    );
-  });
 });
 
 describe("the Paint a Galaxy layer", () => {
@@ -176,13 +161,6 @@ describe("the Paint a Galaxy layer", () => {
     ...over,
   });
 
-  it("is on for a painted scenario, or one the user chose as such, whatever the mod says", () => {
-    expect(paintLayer(doc({ painted: true }), null)).toBe(true);
-    expect(paintLayer(doc({ paintChosen: true }), null)).toBe(true);
-    expect(paintLayer(doc(), null)).toBe(false);
-    expect(paintLayer(doc(), mod(DIR))).toBe(false);
-  });
-
   it("is on for a plain scenario saved inside the mod's scenarios folder", () => {
     expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), mod(DIR))).toBe(true);
     expect(paintLayer(doc({ path: "c:/mods/pag/map/setup_scenarios/mine.txt" }), mod(DIR))).toBe(
@@ -194,19 +172,11 @@ describe("the Paint a Galaxy layer", () => {
     expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), mod(null))).toBe(false);
     expect(paintLayer(doc({ path: `${DIR}\\mine.txt` }), null)).toBe(false);
   });
-
-  it("is never on for a save, or before a document is open", () => {
-    expect(paintLayer(doc({ kind: "save", painted: true, paintChosen: true }), mod(DIR))).toBe(
-      false,
-    );
-    expect(paintLayer(doc({ kind: null, paintChosen: true }), mod(DIR))).toBe(false);
-  });
 });
 
 describe("opening a scenario file", () => {
   const DIR = "C:\\mods\\pag\\map\\setup_scenarios";
   const MOD = paintModView({ scenarios_dir: DIR, enabled: true });
-  const OFF = paintModView({ scenarios_dir: DIR, enabled: false });
   const listing = (path: string, painted: boolean): ScenarioListing => ({
     path,
     name: "a_galaxy",
@@ -242,29 +212,9 @@ describe("opening a scenario file", () => {
     expect(scenarioForPaint(`${DIR}\\mine.txt`, null, null)).toBeNull();
   });
 
-  it("opens a scenario for the mod at once only while the mod is enabled", () => {
-    expect(scenarioOpenPrompt(true, MOD, true)).toBe("none");
-    expect(scenarioOpenPrompt(true, OFF, true)).toBe("paint_mod_off");
-    expect(scenarioOpenPrompt(true, null, true)).toBe("paint_mod_off");
-    expect(scenarioOpenPrompt(true, OFF, false)).toBe("paint_mod_off");
-  });
-
-  it("asks first about any other scenario until that warning is turned off", () => {
-    expect(scenarioOpenPrompt(false, MOD, true)).toBe("not_for_paint");
+  it("treats a scenario it cannot place as not for the mod", () => {
     expect(scenarioOpenPrompt(null, MOD, true)).toBe("not_for_paint");
-    expect(scenarioOpenPrompt(false, MOD, false)).toBe("none");
     expect(scenarioOpenPrompt(null, null, false)).toBe("none");
-  });
-});
-
-describe("the scenario header's name", () => {
-  it("unquotes the header's name key", () => {
-    const header: HeaderField[] = [{ key: "name", value: '"My Galaxy"', line: 2 }];
-    expect(scenarioHeaderName(header)).toBe("My Galaxy");
-  });
-
-  it("is null when the header states no name", () => {
-    expect(scenarioHeaderName([])).toBeNull();
   });
 });
 

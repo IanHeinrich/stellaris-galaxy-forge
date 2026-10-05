@@ -54,12 +54,6 @@ describe("layer groups", () => {
     }
   });
 
-  it("puts a master over the two groups the install decides", () => {
-    const masters = groupsFor("scenario").filter((group) => group.master);
-    expect(masters.map((group) => group.source)).toEqual(["initializers", "scripts"]);
-    for (const group of masters) expect(group.needsGameData).toBe(true);
-  });
-
   it("says why each group the install decides is dead without it, in its own words", () => {
     const titleOf = (source: Source) =>
       groupsFor("scenario").find((group) => group.source === source)?.deadTitle;

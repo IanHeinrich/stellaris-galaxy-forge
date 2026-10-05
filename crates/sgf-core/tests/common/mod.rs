@@ -7,6 +7,7 @@ pub mod diff;
 pub mod examples;
 pub mod export;
 pub mod fixture;
+pub mod line_diff;
 pub mod paint;
 pub mod spec;
 
@@ -69,10 +70,27 @@ pub fn load_3_4() -> Document {
     cached(&SAMPLE_3_4_DOCUMENT, SAMPLE_3_4).clone()
 }
 
+/// The slot of `cache` among [`CACHED`].
+fn slot(cache: &'static OnceLock<Document>) -> usize {
+    CACHED
+        .iter()
+        .position(|(sample, _)| std::ptr::eq(*sample, cache))
+        .expect("a cached sample")
+}
+
+/// A copy of the session the sample opens to, which each binary builds once.
 fn open_cached(cache: &'static OnceLock<Document>, path: &str) -> Session {
-    let doc = cached(cache, path).clone();
-    Session::from_document(Some(PathBuf::from(path)), doc)
-        .unwrap_or_else(|e| panic!("open {path}: {e}"))
+    static OPENED: [OnceLock<Mutex<Session>>; 3] = [const { OnceLock::new() }; 3];
+    let session = OPENED[slot(cache)].get_or_init(|| {
+        let doc = cached(cache, path).clone();
+        let session = Session::from_document(Some(PathBuf::from(path)), doc)
+            .unwrap_or_else(|e| panic!("open {path}: {e}"));
+        Mutex::new(session)
+    });
+    session
+        .lock()
+        .unwrap_or_else(|held| held.into_inner())
+        .clone()
 }
 
 pub fn open() -> Session {
@@ -88,7 +106,7 @@ pub fn open_3_4() -> Session {
 }
 
 pub fn current(session: &Session) -> Vec<u8> {
-    session.doc().pieces().flatten().copied().collect()
+    session.doc().pieces().collect::<Vec<_>>().concat()
 }
 
 /// The session's current bytes as text, for a scenario.
@@ -158,6 +176,39 @@ pub fn warmed() -> MutexGuard<'static, Session> {
         Mutex::new(session)
     });
     WARMED.lock().unwrap_or_else(|held| held.into_inner())
+}
+
+/// `session` with its details built. A sample as it opened, with nothing applied or undone, is
+/// swapped for a copy of that sample warmed once per binary.
+pub fn warm(mut session: Session) -> Session {
+    static WARM: [OnceLock<Mutex<Session>>; 3] = [const { OnceLock::new() }; 3];
+    let original = session.doc().original();
+    let sample = CACHED.into_iter().find(|(cache, _)| {
+        cache
+            .get()
+            .is_some_and(|sample| std::ptr::eq(sample.original(), original))
+    });
+    match sample {
+        Some((cache, path))
+            if session.history().undo.is_empty()
+                && session.history().redo.is_empty()
+                && !session.is_dirty() =>
+        {
+            let warmed = WARM[slot(cache)].get_or_init(|| {
+                let mut session = open_cached(cache, path);
+                session.warm_details().expect("build details");
+                Mutex::new(session)
+            });
+            warmed
+                .lock()
+                .unwrap_or_else(|held| held.into_inner())
+                .clone()
+        }
+        _ => {
+            session.warm_details().expect("build details");
+            session
+        }
+    }
 }
 
 /// The session's findings, each as its code, systems and message.

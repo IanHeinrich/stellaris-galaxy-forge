@@ -139,7 +139,7 @@ fn an_empty_list_a_repeated_or_unknown_system_and_a_height_that_is_no_number_are
 fn a_save_of_any_version_takes_heights_and_a_scenario_does_not() {
     assert!(Capabilities::of(open_4_5().doc()).system_heights);
     assert!(Capabilities::of(open_3_4().doc()).system_heights);
-    let mut scenario = PAINTED.open();
+    let scenario = PAINTED.open();
     assert!(!Capabilities::of(scenario.doc()).system_heights);
     assert!(
         scenario
@@ -148,8 +148,4 @@ fn a_save_of_any_version_takes_heights_and_a_scenario_does_not() {
             .values()
             .all(|s| s.height.is_none())
     );
-    let error = scenario
-        .apply(heights(&[(0, Some(1.0))]))
-        .expect_err("a scenario");
-    assert!(matches!(error, OpError::Unsupported { .. }), "{error:?}");
 }

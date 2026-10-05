@@ -19,6 +19,7 @@ import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
 import { resetStores } from "./storeFixture";
+import { until } from "../test/wait";
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
@@ -69,7 +70,7 @@ describe("clearSelection", () => {
     expect(useEditorStore.getState().selection).toEqual([1]);
 
     esc();
-    await vi.waitFor(() => expect(useEditorStore.getState().selection).toEqual([]));
+    await until(() => expect(useEditorStore.getState().selection).toEqual([]));
   });
 
   it("leaves everything but the browser standing while a field has the caret", () => {
@@ -125,7 +126,7 @@ describe("Shift+Arrow", () => {
     useInspectorStore.getState().openFromMap(bodyEntry(SYSTEM, LONE, "Body"));
 
     nudgeSelected({ dx: 0, dy: -SAVE_Y_SIGN });
-    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
+    await until(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
     expect(mockedIpc.applyOp).toHaveBeenCalledWith({
       type: "MoveBody",
       system: SYSTEM,
@@ -138,7 +139,7 @@ describe("Shift+Arrow", () => {
   it("on the galaxy, moves the selected systems", async () => {
     useEditorStore.setState({ selection: [SYSTEM] });
     nudgeSelected({ dx: 1, dy: 0 });
-    await vi.waitFor(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
+    await until(() => expect(mockedIpc.applyOp).toHaveBeenCalledOnce());
     expect(mockedIpc.applyOp).toHaveBeenCalledWith(expect.objectContaining({ type: "MoveSystem" }));
   });
 });

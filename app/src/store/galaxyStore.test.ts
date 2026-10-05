@@ -36,16 +36,30 @@ describe("galaxyStore", () => {
     expect(after.nebulae).toBe(OPEN_RESULT.galaxy.nebulae);
   });
 
-  it("applyDelta replaces the header when a delta carries one, else keeps the one loaded", () => {
-    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    const before = useGalaxyStore.getState();
-    useGalaxyStore.getState().applyDelta({ systems: [] });
-    expect(useGalaxyStore.getState().header).toBe(before.header);
+  it.each([
+    ["header", [{ key: "core_radius", value: "25", line: 3 }]],
+    ["waylines", []],
+    ["bypasses", [...OPEN_RESULT.galaxy.bypasses, { type: "wormhole", a: 0, b: 3 } as const]],
+  ] as const)(
+    "applyDelta replaces the %s when a delta carries them, else keeps the ones loaded",
+    (field, carried) => {
+      const station = { system: 1, starbase: 9, network: 0 };
+      useGalaxyStore.getState().load({
+        ...OPEN_RESULT.galaxy,
+        waylines: [{ a: 1, b: 2, network: 0 }],
+        waystations: [station],
+      });
+      const before = useGalaxyStore.getState();
 
-    const header = [{ key: "core_radius", value: "25", line: 3 }];
-    useGalaxyStore.getState().applyDelta({ systems: [], header });
-    expect(useGalaxyStore.getState().header).toBe(header);
-  });
+      useGalaxyStore.getState().applyDelta({ systems: [] });
+      expect(useGalaxyStore.getState()[field], "kept without one").toBe(before[field]);
+
+      useGalaxyStore.getState().applyDelta({ systems: [], [field]: carried });
+      expect(useGalaxyStore.getState()[field], "replaced by the delta's").toBe(carried);
+      expect(useGalaxyStore.getState().galaxy, "galaxy object kept").toBe(before.galaxy);
+      expect(useGalaxyStore.getState().waystations, "waystations kept").toEqual([station]);
+    },
+  );
 
   // The map rebuilds and refits on a new `galaxy`, which a header edit must not ask it to do.
   it("applyDelta of a header alone leaves the galaxy object it was loaded with", () => {
@@ -58,37 +72,6 @@ describe("galaxyStore", () => {
     });
 
     expect(useGalaxyStore.getState().galaxy).toBe(before);
-  });
-
-  it("applyDelta replaces the waylines when a delta carries them, else keeps the ones loaded", () => {
-    const line = { a: 1, b: 2, network: 0 };
-    const station = { system: 1, starbase: 9, network: 0 };
-    useGalaxyStore
-      .getState()
-      .load({ ...OPEN_RESULT.galaxy, waylines: [line], waystations: [station] });
-    expect(useGalaxyStore.getState().waylines).toEqual([line]);
-    expect(useGalaxyStore.getState().waystations).toEqual([station]);
-
-    useGalaxyStore.getState().applyDelta({ systems: [], removed: [] });
-    expect(useGalaxyStore.getState().waylines).toEqual([line]);
-
-    useGalaxyStore.getState().applyDelta({ systems: [], removed: [], waylines: [] });
-    expect(useGalaxyStore.getState().waylines).toEqual([]);
-    expect(useGalaxyStore.getState().waystations).toEqual([station]);
-  });
-
-  it("applyDelta replaces the bypass links when a delta carries them, leaving the galaxy object", () => {
-    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
-    const galaxy = useGalaxyStore.getState().galaxy;
-    expect(useGalaxyStore.getState().bypasses).toEqual(OPEN_RESULT.galaxy.bypasses);
-
-    useGalaxyStore.getState().applyDelta({ systems: [] });
-    expect(useGalaxyStore.getState().bypasses).toEqual(OPEN_RESULT.galaxy.bypasses);
-
-    const links = [...OPEN_RESULT.galaxy.bypasses, { type: "wormhole", a: 0, b: 3 } as const];
-    useGalaxyStore.getState().applyDelta({ systems: [], bypasses: links });
-    expect(useGalaxyStore.getState().bypasses).toBe(links);
-    expect(useGalaxyStore.getState().galaxy).toBe(galaxy);
   });
 
   it("applyDelta drops every removed system from the map and the grid", () => {

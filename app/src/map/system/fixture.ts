@@ -1,4 +1,4 @@
-import { BitmapText, Texture, type Container } from "pixi.js";
+/** Scenes, bodies and targets a system view test builds, without PixiJS. */
 import type { BodyLayout } from "../../generated/BodyLayout";
 import type { Bounds } from "../../generated/Bounds";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
@@ -18,11 +18,8 @@ import { Camera } from "../Camera";
 import type { HandleRef } from "./bodyDrag";
 import { systemContext, type SystemContext } from "./context";
 import type { SystemLayer } from "./layers/SystemLayer";
-import type { SceneTextures } from "./layers/textures";
 import type { SceneTarget } from "./picking";
 import { NO_SOURCES, placeIn } from "./sources";
-
-export { drawOps, strokes, stubTextMeasurement } from "../layers/fixture";
 
 /** The body, wormhole or arrow `id` as an input's target. */
 export const over = (kind: "body" | "wormhole" | "exit", id: number): SceneTarget => ({ kind, id });
@@ -39,57 +36,6 @@ export function viewport(layer: SystemLayer, scale: number, at = { x: 0, y: 0 })
   cam.rev++;
   layer.onViewport?.(cam);
   return cam;
-}
-
-/** Every scene texture, blank. */
-export function blankSceneTextures(): SceneTextures {
-  const t = () => new Texture();
-  return {
-    disc: t(),
-    corona: t(),
-    beam: t(),
-    plume: t(),
-    wisps: t(),
-    halo: t(),
-    swirl: t(),
-    shade: t(),
-    gloss: t(),
-    belt: {
-      rock: t(),
-      shard: t(),
-      crystal: t(),
-      container: t(),
-      blob: t(),
-      speck: t(),
-      glint: t(),
-      glow: t(),
-    },
-    ringBack: t(),
-    ringFront: t(),
-    nebula: t(),
-    wormholeHaze: t(),
-    wormholeSwirl: t(),
-    wormholeRim: t(),
-  };
-}
-
-/** The amounts a label's resource row shows, in order: its visible texts that are numbers. */
-export function resourceAmounts(holder: Container): string[] {
-  const row = holder.children.find((c) => c.label === "resources");
-  if (!row) return [];
-  const texts = (c: Container): string[] => [
-    ...(c instanceof BitmapText && c.visible && /^\d/.test(c.text) ? [c.text] : []),
-    ...c.children.flatMap(texts),
-  ];
-  return texts(row);
-}
-
-/** The texts labelled `label` on the plates shown in `container`. */
-export function plateTexts(container: Container, label: string): string[] {
-  return container.children
-    .filter((holder) => holder.visible)
-    .flatMap((holder) => holder.children)
-    .flatMap((c) => (c instanceof BitmapText && c.label === label ? [c.text] : []));
 }
 
 export const SYSTEM = 5;

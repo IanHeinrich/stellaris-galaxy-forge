@@ -14,6 +14,7 @@ use sgf_core::views::{DocumentKind, GalaxyView};
 use similar::{Algorithm, ChangeTag, TextDiff};
 
 use super::fixture::from_scenario_text;
+use super::line_diff::{line_diff, middle, renumbered};
 use super::{current, issues_at_open, reprojected};
 
 /// Description, the systems the op touched, the inverse, the issues that name one of
@@ -21,6 +22,14 @@ use super::{current, issues_at_open, reprojected};
 /// document opened,
 /// and the unified diff (3 lines of context).
 pub fn report(session: &Session, result: &OpResult) -> String {
+    let mut out = report_head(session, result);
+    write!(out, "{}", unified_diff(session, None)).unwrap();
+    write!(out, "{}", meta_diff(session)).unwrap();
+    out
+}
+
+/// What [`report`] says before its diffs.
+fn report_head(session: &Session, result: &OpResult) -> String {
     let at_open: BTreeSet<(IssueCode, Vec<u32>, String)> = issues_at_open(session)
         .into_iter()
         .map(|issue| (issue.code, issue.systems, issue.message))
@@ -41,8 +50,6 @@ pub fn report(session: &Session, result: &OpResult) -> String {
     if others > 0 {
         writeln!(out, "… and {others} other issues").unwrap();
     }
-    write!(out, "{}", unified_diff(session, None)).unwrap();
-    write!(out, "{}", meta_diff(session)).unwrap();
     out
 }
 
@@ -84,17 +91,7 @@ pub fn step_report(session: &mut Session, op: Op) -> String {
     if !result.renumbered.is_empty() {
         writeln!(out, "renumbered: {:?}", result.renumbered).unwrap();
     }
-    let diff = TextDiff::configure()
-        .algorithm(Algorithm::Myers)
-        .diff_lines(&before, &after);
-    write!(
-        out,
-        "{}",
-        diff.unified_diff()
-            .context_radius(3)
-            .header("before", "after")
-    )
-    .unwrap();
+    write!(out, "{}", line_diff(&before, &after, ("before", "after"))).unwrap();
     out
 }
 
@@ -103,18 +100,11 @@ pub fn step_report(session: &mut Session, op: Op) -> String {
 pub fn unified_diff(session: &Session, cap: Option<usize>) -> String {
     let original = String::from_utf8_lossy(session.doc().original()).into_owned();
     let edited = String::from_utf8_lossy(&current(session)).into_owned();
-    let diff = TextDiff::configure()
-        .algorithm(Algorithm::Myers)
-        .diff_lines(&original, &edited);
     let header = match session.kind() {
         DocumentKind::Save => "gamestate",
         DocumentKind::Scenario => "scenario",
     };
-    let full = diff
-        .unified_diff()
-        .context_radius(3)
-        .header(header, header)
-        .to_string();
+    let full = line_diff(&original, &edited, (header, header));
     let lines: Vec<&str> = full.lines().collect();
     match cap {
         Some(cap) if lines.len() > cap => format!(
@@ -208,6 +198,7 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     );
     assert_history(session, label, done + 1, 0);
     assert_fresh(session, label);
+    let edited_graph = session.graph().clone();
 
     let undone = session.undo().expect("undo").expect("an op to undo");
     assert_eq!(undone.entry.description, applied.entry.description);
@@ -247,7 +238,11 @@ pub fn round_trip_step(session: &mut Session, label: &str, op: Op) -> OpResult {
     );
     assert_history(session, label, done + 1, 0);
     assert!(session.redo().expect("redo").is_none());
-    assert_fresh(session, &format!("{label} redone"));
+    let redone_label = format!("{label} redone");
+    match session.kind() {
+        DocumentKind::Save => assert_same_galaxy(session.graph(), &edited_graph, &redone_label),
+        DocumentKind::Scenario => assert_fresh(session, &redone_label),
+    }
     applied
 }
 
@@ -430,27 +425,32 @@ fn systems(session: &Session) -> BTreeMap<u32, SystemNode> {
 /// [`report`], with the diff cut to the hunks that change a top-level `key=` block, for a
 /// test whose claim is that block and not the rest of what the op writes.
 pub fn section_report(session: &Session, result: &OpResult, key: &str) -> String {
-    let full = report(session, result);
-    let head = &full[..full.find("\n--- ").map_or(full.len(), |at| at + 1)];
+    let head = report_head(session, result);
+    let edited_bytes = current(session);
     let original = String::from_utf8_lossy(session.doc().original()).into_owned();
-    let edited = String::from_utf8_lossy(&current(session)).into_owned();
-    let reindexed = Document::from_bytes(current(session), session.doc().meta().to_vec())
-        .expect("index the edited bytes");
+    let edited = String::from_utf8_lossy(&edited_bytes).into_owned();
     let before = blocks(session.doc().index(), session.doc().original(), key);
+    let reindexed = Document::from_bytes(edited_bytes, session.doc().meta().to_vec())
+        .expect("index the edited bytes");
     let after = blocks(reindexed.index(), reindexed.original(), key);
+    let (original, edited, skipped) = middle(&original, &edited, 3);
     let diff = TextDiff::configure()
         .algorithm(Algorithm::Myers)
-        .diff_lines(&original, &edited);
-    let mut out = format!("{head}--- {key}\n+++ {key}\n");
+        .diff_lines(original, edited);
+    let mut out = format!("{head}\n--- {key}\n+++ {key}\n");
     let mut unified = diff.unified_diff();
     for hunk in unified.context_radius(3).iter_hunks() {
         let inside = hunk.iter_changes().any(|change| match change.tag() {
-            ChangeTag::Delete => change.old_index().is_some_and(|i| within(&before, i)),
-            ChangeTag::Insert => change.new_index().is_some_and(|i| within(&after, i)),
+            ChangeTag::Delete => change
+                .old_index()
+                .is_some_and(|i| within(&before, i + skipped)),
+            ChangeTag::Insert => change
+                .new_index()
+                .is_some_and(|i| within(&after, i + skipped)),
             ChangeTag::Equal => false,
         });
         if inside {
-            write!(out, "{hunk}").unwrap();
+            out.push_str(&renumbered(&hunk.to_string(), skipped));
         }
     }
     out

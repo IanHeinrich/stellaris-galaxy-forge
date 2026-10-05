@@ -74,7 +74,8 @@ describe("the System field", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnBy(() => field(read));
     drawnField(ComboField, "System").onPick("3");
-    await vi.waitFor(() => expect(field(read)).toContain("station will change ownership to"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(field(read)).toContain("station will change ownership to");
 
     mockedIpc.applyOp.mockResolvedValue(editResult({ history: { undo: [], redo: [] } }));
     await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 3, x: 1, y: 1 });

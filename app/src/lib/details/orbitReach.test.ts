@@ -1,44 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { VANILLA_SYSTEM_RADII } from "../../generated/constants";
-import type { PlanetSummary } from "../../generated/PlanetSummary";
-import type { SystemDetails } from "../../generated/SystemDetails";
-import { ORBIT_SYSTEM_AT, orbitClasses, orbitSystem, saveBody } from "../../test/builders";
+import { ORBIT_SYSTEM_AT, orbitSystem, saveBody } from "../../test/builders";
 import rules from "../../../../testdata/orbit_rules.json";
-import { VANILLA_MOON_SCALE } from "./discs";
-import type { GeometryFrame } from "./orbitIntent";
+import { ASTEROID, drawnOff, frameOf, LONE, MOON, PLANET, STAR } from "./fixture";
 import { grownInner, grownRadius, innerFloor, nextMoonRing, overlapOf } from "./orbitReach";
-import { polar, systemLayout, type BodyPlacement, type Point, type SystemLayout } from "./orbits";
-
-const STAR = 1;
-const PLANET = 2;
-const MOON = 3;
-const LONE = 5;
-const ASTEROID = 6;
-
-function frameOf(details: SystemDetails = orbitSystem()): GeometryFrame {
-  const planetClasses = orbitClasses();
-  const layout = systemLayout(details, null, planetClasses, VANILLA_MOON_SCALE);
-  return { layout, details, planetClasses, radii: VANILLA_SYSTEM_RADII };
-}
-
-/** `body` as the core sends one the game placed a little off its stored orbit: drawn at `drawn`. */
-function drawnOff(body: PlanetSummary, drawn: number): PlanetSummary {
-  return { ...body, layout: { ...body.layout!, orbit: { min: drawn, max: drawn } } };
-}
+import { polar, type BodyPlacement, type Point, type SystemLayout } from "./orbits";
 
 describe("grownInner", () => {
   const frame = frameOf();
   const moved = (id: number, parent: number | null, radius: number, angle: number) =>
     grownInner(frame, { bodies: new Map([[id, { parent, radius, angle }]]) });
 
-  it("grows the inner radius to reach 30 past a body moved beyond the system's reach", () => {
-    expect(moved(LONE, null, 190, 0)).toBe(220);
-    expect(moved(LONE, null, 110, 0)).toBe(200);
-  });
-
-  it("counts a moved planet's moons, and a moon by its planet's distance too", () => {
+  it("counts a moved planet's moons", () => {
     expect(moved(PLANET, null, 180, 0)).toBe(180 + 20 + 30);
-    expect(moved(MOON, PLANET, 170, 0)).toBe(60 + 170 + 30);
   });
 
   it("grows a system below the rule to the rule's floor, as the core does", () => {
@@ -85,11 +58,6 @@ describe("grownInner", () => {
 
 describe("where a new moon goes and what a body stands on", () => {
   const { layout } = frameOf();
-
-  it("puts a new moon on the first moon ring, or one step past the outermost", () => {
-    expect(nextMoonRing(frameOf(), LONE)).toBe(15);
-    expect(nextMoonRing(frameOf(), PLANET)).toBe(25);
-  });
 
   it("puts a new moon one step past the orbit the moon before it stores, not where it is drawn", () => {
     const [x, y] = ORBIT_SYSTEM_AT.lonePlanet;

@@ -214,9 +214,7 @@ describe("the auto-reload notice", () => {
     button("Resume")!.props.onClick();
     expect(resumeAutoReload).toHaveBeenCalledTimes(1);
   });
-});
 
-describe("the auto-reload notice", () => {
   it("carries no tooltip when the pause came with no file, as a page reload does", () => {
     useGameDataStore.setState({ autoReloadPaused: true, hotFile: null });
     const html = bar();
@@ -224,10 +222,8 @@ describe("the auto-reload notice", () => {
     expect(html).not.toContain("title=");
     expect(button("Resume")).toBeDefined();
   });
-});
 
-describe("the auto-reload notice without a document", () => {
-  it("keeps the badge and its Resume button, the only way back from a pause", () => {
+  it("keeps the badge and its Resume button without a document, the only way back from a pause", () => {
     useFileSessionStore.setState({ status: "empty" });
     useGameDataStore.setState({ autoReloadPaused: true, hotFile: "C:/mods/1/events/one.txt" });
 

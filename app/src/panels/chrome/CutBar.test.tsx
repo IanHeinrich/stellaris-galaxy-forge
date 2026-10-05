@@ -17,11 +17,11 @@ import { mockedIpc } from "../../test/ipc";
 import { openWith } from "../../test/session";
 import { CutBar } from "./CutBar";
 import { StatusBar } from "./StatusBar";
+import { flush } from "../../test/flush";
 
 bindStores();
 
 const [SOL, EARTH, LUNA] = [0, 12, 14];
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const moves = () => usePlanetMoveStore.getState();
 
 beforeEach(async () => {
@@ -43,7 +43,7 @@ beforeEach(async () => {
 async function cut(...ids: number[]): Promise<void> {
   useSceneStore.getState().selectBody(SOL, ids[0]);
   for (const id of ids.slice(1)) useSceneStore.getState().toggleBody(SOL, id);
-  await settle();
+  await flush();
   moves().cutSelection();
 }
 

@@ -4,7 +4,7 @@ import { SAVE_GEOMETRY } from "../../../lib/details/saveGeometry";
 import { orbitClasses, orbitSystem } from "../../../test/builders";
 import type { DragMarks } from "../bodyDrag";
 import { systemContext, type SystemContext } from "../context";
-import { drawOps, viewport } from "../fixture";
+import { drawOps, viewport } from "../drawFixture";
 import { NO_SOURCES } from "../sources";
 import { HandlesLayer } from "./HandlesLayer";
 

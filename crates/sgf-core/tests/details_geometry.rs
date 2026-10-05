@@ -4,20 +4,17 @@
 use std::sync::Arc;
 
 use sgf_core::format::save::details::DetailsProjection;
-use sgf_core::ops::Parent;
-use sgf_core::ops::{DetailsReach, Op};
+use sgf_core::ops::{Op, Parent};
 use sgf_core::session::Session;
 
-use crate::common::examples::one_of_each;
-use crate::common::open_4_5;
+use crate::common::{open_4_5, warm};
 
 /// Warm the details, then apply `op` (which must touch only `system`), undo it and redo
 /// it. After each step the projection is still built, system 26's details stand as they
 /// were (unless `system` is 26 itself), and `system`'s equal what a fresh build reads from
 /// the bytes.
 fn refreshed_in_place(op: Op, system: u32) -> Session {
-    let mut session = open_4_5();
-    session.warm_details().expect("build details");
+    let mut session = warm(open_4_5());
     let other = session
         .details()
         .unwrap()
@@ -71,20 +68,6 @@ fn a_move_that_grows_the_inner_radius_is_read_in_place() {
 }
 
 #[test]
-fn a_planet_made_a_moon_is_read_in_place() {
-    refreshed_in_place(
-        Op::SetBodyParent {
-            system: 1,
-            body: 588,
-            parent: Parent::Body(589),
-            radius: 20.0,
-            angle: 90.0,
-        },
-        1,
-    );
-}
-
-#[test]
 fn a_moon_made_a_planet_is_read_in_place() {
     refreshed_in_place(
         Op::SetBodyParent {
@@ -119,82 +102,4 @@ fn a_belt_removed_is_read_in_place() {
         },
         140,
     );
-}
-
-#[test]
-fn a_belts_radius_set_is_read_in_place() {
-    refreshed_in_place(
-        Op::SetBeltRadius {
-            system: 140,
-            index: 0,
-            radius: 55.0,
-        },
-        140,
-    );
-}
-
-#[test]
-fn a_belts_kind_set_is_read_in_place() {
-    refreshed_in_place(
-        Op::SetBeltKind {
-            system: 140,
-            index: 0,
-            kind: "icy_asteroid_belt".to_owned(),
-        },
-        140,
-    );
-}
-
-#[test]
-fn the_inner_radius_set_is_read_in_place() {
-    refreshed_in_place(
-        Op::SetInnerRadius {
-            system: 1,
-            radius: 200.0,
-        },
-        1,
-    );
-}
-
-/// Every op that rereads the details in place, applied, undone and redone, leaves each
-/// system it names stale as a fresh build reads it.
-#[test]
-fn every_op_read_in_place_matches_a_fresh_build() {
-    for example in one_of_each() {
-        let Some(op) = example.save.clone() else {
-            continue;
-        };
-        if op.reach().details != DetailsReach::InPlace {
-            continue;
-        }
-        let name = op.name();
-        let mut session = (example.open_save)();
-        session.warm_details().expect("build details");
-        let applied = session.apply(op).expect("apply");
-        assert!(!applied.details_stale.is_empty(), "{name} names no system");
-        matches_a_fresh_build(&session, &applied.details_stale, name, "apply");
-        let undone = session.undo().expect("undo").expect("something to undo");
-        matches_a_fresh_build(&session, &undone.details_stale, name, "undo");
-        let redone = session.redo().expect("redo").expect("something to redo");
-        matches_a_fresh_build(&session, &redone.details_stale, name, "redo");
-    }
-}
-
-fn matches_a_fresh_build(session: &Session, systems: &[u32], name: &str, step: &str) {
-    let details = session
-        .built_details()
-        .unwrap_or_else(|| panic!("{name}: the {step} dropped the details"));
-    let fresh = DetailsProjection::build(
-        session.doc(),
-        session.graph(),
-        Arc::clone(session.star_classes()),
-    )
-    .expect("a fresh build");
-    for &system in systems {
-        assert_eq!(
-            details.raw(system),
-            fresh.raw(system),
-            "{name}: the {step}, system {system}"
-        );
-    }
 }

@@ -14,6 +14,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
 import { readPref } from "./prefs";
 import { updateReady, useUpdateStore } from "./updateStore";
+import { until } from "../test/wait";
 
 const mocked = {
   checkForUpdate: vi.mocked(ipc.checkForUpdate),
@@ -25,6 +26,7 @@ const mocked = {
 };
 
 const RELEASES = "https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest";
+const ANSWERED = "https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/tag/v0.6.0";
 
 const UPDATE: UpdateView = {
   version: "0.6.0",
@@ -33,7 +35,7 @@ const UPDATE: UpdateView = {
   install: "app",
 };
 
-const OFFERED: UpdateCheck = { current: "0.5.1", update: UPDATE, releases_url: RELEASES };
+const OFFERED: UpdateCheck = { current: "0.5.1", update: UPDATE, releases_url: ANSWERED };
 const NONE: UpdateCheck = { current: "0.5.1", update: null, releases_url: RELEASES };
 
 const update = () => useUpdateStore.getState();
@@ -82,7 +84,7 @@ describe("a check nobody asked for", () => {
 
     expect(update().status).toBe("available");
     expect(update().update).toEqual(UPDATE);
-    expect(update().releasesUrl).toBe(RELEASES);
+    expect(update().releasesUrl).toBe(ANSWERED);
     expect(update().dialog).toBe(true);
     expect(badge()).toBe(true);
     expect(update().noticed).toBe("0.6.0");
@@ -202,7 +204,7 @@ describe("installing", () => {
     );
 
     const installing = update().install();
-    await vi.waitFor(() => expect(progressHandler).not.toBeNull());
+    await until(() => expect(progressHandler).not.toBeNull());
     expect(update().status).toBe("installing");
 
     progressHandler!({ downloaded: 512, total: 2048, done: false });
@@ -283,7 +285,7 @@ describe("the releases page", () => {
 
     await update().openReleases();
 
-    expect(mocked.openUrl).toHaveBeenCalledWith(RELEASES);
+    expect(mocked.openUrl).toHaveBeenCalledWith(ANSWERED);
   });
 });
 

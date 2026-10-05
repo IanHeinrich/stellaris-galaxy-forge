@@ -11,6 +11,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { filteredIssues, newIssues, useIssuesStore } from "./issuesStore";
 import { armSession, resetStores } from "./storeFixture";
+import { until } from "../test/wait";
 
 const AT_LOAD = OPEN_RESULT.issues[0];
 const NOTES: Issue[] = [
@@ -93,7 +94,7 @@ describe("issuesStore", () => {
   it("takes what the details show at open into the baseline, and an edit's later overlap as new", async () => {
     mockedIpc.warmDetails.mockResolvedValueOnce([AT_LOAD, OVERLAP]);
     await open();
-    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toContainEqual(OVERLAP));
+    await until(() => expect(useIssuesStore.getState().issues).toContainEqual(OVERLAP));
     expect(newIssues(useIssuesStore.getState().issues, useIssuesStore.getState().baseline)).toEqual(
       [],
     );
@@ -103,7 +104,7 @@ describe("issuesStore", () => {
       editResult({ issues: [AT_LOAD, OVERLAP, moved], details_stale: [2] }),
     );
     await useEditorStore.getState().applyOp({ type: "RemoveLane", a: 1, b: 2 });
-    await vi.waitFor(() => expect(useIssuesStore.getState().issues).toContainEqual(moved));
+    await until(() => expect(useIssuesStore.getState().issues).toContainEqual(moved));
     const { issues, baseline } = useIssuesStore.getState();
     expect(newIssues(issues, baseline)).toEqual([moved]);
   });

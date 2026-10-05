@@ -1,7 +1,7 @@
 import type { Container, Sprite } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import { systemContext } from "../context";
-import { blankSceneTextures, context, SHROUD_TUNNEL, viewport, WORMHOLE } from "../fixture";
+import { blankSceneTextures, context, SHROUD_TUNNEL, viewport, WORMHOLE } from "../drawFixture";
 import { NO_HIGHLIGHT } from "./SystemLayer";
 import { WormholesLayer } from "./WormholesLayer";
 

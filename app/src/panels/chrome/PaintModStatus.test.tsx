@@ -10,6 +10,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView, workshopLinks } from "../../test/builders";
 import { elements } from "../../test/elements";
+import { until } from "../../test/wait";
 import { PaintModStatus } from "./PaintModStatus";
 
 const status = () => renderToStaticMarkup(<PaintModStatus />);
@@ -36,9 +37,7 @@ describe("the mod's status line", () => {
 
     const link = elements(<PaintModStatus />).find((el) => el.type === "button")!;
     (link.props as { onClick: () => void }).onClick();
-    await vi.waitFor(() =>
-      expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy),
-    );
+    await until(() => expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy));
   });
 
   it("asks for the playset alone when the mod is installed but not enabled", () => {
@@ -64,6 +63,6 @@ describe("the mod's status line", () => {
 
     const link = elements(<PaintModStatus />).find((el) => el.type === "button")!;
     (link.props as { onClick: () => void }).onClick();
-    await vi.waitFor(() => expect(useFileSessionStore.getState().error).toBe("no browser"));
+    await until(() => expect(useFileSessionStore.getState().error).toBe("no browser"));
   });
 });

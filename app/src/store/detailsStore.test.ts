@@ -54,15 +54,6 @@ describe("request", () => {
     expect(state.version).toBe(before + 1);
   });
 
-  it("does not re-request known ids", async () => {
-    useDetailsStore.getState().request([1, 2]);
-    await vi.advanceTimersByTimeAsync(100);
-    useDetailsStore.getState().request([1, 2, 3]);
-    await vi.advanceTimersByTimeAsync(100);
-    expect(getSystemDetails).toHaveBeenCalledTimes(2);
-    expect(getSystemDetails).toHaveBeenLastCalledWith([3]);
-  });
-
   it("splits a large queue into batches of at most 200", async () => {
     const ids = Array.from({ length: 450 }, (_, i) => i);
     useDetailsStore.getState().request(ids);

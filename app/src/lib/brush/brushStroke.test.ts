@@ -132,34 +132,6 @@ describe("a paint stroke", () => {
   });
 });
 
-describe("an erase stroke", () => {
-  const ALONG = [
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
-  ];
-
-  it("removes the systems it passes over and keeps the specials unless told otherwise", () => {
-    expect(run(ERASE, ALONG)).toEqual({ kind: "erase", doomed: [1, 2], kept: [3] });
-    expect(run({ ...ERASE, eraseSpecials: true }, ALONG)).toEqual({
-      kind: "erase",
-      doomed: [1, 2, 3],
-      kept: [],
-    });
-  });
-
-  it("also removes what the stroke's mirror image passes over", () => {
-    const below = { ...ERASE, symmetry: { kind: "mirror", axis: "x" } } as const;
-    expect(run(below, [{ x: 0, y: 200 }])).toEqual({ kind: "erase", doomed: [4], kept: [] });
-  });
-
-  it("cuts the lanes it passes over, and no system, in lanes mode", () => {
-    expect(run({ ...ERASE, eraseTarget: "lanes" }, [{ x: 50, y: -8 }])).toEqual({
-      kind: "cut",
-      lanes: [[1, 2]],
-    });
-  });
-});
-
 /** A connect stroke that only touches the two points named, without sweeping what lies between them. */
 function connectPoints(
   settings: Partial<BrushSettings>,

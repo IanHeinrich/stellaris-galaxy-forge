@@ -68,15 +68,14 @@ describe("a body's orbit", () => {
     expect(orbits.items.map((item) => item.label)).toEqual(["The star", "Sol III"]);
     mockedIpc.applyOp.mockResolvedValue(editResult());
     orbits.onPick(String(PLANET));
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "SetBodyParent",
-          body: LONE,
-          parent: { Body: PLANET },
-          radius: 25,
-        }),
-      ),
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "SetBodyParent",
+        body: LONE,
+        parent: { Body: PLANET },
+        radius: 25,
+      }),
     );
   });
 
@@ -114,15 +113,14 @@ describe("a body's orbit", () => {
     expect(orbits.items.map((item) => item.label)).toEqual(["The star", "Sol B"]);
     mockedIpc.applyOp.mockResolvedValue(editResult());
     orbits.onPick("8");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "SetBodyParent",
-          body: PLANET,
-          parent: { Body: 8 },
-          radius: 30,
-        }),
-      ),
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "SetBodyParent",
+        body: PLANET,
+        parent: { Body: 8 },
+        radius: 30,
+      }),
     );
   });
 
@@ -142,16 +140,15 @@ describe("a body's orbit", () => {
     expect(orbits.items.map((item) => item.label)).toEqual(["The star"]);
     mockedIpc.applyOp.mockResolvedValue(editResult());
     orbits.onPick("star");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "SetBodyParent",
-          body: 58,
-          parent: "Centre",
-          radius: expect.closeTo(Math.hypot(100, 20), 6),
-          angle: expect.closeTo((Math.atan2(20, 100) * 180) / Math.PI, 6),
-        }),
-      ),
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "SetBodyParent",
+        body: 58,
+        parent: "Centre",
+        radius: expect.closeTo(Math.hypot(100, 20), 6),
+        angle: expect.closeTo((Math.atan2(20, 100) * 180) / Math.PI, 6),
+      }),
     );
   });
 
@@ -199,13 +196,12 @@ describe("a body's ring", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnField(ToggleField, "Ring").onChange(false);
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "SetBodyRing",
-        body: PLANET,
-        ring: false,
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "SetBodyRing",
+      body: PLANET,
+      ring: false,
+    });
   });
 
   it("offers no ring to a star or an asteroid", async () => {

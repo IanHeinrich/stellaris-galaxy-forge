@@ -70,6 +70,10 @@ fn the_fixture_has_four_seats_three_held_and_a_header_that_allows_too_many() {
     assert!(header[0].systems.is_empty());
     assert!(coded(&issues, IssueCode::SeatLetterDuplicate).is_empty());
     assert!(coded(&issues, IssueCode::LClusterSystem).is_empty());
+    assert!(
+        !issues.iter().any(|i| i.systems == [3]),
+        "the Sol seat on the Sol initializer raised an issue: {issues:?}"
+    );
 
     let save = common::open();
     assert_eq!(save.graph().header_block_count("num_empires", "max"), None);
@@ -103,27 +107,8 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
             ]
         }
     );
-    snapshot_step(&mut PAINTED.open(), "update_empire_counts", op.clone());
-
     let mut session = PAINTED.open();
-    let result = session.apply(op).expect("update");
-    assert_eq!(result.entry.description, "Update empire counts");
-    assert_eq!(
-        result.inverse,
-        Op::SetHeaderKeys {
-            entries: vec![
-                ("num_empires".to_owned(), "{ min = 0 max = 3 }".to_owned()),
-                ("num_empire_default".to_owned(), "3".to_owned()),
-                ("advanced_empire_default".to_owned(), "0".to_owned()),
-                ("nomad_empire_default".to_owned(), "0".to_owned()),
-                ("nomad_empire_max".to_owned(), "3".to_owned()),
-                ("fallen_empire_max".to_owned(), "6".to_owned()),
-                ("fallen_empire_default".to_owned(), "0".to_owned()),
-                ("marauder_empire_default".to_owned(), "1".to_owned()),
-                ("marauder_empire_max".to_owned(), "3".to_owned()),
-            ]
-        }
-    );
+    let result = snapshot_step(&mut session, "update_empire_counts", op);
     assert!(coded(&result.issues, IssueCode::HeaderEmpireCount).is_empty());
     assert_eq!(session.graph().header_count("num_empire_default"), Some(1));
     assert_eq!(session.graph().header_count("fallen_empire_max"), Some(2));
@@ -136,7 +121,6 @@ fn updating_the_counts_rewrites_the_nine_keys_as_one_step_and_clears_the_issue()
         session.graph().header_count("marauder_empire_default"),
         Some(0)
     );
-    assert_eq!(session.history().undo.len(), 1);
     let header = session
         .edit_result(result)
         .delta
@@ -163,10 +147,8 @@ fn a_key_the_header_lacks_is_inserted_and_a_repeated_or_empty_list_is_refused() 
             ("num_empire_default".to_owned(), "2".to_owned()),
         ],
     };
-    snapshot_step(&mut PAINTED.open(), "set_two_header_keys", op.clone());
     let mut session = PAINTED.open();
-    let result = session.apply(op).expect("set two keys");
-    assert_eq!(result.entry.description, "Set 2 header keys");
+    let result = snapshot_step(&mut session, "set_two_header_keys", op);
     assert_eq!(
         result.inverse,
         Op::SetHeaderKeys {
@@ -335,12 +317,6 @@ fn a_letter_or_sol_on_two_systems_names_them_all() {
         "Reserved Sol is on 2 systems: only one empire holds the trait."
     );
     assert_eq!(duplicate[0].systems, [3, 10]);
-}
-
-#[test]
-fn a_sol_seat_on_the_sol_initializer_raises_no_issue() {
-    let issues = PAINTED.open().validate();
-    assert!(!issues.iter().any(|i| i.systems == [3]), "{issues:?}");
 }
 
 #[test]

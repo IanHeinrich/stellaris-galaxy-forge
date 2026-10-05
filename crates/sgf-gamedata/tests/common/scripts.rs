@@ -55,3 +55,19 @@ pub fn install_with_mod(files: &[(&str, &str)]) -> (tempfile::TempDir, GameData)
     let gd = super::load_tree(&super::fixture("install"), Some(root), true);
     (user_dir, gd)
 }
+
+/// The claims the fixture's `on_game_start` sweep makes, by the event they
+/// are written in and the flags they insist on.
+pub fn claims(gd: &GameData) -> Vec<(&str, Vec<&str>)> {
+    gd.scripts
+        .claims()
+        .all()
+        .iter()
+        .map(|c| {
+            (
+                c.event.as_str(),
+                c.required_flags.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect()
+}

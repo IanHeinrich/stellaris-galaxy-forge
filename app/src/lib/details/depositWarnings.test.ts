@@ -66,63 +66,68 @@ function removing(page: PlanetPage, id: number): string[] {
 }
 
 describe("what a deposit edit on a colony costs", () => {
-  it("demolishes the districts built over a cap the deposits alone gave", () => {
-    const page = colonyPage(["d_waterfalls", "d_hot_springs"], {
-      colony: colony({ districts: [{ kind: "district_generator", level: 3 }] }),
-    });
-    expect(removing(page, 1)).toEqual([
-      "The game demolishes 2 Generator Districts within a month.",
-    ]);
-    expect(removing(page, 2)).toEqual(["The game demolishes 1 Generator District within a month."]);
+  const BOTH = ["d_waterfalls", "d_hot_springs"];
+  const generators = (level: number) => [{ kind: "district_generator", level }];
+  const geothermal = (level: number) => [{ kind: "district_geothermal", level }];
+
+  it.each([
+    [
+      "demolishes the districts built over a cap the deposits alone gave",
+      BOTH,
+      generators(3),
+      1,
+      ["The game demolishes 2 Generator Districts within a month."],
+    ],
+    [
+      "demolishes one for the smaller deposit",
+      BOTH,
+      generators(3),
+      2,
+      ["The game demolishes 1 Generator District within a month."],
+    ],
+    [
+      "says may when more is built than the deposits give, so something else adds to the cap",
+      ["d_waterfalls"],
+      generators(3),
+      1,
+      ["The game may demolish 2 Generator Districts within a month."],
+    ],
+    ["warns of nothing when what is built fits under the lowered cap", BOTH, generators(1), 1, []],
+    ["warns of nothing when nothing is built", ["d_waterfalls"], [], 1, []],
+    [
+      "counts the districts that share a cap against it, and names them together",
+      BOTH,
+      [...generators(1), ...geothermal(2)],
+      1,
+      ["The game demolishes 2 districts within a month."],
+    ],
+    [
+      "names a geothermal district by its own name",
+      BOTH,
+      geothermal(3),
+      2,
+      ["The game demolishes 1 Geothermal District within a month."],
+    ],
+  ])("%s", (_, kinds, districts, id, expected) => {
+    expect(removing(colonyPage(kinds, { colony: colony({ districts }) }), id)).toEqual(expected);
   });
 
-  it("says may when more is built than the deposits give, so something else adds to the cap", () => {
-    const page = colonyPage(["d_waterfalls"], {
-      colony: colony({ districts: [{ kind: "district_generator", level: 3 }] }),
-    });
-    expect(removing(page, 1)).toEqual([
-      "The game may demolish 2 Generator Districts within a month.",
-    ]);
-  });
-
-  it("warns of nothing when what is built fits under the lowered cap, or nothing is built", () => {
-    const fits = colonyPage(["d_waterfalls", "d_hot_springs"], {
-      colony: colony({ districts: [{ kind: "district_generator", level: 1 }] }),
-    });
-    expect(removing(fits, 1)).toEqual([]);
-    expect(removing(colonyPage(["d_waterfalls"]), 1)).toEqual([]);
+  it("warns of nothing on a planet that is no colony", () => {
     expect(
       removing(planetPage({ deposits: [{ id: 1, kind: "d_waterfalls", swap_type: null }] }), 1),
     ).toEqual([]);
   });
 
-  it("counts the districts that share a cap against it, and names them together", () => {
-    const page = colonyPage(["d_waterfalls", "d_hot_springs"], {
-      colony: colony({
-        districts: [
-          { kind: "district_generator", level: 1 },
-          { kind: "district_geothermal", level: 2 },
-        ],
-      }),
-    });
-    expect(removing(page, 1)).toEqual(["The game demolishes 2 districts within a month."]);
-    const geothermal = colonyPage(["d_waterfalls", "d_hot_springs"], {
-      colony: colony({ districts: [{ kind: "district_geothermal", level: 3 }] }),
-    });
-    expect(removing(geothermal, 2)).toEqual([
-      "The game demolishes 1 Geothermal District within a month.",
-    ]);
-  });
-
-  it("warns of no generator districts on a planet where they have no cap", () => {
-    for (const planetClass of ["pc_volcanic", "pc_shattered_ring_habitable"]) {
+  it.each(["pc_volcanic", "pc_shattered_ring_habitable"])(
+    "warns of no generator districts on %s, where they have no cap",
+    (planetClass) => {
       const page = colonyPage(["d_waterfalls"], {
         class: planetClass,
-        colony: colony({ districts: [{ kind: "district_generator", level: 3 }] }),
+        colony: colony({ districts: generators(3) }),
       });
       expect(removing(page, 1)).toEqual([]);
-    }
-  });
+    },
+  );
 
   it("says a blocker added to a colony with districts may demolish one, and one that adds capacity nothing", () => {
     const page = colonyPage([], {
