@@ -538,6 +538,23 @@
   border-top: 1px solid var(--border);
 }
 
+/* Beside the dock the card stays inside the window: its name, category and note always show, and a
+   long list of effects is cut where the window ends. */
+.dp-card:not(.under) {
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+}
+
+.dp-card:not(.under) > * {
+  flex: none;
+}
+
+.dp-card:not(.under) > .dp-card-effects {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Beside the dock the card takes no pointer to scroll, so a long description ends after a few lines. */
 .dp-card:not(.under) .dp-card-text {
   display: -webkit-box;

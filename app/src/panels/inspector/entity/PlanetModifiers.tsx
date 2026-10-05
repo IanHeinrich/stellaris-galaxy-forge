@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
@@ -9,9 +10,25 @@ import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
 
+/** A row's card while `shown`; nothing else. */
+function RowCard({
+  shown,
+  id,
+  item,
+  rowId,
+}: {
+  shown: boolean;
+  id: string;
+  item: CardItem;
+  rowId: string;
+}) {
+  return shown ? <PickerCard id={id} item={item} rowId={rowId} /> : null;
+}
+
 /**
  * A modifier's row: its first two effects and how long it lasts, its card while the pointer or
- * the focus is on it, and where editable its remove button.
+ * the focus is on it, and where editable its remove button. A row without the button takes the
+ * focus itself, and whichever has the focus names the card as its description.
  */
 function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() => void) | null }) {
   const view = row.view;
@@ -21,6 +38,9 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
   const [shown, setShown] = useState(false);
   const show = () => setShown(true);
   const hide = () => setShown(false);
+  const cardId = `${id}-card`;
+  const describedBy = shown ? cardId : undefined;
+  const focusable = onRemove === null;
   const line =
     card.effects.length === 0 ? (
       card.note
@@ -31,7 +51,17 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
       </>
     );
   return (
-    <div id={id} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+    <div
+      id={id}
+      role={focusable ? "group" : undefined}
+      aria-label={focusable ? name : undefined}
+      tabIndex={focusable ? 0 : undefined}
+      aria-describedby={focusable ? describedBy : undefined}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+    >
       <PickedRow
         art={
           <>
@@ -49,10 +79,11 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
                 title: row.feature ? "Remove this planet feature" : "Remove this modifier",
                 label: `Remove ${name}`,
                 run: onRemove,
+                describedBy,
               }
         }
       />
-      {shown && <PickerCard id={`${id}-card`} item={card} rowId={id} />}
+      <RowCard shown={shown} id={cardId} item={card} rowId={id} />
     </div>
   );
 }

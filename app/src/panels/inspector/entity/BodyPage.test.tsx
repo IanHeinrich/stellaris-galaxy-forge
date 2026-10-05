@@ -182,10 +182,9 @@ describe.each(KINDS)("a $kind body's shared fields", ({ kind, edits }) => {
       "size row",
     ).toBe(!edits);
 
-    expect(
-      />Ring<\/label>.*<input id="[^"]+" type="checkbox" checked=""\/>/.test(html),
-      "ring box",
-    ).toBe(edits);
+    expect(html.includes('<input type="checkbox" checked=""/>Ring</label>'), "ring box").toBe(
+      edits,
+    );
     expect(html.includes('<span class="k">Ring</span><span>Yes</span>'), "ring row").toBe(!edits);
 
     expect(

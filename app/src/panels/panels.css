@@ -306,8 +306,10 @@
   gap: 6px;
 }
 
-.edit-cell > .edit-toggle {
-  flex: none;
+/* A toggle is its checkbox then its label, from the field column to the row's end. */
+.edit-grid > .edit-toggle {
+  grid-column: 2 / -1;
+  justify-self: start;
 }
 
 .edit-grid > .edit-note {

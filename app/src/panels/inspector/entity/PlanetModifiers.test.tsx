@@ -12,10 +12,9 @@ import { modifierView, editResult } from "../../../store/fixture";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { open, resetStores } from "../inspectorFixture";
-import { drawnBy, drawnButton } from "../../../test/drawn";
+import { drawnBy, drawnButton, lastDrawn } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { WORLD, EMPIRE, EMPIRE_NODE, landPage, render, districts, OLBERS } from "./bodyPageFixture";
-import { modifierCard } from "./modifierCard";
 
 bindStores();
 
@@ -100,6 +99,17 @@ describe("a planet's modifiers", () => {
         '<span class="muted dp-more"> +1 more</span></span> · permanent</span>',
     );
     expect(html).not.toContain("dp-card");
+    const card = lastDrawn(({ props }) => "shown" in props && "rowId" in props, "modifier card");
+    expect(card.shown).toBe(false);
+    expect(card.item).toEqual({
+      label: "Abundant Geothermal Activity",
+      effects: [
+        "+20 Max Agriculture Districts",
+        "+4 Energy Credits per 100 Farmers",
+        "+5 Stability",
+      ],
+      note: "permanent",
+    });
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove Abundant Geothermal Activity").onClick();
@@ -107,27 +117,5 @@ describe("a planet's modifiers", () => {
     expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "RemoveBodyModifier", body: WORLD }),
     );
-  });
-
-  it("gives a modifier's card its name, every effect and how long it lasts", () => {
-    const card = modifierCard({
-      key: "pm_geo",
-      modifier: "geo",
-      feature: true,
-      days: 360,
-      view: modifierView("pm_geo", {
-        name: "Geothermal Vents",
-        effects: [
-          districts("a", 20, "Max Agriculture Districts"),
-          districts("b", 4, "Energy"),
-          districts("c", 5, "Stability"),
-        ],
-      }),
-    });
-    expect(card).toEqual({
-      label: "Geothermal Vents",
-      effects: ["+20 Max Agriculture Districts", "+4 Energy", "+5 Stability"],
-      note: "360 days left",
-    });
   });
 });

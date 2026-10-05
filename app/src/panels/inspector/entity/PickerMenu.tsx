@@ -245,6 +245,8 @@ export function PickerMenu<R, C extends string, T, X>({
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `${idPrefix}-${i}`;
   const onKey = (e: KeyboardEvent) => {
+    const inMenu = e.target instanceof Element && e.target.closest(".icon-picker") !== null;
+    if (inMenu && e.key !== ESCAPE) return;
     const inSearch = e.target === search.current;
     const row = flat[at];
     const stepping = variants && !(inSearch && query !== "");

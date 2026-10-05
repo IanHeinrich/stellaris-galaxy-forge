@@ -11,6 +11,8 @@ export interface PickedRemove {
   title: string;
   label: string;
   run: () => void;
+  /** The id of what describes the row, while it shows. */
+  describedBy?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export function PickedRow({
           className="pl-dep-remove pl-mod-remove"
           title={remove.title}
           aria-label={remove.label}
+          aria-describedby={remove.describedBy}
           onClick={remove.run}
         >
           ✕

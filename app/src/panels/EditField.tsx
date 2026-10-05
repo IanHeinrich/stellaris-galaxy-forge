@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { typedNumber } from "../lib/text";
 import { IconPicker, type IconPickerItem } from "./IconPicker";
 import { useDraft } from "./useDraft";
@@ -150,7 +150,10 @@ export function SwatchField({
   return <PickerField current={swatchItem(current)} items={swatches.map(swatchItem)} {...rest} />;
 }
 
-/** A yes or no, as an edit block's row: its label, then a checkbox in the field style. */
+/**
+ * A yes or no, as a labelled checkbox in the field style. In an edit block it starts at the field
+ * column and takes the rest of the row, so a long label wraps after its checkbox.
+ */
 export function ToggleField({
   label,
   checked,
@@ -159,27 +162,19 @@ export function ToggleField({
   onChange,
 }: FieldBase & { checked: boolean; title?: string; onChange: (checked: boolean) => void }) {
   const disabled = disabledReason !== undefined;
-  const id = useId();
   return (
-    <>
-      <label className="edit-label" htmlFor={id} title={disabledReason ?? title}>
-        {label}
-      </label>
-      <span className="edit-cell">
-        <span
-          className={classes("edit-field", "edit-toggle", disabled && "disabled")}
-          title={disabledReason ?? title}
-        >
-          <input
-            id={id}
-            type="checkbox"
-            checked={checked}
-            disabled={disabled}
-            onChange={(e) => onChange(e.currentTarget.checked)}
-          />
-        </span>
-      </span>
-    </>
+    <label
+      className={classes("edit-field", "edit-toggle", disabled && "disabled")}
+      title={disabledReason ?? title}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.currentTarget.checked)}
+      />
+      {label}
+    </label>
   );
 }
 
