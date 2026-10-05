@@ -90,7 +90,9 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   (moving save planets between systems: where a click in the system view
   places a lone planet, the systems nearest by jumps, and every sentence the
   menus, the cut bar and the inspector say about a cut and its paste).
-- The app's words: `issueCopy`, `paintCopy`, `sessionCopy` and `toolCopy` (the
+- The app's words: `issueCopy`, `paintCopy`, `prepareCopy` (the Prepare for a
+  new game section's rows, choices and consequences, one table per scenario
+  profile), `sessionCopy` and `toolCopy` (the
   brush options' labels, hints and drop-downs) hold the
   sentences each screen uses for one subject, and `names`, `text` and
   `version` turn keys, counts and version strings into English.

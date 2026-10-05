@@ -17,6 +17,7 @@ import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
+import { ringedSystems, usePrepareStore } from "../store/prepareStore";
 import { useToolStore } from "../store/toolStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { follows, type Binding, type Store } from "./follows";
@@ -150,6 +151,13 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     useMapChromeStore,
     [(s) => s.highlightInitializer],
     (s, view) => setMatched(view, s.highlightInitializer),
+    "bind",
+  ),
+
+  follows(
+    usePrepareStore,
+    [(s) => s.hovered, (s) => s.preview],
+    (s, view) => view.highlights.setPrepared(new Set(ringedSystems(s))),
     "bind",
   ),
 

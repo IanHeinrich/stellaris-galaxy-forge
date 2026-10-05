@@ -346,12 +346,9 @@ pub fn build(
     if ops.is_empty() {
         return Ok(None);
     }
-    let changed: BTreeSet<u32> = ops.iter().flat_map(|op| systems_of(graph, op)).collect();
+    let changed = changed_in(graph, &ops);
     Ok(Some(Op::Batch {
-        description: format!(
-            "Prepared {} for a new game",
-            plural(changed.len(), "system")
-        ),
+        description: format!("Prepared {} for a new game", plural(changed, "system")),
         ops,
     }))
 }
@@ -502,6 +499,19 @@ mod dialect {
             }
         }
     }
+}
+
+/// How many systems a batch [`build`] made changes, as its description counts them.
+pub fn changed(session: &Session, batch: &Op) -> usize {
+    match batch {
+        Op::Batch { ops, .. } => changed_in(session.graph(), ops),
+        _ => 0,
+    }
+}
+
+fn changed_in(graph: &GalaxyGraph, ops: &[Op]) -> usize {
+    let systems: BTreeSet<u32> = ops.iter().flat_map(|op| systems_of(graph, op)).collect();
+    systems.len()
 }
 
 /// The systems one of [`build`]'s ops writes, read from `graph` as it stands before them.

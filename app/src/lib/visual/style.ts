@@ -56,6 +56,9 @@ export const MATCHED_COLOR = 0x7dd3fc;
 /** The rings round the systems the search palette's query finds. */
 export const SEARCHED_COLOR = 0xf472b6;
 
+/** The rings round the systems of the Prepare row the pointer is on. */
+export const PREPARE_COLOR = 0xa3e635;
+
 /**
  * How far from its star each kind of ring sits, in marker pixels, innermost first. A ring's
  * stroke clears its neighbours'; the kinds that share a radius are named under it.
@@ -65,7 +68,7 @@ export const RING_RADIUS = {
   height: 7,
   hover: 9,
   selection: 11,
-  /** The browser's matches and a lane drag's target. */
+  /** The browser's matches, a lane drag's target and the hovered Prepare row's systems. */
   target: 13,
   /** A nebula drag's joining and leaving systems, and a special system's badge. */
   joining: 15,

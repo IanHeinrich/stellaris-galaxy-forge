@@ -11,6 +11,7 @@ export * from "./gamedata";
 export * from "./listing";
 export * from "./nebula";
 export * from "./paint";
+export * from "./prepare";
 export * from "./scenario";
 export * from "./session";
 export * from "./update";

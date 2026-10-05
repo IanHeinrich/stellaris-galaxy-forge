@@ -48,6 +48,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::fe_zone_fit,
             commands::fe_zone_candidate_count,
             commands::header_empire_counts,
+            commands::prepare_preview,
+            commands::prepare_apply,
             commands::sibling_scenario_names,
             commands::check_op,
             commands::undo,

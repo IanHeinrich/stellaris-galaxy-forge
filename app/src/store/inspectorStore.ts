@@ -373,6 +373,14 @@ export interface InspectorState {
   /** Goes back to the crumb at `depth`, dropping everything below it. */
   popTo(depth: number): void;
   setTab(tab: InspectorTab): void;
+  /**
+   * Shows the Galaxy page with section `open` opened, and turns the dock to the inspector, opening
+   * it if collapsed. The map selection decides the root, so a caller with a selection clears it
+   * first. The tab stays, for the next entity that offers it.
+   */
+  showGalaxy(open?: string): void;
+  /** Closes section `key`, as a click on its header would. */
+  closeSection(key: string): void;
   toggleSection(key: string, fallback: boolean): void;
   /** Drops the user's choice for each of `keys`, so those sections take their default again. */
   resetSections(keys: readonly string[]): void;
@@ -530,6 +538,28 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
 
   setTab(tab) {
     set({ tab });
+  },
+
+  showGalaxy(open) {
+    const { stack, sections } = get();
+    if (stack.length > 1 || stack[0].ref.kind !== "galaxy") {
+      set({ stack: [stack[0].ref.kind === "galaxy" ? stack[0] : GALAXY_ENTRY] });
+    }
+    if (open !== undefined && sections[open] !== false) {
+      const next = { ...sections, [open]: false };
+      set({ sections: next });
+      SECTIONS.save(next);
+    }
+    useLayoutStore.getState().expandDock();
+    useLayoutStore.getState().showInspector();
+  },
+
+  closeSection(key) {
+    const { sections } = get();
+    if (sections[key] === true) return;
+    const next = { ...sections, [key]: true };
+    set({ sections: next });
+    SECTIONS.save(next);
   },
 
   toggleSection(key, fallback) {

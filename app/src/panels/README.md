@@ -41,6 +41,9 @@ moves cut planets, and so changes the system a planet page's System field shows.
   box.
 - A change is one op, applied as soon as the field commits. Undo takes it back,
   so there is no Apply, Cancel or edit mode.
+- Prepare for a new game, on the Galaxy page, is the exception. Its rows choose
+  one batch that changes many systems at once, so the player reviews it first.
+  Apply writes it as one edit, and Undo takes it back.
 
 ## The body page
 
