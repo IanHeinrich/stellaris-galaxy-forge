@@ -78,9 +78,12 @@ export function changesLine(changes: number): string {
   return `Changes ${counted(changes, "system")}.`;
 }
 
+/** Row labels that are names and keep their capital in a sentence. */
+const PROPER_LABELS: ReadonlySet<string> = new Set(["Sol"]);
+
 /** The footer's list of the rows left out, named in lower case, and the systems cut off. */
 export function leftOutLine(labels: readonly string[], cutOff = 0): string | null {
-  const items = labels.map((label) => label.toLowerCase());
+  const items = labels.map((label) => (PROPER_LABELS.has(label) ? label : label.toLowerCase()));
   if (cutOff > 0) items.push(`${counted(cutOff, "system")} cut off from the rest of the map`);
   if (items.length === 0) return null;
   return `Left out of the new game: ${listed(items)}.`;

@@ -676,9 +676,9 @@ In a random galaxy it keeps leviathans, marauder homes and L-Gates away
 from empires. On a scenario, these and other specials such as voidworms
 can land right beside a capital.
 
-"Keep the space around capitals clear" is ticked by default. It gives
-Game decides systems within 2 hyperlane jumps of a seat a plain system
-instead. The Issues tab also notes systems near a seat that have no
+"Keep the space around capitals clear" is ticked by default. Every
+system the game would fill within 2 hyperlane jumps of a seat gets a plain
+system instead, including systems that already had no initializer. The Issues tab also notes systems near a seat that have no
 initializer.
 
 #### What the new game does
