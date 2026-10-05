@@ -59,9 +59,21 @@ jobs:
       - name: App lint
         run: npm run lint
         working-directory: app
+      - name: Restore the Vitest transform cache
+        uses: actions/cache/restore@v4
+        with:
+          path: app/node_modules/.vitest-cache
+          key: vitest-${{ hashFiles('app/package-lock.json') }}-${{ github.sha }}
+          restore-keys: vitest-${{ hashFiles('app/package-lock.json') }}-
       - name: App tests
         run: npm test
         working-directory: app
+      - name: Save the Vitest transform cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: app/node_modules/.vitest-cache
+          key: vitest-${{ hashFiles('app/package-lock.json') }}-${{ github.sha }}
       - name: App build
         run: npm run build
         working-directory: app
