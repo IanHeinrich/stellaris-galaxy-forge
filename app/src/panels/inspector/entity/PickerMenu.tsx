@@ -8,23 +8,25 @@ import {
   type RefObject,
 } from "react";
 import {
-  effectSummary,
-  PICKER_CARD_WIDTH,
-  pickerCardPlace,
+  chipLine,
   type ChipItem,
+  type ChipMenu,
   type PickerSection,
 } from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
+import { IconPicker } from "../../IconPicker";
 import { useOutsidePress } from "../../useOutsidePress";
+import { EffectSummary, PickerCard, type CardItem } from "./PickerCard";
 import type { PickerKind } from "./PlanetPicker";
 
-export const NO_DESCRIPTION = "No description";
-export const NO_EFFECT = "No effect";
 /** The open picker's height where the page has room for it. */
 export const PICKER_HEIGHT = 520;
-/** The least it shrinks to, which still leaves three rows above a capped description. */
+/**
+ * The least it shrinks to, which still leaves a few rows in the list, and the card under them
+ * where the window has no room for it beside the dock.
+ */
 export const PICKER_MIN_HEIGHT = 320;
 /** The page's padding and the picker's margins, which the picker leaves out of the room it takes. */
 const PAGE_ROOM_MARGIN = 24;
@@ -43,14 +45,8 @@ export interface PickerButton {
 }
 
 /** What a row shows. */
-export interface PickerItem {
+export interface PickerItem extends CardItem {
   key: string;
-  label: string;
-  /** What it gives, a line each; empty for nothing. */
-  effects: readonly string[];
-  /** What kind of thing it is, under its name on the card. */
-  category?: string;
-  /** What the card says about it under its effects. */
   description: string | null;
   art: ReactNode;
   /** Added to the art's class. */
@@ -71,6 +67,7 @@ function PickerRow({
   item,
   id,
   lit,
+  keyed,
   cursor,
   describedBy,
   onHover,
@@ -80,6 +77,8 @@ function PickerRow({
   id: string;
   /** The card describes this row. */
   lit: boolean;
+  /** The keyboard stands on this row, which scrolls into view before the card measures it. */
+  keyed: boolean;
   /** The button the keyboard stands on, when it stands on this row and nothing else is lit. */
   cursor: number | null;
   /** The card's id, when it describes the row the keyboard stands on. */
@@ -87,8 +86,13 @@ function PickerRow({
   onHover: () => void;
   onAdd: (button: number) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (keyed) ref.current?.scrollIntoView?.({ block: "nearest" });
+  }, [keyed]);
   return (
     <div
+      ref={ref}
       id={id}
       className={`dp-row${item.buttons.length > 1 ? " family" : ""}${lit ? " active" : ""}`}
       aria-describedby={describedBy}
@@ -123,106 +127,31 @@ function PickerRow({
   );
 }
 
-/** A row's first effects, and how many more the card lists. */
-function EffectSummary({ effects }: { effects: readonly string[] }) {
-  const { shown, more } = effectSummary(effects);
-  if (shown === "") return <span className="muted">{NO_EFFECT}</span>;
+/** A drop-down on the chip line: `menu`'s label, then the choice picked of `choices`, else its first. */
+function ChipDropDown<C extends string>({
+  menu,
+  choices,
+  chip,
+  onPick,
+}: {
+  menu: ChipMenu<C>;
+  choices: readonly ChipItem<C>[];
+  chip: C;
+  onPick: (chip: C) => void;
+}) {
+  const chosen = choices.find((each) => each.chip === chip);
+  const choice = (each: ChipItem<C>) => ({ key: each.chip, label: each.label });
   return (
-    <span>
-      {shown}
-      {more !== null && <span className="muted dp-more"> {more}</span>}
+    <span className={chosen === undefined ? "dp-chip-menu" : "dp-chip-menu on"}>
+      {menu.label}:
+      <IconPicker
+        label={menu.label}
+        current={choice(chosen ?? menu.any)}
+        items={[menu.any, ...choices].map(choice)}
+        triggerClassName="dp-chip"
+        onPick={(key) => onPick(key as C)}
+      />
     </span>
-  );
-}
-
-/** What the card says of a row: its name, its category, every effect, then its description. */
-export function PickerCardBody({ item }: { item: PickerItem }) {
-  return (
-    <>
-      <span className="dp-card-name">{item.label}</span>
-      {item.category !== undefined && (
-        <span className="dp-card-category muted">{item.category}</span>
-      )}
-      {item.effects.length > 0 && (
-        <ul className="dp-card-effects">
-          {item.effects.map((effect, i) => (
-            <li key={i}>{effect}</li>
-          ))}
-        </ul>
-      )}
-      <span className="dp-card-text">
-        {item.description === null ? (
-          <span className="muted">{NO_DESCRIPTION}</span>
-        ) : (
-          item.description
-        )}
-      </span>
-    </>
-  );
-}
-
-/** Where the card stands: in the window beside the picker, or under the list. */
-type CardPlace = { left: number; top: number } | "under";
-
-/**
- * The card's ref, and its place beside the picker that holds it, level with the row `rowId` names:
- * measured again as the row, what it shows or its place changes, and as the window resizes or
- * anything in it scrolls; `null` until it is measured.
- */
-function useCardPlace(
-  rowId: string,
-  item: PickerItem,
-): [RefObject<HTMLDivElement | null>, CardPlace | null] {
-  const card = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<CardPlace | null>(null);
-  const [moved, setMoved] = useState(0);
-  useEffect(() => {
-    const move = () => setMoved((n) => n + 1);
-    window.addEventListener("resize", move);
-    window.addEventListener("scroll", move, true);
-    return () => {
-      window.removeEventListener("resize", move);
-      window.removeEventListener("scroll", move, true);
-    };
-  }, []);
-  const under = place === "under";
-  useLayoutEffect(() => {
-    const el = card.current;
-    const box = el?.parentElement ?? null;
-    const row = document.getElementById(rowId);
-    if (el === null || box === null || row === null) return;
-    setPlace(
-      pickerCardPlace(
-        box.getBoundingClientRect(),
-        row.getBoundingClientRect().top,
-        el.offsetHeight,
-        window.innerHeight,
-      ) ?? "under",
-    );
-  }, [rowId, item, moved, under]);
-  return [card, place];
-}
-
-/**
- * The card of the row under the pointer or the keyboard, left of the picker over the map and level
- * with the row. Where the window has no room there, it shows under the list at a fixed height.
- */
-function PickerCard({ id, item, rowId }: { id: string; item: PickerItem; rowId: string }) {
-  const [card, place] = useCardPlace(rowId, item);
-  const under = place === "under";
-  return (
-    <div
-      id={id}
-      ref={card}
-      className={under ? "dp-card under" : "dp-card"}
-      style={
-        under
-          ? undefined
-          : { width: PICKER_CARD_WIDTH, ...(place ?? { left: 0, top: 0, visibility: "hidden" }) }
-      }
-    >
-      <PickerCardBody item={item} />
-    </div>
   );
 }
 
@@ -238,7 +167,7 @@ function scrollingPage(el: HTMLElement): HTMLElement | null {
 /**
  * The picker's height: its own where the page shows that much, else what the page shows, down to
  * its least. Once on open, the page scrolls the least that brings the whole picker into view, so
- * its details are never below the fold.
+ * the end of its list, and the card where it shows under the list, are never below the fold.
  */
 function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
   const [height, setHeight] = useState(PICKER_HEIGHT);
@@ -315,10 +244,6 @@ export function PickerMenu<R, C extends string, T, X>({
   const flat = (sections ?? []).flatMap((s) => s.rows);
   const at = Math.min(cursor.row, flat.length - 1);
   const rowId = (i: number) => `${idPrefix}-${i}`;
-  useEffect(() => {
-    document.getElementById(`${idPrefix}-${at}`)?.scrollIntoView?.({ block: "nearest" });
-  }, [idPrefix, at]);
-
   const onKey = (e: KeyboardEvent) => {
     const inSearch = e.target === search.current;
     const row = flat[at];
@@ -341,7 +266,8 @@ export function PickerMenu<R, C extends string, T, X>({
     else if (e.key === ENTER && inSearch && row !== undefined) onAdd(row, cursor.button);
     else {
       const typed = e.key.length === 1 && !e.ctrlKey && !e.metaKey;
-      if (variants && !inSearch && typed) search.current?.focus();
+      const inField = e.target instanceof HTMLInputElement;
+      if (variants && !inField && typed) search.current?.focus();
       return;
     }
     e.preventDefault();
@@ -351,6 +277,10 @@ export function PickerMenu<R, C extends string, T, X>({
   const restart = () => {
     setHovered(null);
     setCursor({ row: 0, button: 0 });
+  };
+  const pickChip = (each: C) => {
+    setChip(each);
+    restart();
   };
   const lit = hovered ?? at;
   const detailed = flat[lit];
@@ -384,20 +314,27 @@ export function PickerMenu<R, C extends string, T, X>({
       </div>
       {chips.length > 0 && (
         <div className="dp-chips" role="group" aria-label={chipsName}>
-          {chips.map(({ chip: each, label }) => (
-            <button
-              key={each}
-              type="button"
-              className="dp-chip"
-              aria-pressed={chip === each}
-              onClick={() => {
-                setChip(each);
-                restart();
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          {chipLine(chips).map((place) =>
+            "menu" in place ? (
+              <ChipDropDown
+                key={place.menu.label}
+                menu={place.menu}
+                choices={place.choices}
+                chip={chip}
+                onPick={pickChip}
+              />
+            ) : (
+              <button
+                key={place.chip.chip}
+                type="button"
+                className="dp-chip"
+                aria-pressed={chip === place.chip.chip}
+                onClick={() => pickChip(place.chip.chip)}
+              >
+                {place.chip.label}
+              </button>
+            ),
+          )}
         </div>
       )}
       {controls}
@@ -428,6 +365,7 @@ export function PickerMenu<R, C extends string, T, X>({
                   item={shown}
                   id={rowId(i)}
                   lit={i === lit}
+                  keyed={i === at}
                   cursor={
                     i === at && lit === at
                       ? Math.min(cursor.button, shown.buttons.length - 1)

@@ -5,20 +5,26 @@ import { capabilityFor, orderLabel } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useCountryName } from "../../../../store/browserRows";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useOwnerCss } from "../../ownerCss";
 import { useOpenEntity } from "../../entity/useEntity";
 import { Icon } from "../../../parts";
 import { DrillRow, FocusButton, MoreButton, Section, Swatch } from "../../parts";
-import { fleetGlyph, fleetIcon, LIST_LIMIT, shipRole, shipSizeChips } from "../../rows";
+import {
+  fleetGlyph,
+  fleetIcon,
+  fleetIconKeys,
+  LIST_LIMIT,
+  shipRole,
+  shipSizeChips,
+} from "../../rows";
 
-function FleetBadge({ fleet }: { fleet: FleetSummary }) {
+function FleetIcon({ fleet }: { fleet: FleetSummary }) {
   const shipSizes = useGameDataStore((s) => s.shipSizes);
-  const plate = useOwnerCss(fleet.owner);
-  const icon = fleetIcon(fleet, shipSizes);
   return (
-    <span className="badge" style={{ background: plate ?? "var(--bg-elevated)" }}>
-      <Icon keys={icon ? [`sprite:GFX_${icon}`] : []} glyph={fleetGlyph(icon)} />
-    </span>
+    <Icon
+      className="fleet-icon"
+      keys={fleetIconKeys(fleet, shipSizes)}
+      glyph={fleetGlyph(fleetIcon(fleet, shipSizes))}
+    />
   );
 }
 
@@ -35,7 +41,7 @@ function FleetRow({ fleet, system }: { fleet: FleetSummary; system: number }) {
       requires={capabilityFor("fleet")}
       onOpen={() => opener.open({ kind: "fleet", id: fleet.id }, name)}
     >
-      <FleetBadge fleet={fleet} />
+      <FleetIcon fleet={fleet} />
       <span>
         <span className="l1">
           <Swatch owner={fleet.owner} />

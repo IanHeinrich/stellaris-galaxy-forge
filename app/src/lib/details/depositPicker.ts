@@ -12,6 +12,7 @@ import {
   pickerSections,
   searchText,
   type ChipItem,
+  type ChipMenu,
   type CommonChip,
   type PickerSection,
 } from "./picker";
@@ -177,9 +178,15 @@ function plainBlock(view: DepositTypeView | undefined): boolean {
   );
 }
 
+/** The drop-down that holds the blocker picker's techs. */
+export const CLEARED_BY: ChipMenu<DepositChip> = {
+  label: "Cleared by",
+  any: { chip: "All", label: "Any technology" },
+};
+
 /**
- * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, then
- * No tech needed, Can't be cleared and Special where a blocker is so.
+ * The blocker picker's chips: All, Usual here, one per tech that clears a blocker by its name, in
+ * the Cleared by drop-down, then No tech needed, Can't be cleared and Special where a blocker is so.
  */
 export function blockerChips(rows: readonly DepositRow[]): ChipItem<DepositChip>[] {
   const techs = new Map<string, string>();
@@ -188,7 +195,11 @@ export function blockerChips(rows: readonly DepositRow[]): ChipItem<DepositChip>
   const some = (test: (row: DepositRow) => boolean) => rows.some(test);
   return [
     ...COMMON_CHIPS,
-    ...byName.map(([key, name]): ChipItem<DepositChip> => ({ chip: `tech:${key}`, label: name })),
+    ...byName.map(([key, name]): ChipItem<DepositChip> => ({
+      chip: `tech:${key}`,
+      label: name,
+      menu: CLEARED_BY,
+    })),
     ...(some((r) => r.clearedBy?.length === 0)
       ? [{ chip: "NoTech" as const, label: "No tech needed" }]
       : []),

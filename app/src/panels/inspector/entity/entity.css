@@ -355,6 +355,42 @@
   border-color: var(--accent);
 }
 
+/* A drop-down on the chip line: its label, then a chip that opens its choices. */
+.dp-chip-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--text-hint);
+  color: var(--fg-muted);
+}
+
+.dp-chip-menu .icon-picker {
+  min-width: 0;
+}
+
+.dp-chip-menu .icon-picker-trigger.dp-chip {
+  min-width: 0;
+  padding: 1px 7px;
+  color: var(--fg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dp-chip-menu .icon-picker-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dp-chip-menu.on .icon-picker-trigger.dp-chip,
+.dp-chip-menu .icon-picker-trigger.dp-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .dp-added {
   margin: 0 0 4px;
   font-size: var(--text-hint);
@@ -441,16 +477,14 @@
   overflow-wrap: anywhere;
 }
 
-/* The row's card, fixed over the map left of the picker, so the dock's scrolling doesn't clip it. */
-.dp > .dp-card {
+/* A row's card, fixed over the map left of the dock, so the dock's scrolling doesn't clip it. */
+.dp-card {
   position: fixed;
   z-index: 4;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 16px);
   padding: 8px 10px;
-  overflow: hidden;
   font-size: var(--text-hint);
   color: var(--fg-soft);
   overflow-wrap: anywhere;
@@ -461,21 +495,24 @@
   pointer-events: none;
 }
 
-/* Without room beside the picker, one height under the list for every row; a long description scrolls. */
-.dp > .dp-card.under {
+/* Without room beside the dock, the card shows in place under its row. */
+.dp-card.under {
   position: static;
-  height: 9em;
-  max-height: none;
   margin-top: 6px;
   padding: 6px 2px 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   background: none;
   border: none;
   border-top: 1px solid var(--border);
   border-radius: 0;
   box-shadow: none;
   pointer-events: auto;
+}
+
+/* Under the picker's list, one height for every row; a long description scrolls. */
+.dp > .dp-card.under {
+  height: 9em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dp-card-name {
@@ -490,11 +527,24 @@
   color: var(--fg);
 }
 
+.dp-card-note {
+  margin-top: 4px;
+}
+
 .dp-card-text {
   margin-top: 6px;
   padding-top: 6px;
   white-space: pre-line;
   border-top: 1px solid var(--border);
+}
+
+/* Beside the dock the card takes no pointer to scroll, so a long description ends after a few lines. */
+.dp-card:not(.under) .dp-card-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 10;
+  line-clamp: 10;
 }
 
 .pl-sub-head {

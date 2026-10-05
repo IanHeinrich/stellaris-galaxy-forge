@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 /** A line under a picked row's name; `className` is the line's own style. */
 export interface PickedLine {
   className: "l2" | "l3" | "pl-anomaly-desc";
-  text: string;
+  text: ReactNode;
 }
 
 /** The button that takes a picked row off its body. */

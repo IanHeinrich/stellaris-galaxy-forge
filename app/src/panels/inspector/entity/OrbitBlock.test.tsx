@@ -170,7 +170,8 @@ describe("a body's ring", () => {
   const PLANET = 2;
   const MOON = 3;
   const ASTEROID = 6;
-  const RING = /<input type="checkbox"( checked="")?\/>Ring<\/label>/;
+  const RING =
+    /<label class="edit-label" for="[^"]+"[^>]*>Ring<\/label><span class="edit-cell"><span class="edit-field edit-toggle"[^>]*><input id="[^"]+" type="checkbox"( checked="")?\/>/;
 
   /** The orbit fixture's system as system `SYSTEM`, its planet with a ring. */
   async function landRinged(): Promise<void> {

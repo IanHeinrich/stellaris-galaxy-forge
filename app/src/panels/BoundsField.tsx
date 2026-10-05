@@ -41,7 +41,7 @@ export function BoundsField({
     );
   }
   return (
-    <span>
+    <span className="edit-bounds">
       {(["min", "max"] as const).map((edge) => (
         <TextField
           key={edge}

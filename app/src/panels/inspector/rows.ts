@@ -3,6 +3,11 @@ import type { DepositCount } from "../../generated/DepositCount";
 import type { FleetSummary } from "../../generated/FleetSummary";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { ShipSizeView } from "../../generated/ShipSizeView";
+import {
+  MINING_STATION_ICON_KEY,
+  RESEARCH_STATION_ICON_KEY,
+  starbaseOutlinerKey,
+} from "../../lib/details/icons";
 import { FALLBACK_HABITABLE, isColony } from "../../lib/details/labels";
 import { keyWords } from "../../lib/text";
 
@@ -101,6 +106,28 @@ export function fleetIcon(
     }
   }
   return best ?? first;
+}
+
+/** The vanilla station ship sizes, which name no ship-size icon or only the one every starbase shares. */
+const STATION_ICON_KEYS = new Map<string, string>([
+  ["mining_station", MINING_STATION_ICON_KEY],
+  ["research_station", RESEARCH_STATION_ICON_KEY],
+  ["starbase_outpost", starbaseOutlinerKey(1)],
+  ["starbase_starport", starbaseOutlinerKey(2)],
+  ["starbase_starhold", starbaseOutlinerKey(3)],
+  ["starbase_starfortress", starbaseOutlinerKey(4)],
+  ["starbase_citadel", starbaseOutlinerKey(5)],
+]);
+
+/** The texture keys a fleet row draws: a station's own picture, else its ship-size icon. */
+export function fleetIconKeys(
+  f: FleetSummary,
+  shipSizes: ReadonlyMap<string, ShipSizeView>,
+): string[] {
+  const station = STATION_ICON_KEYS.get(f.ship_sizes[0]?.key ?? "");
+  if (station) return [station];
+  const icon = fleetIcon(f, shipSizes);
+  return icon ? [`sprite:GFX_${icon}`] : [];
 }
 
 /** The glyph drawn when the ship-size sprite is unavailable. */

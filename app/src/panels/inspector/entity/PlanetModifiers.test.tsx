@@ -15,6 +15,7 @@ import { open, resetStores } from "../inspectorFixture";
 import { drawnBy, drawnButton } from "../../../test/drawn";
 import { mockedIpc } from "../../../test/ipc";
 import { WORLD, EMPIRE, EMPIRE_NODE, landPage, render, districts, OLBERS } from "./bodyPageFixture";
+import { modifierCard } from "./modifierCard";
 
 bindStores();
 
@@ -68,7 +69,65 @@ describe("a planet's modifiers", () => {
 
     const html = render(WORLD);
     expect(html).toContain("Modifiers · 1");
-    expect(html).toContain("+4 Max Generator Districts · permanent");
+    expect(html).toContain(
+      '<span class="l2"><span>+4 Max Generator Districts</span> · permanent</span>',
+    );
     expect(html).toMatch(/Surveyed by<\/span>.*Ti Zru Conservers/);
+  });
+
+  it("names a modifier's first two effects and how long it lasts, and keeps its remove button", async () => {
+    await open("save");
+    await landPage(OLBERS);
+    usePlanetDataStore.setState({
+      modifiers: new Map(
+        [
+          modifierView("pm_abundant_geothermal_activity", {
+            name: "Abundant Geothermal Activity",
+            static_modifier: "abundant_geothermal_activity",
+            effects: [
+              districts("district_generator_max_add", 20, "Max Agriculture Districts"),
+              districts("planet_farmers_energy_produces_add", 4, "Energy Credits per 100 Farmers"),
+              districts("planet_stability_add", 5, "Stability"),
+            ],
+          }),
+        ].map((v) => [v.key, v]),
+      ),
+    });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain(
+      '<span class="l2"><span>+20 Max Agriculture Districts, +4 Energy Credits per 100 Farmers' +
+        '<span class="muted dp-more"> +1 more</span></span> · permanent</span>',
+    );
+    expect(html).not.toContain("dp-card");
+
+    mockedIpc.applyOp.mockResolvedValue(editResult());
+    drawnButton("Remove Abundant Geothermal Activity").onClick();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "RemoveBodyModifier", body: WORLD }),
+    );
+  });
+
+  it("gives a modifier's card its name, every effect and how long it lasts", () => {
+    const card = modifierCard({
+      key: "pm_geo",
+      modifier: "geo",
+      feature: true,
+      days: 360,
+      view: modifierView("pm_geo", {
+        name: "Geothermal Vents",
+        effects: [
+          districts("a", 20, "Max Agriculture Districts"),
+          districts("b", 4, "Energy"),
+          districts("c", 5, "Stability"),
+        ],
+      }),
+    });
+    expect(card).toEqual({
+      label: "Geothermal Vents",
+      effects: ["+20 Max Agriculture Districts", "+4 Energy", "+5 Stability"],
+      note: "360 days left",
+    });
   });
 });

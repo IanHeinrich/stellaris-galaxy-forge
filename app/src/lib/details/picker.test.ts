@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   byLabel,
   chipLabel,
+  chipLine,
   effectSummary,
   PICKER_CARD_WIDTH,
   pickerCardPlace,
   pickerSections,
   searchText,
+  visibleSpan,
   type PickRow,
 } from "./picker";
 
@@ -73,6 +75,21 @@ describe("a picker row's effects", () => {
     expect(effectSummary([])).toEqual({ shown: "", more: null });
   });
 
+  it("puts a drop-down's choices in one place on the chip line, where its first was", () => {
+    const menu = { label: "Cleared by", any: { chip: "All", label: "Any technology" } };
+    const line = chipLine([
+      { chip: "All", label: "All" },
+      { chip: "tech:a", label: "A", menu },
+      { chip: "tech:b", label: "B", menu },
+      { chip: "NoTech", label: "No tech needed" },
+    ]);
+    expect(line.map((p) => ("menu" in p ? p.choices.map((c) => c.label) : p.chip.label))).toEqual([
+      "All",
+      ["A", "B"],
+      "No tech needed",
+    ]);
+  });
+
   it("calls a category by its chip's label, or by itself without one", () => {
     const chips = [{ chip: "Feature", label: "Features" }];
     expect(chipLabel(chips, "Feature")).toBe("Features");
@@ -102,5 +119,21 @@ describe("where a picker's side card goes", () => {
     expect(pickerCardPlace(narrow, 240, 180, 800)).toBeNull();
     const justFits = { ...narrow, left: 8 + PICKER_CARD_WIDTH + 6 };
     expect(pickerCardPlace(justFits, 240, 180, 800)?.left).toBe(8);
+  });
+});
+
+describe("the part of a row its scrolling boxes show", () => {
+  const LIST = { top: 200, bottom: 500 };
+  const PAGE = { top: 40, bottom: 700 };
+
+  it("is the whole row inside them, and the part inside where one cuts it", () => {
+    expect(visibleSpan({ top: 240, bottom: 270 }, [LIST, PAGE])).toEqual({ top: 240, bottom: 270 });
+    expect(visibleSpan({ top: 190, bottom: 220 }, [LIST, PAGE])).toEqual({ top: 200, bottom: 220 });
+  });
+
+  it("is nothing once the list or the page scrolls the row out of sight", () => {
+    expect(visibleSpan({ top: 160, bottom: 190 }, [LIST, PAGE])).toBeNull();
+    expect(visibleSpan({ top: 500, bottom: 530 }, [LIST, PAGE])).toBeNull();
+    expect(visibleSpan({ top: 240, bottom: 270 }, [LIST, { top: 300, bottom: 700 }])).toBeNull();
   });
 });

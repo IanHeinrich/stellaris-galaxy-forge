@@ -16,6 +16,34 @@ export type CommonChip = "All" | "Usual";
 export interface ChipItem<C extends string> {
   chip: C;
   label: string;
+  /** The drop-down it is a choice in, in place of a chip of its own. */
+  menu?: ChipMenu<C>;
+}
+
+/** A drop-down on the chip line holding a run of choices: what it is called, and its first choice. */
+export interface ChipMenu<C extends string> {
+  label: string;
+  /** The choice that leaves the rows unnarrowed by the drop-down. */
+  any: ChipItem<C>;
+}
+
+/** One place on the chip line: a chip, or a drop-down with its choices. */
+export type ChipPlace<C extends string> =
+  { chip: ChipItem<C> } | { menu: ChipMenu<C>; choices: ChipItem<C>[] };
+
+/** `chips` as the chip line shows them: each drop-down's choices in one place, where its first was. */
+export function chipLine<C extends string>(chips: readonly ChipItem<C>[]): ChipPlace<C>[] {
+  const line: ChipPlace<C>[] = [];
+  for (const chip of chips) {
+    if (chip.menu === undefined) {
+      line.push({ chip });
+      continue;
+    }
+    const held = line.find((place) => "menu" in place && place.menu === chip.menu);
+    if (held !== undefined && "menu" in held) held.choices.push(chip);
+    else line.push({ menu: chip.menu, choices: [chip] });
+  }
+  return line;
 }
 
 export const COMMON_CHIPS: readonly ChipItem<CommonChip>[] = [
@@ -78,6 +106,22 @@ export function pickerCardPlace(
   if (left < EDGE_PX) return null;
   const lowest = viewportHeight - EDGE_PX - height;
   return { left, top: Math.max(EDGE_PX, Math.min(rowTop, lowest)) };
+}
+
+/** A stretch of the window from top to bottom, in pixels. */
+export interface Span {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The part of `row` that shows inside every one of `clips`, the boxes that scroll it; `null` when
+ * one of them has scrolled it out of sight.
+ */
+export function visibleSpan(row: Span, clips: readonly Span[]): Span | null {
+  const top = Math.max(row.top, ...clips.map((c) => c.top));
+  const bottom = Math.min(row.bottom, ...clips.map((c) => c.bottom));
+  return bottom > top ? { top, bottom } : null;
 }
 
 /** What the search matches of a row: `parts`, lower case. */

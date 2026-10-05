@@ -5,6 +5,7 @@ import {
   addedLine,
   amountText,
   blockerChips,
+  CLEARED_BY,
   depositRows,
   depositSections,
   describes,
@@ -191,16 +192,17 @@ describe("the blocker picker's chips", () => {
   const families = (chip: Parameters<typeof depositSections>[1]) =>
     depositSections(rows, chip, "").flatMap((s) => s.rows.map((r) => r.family));
 
-  it("offers one chip per clearing tech by name, then no tech, can't be cleared and Special", () => {
-    expect(blockerChips(rows).map((c) => c.label)).toEqual([
-      "All",
-      "Usual here",
-      "Climate Control Network",
-      "Dangerous Wildlife Removal",
-      "No tech needed",
-      "Can't be cleared",
-      "Special",
+  it("offers each clearing tech by name in the Cleared by drop-down, then no tech, can't be cleared and Special", () => {
+    expect(blockerChips(rows).map((c) => [c.label, c.menu?.label ?? null])).toEqual([
+      ["All", null],
+      ["Usual here", null],
+      ["Climate Control Network", "Cleared by"],
+      ["Dangerous Wildlife Removal", "Cleared by"],
+      ["No tech needed", null],
+      ["Can't be cleared", null],
+      ["Special", null],
     ]);
+    expect(CLEARED_BY.any).toEqual({ chip: "All", label: "Any technology" });
   });
 
   it("keeps under a tech's chip every blocker that tech clears", () => {

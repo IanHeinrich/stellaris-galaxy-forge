@@ -21,7 +21,8 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { TERRAFORMING_NOTE } from "../../../lib/details/depositWarnings";
 import { useDepositPickerStore } from "../../../store/depositPickerStore";
 import { open, resetStores } from "../inspectorFixture";
-import { drawnBy, drawnButton } from "../../../test/drawn";
+import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
+import { IconPicker } from "../../IconPicker";
 import { mockedIpc } from "../../../test/ipc";
 import {
   WORLD,
@@ -223,6 +224,56 @@ describe("an unowned world's deposits", () => {
     expect(open_).toContain('aria-label="Search blockers"');
     expect(open_).not.toContain("Deposit categories");
     expect(open_).toContain("+ Add deposit…");
+  });
+
+  it("narrows the blocker picker by clearing tech from one Cleared by drop-down", async () => {
+    await open("save");
+    await landPage(planetPage({ id: WORLD }));
+    usePlanetDataStore.setState({
+      depositTypes: new Map(
+        [
+          blocker("d_massive_glacier", "Massive Glacier", 1, 180, "Climate Control Network"),
+          blocker("d_active_volcano", "Active Volcano", 2, 270, "Deep Crust Engineering"),
+        ].map((v) => [v.key, v]),
+      ),
+    });
+    const choice = (key: string) => ({
+      key,
+      family: key,
+      amount: null,
+      category: "Blockers" as const,
+      usual: false,
+      description: null,
+      event_only: false,
+    });
+    useDepositPickerStore.setState({
+      target: pickerTarget(planetPage({ id: WORLD })),
+      mode: "blockers",
+      choices: { body: "", list: [choice("d_massive_glacier"), choice("d_active_volcano")] },
+    });
+
+    const html = drawnBy(() => render(WORLD));
+    expect(html).toContain('<span class="dp-chip-menu">Cleared by:');
+    expect(html).toContain('aria-label="Cleared by: Any technology"');
+    expect(html).not.toContain(">Climate Control Network</button>");
+    expect(html).toContain('aria-pressed="true">All</button>');
+    expect(drawnField(IconPicker, "Cleared by").items.map((i) => i.label)).toEqual([
+      "Any technology",
+      "Climate Control Network",
+      "Deep Crust Engineering",
+    ]);
+
+    drawnField(IconPicker, "Cleared by").onPick("tech:tech_d_massive_glacier");
+    expect(useDepositPickerStore.getState().chip).toBe("tech:tech_d_massive_glacier");
+    const narrowed = drawnBy(() => render(WORLD));
+    expect(narrowed).toContain('<span class="dp-chip-menu on">Cleared by:');
+    expect(narrowed).toContain('aria-label="Cleared by: Climate Control Network"');
+    expect(narrowed).toContain('aria-pressed="false">All</button>');
+    expect(narrowed).toContain("Massive Glacier");
+    expect(narrowed).not.toContain('<span class="l1">Active Volcano</span>');
+
+    drawnField(IconPicker, "Cleared by").onPick("All");
+    expect(useDepositPickerStore.getState().chip).toBe("All");
   });
 
   it("marks only a loss of districts of every kind with the blocker", async () => {
