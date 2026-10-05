@@ -66,7 +66,26 @@
   box-shadow: var(--shadow-pop);
 }
 
-.icon-picker-pop:focus {
+.icon-picker-pop.icon-picker-filtered {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.icon-picker-filter {
+  flex: none;
+}
+
+.icon-picker-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.icon-picker-pop:focus,
+.icon-picker-list:focus {
   outline: none;
 }
 
