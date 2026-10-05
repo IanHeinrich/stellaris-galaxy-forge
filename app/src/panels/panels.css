@@ -26,8 +26,14 @@
 
 /* The icon may be taller than the line; it overflows its box so the line keeps its height. */
 .icon-picker-trigger .icon-picker-icon {
-  width: 18px;
+  width: 22px;
   height: 12px;
+}
+
+/* Inside the trigger's border, so a field that fills the row keeps a clean left edge. */
+.icon-picker-trigger .pi img {
+  width: 22px;
+  height: 22px;
 }
 
 /* A baked disc is larger than a planet sprite: draw every planet icon at a sprite's size. */
