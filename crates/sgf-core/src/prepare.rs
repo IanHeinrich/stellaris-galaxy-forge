@@ -11,11 +11,15 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::export::ScenarioProfile;
-use crate::format::scenario::header_counts::{fallen_count, is_seat};
+use crate::format::scenario::fe_zone::{self, FeZone, Site};
+use crate::format::scenario::header_counts::{
+    MOST_FALLEN_EMPIRES, SeatCounts, fallen_count, is_seat,
+};
 use crate::format::scenario::is_painted;
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::keys::scenario as keys;
 use crate::ops::Op;
+use crate::ops::rules::fe_zone as rules;
 use crate::projections::galaxy::{
     BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript, SystemNode,
 };
@@ -29,7 +33,9 @@ use crate::{as_u32, plural};
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum PrepareRow {
-    /// Seat scripts and spawn weights.
+    /// Seat scripts and spawn weights. A system the choice unseats that stands in no
+    /// initializer row, because its initializer is a generic empire start, follows the
+    /// Ordinary systems row's choice.
     EmpireSeats,
     /// Seats whose initializer is not a generic empire start.
     HomeStarts,
@@ -68,7 +74,8 @@ pub enum PrepareChoice {
     /// An ordinary star in place of the initializer; a generic start on a Sol that keeps
     /// its seat.
     Plain,
-    /// No initializer: the game rolls the system.
+    /// No initializer: the game rolls the system. A Sol that keeps its seat gets a generic
+    /// start instead, and Paint a Galaxy's Sol seat on it becomes an enabled seat.
     GameDecides,
     /// The seats, zones or pairs go.
     None,
@@ -115,6 +122,15 @@ impl Default for PrepareOptions {
 /// instead. A scenario's effects run after the roll, so no flag keeps a capital clear.
 pub const CLEAR_JUMPS: usize = 2;
 
+/// The game's define of that name in `common/defines/00_defines.txt`: the minimum distance
+/// between empires in a random start. New random seats stand this far apart where the map
+/// has room.
+pub const RANDOM_START_DISTANCE: f64 = 75.0;
+/// How far the spacing between new seats comes down each time they do not fit.
+const SEAT_SPACING_STEP: f64 = 5.0;
+/// The least spacing new seats are drawn at before the draw is refused.
+const LEAST_SEAT_SPACING: f64 = 20.0;
+
 /// The game's Sol with Earth and pre-FTL humans on it.
 const PRE_FTL_SOL: &str = "pre_ftl_init_sol";
 
@@ -128,8 +144,8 @@ pub enum PreparePreset {
     /// The map and its features kept, and what old empires and events made turned into
     /// plain systems.
     FreshStart,
-    /// Seats, home starts, home neighbours and fallen empire zones kept; every other row
-    /// left to the game, and wormhole pairs taken out.
+    /// Only the shape stays: positions, hyperlanes and nebulae. Seats are drawn again, and the
+    /// game rolls everything else.
     BareShell,
 }
 
@@ -181,11 +197,12 @@ pub enum PrepareError {
     SolSeatTaken(u32),
     #[error("a UNE seat goes on one Sol, and the map has {}", ids(.0))]
     SeveralSols(Vec<u32>),
-    #[error("{} {} is not built yet", .row.as_str(), .choice.as_str())]
-    Unbuilt {
-        row: PrepareRow,
-        choice: PrepareChoice,
-    },
+    #[error("the map has no seats to draw again")]
+    NoSeatsToDraw,
+    #[error("only {fit} of {wanted} new seats fit on the map, even {LEAST_SEAT_SPACING} apart")]
+    SeatsDoNotFit { wanted: usize, fit: usize },
+    #[error("only a Paint a Galaxy map has fallen empire zones")]
+    RandomZonesOnPlain,
 }
 
 fn ids(systems: &[u32]) -> String {
@@ -299,24 +316,22 @@ impl PreparePreset {
 
     /// The preset's choice for `row` on a map of `profile`.
     pub const fn choice(self, row: PrepareRow, profile: ScenarioProfile) -> PrepareChoice {
-        use PrepareChoice::{GameDecides, GenericStart, Keep, None, Plain};
+        use PrepareChoice::{
+            GameDecides, GameNames, GenericStart, Keep, None, Plain, RandomSeats, RandomZones,
+        };
         match (self, row) {
             (Self::Faithful, _) => Keep,
             (Self::FreshStart, PrepareRow::HomeStarts) => GenericStart,
             (Self::FreshStart, PrepareRow::Sol | PrepareRow::OriginAndEvent) => Plain,
             (Self::FreshStart, _) => Keep,
+            (Self::BareShell, PrepareRow::EmpireSeats) => RandomSeats,
+            (Self::BareShell, PrepareRow::HomeStarts) => GenericStart,
             (Self::BareShell, PrepareRow::FallenEmpires) => match profile {
-                ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => Keep,
+                ScenarioProfile::Plain => Keep,
+                ScenarioProfile::PaintAGalaxy => RandomZones,
             },
-            (
-                Self::BareShell,
-                PrepareRow::EmpireSeats
-                | PrepareRow::HomeStarts
-                | PrepareRow::HomeNeighbours
-                | PrepareRow::SystemNames,
-            ) => Keep,
             (Self::BareShell, PrepareRow::WormholePairs) => None,
-            (Self::BareShell, PrepareRow::Sol) => Plain,
+            (Self::BareShell, PrepareRow::SystemNames) => GameNames,
             (Self::BareShell, _) => GameDecides,
         }
     }
@@ -352,14 +367,57 @@ impl PlainDraw {
     }
 }
 
+/// SplitMix64's increment.
+const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// SplitMix64's mix.
+fn mix(z: u64) -> u64 {
+    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
 /// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
 fn unit(seed: u64, system: u32) -> f64 {
-    let mut z = (seed ^ u64::from(system).wrapping_mul(0x9E37_79B9_7F4A_7C15))
-        .wrapping_add(0x9E37_79B9_7F4A_7C15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^= z >> 31;
+    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
     (z >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// The draws one seed feeds beside Plain system's, each from its own stream, so that one
+/// draw does not move when another changes.
+#[derive(Debug, Clone, Copy)]
+enum Stream {
+    Seats = 1,
+    Zones,
+    Starts,
+}
+
+impl Stream {
+    fn seed(self, seed: u64) -> u64 {
+        mix(seed ^ (self as u64).wrapping_mul(GOLDEN))
+    }
+}
+
+/// SplitMix64 over one [`Stream`] of a seed.
+struct SplitMix(u64);
+
+impl SplitMix {
+    fn new(seed: u64, stream: Stream) -> Self {
+        Self(stream.seed(seed))
+    }
+
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(GOLDEN);
+        mix(self.0)
+    }
+
+    /// `items` in an order the stream draws, by Fisher and Yates' shuffle.
+    fn shuffle<T>(&mut self, items: &mut [T]) {
+        for i in (1..items.len()).rev() {
+            let j = (self.next() % (i as u64 + 1)) as usize;
+            items.swap(i, j);
+        }
+    }
 }
 
 /// The dialect an open scenario is written in: Paint a Galaxy's once the file carries its
@@ -375,7 +433,8 @@ pub fn profile(session: &Session) -> ScenarioProfile {
 /// change nothing. A row left out of `choices` is kept. Members follow [`PrepareRow::ALL`],
 /// each row's systems in the order `rows` lists them. Under `options`, the systems
 /// [`kept_clear`] names get Plain system: in place of the member that would empty one, and
-/// after the rows for one no row writes.
+/// after the rows for one no row writes. What New random seats and New random zones write is
+/// what [`drawn`] draws from the same seed.
 pub fn build(
     session: &Session,
     rows: &[RowSystems],
@@ -383,8 +442,7 @@ pub fn build(
     draw: &PlainDraw,
     options: &PrepareOptions,
 ) -> Result<Option<Op>, PrepareError> {
-    unbuilt(choices)?;
-    let plan = Plan::new(session, rows, choices)?;
+    let plan = Plan::new(session, rows, choices, options.seed)?;
     let mut ops = row_ops(&plan, draw)?;
     if options.clear_around_seats {
         keep_clear(&plan, &mut ops, draw)?;
@@ -393,7 +451,7 @@ pub fn build(
         return Ok(None);
     }
     let changed = changed_in(plan.graph, &ops);
-    ops.extend(header_counts(plan.profile, plan.graph, &ops));
+    ops.extend(header_counts(&plan, &ops));
     Ok(Some(Op::Batch {
         description: format!("Prepared {} for a new game", plural(changed, "system")),
         ops,
@@ -404,37 +462,47 @@ pub fn build(
 /// every system the game would roll once the batch applies, because its row leaves it with
 /// no initializer or takes its initializer away, that lies within [`CLEAR_JUMPS`] lanes of a
 /// system holding a seat then, and that is not a plain system already. Wormholes are not
-/// jumps. Refused where [`build`] refuses. Sorted.
+/// jumps. The seats are the ones [`drawn`] draws under `options`. Refused where [`build`]
+/// refuses. Sorted.
 pub fn kept_clear(
     session: &Session,
     rows: &[RowSystems],
     choices: &[RowChoice],
     draw: &PlainDraw,
+    options: &PrepareOptions,
 ) -> Result<Vec<u32>, PrepareError> {
-    unbuilt(choices)?;
-    let plan = Plan::new(session, rows, choices)?;
+    let plan = Plan::new(session, rows, choices, options.seed)?;
     let mut ops = row_ops(&plan, draw)?;
     keep_clear(&plan, &mut ops, draw)
 }
 
-/// Refuses the first of `choices` a row offers that [`build`] cannot write yet.
-fn unbuilt(choices: &[RowChoice]) -> Result<(), PrepareError> {
-    use PrepareChoice::{GameDecides, RandomSeats, RandomZones};
-    let unbuilt = choices.iter().find(|c| {
-        matches!(
-            (c.row, c.choice),
-            (PrepareRow::EmpireSeats, RandomSeats)
-                | (PrepareRow::FallenEmpires, RandomZones)
-                | (PrepareRow::Sol, GameDecides)
-        )
-    });
-    match unbuilt {
-        Some(&RowChoice { row, choice }) => Err(PrepareError::Unbuilt { row, choice }),
-        None => Ok(()),
-    }
+/// What New random seats and New random zones draw from the seed of `options`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Drawn {
+    /// The systems the new seats go on, in the order they were drawn: the n-th takes the
+    /// n-th old seat's script or weight. Empty unless New random seats is chosen.
+    pub seats: Vec<u32>,
+    /// The spacing the seats were drawn at, when the map had no room for them at
+    /// [`RANDOM_START_DISTANCE`].
+    pub seat_floor: Option<f64>,
+    /// The new fallen empire zones, each with the system anchoring it, in the order they were
+    /// drawn. Empty unless New random zones is chosen.
+    pub zones: Vec<(u32, FeZone)>,
 }
 
-/// The members the rows' choices write, in [`PrepareRow::ALL`] order.
+/// The seats and zones `choices` draw under `options`, as [`build`] writes them. Refused where
+/// [`build`] refuses.
+pub fn drawn(
+    session: &Session,
+    rows: &[RowSystems],
+    choices: &[RowChoice],
+    options: &PrepareOptions,
+) -> Result<Drawn, PrepareError> {
+    Plan::new(session, rows, choices, options.seed).map(|plan| plan.drawn)
+}
+
+/// The members the rows' choices write, in [`PrepareRow::ALL`] order. A new seat's
+/// initializer is the one its seat writes, whatever row it stands in.
 fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
     use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, Plain, PreFtlEarth, UneSeat};
     let Plan {
@@ -443,17 +511,24 @@ fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
         sol,
         ..
     } = *plan;
-    let reseated = match plan.chosen.get(&PrepareRow::Sol) {
-        Some(UneSeat) => sol.map(|node| node.id),
-        _ => None,
-    };
+    let reseated = plan.reseated();
+    let new_seats: BTreeSet<u32> = plan.drawn.seats.iter().copied().collect();
+    let mut seated = 0;
     let mut unseated = BTreeSet::new();
     let mut ops = Vec::new();
     for row in PrepareRow::ALL {
         let Some(&choice) = plan.chosen.get(&row) else {
             continue;
         };
-        let nodes = nodes(graph, &plan.systems, row);
+        let mut nodes = nodes(graph, &plan.systems, row);
+        if row == PrepareRow::OrdinarySystems {
+            nodes.extend(
+                unseated
+                    .iter()
+                    .filter(|&&id| plan.in_no_row(id))
+                    .filter_map(|id| graph.systems.get(id)),
+            );
+        }
         match (row, choice) {
             (_, Keep) => {}
             (PrepareRow::WormholePairs, _) => ops.extend(dialect::unpaired(profile, &nodes)),
@@ -464,14 +539,32 @@ fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
                         ops.push(op);
                     }
                 }
+                ops.extend(plan.new_seats());
+                seated = ops.len();
             }
             (PrepareRow::FallenEmpires, _) => {
                 for node in nodes {
                     ops.extend(dialect::without_fallen_empire(profile, node, draw)?);
                 }
+                ops.extend(plan.drawn.zones.iter().map(|(system, zone)| Op::SetFeZone {
+                    system: *system,
+                    zone: Some(zone.clone()),
+                }));
             }
             (_, GameNames) => {
                 ops.extend(nodes.iter().filter_map(|n| dialect::game_names(profile, n)));
+            }
+            (PrepareRow::Sol, GameDecides) => {
+                for node in nodes {
+                    match plan.seats.contains(&node.id) {
+                        true => {
+                            let start = dialect::generic_start(profile, node.id);
+                            ops.extend(initializer(node, Some(start)));
+                            ops.extend(dialect::without_sol_seat(profile, node));
+                        }
+                        false => ops.extend(dialect::game_decides(profile, node)),
+                    }
+                }
             }
             (_, GameDecides) => {
                 ops.extend(
@@ -503,6 +596,12 @@ fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
             (_, PrepareChoice::None | PrepareChoice::RandomSeats | PrepareChoice::RandomZones) => {}
         }
     }
+    let mut at = 0;
+    ops.retain(|op| {
+        at += 1;
+        at <= seated
+            || !matches!(op, Op::SetInitializer { system, .. } if new_seats.contains(system))
+    });
     Ok(ops)
 }
 
@@ -599,15 +698,18 @@ pub fn cut_off(session: &Session, batch: &Op) -> Vec<u32> {
     graph.separated_systems(&after)
 }
 
-/// The choices checked against the map, and what [`build`] and [`kept_clear`] both read
-/// from them.
+/// The choices checked against the map, and what [`build`], [`kept_clear`] and [`drawn`] all
+/// read from them.
 struct Plan<'a> {
     graph: &'a GalaxyGraph,
     profile: ScenarioProfile,
     chosen: BTreeMap<PrepareRow, PrepareChoice>,
     systems: BTreeMap<PrepareRow, &'a [u32]>,
+    seed: u64,
     /// The Sol that Pre-FTL Earth or UNE seat writes, when one of them is chosen.
     sol: Option<&'a SystemNode>,
+    /// The new seats and zones.
+    drawn: Drawn,
     /// The systems that hold a seat once the batch applies.
     seats: BTreeSet<u32>,
     /// The systems within [`CLEAR_JUMPS`] lanes of one of `seats`, `seats` left out.
@@ -619,6 +721,7 @@ impl<'a> Plan<'a> {
         session: &'a Session,
         rows: &'a [RowSystems],
         choices: &[RowChoice],
+        seed: u64,
     ) -> Result<Self, PrepareError> {
         let chosen = checked(choices)?;
         let profile = profile(session);
@@ -639,18 +742,63 @@ impl<'a> Plan<'a> {
             profile,
             chosen,
             systems,
+            seed,
             sol,
+            drawn: Drawn::default(),
             seats: BTreeSet::new(),
             near_seats: BTreeSet::new(),
         };
+        if plan.chosen(PrepareRow::FallenEmpires) == PrepareChoice::RandomZones {
+            dialect::has_zones(profile)?;
+        }
+        if plan.chosen(PrepareRow::EmpireSeats) == PrepareChoice::RandomSeats {
+            (plan.drawn.seats, plan.drawn.seat_floor) = plan.draw_seats()?;
+        }
         plan.seats = plan.seats_after();
+        if plan.chosen(PrepareRow::FallenEmpires) == PrepareChoice::RandomZones {
+            plan.drawn.zones = plan.draw_zones();
+        }
         let near = graph.within_jumps(&plan.seats, CLEAR_JUMPS);
         plan.near_seats = near.difference(&plan.seats).copied().collect();
         Ok(plan)
     }
 
+    /// The choice for `row`: Keep when the choices leave it out.
+    fn chosen(&self, row: PrepareRow) -> PrepareChoice {
+        self.chosen
+            .get(&row)
+            .copied()
+            .unwrap_or(PrepareChoice::Keep)
+    }
+
+    /// The Sol UNE seat seats, which no Empire seats choice takes the seat from.
+    fn reseated(&self) -> Option<u32> {
+        match self.chosen(PrepareRow::Sol) {
+            PrepareChoice::UneSeat => self.sol.map(|node| node.id),
+            _ => None,
+        }
+    }
+
+    /// Whether `system` stands in none of the rows its initializer or a fallen empire places a
+    /// system in.
+    fn in_no_row(&self, system: u32) -> bool {
+        !KEPT_FROM_SEATS
+            .into_iter()
+            .chain([PrepareRow::OrdinarySystems])
+            .any(|row| in_row(&self.systems, row).contains(&system))
+    }
+
+    /// The seats Empire seats takes away, in file order.
+    fn old_seats(&self) -> Vec<&'a SystemNode> {
+        let reseated = self.reseated();
+        let mut old = nodes(self.graph, &self.systems, PrepareRow::EmpireSeats);
+        old.retain(|node| Some(node.id) != reseated);
+        old
+    }
+
     /// The systems that hold a seat once the chosen rows apply: Empire seats None takes
-    /// theirs away, Pre-FTL Earth its Sol's, and UNE seat gives its Sol one.
+    /// theirs away, New random seats moves them to the systems it draws, Pre-FTL Earth takes
+    /// its Sol's away, and UNE seat gives its Sol one.
     fn seats_after(&self) -> BTreeSet<u32> {
         let mut seats: BTreeSet<u32> = self
             .graph
@@ -664,10 +812,19 @@ impl<'a> Plan<'a> {
                 seats.remove(&node.id);
             }
         };
-        if self.chosen.get(&PrepareRow::EmpireSeats) == Some(&PrepareChoice::None) {
-            for node in nodes(self.graph, &self.systems, PrepareRow::EmpireSeats) {
-                unseat(&mut seats, node);
+        match self.chosen(PrepareRow::EmpireSeats) {
+            PrepareChoice::None => {
+                for node in nodes(self.graph, &self.systems, PrepareRow::EmpireSeats) {
+                    unseat(&mut seats, node);
+                }
             }
+            PrepareChoice::RandomSeats => {
+                for node in self.old_seats() {
+                    unseat(&mut seats, node);
+                }
+                seats.extend(&self.drawn.seats);
+            }
+            _ => {}
         }
         match (self.chosen.get(&PrepareRow::Sol), self.sol) {
             (Some(PrepareChoice::PreFtlEarth), Some(sol)) => unseat(&mut seats, sol),
@@ -679,6 +836,153 @@ impl<'a> Plan<'a> {
         seats
     }
 
+    /// The systems New random seats may seat, in file order: those in the largest part of
+    /// the map hyperlanes join, that hold no seat now, that no kept row holds, and that stand
+    /// clear of every fallen empire zone that stays.
+    fn seat_candidates(&self) -> Vec<(u32, (f64, f64))> {
+        let graph = self.graph;
+        let kept: BTreeSet<u32> = KEPT_FROM_SEATS
+            .into_iter()
+            .filter(|&row| self.chosen(row) == PrepareChoice::Keep)
+            .flat_map(|row| in_row(&self.systems, row).iter().copied())
+            .collect();
+        let zones_going: BTreeSet<u32> = match self.chosen(PrepareRow::FallenEmpires) {
+            PrepareChoice::Keep => BTreeSet::new(),
+            _ => in_row(&self.systems, PrepareRow::FallenEmpires)
+                .iter()
+                .copied()
+                .collect(),
+        };
+        let staying: Vec<(u32, (f64, f64))> = graph
+            .systems
+            .values()
+            .filter(|s| !zones_going.contains(&s.id))
+            .filter_map(|s| {
+                let zone = s.fe_zone.as_ref()?;
+                Some((s.id, fe_zone::centre((s.x, s.y), zone)))
+            })
+            .collect();
+        let joined = largest_by_lanes(graph);
+        graph
+            .order
+            .iter()
+            .filter_map(|id| graph.systems.get(id))
+            .filter(|s| {
+                joined.contains(&s.id)
+                    && !is_seat(s)
+                    && !kept.contains(&s.id)
+                    && self.sol.is_none_or(|sol| sol.id != s.id)
+                    && s.spawn_modifiers.is_empty()
+                    && staying.iter().all(|&(anchor, centre)| {
+                        anchor != s.id
+                            && fe_zone::distance(centre, (s.x, s.y)) >= RANDOM_START_DISTANCE
+                    })
+            })
+            .map(|s| (s.id, (s.x, s.y)))
+            .collect()
+    }
+
+    /// New random seats: as many as Empire seats takes away, drawn over the candidates in an
+    /// order the seed gives, each at least the spacing from every seat that stays and every
+    /// seat drawn before it. The
+    /// spacing starts at [`RANDOM_START_DISTANCE`] and comes down [`SEAT_SPACING_STEP`] at a
+    /// time until they fit; it is returned when it came down.
+    fn draw_seats(&self) -> Result<(Vec<u32>, Option<f64>), PrepareError> {
+        let wanted = self.old_seats().len();
+        if wanted == 0 {
+            return Err(PrepareError::NoSeatsToDraw);
+        }
+        let mut candidates = self.seat_candidates();
+        SplitMix::new(self.seed, Stream::Seats).shuffle(&mut candidates);
+        let staying: Vec<(f64, f64)> = self
+            .seats_after()
+            .iter()
+            .filter_map(|id| self.graph.systems.get(id))
+            .map(|s| (s.x, s.y))
+            .collect();
+        let mut floor = RANDOM_START_DISTANCE;
+        loop {
+            let seats = spaced(&candidates, &staying, wanted, floor);
+            if seats.len() == wanted {
+                return Ok((seats, (floor < RANDOM_START_DISTANCE).then_some(floor)));
+            }
+            if floor - SEAT_SPACING_STEP < LEAST_SEAT_SPACING {
+                return Err(PrepareError::SeatsDoNotFit {
+                    wanted,
+                    fit: seats.len(),
+                });
+            }
+            floor -= SEAT_SPACING_STEP;
+        }
+    }
+
+    /// New random zones: the zones Paint a Galaxy would place by itself once the old ones
+    /// go, in an order the seed gives, each kept whose ring stands clear of every zone kept
+    /// before it and whose centre stands [`RANDOM_START_DISTANCE`] from every seat, up to the
+    /// fallen empires the mod can seat. Each is a fallback of random kind.
+    fn draw_zones(&self) -> Vec<(u32, FeZone)> {
+        let going: BTreeSet<u32> = in_row(&self.systems, PrepareRow::FallenEmpires)
+            .iter()
+            .copied()
+            .collect();
+        let sites: Vec<Site<'_>> = rules::sites(self.graph)
+            .into_iter()
+            .map(|site| Site {
+                zone: site.zone.filter(|_| !going.contains(&site.id)),
+                ..site
+            })
+            .collect();
+        let mut candidates = rules::candidates(&sites);
+        SplitMix::new(self.seed, Stream::Zones).shuffle(&mut candidates);
+        let seats: Vec<(f64, f64)> = self
+            .seats
+            .iter()
+            .filter_map(|id| self.graph.systems.get(id))
+            .map(|s| (s.x, s.y))
+            .collect();
+        let mut centres: Vec<(f64, f64)> = Vec::new();
+        let mut zones = Vec::new();
+        for (id, zone) in candidates {
+            if zones.len() == MOST_FALLEN_EMPIRES as usize {
+                break;
+            }
+            let Some(anchor) = self.graph.systems.get(&id) else {
+                continue;
+            };
+            let centre = fe_zone::centre((anchor.x, anchor.y), &zone);
+            let clear = !centres.iter().any(|&c| fe_zone::overlaps(c, centre))
+                && seats
+                    .iter()
+                    .all(|&seat| fe_zone::distance(centre, seat) >= RANDOM_START_DISTANCE);
+            if clear {
+                centres.push(centre);
+                zones.push((
+                    id,
+                    FeZone {
+                        fallback: true,
+                        ..zone
+                    },
+                ));
+            }
+        }
+        zones
+    }
+
+    /// The members that seat the new seats: each a generic start the seed draws, then the
+    /// script or weight of the old seat drawn in its place.
+    fn new_seats(&self) -> Vec<Op> {
+        let mut ops = Vec::new();
+        for (&id, old) in self.drawn.seats.iter().zip(self.old_seats()) {
+            let Some(node) = self.graph.systems.get(&id) else {
+                continue;
+            };
+            let start = dialect::drawn_start(self.profile, id, self.seed);
+            ops.extend(initializer(node, Some(start)));
+            ops.extend(dialect::seated(self.profile, id, old));
+        }
+        ops
+    }
+
     /// What a home start or a Sol becomes when it is made ordinary: a generic start on a
     /// system that still holds a seat once the batch applies, else a plain system.
     fn start(&self, node: &SystemNode, draw: &PlainDraw) -> Result<String, PrepareError> {
@@ -687,6 +991,80 @@ impl<'a> Plan<'a> {
             false => dialect::plain_system(self.profile, node.id, draw),
         }
     }
+}
+
+/// The rows whose systems New random seats leaves alone when they are kept.
+const KEPT_FROM_SEATS: [PrepareRow; 10] = [
+    PrepareRow::HomeStarts,
+    PrepareRow::Sol,
+    PrepareRow::HomeNeighbours,
+    PrepareRow::OriginAndEvent,
+    PrepareRow::FallenEmpires,
+    PrepareRow::MarauderClans,
+    PrepareRow::Guardians,
+    PrepareRow::Enclaves,
+    PrepareRow::Primitives,
+    PrepareRow::SpecialSystems,
+];
+
+/// Up to `count` of `candidates`, taken in their order, each at least `floor` from every
+/// position of `staying` and every candidate taken before it.
+fn spaced(
+    candidates: &[(u32, (f64, f64))],
+    staying: &[(f64, f64)],
+    count: usize,
+    floor: f64,
+) -> Vec<u32> {
+    let mut taken: Vec<(u32, (f64, f64))> = Vec::with_capacity(count);
+    for &(id, at) in candidates {
+        if taken.len() == count {
+            break;
+        }
+        let clear = staying
+            .iter()
+            .chain(taken.iter().map(|(_, other)| other))
+            .all(|&other| fe_zone::distance(at, other) >= floor);
+        if clear {
+            taken.push((id, at));
+        }
+    }
+    taken.into_iter().map(|(id, _)| id).collect()
+}
+
+/// The systems of the largest part of the map that hyperlanes join, lower ids first on a tie.
+fn largest_by_lanes(graph: &GalaxyGraph) -> BTreeSet<u32> {
+    let mut adjacent: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+    for system in graph.systems.values() {
+        for lane in system
+            .lanes
+            .iter()
+            .filter(|l| graph.systems.contains_key(&l.to))
+        {
+            adjacent.entry(system.id).or_default().push(lane.to);
+            adjacent.entry(lane.to).or_default().push(system.id);
+        }
+    }
+    let mut seen = BTreeSet::new();
+    let mut largest = BTreeSet::new();
+    for &start in adjacent.keys() {
+        if !seen.insert(start) {
+            continue;
+        }
+        let mut part = BTreeSet::from([start]);
+        let mut stack = vec![start];
+        while let Some(id) = stack.pop() {
+            for &next in &adjacent[&id] {
+                if seen.insert(next) {
+                    part.insert(next);
+                    stack.push(next);
+                }
+            }
+        }
+        if part.len() > largest.len() {
+            largest = part;
+        }
+    }
+    largest
 }
 
 fn by_row(rows: &[RowSystems]) -> BTreeMap<PrepareRow, &[u32]> {
@@ -798,13 +1176,46 @@ impl Counted {
     }
 }
 
+/// The seats the map holds once `ops` apply, the reserved ones and the player's among them.
+fn seat_counts_after(graph: &GalaxyGraph, ops: &[Op]) -> SeatCounts {
+    let mut scripts = HashMap::new();
+    let mut weights = HashMap::new();
+    for op in ops {
+        match op {
+            Op::SetSpawnScript { system, script } => {
+                scripts.insert(*system, script.clone());
+            }
+            Op::SetSpawnWeight { system, base } => {
+                weights.insert(*system, *base);
+            }
+            _ => {}
+        }
+    }
+    let mut seats: u32 = 0;
+    let mut held = Vec::new();
+    for system in graph.systems.values() {
+        let script = scripts.get(&system.id).unwrap_or(&system.spawn_script);
+        let weight = weights
+            .get(&system.id)
+            .copied()
+            .unwrap_or(system.spawn_weight);
+        if script.is_some() || weight.is_some_and(|w| w > 0.0) {
+            seats += 1;
+            held.extend(script.as_ref());
+        }
+    }
+    SeatCounts::from_scripts(seats, held)
+}
+
 /// The header keys that bring the fallen empire and marauder counts down to what the map
 /// holds once `ops` apply, for each of the two the ops change. A default above what is
 /// left comes down to it and one below stays; a max follows the map exactly where the
 /// dialect sizes it by the map, and comes down to it elsewhere. Only Paint a Galaxy states
-/// fallen empire zones. Keys the header lacks or does not state as a whole number are left
-/// alone.
-fn header_counts(profile: ScenarioProfile, graph: &GalaxyGraph, ops: &[Op]) -> Option<Op> {
+/// fallen empire zones. Under New random seats the empire default comes down to the seats
+/// any empire may take among the seats drawn, as the kinds move with them. Keys the header
+/// lacks or does not state as a whole number are left alone.
+fn header_counts(plan: &Plan<'_>, ops: &[Op]) -> Option<Op> {
+    let Plan { profile, graph, .. } = *plan;
     let was = Counted::after(graph, &[]);
     let now = Counted::after(graph, ops);
     let held = |key| graph.header_count(key);
@@ -831,6 +1242,10 @@ fn header_counts(profile: ScenarioProfile, graph: &GalaxyGraph, ops: &[Op]) -> O
             clamp(keys::MARAUDER_EMPIRE_DEFAULT, now.clans),
             max(keys::MARAUDER_EMPIRE_MAX, now.clans),
         ]);
+    }
+    if plan.chosen(PrepareRow::EmpireSeats) == PrepareChoice::RandomSeats {
+        let seats = seat_counts_after(graph, ops);
+        entries.push(clamp(keys::NUM_EMPIRE_DEFAULT, seats.safe()));
     }
     let entries: Vec<(String, String)> = entries
         .into_iter()
@@ -868,9 +1283,9 @@ fn initializer(node: &SystemNode, to: Option<String>) -> Option<Op> {
 mod dialect {
     use std::collections::BTreeMap;
 
-    use super::{PlainDraw, PrepareError, initializer};
+    use super::{PlainDraw, PrepareError, Stream, initializer, unit};
     use crate::export::ScenarioProfile;
-    use crate::format::scenario::paint::{self, RL_BASIC};
+    use crate::format::scenario::paint::{self, BASIC_INITIALIZERS, RL_BASIC};
     use crate::ops::Op;
     use crate::projections::galaxy::{PaintSpawnKind, SpawnScript, SystemNode};
 
@@ -893,6 +1308,78 @@ mod dialect {
             ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
                 paint::basic_initializer(system).to_owned()
             }
+        }
+    }
+
+    /// The initializer a new random seat `system` gets: one of the same six starts, drawn
+    /// from `seed`.
+    pub(super) fn drawn_start(profile: ScenarioProfile, system: u32, seed: u64) -> String {
+        match profile {
+            ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
+                let at = unit(Stream::Starts.seed(seed), system) * BASIC_INITIALIZERS.len() as f64;
+                let at = (at as usize).min(BASIC_INITIALIZERS.len() - 1);
+                BASIC_INITIALIZERS[at].to_owned()
+            }
+        }
+    }
+
+    /// The op that seats `system` as `old` was seated: a plain file states a weight, and
+    /// Paint a Galaxy a script or a weight. The Sol seat is not carried: it means Sol, so it
+    /// becomes an enabled seat.
+    pub(super) fn seated(profile: ScenarioProfile, system: u32, old: &SystemNode) -> Option<Op> {
+        let weight = old.spawn_weight.map(|base| Op::SetSpawnWeight {
+            system,
+            base: Some(base),
+        });
+        match profile {
+            ScenarioProfile::Plain => weight,
+            ScenarioProfile::PaintAGalaxy => match &old.spawn_script {
+                Some(script) => Some(Op::SetSpawnScript {
+                    system,
+                    script: Some(without_sol(script)),
+                }),
+                None => weight,
+            },
+        }
+    }
+
+    /// The op that makes the Sol seat on `node` an enabled seat, once its Sol initializer
+    /// goes; none when it holds no Sol seat. A plain file has none.
+    pub(super) fn without_sol_seat(profile: ScenarioProfile, node: &SystemNode) -> Option<Op> {
+        match profile {
+            ScenarioProfile::Plain => None,
+            ScenarioProfile::PaintAGalaxy => {
+                let script = node.spawn_script.as_ref()?;
+                let enabled = without_sol(script);
+                (enabled != *script).then_some(Op::SetSpawnScript {
+                    system: node.id,
+                    script: Some(enabled),
+                })
+            }
+        }
+    }
+
+    /// `script` with a Sol seat made an enabled one, which carries no player's marker.
+    fn without_sol(script: &SpawnScript) -> SpawnScript {
+        match script {
+            SpawnScript::PaintAGalaxy {
+                kind: PaintSpawnKind::Sol,
+                random_value,
+                ..
+            } => SpawnScript::PaintAGalaxy {
+                kind: PaintSpawnKind::Enabled,
+                random_value: *random_value,
+                player: false,
+            },
+            script => script.clone(),
+        }
+    }
+
+    /// Refuses New random zones where the dialect states no fallen empire zones.
+    pub(super) fn has_zones(profile: ScenarioProfile) -> Result<(), PrepareError> {
+        match profile {
+            ScenarioProfile::Plain => Err(PrepareError::RandomZonesOnPlain),
+            ScenarioProfile::PaintAGalaxy => Ok(()),
         }
     }
 

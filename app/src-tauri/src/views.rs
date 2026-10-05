@@ -38,6 +38,11 @@ pub struct PreparePreview {
     pub new_seats: Vec<u32>,
     /// The fallen empire zones New random zones would fit; empty unless chosen.
     pub new_zones: Vec<NewZone>,
+    /// The spacing New random seats drew the seats at, when the map had no room for them as
+    /// far apart as a random galaxy spaces empires; absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub seat_floor: Option<f64>,
 }
 
 /// A fallen empire zone New random zones would fit: the system anchoring it, and the zone.

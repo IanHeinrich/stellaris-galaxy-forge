@@ -29,4 +29,9 @@ new_seats: Array<number>,
 /**
  * The fallen empire zones New random zones would fit; empty unless chosen.
  */
-new_zones: Array<NewZone>, };
+new_zones: Array<NewZone>, 
+/**
+ * The spacing New random seats drew the seats at, when the map had no room for them as
+ * far apart as a random galaxy spaces empires; absent otherwise.
+ */
+seat_floor?: number, };

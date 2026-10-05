@@ -9,15 +9,15 @@ use sgf_gamedata::prepare::{classify, plain_draw};
 use tauri::{AppHandle, Runtime};
 
 use super::{game_data, is_save, require, with_session};
-use crate::views::{PreparePreview, PreparedEdit};
+use crate::views::{NewZone, PreparePreview, PreparedEdit};
 
 const PREPARE: &str = "prepare a scenario for a new game";
 const ONLY_A_SCENARIO: &str = "only a scenario is prepared for a new game";
 
 /// What `choices` under `options` would do to the open scenario: each row's systems, sorted by
 /// the loaded game data, how many systems the one edit would change, the systems keeping the
-/// space around seats clear makes plain, and the systems the edit cuts off. A row left out of
-/// `choices` is kept.
+/// space around seats clear makes plain, the systems the edit cuts off, and the seats and zones
+/// it draws. A row left out of `choices` is kept.
 #[tauri::command]
 pub async fn prepare_preview<R: Runtime>(
     app: AppHandle<R>,
@@ -31,16 +31,24 @@ pub async fn prepare_preview<R: Runtime>(
         let draw = plain_draw(&gd, options.seed);
         let op = build(session, &rows, &choices, &draw, &options)?;
         let kept_clear = match options.clear_around_seats {
-            true => prepare::kept_clear(session, &rows, &choices, &draw).map_err(refused)?,
+            true => {
+                prepare::kept_clear(session, &rows, &choices, &draw, &options).map_err(refused)?
+            }
             false => Vec::new(),
         };
+        let drawn = prepare::drawn(session, &rows, &choices, &options).map_err(refused)?;
         Ok(PreparePreview {
             profile: prepare::profile(session),
             changes: op.as_ref().map_or(0, |op| prepare::changed(session, op)),
             cut_off: op.map_or_else(Vec::new, |op| prepare::cut_off(session, &op)),
             kept_clear,
-            new_seats: Vec::new(),
-            new_zones: Vec::new(),
+            new_seats: drawn.seats,
+            new_zones: drawn
+                .zones
+                .into_iter()
+                .map(|(system, zone)| NewZone { system, zone })
+                .collect(),
+            seat_floor: drawn.seat_floor,
             rows,
         })
     })
@@ -102,6 +110,16 @@ fn refused(error: PrepareError) -> SgfError {
                 systems.len(),
                 ids.join(", ")
             )
+        }
+        PrepareError::NoSeatsToDraw => {
+            "This map has no seats, so there are none to draw again. Add a seat, or keep Empire seats."
+                .to_owned()
+        }
+        PrepareError::SeatsDoNotFit { wanted, fit } => format!(
+            "Only {fit} of the {wanted} seats fit on the systems left free, even close together. Let the game decide more rows, or keep Empire seats."
+        ),
+        PrepareError::RandomZonesOnPlain => {
+            "Only a Paint a Galaxy map has fallen empire zones.".to_owned()
         }
         _ => error.to_string(),
     };

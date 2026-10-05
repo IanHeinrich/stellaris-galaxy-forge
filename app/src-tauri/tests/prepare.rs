@@ -36,10 +36,19 @@ fn preview_with(
     choices: Value,
     clear_around_seats: bool,
 ) -> PreparePreview {
+    preview_seeded(w, choices, clear_around_seats, 0)
+}
+
+fn preview_seeded(
+    w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+    choices: Value,
+    clear_around_seats: bool,
+    seed: u64,
+) -> PreparePreview {
     invoke(
         w,
         "prepare_preview",
-        json!({ "choices": choices, "options": options(clear_around_seats, 0) }),
+        json!({ "choices": choices, "options": options(clear_around_seats, seed) }),
     )
     .expect("preview")
 }
@@ -220,11 +229,23 @@ fn a_paint_a_galaxy_map_previews_under_its_own_profile() {
     )
     .expect("open as scenario");
     let bare_shell = json!(PreparePreset::BareShell.choices(ScenarioProfile::PaintAGalaxy));
-    let shell = preview_with(&w, bare_shell.clone(), true);
+    let shell = preview_seeded(&w, bare_shell.clone(), true, 7);
     assert_eq!(shell.profile, ScenarioProfile::PaintAGalaxy);
     assert!(
         !shell.cut_off.is_empty(),
         "taking the pairs out cuts a system off"
+    );
+    let seats = shell.rows.iter().find(|r| r.row == PrepareRow::EmpireSeats);
+    assert_eq!(
+        Some(shell.new_seats.len()),
+        seats.map(|r| r.systems.len()),
+        "as many new seats as old"
+    );
+    assert!(!shell.new_zones.is_empty());
+    assert_ne!(
+        preview_seeded(&w, bare_shell.clone(), true, 8).new_seats,
+        shell.new_seats,
+        "another seed draws other seats"
     );
     let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
         &w,
