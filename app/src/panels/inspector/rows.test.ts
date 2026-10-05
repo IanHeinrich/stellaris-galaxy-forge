@@ -88,8 +88,8 @@ describe("fleetIconKeys", () => {
   it("shows a station's resource and a starbase's level in the game's art", () => {
     expect(keys("mining_station")).toEqual(["sprite:GFX_resource_minerals"]);
     expect(keys("research_station")).toEqual(["sprite:GFX_research_icon"]);
-    expect(keys("starbase_outpost")).toEqual(["sprite:GFX_starbase_outliner#1"]);
-    expect(keys("starbase_citadel")).toEqual(["sprite:GFX_starbase_outliner#5"]);
+    expect(keys("starbase_outpost")).toEqual(["sprite:GFX_starbase_ship_size_small#1"]);
+    expect(keys("starbase_citadel")).toEqual(["sprite:GFX_starbase_ship_size_small#5"]);
   });
 
   it("keeps every other ship's own ship-size icon, and nothing for a size without one", () => {

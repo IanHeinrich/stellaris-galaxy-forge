@@ -19,9 +19,9 @@ export const MINING_STATION_ICON_KEY = "sprite:GFX_resource_minerals";
 /** The research icon, which a research station's row shows. */
 export const RESEARCH_STATION_ICON_KEY = "sprite:GFX_research_icon";
 
-/** The outliner's starbase glyph for a starbase `icon_frame`, 1 for an outpost to 5 for a citadel. */
-export function starbaseOutlinerKey(frame: number): string {
-  return `sprite:GFX_starbase_outliner#${frame}`;
+/** The starbase tile for a starbase `icon_frame`, 1 for an outpost to 5 for a citadel. */
+export function starbaseTileKey(frame: number): string {
+  return `sprite:GFX_starbase_ship_size_small#${frame}`;
 }
 
 /** The name plate the game draws behind the owner flag and name of a colonised system. */

@@ -19,6 +19,7 @@ import {
   MEGASTRUCTURE_ICON_KEY,
   PLANET_SIZE_ICON_KEY,
   bypassIconKey,
+  starbaseTileKey,
   type BypassKinds,
   type IconFrame,
   type Icon,
@@ -198,7 +199,7 @@ export function starbaseKeys(
     return [`symbol:${symbol.category}/${symbol.file}`];
   }
   const frame = levels.get(level)?.icon_frame ?? OUTPOST_FRAME;
-  return [`sprite:GFX_starbase_ship_size_small#${frame}`];
+  return [starbaseTileKey(frame)];
 }
 
 /** Vanilla levels flagged `display_empire_shield`, for when the game's definitions are not loaded. */

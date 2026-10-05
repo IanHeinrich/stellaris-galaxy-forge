@@ -6,7 +6,7 @@ import type { ShipSizeView } from "../../generated/ShipSizeView";
 import {
   MINING_STATION_ICON_KEY,
   RESEARCH_STATION_ICON_KEY,
-  starbaseOutlinerKey,
+  starbaseTileKey,
 } from "../../lib/details/icons";
 import { FALLBACK_HABITABLE, isColony } from "../../lib/details/labels";
 import { keyWords } from "../../lib/text";
@@ -112,11 +112,11 @@ export function fleetIcon(
 const STATION_ICON_KEYS = new Map<string, string>([
   ["mining_station", MINING_STATION_ICON_KEY],
   ["research_station", RESEARCH_STATION_ICON_KEY],
-  ["starbase_outpost", starbaseOutlinerKey(1)],
-  ["starbase_starport", starbaseOutlinerKey(2)],
-  ["starbase_starhold", starbaseOutlinerKey(3)],
-  ["starbase_starfortress", starbaseOutlinerKey(4)],
-  ["starbase_citadel", starbaseOutlinerKey(5)],
+  ["starbase_outpost", starbaseTileKey(1)],
+  ["starbase_starport", starbaseTileKey(2)],
+  ["starbase_starhold", starbaseTileKey(3)],
+  ["starbase_starfortress", starbaseTileKey(4)],
+  ["starbase_citadel", starbaseTileKey(5)],
 ]);
 
 /** The texture keys a fleet row draws: a station's own picture, else its ship-size icon. */
