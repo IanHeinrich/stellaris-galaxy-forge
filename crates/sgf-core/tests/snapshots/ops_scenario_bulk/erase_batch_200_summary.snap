@@ -9,7 +9,7 @@ issues: 51
 --- scenario
 +++ scenario
 @@ -36,213 +36,13 @@
- 	crisis_strength = 0.75
+ 	crisis_strength = 5.0
  	extra_crisis_strength = { 5 10 25 }
  
 -	system = { id = "0" name = "NAME_Gamma_Refuge" position = { x = -144.22 y = 57.36 } initializer = fallen_machine_3 }

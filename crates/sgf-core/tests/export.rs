@@ -95,7 +95,7 @@ static_galaxy_scenario = {{
 	supports_shape = spoked
 	default = no
 	num_empires = {{ min = 0 max = {empires} }}
-	num_empire_default = {empires}
+	num_empire_default = 13
 "
         )),
         "{}",
@@ -134,7 +134,7 @@ static_galaxy_scenario = {{
     assert_eq!(report.omitted, []);
     assert_eq!(report.fallen_empires, []);
     assert_eq!(report.player_seat, None);
-    assert!(!report.setup_from_save);
+    assert!(report.setup_from_save);
     let by_category: BTreeMap<Category, u32> = report
         .by_category
         .iter()
@@ -289,6 +289,41 @@ fn a_save_opens_as_an_unsaved_scenario_of_the_same_galaxy() {
     )
     .expect_err("a scenario is not a save");
     assert!(error.to_string().contains("already a scenario"), "{error}");
+}
+
+#[test]
+fn a_plain_export_opens_new_game_on_the_saves_setup() {
+    let save = common::open_4_5();
+    let (text, report) = exported(&save, "4.5-day-one");
+    let text = String::from_utf8(text).expect("utf-8");
+    assert!(report.setup_from_save);
+    assert!(
+        text.contains(
+            "\tnum_empires = { min = 0 max = 10 }\n\
+             \tnum_empire_default = 9\n\
+             \tfallen_empire_default = 0\n\
+             \tfallen_empire_max = 0\n\
+             \tmarauder_empire_default = 2\n\
+             \tmarauder_empire_max = 2\n\
+             \tnomad_empire_default = 2\n\
+             \tnomad_empire_max = 10\n\
+             \tadvanced_empire_default = 2\n\
+             \tcolonizable_planet_odds = 0.25\n\
+             \tprimitive_odds = 0.25\n\
+             \tnum_wormhole_pairs = { min = 0 max = 5 }\n\
+             \tnum_wormhole_pairs_default = 1\n\
+             \tnum_gateways = { min = 0 max = 5 }\n\
+             \tnum_gateways_default = 1\n\
+             \tnum_hyperlanes_default = 1\n"
+        ),
+        "{}",
+        &text[..1200]
+    );
+    assert!(
+        text.contains("\tcrisis_strength = 1.0\n"),
+        "{}",
+        &text[..1200]
+    );
 }
 
 #[test]

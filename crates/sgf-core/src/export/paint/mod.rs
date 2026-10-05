@@ -13,11 +13,10 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 pub(super) use header::{HeaderCounts, header};
 
 use crate::as_u32;
-use crate::export::{Draft, ExportReport, SpawnDraft, SystemDraft, report};
+use crate::export::{Draft, ExportReport, SpawnDraft, SystemDraft, clan_count, crises, report};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::fe_zone::SET_STAR_FLAG;
 use crate::format::scenario::header_counts::{SeatCounts, is_seat};
-use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
     WORMHOLE_FLAG_PREFIX, basic_initializer,
@@ -61,7 +60,7 @@ pub(super) fn decorate(
         });
     let seats = SeatCounts::from_scripts(as_u32(spawns.len()), scripts);
     let all_zones = as_u32(typed.len());
-    let clans = clan_count(draft);
+    let clans = clan_count(&draft.systems);
     let counts = match &graph.setup {
         Some(setup) => HeaderCounts::from_setup(
             setup,
@@ -73,8 +72,7 @@ pub(super) fn decorate(
         ),
         None => HeaderCounts::sized(draft.systems.len(), seats, all_zones, clans),
     };
-    report.setup_from_save = graph.setup.is_some();
-    draft.header = header(options, &counts);
+    draft.header = header(options, &counts.with_crisis(crises(graph)));
 }
 
 /// The capitals of the playable countries and every system marked as a spawn already,
@@ -106,20 +104,6 @@ fn player_seat(graph: &GalaxyGraph) -> Option<(u32, PaintSpawnKind)> {
         PaintSpawnKind::Preferred
     };
     Some((country.capital_system?, kind))
-}
-
-/// The marauder clans whose home systems the draft holds: the most the game can spawn.
-fn clan_count(draft: &Draft) -> u32 {
-    let clans: BTreeSet<u8> = draft
-        .systems
-        .iter()
-        .filter_map(|system| system.initializer.as_deref())
-        .filter_map(|initializer| match marauder::role(initializer) {
-            Some(MarauderRole::Home(clan)) => Some(clan),
-            _ => None,
-        })
-        .collect();
-    as_u32(clans.len())
 }
 
 /// Each spawn system gets the enabled seat with the next random value, the player's

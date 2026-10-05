@@ -22,12 +22,15 @@ use ts_rs::TS;
 use crate::archive;
 use crate::as_u32;
 use crate::document::{self, Document, SaveOutcome};
-use crate::format::scenario::emit::{FOOTER, header, hyperlane_stmt, nebula_stmt, system_stmt};
+use crate::format::scenario::emit::{
+    FOOTER, Sliders, header, hyperlane_stmt, nebula_stmt, system_stmt,
+};
 pub use crate::format::scenario::emit::{
     ScenarioOptions, SpawnStmt as SpawnDraft, SystemStmt as SystemDraft,
 };
 use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
+use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::provenance;
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
@@ -164,10 +167,21 @@ pub fn draft(
             radius: nebula.radius,
         })
         .collect();
-    let mut header = header(options);
+    let mut sliders = match &galaxy.setup {
+        Some(setup) => {
+            let seats = SeatCounts::from_scripts(options.num_empires.1.saturating_add(1), []);
+            Sliders::from_setup(setup, seats, clan_count(&systems))
+        }
+        None => Sliders::fixed(options.num_empires.1),
+    };
+    if let Some(crises) = crises(graph) {
+        sliders.crisis_strength = crises;
+    }
+    let mut header = header(options, &sliders);
     if let Some(setup) = &galaxy.setup {
         shape_first(&mut header, &setup.shape);
     }
+    report.setup_from_save = galaxy.setup.is_some();
     let draft = Draft {
         header,
         systems,
@@ -176,6 +190,27 @@ pub fn draft(
     };
     report.finish(&draft);
     (draft, report)
+}
+
+/// The marauder clans whose home systems `systems` hold: the most the game can spawn.
+fn clan_count(systems: &[SystemDraft]) -> u32 {
+    let clans: BTreeSet<u8> = systems
+        .iter()
+        .filter_map(|system| system.initializer.as_deref())
+        .filter_map(|initializer| match marauder::role(initializer) {
+            Some(MarauderRole::Home(clan)) => Some(clan),
+            _ => None,
+        })
+        .collect();
+    as_u32(clans.len())
+}
+
+/// The crisis strength the save was started with; `None` for a scenario.
+fn crises(galaxy: &Galaxy) -> Option<f64> {
+    galaxy
+        .settings
+        .as_ref()
+        .and_then(|settings| settings.crises)
 }
 
 /// Move the `supports_shape` line naming `shape` ahead of the others, when the header
@@ -323,7 +358,7 @@ pub fn new_scenario(
     };
     let mut text = format!("{}\n", provenance::created(None)).into_bytes();
     text.extend(match profile {
-        ScenarioProfile::Plain => header(&options),
+        ScenarioProfile::Plain => header(&options, &Sliders::fixed(options.num_empires.1)),
         ScenarioProfile::PaintAGalaxy => {
             let seats = SeatCounts::from_scripts(0, []);
             paint::header(&options, &paint::HeaderCounts::sized(0, seats, 0, 0))

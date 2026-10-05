@@ -1,26 +1,25 @@
 //! The `static_galaxy_scenario` header the mod sizes its fixes by.
 
 use crate::emit::coord;
-use crate::format::scenario::emit::{ScenarioOptions, VANILLA_SHAPES};
-use crate::format::scenario::header_counts::{SeatCounts, fallen_count, seat_entries};
+use crate::format::scenario::emit::{BYPASS_MAX, ScenarioOptions, VANILLA_SHAPES, odds};
+use crate::format::scenario::header_counts::{
+    SeatCounts, fallen_count, seat_entries, setup_defaults,
+};
 use crate::format::scenario::paint::{HEADER_NOTE, WORKSHOP_ID};
 use crate::keys::scenario as keys;
 use crate::projections::galaxy::GameSetup;
-
-/// The most wormhole pairs and gateways the header allows unless the save asked for more.
-const BYPASS_MAX: u32 = 5;
 
 /// What the header's counts are sized from: the seats, the zones, and either the save's
 /// setup screen or the band on the system count.
 pub(crate) struct HeaderCounts {
     seats: SeatCounts,
     /// `num_empire_default`, `advanced_empire_default` and `nomad_empire_default` as
-    /// the setup asked, or `None` for the seats' shares.
+    /// the setup asked, capped to the seats, or `None` for the seats' shares.
     empires: Option<[u32; 3]>,
     fallen_max: u32,
     fallen_default: u32,
     marauders: u32,
-    crisis: &'static str,
+    crisis: f64,
     wormhole_pairs: u32,
     gateways: u32,
     hyperlanes: f64,
@@ -64,11 +63,7 @@ impl HeaderCounts {
     ) -> Self {
         let sized = Self::sized(systems, seats, zones, clans);
         Self {
-            empires: Some([
-                setup.num_empires,
-                setup.num_advanced_empires,
-                setup.num_nomad_empires,
-            ]),
+            empires: Some(setup_defaults(seats, setup)),
             fallen_default: typed.min(sized.fallen_max),
             wormhole_pairs: setup.num_wormhole_pairs,
             gateways: setup.num_gateways,
@@ -79,19 +74,25 @@ impl HeaderCounts {
             ..sized
         }
     }
+
+    /// The crisis strength the save was started with, when it has one.
+    pub(super) fn with_crisis(self, crises: Option<f64>) -> Self {
+        Self {
+            crisis: crises.unwrap_or(self.crisis),
+            ..self
+        }
+    }
 }
 
 /// The header for `counts`, on Forge's own `core_radius`.
 pub(crate) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8> {
     let mut entries = seat_entries(counts.seats);
     if let Some([empires, advanced, nomads]) = counts.empires {
-        let most = counts.seats.most();
-        let safe = counts.seats.safe();
         for (key, value) in &mut entries {
             let count = match *key {
-                keys::NUM_EMPIRE_DEFAULT => empires.min(safe),
-                keys::ADVANCED_EMPIRE_DEFAULT => advanced.min(most),
-                keys::NOMAD_EMPIRE_DEFAULT => nomads.min(most),
+                keys::NUM_EMPIRE_DEFAULT => empires,
+                keys::ADVANCED_EMPIRE_DEFAULT => advanced,
+                keys::NOMAD_EMPIRE_DEFAULT => nomads,
                 _ => continue,
             };
             *value = count.to_string();
@@ -141,7 +142,7 @@ pub(crate) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8
         counts.marauders,
         counts.fallen_default,
         counts.marauders,
-        counts.crisis,
+        odds(counts.crisis),
         coord(options.core_radius)
     )
     .into_bytes()
@@ -157,23 +158,14 @@ fn shapes(first: Option<&str>) -> Vec<&'static str> {
     shapes
 }
 
-/// An odds value as the header writes it: `1.0`, `0.25`.
-fn odds(value: f64) -> String {
-    if value == value.trunc() {
-        format!("{value:.1}")
-    } else {
-        coord(value)
-    }
-}
-
 /// Fallen empires and crisis strength by galaxy size.
-fn size_band(systems: usize) -> (u32, &'static str) {
+fn size_band(systems: usize) -> (u32, f64) {
     match systems {
-        1000.. => (4, "1.5"),
-        800.. => (3, "1.25"),
-        600.. => (2, "1.0"),
-        400.. => (1, "0.75"),
-        _ => (0, "0.5"),
+        1000.. => (4, 1.5),
+        800.. => (3, 1.25),
+        600.. => (2, 1.0),
+        400.. => (1, 0.75),
+        _ => (0, 0.5),
     }
 }
 

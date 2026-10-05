@@ -9,7 +9,7 @@
 //! no more can appear than are placed.
 
 use crate::keys::scenario as keys;
-use crate::projections::galaxy::{Galaxy, PaintSpawnKind, SpawnScript, SystemNode};
+use crate::projections::galaxy::{Galaxy, GameSetup, PaintSpawnKind, SpawnScript, SystemNode};
 
 /// The nine keys [`empire_counts`] writes, in the order it lists them.
 pub(crate) const KEYS: [&str; 9] = [
@@ -100,6 +100,17 @@ pub(crate) fn seat_entries(seats: SeatCounts) -> Vec<(&'static str, String)> {
         (keys::ADVANCED_EMPIRE_DEFAULT, share(most, 8).to_string()),
         (keys::NOMAD_EMPIRE_DEFAULT, share(most, 10).to_string()),
         (keys::NOMAD_EMPIRE_MAX, most.to_string()),
+    ]
+}
+
+/// `num_empire_default`, `advanced_empire_default` and `nomad_empire_default` as `setup`
+/// asked for them, capped to what `seats` hold.
+pub(crate) fn setup_defaults(seats: SeatCounts, setup: &GameSetup) -> [u32; 3] {
+    let most = seats.most();
+    [
+        setup.num_empires.min(seats.safe()),
+        setup.num_advanced_empires.min(most),
+        setup.num_nomad_empires.min(most),
     ]
 }
 
