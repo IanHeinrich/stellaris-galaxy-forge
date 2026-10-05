@@ -73,20 +73,20 @@ describe("the deposit picker's rows", () => {
     ]);
     const energyRow = row("yields:energy");
     expect(energyRow.label).toBe("Energy");
-    expect(energyRow.gives).toBe("Energy per month");
+    expect(energyRow.effects).toEqual(["Energy per month"]);
     expect(energyRow.amounts.map(amountText)).toEqual(["+1", "+3", "+10"]);
     expect(energyRow.category).toBe("Energy");
     expect(energyRow.usual).toBe(true);
   });
 
   it("spells out what a single type gives, with one Add button", () => {
-    expect(row("d_rich_mountain").gives).toBe("+1 Max Mining Districts");
-    expect(blockers.map((r) => [r.family, r.gives])).toEqual([
-      ["d_massive_glacier", "Blocks 1 district"],
+    expect(row("d_rich_mountain").effects).toEqual(["+1 Max Mining Districts"]);
+    expect(blockers.map((r) => [r.family, r.effects])).toEqual([
+      ["d_massive_glacier", ["Blocks 1 district"]],
     ]);
     const alloys = row("d_alloys_gases");
     expect(alloys.label).toBe("Alloys and Exotic Gases");
-    expect(alloys.gives).toBe("+5 Alloys, +3 Exotic Gases");
+    expect(alloys.effects).toEqual(["+5 Alloys", "+3 Exotic Gases"]);
     expect(alloys.amounts.map(amountText)).toEqual(["Add"]);
   });
 
@@ -114,7 +114,7 @@ describe("the deposit picker's rows", () => {
       "deposits",
     );
     expect(placeholder.label).toBe("Teeming Mining Sites");
-    expect(placeholder.gives).toBe("");
+    expect(placeholder.effects).toEqual([]);
     expect(placeholder.description).toBe("Sealed caverns.");
   });
 

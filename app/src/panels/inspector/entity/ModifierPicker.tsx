@@ -7,7 +7,7 @@ import {
   type ModifierChip,
   type ModifierPickRow,
 } from "../../../lib/details/modifierPicker";
-import type { PickerTarget } from "../../../lib/details/picker";
+import { chipLabel, type PickerTarget } from "../../../lib/details/picker";
 import { terraformCandidateTitle } from "../../../lib/details/terraform";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useModifierPickerStore } from "../../../store/modifierPickerStore";
@@ -22,7 +22,8 @@ function modifierItem(row: ModifierPickRow): PickerItem {
   return {
     key: row.key,
     label: row.label,
-    gives: row.gives,
+    effects: row.effects,
+    category: chipLabel(MODIFIER_CHIPS, row.choice.category),
     description: row.description,
     artClass: "pl-mod-icon",
     art: (

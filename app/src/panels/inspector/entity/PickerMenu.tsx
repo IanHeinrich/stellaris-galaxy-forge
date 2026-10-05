@@ -7,7 +7,13 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import type { ChipItem, PickerSection } from "../../../lib/details/picker";
+import {
+  effectSummary,
+  PICKER_CARD_WIDTH,
+  pickerCardPlace,
+  type ChipItem,
+  type PickerSection,
+} from "../../../lib/details/picker";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import type { PickerState } from "../../../store/pickerSlice";
 import { ENTER, ESCAPE } from "../../keys";
@@ -15,6 +21,7 @@ import { useOutsidePress } from "../../useOutsidePress";
 import type { PickerKind } from "./PlanetPicker";
 
 export const NO_DESCRIPTION = "No description";
+export const NO_EFFECT = "No effect";
 /** The open picker's height where the page has room for it. */
 export const PICKER_HEIGHT = 520;
 /** The least it shrinks to, which still leaves three rows above a capped description. */
@@ -39,9 +46,11 @@ export interface PickerButton {
 export interface PickerItem {
   key: string;
   label: string;
-  /** What it gives, spelled out; empty for nothing. */
-  gives: string;
-  /** What the details under the list say about it. */
+  /** What it gives, a line each; empty for nothing. */
+  effects: readonly string[];
+  /** What kind of thing it is, under its name on the card. */
+  category?: string;
+  /** What the card says about it under its effects. */
   description: string | null;
   art: ReactNode;
   /** Added to the art's class. */
@@ -69,11 +78,11 @@ function PickerRow({
 }: {
   item: PickerItem;
   id: string;
-  /** The details under the list describe this row. */
+  /** The card describes this row. */
   lit: boolean;
   /** The button the keyboard stands on, when it stands on this row and nothing else is lit. */
   cursor: number | null;
-  /** The details' id, when they describe the row the keyboard stands on. */
+  /** The card's id, when it describes the row the keyboard stands on. */
   describedBy: string | undefined;
   onHover: () => void;
   onAdd: (button: number) => void;
@@ -92,7 +101,7 @@ function PickerRow({
         <span className="l1">{item.label}</span>
         <span className="l2">
           {item.yields}
-          {item.gives === "" ? <span className="muted">No effect</span> : item.gives}
+          <EffectSummary effects={item.effects} />
         </span>
       </span>
       <span className="dp-amounts">
@@ -114,23 +123,105 @@ function PickerRow({
   );
 }
 
-/**
- * The name and description of the row under the pointer or the keyboard, at a fixed height; empty
- * without rows.
- */
-function PickerDetails({ id, item }: { id: string; item: PickerItem | null }) {
+/** A row's first effects, and how many more the card lists. */
+function EffectSummary({ effects }: { effects: readonly string[] }) {
+  const { shown, more } = effectSummary(effects);
+  if (shown === "") return <span className="muted">{NO_EFFECT}</span>;
   return (
-    <div id={id} className="dp-details">
-      {item !== null && (
-        <>
-          <span className="dp-details-name">{item.label}</span>
-          {item.description === null ? (
-            <span className="muted">{NO_DESCRIPTION}</span>
-          ) : (
-            <span className="dp-details-text">{item.description}</span>
-          )}
-        </>
+    <>
+      {shown}
+      {more !== null && <span className="muted">{more}</span>}
+    </>
+  );
+}
+
+/** What the card says of a row: its name, its category, every effect, then its description. */
+export function PickerCardBody({ item }: { item: PickerItem }) {
+  return (
+    <>
+      <span className="dp-card-name">{item.label}</span>
+      {item.category !== undefined && (
+        <span className="dp-card-category muted">{item.category}</span>
       )}
+      {item.effects.length > 0 && (
+        <ul className="dp-card-effects">
+          {item.effects.map((effect, i) => (
+            <li key={i}>{effect}</li>
+          ))}
+        </ul>
+      )}
+      <span className="dp-card-text">
+        {item.description === null ? (
+          <span className="muted">{NO_DESCRIPTION}</span>
+        ) : (
+          item.description
+        )}
+      </span>
+    </>
+  );
+}
+
+/** Where the card stands: in the window beside the picker, or under the list. */
+type CardPlace = { left: number; top: number } | "under";
+
+/**
+ * The card's ref, and its place beside the picker that holds it, level with the row `rowId` names:
+ * measured again as the row, what it shows or its place changes, and as the window resizes or
+ * anything in it scrolls; `null` until it is measured.
+ */
+function useCardPlace(
+  rowId: string,
+  item: PickerItem,
+): [RefObject<HTMLDivElement | null>, CardPlace | null] {
+  const card = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CardPlace | null>(null);
+  const [moved, setMoved] = useState(0);
+  useEffect(() => {
+    const move = () => setMoved((n) => n + 1);
+    window.addEventListener("resize", move);
+    window.addEventListener("scroll", move, true);
+    return () => {
+      window.removeEventListener("resize", move);
+      window.removeEventListener("scroll", move, true);
+    };
+  }, []);
+  const under = place === "under";
+  useLayoutEffect(() => {
+    const el = card.current;
+    const box = el?.parentElement ?? null;
+    const row = document.getElementById(rowId);
+    if (el === null || box === null || row === null) return;
+    setPlace(
+      pickerCardPlace(
+        box.getBoundingClientRect(),
+        row.getBoundingClientRect().top,
+        el.offsetHeight,
+        window.innerHeight,
+      ) ?? "under",
+    );
+  }, [rowId, item, moved, under]);
+  return [card, place];
+}
+
+/**
+ * The card of the row under the pointer or the keyboard, left of the picker over the map and level
+ * with the row. Where the window has no room there, it shows under the list at a fixed height.
+ */
+function PickerCard({ id, item, rowId }: { id: string; item: PickerItem; rowId: string }) {
+  const [card, place] = useCardPlace(rowId, item);
+  const under = place === "under";
+  return (
+    <div
+      id={id}
+      ref={card}
+      className={under ? "dp-card under" : "dp-card"}
+      style={
+        under
+          ? undefined
+          : { width: PICKER_CARD_WIDTH, ...(place ?? { left: 0, top: 0, visibility: "hidden" }) }
+      }
+    >
+      <PickerCardBody item={item} />
     </div>
   );
 }
@@ -177,7 +268,7 @@ function useFittedHeight(root: RefObject<HTMLDivElement | null>): number {
 
 /**
  * The open picker: a search, the chips, the picker's own `controls`, a line saying what was added,
- * the rows under their headings, and the details of the row under the pointer, else the keyboard.
+ * the rows under their headings, and the card of the row under the pointer, else the keyboard.
  * It stays open after an add; Escape, Done or a press outside closes it. The arrows move between
  * rows, and Enter in the search adds the button they stand on.
  */
@@ -354,7 +445,9 @@ export function PickerMenu<R, C extends string, T, X>({
           </div>
         ))}
       </div>
-      <PickerDetails id={detailsId} item={detailed === undefined ? null : item(detailed)} />
+      {detailed !== undefined && (
+        <PickerCard id={detailsId} item={item(detailed)} rowId={rowId(lit)} />
+      )}
     </div>
   );
 }

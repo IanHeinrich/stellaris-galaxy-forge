@@ -7,6 +7,7 @@ import type { DigSiteChoice } from "../../generated/DigSiteChoice";
 import type { ModifierChoice } from "../../generated/ModifierChoice";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarClassView } from "../../generated/StarClassView";
+import { EDGE_PX, type Rect } from "../menuAim";
 
 /** The chips every picker starts with: every row, and the rows usual for the planet. */
 export type CommonChip = "All" | "Usual";
@@ -39,6 +40,45 @@ export interface PickerSection<R> {
 
 export const USUAL_TITLE = "Usual for this planet";
 export const EVERYTHING_ELSE = "Everything else";
+
+/** A chip's label, or the chip itself where `chips` has none for it. */
+export function chipLabel<C extends string>(chips: readonly ChipItem<C>[], chip: C): string {
+  return chips.find((each) => each.chip === chip)?.label ?? chip;
+}
+
+/** How many effects a row names before it counts the rest. */
+export const ROW_EFFECTS = 2;
+
+/** A row's effects: the first two, joined, and "+N more" for the rest; empty for none. */
+export function effectSummary(effects: readonly string[]): { shown: string; more: string | null } {
+  const rest = effects.length - ROW_EFFECTS;
+  return {
+    shown: effects.slice(0, ROW_EFFECTS).join(", "),
+    more: rest > 0 ? `+${rest} more` : null,
+  };
+}
+
+/** The side card's width, the same for every row so it keeps its size as the rows change. */
+export const PICKER_CARD_WIDTH = 260;
+/** The space between the side card and the picker. */
+const PICKER_CARD_GAP = 6;
+
+/**
+ * Where the side card of `height` goes: left of `picker`, its top level with the row's at `rowTop`,
+ * kept inside a window `viewportHeight` tall. `null` where the window has no room left of the
+ * picker, and the card goes under the list.
+ */
+export function pickerCardPlace(
+  picker: Rect,
+  rowTop: number,
+  height: number,
+  viewportHeight: number,
+): { left: number; top: number } | null {
+  const left = picker.left - PICKER_CARD_GAP - PICKER_CARD_WIDTH;
+  if (left < EDGE_PX) return null;
+  const lowest = viewportHeight - EDGE_PX - height;
+  return { left, top: Math.max(EDGE_PX, Math.min(rowTop, lowest)) };
+}
 
 /** What the search matches of a row: `parts`, lower case. */
 export function searchText(parts: readonly string[]): string {

@@ -189,7 +189,7 @@ describe("an unowned world's deposits", () => {
     expect(html).toContain("Usual for this planet · 1");
     expect(html).toContain("Energy per month");
     expect(html).toContain(
-      '<span class="dp-details-name">Energy</span><span class="muted">No description</span>',
+      '<span class="dp-card-name">Energy</span><span class="dp-card-category muted">Energy</span><ul class="dp-card-effects"><li>Energy per month</li></ul><span class="dp-card-text"><span class="muted">No description</span></span>',
     );
     expect(html).not.toContain("+ Add deposit…");
 

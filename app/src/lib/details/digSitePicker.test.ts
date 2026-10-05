@@ -57,8 +57,8 @@ const site = (over: Partial<PlanetPageDigSite> = {}): PlanetPageDigSite => ({
 describe("the dig site picker's rows", () => {
   it("lists every type it offers by name under All, with its stages and how it is found", () => {
     expect(labels("All")).toEqual(["Ancient Capital Site", "Never Forget", "Repowered Complex"]);
-    expect(digSitePickRows(CHOICES)[1].gives).toBe("3 stages · found by surveys");
-    expect(digSitePickRows(CHOICES)[2].gives).toBe("1 stage · event only");
+    expect(digSitePickRows(CHOICES)[1].effects).toEqual(["3 stages · found by surveys"]);
+    expect(digSitePickRows(CHOICES)[2].effects).toEqual(["1 stage · event only"]);
   });
 
   it("splits the types a survey finds from those only an event creates, and searches by name or key", () => {

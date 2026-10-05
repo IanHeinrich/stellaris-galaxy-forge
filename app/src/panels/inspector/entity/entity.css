@@ -441,27 +441,60 @@
   overflow-wrap: anywhere;
 }
 
-/* One height for every row, so the list doesn't jump as the pointer moves; a long description scrolls. */
-.dp > .dp-details {
-  flex: none;
+/* The row's card, fixed over the map left of the picker, so the dock's scrolling doesn't clip it. */
+.dp > .dp-card {
+  position: fixed;
+  z-index: 4;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 16px);
+  padding: 8px 10px;
+  overflow: hidden;
+  font-size: var(--text-hint);
+  color: var(--fg-soft);
+  overflow-wrap: anywhere;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+
+/* Without room beside the picker, one height under the list for every row; a long description scrolls. */
+.dp > .dp-card.under {
+  position: static;
   height: 9em;
+  max-height: none;
   margin-top: 6px;
   padding: 6px 2px 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  font-size: var(--text-hint);
-  color: var(--fg-soft);
-  white-space: pre-line;
-  overflow-wrap: anywhere;
+  background: none;
+  border: none;
   border-top: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: auto;
 }
 
-.dp-details-name {
-  display: block;
-  margin-bottom: 2px;
+.dp-card-name {
   font-size: var(--text-control);
   color: var(--fg);
+}
+
+.dp-card-effects {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg);
+}
+
+.dp-card-text {
+  margin-top: 6px;
+  padding-top: 6px;
+  white-space: pre-line;
+  border-top: 1px solid var(--border);
 }
 
 .pl-sub-head {

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { byLabel, pickerSections, searchText, type PickRow } from "./picker";
+import {
+  byLabel,
+  chipLabel,
+  effectSummary,
+  PICKER_CARD_WIDTH,
+  pickerCardPlace,
+  pickerSections,
+  searchText,
+  type PickRow,
+} from "./picker";
 
 interface Row extends PickRow {
   kind: string;
@@ -45,5 +54,53 @@ describe("a picker's sections", () => {
     expect(sections(ROWS, "All", " SPILL ")).toEqual([["Everything else", ["Toxic Spill"]]]);
     expect(sections(ROWS, "Features", "energy")).toEqual([]);
     expect(sections(ROWS, "All", "no such thing")).toEqual([]);
+  });
+});
+
+describe("a picker row's effects", () => {
+  it("names the first two and counts the rest", () => {
+    expect(effectSummary(["+5 Alloys", "+3 Exotic Gases", "+1 Unity", "-1 Max Districts"])).toEqual(
+      { shown: "+5 Alloys, +3 Exotic Gases", more: "+2 more" },
+    );
+  });
+
+  it("counts nothing more for two or one, and shows nothing for none", () => {
+    expect(effectSummary(["+5 Alloys", "+3 Exotic Gases"])).toEqual({
+      shown: "+5 Alloys, +3 Exotic Gases",
+      more: null,
+    });
+    expect(effectSummary(["Energy per month"])).toEqual({ shown: "Energy per month", more: null });
+    expect(effectSummary([])).toEqual({ shown: "", more: null });
+  });
+
+  it("calls a category by its chip's label, or by itself without one", () => {
+    const chips = [{ chip: "Feature", label: "Features" }];
+    expect(chipLabel(chips, "Feature")).toBe("Features");
+    expect(chipLabel<string>(chips, "Blockers")).toBe("Blockers");
+  });
+});
+
+describe("where a picker's side card goes", () => {
+  /** A picker in a dock 360 wide on the right of a window 1200 wide. */
+  const PICKER = { left: 850, top: 100, right: 1190, bottom: 620 };
+
+  it("sits left of the picker, level with the row", () => {
+    expect(pickerCardPlace(PICKER, 240, 180, 800)).toEqual({
+      left: 850 - 6 - PICKER_CARD_WIDTH,
+      top: 240,
+    });
+  });
+
+  it("moves up to stay above the window's bottom edge, and never above its top", () => {
+    expect(pickerCardPlace(PICKER, 700, 180, 800)?.top).toBe(800 - 8 - 180);
+    expect(pickerCardPlace(PICKER, 2, 180, 800)?.top).toBe(8);
+    expect(pickerCardPlace(PICKER, 240, 900, 800)?.top).toBe(8);
+  });
+
+  it("goes under the list where the window has no room left of the picker", () => {
+    const narrow = { left: 200, top: 100, right: 540, bottom: 620 };
+    expect(pickerCardPlace(narrow, 240, 180, 800)).toBeNull();
+    const justFits = { ...narrow, left: 8 + PICKER_CARD_WIDTH + 6 };
+    expect(pickerCardPlace(justFits, 240, 180, 800)?.left).toBe(8);
   });
 });

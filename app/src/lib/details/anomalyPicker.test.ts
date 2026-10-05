@@ -18,11 +18,11 @@ const labels = (sections: ReturnType<typeof anomalySections>) =>
 
 describe("the anomaly picker's rows", () => {
   it("are named, by name, with their level, the key standing in for a missing name", () => {
-    expect(ROWS.map((r) => [r.label, r.gives])).toEqual([
-      ["Crashed Ship", "Level 3"],
-      ["fx_nameless", ""],
-      ["Time Loop", "Level 8"],
-      ["Unknown Origin", "Level 1"],
+    expect(ROWS.map((r) => [r.label, r.effects])).toEqual([
+      ["Crashed Ship", ["Level 3"]],
+      ["fx_nameless", []],
+      ["Time Loop", ["Level 8"]],
+      ["Unknown Origin", ["Level 1"]],
     ]);
   });
 

@@ -22,8 +22,8 @@ export interface DigSitePickRow {
   choice: DigSiteChoice;
   key: string;
   label: string;
-  /** How long it is and how a game finds it: "3 stages · found by surveys". */
-  gives: string;
+  /** How long it is and how a game finds it, as one line: "3 stages · found by surveys". */
+  effects: string[];
   /** Never listed first: no type is more usual than another on a planet. */
   usual: false;
   /** What the search matches, lower case: its name and key. */
@@ -44,7 +44,7 @@ export function digSitePickRows(choices: readonly DigSiteChoice[]): DigSitePickR
         choice,
         key: choice.key,
         label: choice.name,
-        gives: `${counted(choice.stages, "stage")} · ${foundBy(choice)}`,
+        effects: [`${counted(choice.stages, "stage")} · ${foundBy(choice)}`],
         usual: false,
         search: searchText([choice.name, choice.key]),
       })),

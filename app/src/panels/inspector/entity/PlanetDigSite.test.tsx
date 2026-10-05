@@ -134,7 +134,7 @@ describe("a planet's dig site", () => {
     expect(html).toContain("1 stage · event only");
     expect(html).not.toContain("Never Forget");
     expect(html).toMatch(
-      /<div id="(ds-row-[^"]+-details)" class="dp-details"><span class="dp-details-name">Repowered Complex<\/span><span class="dp-details-text">A complex that has come back to life.<\/span><\/div>/,
+      /<div id="(ds-row-[^"]+-details)" class="dp-card" style="[^"]*"><span class="dp-card-name">Repowered Complex<\/span><ul class="dp-card-effects"><li>1 stage · event only<\/li><\/ul><span class="dp-card-text">A complex that has come back to life.<\/span><\/div>/,
     );
     expect(html).toMatch(
       /id="ds-row-[^"]+-0" class="dp-row active" aria-describedby="ds-row-[^"]+-details"/,
@@ -156,6 +156,6 @@ describe("a planet's dig site", () => {
     });
     const none = render(WORLD);
     expect(none).toContain("No dig site matches");
-    expect(none).toMatch(/class="dp-details"><\/div>/);
+    expect(none).not.toContain("dp-card");
   });
 });
