@@ -25,6 +25,7 @@ mod initializers;
 mod install;
 mod layering;
 mod localisation;
+mod look_only_classes;
 mod naming;
 mod picks;
 mod planet_disc_shapes;

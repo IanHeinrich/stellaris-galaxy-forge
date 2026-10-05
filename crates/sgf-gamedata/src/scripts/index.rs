@@ -2,7 +2,7 @@
 //! or initializer, which event each on_action fires, and every country a
 //! `create_country` defines.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -13,10 +13,11 @@ use sgf_core::projections::galaxy::FlagRef;
 use crate::Diagnostic;
 use crate::initializers::Initializers;
 use crate::install::layers::{Layout, VANILLA};
+use crate::install::scenarios::SCENARIO_DIR;
 use crate::install::script::{self, Def, Variables};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
-use crate::scripts::scan::{self, Dir};
+use crate::scripts::scan::{self, Dir, Scan};
 use crate::scripts::scope::SAVES_TARGET;
 use crate::scripts::view::ScriptRef;
 
@@ -91,6 +92,72 @@ impl ParsedScript {
     }
 }
 
+/// What the scripts do with planet classes: give a planet one's look, or make a planet one.
+#[derive(Debug, Default)]
+pub(crate) struct ClassUses {
+    /// Every class a planet is given the look of.
+    pub pictures: HashSet<String>,
+    /// Every class a planet is made or turned into, some written with a `$parameter$` in
+    /// place of part of the key.
+    pub placed: HashSet<String>,
+}
+
+impl ClassUses {
+    /// Whether a script makes a planet `class`: a value names it, or a value with a
+    /// `$parameter$` in it could, each parameter standing for any run of characters. A value
+    /// that is all parameter but for `pc_`, such as `pc_$climate$`, could be any class and is
+    /// left to the values its callers pass.
+    pub(crate) fn places(&self, class: &str) -> bool {
+        self.placed.contains(class)
+            || self
+                .placed
+                .iter()
+                .filter(|value| value.contains('$'))
+                .any(|value| {
+                    let literals = literals(value);
+                    says_which(&literals) && fits(&literals, class)
+                })
+    }
+}
+
+/// The text of `pattern` between its `$parameter$`s, first to last, the first and last
+/// empty where a parameter starts or ends it.
+fn literals(pattern: &str) -> Vec<&str> {
+    let mut parts: Vec<&str> = pattern.split('$').collect();
+    if parts.len().is_multiple_of(2) {
+        parts.push("");
+    }
+    parts.into_iter().step_by(2).collect()
+}
+
+/// Whether a pattern's text, `pc_` aside, has a letter or a digit to tell classes apart by.
+fn says_which(literals: &[&str]) -> bool {
+    let text = literals.concat();
+    text.strip_prefix("pc_")
+        .unwrap_or(&text)
+        .bytes()
+        .any(|b| b.is_ascii_alphanumeric())
+}
+
+/// Whether `key` is what a pattern of these `literals` reads as once each `$parameter$` in it
+/// is filled in.
+fn fits(literals: &[&str], key: &str) -> bool {
+    let (first, last) = (literals[0], literals[literals.len() - 1]);
+    let Some(mut rest) = key
+        .strip_prefix(first)
+        .and_then(|rest| rest.strip_suffix(last))
+    else {
+        return false;
+    };
+    for literal in &literals[1..literals.len() - 1] {
+        let Some(at) = rest.find(literal) else {
+            return false;
+        };
+        rest = &rest[at + literal.len()..];
+    }
+    true
+}
+
 #[derive(Debug, Default)]
 pub struct ScriptIndex {
     refs: HashMap<String, Vec<RefSite>>,
@@ -104,6 +171,7 @@ pub struct ScriptIndex {
     prescripted: HashMap<String, Prescripted>,
     events: HashMap<String, EventLoc>,
     claims: Claims,
+    class_uses: ClassUses,
     /// Files parsed on demand, a failed parse remembered as `None`.
     parsed: Mutex<HashMap<PathBuf, Option<Arc<ParsedScript>>>>,
     /// Initializer chains walked on demand, one per initializer key.
@@ -123,6 +191,28 @@ pub(crate) const EFFECTS_DIR: &str = "common/scripted_effects";
 pub(crate) const EVENTS_DIR: &str = "events";
 pub(crate) const ON_ACTIONS_DIR: &str = "common/on_actions";
 pub(crate) const PRESCRIPTED_DIR: &str = "prescripted_countries";
+
+/// The other directories whose scripts give a planet a class or a class's look, or name a
+/// class a species lives on, read for nothing else.
+pub(crate) const CLASS_USE_DIRS: [&str; 17] = [
+    "common/decisions",
+    "common/megastructures",
+    "common/buildings",
+    "common/inline_scripts",
+    "common/special_projects",
+    "common/situations",
+    "common/relics",
+    "common/terraform",
+    "common/archaeological_site_types",
+    "common/astral_rifts",
+    "common/ascension_perks",
+    "common/traditions",
+    "common/policies",
+    "common/governments",
+    "common/traits",
+    PRESCRIPTED_DIR,
+    SCENARIO_DIR,
+];
 
 impl ScriptIndex {
     pub(crate) fn load(
@@ -149,6 +239,7 @@ impl ScriptIndex {
             index.ingest(layout, rel, dir, kind, report, diagnostics);
         }
         index.read_prescripted(layout, globals, diagnostics);
+        index.read_class_uses(layout, diagnostics);
         let claims = claims::build(&index, layout);
         index.claims = claims;
         index
@@ -251,6 +342,10 @@ impl ScriptIndex {
         self.refs.is_empty() && self.effects.is_empty()
     }
 
+    pub(crate) fn class_uses(&self) -> &ClassUses {
+        &self.class_uses
+    }
+
     /// A reference to `line` of `file`, named by the layer the file came from.
     pub fn script_ref(&self, file: &Path, line: u32) -> ScriptRef {
         script_ref(&self.layout, file, line)
@@ -292,9 +387,27 @@ impl ScriptIndex {
         }
     }
 
-    /// One file's references and event calls.
+    fn read_class_uses(&mut self, layout: &Layout, diagnostics: &mut Vec<Diagnostic>) {
+        for file in CLASS_USE_DIRS.iter().flat_map(|dir| layout.files_in(dir)) {
+            match fs::read(&file) {
+                Ok(bytes) => self.add_class_uses(&mut scan::scan(&bytes, Dir::Effects)),
+                Err(e) => diagnostics.push(Diagnostic::Unreadable {
+                    file,
+                    reason: e.to_string(),
+                }),
+            }
+        }
+    }
+
+    fn add_class_uses(&mut self, scanned: &mut Scan) {
+        self.class_uses.pictures.extend(scanned.pictures.drain(..));
+        self.class_uses.placed.extend(scanned.classes.drain(..));
+    }
+
+    /// One file's references, event calls and planet class uses.
     fn record(&mut self, file: &Path, bytes: &[u8], dir: Dir, kind: SiteKind) {
-        let scanned = scan::scan(bytes, dir);
+        let mut scanned = scan::scan(bytes, dir);
+        self.add_class_uses(&mut scanned);
         for hit in scanned.hits {
             let location = script_ref(&self.layout, file, hit.line);
             self.refs.entry(hit.token).or_default().push(RefSite {

@@ -147,7 +147,7 @@ impl GameData {
             .as_deref()
     }
 
-    fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
+    pub(crate) fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
         self.surface_maps
             .get_or_init(|| planet_disc::surface_maps(&self.layout))
     }

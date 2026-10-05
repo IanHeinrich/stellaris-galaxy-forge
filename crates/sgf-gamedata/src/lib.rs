@@ -323,7 +323,8 @@ impl GameData {
         let planet_dir = ParsedDir::load(&layout, PlanetClassDef::DIR, &mut diagnostics);
         let planet_lists = planet_lists::read(&planet_dir);
         let mut overrides = Vec::new();
-        let planet_classes = registry::from_defs(&planet_dir.into_defs(&vars, &mut overrides));
+        let planet_classes: PlanetClasses =
+            registry::from_defs(&planet_dir.into_defs(&vars, &mut overrides));
         diagnostics.extend(overrides.into_iter().filter(
             |d| !matches!(d, Diagnostic::Override { key, .. } if key == planet_lists::KEY),
         ));
@@ -341,6 +342,10 @@ impl GameData {
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
+        let surface_maps = textures::planet_disc::surface_maps(&layout);
+        let planet_classes = planet_classes.marked(scripts.class_uses(), &planet_lists, |e| {
+            textures::planet_disc::draws_nothing(&surface_maps, e)
+        });
 
         progress(Phase::Localisation);
         let loc = Localisation::load(&layout, language, &mut diagnostics);
@@ -386,7 +391,7 @@ impl GameData {
             diagnostics,
             discovery,
             eligibility: Arc::default(),
-            surface_maps: Arc::default(),
+            surface_maps: Arc::new(OnceLock::from(surface_maps)),
             flat_art: Arc::default(),
             shattered: Arc::default(),
         }

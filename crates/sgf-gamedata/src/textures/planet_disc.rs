@@ -29,6 +29,11 @@ const SURFACE_MESH: &str = "planet_geosphereShape";
 const PIECES_MESH: &str = "pieceShape1";
 /// The locator a wrapper entity attaches its planet's surface at.
 const PLANET_LOCATOR: &str = "planetloc";
+/// What an entity draws with of its own; an entity with none of them draws nothing, or what
+/// the entity it `clone`s draws.
+const DRAWS: [&str; 5] = ["pdxmesh", "meshsettings", "attach", "particle", "state"];
+/// How many `clone` steps an entity that draws nothing of its own is followed.
+const CLONE_DEPTH: usize = 4;
 /// How many `attach` steps down from an entity its surface is looked for.
 const ATTACH_DEPTH: usize = 4;
 /// The disc's side, in pixels.
@@ -52,6 +57,12 @@ pub(crate) struct SurfaceMaps {
     /// Entity name → the entities it attaches, those at `planetloc` first and each in file
     /// order, for an entity with neither a surface map nor a `pdxmesh`.
     attached: BTreeMap<String, Vec<String>>,
+    /// The entities that draw nothing: no mesh, attachment, effect or clone.
+    hidden: BTreeSet<String>,
+    /// Entity name → the entity it `clone`s, for an entity that draws nothing of its own.
+    clones: BTreeMap<String, String>,
+    /// Every entity name the `.asset` files define.
+    named: BTreeSet<String>,
 }
 
 /// What an entity's model has for a surface.
@@ -86,16 +97,43 @@ impl SurfaceMaps {
     }
 }
 
+/// Whether the model of `entity` draws nothing: the first name the game tries for it that the
+/// `.asset` files define is an entity that draws nothing, itself or through what it `clone`s.
+/// This reads no `.mesh` file.
+pub(crate) fn draws_nothing(maps: &SurfaceMaps, entity: &str) -> bool {
+    model_names(entity)
+        .iter()
+        .find(|name| maps.named.contains(name.as_str()))
+        .is_some_and(|name| maps.hidden_entity(name, CLONE_DEPTH))
+}
+
+impl SurfaceMaps {
+    fn hidden_entity(&self, name: &str, depth: usize) -> bool {
+        if self.hidden.contains(name) {
+            return true;
+        }
+        match self.clones.get(name) {
+            Some(target) if depth > 0 => self.hidden_entity(target, depth - 1),
+            _ => false,
+        }
+    }
+}
+
+/// The names the game tries for a class's model `entity`, in order.
+fn model_names(entity: &str) -> [String; 3] {
+    [
+        format!("{entity}_01_entity"),
+        format!("{entity}_entity"),
+        entity.to_owned(),
+    ]
+}
+
 /// The surface of `entity` in `maps`. The game numbers a class's models `<entity>_01_entity`,
 /// `<entity>_02_entity` …; the first one stands for them all. A map an `.asset` names comes
 /// before one a `.mesh` stores, whichever name each is under, a whole surface before pieces,
 /// and an entity's own model before the ones it attaches.
 pub(crate) fn surface(layout: &Layout, maps: &SurfaceMaps, entity: &str) -> Surface {
-    let names = [
-        format!("{entity}_01_entity"),
-        format!("{entity}_entity"),
-        entity.to_owned(),
-    ];
+    let names = model_names(entity);
     let names = names.each_ref().map(String::as_str);
     surface_among(layout, maps, &names, &mut BTreeSet::new(), ATTACH_DEPTH)
 }
@@ -313,6 +351,21 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
                 continue;
             };
             let attached = attached(entity, &src);
+            maps.named.insert(name.to_owned());
+            maps.hidden.remove(name);
+            maps.clones.remove(name);
+            if !DRAWS.iter().any(|key| entity.find(key, &src).is_some()) {
+                maps.maps.remove(name);
+                maps.pieces.remove(name);
+                maps.meshes.remove(name);
+                maps.attached.remove(name);
+                if let Some(target) = last_scalar(entity, "clone", &src) {
+                    maps.clones.insert(name.to_owned(), target.to_owned());
+                } else {
+                    maps.hidden.insert(name.to_owned());
+                }
+                continue;
+            }
             if let Some(file) = mesh_map(entity, SURFACE_MESH, &src) {
                 maps.meshes.remove(name);
                 maps.pieces.remove(name);

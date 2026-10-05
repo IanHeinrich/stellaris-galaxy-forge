@@ -31,6 +31,22 @@ The files don't say which definition dir a save field maps to, so that
 mapping is a hand-maintained table of about 30 rows. It only changes
 when the save format does.
 
+A planet class is look-only when a `set_planet_entity`'s `picture` (or
+an effect's `PICTURE` parameter) names it, its `spawn_odds` are 0, and
+nothing makes a planet one or lets a species live on one: no `class`,
+`change_pc`, `planet_class`, `habitability_preference`, terraform link
+`to`, other parameter in capitals or planet list. A value with a
+`$parameter$` in it, such as `pc_$class$_star`, counts for every class
+it could spell. A value that is all parameter apart from `pc_`, such as
+Planetary Diversity's `change_pc = pc_$climate$`, could be any class, so
+it counts for none. Planetary Diversity's classes are look-only: it keeps
+a planet's vanilla class and only sets the picture. A class draws nothing
+when the first of `<entity>_01_entity`, `<entity>_entity` and `<entity>`
+that the `.asset` files define has no `pdxmesh`, `meshsettings`,
+`attach`, `particle` or `state`, or only `clone`s an entity like that,
+as Gigastructures' `giga_hidden` does.
+Neither kind is offered as a class, and vanilla 4.5 has none of either.
+
 ## Syntax the save never uses
 
 `gamestate` has no comments, variables or operators. Definition files

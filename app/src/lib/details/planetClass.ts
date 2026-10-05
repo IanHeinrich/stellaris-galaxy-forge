@@ -31,8 +31,9 @@ export function classFieldReason(
 
 /**
  * The classes a planet of `current` may become: none where it keeps its own, for a colony only
- * those open to colonies, and for a moon none that cannot be one. Habitable classes come first,
- * each group by name.
+ * those open to colonies, and for a moon none that cannot be one. A class mods only use as a
+ * planet's look, or one whose model draws nothing, is never offered. Habitable classes come
+ * first, each group by name.
  */
 export function classRows(
   current: string,
@@ -45,6 +46,7 @@ export function classRows(
   const group = (view: PlanetClassView) => (view.habitable ? "Habitable" : "Other");
   return [...planetClasses.values()]
     .filter((c) => c.key !== current && c.change !== "never")
+    .filter((c) => c.look_only !== true && c.hidden_model !== true)
     .filter((c) => !colonised || c.change === "any")
     .filter((c) => !moon || c.moonless !== true)
     .map((c) => ({ key: c.key, label: label(c.key), group: group(c) }))

@@ -2,6 +2,7 @@
 //! `galactic_object.star_class`'s `planet_keys`) looks like, whether it
 //! can be colonised, and where and how large a random draw spawns it.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use sgf_core::ops::ClassChange;
@@ -10,7 +11,9 @@ use crate::GameData;
 use crate::install::layers::VANILLA;
 use crate::install::script::{Def, Range};
 use crate::registries::colors;
+use crate::registries::planet_lists::PlanetLists;
 use crate::registries::registry::{FromDef, Registry};
+use crate::scripts::index::ClassUses;
 
 pub type PlanetClasses = Registry<PlanetClassDef>;
 
@@ -59,6 +62,11 @@ pub struct PlanetClassDef {
     pub chance_of_ring: f64,
     pub extra_orbit_size: f64,
     pub extra_planet_count: f64,
+    /// Only ever a planet's look: a random draw never rolls it, a `set_planet_entity`'s
+    /// `picture` names it, and no script, initializer or planet list makes a planet one.
+    pub look_only: bool,
+    /// Its model draws nothing: its entity has no mesh, attachment or effect.
+    pub hidden_model: bool,
 }
 
 /// `atmosphere_color`, `atmosphere_intensity` and `atmosphere_width`, written as a set.
@@ -74,14 +82,17 @@ const SET_APART: [&str; 1] = ["pc_shrouded"];
 
 impl PlanetClassDef {
     /// Which planets may be given this class, or have it taken: none for a star, a habitat,
-    /// a ring world, anything else built, the astral scar and the Shroud's world; any for a
-    /// class colonised with the standard district set; else only a planet with no colony.
+    /// a ring world, anything else built, the astral scar, the Shroud's world, a look-only
+    /// class and one whose model draws nothing; any for a class colonised with the standard
+    /// district set; else only a planet with no colony.
     pub fn change(&self) -> ClassChange {
         let fixed = self.star
             || self.habitat
             || self.ringworld
             || self.artificial
             || self.astral_scar
+            || self.look_only
+            || self.hidden_model
             || SET_APART.contains(&self.key.as_str());
         if fixed {
             ClassChange::Never
@@ -94,16 +105,46 @@ impl PlanetClassDef {
 }
 
 impl PlanetClasses {
-    /// The classes a random body can be drawn as: no star, asteroid or artificial planet, with a distance from
-    /// the star it spawns at, and colonisable or not when `colonizable` says.
+    /// The classes a random body can be drawn as: no star, asteroid, artificial planet,
+    /// look-only class or class whose model draws nothing, with a distance from the star it
+    /// spawns at, and colonisable or not when `colonizable` says.
     pub fn drawable(&self, colonizable: Option<bool>) -> impl Iterator<Item = &PlanetClassDef> {
         self.iter().filter(move |c| {
             !c.star
                 && !c.asteroid
                 && !c.artificial
+                && !c.look_only
+                && !c.hidden_model
                 && c.distance_from_sun.is_some()
                 && colonizable.is_none_or(|wanted| c.colonizable == wanted)
         })
+    }
+
+    /// These classes, each marked look-only from what `uses` says the scripts do with it and
+    /// whether `lists` holds it, and hidden-model where `draws_nothing` says so of its entity.
+    pub(crate) fn marked(
+        &self,
+        uses: &ClassUses,
+        lists: &PlanetLists,
+        draws_nothing: impl Fn(&str) -> bool,
+    ) -> Self {
+        let listed: HashSet<&str> = lists.values().flatten().map(String::as_str).collect();
+        self.iter()
+            .map(|class| {
+                let key = class.key.as_str();
+                let look_only = class.spawn_odds == 0.0
+                    && uses.pictures.contains(key)
+                    && !uses.places(key)
+                    && !listed.contains(key);
+                let hidden_model = class.entity.as_deref().is_some_and(&draws_nothing);
+                let class = PlanetClassDef {
+                    look_only,
+                    hidden_model,
+                    ..class.clone()
+                };
+                (class.key.clone(), class)
+            })
+            .collect()
     }
 }
 
@@ -160,6 +201,8 @@ impl FromDef for PlanetClassDef {
             chance_of_ring: def.number("chance_of_ring").unwrap_or(0.0),
             extra_orbit_size: def.number("extra_orbit_size").unwrap_or(0.0),
             extra_planet_count: def.number("extra_planet_count").unwrap_or(0.0),
+            look_only: false,
+            hidden_model: false,
             source: def.file.clone(),
             key,
         }

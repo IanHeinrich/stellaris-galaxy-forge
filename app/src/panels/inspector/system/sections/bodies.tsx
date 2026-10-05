@@ -101,6 +101,7 @@ export function PlanetIcon({
     starClass: null,
     drawn: view === undefined,
     flat: view?.flat_art === true,
+    hidden: view?.hidden_model === true,
     asteroid: view?.asteroid === true,
   });
   return (

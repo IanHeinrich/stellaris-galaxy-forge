@@ -4,7 +4,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
-import { bypassIconKey } from "../../lib/details/icons";
+import { bypassIconKey, PLANET_ICON_KEYS } from "../../lib/details/icons";
 import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
@@ -338,11 +338,13 @@ function freshArt(
     starClass: null,
     drawn,
     flat: view?.flat_art === true,
+    hidden: view?.hidden_model === true,
     asteroid: view?.asteroid === true,
     model,
     shatterSeed: seed,
   });
-  const small = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
+  const sprite = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
+  const small = view?.hidden_model === true ? [...sprite, ...PLANET_ICON_KEYS] : sprite;
   const large = view?.icon_large_sprite ? [`sprite:${view.icon_large_sprite}`, ...small] : small;
   return {
     surfaceClass: planetClass,
