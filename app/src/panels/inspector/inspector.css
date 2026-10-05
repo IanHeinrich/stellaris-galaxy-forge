@@ -189,6 +189,23 @@ button.chip.jump:hover {
   background: var(--border);
 }
 
+/* After the rule, which `::after` draws as the button's last box. */
+.ins-sec-aside {
+  order: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-hint);
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.ins-sec:has(.ins-sec-aside) .ins-sec-title {
+  flex: none;
+}
+
 .ins-kv {
   display: grid;
   grid-template-columns: 84px 1fr;

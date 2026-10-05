@@ -139,6 +139,8 @@ export interface FileSessionState {
   painted: boolean;
   /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
   paintChosen: boolean;
+  /** The open scenario was just taken from a save, so it is offered to be prepared for a new game. */
+  fromSave: boolean;
 
   /**
    * Resolves true when the document opened; false when it failed, or another open was in flight.
@@ -237,6 +239,7 @@ const INITIAL = {
   pendingExport: null as ExportReport | null,
   painted: false,
   paintChosen: false,
+  fromSave: false,
 } satisfies Partial<FileSessionState>;
 
 export const useFileSessionStore = create<FileSessionState>((set, get, session) => ({
@@ -257,6 +260,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
     return openDocument(null, () => ipc.openAsScenario(path, profile), {
       name: fileName(path),
       profile,
+      fromSave: true,
     });
   },
 
@@ -394,6 +398,8 @@ interface OpenOptions {
   name?: string;
   /** What the document is written under; left out, the layer follows its bytes alone. */
   profile?: ScenarioProfile;
+  /** The document is a scenario just taken from a save. */
+  fromSave?: boolean;
 }
 
 /**
@@ -403,7 +409,7 @@ interface OpenOptions {
 async function openDocument(
   path: string | null,
   load: () => Promise<OpenResult>,
-  { name, profile }: OpenOptions = {},
+  { name, profile, fromSave = false }: OpenOptions = {},
 ): Promise<boolean> {
   const { getState, setState } = useFileSessionStore;
   // One document opens at a time: a second ask is refused rather than queued behind it.
@@ -428,6 +434,7 @@ async function openDocument(
       capabilities: result.capabilities,
       painted: result.painted,
       paintChosen: profile === "paint_a_galaxy",
+      fromSave,
     });
     useIssuesStore.getState().load(result.issues);
     if (result.path !== null) {

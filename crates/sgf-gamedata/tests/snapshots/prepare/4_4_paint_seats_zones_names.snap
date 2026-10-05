@@ -6,6 +6,7 @@ Prepared 765 systems for a new game
 RenameSystem: 762
 SetFeLinks: 3
 SetFeZone: 3
+SetHeaderKeys: 1
 SetInitializer: 1
 SetSpawnScript: 17
-… 765 more changed lines
+… 767 more changed lines

@@ -12,6 +12,7 @@ import { useModifierPickerStore } from "./modifierPickerStore";
 import { useOpCheckStore } from "./opCheckStore";
 import { usePlanetDataStore } from "./planetDataStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
+import { usePrepareStore } from "./prepareStore";
 import { useSceneStore } from "./sceneStore";
 import { useToolStore } from "./toolStore";
 
@@ -35,6 +36,7 @@ export const DOCUMENT_SCOPED: readonly (() => void)[] = [
   () => useGeneratorStore.getState().clearPicks(),
   () => useToolStore.getState().setTilt(0),
   () => useOpCheckStore.getState().reset(),
+  () => usePrepareStore.getState().reset(),
   forgetReclassify,
   forgetPlanetOpens,
   ...PICKERS,

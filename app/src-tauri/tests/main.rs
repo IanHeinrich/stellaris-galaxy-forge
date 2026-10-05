@@ -14,6 +14,7 @@ mod listing;
 mod move_planet;
 mod nebula;
 mod paint;
+mod prepare;
 mod remove_planet;
 mod scenario;
 mod session;

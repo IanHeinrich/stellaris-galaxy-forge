@@ -21,6 +21,7 @@ import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
+import { galaxyShown, usePrepareStore } from "./prepareStore";
 import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { currentBarMode, sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
@@ -28,6 +29,8 @@ import { useWatchlistStore } from "./watchlistStore";
 
 /** How long after the last edit the watchlist runs its searches again. */
 const WATCHLIST_SETTLE_MS = 400;
+/** How long after the last edit the Prepare preview is read again. */
+const PREPARE_SETTLE_MS = 300;
 
 let bound = false;
 
@@ -60,6 +63,53 @@ export function bindStores(): void {
   followBodySelectionPage();
   followBodyPages();
   followHeightPreview();
+  followPrepare();
+}
+
+// The Prepare preview counts what its choices would change in the document as it stands. An edit,
+// undo or redo marks it stale at once and reads it again once the edits settle, and another
+// document or other game data reads it again, but only while the Galaxy page is in view: a page
+// out of view keeps its last count until it is shown. A save just taken into a scenario shows the
+// Galaxy page with the section open.
+function followPrepare(): void {
+  const prepare = () => usePrepareStore.getState();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending = false;
+  const cancel = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
+  const refresh = () => {
+    cancel();
+    pending = !galaxyShown();
+    if (!pending) void prepare().refresh();
+  };
+  const settle = () => {
+    cancel();
+    timer = setTimeout(refresh, PREPARE_SETTLE_MS);
+  };
+  useFileSessionStore.subscribe((state, previous) => {
+    if (state.status === previous.status) return;
+    if (state.status === "ready" && state.fromSave) void prepare().reveal();
+    refresh();
+  });
+  useEditorStore.subscribe((state, previous) => {
+    if (state.history === previous.history) return;
+    prepare().followHistory(state.history.undo);
+    settle();
+  });
+  useGameDataStore.subscribe((state, previous) => {
+    if (state.status !== previous.status || state.version !== previous.version) refresh();
+  });
+  const shown = () => {
+    if (pending && timer === null && galaxyShown()) refresh();
+  };
+  useInspectorStore.subscribe((state, previous) => {
+    if (state.stack !== previous.stack) shown();
+  });
+  useLayoutStore.subscribe((state, previous) => {
+    if (state.tab !== previous.tab || state.collapsed !== previous.collapsed) shown();
+  });
 }
 
 // A height preview belongs to the system the inspector shows and to the document as it stands:

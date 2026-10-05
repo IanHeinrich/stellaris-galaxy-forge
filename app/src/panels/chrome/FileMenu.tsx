@@ -2,12 +2,14 @@ import { DOCUMENT_KINDS } from "../../lib/documentKinds";
 import { shortcutLabel } from "../../lib/keys";
 import { recentTitle } from "../../lib/openRows";
 import { isUnder } from "../../lib/paths";
+import { PREPARE_MENU_ITEM } from "../../lib/prepareCopy";
 import { closeDocument, save, saveAs } from "../../store/commands";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useOpenScreenStore } from "../../store/openScreenStore";
 import { usePaintModStore } from "../../store/paintModStore";
+import { usePrepareStore } from "../../store/prepareStore";
 import { useRecentsStore, type RecentDoc } from "../../store/recentsStore";
 import { formatWhen } from "../../lib/text";
 import "./chrome.css";
@@ -63,6 +65,7 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
   const paintDir = usePaintModStore((s) => s.paintMod?.scenarios_dir ?? null);
   const showOpenDialog = useLayoutStore((s) => s.showOpenDialog);
   const showScenarioDialog = useLayoutStore((s) => s.showScenarioDialog);
+  const revealPrepare = usePrepareStore((s) => s.reveal);
   const open = status === "ready";
   const modMissing = modKnown && paintDir === null;
   const inPaintMod = path !== null && paintDir !== null && isUnder(path, paintDir);
@@ -115,6 +118,12 @@ export function FileMenuItems({ dismiss }: { dismiss: () => void }) {
         label="Open save as scenario…"
         dismiss={dismiss}
         onClick={() => pickAndOpen("scenario")}
+      />
+      <MenuItem
+        label={PREPARE_MENU_ITEM}
+        disabled={!open || kind !== "scenario"}
+        dismiss={dismiss}
+        onClick={() => void revealPrepare()}
       />
       <MenuItem
         label="Close"

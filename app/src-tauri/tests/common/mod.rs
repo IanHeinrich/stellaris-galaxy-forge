@@ -79,14 +79,20 @@ static GAME_DATA: LazyLock<Option<Arc<GameData>>> = LazyLock::new(|| {
 /// A fresh app holding the install's game data, with the document at `path` open; `None`
 /// without an install.
 pub fn with_game_data(path: impl Serialize) -> Option<(WebviewWindow<MockRuntime>, OpenResult)> {
+    let webview = game_data_webview()?;
+    let opened = open(&webview, path);
+    Some((webview, opened))
+}
+
+/// A fresh app holding the install's game data, with nothing open; `None` without an install.
+pub fn game_data_webview() -> Option<WebviewWindow<MockRuntime>> {
     let game_data = GAME_DATA.as_ref()?;
     let webview = webview();
     webview
         .app_handle()
         .state::<GameDataState>()
         .store(Some(Arc::clone(game_data)));
-    let opened = open(&webview, path);
-    Some((webview, opened))
+    Some(webview)
 }
 
 /// The command's response as the IPC layer hands it back, from the webview's own

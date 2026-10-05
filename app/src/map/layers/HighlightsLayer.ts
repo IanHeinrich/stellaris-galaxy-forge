@@ -21,6 +21,7 @@ import {
   HANDLE_COLOR,
   MATCHED_COLOR,
   NEBULA_COLOR,
+  PREPARE_COLOR,
   REFUSED_COLOR,
   RING_RADIUS,
   SEARCHED_COLOR,
@@ -45,6 +46,8 @@ const HOVER = { color: 0xffffff, radius: RING_RADIUS.hover, width: 1.5, alpha: 0
 const GHOST = { color: ACCENT_COLOR, radius: RING_RADIUS.selection, width: 2, alpha: 1 };
 /** Systems using the initializer the browser is highlighting: muted, distinct from selection and hover. */
 const MATCHED = { color: MATCHED_COLOR, radius: RING_RADIUS.target, width: 2, alpha: 0.6 };
+/** Systems of the Prepare row the pointer is on. */
+const PREPARE = { color: PREPARE_COLOR, radius: RING_RADIUS.target, width: 2, alpha: 0.85 };
 /** Systems the search palette's query locates, while it holds one. */
 const SEARCHED = { color: SEARCHED_COLOR, radius: RING_RADIUS.searched, width: 2.5, alpha: 1 };
 /** Systems a nebula drag would take in, and those it would let go. */
@@ -137,6 +140,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly ghostRings = new RingBatch(GHOST, "ghostRings");
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
   private readonly searchedRings = new RingBatch(SEARCHED, "searchedRings");
+  private readonly preparedRings = new RingBatch(PREPARE, "preparedRings");
   private readonly joiningRings = new RingBatch(JOINING, "joiningRings");
   private readonly leavingRings = new RingBatch(LEAVING, "leavingRings");
   private readonly midpoint = midpointButton();
@@ -163,6 +167,7 @@ export class HighlightsLayer implements MapLayer {
   private cutSource: number | null = null;
   private matched: ReadonlySet<number> = new Set();
   private searched: ReadonlySet<number> = new Set();
+  private prepared: ReadonlySet<number> = new Set();
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private lanePreview: Array<[number, number]> | null = null;
@@ -201,6 +206,7 @@ export class HighlightsLayer implements MapLayer {
       this.ghostRings.container,
       this.matchedRings.container,
       this.searchedRings.container,
+      this.preparedRings.container,
       this.joiningRings.container,
       this.leavingRings.container,
       this.added.container,
@@ -224,6 +230,7 @@ export class HighlightsLayer implements MapLayer {
     this.placeSelection();
     this.placeMatched();
     this.placeSearched();
+    this.placePrepared();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -233,6 +240,7 @@ export class HighlightsLayer implements MapLayer {
     if (touches(d, this.selection)) this.placeSelection();
     if (touches(d, this.matched)) this.placeMatched();
     if (touches(d, this.searched)) this.placeSearched();
+    if (touches(d, this.prepared)) this.placePrepared();
     this.added.place(this.systems, this.drawn.at);
     this.drawAddPreview();
     this.placeAll();
@@ -278,6 +286,7 @@ export class HighlightsLayer implements MapLayer {
     if (movedAny(moved, this.selection)) this.placeSelection();
     if (movedAny(moved, this.matched)) this.placeMatched();
     if (movedAny(moved, this.searched)) this.placeSearched();
+    if (movedAny(moved, this.prepared)) this.placePrepared();
     this.placeAll();
     this.drawPreviews();
     this.drawLanes();
@@ -338,6 +347,12 @@ export class HighlightsLayer implements MapLayer {
     this.placeSearched();
   }
 
+  /** Rings the systems of the Prepare row the pointer is on, or none. */
+  setPrepared(ids: ReadonlySet<number>): void {
+    this.prepared = ids;
+    this.placePrepared();
+  }
+
   /** The ghost ring a nebula drag is proposing, with the systems it would gain and lose. */
   setNebulaPreview(preview: NebulaPreview | null): void {
     this.nebula = preview;
@@ -374,6 +389,7 @@ export class HighlightsLayer implements MapLayer {
       this.ghostRings,
       this.matchedRings,
       this.searchedRings,
+      this.preparedRings,
       this.joiningRings,
       this.leavingRings,
     ];
@@ -398,13 +414,17 @@ export class HighlightsLayer implements MapLayer {
     this.searchedRings.place(pointsOf(this.systems, this.searched, this.drawn.at));
   }
 
+  private placePrepared(): void {
+    this.preparedRings.place(pointsOf(this.systems, this.prepared, this.drawn.at));
+  }
+
   /** The hover ring, unless the selection already rings that system, and the port ring. */
   private placeHover(): void {
     const hoverId = this.hoverId !== null && this.selection.has(this.hoverId) ? null : this.hoverId;
     this.place(this.hover, hoverId);
   }
 
-  /** Everything but the selection, matched and searched systems: a handful of rings at most. */
+  /** Everything but the selection, matched, searched and prepared systems: a handful of rings at most. */
   private placeAll(): void {
     this.placeHover();
     this.place(this.cutRing, this.cutSource);

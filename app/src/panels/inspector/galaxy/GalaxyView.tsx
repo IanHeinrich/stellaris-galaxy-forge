@@ -13,6 +13,7 @@ import { useIssuesStore } from "../../../store/issuesStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
 import { LGateBlock } from "./LGateBlock";
+import { PrepareSection } from "./PrepareSection";
 import { SaveSetupSection } from "./SaveSetupSection";
 import { KALEIDOSCOPE_TITLE, KALEIDOSCOPE_VALUE } from "./saveSetup";
 import { handledKeys } from "./gameSetup";
@@ -185,6 +186,7 @@ export function GalaxyView() {
             ? "static galaxy scenario"
             : "no save metadata"}
       </div>
+      {kind === "scenario" && <PrepareSection />}
       {lgateEditable && lgate !== null && <LGateBlock lgate={lgate} />}
       <Section id="galaxy.counts" title="Galaxy">
         <Properties>

@@ -1,17 +1,20 @@
 //! Preparing a scenario for a new game, on both sample saves opened as a plain and as a
 //! Paint a Galaxy scenario, with the real install: which row each system stands in, what
-//! each preset writes, and that undo puts every byte back.
+//! each preset writes, that the header's counts follow the map, and that undo puts every
+//! byte back.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 use sgf_core::document::Document;
 use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::format::scenario::marauder::clan_count;
 use sgf_core::ops::Op;
 use sgf_core::prepare::{
     self, PlainDraw, PrepareChoice, PrepareError, PreparePreset, PrepareRow, RowChoice, RowSystems,
 };
 use sgf_core::session::Session;
+use sgf_core::validate::IssueCode;
 use sgf_gamedata::GameData;
 use sgf_gamedata::prepare::{classify, plain_draw};
 
@@ -64,6 +67,15 @@ fn samples() -> [(&'static str, Session); 4] {
 
 fn current(session: &Session) -> Vec<u8> {
     session.doc().pieces().collect::<Vec<_>>().concat()
+}
+
+fn header_count_issues(session: &Session) -> Vec<String> {
+    session
+        .validate()
+        .into_iter()
+        .filter(|issue| issue.code == IssueCode::HeaderEmpireCount)
+        .map(|issue| issue.message)
+        .collect()
 }
 
 fn build(
@@ -195,6 +207,11 @@ fn each_preset_on_each_sample_and_profile_is_one_edit_that_undo_takes_back() {
             insta::with_settings!({snapshot_path => "snapshots/prepare", prepend_module_to_snapshot => false}, {
                 insta::assert_snapshot!(format!("{name}_{label}"), out);
             });
+            assert_eq!(
+                header_count_issues(&session),
+                Vec::<String>::new(),
+                "{name} {label}"
+            );
             session.undo().expect("undo").expect("an edit to undo");
             assert_eq!(
                 current(&session),
@@ -251,6 +268,7 @@ fn seats_zones_and_names_left_out_on_a_paint_a_galaxy_map_go_and_undo_brings_the
         return;
     };
     let mut session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let empires = session.graph().header_block_count("num_empires", "max");
     let zones: BTreeSet<u8> = session
         .graph()
         .systems
@@ -295,12 +313,129 @@ fn seats_zones_and_names_left_out_on_a_paint_a_galaxy_map_go_and_undo_brings_the
         assert!(system.name.key.is_empty(), "{}", system.id);
     }
     assert_eq!(linked(&session), 0, "no link into a removed zone is left");
+    for key in ["fallen_empire_max", "fallen_empire_default"] {
+        assert_eq!(session.graph().header_count(key), Some(0), "{key}");
+    }
+    assert_eq!(
+        session.graph().header_block_count("num_empires", "max"),
+        empires,
+        "the empire counts stay with no seat left"
+    );
     assert!(
         !String::from_utf8_lossy(&current(&session))
             .contains("painted_galaxy_fe_custom_connection")
     );
     session.undo().expect("undo").expect("an edit to undo");
     assert_eq!(current(&session), session.doc().original());
+}
+
+#[test]
+fn fallen_empires_and_marauder_clans_left_out_take_their_header_counts_down_in_the_same_edit() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let original = session.doc().original().to_vec();
+    let count = |session: &Session, key| session.graph().header_count(key);
+    assert_eq!(header_count_issues(&session), Vec::<String>::new());
+    assert_ne!(count(&session, "fallen_empire_max"), Some(0));
+    assert_ne!(count(&session, "marauder_empire_max"), Some(0));
+    let rows = classify(&session, gd);
+    let choices = [
+        (PrepareRow::FallenEmpires, PrepareChoice::None),
+        (PrepareRow::MarauderClans, PrepareChoice::Plain),
+    ]
+    .map(|(row, choice)| RowChoice { row, choice });
+    let op = build(gd, &session, &rows, &choices).expect("a change");
+    let Op::Batch { ops, description } = &op else {
+        panic!("one batch");
+    };
+    let (header, systems) = ops.split_last().expect("members");
+    assert!(
+        matches!(header, Op::SetHeaderKeys { .. }),
+        "the header comes last: {header:?}"
+    );
+    assert_eq!(
+        description,
+        &format!(
+            "Prepared {} systems for a new game",
+            prepare::changed(&session, &op)
+        )
+    );
+
+    let without_header = Op::Batch {
+        description: description.clone(),
+        ops: systems.to_vec(),
+    };
+    session
+        .apply(without_header)
+        .expect("apply the systems alone");
+    assert_eq!(header_count_issues(&session).len(), 1);
+    session.undo().expect("undo").expect("an edit to undo");
+
+    session.apply(op).expect("apply the batch");
+    assert_eq!(session.history().undo.len(), 1, "one undo step");
+    assert_eq!(header_count_issues(&session), Vec::<String>::new());
+    for key in [
+        "fallen_empire_max",
+        "fallen_empire_default",
+        "marauder_empire_max",
+        "marauder_empire_default",
+    ] {
+        assert_eq!(count(&session, key), Some(0), "{key}");
+    }
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), original, "undo is byte-exact");
+}
+
+#[test]
+fn one_marauder_clan_left_out_takes_the_marauder_counts_down_by_one() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let original = session.doc().original().to_vec();
+    let count = |session: &Session, key| {
+        session
+            .graph()
+            .header_count(key)
+            .expect("the header states the key")
+    };
+    let clans = clan_count(session.graph());
+    assert!(clans > 1, "{clans}");
+    assert_eq!(count(&session, "marauder_empire_max"), clans);
+    assert_eq!(count(&session, "marauder_empire_default"), clans);
+    let rows: Vec<RowSystems> = classify(&session, gd)
+        .into_iter()
+        .map(|row| match row.row {
+            PrepareRow::MarauderClans => {
+                let clan_of = |id: &u32| session.graph().systems[id].marauder.map(|r| r.clan());
+                let first = clan_of(&row.systems[0]);
+                RowSystems {
+                    systems: row
+                        .systems
+                        .iter()
+                        .copied()
+                        .filter(|id| clan_of(id) == first)
+                        .collect(),
+                    ..row
+                }
+            }
+            _ => row,
+        })
+        .collect();
+    let choices = [RowChoice {
+        row: PrepareRow::MarauderClans,
+        choice: PrepareChoice::Plain,
+    }];
+    let op = build(gd, &session, &rows, &choices).expect("a change");
+    session.apply(op).expect("apply the batch");
+    assert_eq!(clan_count(session.graph()), clans - 1);
+    assert_eq!(count(&session, "marauder_empire_max"), clans - 1);
+    assert_eq!(count(&session, "marauder_empire_default"), clans - 1);
+    assert_eq!(header_count_issues(&session), Vec::<String>::new());
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), original, "undo is byte-exact");
 }
 
 #[test]

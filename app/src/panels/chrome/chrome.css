@@ -919,3 +919,18 @@ button.badge.paint-badge:hover {
   text-align: right;
   color: var(--fg-muted);
 }
+
+.prepare-caption {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 2;
+  max-width: min(420px, calc(100% - 120px));
+  padding: 4px 10px;
+  font-size: var(--text-control);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}

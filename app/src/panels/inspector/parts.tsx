@@ -25,8 +25,8 @@ export function Swatch({ owner }: { owner: number | null }) {
 }
 
 /**
- * A collapsible section; `count`, `summary` and `action` stay visible when it is closed. A
- * section follows the source that fills it, so a group with nothing left drawing folds its
+ * A collapsible section; `count`, `summary`, `aside` and `action` stay visible when it is closed.
+ * A section follows the source that fills it, so a group with nothing left drawing folds its
  * sections away too.
  */
 export function Section({
@@ -34,6 +34,7 @@ export function Section({
   title,
   count,
   summary,
+  aside,
   startClosed = false,
   action,
   children,
@@ -42,6 +43,8 @@ export function Section({
   title: string;
   count?: number;
   summary?: string;
+  /** A line of its own at the header's right, in sentence case, cut short where it runs out of room. */
+  aside?: string;
   startClosed?: boolean;
   /** A control at the header's right, outside its toggle button. */
   action?: ReactNode;
@@ -70,6 +73,11 @@ export function Section({
         {summary && ` · ${summary}`}
       </span>
       {source !== undefined && <SourceChip source={source} />}
+      {aside !== undefined && (
+        <span className="ins-sec-aside" title={aside}>
+          {aside}
+        </span>
+      )}
     </button>
   );
   return (

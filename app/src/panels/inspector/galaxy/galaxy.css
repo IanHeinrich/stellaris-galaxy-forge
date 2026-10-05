@@ -78,3 +78,68 @@
   align-items: center;
   gap: 8px;
 }
+
+.prep {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.prep-presets {
+  flex-wrap: wrap;
+}
+
+.prep-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 5px 4px;
+  border-top: 1px solid var(--border);
+}
+
+.prep-row.hovered {
+  background: var(--accent-bg);
+}
+
+.prep-row-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prep-row-name .muted {
+  font-size: var(--text-hint);
+}
+
+.prep-row > * {
+  min-width: 0;
+}
+
+.prep-note {
+  grid-column: 1 / -1;
+  margin-top: 0;
+  font-size: var(--text-hint);
+  overflow-wrap: anywhere;
+}
+
+/* Down through the dock body's padding, which the sticky edge otherwise stops short of. */
+.prep-footer {
+  position: sticky;
+  bottom: -10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+}
+
+.prep-apply {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--text-control);
+}

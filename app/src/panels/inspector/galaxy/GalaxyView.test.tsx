@@ -10,11 +10,14 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
+import { PREPARE_COPY, PREPARE_TITLE } from "../../../lib/prepareCopy";
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useInspectorStore } from "../../../store/inspectorStore";
 import { useLGateStore } from "../../../store/lgateStore";
+import { PREPARE_ROWS, PREPARE_SECTION, usePrepareStore } from "../../../store/prepareStore";
 import { armSession, resetStores } from "../../../store/storeFixture";
 import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
 import { openWith } from "../../../test/session";
@@ -283,5 +286,73 @@ describe("what day one rolled and set up", () => {
   it("shows no setup on a scenario's page beyond its header grid", async () => {
     await open("scenario");
     expect(galaxy()).not.toContain("Victory year");
+  });
+});
+
+describe("the Prepare section", () => {
+  const enclaves = PREPARE_COPY.plain.enclaves;
+
+  it("shows only on a scenario, opened after Open save as scenario with a row per category", async () => {
+    await open("save");
+    expect(galaxy()).not.toContain(PREPARE_TITLE);
+
+    await open("scenario");
+    await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
+    const html = drawnBy(galaxy);
+    expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
+    for (const row of PREPARE_ROWS) {
+      expect(drawnField(PickerField, `${PREPARE_COPY.plain[row].label} choice`)).toBeDefined();
+    }
+    expect(drawnButton("Apply").disabled).toBe(true);
+
+    drawnField(PickerField, `${enclaves.label} choice`).onPick("plain");
+    expect(usePrepareStore.getState().choices.enclaves).toBe("plain");
+  });
+
+  it("warns under a row left out and in the footer, and counts what Apply changes", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      choices: { ...usePrepareStore.getState().choices, enclaves: "game_decides" },
+      preview: {
+        profile: "plain",
+        rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4] : [] })),
+        changes: 2,
+      },
+      current: false,
+    });
+    expect(drawnBy(galaxy)).toContain("Counting the changes…");
+    expect(drawnButton("Apply").disabled).toBe(true);
+
+    usePrepareStore.setState({ current: true });
+    const html = drawnBy(galaxy);
+    expect(html).toContain(enclaves.consequences.game_decides);
+    expect(html).toContain("Left out of the new game: enclaves.");
+    expect(html).toContain("Changes 2 systems. One step to undo.");
+    expect(html).toContain("2 systems");
+    expect(drawnButton("Apply").disabled).toBe(false);
+    // Home starts holds no seat here, so its note stays out.
+    expect(html).not.toContain(PREPARE_COPY.plain.home_starts.note);
+
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+    const closed = galaxy();
+    expect(closed).toContain(`<span class="ins-sec-title">${PREPARE_TITLE}</span>`);
+    expect(closed).toContain('<span class="ins-sec-aside" title="Custom · changes 2 systems">');
+  });
+
+  it("adds no line to a row while the pointer is on it, so the rows below stay put", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      preview: {
+        profile: "plain",
+        rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4] : [] })),
+        changes: 0,
+      },
+      current: true,
+    });
+    const before = galaxy();
+    usePrepareStore.getState().hover("enclaves");
+    const hovered = galaxy();
+    expect(hovered).not.toContain(enclaves.ifLeftOut);
+    expect(hovered.replace('prep-row hovered"', 'prep-row"')).toBe(before);
   });
 });
