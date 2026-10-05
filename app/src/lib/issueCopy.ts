@@ -205,6 +205,12 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
     fix: "Nothing needs doing. Move the home away from the seat if you would rather the raids were spread.",
     detail: true,
   },
+  rolled_near_seat: {
+    title: "Systems near a seat left for the game to fill",
+    why: "These systems have no initializer, so the game fills them at random when a new game starts. Nothing keeps leviathans, marauder homes, L-Gates or voidworms away from a capital.",
+    fix: "Give them an initializer, or apply Prepare for a new game with Keep the space around capitals clear ticked. It gives them ordinary stars.",
+    detail: false,
+  },
   bodies_overlap: {
     title: "Two bodies in the same place",
     why: "Two planets or moons share an orbit and an angle, so the game draws one on top of the other.",

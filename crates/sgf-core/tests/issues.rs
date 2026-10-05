@@ -12,8 +12,9 @@
 //! one, and then four hand-spliced `hyperlane` entries the editor will not write: a lane
 //! to a system that does not exist, a lane to itself, and a lane written at one end only.
 //! `issues.paint.txt` is `4.5-day-one.sav` exported with the Paint a Galaxy profile, with
-//! sixteen `system = { ... }` statements replaced to move zones, seats and marauder clans
-//! into the states each check looks for, and a `coordinate_transform` added to the header.
+//! seventeen `system = { ... }` statements replaced to move zones, seats and marauder clans
+//! into the states each check looks for and to leave Dwithim (113), beside a seat, with no
+//! initializer, and a `coordinate_transform` added to the header.
 
 use std::collections::BTreeSet;
 use std::sync::{LazyLock, Mutex, MutexGuard};
@@ -102,6 +103,7 @@ fn the_scenario_fixture_raises_every_paint_a_galaxy_fault() {
             (Warning, MarauderBasesMissing),
             (Info, MarauderBasesMissing),
             (Info, MarauderNearSeat),
+            (Info, RolledNearSeat),
         ]
     );
 }

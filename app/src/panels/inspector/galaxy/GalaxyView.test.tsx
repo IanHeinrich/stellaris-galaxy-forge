@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LGateModTouch } from "../../../generated/LGateModTouch";
 import type { LGateOutcome } from "../../../generated/LGateOutcome";
 import type { GalaxySettings } from "../../../generated/GalaxySettings";
+import type { PreparePreview } from "../../../generated/PreparePreview";
+import type { PrepareRow } from "../../../generated/PrepareRow";
 
 vi.mock("../../../api/ipc");
 vi.mock("../../../api/events");
@@ -10,7 +12,12 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
-import { PREPARE_COPY, PREPARE_TITLE } from "../../../lib/prepareCopy";
+import {
+  CLEAR_AROUND_HINT,
+  consequence,
+  PREPARE_COPY,
+  PREPARE_TITLE,
+} from "../../../lib/prepareCopy";
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -19,7 +26,7 @@ import { useInspectorStore } from "../../../store/inspectorStore";
 import { useLGateStore } from "../../../store/lgateStore";
 import { PREPARE_ROWS, PREPARE_SECTION, usePrepareStore } from "../../../store/prepareStore";
 import { armSession, resetStores } from "../../../store/storeFixture";
-import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
+import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
 import { openWith } from "../../../test/session";
 import { PickerField } from "../../EditField";
 import {
@@ -292,6 +299,21 @@ describe("what day one rolled and set up", () => {
 describe("the Prepare section", () => {
   const enclaves = PREPARE_COPY.plain.enclaves;
 
+  /** A preview in which only the rows named hold systems. */
+  function previewOf(
+    filled: Partial<Record<PrepareRow, number[]>>,
+    beside: Partial<PreparePreview> = {},
+  ): PreparePreview {
+    return {
+      profile: "plain",
+      rows: PREPARE_ROWS.map((row) => ({ row, systems: filled[row] ?? [] })),
+      changes: 0,
+      kept_clear: [],
+      cut_off: [],
+      ...beside,
+    };
+  }
+
   it("shows only on a scenario, opened after Open save as scenario with a row per category", async () => {
     await open("save");
     expect(galaxy()).not.toContain(PREPARE_TITLE);
@@ -300,9 +322,12 @@ describe("the Prepare section", () => {
     await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
     const html = drawnBy(galaxy);
     expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
-    for (const row of PREPARE_ROWS) {
+    for (const row of PREPARE_ROWS.filter((row) => row !== "sol")) {
       expect(drawnField(PickerField, `${PREPARE_COPY.plain[row].label} choice`)).toBeDefined();
     }
+    expect(html).not.toContain(">Sol<");
+    expect(html).toContain(CLEAR_AROUND_HINT);
+    expect(drawnCheckbox().checked).toBe(true);
     expect(drawnButton("Apply").disabled).toBe(true);
 
     drawnField(PickerField, `${enclaves.label} choice`).onPick("plain");
@@ -313,11 +338,7 @@ describe("the Prepare section", () => {
     await open("scenario");
     usePrepareStore.setState({
       choices: { ...usePrepareStore.getState().choices, enclaves: "game_decides" },
-      preview: {
-        profile: "plain",
-        rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4] : [] })),
-        changes: 2,
-      },
+      preview: previewOf({ enclaves: [3, 4] }, { changes: 2 }),
       current: false,
     });
     expect(drawnBy(galaxy)).toContain("Counting the changes…");
@@ -325,7 +346,7 @@ describe("the Prepare section", () => {
 
     usePrepareStore.setState({ current: true });
     const html = drawnBy(galaxy);
-    expect(html).toContain(enclaves.consequences.game_decides);
+    expect(html).toContain(consequence(enclaves, "game_decides", true));
     expect(html).toContain("Left out of the new game: enclaves.");
     expect(html).toContain("Changes 2 systems. One step to undo.");
     expect(html).toContain("2 systems");
@@ -342,11 +363,7 @@ describe("the Prepare section", () => {
   it("adds no line to a row while the pointer is on it, so the rows below stay put", async () => {
     await open("scenario");
     usePrepareStore.setState({
-      preview: {
-        profile: "plain",
-        rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4] : [] })),
-        changes: 0,
-      },
+      preview: previewOf({ enclaves: [3, 4] }),
       current: true,
     });
     const before = galaxy();
@@ -354,5 +371,53 @@ describe("the Prepare section", () => {
     const hovered = galaxy();
     expect(hovered).not.toContain(enclaves.ifLeftOut);
     expect(hovered.replace('prep-row hovered"', 'prep-row"')).toBe(before);
+  });
+
+  it("shows Sol only when the map has one, and a UNE seat only on a Paint a Galaxy map", async () => {
+    await open("scenario");
+    usePrepareStore.setState({ preview: previewOf({ sol: [7] }), current: true });
+    drawnBy(galaxy);
+    const sol = drawnField(PickerField, "Sol choice");
+    expect(sol.items.map((item) => item.label)).toEqual(["Keep", "Normal system", "Pre-FTL Earth"]);
+
+    usePrepareStore.setState({ preview: previewOf({ sol: [7] }, { profile: "paint_a_galaxy" }) });
+    drawnBy(galaxy);
+    expect(drawnField(PickerField, "Sol choice").items.map((item) => item.label)).toContain(
+      "UNE seat",
+    );
+  });
+
+  it("counts what keeping capitals clear turns plain, and turns it off from its checkbox", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      preview: previewOf({ guardians: [3, 4] }, { kept_clear: [3], changes: 2 }),
+      current: true,
+    });
+    expect(drawnBy(galaxy)).toContain(
+      "Turns 1 system within 2 jumps of a capital into ordinary stars.",
+    );
+    drawnCheckbox().onChange();
+    expect(usePrepareStore.getState().options.clear_around_seats).toBe(false);
+    expect(galaxy()).toContain(CLEAR_AROUND_HINT);
+    usePrepareStore.getState().setClearAroundSeats(true);
+  });
+
+  it("warns under Wormhole pairs and in the footer when taking them out cuts systems off", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      choices: { ...usePrepareStore.getState().choices, wormhole_pairs: "none" },
+      preview: previewOf(
+        { wormhole_pairs: [5, 6], empire_seats: [8] },
+        { cut_off: [6, 7, 8], changes: 2 },
+      ),
+      current: true,
+    });
+    const html = galaxy();
+    expect(html).toContain(
+      "Taking these pairs out cuts 3 systems off from the rest of the map, including a seat.",
+    );
+    expect(html).toContain(
+      "Left out of the new game: wormhole pairs and 3 systems cut off from the rest of the map.",
+    );
   });
 });

@@ -6,7 +6,7 @@ Renamed nebula 0 from "NAME_N_Heart_Galaxy" to "Heart of the Galaxy"
 touched: []
 inverse: RenameNebula { index: 0, name: "NAME_N_Heart_Galaxy" }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
-… and 2 other issues
+… and 3 other issues
 
 --- scenario
 +++ scenario

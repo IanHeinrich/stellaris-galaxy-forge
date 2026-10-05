@@ -6,7 +6,7 @@ Set initializer of 3 systems
 touched: [1, 16, 3018]
 inverse: Batch { description: "Set initializer of 3 systems", ops: [SetInitializer { system: 3018, initializer: Some("random_empire_init_01") }, SetInitializer { system: 16, initializer: None }, SetInitializer { system: 1, initializer: Some("misc_system_init_01") }] }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
-… and 2 other issues
+… and 3 other issues
 
 --- scenario
 +++ scenario

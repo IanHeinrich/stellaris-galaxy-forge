@@ -20,6 +20,8 @@ beforeEach(() => {
       profile: "plain",
       rows: PREPARE_ROWS.map((row) => ({ row, systems: row === "enclaves" ? [3, 4, 5] : [] })),
       changes: 0,
+      kept_clear: [],
+      cut_off: [],
     },
   });
 });

@@ -149,7 +149,7 @@ static_galaxy_scenario = {
 	system = { id = "110" name = "Sugeylia" position = { x = -194.08 y = -134.98 } initializer = distar_phaseshift_system }
 	system = { id = "111" name = "Falmir" position = { x = -6.63 y = -159.56 } initializer = basic_init_01 }
 	system = { id = "112" name = "Qifitar" position = { x = 138.61 y = -310.5 } initializer = living_planet_system }
-	system = { id = "113" name = "Dwithim" position = { x = -122.86 y = 244.72 } initializer = basic_init_02 }
+	system = { id = "113" name = "Dwithim" position = { x = -122.86 y = 244.72 } }
 	system = { id = "114" name = "Moscot" position = { x = -145.02 y = -109.98 } initializer = trinary_init_02 }
 	system = { id = "115" name = "Tau_Cygni" position = { x = 289.2 y = 164.45 } initializer = hostile_init_mining_drones }
 	system = { id = "116" name = "Melitane" position = { x = 239.41 y = 303.4 } initializer = abandoned_gateways_01 }

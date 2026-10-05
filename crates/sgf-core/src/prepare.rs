@@ -86,8 +86,9 @@ pub enum PrepareChoice {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PrepareOptions {
-    /// The systems the game would roll within [`CLEAR_JUMPS`] lanes of a seat get Plain
-    /// system instead.
+    /// Every system the game would roll within [`CLEAR_JUMPS`] lanes of a seat gets Plain
+    /// system instead, whichever row it stands in: one its row takes the initializer
+    /// from, and one with no initializer that its row keeps as it is.
     pub clear_around_seats: bool,
 }
 
@@ -347,7 +348,8 @@ pub fn profile(session: &Session) -> ScenarioProfile {
 /// The one batch that writes `choices` over `rows`, one member per change; `None` when they
 /// change nothing. A row left out of `choices` is kept. Members follow [`PrepareRow::ALL`],
 /// each row's systems in the order `rows` lists them. Under `options`, the systems
-/// [`kept_clear`] names get Plain system where their row's choice is Game decides.
+/// [`kept_clear`] names get Plain system: in place of the member that would empty one, and
+/// after the rows for one no row writes.
 pub fn build(
     session: &Session,
     rows: &[RowSystems],
@@ -355,14 +357,47 @@ pub fn build(
     draw: &PlainDraw,
     options: &PrepareOptions,
 ) -> Result<Option<Op>, PrepareError> {
-    use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, Plain, PreFtlEarth, UneSeat};
     let plan = Plan::new(session, rows, choices)?;
+    let mut ops = row_ops(&plan, draw)?;
+    if options.clear_around_seats {
+        keep_clear(&plan, &mut ops, draw)?;
+    }
+    if ops.is_empty() {
+        return Ok(None);
+    }
+    let changed = changed_in(plan.graph, &ops);
+    ops.extend(header_counts(plan.profile, plan.graph, &ops));
+    Ok(Some(Op::Batch {
+        description: format!("Prepared {} for a new game", plural(changed, "system")),
+        ops,
+    }))
+}
+
+/// The systems [`build`] gives Plain system when it keeps the space around seats clear:
+/// every system the game would roll once the batch applies, because its row leaves it with
+/// no initializer or takes its initializer away, that lies within [`CLEAR_JUMPS`] lanes of a
+/// system holding a seat then, and that is not a plain system already. Wormholes are not
+/// jumps. Refused where [`build`] refuses. Sorted.
+pub fn kept_clear(
+    session: &Session,
+    rows: &[RowSystems],
+    choices: &[RowChoice],
+    draw: &PlainDraw,
+) -> Result<Vec<u32>, PrepareError> {
+    let plan = Plan::new(session, rows, choices)?;
+    let mut ops = row_ops(&plan, draw)?;
+    keep_clear(&plan, &mut ops, draw)
+}
+
+/// The members the rows' choices write, in [`PrepareRow::ALL`] order.
+fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
+    use PrepareChoice::{GameDecides, GameNames, GenericStart, Keep, Plain, PreFtlEarth, UneSeat};
     let Plan {
         graph,
         profile,
         sol,
         ..
-    } = plan;
+    } = *plan;
     let reseated = match plan.chosen.get(&PrepareRow::Sol) {
         Some(UneSeat) => sol.map(|node| node.id),
         _ => None,
@@ -394,17 +429,11 @@ pub fn build(
                 ops.extend(nodes.iter().filter_map(|n| dialect::game_names(profile, n)));
             }
             (_, GameDecides) => {
-                for node in nodes {
-                    let near = options.clear_around_seats && plan.near_seats.contains(&node.id);
-                    match near {
-                        true if dialect::is_plain(profile, &node.initializer, draw) => {}
-                        true => {
-                            let plain = dialect::plain_system(profile, node.id, draw)?;
-                            ops.extend(initializer(node, Some(plain)));
-                        }
-                        false => ops.extend(dialect::game_decides(profile, node)),
-                    }
-                }
+                ops.extend(
+                    nodes
+                        .iter()
+                        .filter_map(|n| dialect::game_decides(profile, n)),
+                );
             }
             (_, GenericStart | Plain | PreFtlEarth | UneSeat) => {
                 for node in nodes {
@@ -429,36 +458,68 @@ pub fn build(
             (_, PrepareChoice::None) => {}
         }
     }
-    if ops.is_empty() {
-        return Ok(None);
-    }
-    let changed = changed_in(graph, &ops);
-    ops.extend(header_counts(profile, graph, &ops));
-    Ok(Some(Op::Batch {
-        description: format!("Prepared {} for a new game", plural(changed, "system")),
-        ops,
-    }))
+    Ok(ops)
 }
 
-/// The systems [`build`] gives Plain system when it keeps the space around seats clear:
-/// each one whose row's choice is Game decides, that lies within [`CLEAR_JUMPS`] lanes of a
-/// system that holds a seat once the batch applies, and that is not a plain system
-/// already. Wormholes are not jumps. Refused where [`build`] refuses. Sorted.
-pub fn kept_clear(
-    session: &Session,
-    rows: &[RowSystems],
-    choices: &[RowChoice],
+/// Give every system near a seat that the game would roll once `ops` apply a plain system:
+/// the member that takes its initializer away becomes one that writes a plain system, and
+/// one that held a plain system keeps it. A system no member writes gets its plain system
+/// after them. Returns the systems this changes, sorted.
+fn keep_clear(
+    plan: &Plan<'_>,
+    ops: &mut Vec<Op>,
     draw: &PlainDraw,
 ) -> Result<Vec<u32>, PrepareError> {
-    let plan = Plan::new(session, rows, choices)?;
-    let graph = plan.graph;
-    let changes = |id: &&u32| {
-        graph
-            .systems
-            .get(id)
-            .is_some_and(|node| !dialect::is_plain(plan.profile, &node.initializer, draw))
-    };
-    Ok(plan.near_seats.iter().filter(changes).copied().collect())
+    let written: HashMap<u32, usize> = ops
+        .iter()
+        .enumerate()
+        .filter_map(|(i, op)| match op {
+            Op::SetInitializer { system, .. } => Some((*system, i)),
+            _ => None,
+        })
+        .collect();
+    let mut kept = Vec::new();
+    let mut dropped = Vec::new();
+    let mut added = Vec::new();
+    for &id in &plan.near_seats {
+        let Some(node) = plan.graph.systems.get(&id) else {
+            continue;
+        };
+        let at = written.get(&id).copied();
+        let rolled = match at {
+            Some(i) => matches!(
+                ops[i],
+                Op::SetInitializer {
+                    initializer: None,
+                    ..
+                }
+            ),
+            None => node.initializer.is_empty(),
+        };
+        if !rolled {
+            continue;
+        }
+        if dialect::is_plain(plan.profile, &node.initializer, draw) {
+            dropped.extend(at);
+            continue;
+        }
+        let plain = dialect::plain_system(plan.profile, id, draw)?;
+        let op = Op::SetInitializer {
+            system: id,
+            initializer: Some(plain),
+        };
+        match at {
+            Some(i) => ops[i] = op,
+            None => added.push(op),
+        }
+        kept.push(id);
+    }
+    dropped.sort_unstable();
+    for i in dropped.into_iter().rev() {
+        ops.remove(i);
+    }
+    ops.extend(added);
+    Ok(kept)
 }
 
 /// The systems connected to the rest of the map before `batch` and not after it, read as
@@ -504,7 +565,7 @@ struct Plan<'a> {
     sol: Option<&'a SystemNode>,
     /// The systems that hold a seat once the batch applies.
     seats: BTreeSet<u32>,
-    /// The systems in a Game decides row within [`CLEAR_JUMPS`] lanes of one of `seats`.
+    /// The systems within [`CLEAR_JUMPS`] lanes of one of `seats`, `seats` left out.
     near_seats: BTreeSet<u32>,
 }
 
@@ -538,14 +599,8 @@ impl<'a> Plan<'a> {
             near_seats: BTreeSet::new(),
         };
         plan.seats = plan.seats_after();
-        let near = within(graph, &plan.seats, CLEAR_JUMPS);
-        plan.near_seats = PrepareRow::ALL
-            .into_iter()
-            .filter(|row| plan.chosen.get(row) == Some(&PrepareChoice::GameDecides))
-            .flat_map(|row| in_row(&plan.systems, row))
-            .copied()
-            .filter(|id| near.contains(id))
-            .collect();
+        let near = graph.within_jumps(&plan.seats, CLEAR_JUMPS);
+        plan.near_seats = near.difference(&plan.seats).copied().collect();
         Ok(plan)
     }
 
@@ -606,35 +661,6 @@ fn nodes<'g>(
 ) -> Vec<&'g SystemNode> {
     let ids = in_row(systems, row);
     ids.iter().filter_map(|id| graph.systems.get(id)).collect()
-}
-
-/// `from` and every system within `jumps` lanes of it.
-fn within(graph: &GalaxyGraph, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> {
-    let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::new();
-    for system in graph.systems.values() {
-        for lane in system
-            .lanes
-            .iter()
-            .filter(|l| graph.systems.contains_key(&l.to))
-        {
-            adjacent.entry(system.id).or_default().push(lane.to);
-            adjacent.entry(lane.to).or_default().push(system.id);
-        }
-    }
-    let mut reached = from.clone();
-    let mut frontier: Vec<u32> = from.iter().copied().collect();
-    for _ in 0..jumps {
-        let mut next = Vec::new();
-        for id in frontier {
-            for &to in adjacent.get(&id).map(Vec::as_slice).unwrap_or_default() {
-                if reached.insert(to) {
-                    next.push(to);
-                }
-            }
-        }
-        frontier = next;
-    }
-    reached
 }
 
 /// The one Sol UNE seat seats. Several Sols are refused, and so is a Sol seat another

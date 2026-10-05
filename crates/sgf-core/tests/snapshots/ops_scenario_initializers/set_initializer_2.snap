@@ -6,7 +6,7 @@ Set the initializer of Coruscant #2 to misc_system_init_01
 touched: [2]
 inverse: SetInitializer { system: 2, initializer: Some("custom_starting_init_01") }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
-… and 2 other issues
+… and 3 other issues
 
 --- scenario
 +++ scenario

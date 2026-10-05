@@ -14,7 +14,7 @@ mod spawn;
 mod systems;
 mod waylines;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
@@ -236,6 +236,36 @@ impl Galaxy {
         systems::mark_stale(&mut self.systems, ids);
         let waylines = waylines::compute(self);
         self.waylines = waylines;
+    }
+
+    /// `from` and every system within `jumps` hyperlanes of it. A wormhole, a gateway or an
+    /// L-Gate is not a jump.
+    pub fn within_jumps(&self, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> {
+        let mut adjacent: HashMap<u32, Vec<u32>> = HashMap::new();
+        for system in self.systems.values() {
+            for lane in system
+                .lanes
+                .iter()
+                .filter(|l| self.systems.contains_key(&l.to))
+            {
+                adjacent.entry(system.id).or_default().push(lane.to);
+                adjacent.entry(lane.to).or_default().push(system.id);
+            }
+        }
+        let mut reached = from.clone();
+        let mut frontier: Vec<u32> = from.iter().copied().collect();
+        for _ in 0..jumps {
+            let mut next = Vec::new();
+            for id in frontier {
+                for &to in adjacent.get(&id).map(Vec::as_slice).unwrap_or_default() {
+                    if reached.insert(to) {
+                        next.push(to);
+                    }
+                }
+            }
+            frontier = next;
+        }
+        reached
     }
 
     /// Connected components over lanes and wormholes (undirected); each sorted by id,

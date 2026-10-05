@@ -6,6 +6,7 @@ Renamed system #16 to Alderaan
 touched: [16]
 inverse: RenameSystem { system: 16, name: "" }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
+info rolled_near_seat: Within 2 hyperlane jumps of a seat, the game fills Alderaan and Corellia at random. Nothing keeps leviathans, marauder homes or L-Gates away from a capital.
 … and 2 other issues
 
 --- scenario

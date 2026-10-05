@@ -19,8 +19,10 @@ import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import {
+  cutOffSeats,
   leftOutRows,
   nearestPreset,
+  offeredChoices,
   PREPARE_ROWS,
   PREPARE_SECTION,
   presetOf,
@@ -35,11 +37,15 @@ const stored = stubPrefs();
 function previewOf(
   changes: number,
   filled: Partial<Record<PrepareRow, number[]>> = { enclaves: [1, 2] },
+  beside: Partial<Pick<PreparePreview, "kept_clear" | "cut_off">> = {},
 ): PreparePreview {
   return {
     profile: "plain",
     rows: PREPARE_ROWS.map((row) => ({ row, systems: filled[row] ?? [] })),
     changes,
+    kept_clear: [],
+    cut_off: [],
+    ...beside,
   };
 }
 
@@ -157,6 +163,46 @@ describe("the Prepare choices", () => {
     prepare().hover(null);
     expect(ringedSystems(prepare())).toEqual([]);
   });
+
+  it("ring the systems taking wormhole pairs out cuts off, and count the seats among them", async () => {
+    mockedIpc.preparePreview.mockResolvedValue(
+      previewOf(4, { wormhole_pairs: [5, 6], empire_seats: [7, 9] }, { cut_off: [6, 7, 8] }),
+    );
+    prepare().setChoice("wormhole_pairs", "none");
+    await until(() => expect(prepare().current).toBe(true));
+    prepare().hover("wormhole_pairs");
+    expect(ringedSystems(prepare())).toEqual([5, 6, 7, 8]);
+    expect(cutOffSeats(prepare().preview)).toBe(1);
+  });
+
+  it("offer a UNE seat for Sol only on a Paint a Galaxy map", () => {
+    expect(offeredChoices("sol", "plain")).toEqual(["keep", "plain", "pre_ftl_earth"]);
+    expect(offeredChoices("sol", "paint_a_galaxy")).toContain("une_seat");
+  });
+});
+
+describe("keeping the space around capitals clear", () => {
+  it("is on by default, sent with every preview, and remembered apart from the preset", async () => {
+    expect(prepare().options).toEqual({ clear_around_seats: true });
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(3, {}, { kept_clear: [4, 5] }));
+    prepare().setPreset("bare_shell");
+    await until(() => expect(prepare().preview?.kept_clear).toEqual([4, 5]));
+    expect(mockedIpc.preparePreview.mock.calls[0][1]).toEqual({ clear_around_seats: true });
+
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(3));
+    prepare().setClearAroundSeats(false);
+    expect(prepare().current).toBe(false);
+    await until(() => expect(prepare().preview?.kept_clear).toEqual([]));
+    expect(mockedIpc.preparePreview.mock.calls[1][1]).toEqual({ clear_around_seats: false });
+    expect(stored.get(PREF_KEYS.prepareClearAroundSeats)).toBe("false");
+    expect(presetOf(prepare().choices)).toBe("bare_shell");
+
+    prepare().setPreset("faithful");
+    expect(prepare().options.clear_around_seats).toBe(false);
+    prepare().reset();
+    expect(prepare().options.clear_around_seats).toBe(false);
+    prepare().setClearAroundSeats(true);
+  });
 });
 
 describe("Apply", () => {
@@ -181,6 +227,15 @@ describe("Apply", () => {
     expect(summaryLine(presetOf(choices), preview?.changes ?? null, applied)).toBe(
       "Fresh start · 6 systems changed",
     );
+  });
+
+  it("writes with the space around capitals as the preview had it", async () => {
+    await previewed(5);
+    prepare().setClearAroundSeats(false);
+    await until(() => expect(prepare().current).toBe(true));
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    expect(await prepare().apply()).toBe(true);
+    expect(mockedIpc.prepareApply.mock.calls[0][1]).toEqual({ clear_around_seats: false });
   });
 
   it("waits for the preview of the choices as they now stand", async () => {

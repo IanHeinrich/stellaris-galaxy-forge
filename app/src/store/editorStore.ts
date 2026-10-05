@@ -5,6 +5,7 @@ import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { HistoryView } from "../generated/HistoryView";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
+import type { PrepareOptions } from "../generated/PrepareOptions";
 import type { RowChoice } from "../generated/RowChoice";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
@@ -255,7 +256,10 @@ export interface EditorState {
    * Writes the Prepare choices over the open scenario as one edit: its history line and how many
    * systems it changed, or null when nothing was written.
    */
-  prepareForNewGame(choices: RowChoice[]): Promise<{ seq: number; changes: number } | null>;
+  prepareForNewGame(
+    choices: RowChoice[],
+    options: PrepareOptions,
+  ): Promise<{ seq: number; changes: number } | null>;
   /**
    * Makes `a` and `b` the two ends of a new wormhole pair: in a save a natural wormhole in each,
    * in a scenario a Paint a Galaxy pair numbered past every pair in use.
@@ -472,10 +476,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
       return true;
     },
 
-    async prepareForNewGame(choices) {
+    async prepareForNewGame(choices, options) {
       let changes = 0;
       const result = await edits.runEdit(async () => {
-        const prepared = await ipc.prepareApply(choices);
+        const prepared = await ipc.prepareApply(choices, options);
         changes = prepared?.changes ?? 0;
         return prepared?.edit ?? null;
       });

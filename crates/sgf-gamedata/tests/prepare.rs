@@ -16,7 +16,7 @@ use sgf_core::prepare::{
     self, PlainDraw, PrepareChoice, PrepareError, PrepareOptions, PreparePreset, PrepareRow,
     RowChoice, RowSystems,
 };
-use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
+use sgf_core::projections::galaxy::{GalaxyGraph, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_gamedata::GameData;
@@ -796,10 +796,16 @@ fn bare_shell_gives_plain_systems_within_two_jumps_of_a_seat_unless_told_not_to(
     let draw = plain_draw(gd, 0);
     for (name, session) in samples() {
         let rows = classify(&session, gd);
+        let empty = session
+            .graph()
+            .systems
+            .values()
+            .filter(|s| s.initializer.is_empty() && !header_counts::is_seat(s));
         let decided: BTreeSet<u32> = choices
             .iter()
             .filter(|c| c.choice == PrepareChoice::GameDecides)
             .flat_map(|c| row_of(&rows, c.row))
+            .chain(empty.map(|s| s.id))
             .collect();
         let clear: BTreeSet<u32> = prepare::kept_clear(&session, &rows, &choices, &draw)
             .expect("the choices are offered")
@@ -905,4 +911,59 @@ fn taking_out_the_wormhole_pairs_reports_the_systems_it_cuts_off() {
         .map(|issue| issue.systems)
         .collect();
     assert_eq!(disconnected, [cut]);
+}
+
+#[test]
+fn faithful_fills_a_system_left_empty_beside_a_seat_unless_told_not_to() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let draw = plain_draw(gd, 0);
+    let faithful = PreparePreset::Faithful.choices();
+    for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
+        let mut session = scenario(common::open_4_4(), profile);
+        let graph = session.graph();
+        let beside = beside_a_seat(graph);
+        session
+            .apply(Op::SetInitializer {
+                system: beside,
+                initializer: None,
+            })
+            .expect("empty the neighbour");
+        let rows = classify(&session, gd);
+        assert_eq!(
+            prepare::kept_clear(&session, &rows, &faithful, &draw),
+            Ok(vec![beside]),
+            "{profile:?}"
+        );
+        let op = build(gd, &session, &rows, &faithful).expect("a change");
+        let Op::Batch { ops, .. } = &op else {
+            panic!("one batch");
+        };
+        assert_eq!(ops.len(), 1, "{profile:?}");
+        let before = current(&session);
+        session.apply(op).expect("apply faithful");
+        assert!(is_plain(&session, &draw, beside), "{profile:?}");
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), before, "undo is byte-exact");
+
+        let off = PrepareOptions {
+            clear_around_seats: false,
+        };
+        let left = prepare::build(&session, &rows, &faithful, &draw, &off);
+        assert_eq!(left, Ok(None), "{profile:?}");
+    }
+}
+
+/// The first system one lane from a seat that is no seat itself and has an initializer.
+fn beside_a_seat(graph: &GalaxyGraph) -> u32 {
+    let systems = graph.order.iter().filter_map(|id| graph.systems.get(id));
+    let seats = systems.filter(|s| header_counts::is_seat(s));
+    seats
+        .flat_map(|seat| seat.lanes.iter().map(|lane| lane.to))
+        .find(|id| {
+            let next = &graph.systems[id];
+            !header_counts::is_seat(next) && !next.initializer.is_empty()
+        })
+        .expect("a system beside a seat")
 }

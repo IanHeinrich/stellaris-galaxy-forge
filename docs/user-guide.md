@@ -552,7 +552,9 @@ instead of generating a random galaxy. There are three ways to make one:
   Stellaris, save on day one, and open that save here. You get the game's
   own layout, names and empires to edit.
 - Pick any save and click "Open as scenario", or use File → "Export as
-  scenario…". The original save remains unchanged.
+  scenario…". The original save remains unchanged. After "Open as
+  scenario", the Galaxy page opens with
+  [Prepare for a new game](#prepare-for-a-new-game).
 
 The file starts with a `# created by` line naming the Galaxy Forge
 version. Each time Galaxy Forge or Paint a Galaxy saves the file, it adds
@@ -615,6 +617,84 @@ In a scenario, the Symmetry button under the tools, or Shift+M, mirrors your
 edits around the centre of the galaxy or repeats them 2 to 8 times
 around it. Saves have no symmetry.
 
+### Prepare for a new game
+
+A save opened as a scenario keeps everything the old game placed: old
+capitals, origin homes, the systems events made, guardians and wormhole
+pairs. Prepare for a new game lets you choose what a new game keeps.
+
+Use File → "Prepare for a new game…", or select nothing and open the
+section on the Inspector's Galaxy page. It works on any scenario. It
+needs game data from your Stellaris install to sort the systems into
+rows.
+
+Start from a preset:
+
+- Faithful keeps everything.
+- Fresh start keeps the map and its features. Home starts get a generic
+  start, and Sol and the origin and event systems become plain systems.
+- Bare shell keeps the seats, home starts, home neighbours, fallen empires
+  and system names. It removes wormhole pairs and makes Sol an ordinary
+  system. The game fills everything else.
+
+Then change any row. Hover a row to ring its systems on the map. The
+choices are:
+
+- Keep leaves the systems as they are.
+- Plain system turns them into ordinary systems.
+- Game decides leaves them with no initializer. The game fills them at
+  random when the new game starts, as it would in a random galaxy.
+- None removes the seats, fallen empires or wormhole pairs.
+- Generic start gives a seat one of the game's random empire starts.
+- Game names clears the names, and the game names the systems.
+
+Each row says what the new game gets when you leave it out. Apply makes
+every change as one step, and Ctrl+Z undoes it.
+
+#### Sol
+
+The Sol row covers every Sol on the map:
+
+- Keep leaves Sol as it is.
+- Normal system turns Sol into an ordinary system. A Sol seat stays a
+  seat with a generic start.
+- Pre-FTL Earth keeps one Sol with Earth and a pre-FTL human
+  civilisation on it, and no seat. Any other Sol becomes an ordinary
+  system.
+- UNE seat keeps Sol as a seat that only the United Nations of Earth
+  takes. It is only on maps for Paint a Galaxy.
+
+An empire with a Sol start builds its own Sol on whichever seat it gets.
+If you keep Sol on a seat and another empire draws it, that empire starts
+on Earth and the map has two Sols. Fresh start and Bare shell use Normal
+system.
+
+#### Keep the space around capitals clear
+
+The game fills Game decides systems with no protection around capitals.
+In a random galaxy it keeps leviathans, marauder homes and L-Gates away
+from empires. On a scenario, these and other specials such as voidworms
+can land right beside a capital.
+
+"Keep the space around capitals clear" is ticked by default. It gives
+Game decides systems within 2 hyperlane jumps of a seat a plain system
+instead. The Issues tab also notes systems near a seat that have no
+initializer.
+
+#### What the new game does
+
+- Specials you keep spawn whatever the galaxy settings say. A kept
+  marauder clan, L-Gate or abandoned gateway appears even with its
+  setting off. The settings only add specials to systems the game fills.
+- Fallen empires need Paint a Galaxy. On a plain scenario the game builds
+  none, and Keep only keeps their systems.
+- An origin with a home system of its own replaces the seat's start.
+  Ocean Paradise, Shattered Ring, Red Giant and Knights of the Toxic God
+  do this. Unplugged and Arc Welders also add systems of their own.
+- With Wormhole pairs on None, the game still adds random pairs from the
+  Wormhole Pairs setting. Removing a pair can cut part of the map off,
+  and the row warns you when it does.
+
 ## Play your scenario
 
 ### A map for Paint a Galaxy
@@ -670,9 +750,9 @@ empires and some event systems.
 
 A scenario made without the checkbox has to sit in the
 `map/setup_scenarios` folder of a mod enabled in your playset. Without
-Paint a Galaxy, empires can start on the wrong homeworlds, and marauders
-and fallen empires may fail to appear. Your own mod has to deal with
-those.
+Paint a Galaxy, empires can start on the wrong homeworlds, marauders may
+fail to appear, and the game builds no fallen empires. Your own mod has
+to deal with those.
 
 ## Save and back up
 

@@ -16,3 +16,4 @@ nebula "Far Cloud" (-90, 90) r=20 systems=[9]
 warning system_isolated: system 9 has no hyperlanes
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
 warning position_range: system 111 position was a range and will be fixed on move
+info rolled_near_seat: Within 2 hyperlane jumps of a seat, the game fills #16 and Corellia at random. Nothing keeps leviathans, marauder homes or L-Gates away from a capital.

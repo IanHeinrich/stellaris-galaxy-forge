@@ -5,7 +5,8 @@
  */
 export type PrepareOptions = { 
 /**
- * The systems the game would roll within [`CLEAR_JUMPS`] lanes of a seat get Plain
- * system instead.
+ * Every system the game would roll within [`CLEAR_JUMPS`] lanes of a seat gets Plain
+ * system instead, whichever row it stands in: one its row takes the initializer
+ * from, and one with no initializer that its row keeps as it is.
  */
 clear_around_seats: boolean, };

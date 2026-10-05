@@ -6,7 +6,7 @@ Set the initializer of system #16 to random_empire_init_01
 touched: [16]
 inverse: SetInitializer { system: 16, initializer: None }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
-… and 2 other issues
+… and 3 other issues
 
 --- scenario
 +++ scenario
