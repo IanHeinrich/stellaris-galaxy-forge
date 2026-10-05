@@ -178,7 +178,7 @@ pub fn warmed() -> MutexGuard<'static, Session> {
     WARMED.lock().unwrap_or_else(|held| held.into_inner())
 }
 
-/// `session` with its details built. A sample as it opened, with nothing applied, is
+/// `session` with its details built. A sample as it opened, with nothing applied or undone, is
 /// swapped for a copy of that sample warmed once per binary.
 pub fn warm(mut session: Session) -> Session {
     static WARM: [OnceLock<Mutex<Session>>; 3] = [const { OnceLock::new() }; 3];
@@ -189,7 +189,11 @@ pub fn warm(mut session: Session) -> Session {
             .is_some_and(|sample| std::ptr::eq(sample.original(), original))
     });
     match sample {
-        Some((cache, path)) if session.history().undo.is_empty() && !session.is_dirty() => {
+        Some((cache, path))
+            if session.history().undo.is_empty()
+                && session.history().redo.is_empty()
+                && !session.is_dirty() =>
+        {
             let warmed = WARM[slot(cache)].get_or_init(|| {
                 let mut session = open_cached(cache, path);
                 session.warm_details().expect("build details");

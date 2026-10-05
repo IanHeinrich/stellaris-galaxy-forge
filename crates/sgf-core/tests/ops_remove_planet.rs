@@ -10,7 +10,6 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::{round_trip, unified_diff};
-use common::line_diff::{middle, renumbered};
 use common::{current, open, open_4_5};
 
 pub(crate) fn delete(planet: u32) -> Op {
@@ -64,13 +63,12 @@ fn footprint(session: &Session, result: &OpResult, whole: bool) -> String {
 fn rewrites(session: &Session) -> String {
     let original = String::from_utf8_lossy(session.doc().original()).into_owned();
     let edited = String::from_utf8_lossy(&current(session)).into_owned();
-    let (original, edited, skipped) = middle(&original, &edited, 2);
     let diff = TextDiff::configure()
         .algorithm(Algorithm::Patience)
-        .diff_lines(original, edited);
+        .diff_lines(&original, &edited);
     let mut out = String::new();
     for hunk in diff.unified_diff().context_radius(2).iter_hunks() {
-        let text = renumbered(&hunk.to_string(), skipped);
+        let text = hunk.to_string();
         let mut added = text.lines().skip(1).filter(|line| line.starts_with('+'));
         let tombstones_only = added.clone().next().is_some()
             && added.all(|line| line.trim_start_matches('+').trim().ends_with("=none"));
