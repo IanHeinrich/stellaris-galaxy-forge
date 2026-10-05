@@ -1,7 +1,7 @@
 import { Container } from "pixi.js";
 import type { GalaxyDelta } from "../../generated/GalaxyDelta";
 import type { Outcome } from "../../lib/prepareCopy";
-import { OUTCOME_COLORS, OUTCOME_STROKES } from "../../lib/visual/outcomeColors";
+import { OUTCOME_COLORS, OUTCOME_STROKE } from "../../lib/visual/outcomeColors";
 import { RING_RADIUS } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
@@ -13,13 +13,13 @@ function specOf(outcome: Outcome): RingSpec {
   return {
     color: OUTCOME_COLORS[outcome],
     radius: RING_RADIUS.outcome,
-    ...OUTCOME_STROKES[outcome],
+    ...OUTCOME_STROKE,
   };
 }
 
 /**
- * A ring in its outcome's colour round every system the Prepare choices change: an ordinary
- * star, one the game rolls, a new seat or a new zone. A kept system has none.
+ * A ring round every new starting position and new fallen empire zone the Prepare choices draw,
+ * each in its own colour. Nothing else is marked.
  */
 export class OutcomesLayer implements MapLayer {
   readonly id = "outcomes" as const;

@@ -8,7 +8,7 @@ import { OutcomesLayer } from "./OutcomesLayer";
 import { layerIdsFor, layersFor } from "./registry";
 import { mapContext, mapNode, strokes, viewport } from "./fixture";
 
-const NODES = [mapNode(0, 0, "Kept"), mapNode(1, 10, "Plain"), mapNode(2, 20, "Seat")];
+const NODES = [mapNode(0, 0, "Kept"), mapNode(1, 10, "Zone"), mapNode(2, 20, "Seat")];
 
 function drawn(outcomes: Map<number, Outcome>): OutcomesLayer {
   const layer = new OutcomesLayer(new DrawnPositions());
@@ -27,15 +27,15 @@ function ringsAt(layer: OutcomesLayer, x: number): (number | undefined)[] {
 }
 
 describe("the outcomes layer", () => {
-  it("rings each changed system in its outcome's colour and leaves a kept one bare", () => {
+  it("rings each new starting position and zone in its colour, and nothing else", () => {
     const layer = drawn(
       new Map<number, Outcome>([
-        [1, "ordinary"],
+        [1, "zone"],
         [2, "seat"],
       ]),
     );
     expect(ringsAt(layer, 0)).toEqual([]);
-    expect(ringsAt(layer, 10)).toEqual([OUTCOME_COLORS.ordinary]);
+    expect(ringsAt(layer, 10)).toEqual([OUTCOME_COLORS.zone]);
     expect(ringsAt(layer, 20)).toEqual([OUTCOME_COLORS.seat]);
 
     layer.setOutcome(new Map());

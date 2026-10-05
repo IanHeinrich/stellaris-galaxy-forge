@@ -1,8 +1,8 @@
 /**
- * Prepare for a new game: every row label, choice label and answer the Galaxy page's section
- * shows, one table per scenario profile. Each choice answers three questions: what the new game
- * has, whether this map or the game decides it, and whether what Forge shows is what the game
- * gets. What the game does with a row depends on the scripts behind the map, so the two
+ * Prepare for a new game: every row label, choice name and line the Galaxy page's section shows,
+ * one table per scenario profile, in the words of the game's galaxy setup screen. Each choice has
+ * a tag for who places what the row holds in the new game, and one or two sentences, like a
+ * tooltip. What the game does with a row depends on the scripts behind the map, so the two
  * profiles word some rows differently.
  */
 
@@ -15,11 +15,16 @@ import { counted } from "./text";
 /** A line that may name the row's count, which is null until the preview is read. */
 export type Line = string | ((n: number | null) => string);
 
-/** What a choice gives: the three answers, in the order the section shows them. */
+/**
+ * Who places what a choice leaves in the new game: this map, where it shows now; the game, when
+ * the game starts; or no one.
+ */
+export type Placer = "forge" | "game" | "none";
+
+/** What a choice does: its tag, and its sentences. */
 export interface Answers {
-  newGame: Line;
-  decidedBy: Line;
-  shownHere: string;
+  placer: Placer;
+  text: Line;
 }
 
 export interface RowCopy {
@@ -33,37 +38,37 @@ export interface RowCopy {
   answers: Partial<Record<PrepareChoice, Answers>>;
 }
 
-/** The three questions' labels. */
-export const ANSWER_LABELS: Record<keyof Answers, string> = {
-  newGame: "New game",
-  decidedBy: "Decided by",
-  shownHere: "Shown here",
+/** Each tag's words. */
+export const PLACER_LABELS: Record<Placer, string> = {
+  forge: "Galaxy Forge",
+  game: "The game",
+  none: "No one",
 };
 
 /** Each choice's name, unless the row names it its own way. */
 export const CHOICE_LABELS: Record<PrepareChoice, string> = {
-  keep: "Keep",
-  generic_start: "Generic start",
-  plain: "Plain system",
-  game_decides: "Game decides",
-  none: "None",
-  game_names: "Game names",
+  keep: "Keep as is",
+  generic_start: "Random starting system",
+  plain: "Normal systems",
+  game_decides: "Let the game roll",
+  none: "Remove",
+  game_names: "Random names",
   pre_ftl_earth: "Pre-FTL Earth",
-  une_seat: "UNE seat",
-  random_seats: "New random seats",
+  une_seat: "United Nations of Earth start",
+  random_seats: "New random positions",
   random_zones: "New random zones",
 };
 
 export const PRESET_LABELS: Record<PreparePreset | "custom", string> = {
-  faithful: "Faithful",
-  fresh_start: "Fresh start",
-  bare_shell: "Bare shell",
+  faithful: "Keep everything",
+  fresh_start: "New empires",
+  bare_shell: "Layout only",
   custom: "Custom",
 };
 
 export const PREPARE_TITLE = "Prepare for a new game";
 export const PREPARE_INTRO =
-  "Pick what the new game takes from this map. Point at a row to see what each choice gives.";
+  "Choose what the new game takes from this map. Hover over a row to see what each choice does.";
 export const PREPARE_NEEDS_GAME_DATA =
   "Load the game data to sort this scenario's systems into rows.";
 export const PREPARE_MENU_ITEM = "Prepare for a new game…";
@@ -74,70 +79,67 @@ export const NOTHING_TO_CHANGE = "Nothing to change.";
 export const COUNTING = "Counting the changes…";
 export const ROWS_LABEL = "Row by row";
 export const REROLL_LABEL = "Reroll";
-export const REROLL_HINT = "Draws the new seats and zones again.";
-export const CLEAR_AROUND_LABEL = "Keep the space around capitals clear";
+export const REROLL_HINT = "Draws the starting positions and zones again.";
+export const CLEAR_AROUND_LABEL =
+  "Keep leviathans, marauders and L-Gates away from starting positions";
 export const NO_FALLEN_EMPIRES =
-  "A plain scenario never has fallen empires. Paint a Galaxy builds them from zones.";
-export const FAITHFUL_PLAIN = "No fallen empires: a plain scenario never has them.";
+  "A custom map gets no fallen empires without Paint a Galaxy, which spawns them from zones.";
+export const FAITHFUL_PLAIN = "A custom map gets no fallen empires without Paint a Galaxy.";
 export const CURRENT_MARK = "current";
 
-const MAP = "This map.";
-const GAME = "The game.";
-const ORDINARY = "This map. These systems become ordinary stars.";
-const YES = "Yes.";
-const NO = "No.";
-
-/** `9 empires`, or `empires` while the count is not read. */
-function amount(n: number | null, noun: string): string {
-  return n === null ? `${noun}s` : counted(n, noun);
+/** `these 9 positions`, `this position`, or `these positions` while the count is not read. */
+function these(n: number | null, noun?: string): string {
+  if (n === 1) return noun === undefined ? "this one" : `this ${noun}`;
+  const count = n === null ? "" : ` ${n}`;
+  return noun === undefined ? `these${count}` : `these${count} ${noun}s`;
 }
 
-/** `All 3`, `This one` for a row of one, or `All of them` while the count is not read. */
-function all(n: number | null): string {
-  if (n === null) return "All of them";
-  return n === 1 ? "This one" : `All ${n}`;
+/** `one` for a count of one, `many` for any other. */
+function verb(n: number | null, one: string, many: string): string {
+  return n === 1 ? one : many;
 }
 
 function capital(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** What the section says of each preset. */
-export const PRESET_ANSWERS: Record<PreparePreset, Answers> = {
+/** What each preset does, and who places it where one tag says it. */
+export const PRESET_ANSWERS: Record<PreparePreset, { placer?: Placer; text: string }> = {
   faithful: {
-    newGame:
-      "The galaxy as the save left it, with new empires in the old capitals. An empire " +
-      "whose origin brings its own home system still builds it there.",
-    decidedBy: "This map, all of it.",
-    shownHere: "Everything.",
+    placer: "forge",
+    text:
+      "Everything stays as it is on this map. New empires start in the old capitals, in the " +
+      "same systems.",
   },
   fresh_start: {
-    newGame: "The same galaxy with new empires and random starting systems.",
-    decidedBy: "This map, except each capital's starting system.",
-    shownHere: "Everything but the capital systems.",
+    placer: "forge",
+    text:
+      "The galaxy stays as it is. Every empire starts at an old capital's position with a " +
+      "random starting system. Sol and the old origin systems become normal systems.",
   },
   bare_shell: {
-    newGame: "A random galaxy on this map's shape.",
-    decidedBy: "The game, except where the capitals sit, which is drawn fresh here.",
-    shownHere: "Positions, hyperlanes, nebulae and the new capital positions. Nothing else.",
+    text:
+      "Only the star positions, hyperlanes and nebulae stay. Galaxy Forge draws new starting " +
+      "positions, and on a Paint a Galaxy map new fallen empire zones. The game rolls " +
+      "everything else, as if this were a new random galaxy.",
   },
 };
 
-/** What keeping the space around capitals clear gives while it is on. */
-export function keptClearLine(systems: number): string {
-  return (
-    `Turns ${counted(systems, "system")} within 2 jumps of a capital into ordinary stars, ` +
-    "with no leviathan, marauder home or L-Gate there, as a random galaxy does."
-  );
-}
+/** What keeping threats away from starting positions does while it is on. */
+export const KEPT_CLEAR: Answers = {
+  placer: "forge",
+  text: (n) =>
+    `Turns the ${n === null ? "systems" : counted(n, "system")} within 2 jumps of a starting ` +
+    `position into ${verb(n, "a normal system", "normal systems")}. In a random galaxy the game ` +
+    "keeps these threats out of that space; on a custom map it doesn't, so Galaxy Forge does.",
+};
 
-/** The warning while the space around capitals is not kept clear. */
+/** The warning while threats are not kept away from starting positions. */
 export const NOT_KEPT_CLEAR: Answers = {
-  newGame:
-    "Whatever the game rolls there. A leviathan, a marauder home or an L-Gate can land " +
-    "beside a capital, because the game has no such rule on a static map.",
-  decidedBy: GAME,
-  shownHere: NO,
+  placer: "game",
+  text:
+    "A leviathan, a marauder clan or the L-Gate can spawn right next to a starting position. " +
+    "The game has no rule against it on a custom map.",
 };
 
 /** The warning under Wormhole pairs when taking them out strands part of the map. */
@@ -152,7 +154,7 @@ export function changesLine(changes: number): string {
   return `Changes ${counted(changes, "system")}.`;
 }
 
-/** `Custom: Fresh start with 2 rows changed.` */
+/** `Custom: New empires with 2 rows changed.` */
 export function customLine(nearest: PreparePreset, differing: number): string {
   return `Custom: ${PRESET_LABELS[nearest]} with ${counted(differing, "row")} changed.`;
 }
@@ -175,7 +177,7 @@ export function summaryLine(
   return `${PRESET_LABELS[preset]} · nothing changed`;
 }
 
-/** A row's count: `9 seats`, `1 system`. */
+/** A row's count: `9 positions`, `1 system`. */
 export function rowCount(copy: RowCopy, n: number): string {
   return counted(n, copy.unit);
 }
@@ -185,61 +187,67 @@ export function lineText(line: Line, n: number | null): string {
   return typeof line === "string" ? line : line(n);
 }
 
-/** What the new game has when `copy`'s row takes `choice`, with `n` systems in the row. */
-export function newGameLine(
+/** What `copy`'s row does when it takes `choice`, with `n` systems in the row. */
+export function choiceText(
   copy: RowCopy,
   choice: PrepareChoice,
   n: number | null,
 ): string | undefined {
   const answers = copy.answers[choice];
-  return answers === undefined ? undefined : lineText(answers.newGame, n);
+  return answers === undefined ? undefined : lineText(answers.text, n);
 }
+
+/** Why `row` takes no choice on a map of `profile`; undefined while it takes one. */
+export function rowDisabledReason(row: PrepareRow, profile: ScenarioProfile): string | undefined {
+  return row === "fallen_empires" && profile === "plain" ? NO_FALLEN_EMPIRES : undefined;
+}
+
+const NO_GUARANTEED_WORLDS =
+  "Starting positions get no guaranteed habitable worlds; the game adds none on a custom map.";
+const PAINT_GUARANTEED_WORLDS =
+  "Paint a Galaxy adds guaranteed habitable worlds as your Guaranteed Habitable Worlds setting says.";
+const OWN_HOME_SYSTEM =
+  "An empire whose origin or empire design brings its own home system builds that instead.";
 
 const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
   empire_seats: {
-    label: "Empire seats",
-    unit: "seat",
-    holds: "The systems where empires start.",
+    label: "Starting positions",
+    unit: "position",
+    holds: "Where empires start.",
     answers: {
       keep: {
-        newGame: (n) => `${capital(amount(n, "empire"))} starting at these positions.`,
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) => `Empires start at ${these(n, "position")}.`,
       },
       random_seats: {
-        newGame: (n) =>
-          `${capital(amount(n, "empire"))} at new positions, spaced 75 units apart as a random ` +
-          "galaxy spaces them.",
-        decidedBy: "This map: Forge draws them here, and Reroll draws again.",
-        shownHere: "Yes, once drawn.",
+        placer: "forge",
+        text: (n) =>
+          `${n === null ? "New starting positions" : counted(n, "new starting position")}, ` +
+          "spread out as the game spreads empires in a random galaxy. Reroll draws them again.",
       },
       none: {
-        newGame:
-          "Empires in systems the game picks, with no spacing rule. Some AI empires may " +
-          "fail to start, and no capital gets guaranteed worlds.",
-        decidedBy: "The game, anywhere on the map.",
-        shownHere: NO,
+        placer: "game",
+        text:
+          "No fixed starting positions. The game drops each empire into a random existing " +
+          "system with no spacing: starts can be next to each other or in a black hole, and " +
+          "some AI empires may not spawn at all.",
       },
     },
   },
   home_starts: {
-    label: "Home starts",
-    unit: "seat",
-    holds: "The starting systems the old capitals had, such as Sol or Deneb.",
+    label: "Starting systems",
+    unit: "position",
+    holds: "The home systems the old capitals had, such as Sol or Deneb.",
     answers: {
       keep: {
-        newGame:
-          "These starting systems for empires whose home system is Random and whose " +
-          "origin brings none. Any other empire builds its own here.",
-        decidedBy: MAP,
-        shownHere: "Yes, except for those origins.",
+        placer: "forge",
+        text: `Empires start in these systems as they are now. ${OWN_HOME_SYSTEM}`,
       },
       generic_start: {
-        newGame:
-          "One of the game's six random empire starts per seat, drawn when you Apply. " +
-          "An empire whose origin brings a home system still builds that one.",
-        decidedBy: "This map, at each seat.",
-        shownHere: "The seat yes, the system no.",
+        placer: "game",
+        text:
+          "Each starting position gets one of the game's random starting systems. " +
+          OWN_HOME_SYSTEM,
       },
     },
   },
@@ -250,55 +258,49 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     choices: { plain: "Normal system" },
     answers: {
       keep: {
-        newGame:
-          "Sol with Earth here. Whoever draws the seat gets it. An empire starting in " +
-          "Sol elsewhere builds a second Sol, and the game treats this Earth as the real one.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text:
+          "Sol stays, with Earth. Whichever empire starts there gets it. An empire that starts " +
+          "in Sol somewhere else builds a second Sol.",
       },
       plain: {
-        newGame:
-          "No Sol from here. Empires that start in Sol build their own where they land. " +
-          "With none, the game sometimes adds one.",
-        decidedBy: "The empires that start in Sol, or the game.",
-        shownHere: NO,
+        placer: "none",
+        text: "Sol becomes a normal system. Empires that start in Sol build their own where they land.",
       },
       pre_ftl_earth: {
-        newGame: "Sol with pre-FTL humans. No empire starts here, and the game adds no other Sol.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text:
+          "Sol stays, with a pre-FTL humanity on Earth. No empire starts there, and the game " +
+          "adds no other Sol.",
       },
       une_seat: {
-        newGame: "Sol for the United Nations of Earth only.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: "Only the United Nations of Earth can start in Sol.",
       },
       game_decides: {
-        newGame: "Whatever the game rolls here, and Sol only if an empire brings it.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "game",
+        text: "Sol is rerolled like any other system. There is no Sol unless an empire brings its own.",
       },
     },
   },
   home_neighbours: {
-    label: "Home neighbours",
+    label: "Guaranteed habitable worlds",
     unit: "system",
-    holds: "The guaranteed habitable worlds placed beside each old capital.",
+    holds: "The guaranteed habitable worlds next to each old capital.",
     answers: {
       keep: {
-        newGame: "These guaranteed worlds beside the old capitals, each with its own planet class.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "stays", "stay")} next to the old capitals, with the ` +
+          `planet class ${verb(n, "it has", "they have")} now.`,
       },
       plain: {
-        newGame: "No guaranteed worlds from here, and the game adds none on a static map.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "none",
+        text: `These become normal systems. ${NO_GUARANTEED_WORLDS}`,
       },
       game_decides: {
-        newGame: "Whatever the game rolls here, with no guaranteed worlds.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "none",
+        text: `These are rerolled. ${NO_GUARANTEED_WORLDS}`,
       },
     },
   },
@@ -308,26 +310,23 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     holds: "Systems an origin or an event brought with it, such as a Lost Colony's parent.",
     answers: {
       keep: {
-        newGame:
-          "These systems as places on the map. New empires' origins bring their own " +
-          "systems regardless.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "stays", "stay")} as ${verb(n, "it is", "they are")}. ` +
+          "New empires' origins bring their own systems anyway.",
       },
       plain: {
-        newGame:
-          "Ordinary stars here. Lost Colony and Broken Shackles empires get no parent " +
-          "system, because the game only rolls it. Event systems still appear: the Sealed " +
-          "System, a Scion's fallen empire and Hegemon partners.",
-        decidedBy: MAP,
-        shownHere: NO,
+        placer: "none",
+        text:
+          "These become normal systems. Lost Colony and Broken Shackles empires get no parent " +
+          "system, because the game only rolls it. Event systems such as the Sealed System " +
+          "still appear.",
       },
       game_decides: {
-        newGame:
-          "Whatever the game rolls. A rolled Lost Colony parent adds the Commonwealth of " +
-          "Man as an extra empire with no seat.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These are rerolled. If the game rolls a Lost Colony parent, the Commonwealth of Man " +
+          "appears as an extra empire.",
       },
     },
   },
@@ -338,50 +337,50 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     answers: {},
   },
   marauder_clans: {
-    label: "Marauder clans",
-    unit: "system",
+    label: "Marauders",
+    unit: "clan",
     holds: "Marauder clan homes.",
     answers: {
       keep: {
-        newGame: "These clans, whatever the Marauders setting says.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n, "clan"))} ${verb(n, "spawns", "spawn")} where ` +
+          `${verb(n, "it is", "they are")} now, whatever your Marauder Empires setting says.`,
       },
       plain: {
-        newGame:
-          "No clans from here. The Marauders setting only adds clans to systems the " +
-          "game rolls.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "none",
+        text:
+          "These become normal systems. The Marauder Empires setting only puts clans in " +
+          "rerolled systems, so with nothing rerolled there are no marauders.",
       },
       game_decides: {
-        newGame: "Clans as the Marauders setting says.",
-        decidedBy: "The game, wherever it puts them.",
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These are rerolled. Marauders spawn wherever the game puts them, as many as your " +
+          "Marauder Empires setting says.",
       },
     },
   },
   guardians: {
-    label: "Guardians and leviathans",
+    label: "Leviathans and guardians",
     unit: "system",
     holds: "Leviathan lairs and guardian systems.",
     answers: {
       keep: {
-        newGame: (n) => `${all(n)}, even with the Leviathans setting off.`,
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "spawns", "spawn")} where ` +
+          `${verb(n, "it is", "they are")} now.`,
       },
       plain: {
-        newGame:
-          "No guardians from here. The game may roll some elsewhere, as the Leviathans " +
-          "setting says.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These become normal systems. Leviathans may still spawn elsewhere; the game rolls " +
+          "them at random, and no galaxy setting controls them.",
       },
       game_decides: {
-        newGame: "Whatever the Leviathans setting says.",
-        decidedBy: "The game, wherever it rolls them.",
-        shownHere: NO,
+        placer: "game",
+        text: "These are rerolled. Leviathans spawn wherever the game puts them, as in a random galaxy.",
       },
     },
   },
@@ -391,88 +390,87 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     holds: "Enclave stations: traders, curators, artisans, shroudwalkers, salvagers.",
     answers: {
       keep: {
-        newGame: (n) => `${all(n)}, even with the Enclaves setting off.`,
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "spawns", "spawn")} where ` +
+          `${verb(n, "it is", "they are")} now.`,
       },
       plain: {
-        newGame:
-          "No enclaves from here. The game may roll some elsewhere, as the Enclaves " +
-          "setting says.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These become normal systems. Enclaves may still spawn elsewhere; the game rolls them " +
+          "at random, and no galaxy setting controls them.",
       },
       game_decides: {
-        newGame: "Whatever the Enclaves setting says.",
-        decidedBy: "The game, wherever it rolls them.",
-        shownHere: NO,
+        placer: "game",
+        text: "These are rerolled. Enclaves spawn wherever the game puts them, as in a random galaxy.",
       },
     },
   },
   primitives: {
-    label: "Primitives",
+    label: "Pre-FTL civilizations",
     unit: "system",
-    holds: "Systems with a pre-FTL civilisation.",
+    holds: "Systems with a pre-FTL civilization.",
     answers: {
       keep: {
-        newGame: (n) =>
-          `A pre-FTL civilisation in ${n === 1 ? "this system" : "each of these systems"}, ` +
-          "rolled fresh, whatever the Pre-FTL setting says.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${n === 1 ? "This one" : `Each of ${these(n)}`} gets a pre-FTL civilization, rolled ` +
+          "fresh, whatever your Pre-FTL Civilizations setting says.",
       },
       plain: {
-        newGame: "No pre-FTL civilisations from here.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "none",
+        text: "These become normal systems with no pre-FTL civilization.",
       },
       game_decides: {
-        newGame: "Pre-FTL civilisations as the Pre-FTL setting says.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These are rerolled. Pre-FTL civilizations appear as your Pre-FTL Civilizations " +
+          "setting says.",
       },
     },
   },
   special_systems: {
-    label: "Special systems",
+    label: "Unique systems",
     unit: "system",
-    holds: "One-off systems: the L-Gate, caravaneers, precursor homes.",
+    holds: "One-of-a-kind systems: the L-Gate, caravaneers, precursor homes.",
     answers: {
       keep: {
-        newGame:
-          "These one-offs, such as the L-Gate, caravaneers and precursor homes, whatever " +
-          "their settings say.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "stays", "stay")} where ` +
+          `${verb(n, "it is", "they are")}, even if turned off in your galaxy settings.`,
       },
       plain: {
-        newGame: "No one-offs from here. The game rolls its own as its settings say.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These become normal systems. The game rolls its own unique systems elsewhere, as " +
+          "your galaxy settings say.",
       },
       game_decides: {
-        newGame:
-          "One-offs as their settings say, wherever the game rolls them. A Lost Colony " +
-          "parent among them brings the Commonwealth of Man too.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These are rerolled. Unique systems appear wherever the game puts them, as your " +
+          "galaxy settings say.",
       },
     },
   },
   ordinary_systems: {
-    label: "Ordinary systems",
+    label: "Regular systems",
     unit: "system",
     holds: "Every other star, with the planets it has now.",
     answers: {
       keep: {
-        newGame: "These systems with the planets they have now.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "keeps", "keep")} the planets ` +
+          `${verb(n, "it has", "they have")} now.`,
       },
       game_decides: {
-        newGame: "New planets in every one of them, rolled by the game. Positions and lanes stay.",
-        decidedBy: "The game for the planets, this map for positions and lanes.",
-        shownHere: "Positions yes, contents no.",
+        placer: "game",
+        text: (n) =>
+          `The game rolls new planets in ${n === null ? "all of them" : n === 1 ? "it" : `all ${n}`}. ` +
+          "Positions and hyperlanes stay.",
       },
     },
   },
@@ -482,14 +480,16 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     holds: "The wormholes this map links.",
     answers: {
       keep: {
-        newGame: "These pairs, plus 5 random pairs per step of the Wormhole Pairs slider.",
-        decidedBy: "This map, plus the game's own pairs.",
-        shownHere: "These pairs yes.",
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n, "wormhole"))} ${verb(n, "stays", "stay")}. The game still adds its own on top, ` +
+          "five random pairs for every step of your Wormhole Pairs setting.",
       },
       none: {
-        newGame: "Only the slider's pairs. Taking these out can cut systems off.",
-        decidedBy: GAME,
-        shownHere: NO,
+        placer: "game",
+        text:
+          "These wormholes go. The game still adds its own, five random pairs for every step of " +
+          "your Wormhole Pairs setting.",
       },
     },
   },
@@ -498,8 +498,11 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
     unit: "system",
     holds: "The names the save gave its systems.",
     answers: {
-      keep: { newGame: "These names.", decidedBy: MAP, shownHere: YES },
-      game_names: { newGame: "The game's names.", decidedBy: GAME, shownHere: NO },
+      keep: { placer: "forge", text: "Systems keep their names." },
+      game_names: {
+        placer: "game",
+        text: "The game names every system, as in a random galaxy.",
+      },
     },
   },
 };
@@ -509,37 +512,37 @@ const PAINT_ROWS: Record<PrepareRow, RowCopy> = {
   home_neighbours: {
     ...PLAIN_ROWS.home_neighbours,
     answers: {
-      ...PLAIN_ROWS.home_neighbours.answers,
       keep: {
-        newGame: "These guaranteed worlds beside the old capitals, with the empire's planet class.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `${capital(these(n))} ${verb(n, "stays", "stay")} next to the old capitals and ` +
+          `${verb(n, "takes", "take")} the new empire's planet class.`,
       },
-      plain: {
-        newGame: "No guaranteed worlds from here. Paint a Galaxy adds them from its slider.",
-        decidedBy: ORDINARY,
-        shownHere: NO,
-      },
+      plain: { placer: "game", text: `These become normal systems. ${PAINT_GUARANTEED_WORLDS}` },
+      game_decides: { placer: "game", text: `These are rerolled. ${PAINT_GUARANTEED_WORLDS}` },
     },
   },
   fallen_empires: {
-    ...PLAIN_ROWS.fallen_empires,
-    holds: "Paint a Galaxy fallen empire zones.",
+    label: "Fallen empires",
+    unit: "zone",
+    holds: "Where Paint a Galaxy spawns fallen empires.",
     answers: {
       keep: {
-        newGame: "Fallen empires built in these zones, as the Fallen Empires slider allows.",
-        decidedBy: MAP,
-        shownHere: YES,
+        placer: "forge",
+        text: (n) =>
+          `Fallen empires spawn in ${these(n, "zone")}, as many as your Fallen Empires ` +
+          "setting says.",
       },
       random_zones: {
-        newGame: "Fallen empires built in new zones, as the Fallen Empires slider allows.",
-        decidedBy: "This map: Forge fits the zones here, and Reroll draws again.",
-        shownHere: "Yes, once drawn.",
+        placer: "forge",
+        text:
+          "Up to six new zones, inside the galaxy with at most two on the rim. Your Fallen " +
+          "Empires setting decides how many become fallen empires; the rest fill with normal " +
+          "systems. Reroll draws them again.",
       },
       none: {
-        newGame: "No fallen empires. The game adds none on a static map.",
-        decidedBy: "Nothing: there are none to place.",
-        shownHere: NO,
+        placer: "none",
+        text: "No fallen empires. The game adds none on a custom map.",
       },
     },
   },
@@ -555,13 +558,11 @@ export function choiceLabel(copy: RowCopy, choice: PrepareChoice): string {
   return copy.choices?.[choice] ?? CHOICE_LABELS[choice];
 }
 
-/** What each colour of the map's outcome marks says. */
+/** What each colour of the map's marks says: only what Galaxy Forge places anew. */
 export const OUTCOME_LABELS = {
-  ordinary: "Ordinary star",
-  rolled: "Rolled by the game",
-  seat: "New seat",
-  zone: "New zone",
+  seat: "New starting position",
+  zone: "New fallen empire zone",
 } as const;
 
-/** What the map marks a system as under the current choices; a kept system has no mark. */
+/** What the map marks a system as: a new starting position or a new fallen empire zone. */
 export type Outcome = keyof typeof OUTCOME_LABELS;

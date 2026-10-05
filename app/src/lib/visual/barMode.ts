@@ -23,9 +23,10 @@ export function barModeOf(kind: DocumentKind | null, inSystem: boolean): BarMode
 
 /**
  * What the bar shows besides the layers: the point-of-interest kind buttons, the masters over a
- * source's group, and the tool rail with the active brush's options.
+ * source's group, the tool rail with Select and undo and redo, the brush tools with the active
+ * brush's options, and the symmetry under them.
  */
-export type BarControl = LayerId | "kinds" | "masters" | "tools";
+export type BarControl = LayerId | "kinds" | "masters" | "rail" | "tools" | "symmetry";
 
 const GALAXY: readonly BarMode[] = [
   ...new Set(Object.values(DOCUMENT_KINDS).map((info) => info.barMode)),
@@ -50,7 +51,9 @@ const BAR_MODES: Readonly<Record<BarControl, readonly BarMode[]>> = {
   >),
   kinds: GALAXY,
   masters: GALAXY,
+  rail: EVERYWHERE,
   tools: GALAXY,
+  symmetry: GALAXY,
 };
 
 /** The commands only some bars take; any other runs on every bar. */

@@ -13,6 +13,7 @@ import { useFileSessionStore } from "../../store/fileSessionStore";
 import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
 import { OPEN_RESULT } from "../../store/fixture";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { GALAXY_SCENE, useSceneStore } from "../../store/sceneStore";
 import { useToolStore } from "../../store/toolStore";
 import { ToolOptions } from "./ToolOptions";
 import { ToolRail } from "./ToolRail";
@@ -27,9 +28,23 @@ beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState(), status: "ready" });
   useToolStore.setState({ ...useToolStore.getInitialState() });
   useMapChromeStore.setState({ ...useMapChromeStore.getInitialState() });
+  useSceneStore.setState({ scene: GALAXY_SCENE });
 });
 
 describe("the tool rail", () => {
+  it("lists only Select in the system view, with no symmetry, and keeps undo and redo", () => {
+    useFileSessionStore.setState({ kind: "scenario", capabilities: SCENARIO_CAPABILITIES });
+    expect(rail()).toContain("Paint systems");
+    useSceneStore.setState({ scene: { kind: "system", id: 0 } });
+    const html = rail();
+    const tools = [...html.matchAll(/aria-pressed="[a-z]+" aria-label="([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+    expect(tools).toEqual(["Select"]);
+    expect(html).not.toContain('aria-label="Symmetry"');
+    expect(html).toContain('aria-label="Undo"');
+  });
+
   it("shows Select pressed, with its key in the tooltip", () => {
     expect(button("Select")).toContain('aria-pressed="true"');
     expect(button("Select")).toContain('title="Select (V)"');

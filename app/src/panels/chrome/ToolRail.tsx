@@ -2,9 +2,11 @@ import type { ReactNode } from "react";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { shortcutLabel, toolAction } from "../../lib/keys";
 import { TOOLS, toolRequires, type Tool } from "../../lib/tools";
+import { barShows } from "../../lib/visual/barMode";
 import { redo, undo } from "../../store/commands";
 import { nextRedo, nextUndo, useEditorStore } from "../../store/editorStore";
 import { useCanEdit, useFileSessionStore } from "../../store/fileSessionStore";
+import { useBarMode } from "../../store/sceneStore";
 import { useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
 import { HeightMark } from "../HeightMark";
@@ -63,19 +65,26 @@ function titled(what: string, key: string): string {
   return `${what} (${key})`;
 }
 
-/** The map's tools down its left edge, the symmetry after them, and undo and redo at the foot (ADR 0005). */
+/**
+ * The map's tools down its left edge, the symmetry after them, and undo and redo at the foot
+ * (ADR 0005). The bar's mode says which of the tools and whether the symmetry show.
+ */
 export function ToolRail() {
   const tool = useToolStore((s) => s.tool);
   const setTool = useToolStore((s) => s.setTool);
   const capabilities = useFileSessionStore(documentCapabilities);
-  const symmetryShown = useCanEdit("symmetry");
+  const mode = useBarMode();
+  const symmetryShown = useCanEdit("symmetry") && barShows(mode, "symmetry");
+  const brushes = barShows(mode, "tools");
   const undoEntry = useEditorStore(nextUndo);
   const redoEntry = useEditorStore(nextRedo);
 
   return (
     <div className="tool-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
       <div className="tool-rail-group" role="group" aria-label="Tools">
-        {TOOLS.filter((t) => supports(capabilities, toolRequires(t.id))).map((t) => (
+        {TOOLS.filter(
+          (t) => (t.id === "select" || brushes) && supports(capabilities, toolRequires(t.id)),
+        ).map((t) => (
           <button
             key={t.id}
             type="button"

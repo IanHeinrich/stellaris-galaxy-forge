@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { popupPlace, type Across } from "./iconPickerPlace";
+import { opensUp, popupPlace, type Across } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { FilterField } from "./parts";
@@ -52,15 +52,16 @@ function shownAcross(el: HTMLElement): Across {
   return { left: left + POPUP_EDGE_PX, right: right - POPUP_EDGE_PX };
 }
 
-/** Hangs `popup` from whichever edge of `picker` keeps it inside the box that shows it, narrowed where neither does. */
+/**
+ * Hangs `popup` from whichever edge of `picker` keeps it inside the box that shows it, narrowed
+ * where neither does, and above the picker where it has no room below.
+ */
 function fitPopup(popup: HTMLElement, picker: HTMLElement) {
   const { style } = popup;
   style.left = style.right = style.minWidth = style.maxWidth = "";
-  const { edge, maxWidth } = popupPlace(
-    picker.getBoundingClientRect(),
-    shownAcross(picker),
-    popup.offsetWidth,
-  );
+  const box = picker.getBoundingClientRect();
+  popup.classList.toggle("up", opensUp(box, popup.offsetHeight, window.innerHeight));
+  const { edge, maxWidth } = popupPlace(box, shownAcross(picker), popup.offsetWidth);
   if (edge === "right") {
     style.left = "auto";
     style.right = "0";

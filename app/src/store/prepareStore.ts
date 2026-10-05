@@ -58,8 +58,8 @@ export interface PrepareState {
   error: string | null;
   applied: Applied | null;
   applying: boolean;
-  /** Row by row was opened or closed by hand; null follows the choices, open while they are custom. */
-  rowsOpen: boolean | null;
+  /** Row by row is open: it starts open for each document, and the player can fold it. */
+  rowsOpen: boolean;
   /** Not now was pressed, so a scenario just taken from a save shows the whole Galaxy page. */
   dismissed: boolean;
   /** The map marks each system's outcome: the section is open on the Galaxy page, or the setup screen is up. */
@@ -148,34 +148,14 @@ export function draws(choices: PrepareChoices): boolean {
   );
 }
 
-/** What each choice turns a row's systems into on the map; a choice not here leaves no mark. */
-const ROW_OUTCOMES: Partial<Record<PrepareChoice, Outcome>> = {
-  plain: "ordinary",
-  game_decides: "rolled",
-  generic_start: "rolled",
-};
-
-function rowOutcome(row: PrepareRow, choice: PrepareChoice): Outcome | undefined {
-  if (row === "fallen_empires" && choice === "none") return "ordinary";
-  return ROW_OUTCOMES[choice];
-}
-
 /**
- * What each system becomes under the choices the preview was read for: an ordinary star, rolled
- * by the game, a new seat or a new zone. A system kept as it is has no entry. A new seat or zone
- * outranks keeping capitals clear, which outranks the row's own choice.
+ * What Galaxy Forge places anew under the choices the preview was read for: each new starting
+ * position and each new fallen empire zone, by system. Nothing else is marked.
  */
-export function systemOutcomes(
-  state: Pick<PrepareState, "choices" | "preview">,
-): Map<number, Outcome> {
+export function systemOutcomes(state: Pick<PrepareState, "preview">): Map<number, Outcome> {
   const outcomes = new Map<number, Outcome>();
-  const { preview, choices } = state;
+  const { preview } = state;
   if (preview === null) return outcomes;
-  for (const { row, systems } of preview.rows) {
-    const outcome = rowOutcome(row, choices[row]);
-    if (outcome !== undefined) for (const system of systems) outcomes.set(system, outcome);
-  }
-  for (const system of preview.kept_clear) outcomes.set(system, "ordinary");
   for (const zone of preview.new_zones) outcomes.set(zone.system, "zone");
   for (const system of preview.new_seats) outcomes.set(system, "seat");
   return outcomes;
@@ -228,16 +208,15 @@ const PAINT_ONLY: ReadonlySet<PrepareChoice> = new Set<PrepareChoice>(["une_seat
 
 /**
  * The choices `row` offers on a map of `profile`: a UNE seat and new random zones only on a
- * Paint a Galaxy map, and nothing the core has not built yet.
+ * Paint a Galaxy map.
  */
 export function offeredChoices(
   row: PrepareRow,
   profile: ScenarioProfile,
 ): readonly PrepareChoice[] {
-  return PREPARE_ROW_CHOICES[row].filter((choice) => {
-    if (profile !== "paint_a_galaxy" && PAINT_ONLY.has(choice)) return false;
-    return true;
-  });
+  return PREPARE_ROW_CHOICES[row].filter(
+    (choice) => profile === "paint_a_galaxy" || !PAINT_ONLY.has(choice),
+  );
 }
 
 /** The empire seats among the systems the choices would cut off. */
@@ -290,7 +269,7 @@ function initial() {
     error: null,
     applied: null as Applied | null,
     applying: false,
-    rowsOpen: null as boolean | null,
+    rowsOpen: true,
     dismissed: false,
   };
 }

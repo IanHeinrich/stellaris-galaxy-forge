@@ -518,7 +518,7 @@ asteroids with it. The kinds come from your install, so you need the
 game data loaded to change one.
 
 In the system view, each belt and the inner radius has six small ring
-handles. They show when you point at the belt or the circle. Drag any
+handles. They show when you hover over the belt or the circle. Drag any
 of them to change the radius. Right-click a belt's handle and choose Remove
 belt to remove it. Its asteroids stay where they are. Right-click empty
 space and choose Add belt here to add a belt at that distance from the
@@ -620,9 +620,9 @@ around it. Saves have no symmetry.
 ### Prepare for a new game
 
 A save opened as a scenario keeps everything the old game placed: old
-capitals, origin homes, the systems events made, guardians and wormhole
-pairs. Prepare for a new game lets you choose what the new game takes
-from the map.
+capitals, origin systems, the systems events made, leviathans and
+wormhole pairs. Prepare for a new game lets you choose what the new game
+takes from the map.
 
 After "Open as scenario", the Galaxy page shows only this section, with
 Apply at the bottom so it stays in view. Click "Not now" to see the
@@ -631,61 +631,50 @@ new game…", or select nothing and open the section on the Galaxy page.
 It needs game data from your Stellaris install to sort the systems into
 rows.
 
-Every choice answers three questions:
+Start from a preset:
 
-- New game: what you get in the new game, and whether a New Game
-  setting changes that.
-- Decided by: this map, or the game.
-- Shown here: whether what Galaxy Forge shows is what you get. "No"
-  means the game decides when the new game starts.
+- Keep everything leaves the map as it is. New empires start in the old
+  capitals, in the same systems.
+- New empires keeps the galaxy. Every empire starts at an old capital's
+  position with a random starting system, and Sol and the old origin
+  systems become normal systems.
+- Layout only keeps the star positions, hyperlanes and nebulae. Galaxy
+  Forge draws new starting positions, and on a Paint a Galaxy map new
+  fallen empire zones. The game rolls everything else, as if this were a
+  new random galaxy.
 
-Start from a preset. The section shows its three answers under the
-switch.
+Under "Row by row" each row has its own choice, from Starting positions
+to System names. Hover over a row to ring its systems on the map and to
+see a card beside the inspector. The card says what the row holds and
+what each choice does. Each choice has a tag for who places those things
+in the new game:
 
-- Faithful gives you the galaxy as the save left it, with new empires
-  in the old capitals.
-- Fresh start gives you the same galaxy with new empires and random
-  starting systems.
-- Bare shell gives you a random galaxy on this map's shape. The game
-  decides everything but where the capitals sit.
+- Galaxy Forge: this map places them, where you see them now.
+- The game: the game places them when the game starts, as your galaxy
+  settings say. You don't see where until then.
+- No one: they aren't placed at all.
 
-"Row by row" opens the fourteen rows, from Empire seats to System
-names. It opens by itself once your choices match no preset. Point at a
-row to ring its systems on the map and to see a card beside the
-inspector. The card says what the row holds and gives the three answers
-for every choice the row offers. Under a row you've changed, one line
-says what the new game gets.
+The same tags show in each row's list. Under a row you've changed, one
+line says what that choice does.
 
-Fallen empires need Paint a Galaxy. On a plain scenario that row can't
-be changed, and Faithful brings no fallen empires.
+A custom map gets no fallen empires without Paint a Galaxy, so on a
+plain scenario the Fallen empires row can't be changed.
 
-New random seats and New random zones are drawn by Galaxy Forge. Click
-Reroll to draw them again.
+New random positions and New random zones are drawn by Galaxy Forge. The
+map rings each new starting position and each new fallen empire zone,
+and a legend at its bottom left counts them. Click Reroll to draw them
+again.
 
-#### Keep the space around capitals clear
+#### Keep leviathans, marauders and L-Gates away from starting positions
 
-In a random galaxy the game keeps leviathans, marauder homes and
-L-Gates away from empires. On a static map it has no such rule, so
-anything the game rolls can land right beside a capital.
+In a random galaxy the game keeps these threats away from empires. On a
+custom map it doesn't, so a leviathan, a marauder clan or the L-Gate can
+spawn right next to a starting position.
 
-"Keep the space around capitals clear" is ticked by default. Every
-system the game would roll within 2 hyperlane jumps of a capital gets
-an ordinary star instead. The line under the box counts them. Point at
-the box to ring them on the map. With the box unticked, the warning
-under it says what can happen.
-
-#### What the map shows
-
-While the section is open, the map rings every system the choices
-change:
-
-- Grey: an ordinary star.
-- Blue: the game rolls it when the new game starts.
-- Green: a new seat.
-- Amber: a new fallen empire zone.
-
-Systems you keep have no ring. A legend at the bottom left of the map
-counts each colour.
+This box is ticked by default. Every system the game would roll within
+2 hyperlane jumps of a starting position becomes a normal system
+instead. The line under the box counts them. Hover over the box to ring
+them on the map.
 
 Apply makes every change as one step, and Ctrl+Z undoes it. On a
 scenario opened from a save, undoing the Apply brings the setup back.

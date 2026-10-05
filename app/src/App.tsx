@@ -120,7 +120,9 @@ const EFFECTS: CommandEffects = {
 function App() {
   const status = useFileSessionStore((s) => s.status);
   const shown = useSceneSystem();
-  const tools = barShows(useBarMode(), "tools");
+  const barMode = useBarMode();
+  const rail = barShows(barMode, "rail");
+  const tools = barShows(barMode, "tools");
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
@@ -209,7 +211,7 @@ function App() {
       <TopBar />
       <PaintNotice />
       <div className="main">
-        {status === "ready" && tools && <ToolRail />}
+        {status === "ready" && rail && <ToolRail />}
         <div className="map-area">
           <MapCanvas />
           {status === "ready" && tools && <ToolOptions />}

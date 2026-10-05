@@ -4,7 +4,6 @@ import type { PreparePreset } from "../../../generated/PreparePreset";
 import type { PrepareRow } from "../../../generated/PrepareRow";
 import type { ScenarioProfile } from "../../../generated/ScenarioProfile";
 import {
-  ANSWER_LABELS,
   APPLY_LABEL,
   changesLine,
   choiceLabel,
@@ -14,10 +13,8 @@ import {
   customLine,
   cutOffLine,
   FAITHFUL_PLAIN,
-  keptClearLine,
+  KEPT_CLEAR,
   lineText,
-  newGameLine,
-  NO_FALLEN_EMPIRES,
   NOT_KEPT_CLEAR,
   NOT_NOW_LABEL,
   NOTHING_TO_CHANGE,
@@ -27,13 +24,16 @@ import {
   PREPARE_NEEDS_GAME_DATA,
   PREPARE_TITLE,
   PRESET_ANSWERS,
+  PLACER_LABELS,
   PRESET_LABELS,
   REROLL_HINT,
   REROLL_LABEL,
   rowCount,
+  rowDisabledReason,
   ROWS_LABEL,
   summaryLine,
   type Answers,
+  type Placer,
   type RowCopy,
 } from "../../../lib/prepareCopy";
 import { usePaintLayer } from "../../../store/fileSessionStore";
@@ -69,25 +69,21 @@ function prepRowId(row: PrepareRow): string {
 
 const CARD_ID = "prep-card";
 
-/** Why a plain map's Fallen empires row takes no choice. */
-function disabledReason(row: PrepareRow, profile: ScenarioProfile): string | undefined {
-  return row === "fallen_empires" && profile === "plain" ? NO_FALLEN_EMPIRES : undefined;
+/** Who places what a choice leaves in the new game, as a small chip in that placer's colour. */
+function Tag({ placer }: { placer: Placer }) {
+  return <span className={`prep-tag ${placer}`}>{PLACER_LABELS[placer]}</span>;
 }
 
-/** A choice's three answers, each on a line of its own under its label. */
-function AnswerLines({ answers, n }: { answers: Answers; n: number | null }) {
+/** A choice's tag, then its sentences. */
+function ChoiceLine({ answers, n }: { answers: Answers; n: number | null }) {
   return (
-    <div className="prep-answers">
-      {(["newGame", "decidedBy", "shownHere"] as const).map((key) => (
-        <div key={key}>
-          <span className="k">{ANSWER_LABELS[key]}:</span> {lineText(answers[key], n)}
-        </div>
-      ))}
+    <div className="prep-choice-line">
+      <Tag placer={answers.placer} /> {lineText(answers.text, n)}
     </div>
   );
 }
 
-/** Faithful, Fresh start and Bare shell, and Custom while the choices match none of them. */
+/** The three presets, and Custom while the choices match none of them, and Custom while the choices match none of them. */
 function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
   const choices = usePrepareStore((s) => s.choices);
   const setPreset = usePrepareStore((s) => s.setPreset);
@@ -121,11 +117,19 @@ function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
   );
 }
 
-/** What the chosen preset gives, and on a plain map that Faithful brings no fallen empires. */
+/** What the chosen preset does, and on a plain map that it brings no fallen empires. */
 function PresetAnswers({ preset, profile }: { preset: PreparePreset; profile: ScenarioProfile }) {
+  const { placer, text } = PRESET_ANSWERS[preset];
   return (
     <div className="prep-preset">
-      <AnswerLines answers={PRESET_ANSWERS[preset]} n={null} />
+      <div className="prep-choice-line">
+        {placer !== undefined && (
+          <>
+            <Tag placer={placer} />{" "}
+          </>
+        )}
+        {text}
+      </div>
       {preset === "faithful" && profile === "plain" && (
         <div className="muted">{FAITHFUL_PLAIN}</div>
       )}
@@ -134,12 +138,12 @@ function PresetAnswers({ preset, profile }: { preset: PreparePreset; profile: Sc
 }
 
 /**
- * Keep the space around capitals clear: while on, how many systems it turns into ordinary stars,
- * ringed while the pointer is on it; while off, the warning.
+ * Keep threats away from starting positions: while on, how many systems it turns into normal
+ * systems, ringed on hover; while off, the warning.
  */
 function ClearAroundSeats() {
   const on = usePrepareStore((s) => s.options.clear_around_seats);
-  const kept = usePrepareStore((s) => s.preview?.kept_clear.length ?? 0);
+  const kept = usePrepareStore((s) => s.preview?.kept_clear.length ?? null);
   const setClearAroundSeats = usePrepareStore((s) => s.setClearAroundSeats);
   const hover = usePrepareStore((s) => s.hover);
   return (
@@ -152,10 +156,14 @@ function ClearAroundSeats() {
         <input type="checkbox" checked={on} onChange={() => setClearAroundSeats(!on)} />
         <span>{CLEAR_AROUND_LABEL}</span>
       </label>
-      {on && kept > 0 && <div className="muted prep-note">{keptClearLine(kept)}</div>}
+      {on && kept !== 0 && (
+        <div className="muted prep-note">
+          <ChoiceLine answers={KEPT_CLEAR} n={kept} />
+        </div>
+      )}
       {!on && (
         <div className="ins-warn prep-note">
-          <AnswerLines answers={NOT_KEPT_CLEAR} n={null} />
+          <ChoiceLine answers={NOT_KEPT_CLEAR} n={null} />
         </div>
       )}
     </div>
@@ -205,7 +213,7 @@ function ChoiceRow({
   const hover = usePrepareStore((s) => s.hover);
   const changed = usePrepareStore((s) => changesRow(s, row));
   const offered = offeredChoices(row, profile);
-  const line = changed ? newGameLine(copy, choice, count) : undefined;
+  const answers = changed ? copy.answers[choice] : undefined;
   if (row === "sol" && (count ?? 0) === 0) return null;
   const pick = (key: string | null) => offered.find((offer) => offer === key) ?? null;
   return (
@@ -221,15 +229,26 @@ function ChoiceRow({
       <PickerField
         label={`${copy.label} choice`}
         current={{ key: choice, label: choiceLabel(copy, choice) }}
-        items={offered.map((key) => ({ key, label: choiceLabel(copy, key) }))}
-        disabledReason={disabledReason(row, profile)}
+        items={offered.map((key) => {
+          const placer = copy.answers[key]?.placer;
+          return {
+            key,
+            label: choiceLabel(copy, key),
+            note: placer === undefined ? undefined : <Tag placer={placer} />,
+          };
+        })}
+        disabledReason={rowDisabledReason(row, profile)}
         onActive={(key) => onActive(row, pick(key))}
         onPick={(key) => {
           const picked = pick(key);
           if (picked !== null) setChoice(row, picked);
         }}
       />
-      {line !== undefined && <div className="muted prep-note">{line}</div>}
+      {answers !== undefined && (
+        <div className="muted prep-note">
+          <ChoiceLine answers={answers} n={count} />
+        </div>
+      )}
       {row === "wormhole_pairs" && choice !== "keep" && <CutOffNote />}
     </div>
   );
@@ -237,7 +256,7 @@ function ChoiceRow({
 
 /**
  * The hovered row's card, beside the dock: what the row holds, then each choice it offers with
- * its three answers and the current one marked; while its list is open, the item the list is on.
+ * its tag and sentences and the current one marked; while its list is open, the item the list is on.
  */
 function RowCard({
   row,
@@ -258,7 +277,7 @@ function RowCard({
     () => ({ label: copy.label, category: copy.holds, effects: [] }),
     [copy],
   );
-  const reason = disabledReason(row, profile);
+  const reason = rowDisabledReason(row, profile);
   const shown =
     reason !== undefined ? [] : active !== null ? [active] : offeredChoices(row, profile);
   return (
@@ -278,7 +297,7 @@ function RowCard({
               {choiceLabel(copy, offer)}
               {offer === choice && <span className="muted"> · {CURRENT_MARK}</span>}
             </span>
-            <AnswerLines answers={answers} n={count} />
+            <ChoiceLine answers={answers} n={count} />
           </div>
         );
       })}
@@ -286,7 +305,7 @@ function RowCard({
   );
 }
 
-/** The fourteen rows; the map rings a row's systems while the pointer is on it, and none once they go. */
+/** The fourteen rows; the map rings a row's systems on hover, and none once they go. */
 function ChoiceRows({
   copy,
   profile,
@@ -307,7 +326,7 @@ function ChoiceRows({
   );
 }
 
-/** Row by row: closed until opened, or while the choices match no preset. */
+/** Row by row: open for each document until the player folds it. */
 function RowByRow({
   copy,
   profile,
@@ -317,7 +336,7 @@ function RowByRow({
   profile: ScenarioProfile;
   onActive: (row: PrepareRow, choice: PrepareChoice | null) => void;
 }) {
-  const open = usePrepareStore((s) => s.rowsOpen ?? presetOf(s.choices, profile) === "custom");
+  const open = usePrepareStore((s) => s.rowsOpen);
   const setRowsOpen = usePrepareStore((s) => s.setRowsOpen);
   return (
     <>
@@ -379,7 +398,7 @@ function Footer({ setup }: { setup: boolean }) {
 function PrepareBody({ profile, footer }: { profile: ScenarioProfile; footer?: ReactNode }) {
   const error = usePrepareStore((s) => s.error);
   const hovered = usePrepareStore((s) => s.hovered);
-  const rowsOpen = usePrepareStore((s) => s.rowsOpen ?? presetOf(s.choices, profile) === "custom");
+  const rowsOpen = usePrepareStore((s) => s.rowsOpen);
   const gameData = useGameDataStore((s) => s.status === "ready");
   const [active, setActive] = useState<ActiveItem | null>(null);
   const onActive = useCallback((row: PrepareRow, choice: PrepareChoice | null) => {

@@ -162,35 +162,21 @@ describe("the Prepare choices", () => {
     expect(changed()).toEqual(["guardians"]);
   });
 
-  it("mark each system by what the choices make of it, and a kept one not at all", () => {
-    const choices = {
-      ...PREPARE_PRESETS.plain.faithful,
-      home_starts: "generic_start",
-      guardians: "plain",
-      enclaves: "game_decides",
-      fallen_empires: "none",
-    } as const;
+  it("mark only the new starting positions and fallen empire zones Galaxy Forge draws", () => {
     const preview = previewOf(
       0,
-      { home_starts: [1], guardians: [2], enclaves: [3, 4], fallen_empires: [5], primitives: [6] },
+      { guardians: [2], enclaves: [3, 4], fallen_empires: [5] },
       {
         kept_clear: [4],
         new_seats: [3],
         new_zones: [{ system: 7, zone: { radius: 20 } as never }],
       },
     );
-    expect(Object.fromEntries(systemOutcomes({ choices, preview }))).toEqual({
-      1: "rolled",
-      2: "ordinary",
-      3: "seat",
-      4: "ordinary",
-      5: "ordinary",
-      7: "zone",
-    });
-    expect(systemOutcomes({ choices, preview: null }).size).toBe(0);
+    expect(Object.fromEntries(systemOutcomes({ preview }))).toEqual({ 3: "seat", 7: "zone" });
+    expect(systemOutcomes({ preview: null }).size).toBe(0);
   });
 
-  it("ring what keeping capitals clear turns plain while the pointer is on it", async () => {
+  it("ring what keeping threats away turns into normal systems on hover", async () => {
     mockedIpc.preparePreview.mockResolvedValue(previewOf(1, {}, { kept_clear: [4, 5] }));
     await prepare().refresh();
     prepare().hover("clear_around");
@@ -269,7 +255,7 @@ describe("Apply", () => {
     mockedIpc.preparePreview.mockResolvedValue(previewOf(5));
     prepare().setPreset("fresh_start");
     await until(() => expect(prepare().current).toBe(true));
-    expect(summaryLine("fresh_start", 5, null)).toBe("Fresh start · changes 5 systems");
+    expect(summaryLine("fresh_start", 5, null)).toBe("New empires · changes 5 systems");
 
     mockedIpc.preparePreview.mockResolvedValue(previewOf(0));
     // The edit's own count, which a document edited since the preview may have moved.
@@ -283,7 +269,7 @@ describe("Apply", () => {
     expect(useFileSessionStore.getState().dirty).toBe(true);
     const { choices, preview, applied } = prepare();
     expect(summaryLine(presetOf(choices, "plain"), preview?.changes ?? null, applied)).toBe(
-      "Fresh start · 6 systems changed",
+      "New empires · 6 systems changed",
     );
   });
 

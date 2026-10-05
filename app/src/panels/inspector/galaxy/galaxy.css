@@ -161,15 +161,35 @@
   flex: 1;
 }
 
-.prep-answers {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+.prep-choice-line {
   font-size: var(--text-hint);
 }
 
-.prep-answers .k {
-  color: var(--fg-muted);
+/* Who places a choice's things: one colour per placer wherever the tag shows. */
+.prep-tag {
+  display: inline-block;
+  padding: 0 5px;
+  font-size: var(--text-micro);
+  line-height: 15px;
+  white-space: nowrap;
+  vertical-align: 1px;
+  border: 1px solid;
+  border-radius: 8px;
+}
+
+.prep-tag.forge {
+  color: #7bd88f;
+  background: rgb(123 216 143 / 12%);
+}
+
+.prep-tag.game {
+  color: #60a5fa;
+  background: rgb(96 165 250 / 12%);
+}
+
+.prep-tag.none {
+  color: #9ca3af;
+  background: rgb(156 163 175 / 12%);
 }
 
 .prep-preset {

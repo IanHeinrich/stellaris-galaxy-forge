@@ -76,6 +76,12 @@
 }
 
 /* A fixed width, so the popup doesn't resize as the filter narrows the rows. */
+/* Without room below the field, the list opens above it. */
+.icon-picker-pop.up {
+  top: auto;
+  bottom: 100%;
+}
+
 .icon-picker-pop.icon-picker-filtered {
   width: 260px;
   display: flex;

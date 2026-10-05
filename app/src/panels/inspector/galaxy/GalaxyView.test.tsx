@@ -13,6 +13,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {
+  FAITHFUL_PLAIN,
   NO_FALLEN_EMPIRES,
   NOT_KEPT_CLEAR,
   PREPARE_COPY,
@@ -320,13 +321,7 @@ describe("the Prepare section", () => {
     };
   }
 
-  /** Opens Row by row by hand. */
-  function openRows(): void {
-    drawnBy(galaxy);
-    drawnButton("Row by row").onClick();
-  }
-
-  it("shows only on a scenario, with the preset's answers and the rows behind Row by row", async () => {
+  it("shows only on a scenario, with the preset's line and the rows open under Row by row", async () => {
     await open("save");
     expect(galaxy()).not.toContain(PREPARE_TITLE);
 
@@ -334,36 +329,34 @@ describe("the Prepare section", () => {
     await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
     let html = drawnBy(galaxy);
     expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
-    expect(html).toContain(PRESET_ANSWERS.faithful.decidedBy as string);
-    expect(html).toContain("No fallen empires: a plain scenario never has them.");
-    expect(html).toContain('<button type="button" class="prep-disclosure" aria-expanded="false">');
-    expect(() => drawnField(PickerField, `${enclaves.label} choice`)).toThrow();
-    expect(drawnCheckbox().checked).toBe(true);
-    expect(drawnButton("Apply").disabled).toBe(true);
-
-    openRows();
-    html = drawnBy(galaxy);
+    expect(html).toContain(PRESET_ANSWERS.faithful.text);
+    expect(html).toContain('<span class="prep-tag forge">Galaxy Forge</span>');
+    expect(html).toContain(FAITHFUL_PLAIN);
+    expect(html).toContain('<button type="button" class="prep-disclosure" aria-expanded="true">');
     for (const row of PREPARE_ROWS.filter((row) => row !== "sol")) {
       expect(drawnField(PickerField, `${PREPARE_COPY.plain[row].label} choice`)).toBeDefined();
     }
     expect(html).not.toContain(">Sol<");
+    expect(drawnCheckbox().checked).toBe(true);
+    expect(drawnButton("Apply").disabled).toBe(true);
+
+    const items = drawnField(PickerField, `${enclaves.label} choice`).items;
+    expect(items.map((item) => item.label)).toEqual([
+      "Keep as is",
+      "Normal systems",
+      "Let the game roll",
+    ]);
+    expect(renderToStaticMarkup(<>{items[2].note}</>)).toBe(
+      '<span class="prep-tag game">The game</span>',
+    );
     drawnField(PickerField, `${enclaves.label} choice`).onPick("plain");
     expect(usePrepareStore.getState().choices.enclaves).toBe("plain");
-    expect(usePrepareStore.getState().rowsOpen).toBe(true);
-  });
-
-  it("opens Row by row on its own while the choices match no preset", async () => {
-    await open("scenario");
-    usePrepareStore.setState({
-      choices: { ...usePrepareStore.getState().choices, enclaves: "plain" },
-    });
-    const html = drawnBy(galaxy);
-    expect(html).toContain('aria-expanded="true">');
-    expect(html).toContain("Custom: Faithful with 1 row changed.");
-    expect(drawnField(PickerField, `${enclaves.label} choice`)).toBeDefined();
 
     drawnButton("Row by row").onClick();
-    expect(drawnBy(galaxy)).toContain('class="prep-disclosure" aria-expanded="false"');
+    html = drawnBy(galaxy);
+    expect(html).toContain('class="prep-disclosure" aria-expanded="false"');
+    expect(() => drawnField(PickerField, `${enclaves.label} choice`)).toThrow();
+    expect(html).toContain("Custom: Keep everything with 1 row changed.");
   });
 
   it("says under a changed row what the new game gets, and counts what Apply changes", async () => {
@@ -379,7 +372,7 @@ describe("the Prepare section", () => {
     usePrepareStore.setState({ current: true });
     const html = drawnBy(galaxy);
     expect(html).toContain(
-      `<div class="muted prep-note">${enclaves.answers.game_decides!.newGame as string}</div>`,
+      `<span class="prep-tag game">The game</span> ${enclaves.answers.game_decides!.text as string}</div>`,
     );
     expect(html).toContain("Changes 2 systems. One step to undo.");
     expect(html).not.toMatch(/left out/i);
@@ -393,7 +386,7 @@ describe("the Prepare section", () => {
     expect(closed).toContain('<span class="ins-sec-aside" title="Custom · changes 2 systems">');
   });
 
-  it("shows the hovered row's card: what it holds and every choice's three answers", async () => {
+  it("shows the hovered row's card: what it holds and every choice's tag and line", async () => {
     await open("scenario");
     usePrepareStore.setState({
       preview: previewOf({ guardians: [3, 4] }),
@@ -406,12 +399,12 @@ describe("the Prepare section", () => {
     const card = html.slice(html.indexOf('id="prep-card"'));
     expect(html).toContain('id="prep-row-guardians"');
     expect(card).toContain(PREPARE_COPY.plain.guardians.holds);
-    expect(card).toContain("All 2, even with the Leviathans setting off.");
-    expect(card).toContain('Keep<span class="muted"> · current</span>');
-    expect(card).toContain("Plain system");
-    expect(card).toContain("Game decides");
-    expect(card.split("Decided by:").length - 1).toBe(3);
-    expect(card.split("Shown here:").length - 1).toBe(3);
+    expect(card).toContain("These 2 spawn where they are now.");
+    expect(card).toContain('Keep as is<span class="muted"> · current</span>');
+    expect(card).toContain("Normal systems");
+    expect(card).toContain("Let the game roll");
+    expect(card.split("prep-tag").length - 1).toBe(3);
+    expect(card).not.toMatch(/Decided by|Shown here|New game:/);
   });
 
   it("disables Fallen empires on a plain map and says why", async () => {
@@ -433,16 +426,16 @@ describe("the Prepare section", () => {
     drawnBy(galaxy);
     const sol = drawnField(PickerField, "Sol choice");
     expect(sol.items.map((item) => item.label)).toEqual([
-      "Keep",
+      "Keep as is",
       "Normal system",
       "Pre-FTL Earth",
-      "Game decides",
+      "Let the game roll",
     ]);
 
     usePrepareStore.setState({ preview: previewOf({ sol: [7] }, { profile: "paint_a_galaxy" }) });
     drawnBy(galaxy);
     expect(drawnField(PickerField, "Sol choice").items.map((item) => item.label)).toContain(
-      "UNE seat",
+      "United Nations of Earth start",
     );
   });
 
@@ -453,12 +446,14 @@ describe("the Prepare section", () => {
       current: true,
     });
     const on = drawnBy(galaxy);
-    expect(on).toContain("Turns 1 system within 2 jumps of a capital into ordinary stars");
-    expect(on).not.toContain(NOT_KEPT_CLEAR.newGame as string);
+    expect(on).toContain(
+      "Turns the 1 system within 2 jumps of a starting position into a normal system.",
+    );
+    expect(on).not.toContain(NOT_KEPT_CLEAR.text as string);
     drawnCheckbox().onChange();
     expect(usePrepareStore.getState().options.clear_around_seats).toBe(false);
     const off = galaxy();
-    expect(off.split(NOT_KEPT_CLEAR.newGame as string).length - 1).toBe(1);
+    expect(off.split(NOT_KEPT_CLEAR.text as string).length - 1).toBe(1);
     usePrepareStore.getState().setClearAroundSeats(true);
   });
 

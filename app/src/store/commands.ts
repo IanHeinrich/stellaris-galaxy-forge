@@ -327,7 +327,7 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
       return true;
     }
     case "toggleSymmetry":
-      if (!symmetryAllowed() || !barShows(currentBarMode(), "tools")) return false;
+      if (!symmetryAllowed() || !barShows(currentBarMode(), "symmetry")) return false;
       useToolStore.getState().toggleSymmetry();
       return true;
   }
