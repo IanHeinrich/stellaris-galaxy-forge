@@ -80,6 +80,12 @@ pub enum PrepareChoice {
     /// Paint a Galaxy's Sol seat, which only the United Nations of Earth takes, on the one
     /// Sol, its initializer kept.
     UneSeat,
+    /// New seats drawn at random over the map, as many as it has now, spaced as a random
+    /// galaxy spaces empires; the old seats go.
+    RandomSeats,
+    /// New Paint a Galaxy fallen empire zones fitted at random where the map has room, up to
+    /// six, random kind with fallback; the old zones go.
+    RandomZones,
 }
 
 /// What [`build`] does beside the rows' choices.
@@ -90,12 +96,17 @@ pub struct PrepareOptions {
     /// system instead, whichever row it stands in: one its row takes the initializer
     /// from, and one with no initializer that its row keeps as it is.
     pub clear_around_seats: bool,
+    /// What every draw takes: the ordinary layouts Plain system picks on a plain map, and the
+    /// new seats and zones. The same seed over the same document gives the same edit.
+    #[ts(type = "number")]
+    pub seed: u64,
 }
 
 impl Default for PrepareOptions {
     fn default() -> Self {
         Self {
             clear_around_seats: true,
+            seed: 0,
         }
     }
 }
@@ -170,6 +181,11 @@ pub enum PrepareError {
     SolSeatTaken(u32),
     #[error("a UNE seat goes on one Sol, and the map has {}", ids(.0))]
     SeveralSols(Vec<u32>),
+    #[error("{} {} is not built yet", .row.as_str(), .choice.as_str())]
+    Unbuilt {
+        row: PrepareRow,
+        choice: PrepareChoice,
+    },
 }
 
 fn ids(systems: &[u32]) -> String {
@@ -199,12 +215,15 @@ impl PrepareRow {
     /// whatever the dialect, and [`build`] refuses it on a plain scenario.
     pub const fn choices(self) -> &'static [PrepareChoice] {
         use PrepareChoice::{
-            GameDecides, GameNames, GenericStart, Keep, None, Plain, PreFtlEarth, UneSeat,
+            GameDecides, GameNames, GenericStart, Keep, None, Plain, PreFtlEarth, RandomSeats,
+            RandomZones, UneSeat,
         };
         match self {
-            Self::EmpireSeats | Self::FallenEmpires | Self::WormholePairs => &[Keep, None],
+            Self::EmpireSeats => &[Keep, RandomSeats, None],
+            Self::FallenEmpires => &[Keep, RandomZones, None],
+            Self::WormholePairs => &[Keep, None],
             Self::HomeStarts => &[Keep, GenericStart],
-            Self::Sol => &[Keep, Plain, PreFtlEarth, UneSeat],
+            Self::Sol => &[Keep, Plain, PreFtlEarth, UneSeat, GameDecides],
             Self::HomeNeighbours
             | Self::OriginAndEvent
             | Self::MarauderClans
@@ -242,7 +261,7 @@ impl PrepareRow {
 }
 
 impl PrepareChoice {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 10] = [
         Self::Keep,
         Self::GenericStart,
         Self::Plain,
@@ -251,6 +270,8 @@ impl PrepareChoice {
         Self::GameNames,
         Self::PreFtlEarth,
         Self::UneSeat,
+        Self::RandomSeats,
+        Self::RandomZones,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -263,6 +284,8 @@ impl PrepareChoice {
             Self::GameNames => "game_names",
             Self::PreFtlEarth => "pre_ftl_earth",
             Self::UneSeat => "une_seat",
+            Self::RandomSeats => "random_seats",
+            Self::RandomZones => "random_zones",
         }
     }
 
@@ -274,19 +297,22 @@ impl PrepareChoice {
 impl PreparePreset {
     pub const ALL: [Self; 3] = [Self::Faithful, Self::FreshStart, Self::BareShell];
 
-    pub const fn choice(self, row: PrepareRow) -> PrepareChoice {
+    /// The preset's choice for `row` on a map of `profile`.
+    pub const fn choice(self, row: PrepareRow, profile: ScenarioProfile) -> PrepareChoice {
         use PrepareChoice::{GameDecides, GenericStart, Keep, None, Plain};
         match (self, row) {
             (Self::Faithful, _) => Keep,
             (Self::FreshStart, PrepareRow::HomeStarts) => GenericStart,
             (Self::FreshStart, PrepareRow::Sol | PrepareRow::OriginAndEvent) => Plain,
             (Self::FreshStart, _) => Keep,
+            (Self::BareShell, PrepareRow::FallenEmpires) => match profile {
+                ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => Keep,
+            },
             (
                 Self::BareShell,
                 PrepareRow::EmpireSeats
                 | PrepareRow::HomeStarts
                 | PrepareRow::HomeNeighbours
-                | PrepareRow::FallenEmpires
                 | PrepareRow::SystemNames,
             ) => Keep,
             (Self::BareShell, PrepareRow::WormholePairs) => None,
@@ -295,13 +321,13 @@ impl PreparePreset {
         }
     }
 
-    /// The preset's choice for every row, in [`PrepareRow::ALL`] order.
-    pub fn choices(self) -> Vec<RowChoice> {
+    /// The preset's choice for every row on a map of `profile`, in [`PrepareRow::ALL`] order.
+    pub fn choices(self, profile: ScenarioProfile) -> Vec<RowChoice> {
         PrepareRow::ALL
             .into_iter()
             .map(|row| RowChoice {
                 row,
-                choice: self.choice(row),
+                choice: self.choice(row, profile),
             })
             .collect()
     }
@@ -357,6 +383,7 @@ pub fn build(
     draw: &PlainDraw,
     options: &PrepareOptions,
 ) -> Result<Option<Op>, PrepareError> {
+    unbuilt(choices)?;
     let plan = Plan::new(session, rows, choices)?;
     let mut ops = row_ops(&plan, draw)?;
     if options.clear_around_seats {
@@ -384,9 +411,27 @@ pub fn kept_clear(
     choices: &[RowChoice],
     draw: &PlainDraw,
 ) -> Result<Vec<u32>, PrepareError> {
+    unbuilt(choices)?;
     let plan = Plan::new(session, rows, choices)?;
     let mut ops = row_ops(&plan, draw)?;
     keep_clear(&plan, &mut ops, draw)
+}
+
+/// Refuses the first of `choices` a row offers that [`build`] cannot write yet.
+fn unbuilt(choices: &[RowChoice]) -> Result<(), PrepareError> {
+    use PrepareChoice::{GameDecides, RandomSeats, RandomZones};
+    let unbuilt = choices.iter().find(|c| {
+        matches!(
+            (c.row, c.choice),
+            (PrepareRow::EmpireSeats, RandomSeats)
+                | (PrepareRow::FallenEmpires, RandomZones)
+                | (PrepareRow::Sol, GameDecides)
+        )
+    });
+    match unbuilt {
+        Some(&RowChoice { row, choice }) => Err(PrepareError::Unbuilt { row, choice }),
+        None => Ok(()),
+    }
 }
 
 /// The members the rows' choices write, in [`PrepareRow::ALL`] order.
@@ -455,7 +500,7 @@ fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
                     }
                 }
             }
-            (_, PrepareChoice::None) => {}
+            (_, PrepareChoice::None | PrepareChoice::RandomSeats | PrepareChoice::RandomZones) => {}
         }
     }
     Ok(ops)

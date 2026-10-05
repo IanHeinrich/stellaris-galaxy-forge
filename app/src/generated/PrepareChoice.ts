@@ -4,4 +4,4 @@
  * What a row asks of the new game. [`Self::Keep`] is every row's first choice, and
  * every row's choice under [`PreparePreset::Faithful`].
  */
-export type PrepareChoice = "keep" | "generic_start" | "plain" | "game_decides" | "none" | "game_names" | "pre_ftl_earth" | "une_seat";
+export type PrepareChoice = "keep" | "generic_start" | "plain" | "game_decides" | "none" | "game_names" | "pre_ftl_earth" | "une_seat" | "random_seats" | "random_zones";

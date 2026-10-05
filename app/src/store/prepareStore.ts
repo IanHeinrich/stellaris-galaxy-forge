@@ -10,7 +10,7 @@ import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { RowChoice } from "../generated/RowChoice";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
 import { useEditorStore } from "./editorStore";
-import { useFileSessionStore } from "./fileSessionStore";
+import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
@@ -25,10 +25,10 @@ export type PresetName = PreparePreset | "custom";
 
 /** Every row, in the panel's order. */
 export const PREPARE_ROWS = Object.keys(PREPARE_ROW_CHOICES) as PrepareRow[];
-export const PREPARE_PRESET_NAMES = Object.keys(PREPARE_PRESETS) as PreparePreset[];
+export const PREPARE_PRESET_NAMES = Object.keys(PREPARE_PRESETS.plain) as PreparePreset[];
 
 function isPreset(value: unknown): value is PreparePreset {
-  return typeof value === "string" && value in PREPARE_PRESETS;
+  return typeof value === "string" && value in PREPARE_PRESETS.plain;
 }
 
 const LAST_PRESET = prefField<PreparePreset>(PREF_KEYS.preparePreset, "faithful", isPreset);
@@ -43,7 +43,7 @@ export interface Applied {
 
 export interface PrepareState {
   choices: PrepareChoices;
-  /** What the edit does beside the rows' choices; no preset sets them. */
+  /** What the edit does beside the rows' choices, and the seed its draws take; no preset sets them. */
   options: PrepareOptions;
   /** The row the pointer is on; the map rings its systems. */
   hovered: PrepareRow | null;
@@ -60,6 +60,8 @@ export interface PrepareState {
   setChoice(row: PrepareRow, choice: PrepareChoice): void;
   /** Keeps the space around capitals clear or not, remembered on this machine. */
   setClearAroundSeats(on: boolean): void;
+  /** Draws again: a new seed, and the preview read for it. */
+  reroll(): void;
   hover(row: PrepareRow | null): void;
   /**
    * Follows an edit, undo or redo: the preview no longer counts the document, and an Apply whose
@@ -72,31 +74,49 @@ export interface PrepareState {
   apply(): Promise<boolean>;
   /** Shows the Galaxy page with the section open, the map selection cleared. */
   reveal(): Promise<void>;
-  /** Back to the remembered preset with nothing read, for another document. */
+  /** Back to the remembered preset with nothing read and a new seed, for another document. */
   reset(): void;
 }
 
-export function presetChoices(preset: PreparePreset): PrepareChoices {
-  return { ...PREPARE_PRESETS[preset] };
+/** `preset`'s choices on a map of `profile`. */
+export function presetChoices(preset: PreparePreset, profile: ScenarioProfile): PrepareChoices {
+  return { ...PREPARE_PRESETS[profile][preset] };
 }
 
-/** The preset `choices` match, or custom. */
-export function presetOf(choices: PrepareChoices): PresetName {
-  return PREPARE_PRESET_NAMES.find((preset) => differing(choices, preset) === 0) ?? "custom";
+/** The preset `choices` match on a map of `profile`, or custom. */
+export function presetOf(choices: PrepareChoices, profile: ScenarioProfile): PresetName {
+  return (
+    PREPARE_PRESET_NAMES.find((preset) => differing(choices, preset, profile) === 0) ?? "custom"
+  );
 }
 
 /** The preset fewest rows differ from, and how many do; the first such preset on a tie. */
-export function nearestPreset(choices: PrepareChoices): { preset: PreparePreset; rows: number } {
+export function nearestPreset(
+  choices: PrepareChoices,
+  profile: ScenarioProfile,
+): { preset: PreparePreset; rows: number } {
   let best = { preset: PREPARE_PRESET_NAMES[0], rows: Infinity };
   for (const preset of PREPARE_PRESET_NAMES) {
-    const rows = differing(choices, preset);
+    const rows = differing(choices, preset, profile);
     if (rows < best.rows) best = { preset, rows };
   }
   return best;
 }
 
-function differing(choices: PrepareChoices, preset: PreparePreset): number {
-  return PREPARE_ROWS.filter((row) => choices[row] !== PREPARE_PRESETS[preset][row]).length;
+function differing(
+  choices: PrepareChoices,
+  preset: PreparePreset,
+  profile: ScenarioProfile,
+): number {
+  const chosen = PREPARE_PRESETS[profile][preset];
+  return PREPARE_ROWS.filter((row) => choices[row] !== chosen[row]).length;
+}
+
+/** The profile the presets are read for: the preview's, else the open document's. */
+export function currentProfile(
+  preview: PreparePreview | null = usePrepareStore.getState().preview,
+): ScenarioProfile {
+  return preview?.profile ?? (getPaintLayer() ? "paint_a_galaxy" : "plain");
 }
 
 /** Whether `row`'s choice leaves something of the scenario out: it has systems, and is not kept. */
@@ -124,14 +144,29 @@ export function rowSystems(preview: PreparePreview | null, row: PrepareRow): rea
   return preview?.rows.find((r) => r.row === row)?.systems ?? [];
 }
 
-/** The choices `row` offers on a map of `profile`: a UNE seat only on a Paint a Galaxy map. */
+/** Choices the core refuses until they are built. */
+export const UNBUILT: ReadonlySet<PrepareChoice> = new Set<PrepareChoice>([
+  "random_seats",
+  "random_zones",
+  "game_decides",
+]);
+
+/** Choices only a Paint a Galaxy map offers. */
+const PAINT_ONLY: ReadonlySet<PrepareChoice> = new Set<PrepareChoice>(["une_seat", "random_zones"]);
+
+/**
+ * The choices `row` offers on a map of `profile`: a UNE seat and new random zones only on a
+ * Paint a Galaxy map, and nothing the core has not built yet.
+ */
 export function offeredChoices(
   row: PrepareRow,
   profile: ScenarioProfile,
 ): readonly PrepareChoice[] {
-  const offered = PREPARE_ROW_CHOICES[row];
-  if (profile === "paint_a_galaxy") return offered;
-  return offered.filter((choice) => choice !== "une_seat");
+  return PREPARE_ROW_CHOICES[row].filter((choice) => {
+    if (profile !== "paint_a_galaxy" && PAINT_ONLY.has(choice)) return false;
+    if (choice === "game_decides") return row !== "sol";
+    return !UNBUILT.has(choice);
+  });
 }
 
 /** The empire seats among the systems the choices would cut off. */
@@ -169,10 +204,14 @@ function previewable(): boolean {
 /** Bumped by every read and reset, so only the latest read lands. */
 let asks = 0;
 
+function newSeed(): number {
+  return Math.floor(Math.random() * 2 ** 32);
+}
+
 function initial() {
   return {
-    choices: presetChoices(LAST_PRESET.read()),
-    options: { clear_around_seats: CLEAR_AROUND_SEATS.read() },
+    choices: presetChoices(LAST_PRESET.read(), currentProfile(null)),
+    options: { clear_around_seats: CLEAR_AROUND_SEATS.read(), seed: newSeed() },
     hovered: null,
     preview: null,
     current: false,
@@ -187,7 +226,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
 
   setPreset(preset) {
     LAST_PRESET.save(preset);
-    set({ choices: presetChoices(preset), current: false });
+    set({ choices: presetChoices(preset, currentProfile()), current: false });
     void get().refresh();
   },
 
@@ -200,7 +239,12 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   setClearAroundSeats(on) {
     if (get().options.clear_around_seats === on) return;
     CLEAR_AROUND_SEATS.save(on);
-    set({ options: { clear_around_seats: on }, current: false });
+    set({ options: { ...get().options, clear_around_seats: on }, current: false });
+    void get().refresh();
+  },
+
+  reroll() {
+    set({ options: { ...get().options, seed: newSeed() }, current: false });
     void get().refresh();
   },
 
@@ -239,7 +283,11 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
         .prepareForNewGame(rowChoices(choices), get().options);
       if (done === null) return false;
       set({
-        applied: { preset: presetOf(choices), changed: done.changes, seq: done.seq },
+        applied: {
+          preset: presetOf(choices, currentProfile()),
+          changed: done.changes,
+          seq: done.seq,
+        },
         hovered: null,
       });
       useInspectorStore.getState().closeSection(PREPARE_SECTION);

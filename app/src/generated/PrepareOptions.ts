@@ -9,4 +9,9 @@ export type PrepareOptions = {
  * system instead, whichever row it stands in: one its row takes the initializer
  * from, and one with no initializer that its row keeps as it is.
  */
-clear_around_seats: boolean, };
+clear_around_seats: boolean, 
+/**
+ * What every draw takes: the ordinary layouts Plain system picks on a plain map, and the
+ * new seats and zones. The same seed over the same document gives the same edit.
+ */
+seed: number, };

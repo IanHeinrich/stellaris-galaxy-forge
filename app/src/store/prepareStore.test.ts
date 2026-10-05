@@ -45,6 +45,8 @@ function previewOf(
     changes,
     kept_clear: [],
     cut_off: [],
+    new_seats: [],
+    new_zones: [],
     ...beside,
   };
 }
@@ -74,18 +76,18 @@ beforeEach(async () => {
 
 describe("the Prepare choices", () => {
   it("name their preset, show Custom once they match none, and remember the preset picked", () => {
-    expect(presetOf(prepare().choices)).toBe("faithful");
+    expect(presetOf(prepare().choices, "plain")).toBe("faithful");
     prepare().setPreset("fresh_start");
-    expect(prepare().choices).toEqual(PREPARE_PRESETS.fresh_start);
+    expect(prepare().choices).toEqual(PREPARE_PRESETS.plain.fresh_start);
     expect(stored.get(PREF_KEYS.preparePreset)).toBe(JSON.stringify("fresh_start"));
 
     prepare().setChoice("guardians", "plain");
-    expect(presetOf(prepare().choices)).toBe("custom");
-    expect(nearestPreset(prepare().choices)).toEqual({ preset: "fresh_start", rows: 1 });
+    expect(presetOf(prepare().choices, "plain")).toBe("custom");
+    expect(nearestPreset(prepare().choices, "plain")).toEqual({ preset: "fresh_start", rows: 1 });
     expect(stored.get(PREF_KEYS.preparePreset)).toBe(JSON.stringify("fresh_start"));
 
     prepare().reset();
-    expect(prepare().choices).toEqual(PREPARE_PRESETS.fresh_start);
+    expect(prepare().choices).toEqual(PREPARE_PRESETS.plain.fresh_start);
   });
 
   it("are previewed again when they change, and after an edit or an undo settles", async () => {
@@ -179,23 +181,36 @@ describe("the Prepare choices", () => {
     expect(offeredChoices("sol", "plain")).toEqual(["keep", "plain", "pre_ftl_earth"]);
     expect(offeredChoices("sol", "paint_a_galaxy")).toContain("une_seat");
   });
+
+  it("are read again for a new seed when rerolled", async () => {
+    await previewed(5);
+    mockedIpc.preparePreview.mockClear();
+    const { seed } = prepare().options;
+    prepare().reroll();
+    expect(prepare().options.seed).not.toBe(seed);
+    expect(prepare().current).toBe(false);
+    await until(() => expect(prepare().current).toBe(true));
+    expect(mockedIpc.preparePreview).toHaveBeenCalledTimes(1);
+    expect(mockedIpc.preparePreview.mock.calls[0][1].seed).toBe(prepare().options.seed);
+  });
 });
 
 describe("keeping the space around capitals clear", () => {
   it("is on by default, sent with every preview, and remembered apart from the preset", async () => {
-    expect(prepare().options).toEqual({ clear_around_seats: true });
+    const { seed } = prepare().options;
+    expect(prepare().options).toEqual({ clear_around_seats: true, seed });
     mockedIpc.preparePreview.mockResolvedValue(previewOf(3, {}, { kept_clear: [4, 5] }));
     prepare().setPreset("bare_shell");
     await until(() => expect(prepare().preview?.kept_clear).toEqual([4, 5]));
-    expect(mockedIpc.preparePreview.mock.calls[0][1]).toEqual({ clear_around_seats: true });
+    expect(mockedIpc.preparePreview.mock.calls[0][1]).toEqual({ clear_around_seats: true, seed });
 
     mockedIpc.preparePreview.mockResolvedValue(previewOf(3));
     prepare().setClearAroundSeats(false);
     expect(prepare().current).toBe(false);
     await until(() => expect(prepare().preview?.kept_clear).toEqual([]));
-    expect(mockedIpc.preparePreview.mock.calls[1][1]).toEqual({ clear_around_seats: false });
+    expect(mockedIpc.preparePreview.mock.calls[1][1]).toEqual({ clear_around_seats: false, seed });
     expect(stored.get(PREF_KEYS.prepareClearAroundSeats)).toBe("false");
-    expect(presetOf(prepare().choices)).toBe("bare_shell");
+    expect(presetOf(prepare().choices, "plain")).toBe("bare_shell");
 
     prepare().setPreset("faithful");
     expect(prepare().options.clear_around_seats).toBe(false);
@@ -224,7 +239,7 @@ describe("Apply", () => {
     await until(() => expect(prepare().preview?.changes).toBe(0));
     expect(useFileSessionStore.getState().dirty).toBe(true);
     const { choices, preview, applied } = prepare();
-    expect(summaryLine(presetOf(choices), preview?.changes ?? null, applied)).toBe(
+    expect(summaryLine(presetOf(choices, "plain"), preview?.changes ?? null, applied)).toBe(
       "Fresh start · 6 systems changed",
     );
   });
@@ -235,7 +250,10 @@ describe("Apply", () => {
     await until(() => expect(prepare().current).toBe(true));
     mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
     expect(await prepare().apply()).toBe(true);
-    expect(mockedIpc.prepareApply.mock.calls[0][1]).toEqual({ clear_around_seats: false });
+    expect(mockedIpc.prepareApply.mock.calls[0][1]).toEqual({
+      clear_around_seats: false,
+      seed: prepare().options.seed,
+    });
   });
 
   it("waits for the preview of the choices as they now stand", async () => {

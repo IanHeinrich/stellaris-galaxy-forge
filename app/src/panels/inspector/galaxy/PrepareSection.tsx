@@ -44,11 +44,11 @@ import { PickerField } from "../../EditField";
 import { Section } from "../parts";
 
 /** Faithful, Fresh start and Bare shell, and Custom while the choices match none of them. */
-function PresetSwitch() {
+function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
   const choices = usePrepareStore((s) => s.choices);
   const setPreset = usePrepareStore((s) => s.setPreset);
-  const preset = presetOf(choices);
-  const nearest = preset === "custom" ? nearestPreset(choices) : null;
+  const preset = presetOf(choices, profile);
+  const nearest = preset === "custom" ? nearestPreset(choices, profile) : null;
   return (
     <>
       <div className="segmented prep-presets" role="group" aria-label="Preset">
@@ -214,12 +214,12 @@ export function PrepareSection() {
   const paint = usePaintLayer();
   const profile = preview?.profile ?? (paint ? "paint_a_galaxy" : "plain");
   const copy = PREPARE_COPY[profile];
-  const summary = summaryLine(presetOf(choices), preview?.changes ?? null, applied);
+  const summary = summaryLine(presetOf(choices, profile), preview?.changes ?? null, applied);
   return (
     <Section id={PREPARE_SECTION} title={PREPARE_TITLE} aside={summary} startClosed>
       <div className="prep">
         <div className="muted ins-hint">{PREPARE_INTRO}</div>
-        <PresetSwitch />
+        <PresetSwitch profile={profile} />
         <ClearAroundSeats />
         {!gameData && <div className="muted ins-hint">{PREPARE_NEEDS_GAME_DATA}</div>}
         {gameData && error !== null && <div className="ins-warn">{error}</div>}

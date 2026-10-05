@@ -193,9 +193,15 @@ fn each_preset_on_each_sample_and_profile_is_one_edit_that_undo_takes_back() {
     };
     for (name, mut session) in samples() {
         let rows = classify(&session, gd);
+        let profile = prepare::profile(&session);
         let original = session.doc().original().to_vec();
         assert_eq!(
-            build(gd, &session, &rows, &PreparePreset::Faithful.choices()),
+            build(
+                gd,
+                &session,
+                &rows,
+                &PreparePreset::Faithful.choices(profile)
+            ),
             None,
             "{name}: Faithful changes nothing"
         );
@@ -203,7 +209,7 @@ fn each_preset_on_each_sample_and_profile_is_one_edit_that_undo_takes_back() {
             (PreparePreset::FreshStart, "fresh_start", None),
             (PreparePreset::BareShell, "bare_shell", Some(SHOWN)),
         ] {
-            let op = build(gd, &session, &rows, &preset.choices()).expect("a change");
+            let op = build(gd, &session, &rows, &preset.choices(profile)).expect("a change");
             let result = session.apply(op.clone()).expect("apply the batch");
             assert_eq!(
                 session.history().undo.len(),
@@ -530,6 +536,25 @@ fn plain_system_with_nothing_to_draw_is_refused() {
     assert_eq!(refused, Err(PrepareError::NoPlainLayouts));
 }
 
+#[test]
+fn random_seats_random_zones_and_a_sol_the_game_decides_are_refused_until_built() {
+    let session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    assert_eq!(PrepareOptions::default().seed, 0);
+    for (row, choice) in [
+        (PrepareRow::EmpireSeats, PrepareChoice::RandomSeats),
+        (PrepareRow::FallenEmpires, PrepareChoice::RandomZones),
+        (PrepareRow::Sol, PrepareChoice::GameDecides),
+    ] {
+        let choices = [RowChoice { row, choice }];
+        let draw = PlainDraw::default();
+        let unbuilt = PrepareError::Unbuilt { row, choice };
+        let built = prepare::build(&session, &[], &choices, &draw, &PrepareOptions::default());
+        assert_eq!(built, Err(unbuilt.clone()));
+        let clear = prepare::kept_clear(&session, &[], &choices, &draw);
+        assert_eq!(clear, Err(unbuilt));
+    }
+}
+
 /// The 4.4 sample's Sol: a seat on `sol_system_initializer` exported plain, and the
 /// player's Sol seat on a generic start exported for Paint a Galaxy.
 const SOL: u32 = 217;
@@ -792,10 +817,10 @@ fn bare_shell_gives_plain_systems_within_two_jumps_of_a_seat_unless_told_not_to(
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    let choices = PreparePreset::BareShell.choices();
     let draw = plain_draw(gd, 0);
     for (name, session) in samples() {
         let rows = classify(&session, gd);
+        let choices = PreparePreset::BareShell.choices(prepare::profile(&session));
         let empty = session
             .graph()
             .systems
@@ -843,6 +868,7 @@ fn bare_shell_gives_plain_systems_within_two_jumps_of_a_seat_unless_told_not_to(
         let mut off = session.clone();
         let options = PrepareOptions {
             clear_around_seats: false,
+            ..PrepareOptions::default()
         };
         let op = prepare::build(&session, &rows, &choices, &draw, &options)
             .expect("build the batch")
@@ -919,8 +945,8 @@ fn faithful_fills_a_system_left_empty_beside_a_seat_unless_told_not_to() {
         return;
     };
     let draw = plain_draw(gd, 0);
-    let faithful = PreparePreset::Faithful.choices();
     for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
+        let faithful = PreparePreset::Faithful.choices(profile);
         let mut session = scenario(common::open_4_4(), profile);
         let graph = session.graph();
         let beside = beside_a_seat(graph);
@@ -949,6 +975,7 @@ fn faithful_fills_a_system_left_empty_beside_a_seat_unless_told_not_to() {
 
         let off = PrepareOptions {
             clear_around_seats: false,
+            ..PrepareOptions::default()
         };
         let left = prepare::build(&session, &rows, &faithful, &draw, &off);
         assert_eq!(left, Ok(None), "{profile:?}");

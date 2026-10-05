@@ -310,6 +310,8 @@ describe("the Prepare section", () => {
       changes: 0,
       kept_clear: [],
       cut_off: [],
+      new_seats: [],
+      new_zones: [],
       ...beside,
     };
   }

@@ -38,6 +38,8 @@ export const CHOICE_LABELS: Record<PrepareChoice, string> = {
   game_names: "Game names",
   pre_ftl_earth: "Pre-FTL Earth",
   une_seat: "UNE seat",
+  random_seats: "New random seats",
+  random_zones: "New random zones",
 };
 
 export const PRESET_LABELS: Record<PreparePreset | "custom", string> = {

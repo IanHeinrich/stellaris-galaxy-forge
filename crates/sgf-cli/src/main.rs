@@ -191,9 +191,9 @@ fn run(cli: Cli) -> commands::Run {
             out.path.as_deref(),
             preset.core(),
             &rows,
-            seed,
             &PrepareOptions {
                 clear_around_seats: !roll_around_seats,
+                seed,
             },
             &install.options(),
         ),

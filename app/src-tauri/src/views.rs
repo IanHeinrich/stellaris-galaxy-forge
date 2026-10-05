@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use sgf_core::export::ScenarioProfile;
+use sgf_core::format::scenario::FeZone;
 use sgf_core::prepare::RowSystems;
 use sgf_core::views::EditResult;
 use ts_rs::TS;
@@ -33,6 +34,18 @@ pub struct PreparePreview {
     pub kept_clear: Vec<u32>,
     /// The systems the edit would cut off from the rest of the map. Sorted.
     pub cut_off: Vec<u32>,
+    /// The systems New random seats would seat, in seat order; empty unless chosen.
+    pub new_seats: Vec<u32>,
+    /// The fallen empire zones New random zones would fit; empty unless chosen.
+    pub new_zones: Vec<NewZone>,
+}
+
+/// A fallen empire zone New random zones would fit: the system anchoring it, and the zone.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewZone {
+    pub system: u32,
+    pub zone: FeZone,
 }
 
 /// What preparing a scenario answers with: the edit, and how many systems it changed.
