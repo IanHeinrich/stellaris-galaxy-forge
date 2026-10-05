@@ -2,8 +2,12 @@
 //! `galactic_object.star_class`'s `planet_keys`) looks like, whether it
 //! can be colonised, and where and how large a random draw spawns it.
 
+use std::path::PathBuf;
+
 use sgf_core::ops::ClassChange;
 
+use crate::GameData;
+use crate::install::layers::VANILLA;
 use crate::install::script::{Def, Range};
 use crate::registries::colors;
 use crate::registries::registry::{FromDef, Registry};
@@ -13,6 +17,8 @@ pub type PlanetClasses = Registry<PlanetClassDef>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlanetClassDef {
     pub key: String,
+    /// The file the winning definition was read from.
+    pub source: PathBuf,
     pub icon: Option<String>,
     /// The 76×76 `GFX_` sprite, beside `icon`'s 38×38 one.
     pub icon_large: Option<String>,
@@ -101,6 +107,16 @@ impl PlanetClasses {
     }
 }
 
+impl GameData {
+    /// The mod planet class `class` comes from, by its name, when this install knows it;
+    /// `None` for the base game.
+    pub fn planet_class_source(&self, class: &str) -> Option<String> {
+        let def = self.planet_classes.get(class)?;
+        let (layer, _) = self.layout.layer_of(&def.source)?;
+        (layer.name != VANILLA).then(|| layer.name.clone())
+    }
+}
+
 impl FromDef for PlanetClassDef {
     const DIR: &'static str = "common/planet_classes";
 
@@ -144,6 +160,7 @@ impl FromDef for PlanetClassDef {
             chance_of_ring: def.number("chance_of_ring").unwrap_or(0.0),
             extra_orbit_size: def.number("extra_orbit_size").unwrap_or(0.0),
             extra_planet_count: def.number("extra_planet_count").unwrap_or(0.0),
+            source: def.file.clone(),
             key,
         }
     }

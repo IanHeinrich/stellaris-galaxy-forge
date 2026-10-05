@@ -32,7 +32,7 @@ pub(super) fn resolve_colours(
 
 fn parse_hex(hex: &str) -> Option<[u8; 3]> {
     let digits = hex.strip_prefix('#')?;
-    if digits.len() != 6 {
+    if digits.len() != 6 || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
     let channel = |i: usize| u8::from_str_radix(&digits[i..i + 2], 16).ok();

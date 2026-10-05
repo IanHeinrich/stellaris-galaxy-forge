@@ -1,6 +1,10 @@
 //! `common/star_classes`: how a `galactic_object.star_class` is drawn, and the weighted
 //! lists (`randomizers`) an initializer draws one from.
 
+use std::path::PathBuf;
+
+use crate::GameData;
+use crate::install::layers::VANILLA;
 use crate::install::script::{self, Def, Range};
 use crate::registries::registry::{FromDef, Registry};
 
@@ -10,6 +14,8 @@ pub type StarLists = Registry<StarList>;
 #[derive(Debug, Clone, PartialEq)]
 pub struct StarClass {
     pub key: String,
+    /// The file the winning definition was read from.
+    pub source: PathBuf,
     pub class: String,
     pub icon: Option<String>,
     pub icon_scale: f64,
@@ -56,6 +62,16 @@ impl StarClass {
     }
 }
 
+impl GameData {
+    /// The mod star class `class` comes from, by its name, when this install knows it; `None`
+    /// for the base game.
+    pub fn star_class_source(&self, class: &str) -> Option<String> {
+        let def = self.star_classes.get(class)?;
+        let (layer, _) = self.layout.layer_of(&def.source)?;
+        (layer.name != VANILLA).then(|| layer.name.clone())
+    }
+}
+
 impl FromDef for StarClass {
     const DIR: &'static str = "common/star_classes";
 
@@ -92,6 +108,7 @@ impl FromDef for StarClass {
             .collect();
         Self {
             key,
+            source: def.file.clone(),
             class,
             icon: def.scalar("icon").map(str::to_owned),
             icon_scale: def.number("icon_scale").unwrap_or(1.0),

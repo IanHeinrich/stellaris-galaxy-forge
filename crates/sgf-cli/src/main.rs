@@ -156,10 +156,22 @@ fn run(cli: Cli) -> commands::Run {
             waystations,
             out,
         }) => commands::synth::run(systems, seed, &waystations, out),
-        Some(Command::Gamedata { install, lang }) => commands::gamedata::run(&LoadOptions {
-            language: lang,
-            ..install.options()
-        }),
+        Some(Command::Gamedata {
+            install,
+            lang,
+            report,
+            limit,
+        }) => {
+            let opts = LoadOptions {
+                language: lang,
+                ..install.options()
+            };
+            if report {
+                commands::gamedata::report(&opts, limit)
+            } else {
+                commands::gamedata::run(&opts)
+            }
+        }
         Some(Command::Special {
             sav,
             install,

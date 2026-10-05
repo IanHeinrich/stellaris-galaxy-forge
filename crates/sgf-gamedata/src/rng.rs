@@ -42,9 +42,13 @@ impl Rng {
         low + (high - low) * self.unit()
     }
 
-    /// In `[low, high]`, drawing a number even when the bounds meet.
+    /// In `[low, high]`, drawing a number even when the bounds meet; `low`, drawing nothing,
+    /// when they cross.
     pub fn count(&mut self, (low, high): (u64, u64)) -> usize {
-        (low + self.next() % (high - low + 1)) as usize
+        let Some(span) = high.checked_sub(low) else {
+            return low as usize;
+        };
+        (low + self.next() % (span + 1)) as usize
     }
 
     /// One of `items`, each alike; `None`, drawing nothing, when there are none.
@@ -73,5 +77,17 @@ impl Rng {
             .rev()
             .find(|(_, w)| *w > 0.0)
             .map(|(item, _)| item)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_count_whose_bounds_cross_is_its_low_bound() {
+        let mut rng = Rng::new(7);
+        assert_eq!(rng.count((5, 2)), 5);
+        assert_eq!(rng.int(5, 2), 5);
     }
 }

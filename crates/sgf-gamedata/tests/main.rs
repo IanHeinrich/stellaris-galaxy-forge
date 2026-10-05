@@ -31,6 +31,7 @@ mod planet_disc_shapes;
 mod planet_discs;
 mod planet_view_choices;
 mod planet_views;
+mod playset_report;
 mod precursors;
 mod registries;
 mod reload;

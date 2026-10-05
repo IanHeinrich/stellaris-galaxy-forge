@@ -161,6 +161,15 @@ format sees it.
   `SGF_SCENARIO_DIR`. Each is skipped
   when its variable is unset, so run them in release after touching the
   load path.
+- `sgf gamedata --report` lists what the install and the enabled mods
+  define that the editor cannot show: planet classes with no name, disc
+  or `planet_size`, star classes with no map icon or with other than one
+  star body, and the load's diagnostics by kind. Each row names the mod
+  whose file won. `--limit N` cuts each list to N rows, 0 prints all.
+- `SGF_PLAYSET=1 cargo test -p sgf-gamedata --test integration
+  playset_report::the_enabled_mods -- --nocapture` loads the enabled mods as the app does, prints that
+  report and fails on a parse error or an unreadable file. It is
+  skipped without the variable.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
 - `ci.yml` runs on every PR that changes more than documentation, and is
