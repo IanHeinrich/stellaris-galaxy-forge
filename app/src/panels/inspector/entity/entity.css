@@ -618,3 +618,7 @@
   align-self: flex-start;
   color: var(--warn);
 }
+
+.dp-more {
+  white-space: nowrap;
+}

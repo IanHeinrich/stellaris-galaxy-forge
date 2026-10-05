@@ -155,7 +155,7 @@ describe("a picker's rows and card", () => {
     });
     const html = renderToStaticMarkup(<PlanetPicker kind={MODIFIER_PICKER} target={TARGET} />);
     expect(html).toContain(
-      '<span class="l2">+10% Minerals, +5 Stability<span class="muted">+2 more</span></span>',
+      '<span class="l2"><span>+10% Minerals, +5 Stability<span class="muted dp-more"> +2 more</span></span></span>',
     );
     expect(html).toContain('<span class="l2"><span class="muted">No effect</span></span>');
   });

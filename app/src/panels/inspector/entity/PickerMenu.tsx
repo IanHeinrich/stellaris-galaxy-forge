@@ -128,10 +128,10 @@ function EffectSummary({ effects }: { effects: readonly string[] }) {
   const { shown, more } = effectSummary(effects);
   if (shown === "") return <span className="muted">{NO_EFFECT}</span>;
   return (
-    <>
+    <span>
       {shown}
-      {more !== null && <span className="muted">{more}</span>}
-    </>
+      {more !== null && <span className="muted dp-more"> {more}</span>}
+    </span>
   );
 }
 
