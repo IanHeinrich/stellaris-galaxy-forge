@@ -16,4 +16,5 @@ in place of a bare `vi.waitFor`. It polls every millisecond, where
 A wait on a debounce advances fake timers instead.
 
 To let every answer already on its way land before asserting, `await flush()`
-from `test/flush`. It waits one macrotask, so it does nothing under fake timers.
+from `test/flush`. It waits one real macrotask, so under fake timers it never
+resolves: there, `await vi.advanceTimersByTimeAsync(0)` does the same.
