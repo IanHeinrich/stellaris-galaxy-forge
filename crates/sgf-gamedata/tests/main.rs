@@ -51,6 +51,7 @@ mod special_layout_bodies;
 mod special_layouts;
 mod special_menu;
 mod star_discs;
+mod star_placeholders;
 mod system_radii;
 mod terraform_links;
 mod textures;

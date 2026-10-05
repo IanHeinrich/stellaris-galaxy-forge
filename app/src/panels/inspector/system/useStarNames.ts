@@ -1,4 +1,5 @@
 import type { SystemNode } from "../../../generated/SystemNode";
+import { eachStarKeys } from "../../../lib/details/starBody";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useNamed } from "../../useNamed";
 
@@ -8,7 +9,7 @@ import { useNamed } from "../../useNamed";
  */
 export function useStarClassLabel(system: SystemNode, fallback: string): string {
   const own = useGameDataStore((s) => s.starClasses.get(system.star_class));
-  const bodyKeys = own && own.planet_keys.length > 1 ? own.planet_keys : [];
+  const bodyKeys = eachStarKeys(own);
   const named = useNamed(bodyKeys);
   return bodyKeys.length > 0 ? bodyKeys.map(named).join(" + ") : fallback;
 }

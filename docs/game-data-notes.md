@@ -47,6 +47,17 @@ that the `.asset` files define has no `pdxmesh`, `meshsettings`,
 as Gigastructures' `giga_hidden` does.
 Neither kind is offered as a class, and vanilla 4.5 has none of either.
 
+A star class is a placeholder when its definition writes only a `class`
+and `spawn_odds = 0`, as the 194 in Gigastructures'
+`0000_giga_placeholder_star_classes.txt` do
+(`sc_k_super = { class = sc_empty_space spawn_odds = 0 }`). They keep a
+key valid for scripts that name it, and have no star body. A star class
+lists alternatives when it has more `planet` entries than any class with
+`spawn_odds` above 0, as Gigastructures' Dyson binary and trinary do with
+seven. Its list is then the stars a system of it may have, not one entry
+per star. A system's stars fit such a class when each is one of them, and
+a class that lists no star fits any. Vanilla 4.5 has neither kind.
+
 ## Syntax the save never uses
 
 `gamestate` has no comments, variables or operators. Definition files
