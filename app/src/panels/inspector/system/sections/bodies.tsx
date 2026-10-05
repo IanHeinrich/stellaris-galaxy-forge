@@ -7,6 +7,7 @@ import {
   shatteredDiscKey,
 } from "../../../../lib/details/icons";
 import { isStarBody } from "../../../../lib/details/starBody";
+import { bodyLook } from "../../../../map/system/look";
 import {
   type ResourceRow,
   formatAmount,
@@ -67,18 +68,22 @@ function StarIcon({ keys }: { keys: readonly string[] }) {
 }
 
 /**
- * A body's class sprite, on the disc the class is tinted; a class with no art of its own wears the
- * map's neutral planet marker, and a star wears its star art so it never reads as a planet. A
- * shattered class shows its shards as the map does, broken as `seed`, the planet's id, says.
+ * A body's class sprite, then the class's planet disc where the map bakes one, then the map's
+ * neutral planet marker, on the disc the class is tinted while none has loaded; a star wears its
+ * star art so it never reads as a planet. With `discFirst` the disc leads, for a picker that shows
+ * what the class looks like. A shattered class shows its shards as the map does, broken as `seed`,
+ * the planet's id, says.
  */
 export function PlanetIcon({
   planetClass,
   sprite,
   seed = SHATTERED_ICON_SEED,
+  discFirst = false,
 }: {
   planetClass: string;
   sprite: string | null | undefined;
   seed?: number;
+  discFirst?: boolean;
 }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const starClasses = useGameDataStore((s) => s.starClasses);
@@ -90,10 +95,20 @@ export function PlanetIcon({
   if (planetClasses.get(planetClass)?.shattered === true) {
     return <Icon className="pi shattered" keys={[shatteredDiscKey(planetClass, seed), ...own]} />;
   }
+  const view = planetClasses.get(planetClass);
+  const { surfaceKeys: disc } = bodyLook({
+    planetClass,
+    starClass: null,
+    drawn: view === undefined,
+    flat: view?.flat_art === true,
+    asteroid: view?.asteroid === true,
+  });
   return (
     <Icon
       className="pi"
-      keys={own.length > 0 ? own : PLANET_ICON_KEYS}
+      keys={
+        discFirst ? [...disc, ...own, ...PLANET_ICON_KEYS] : [...own, ...disc, ...PLANET_ICON_KEYS]
+      }
       style={{ background: toCss(planetTint(planetClass)) }}
     />
   );

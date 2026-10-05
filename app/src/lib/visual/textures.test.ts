@@ -8,6 +8,7 @@ import * as api from "../../api/gamedata";
 import { resetTextureFetch, textureFetch, textureView } from "../../test/textures";
 import {
   clearTextures,
+  firstTextureUrl,
   getTexture,
   onTextures,
   requestTextures,
@@ -84,6 +85,27 @@ describe("requestTextures", () => {
     requestTextures(["star_class:g"]);
     await vi.advanceTimersByTimeAsync(0);
     expect(getTexture("star_class:g")).toBeNull();
+  });
+});
+
+describe("firstTextureUrl", () => {
+  const png = (key: string): TextureView => ({
+    ...textureView(key),
+    png_base64: "AAAA",
+  });
+
+  it("waits on a key still loading instead of showing a later one, and passes over one that failed", async () => {
+    const keys = ["bad:disc", "sprite:icon", "sprite:generic"];
+    getTextures.mockResolvedValueOnce([png("sprite:icon")]);
+    requestTextures(["sprite:icon"]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(firstTextureUrl(["planet_disc:x", "sprite:icon"])).toBeUndefined();
+
+    requestTextures(["bad:disc"]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(firstTextureUrl(keys)).toBe("data:image/png;base64,AAAA");
+    expect(firstTextureUrl(["bad:disc", "sprite:generic"])).toBeUndefined();
+    expect(firstTextureUrl(["", "sprite:icon"])).toBe("data:image/png;base64,AAAA");
   });
 });
 
