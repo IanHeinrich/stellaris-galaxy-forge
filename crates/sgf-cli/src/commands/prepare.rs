@@ -20,7 +20,6 @@ pub fn run(
     out: Option<&Path>,
     preset: PreparePreset,
     rows: &[RowChoice],
-    seed: u64,
     options: &PrepareOptions,
     opts: &LoadOptions,
 ) -> Run {
@@ -38,12 +37,12 @@ pub fn run(
         println!("{}: {}", row.row.as_str(), row.systems.len());
     }
     let mut choices: Vec<RowChoice> = preset
-        .choices()
+        .choices(prepare::profile(&session))
         .into_iter()
         .filter(|choice| !rows.iter().any(|given| given.row == choice.row))
         .collect();
     choices.extend_from_slice(rows);
-    let draw = plain_draw(&gd, seed);
+    let draw = plain_draw(&gd, options.seed);
     let Some(op) = prepare::build(&session, &classified, &choices, &draw, options)? else {
         println!("nothing to change");
         return Ok(Outcome::Ok);

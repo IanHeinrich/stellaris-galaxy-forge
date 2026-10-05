@@ -22,6 +22,8 @@ beforeEach(() => {
       changes: 0,
       kept_clear: [],
       cut_off: [],
+      new_seats: [],
+      new_zones: [],
     },
   });
 });

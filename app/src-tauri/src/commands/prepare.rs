@@ -2,10 +2,9 @@
 //! edit that writes them.
 
 use sgf_core::ops::Op;
-use sgf_core::prepare::{self, PrepareError, PrepareOptions, RowChoice, RowSystems};
+use sgf_core::prepare::{self, PlainDraw, PrepareError, PrepareOptions, RowChoice, RowSystems};
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, SgfError};
-use sgf_gamedata::GameData;
 use sgf_gamedata::prepare::{classify, plain_draw};
 use tauri::{AppHandle, Runtime};
 
@@ -14,8 +13,6 @@ use crate::views::{PreparePreview, PreparedEdit};
 
 const PREPARE: &str = "prepare a scenario for a new game";
 const ONLY_A_SCENARIO: &str = "only a scenario is prepared for a new game";
-/// The draw Plain system takes when the app names no seed, so a preview counts what Apply writes.
-const DEFAULT_SEED: u64 = 0;
 
 /// What `choices` under `options` would do to the open scenario: each row's systems, sorted by
 /// the loaded game data, how many systems the one edit would change, the systems keeping the
@@ -31,8 +28,8 @@ pub async fn prepare_preview<R: Runtime>(
     with_session(app, move |guard| {
         let session = require(guard.as_ref(), is_scenario, ONLY_A_SCENARIO)?;
         let rows = classify(session, &gd);
-        let draw = plain_draw(&gd, DEFAULT_SEED);
-        let op = build(session, &gd, &rows, &choices, &options, DEFAULT_SEED)?;
+        let draw = plain_draw(&gd, options.seed);
+        let op = build(session, &rows, &choices, &draw, &options)?;
         let kept_clear = match options.clear_around_seats {
             true => prepare::kept_clear(session, &rows, &choices, &draw).map_err(refused)?,
             false => Vec::new(),
@@ -42,6 +39,8 @@ pub async fn prepare_preview<R: Runtime>(
             changes: op.as_ref().map_or(0, |op| prepare::changed(session, op)),
             cut_off: op.map_or_else(Vec::new, |op| prepare::cut_off(session, &op)),
             kept_clear,
+            new_seats: Vec::new(),
+            new_zones: Vec::new(),
             rows,
         })
     })
@@ -50,22 +49,20 @@ pub async fn prepare_preview<R: Runtime>(
 
 /// Write `choices` under `options` over the open scenario as one `Batch`, one undo step, with how
 /// many systems it changed; `None` when they change nothing. `options` are the default ones when
-/// absent. `seed` picks the ordinary layouts Plain system draws on a plain scenario, the
-/// preview's when absent.
+/// absent; the same options as a preview's give the edit it counted.
 #[tauri::command]
 pub async fn prepare_apply<R: Runtime>(
     app: AppHandle<R>,
     choices: Vec<RowChoice>,
     options: Option<PrepareOptions>,
-    seed: Option<u64>,
 ) -> Result<Option<PreparedEdit>, SgfError> {
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_scenario, ONLY_A_SCENARIO)?;
         let rows = classify(session, &gd);
-        let seed = seed.unwrap_or(DEFAULT_SEED);
         let options = options.unwrap_or_default();
-        let Some(op) = build(session, &gd, &rows, &choices, &options, seed)? else {
+        let draw = plain_draw(&gd, options.seed);
+        let Some(op) = build(session, &rows, &choices, &draw, &options)? else {
             return Ok(None);
         };
         let changes = prepare::changed(session, &op);
@@ -84,13 +81,12 @@ fn is_scenario(capabilities: Capabilities) -> bool {
 
 fn build(
     session: &Session,
-    gd: &GameData,
     rows: &[RowSystems],
     choices: &[RowChoice],
+    draw: &PlainDraw,
     options: &PrepareOptions,
-    seed: u64,
 ) -> Result<Option<Op>, SgfError> {
-    prepare::build(session, rows, choices, &plain_draw(gd, seed), options).map_err(refused)
+    prepare::build(session, rows, choices, draw, options).map_err(refused)
 }
 
 fn refused(error: PrepareError) -> SgfError {

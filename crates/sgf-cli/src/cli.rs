@@ -275,8 +275,8 @@ pub enum Command {
         /// One row's choice, as `<row>=<choice>`; repeatable.
         #[arg(long = "row", value_parser = row_choice, value_name = "ROW=CHOICE")]
         rows: Vec<RowChoice>,
-        /// What Plain system draws a plain scenario's layouts from; the same seed gives
-        /// the same draw.
+        /// What every draw takes: the layouts Plain system picks on a plain scenario, and
+        /// the new seats and zones; the same seed gives the same edit.
         #[arg(long, default_value_t = 0)]
         seed: u64,
         /// Let the game roll the systems within two jumps of a seat too, instead of
