@@ -33,6 +33,7 @@ export const PREF_KEYS = {
   checkAtStart: "sgf.update.checkAtStart",
   paintProfile: "sgf.paint.profile",
   preparePreset: "sgf.prepare.preset",
+  prepareClearAroundSeats: "sgf.prepare.clearAroundSeats",
   paintNoticeDismissed: "sgf.paint.noticeDismissed",
   warnNotForPaint: "sgf.paint.warnNotForPaint",
   watchlist: "sgf.search.watchlist",

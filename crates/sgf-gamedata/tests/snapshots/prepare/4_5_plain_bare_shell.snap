@@ -2,9 +2,9 @@
 source: crates/sgf-gamedata/tests/prepare.rs
 expression: out
 ---
-Prepared 549 systems for a new game
+Prepared 515 systems for a new game
 SetHeaderKeys: 1
-SetInitializer: 549
+SetInitializer: 515
 -marauder_empire_default = 2
 +marauder_empire_default = 0
 -marauder_empire_max = 2
@@ -16,7 +16,7 @@ SetInitializer: 549
 -system = { id = "2" name = "Millistamu" position = { x = -149.52 y = 316.01 } initializer = ai_system_02 }
 +system = { id = "2" name = "Millistamu" position = { x = -149.52 y = 316.01 } }
 -system = { id = "3" name = "Zavarys" position = { x = 387.61 y = -9.94 } initializer = ai_system_04 }
-+system = { id = "3" name = "Zavarys" position = { x = 387.61 y = -9.94 } }
++system = { id = "3" name = "Zavarys" position = { x = 387.61 y = -9.94 } initializer = basic_init_06 }
 -system = { id = "4" name = "Gaping_Maw" position = { x = 303.32 y = 151.44 } initializer = distantstars_init_06 }
 +system = { id = "4" name = "Gaping_Maw" position = { x = 303.32 y = 151.44 } }
 -system = { id = "5" name = "Tuzhik" position = { x = -215.9 y = -125.14 } initializer = binary_init_01 }
@@ -24,7 +24,7 @@ SetInitializer: 549
 -system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = voidworms_spawn_system_medium }
 +system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } }
 -system = { id = "7" name = "Nimirroth" position = { x = -20.11 y = -165.45 } initializer = megacorp_strategic_coordination_center_init_01 }
-+system = { id = "7" name = "Nimirroth" position = { x = -20.11 y = -165.45 } }
++system = { id = "7" name = "Nimirroth" position = { x = -20.11 y = -165.45 } initializer = basic_init_04 }
 -system = { id = "8" name = "Zantaris_Black_Hole" position = { x = -203.95 y = 193.95 } initializer = marauder_2_1 }
 +system = { id = "8" name = "Zantaris_Black_Hole" position = { x = -203.95 y = 193.95 } }
 -system = { id = "9" name = "VOIDWORM_SYSTEM_05" position = { x = 151.48 y = 12.76 } initializer = voidworms_spawn_system_small }
@@ -38,19 +38,15 @@ SetInitializer: 549
 -system = { id = "13" name = "Enigmas_End" position = { x = -144.96 y = 235.8 } initializer = salvager_enclave_init_03 }
 +system = { id = "13" name = "Enigmas_End" position = { x = -144.96 y = 235.8 } }
 -system = { id = "14" name = "Mareenius" position = { x = 381.84 y = -89.39 } initializer = mindwarden_enclave_initializer }
-+system = { id = "14" name = "Mareenius" position = { x = 381.84 y = -89.39 } }
--system = { id = "15" name = "Canopus" position = { x = 99.71 y = -251.18 } initializer = basic_init_03 }
-+system = { id = "15" name = "Canopus" position = { x = 99.71 y = -251.18 } }
++system = { id = "14" name = "Mareenius" position = { x = 381.84 y = -89.39 } initializer = basic_init_03 }
 -system = { id = "16" name = "Eglrarvis" position = { x = 201.11 y = -17.8 } initializer = guardians_artist_init_01 }
 +system = { id = "16" name = "Eglrarvis" position = { x = 201.11 y = -17.8 } }
 -system = { id = "17" name = "Yonnoks_Maw" position = { x = -68.88 y = 358.56 } initializer = guardians_curator_init_02 }
 +system = { id = "17" name = "Yonnoks_Maw" position = { x = -68.88 y = 358.56 } }
 -system = { id = "18" name = "Siplim" position = { x = -82.04 y = 146.65 } initializer = guardians_artist_init_02 }
 +system = { id = "18" name = "Siplim" position = { x = -82.04 y = 146.65 } }
--system = { id = "19" name = "Koria" position = { x = 273.69 y = 191.81 } initializer = basic_init_04 }
-+system = { id = "19" name = "Koria" position = { x = 273.69 y = 191.81 } }
 -system = { id = "20" name = "Dabih" position = { x = -362.33 y = -136.56 } initializer = distar_crystal_system }
-+system = { id = "20" name = "Dabih" position = { x = -362.33 y = -136.56 } }
++system = { id = "20" name = "Dabih" position = { x = -362.33 y = -136.56 } initializer = basic_init_04 }
 -system = { id = "21" name = "Lurus" position = { x = 93 y = 371.02 } initializer = marauder_1_1 }
 +system = { id = "21" name = "Lurus" position = { x = 93 y = 371.02 } }
 -system = { id = "22" name = "Cemesta" position = { x = -196.89 y = -209.36 } initializer = guardians_init_wraith }
@@ -60,29 +56,33 @@ SetInitializer: 549
 -system = { id = "24" name = "Sasin" position = { x = 249.43 y = -319.02 } initializer = shroudwalker_enclave_init_01 }
 +system = { id = "24" name = "Sasin" position = { x = 249.43 y = -319.02 } }
 -system = { id = "25" name = "Gossok" position = { x = -177.98 y = 281.56 } initializer = dyson_sphere_init_01 }
-+system = { id = "25" name = "Gossok" position = { x = -177.98 y = 281.56 } }
++system = { id = "25" name = "Gossok" position = { x = -177.98 y = 281.56 } initializer = basic_init_02 }
 -system = { id = "26" name = "Scorom" position = { x = 33.65 y = -284.48 } initializer = binary_init_02 }
-+system = { id = "26" name = "Scorom" position = { x = 33.65 y = -284.48 } }
++system = { id = "26" name = "Scorom" position = { x = 33.65 y = -284.48 } initializer = basic_init_02 }
 -system = { id = "27" name = "Manthall" position = { x = -215.89 y = -13.15 } initializer = salvager_enclave_init_02 }
 +system = { id = "27" name = "Manthall" position = { x = -215.89 y = -13.15 } }
 -system = { id = "28" name = "NAME_Tiyana_Vek" position = { x = -45.98 y = 137.71 } initializer = hostile_init_16 }
 +system = { id = "28" name = "NAME_Tiyana_Vek" position = { x = -45.98 y = 137.71 } }
 -system = { id = "29" name = "Asterope" position = { x = 117.23 y = -357.42 } initializer = star_lifting_system }
 +system = { id = "29" name = "Asterope" position = { x = 117.23 y = -357.42 } }
--system = { id = "30" name = "Baxom" position = { x = 324.19 y = 51.06 } initializer = basic_init_05 }
-+system = { id = "30" name = "Baxom" position = { x = 324.19 y = 51.06 } }
 -system = { id = "31" name = "Anaxador" position = { x = -149.52 y = 77.94 } initializer = guardians_init_dreadnought }
 +system = { id = "31" name = "Anaxador" position = { x = -149.52 y = 77.94 } }
 -system = { id = "32" name = "Polystea" position = { x = -6.67 y = -175.71 } initializer = basic_init_03 }
 +system = { id = "32" name = "Polystea" position = { x = -6.67 y = -175.71 } }
 -system = { id = "33" name = "Guhur" position = { x = 234.28 y = -98.12 } initializer = basic_init_05 }
 +system = { id = "33" name = "Guhur" position = { x = 234.28 y = -98.12 } }
--system = { id = "34" name = "Yeelon" position = { x = 243.24 y = 149.02 } initializer = basic_init_02 }
-+system = { id = "34" name = "Yeelon" position = { x = 243.24 y = 149.02 } }
 -system = { id = "35" name = "Belgium" position = { x = -112.77 y = 375.81 } initializer = guardians_trader_init_01 }
 +system = { id = "35" name = "Belgium" position = { x = -112.77 y = 375.81 } }
 -system = { id = "36" name = "Capella" position = { x = 220.63 y = 115.49 } initializer = binary_init_02 }
 +system = { id = "36" name = "Capella" position = { x = 220.63 y = 115.49 } }
 -system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } initializer = basic_init_03 }
 +system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } }
-… 511 more changed lines
+-system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } initializer = orbital_ring_init_01 }
++system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } }
+-system = { id = "39" name = "NAME_Amor_Alveo" position = { x = 304.62 y = -110.94 } initializer = hostile_init_20 }
++system = { id = "39" name = "NAME_Amor_Alveo" position = { x = 304.62 y = -110.94 } }
+-system = { id = "41" name = "Uiafladus" position = { x = -82.88 y = -98.62 } initializer = basic_init_06 }
++system = { id = "41" name = "Uiafladus" position = { x = -82.88 y = -98.62 } }
+-system = { id = "42" name = "Unimar" position = { x = -197.5 y = 3.16 } initializer = basic_init_06 }
++system = { id = "42" name = "Unimar" position = { x = -197.5 y = 3.16 } }
+… 477 more changed lines

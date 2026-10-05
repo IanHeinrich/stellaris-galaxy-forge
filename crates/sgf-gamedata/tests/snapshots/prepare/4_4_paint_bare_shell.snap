@@ -2,26 +2,24 @@
 source: crates/sgf-gamedata/tests/prepare.rs
 expression: out
 ---
-Prepared 715 systems for a new game
+Prepared 645 systems for a new game
 SetHeaderKeys: 1
-SetInitializer: 715
+SetInitializer: 645
 SetWormholePair: 6
 -marauder_empire_max = 2
 +marauder_empire_max = 0
 -marauder_empire_default = 2
 +marauder_empire_default = 0
 -system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
-+system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } }
++system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = painted_galaxy_rl_basic }
 -system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = ai_system_02 }
-+system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } }
++system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = painted_galaxy_rl_basic }
 -system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } initializer = ai_system_01 }
 +system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } }
 -system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
 +system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } }
 -system = { id = "6" name = "Gaping_Maw" position = { x = 192.35 y = -238.8 } initializer = distantstars_init_06 }
 +system = { id = "6" name = "Gaping_Maw" position = { x = 192.35 y = -238.8 } }
--system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } initializer = basic_init_03 }
-+system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } }
 -system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } initializer = megacorp_interstellar_assembly_init_01 }
 +system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } }
 -system = { id = "10" name = "NAME_Tiyana_Vek" position = { x = 49.58 y = 130.32 } initializer = hostile_init_16 }
@@ -39,7 +37,7 @@ SetWormholePair: 6
 -system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }
 +system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } }
 -system = { id = "18" name = "Stenbork" position = { x = -97.43 y = 224.27 } initializer = trinary_init_01 }
-+system = { id = "18" name = "Stenbork" position = { x = -97.43 y = 224.27 } }
++system = { id = "18" name = "Stenbork" position = { x = -97.43 y = 224.27 } initializer = painted_galaxy_rl_basic }
 -system = { id = "19" name = "Hells_Maw" position = { x = -219.04 y = 1.3 } initializer = guardians_curator_init_02 }
 +system = { id = "19" name = "Hells_Maw" position = { x = -219.04 y = 1.3 } }
 -system = { id = "20" name = "VOIDWORM_SYSTEM_11" position = { x = -94.42 y = -378.24 } initializer = voidworms_spawn_system_small }
@@ -86,4 +84,6 @@ SetWormholePair: 6
 +system = { id = "41" name = "Phaidros" position = { x = -339.63 y = 198.48 } }
 -system = { id = "42" name = "Sigma_Draconis" position = { x = -9.97 y = 225.83 } initializer = guardians_artist_init_01 }
 +system = { id = "42" name = "Sigma_Draconis" position = { x = -9.97 y = 225.83 } }
-… 677 more changed lines
+-system = { id = "43" name = "Hagers" position = { x = 356.85 y = -203.8 } initializer = trinary_init_01 }
++system = { id = "43" name = "Hagers" position = { x = 356.85 y = -203.8 } }
+… 607 more changed lines

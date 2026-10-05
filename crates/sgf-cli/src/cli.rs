@@ -279,6 +279,10 @@ pub enum Command {
         /// the same draw.
         #[arg(long, default_value_t = 0)]
         seed: u64,
+        /// Let the game roll the systems within two jumps of a seat too, instead of
+        /// giving them Plain system.
+        #[arg(long)]
+        roll_around_seats: bool,
         #[command(flatten)]
         install: InstallArg,
         #[command(flatten)]

@@ -1,10 +1,14 @@
-//! The checks on what the game itself reads from a scenario: its marauder clans and
-//! the space it builds the L-Cluster in.
+//! The checks on what the game itself reads from a scenario: its marauder clans, the
+//! space it builds the L-Cluster in and the systems it rolls beside a seat.
+
+use std::collections::BTreeSet;
 
 use super::{Issue, IssueCode, Severity, listed};
+use crate::format::scenario::header_counts::is_seat;
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::guides::Guide;
 use crate::ops::rules::fe_zone::label;
+use crate::prepare::CLEAR_JUMPS;
 use crate::projections::galaxy::{GalaxyGraph, SystemNode};
 
 /// What the marauder initializers say against each other: one home per clan, and a raid
@@ -106,4 +110,35 @@ pub(super) fn l_cluster(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
             ));
         }
     }
+}
+
+/// Every system with no initializer within [`CLEAR_JUMPS`] hyperlane jumps of a seat, in
+/// one note. The game rolls them after the map is built, so no flag keeps a capital clear.
+/// Wormholes are not jumps.
+pub(super) fn rolled_near_seats(g: &GalaxyGraph, issues: &mut Vec<Issue>) {
+    let seats: BTreeSet<u32> = g
+        .systems
+        .values()
+        .filter(|s| is_seat(s))
+        .map(|s| s.id)
+        .collect();
+    let mut rolled: Vec<&SystemNode> = g
+        .within_jumps(&seats, CLEAR_JUMPS)
+        .difference(&seats)
+        .filter_map(|id| g.systems.get(id))
+        .filter(|system| system.initializer.is_empty())
+        .collect();
+    if rolled.is_empty() {
+        return;
+    }
+    rolled.sort_unstable_by_key(|system| system.id);
+    let names: Vec<String> = rolled.iter().map(|system| label(system)).collect();
+    issues.push(Issue::new(
+        IssueCode::RolledNearSeat,
+        format!(
+            "Within {CLEAR_JUMPS} hyperlane jumps of a seat, the game fills {} at random. Nothing keeps leviathans, marauder homes or L-Gates away from a capital.",
+            listed(&names)
+        ),
+        rolled.iter().map(|system| system.id).collect(),
+    ));
 }

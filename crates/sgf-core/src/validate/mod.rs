@@ -99,6 +99,10 @@ pub enum IssueCode {
     /// A marauder clan's home stands within [`marauder::SEAT_CLEARANCE`] of a seat, so
     /// the raids hit that empire first.
     MarauderNearSeat,
+    /// Systems with no initializer within [`crate::prepare::CLEAR_JUMPS`] hyperlane jumps
+    /// of a seat. The game rolls them after the map is built, so nothing keeps its specials
+    /// away from a capital.
+    RolledNearSeat,
     /// Two bodies about one parent stand at the same radius and angle, so the game draws
     /// one over the other. Read from the system details, which a plain open does not build.
     BodiesOverlap,
@@ -133,7 +137,10 @@ impl IssueCode {
             | Self::BodiesOverlap => Severity::Warning,
             // The game itself writes duplicate lane entries (708<->154, 401<->521 in the
             // sample), so a duplicate is worth a note, not a fault.
-            Self::LaneDuplicate | Self::MarauderNearSeat | Self::FeLinkFar => Severity::Info,
+            Self::LaneDuplicate
+            | Self::MarauderNearSeat
+            | Self::RolledNearSeat
+            | Self::FeLinkFar => Severity::Info,
         }
     }
 
@@ -174,6 +181,7 @@ impl IssueCode {
             Self::MarauderBaseOrphan => "marauder_base_orphan",
             Self::MarauderBasesMissing => "marauder_bases_missing",
             Self::MarauderNearSeat => "marauder_near_seat",
+            Self::RolledNearSeat => "rolled_near_seat",
             Self::BodiesOverlap => "bodies_overlap",
         }
     }
@@ -339,6 +347,7 @@ pub fn validate(g: &GalaxyGraph) -> Vec<Issue> {
         paint::fe_links(g, &mut issues);
         scenario::l_cluster(g, &mut issues);
         scenario::marauders(g, &mut issues);
+        scenario::rolled_near_seats(g, &mut issues);
     }
 
     let components = g.components();

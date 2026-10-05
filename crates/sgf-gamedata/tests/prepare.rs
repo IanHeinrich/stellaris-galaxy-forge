@@ -8,11 +8,15 @@ use std::fmt::Write as _;
 
 use sgf_core::document::Document;
 use sgf_core::export::{self, ScenarioProfile};
+use sgf_core::format::scenario::header_counts;
 use sgf_core::format::scenario::marauder::clan_count;
+use sgf_core::format::scenario::paint::basic_initializer;
 use sgf_core::ops::Op;
 use sgf_core::prepare::{
-    self, PlainDraw, PrepareChoice, PrepareError, PreparePreset, PrepareRow, RowChoice, RowSystems,
+    self, PlainDraw, PrepareChoice, PrepareError, PrepareOptions, PreparePreset, PrepareRow,
+    RowChoice, RowSystems,
 };
+use sgf_core::projections::galaxy::{GalaxyGraph, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::IssueCode;
 use sgf_gamedata::GameData;
@@ -21,8 +25,9 @@ use sgf_gamedata::prepare::{classify, plain_draw};
 use crate::common;
 
 /// The rows whose systems stand in no other of them.
-const INITIALIZER_ROWS: [PrepareRow; 8] = [
+const INITIALIZER_ROWS: [PrepareRow; 9] = [
     PrepareRow::HomeStarts,
+    PrepareRow::Sol,
     PrepareRow::HomeNeighbours,
     PrepareRow::OriginAndEvent,
     PrepareRow::MarauderClans,
@@ -84,7 +89,8 @@ fn build(
     rows: &[RowSystems],
     choices: &[RowChoice],
 ) -> Option<Op> {
-    prepare::build(session, rows, choices, &plain_draw(gd, 0)).expect("build the batch")
+    let options = PrepareOptions::default();
+    prepare::build(session, rows, choices, &plain_draw(gd, 0), &options).expect("build the batch")
 }
 
 /// The description, the members by op, and each line the batch rewrote, the first
@@ -135,6 +141,7 @@ fn each_system_stands_in_one_initializer_row_unless_it_is_a_seat_or_a_fallen_emp
         [
             (PrepareRow::EmpireSeats, 17),
             (PrepareRow::HomeStarts, 4),
+            (PrepareRow::Sol, 1),
             (PrepareRow::HomeNeighbours, 32),
             (PrepareRow::OriginAndEvent, 7),
             (PrepareRow::FallenEmpires, 24),
@@ -237,7 +244,13 @@ fn a_choice_its_row_does_not_offer_is_refused() {
         row: PrepareRow::OrdinarySystems,
         choice: PrepareChoice::Plain,
     };
-    let refused = prepare::build(&session, &rows, &[unoffered], &plain_draw(gd, 0));
+    let refused = prepare::build(
+        &session,
+        &rows,
+        &[unoffered],
+        &plain_draw(gd, 0),
+        &PrepareOptions::default(),
+    );
     assert_eq!(
         refused,
         Err(PrepareError::Unoffered {
@@ -255,7 +268,13 @@ fn a_choice_its_row_does_not_offer_is_refused() {
             choice: PrepareChoice::GameNames,
         },
     ];
-    let refused = prepare::build(&session, &rows, &twice, &plain_draw(gd, 0));
+    let refused = prepare::build(
+        &session,
+        &rows,
+        &twice,
+        &plain_draw(gd, 0),
+        &PrepareOptions::default(),
+    );
     assert_eq!(
         refused,
         Err(PrepareError::RowTwice(PrepareRow::SystemNames))
@@ -453,6 +472,7 @@ fn a_paint_a_galaxy_export_has_no_home_starts_left_to_make_generic() {
         [
             (PrepareRow::EmpireSeats, 17),
             (PrepareRow::HomeStarts, 0),
+            (PrepareRow::Sol, 0),
             (PrepareRow::HomeNeighbours, 32),
             (PrepareRow::OriginAndEvent, 7),
             (PrepareRow::FallenEmpires, 4),
@@ -500,6 +520,450 @@ fn plain_system_with_nothing_to_draw_is_refused() {
         row: PrepareRow::OriginAndEvent,
         choice: PrepareChoice::Plain,
     }];
-    let refused = prepare::build(&session, &rows, &plain, &PlainDraw::default());
+    let refused = prepare::build(
+        &session,
+        &rows,
+        &plain,
+        &PlainDraw::default(),
+        &PrepareOptions::default(),
+    );
     assert_eq!(refused, Err(PrepareError::NoPlainLayouts));
+}
+
+/// The 4.4 sample's Sol: a seat on `sol_system_initializer` exported plain, and the
+/// player's Sol seat on a generic start exported for Paint a Galaxy.
+const SOL: u32 = 217;
+
+fn row_of(rows: &[RowSystems], row: PrepareRow) -> Vec<u32> {
+    let found = rows.iter().find(|r| r.row == row);
+    found.expect("every row is listed").systems.clone()
+}
+
+fn sol(choice: PrepareChoice) -> [RowChoice; 1] {
+    [RowChoice {
+        row: PrepareRow::Sol,
+        choice,
+    }]
+}
+
+fn set_initializer(session: &mut Session, system: u32, initializer: &str) {
+    session
+        .apply(Op::SetInitializer {
+            system,
+            initializer: Some(initializer.to_owned()),
+        })
+        .expect("set the initializer");
+}
+
+fn initializer_of(session: &Session, system: u32) -> &str {
+    &session.graph().systems[&system].initializer
+}
+
+fn sol_seat(player: bool) -> SpawnScript {
+    SpawnScript::PaintAGalaxy {
+        kind: PaintSpawnKind::Sol,
+        random_value: 0,
+        player,
+    }
+}
+
+#[test]
+fn every_sol_stands_in_the_sol_row_seat_or_not_and_in_no_other_initializer_row() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let rows = classify(&session, gd);
+    assert_eq!(row_of(&rows, PrepareRow::Sol), [SOL]);
+    assert!(row_of(&rows, PrepareRow::EmpireSeats).contains(&SOL));
+    assert!(!row_of(&rows, PrepareRow::HomeStarts).contains(&SOL));
+    let ordinary = row_of(&rows, PrepareRow::OrdinarySystems);
+    let [primitive, geocentric] = [ordinary[0], ordinary[1]];
+    set_initializer(&mut session, primitive, "pre_ftl_init_sol");
+    set_initializer(&mut session, geocentric, "init_sol_geocentric");
+    let rows = classify(&session, gd);
+    let sols: BTreeSet<u32> = row_of(&rows, PrepareRow::Sol).into_iter().collect();
+    assert_eq!(sols, BTreeSet::from([SOL, primitive, geocentric]));
+    for row in INITIALIZER_ROWS
+        .into_iter()
+        .chain([PrepareRow::OrdinarySystems])
+        .filter(|&row| row != PrepareRow::Sol)
+    {
+        let others = row_of(&rows, row);
+        assert!(others.iter().all(|id| !sols.contains(id)), "{row:?}");
+    }
+}
+
+/// Both of `build`'s and `kept_clear`'s answers to `choices`, which refuse alike.
+fn refusals(
+    gd: &GameData,
+    session: &Session,
+    rows: &[RowSystems],
+    choices: &[RowChoice],
+) -> [Option<PrepareError>; 2] {
+    let draw = plain_draw(gd, 0);
+    let built = prepare::build(session, rows, choices, &draw, &PrepareOptions::default());
+    let clear = prepare::kept_clear(session, rows, choices, &draw);
+    [built.err(), clear.err()]
+}
+
+#[test]
+fn each_sol_choice_on_a_plain_scenario_is_one_edit_that_undo_takes_back() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let primitive = row_of(&classify(&session, gd), PrepareRow::OrdinarySystems)[0];
+    set_initializer(&mut session, primitive, "pre_ftl_init_sol");
+    let before = current(&session);
+    let rows = classify(&session, gd);
+    let sols: BTreeSet<u32> = row_of(&rows, PrepareRow::Sol).into_iter().collect();
+    assert_eq!(sols, BTreeSet::from([primitive, SOL]));
+    let is_seat = |session: &Session, id| header_counts::is_seat(&session.graph().systems[&id]);
+    assert!(is_seat(&session, SOL));
+    let plain = plain_draw(gd, 0);
+    let is_drawn = |session: &Session, id| {
+        let drawn = initializer_of(session, id);
+        plain.layouts.iter().any(|l| l.key == drawn)
+    };
+    let seats_none = RowChoice {
+        row: PrepareRow::EmpireSeats,
+        choice: PrepareChoice::None,
+    };
+
+    let op = build(gd, &session, &rows, &sol(PrepareChoice::Plain)).expect("a change");
+    session.apply(op).expect("apply Plain");
+    assert_eq!(initializer_of(&session, SOL), basic_initializer(SOL));
+    assert!(is_seat(&session, SOL), "the seat stays");
+    assert!(is_drawn(&session, primitive));
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), before, "undo is byte-exact");
+
+    let choices = [seats_none, sol(PrepareChoice::Plain)[0]];
+    let op = build(gd, &session, &rows, &choices).expect("a change");
+    session.apply(op).expect("apply Plain with no seats");
+    assert!(!is_seat(&session, SOL));
+    assert!(is_drawn(&session, SOL), "an unseated Sol is a plain system");
+    session.undo().expect("undo").expect("an edit to undo");
+
+    let home = row_of(&rows, PrepareRow::HomeStarts)[0];
+    let generic = RowChoice {
+        row: PrepareRow::HomeStarts,
+        choice: PrepareChoice::GenericStart,
+    };
+    let op = build(gd, &session, &rows, &[seats_none, generic]).expect("a change");
+    session
+        .apply(op)
+        .expect("apply Generic start with no seats");
+    assert!(is_drawn(&session, home), "an unseated home start is plain");
+    session.undo().expect("undo").expect("an edit to undo");
+
+    let pre_ftl = sol(PrepareChoice::PreFtlEarth);
+    for choices in [&pre_ftl[..], &[seats_none, pre_ftl[0]]] {
+        let op = build(gd, &session, &rows, choices).expect("a change");
+        session.apply(op).expect("apply Pre-FTL Earth");
+        assert_eq!(
+            initializer_of(&session, SOL),
+            "pre_ftl_init_sol",
+            "the seat"
+        );
+        assert!(!is_seat(&session, SOL));
+        assert!(is_drawn(&session, primitive), "the other Sol is plain");
+        assert_eq!(session.history().undo.len(), 2, "one undo step");
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), before, "undo is byte-exact");
+    }
+
+    let refused = Some(PrepareError::UneSeatOnPlain);
+    let une = sol(PrepareChoice::UneSeat);
+    assert_eq!(
+        refusals(gd, &session, &rows, &une),
+        [refused.clone(), refused]
+    );
+}
+
+#[test]
+fn une_seat_makes_the_one_sol_the_sol_seat_and_keeps_its_initializer() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let seat_of = |session: &Session, id| session.graph().systems[&id].spawn_script.clone();
+    assert_eq!(seat_of(&session, SOL), Some(sol_seat(true)), "the export's");
+    assert!(row_of(&classify(&session, gd), PrepareRow::Sol).is_empty());
+    set_initializer(&mut session, SOL, "sol_system_initializer");
+    let rows = classify(&session, gd);
+    assert_eq!(row_of(&rows, PrepareRow::Sol), [SOL]);
+    let une = sol(PrepareChoice::UneSeat);
+    assert_eq!(build(gd, &session, &rows, &une), None, "Sol holds the seat");
+
+    let other = row_of(&rows, PrepareRow::EmpireSeats)
+        .into_iter()
+        .find(|&id| id != SOL)
+        .expect("another seat");
+    let players = SpawnScript::PaintAGalaxy {
+        kind: PaintSpawnKind::Preferred,
+        random_value: 0,
+        player: true,
+    };
+    let enabled = SpawnScript::PaintAGalaxy {
+        kind: PaintSpawnKind::Enabled,
+        random_value: 0,
+        player: false,
+    };
+    for (system, script) in [(other, players), (SOL, enabled)] {
+        session
+            .apply(Op::SetSpawnScript {
+                system,
+                script: Some(script),
+            })
+            .expect("move the player's seat");
+    }
+    let duplicates = |session: &Session| {
+        let issues = session.validate().into_iter();
+        issues
+            .filter(|issue| issue.code == IssueCode::PlayerSeatDuplicate)
+            .count()
+    };
+    assert_eq!(duplicates(&session), 0);
+    let before = current(&session);
+    let rows = classify(&session, gd);
+    let op = build(gd, &session, &rows, &une).expect("a change");
+    let Op::Batch { ops, .. } = &op else {
+        panic!("one batch");
+    };
+    assert_eq!(ops.len(), 1);
+    let result = session.apply(op).expect("apply UNE seat");
+    assert_eq!(result.entry.description, "Prepared 1 system for a new game");
+    assert_eq!(initializer_of(&session, SOL), "sol_system_initializer");
+    assert_eq!(seat_of(&session, SOL), Some(sol_seat(false)));
+    assert_eq!(
+        duplicates(&session),
+        0,
+        "the player's marker stays where it was"
+    );
+    assert_eq!(header_count_issues(&session), Vec::<String>::new());
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), before, "undo is byte-exact");
+
+    session
+        .apply(Op::SetSpawnScript {
+            system: other,
+            script: Some(sol_seat(false)),
+        })
+        .expect("seat Sol elsewhere");
+    let taken = Some(PrepareError::SolSeatTaken(other));
+    assert_eq!(refusals(gd, &session, &rows, &une), [taken.clone(), taken]);
+    session.undo().expect("undo").expect("an edit to undo");
+
+    let primitive = row_of(&rows, PrepareRow::OrdinarySystems)[0];
+    set_initializer(&mut session, primitive, "pre_ftl_init_sol");
+    let rows = classify(&session, gd);
+    let several = Some(PrepareError::SeveralSols(row_of(&rows, PrepareRow::Sol)));
+    assert_eq!(
+        refusals(gd, &session, &rows, &une),
+        [several.clone(), several]
+    );
+}
+
+/// `from` and every system within `jumps` lanes of it.
+fn within(session: &Session, from: &BTreeSet<u32>, jumps: usize) -> BTreeSet<u32> {
+    let systems = &session.graph().systems;
+    let mut reached = from.clone();
+    for _ in 0..jumps {
+        let next: Vec<u32> = systems
+            .values()
+            .flat_map(|s| s.lanes.iter().map(move |lane| (s.id, lane.to)))
+            .filter_map(
+                |(a, b)| match (reached.contains(&a), reached.contains(&b)) {
+                    (true, false) => Some(b),
+                    (false, true) => Some(a),
+                    _ => None,
+                },
+            )
+            .collect();
+        reached.extend(next);
+    }
+    reached
+}
+
+#[test]
+fn bare_shell_gives_plain_systems_within_two_jumps_of_a_seat_unless_told_not_to() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let choices = PreparePreset::BareShell.choices();
+    let draw = plain_draw(gd, 0);
+    for (name, session) in samples() {
+        let rows = classify(&session, gd);
+        let empty = session
+            .graph()
+            .systems
+            .values()
+            .filter(|s| s.initializer.is_empty() && !header_counts::is_seat(s));
+        let decided: BTreeSet<u32> = choices
+            .iter()
+            .filter(|c| c.choice == PrepareChoice::GameDecides)
+            .flat_map(|c| row_of(&rows, c.row))
+            .chain(empty.map(|s| s.id))
+            .collect();
+        let clear: BTreeSet<u32> = prepare::kept_clear(&session, &rows, &choices, &draw)
+            .expect("the choices are offered")
+            .into_iter()
+            .collect();
+        assert!(!clear.is_empty(), "{name}");
+
+        let mut on = session.clone();
+        on.apply(build(gd, &session, &rows, &choices).expect("a change"))
+            .expect("apply bare shell");
+        let seats: BTreeSet<u32> = on
+            .graph()
+            .systems
+            .values()
+            .filter(|s| header_counts::is_seat(s))
+            .map(|s| s.id)
+            .collect();
+        let near = within(&on, &seats, prepare::CLEAR_JUMPS);
+        let near: BTreeSet<u32> = decided.intersection(&near).copied().collect();
+        let changed: BTreeSet<u32> = near
+            .iter()
+            .copied()
+            .filter(|&id| !is_plain(&session, &draw, id))
+            .collect();
+        assert_eq!(clear, changed, "{name}");
+        assert!(clear.len() < near.len(), "{name}: some are plain already");
+        for &id in &decided {
+            match near.contains(&id) {
+                true if clear.contains(&id) => assert!(is_plain(&on, &draw, id)),
+                true => assert_eq!(initializer_of(&on, id), initializer_of(&session, id)),
+                false => assert_eq!(initializer_of(&on, id), "", "{name}: system {id}"),
+            }
+        }
+
+        let mut off = session.clone();
+        let options = PrepareOptions {
+            clear_around_seats: false,
+        };
+        let op = prepare::build(&session, &rows, &choices, &draw, &options)
+            .expect("build the batch")
+            .expect("a change");
+        off.apply(op).expect("apply bare shell");
+        for system in off.graph().systems.values() {
+            let id = system.id;
+            if decided.contains(&id) {
+                assert_eq!(system.initializer, "", "{name}: system {id}");
+            }
+            if !near.contains(&id) {
+                assert_eq!(
+                    system.initializer,
+                    initializer_of(&on, id),
+                    "{name}: system {id}"
+                );
+            }
+        }
+    }
+}
+
+fn is_plain(session: &Session, draw: &PlainDraw, id: u32) -> bool {
+    let held = initializer_of(session, id);
+    held == "painted_galaxy_rl_basic" || draw.layouts.iter().any(|l| l.key == held)
+}
+
+#[test]
+fn taking_out_the_wormhole_pairs_reports_the_systems_it_cuts_off() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_5(), ScenarioProfile::PaintAGalaxy);
+    let rows = classify(&session, gd);
+    let names = [RowChoice {
+        row: PrepareRow::SystemNames,
+        choice: PrepareChoice::GameNames,
+    }];
+    let op = build(gd, &session, &rows, &names).expect("a change");
+    assert_eq!(prepare::cut_off(&session, &op), Vec::<u32>::new());
+
+    let pairs = [RowChoice {
+        row: PrepareRow::WormholePairs,
+        choice: PrepareChoice::None,
+    }];
+    let op = build(gd, &session, &rows, &pairs).expect("a change");
+    let cut = prepare::cut_off(&session, &op);
+    let mut expected = vec![591, 592];
+    expected.extend(594..=600);
+    assert_eq!(cut, expected);
+    let graph = session.graph();
+    assert!(header_counts::is_seat(&graph.systems[&592]));
+    assert!(
+        graph.systems[&591].lanes.is_empty(),
+        "only its wormhole reaches it"
+    );
+    let alone = &graph.systems[&593];
+    assert!(
+        alone.lanes.is_empty() && alone.wormhole_pair.is_none(),
+        "cut off already"
+    );
+    session.apply(op).expect("apply the batch");
+    let disconnected: Vec<Vec<u32>> = session
+        .validate()
+        .into_iter()
+        .filter(|issue| issue.code == IssueCode::Disconnected)
+        .map(|issue| issue.systems)
+        .collect();
+    assert_eq!(disconnected, [cut]);
+}
+
+#[test]
+fn faithful_fills_a_system_left_empty_beside_a_seat_unless_told_not_to() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let draw = plain_draw(gd, 0);
+    let faithful = PreparePreset::Faithful.choices();
+    for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
+        let mut session = scenario(common::open_4_4(), profile);
+        let graph = session.graph();
+        let beside = beside_a_seat(graph);
+        session
+            .apply(Op::SetInitializer {
+                system: beside,
+                initializer: None,
+            })
+            .expect("empty the neighbour");
+        let rows = classify(&session, gd);
+        assert_eq!(
+            prepare::kept_clear(&session, &rows, &faithful, &draw),
+            Ok(vec![beside]),
+            "{profile:?}"
+        );
+        let op = build(gd, &session, &rows, &faithful).expect("a change");
+        let Op::Batch { ops, .. } = &op else {
+            panic!("one batch");
+        };
+        assert_eq!(ops.len(), 1, "{profile:?}");
+        let before = current(&session);
+        session.apply(op).expect("apply faithful");
+        assert!(is_plain(&session, &draw, beside), "{profile:?}");
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), before, "undo is byte-exact");
+
+        let off = PrepareOptions {
+            clear_around_seats: false,
+        };
+        let left = prepare::build(&session, &rows, &faithful, &draw, &off);
+        assert_eq!(left, Ok(None), "{profile:?}");
+    }
+}
+
+/// The first system one lane from a seat that is no seat itself and has an initializer.
+fn beside_a_seat(graph: &GalaxyGraph) -> u32 {
+    let systems = graph.order.iter().filter_map(|id| graph.systems.get(id));
+    let seats = systems.filter(|s| header_counts::is_seat(s));
+    seats
+        .flat_map(|seat| seat.lanes.iter().map(|lane| lane.to))
+        .find(|id| {
+            let next = &graph.systems[id];
+            !header_counts::is_seat(next) && !next.initializer.is_empty()
+        })
+        .expect("a system beside a seat")
 }

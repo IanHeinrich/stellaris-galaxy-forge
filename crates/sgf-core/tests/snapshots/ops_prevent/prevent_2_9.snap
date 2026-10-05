@@ -6,7 +6,7 @@ Prevented lane Coruscant #2 <-> Lonely #9
 touched: [2, 9]
 inverse: AllowLane { a: 2, b: 9 }
 warning coordinate_transform: the scenario has a coordinate_transform; positions are shown untransformed
-… and 1 other issues
+… and 2 other issues
 
 --- scenario
 +++ scenario

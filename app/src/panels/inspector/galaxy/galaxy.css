@@ -90,6 +90,19 @@
   flex-wrap: wrap;
 }
 
+.prep-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prep-option label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-control);
+}
+
 .prep-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

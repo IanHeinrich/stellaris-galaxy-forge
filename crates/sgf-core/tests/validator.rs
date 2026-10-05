@@ -1,5 +1,5 @@
 //! The validator's rules on a mutated copy of the sample's galaxy, and the L-Cluster
-//! warning on scenarios.
+//! warning and the note on systems the game rolls beside a seat on scenarios.
 use std::sync::LazyLock;
 
 use sgf_core::guides::Guide;
@@ -9,7 +9,7 @@ use sgf_core::validate::{IssueCode, Severity, validate};
 
 use crate::common;
 use common::coded;
-use common::fixture::{GRAMMAR, PAINTED};
+use common::fixture::{EXPORTED, GRAMMAR, PAINTED};
 
 /// The 4.4 sample's galaxy, built once, for each test to mutate a copy of.
 static GRAPH: LazyLock<GalaxyGraph> =
@@ -164,5 +164,44 @@ fn a_system_moved_into_the_l_cluster_is_reported_on_any_scenario() {
     assert!(
         coded(&result.issues, IssueCode::LClusterSystem).is_empty(),
         "a save is the galaxy the game already built"
+    );
+}
+
+/// The painted fixture seats empires on Alpha, Beta, Gamma and Sol. Ingress, Void, Old
+/// Seat and #11 lie one lane from a seat and Egress two, all with no initializer; Low
+/// Seat lies three lanes out.
+#[test]
+fn systems_the_game_rolls_beside_a_seat_are_noted_once() {
+    let mut session = PAINTED.open();
+    let issues = session.validate();
+    let rolled = coded(&issues, IssueCode::RolledNearSeat);
+    assert_eq!(rolled.len(), 1, "{issues:?}");
+    assert_eq!(
+        rolled[0].message,
+        "Within 2 hyperlane jumps of a seat, the game fills Ingress, Egress, Old Seat, Void and #11 at random. Nothing keeps leviathans, marauder homes or L-Gates away from a capital."
+    );
+    assert_eq!(rolled[0].severity, Severity::Info);
+    assert!(!rolled[0].note);
+    assert_eq!(rolled[0].systems, [7, 8, 9, 10, 11]);
+
+    let result = session
+        .apply(Op::SetInitializer {
+            system: 10,
+            initializer: Some("painted_galaxy_rl_basic".to_owned()),
+        })
+        .expect("give Void an initializer");
+    let rolled = coded(&result.issues, IssueCode::RolledNearSeat);
+    assert_eq!(rolled.len(), 1, "{:?}", result.issues);
+    assert_eq!(rolled[0].systems, [7, 8, 9, 11]);
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(
+        coded(&session.validate(), IssueCode::RolledNearSeat)[0].systems,
+        [7, 8, 9, 10, 11]
+    );
+
+    let exported = EXPORTED.open().validate();
+    assert!(
+        coded(&exported, IssueCode::RolledNearSeat).is_empty(),
+        "every system of the exported sample has an initializer"
     );
 }

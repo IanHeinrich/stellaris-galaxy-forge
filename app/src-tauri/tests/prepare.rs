@@ -14,11 +14,30 @@ fn choices(preset: PreparePreset) -> Value {
     json!(preset.choices())
 }
 
+/// The arguments both commands take for `preset`, the space around seats kept clear.
+fn args(preset: PreparePreset) -> Value {
+    json!({ "choices": choices(preset), "options": { "clear_around_seats": true } })
+}
+
 fn preview(
     w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
     preset: PreparePreset,
 ) -> PreparePreview {
-    invoke(w, "prepare_preview", json!({ "choices": choices(preset) })).expect("preview")
+    preview_with(w, choices(preset), true)
+}
+
+fn preview_with(
+    w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+    choices: Value,
+    clear_around_seats: bool,
+) -> PreparePreview {
+    let options = json!({ "clear_around_seats": clear_around_seats });
+    invoke(
+        w,
+        "prepare_preview",
+        json!({ "choices": choices, "options": options }),
+    )
+    .expect("preview")
 }
 
 #[test]
@@ -27,12 +46,8 @@ fn prepare_needs_game_data_and_an_open_scenario() {
     let opened: OpenResult =
         invoke(&w, "open_as_scenario", json!({ "path": SAMPLE })).expect("open as scenario");
     assert!(opened.galaxy.systems.len() > 1);
-    let refused = invoke::<PreparePreview>(
-        &w,
-        "prepare_preview",
-        json!({ "choices": choices(PreparePreset::Faithful) }),
-    )
-    .expect_err("no game data to sort the systems by");
+    let refused = invoke::<PreparePreview>(&w, "prepare_preview", args(PreparePreset::Faithful))
+        .expect_err("no game data to sort the systems by");
     assert_eq!(refused.kind, ErrorKind::Op);
     assert!(
         refused.message.contains("load game data"),
@@ -43,7 +58,7 @@ fn prepare_needs_game_data_and_an_open_scenario() {
     let Some(w) = game_data_webview() else {
         return;
     };
-    let faithful = json!({ "choices": choices(PreparePreset::Faithful) });
+    let faithful = args(PreparePreset::Faithful);
     assert_eq!(
         kind(invoke::<PreparePreview>(
             &w,
@@ -74,7 +89,10 @@ fn prepare_needs_game_data_and_an_open_scenario() {
     let unoffered = invoke::<PreparePreview>(
         &w,
         "prepare_preview",
-        json!({ "choices": [{ "row": "empire_seats", "choice": "plain" }] }),
+        json!({
+            "choices": [{ "row": "empire_seats", "choice": "plain" }],
+            "options": { "clear_around_seats": true },
+        }),
     )
     .expect_err("seats offer no plain system");
     assert_eq!(unoffered.kind, ErrorKind::Op);
@@ -101,12 +119,8 @@ fn a_preset_previews_its_changes_and_applies_them_as_one_undo_step() {
         names.map(|r| r.systems.len()),
         Some(opened.galaxy.systems.len())
     );
-    let nothing: Option<PreparedEdit> = invoke(
-        &w,
-        "prepare_apply",
-        json!({ "choices": choices(PreparePreset::Faithful) }),
-    )
-    .expect("apply faithful");
+    let nothing: Option<PreparedEdit> =
+        invoke(&w, "prepare_apply", args(PreparePreset::Faithful)).expect("apply faithful");
     assert!(nothing.is_none(), "Faithful changes nothing");
 
     let fresh = preview(&w, PreparePreset::FreshStart);
@@ -115,13 +129,10 @@ fn a_preset_previews_its_changes_and_applies_them_as_one_undo_step() {
         fresh.rows, faithful.rows,
         "the rows do not depend on the choices"
     );
-    let prepared: PreparedEdit = invoke::<Option<PreparedEdit>>(
-        &w,
-        "prepare_apply",
-        json!({ "choices": choices(PreparePreset::FreshStart) }),
-    )
-    .expect("apply fresh start")
-    .expect("an edit");
+    let prepared: PreparedEdit =
+        invoke::<Option<PreparedEdit>>(&w, "prepare_apply", args(PreparePreset::FreshStart))
+            .expect("apply fresh start")
+            .expect("an edit");
     assert_eq!(prepared.changes, fresh.changes);
     let applied = prepared.edit;
     assert!(applied.dirty);
@@ -143,6 +154,57 @@ fn a_preset_previews_its_changes_and_applies_them_as_one_undo_step() {
 }
 
 #[test]
+fn keeping_the_space_around_seats_clear_is_previewed_and_applied_as_chosen() {
+    let Some(w) = game_data_webview() else {
+        return;
+    };
+    invoke::<OpenResult>(&w, "open_as_scenario", json!({ "path": SAMPLE }))
+        .expect("open as scenario");
+
+    let faithful = preview(&w, PreparePreset::Faithful);
+    assert!(faithful.kept_clear.is_empty(), "no row is left to the game");
+    assert!(faithful.cut_off.is_empty());
+
+    let shell = preview(&w, PreparePreset::BareShell);
+    assert!(!shell.kept_clear.is_empty());
+    let unguarded = preview_with(&w, choices(PreparePreset::BareShell), false);
+    assert!(unguarded.kept_clear.is_empty(), "the option is off");
+    assert_eq!(unguarded.rows, shell.rows);
+
+    let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
+        &w,
+        "prepare_apply",
+        json!({
+            "choices": choices(PreparePreset::BareShell),
+            "options": { "clear_around_seats": false },
+        }),
+    )
+    .expect("apply bare shell")
+    .expect("an edit");
+    assert_eq!(applied.changes, unguarded.changes);
+}
+
+#[test]
+fn a_une_seat_is_refused_on_a_plain_map() {
+    let Some(w) = game_data_webview() else {
+        return;
+    };
+    invoke::<OpenResult>(&w, "open_as_scenario", json!({ "path": SAMPLE }))
+        .expect("open as scenario");
+    let refused = invoke::<PreparePreview>(
+        &w,
+        "prepare_preview",
+        json!({
+            "choices": [{ "row": "sol", "choice": "une_seat" }],
+            "options": { "clear_around_seats": true },
+        }),
+    )
+    .expect_err("a plain map has no UNE seat");
+    assert_eq!(refused.kind, ErrorKind::Op);
+    assert_eq!(refused.message, "Only a Paint a Galaxy map has a UNE seat.");
+}
+
+#[test]
 fn a_paint_a_galaxy_map_previews_under_its_own_profile() {
     let Some(w) = game_data_webview() else {
         return;
@@ -155,6 +217,10 @@ fn a_paint_a_galaxy_map_previews_under_its_own_profile() {
     .expect("open as scenario");
     let shell = preview(&w, PreparePreset::BareShell);
     assert_eq!(shell.profile, ScenarioProfile::PaintAGalaxy);
+    assert!(
+        !shell.cut_off.is_empty(),
+        "taking the pairs out cuts a system off"
+    );
     let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
         &w,
         "prepare_apply",

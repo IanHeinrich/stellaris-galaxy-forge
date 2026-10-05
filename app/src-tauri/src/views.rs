@@ -19,7 +19,8 @@ pub struct AddedBody {
 }
 
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,
-/// the systems standing in each row, and how many systems the choices change.
+/// the systems standing in each row, how many systems the choices change, and what the options
+/// and a pair taken out do beside them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PreparePreview {
@@ -27,6 +28,11 @@ pub struct PreparePreview {
     /// Every row, in the panel's order, each row's systems in file order.
     pub rows: Vec<RowSystems>,
     pub changes: usize,
+    /// The systems the game would roll near a seat that keeping the space around seats clear
+    /// gives a plain system; empty with the option off. Sorted.
+    pub kept_clear: Vec<u32>,
+    /// The systems the edit would cut off from the rest of the map. Sorted.
+    pub cut_off: Vec<u32>,
 }
 
 /// What preparing a scenario answers with: the edit, and how many systems it changed.

@@ -30,6 +30,8 @@ fn a_preset_with_a_row_over_it_is_written_as_one_edit() {
     let text = stdout(&run);
     assert!(text.contains("home_starts: 4\n"), "{text}");
     assert!(text.contains("system_names: 791\n"), "{text}");
+    assert!(text.contains("sol: 1\n"), "{text}");
+    assert!(text.contains("kept clear around seats: 0\n"), "{text}");
     assert!(
         text.contains("Prepared 791 systems for a new game"),
         "{text}"
@@ -75,4 +77,44 @@ fn a_save_and_an_unknown_choice_are_refused() {
     ]);
     assert_eq!(unknown.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("plain_please is none of"));
+}
+
+#[test]
+fn bare_shell_says_how_many_systems_it_kept_clear_around_the_seats() {
+    let out = temp_scenario();
+    let run = sgf(&[
+        "prepare",
+        SCENARIO,
+        "--preset",
+        "shell",
+        "--no-mods",
+        "-o",
+        out.to_str().expect("a UTF-8 path"),
+    ]);
+    if without_install(&run) {
+        return;
+    }
+    ok(&run);
+    let text = stdout(&run);
+    let kept: usize = text
+        .lines()
+        .find_map(|line| line.strip_prefix("kept clear around seats: "))
+        .expect("the count")
+        .parse()
+        .expect("a number");
+    assert!(kept > 0, "{text}");
+
+    let rolled = sgf(&[
+        "prepare",
+        SCENARIO,
+        "--preset",
+        "shell",
+        "--roll-around-seats",
+        "--no-mods",
+        "-o",
+        out.to_str().expect("a UTF-8 path"),
+    ]);
+    ok(&rolled);
+    let text = stdout(&rolled);
+    assert!(!text.contains("kept clear around seats"), "{text}");
 }
