@@ -8,6 +8,27 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-05
+
+### Added
+
+- Better support for big mods such as Planetary Diversity and
+  Gigastructural Engineering. Modded planets show their art, and the class
+  picker and Add system's Special menu list what these mods add.
+- Long pickers have a filter box.
+- Planets, moons and stars can be opened in the system view from the
+  inspector.
+
+### Changed
+
+- Pickers and modifiers show their effects in a card beside the list.
+- The inspector is tidier, and stations show the resource they gather.
+
+### Fixed
+
+- Fixed false star warnings in Gigastructures systems.
+- Fixed the Issues tab after Open save as scenario.
+
 ## [0.20.1] - 2026-10-04
 
 ### Changed
