@@ -222,6 +222,13 @@ impl ParsedDir {
         }
     }
 
+    /// Each file with its root block and bytes, in load order.
+    pub(crate) fn files(&self) -> impl Iterator<Item = (&Path, &Node, &[u8])> {
+        self.files
+            .iter()
+            .map(|(file, root, src)| (file.as_path(), root, &src[..]))
+    }
+
     /// Each file's root block with its bytes, in load order.
     pub(crate) fn roots(&self) -> impl Iterator<Item = (&Node, &[u8])> {
         self.files.iter().map(|(_, root, src)| (root, &src[..]))

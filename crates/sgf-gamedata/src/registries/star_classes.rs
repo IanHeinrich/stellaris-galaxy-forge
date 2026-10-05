@@ -36,8 +36,8 @@ pub struct StarClass {
     /// Its definition writes only a `class` and zero `spawn_odds`: a key kept valid for the
     /// scripts that name it, with no star body, planet count or anything else a system uses.
     pub placeholder: bool,
-    /// It lists more star bodies than any class a new galaxy rolls has, so the list holds the
-    /// stars a system of it may have rather than one entry per star.
+    /// It is never rolled and lists more star bodies than any class the base game rolls has,
+    /// so the list holds the stars a system of it may have rather than one entry per star.
     pub alternatives: bool,
 }
 
@@ -69,12 +69,13 @@ impl StarClass {
 }
 
 impl StarClasses {
-    /// These classes, each marked [`StarClass::alternatives`] against the most star bodies a
-    /// class with `spawn_odds` above 0 has, or one when none has any.
-    pub(crate) fn marked(&self) -> Self {
+    /// These classes, each never rolled marked [`StarClass::alternatives`] against the most
+    /// star bodies a class with `spawn_odds` above 0 has among those `in_base_game` says the
+    /// base game defines, or one when none has any, so no mod moves the count.
+    pub(crate) fn marked(&self, in_base_game: impl Fn(&StarClass) -> bool) -> Self {
         let rolled = self
             .iter()
-            .filter(|c| c.spawn_odds > 0.0)
+            .filter(|c| c.spawn_odds > 0.0 && in_base_game(c))
             .map(|c| c.planets.len())
             .max()
             .unwrap_or(0)
@@ -82,7 +83,7 @@ impl StarClasses {
         self.iter()
             .map(|class| {
                 let class = StarClass {
-                    alternatives: class.planets.len() > rolled,
+                    alternatives: class.spawn_odds == 0.0 && class.planets.len() > rolled,
                     ..class.clone()
                 };
                 (class.key.clone(), class)

@@ -57,7 +57,8 @@ pub struct PlaysetReport {
     pub placeholder_stars: Vec<Row>,
     /// Star classes with no star body; no placeholder.
     pub stars_without_body: Vec<Row>,
-    /// Star classes listing more stars than any rolled class has, with their planet classes.
+    /// Star classes never rolled that list more stars than any class the base game rolls has,
+    /// with their planet classes.
     pub star_choices: Vec<Row>,
     /// The other star classes with more than one star body, with their planet classes.
     pub stars_with_bodies: Vec<Row>,

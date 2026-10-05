@@ -1,6 +1,6 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
 use crate::install::layers::{Layout, VANILLA};
-use crate::install::script::{self, Def, Range, Variables, whole};
+use crate::install::script::{self, Def, ParsedDir, Range, Variables, whole};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
@@ -338,6 +338,36 @@ fn places_by_script(node: &Node, src: &[u8]) -> bool {
         })
 }
 
+/// The top-level keys of the install's own initializer files: from the parse when the file
+/// won, else read here, since a mod replaced it by its filename.
+fn vanilla_keys(layout: &Layout, parsed: &ParsedDir) -> HashSet<String> {
+    let won: HashMap<&std::path::Path, (&Node, &[u8])> = parsed
+        .files()
+        .map(|(file, root, src)| (file, (root, src)))
+        .collect();
+    let mut keys = HashSet::new();
+    let mut add = |root: &Node, src: &[u8]| {
+        keys.extend(
+            root.children()
+                .iter()
+                .filter_map(|node| node.key_str(src))
+                .filter(|key| !key.starts_with('@'))
+                .map(str::to_owned),
+        );
+    };
+    for file in layout.vanilla_files_in(Initializer::DIR) {
+        match won.get(file.as_path()) {
+            Some(&(root, src)) => add(root, src),
+            None => {
+                if let Some((root, src)) = script::parse_file(&file, &mut Vec::new()) {
+                    add(&root, &src);
+                }
+            }
+        }
+    }
+    keys
+}
+
 /// The registry plus the reverse of every initializer's `spawns`, and the
 /// blocks they were read from, which [`crate::scripts`] walks again.
 #[derive(Debug, Default)]
@@ -347,6 +377,8 @@ pub struct Initializers {
     defs: BTreeMap<String, Def>,
     /// The directory's winning files, in the order the game reads them.
     files: Vec<PathBuf>,
+    /// The keys the game's own files define, whichever file won them.
+    vanilla: HashSet<String>,
 }
 
 impl Initializers {
@@ -356,7 +388,9 @@ impl Initializers {
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Self {
         let files = layout.files_in(Initializer::DIR);
-        let defs = script::parse_dir(layout, Initializer::DIR, globals, diagnostics);
+        let parsed = ParsedDir::load(layout, Initializer::DIR, diagnostics);
+        let vanilla = vanilla_keys(layout, &parsed);
+        let defs = parsed.into_defs(globals, diagnostics);
         let by_name: Registry<Initializer> = defs
             .iter()
             .map(|(key, def)| (key.clone(), Initializer::read(key.clone(), def)))
@@ -375,7 +409,13 @@ impl Initializers {
             spawned_by,
             defs,
             files,
+            vanilla,
         }
+    }
+
+    /// The game's own files define `name`, though a mod's definition may have won.
+    pub fn defined_by_the_game(&self, name: &str) -> bool {
+        self.vanilla.contains(name)
     }
 
     /// The parsed block `name` was read from, spans and source bytes intact.

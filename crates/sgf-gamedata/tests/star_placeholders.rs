@@ -69,6 +69,29 @@ fn a_class_with_only_a_look_and_no_odds_is_a_placeholder() {
     assert_eq!(view("sc_crisis_trio").alternatives, None);
 }
 
+/// A mod's rolled class with more stars than the shell lists.
+const CLUSTER: &str = "sc_cluster = {\n\tclass = sun_star\n\tplanet = { key = pc_sun_star }\n\tplanet = { key = pc_red_star }\n\tplanet = { key = pc_blue_star }\n\tplanet = { key = pc_white_star }\n\tplanet = { key = pc_sun_star }\n\tspawn_odds = 10\n}\n";
+
+#[test]
+fn a_mod_rolling_a_class_of_many_stars_leaves_the_base_game_count_in_place() {
+    let (dir, _) = stars();
+    let user = dir.path().join("user");
+    common::playset(
+        &user,
+        &[(
+            "clusters",
+            &[("common/star_classes/50_cluster.txt", CLUSTER)],
+        )],
+    );
+    let gd = common::load_tree(&dir.path().join("install"), Some(&user), true);
+    assert!(gd.star_classes.get("sc_cluster").is_some(), "the mod loads");
+    assert_eq!(
+        marked(&gd, |c| c.alternatives),
+        ["sc_shell"],
+        "a class a new galaxy rolls has one entry per star"
+    );
+}
+
 #[test]
 fn the_report_lists_placeholders_apart_from_classes_with_no_star_body() {
     let (_dir, gd) = stars();

@@ -60,6 +60,14 @@ impl Layout {
         }
     }
 
+    /// The `.txt` files of `rel_dir` in the game's own install, those a mod replaced included.
+    pub(crate) fn vanilla_files_in(&self, rel_dir: &str) -> Vec<PathBuf> {
+        let dir = normalize(rel_dir)
+            .split('/')
+            .fold(self.install.clone(), |p, part| p.join(part));
+        txt_files(&dir)
+    }
+
     /// Whether `file` lies under one of the roots these layers were read from:
     /// the install, the user directory, or a loaded mod. Both sides are
     /// canonicalised, so a sibling whose name merely starts with a root's

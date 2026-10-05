@@ -31,7 +31,7 @@ pub struct StarClassView {
     #[ts(optional)]
     pub placeholder: Option<bool>,
     /// `Some(true)` for a class whose `planet_keys` are the stars a system of it may have,
-    /// more than any class a new galaxy rolls has; `None` otherwise.
+    /// more than any class the base game rolls has; `None` otherwise.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub alternatives: Option<bool>,
