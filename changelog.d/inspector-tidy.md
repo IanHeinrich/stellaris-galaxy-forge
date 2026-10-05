@@ -1,8 +1,7 @@
 ### Added
 
-- A planet, moon or star page has a Show in system view link that opens its
-  system with the body selected and centred. Right-click a body in a system's
-  Planets list for Go to planet, Go to moon or Go to star.
+- Planet, moon and star pages have a Show in system view link. It opens the system view with the body selected.
+- Right-click a body in a system's planet list to go to it in the system view.
 
 ### Changed
 
