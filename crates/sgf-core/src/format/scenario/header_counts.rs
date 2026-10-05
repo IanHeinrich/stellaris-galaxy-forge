@@ -189,7 +189,7 @@ pub(crate) fn header_mismatch(
 }
 
 /// A seat: a system with a scripted Paint a Galaxy seat or a positive plain weight.
-pub(crate) fn is_seat(system: &SystemNode) -> bool {
+pub fn is_seat(system: &SystemNode) -> bool {
     system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
 }
 

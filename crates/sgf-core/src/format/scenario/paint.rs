@@ -70,6 +70,8 @@ pub const RESERVED_SEAT_NAMES: [&str; 50] = [
 
 /// The mod's random-list initializer for an empty system near a spawn.
 pub(crate) const RL_BASIC: &str = "painted_galaxy_rl_basic";
+/// What each of the mod's random lists of ordinary starts is named with.
+const RANDOM_LIST_PREFIX: &str = "painted_galaxy_rl_";
 /// The star flag a system given [`RL_BASIC`] carries, so the mod knows it chose it.
 pub(crate) const AUTOMATIC_INITIALIZER_FLAG: &str = "painted_galaxy_automatic_initializer";
 /// The star flag both ends of the n-th wormhole pair carry, `n` appended.
@@ -99,6 +101,11 @@ pub fn wormhole_pair<'a>(flags: impl Iterator<Item = &'a str>) -> Option<u32> {
 /// The pair number a star flag names, `None` for any other flag.
 pub fn wormhole_pair_of(flag: &str) -> Option<u32> {
     flag.strip_prefix(WORMHOLE_FLAG_PREFIX)?.parse().ok()
+}
+
+/// Whether `initializer` is one of the mod's random lists, which draw an ordinary start.
+pub fn is_random_list(initializer: &str) -> bool {
+    initializer.starts_with(RANDOM_LIST_PREFIX)
 }
 
 /// Whether a star flag names a wormhole pair.

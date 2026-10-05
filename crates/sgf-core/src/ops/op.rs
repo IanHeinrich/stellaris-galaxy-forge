@@ -172,11 +172,12 @@ pub enum Op {
     RemoveSystems {
         systems: Vec<u32>,
     },
-    /// A system's name. In a scenario, the `name` of its `system` statement. In a save,
-    /// only a system [`Op::AddSystemFromSpec`] added since the file was opened: its own name
-    /// and the names of its star, planets and moons, which carry it as text. The old name
-    /// goes back to the pool of unused star or black hole names the add took it from, and
-    /// the new one leaves whichever of those pools holds it. Empty is refused; the inverse
+    /// A system's name. In a scenario, the `name` of its `system` statement; empty takes
+    /// the statement away, and the game names the system. In a save, only a system
+    /// [`Op::AddSystemFromSpec`] added since the file was opened: its own name and the
+    /// names of its star, planets and moons, which carry it as text. The old name goes back
+    /// to the pool of unused star or black hole names the add took it from, and the new one
+    /// leaves whichever of those pools holds it. A save refuses an empty name. The inverse
     /// carries the name displaced.
     RenameSystem {
         system: u32,

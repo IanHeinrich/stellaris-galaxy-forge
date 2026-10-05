@@ -82,6 +82,10 @@ fn clearing_the_name_of_a_named_system_takes_the_statement_away_and_undo_puts_it
         })
         .expect("clear the name of a system the file named");
     assert_eq!(
+        cleared.entry.description,
+        "Left Lonely #9 for the game to name"
+    );
+    assert_eq!(
         cleared.inverse,
         Op::RenameSystem {
             system: 9,

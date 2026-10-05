@@ -8,6 +8,7 @@ pub mod export;
 pub mod gamedata;
 pub mod inspect;
 pub mod mutate;
+pub mod prepare;
 pub mod roundtrip;
 pub mod shape;
 pub mod special;

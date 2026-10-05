@@ -35,6 +35,7 @@ mod planet_view_choices;
 mod planet_views;
 mod playset_report;
 mod precursors;
+mod prepare;
 mod registries;
 mod reload;
 mod roll_body;

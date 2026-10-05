@@ -322,21 +322,27 @@ fn odds_with(init: &Initializer, dlc: &Dlc<'_>) -> f64 {
     }
 }
 
-/// An ordinary system of one star, drawn from a star list, with no effects, flags,
-/// countries or special bodies. Its belts and fixed asteroids are kept.
-fn plain(gd: &GameData, init: &Initializer) -> bool {
-    let Some((star, rest)) = init.planets.split_first() else {
-        return false;
-    };
+/// A layout galaxy generation draws at random for an ordinary system: odds of its own,
+/// and no effects, countries, flags, cap, neighbour systems or starbase.
+pub fn ordinary(init: &Initializer) -> bool {
     init.usage.as_deref() == Some(USAGE)
         && init.usage_odds.is_some_and(|odds| odds > 0.0)
         && !init.init_effect
         && init.countries.is_empty()
-        && init.asteroid_belts.iter().all(belt_measured)
         && init.flags.is_empty()
         && init.max_instances.is_none()
         && init.spawns.is_empty()
         && init.starbase.is_none()
+}
+
+/// An [`ordinary`] system of one star, drawn from a star list, with no special bodies:
+/// one the generator builds. Its belts and fixed asteroids are kept.
+fn plain(gd: &GameData, init: &Initializer) -> bool {
+    let Some((star, rest)) = init.planets.split_first() else {
+        return false;
+    };
+    ordinary(init)
+        && init.asteroid_belts.iter().all(belt_measured)
         && single_star_list(gd, init)
         && star.class == BodyClass::Star
         && star.count == Range::fixed(1.0)

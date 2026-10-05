@@ -27,6 +27,7 @@ pub(crate) mod orbit_walk;
 pub mod picks;
 pub mod planet_models;
 pub mod planet_views;
+pub mod prepare;
 pub mod registries;
 pub(crate) mod reload;
 pub mod report;
