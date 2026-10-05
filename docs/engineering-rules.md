@@ -175,6 +175,9 @@ format sees it.
   and every `Test` job passed. The `Test` jobs compile through sccache,
   so a job whose workspace library sources match an earlier run on `main`
   or on the same PR reuses those libraries instead of rebuilding them.
+  Vitest keeps its transformed modules in `app/node_modules/.vitest-cache`
+  between runs, and the `Lint` job restores the cache the last run on
+  `main` saved.
   A change that touches only documentation (`*.md`, `docs/`, `LICENSE`,
   `.gitattributes` and `.gitignore`, listed in `scripts/docs-only.sh`)
   skips the build, and `ci-docs.yml` reports the required checks as
