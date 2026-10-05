@@ -4,7 +4,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarClassView } from "../../generated/StarClassView";
 import { counted } from "../text";
-import { isStarBody, starGroup } from "./starBody";
+import { eachStarKeys, isStarBody, starGroup } from "./starBody";
 
 type Body = Pick<PlanetSummary, "id" | "class">;
 
@@ -66,17 +66,24 @@ function starClassGroup(view: StarClassView, crisisVariants: ReadonlySet<string>
   if (crisisVariants.has(view.key)) return "Crisis variants";
   if (view.spawn_odds === 0) return "Special";
   const count = view.planet_keys.length;
+  if (count === 0) return NO_STAR;
   if (count === 2) return "Binaries";
   if (count === 3) return "Trinaries";
   if (count !== 1) return `${count} stars`;
   return starGroup(view.planet_keys[0]);
 }
 
-/** Where a group ranks, after the star-count groups: special, crisis variants, then internal. */
+const NO_STAR = "No star";
+
+/**
+ * Where a group ranks, after the star-count groups: no star, special, crisis variants, then
+ * internal.
+ */
 function groupRank(row: StarClassRow): number {
   if (row.group === INTERNAL) return 3000;
   if (row.group === "Crisis variants") return 2000;
   if (row.group === "Special") return 1000;
+  if (row.group === NO_STAR) return 999;
   return row.view.planet_keys.length * 2 + (row.group === "Exotic" ? 1 : 0);
 }
 
@@ -97,8 +104,8 @@ export function starClassRows(
   return choices
     .map((view): StarClassRow => {
       // Every binary is called "Binary Stars", so a multiple star is named by its bodies.
-      const name =
-        view.planet_keys.length > 1 ? view.planet_keys.map(label).join(" + ") : label(view.key);
+      const stars = eachStarKeys(view);
+      const name = stars.length > 0 ? stars.map(label).join(" + ") : label(view.key);
       return { view, label: name, group: starClassGroup(view, crisisVariants) };
     })
     .sort((a, b) => groupRank(a) - groupRank(b) || a.label.localeCompare(b.label));

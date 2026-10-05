@@ -22,4 +22,14 @@ spawn_odds: number,
 /**
  * Whether the localisation names the class itself.
  */
-localised: boolean, };
+localised: boolean, 
+/**
+ * `Some(true)` for a class defined only so its key is valid, never offered; `None`
+ * otherwise.
+ */
+placeholder?: boolean, 
+/**
+ * `Some(true)` for a class whose `planet_keys` are the stars a system of it may have,
+ * more than any class a new galaxy rolls has; `None` otherwise.
+ */
+alternatives?: boolean, };

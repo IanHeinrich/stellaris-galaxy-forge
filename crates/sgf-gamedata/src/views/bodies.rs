@@ -25,6 +25,16 @@ pub struct StarClassView {
     pub spawn_odds: f64,
     /// Whether the localisation names the class itself.
     pub localised: bool,
+    /// `Some(true)` for a class defined only so its key is valid, never offered; `None`
+    /// otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub placeholder: Option<bool>,
+    /// `Some(true)` for a class whose `planet_keys` are the stars a system of it may have,
+    /// more than any class a new galaxy rolls has; `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub alternatives: Option<bool>,
 }
 
 impl StarClassView {
@@ -40,6 +50,8 @@ impl StarClassView {
             crisis_star_class: sc.crisis_star_class.clone(),
             spawn_odds: sc.spawn_odds,
             localised: loc.raw(&sc.key).is_some(),
+            placeholder: marker(sc.placeholder),
+            alternatives: marker(sc.alternatives),
         }
     }
 }

@@ -113,13 +113,29 @@ export function classForBodies(
 }
 
 /**
- * The star bodies' classes when they are not the class's `planet_keys` in any order, or `null`
- * when they are, when there are none, or when the install does not know the class.
+ * The star bodies' classes when they are not the class's `planet_keys` in any order, or for a
+ * class listing the stars a system may have, when one is none of them; `null` when they fit,
+ * when there are none, or when the install does not know the class or lists no star for it.
  */
 export function starMismatch(
   bodies: readonly string[],
   starClass: StarClassView | undefined,
 ): string[] | null {
   if (starClass === undefined || bodies.length === 0) return null;
-  return sameBodies(bodies, starClass.planet_keys) ? null : [...bodies];
+  const keys = starClass.planet_keys;
+  if (keys.length === 0) return null;
+  const fits =
+    starClass.alternatives === true
+      ? bodies.every((body) => keys.includes(body))
+      : sameBodies(bodies, keys);
+  return fits ? null : [...bodies];
+}
+
+/**
+ * A multiple star's bodies, one entry per star; none for a single star, an unknown class, or a
+ * class whose list holds the stars a system of it may have.
+ */
+export function eachStarKeys(starClass: StarClassView | undefined): string[] {
+  if (starClass === undefined || starClass.alternatives === true) return [];
+  return starClass.planet_keys.length > 1 ? starClass.planet_keys : [];
 }
