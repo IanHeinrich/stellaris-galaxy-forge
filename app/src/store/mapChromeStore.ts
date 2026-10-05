@@ -53,7 +53,9 @@ export type ContextTarget =
   | { kind: "body"; system: number; id: number }
   /** A belt of the system view, right-clicked on one of its handles. */
   | { kind: "belt"; system: number; index: number }
-  | { kind: "systemSpace"; system: number; x: number; y: number };
+  | { kind: "systemSpace"; system: number; x: number; y: number }
+  /** A body's row in an inspector list, on the galaxy or in any system's view. */
+  | { kind: "bodyRow"; system: number; id: number };
 
 /** A context menu for a system, a lane or empty space, anchored in map-area pixels. */
 export interface ContextMenu {

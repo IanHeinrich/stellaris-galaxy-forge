@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type { Capabilities } from "../../generated/Capabilities";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
@@ -133,6 +133,7 @@ export function DrillRow({
   onOpen,
   onPointerEnter,
   onPointerLeave,
+  onContextMenu,
   children,
 }: {
   className?: string;
@@ -141,6 +142,7 @@ export function DrillRow({
   onOpen: () => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
+  onContextMenu?: (e: MouseEvent) => void;
   children: ReactNode;
 }) {
   const capabilities = useFileSessionStore(documentCapabilities);
@@ -151,6 +153,7 @@ export function DrillRow({
         title={title}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
+        onContextMenu={onContextMenu}
       >
         {children}
       </div>
@@ -170,6 +173,7 @@ export function DrillRow({
       }}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
+      onContextMenu={onContextMenu}
     >
       {children}
     </div>

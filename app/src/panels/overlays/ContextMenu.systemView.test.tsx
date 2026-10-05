@@ -42,6 +42,7 @@ import { ContextMenu } from "./ContextMenu";
 import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
+import { BodyRowMenu } from "./contextMenu/BodyRowMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { MenuItem } from "./contextMenu/MenuItem";
 import type { BodyClassPick } from "../../generated/BodyClassPick";
@@ -471,5 +472,48 @@ describe("moving planets", () => {
     expect(menu()).not.toContain("Paste");
     openOn({ kind: "systemSpace", system: SOL, x: 5, y: 5 });
     expect(menu()).not.toContain("Paste");
+  });
+});
+
+describe("a body row's menu", () => {
+  const row = (id: number) => ({ kind: "bodyRow", system: 0, id }) as const;
+
+  /** Sol's star, Earth and its moon Luna, as Sol's details list them. */
+  function landSol(): void {
+    const planets = [
+      planetSummary({ id: 10, name: name("Sol"), name_key: "Sol", class: "pc_g_star" }),
+      planetSummary({ id: 12, name: name("Earth"), name_key: "Earth" }),
+      planetSummary({ id: 13, name: name("Luna"), name_key: "Luna", moon: true, parent: 12 }),
+    ];
+    useDetailsStore.setState({ details: new Map([[0, systemDetails({ id: 0, planets })]]) });
+  }
+
+  function openRow(id: number): string {
+    useMapChromeStore.getState().openContextMenu({ target: row(id), x: 0, y: 0 });
+    return menu();
+  }
+
+  it("goes to a planet, a moon or a star, as the row lists it", () => {
+    landSol();
+    expect(openRow(12)).toContain('<div class="context-menu-header">Earth</div>');
+    expect(buttons(openRow(12))).toEqual(["Go to planet"]);
+    expect(buttons(openRow(13))).toEqual(["Go to moon"]);
+    expect(buttons(openRow(10))).toEqual(["Go to star"]);
+  });
+
+  it("opens the system view on the body from the galaxy, and in the system shown only selects it", () => {
+    landSol();
+    menuItem(<BodyRowMenu target={row(12)} frame={{}} />, "Go to planet").props.onClick();
+    const entered = useSceneStore.getState();
+    expect(entered.scene).toEqual({ kind: "system", id: 0 });
+    expect(entered.bodySelection).toEqual({ system: 0, ids: [12] });
+    expect(entered.bodyFocus?.id).toBe(12);
+    expect(useMapChromeStore.getState().contextMenu).toBeNull();
+
+    menuItem(<BodyRowMenu target={row(13)} frame={{}} />, "Go to moon").props.onClick();
+    const scene = useSceneStore.getState();
+    expect(scene.visit).toBe(entered.visit);
+    expect(scene.bodySelection).toEqual({ system: 0, ids: [13] });
+    expect(scene.bodyFocus?.id).toBe(13);
   });
 });

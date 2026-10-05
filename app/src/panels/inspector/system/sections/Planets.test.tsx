@@ -8,6 +8,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../../test/drawn"));
 
 import { bindStores } from "../../../../store/bindStores";
 import { useInspectorStore } from "../../../../store/inspectorStore";
+import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { bodyLayout } from "../../../../test/builders";
 import { drawnBy, lastDrawn } from "../../../../test/drawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../../inspectorFixture";
@@ -70,5 +71,27 @@ describe("the Planets section", () => {
 
     const { stack } = useInspectorStore.getState();
     expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: 100 });
+  });
+
+  it("opens a body row's menu at the pointer on a right-click", async () => {
+    vi.stubGlobal("document", { querySelector: () => null });
+    await open("save");
+    await land(details({ planets: [planet(100, "Tarkin")] }));
+
+    drawnBy(overview);
+    const row = lastDrawn(
+      (el) => el.type === DrillRow && String(el.props.className).startsWith("ins-prow"),
+      "a planet row",
+    ) as { onContextMenu(e: object): void };
+    const preventDefault = vi.fn();
+    row.onContextMenu({ preventDefault, clientX: 40, clientY: 30 });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(useMapChromeStore.getState().contextMenu).toEqual({
+      target: { kind: "bodyRow", system: SYSTEM, id: 100 },
+      x: 40,
+      y: 30,
+    });
+    vi.unstubAllGlobals();
   });
 });
