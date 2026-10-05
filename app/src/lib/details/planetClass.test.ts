@@ -15,6 +15,8 @@ const CLASSES = new Map<string, PlanetClassView>(
     planetClassView("pc_barren", false, null, { habitable: false, models: 3 }),
     planetClassView("pc_city", false, null, { models: 1, moonless: true }),
     planetClassView("pc_habitat", false, null, { change: "never" }),
+    planetClassView("pc_look", false, null, { change: "any", look_only: true }),
+    planetClassView("pc_orbital_site", false, null, { hidden_model: true }),
     planetClassView("pc_g_star"),
   ].map((c) => [c.key, c]),
 );
@@ -27,6 +29,18 @@ describe("the classes a planet may take", () => {
       { key: "pc_city", label: "city", group: "Habitable" },
       { key: "pc_continental", label: "continental", group: "Habitable" },
       { key: "pc_ocean", label: "ocean", group: "Habitable" },
+    ]);
+  });
+
+  it("never offers a class mods only use as a look, or one whose model draws nothing", () => {
+    const keys = classRows("pc_barren", false, false, CLASSES, label).map((r) => r.key);
+    expect(keys).not.toContain("pc_look");
+    expect(keys).not.toContain("pc_orbital_site");
+    expect(classRows("pc_orbital_site", false, false, CLASSES, label).map((r) => r.key)).toEqual([
+      "pc_city",
+      "pc_continental",
+      "pc_ocean",
+      "pc_barren",
     ]);
   });
 

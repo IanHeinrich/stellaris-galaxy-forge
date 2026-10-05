@@ -4,6 +4,7 @@ vi.mock("../../api/ipc");
 vi.mock("../../api/gamedata", () => import("../../test/textures"));
 
 import type { PlanetSummary } from "../../generated/PlanetSummary";
+import { PLANET_ICON_KEYS } from "../../lib/details/icons";
 import {
   bodyLayout,
   countryNode,
@@ -158,6 +159,22 @@ describe("the bodies of a system", () => {
       { flat: true, irregular: true, surfaceKeys: [] },
       { flat: false, irregular: false, surfaceKeys: ["planet_disc:pc_continental"] },
     ]);
+  });
+
+  it("draws a class whose model draws nothing from its icon, or the planet marker without one", () => {
+    const planet = (id: number, planetClass: string) =>
+      planetSummary({
+        id,
+        class: planetClass,
+        layout: bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(10) }),
+      });
+    const site = { ...planetClassView("pc_orbital_site", false), hidden_model: true };
+    const planetClasses = new Map(sources.planetClasses).set(site.key, site);
+    const ctx = save([sun, planet(2, "pc_orbital_site")], { planetClasses });
+    const body = ctx.bodyById.get(2)!;
+    expect(body.look.surfaceKeys).toEqual([]);
+    expect(body.look.flat).toBe(true);
+    expect(body.iconKeys).toEqual(PLANET_ICON_KEYS);
   });
 
   it("draws a shattered class broken apart as its planet's id says, with no haze, and every other class whole", () => {

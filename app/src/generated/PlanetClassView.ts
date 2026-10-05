@@ -45,6 +45,16 @@ shattered?: boolean,
  */
 moonless?: boolean, 
 /**
+ * `Some(true)` for a class mods only give a planet as its look, never offered as a
+ * class; `None` otherwise.
+ */
+look_only?: boolean, 
+/**
+ * `Some(true)` for a class whose model draws nothing, never offered as a class and
+ * drawn from its icon; `None` otherwise.
+ */
+hidden_model?: boolean, 
+/**
  * Which save planets may be changed to or from it.
  */
 change: ClassChange, 

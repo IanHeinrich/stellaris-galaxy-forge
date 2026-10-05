@@ -34,6 +34,19 @@ const GLOBAL_WRITES: [&str; 2] = ["set_global_flag", "remove_global_flag"];
 
 pub(crate) const EVENT_TARGET: &str = "event_target";
 
+/// The effect that gives a planet another class's look; its `picture` names that class.
+const SET_PLANET_ENTITY: &str = "set_planet_entity";
+/// Keys whose value is a class a planet is made or turned into, or that a species is given
+/// to live on: a `spawn_planet`'s, an initializer body's or a scenario planet's `class`,
+/// `change_pc` in both its shapes, a prescripted country's `planet_class` and a civic's,
+/// origin's or trait's `habitability_preference`.
+const MAKES_CLASS: [&str; 4] = [
+    "class",
+    "change_pc",
+    "planet_class",
+    "habitability_preference",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RawHit {
     /// The depth-0 key that owns the hit; an event block yields its `id`.
@@ -65,6 +78,11 @@ pub(crate) struct Scan {
     pub global_writes: Vec<RawHit>,
     pub fired: Vec<RawFired>,
     pub events: Vec<RawEvent>,
+    /// What a `set_planet_entity`'s `picture`, or a `PICTURE` parameter, names.
+    pub pictures: Vec<String>,
+    /// What a planet is made or turned into, by [`MAKES_CLASS`], a terraform link's `to`
+    /// or any other parameter in capitals.
+    pub classes: Vec<String>,
 }
 
 pub(crate) fn scan(src: &[u8], dir: Dir) -> Scan {
@@ -267,6 +285,7 @@ impl<'a> Walk<'a> {
     }
 
     fn assign(&mut self, key: &str, value: &'a str, line: u32) {
+        self.class_use(key, value);
         if let Some(verb) = TRACKED.iter().find(|v| **v == key) {
             self.hit(verb, value, line);
         }
@@ -293,6 +312,24 @@ impl<'a> Walk<'a> {
             }
         }
         self.bare(value, line);
+    }
+
+    /// A scripted effect's parameter, `PICTURE` or `CLASS`, is taken by its name: what the
+    /// effect does with a class it is passed is not followed.
+    fn class_use(&mut self, key: &str, value: &str) {
+        let parent = self.frames.last().copied().flatten();
+        let parameter = key.bytes().any(|b| b.is_ascii_uppercase())
+            && !key.bytes().any(|b| b.is_ascii_lowercase());
+        if (key == "picture" && parent == Some(SET_PLANET_ENTITY))
+            || (parameter && key.contains("PICTURE"))
+        {
+            self.out.pictures.push(value.to_owned());
+        } else if MAKES_CLASS.contains(&key)
+            || (key == "to" && parent == Some("terraform_link"))
+            || parameter
+        {
+            self.out.classes.push(value.to_owned());
+        }
     }
 
     fn hit(&mut self, verb: &'static str, token: &str, line: u32) {

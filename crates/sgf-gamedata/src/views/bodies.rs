@@ -121,6 +121,16 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub moonless: Option<bool>,
+    /// `Some(true)` for a class mods only give a planet as its look, never offered as a
+    /// class; `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub look_only: Option<bool>,
+    /// `Some(true)` for a class whose model draws nothing, never offered as a class and
+    /// drawn from its icon; `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hidden_model: Option<bool>,
     /// Which save planets may be changed to or from it.
     pub change: ClassChange,
     /// How many models the install numbers for it, `<model>_01_entity` on; 0 when it names
@@ -169,6 +179,8 @@ impl GameData {
                 flat_art: marker(self.flat_art(&pc.key)),
                 shattered: marker(self.shattered(&pc.key)),
                 moonless: marker(!pc.can_be_moon),
+                look_only: marker(pc.look_only),
+                hidden_model: marker(pc.hidden_model),
                 change: pc.change(),
                 models: self.class_models(&pc.key),
             })

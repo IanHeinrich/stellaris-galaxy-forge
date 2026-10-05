@@ -46,8 +46,8 @@ export interface BodyLook {
   readonly irregular: boolean;
   /**
    * Drawn from its icon alone, as the install has no surface to bake into a disc: a habitat, a
-   * ring world segment or a broken world. Its icon is never blown up far past its own pixels,
-   * and a glow behind it keeps it reading as a body when small.
+   * ring world segment, a broken world or a class whose model draws nothing. Its icon is never
+   * blown up far past its own pixels, and a glow behind it keeps it reading as a body when small.
    */
   readonly flat: boolean;
   /** Its surface broken into shards, as the game's model of a shattered world is. */
@@ -77,6 +77,8 @@ export interface LookOf {
   readonly drawn: boolean;
   /** The install draws its class from its icon alone. */
   readonly flat?: boolean;
+  /** Its class's model draws nothing, so it is drawn from its icon alone too. */
+  readonly hidden?: boolean;
   /** Its class is an asteroid, as the install's class says. */
   readonly asteroid?: boolean;
   /** The model the save names for it. */
@@ -87,9 +89,9 @@ export interface LookOf {
 
 /**
  * How a body of `planetClass` is drawn: a star as `starClass`, a body whose class is left to a
- * draw with no surface of its own, and a `flat` class or an asteroid from its icon alone. A planet
- * whose save names a `model` shows that model's surface where the install has one, else its
- * class's. A class the install draws broken apart shows its shattered disc, broken as
+ * draw with no surface of its own, and a `flat` or `hidden` class or an asteroid from its icon
+ * alone. A planet whose save names a `model` shows that model's surface where the install has
+ * one, else its class's. A class the install draws broken apart shows its shattered disc, broken as
  * `shatterSeed`, the planet's id, says, so each planet breaks its own way and always the same way.
  */
 export function bodyLook({
@@ -97,13 +99,14 @@ export function bodyLook({
   starClass,
   drawn,
   flat = false,
+  hidden = false,
   asteroid = false,
   model = null,
   shatterSeed = null,
 }: LookOf): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
-  const flatArt = flat && starClass === null && !drawn && !luminous;
+  const flatArt = (flat || hidden) && starClass === null && !drawn && !luminous;
   const irregular = asteroid || luminous || flatArt;
   const baked = !blackHole && !drawn && !irregular;
   const kind = starClass !== null ? "star_disc" : "planet_disc";

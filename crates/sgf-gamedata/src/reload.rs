@@ -32,6 +32,7 @@ use crate::registries::{
     terraform_links,
 };
 use crate::scripts::{ScriptIndex, index};
+use crate::textures::planet_disc;
 use crate::{
     Bypasses, Colors, CountryTypes, DEFINES_DIR, Diagnostic, Flags, GalaxyShapes, GameData,
     Initializers,
@@ -129,13 +130,17 @@ impl RegistryKind {
     }
 
     fn of_relative(rel: &str) -> Option<Self> {
-        if rel.ends_with(".txt")
-            && let Some((_, kind)) = DIRS.iter().find(|(dir, _)| {
-                rel.strip_prefix(dir)
-                    .is_some_and(|below| below.starts_with('/'))
-            })
-        {
-            return Some(*kind);
+        let under = |dir: &str| {
+            rel.strip_prefix(dir)
+                .is_some_and(|below| below.starts_with('/'))
+        };
+        if rel.ends_with(".txt") {
+            if let Some((_, kind)) = DIRS.iter().find(|(dir, _)| under(dir)) {
+                return Some(*kind);
+            }
+            if index::CLASS_USE_DIRS.iter().any(|dir| under(dir)) {
+                return Some(Self::Scripts);
+            }
         }
         if let Some(under) = rel.strip_prefix("flags/") {
             return Some(if under.rsplit('/').next() == Some("colors.txt") {
@@ -198,6 +203,14 @@ impl GameData {
                 &mut replaced,
                 &mut fresh,
             );
+        }
+        if replaced.contains(&RegistryKind::Scripts) {
+            let marked = self.planet_classes.marked(
+                out.scripts.class_uses(),
+                &self.planet_lists,
+                |entity| planet_disc::draws_nothing(self.surface_maps(), entity),
+            );
+            out.planet_classes = Arc::new(marked);
         }
         if kinds.contains(&RegistryKind::CountryTypes) {
             let built = registry::load(&self.layout, &self.variables, &mut fresh);

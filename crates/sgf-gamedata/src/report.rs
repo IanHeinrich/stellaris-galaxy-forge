@@ -39,11 +39,16 @@ pub struct PlaysetReport {
     pub diagnostics: BTreeMap<&'static str, usize>,
     /// Every diagnostic but an override, which is how a mod changes the game.
     pub load_problems: Vec<Row>,
+    /// Planet classes only ever given to a planet as its look.
+    pub look_only: Vec<Row>,
+    /// Planet classes whose model draws nothing, with the model.
+    pub hidden_model: Vec<Row>,
     /// Planet classes a random draw can roll (`spawn_odds` above 0) with no localised name.
     pub unnamed_rolled: Vec<Row>,
-    /// The other planet classes with no localised name.
+    /// The other planet classes with no localised name, neither look-only nor hidden-model.
     pub unnamed_unrolled: Vec<Row>,
-    /// Planet classes the app draws as a baked disc whose disc does not bake, with the reason.
+    /// Planet classes the app draws as a baked disc whose disc does not bake, with the reason;
+    /// no look-only class.
     pub discs_failing: Vec<Row>,
     pub no_planet_size: Vec<Row>,
     /// Star classes whose map icon does not load, with the reason.
@@ -76,6 +81,7 @@ impl PlaysetReport {
             })
             .collect();
 
+        let (mut look_only, mut hidden_model) = (Vec::new(), Vec::new());
         let (mut unnamed_rolled, mut unnamed_unrolled) = (Vec::new(), Vec::new());
         let mut discs_failing = Vec::new();
         let mut no_planet_size = Vec::new();
@@ -86,7 +92,14 @@ impl PlaysetReport {
             gd.texture_png(textures, &key).err().map(|e| e.to_string())
         });
         for (pc, disc_error) in classes.into_iter().zip(disc_errors) {
-            if gd.loc.name(&pc.key).is_none() {
+            if pc.look_only {
+                look_only.push(planet_row(&pc.key, None));
+            }
+            if pc.hidden_model {
+                hidden_model.push(planet_row(&pc.key, pc.entity.clone()));
+            }
+            let expected = pc.look_only || pc.hidden_model;
+            if gd.loc.name(&pc.key).is_none() && !expected {
                 let unnamed = if pc.spawn_odds > 0.0 {
                     &mut unnamed_rolled
                 } else {
@@ -94,7 +107,7 @@ impl PlaysetReport {
                 };
                 unnamed.push(planet_row(&pc.key, None));
             }
-            if disc_error.is_some() {
+            if disc_error.is_some() && !pc.look_only {
                 discs_failing.push(planet_row(&pc.key, disc_error));
             }
             if pc.planet_size.is_none() {
@@ -125,6 +138,8 @@ impl PlaysetReport {
         Self {
             diagnostics,
             load_problems,
+            look_only,
+            hidden_model,
             unnamed_rolled,
             unnamed_unrolled,
             discs_failing,
@@ -136,9 +151,14 @@ impl PlaysetReport {
     }
 
     /// Every list of the report, in the order it prints.
-    pub fn sections(&self) -> [Section<'_>; 8] {
+    pub fn sections(&self) -> [Section<'_>; 10] {
         [
             ("load problems", &self.load_problems),
+            ("look-only planet classes", &self.look_only),
+            (
+                "planet classes whose model draws nothing",
+                &self.hidden_model,
+            ),
             (
                 "planet classes a random draw rolls, with no name",
                 &self.unnamed_rolled,
@@ -190,8 +210,8 @@ impl PlaysetReport {
 }
 
 /// The texture key the app's `bodyLook` draws a body of `pc` from, or `None` for a class it
-/// draws without one: a star that only `rings` holds, an asteroid, a flat class or the
-/// astral scar.
+/// draws without one: a star that only `rings` holds, an asteroid, a flat class, a class
+/// whose model draws nothing or the astral scar.
 fn disc_key(gd: &GameData, pc: &PlanetClassDef, rings: &BTreeSet<&str>) -> Option<String> {
     let class = pc.key.clone();
     let key = if pc.star {
@@ -199,7 +219,7 @@ fn disc_key(gd: &GameData, pc: &PlanetClassDef, rings: &BTreeSet<&str>) -> Optio
             return None;
         }
         TextureKey::StarDisc { class }
-    } else if pc.asteroid || pc.astral_scar || gd.flat_art(&class) {
+    } else if pc.asteroid || pc.astral_scar || pc.hidden_model || gd.flat_art(&class) {
         return None;
     } else if gd.shattered(&class) {
         TextureKey::ShatteredDisc {
