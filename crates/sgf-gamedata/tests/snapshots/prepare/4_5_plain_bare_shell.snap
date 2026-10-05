@@ -3,7 +3,12 @@ source: crates/sgf-gamedata/tests/prepare.rs
 expression: out
 ---
 Prepared 549 systems for a new game
+SetHeaderKeys: 1
 SetInitializer: 549
+-marauder_empire_default = 2
++marauder_empire_default = 0
+-marauder_empire_max = 2
++marauder_empire_max = 0
 -system = { id = "0" name = "Dristmak" position = { x = 155.95 y = 119.15 } initializer = ai_system_01 }
 +system = { id = "0" name = "Dristmak" position = { x = 155.95 y = 119.15 } }
 -system = { id = "1" name = "Xu_Nur" position = { x = 109.55 y = -333.54 } initializer = ai_system_03 }
@@ -80,8 +85,4 @@ SetInitializer: 549
 +system = { id = "36" name = "Capella" position = { x = 220.63 y = 115.49 } }
 -system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } initializer = basic_init_03 }
 +system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } }
--system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } initializer = orbital_ring_init_01 }
-+system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } }
--system = { id = "39" name = "NAME_Amor_Alveo" position = { x = 304.62 y = -110.94 } initializer = hostile_init_20 }
-+system = { id = "39" name = "NAME_Amor_Alveo" position = { x = 304.62 y = -110.94 } }
-… 509 more changed lines
+… 511 more changed lines

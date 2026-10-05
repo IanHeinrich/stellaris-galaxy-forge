@@ -61,10 +61,10 @@ expression: value
         ),
     },
     colonizable_planet_odds: Some(
-        0.25,
+        1.0,
     ),
     primitive_odds: Some(
-        0.25,
+        1.0,
     ),
     num_gateways: Some(
         Setting {

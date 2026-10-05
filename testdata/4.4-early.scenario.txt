@@ -24,8 +24,8 @@ static_galaxy_scenario = {
 	nomad_empire_default = 2
 	nomad_empire_max = 16
 	advanced_empire_default = 0
-	colonizable_planet_odds = 0.25
-	primitive_odds = 0.25
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
 	num_wormhole_pairs = { min = 0 max = 5 }
 	num_wormhole_pairs_default = 1
 	num_gateways = { min = 0 max = 5 }

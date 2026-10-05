@@ -61,8 +61,6 @@ pub struct Sliders {
     pub gateways: u32,
     pub gateways_max: u32,
     pub hyperlanes: f64,
-    pub colonizable_planet_odds: f64,
-    pub primitive_odds: f64,
     pub crisis_strength: f64,
 }
 
@@ -80,8 +78,6 @@ impl Sliders {
             gateways: 0,
             gateways_max: 0,
             hyperlanes: 0.0,
-            colonizable_planet_odds: 1.0,
-            primitive_odds: 1.0,
             crisis_strength: CRISIS_STRENGTH,
         }
     }
@@ -103,8 +99,6 @@ impl Sliders {
             gateways: setup.num_gateways,
             gateways_max: BYPASS_MAX.max(setup.num_gateways),
             hyperlanes: setup.num_hyperlanes,
-            colonizable_planet_odds: setup.habitability,
-            primitive_odds: setup.primitive,
             crisis_strength: CRISIS_STRENGTH,
         }
     }
@@ -208,8 +202,8 @@ pub fn header(o: &ScenarioOptions, sliders: &Sliders) -> Vec<u8> {
          \tnomad_empire_default = {}\n\
          \tnomad_empire_max = {}\n\
          \tadvanced_empire_default = {}\n\
-         \tcolonizable_planet_odds = {}\n\
-         \tprimitive_odds = {}\n\
+         \tcolonizable_planet_odds = 1.0\n\
+         \tprimitive_odds = 1.0\n\
          \tnum_wormhole_pairs = {{ min = 0 max = {} }}\n\
          \tnum_wormhole_pairs_default = {}\n\
          \tnum_gateways = {{ min = 0 max = {} }}\n\
@@ -227,8 +221,6 @@ pub fn header(o: &ScenarioOptions, sliders: &Sliders) -> Vec<u8> {
         sliders.nomad_empires,
         sliders.nomad_empires_max,
         sliders.advanced_empires,
-        odds(sliders.colonizable_planet_odds),
-        odds(sliders.primitive_odds),
         sliders.wormhole_pairs_max,
         sliders.wormhole_pairs,
         sliders.gateways_max,

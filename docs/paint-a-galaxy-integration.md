@@ -85,8 +85,8 @@ static_galaxy_scenario = {
 	num_gateways_default = <setup, else 1>
 	num_hyperlanes = { min = 0.5 max = 3 }
 	num_hyperlanes_default = <setup, else 1>
-	colonizable_planet_odds = <setup habitability, else 1.0>
-	primitive_odds = <setup primitive, else 1.0>
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
 	fallen_empire_max = <min(Z, 6)>
 	marauder_empire_max = <clan homes>
 	extra_crisis_strength = { 10 25 }
@@ -97,15 +97,17 @@ static_galaxy_scenario = {
 	nomad_empire_max = <S-1>
 	fallen_empire_default = <typed zones, else band>
 	marauder_empire_default = <clan homes>
-	crisis_strength = <band>
+	crisis_strength = <setup crises, else band>
 	core_radius = <Forge's own>
 ```
 
 `supports_shape` lists the ten vanilla shapes in the game's order, with
-the save's own shape moved to the front. The plain profile does the same,
-and nothing else in its header changes. The setup's `primitive` and
-`habitability` pass through as set, on the game's own scale, without
-conversion. `marauder_empire_max` and `marauder_empire_default` are both
+the save's own shape moved to the front. The plain profile does the same.
+`colonizable_planet_odds` and `primitive_odds` are always 1.0. They don't
+set the Habitable worlds and Pre-FTL sliders, and the game applies
+`colonizable_planet_odds` on top of the Habitable worlds setting, so a
+save's 0.25 would cut habitable worlds twice (checked in game on 4.5.1).
+`marauder_empire_max` and `marauder_empire_default` are both
 the number of marauder clans whose home the map holds. `R` counts the
 1st Player, reserved and Sol seats. `S-R-1` becomes `S-R` when the map
 has a 1st Player seat or the player's own seat is a reserved or Sol
