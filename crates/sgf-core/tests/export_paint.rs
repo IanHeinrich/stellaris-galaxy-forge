@@ -88,7 +88,7 @@ static_galaxy_scenario = {{
 	nomad_empire_max = 16
 	fallen_empire_default = 3
 	marauder_empire_default = 2
-	crisis_strength = 1.0
+	crisis_strength = 5.0
 	core_radius = 112.5
 "
         ),

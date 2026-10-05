@@ -3,8 +3,14 @@
 //! own numbers; callers undo the map's axis signs before coming here.
 
 use crate::emit::coord;
+use crate::format::scenario::header_counts::{SeatCounts, setup_defaults};
 use crate::format::scenario::paint;
-use crate::projections::galaxy::SpawnScript;
+use crate::projections::galaxy::{GameSetup, SpawnScript};
+
+/// The most wormhole pairs and gateways a header allows unless the save asked for more.
+pub(crate) const BYPASS_MAX: u32 = 5;
+/// The crisis strength a plain header opens on when no save says otherwise.
+const CRISIS_STRENGTH: f64 = 0.75;
 
 /// What a `system` statement carries.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +44,70 @@ pub struct ScenarioOptions {
     /// The file name of the save the scenario was exported from; `None` for one
     /// started empty.
     pub exported_from: Option<String>,
+}
+
+/// The New Game sliders a plain header opens on: each one's default, and the most the
+/// header lets it reach where it caps one.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sliders {
+    pub empires: u32,
+    pub advanced_empires: u32,
+    pub nomad_empires: u32,
+    pub nomad_empires_max: u32,
+    /// Both the default and the most.
+    pub marauder_empires: u32,
+    pub wormhole_pairs: u32,
+    pub wormhole_pairs_max: u32,
+    pub gateways: u32,
+    pub gateways_max: u32,
+    pub hyperlanes: f64,
+    pub colonizable_planet_odds: f64,
+    pub primitive_odds: f64,
+    pub crisis_strength: f64,
+}
+
+impl Sliders {
+    /// Every one of `empires` seats filled and everything random off.
+    pub fn fixed(empires: u32) -> Self {
+        Self {
+            empires,
+            advanced_empires: 0,
+            nomad_empires: 0,
+            nomad_empires_max: 0,
+            marauder_empires: 0,
+            wormhole_pairs: 0,
+            wormhole_pairs_max: 0,
+            gateways: 0,
+            gateways_max: 0,
+            hyperlanes: 0.0,
+            colonizable_planet_odds: 1.0,
+            primitive_odds: 1.0,
+            crisis_strength: CRISIS_STRENGTH,
+        }
+    }
+
+    /// As the save's `setup` screen left them, the empire counts capped to the `seats`
+    /// the map holds and the marauders to its `clans` homes, as the Paint a Galaxy
+    /// header caps them.
+    pub fn from_setup(setup: &GameSetup, seats: SeatCounts, clans: u32) -> Self {
+        let [empires, advanced_empires, nomad_empires] = setup_defaults(seats, setup);
+        // Fallen empires stay off: whether the game seats them on a plain map is untested.
+        Self {
+            empires,
+            advanced_empires,
+            nomad_empires,
+            nomad_empires_max: seats.most(),
+            marauder_empires: clans,
+            wormhole_pairs: setup.num_wormhole_pairs,
+            wormhole_pairs_max: BYPASS_MAX.max(setup.num_wormhole_pairs),
+            gateways: setup.num_gateways,
+            gateways_max: BYPASS_MAX.max(setup.num_gateways),
+            hyperlanes: setup.num_hyperlanes,
+            colonizable_planet_odds: setup.habitability,
+            primitive_odds: setup.primitive,
+            crisis_strength: CRISIS_STRENGTH,
+        }
+    }
 }
 
 /// Every galaxy shape the game ships (`map/galaxy/galaxy_shapes.txt`), in its order.
@@ -115,9 +185,9 @@ pub fn nebula_stmt(indent: &[u8], name: &str, x: f64, y: f64, radius: f64) -> Ve
 }
 
 /// The opening of a scenario file through its header scalars; statements follow, then
-/// [`FOOTER`]. Every vanilla shape is supported, empire counts follow the vanilla
-/// example, everything random is off.
-pub fn header(o: &ScenarioOptions) -> Vec<u8> {
+/// [`FOOTER`]. Every vanilla shape is supported and the New Game sliders open on
+/// `sliders`.
+pub fn header(o: &ScenarioOptions, sliders: &Sliders) -> Vec<u8> {
     let (min, max) = o.num_empires;
     let shapes: String = VANILLA_SHAPES
         .iter()
@@ -130,30 +200,53 @@ pub fn header(o: &ScenarioOptions) -> Vec<u8> {
          {shapes}\
          \tdefault = no\n\
          \tnum_empires = {{ min = {min} max = {max} }}\n\
-         \tnum_empire_default = {max}\n\
+         \tnum_empire_default = {}\n\
          \tfallen_empire_default = 0\n\
          \tfallen_empire_max = 0\n\
-         \tmarauder_empire_default = 0\n\
-         \tmarauder_empire_max = 0\n\
-         \tnomad_empire_default = 0\n\
-         \tnomad_empire_max = 0\n\
-         \tadvanced_empire_default = 0\n\
-         \tcolonizable_planet_odds = 1.0\n\
-         \tprimitive_odds = 1.0\n\
-         \tnum_wormhole_pairs = {{ min = 0 max = 0 }}\n\
-         \tnum_wormhole_pairs_default = 0\n\
-         \tnum_gateways = {{ min = 0 max = 0 }}\n\
-         \tnum_gateways_default = 0\n\
-         \tnum_hyperlanes_default = 0\n\
+         \tmarauder_empire_default = {}\n\
+         \tmarauder_empire_max = {}\n\
+         \tnomad_empire_default = {}\n\
+         \tnomad_empire_max = {}\n\
+         \tadvanced_empire_default = {}\n\
+         \tcolonizable_planet_odds = {}\n\
+         \tprimitive_odds = {}\n\
+         \tnum_wormhole_pairs = {{ min = 0 max = {} }}\n\
+         \tnum_wormhole_pairs_default = {}\n\
+         \tnum_gateways = {{ min = 0 max = {} }}\n\
+         \tnum_gateways_default = {}\n\
+         \tnum_hyperlanes_default = {}\n\
          \trandom_hyperlanes = no\n\
          \tcore_radius = {}\n\
-         \tcrisis_strength = 0.75\n\
+         \tcrisis_strength = {}\n\
          \textra_crisis_strength = {{ 5 10 25 }}\n\
          \n",
         o.name,
-        coord(o.core_radius)
+        sliders.empires,
+        sliders.marauder_empires,
+        sliders.marauder_empires,
+        sliders.nomad_empires,
+        sliders.nomad_empires_max,
+        sliders.advanced_empires,
+        odds(sliders.colonizable_planet_odds),
+        odds(sliders.primitive_odds),
+        sliders.wormhole_pairs_max,
+        sliders.wormhole_pairs,
+        sliders.gateways_max,
+        sliders.gateways,
+        coord(sliders.hyperlanes),
+        coord(o.core_radius),
+        odds(sliders.crisis_strength)
     )
     .into_bytes()
+}
+
+/// An odds or strength value as a header writes it: `1.0`, `0.25`.
+pub(crate) fn odds(value: f64) -> String {
+    if value == value.trunc() {
+        format!("{value:.1}")
+    } else {
+        coord(value)
+    }
 }
 
 /// The closing brace of a scenario file.

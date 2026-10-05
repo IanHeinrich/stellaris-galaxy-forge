@@ -24,7 +24,7 @@ expression: value
     ],
     empires: EmpireCount {
         default: Some(
-            16,
+            13,
         ),
         max: Some(
             16,
@@ -46,25 +46,25 @@ expression: value
     },
     marauder_empires: EmpireCount {
         default: Some(
-            0,
+            2,
         ),
         max: Some(
-            0,
+            2,
         ),
     },
     nomad_empires: EmpireCount {
         default: Some(
-            0,
+            2,
         ),
         max: Some(
-            0,
+            16,
         ),
     },
     colonizable_planet_odds: Some(
-        1.0,
+        0.25,
     ),
     primitive_odds: Some(
-        1.0,
+        0.25,
     ),
     num_gateways: Some(
         Setting {
@@ -72,10 +72,10 @@ expression: value
                 0.0,
             ),
             max: Some(
-                0.0,
+                5.0,
             ),
             default: Some(
-                0.0,
+                1.0,
             ),
         },
     ),
@@ -85,10 +85,10 @@ expression: value
                 0.0,
             ),
             max: Some(
-                0.0,
+                5.0,
             ),
             default: Some(
-                0.0,
+                1.0,
             ),
         },
     ),
@@ -98,12 +98,12 @@ expression: value
             min: None,
             max: None,
             default: Some(
-                0.0,
+                0.75,
             ),
         },
     ),
     crisis_strength: Some(
-        0.75,
+        5.0,
     ),
     extra_crisis_strength: [
         5.0,
