@@ -39,7 +39,6 @@ import {
 import { usePaintLayer } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
-  changesRow,
   cutOffSeats,
   draws,
   nearestPreset,
@@ -83,7 +82,7 @@ function ChoiceLine({ answers, n }: { answers: Answers; n: number | null }) {
   );
 }
 
-/** The three presets, and Custom while the choices match none of them, and Custom while the choices match none of them. */
+/** The three presets, and Custom while the choices match none of them. */
 function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
   const choices = usePrepareStore((s) => s.choices);
   const setPreset = usePrepareStore((s) => s.setPreset);
@@ -119,17 +118,9 @@ function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
 
 /** What the chosen preset does, and on a plain map that it brings no fallen empires. */
 function PresetAnswers({ preset, profile }: { preset: PreparePreset; profile: ScenarioProfile }) {
-  const { placer, text } = PRESET_ANSWERS[preset];
   return (
     <div className="prep-preset">
-      <div className="prep-choice-line">
-        {placer !== undefined && (
-          <>
-            <Tag placer={placer} />{" "}
-          </>
-        )}
-        {text}
-      </div>
+      <div className="prep-choice-line">{PRESET_ANSWERS[preset]}</div>
       {preset === "faithful" && profile === "plain" && (
         <div className="muted">{FAITHFUL_PLAIN}</div>
       )}
@@ -211,9 +202,8 @@ function ChoiceRow({
   );
   const setChoice = usePrepareStore((s) => s.setChoice);
   const hover = usePrepareStore((s) => s.hover);
-  const changed = usePrepareStore((s) => changesRow(s, row));
   const offered = offeredChoices(row, profile);
-  const answers = changed ? copy.answers[choice] : undefined;
+  const answers = (count ?? 0) > 0 ? copy.answers[choice] : undefined;
   if (row === "sol" && (count ?? 0) === 0) return null;
   const pick = (key: string | null) => offered.find((offer) => offer === key) ?? null;
   return (
@@ -230,11 +220,11 @@ function ChoiceRow({
         label={`${copy.label} choice`}
         current={{ key: choice, label: choiceLabel(copy, choice) }}
         items={offered.map((key) => {
-          const placer = copy.answers[key]?.placer;
+          const offer = copy.answers[key];
           return {
             key,
             label: choiceLabel(copy, key),
-            note: placer === undefined ? undefined : <Tag placer={placer} />,
+            note: offer === undefined ? undefined : <ChoiceLine answers={offer} n={count} />,
           };
         })}
         disabledReason={rowDisabledReason(row, profile)}

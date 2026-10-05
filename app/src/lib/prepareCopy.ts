@@ -61,8 +61,8 @@ export const CHOICE_LABELS: Record<PrepareChoice, string> = {
 
 export const PRESET_LABELS: Record<PreparePreset | "custom", string> = {
   faithful: "Keep everything",
-  fresh_start: "New empires",
-  bare_shell: "Layout only",
+  fresh_start: "Keep the galaxy",
+  bare_shell: "Keep the layout",
   custom: "Custom",
 };
 
@@ -103,26 +103,18 @@ function capital(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** What each preset does, and who places it where one tag says it. */
-export const PRESET_ANSWERS: Record<PreparePreset, { placer?: Placer; text: string }> = {
-  faithful: {
-    placer: "forge",
-    text:
-      "Everything stays as it is on this map. New empires start in the old capitals, in the " +
-      "same systems.",
-  },
-  fresh_start: {
-    placer: "forge",
-    text:
-      "The galaxy stays as it is. Every empire starts at an old capital's position with a " +
-      "random starting system. Sol and the old origin systems become normal systems.",
-  },
-  bare_shell: {
-    text:
-      "Only the star positions, hyperlanes and nebulae stay. Galaxy Forge draws new starting " +
-      "positions, and on a Paint a Galaxy map new fallen empire zones. The game rolls " +
-      "everything else, as if this were a new random galaxy.",
-  },
+/** What each preset does. A preset has no tag: each mixes who places what. */
+export const PRESET_ANSWERS: Record<PreparePreset, string> = {
+  faithful:
+    "Everything stays as it is on this map, the old capitals' home systems included. New " +
+    "empires start in them.",
+  fresh_start:
+    "The galaxy stays as it is, but every empire gets a random starting system at an old " +
+    "capital's position. Sol and the old origin systems become normal systems.",
+  bare_shell:
+    "Only the star positions, hyperlanes and nebulae stay. Galaxy Forge draws new starting " +
+    "positions, and on a Paint a Galaxy map new fallen empire zones. The game rolls " +
+    "everything else, as if this were a new random galaxy.",
 };
 
 /** What keeping threats away from starting positions does while it is on. */
@@ -145,7 +137,11 @@ export const NOT_KEPT_CLEAR: Answers = {
 /** The warning under Wormhole pairs when taking them out strands part of the map. */
 export function cutOffLine(systems: number, seats: number): string {
   const including =
-    seats === 0 ? "" : seats === 1 ? ", including a seat" : `, including ${seats} seats`;
+    seats === 0
+      ? ""
+      : seats === 1
+        ? ", including a starting position"
+        : `, including ${seats} starting positions`;
   return `Taking these pairs out cuts ${counted(systems, "system")} off from the rest of the map${including}.`;
 }
 
@@ -154,7 +150,7 @@ export function changesLine(changes: number): string {
   return `Changes ${counted(changes, "system")}.`;
 }
 
-/** `Custom: New empires with 2 rows changed.` */
+/** `Custom: Keep the galaxy with 2 rows changed.` */
 export function customLine(nearest: PreparePreset, differing: number): string {
   return `Custom: ${PRESET_LABELS[nearest]} with ${counted(differing, "row")} changed.`;
 }
@@ -205,7 +201,8 @@ export function rowDisabledReason(row: PrepareRow, profile: ScenarioProfile): st
 const NO_GUARANTEED_WORLDS =
   "Starting positions get no guaranteed habitable worlds; the game adds none on a custom map.";
 const PAINT_GUARANTEED_WORLDS =
-  "Paint a Galaxy adds guaranteed habitable worlds as your Guaranteed Habitable Worlds setting says.";
+  "Paint a Galaxy adds guaranteed habitable worlds, determined by your in-game Guaranteed " +
+  "Habitable Worlds setting.";
 const OWN_HOME_SYSTEM =
   "An empire whose origin or empire design brings its own home system builds that instead.";
 
@@ -345,19 +342,19 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
         placer: "forge",
         text: (n) =>
           `${capital(these(n, "clan"))} ${verb(n, "spawns", "spawn")} where ` +
-          `${verb(n, "it is", "they are")} now, whatever your Marauder Empires setting says.`,
+          `${verb(n, "it is", "they are")} now, whatever your in-game Marauder Empires setting says.`,
       },
       plain: {
         placer: "none",
         text:
-          "These become normal systems. The Marauder Empires setting only puts clans in " +
+          "These become normal systems. The in-game Marauder Empires setting only puts clans in " +
           "rerolled systems, so with nothing rerolled there are no marauders.",
       },
       game_decides: {
         placer: "game",
         text:
-          "These are rerolled. Marauders spawn wherever the game puts them, as many as your " +
-          "Marauder Empires setting says.",
+          "These are rerolled. Marauders spawn wherever the game puts them; how many is " +
+          "determined by your in-game Marauder Empires setting.",
       },
     },
   },
@@ -416,7 +413,7 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
         placer: "forge",
         text: (n) =>
           `${n === 1 ? "This one" : `Each of ${these(n)}`} gets a pre-FTL civilization, rolled ` +
-          "fresh, whatever your Pre-FTL Civilizations setting says.",
+          "fresh, whatever your in-game Pre-FTL Civilizations setting says.",
       },
       plain: {
         placer: "none",
@@ -425,8 +422,8 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
       game_decides: {
         placer: "game",
         text:
-          "These are rerolled. Pre-FTL civilizations appear as your Pre-FTL Civilizations " +
-          "setting says.",
+          "These are rerolled. Pre-FTL civilizations appear as determined by your in-game " +
+          "Pre-FTL Civilizations setting.",
       },
     },
   },
@@ -439,19 +436,19 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
         placer: "forge",
         text: (n) =>
           `${capital(these(n))} ${verb(n, "stays", "stay")} where ` +
-          `${verb(n, "it is", "they are")}, even if turned off in your galaxy settings.`,
+          `${verb(n, "it is", "they are")}, even if turned off in your in-game galaxy settings.`,
       },
       plain: {
         placer: "game",
         text:
-          "These become normal systems. The game rolls its own unique systems elsewhere, as " +
-          "your galaxy settings say.",
+          "These become normal systems. The game rolls its own unique systems elsewhere, " +
+          "determined by your in-game galaxy settings.",
       },
       game_decides: {
         placer: "game",
         text:
-          "These are rerolled. Unique systems appear wherever the game puts them, as your " +
-          "galaxy settings say.",
+          "These are rerolled. Unique systems appear wherever the game puts them, determined by " +
+          "your in-game galaxy settings.",
       },
     },
   },
@@ -483,13 +480,13 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
         placer: "forge",
         text: (n) =>
           `${capital(these(n, "wormhole"))} ${verb(n, "stays", "stay")}. The game still adds its own on top, ` +
-          "five random pairs for every step of your Wormhole Pairs setting.",
+          "five random pairs for every step of your in-game Wormhole Pairs setting.",
       },
       none: {
         placer: "game",
         text:
           "These wormholes go. The game still adds its own, five random pairs for every step of " +
-          "your Wormhole Pairs setting.",
+          "your in-game Wormhole Pairs setting.",
       },
     },
   },
@@ -530,15 +527,15 @@ const PAINT_ROWS: Record<PrepareRow, RowCopy> = {
       keep: {
         placer: "forge",
         text: (n) =>
-          `Fallen empires spawn in ${these(n, "zone")}, as many as your Fallen Empires ` +
-          "setting says.",
+          `Fallen empires spawn in ${these(n, "zone")}; how many is determined by your ` +
+          "in-game Fallen Empires setting.",
       },
       random_zones: {
         placer: "forge",
         text:
-          "Up to six new zones, inside the galaxy with at most two on the rim. Your Fallen " +
-          "Empires setting decides how many become fallen empires; the rest fill with normal " +
-          "systems. Reroll draws them again.",
+          "Up to six new zones, inside the galaxy with at most two on the rim. Your in-game " +
+          "Fallen Empires setting determines how many become fallen empires; the rest fill with " +
+          "normal systems. Reroll draws them again.",
       },
       none: {
         placer: "none",

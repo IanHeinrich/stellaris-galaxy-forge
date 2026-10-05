@@ -633,15 +633,15 @@ rows.
 
 Start from a preset:
 
-- Keep everything leaves the map as it is. New empires start in the old
-  capitals, in the same systems.
-- New empires keeps the galaxy. Every empire starts at an old capital's
-  position with a random starting system, and Sol and the old origin
-  systems become normal systems.
-- Layout only keeps the star positions, hyperlanes and nebulae. Galaxy
-  Forge draws new starting positions, and on a Paint a Galaxy map new
-  fallen empire zones. The game rolls everything else, as if this were a
-  new random galaxy.
+- Keep everything leaves the map as it is, the old capitals' home
+  systems included. New empires start in them.
+- Keep the galaxy leaves the galaxy as it is, but every empire gets a
+  random starting system at an old capital's position. Sol and the old
+  origin systems become normal systems.
+- Keep the layout keeps only the star positions, hyperlanes and nebulae.
+  Galaxy Forge draws new starting positions, and on a Paint a Galaxy map
+  new fallen empire zones. The game rolls everything else, as if this
+  were a new random galaxy.
 
 Under "Row by row" each row has its own choice, from Starting positions
 to System names. Hover over a row to ring its systems on the map and to
@@ -650,8 +650,9 @@ what each choice does. Each choice has a tag for who places those things
 in the new game:
 
 - Galaxy Forge: this map places them, where you see them now.
-- The game: the game places them when the game starts, as your galaxy
-  settings say. You don't see where until then.
+- The game: the game places them when the game starts, by the in-game
+  galaxy setting where one applies, otherwise at random. You don't see
+  where until then.
 - No one: they aren't placed at all.
 
 The same tags show in each row's list. Under a row you've changed, one

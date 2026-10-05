@@ -14,6 +14,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {
   FAITHFUL_PLAIN,
+  lineText,
   NO_FALLEN_EMPIRES,
   NOT_KEPT_CLEAR,
   PREPARE_COPY,
@@ -329,8 +330,12 @@ describe("the Prepare section", () => {
     await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
     let html = drawnBy(galaxy);
     expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
-    expect(html).toContain(PRESET_ANSWERS.faithful.text);
-    expect(html).toContain('<span class="prep-tag forge">Galaxy Forge</span>');
+    expect(html).toContain(PRESET_ANSWERS.faithful.replace("'", "&#x27;"));
+    const preset = html.slice(
+      html.indexOf('class="prep-preset"'),
+      html.indexOf('class="prep-option"'),
+    );
+    expect(preset).not.toContain("prep-tag");
     expect(html).toContain(FAITHFUL_PLAIN);
     expect(html).toContain('<button type="button" class="prep-disclosure" aria-expanded="true">');
     for (const row of PREPARE_ROWS.filter((row) => row !== "sol")) {
@@ -347,7 +352,7 @@ describe("the Prepare section", () => {
       "Let the game roll",
     ]);
     expect(renderToStaticMarkup(<>{items[2].note}</>)).toBe(
-      '<span class="prep-tag game">The game</span>',
+      `<div class="prep-choice-line"><span class="prep-tag game">The game</span> ${enclaves.answers.game_decides!.text as string}</div>`,
     );
     drawnField(PickerField, `${enclaves.label} choice`).onPick("plain");
     expect(usePrepareStore.getState().choices.enclaves).toBe("plain");
@@ -357,6 +362,21 @@ describe("the Prepare section", () => {
     expect(html).toContain('class="prep-disclosure" aria-expanded="false"');
     expect(() => drawnField(PickerField, `${enclaves.label} choice`)).toThrow();
     expect(html).toContain("Custom: Keep everything with 1 row changed.");
+  });
+
+  it("says under every row with systems what its choice does, Keep as is included", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      preview: previewOf({ wormhole_pairs: [5, 6], ordinary_systems: [1, 2, 3] }),
+      current: true,
+    });
+    const html = galaxy();
+    const regular = PREPARE_COPY.plain.ordinary_systems.answers.keep!;
+    expect(html).toContain(
+      `<span class="prep-tag forge">Galaxy Forge</span> ${lineText(regular.text, 3)}</div>`,
+    );
+    expect(html).toContain(lineText(PREPARE_COPY.plain.wormhole_pairs.answers.keep!.text, 2));
+    expect(html.split('class="muted prep-note"').length - 1).toBe(2);
   });
 
   it("says under a changed row what the new game gets, and counts what Apply changes", async () => {
@@ -480,7 +500,7 @@ describe("the Prepare section", () => {
       current: true,
     });
     expect(galaxy()).toContain(
-      "Taking these pairs out cuts 3 systems off from the rest of the map, including a seat.",
+      "Taking these pairs out cuts 3 systems off from the rest of the map, including a starting position.",
     );
   });
 });

@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { opensUp, popupPlace, type Across } from "./iconPickerPlace";
+import { opensUp, popupPlace, type Across, type Down } from "./iconPickerPlace";
 import { activeRow, hasFilter, iconPickerRows } from "./iconPickerRows";
 import { ENTER, ESCAPE, SPACE } from "./keys";
 import { FilterField } from "./parts";
@@ -53,6 +53,20 @@ function shownAcross(el: HTMLElement): Across {
 }
 
 /**
+ * The part of the window `el` shows its overflow in from top to bottom: inside its nearest
+ * ancestor that scrolls vertically, else the window.
+ */
+function shownDown(el: HTMLElement): Down {
+  for (let at = el.parentElement; at !== null; at = at.parentElement) {
+    const { overflowY } = getComputedStyle(at);
+    if (overflowY !== "auto" && overflowY !== "scroll") continue;
+    const { top, bottom } = at.getBoundingClientRect();
+    return { top: Math.max(0, top), bottom: Math.min(window.innerHeight, bottom) };
+  }
+  return { top: 0, bottom: window.innerHeight };
+}
+
+/**
  * Hangs `popup` from whichever edge of `picker` keeps it inside the box that shows it, narrowed
  * where neither does, and above the picker where it has no room below.
  */
@@ -60,7 +74,7 @@ function fitPopup(popup: HTMLElement, picker: HTMLElement) {
   const { style } = popup;
   style.left = style.right = style.minWidth = style.maxWidth = "";
   const box = picker.getBoundingClientRect();
-  popup.classList.toggle("up", opensUp(box, popup.offsetHeight, window.innerHeight));
+  popup.classList.toggle("up", opensUp(box, popup.offsetHeight, shownDown(picker)));
   const { edge, maxWidth } = popupPlace(box, shownAcross(picker), popup.offsetWidth);
   if (edge === "right") {
     style.left = "auto";

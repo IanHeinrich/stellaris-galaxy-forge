@@ -35,10 +35,10 @@ export interface Down {
 }
 
 /**
- * Whether a popup `height` tall opens above `picker` in a window `viewportHeight` tall: only when
- * it would not fit below and there is more room above.
+ * Whether a popup `height` tall opens above `picker` inside `box`, the part of the window that
+ * shows it: only when it would not fit below and there is more room above.
  */
-export function opensUp(picker: Down, height: number, viewportHeight: number): boolean {
-  const below = viewportHeight - picker.bottom;
-  return height > below && picker.top > below;
+export function opensUp(picker: Down, height: number, box: Down): boolean {
+  const below = box.bottom - picker.bottom;
+  return height > below && picker.top - box.top > below;
 }

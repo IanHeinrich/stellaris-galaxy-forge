@@ -208,7 +208,7 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   rolled_near_seat: {
     title: "Systems near a seat left for the game to fill",
     why: "These systems have no initializer, so the game fills them at random when a new game starts. Nothing keeps leviathans, marauder homes, L-Gates or voidworms away from a capital.",
-    fix: "Give them an initializer, or apply Prepare for a new game with Keep the space around capitals clear ticked. It gives them ordinary stars.",
+    fix: "Give them an initializer, or apply Prepare for a new game with Keep leviathans, marauders and L-Gates away from starting positions ticked. It turns them into normal systems.",
     detail: false,
   },
   bodies_overlap: {

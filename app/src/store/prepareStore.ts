@@ -23,7 +23,7 @@ export const PREPARE_SECTION = "galaxy.prepare";
 
 export type PrepareChoices = Record<PrepareRow, PrepareChoice>;
 export type PresetName = PreparePreset | "custom";
-/** What the pointer can be on: a row, or the option to keep the space around capitals clear. */
+/** What the pointer can be on: a row, or the option to keep threats away from starting positions. */
 export type PrepareHover = PrepareRow | "clear_around";
 
 /** Every row, in the panel's order. */
@@ -57,6 +57,8 @@ export interface PrepareState {
   /** Why the last preview failed; null when it landed. */
   error: string | null;
   applied: Applied | null;
+  /** The Apply undo took back, which a redo brings back. */
+  undone: Applied | null;
   applying: boolean;
   /** Row by row is open: it starts open for each document, and the player can fold it. */
   rowsOpen: boolean;
@@ -67,7 +69,7 @@ export interface PrepareState {
   /** Every row takes `preset`'s choice, and the preset is remembered on this machine. */
   setPreset(preset: PreparePreset): void;
   setChoice(row: PrepareRow, choice: PrepareChoice): void;
-  /** Keeps the space around capitals clear or not, remembered on this machine. */
+  /** Keeps threats away from starting positions or not, remembered on this machine. */
   setClearAroundSeats(on: boolean): void;
   /** Draws again: a new seed, and the preview read for it. */
   reroll(): void;
@@ -77,9 +79,10 @@ export interface PrepareState {
   dismiss(): void;
   showOutcome(shown: boolean): void;
   /**
-   * Follows an edit, undo or redo: the preview no longer counts the document, and an Apply whose
-   * history line `undo` no longer holds is forgotten. Undoing past it shows the Galaxy page with
-   * the section open, and brings the setup screen back to a scenario taken from a save.
+   * Follows an edit, undo or redo: the preview no longer counts the document. Undoing past an
+   * Apply, so that `undo` no longer holds its history line, sets it aside, shows the Galaxy page
+   * with the section open, and brings the setup screen back to a scenario taken from a save. A
+   * redo that brings the line back restores it and closes the section, as Apply did.
    */
   followHistory(undo: readonly HistoryEntry[]): void;
   /** Reads the preview again, for an open scenario with game data loaded; else drops it. */
@@ -131,14 +134,6 @@ export function currentProfile(
   preview: PreparePreview | null = usePrepareStore.getState().preview,
 ): ScenarioProfile {
   return preview?.profile ?? (getPaintLayer() ? "paint_a_galaxy" : "plain");
-}
-
-/** Whether `row`'s choice changes what the scenario holds: it has systems, and is not kept. */
-export function changesRow(
-  state: Pick<PrepareState, "choices" | "preview">,
-  row: PrepareRow,
-): boolean {
-  return state.choices[row] !== "keep" && rowSystems(state.preview, row).length > 0;
 }
 
 /** Whether a row takes a choice Forge draws, which Reroll draws again. */
@@ -227,7 +222,7 @@ export function cutOffSeats(preview: PreparePreview | null): number {
 
 /**
  * The systems the map rings: the hovered row's, and with Wormhole pairs the systems taking them
- * out cuts off; for the option to keep capitals clear, the systems it turns into ordinary stars.
+ * out cuts off; for the option to keep threats away, the systems it turns into normal systems.
  */
 export function ringedSystems(state: Pick<PrepareState, "hovered" | "preview">): readonly number[] {
   if (state.hovered === null) return [];
@@ -268,6 +263,7 @@ function initial() {
     current: false,
     error: null,
     applied: null as Applied | null,
+    undone: null as Applied | null,
     applying: false,
     rowsOpen: true,
     dismissed: false,
@@ -321,10 +317,18 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
 
   followHistory(undo) {
     asks += 1;
-    const { applied, current } = get();
-    const gone = applied !== null && !undo.some((entry) => entry.seq === applied.seq);
-    if (current || gone) set({ current: false, ...(gone ? { applied: null } : {}) });
+    const { applied, undone, current } = get();
+    const holds = (entry: Applied) => undo.some(({ seq }) => seq === entry.seq);
+    const gone = applied !== null && !holds(applied);
+    const back = applied === null && undone !== null && holds(undone);
+    if (current || gone || back) set({ current: false });
+    if (back) {
+      set({ applied: undone, undone: null });
+      useInspectorStore.getState().closeSection(PREPARE_SECTION);
+      return;
+    }
     if (!gone) return;
+    set({ applied: null, undone: applied });
     if (useFileSessionStore.getState().fromSave) set({ dismissed: false });
     void get().reveal();
   },
@@ -358,6 +362,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
           changed: done.changes,
           seq: done.seq,
         },
+        undone: null,
         hovered: null,
       });
       useInspectorStore.getState().closeSection(PREPARE_SECTION);

@@ -7,6 +7,7 @@ import { offeredChoices } from "../store/prepareStore";
 import {
   choiceLabel,
   choiceText,
+  cutOffLine,
   lineText,
   PREPARE_COPY,
   PRESET_ANSWERS,
@@ -40,6 +41,18 @@ describe("the Prepare copy", () => {
     );
   });
 
+  it("warns of the starting positions taking wormhole pairs out cuts off", () => {
+    expect(cutOffLine(3, 0)).toBe(
+      "Taking these pairs out cuts 3 systems off from the rest of the map.",
+    );
+    expect(cutOffLine(3, 1)).toBe(
+      "Taking these pairs out cuts 3 systems off from the rest of the map, including a starting position.",
+    );
+    expect(cutOffLine(4, 2)).toBe(
+      "Taking these pairs out cuts 4 systems off from the rest of the map, including 2 starting positions.",
+    );
+  });
+
   it("calls Keep Keep as is in every row", () => {
     for (const profile of PROFILES) {
       for (const row of ROWS) {
@@ -63,7 +76,7 @@ describe("the Prepare copy", () => {
         }
       }
     }
-    for (const preset of Object.values(PRESET_ANSWERS)) expect(preset.text).not.toMatch(/you get/i);
+    for (const preset of Object.values(PRESET_ANSWERS)) expect(preset).not.toMatch(/you get/i);
   });
 
   it("gives every choice a row offers, on either kind of map, a tag and a line", () => {

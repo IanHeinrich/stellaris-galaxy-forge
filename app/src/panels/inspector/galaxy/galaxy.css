@@ -279,3 +279,25 @@
 .prep-setup > .prep-footer {
   position: static;
 }
+
+/* In a row's open list, each choice's tag and sentence sit on one line under its name. */
+.prep-row .icon-picker-option {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 0;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.prep-row .icon-picker-option .icon-picker-note {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.prep-row .icon-picker-note .prep-choice-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

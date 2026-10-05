@@ -19,7 +19,6 @@ import { GALAXY_ENTRY, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import {
-  changesRow,
   cutOffSeats,
   nearestPreset,
   offeredChoices,
@@ -150,18 +149,6 @@ describe("the Prepare choices", () => {
     await until(() => expect(prepare().preview).toBeNull());
   });
 
-  it("change a row only when it has systems and its choice is not Keep", async () => {
-    mockedIpc.preparePreview.mockResolvedValue(previewOf(5, { enclaves: [1, 2], guardians: [3] }));
-    prepare().setPreset("bare_shell");
-    await until(() => expect(prepare().current).toBe(true));
-    // Bare shell takes wormhole pairs out, but a plain scenario has none.
-    const changed = () => PREPARE_ROWS.filter((row) => changesRow(prepare(), row));
-    expect(changed()).toEqual(["guardians", "enclaves"]);
-
-    prepare().setChoice("enclaves", "keep");
-    expect(changed()).toEqual(["guardians"]);
-  });
-
   it("mark only the new starting positions and fallen empire zones Galaxy Forge draws", () => {
     const preview = previewOf(
       0,
@@ -224,7 +211,7 @@ describe("the Prepare choices", () => {
   });
 });
 
-describe("keeping the space around capitals clear", () => {
+describe("keeping threats away from starting positions", () => {
   it("is on by default, sent with every preview, and remembered apart from the preset", async () => {
     const { seed } = prepare().options;
     expect(prepare().options).toEqual({ clear_around_seats: true, seed });
@@ -255,7 +242,7 @@ describe("Apply", () => {
     mockedIpc.preparePreview.mockResolvedValue(previewOf(5));
     prepare().setPreset("fresh_start");
     await until(() => expect(prepare().current).toBe(true));
-    expect(summaryLine("fresh_start", 5, null)).toBe("New empires · changes 5 systems");
+    expect(summaryLine("fresh_start", 5, null)).toBe("Keep the galaxy · changes 5 systems");
 
     mockedIpc.preparePreview.mockResolvedValue(previewOf(0));
     // The edit's own count, which a document edited since the preview may have moved.
@@ -269,7 +256,7 @@ describe("Apply", () => {
     expect(useFileSessionStore.getState().dirty).toBe(true);
     const { choices, preview, applied } = prepare();
     expect(summaryLine(presetOf(choices, "plain"), preview?.changes ?? null, applied)).toBe(
-      "New empires · 6 systems changed",
+      "Keep the galaxy · 6 systems changed",
     );
   });
 
@@ -366,6 +353,29 @@ describe("the setup screen", () => {
     );
     await editor().undo();
     expect(setupScreen()).toBe(true);
+  });
+
+  it("goes again when redo puts the Apply back, with what it changed", async () => {
+    await openFromSave();
+    await previewed(5);
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    const applied = prepare().applied;
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ history: { undo: [], redo: [historyEntry(1, "x")] } }),
+    );
+    await editor().undo();
+    expect(setupScreen()).toBe(true);
+    await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
+
+    mockedIpc.redo.mockResolvedValueOnce(
+      editResult({ history: { undo: [historyEntry(1, "x")], redo: [] } }),
+    );
+    await editor().redo();
+    expect(prepare().applied).toEqual(applied);
+    expect(setupScreen()).toBe(false);
+    expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
   });
 
   it("comes back on the Galaxy page when a system was selected since the Apply", async () => {
