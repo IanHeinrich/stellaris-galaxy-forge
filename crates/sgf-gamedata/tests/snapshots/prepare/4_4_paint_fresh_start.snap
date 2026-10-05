@@ -1,0 +1,20 @@
+---
+source: crates/sgf-gamedata/tests/prepare.rs
+expression: out
+---
+Prepared 7 systems for a new game
+SetInitializer: 7
+-system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = voidworms_spawn_system_tiny }
++system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = painted_galaxy_rl_basic }
+-system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = voidworms_spawn_system_medium }
++system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = painted_galaxy_rl_basic }
+-system = { id = "20" name = "VOIDWORM_SYSTEM_11" position = { x = -94.42 y = -378.24 } initializer = voidworms_spawn_system_small }
++system = { id = "20" name = "VOIDWORM_SYSTEM_11" position = { x = -94.42 y = -378.24 } initializer = painted_galaxy_rl_basic }
+-system = { id = "23" name = "VOIDWORM_SYSTEM_09" position = { x = 112.48 y = 324.61 } initializer = voidworms_spawn_system_large }
++system = { id = "23" name = "VOIDWORM_SYSTEM_09" position = { x = 112.48 y = 324.61 } initializer = painted_galaxy_rl_basic }
+-system = { id = "788" name = "Raprix" position = { x = -323.73055 y = 184.48043 } initializer = distar_sealed_1_1 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
++system = { id = "788" name = "Raprix" position = { x = -323.73055 y = 184.48043 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
+-system = { id = "789" name = "Gidzerak" position = { x = -339.74518 y = 163.59981 } initializer = distar_sealed_1_2 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
++system = { id = "789" name = "Gidzerak" position = { x = -339.74518 y = 163.59981 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
+-system = { id = "790" name = "NAME_Ultima_Vigilis" position = { x = 453.05424 y = 209.25465 } initializer = surveillance_supercomputer_system }
++system = { id = "790" name = "NAME_Ultima_Vigilis" position = { x = 453.05424 y = 209.25465 } initializer = painted_galaxy_rl_basic }

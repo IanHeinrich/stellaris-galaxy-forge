@@ -177,6 +177,21 @@ fn run(cli: Cli) -> commands::Run {
             install,
             no_gamedata,
         }) => commands::special::run(&sav, &install.options(), !no_gamedata),
+        Some(Command::Prepare {
+            scenario,
+            preset,
+            rows,
+            seed,
+            install,
+            out,
+        }) => commands::prepare::run(
+            &scenario,
+            out.path.as_deref(),
+            preset.core(),
+            &rows,
+            seed,
+            &install.options(),
+        ),
         Some(Command::SpecialLayouts { sav, install }) => {
             commands::special_layouts::run(&sav, &install.options())
         }

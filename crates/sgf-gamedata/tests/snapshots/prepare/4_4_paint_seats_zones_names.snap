@@ -1,0 +1,11 @@
+---
+source: crates/sgf-gamedata/tests/prepare.rs
+expression: out
+---
+Prepared 765 systems for a new game
+RenameSystem: 762
+SetFeLinks: 3
+SetFeZone: 3
+SetInitializer: 1
+SetSpawnScript: 17
+… 765 more changed lines

@@ -11,6 +11,7 @@ mod export;
 mod gamedata;
 mod inspect;
 mod mutate;
+mod prepare;
 mod roundtrip;
 mod shape;
 mod special;

@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use sgf_core::prepare::{PrepareChoice, PrepareRow, RowChoice};
 use sgf_gamedata::LoadOptions;
 
 #[derive(Parser)]
@@ -262,6 +263,27 @@ pub enum Command {
         #[arg(long)]
         no_gamedata: bool,
     },
+    /// Prepare a scenario for a new game: sort its systems into rows from the install's
+    /// initializers, then write a preset's choices as one edit and save:
+    ///   sgf prepare map.txt --preset fresh --row system_names=game_names -o new.txt
+    /// --row sets one row's choice over the preset's; repeat it for more rows.
+    #[command(verbatim_doc_comment)]
+    Prepare {
+        scenario: PathBuf,
+        #[arg(long, value_enum)]
+        preset: Preset,
+        /// One row's choice, as `<row>=<choice>`; repeatable.
+        #[arg(long = "row", value_parser = row_choice, value_name = "ROW=CHOICE")]
+        rows: Vec<RowChoice>,
+        /// What Plain system draws a plain scenario's layouts from; the same seed gives
+        /// the same draw.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+        #[command(flatten)]
+        install: InstallArg,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// List the special layouts a system can be generated from, with how many systems of
     /// the save already have each.
     SpecialLayouts {
@@ -307,6 +329,28 @@ pub enum NebulaCommand {
 pub enum Profile {
     Plain,
     PaintAGalaxy,
+}
+
+/// The preset `sgf prepare` starts from.
+#[derive(Clone, Copy, ValueEnum)]
+pub enum Preset {
+    Faithful,
+    Fresh,
+    Shell,
+}
+
+/// `system_names=game_names`, one `--row` of `sgf prepare`.
+fn row_choice(text: &str) -> Result<RowChoice, String> {
+    let (row, choice) = text
+        .split_once('=')
+        .ok_or_else(|| format!("{text} is not ROW=CHOICE"))?;
+    let rows = PrepareRow::ALL.map(PrepareRow::as_str).join(", ");
+    let choices = PrepareChoice::ALL.map(PrepareChoice::as_str).join(", ");
+    Ok(RowChoice {
+        row: PrepareRow::parse(row).ok_or_else(|| format!("{row} is none of {rows}"))?,
+        choice: PrepareChoice::parse(choice)
+            .ok_or_else(|| format!("{choice} is none of {choices}"))?,
+    })
 }
 
 /// `X,Y`, the `--at` of a generated system.

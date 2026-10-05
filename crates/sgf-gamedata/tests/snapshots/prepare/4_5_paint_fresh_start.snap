@@ -1,0 +1,20 @@
+---
+source: crates/sgf-gamedata/tests/prepare.rs
+expression: out
+---
+Prepared 7 systems for a new game
+SetInitializer: 7
+-system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = voidworms_spawn_system_medium }
++system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = painted_galaxy_rl_basic }
+-system = { id = "9" name = "VOIDWORM_SYSTEM_05" position = { x = 151.48 y = 12.76 } initializer = voidworms_spawn_system_small }
++system = { id = "9" name = "VOIDWORM_SYSTEM_05" position = { x = 151.48 y = 12.76 } initializer = painted_galaxy_rl_basic }
+-system = { id = "11" name = "VOIDWORM_SYSTEM_08" position = { x = -5.34 y = 140.71 } initializer = voidworms_spawn_system_tiny }
++system = { id = "11" name = "VOIDWORM_SYSTEM_08" position = { x = -5.34 y = 140.71 } initializer = painted_galaxy_rl_basic }
+-system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = protoplanetary_nomad_init }
++system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = painted_galaxy_rl_basic }
+-system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = neutron_star_nomad_init }
++system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = painted_galaxy_rl_basic }
+-system = { id = "590" name = "Athyorix" position = { x = -104.48846 y = 303.7334 } initializer = distar_sealed_1_1 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
++system = { id = "590" name = "Athyorix" position = { x = -104.48846 y = 303.7334 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
+-system = { id = "591" name = "Scheat" position = { x = -92.22811 y = 327.79064 } initializer = distar_sealed_1_2 effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }
++system = { id = "591" name = "Scheat" position = { x = -92.22811 y = 327.79064 } initializer = painted_galaxy_rl_basic effect = { set_star_flag = painted_galaxy_wormhole_6 set_star_flag = empire_cluster } }

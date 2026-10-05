@@ -16,7 +16,7 @@ use crate::as_u32;
 use crate::export::{Draft, ExportReport, SpawnDraft, SystemDraft, report};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::fe_zone::SET_STAR_FLAG;
-use crate::format::scenario::header_counts::SeatCounts;
+use crate::format::scenario::header_counts::{SeatCounts, is_seat};
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
@@ -85,9 +85,7 @@ fn spawn_systems(graph: &GalaxyGraph) -> BTreeSet<u32> {
         graph
             .systems
             .values()
-            .filter(|system| {
-                system.spawn_script.is_some() || system.spawn_weight.is_some_and(|w| w > 0.0)
-            })
+            .filter(|system| is_seat(system))
             .map(|system| system.id),
     );
     spawns

@@ -350,8 +350,13 @@ pub(super) fn set_name(
             edit.insert(at, text.into_bytes());
         }
     }
+    let system = rules::named(&s.graph, id);
+    let description = match name.is_empty() {
+        true => format!("Left {system} for the game to name"),
+        false => format!("Renamed {system} to {name}"),
+    };
     Ok(Planned {
-        description: format!("Renamed {} to {name}", rules::named(&s.graph, id)),
+        description,
         inverse: Op::RenameSystem {
             system: id,
             name: old,
