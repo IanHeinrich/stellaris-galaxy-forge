@@ -13,10 +13,15 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {
-  CLEAR_AROUND_HINT,
-  consequence,
+  CLEAR_AROUND_LABEL,
+  FAITHFUL_PLAIN,
+  lineText,
+  NO_FALLEN_EMPIRES,
+  NOT_KEPT_CLEAR,
   PREPARE_COPY,
   PREPARE_TITLE,
+  PRESET_ANSWERS,
+  REROLL_HINT,
 } from "../../../lib/prepareCopy";
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -24,7 +29,12 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useLGateStore } from "../../../store/lgateStore";
-import { PREPARE_ROWS, PREPARE_SECTION, usePrepareStore } from "../../../store/prepareStore";
+import {
+  PREPARE_ROWS,
+  PREPARE_SECTION,
+  ringedSystems,
+  usePrepareStore,
+} from "../../../store/prepareStore";
 import { armSession, resetStores } from "../../../store/storeFixture";
 import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
 import { openWith } from "../../../test/session";
@@ -53,11 +63,13 @@ beforeEach(() => {
 
 const galaxy = () => renderToStaticMarkup(<GalaxyView />);
 
-async function open(kind: "save" | "scenario"): Promise<void> {
+/** Opens the sample save, or takes it as a scenario with the setup screen set aside unless `setup`. */
+async function open(kind: "save" | "scenario", setup = false): Promise<void> {
   const session = useFileSessionStore.getState();
   await (kind === "save"
     ? session.openSave(OPEN_RESULT.path)
     : session.openScenarioFrom(SCENARIO_RESULT.path));
+  if (kind === "scenario" && !setup) usePrepareStore.setState({ dismissed: true });
 }
 
 const modTouch = (mod: string, file: string, what: LGateModTouch["what"]): LGateModTouch => ({
@@ -316,27 +328,64 @@ describe("the Prepare section", () => {
     };
   }
 
-  it("shows only on a scenario, opened after Open save as scenario with a row per category", async () => {
+  it("shows only on a scenario, with the preset's line and the rows open under Row by row", async () => {
     await open("save");
     expect(galaxy()).not.toContain(PREPARE_TITLE);
 
     await open("scenario");
     await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
-    const html = drawnBy(galaxy);
+    let html = drawnBy(galaxy);
     expect(html).toContain("Load the game data to sort this scenario&#x27;s systems into rows.");
+    expect(html).toContain(PRESET_ANSWERS.faithful.replace("'", "&#x27;"));
+    const preset = html.slice(
+      html.indexOf('class="prep-preset"'),
+      html.indexOf('class="prep-option"'),
+    );
+    expect(preset).not.toContain("prep-tag");
+    expect(html).toContain(FAITHFUL_PLAIN);
+    expect(html).toContain('<button type="button" class="prep-disclosure" aria-expanded="true">');
     for (const row of PREPARE_ROWS.filter((row) => row !== "sol")) {
       expect(drawnField(PickerField, `${PREPARE_COPY.plain[row].label} choice`)).toBeDefined();
     }
     expect(html).not.toContain(">Sol<");
-    expect(html).toContain(CLEAR_AROUND_HINT);
     expect(drawnCheckbox().checked).toBe(true);
     expect(drawnButton("Apply").disabled).toBe(true);
 
+    const items = drawnField(PickerField, `${enclaves.label} choice`).items;
+    expect(items.map((item) => item.label)).toEqual([
+      "Keep as is",
+      "Normal systems",
+      "Let the game roll",
+    ]);
+    expect(renderToStaticMarkup(<>{items[2].note}</>)).toBe(
+      `<div class="prep-choice-line"><span class="prep-tag game">The game</span> ${enclaves.answers.game_decides!.text as string}</div>`,
+    );
     drawnField(PickerField, `${enclaves.label} choice`).onPick("plain");
     expect(usePrepareStore.getState().choices.enclaves).toBe("plain");
+
+    drawnButton("Row by row").onClick();
+    html = drawnBy(galaxy);
+    expect(html).toContain('class="prep-disclosure" aria-expanded="false"');
+    expect(() => drawnField(PickerField, `${enclaves.label} choice`)).toThrow();
+    expect(html).toContain("Custom: Keep everything with 1 row changed.");
   });
 
-  it("warns under a row left out and in the footer, and counts what Apply changes", async () => {
+  it("says under every row with systems what its choice does, Keep as is included", async () => {
+    await open("scenario");
+    usePrepareStore.setState({
+      preview: previewOf({ wormhole_pairs: [5, 6], ordinary_systems: [1, 2, 3] }),
+      current: true,
+    });
+    const html = galaxy();
+    const regular = PREPARE_COPY.plain.ordinary_systems.answers.keep!;
+    expect(html).toContain(
+      `<span class="prep-tag forge">Galaxy Forge</span> ${lineText(regular.text, 3)}</div>`,
+    );
+    expect(html).toContain(lineText(PREPARE_COPY.plain.wormhole_pairs.answers.keep!.text, 2));
+    expect(html.split('class="muted prep-note"').length - 1).toBe(2);
+  });
+
+  it("says under a changed row what the new game gets, and counts what Apply changes", async () => {
     await open("scenario");
     usePrepareStore.setState({
       choices: { ...usePrepareStore.getState().choices, enclaves: "game_decides" },
@@ -348,13 +397,14 @@ describe("the Prepare section", () => {
 
     usePrepareStore.setState({ current: true });
     const html = drawnBy(galaxy);
-    expect(html).toContain(consequence(enclaves, "game_decides", true));
-    expect(html).toContain("Left out of the new game: enclaves.");
+    expect(html).toContain(
+      `<span class="prep-tag game">The game</span> ${enclaves.answers.game_decides!.text as string}</div>`,
+    );
     expect(html).toContain("Changes 2 systems. One step to undo.");
-    expect(html).toContain("2 systems");
+    expect(html).not.toMatch(/left out/i);
     expect(drawnButton("Apply").disabled).toBe(false);
-    // Home starts holds no seat here, so its note stays out.
-    expect(html).not.toContain(PREPARE_COPY.plain.home_starts.note);
+    // Guardians hold no system here, so they take no line.
+    expect(html.split('class="muted prep-note"').length - 1).toBe(1);
 
     useInspectorStore.getState().closeSection(PREPARE_SECTION);
     const closed = galaxy();
@@ -362,49 +412,107 @@ describe("the Prepare section", () => {
     expect(closed).toContain('<span class="ins-sec-aside" title="Custom · changes 2 systems">');
   });
 
-  it("adds no line to a row while the pointer is on it, so the rows below stay put", async () => {
+  it("shows the hovered row's card: what it holds and every choice's tag and line", async () => {
     await open("scenario");
     usePrepareStore.setState({
-      preview: previewOf({ enclaves: [3, 4] }),
+      preview: previewOf({ guardians: [3, 4] }),
       current: true,
+      rowsOpen: true,
     });
-    const before = galaxy();
-    usePrepareStore.getState().hover("enclaves");
-    const hovered = galaxy();
-    expect(hovered).not.toContain(enclaves.ifLeftOut);
-    expect(hovered.replace('prep-row hovered"', 'prep-row"')).toBe(before);
+    expect(galaxy()).not.toContain('id="prep-card"');
+    usePrepareStore.getState().hover("guardians");
+    const html = galaxy();
+    const card = html.slice(html.indexOf('id="prep-card"'));
+    expect(html).toContain('id="prep-row-guardians"');
+    expect(card).toContain(PREPARE_COPY.plain.guardians.holds);
+    expect(card).toContain("These 2 spawn where they are now.");
+    expect(card).toContain('Keep as is<span class="muted"> · current</span>');
+    expect(card).toContain("Normal systems");
+    expect(card).toContain("Let the game roll");
+    expect(card.split("prep-tag").length - 1).toBe(3);
+    expect(card).not.toMatch(/Decided by|Shown here|New game:/);
+  });
+
+  it("disables Fallen empires on a plain map and says why", async () => {
+    await open("scenario");
+    usePrepareStore.setState({ preview: previewOf({ fallen_empires: [9] }), rowsOpen: true });
+    drawnBy(galaxy);
+    expect(drawnField(PickerField, "Fallen empires choice").disabledReason).toBe(NO_FALLEN_EMPIRES);
+
+    usePrepareStore.setState({
+      preview: previewOf({ fallen_empires: [9] }, { profile: "paint_a_galaxy" }),
+    });
+    drawnBy(galaxy);
+    expect(drawnField(PickerField, "Fallen empires choice").disabledReason).toBeUndefined();
   });
 
   it("shows Sol only when the map has one, and a UNE seat only on a Paint a Galaxy map", async () => {
     await open("scenario");
-    usePrepareStore.setState({ preview: previewOf({ sol: [7] }), current: true });
+    usePrepareStore.setState({ preview: previewOf({ sol: [7] }), current: true, rowsOpen: true });
     drawnBy(galaxy);
     const sol = drawnField(PickerField, "Sol choice");
-    expect(sol.items.map((item) => item.label)).toEqual(["Keep", "Normal system", "Pre-FTL Earth"]);
+    expect(sol.items.map((item) => item.label)).toEqual([
+      "Keep as is",
+      "Normal system",
+      "Pre-FTL Earth",
+      "Let the game roll",
+    ]);
 
     usePrepareStore.setState({ preview: previewOf({ sol: [7] }, { profile: "paint_a_galaxy" }) });
     drawnBy(galaxy);
     expect(drawnField(PickerField, "Sol choice").items.map((item) => item.label)).toContain(
-      "UNE seat",
+      "United Nations of Earth start",
     );
   });
 
-  it("counts what keeping capitals clear turns plain, and turns it off from its checkbox", async () => {
+  it("counts what keeping threats away turns into normal systems, and shows both states on hover", async () => {
     await open("scenario");
     usePrepareStore.setState({
-      preview: previewOf({ guardians: [3, 4] }, { kept_clear: [3], changes: 2 }),
+      preview: previewOf({ guardians: [3, 4] }, { kept_clear: [3, 5, 6], changes: 2 }),
       current: true,
     });
-    expect(drawnBy(galaxy)).toContain(
-      "Turns 1 system within 2 jumps of a capital into ordinary stars.",
+    const on = drawnBy(galaxy);
+    expect(on).toContain(`<span>${CLEAR_AROUND_LABEL}</span><span class="muted">3 systems</span>`);
+    expect(on).not.toContain("Turns the");
+    expect(on).not.toContain(NOT_KEPT_CLEAR.text as string);
+    expect(on).not.toContain('id="prep-card"');
+
+    usePrepareStore.getState().hover("clear_around");
+    const hovered = galaxy();
+    const card = hovered.slice(hovered.indexOf('id="prep-card"'));
+    expect(card).toContain(CLEAR_AROUND_LABEL);
+    expect(card).toContain('On<span class="muted"> · current</span>');
+    expect(card).toContain(
+      '<span class="prep-tag forge">Galaxy Forge</span> Turns the 3 systems within 2 jumps',
     );
+    expect(card).toContain(
+      `<span class="prep-tag game">The game</span> ${NOT_KEPT_CLEAR.text as string}`,
+    );
+    expect(ringedSystems(usePrepareStore.getState())).toEqual([3, 5, 6]);
+
     drawnCheckbox().onChange();
     expect(usePrepareStore.getState().options.clear_around_seats).toBe(false);
-    expect(galaxy()).toContain(CLEAR_AROUND_HINT);
+    const off = galaxy();
+    expect(off).not.toContain('<span class="muted">3 systems</span>');
+    expect(off).toContain('Off<span class="muted"> · current</span>');
+    expect(off.split(NOT_KEPT_CLEAR.text as string).length - 1).toBe(1);
+    usePrepareStore.getState().hover(null);
     usePrepareStore.getState().setClearAroundSeats(true);
   });
 
-  it("warns under Wormhole pairs and in the footer when taking them out cuts systems off", async () => {
+  it("offers Reroll while a row draws new seats or zones", async () => {
+    await open("scenario");
+    expect(galaxy()).not.toContain(REROLL_HINT);
+    usePrepareStore.setState({
+      choices: { ...usePrepareStore.getState().choices, empire_seats: "random_seats" },
+    });
+    expect(drawnBy(galaxy)).toContain(REROLL_HINT);
+    const { seed } = usePrepareStore.getState().options;
+    drawnButton("Reroll").onClick();
+    expect(usePrepareStore.getState().options.seed).not.toBe(seed);
+  });
+
+  it("warns under Wormhole pairs when taking them out cuts systems off", async () => {
     await open("scenario");
     usePrepareStore.setState({
       choices: { ...usePrepareStore.getState().choices, wormhole_pairs: "none" },
@@ -414,12 +522,38 @@ describe("the Prepare section", () => {
       ),
       current: true,
     });
-    const html = galaxy();
-    expect(html).toContain(
-      "Taking these pairs out cuts 3 systems off from the rest of the map, including a seat.",
+    expect(galaxy()).toContain(
+      "Taking these pairs out cuts 3 systems off from the rest of the map, including a starting position.",
     );
-    expect(html).toContain(
-      "Left out of the new game: wormhole pairs and 3 systems cut off from the rest of the map.",
-    );
+  });
+});
+
+describe("the setup screen", () => {
+  it("shows only Prepare and its footer for a scenario just taken from a save", async () => {
+    await open("scenario", true);
+    const html = drawnBy(galaxy);
+    expect(html).toContain('<div class="prep-setup">');
+    expect(html).toContain(`<div class="prep-setup-title">${PREPARE_TITLE}</div>`);
+    expect(html).not.toContain('class="ins-sec"');
+    expect(html).not.toContain(">Components<");
+    expect(html).toContain(">Apply</button>");
+    expect(html.indexOf('class="prep-footer"')).toBeGreaterThan(html.indexOf('class="prep"'));
+
+    drawnButton("Not now").onClick();
+    const page = galaxy();
+    expect(page).not.toContain("prep-setup");
+    expect(page).toContain(">Components<");
+    expect(page).toContain(`<span class="ins-sec-title">${PREPARE_TITLE}</span>`);
+    expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
+  });
+
+  it("comes back when undo takes the Apply back", async () => {
+    await open("scenario", true);
+    usePrepareStore.setState({
+      applied: { preset: "faithful", changed: 3, seq: 4 },
+    });
+    expect(galaxy()).not.toContain("prep-setup");
+    usePrepareStore.getState().followHistory([]);
+    expect(galaxy()).toContain('<div class="prep-setup">');
   });
 });

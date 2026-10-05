@@ -21,7 +21,7 @@ import { useLGateStore } from "./lgateStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { usePaintModStore } from "./paintModStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
-import { galaxyShown, usePrepareStore } from "./prepareStore";
+import { galaxyShown, outcomeInView, usePrepareStore } from "./prepareStore";
 import { DOCUMENT_SCOPED, GAME_DATA_SCOPED } from "./resetScopes";
 import { currentBarMode, sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 import { symmetryAllowed, SYMMETRY_OFF, toolAllowed, useToolStore } from "./toolStore";
@@ -109,6 +109,31 @@ function followPrepare(): void {
   });
   useLayoutStore.subscribe((state, previous) => {
     if (state.tab !== previous.tab || state.collapsed !== previous.collapsed) shown();
+  });
+  followOutcome();
+}
+
+// The map marks what each system becomes while the section can be seen: open on the Galaxy page,
+// or as the setup screen.
+function followOutcome(): void {
+  const sync = () => usePrepareStore.getState().showOutcome(outcomeInView());
+  useFileSessionStore.subscribe((state, previous) => {
+    if (
+      state.status !== previous.status ||
+      state.kind !== previous.kind ||
+      state.fromSave !== previous.fromSave
+    ) {
+      sync();
+    }
+  });
+  useInspectorStore.subscribe((state, previous) => {
+    if (state.stack !== previous.stack || state.sections !== previous.sections) sync();
+  });
+  useLayoutStore.subscribe((state, previous) => {
+    if (state.tab !== previous.tab || state.collapsed !== previous.collapsed) sync();
+  });
+  usePrepareStore.subscribe((state, previous) => {
+    if (state.applied !== previous.applied || state.dismissed !== previous.dismissed) sync();
   });
 }
 

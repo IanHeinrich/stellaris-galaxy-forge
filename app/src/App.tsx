@@ -16,7 +16,7 @@ import { PaintBadge } from "./panels/chrome/PaintBadge";
 import { PaintNotice } from "./panels/chrome/PaintNotice";
 import { SceneCrumb } from "./panels/chrome/SceneCrumb";
 import { CutBar } from "./panels/chrome/CutBar";
-import { PrepareCaption } from "./panels/chrome/PrepareCaption";
+import { PrepareLegend } from "./panels/chrome/PrepareLegend";
 import { TiltControl } from "./panels/chrome/TiltControl";
 import { HelpMenu } from "./panels/chrome/HelpMenu";
 import { LayersMenu } from "./panels/chrome/LayersMenu";
@@ -120,7 +120,9 @@ const EFFECTS: CommandEffects = {
 function App() {
   const status = useFileSessionStore((s) => s.status);
   const shown = useSceneSystem();
-  const tools = barShows(useBarMode(), "tools");
+  const barMode = useBarMode();
+  const rail = barShows(barMode, "rail");
+  const tools = barShows(barMode, "tools");
   const openDialog = useLayoutStore((s) => s.openDialog);
   const scenarioDialog = useLayoutStore((s) => s.scenarioDialog);
   const feZoneFitPrompt = useEditorStore((s) => s.feZoneFitPrompt);
@@ -209,13 +211,13 @@ function App() {
       <TopBar />
       <PaintNotice />
       <div className="main">
-        {status === "ready" && tools && <ToolRail />}
+        {status === "ready" && rail && <ToolRail />}
         <div className="map-area">
           <MapCanvas />
           {status === "ready" && tools && <ToolOptions />}
           {status === "ready" && shown !== null && <SceneCrumb system={shown} />}
           {status === "ready" && <CutBar />}
-          {status === "ready" && <PrepareCaption />}
+          {status === "ready" && <PrepareLegend />}
           <TiltControl />
           <ContextMenu />
           <MapTooltip />

@@ -32,6 +32,15 @@ export const LAYER_IDS = [
 ] as const;
 export type LayerId = (typeof LAYER_IDS)[number];
 
+/** Layers the map draws that no menu switches: each shows whatever its store hands it. */
+export const UNSWITCHED_IDS = ["outcomes"] as const;
+export type MapLayerId = LayerId | (typeof UNSWITCHED_IDS)[number];
+
+/** Whether a menu switches layer `id`. */
+export function isSwitched(id: MapLayerId): id is LayerId {
+  return !(UNSWITCHED_IDS as readonly string[]).includes(id);
+}
+
 /**
  * The layers the system scene draws, each switched there apart from the galaxy, with what the
  * scene starts with. `sceneOnly` marks one the galaxy map does not draw, and `needs` the

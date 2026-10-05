@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import type { HeaderField } from "../../../generated/HeaderField";
-import { seatSummary, type SeatSummary } from "../../../lib/paint";
+import { scenarioHeaderName, seatSummary, type SeatSummary } from "../../../lib/paint";
 import { fileName } from "../../../lib/paths";
 import { randomBypassLine } from "../../../lib/scenarioBypasses";
 import { useShownBypasses } from "../../../store/bypassSelectors";
@@ -10,6 +10,7 @@ import { useGalaxyVersion } from "../../../store/browserRows";
 import { galaxyIslandCount, galaxyLaneCount, useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useIssuesStore } from "../../../store/issuesStore";
+import { useSetupScreen } from "../../../store/prepareStore";
 import { useApplyOp } from "../../useApplyOp";
 import { GameSetupSection } from "./GameSetupSection";
 import { LGateBlock } from "./LGateBlock";
@@ -20,12 +21,15 @@ import { handledKeys } from "./gameSetup";
 import {
   addHeaderField,
   DUPLICATE_KEY_TITLE,
+  HEADER_KEY_NOTES,
   hasHeaderKey,
   headerRowKey,
   isRepeatedKey,
   KEY_TAKEN,
+  NAME_HINT,
   removeHeaderField,
   setHeaderField,
+  setScenarioName,
 } from "./header";
 import { TextField } from "../../EditField";
 import { Empty, Properties, PropertyRow, Section } from "../parts";
@@ -105,10 +109,7 @@ function AddHeaderRow({ header }: { header: readonly HeaderField[] }) {
   );
 }
 
-const LISTED_AS_SIZE =
-  "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.";
-
-/** `Seats N · 1st Player P · reserved A, C · Sol · safe AI empires K`, parts left out while zero. */
+/** `Seats N · 1st Player P · reserved A, C · Sol · safe AI empires K`, parts dropped while zero. */
 function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummary): string | null {
   if (seats === 0) return null;
   const parts = [`Seats ${seats}`];
@@ -119,23 +120,46 @@ function seatSummaryLine({ seats, preferred, reserved, sol, safeAi }: SeatSummar
   return parts.join(" · ");
 }
 
-/**
- * Every key the scenario's own header holds that the game setup grid does not edit, in file
- * order, duplicates as the file writes them.
- */
-function HeaderSection({ header, paint }: { header: readonly HeaderField[]; paint: boolean }) {
-  const handled = handledKeys(header);
-  const raw = header.filter((field) => !handled.has(field.key));
+/** The name the game lists the scenario under, at the top of its Galaxy page. */
+function NameField({ header }: { header: readonly HeaderField[] }) {
+  const applyOp = useApplyOp();
   return (
-    <Section id="galaxy.header" title="Scenario header" count={raw.length}>
+    <>
+      <div className="ins-map-name">
+        <span className="k">Name</span>
+        <TextField
+          kind="text"
+          label="Name"
+          value={scenarioHeaderName(header) ?? ""}
+          onCommit={(value) => {
+            const op = setScenarioName(value);
+            if (op !== null) applyOp(op);
+          }}
+        />
+      </div>
+      <div className="muted ins-hint">{NAME_HINT}</div>
+    </>
+  );
+}
+
+/**
+ * Every key the scenario's own header holds that neither the Name field nor the game setup grid
+ * edits, in file order, duplicates as the file writes them. A repeated `name` shows as a repeated
+ * row, since the Name field edits the first.
+ */
+function HeaderSection({ header }: { header: readonly HeaderField[] }) {
+  const handled = handledKeys(header);
+  const name = header.findIndex((field) => field.key === "name");
+  const raw = header.filter((field, i) => i !== name && !handled.has(field.key));
+  return (
+    <Section id="galaxy.header" title="Scenario header" count={raw.length} startClosed>
       {raw.map((field, i) => {
-        const repeated = isRepeatedKey(raw, i);
+        const repeated = field.key === "name" || isRepeatedKey(raw, i);
+        const note = repeated ? undefined : HEADER_KEY_NOTES[field.key];
         return (
           <Fragment key={headerRowKey(field, i)}>
             {repeated ? <RepeatedRow field={field} /> : <HeaderRow field={field} />}
-            {paint && !repeated && field.key === "name" && (
-              <div className="muted ins-hint">{LISTED_AS_SIZE}</div>
-            )}
+            {note !== undefined && <div className="muted ins-hint">{note}</div>}
           </Fragment>
         );
       })}
@@ -168,17 +192,29 @@ export function GalaxyView() {
   const bypasses = useShownBypasses().length;
   const placed = useGameDataStore((s) => s.scenarioBypasses);
   const paint = usePaintLayer();
+  const setup = useSetupScreen();
   useGalaxyVersion();
 
   const random = scripted ? randomBypassLine(placed) : null;
   const seatsLine = paint ? seatSummaryLine(seatSummary(systems.values())) : null;
   const components = galaxyIslandCount(systems);
   if (galaxy === null) return <Empty>Open a save to look at its galaxy.</Empty>;
+  const head = (
+    <div className="ins-head">
+      <span className="name">{title ?? "Galaxy"}</span>
+    </div>
+  );
+  if (setup) {
+    return (
+      <div className="prep-setup">
+        {head}
+        <PrepareSection setup />
+      </div>
+    );
+  }
   return (
     <>
-      <div className="ins-head">
-        <span className="name">{title ?? "Galaxy"}</span>
-      </div>
+      {head}
       <div className="ins-sub muted">
         {meta
           ? `${meta.date} · ${meta.version}`
@@ -186,6 +222,7 @@ export function GalaxyView() {
             ? "static galaxy scenario"
             : "no save metadata"}
       </div>
+      {ownHeader && <NameField header={header} />}
       {kind === "scenario" && <PrepareSection />}
       {lgateEditable && lgate !== null && <LGateBlock lgate={lgate} />}
       <Section id="galaxy.counts" title="Galaxy">
@@ -236,7 +273,7 @@ export function GalaxyView() {
             scriptsLine={random}
             countsIssue={countsIssue}
           />
-          <HeaderSection header={header} paint={paint} />
+          <HeaderSection header={header} />
         </>
       )}
       {galaxy.settings !== null && <SaveSetupSection settings={galaxy.settings} />}

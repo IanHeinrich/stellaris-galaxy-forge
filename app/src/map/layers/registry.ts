@@ -3,7 +3,12 @@ import type { Capabilities } from "../../generated/Capabilities";
 import { supports } from "../../lib/capabilities";
 import { WorkerTerritoryClient } from "../../lib/geometry/territoryClient";
 import type { DrawnPositions } from "../drawnPositions";
-import { SCENE_ONLY_IDS, type LayerId } from "../../lib/visual/layerIds";
+import {
+  isSwitched,
+  SCENE_ONLY_IDS,
+  type LayerId,
+  type MapLayerId,
+} from "../../lib/visual/layerIds";
 import { BypassesLayer } from "./BypassesLayer";
 import { DetailsLayer } from "./DetailsLayer";
 import { FeZonesLayer } from "./FeZonesLayer";
@@ -14,6 +19,7 @@ import { LabelsLayer } from "./LabelsLayer";
 import { LanesLayer } from "./LanesLayer";
 import type { MapLayer } from "./MapLayer";
 import { NebulaeLayer } from "./NebulaeLayer";
+import { OutcomesLayer } from "./OutcomesLayer";
 import { OwnersLayer } from "./OwnersLayer";
 import { PrecursorsLayer } from "./PrecursorsLayer";
 import { SpawnsLayer } from "./SpawnsLayer";
@@ -24,7 +30,7 @@ import { WaylinesLayer } from "./WaylinesLayer";
 
 /** One layer the map can draw, and the document capability it needs to be worth drawing. */
 export interface LayerEntry {
-  readonly id: LayerId;
+  readonly id: MapLayerId;
   /** A menu-only toggle leaves this out: it steers what another layer draws, not a layer of its own. */
   create?(renderer: Renderer, drawn: DrawnPositions): MapLayer;
   /** A layer without one draws for every document. */
@@ -64,6 +70,11 @@ export const LAYER_REGISTRY: readonly LayerEntry[] = [
     create: (_renderer, drawn) => new HeightsLayer(drawn),
   },
   { id: "systems", create: (renderer, drawn) => new SystemsLayer(renderer, drawn) },
+  {
+    id: "outcomes",
+    requires: "create_systems",
+    create: (_renderer, drawn) => new OutcomesLayer(drawn),
+  },
   { id: "classes" },
   {
     id: "precursors",
@@ -102,6 +113,7 @@ export function layerIdsFor(
   return new Set(
     supportedBy(capabilities)
       .filter((entry) => gameDataReady || !entry.requiresGameData)
-      .map((entry) => entry.id),
+      .map((entry) => entry.id)
+      .filter(isSwitched),
   );
 }

@@ -27,3 +27,18 @@ export function popupPlace(picker: Across, box: Across, width: number): PopupPla
     ? { edge: "left", maxWidth: Math.max(0, leftRoom) }
     : { edge: "right", maxWidth: rightRoom };
 }
+
+/** A stretch of the window from top to bottom, in pixels. */
+export interface Down {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Whether a popup `height` tall opens above `picker` inside `box`, the part of the window that
+ * shows it: only when it would not fit below and there is more room above.
+ */
+export function opensUp(picker: Down, height: number, box: Down): boolean {
+  const below = box.bottom - picker.bottom;
+  return height > below && picker.top - box.top > below;
+}

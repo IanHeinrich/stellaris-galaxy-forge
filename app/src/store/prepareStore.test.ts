@@ -15,18 +15,19 @@ import { deferred, editor, openFixtureSave, openFixtureScenario } from "./editor
 import { editResult, historyEntry, SCENARIO_RESULT } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
-import { useInspectorStore } from "./inspectorStore";
+import { GALAXY_ENTRY, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
 import {
   cutOffSeats,
-  leftOutRows,
   nearestPreset,
   offeredChoices,
   PREPARE_ROWS,
   PREPARE_SECTION,
   presetOf,
   ringedSystems,
+  setupScreen,
+  systemOutcomes,
   usePrepareStore,
 } from "./prepareStore";
 
@@ -37,7 +38,7 @@ const stored = stubPrefs();
 function previewOf(
   changes: number,
   filled: Partial<Record<PrepareRow, number[]>> = { enclaves: [1, 2] },
-  beside: Partial<Pick<PreparePreview, "kept_clear" | "cut_off">> = {},
+  beside: Partial<Pick<PreparePreview, "kept_clear" | "cut_off" | "new_seats" | "new_zones">> = {},
 ): PreparePreview {
   return {
     profile: "plain",
@@ -148,15 +149,25 @@ describe("the Prepare choices", () => {
     await until(() => expect(prepare().preview).toBeNull());
   });
 
-  it("leave a row out only when it has systems and its choice is not Keep", async () => {
-    mockedIpc.preparePreview.mockResolvedValue(previewOf(5, { enclaves: [1, 2], guardians: [3] }));
-    prepare().setPreset("bare_shell");
-    await until(() => expect(prepare().current).toBe(true));
-    // Bare shell takes wormhole pairs out, but a plain scenario has none; nor are there fallen empires.
-    expect(leftOutRows(prepare())).toEqual(["guardians", "enclaves"]);
+  it("mark only the new starting positions and fallen empire zones Galaxy Forge draws", () => {
+    const preview = previewOf(
+      0,
+      { guardians: [2], enclaves: [3, 4], fallen_empires: [5] },
+      {
+        kept_clear: [4],
+        new_seats: [3],
+        new_zones: [{ system: 7, zone: { radius: 20 } as never }],
+      },
+    );
+    expect(Object.fromEntries(systemOutcomes({ preview }))).toEqual({ 3: "seat", 7: "zone" });
+    expect(systemOutcomes({ preview: null }).size).toBe(0);
+  });
 
-    prepare().setChoice("enclaves", "keep");
-    expect(leftOutRows(prepare())).toEqual(["guardians"]);
+  it("ring what keeping threats away turns into normal systems on hover", async () => {
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(1, {}, { kept_clear: [4, 5] }));
+    await prepare().refresh();
+    prepare().hover("clear_around");
+    expect(ringedSystems(prepare())).toEqual([4, 5]);
   });
 
   it("ring the hovered row's systems", () => {
@@ -178,7 +189,12 @@ describe("the Prepare choices", () => {
   });
 
   it("offer a UNE seat for Sol only on a Paint a Galaxy map", () => {
-    expect(offeredChoices("sol", "plain")).toEqual(["keep", "plain", "pre_ftl_earth"]);
+    expect(offeredChoices("sol", "plain")).toEqual([
+      "keep",
+      "plain",
+      "pre_ftl_earth",
+      "game_decides",
+    ]);
     expect(offeredChoices("sol", "paint_a_galaxy")).toContain("une_seat");
   });
 
@@ -195,7 +211,7 @@ describe("the Prepare choices", () => {
   });
 });
 
-describe("keeping the space around capitals clear", () => {
+describe("keeping threats away from starting positions", () => {
   it("is on by default, sent with every preview, and remembered apart from the preset", async () => {
     const { seed } = prepare().options;
     expect(prepare().options).toEqual({ clear_around_seats: true, seed });
@@ -226,7 +242,7 @@ describe("Apply", () => {
     mockedIpc.preparePreview.mockResolvedValue(previewOf(5));
     prepare().setPreset("fresh_start");
     await until(() => expect(prepare().current).toBe(true));
-    expect(summaryLine("fresh_start", 5, null)).toBe("Fresh start · changes 5 systems");
+    expect(summaryLine("fresh_start", 5, null)).toBe("Keep the galaxy · changes 5 systems");
 
     mockedIpc.preparePreview.mockResolvedValue(previewOf(0));
     // The edit's own count, which a document edited since the preview may have moved.
@@ -240,7 +256,7 @@ describe("Apply", () => {
     expect(useFileSessionStore.getState().dirty).toBe(true);
     const { choices, preview, applied } = prepare();
     expect(summaryLine(presetOf(choices, "plain"), preview?.changes ?? null, applied)).toBe(
-      "Fresh start · 6 systems changed",
+      "Keep the galaxy · 6 systems changed",
     );
   });
 
@@ -298,6 +314,129 @@ describe("Apply", () => {
     await previewed(0);
     expect(await prepare().apply()).toBe(false);
     expect(mockedIpc.prepareApply).not.toHaveBeenCalled();
+  });
+});
+
+describe("the setup screen", () => {
+  async function openFromSave(): Promise<void> {
+    mockedIpc.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await useFileSessionStore.getState().openScenarioFrom("C:/saves/2277.05.20.sav");
+    await until(() => expect(useFileSessionStore.getState().status).toBe("ready"));
+  }
+
+  it("is up for a scenario just taken from a save until Not now or Apply", async () => {
+    expect(setupScreen()).toBe(false);
+    await openFromSave();
+    expect(setupScreen()).toBe(true);
+    prepare().dismiss();
+    expect(setupScreen()).toBe(false);
+    expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
+
+    await openFromSave();
+    expect(setupScreen()).toBe(true);
+    await previewed(5);
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    expect(setupScreen()).toBe(false);
+  });
+
+  it("comes back once undo takes the Apply back, even after Not now", async () => {
+    await openFromSave();
+    await previewed(5);
+    prepare().dismiss();
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    expect(setupScreen()).toBe(false);
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ history: { undo: [], redo: [historyEntry(1, "x")] } }),
+    );
+    await editor().undo();
+    expect(setupScreen()).toBe(true);
+  });
+
+  it("goes again when redo puts the Apply back, with what it changed", async () => {
+    await openFromSave();
+    await previewed(5);
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    const applied = prepare().applied;
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ history: { undo: [], redo: [historyEntry(1, "x")] } }),
+    );
+    await editor().undo();
+    expect(setupScreen()).toBe(true);
+    await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
+
+    mockedIpc.redo.mockResolvedValueOnce(
+      editResult({ history: { undo: [historyEntry(1, "x")], redo: [] } }),
+    );
+    await editor().redo();
+    expect(prepare().applied).toEqual(applied);
+    expect(setupScreen()).toBe(false);
+    expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
+  });
+
+  it("comes back on the Galaxy page when a system was selected since the Apply", async () => {
+    await openFromSave();
+    await previewed(5);
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    await editor().setSelection([0], "replace");
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 0 }, label: "Sol" });
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ history: { undo: [], redo: [historyEntry(1, "x")] } }),
+    );
+    await editor().undo();
+    expect(setupScreen()).toBe(true);
+    await until(() => expect(editor().selection).toEqual([]));
+    await until(() =>
+      expect(useInspectorStore.getState().stack.map((e) => e.ref.kind)).toEqual(["galaxy"]),
+    );
+  });
+
+  it("opens the section on the Galaxy page instead for a scenario not taken from a save", async () => {
+    await previewed(5);
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 5));
+    await prepare().apply();
+    expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(true);
+
+    mockedIpc.undo.mockResolvedValueOnce(
+      editResult({ history: { undo: [], redo: [historyEntry(1, "x")] } }),
+    );
+    await editor().undo();
+    await until(() => expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false));
+    expect(setupScreen()).toBe(false);
+  });
+});
+
+describe("the map's outcome marks", () => {
+  const shown = () => prepare().outcomeShown;
+
+  it("show while the section is open on the Galaxy page or the setup screen is up, and not otherwise", async () => {
+    useLayoutStore.getState().setTab("inspector");
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    expect(shown()).toBe(true);
+
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+    expect(shown()).toBe(false);
+
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    useInspectorStore.getState().setRoot({ ref: { kind: "system", id: 0 }, label: "Sol" });
+    expect(shown()).toBe(false);
+    useInspectorStore.getState().setRoot(GALAXY_ENTRY);
+    expect(shown()).toBe(true);
+
+    mockedIpc.openAsScenario.mockResolvedValueOnce({ ...SCENARIO_RESULT, path: null });
+    await useFileSessionStore.getState().openScenarioFrom("C:/saves/2277.05.20.sav");
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+    await until(() => expect(useInspectorStore.getState().stack[0].ref.kind).toBe("galaxy"));
+    expect(setupScreen()).toBe(true);
+    expect(shown()).toBe(true);
+    prepare().dismiss();
+    expect(shown()).toBe(false);
   });
 });
 

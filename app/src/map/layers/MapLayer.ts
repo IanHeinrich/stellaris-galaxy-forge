@@ -4,7 +4,8 @@ import type { SpecialKind } from "../../generated/SpecialKind";
 import type { Camera } from "../Camera";
 import type { DrawnChange } from "../drawnPositions";
 import type { AppIssue } from "../../lib/issues";
-import type { LayerId } from "../../lib/visual/layerIds";
+import type { Outcome } from "../../lib/prepareCopy";
+import type { MapLayerId } from "../../lib/visual/layerIds";
 import type { WatchRings } from "../../lib/watchlist";
 import type { MoveGhost } from "../moveGhosts";
 import type { RenderContext } from "../RenderContext";
@@ -31,7 +32,7 @@ export function sameKeys(
  * setters say what a layer responds to, not who calls it.
  */
 export interface MapLayer {
-  readonly id: LayerId;
+  readonly id: MapLayerId;
   readonly container: Container;
   /** Drawn above every layer's container, under the highlights. */
   readonly overlay?: Container;
@@ -52,6 +53,8 @@ export interface MapLayer {
   setIssues?(issues: readonly AppIssue[]): void;
   /** The watchlist's shown entries and the systems each finds. */
   setWatchlist?(rings: readonly WatchRings[]): void;
+  /** What each system becomes under the Prepare choices, while the section is in view; empty otherwise. */
+  setOutcome?(outcomes: ReadonlyMap<number, Outcome>): void;
   /** Systems whose label is placed before any other, whatever their rank. */
   setPinned?(ids: readonly number[]): void;
   /** The system under the pointer, for a layer that labels it whatever its rank. */

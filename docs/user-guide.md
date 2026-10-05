@@ -518,7 +518,7 @@ asteroids with it. The kinds come from your install, so you need the
 game data loaded to change one.
 
 In the system view, each belt and the inner radius has six small ring
-handles. They show when you point at the belt or the circle. Drag any
+handles. They show when you hover over the belt or the circle. Drag any
 of them to change the radius. Right-click a belt's handle and choose Remove
 belt to remove it. Its asteroids stay where they are. Right-click empty
 space and choose Add belt here to add a belt at that distance from the
@@ -620,80 +620,65 @@ around it. Saves have no symmetry.
 ### Prepare for a new game
 
 A save opened as a scenario keeps everything the old game placed: old
-capitals, origin homes, the systems events made, guardians and wormhole
-pairs. Prepare for a new game lets you choose what a new game keeps.
+capitals, origin systems, the systems events made, leviathans and
+wormhole pairs. Prepare for a new game lets you choose what the new game
+takes from the map.
 
-Use File → "Prepare for a new game…", or select nothing and open the
-section on the Inspector's Galaxy page. It works on any scenario. It
-needs game data from your Stellaris install to sort the systems into
+After "Open as scenario", the Galaxy page shows only this section, with
+Apply at the bottom so it stays in view. Click "Not now" to see the
+whole Galaxy page instead. On any scenario, use File → "Prepare for a
+new game…", or select nothing and open the section on the Galaxy page.
+It needs game data from your Stellaris install to sort the systems into
 rows.
 
 Start from a preset:
 
-- Faithful keeps everything.
-- Fresh start keeps the map and its features. Home starts get a generic
-  start, and Sol and the origin and event systems become plain systems.
-- Bare shell keeps the seats, home starts, home neighbours, fallen empires
-  and system names. It removes wormhole pairs and makes Sol an ordinary
-  system. The game fills everything else.
+- Keep everything leaves the map as it is, the old capitals' home
+  systems included. New empires start in them.
+- Keep the galaxy leaves the galaxy as it is, but every empire gets a
+  random starting system at an old capital's position. Sol and the old
+  origin systems become normal systems.
+- Keep the layout keeps only the star positions, hyperlanes and nebulae.
+  Galaxy Forge draws new starting positions, and on a Paint a Galaxy map
+  new fallen empire zones. The game rolls everything else, as if this
+  were a new random galaxy.
 
-Then change any row. Hover a row to ring its systems on the map. The
-choices are:
+Under "Row by row" each row has its own choice, from Starting positions
+to System names. Hover over a row to ring its systems on the map and to
+see a card beside the inspector. The card says what the row holds and
+what each choice does. Each choice has a tag for who places those things
+in the new game:
 
-- Keep leaves the systems as they are.
-- Plain system turns them into ordinary systems.
-- Game decides leaves them with no initializer. The game fills them at
-  random when the new game starts, as it would in a random galaxy.
-- None removes the seats, fallen empires or wormhole pairs.
-- Generic start gives a seat one of the game's random empire starts.
-- Game names clears the names, and the game names the systems.
+- Galaxy Forge: this map places them, where you see them now.
+- The game: the game places them when the game starts, by the in-game
+  galaxy setting where one applies, otherwise at random. You don't see
+  where until then.
+- No one: they aren't placed at all.
 
-Each row says what the new game gets when you leave it out. Apply makes
-every change as one step, and Ctrl+Z undoes it.
+The same tags show in each row's list. Under a row you've changed, one
+line says what that choice does.
 
-#### Sol
+A custom map gets no fallen empires without Paint a Galaxy, so on a
+plain scenario the Fallen empires row can't be changed.
 
-The Sol row covers every Sol on the map:
+New random positions and New random zones are drawn by Galaxy Forge. The
+map rings each new starting position and each new fallen empire zone,
+and a legend at its bottom left counts them. Click Reroll to draw them
+again.
 
-- Keep leaves Sol as it is.
-- Normal system turns Sol into an ordinary system. A Sol seat stays a
-  seat with a generic start.
-- Pre-FTL Earth keeps one Sol with Earth and a pre-FTL human
-  civilisation on it, and no seat. Any other Sol becomes an ordinary
-  system.
-- UNE seat keeps Sol as a seat that only the United Nations of Earth
-  takes. It is only on maps for Paint a Galaxy.
+#### Keep leviathans, marauders and L-Gates away from starting positions
 
-An empire with a Sol start builds its own Sol on whichever seat it gets.
-If you keep Sol on a seat and another empire draws it, that empire starts
-on Earth and the map has two Sols. Fresh start and Bare shell use Normal
-system.
+In a random galaxy the game keeps these threats away from empires. On a
+custom map it doesn't, so a leviathan, a marauder clan or the L-Gate can
+spawn right next to a starting position.
 
-#### Keep the space around capitals clear
+This box is ticked by default. Every system the game would roll within
+2 hyperlane jumps of a starting position becomes a normal system
+instead. The line under the box counts them. Hover over the box to ring
+them on the map.
 
-The game fills Game decides systems with no protection around capitals.
-In a random galaxy it keeps leviathans, marauder homes and L-Gates away
-from empires. On a scenario, these and other specials such as voidworms
-can land right beside a capital.
-
-"Keep the space around capitals clear" is ticked by default. Every
-system the game would fill within 2 hyperlane jumps of a seat gets a plain
-system instead, including systems that already had no initializer. The Issues tab also notes systems near a seat that have no
-initializer.
-
-#### What the new game does
-
-- Specials you keep spawn whatever the galaxy settings say. A kept
-  marauder clan, L-Gate or abandoned gateway appears even with its
-  setting off. The settings only add specials to systems the game fills.
-- Fallen empires need Paint a Galaxy. On a plain scenario the game builds
-  none, and Keep only keeps their systems.
-- An origin with a home system of its own replaces the seat's start.
-  Ocean Paradise, Shattered Ring, Red Giant and Knights of the Toxic God
-  do this. Unplugged and Arc Welders also add systems of their own.
-- With Wormhole pairs on None, the game still adds random pairs from the
-  Wormhole Pairs setting. Removing a pair can cut part of the map off,
-  and the row warns you when it does.
+Apply makes every change as one step, and Ctrl+Z undoes it. On a
+scenario opened from a save, undoing the Apply brings the setup back.
 
 ## Play your scenario
 

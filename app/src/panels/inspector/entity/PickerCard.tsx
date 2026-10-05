@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   effectSummary,
   PICKER_CARD_WIDTH,
@@ -131,9 +138,20 @@ function useCardPlace(
 
 /**
  * A row's card, left of the element that holds it, over the map and level with the row `rowId`
- * names. Where the window has no room there, it shows in place at a fixed height.
+ * names. Where the window has no room there, it shows in place at a fixed height. `children` go
+ * after what the card says of the row, and a new `item` measures it again.
  */
-export function PickerCard({ id, item, rowId }: { id: string; item: CardItem; rowId: string }) {
+export function PickerCard({
+  id,
+  item,
+  rowId,
+  children,
+}: {
+  id: string;
+  item: CardItem;
+  rowId: string;
+  children?: ReactNode;
+}) {
   const [card, place] = useCardPlace(rowId, item);
   const under = place === "under";
   return (
@@ -153,6 +171,7 @@ export function PickerCard({ id, item, rowId }: { id: string; item: CardItem; ro
       }
     >
       <PickerCardBody item={item} />
+      {children}
     </div>
   );
 }

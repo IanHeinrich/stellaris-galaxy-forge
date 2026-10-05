@@ -75,6 +75,13 @@
   box-shadow: var(--shadow-pop);
 }
 
+/* Without room below the field, the list opens above it. */
+.icon-picker-pop.up {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 4px;
+}
+
 /* A fixed width, so the popup doesn't resize as the filter narrows the rows. */
 .icon-picker-pop.icon-picker-filtered {
   width: 260px;
