@@ -621,79 +621,74 @@ around it. Saves have no symmetry.
 
 A save opened as a scenario keeps everything the old game placed: old
 capitals, origin homes, the systems events made, guardians and wormhole
-pairs. Prepare for a new game lets you choose what a new game keeps.
+pairs. Prepare for a new game lets you choose what the new game takes
+from the map.
 
-Use File → "Prepare for a new game…", or select nothing and open the
-section on the Inspector's Galaxy page. It works on any scenario. It
-needs game data from your Stellaris install to sort the systems into
+After "Open as scenario", the Galaxy page shows only this section, with
+Apply at the bottom so it stays in view. Click "Not now" to see the
+whole Galaxy page instead. On any scenario, use File → "Prepare for a
+new game…", or select nothing and open the section on the Galaxy page.
+It needs game data from your Stellaris install to sort the systems into
 rows.
 
-Start from a preset:
+Every choice answers three questions:
 
-- Faithful keeps everything.
-- Fresh start keeps the map and its features. Home starts get a generic
-  start, and Sol and the origin and event systems become plain systems.
-- Bare shell keeps the seats, home starts, home neighbours, fallen empires
-  and system names. It removes wormhole pairs and makes Sol an ordinary
-  system. The game fills everything else.
+- New game: what you get in the new game, and whether a New Game
+  setting changes that.
+- Decided by: this map, or the game.
+- Shown here: whether what Galaxy Forge shows is what you get. "No"
+  means the game decides when the new game starts.
 
-Then change any row. Hover a row to ring its systems on the map. The
-choices are:
+Start from a preset. The section shows its three answers under the
+switch.
 
-- Keep leaves the systems as they are.
-- Plain system turns them into ordinary systems.
-- Game decides leaves them with no initializer. The game fills them at
-  random when the new game starts, as it would in a random galaxy.
-- None removes the seats, fallen empires or wormhole pairs.
-- Generic start gives a seat one of the game's random empire starts.
-- Game names clears the names, and the game names the systems.
+- Faithful gives you the galaxy as the save left it, with new empires
+  in the old capitals.
+- Fresh start gives you the same galaxy with new empires and random
+  starting systems.
+- Bare shell gives you a random galaxy on this map's shape. The game
+  decides everything but where the capitals sit.
 
-Each row says what the new game gets when you leave it out. Apply makes
-every change as one step, and Ctrl+Z undoes it.
+"Row by row" opens the fourteen rows, from Empire seats to System
+names. It opens by itself once your choices match no preset. Point at a
+row to ring its systems on the map and to see a card beside the
+inspector. The card says what the row holds and gives the three answers
+for every choice the row offers. Under a row you've changed, one line
+says what the new game gets.
 
-#### Sol
+Fallen empires need Paint a Galaxy. On a plain scenario that row can't
+be changed, and Faithful brings no fallen empires.
 
-The Sol row covers every Sol on the map:
-
-- Keep leaves Sol as it is.
-- Normal system turns Sol into an ordinary system. A Sol seat stays a
-  seat with a generic start.
-- Pre-FTL Earth keeps one Sol with Earth and a pre-FTL human
-  civilisation on it, and no seat. Any other Sol becomes an ordinary
-  system.
-- UNE seat keeps Sol as a seat that only the United Nations of Earth
-  takes. It is only on maps for Paint a Galaxy.
-
-An empire with a Sol start builds its own Sol on whichever seat it gets.
-If you keep Sol on a seat and another empire draws it, that empire starts
-on Earth and the map has two Sols. Fresh start and Bare shell use Normal
-system.
+New random seats and New random zones are drawn by Galaxy Forge. Click
+Reroll to draw them again.
 
 #### Keep the space around capitals clear
 
-The game fills Game decides systems with no protection around capitals.
-In a random galaxy it keeps leviathans, marauder homes and L-Gates away
-from empires. On a scenario, these and other specials such as voidworms
-can land right beside a capital.
+In a random galaxy the game keeps leviathans, marauder homes and
+L-Gates away from empires. On a static map it has no such rule, so
+anything the game rolls can land right beside a capital.
 
 "Keep the space around capitals clear" is ticked by default. Every
-system the game would fill within 2 hyperlane jumps of a seat gets a plain
-system instead, including systems that already had no initializer. The Issues tab also notes systems near a seat that have no
-initializer.
+system the game would roll within 2 hyperlane jumps of a capital gets
+an ordinary star instead. The line under the box counts them. Point at
+the box to ring them on the map. With the box unticked, the warning
+under it says what can happen.
 
-#### What the new game does
+#### What the map shows
 
-- Specials you keep spawn whatever the galaxy settings say. A kept
-  marauder clan, L-Gate or abandoned gateway appears even with its
-  setting off. The settings only add specials to systems the game fills.
-- Fallen empires need Paint a Galaxy. On a plain scenario the game builds
-  none, and Keep only keeps their systems.
-- An origin with a home system of its own replaces the seat's start.
-  Ocean Paradise, Shattered Ring, Red Giant and Knights of the Toxic God
-  do this. Unplugged and Arc Welders also add systems of their own.
-- With Wormhole pairs on None, the game still adds random pairs from the
-  Wormhole Pairs setting. Removing a pair can cut part of the map off,
-  and the row warns you when it does.
+While the section is open, the map rings every system the choices
+change:
+
+- Grey: an ordinary star.
+- Blue: the game rolls it when the new game starts.
+- Green: a new seat.
+- Amber: a new fallen empire zone.
+
+Systems you keep have no ring. A legend at the bottom left of the map
+counts each colour.
+
+Apply makes every change as one step, and Ctrl+Z undoes it. On a
+scenario opened from a save, undoing the Apply brings the setup back.
 
 ## Play your scenario
 

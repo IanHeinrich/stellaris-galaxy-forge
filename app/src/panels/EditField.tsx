@@ -93,6 +93,7 @@ export function PickerField({
   disabledReason,
   empty,
   onOpen,
+  onActive,
   onPick,
 }: FieldBase & {
   current: IconPickerItem;
@@ -100,6 +101,7 @@ export function PickerField({
   title?: string;
   empty?: ReactNode;
   onOpen?: () => void;
+  onActive?: (key: string | null) => void;
   onPick: (key: string) => void;
 }) {
   return (
@@ -112,6 +114,7 @@ export function PickerField({
       empty={empty}
       triggerClassName="edit-field"
       onOpen={onOpen}
+      onActive={onActive}
       onPick={onPick}
     />
   );

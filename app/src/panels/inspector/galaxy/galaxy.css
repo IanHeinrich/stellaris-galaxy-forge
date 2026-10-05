@@ -156,3 +156,106 @@
   gap: 10px;
   font-size: var(--text-control);
 }
+
+.prep-apply > .muted {
+  flex: 1;
+}
+
+.prep-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: var(--text-hint);
+}
+
+.prep-answers .k {
+  color: var(--fg-muted);
+}
+
+.prep-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prep-reroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-hint);
+}
+
+.prep-disclosure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-size: var(--text-control);
+  color: var(--fg-soft);
+  background: none;
+  border: none;
+}
+
+.prep-disclosure:hover {
+  color: var(--fg);
+}
+
+.prep-card-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.prep-card-choice-name {
+  color: var(--fg);
+}
+
+.prep-card-choice.current .prep-card-choice-name {
+  font-weight: 600;
+}
+
+.ins-map-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.ins-map-name .k {
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.ins-map-name .edit-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The setup screen: the rows scroll between the title and a footer that stays put. */
+.prep-setup {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.prep-setup-title {
+  margin: 6px 0 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+
+.prep-setup > .prep {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.prep-setup > .prep-footer {
+  position: static;
+}

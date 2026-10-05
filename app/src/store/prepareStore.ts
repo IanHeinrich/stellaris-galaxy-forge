@@ -9,6 +9,7 @@ import type { PrepareRow } from "../generated/PrepareRow";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { RowChoice } from "../generated/RowChoice";
 import type { ScenarioProfile } from "../generated/ScenarioProfile";
+import type { Outcome } from "../lib/prepareCopy";
 import { useEditorStore } from "./editorStore";
 import { getPaintLayer, useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
@@ -22,6 +23,8 @@ export const PREPARE_SECTION = "galaxy.prepare";
 
 export type PrepareChoices = Record<PrepareRow, PrepareChoice>;
 export type PresetName = PreparePreset | "custom";
+/** What the pointer can be on: a row, or the option to keep the space around capitals clear. */
+export type PrepareHover = PrepareRow | "clear_around";
 
 /** Every row, in the panel's order. */
 export const PREPARE_ROWS = Object.keys(PREPARE_ROW_CHOICES) as PrepareRow[];
@@ -45,8 +48,8 @@ export interface PrepareState {
   choices: PrepareChoices;
   /** What the edit does beside the rows' choices, and the seed its draws take; no preset sets them. */
   options: PrepareOptions;
-  /** The row the pointer is on; the map rings its systems. */
-  hovered: PrepareRow | null;
+  /** The row or option the pointer is on; the map rings its systems. */
+  hovered: PrepareHover | null;
   /** What the choices last read would do to the scenario; null until read, or while it cannot be. */
   preview: PreparePreview | null;
   /** The preview was read for these choices and the document as it stands, so Apply may trust it. */
@@ -55,6 +58,12 @@ export interface PrepareState {
   error: string | null;
   applied: Applied | null;
   applying: boolean;
+  /** Row by row was opened or closed by hand; null follows the choices, open while they are custom. */
+  rowsOpen: boolean | null;
+  /** Not now was pressed, so a scenario just taken from a save shows the whole Galaxy page. */
+  dismissed: boolean;
+  /** The map marks each system's outcome: the section is open on the Galaxy page, or the setup screen is up. */
+  outcomeShown: boolean;
   /** Every row takes `preset`'s choice, and the preset is remembered on this machine. */
   setPreset(preset: PreparePreset): void;
   setChoice(row: PrepareRow, choice: PrepareChoice): void;
@@ -62,10 +71,15 @@ export interface PrepareState {
   setClearAroundSeats(on: boolean): void;
   /** Draws again: a new seed, and the preview read for it. */
   reroll(): void;
-  hover(row: PrepareRow | null): void;
+  hover(target: PrepareHover | null): void;
+  setRowsOpen(open: boolean): void;
+  /** Leaves the setup screen for the whole Galaxy page, with the section closed. */
+  dismiss(): void;
+  showOutcome(shown: boolean): void;
   /**
    * Follows an edit, undo or redo: the preview no longer counts the document, and an Apply whose
-   * history line `undo` no longer holds is forgotten.
+   * history line `undo` no longer holds is forgotten. Undoing past it shows the Galaxy page with
+   * the section open, and brings the setup screen back to a scenario taken from a save.
    */
   followHistory(undo: readonly HistoryEntry[]): void;
   /** Reads the preview again, for an open scenario with game data loaded; else drops it. */
@@ -119,17 +133,82 @@ export function currentProfile(
   return preview?.profile ?? (getPaintLayer() ? "paint_a_galaxy" : "plain");
 }
 
-/** Whether `row`'s choice leaves something of the scenario out: it has systems, and is not kept. */
-export function leavesOut(
+/** Whether `row`'s choice changes what the scenario holds: it has systems, and is not kept. */
+export function changesRow(
   state: Pick<PrepareState, "choices" | "preview">,
   row: PrepareRow,
 ): boolean {
   return state.choices[row] !== "keep" && rowSystems(state.preview, row).length > 0;
 }
 
-/** The rows whose choice leaves something of the scenario out of the new game. */
-export function leftOutRows(state: Pick<PrepareState, "choices" | "preview">): PrepareRow[] {
-  return PREPARE_ROWS.filter((row) => leavesOut(state, row));
+/** Whether a row takes a choice Forge draws, which Reroll draws again. */
+export function draws(choices: PrepareChoices): boolean {
+  return PREPARE_ROWS.some(
+    (row) => choices[row] === "random_seats" || choices[row] === "random_zones",
+  );
+}
+
+/** What each choice turns a row's systems into on the map; a choice not here leaves no mark. */
+const ROW_OUTCOMES: Partial<Record<PrepareChoice, Outcome>> = {
+  plain: "ordinary",
+  game_decides: "rolled",
+  generic_start: "rolled",
+};
+
+function rowOutcome(row: PrepareRow, choice: PrepareChoice): Outcome | undefined {
+  if (row === "fallen_empires" && choice === "none") return "ordinary";
+  return ROW_OUTCOMES[choice];
+}
+
+/**
+ * What each system becomes under the choices the preview was read for: an ordinary star, rolled
+ * by the game, a new seat or a new zone. A system kept as it is has no entry. A new seat or zone
+ * outranks keeping capitals clear, which outranks the row's own choice.
+ */
+export function systemOutcomes(
+  state: Pick<PrepareState, "choices" | "preview">,
+): Map<number, Outcome> {
+  const outcomes = new Map<number, Outcome>();
+  const { preview, choices } = state;
+  if (preview === null) return outcomes;
+  for (const { row, systems } of preview.rows) {
+    const outcome = rowOutcome(row, choices[row]);
+    if (outcome !== undefined) for (const system of systems) outcomes.set(system, outcome);
+  }
+  for (const system of preview.kept_clear) outcomes.set(system, "ordinary");
+  for (const zone of preview.new_zones) outcomes.set(zone.system, "zone");
+  for (const system of preview.new_seats) outcomes.set(system, "seat");
+  return outcomes;
+}
+
+function setupFor(fromSave: boolean, state: Pick<PrepareState, "applied" | "dismissed">): boolean {
+  return fromSave && state.applied === null && !state.dismissed;
+}
+
+/**
+ * The setup screen is up: the open scenario was just taken from a save, nothing has been applied
+ * to it, and Not now has not been pressed.
+ */
+export function setupScreen(): boolean {
+  const session = useFileSessionStore.getState();
+  const fromSave = session.status === "ready" && session.kind === "scenario" && session.fromSave;
+  return setupFor(fromSave, usePrepareStore.getState());
+}
+
+/** `setupScreen`, for a component. */
+export function useSetupScreen(): boolean {
+  const fromSave = useFileSessionStore(
+    (s) => s.status === "ready" && s.kind === "scenario" && s.fromSave,
+  );
+  const pending = usePrepareStore((s) => setupFor(true, s));
+  return fromSave && pending;
+}
+
+/** Whether the map marks each system's outcome: the section is in view, open or as the setup screen. */
+export function outcomeInView(): boolean {
+  const session = useFileSessionStore.getState();
+  if (session.status !== "ready" || session.kind !== "scenario" || !galaxyShown()) return false;
+  return setupScreen() || !useInspectorStore.getState().collapsed(PREPARE_SECTION, true);
 }
 
 /** The Galaxy page is in view: the inspector's tab, in an open dock, on the galaxy itself. */
@@ -157,7 +236,6 @@ export function offeredChoices(
 ): readonly PrepareChoice[] {
   return PREPARE_ROW_CHOICES[row].filter((choice) => {
     if (profile !== "paint_a_galaxy" && PAINT_ONLY.has(choice)) return false;
-    if (choice === "game_decides") return row !== "sol";
     return true;
   });
 }
@@ -170,10 +248,11 @@ export function cutOffSeats(preview: PreparePreview | null): number {
 
 /**
  * The systems the map rings: the hovered row's, and with Wormhole pairs the systems taking them
- * out cuts off.
+ * out cuts off; for the option to keep capitals clear, the systems it turns into ordinary stars.
  */
 export function ringedSystems(state: Pick<PrepareState, "hovered" | "preview">): readonly number[] {
   if (state.hovered === null) return [];
+  if (state.hovered === "clear_around") return state.preview?.kept_clear ?? [];
   const systems = rowSystems(state.preview, state.hovered);
   const cutOff = state.hovered === "wormhole_pairs" ? (state.preview?.cut_off ?? []) : [];
   if (cutOff.length === 0) return systems;
@@ -211,11 +290,14 @@ function initial() {
     error: null,
     applied: null as Applied | null,
     applying: false,
+    rowsOpen: null as boolean | null,
+    dismissed: false,
   };
 }
 
 export const usePrepareStore = create<PrepareState>((set, get) => ({
   ...initial(),
+  outcomeShown: false,
 
   setPreset(preset) {
     LAST_PRESET.save(preset);
@@ -241,8 +323,21 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
     void get().refresh();
   },
 
-  hover(row) {
-    if (get().hovered !== row) set({ hovered: row });
+  hover(target) {
+    if (get().hovered !== target) set({ hovered: target });
+  },
+
+  setRowsOpen(open) {
+    set({ rowsOpen: open });
+  },
+
+  dismiss() {
+    set({ dismissed: true });
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+  },
+
+  showOutcome(shown) {
+    if (get().outcomeShown !== shown) set({ outcomeShown: shown });
   },
 
   followHistory(undo) {
@@ -250,6 +345,9 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
     const { applied, current } = get();
     const gone = applied !== null && !undo.some((entry) => entry.seq === applied.seq);
     if (current || gone) set({ current: false, ...(gone ? { applied: null } : {}) });
+    if (!gone) return;
+    if (useFileSessionStore.getState().fromSave) set({ dismissed: false });
+    void get().reveal();
   },
 
   async refresh() {

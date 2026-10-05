@@ -2,6 +2,7 @@ import type { GalaxyDelta } from "../generated/GalaxyDelta";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { HeightPreview } from "../lib/height";
 import type { AppIssue } from "../lib/issues";
+import type { Outcome } from "../lib/prepareCopy";
 import { documentCapabilities } from "../lib/capabilities";
 import type { GalaxyLayers } from "../lib/visual/layerIds";
 import { shownTilt } from "../lib/visual/tilt";
@@ -17,7 +18,7 @@ import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
-import { ringedSystems, usePrepareStore } from "../store/prepareStore";
+import { ringedSystems, systemOutcomes, usePrepareStore } from "../store/prepareStore";
 import { useToolStore } from "../store/toolStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { follows, type Binding, type Store } from "./follows";
@@ -27,6 +28,7 @@ import { layerShown } from "./layerVisibility";
 import { matchingSystems } from "./matchingSystems";
 
 const EMPTY_MATCH: ReadonlySet<number> = new Set();
+const NO_OUTCOME: ReadonlyMap<number, Outcome> = new Map();
 
 /** What a store change moves: the layers, and the camera and context work the controller owns. */
 export interface MapView {
@@ -160,6 +162,12 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     (s, view) => view.highlights.setPrepared(new Set(ringedSystems(s))),
     "bind",
   ),
+  follows(
+    usePrepareStore,
+    [(s) => s.outcomeShown, (s) => s.preview, (s) => s.choices],
+    (s, view) => setOutcome(view, s.outcomeShown ? systemOutcomes(s) : NO_OUTCOME),
+    "layers",
+  ),
 
   follows(
     usePlanetMoveStore,
@@ -258,6 +266,11 @@ function setIssues(view: MapView, issues: readonly AppIssue[]): void {
 
 function setWatchlist(view: MapView, rings: readonly WatchRings[]): void {
   for (const layer of view.layers) layer.setWatchlist?.(rings);
+  view.invalidate();
+}
+
+function setOutcome(view: MapView, outcomes: ReadonlyMap<number, Outcome>): void {
+  for (const layer of view.layers) layer.setOutcome?.(outcomes);
   view.invalidate();
 }
 

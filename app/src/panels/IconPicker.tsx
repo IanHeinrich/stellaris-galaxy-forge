@@ -97,7 +97,8 @@ function usePopupFit(
  * a native `<select>` cannot draw. Arrows move, Enter picks, Esc or a press outside closes.
  * A long list opens with a filter box focused above it, which matches labels and keys.
  * `onOpen` runs as the list opens, and `empty` stands in the list while it has no items.
- * `triggerClassName` dresses the button, as the editable fields do.
+ * `triggerClassName` dresses the button, as the editable fields do. `onActive` hears the key of
+ * the row the arrows or the pointer are on while the list is open, and null once it closes.
  */
 export function IconPicker({
   label,
@@ -108,6 +109,7 @@ export function IconPicker({
   empty,
   triggerClassName,
   onOpen,
+  onActive,
   onPick,
 }: {
   label: string;
@@ -118,6 +120,7 @@ export function IconPicker({
   empty?: ReactNode;
   triggerClassName?: string;
   onOpen?: () => void;
+  onActive?: (key: string | null) => void;
   onPick: (key: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -137,12 +140,14 @@ export function IconPicker({
   const at = activeRow(active, rows.length);
   const activeId = at >= 0 ? optionId(at) : undefined;
   const emptyRow = items.length > 0 ? "No matches" : empty;
+  const activeKey = open && at >= 0 ? rows[at].item.key : null;
 
   useOutsidePress(open, () => setOpen(false), root);
   usePopupFit(open, root, filtered ? filteredPop : list, items);
   useEffect(() => {
     if (open) (filter.current ?? list.current)?.focus();
   }, [open]);
+  useEffect(() => onActive?.(activeKey), [activeKey, onActive]);
   useEffect(() => {
     if (open && activeId !== undefined) {
       document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });

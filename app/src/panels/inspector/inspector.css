@@ -380,3 +380,13 @@ button.link.ins-drill:hover {
 .ins-body-pick {
   border-bottom: 1px solid var(--ins-rule);
 }
+
+/* The setup screen fills the dock, so its own rows scroll and its footer stays in view. */
+.inspector:has(.prep-setup) {
+  height: calc(100% + 20px);
+}
+
+.ins-body:has(.prep-setup) {
+  display: flex;
+  flex-direction: column;
+}

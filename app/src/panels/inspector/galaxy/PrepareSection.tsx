@@ -1,36 +1,47 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PrepareChoice } from "../../../generated/PrepareChoice";
+import type { PreparePreset } from "../../../generated/PreparePreset";
 import type { PrepareRow } from "../../../generated/PrepareRow";
 import type { ScenarioProfile } from "../../../generated/ScenarioProfile";
 import {
+  ANSWER_LABELS,
   APPLY_LABEL,
   changesLine,
   choiceLabel,
-  CLEAR_AROUND_HINT,
   CLEAR_AROUND_LABEL,
-  consequence,
   COUNTING,
+  CURRENT_MARK,
   customLine,
   cutOffLine,
+  FAITHFUL_PLAIN,
   keptClearLine,
-  leftOutLine,
+  lineText,
+  newGameLine,
+  NO_FALLEN_EMPIRES,
+  NOT_KEPT_CLEAR,
+  NOT_NOW_LABEL,
   NOTHING_TO_CHANGE,
   ONE_STEP,
   PREPARE_COPY,
   PREPARE_INTRO,
   PREPARE_NEEDS_GAME_DATA,
   PREPARE_TITLE,
+  PRESET_ANSWERS,
   PRESET_LABELS,
+  REROLL_HINT,
+  REROLL_LABEL,
   rowCount,
+  ROWS_LABEL,
   summaryLine,
+  type Answers,
   type RowCopy,
 } from "../../../lib/prepareCopy";
 import { usePaintLayer } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
+  changesRow,
   cutOffSeats,
-  leavesOut,
-  leftOutRows,
+  draws,
   nearestPreset,
   offeredChoices,
   PREPARE_PRESET_NAMES,
@@ -41,7 +52,40 @@ import {
   usePrepareStore,
 } from "../../../store/prepareStore";
 import { PickerField } from "../../EditField";
+import { Twisty } from "../../Twisty";
+import { PickerCard, type CardItem } from "../entity/PickerCard";
 import { Section } from "../parts";
+
+/** The list item the pointer or the arrows are on in a row's open picker. */
+interface ActiveItem {
+  row: PrepareRow;
+  choice: PrepareChoice;
+}
+
+/** The DOM id of `row`'s line, which its card stands level with. */
+function prepRowId(row: PrepareRow): string {
+  return `prep-row-${row}`;
+}
+
+const CARD_ID = "prep-card";
+
+/** Why a plain map's Fallen empires row takes no choice. */
+function disabledReason(row: PrepareRow, profile: ScenarioProfile): string | undefined {
+  return row === "fallen_empires" && profile === "plain" ? NO_FALLEN_EMPIRES : undefined;
+}
+
+/** A choice's three answers, each on a line of its own under its label. */
+function AnswerLines({ answers, n }: { answers: Answers; n: number | null }) {
+  return (
+    <div className="prep-answers">
+      {(["newGame", "decidedBy", "shownHere"] as const).map((key) => (
+        <div key={key}>
+          <span className="k">{ANSWER_LABELS[key]}:</span> {lineText(answers[key], n)}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Faithful, Fresh start and Bare shell, and Custom while the choices match none of them. */
 function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
@@ -68,27 +112,67 @@ function PresetSwitch({ profile }: { profile: ScenarioProfile }) {
           </button>
         )}
       </div>
-      {nearest !== null && (
+      {nearest !== null ? (
         <div className="muted ins-hint">{customLine(nearest.preset, nearest.rows)}</div>
+      ) : (
+        <PresetAnswers preset={preset as PreparePreset} profile={profile} />
       )}
     </>
   );
 }
 
-/** Keep the space around capitals clear, and how many systems it turns into ordinary stars. */
+/** What the chosen preset gives, and on a plain map that Faithful brings no fallen empires. */
+function PresetAnswers({ preset, profile }: { preset: PreparePreset; profile: ScenarioProfile }) {
+  return (
+    <div className="prep-preset">
+      <AnswerLines answers={PRESET_ANSWERS[preset]} n={null} />
+      {preset === "faithful" && profile === "plain" && (
+        <div className="muted">{FAITHFUL_PLAIN}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Keep the space around capitals clear: while on, how many systems it turns into ordinary stars,
+ * ringed while the pointer is on it; while off, the warning.
+ */
 function ClearAroundSeats() {
   const on = usePrepareStore((s) => s.options.clear_around_seats);
   const kept = usePrepareStore((s) => s.preview?.kept_clear.length ?? 0);
   const setClearAroundSeats = usePrepareStore((s) => s.setClearAroundSeats);
+  const hover = usePrepareStore((s) => s.hover);
   return (
-    <div className="prep-option">
+    <div
+      className="prep-option"
+      onPointerEnter={() => hover("clear_around")}
+      onPointerLeave={() => hover(null)}
+    >
       <label>
         <input type="checkbox" checked={on} onChange={() => setClearAroundSeats(!on)} />
         <span>{CLEAR_AROUND_LABEL}</span>
       </label>
-      <div className="muted prep-note">
-        {on && kept > 0 ? keptClearLine(kept) : CLEAR_AROUND_HINT}
-      </div>
+      {on && kept > 0 && <div className="muted prep-note">{keptClearLine(kept)}</div>}
+      {!on && (
+        <div className="ins-warn prep-note">
+          <AnswerLines answers={NOT_KEPT_CLEAR} n={null} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Reroll, while a row takes a choice Forge draws. */
+function Reroll() {
+  const shown = usePrepareStore((s) => draws(s.choices));
+  const reroll = usePrepareStore((s) => s.reroll);
+  if (!shown) return null;
+  return (
+    <div className="prep-reroll">
+      <button type="button" onClick={() => reroll()}>
+        {REROLL_LABEL}
+      </button>
+      <span className="muted">{REROLL_HINT}</span>
     </div>
   );
 }
@@ -105,10 +189,12 @@ function ChoiceRow({
   row,
   copy,
   profile,
+  onActive,
 }: {
   row: PrepareRow;
   copy: RowCopy;
   profile: ScenarioProfile;
+  onActive: (row: PrepareRow, choice: PrepareChoice | null) => void;
 }) {
   const choice = usePrepareStore((s) => s.choices[row]);
   const hovered = usePrepareStore((s) => s.hovered === row);
@@ -117,15 +203,17 @@ function ChoiceRow({
   );
   const setChoice = usePrepareStore((s) => s.setChoice);
   const hover = usePrepareStore((s) => s.hover);
-  const leaves = usePrepareStore((s) => leavesOut(s, row));
-  const clearAround = usePrepareStore((s) => s.options.clear_around_seats);
+  const changed = usePrepareStore((s) => changesRow(s, row));
   const offered = offeredChoices(row, profile);
-  const warning = leaves ? consequence(copy, choice, clearAround) : undefined;
-  const filled = (count ?? 0) > 0;
-  const keptLine = choice === "keep" && filled ? copy.consequences.keep : undefined;
-  if (row === "sol" && !filled) return null;
+  const line = changed ? newGameLine(copy, choice, count) : undefined;
+  if (row === "sol" && (count ?? 0) === 0) return null;
+  const pick = (key: string | null) => offered.find((offer) => offer === key) ?? null;
   return (
-    <div className={`prep-row${hovered ? " hovered" : ""}`} onPointerEnter={() => hover(row)}>
+    <div
+      id={prepRowId(row)}
+      className={`prep-row${hovered ? " hovered" : ""}`}
+      onPointerEnter={() => hover(row)}
+    >
       <div className="prep-row-name">
         <span>{copy.label}</span>
         {count !== null && <span className="muted">{rowCount(copy, count)}</span>}
@@ -134,54 +222,128 @@ function ChoiceRow({
         label={`${copy.label} choice`}
         current={{ key: choice, label: choiceLabel(copy, choice) }}
         items={offered.map((key) => ({ key, label: choiceLabel(copy, key) }))}
+        disabledReason={disabledReason(row, profile)}
+        onActive={(key) => onActive(row, pick(key))}
         onPick={(key) => {
-          const picked = offered.find((offer: PrepareChoice) => offer === key);
-          if (picked !== undefined) setChoice(row, picked);
+          const picked = pick(key);
+          if (picked !== null) setChoice(row, picked);
         }}
       />
-      {warning !== undefined && <div className="ins-warn prep-note">{warning}</div>}
+      {line !== undefined && <div className="muted prep-note">{line}</div>}
       {row === "wormhole_pairs" && choice !== "keep" && <CutOffNote />}
-      {keptLine !== undefined && <div className="muted prep-note">{keptLine}</div>}
-      {filled && copy.note !== undefined && <div className="muted prep-note">{copy.note}</div>}
     </div>
   );
 }
 
-/** The rows; the map rings a row's systems while the pointer is on it, and none once they go. */
+/**
+ * The hovered row's card, beside the dock: what the row holds, then each choice it offers with
+ * its three answers and the current one marked; while its list is open, the item the list is on.
+ */
+function RowCard({
+  row,
+  copy,
+  profile,
+  active,
+}: {
+  row: PrepareRow;
+  copy: RowCopy;
+  profile: ScenarioProfile;
+  active: PrepareChoice | null;
+}) {
+  const choice = usePrepareStore((s) => s.choices[row]);
+  const count = usePrepareStore((s) =>
+    s.preview === null ? null : rowSystems(s.preview, row).length,
+  );
+  const item = useMemo<CardItem>(
+    () => ({ label: copy.label, category: copy.holds, effects: [] }),
+    [copy],
+  );
+  const reason = disabledReason(row, profile);
+  const shown =
+    reason !== undefined ? [] : active !== null ? [active] : offeredChoices(row, profile);
+  return (
+    <PickerCard
+      key={`${row}:${active}:${choice}:${count}`}
+      id={CARD_ID}
+      item={item}
+      rowId={prepRowId(row)}
+    >
+      {reason !== undefined && <span className="dp-card-note muted">{reason}</span>}
+      {shown.map((offer) => {
+        const answers = copy.answers[offer];
+        if (answers === undefined) return null;
+        return (
+          <div key={offer} className={`prep-card-choice${offer === choice ? " current" : ""}`}>
+            <span className="prep-card-choice-name">
+              {choiceLabel(copy, offer)}
+              {offer === choice && <span className="muted"> · {CURRENT_MARK}</span>}
+            </span>
+            <AnswerLines answers={answers} n={count} />
+          </div>
+        );
+      })}
+    </PickerCard>
+  );
+}
+
+/** The fourteen rows; the map rings a row's systems while the pointer is on it, and none once they go. */
 function ChoiceRows({
   copy,
   profile,
+  onActive,
 }: {
   copy: Record<PrepareRow, RowCopy>;
   profile: ScenarioProfile;
+  onActive: (row: PrepareRow, choice: PrepareChoice | null) => void;
 }) {
   const hover = usePrepareStore((s) => s.hover);
   useEffect(() => () => hover(null), [hover]);
   return (
     <div className="prep-rows" onPointerLeave={() => hover(null)}>
       {PREPARE_ROWS.map((row) => (
-        <ChoiceRow key={row} row={row} copy={copy[row]} profile={profile} />
+        <ChoiceRow key={row} row={row} copy={copy[row]} profile={profile} onActive={onActive} />
       ))}
     </div>
   );
 }
 
-/** What is left out, how many systems change, and Apply; it stays in view while the rows scroll. */
-function Footer({ copy }: { copy: Record<PrepareRow, RowCopy> }) {
-  const left = usePrepareStore((s) => leftOutRows(s).join());
-  const cutOff = usePrepareStore((s) => s.preview?.cut_off.length ?? 0);
+/** Row by row: closed until opened, or while the choices match no preset. */
+function RowByRow({
+  copy,
+  profile,
+  onActive,
+}: {
+  copy: Record<PrepareRow, RowCopy>;
+  profile: ScenarioProfile;
+  onActive: (row: PrepareRow, choice: PrepareChoice | null) => void;
+}) {
+  const open = usePrepareStore((s) => s.rowsOpen ?? presetOf(s.choices, profile) === "custom");
+  const setRowsOpen = usePrepareStore((s) => s.setRowsOpen);
+  return (
+    <>
+      <button
+        type="button"
+        className="prep-disclosure"
+        aria-expanded={open}
+        onClick={() => setRowsOpen(!open)}
+      >
+        <Twisty open={open} />
+        {ROWS_LABEL}
+      </button>
+      {open && <ChoiceRows copy={copy} profile={profile} onActive={onActive} />}
+    </>
+  );
+}
+
+/** How many systems Apply changes, and Apply; on the setup screen, Not now besides. */
+function Footer({ setup }: { setup: boolean }) {
   const changes = usePrepareStore((s) => s.preview?.changes ?? null);
   const current = usePrepareStore((s) => s.current);
   const applying = usePrepareStore((s) => s.applying);
   const apply = usePrepareStore((s) => s.apply);
-  const rows = left === "" ? [] : (left.split(",") as PrepareRow[]);
-  const leftOut = leftOutLine(
-    rows.map((row) => copy[row].label),
-    cutOff,
-  );
+  const dismiss = usePrepareStore((s) => s.dismiss);
   return (
     <div className="prep-footer">
-      {leftOut !== null && <div className="ins-warn">{leftOut}</div>}
       <div className="prep-apply">
         <span className="muted">
           {changes === null
@@ -192,6 +354,11 @@ function Footer({ copy }: { copy: Record<PrepareRow, RowCopy> }) {
                 ? NOTHING_TO_CHANGE
                 : `${changesLine(changes)} ${ONE_STEP}`}
         </span>
+        {setup && (
+          <button type="button" className="link" onClick={() => dismiss()}>
+            {NOT_NOW_LABEL}
+          </button>
+        )}
         <button
           type="button"
           disabled={applying || !current || changes === null || changes === 0}
@@ -204,28 +371,76 @@ function Footer({ copy }: { copy: Record<PrepareRow, RowCopy> }) {
   );
 }
 
-/** Prepare for a new game: a preset or a choice per row, applied to the scenario as one edit. */
-export function PrepareSection() {
-  const choices = usePrepareStore((s) => s.choices);
-  const preview = usePrepareStore((s) => s.preview);
+/**
+ * Everything above the footer, in the box the card stands beside: the preset and what it gives,
+ * the option around capitals, Reroll, and the rows. `footer` closes it where it scrolls with the
+ * rows.
+ */
+function PrepareBody({ profile, footer }: { profile: ScenarioProfile; footer?: ReactNode }) {
   const error = usePrepareStore((s) => s.error);
-  const applied = usePrepareStore((s) => s.applied);
+  const hovered = usePrepareStore((s) => s.hovered);
+  const rowsOpen = usePrepareStore((s) => s.rowsOpen ?? presetOf(s.choices, profile) === "custom");
   const gameData = useGameDataStore((s) => s.status === "ready");
-  const paint = usePaintLayer();
-  const profile = preview?.profile ?? (paint ? "paint_a_galaxy" : "plain");
+  const [active, setActive] = useState<ActiveItem | null>(null);
+  const onActive = useCallback((row: PrepareRow, choice: PrepareChoice | null) => {
+    setActive((was) => {
+      if (choice === null) return was?.row === row ? null : was;
+      return was?.row === row && was.choice === choice ? was : { row, choice };
+    });
+  }, []);
   const copy = PREPARE_COPY[profile];
-  const summary = summaryLine(presetOf(choices, profile), preview?.changes ?? null, applied);
+  const cardRow = rowsOpen && hovered !== null && hovered !== "clear_around" ? hovered : null;
+  return (
+    <div className="prep">
+      <div className="muted ins-hint">{PREPARE_INTRO}</div>
+      <PresetSwitch profile={profile} />
+      <ClearAroundSeats />
+      <Reroll />
+      {!gameData && <div className="muted ins-hint">{PREPARE_NEEDS_GAME_DATA}</div>}
+      {gameData && error !== null && <div className="ins-warn">{error}</div>}
+      <RowByRow copy={copy} profile={profile} onActive={onActive} />
+      {cardRow !== null && (
+        <RowCard
+          row={cardRow}
+          copy={copy[cardRow]}
+          profile={profile}
+          active={active?.row === cardRow ? active.choice : null}
+        />
+      )}
+      {footer}
+    </div>
+  );
+}
+
+/** The profile the section words its rows for: the preview's, else the open document's. */
+function useProfile(): ScenarioProfile {
+  const previewed = usePrepareStore((s) => s.preview?.profile ?? null);
+  const paint = usePaintLayer();
+  return previewed ?? (paint ? "paint_a_galaxy" : "plain");
+}
+
+/**
+ * Prepare for a new game: a preset or a choice per row, applied to the scenario as one edit. On
+ * the setup screen it is the whole page, its rows scrolling over a footer that stays put.
+ */
+export function PrepareSection({ setup = false }: { setup?: boolean }) {
+  const choices = usePrepareStore((s) => s.choices);
+  const pending = usePrepareStore((s) => s.preview?.changes ?? null);
+  const applied = usePrepareStore((s) => s.applied);
+  const profile = useProfile();
+  if (setup) {
+    return (
+      <>
+        <div className="prep-setup-title">{PREPARE_TITLE}</div>
+        <PrepareBody profile={profile} />
+        <Footer setup />
+      </>
+    );
+  }
+  const summary = summaryLine(presetOf(choices, profile), pending, applied);
   return (
     <Section id={PREPARE_SECTION} title={PREPARE_TITLE} aside={summary} startClosed>
-      <div className="prep">
-        <div className="muted ins-hint">{PREPARE_INTRO}</div>
-        <PresetSwitch profile={profile} />
-        <ClearAroundSeats />
-        {!gameData && <div className="muted ins-hint">{PREPARE_NEEDS_GAME_DATA}</div>}
-        {gameData && error !== null && <div className="ins-warn">{error}</div>}
-        <ChoiceRows copy={copy} profile={profile} />
-        <Footer copy={copy} />
-      </div>
+      <PrepareBody profile={profile} footer={<Footer setup={false} />} />
     </Section>
   );
 }

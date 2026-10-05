@@ -920,17 +920,37 @@ button.badge.paint-badge:hover {
   color: var(--fg-muted);
 }
 
-.prepare-caption {
+.prepare-legend {
   position: absolute;
   bottom: 8px;
   left: 8px;
   z-index: 2;
-  max-width: min(420px, calc(100% - 120px));
-  padding: 4px 10px;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
   font-size: var(--text-control);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: var(--shadow-pop);
   pointer-events: none;
+}
+
+.prepare-legend-row {
+  display: grid;
+  grid-template-columns: 12px auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.prepare-legend-row .muted {
+  text-align: right;
+}
+
+.prepare-legend-ring {
+  width: 10px;
+  height: 10px;
+  border: 2px solid;
+  border-radius: 50%;
+  box-sizing: border-box;
 }

@@ -10,6 +10,8 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 import { bindStores } from "../../../store/bindStores";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { useInspectorStore } from "../../../store/inspectorStore";
+import { usePrepareStore } from "../../../store/prepareStore";
 import { armSession, resetStores } from "../../../store/storeFixture";
 import { drawnBy, drawnButton, drawnField, lastDrawn } from "../../../test/drawn";
 import { TextField } from "../../EditField";
@@ -23,7 +25,7 @@ import {
   RAW_CELL_TITLE,
   SHAPES_TITLE,
 } from "./gameSetup";
-import { addHeaderField, DUPLICATE_KEY_TITLE } from "./header";
+import { addHeaderField, DUPLICATE_KEY_TITLE, HEADER_KEY_NOTES, NAME_HINT } from "./header";
 import { mockedIpc } from "../../../test/ipc";
 import { until } from "../../../test/wait";
 
@@ -62,11 +64,15 @@ beforeEach(() => {
 
 const galaxy = () => renderToStaticMarkup(<GalaxyView />);
 
+/** Opens the sample save, or takes it as a scenario past its setup screen with the header open. */
 async function open(kind: "save" | "scenario"): Promise<void> {
   const session = useFileSessionStore.getState();
   await (kind === "save"
     ? session.openSave(OPEN_RESULT.path)
     : session.openScenarioFrom(SCENARIO_RESULT.path));
+  if (kind === "save") return;
+  usePrepareStore.setState({ dismissed: true });
+  useInspectorStore.getState().toggleSection("galaxy.header", true);
 }
 
 function count(html: string, needle: string): number {
@@ -74,14 +80,21 @@ function count(html: string, needle: string): number {
 }
 
 describe("the scenario header", () => {
-  it("lists every key the file states, and edits only the first statement of a repeated one", async () => {
+  it("starts closed", async () => {
+    await open("scenario");
+    useInspectorStore.getState().resetSections(["galaxy.header"]);
+    const html = galaxy();
+    expect(html).toContain("Scenario header · 2");
+    expect(html).not.toContain('aria-label="New key"');
+  });
+
+  it("lists every key but the name, and edits only the first statement of a repeated one", async () => {
     await open("scenario");
 
     const html = galaxy();
-    expect(html).toContain("Scenario header · 3");
-    expect(html).toContain('aria-label="name value"');
-    expect(html).toContain("&quot;My Galaxy&quot;");
-    expect(html).toContain('aria-label="Remove name"');
+    expect(html).toContain("Scenario header · 2");
+    expect(html).not.toContain('aria-label="name value"');
+    expect(html).not.toContain('aria-label="Remove name"');
     // The op names a key and the core rewrites its first statement, so the second row is inert.
     expect(count(html, 'aria-label="priority value"')).toBe(1);
     expect(count(html, 'aria-label="Remove priority"')).toBe(1);
@@ -110,13 +123,13 @@ describe("the scenario header", () => {
     await open("scenario");
 
     drawnBy(galaxy);
-    const value = drawnField(TextField, "name value") as { onCommit(value: string): void };
-    value.onCommit(' "Other Galaxy" ');
+    const value = drawnField(TextField, "priority value") as { onCommit(value: string): void };
+    value.onCommit(" 3 ");
     await until(() =>
       expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
         type: "SetHeaderField",
-        key: "name",
-        value: '"Other Galaxy"',
+        key: "priority",
+        value: "3",
       }),
     );
 
@@ -136,11 +149,61 @@ describe("the scenario header", () => {
     expect(galaxy()).not.toContain("Scenario header");
   });
 
-  it("says nothing about the mod's listing or the seats for a plain scenario", async () => {
+  it("says under the keys the game reads its own way what each does, and nothing under others", async () => {
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        header: [...HEADER, { key: "random_hyperlanes", value: "no", line: 9 }],
+      },
+    });
     await open("scenario");
 
     const html = galaxy();
-    expect(html).not.toContain("Listed in-game as a galaxy size");
+    expect(html).toContain(HEADER_KEY_NOTES.random_hyperlanes.replace("'", "&#x27;"));
+    const priority = html.slice(html.indexOf('aria-label="Remove priority"'));
+    expect(priority.slice(0, priority.indexOf("ins-header-row"))).not.toContain("ins-hint");
+  });
+
+  it("keeps a repeated name in the list as an inert row", async () => {
+    mockedIpc.openAsScenario.mockResolvedValueOnce({
+      ...SCENARIO_RESULT,
+      galaxy: {
+        ...SCENARIO_RESULT.galaxy,
+        header: [...HEADER, { key: "name", value: '"Second"', line: 9 }],
+      },
+    });
+    await open("scenario");
+
+    const html = galaxy();
+    expect(html).toContain("Scenario header · 3");
+    expect(html).toContain(
+      `<div class="ins-header-row repeated" title="${DUPLICATE_KEY_TITLE}"><span class="k mono">name</span>`,
+    );
+    expect(html).not.toContain('aria-label="name value"');
+  });
+
+  it("names the map in a Name field at the top of the page, which writes the header", async () => {
+    await open("scenario");
+
+    const html = drawnBy(galaxy);
+    expect(html.indexOf(NAME_HINT)).toBeLessThan(html.indexOf("Prepare for a new game"));
+    const name = drawnField(TextField, "Name") as { value: string; onCommit(value: string): void };
+    expect(name.value).toBe("My Galaxy");
+    name.onCommit(" Other Galaxy ");
+    await until(() =>
+      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+        type: "SetHeaderField",
+        key: "name",
+        value: '"Other Galaxy"',
+      }),
+    );
+  });
+
+  it("says nothing about the seats for a plain scenario", async () => {
+    await open("scenario");
+
+    const html = galaxy();
     expect(html).not.toContain("Seats");
     expect(html).not.toContain("Fit fallen empire zones");
   });
@@ -170,9 +233,7 @@ describe("the scenario header", () => {
     await open("scenario");
 
     const html = galaxy();
-    expect(html).toContain(
-      "Listed in-game as a galaxy size. Start a new game with the Elliptical shape and this size.",
-    );
+    expect(html).toContain(NAME_HINT);
     expect(html).toContain("Seats 2 · 1st Player 1 · reserved B");
     expect(html).toContain(">Fit fallen empire zones…</button>");
   });
@@ -214,7 +275,7 @@ describe("the game setup grid", () => {
 
   it("hides the keys it edits from the raw list, which still refuses them as taken", async () => {
     const html = await openSetup();
-    expect(html).toContain("Scenario header · 4");
+    expect(html).toContain("Scenario header · 3");
     expect(html).not.toContain('aria-label="num_empires value"');
     expect(html).not.toContain('aria-label="num_empire_default value"');
     expect(html).not.toContain('aria-label="fallen_empire_max value"');
