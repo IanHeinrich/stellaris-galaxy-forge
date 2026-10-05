@@ -263,6 +263,7 @@ describe("lane brush keys", () => {
 
 describe("brush keys", () => {
   it("B and E pick the brushes on a scenario, and [ ] step the brush rather than a nebula", async () => {
+    expect(tools().setTool("paint")).toBe(false);
     expect(run("paintTool", false, effects)).toBe(false);
     expect(tools().tool).toBe("select");
     await openScenario();
