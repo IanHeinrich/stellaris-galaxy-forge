@@ -61,6 +61,13 @@ fn each_sample_is_partitioned_with_no_residue_and_saves_back_byte_for_byte() {
             "{version}: {fractions:?}"
         );
         assert_eq!(fractions.last(), Some(&1.0), "{version}");
+        let plain = dir.path().join(format!("{date}.plain.sav"));
+        doc.save_as(&plain).expect("save_as");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            std::fs::read(&plain).unwrap(),
+            "{version}: progress reporting changes the archive"
+        );
         let written = archive::read_sav(&path).expect("read back");
         assert_eq!(written.gamestate, doc.original(), "{version}");
         assert_eq!(written.meta, doc.meta(), "{version}");
