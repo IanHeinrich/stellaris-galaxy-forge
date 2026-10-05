@@ -308,8 +308,8 @@ fn a_plain_export_opens_new_game_on_the_saves_setup() {
              \tnomad_empire_default = 2\n\
              \tnomad_empire_max = 10\n\
              \tadvanced_empire_default = 2\n\
-             \tcolonizable_planet_odds = 0.25\n\
-             \tprimitive_odds = 0.25\n\
+             \tcolonizable_planet_odds = 1.0\n\
+             \tprimitive_odds = 1.0\n\
              \tnum_wormhole_pairs = { min = 0 max = 5 }\n\
              \tnum_wormhole_pairs_default = 1\n\
              \tnum_gateways = { min = 0 max = 5 }\n\

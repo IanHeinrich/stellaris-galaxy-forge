@@ -70,8 +70,8 @@ static_galaxy_scenario = {{
 	num_gateways_default = 1
 	num_hyperlanes = { min = 0.5 max = 3 }
 	num_hyperlanes_default = 0.75
-	colonizable_planet_odds = 0.25
-	primitive_odds = 0.25
+	colonizable_planet_odds = 1.0
+	primitive_odds = 1.0
 	fallen_empire_max = 3
 	marauder_empire_max = 2
 "

@@ -23,8 +23,6 @@ pub(crate) struct HeaderCounts {
     wormhole_pairs: u32,
     gateways: u32,
     hyperlanes: f64,
-    colonizable_planet_odds: f64,
-    primitive_odds: f64,
     /// The shape listed first.
     shape: Option<String>,
 }
@@ -45,13 +43,11 @@ impl HeaderCounts {
             wormhole_pairs: 1,
             gateways: 1,
             hyperlanes: 1.0,
-            colonizable_planet_odds: 1.0,
-            primitive_odds: 1.0,
             shape: None,
         }
     }
 
-    /// Sized by the save's setup screen: its counts and odds as set, `typed` fallen
+    /// Sized by the save's setup screen: its counts as set, `typed` fallen
     /// empires as the default, and the marauder `clans` whose homes the map holds.
     pub(super) fn from_setup(
         setup: &GameSetup,
@@ -68,8 +64,6 @@ impl HeaderCounts {
             wormhole_pairs: setup.num_wormhole_pairs,
             gateways: setup.num_gateways,
             hyperlanes: setup.num_hyperlanes,
-            colonizable_planet_odds: setup.habitability,
-            primitive_odds: setup.primitive,
             shape: Some(setup.shape.clone()),
             ..sized
         }
@@ -119,8 +113,8 @@ pub(crate) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8
          \tnum_gateways_default = {}\n\
          \tnum_hyperlanes = {{ min = 0.5 max = 3 }}\n\
          \tnum_hyperlanes_default = {}\n\
-         \tcolonizable_planet_odds = {}\n\
-         \tprimitive_odds = {}\n\
+         \tcolonizable_planet_odds = 1.0\n\
+         \tprimitive_odds = 1.0\n\
          \tfallen_empire_max = {}\n\
          \tmarauder_empire_max = {}\n\
          \textra_crisis_strength = {{ 10 25 }}\n\
@@ -136,8 +130,6 @@ pub(crate) fn header(options: &ScenarioOptions, counts: &HeaderCounts) -> Vec<u8
         BYPASS_MAX.max(counts.gateways),
         counts.gateways,
         coord(counts.hyperlanes),
-        odds(counts.colonizable_planet_odds),
-        odds(counts.primitive_odds),
         counts.fallen_max,
         counts.marauders,
         counts.fallen_default,
@@ -250,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn a_setup_sets_the_defaults_and_odds_clamped_to_what_the_seats_allow() {
+    fn a_setup_sets_the_defaults_clamped_to_what_the_seats_allow() {
         let setup = GameSetup {
             template: "large".into(),
             shape: "spiral_4".into(),
@@ -274,7 +266,7 @@ mod tests {
         );
         assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
         assert!(
-            text.contains("\tnum_wormhole_pairs = { min = 0 max = 5 }\n\tnum_wormhole_pairs_default = 1\n\tnum_gateways = { min = 0 max = 7 }\n\tnum_gateways_default = 7\n\tnum_hyperlanes = { min = 0.5 max = 3 }\n\tnum_hyperlanes_default = 0.75\n\tcolonizable_planet_odds = 0.5\n\tprimitive_odds = 0.25\n\tfallen_empire_max = 6\n"),
+            text.contains("\tnum_wormhole_pairs = { min = 0 max = 5 }\n\tnum_wormhole_pairs_default = 1\n\tnum_gateways = { min = 0 max = 7 }\n\tnum_gateways_default = 7\n\tnum_hyperlanes = { min = 0.5 max = 3 }\n\tnum_hyperlanes_default = 0.75\n\tcolonizable_planet_odds = 1.0\n\tprimitive_odds = 1.0\n\tfallen_empire_max = 6\n"),
             "{text}"
         );
         assert!(
