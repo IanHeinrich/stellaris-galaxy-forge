@@ -42,13 +42,25 @@ function SpecialLabel({ layout, cap }: { layout: SpecialLayout; cap: number | nu
   );
 }
 
-/** The Special menu's two groups, the game's unique systems and the rest, each in label order, every row placing its layout at the spot. */
+/**
+ * The Special menu's groups, each in label order, every row placing its layout at the spot: the
+ * game's unique systems, the other special systems, then the layouts no galaxy places, one group
+ * per mod that defines them, by name.
+ */
 export function SpecialRows({ x, y, picks }: { x: number; y: number; picks: SpecialPick[] }) {
   const addSpecialSystemAt = useEditorStore((s) => s.addSpecialSystemAt);
   const byLabel = (a: SpecialPick, b: SpecialPick) => a.layout.label.localeCompare(b.layout.label);
+  const placed = picks.filter((p) => p.layout.group === null);
+  const named = [...new Set(picks.flatMap((p) => p.layout.group ?? []))].sort((a, b) =>
+    a.localeCompare(b),
+  );
   const groups = [
-    { heading: UNIQUE_HEADING, rows: picks.filter((p) => p.layout.unique).sort(byLabel) },
-    { heading: OTHER_HEADING, rows: picks.filter((p) => !p.layout.unique).sort(byLabel) },
+    { heading: UNIQUE_HEADING, rows: placed.filter((p) => p.layout.unique).sort(byLabel) },
+    { heading: OTHER_HEADING, rows: placed.filter((p) => !p.layout.unique).sort(byLabel) },
+    ...named.map((heading) => ({
+      heading,
+      rows: picks.filter((p) => p.layout.group === heading).sort(byLabel),
+    })),
   ].filter((group) => group.rows.length > 0);
   return groups.map((group, i) => (
     <div key={group.heading} className="pick-group" role="group" aria-label={group.heading}>

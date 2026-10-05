@@ -23,11 +23,11 @@ fn the_capitals_scripts_name_its_initializer_effect_and_the_event_that_reads_its
     let initializer = scripts.initializer.as_ref().expect("initializer");
     assert_eq!(
         initializer.display,
-        "common/solar_system_initializers/zz_one.txt:13"
+        "common/solar_system_initializers/!one.txt:13"
     );
     assert_eq!(initializer.layer, "Mod One");
     let file = initializer.file.as_deref().expect("a game-data file");
-    assert!(file.ends_with("zz_one.txt"), "{file}");
+    assert!(file.ends_with("!one.txt"), "{file}");
 
     let owner = scripts.owner.as_ref().expect("owner");
     assert_eq!(owner.token, "fixture_empire");

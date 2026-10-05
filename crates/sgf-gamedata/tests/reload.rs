@@ -31,7 +31,7 @@ const BYPASSES: [ScenarioSystem<'static>; 3] = [
     sys(43, "tunnel_init"),
 ];
 
-const INITIALIZERS: &str = "userdata/mod/one/common/solar_system_initializers/zz_one.txt";
+const INITIALIZERS: &str = "userdata/mod/one/common/solar_system_initializers/!one.txt";
 const ENGLISH: &str = "userdata/mod/one/localisation/english/one_l_english.yml";
 const EVENTS: &str = "userdata/mod/one/events/zz_fixture_events.txt";
 const ON_ACTIONS: &str = "userdata/mod/one/common/on_actions/zz_fixture.txt";
@@ -154,7 +154,8 @@ fn rebuilding_the_localisation_says_what_a_full_load_says() {
 fn rebuilding_the_variables_rereads_everything_that_reads_them() {
     let tree = fixture_copy();
     let before = load(tree.path());
-    append(&tree.path().join(VARIABLES), "\n@FIXTURE_DISTRICTS = 5\n");
+    let earlier = tree.path().join(VARIABLES).with_file_name("!fixture.txt");
+    fs::write(earlier, "@FIXTURE_DISTRICTS = 5\n").expect("write fixture file");
 
     let (rebuilt, replaced) = before.rebuild(&kinds([RegistryKind::Variables]));
     let full = load(tree.path());

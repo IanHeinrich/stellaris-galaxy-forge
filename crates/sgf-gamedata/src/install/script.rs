@@ -1,7 +1,8 @@
 //! Top-level `key = { … }` definitions of one `common/` directory across
-//! every layer, last key wins.
+//! every layer, a repeated key settled by [`Keeps`].
 
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -124,16 +125,48 @@ pub fn whole(n: f64) -> u32 {
 
 pub(crate) const VARIABLES_DIR: &str = "common/scripted_variables";
 
+/// The `common/` dirs where the game keeps the first definition of a key it loads and
+/// reports the later ones; every other dir keeps the last.
+const FIRST_WINS: [&str; 2] = [VARIABLES_DIR, "common/solar_system_initializers"];
+
+/// Which definition of a repeated key a directory keeps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Keeps {
+    First,
+    Last,
+}
+
+impl Keeps {
+    fn of(rel_dir: &str) -> Self {
+        match FIRST_WINS.contains(&rel_dir) {
+            true => Self::First,
+            false => Self::Last,
+        }
+    }
+}
+
 /// `common/scripted_variables`: the `@name = value` scalars every script file can use.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Variables(BTreeMap<String, String>);
 
 impl Variables {
     pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
+        let keeps = Keeps::of(VARIABLES_DIR);
         let mut vars = BTreeMap::new();
         for file in layout.files_in(VARIABLES_DIR) {
-            if let Some((root, src)) = parse_file(&file, diagnostics) {
-                vars.extend(file_vars(root.children(), &src));
+            let Some((root, src)) = parse_file(&file, diagnostics) else {
+                continue;
+            };
+            for (name, value) in root.children().iter().filter_map(|n| variable(n, &src)) {
+                let (name, value) = (name.to_owned(), value.to_owned());
+                match keeps {
+                    Keeps::First => {
+                        vars.entry(name).or_insert(value);
+                    }
+                    Keeps::Last => {
+                        vars.insert(name, value);
+                    }
+                }
             }
         }
         Self(vars)
@@ -156,7 +189,8 @@ impl Variables {
 /// Parse every winning file of `rel_dir` in filename order and collect the
 /// top-level keyed blocks. `@variables` are skipped; a file that fails to
 /// parse contributes nothing and is reported. A repeated top-level key keeps
-/// only its last block; files that repeat keys need [`ParsedDir::roots`].
+/// one block, the first or the last as [`Keeps`] has it for `rel_dir`; files
+/// that repeat keys need [`ParsedDir::roots`].
 pub fn parse_dir(
     layout: &Layout,
     rel_dir: &str,
@@ -168,12 +202,16 @@ pub fn parse_dir(
 
 /// Every winning file of one directory in load order, each read and parsed once, so every
 /// registry the directory feeds reads the same parse and a broken file is reported once.
-pub(crate) struct ParsedDir(Vec<(PathBuf, Node, Arc<[u8]>)>);
+pub(crate) struct ParsedDir {
+    keeps: Keeps,
+    files: Vec<(PathBuf, Node, Arc<[u8]>)>,
+}
 
 impl ParsedDir {
     pub(crate) fn load(layout: &Layout, rel_dir: &str, diagnostics: &mut Vec<Diagnostic>) -> Self {
-        Self(
-            layout
+        Self {
+            keeps: Keeps::of(rel_dir),
+            files: layout
                 .files_in(rel_dir)
                 .into_iter()
                 .filter_map(|file| {
@@ -181,12 +219,19 @@ impl ParsedDir {
                     Some((file, root, src))
                 })
                 .collect(),
-        )
+        }
+    }
+
+    /// Each file with its root block and bytes, in load order.
+    pub(crate) fn files(&self) -> impl Iterator<Item = (&Path, &Node, &[u8])> {
+        self.files
+            .iter()
+            .map(|(file, root, src)| (file.as_path(), root, &src[..]))
     }
 
     /// Each file's root block with its bytes, in load order.
     pub(crate) fn roots(&self) -> impl Iterator<Item = (&Node, &[u8])> {
-        self.0.iter().map(|(_, root, src)| (root, &src[..]))
+        self.files.iter().map(|(_, root, src)| (root, &src[..]))
     }
 
     /// The top-level keyed blocks, as [`parse_dir`] collects them.
@@ -195,8 +240,8 @@ impl ParsedDir {
         globals: &Arc<Variables>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> BTreeMap<String, Def> {
-        let mut defs = BTreeMap::new();
-        for (file, root, src) in self.0 {
+        let mut defs: BTreeMap<String, Def> = BTreeMap::new();
+        for (file, root, src) in self.files {
             let Value::Block { children, .. } = root.value else {
                 continue;
             };
@@ -215,15 +260,28 @@ impl ParsedDir {
                     vars: Arc::clone(&vars),
                     globals: Arc::clone(globals),
                 };
+                let mut held = match defs.entry(key.to_owned()) {
+                    Entry::Vacant(slot) => {
+                        slot.insert(def);
+                        continue;
+                    }
+                    Entry::Occupied(held) => held,
+                };
+                let earlier = held.get().file.clone();
+                let (from, to) = match self.keeps {
+                    Keeps::First => (file.clone(), earlier),
+                    Keeps::Last => {
+                        held.insert(def);
+                        (earlier, file.clone())
+                    }
+                };
                 // A key repeated within one file is the game's own idiom (`random_list` in
-                // planet_classes), not a mod overriding anything; the later block wins in silence.
-                if let Some(previous) = defs.insert(key.to_owned(), def)
-                    && previous.file != file
-                {
+                // planet_classes), not a mod overriding anything, so it goes unreported.
+                if from != to {
                     diagnostics.push(Diagnostic::Override {
                         key: key.to_owned(),
-                        from: previous.file,
-                        to: file.clone(),
+                        from,
+                        to,
                     });
                 }
             }
@@ -235,11 +293,15 @@ impl ParsedDir {
 fn file_vars(children: &[Node], src: &[u8]) -> BTreeMap<String, String> {
     children
         .iter()
-        .filter_map(|node| {
-            let name = node.key_str(src)?.strip_prefix('@')?;
-            Some((name.to_owned(), node.scalar_str(src)?.to_owned()))
-        })
+        .filter_map(|node| variable(node, src))
+        .map(|(name, value)| (name.to_owned(), value.to_owned()))
         .collect()
+}
+
+/// An `@name = value` scalar as its name, `@` stripped, and value.
+fn variable<'a>(node: &Node, src: &'a [u8]) -> Option<(&'a str, &'a str)> {
+    let name = node.key_str(src)?.strip_prefix('@')?;
+    Some((name, node.scalar_str(src)?))
 }
 
 /// Parse one script file directly, for a caller whose layering is not the

@@ -31,7 +31,16 @@ describe("the Special menu and the cards", () => {
     ...extra,
   });
   const layout = (key: string, label: string, extra: Partial<SpecialLayout> = {}) => ({
-    layout: { key, label, unique: false, capped: false, in_galaxy: 0, dlc: null, ...extra },
+    layout: {
+      key,
+      label,
+      unique: false,
+      capped: false,
+      in_galaxy: 0,
+      dlc: null,
+      group: null,
+      ...extra,
+    },
     summary: summary(extra.capped ? { max_instances: 1 } : {}),
   });
 
@@ -65,6 +74,36 @@ describe("the Special menu and the cards", () => {
     expect(shown(html).match(/\bDLC\b/g)).toHaveLength(1);
     expect(html).toContain("Needs Cosmic Storms, which this save doesn&#x27;t have");
     expect(html).not.toContain("disabled");
+  });
+
+  it("lists the layouts no galaxy places after the rest, one group per mod by name", () => {
+    const html = renderToStaticMarkup(
+      <SpecialRows
+        x={0}
+        y={0}
+        picks={[
+          layout("ring", "Ring Cluster", { group: "Zeta Mod" }),
+          layout("story", "Story System", { group: "Alpha Mod" }),
+          layout("trappist", "Trappist", { capped: true }),
+          layout("forge", "Forge World", { group: "Zeta Mod", unique: true }),
+          layout("kira", "Kira", { unique: true, capped: true }),
+        ]}
+      />,
+    );
+    const order = [...html.matchAll(/aria-label="([^"]+)"|<span>([^<]+)<\/span>/g)].map(
+      (m) => m[1] ?? m[2],
+    );
+    expect(order).toEqual([
+      "Unique systems",
+      "Kira",
+      "Other special systems",
+      "Trappist",
+      "Alpha Mod",
+      "Story System",
+      "Zeta Mod",
+      "Forge World",
+      "Ring Cluster",
+    ]);
   });
 
   it("says what a pick can produce and leaves out what it has nothing for", () => {

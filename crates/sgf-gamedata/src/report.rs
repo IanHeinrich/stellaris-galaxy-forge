@@ -53,8 +53,14 @@ pub struct PlaysetReport {
     pub no_planet_size: Vec<Row>,
     /// Star classes whose map icon does not load, with the reason.
     pub star_art_missing: Vec<Row>,
+    /// Star classes defined only so their key is valid, left out of the star pickers.
+    pub placeholder_stars: Vec<Row>,
+    /// Star classes with no star body; no placeholder.
     pub stars_without_body: Vec<Row>,
-    /// Star classes with more than one star body, with their planet classes.
+    /// Star classes never rolled that list more stars than any class the base game rolls has,
+    /// with their planet classes.
+    pub star_choices: Vec<Row>,
+    /// The other star classes with more than one star body, with their planet classes.
     pub stars_with_bodies: Vec<Row>,
 }
 
@@ -115,7 +121,8 @@ impl PlaysetReport {
             }
         }
 
-        let (mut star_art_missing, mut stars_without_body, mut stars_with_bodies) =
+        let (mut star_art_missing, mut placeholder_stars) = (Vec::new(), Vec::new());
+        let (mut stars_without_body, mut star_choices, mut stars_with_bodies) =
             (Vec::new(), Vec::new(), Vec::new());
         for sc in gd.star_classes.iter() {
             let icon = TextureKey::StarClass {
@@ -125,12 +132,16 @@ impl PlaysetReport {
             if let Err(e) = gd.texture_png(textures, &icon) {
                 star_art_missing.push(star_row(&sc.key, Some(e.to_string())));
             }
-            match sc.planets.len() {
-                0 => stars_without_body.push(star_row(&sc.key, None)),
-                1 => {}
-                _ => {
-                    let bodies = sc.planet_keys().collect::<Vec<_>>().join(" ");
-                    stars_with_bodies.push(star_row(&sc.key, Some(bodies)));
+            let bodies = || Some(sc.planet_keys().collect::<Vec<_>>().join(" "));
+            if sc.placeholder {
+                placeholder_stars.push(star_row(&sc.key, None));
+            } else if sc.alternatives {
+                star_choices.push(star_row(&sc.key, bodies()));
+            } else {
+                match sc.planets.len() {
+                    0 => stars_without_body.push(star_row(&sc.key, None)),
+                    1 => {}
+                    _ => stars_with_bodies.push(star_row(&sc.key, bodies())),
                 }
             }
         }
@@ -145,13 +156,15 @@ impl PlaysetReport {
             discs_failing,
             no_planet_size,
             star_art_missing,
+            placeholder_stars,
             stars_without_body,
+            star_choices,
             stars_with_bodies,
         }
     }
 
     /// Every list of the report, in the order it prints.
-    pub fn sections(&self) -> [Section<'_>; 10] {
+    pub fn sections(&self) -> [Section<'_>; 12] {
         [
             ("load problems", &self.load_problems),
             ("look-only planet classes", &self.look_only),
@@ -173,7 +186,12 @@ impl PlaysetReport {
                 "star classes whose map icon does not load",
                 &self.star_art_missing,
             ),
+            ("placeholder star classes", &self.placeholder_stars),
             ("star classes with no star body", &self.stars_without_body),
+            (
+                "star classes listing more stars than a rolled class has",
+                &self.star_choices,
+            ),
             (
                 "star classes with more than one star body",
                 &self.stars_with_bodies,

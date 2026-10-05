@@ -298,7 +298,11 @@ impl GameData {
         let scripts = ScriptIndex::load(&layout, &initializers, &vars, &mut diagnostics);
         let country_types = registry::load(&layout, &vars, &mut diagnostics);
         let star_defs = script::parse_dir(&layout, StarClass::DIR, &vars, &mut diagnostics);
-        let star_classes = registry::from_defs(&star_defs);
+        let star_classes = StarClasses::marked(&registry::from_defs(&star_defs), |class| {
+            layout
+                .layer_of(&class.source)
+                .is_some_and(|(layer, _)| layer.name == install::layers::VANILLA)
+        });
         let star_lists = registry::from_defs(&star_defs);
         let random_names = ParsedDir::load(&layout, star_names::DIR, &mut diagnostics);
         let star_names = star_names::names(&random_names, star_names::STARS);

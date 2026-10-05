@@ -33,6 +33,12 @@ pub struct StarClass {
     /// `pc_… = { spawn_odds = n }`: what a random draw multiplies that planet class's own
     /// odds by around this star.
     pub planet_odds: Vec<(String, f64)>,
+    /// Its definition writes only a `class` and zero `spawn_odds`: a key kept valid for the
+    /// scripts that name it, with no star body, planet count or anything else a system uses.
+    pub placeholder: bool,
+    /// It is never rolled and lists more star bodies than any class the base game rolls has,
+    /// so the list holds the stars a system of it may have rather than one entry per star.
+    pub alternatives: bool,
 }
 
 /// One `planet = { key = pc_… class = … }` of a [`StarClass`].
@@ -59,6 +65,30 @@ impl StarClass {
             .iter()
             .find(|(key, _)| key == planet_class)
             .map_or(1.0, |(_, odds)| *odds)
+    }
+}
+
+impl StarClasses {
+    /// These classes, each never rolled marked [`StarClass::alternatives`] against the most
+    /// star bodies a class with `spawn_odds` above 0 has among those `in_base_game` says the
+    /// base game defines, or one when none has any, so no mod moves the count.
+    pub(crate) fn marked(&self, in_base_game: impl Fn(&StarClass) -> bool) -> Self {
+        let rolled = self
+            .iter()
+            .filter(|c| c.spawn_odds > 0.0 && in_base_game(c))
+            .map(|c| c.planets.len())
+            .max()
+            .unwrap_or(0)
+            .max(1);
+        self.iter()
+            .map(|class| {
+                let class = StarClass {
+                    alternatives: class.spawn_odds == 0.0 && class.planets.len() > rolled,
+                    ..class.clone()
+                };
+                (class.key.clone(), class)
+            })
+            .collect()
     }
 }
 
@@ -106,6 +136,12 @@ impl FromDef for StarClass {
                 Some((format!("pc_{class}"), def.number_of(odds)?))
             })
             .collect();
+        let spawn_odds = def.number("spawn_odds").unwrap_or(0.0);
+        let only_named = def
+            .node
+            .children()
+            .iter()
+            .all(|child| matches!(child.key_str(&def.src), Some("class" | "spawn_odds")));
         Self {
             key,
             source: def.file.clone(),
@@ -114,9 +150,11 @@ impl FromDef for StarClass {
             icon_scale: def.number("icon_scale").unwrap_or(1.0),
             planets,
             crisis_star_class: def.scalar("crisis_star_class").map(str::to_owned),
-            spawn_odds: def.number("spawn_odds").unwrap_or(0.0),
+            spawn_odds,
             num_planets: def.range("num_planets"),
             planet_odds,
+            placeholder: only_named && spawn_odds == 0.0,
+            alternatives: false,
         }
     }
 }

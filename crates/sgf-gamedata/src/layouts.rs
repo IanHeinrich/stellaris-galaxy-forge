@@ -15,6 +15,7 @@ use crate::GameData;
 use crate::body_effects::{self, Dropping};
 use crate::condition::{Condition, Subject};
 use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer};
+use crate::install::layers::VANILLA;
 use crate::install::script::Range;
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::registries::star_classes::{StarClass, StarList};
@@ -91,6 +92,24 @@ pub fn converted(init: &Initializer) -> Option<&'static Converted> {
     CONVERTED_LAYOUTS
         .iter()
         .find(|layout| layout.key == init.name)
+}
+
+/// The name of the mod that defines `init`; none for the game's own.
+pub fn defining_mod<'g>(gd: &'g GameData, init: &Initializer) -> Option<&'g str> {
+    gd.layout
+        .layer_of(&init.source)
+        .map(|(layer, _)| layer.name.as_str())
+        .filter(|name| *name != VANILLA)
+}
+
+/// A mod's layout with no `usage`, which no galaxy places: an event or another layout spawns
+/// it. The Special menu offers it by name, and no random draw gives it. A key the game's own
+/// files define is a story system, offered only as one of [`CONVERTED_LAYOUTS`], even when a
+/// mod's copy of it won.
+pub fn unplaced(gd: &GameData, init: &Initializer) -> bool {
+    init.usage.is_none()
+        && converted(init).is_none()
+        && !gd.initializers.defined_by_the_game(&init.name)
 }
 
 /// What the generator makes of a layout.
@@ -380,10 +399,11 @@ pub(crate) fn star_body(gd: &GameData, class: &BodyClass) -> bool {
 
 fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     let converted = converted(init).is_some();
-    if !converted && init.usage.as_deref() != Some(USAGE) {
+    let by_name = converted || unplaced(gd, init);
+    if !by_name && init.usage.as_deref() != Some(USAGE) {
         return Some(Unsupported::Usage);
     }
-    if !converted && odds(gd, init, None) <= 0.0 {
+    if !by_name && odds(gd, init, None) <= 0.0 {
         return Some(Unsupported::EventOnly);
     }
     if let Some(why) = star_unsupported(gd, init) {
