@@ -1,30 +1,25 @@
 //! Adding the special layouts to a save, on the 4.5 and the 4.4 sample: a black hole, a
 //! system whose star is named by its class, fixed body names, modifiers, a model named by
-//! entity, a ring, an off-centre star, star classes as bodies and the count of a capped
-//! layout. Each is written as the game writes the layout it copies, reopens after a save,
-//! undoes byte for byte, reads back exactly for a removal's and a reroll's inverse, and a
-//! rename leaves the bodies with names of their own alone.
+//! entity, a ring, an off-centre star and star classes as bodies. Each is written as the
+//! game writes the layout it copies, undoes byte for byte, and reads back exactly for a
+//! removal's and a reroll's inverse. The spec builders here serve the other
+//! `ops_add_special_system_*` files.
 
-use std::collections::BTreeMap;
-
-use sgf_core::ops::{BeltSpec, BodySpec, Op, OpError, SystemSpec, initializer_counts};
+use sgf_core::ops::{BeltSpec, BodySpec, Op, SystemSpec, initializer_counts};
 use sgf_core::session::Session;
 
 use crate::common;
-use common::Refused;
-use common::diff::{report, round_trip, round_trip_step};
-use common::spec::{
-    SAMPLE_4_5, SAMPLES, Sample, body, dorellion, mura, rerolled, star, with_deposits as with,
-};
-use common::{current, findings, open, open_4_5, text};
+use common::current;
+use common::diff::{report, round_trip_step};
+use common::spec::{SAMPLE_4_5, SAMPLES, Sample, body, rerolled, star, with_deposits as with};
 
 /// A sample as opened, the spike's system for it, whose place and lane the special
 /// systems take, and the id a new system takes.
-fn opened(sample: &Sample) -> (Session, SystemSpec, u32) {
+pub(crate) fn opened(sample: &Sample) -> (Session, SystemSpec, u32) {
     ((sample.open)(), (sample.spike)(), sample.id)
 }
 
-fn add(spec: SystemSpec) -> Op {
+pub(crate) fn add(spec: SystemSpec) -> Op {
     Op::AddSystemFromSpec { spec }
 }
 
@@ -43,7 +38,7 @@ fn belt(kind: &str, inner_radius: f64) -> BeltSpec {
 }
 
 /// `special_init_01`: a black hole with a broken world and a cold barren one.
-fn black_hole(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn black_hole(at: &SystemSpec) -> SystemSpec {
     SystemSpec {
         name: "Xulbaks_Maw".to_owned(),
         star_class: "sc_black_hole".to_owned(),
@@ -62,7 +57,7 @@ fn black_hole(at: &SystemSpec) -> SystemSpec {
 
 /// `trappist_initializer`: the star written as `class = pc_m_star`, so named by the
 /// system's fixed name, and two terraforming candidates.
-fn trappist(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn trappist(at: &SystemSpec) -> SystemSpec {
     let candidate = |body: BodySpec| BodySpec {
         modifiers: vec!["terraforming_candidate".to_owned()],
         ..body
@@ -89,7 +84,7 @@ fn trappist(at: &SystemSpec) -> SystemSpec {
 
 /// `previously_terraformed_planet_system_initializer`: the star off centre at 40, a
 /// ringed continental world with the layout's model and modifier, and the two belts.
-fn terraformed(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn terraformed(at: &SystemSpec) -> SystemSpec {
     let world = BodySpec {
         ring: true,
         entity_name: Some("previously_terraformed_planet_entity".to_owned()),
@@ -116,7 +111,7 @@ fn terraformed(at: &SystemSpec) -> SystemSpec {
 /// `unique_system_initializer_02`, the Larionessi Refuge: a neutron star, two asteroids
 /// from the pool, and a planet with a fixed name whose moons are lettered after it. No
 /// sample has drawn it, so its count is appended.
-fn larionessi(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn larionessi(at: &SystemSpec) -> SystemSpec {
     let moon = || with(body("pc_barren", 10, 10.0, 90.0, 1), &["d_minerals_3"]);
     let mut refuge = named(
         "NAME_Unique_System_2_Planet",
@@ -162,7 +157,7 @@ fn larionessi(at: &SystemSpec) -> SystemSpec {
 
 /// `unique_system_initializer_03`, Zevox, on the spike's bodies: a unique system, whose
 /// `unique_system` star flag the game's timeline reads when an empire takes it.
-fn zevox(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn zevox(at: &SystemSpec) -> SystemSpec {
     SystemSpec {
         name: "NAME_Unique_System_3".to_owned(),
         initializer: "unique_system_initializer_03".to_owned(),
@@ -202,7 +197,7 @@ fn great_wound(at: &SystemSpec) -> SystemSpec {
 /// `wenkwort_initializer`'s shape: a planet with the layout's modifier whose first moon
 /// has a fixed name and whose second is lettered, and a gas giant with the layout's model
 /// and no ring.
-fn wenkwort(at: &SystemSpec) -> SystemSpec {
+pub(crate) fn wenkwort(at: &SystemSpec) -> SystemSpec {
     let mut prime = BodySpec {
         modifiers: vec!["pm_wenkwort_gardens".to_owned()],
         ..body("pc_tropical", 18, 80.0, 60.0, 1)
@@ -228,7 +223,7 @@ fn wenkwort(at: &SystemSpec) -> SystemSpec {
 
 type Special = (&'static str, fn(&SystemSpec) -> SystemSpec);
 
-const SPECIALS: [Special; 6] = [
+pub(crate) const SPECIALS: [Special; 6] = [
     ("black_hole", black_hole),
     ("trappist", trappist),
     ("terraformed", terraformed),
@@ -239,7 +234,7 @@ const SPECIALS: [Special; 6] = [
 
 /// `n` places near `at` inside the galaxy, each at least 10 from every system and from
 /// the others.
-fn free_spots(session: &Session, at: &SystemSpec, n: usize) -> Vec<(f64, f64)> {
+pub(crate) fn free_spots(session: &Session, at: &SystemSpec, n: usize) -> Vec<(f64, f64)> {
     let graph = session.graph();
     let mut spots: Vec<(f64, f64)> = Vec::new();
     for step in 0..400_u32 {
@@ -261,36 +256,6 @@ fn free_spots(session: &Session, at: &SystemSpec, n: usize) -> Vec<(f64, f64)> {
         }
     }
     panic!("no room near ({}, {})", at.x, at.y);
-}
-
-/// Each body the details list for system `id`, as (class, its name's key, the keys of
-/// its name's variables' values).
-fn names(session: &Session, id: u32) -> Vec<(String, String, Vec<String>)> {
-    common::planets(session, id)
-        .into_iter()
-        .map(|p| {
-            let values = p
-                .name
-                .variables
-                .iter()
-                .map(|v| v.value.key.clone())
-                .collect();
-            (p.class, p.name.key, values)
-        })
-        .collect()
-}
-
-/// System `id`'s body entries as the text holds them, star first.
-fn entries(text: &str, session: &Session, id: u32) -> Vec<String> {
-    common::planet_ids(session, id)
-        .into_iter()
-        .map(|planet| {
-            let head = format!("\n\t\t{planet}=\n\t\t{{\n");
-            let start = text.find(&head).expect("the body's entry") + 1;
-            let end = start + text[start..].find("\n\t\t}\n").expect("its end");
-            text[start..end].to_owned()
-        })
-        .collect()
 }
 
 /// On the 4.5 sample only: the 4.4 sample differs in ids, slots and coordinates, and
@@ -327,270 +292,6 @@ fn all_of_them_added_and_removed_together_give_back_the_file_as_opened() {
             let back = session.system(id + i as u32).expect("the system");
             assert_eq!(back.initializer, special(&at).initializer, "{label}");
         }
-    }
-}
-
-#[test]
-fn a_saved_special_system_reopens_with_its_names_flags_and_modifiers() {
-    let dir = tempfile::tempdir().expect("a temp dir");
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        let before = findings(&session);
-        let specs = [trappist(&at), {
-            let mut spec = larionessi(&at);
-            (spec.x, spec.y) = (at.x + 20.0, at.y + 20.0);
-            spec.lanes = vec![id];
-            spec
-        }];
-        for spec in specs {
-            session.apply(add(spec)).expect("add the system");
-        }
-        let mut spec = terraformed(&at);
-        (spec.x, spec.y) = (at.x - 20.0, at.y + 20.0);
-        spec.lanes = vec![id];
-        session.apply(add(spec)).expect("add the system");
-        let path = dir.path().join(format!("{id}.sav"));
-        session.save_as(&path).expect("save");
-
-        let reopened = Session::open(&path).expect("reopen");
-        assert_eq!(findings(&reopened), before, "{id}: the save's own findings");
-        let saved = text(&reopened);
-
-        let trappist = names(&reopened, id);
-        assert_eq!(trappist, names(&session, id), "{id}: before the save");
-        assert_eq!(
-            trappist[0],
-            ("pc_m_star".into(), "NAME_Trappist".into(), vec![])
-        );
-        assert_eq!(
-            trappist[4],
-            (
-                "pc_barren".into(),
-                "PLANET_NAME_FORMAT".into(),
-                vec!["NAME_Trappist".into(), "IV".into()]
-            )
-        );
-        let bodies = entries(&saved, &reopened, id);
-        assert!(!bodies[0].contains("	binary_flags"), "{}", bodies[0]);
-        assert!(bodies[4].contains("\t\t\tbombardment_damage=0\n\t\t\ttimed_modifier=\n\t\t\t{\n\t\t\t\titems=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tmodifier=\"terraforming_candidate\"\n\t\t\t\t\t\tdays=-1\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}\n\t\t\tentity=1"), "{}", bodies[4]);
-        assert!(!saved.contains("planet_modifier=\"terraforming_candidate\""));
-
-        let refuge = names(&reopened, id + 1);
-        let keys: Vec<&str> = refuge.iter().map(|(_, key, _)| key.as_str()).collect();
-        assert_eq!(
-            keys,
-            [
-                "STAR_NAME_1_OF_1",
-                "PLANET_NAME_FORMAT",
-                "ASTEROID_NAME_FORMAT",
-                "ASTEROID_NAME_FORMAT",
-                "NAME_Unique_System_2_Planet",
-                "SUBPLANET_NAME_FORMAT",
-                "SUBPLANET_NAME_FORMAT"
-            ]
-        );
-        assert_eq!(refuge[5].2, ["NAME_Unique_System_2_Planet", "a"]);
-        assert_eq!(refuge[6].2, ["NAME_Unique_System_2_Planet", "b"]);
-        let bodies = entries(&saved, &reopened, id + 1);
-        assert!(bodies[0].contains("\t\t\tcarrier_binary_flags=3\n"));
-        assert!(
-            bodies[4].contains("\t\t\tbinary_flags=65\n"),
-            "{}",
-            bodies[4]
-        );
-        assert!(
-            bodies[5].contains("\t\t\tbinary_flags=576\n"),
-            "{}",
-            bodies[5]
-        );
-
-        let world = &entries(&saved, &reopened, id + 2)[1];
-        assert!(world.contains("\t\t\tbinary_flags=322\n"), "{world}");
-        assert!(
-            world.contains(
-                "\t\t\tentity=0\n\t\t\tentity_name=\"previously_terraformed_planet_entity\""
-            ),
-            "{world}"
-        );
-        let star = &entries(&saved, &reopened, id + 2)[0];
-        assert!(star.contains("\t\t\torbit=40\n"), "{star}");
-        assert!(!star.contains("\t\t\t\tx=0\n"), "{star}");
-
-        let counts = initializer_counts(reopened.doc());
-        let opened = initializer_counts((sample.open)().doc());
-        assert_eq!(
-            counts.get("trappist_initializer"),
-            opened.get("trappist_initializer").map(|n| n + 1).as_ref()
-        );
-        assert_eq!(counts.get("unique_system_initializer_02"), Some(&1));
-        assert!(!opened.contains_key("unique_system_initializer_02"));
-    }
-}
-
-#[test]
-fn a_fixed_name_moon_takes_no_letter_and_an_entity_override_alone_is_66() {
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        session.apply(add(wenkwort(&at))).expect("add the system");
-        let reopened = common::reopened(&mut session);
-        let listed = names(&reopened, id);
-        assert_eq!(listed, names(&session, id), "{id}: before the save");
-        let keys: Vec<&str> = listed.iter().map(|(_, key, _)| key.as_str()).collect();
-        assert_eq!(
-            keys,
-            [
-                "STAR_NAME_1_OF_1",
-                "PLANET_NAME_FORMAT",
-                "PLANET_NAME_FORMAT",
-                "NAME_wenkwort_moon",
-                "SUBPLANET_NAME_FORMAT",
-                "PLANET_NAME_FORMAT"
-            ]
-        );
-        assert_eq!(listed[4].2, ["PLANET_NAME_FORMAT", "a"], "{listed:?}");
-        assert_eq!(listed[5].2, ["Sgf_Wenkwort", "III"]);
-
-        let bodies = entries(&text(&reopened), &reopened, id);
-        let flags = |body: &str| {
-            body.lines()
-                .find_map(|line| line.strip_prefix("\t\t\tbinary_flags="))
-                .map(str::to_owned)
-        };
-        let found: Vec<Option<String>> = bodies.iter().map(|b| flags(b)).collect();
-        let expected = [None, None, None, Some("577"), Some("576"), Some("66")];
-        assert_eq!(found, expected.map(|f| f.map(str::to_owned)));
-        assert!(bodies[5].contains("\t\t\tentity=0\n\t\t\tentity_name=\"gas_giant_02_entity\""));
-    }
-}
-
-#[test]
-fn two_capped_systems_of_one_layout_each_count_and_uncount_one() {
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        let opened = initializer_counts(session.doc());
-        let before = opened.get("trappist_initializer").copied().unwrap_or(0);
-        let spots = free_spots(&session, &at, 2);
-        for (i, &(x, y)) in spots.iter().enumerate() {
-            let spec = SystemSpec {
-                name: format!("Sgf_Trappist_{i}"),
-                x,
-                y,
-                ..trappist(&at)
-            };
-            round_trip_step(&mut session, "add", add(spec));
-        }
-        let count = |session: &Session| initializer_counts(session.doc())["trappist_initializer"];
-        assert_eq!(count(&session), before + 2);
-        let result = round_trip_step(&mut session, "remove one", Op::RemoveSystem { system: id });
-        assert_eq!(count(&session), before + 1);
-        let Op::AddSystemFromSpec { spec } = &result.inverse else {
-            panic!("{:?}", result.inverse);
-        };
-        assert!(spec.capped);
-        round_trip_step(
-            &mut session,
-            "remove the other",
-            Op::RemoveSystem { system: id },
-        );
-        assert_eq!(initializer_counts(session.doc()), opened);
-        assert_eq!(current(&session), session.doc().original());
-    }
-}
-
-#[test]
-fn a_layout_added_capped_and_uncapped_in_one_session_is_refused() {
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        let spots = free_spots(&session, &at, 2);
-        let at_spot = |spec: SystemSpec, (x, y): (f64, f64), name: &str| SystemSpec {
-            name: name.to_owned(),
-            x,
-            y,
-            ..spec
-        };
-        session
-            .apply(add(trappist(&at)))
-            .expect("add a capped Trappist");
-        let written = current(&session);
-        let uncapped = SystemSpec {
-            capped: false,
-            ..at_spot(trappist(&at), spots[1], "Sgf_Uncapped")
-        };
-        let refused = |error: &OpError| {
-            matches!(error, OpError::CappedMismatch { initializer, other, capped: true }
-                if initializer == "trappist_initializer" && *other == id)
-        };
-        let error = session.apply(add(uncapped.clone())).expect_err("refused");
-        assert!(refused(&error), "{error:?}");
-        assert_eq!(current(&session), written, "a refusal writes nothing");
-
-        session
-            .apply(add(at_spot(black_hole(&at), spots[1], "Sgf_Plain")))
-            .expect("add another layout");
-        let written = current(&session);
-        let error = session
-            .apply(Op::ReplaceSystemFromSpec {
-                system: id + 1,
-                spec: SystemSpec {
-                    name: "Sgf_Plain".to_owned(),
-                    ..uncapped
-                },
-            })
-            .expect_err("refused");
-        assert!(refused(&error), "{error:?}");
-        assert_eq!(current(&session), written, "a refusal writes nothing");
-
-        session
-            .apply(Op::ReplaceSystemFromSpec {
-                system: id,
-                spec: SystemSpec {
-                    capped: false,
-                    ..black_hole(&at)
-                },
-            })
-            .expect("the only Trappist may become another layout");
-    }
-}
-
-#[test]
-fn only_a_capped_layout_is_counted_and_a_removal_uncounts_it() {
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        let opened = initializer_counts(session.doc());
-        assert!(!opened.is_empty());
-        session.apply(add(black_hole(&at))).expect("add");
-        assert_eq!(initializer_counts(session.doc()), opened, "special_init_01");
-        session
-            .apply(Op::RemoveSystem { system: id })
-            .expect("remove");
-
-        let mut changed = opened.clone();
-        for (i, spec) in [larionessi(&at), larionessi(&at)].into_iter().enumerate() {
-            let mut spec = spec;
-            spec.x += 20.0 * i as f64;
-            spec.name = format!("Sgf_Refuge_{i}");
-            session.apply(add(spec)).expect("add");
-            changed.insert("unique_system_initializer_02".to_owned(), i as u32 + 1);
-            assert_eq!(initializer_counts(session.doc()), changed);
-        }
-        let text = text(&session);
-        let counter = &text[text.find("\nsystem_initializer_counter=").unwrap()..];
-        let counter = &counter[..counter.find("\n}\n").unwrap()];
-        assert!(
-            counter.contains(" 2 \n\t}\n\tinitializer=\n")
-                && counter.ends_with("\t\t\"unique_system_initializer_02\"\n\t}"),
-            "{counter}"
-        );
-        session
-            .apply(Op::RemoveSystem { system: id })
-            .expect("remove one");
-        changed.insert("unique_system_initializer_02".to_owned(), 1);
-        assert_eq!(initializer_counts(session.doc()), changed);
-        session
-            .apply(Op::RemoveSystem { system: id })
-            .expect("remove the other");
-        assert_eq!(initializer_counts(session.doc()), opened);
-        assert_eq!(current(&session), session.doc().original());
     }
 }
 
@@ -660,219 +361,4 @@ fn each_special_layout_reads_back_exactly_for_a_reroll_and_a_removal() {
             assert_eq!(result.inverse, add(special(&at)), "{label} on {id}");
         }
     }
-}
-
-#[test]
-fn a_fixed_system_name_outside_the_pool_takes_nothing_from_it() {
-    for sample in &SAMPLES {
-        let (mut session, at, _) = opened(sample);
-        assert!(!text(&session).contains("\t\t\"NAME_Trappist\"\n"));
-        let pool = |bytes: &[u8]| {
-            let text = String::from_utf8_lossy(bytes).into_owned();
-            let start = text.find("\nrandom_name_database=").expect("the pool");
-            text[start..start + 200_000].to_owned()
-        };
-        session.apply(add(trappist(&at))).expect("add");
-        assert_eq!(pool(&current(&session)), pool(session.doc().original()));
-    }
-}
-
-#[test]
-fn a_rename_leaves_fixed_names_alone_and_renames_a_star_named_by_class() {
-    for sample in &SAMPLES {
-        let (mut session, at, id) = opened(sample);
-        round_trip_step(&mut session, "refuge", add(larionessi(&at)));
-        let mut spec = trappist(&at);
-        (spec.x, spec.y) = (at.x + 20.0, at.y + 20.0);
-        spec.lanes = vec![id];
-        round_trip_step(&mut session, "trappist", add(spec));
-        let opened = names(&session, id);
-
-        let rename = |system: u32, name: &str| Op::RenameSystem {
-            system,
-            name: name.to_owned(),
-        };
-        round_trip_step(&mut session, "rename refuge", rename(id, "Sgf_Refuge"));
-        let renamed = names(&session, id);
-        for (before, after) in opened.iter().zip(&renamed) {
-            let expected = match before.1.as_str() {
-                "STAR_NAME_1_OF_1" | "PLANET_NAME_FORMAT" => {
-                    let mut values = before.2.clone();
-                    values[0] = "Sgf_Refuge".to_owned();
-                    (before.0.clone(), before.1.clone(), values)
-                }
-                _ => before.clone(),
-            };
-            assert_eq!(after, &expected);
-        }
-        assert_eq!(renamed[4].1, "NAME_Unique_System_2_Planet");
-        assert_eq!(renamed[5].2[0], "NAME_Unique_System_2_Planet");
-
-        round_trip_step(
-            &mut session,
-            "rename trappist",
-            rename(id + 1, "Sgf_Trappist"),
-        );
-        let trappist = names(&session, id + 1);
-        assert_eq!(trappist[0].1, "Sgf_Trappist");
-        assert_eq!(trappist[1].2[0], "Sgf_Trappist");
-
-        let result = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id + 1 });
-        let Op::AddSystemFromSpec { spec } = &result.inverse else {
-            panic!("{:?}", result.inverse);
-        };
-        assert!(spec.star_named_by_class && spec.capped);
-        assert_eq!(spec.name, "Sgf_Trappist");
-        while session.undo().expect("undo").is_some() {}
-        assert_eq!(current(&session), session.doc().original());
-    }
-}
-
-/// A change to the spec, and whether an error is the refusal it should meet.
-type Case = Refused<fn(&mut SystemSpec)>;
-
-#[test]
-fn what_the_op_refuses_of_the_new_fields() {
-    let cases: Vec<Case> = vec![
-        (
-            |s| s.star.name = Some("NAME_Star".to_owned()),
-            |e| matches!(e, OpError::FixedNameNotAllowed("the star")),
-        ),
-        (
-            |s| s.planets[1].name = Some("NAME_Rock".to_owned()),
-            |e| matches!(e, OpError::FixedNameNotAllowed(_)),
-        ),
-        (
-            |s| s.planets[0].name = Some(String::new()),
-            |e| matches!(e, OpError::EmptyText { what: "a name" }),
-        ),
-        (
-            |s| s.planets[0].modifiers = vec![String::new()],
-            |e| matches!(e, OpError::EmptyText { what: "a modifier" }),
-        ),
-        (
-            |s| s.planets[0].modifiers = vec!["a\"b".to_owned()],
-            |e| matches!(e, OpError::InvalidText { .. }),
-        ),
-        (
-            |s| s.planets[3].moons[0].entity_name = Some(String::new()),
-            |e| {
-                matches!(
-                    e,
-                    OpError::EmptyText {
-                        what: "an entity name"
-                    }
-                )
-            },
-        ),
-        (
-            |s| s.planets[3].moons[1].ring = true,
-            |e| matches!(e, OpError::RingNotAllowed("a moon")),
-        ),
-    ];
-    for (edit, expected) in cases {
-        let mut spec = larionessi(&dorellion());
-        edit(&mut spec);
-        let mut session = open();
-        let error = session.apply(add(spec.clone())).expect_err("refused");
-        assert!(!session.doc().is_dirty(), "{error}");
-        assert!(expected(&error), "{spec:?}: {error:?}");
-    }
-}
-
-/// A save without `system_initializer_counter` takes an uncapped layout and refuses a
-/// capped one.
-#[test]
-fn a_save_without_a_counter_refuses_only_a_capped_layout() {
-    let without = || {
-        common::open_edited(|text| {
-            let start = text
-                .find("\nsystem_initializer_counter=")
-                .expect("the counter")
-                + 1;
-            let end = start + text[start..].find("\n}\n").expect("its end") + 3;
-            text.replace_range(start..end, "");
-        })
-    };
-    let at = dorellion();
-    round_trip(without(), add(black_hole(&at)));
-    let mut session = without();
-    assert!(initializer_counts(session.doc()).is_empty());
-    let error = session.apply(add(trappist(&at))).expect_err("refused");
-    assert!(matches!(
-        error,
-        OpError::MissingKey("system_initializer_counter")
-    ));
-    assert_eq!(BTreeMap::new(), initializer_counts(session.doc()));
-}
-
-/// System `id`'s `galactic_object` entry as `text` holds it.
-fn galactic_object(text: &str, id: u32) -> &str {
-    let table = text.find("\ngalactic_object=\n{\n").expect("the systems");
-    let head = format!("\n\t{id}=\n\t{{\n");
-    let start = table + text[table..].find(&head).expect("the system's entry") + 1;
-    let end = start + text[start..].find("\n\t}\n").expect("its end");
-    &text[start..end]
-}
-
-/// The `flags` block of a `galactic_object` entry, and the line after it.
-fn flags_block(entry: &str) -> (&str, &str) {
-    const CLOSE: &str = "\n\t\t}\n";
-    let start = entry.find("\t\tflags=\n\t\t{\n").expect("a flags block");
-    let end = start + entry[start..].find(CLOSE).expect("its end") + CLOSE.len();
-    let next = entry[end..].lines().next().unwrap_or_default();
-    (&entry[start..end], next)
-}
-
-#[test]
-fn a_unique_system_carries_its_flag_dated_day_one_as_the_games_own_do() {
-    let (mut session, at, id) = opened(SAMPLE_4_5);
-    let result = session.apply(add(zevox(&at))).expect("add Zevox");
-    common::snapshot("add_zevox_4_5", &report(&session, &result));
-    assert_eq!(session.system(id).expect("Zevox").flags, ["unique_system"]);
-
-    let saved = text(&session);
-    let game_started = saved
-        .split("\n\tgame_started=")
-        .nth(1)
-        .and_then(|rest| rest.lines().next())
-        .expect("the save's day one");
-    let (added, after_added) = flags_block(galactic_object(&saved, id));
-    assert_eq!(
-        added,
-        format!("\t\tflags=\n\t\t{{\n\t\t\tunique_system={game_started}\n\t\t}}\n")
-    );
-    let kira = session
-        .graph()
-        .systems
-        .values()
-        .find(|s| s.initializer == "oasis_system")
-        .expect("the game's Kira");
-    let (own, after_own) = flags_block(galactic_object(&saved, kira.id));
-    let flag = format!("\t\t\tunique_system={game_started}\n");
-    assert!(own.contains(&flag), "{own}");
-    assert!(after_own.starts_with("\t\tinitializer="), "{after_own}");
-    assert!(after_added.starts_with("\t\tinitializer="), "{after_added}");
-
-    let mut session = open_4_5();
-    round_trip_step(&mut session, "add", add(zevox(&at)));
-    let removed = round_trip_step(&mut session, "remove", Op::RemoveSystem { system: id });
-    assert_eq!(removed.inverse, add(zevox(&at)), "the flag reads back");
-    session.undo().expect("undo the removal").expect("a step");
-    let rolled = round_trip_step(
-        &mut session,
-        "reroll",
-        Op::ReplaceSystemFromSpec {
-            system: id,
-            spec: rerolled(mura()),
-        },
-    );
-    assert_eq!(
-        rolled.inverse,
-        Op::ReplaceSystemFromSpec {
-            system: id,
-            spec: zevox(&at),
-        },
-        "a reroll's undo puts the flag back"
-    );
 }

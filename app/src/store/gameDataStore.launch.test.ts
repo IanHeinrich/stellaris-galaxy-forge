@@ -11,6 +11,7 @@ vi.mock("../lib/visual/textures", async (importOriginal) => {
 import { useGameDataStore } from "./gameDataStore";
 import { armGameData, listeners, releaseGameData, SUMMARY } from "./gameDataFixture";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 beforeEach(armGameData);
 afterEach(releaseGameData);
@@ -73,7 +74,7 @@ describe("launch", () => {
     );
 
     const started = useGameDataStore.getState().start();
-    await vi.waitFor(() => expect(useGameDataStore.getState().status).toBe("loading"));
+    await until(() => expect(useGameDataStore.getState().status).toBe("loading"));
     expect(useGameDataStore.getState().startupLoad).toBe(true);
     expect(useGameDataStore.getState().startup).toBe("ready");
     finish(SUMMARY);

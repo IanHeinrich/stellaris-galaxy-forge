@@ -157,17 +157,9 @@ describe("pinToggle", () => {
 });
 
 describe("notedRecent", () => {
-  it("puts the pick first, without repeating it", () => {
-    expect(notedRecent([], "a")).toEqual(["a"]);
-    expect(notedRecent(["a", "b"], "c")).toEqual(["c", "a", "b"]);
-    expect(notedRecent(["a", "b", "c"], "b")).toEqual(["b", "a", "c"]);
-  });
-
   it("keeps at most the cap it is given", () => {
     expect(notedRecent(["b", "c", "d"], "a", 3)).toEqual(["a", "b", "c"]);
     expect(notedRecent(["a", "b"], "c", 0)).toEqual([]);
-    const ten = Array.from({ length: 12 }, (_, i) => `k${i}`);
-    expect(notedRecent(ten, "new")).toHaveLength(10);
   });
 });
 

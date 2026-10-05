@@ -6,8 +6,7 @@ vi.mock("../../api/events");
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { usePaintModStore } from "../../store/paintModStore";
-import { NEVER_WARN, PAINT_CHECK, PAINT_UNTICKED } from "../../lib/paintCopy";
+import { NEVER_WARN, PAINT_CHECK } from "../../lib/paintCopy";
 import { buttons, shown } from "../../test/elements";
 import { saveFile } from "../../test/builders";
 import { OpenModeDialog } from "./OpenModeDialog";
@@ -17,20 +16,14 @@ beforeEach(() => {
 });
 
 describe("opening a save as a scenario", () => {
-  const UNTICKED = PAINT_UNTICKED.split(":")[0];
   const dialog = () => {
     useFileSessionStore.setState({ pendingOpen: saveFile().path, pendingAsScenario: true });
     return renderToStaticMarkup(<OpenModeDialog />);
   };
 
-  it("asks the Paint a Galaxy question, with the warning while it is unticked", () => {
-    usePaintModStore.setState({ paintChoice: false });
+  it("asks the Paint a Galaxy question", () => {
     expect(shown(dialog())).toContain(PAINT_CHECK);
-    expect(shown(dialog())).toContain(UNTICKED);
     expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
-
-    usePaintModStore.setState({ paintChoice: true });
-    expect(shown(dialog())).not.toContain(UNTICKED);
   });
 
   it("leaves the question without a way to stop asking", () => {

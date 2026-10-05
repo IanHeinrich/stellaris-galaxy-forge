@@ -85,13 +85,6 @@ describe("a paint stroke", () => {
       description: "Painted 1 system",
     });
   });
-
-  it("sends nothing for an empty stroke", async () => {
-    expect(await editor().paintStroke([], [])).toBe(false);
-    expect(await editor().eraseStroke([])).toBe(false);
-    expect(await editor().cutLanes([])).toBe(false);
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
-  });
 });
 
 describe("an erase stroke", () => {
@@ -147,11 +140,6 @@ describe("a connect stroke", () => {
       description: "Connected 1 lane",
       ops: [{ type: "AddLanePairs", lanes: [{ a: 2, b: 3, bridge: false }] }],
     });
-  });
-
-  it("sends nothing when it found no lane", async () => {
-    expect(await editor().connectStroke([])).toBe(false);
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });
 
@@ -432,10 +420,23 @@ describe("a height stroke", () => {
       ],
     });
   });
+});
 
-  it("sends nothing for a stroke that moved nothing", async () => {
-    await openFixtureSave();
-    expect(await editor().sculptHeights(() => new Map())).toBe(false);
+describe("an empty stroke", () => {
+  it.each([
+    ["paint", () => editor().paintStroke([], [])],
+    ["erase", () => editor().eraseStroke([])],
+    ["cut", () => editor().cutLanes([])],
+    ["connect", () => editor().connectStroke([])],
+    [
+      "height",
+      async () => {
+        await openFixtureSave();
+        return editor().sculptHeights(() => new Map());
+      },
+    ],
+  ])("of the %s brush sends nothing", async (_brush, stroke) => {
+    expect(await stroke()).toBe(false);
     expect(mockedIpc.applyOp).not.toHaveBeenCalled();
   });
 });

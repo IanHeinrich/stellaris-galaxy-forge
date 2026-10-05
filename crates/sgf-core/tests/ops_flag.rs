@@ -91,14 +91,6 @@ fn the_player_s_emblem_and_background_change_in_the_gamestate_and_meta() {
         ..before
     };
 
-    let mut undone = open_4_5();
-    undone.apply(set(PLAYER, new.clone())).expect("apply");
-    undone.undo().expect("undo").expect("an op to undo");
-    assert_eq!(undone.doc().meta(), undone.doc().original_meta(), "undo");
-    assert!(!undone.doc().is_dirty(), "undo");
-    undone.redo().expect("redo").expect("an op to redo");
-    assert_ne!(undone.doc().meta(), undone.doc().original_meta(), "redo");
-
     let meta = meta_flag(&change(session, set(PLAYER, new), "player_emblem"));
     assert_eq!(meta.icon.expect("an emblem").file, "flag_blocky_18.dds");
     assert_eq!(

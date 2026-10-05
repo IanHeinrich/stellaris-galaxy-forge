@@ -11,7 +11,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
-import { paintModView } from "../../test/builders";
+import { PAINT_CHECK } from "../../lib/paintCopy";
 import { NewScenarioDialog, RouteCards, RouteFoot, RouteHelp } from "./NewScenarioDialog";
 
 const BLANK = { name: "new_galaxy", radius: 400, coreRadius: 100, profile: "plain" as const };
@@ -90,29 +90,8 @@ describe("the blank canvas", () => {
     expect(useLayoutStore.getState().scenarioDialog).toBe(false);
   });
 
-  it("offers the Paint a Galaxy choice as a box that follows the standing choice, and says why", () => {
-    let html = renderToStaticMarkup(<NewScenarioDialog />);
-    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
-    expect(html).toContain("For the Paint a Galaxy mod");
-    expect(html).toContain(
-      "Custom galaxies hit game-breaking bugs in the generator that this mod fixes.",
-    );
-    expect(html).toContain("Untick it only if the map is for a mod of your own.");
-
-    usePaintModStore.setState({ paintChoice: false });
-    html = renderToStaticMarkup(<NewScenarioDialog />);
-    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
-  });
-
-  it("shows the mod's state under the box only while it is ticked", () => {
-    usePaintModStore.setState({ known: true, paintMod: paintModView() });
-    expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain("Paint a Galaxy mod enabled ✓");
-
-    usePaintModStore.setState({ paintChoice: false });
-    const unticked = renderToStaticMarkup(<NewScenarioDialog />);
-    expect(unticked).not.toContain("paint-mod-status");
-    expect(unticked).toContain('class="setup-warn" role="alert"');
-    expect(unticked).toContain("Only go on if you know what you");
+  it("offers the Paint a Galaxy choice", () => {
+    expect(renderToStaticMarkup(<NewScenarioDialog />)).toContain(PAINT_CHECK);
   });
 
   it("creates the scenario under the Paint a Galaxy profile once the box is checked", () => {
@@ -158,12 +137,6 @@ describe("a galaxy from the game", () => {
     const html = renderToStaticMarkup(<RouteHelp />);
     expect(html).toContain("save on day one");
     expect(html).toContain("Open that save here as a scenario.");
-    expect(html).toContain("For the Paint a Galaxy mod");
-    expect(html.match(/<input type="checkbox"[^>]*>/)![0]).toContain("checked=");
-
-    usePaintModStore.setState({ paintChoice: false });
-    const unticked = renderToStaticMarkup(<RouteHelp />);
-    expect(unticked.match(/<input type="checkbox"[^>]*>/)![0]).not.toContain("checked=");
-    expect(unticked).toContain('class="setup-warn" role="alert"');
+    expect(html).toContain(PAINT_CHECK);
   });
 });

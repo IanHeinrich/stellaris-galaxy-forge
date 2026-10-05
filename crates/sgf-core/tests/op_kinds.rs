@@ -1,12 +1,13 @@
 //! What each document kind takes and what an op reports about its own reach, checked
 //! by applying one op of every variant to the sample saves and to a scenario: the ops a
 //! kind refuses, the ops a save before Stellaris 4.0 refuses, the systems whose details an
-//! op stales, and whether it reclassifies.
+//! op stales, whether it reclassifies, and that details reread in place equal a fresh build.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
-use sgf_core::format::save::details::RawSystemDetails;
-use sgf_core::ops::{Op, OpError};
+use sgf_core::format::save::details::{DetailsProjection, RawSystemDetails};
+use sgf_core::ops::{DetailsReach, Op, OpError};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::projections::geometry;
 use sgf_core::session::Session;
@@ -71,6 +72,22 @@ fn raw_details(session: &Session) -> BTreeMap<u32, RawSystemDetails> {
         .collect()
 }
 
+/// Each system's raw details as a build from the session's bytes reads them.
+fn fresh_details(session: &Session) -> BTreeMap<u32, RawSystemDetails> {
+    let fresh = DetailsProjection::build(
+        session.doc(),
+        session.graph(),
+        Arc::clone(session.star_classes()),
+    )
+    .expect("a fresh build");
+    session
+        .graph()
+        .systems
+        .keys()
+        .filter_map(|&id| Some((id, fresh.raw(id)?.clone())))
+        .collect()
+}
+
 /// The systems whose raw details differ between `before` and `after`.
 fn raw_details_changed(
     before: &BTreeMap<u32, RawSystemDetails>,
@@ -113,25 +130,18 @@ fn each_kind_refuses_exactly_the_ops_its_row_leaves_out() {
             kinds.contains(&DocumentKind::Scenario),
             "{name}: a scenario example where the row names a scenario"
         );
-        match &example.save {
-            Some(op) => {
-                (example.open_save)()
-                    .apply_inverse(op.clone())
-                    .unwrap_or_else(|e| panic!("{name}: {e}"));
-            }
-            None => assert_refused(examples::save(), example.op(), DocumentKind::Save),
+        if example.save.is_none() {
+            assert_refused(examples::save(), example.op(), DocumentKind::Save);
         }
-        match &example.scenario {
-            Some(op) => {
-                examples::scenario()
-                    .apply_inverse(op.clone())
-                    .unwrap_or_else(|e| panic!("{name}: {e}"));
-            }
-            None => assert_refused(examples::scenario(), example.op(), DocumentKind::Scenario),
+        if example.scenario.is_none() {
+            assert_refused(examples::scenario(), example.op(), DocumentKind::Scenario);
         }
     }
 }
 
+/// An op that rereads a save's details in place keeps them built, and they equal a fresh
+/// build after its apply. Undo and redo stale the systems the apply did, and read back the
+/// details from before and after it.
 #[test]
 fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come_from() {
     let renamed_in_a_batch = Op::Batch {
@@ -157,18 +167,25 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
             save.into_iter().chain(scenario)
         })
         .chain([(examples::scenario(), renamed_in_a_batch)]);
-    for (mut session, op) in cases {
+    for (session, op) in cases {
         let name = format!("{} on a {:?}", op.name(), session.kind());
-        session.warm_details().expect("build details");
+        let in_place =
+            session.kind() == DocumentKind::Save && op.reach().details == DetailsReach::InPlace;
+        let mut session = common::warm(session);
         let before = session.graph().clone();
         let before_raw = raw_details(&session);
         let result = session
             .apply_inverse(op)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert!(
+            !in_place || session.built_details().is_some(),
+            "{name}: the apply dropped the details"
+        );
+        let applied_raw = raw_details(&session);
         let mut changed: BTreeSet<u32> = details_changed(&before, session.graph())
             .into_iter()
             .collect();
-        changed.extend(raw_details_changed(&before_raw, &raw_details(&session)));
+        changed.extend(raw_details_changed(&before_raw, &applied_raw));
         assert_eq!(
             result.details_stale,
             changed.into_iter().collect::<Vec<_>>(),
@@ -187,7 +204,43 @@ fn an_op_stales_details_and_reclassifies_exactly_where_it_changes_what_they_come
             edit.reclassifies, result.reclassifies,
             "{name}: reaches the app"
         );
+        if in_place {
+            assert!(!result.details_stale.is_empty(), "{name} names no system");
+            assert_eq!(applied_raw, fresh_details(&session), "{name}: the apply");
+            let read = [&before_raw, &applied_raw];
+            assert_undo_and_redo_read(&mut session, &name, &result.details_stale, read);
+        }
     }
+}
+
+/// `session`, an in-place op just applied, undone and redone: each keeps the details
+/// built, stales `stale` again, and reads back the details from before and after the apply.
+fn assert_undo_and_redo_read(
+    session: &mut Session,
+    name: &str,
+    stale: &[u32],
+    [before, applied]: [&BTreeMap<u32, RawSystemDetails>; 2],
+) {
+    let undone = session.undo().expect("undo").expect("something to undo");
+    assert_eq!(
+        undone.details_stale, stale,
+        "{name}: the undo's stale systems"
+    );
+    assert!(
+        session.built_details().is_some(),
+        "{name}: the undo dropped the details"
+    );
+    assert_eq!(&raw_details(session), before, "{name}: the undo");
+    let redone = session.redo().expect("redo").expect("something to redo");
+    assert_eq!(
+        redone.details_stale, stale,
+        "{name}: the redo's stale systems"
+    );
+    assert!(
+        session.built_details().is_some(),
+        "{name}: the redo dropped the details"
+    );
+    assert_eq!(&raw_details(session), applied, "{name}: the redo");
 }
 
 /// A scenario system's details come from its initializer, so the three ops that write one

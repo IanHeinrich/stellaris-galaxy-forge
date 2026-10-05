@@ -71,14 +71,13 @@ describe("a wormhole's page", () => {
     mockedIpc.applyOp.mockResolvedValue(editResult());
     const distance = drawnField(TextField, "Distance") as { onCommit(v: number): void };
     distance.onCommit(300);
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-        type: "MoveWormhole",
-        wormhole: WORMHOLE.id,
-        radius: 300,
-        angle: 90,
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "MoveWormhole",
+      wormhole: WORMHOLE.id,
+      radius: 300,
+      angle: 90,
+    });
   });
 
   it("shows a shroud tunnel's place as text, saying why it cannot move", async () => {

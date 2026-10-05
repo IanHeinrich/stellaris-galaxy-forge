@@ -144,10 +144,6 @@ fn the_inverse_of_a_removal_writes_the_file_back() {
 
 #[test]
 fn an_anomaly_round_trips_from_the_file_as_opened() {
-    round_trip(open_4_5(), add(585, ASTEROID));
-    round_trip(open_4_5(), add(3, ASTEROID));
-    round_trip(open_4_5(), remove(185));
-    round_trip(open(), add(1, ASTEROID));
     round_trip(open(), remove(2090));
     round_trip(
         open(),

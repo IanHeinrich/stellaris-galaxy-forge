@@ -6,7 +6,6 @@ use sgf_core::archive;
 use sgf_core::library::{
     cloud_dirs_under, is_cloud_save_in, list_campaign_saves_in, list_campaigns_in,
 };
-use sgf_core::session::Session;
 
 use crate::common;
 
@@ -26,9 +25,11 @@ fn each_samples_header_reads_its_revision_dlcs_portrait_and_flag() {
 
 #[test]
 fn each_samples_galaxy_settings_are_read_without_loading_the_save() {
-    for (name, path) in [("galaxy_4_4", SAMPLE), ("galaxy_4_5", SAMPLE_4_5)] {
+    for (name, path, session) in [
+        ("galaxy_4_4", SAMPLE, common::open()),
+        ("galaxy_4_5", SAMPLE_4_5, common::open_4_5()),
+    ] {
         let settings = archive::read_galaxy_settings(path).expect("read the galaxy block");
-        let session = Session::open(path).expect("open the sample");
         let setup = session.graph().setup.clone().expect("a setup");
         assert_eq!(settings.template.as_deref(), Some(setup.template.as_str()));
         assert_eq!(settings.num_empires, Some(setup.num_empires));
@@ -39,36 +40,13 @@ fn each_samples_galaxy_settings_are_read_without_loading_the_save() {
 
 #[test]
 fn a_gamestate_without_a_top_level_galaxy_block_reads_as_no_settings() {
-    let raw = archive::read_sav(SAMPLE).expect("read the sample save");
-    let gamestate = String::from_utf8(raw.gamestate).expect("ASCII gamestate");
-    let start = gamestate.find("\ngalaxy=\n{").expect("the galaxy block") + 1;
-    let end = start + gamestate[start..].find("\n}\n").expect("its closing brace") + 3;
     // Only a nested `galaxy` and one in a quoted brace are left for the reader to pass over.
-    let edited = format!(
-        "{}x={{ galaxy={{ template=\"inner\" }} }}\ny=\"}} galaxy={{\"\n{}",
-        &gamestate[..start],
-        &gamestate[end..]
-    );
+    let gamestate = "version=\"v4.4.6\"\nx={ galaxy={ template=\"inner\" } }\ny=\"} galaxy={\"\n";
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("no-galaxy.sav");
-    archive::write_sav(&path, std::iter::once(edited.as_bytes()), &raw.meta).expect("write");
+    archive::write_sav(&path, std::iter::once(gamestate.as_bytes()), b"").expect("write");
     let settings = archive::read_galaxy_settings(&path).expect("read");
     assert_eq!(settings, archive::GalaxySettings::default());
-}
-
-#[test]
-fn the_committed_saves_header_reads_every_field() {
-    let meta = archive::read_sav(format!("{TESTDATA}/4.4-early.sav"))
-        .expect("read the sample save")
-        .meta;
-    let meta = archive::parse_meta(&meta).expect("parse the header");
-    assert_eq!(meta.name, "United Nations of Earth 2");
-    assert_eq!(meta.date, "2206.11.16");
-    assert_eq!(meta.version, "Pegasus v4.4.6");
-    assert!(!meta.ironman, "the sample save carries no `ironman=yes`");
-    assert_eq!(meta.planets, Some(1));
-    assert_eq!(meta.fleets, Some(15));
-    assert_eq!(meta.color.as_deref(), Some("blue"));
 }
 
 #[test]

@@ -15,6 +15,7 @@ import { editResult } from "./fixture";
 import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
 import { useGameDataStore } from "./gameDataStore";
+import { until } from "../test/wait";
 
 /** Save body `page` in system 1, as its page hands it to the pickers. */
 const pickerTarget = (page: PlanetPage) =>
@@ -61,7 +62,7 @@ describe("the deposit picker", () => {
   it("holds an add with warnings until it is asked for again, and drops it on cancel", async () => {
     const store = useDepositPickerStore.getState();
     store.open(pickerTarget(PAGE), "deposits");
-    await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
+    await until(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
     mockedIpc.applyOp.mockResolvedValue(editResult());
     const [row] = depositRows(CHOICES, new Map(), "deposits");
     const warnings = ["The game may demolish 1 district within a month."];
@@ -93,7 +94,7 @@ describe("the deposit picker", () => {
     const store = useDepositPickerStore.getState();
     store.open(pickerTarget(PAGE), "deposits");
     store.setQuery("energy");
-    await vi.waitFor(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
+    await until(() => expect(useDepositPickerStore.getState().choices).not.toBeNull());
     mockedIpc.applyOp.mockResolvedValue(editResult());
     const [row] = depositRows(CHOICES, new Map(), "deposits");
     await store.add(row, row.amounts[1]);

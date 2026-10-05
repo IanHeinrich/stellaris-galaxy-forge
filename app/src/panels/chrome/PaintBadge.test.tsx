@@ -13,6 +13,7 @@ import { useGalaxyStore } from "../../store/galaxyStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { paintModView, workshopLinks } from "../../test/builders";
 import { elements } from "../../test/elements";
+import { until } from "../../test/wait";
 import { PaintBadge } from "./PaintBadge";
 
 const badge = () => renderToStaticMarkup(<PaintBadge />);
@@ -88,9 +89,7 @@ describe("the Paint a Galaxy badge", () => {
 
     const button = elements(<PaintBadge />).find((el) => el.type === "button")!;
     (button.props as { onClick: () => void }).onClick();
-    await vi.waitFor(() =>
-      expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy),
-    );
+    await until(() => expect(ipc.openUrl).toHaveBeenCalledWith(workshopLinks().paint_a_galaxy));
   });
 
   it("does not warn before the shell has answered, since unknown is not missing", () => {

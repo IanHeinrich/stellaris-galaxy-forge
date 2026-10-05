@@ -74,13 +74,12 @@ describe("a colony's page", () => {
     drawnBy(() => render(WORLD));
     const nameField = drawnField(TextField, "Name") as { onCommit(v: string): void };
     nameField.onCommit(" Nova Terra ");
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "RenameBody",
-        body: WORLD,
-        name: { Literal: "Nova Terra" },
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "RenameBody",
+      body: WORLD,
+      name: { Literal: "Nova Terra" },
+    });
     expect(html).toContain("Colony");
     expect(html).toContain('title="Open the empire&#x27;s page"');
     expect(html).toContain("Ti Zru Conservers");
@@ -140,7 +139,8 @@ describe("a colony's removal and a planet's deletion", () => {
       op.type === "RemoveColony" ? refusal : null,
     );
     render(WORLD);
-    await vi.waitFor(() => expect(render(WORLD)).toContain(refusal));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(render(WORLD)).toContain(refusal);
 
     const html = render(WORLD);
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Remove colony<\/button>/);

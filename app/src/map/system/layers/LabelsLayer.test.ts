@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { until } from "../../../test/wait";
 
 vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
 
@@ -20,6 +21,7 @@ import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import { countryNode, saveBody } from "../../../test/builders";
 import { textureFetch } from "../../../test/textures";
 import { systemContext } from "../context";
+import { body, scenario, scenarioSun } from "../contextFixture";
 import {
   EARTH,
   LUNA,
@@ -27,13 +29,15 @@ import {
   SUN,
   context,
   drawOps,
+  fixed,
+  rollOf,
   plateTexts,
   resourceAmounts,
   strokes,
   stubTextMeasurement,
   viewport,
   WORMHOLE,
-} from "../fixture";
+} from "../drawFixture";
 import { drawnWormhole } from "../geometry";
 import { NO_SOURCES } from "../sources";
 import { LabelsLayer } from "./LabelsLayer";
@@ -73,6 +77,15 @@ describe("the system scene's labels layer", () => {
       .flatMap((holder) => holder.children)
       .filter((c) => c.label === label);
 
+  /** The shown holder of the plate for body `id`. */
+  const holderOf = (layer: LabelsLayer, id: number) => {
+    const plate = layer.plates().find((p) => p.id === id);
+    if (!plate) throw new Error(`no plate for ${id}`);
+    return shown(layer).find(
+      (h) => h.position.x === plate.x && h.position.y === plate.y,
+    ) as Container;
+  };
+
   const amounts = (layer: LabelsLayer) =>
     shown(layer).flatMap((h) => resourceAmounts(h as Container));
 
@@ -93,7 +106,6 @@ describe("the system scene's labels layer", () => {
   });
 
   it("centres each name's plate under its body, a dark translucent wash", () => {
-    clearTextures();
     const layer = new LabelsLayer();
     layer.rebuild(labelled({ labels: true, details: false }));
     const cam = viewport(layer, 2);
@@ -112,12 +124,10 @@ describe("the system scene's labels layer", () => {
       expect(fill.color).toBe(0x000000);
       expect(fill.alpha).toBeLessThan(1);
     }
-    clearTextures();
     layer.destroy();
   });
 
   it("marks a colonised body's plate in its owner's colour, and no other plate", () => {
-    clearTextures();
     const owner = 7;
     const colour = 0x3366cc;
     const colony = { ...MINED, colonised: true, owner };
@@ -142,12 +152,10 @@ describe("the system scene's labels layer", () => {
       g instanceof Graphics ? drawOps(g).filter((op) => op.action === "fill") : [],
     );
     expect(fills.filter((fill) => fill.color === colour)).toHaveLength(1);
-    clearTextures();
     layer.destroy();
   });
 
   it("shows plates alone, plates with resources, resources alone, or nothing, as Labels and Details are set", () => {
-    clearTextures();
     const layer = new LabelsLayer();
     viewport(layer, 2);
     const drawn = (labels: boolean, details: boolean) => {
@@ -179,21 +187,15 @@ describe("the system scene's labels layer", () => {
       picks: [MINED.id],
     });
     expect(drawn(false, false)).toEqual({ plates: 0, names: 0, amounts: [], picks: [] });
-    clearTextures();
     layer.destroy();
   });
 
   it("borders the selected body's plate in the selection colour, and no other", () => {
-    clearTextures();
     const layer = new LabelsLayer();
     layer.rebuild(labelled({ labels: true, details: false }));
     viewport(layer, 2);
     const edgeOf = (id: number) => {
-      const plate = layer.plates().find((p) => p.id === id);
-      const holder = shown(layer).find(
-        (h) => h.position.x === plate?.x && h.position.y === plate?.y,
-      );
-      const g = holder?.children.find((c) => c.label === "plate");
+      const g = holderOf(layer, id).children.find((c) => c.label === "plate");
       if (!(g instanceof Graphics)) throw new Error(`no plate for ${id}`);
       return strokes(g)[0]?.color;
     };
@@ -203,7 +205,6 @@ describe("the system scene's labels layer", () => {
 
     layer.setHighlighted(NO_HIGHLIGHT);
     expect(edgeOf(MINED.id)).not.toBe(ACCENT_COLOR);
-    clearTextures();
     layer.destroy();
   });
 
@@ -223,9 +224,7 @@ describe("the system scene's labels layer", () => {
   const markSprites = (layer: LabelsLayer, cam: Camera, id: number) => {
     const plate = layer.plates().find((p) => p.id === id);
     if (!plate) throw new Error(`no plate for ${id}`);
-    const holder = shown(layer).find(
-      (h) => h.position.x === plate.x && h.position.y === plate.y,
-    ) as Container;
+    const holder = holderOf(layer, id);
     const over = holder.children.find((c) => c.label === "marks") as Container;
     const k = Math.abs(holder.scale.x) * cam.scale;
     const top = cam.worldToScreen(plate.x, plate.y);
@@ -244,7 +243,6 @@ describe("the system scene's labels layer", () => {
   };
 
   it("draws a marked body's label at the galaxy row's size, a marked moon's smaller, and a plain body's as before", async () => {
-    clearTextures();
     const textureFor = decodeAll();
     const empire = countryNode({
       id: 9,
@@ -264,13 +262,6 @@ describe("the system scene's labels layer", () => {
         sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details },
         countries: new Map([[empire.id, empire]]),
       });
-    const holderOf = (layer: LabelsLayer, id: number) => {
-      const plate = layer.plates().find((p) => p.id === id);
-      if (!plate) throw new Error(`no plate for ${id}`);
-      return shown(layer).find(
-        (h) => h.position.x === plate.x && h.position.y === plate.y,
-      ) as Container;
-    };
     const nameSize = (layer: LabelsLayer, id: number) => {
       const name = holderOf(layer, id).children.find((c) => c.label === "name");
       if (!(name instanceof BitmapText)) throw new Error(`no name for ${id}`);
@@ -303,7 +294,7 @@ describe("the system scene's labels layer", () => {
 
     const flag = textureFor(empireFlagKey(empire) ?? "");
     const preFtl = textureFor(PRE_FTL_ICON_KEY);
-    await vi.waitFor(() => {
+    await until(() => {
       expect(sprites(layer, capital.id).map((s) => s.texture)).toContain(flag);
       expect(sprites(layer, natives.id).map((s) => s.texture)).toContain(preFtl);
     });
@@ -326,7 +317,6 @@ describe("the system scene's labels layer", () => {
   });
 
   it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
-    clearTextures();
     const textureFor = decodeAll();
     const natives = { ...EARTH, colonised: true, owner: 10, pre_ftl: true };
     const holding = { ...natives, anomaly: "AIANOM_RESEARCHDEPO_CAT" };
@@ -352,7 +342,7 @@ describe("the system scene's labels layer", () => {
       ANOMALY_ICON_KEY,
       PRE_FTL_ICON_KEY,
     ].map(textureFor);
-    await vi.waitFor(() => expect(earth.sprites().map((s) => s.texture)).toEqual(icons));
+    await until(() => expect(earth.sprites().map((s) => s.texture)).toEqual(icons));
 
     const tipOver = (sprite: Sprite, body = EARTH.id) => {
       const at = earth.pointOver(sprite);
@@ -370,7 +360,6 @@ describe("the system scene's labels layer", () => {
   });
 
   it("gives no mark tooltip for a body other than the one hovered, whose disc may lie under another's plate", async () => {
-    clearTextures();
     const textureFor = decodeAll();
     const holding = { ...EARTH, anomaly: "time_loop_world" };
     const layer = new LabelsLayer();
@@ -382,7 +371,7 @@ describe("the system scene's labels layer", () => {
     );
     const cam = viewport(layer, 2);
     const earth = markSprites(layer, cam, EARTH.id);
-    await vi.waitFor(() =>
+    await until(() =>
       expect(earth.sprites().map((s) => s.texture)).toEqual([textureFor(ANOMALY_ICON_KEY)]),
     );
     const at = earth.pointOver(earth.sprites()[0]);
@@ -392,7 +381,6 @@ describe("the system scene's labels layer", () => {
   });
 
   it("names a flag's owner as the context now does after a change that leaves the labels standing", async () => {
-    clearTextures();
     const textureFor = decodeAll();
     const empire = countryNode({
       id: 9,
@@ -425,7 +413,7 @@ describe("the system scene's labels layer", () => {
     const cam = viewport(layer, 2);
     const flag = textureFor(empireFlagKey(empire) ?? "");
     const earth = markSprites(layer, cam, EARTH.id);
-    await vi.waitFor(() => expect(earth.sprites().map((s) => s.texture)).toContain(flag));
+    await until(() => expect(earth.sprites().map((s) => s.texture)).toContain(flag));
     const flagTitle = () => {
       const sprite = earth.sprites().find((s) => s.texture === flag);
       if (!sprite) throw new Error("no flag");
@@ -442,7 +430,6 @@ describe("the system scene's labels layer", () => {
   });
 
   it("draws the resource row under the body, where the plate would be, while Labels is off", () => {
-    clearTextures();
     const layer = new LabelsLayer();
     layer.rebuild(labelled({ labels: false, details: true }));
     const cam = viewport(layer, 2);
@@ -452,7 +439,6 @@ describe("the system scene's labels layer", () => {
     const top = cam.worldToScreen(row.x, row.y);
     expect(top.x + row.w / 2).toBeCloseTo(earthAt.x);
     expect(top.y).toBeGreaterThan(earthAt.y);
-    clearTextures();
     layer.destroy();
   });
 });
@@ -485,6 +471,30 @@ describe("the system scene's labels layer at wormholes", () => {
     const unnamed = { ...ctx.sceneLayers, labels: false };
     layer.rebuild(systemContext({ ...ctx, sceneLayers: unnamed }));
     expect(plateTexts(layer.container, "name")).toEqual([]);
+    layer.destroy();
+  });
+
+  it("gives each body a count spawns one plate, showing its deposits once", () => {
+    const twin = (id: number) => ({
+      ...body(id, "pc_barren", { orbit: fixed(45) }),
+      deposits: [
+        { resource: "food", amount: 3 },
+        { resource: "energy", amount: 1 },
+      ],
+    });
+    const planets = [scenarioSun, twin(2), twin(3)];
+    const ctx = scenario(planets, rollOf(planets, { 2: 0, 3: 180 }));
+    const layer = new LabelsLayer();
+    layer.rebuild(ctx);
+    viewport(layer, 2);
+    const labelled = (holder: Container, label: string) =>
+      holder.children.filter((c) => c.label === label).length;
+    const holders = layer.container.children as Container[];
+    expect(holders.map((h) => [labelled(h, "plate"), resourceAmounts(h).length])).toEqual([
+      [1, 0],
+      [1, 2],
+      [1, 2],
+    ]);
     layer.destroy();
   });
 });

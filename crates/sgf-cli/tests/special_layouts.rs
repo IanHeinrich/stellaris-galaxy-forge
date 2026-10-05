@@ -3,7 +3,7 @@ use crate::common::{SAMPLE_4_5, ok, sgf, stdout, without_install};
 
 #[test]
 fn special_layouts_lists_the_menus_layouts_with_what_the_save_holds() {
-    let listed = sgf(&["special-layouts", SAMPLE_4_5]);
+    let listed = sgf(&["special-layouts", SAMPLE_4_5, "--no-mods"]);
     if without_install(&listed) {
         return;
     }

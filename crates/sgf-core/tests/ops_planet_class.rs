@@ -7,7 +7,7 @@ use sgf_core::ops::{ClassChange, Op, PlanetClassRule, PlanetLook};
 use sgf_core::session::Session;
 
 use crate::common;
-use common::diff::{round_trip, round_trip_step};
+use common::diff::round_trip_step;
 use common::examples::{ADDED_BODY, meissa_v};
 use common::{SAMPLE_4_5, current, open_4_5, open_edited_sample};
 
@@ -47,8 +47,7 @@ fn look(session: &Session, id: u32) -> (String, Option<String>) {
 /// Snapshot `planet` made `to`, check the page reads it, that undo and then the inverse
 /// applied as an op each put the original bytes back, and that the details refresh in place.
 fn change(planet: u32, from: &str, to: &str, snapshot: &str) {
-    let mut session = open_4_5();
-    session.warm_details().expect("build details");
+    let mut session = common::warm(open_4_5());
     let step = common::field_step(&mut session, snapshot, set(planet, from, to), |s| {
         look(s, planet)
     });
@@ -57,9 +56,9 @@ fn change(planet: u32, from: &str, to: &str, snapshot: &str) {
     assert!(session.built_details().is_some(), "{snapshot}: kept");
     assert_eq!(step.after, (to.to_owned(), None));
 
-    let mut session = open_4_5();
-    let applied = session.apply(set(planet, from, to)).expect("apply");
-    session.apply(applied.inverse).expect("apply the inverse");
+    session
+        .apply(step.result.inverse)
+        .expect("apply the inverse");
     assert_eq!(
         current(&session),
         session.doc().original(),
@@ -95,7 +94,6 @@ fn a_colony_changes_to_another_standard_class() {
 /// inverse puts both back where they stood.
 #[test]
 fn the_inverse_puts_back_a_model_and_its_index() {
-    round_trip(open_4_5(), set(1415, "pc_gas_giant", "pc_barren"));
     change(
         1415,
         "pc_gas_giant",

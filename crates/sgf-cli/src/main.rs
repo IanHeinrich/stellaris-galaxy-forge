@@ -159,13 +159,11 @@ fn run(cli: Cli) -> commands::Run {
         Some(Command::Gamedata {
             install,
             lang,
-            no_mods,
             report,
             limit,
         }) => {
             let opts = LoadOptions {
                 language: lang,
-                mods: !no_mods,
                 ..install.options()
             };
             if report {

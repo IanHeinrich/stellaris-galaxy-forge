@@ -96,9 +96,8 @@ describe("a planet with no page of its own", () => {
     await open("save");
     vi.mocked(ipc.getPlanetPage).mockRejectedValueOnce(new Error("planet #100 not found"));
     useEntityStore.getState().requestPlanetPage(WORLD);
-    await vi.waitFor(() =>
-      expect(useEntityStore.getState().errors.has(planetPageKey(WORLD))).toBe(true),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useEntityStore.getState().errors.has(planetPageKey(WORLD))).toBe(true);
 
     const html = render(WORLD);
     expect(html).not.toContain("Deposits");
@@ -161,64 +160,57 @@ describe.each(KINDS)("a $kind body's shared fields", ({ kind, edits }) => {
     }
   }
 
-  it("heads the page with the body's name, and a save's entity id", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(html).toContain('<span class="name">Nekkar I</span>');
-    expect(html.includes(`#${WORLD}`)).toBe(edits);
-  });
-
-  it("shows its class, as a field where the document edits classes", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(html.includes('<span class="edit-label">Class</span>')).toBe(edits);
-    expect(html.includes('<span class="k">Class</span><span>Arctic World</span>')).toBe(!edits);
-  });
-
-  it("shows its size, as a field where the document edits sizes", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(/<input type="number"[^>]*aria-label="Size"[^>]*value="16"/.test(html)).toBe(edits);
-    expect(/<span class="k">Size<\/span><span><span class="sz">.*16<\/span>/.test(html)).toBe(
-      !edits,
-    );
-  });
-
-  it("shows its ring, as a checkbox where the document edits rings", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(html.includes('<input type="checkbox" checked=""/>Ring</label>')).toBe(edits);
-    expect(html.includes('<span class="k">Ring</span><span>Yes</span>')).toBe(!edits);
-  });
-
-  it("shows its orbit, as fields where the document moves bodies", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(/<input type="number"[^>]*aria-label="Orbit radius"[^>]*value="60"/.test(html)).toBe(
-      edits,
-    );
-    expect(html.includes('<span class="k">Orbit radius</span><span>60</span>')).toBe(!edits);
-    expect(html).toContain('title="Open the system&#x27;s page"');
-  });
-
-  it("lists its deposits by type, each removable where the document edits deposits", async () => {
-    await arm();
-    const html = render(WORLD);
-    expect(html).toContain("Deposits · 2");
-    expect(html).toContain('<span class="l1 mono">d_mineral_fields</span>');
-    expect(html).toContain("×2");
-    expect(html.includes('aria-label="Remove d_mineral_fields"')).toBe(edits);
-    expect(html.includes("+ Add deposit…")).toBe(edits);
-  });
-
-  it("lists its moons, each opening its own page", async () => {
+  it("heads the page, and shows the class, size, ring, orbit, deposits and moons", async () => {
     await arm();
     const html = drawnBy(() => render(WORLD));
-    expect(html).toContain("Moons · 1");
-    expect(html).toContain("Nekkar I a");
+
+    expect(html, "name").toContain('<span class="name">Nekkar I</span>');
+    expect(html.includes(`#${WORLD}`), "entity id").toBe(edits);
+
+    expect(html.includes('<span class="edit-label">Class</span>'), "class field").toBe(edits);
+    expect(
+      html.includes('<span class="k">Class</span><span>Arctic World</span>'),
+      "class row",
+    ).toBe(!edits);
+
+    expect(
+      /<input type="number"[^>]*aria-label="Size"[^>]*value="16"/.test(html),
+      "size field",
+    ).toBe(edits);
+    expect(
+      /<span class="k">Size<\/span><span><span class="sz">.*16<\/span>/.test(html),
+      "size row",
+    ).toBe(!edits);
+
+    expect(html.includes('<input type="checkbox" checked=""/>Ring</label>'), "ring box").toBe(
+      edits,
+    );
+    expect(html.includes('<span class="k">Ring</span><span>Yes</span>'), "ring row").toBe(!edits);
+
+    expect(
+      /<input type="number"[^>]*aria-label="Orbit radius"[^>]*value="60"/.test(html),
+      "orbit field",
+    ).toBe(edits);
+    expect(html.includes('<span class="k">Orbit radius</span><span>60</span>'), "orbit row").toBe(
+      !edits,
+    );
+    expect(html, "system link").toContain('title="Open the system&#x27;s page"');
+
+    expect(html, "deposit count").toContain("Deposits · 2");
+    expect(html, "deposit type").toContain('<span class="l1 mono">d_mineral_fields</span>');
+    expect(html, "deposit multiple").toContain("×2");
+    expect(html.includes('aria-label="Remove d_mineral_fields"'), "deposit remove").toBe(edits);
+    expect(html.includes("+ Add deposit…"), "Add deposit").toBe(edits);
+
+    expect(html, "moon count").toContain("Moons · 1");
+    expect(html, "moon name").toContain("Nekkar I a");
     (lastDrawn((el) => el.type === DrillRow, "the moon's row") as { onOpen(): void }).onOpen();
     const { stack } = useInspectorStore.getState();
-    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: MOON });
+    expect(stack[stack.length - 1].ref, "moon page").toEqual({
+      kind: "body",
+      system: SYSTEM,
+      id: MOON,
+    });
   });
 });
 

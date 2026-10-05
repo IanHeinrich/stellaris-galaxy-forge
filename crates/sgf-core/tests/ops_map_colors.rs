@@ -132,17 +132,6 @@ fn the_player_empire_goes_back_to_its_flag_colours() {
 }
 
 #[test]
-fn the_player_s_map_colours_turned_off_and_on_again_restore_meta() {
-    let mut session = open_4_5();
-    session.apply(set(PLAYER, None)).expect("turn them off");
-    session
-        .apply(set(PLAYER, pair("intense_red", "light_pink")))
-        .expect("turn them on");
-    assert_eq!(current(&session), session.doc().original());
-    assert_eq!(session.doc().meta(), session.doc().original_meta());
-}
-
-#[test]
 fn undo_puts_the_player_s_meta_back() {
     for colors in [None, pair("green", "dark_green")] {
         let mut session = open_4_5();

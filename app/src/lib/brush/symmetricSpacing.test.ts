@@ -16,8 +16,17 @@ const SYMMETRIES: Symmetry[] = [
   { kind: "rotate", n: 8 },
 ];
 
-function has(points: readonly Pt[], p: Pt): boolean {
-  return points.some((q) => Math.abs(q.x - p.x) < 1e-9 && Math.abs(q.y - p.y) < 1e-9);
+const keyOf = (p: Pt): string => `${Math.round(p.x * 1e6)},${Math.round(p.y * 1e6)}`;
+
+function minDistance(points: readonly Pt[], others: readonly Pt[] = points): number {
+  let min = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const from = others === points ? i + 1 : 0;
+    for (let j = from; j < others.length; j++) {
+      min = Math.min(min, Math.hypot(points[i].x - others[j].x, points[i].y - others[j].y));
+    }
+  }
+  return min;
 }
 
 /** `base` replicated under `sym`, keeping each base point that fits beside those kept before it. */
@@ -45,16 +54,13 @@ describe("symmetricPoints", () => {
     const { base: kept, points } = symmetricPoints(base, sym, SPACING, BLOCKERS);
     expect(kept.length).toBeGreaterThan(0);
     expect(points).toHaveLength(kept.length * copies(sym));
-    for (const p of points) for (const q of images(p, sym)) expect(has(points, q)).toBe(true);
-    for (let i = 0; i < points.length; i++) {
-      for (let j = i + 1; j < points.length; j++) {
-        const d = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
-        expect(d).toBeGreaterThanOrEqual(SPACING);
-      }
-      for (const b of BLOCKERS) {
-        expect(Math.hypot(points[i].x - b.x, points[i].y - b.y)).toBeGreaterThanOrEqual(SPACING);
-      }
-    }
+    const present = new Set(points.map(keyOf));
+    const missing = points.flatMap((p) => images(p, sym)).filter((q) => !present.has(keyOf(q)));
+    expect(missing, "images missing from the points").toEqual([]);
+    expect(minDistance(points), "closest pair of points").toBeGreaterThanOrEqual(SPACING);
+    expect(minDistance(points, BLOCKERS), "closest point to a blocker").toBeGreaterThanOrEqual(
+      SPACING,
+    );
   });
 
   it("drops base points whose images crowd each other at the centre or on the mirror axis", () => {

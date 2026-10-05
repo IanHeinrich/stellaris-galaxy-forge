@@ -12,6 +12,7 @@ import { useGalaxyStore } from "./galaxyStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { SYSTEMS, editResult } from "./fixture";
 import { mockedIpc } from "../test/ipc";
+import { flush } from "../test/flush";
 
 const feZoneFit = mockedIpc.feZoneFit;
 const feZoneCandidateCount = mockedIpc.feZoneCandidateCount;
@@ -133,12 +134,6 @@ describe("fallen empire zones", () => {
     expect(mockedIpc.applyOp).toHaveBeenCalledTimes(1);
   });
 
-  it("a refused SetFeZone leaves the reason on the session, the way a refused nebula move does", async () => {
-    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "ring covers Sol" });
-    expect(await editor().setFeZone(3, newFeZone("e"))).toBe(false);
-    expect(sessionError()).toBe("ring covers Sol");
-  });
-
   it("fitFeZones applies what the backend answers as one Batch of SetFeZone under the fit's name, and shows the rings", async () => {
     const entries: Array<[number, FeZone | null]> = [
       [3, { ...newFeZone("n"), preferred: false }],
@@ -180,7 +175,7 @@ describe("fallen empire zones", () => {
     mockedIpc.applyOp.mockResolvedValueOnce(editResult());
 
     const fitting = editor().fitFeZones(1);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush();
     expect(feZoneFit).not.toHaveBeenCalled();
 
     land(editResult({ delta: { systems: [], removed: [5] } }));

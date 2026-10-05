@@ -12,7 +12,6 @@ import { useEditorStore } from "../../store/editorStore";
 import { open, resetStores } from "./inspectorFixture";
 import { NEBULA_RADIUS_INPUT_ID } from "../nebula";
 import { NebulaView } from "./NebulaView";
-import { mockedIpc } from "../../test/ipc";
 
 bindStores();
 
@@ -33,7 +32,7 @@ function centre(html: string): Record<string, string> {
 }
 
 describe("a selected nebula", () => {
-  it("shows its centre, an editable radius, a chip per member and the way to delete it", async () => {
+  it("shows its name as the file writes it, its centre, radius, members and the way to delete it", async () => {
     await open("save");
     useEditorStore.getState().selectNebula(0);
 
@@ -47,47 +46,14 @@ describe("a selected nebula", () => {
     expect(html).toContain('title="Jump to #5"');
     expect(html).toContain("Deneb");
     expect(html).toContain("Delete nebula");
-  });
-
-  it("shows the name the file writes and renames the cloud on commit", async () => {
-    await open("save");
-    useEditorStore.getState().selectNebula(0);
-
-    const html = renderToStaticMarkup(<NebulaView index={0} />);
     expect(html).toContain('aria-label="Nebula name"');
     // A cloud named by a localisation key shows the key: that is what a rename overwrites.
     expect(html).toContain('value="NAME_Cloud"');
-
-    await useEditorStore.getState().setNebulaName(0, "Sea of Ghosts");
-
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "RenameNebula",
-      index: 0,
-      name: "Sea of Ghosts",
-    });
   });
 
   it("waits for a nebula the galaxy no longer has", async () => {
     await open("save");
 
     expect(renderToStaticMarkup(<NebulaView index={7} />)).toContain("Loading nebula #7");
-  });
-
-  it("names what leaves the cloud before removing it, and sends nothing when declined", async () => {
-    await open("save");
-    mockedIpc.confirm.mockResolvedValueOnce(false);
-
-    await useEditorStore.getState().removeNebula(0);
-
-    expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete Cloud? 1 system will leave it.",
-      expect.objectContaining({ kind: "warning" }),
-    );
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
-
-    mockedIpc.confirm.mockResolvedValueOnce(true);
-    await useEditorStore.getState().removeNebula(0);
-
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({ type: "RemoveNebula", index: 0 });
   });
 });

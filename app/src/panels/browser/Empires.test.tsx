@@ -7,6 +7,7 @@ vi.mock("../../api/events");
 // The row emblems come from the map's texture cache, which no test renderer can fill.
 vi.mock("../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../test/drawn"));
 
 import { bindStores } from "../../store/bindStores";
 import { useFileSessionStore } from "../../store/fileSessionStore";
@@ -15,6 +16,7 @@ import { useGameDataStore } from "../../store/gameDataStore";
 import { useInspectorStore } from "../../store/inspectorStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { armSession, resetStores } from "../../store/storeFixture";
+import { drawnBy, drawnButton } from "../../test/drawn";
 import { openWith } from "../../test/session";
 import { Empires } from "./Empires";
 import { mockedIpc } from "../../test/ipc";
@@ -41,45 +43,37 @@ async function openScenarioWithOwners(): Promise<void> {
 const empires = () => renderToStaticMarkup(<Empires />);
 
 describe("a scenario's territory rows", () => {
-  it("badges the day-one territory but not the generation one", async () => {
+  it("badges the day-one territory, marks where each comes from, and counts and explains them", async () => {
     await openScenarioWithOwners();
 
     const html = empires();
-    expect(html).toContain("Fixture Empire");
-    expect(html).toContain("Fixture Day One Empire");
+    expect(html, "generation row").toContain("Fixture Empire");
+    expect(html, "day-one row").toContain("Fixture Day One Empire");
     // Two rows, and only the day-one one carries a badge of each kind.
-    expect(html.match(/class="chip src" title="Claimed on day one/g)).toHaveLength(1);
-    expect(html.match(/class="chip warn" title="A claim whose conditions/g)).toHaveLength(1);
-    expect(html).toContain(">day 1<");
-    expect(html).toContain(">assumed<");
-  });
+    expect(html.match(/class="chip src" title="Claimed on day one/g), "day-one badge").toHaveLength(
+      1,
+    );
+    expect(
+      html.match(/class="chip warn" title="A claim whose conditions/g),
+      "assumed badge",
+    ).toHaveLength(1);
+    expect(html, "day-one chip").toContain(">day 1<");
+    expect(html, "assumed chip").toContain(">assumed<");
 
-  it("marks where each territory comes from: the initializers, or the scripts on day one", async () => {
-    await openScenarioWithOwners();
-
-    const html = empires();
     expect(
       html.match(/class="chip init" title="These systems are claimed at generation/g),
+      "initializers source",
     ).toHaveLength(1);
     expect(
       html.match(/class="chip src" title="These systems are claimed on day one/g),
+      "scripts source",
     ).toHaveLength(1);
-    expect(html).toContain(">initializers<");
-    expect(html).toContain(">scripts<");
-  });
+    expect(html, "initializers chip").toContain(">initializers<");
+    expect(html, "scripts chip").toContain(">scripts<");
 
-  it("shows the day-one and assumed counts under the list", async () => {
-    await openScenarioWithOwners();
-
-    expect(empires()).toContain("1 claimed on day one · 1 assumed");
-  });
-
-  it("shows the rewritten legend copy", async () => {
-    await openScenarioWithOwners();
-
-    const html = empires();
-    expect(html).toContain("Territories are the systems the scripts hand out");
-    expect(html).toContain("marked assumed");
+    expect(html, "counts").toContain("1 claimed on day one · 1 assumed");
+    expect(html, "legend").toContain("Territories are the systems the scripts hand out");
+    expect(html, "legend's assumed").toContain("marked assumed");
   });
 });
 
@@ -110,13 +104,11 @@ describe("a save's empire rows", () => {
       tab: "data",
     });
 
-    const html = empires();
+    const html = drawnBy(empires);
     expect(html).toContain('aria-label="Open Test Empire&#x27;s page"');
     expect(html).not.toContain("Map colours");
 
-    useInspectorStore
-      .getState()
-      .openPage({ ref: { kind: "country", id: 7 }, label: "Test Empire" });
+    drawnButton("Open Test Empire's page").onClick();
     const { stack, tab } = useInspectorStore.getState();
     expect(stack.map((e) => e.label)).toEqual(["Sol", "Test Empire"]);
     expect(stack[1].ref).toEqual({ kind: "country", id: 7 });

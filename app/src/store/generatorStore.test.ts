@@ -10,6 +10,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { loadGameData } from "./gameDataFixture";
 import { useGeneratorStore } from "./generatorStore";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 const getAddSystemPicks = mockedIpc.getAddSystemPicks;
 
@@ -51,12 +52,12 @@ describe("the Add system menu's picks", () => {
     const generator = () => useGeneratorStore.getState();
 
     generator().refreshPicks();
-    await vi.waitFor(() => expect(generator().picks?.random.planets.max).toBe(1));
+    await until(() => expect(generator().picks?.random.planets.max).toBe(1));
     generator().refreshPicks();
     await Promise.resolve();
     expect(generator().picks?.random.planets.max).toBe(1);
     generator().refreshPicks();
-    await vi.waitFor(() => expect(generator().picks?.random.planets.max).toBe(3));
+    await until(() => expect(generator().picks?.random.planets.max).toBe(3));
     answerSecond(picks(2));
     await Promise.resolve();
 
@@ -66,7 +67,7 @@ describe("the Add system menu's picks", () => {
   it("are forgotten when the document closes", async () => {
     getAddSystemPicks.mockResolvedValueOnce(picks(1));
     useGeneratorStore.getState().refreshPicks();
-    await vi.waitFor(() => expect(useGeneratorStore.getState().picks).not.toBeNull());
+    await until(() => expect(useGeneratorStore.getState().picks).not.toBeNull());
 
     await useFileSessionStore.getState().close();
 

@@ -61,7 +61,7 @@ describe("the issues tab and the map", () => {
     expect(issuesLayer()).toBe(true);
     layout().setTab("changes");
     expect(issuesLayer()).toBe(false);
-    expect(stored.get("sgf.layers.issues")).toBeUndefined();
+    expect(stored.get(PREF_KEYS.layers)).toBeUndefined();
   });
 
   it("leaves a layer pinned on from the Layers menu while the tab is open", () => {

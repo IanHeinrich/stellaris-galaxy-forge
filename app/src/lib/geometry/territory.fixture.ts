@@ -197,11 +197,12 @@ function buildSystems(
 
 /**
  * A late-game galaxy: ~1000 laned systems, ~34 contiguous countries of which the largest
- * holds ~100 systems and several 50 or more, ~15% unowned.
+ * holds ~100 systems and several 50 or more, ~15% unowned. A smaller `radius` gives fewer
+ * systems shared among the same countries.
  */
-export function buildGalaxy(): Galaxy {
+export function buildGalaxy(radius = GALAXY_RADIUS): Galaxy {
   const rand = seeded(GALAXY_SEED);
-  const points = scatterSystems(rand, GALAXY_RADIUS, MIN_SPACING);
+  const points = scatterSystems(rand, radius, MIN_SPACING);
   const graph = buildLaneGraph(points, rand);
   const owner = assignCountries(graph, rand, COUNTRY_COUNT, UNOWNED_FRACTION);
   const systems = buildSystems(points, graph, owner);

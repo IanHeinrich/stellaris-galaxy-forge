@@ -77,13 +77,12 @@ describe("a save system's belts", () => {
     ]);
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove belt 2").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-        type: "RemoveBelt",
-        system: BELTED.id,
-        index: 1,
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
+      type: "RemoveBelt",
+      system: BELTED.id,
+      index: 1,
+    });
   });
 
   it("keeps a refused inner radius to the page, out of the status bar", async () => {

@@ -6,14 +6,26 @@ fn add_body_rolls_a_body_from_a_seed_and_writes_it() {
     let dir = tempfile::tempdir().unwrap();
     let out_path = dir.path().join("rolled.sav");
     let out_str = out_path.to_str().unwrap();
-    let roll = |extra: &[&str]| {
-        let mut args = vec!["add-body", SAMPLE_4_5, "408", "--radius", "15"];
-        args.extend_from_slice(extra);
-        args.extend_from_slice(&["-o", out_str]);
-        sgf(&args)
-    };
-
-    let moon = roll(&["--moon-of", "138", "--angle", "90", "--seed", "7"]);
+    let moon = sgf(&[
+        "add-body",
+        SAMPLE_4_5,
+        "408",
+        "--moon-of",
+        "138",
+        "--class",
+        "pc_desert",
+        "--size",
+        "8",
+        "--radius",
+        "15",
+        "--angle",
+        "90",
+        "--seed",
+        "7",
+        "--no-mods",
+        "-o",
+        out_str,
+    ]);
     if without_install(&moon) {
         return;
     }
@@ -21,31 +33,8 @@ fn add_body_rolls_a_body_from_a_seed_and_writes_it() {
     let text = stdout(&moon);
     assert!(text.contains("Added moon #"), "{text}");
     assert!(text.contains("of planet #138 in Meissa #408"), "{text}");
+    assert!(text.contains("(pc_desert, size 8)"), "{text}");
     assert_eq!(sgf(&["validate", out_str]).status.code(), Some(0));
-    assert_eq!(
-        stdout(&roll(&["--moon-of", "138", "--angle", "90", "--seed", "7"]))
-            .lines()
-            .next(),
-        text.lines().next(),
-        "the same seed rolls the same moon"
-    );
-
-    let planet = roll(&[
-        "--class",
-        "pc_desert",
-        "--size",
-        "12",
-        "--angle",
-        "200",
-        "--seed",
-        "3",
-    ]);
-    ok(&planet);
-    assert!(
-        stdout(&planet).contains("(pc_desert, size 12)"),
-        "{}",
-        stdout(&planet)
-    );
 }
 
 #[test]

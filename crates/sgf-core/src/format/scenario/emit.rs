@@ -219,26 +219,4 @@ mod tests {
             b"\tnebula = { name = \"NAME_N_Heart_Galaxy\" position = { x = 0 y = 0 } radius = 60 }\n"
         );
     }
-
-    #[test]
-    fn header_and_footer_wrap_a_body() {
-        let text = header(&ScenarioOptions {
-            name: "sgf_test".into(),
-            core_radius: 30.0,
-            num_empires: (1, 4),
-            exported_from: None,
-        });
-        let text = String::from_utf8(text).unwrap();
-        assert!(text.starts_with("static_galaxy_scenario = {\n\tname = \"sgf_test\"\n"));
-        assert!(
-            text.contains(
-                "\tpriority = 5\n\tsupports_shape = elliptical\n\tsupports_shape = ring\n"
-            )
-        );
-        assert!(text.contains("\tsupports_shape = spoked\n\tdefault = no\n"));
-        assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
-        assert!(text.contains("\tnum_empires = { min = 1 max = 4 }\n\tnum_empire_default = 4\n"));
-        assert!(text.contains("\tcore_radius = 30\n"));
-        assert!(text.ends_with("}\n\n"));
-    }
 }

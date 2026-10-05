@@ -2,7 +2,7 @@ import type { Sprite } from "pixi.js";
 import { describe, expect, it } from "vitest";
 import type { BeltLook } from "../../../generated/BeltLook";
 import { EMPTY_SYSTEM_CONTEXT, type SceneBelt, type SystemContext } from "../context";
-import { blankSceneTextures, context, viewport } from "../fixture";
+import { blankSceneTextures, context, viewport } from "../drawFixture";
 import { BeltsLayer, MAX_ROCKS } from "./BeltsLayer";
 import type { BeltTextures } from "./textures";
 

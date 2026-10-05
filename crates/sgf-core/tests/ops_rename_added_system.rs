@@ -55,7 +55,7 @@ fn the_system_and_every_body_named_after_it_take_the_new_name() {
         let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let old = spike.name.clone();
         let held = keyed(&session, &old);
-        round_trip_step(&mut session, "add", add(spike.clone()));
+        session.apply(add(spike.clone())).expect("add");
         let bodies = 1 + spike
             .planets
             .iter()
@@ -113,7 +113,7 @@ fn rename_then_remove_gives_back_the_file_as_opened() {
     for sample in &SAMPLES {
         let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let pooled_name = free_name(&session, &spike);
-        round_trip_step(&mut session, "add", add(spike.clone()));
+        session.apply(add(spike.clone())).expect("add");
         round_trip_step(&mut session, "rename", rename(id, &pooled_name));
         let mut again = rerolled(spike);
         again.name = pooled_name;
@@ -188,7 +188,7 @@ fn a_belted_system_keeps_its_asteroid_names_and_renames_every_other_body() {
     for sample in &SAMPLES {
         let (mut session, spike, id) = ((sample.open)(), (sample.spike)(), sample.id);
         let old = format!("{:?}", spike.name);
-        round_trip_step(&mut session, "add", add(belted(spike)));
+        session.apply(add(belted(spike))).expect("add");
         let before = body_names(&session, id);
         assert_eq!(before.iter().filter(|(_, asteroid)| *asteroid).count(), 4);
         round_trip_step(&mut session, "rename", rename(id, UNPOOLED));

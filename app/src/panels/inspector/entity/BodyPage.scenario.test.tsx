@@ -272,7 +272,8 @@ describe("a scenario body's page", () => {
     await land(details({ planets: [saved] }));
     mockedIpc.getPlanetPage.mockResolvedValue(planetPage({ id: 100 }));
     useEntityStore.getState().requestPlanetPage(100);
-    await vi.waitFor(() => expect(useEntityStore.getState().pages.has(100)).toBe(true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useEntityStore.getState().pages.has(100)).toBe(true);
 
     const html = page(100, "Tarkin");
     expect(html).toContain("Orbit radius");

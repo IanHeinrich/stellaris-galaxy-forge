@@ -20,6 +20,7 @@ import { escaped, shown } from "../../../test/elements";
 import { mockedIpc } from "../../../test/ipc";
 import { open, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { BodySelectionView } from "./BodySelectionView";
+import { flush } from "../../../test/flush";
 
 bindStores();
 
@@ -28,7 +29,6 @@ const [KORTOL, GIANT, GIANT_A, GIANT_B, URAY, URAY_A] = [20, 21, 22, 23, 24, 25]
 const ENTRY: Entry = { ref: { kind: "bodies", system: SYSTEM }, label: "3 selected" };
 
 const moves = () => usePlanetMoveStore.getState();
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const page = () => drawnBy(() => renderToStaticMarkup(<BodySelectionView entry={ENTRY} />));
 
 function targets(planets: number[], over: Partial<PlanetMoveTargets> = {}): PlanetMoveTargets {
@@ -99,7 +99,7 @@ describe("the selected bodies' summary", () => {
   });
 
   it("cuts the bodies, then cancels the move", async () => {
-    await settle();
+    await flush();
     page();
     drawnButton("Cut 3 planets").onClick();
     expect(moves().cut).toMatchObject({ planets: [KORTOL, GIANT, URAY_A], from: SYSTEM });
@@ -122,7 +122,7 @@ describe("the selected bodies' summary", () => {
     );
     useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
     useSceneStore.getState().toggleBody(SYSTEM, URAY_A);
-    await settle();
+    await flush();
     expect(page()).toContain(`disabled="" title="${escaped(reason)}">Cut 3 planets</button>`);
   });
 });

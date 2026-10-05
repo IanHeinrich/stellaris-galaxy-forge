@@ -134,9 +134,8 @@ describe("an unowned world's deposits", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove d_active_volcano").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDeposit", deposit: 3 }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({ type: "RemoveDeposit", deposit: 3 });
   });
 
   it("opens the picker below the deposits: search, chips, and a row per family with its amounts", async () => {
@@ -196,13 +195,12 @@ describe("an unowned world's deposits", () => {
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Add +3 Energy").onClick();
-    await vi.waitFor(() =>
-      expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
-        type: "AddDeposit",
-        body: WORLD,
-        kind: "d_energy_3",
-      }),
-    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedIpc.applyOp).toHaveBeenLastCalledWith({
+      type: "AddDeposit",
+      body: WORLD,
+      kind: "d_energy_3",
+    });
   });
 
   it("puts Add deposit under the deposits and Add blocker under the blockers, even with none", async () => {

@@ -324,12 +324,30 @@ pub(crate) mod scenario {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
+    use std::sync::OnceLock;
 
     use super::*;
-    use crate::document::Document;
+    use crate::archive;
 
     const TESTDATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata");
+
+    /// A sample save's file name, the version its meta holds and the keys it writes.
+    struct Sample {
+        name: String,
+        version: String,
+        written: HashSet<Vec<u8>>,
+    }
+
+    /// Every sample save, read once for both tests.
+    fn samples() -> &'static [Sample] {
+        static SAMPLES: OnceLock<Vec<Sample>> = OnceLock::new();
+        SAMPLES.get_or_init(|| {
+            let samples: Vec<Sample> = sample_saves().iter().map(|path| read(path)).collect();
+            assert!(!samples.is_empty(), "no .sav in {TESTDATA}");
+            samples
+        })
+    }
 
     fn sample_saves() -> Vec<PathBuf> {
         let mut saves: Vec<PathBuf> = std::fs::read_dir(TESTDATA)
@@ -338,40 +356,38 @@ mod tests {
             .filter(|p| p.extension().is_some_and(|ext| ext == "sav"))
             .collect();
         saves.sort();
-        assert!(!saves.is_empty(), "no .sav in {TESTDATA}");
         saves
     }
 
+    fn read(path: &Path) -> Sample {
+        let save = archive::read_sav(path).unwrap();
+        Sample {
+            name: path.file_name().unwrap().to_string_lossy().into_owned(),
+            version: archive::parse_meta(&save.meta).unwrap().version,
+            written: keys_written(&save.gamestate),
+        }
+    }
+
     /// The keys the save writes: `<key>=` at a line start after any tabs.
-    fn keys_written(gamestate: &[u8]) -> HashSet<&[u8]> {
+    fn keys_written(gamestate: &[u8]) -> HashSet<Vec<u8>> {
         gamestate
             .split(|&b| b == b'\n')
             .filter_map(|line| {
                 let line = &line[line.iter().take_while(|&&b| b == b'\t').count()..];
                 let eq = memchr::memchr(b'=', line)?;
-                Some(&line[..eq])
+                Some(line[..eq].to_vec())
             })
             .collect()
-    }
-
-    fn name(path: &std::path::Path) -> String {
-        path.file_name().unwrap().to_string_lossy().into_owned()
     }
 
     #[test]
     fn every_save_key_is_written_by_each_sample_save() {
         let mut missing = Vec::new();
-        for path in sample_saves() {
-            let doc = Document::load(&path).unwrap();
-            // The 3.x sample is there for lane edits; it predates keys the core reads.
-            let version = crate::archive::parse_meta(doc.meta()).unwrap().version;
-            if !version.contains(" v4.") {
-                continue;
-            }
-            let written = keys_written(doc.original());
+        // The 3.x sample is there for lane edits; it predates keys the core reads.
+        for sample in samples().iter().filter(|s| s.version.contains(" v4.")) {
             for key in ALL {
-                if !OPTIONAL.contains(key) && !written.contains(key.as_bytes()) {
-                    missing.push(format!("{key} is not written by {}", name(&path)));
+                if !OPTIONAL.contains(key) && !sample.written.contains(key.as_bytes()) {
+                    missing.push(format!("{key} is not written by {}", sample.name));
                 }
             }
         }
@@ -384,15 +400,10 @@ mod tests {
 
     #[test]
     fn every_optional_key_is_written_by_some_sample_save() {
-        let mut written = HashSet::new();
-        for path in sample_saves() {
-            let doc = Document::load(&path).unwrap();
-            written.extend(keys_written(doc.original()).into_iter().map(<[u8]>::to_vec));
-        }
         for key in OPTIONAL {
             assert!(ALL.contains(key), "{key} is in OPTIONAL but not in ALL");
             assert!(
-                written.contains(key.as_bytes()),
+                samples().iter().any(|s| s.written.contains(key.as_bytes())),
                 "{key} is in OPTIONAL but no sample save writes it"
             );
         }

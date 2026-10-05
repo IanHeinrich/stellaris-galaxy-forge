@@ -9,6 +9,8 @@ import { buildGalaxy, PARAMS } from "./territory.fixture";
 const NEAR: BandWidths = { band: 1.6, seam: 0.4 };
 const FAR: BandWidths = { band: 5.9, seam: 5.9 / 4 };
 const BORDERED = [10, 20, 30];
+/** About 180 systems, a sixth of the bench galaxy. */
+const SMALL_GALAXY_RADIUS = 210;
 
 const system = (id: number, x: number, y: number, owner: number | null): SystemNode =>
   systemNode({ id, name: name(`NAME_${id}`), x, y, owner });
@@ -59,13 +61,13 @@ describe("Territories", () => {
   });
 
   it("matches a banded rebuild after moves, a removal, a change of owner and new widths", () => {
-    const { systems, sizes } = buildGalaxy();
+    const { systems, sizes } = buildGalaxy(SMALL_GALAXY_RADIUS);
     const bordered = sizes.map((s) => s.country);
     const [largest, second] = [sizes[0].country, sizes[1].country];
     const own = systems.filter((s) => s.owner === largest);
     const foreign = systems.filter((s) => s.owner !== largest);
-    const nearest = (s: SystemNode): SystemNode =>
-      foreign.reduce((best, f) => (dist2(f, s) < dist2(best, s) ? f : best));
+    const nearestOf = (s: SystemNode, among: SystemNode[]): SystemNode =>
+      among.reduce((best, f) => (dist2(f, s) < dist2(best, s) ? f : best));
 
     const territories = new Territories();
     const latest = territories.reset(systems, PARAMS, bordered, NEAR);
@@ -82,8 +84,11 @@ describe("Territories", () => {
     const inside = own[0];
     step([{ ...inside, x: inside.x + 20 }], []);
     const crossing = own[Math.floor(own.length / 2)];
-    const across = nearest(crossing);
-    step([{ ...crossing, x: 2 * across.x - crossing.x, y: 2 * across.y - crossing.y }], []);
+    const across = nearestOf(crossing, foreign);
+    const crossed = { ...crossing, x: 2 * across.x - crossing.x, y: 2 * across.y - crossing.y };
+    const others = galaxy.filter((s) => s.id !== crossing.id);
+    expect(nearestOf(crossed, others).owner, "the move lands in another country").not.toBe(largest);
+    step([crossed], []);
     step([], [own[own.length - 1].id]);
     for (const [id, banding] of territories.band(FAR)) Object.assign(latest.get(id)!, banding);
     const defector = systems.find((s) => s.owner === second) as SystemNode;

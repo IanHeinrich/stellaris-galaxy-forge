@@ -7,6 +7,7 @@ import { bindStores } from "./bindStores";
 import { addrKey, useEntityStore, viewKey } from "./entityStore";
 import { editResult, entityAddrOf, entitySchema, entitySource, entityView } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
+import { until } from "../test/wait";
 
 const getEntity = vi.mocked(ipc.getEntity);
 const getEntitySource = vi.mocked(ipc.getEntitySource);
@@ -30,7 +31,7 @@ describe("request", () => {
   it("reads one level once and answers every later request from the cache", async () => {
     entities().request(PLANET);
     expect(entities().pending.has(viewKey(PLANET))).toBe(true);
-    await vi.waitFor(() => expect(entities().views.has(viewKey(PLANET))).toBe(true));
+    await until(() => expect(entities().views.has(viewKey(PLANET))).toBe(true));
 
     entities().request(PLANET);
     expect(getEntity).toHaveBeenCalledTimes(1);
@@ -40,7 +41,7 @@ describe("request", () => {
   it("keeps a drilled level beside the root it was drilled from", async () => {
     entities().request(PLANET);
     entities().request(PLANET, ["coordinate"]);
-    await vi.waitFor(() => expect(entities().views.size).toBe(2));
+    await until(() => expect(entities().views.size).toBe(2));
 
     expect(getEntity).toHaveBeenCalledWith(PLANET, []);
     expect(getEntity).toHaveBeenCalledWith(PLANET, ["coordinate"]);
@@ -50,7 +51,7 @@ describe("request", () => {
   it("keeps a refused read's message and does not ask again", async () => {
     getEntity.mockRejectedValue({ kind: "not_found", message: "no planet #1207" });
     entities().request(PLANET);
-    await vi.waitFor(() => expect(entities().errors.get(viewKey(PLANET))).toBeDefined());
+    await until(() => expect(entities().errors.get(viewKey(PLANET))).toBeDefined());
 
     expect(entities().errors.get(viewKey(PLANET))).toContain("no planet #1207");
     entities().request(PLANET);
@@ -60,7 +61,7 @@ describe("request", () => {
   it("reads a source per entity and a schema per kind", async () => {
     entities().requestSource(PLANET);
     entities().requestSchema("planet");
-    await vi.waitFor(() => expect(entities().schemas.has("planet")).toBe(true));
+    await until(() => expect(entities().schemas.has("planet")).toBe(true));
 
     expect(entities().sources.get(addrKey(PLANET))?.addr).toEqual(PLANET);
     entities().requestSource(PLANET);
@@ -76,7 +77,7 @@ describe("an applied edit", () => {
     entities().request(PLANET, ["coordinate"]);
     entities().request(FLEET);
     entities().requestSource(PLANET);
-    await vi.waitFor(() => expect(entities().views.size).toBe(3));
+    await until(() => expect(entities().views.size).toBe(3));
 
     entities().noteEdit(editResult({ touched_entities: [PLANET] }));
 
@@ -84,7 +85,7 @@ describe("an applied edit", () => {
     expect(entities().sources.size).toBe(0);
 
     entities().request(PLANET);
-    await vi.waitFor(() => expect(entities().views.has(viewKey(PLANET))).toBe(true));
+    await until(() => expect(entities().views.has(viewKey(PLANET))).toBe(true));
     expect(getEntity).toHaveBeenCalledTimes(4);
   });
 
@@ -107,20 +108,20 @@ describe("an applied edit", () => {
       entityView(addr.kind, { addr, path, bytes: 2 }),
     );
     entities().request(PLANET);
-    await vi.waitFor(() => expect(entities().views.get(viewKey(PLANET))?.bytes).toBe(2));
+    await until(() => expect(entities().views.get(viewKey(PLANET))?.bytes).toBe(2));
   });
 
   it("lets a refused source be asked for again once the entity has been edited", async () => {
     getEntitySource.mockRejectedValue({ kind: "internal", message: "read failed" });
     entities().requestSource(PLANET);
-    await vi.waitFor(() => expect(entities().errors.size).toBe(1));
+    await until(() => expect(entities().errors.size).toBe(1));
 
     entities().noteEdit(editResult({ touched_entities: [PLANET] }));
     expect(entities().errors.size).toBe(0);
 
     getEntitySource.mockImplementation(async (addr) => entitySource(addr.kind));
     entities().requestSource(PLANET);
-    await vi.waitFor(() => expect(entities().sources.has(addrKey(PLANET))).toBe(true));
+    await until(() => expect(entities().sources.has(addrKey(PLANET))).toBe(true));
   });
 });
 
@@ -142,7 +143,7 @@ describe("clear", () => {
   it("follows the open document: closing one forgets what was read from it", async () => {
     useFileSessionStore.setState({ status: "ready" });
     entities().request(PLANET);
-    await vi.waitFor(() => expect(entities().views.size).toBe(1));
+    await until(() => expect(entities().views.size).toBe(1));
 
     useFileSessionStore.setState({ status: "empty" });
     expect(entities().views.size).toBe(0);

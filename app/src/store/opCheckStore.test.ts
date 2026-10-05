@@ -5,6 +5,7 @@ vi.mock("../api/ipc");
 import { mockedIpc } from "../test/ipc";
 import type { Op } from "../generated/Op";
 import { opCheckKey, useOpCheckStore } from "./opCheckStore";
+import { until } from "../test/wait";
 
 const OP: Op = { type: "DeleteBody", body: 99 };
 const KEY = opCheckKey(OP);
@@ -20,9 +21,7 @@ describe("the core's answers about an op", () => {
     mockedIpc.checkOp.mockResolvedValue(null);
     store().ask(OP, 0);
     store().ask(OP, 0);
-    await vi.waitFor(() =>
-      expect(store().answers.get(KEY)).toEqual({ generation: 0, refusal: null }),
-    );
+    await until(() => expect(store().answers.get(KEY)).toEqual({ generation: 0, refusal: null }));
     expect(mockedIpc.checkOp).toHaveBeenCalledOnce();
 
     store().staled([140, 141]);
@@ -38,7 +37,7 @@ describe("the core's answers about an op", () => {
       .mockResolvedValueOnce("planet 99 does not exist");
     store().ask(OP, 0);
     store().ask(OP, 1);
-    await vi.waitFor(() => expect(store().answers.get(KEY)?.generation).toBe(1));
+    await until(() => expect(store().answers.get(KEY)?.generation).toBe(1));
 
     answerOld(null);
     await Promise.resolve();

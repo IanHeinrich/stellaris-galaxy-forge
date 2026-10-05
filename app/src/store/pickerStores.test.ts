@@ -26,6 +26,8 @@ import { useGameDataStore } from "./gameDataStore";
 import { useModifierPickerStore } from "./modifierPickerStore";
 import { heldAnomaly, savePickerTarget } from "./planetEditAdapter";
 import { resetStores } from "./storeFixture";
+import { until } from "../test/wait";
+import { flush } from "../test/flush";
 
 /** Save body `page` in system 1, as its page hands it to the pickers. */
 const pickerTarget = (page: PlanetPage) =>
@@ -171,9 +173,6 @@ function held<T>() {
   return { promise, land };
 }
 
-/** Lets every reply that has landed reach the store. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-
 beforeEach(() => {
   resetStores();
   useGameDataStore.setState({ status: "ready" });
@@ -187,7 +186,7 @@ beforeEach(() => {
 describe.each(PICKERS)("the $name picker", (picker) => {
   it("reads its list once for the body it is open on", async () => {
     picker.open(A);
-    await vi.waitFor(() => expect(shown(picker)).toEqual(picker.list));
+    await until(() => expect(shown(picker)).toEqual(picker.list));
     picker.open(A);
     expect(picker.ask).toHaveBeenCalledTimes(1);
     expect(picker.state().target?.key).toBe(A.key);
@@ -195,7 +194,7 @@ describe.each(PICKERS)("the $name picker", (picker) => {
 
   it("reads its list for a body's page without opening", async () => {
     picker.load(A);
-    await vi.waitFor(() => expect(shown(picker)).toEqual(picker.list));
+    await until(() => expect(shown(picker)).toEqual(picker.list));
     expect(picker.state().target).toBeNull();
     picker.open(A);
     expect(picker.ask).toHaveBeenCalledTimes(1);
@@ -203,7 +202,7 @@ describe.each(PICKERS)("the $name picker", (picker) => {
 
   it("reads its list again once the game data is reloaded", async () => {
     picker.open(A);
-    await vi.waitFor(() => expect(shown(picker)).toEqual(picker.list));
+    await until(() => expect(shown(picker)).toEqual(picker.list));
     picker.close();
     useGameDataStore.setState({ version: useGameDataStore.getState().version + 1 });
     picker.open(A);
@@ -241,13 +240,13 @@ describe.each(PICKERS)("the $name picker", (picker) => {
 describe.each(PICKERS.filter((p) => p.perBody))("the $name picker on another body", (picker) => {
   it("shows no list until the new body's lands", async () => {
     picker.open(A);
-    await vi.waitFor(() => expect(shown(picker)).toEqual(picker.list));
+    await until(() => expect(shown(picker)).toEqual(picker.list));
     const reply = held<never[]>();
     picker.ask.mockReturnValueOnce(reply.promise as never);
     picker.open(B);
     expect(shown(picker)).toBeNull();
     reply.land([]);
-    await vi.waitFor(() => expect(shown(picker)).toEqual([]));
+    await until(() => expect(shown(picker)).toEqual([]));
   });
 
   it("keeps the list of the body it is open on when an older reply lands last", async () => {
@@ -259,9 +258,9 @@ describe.each(PICKERS.filter((p) => p.perBody))("the $name picker on another bod
     picker.open(A);
     picker.open(B);
     second.land(picker.list);
-    await settle();
+    await flush();
     first.land([]);
-    await settle();
+    await flush();
     expect(shown(picker)).toEqual(picker.list);
   });
 });

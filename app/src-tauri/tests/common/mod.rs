@@ -1,14 +1,18 @@
 //! Scaffolding shared by the IPC command test binaries, on the real sample save.
 #![allow(dead_code)]
 
+use std::sync::{Arc, LazyLock};
+
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use sgf_app_lib::state::GameDataState;
 use sgf_core::views::{ErrorKind, OpenResult, SgfError};
+use sgf_gamedata::{GameData, LoadOptions};
 use tauri::ipc::{CallbackFn, InvokeBody, InvokeResponseBody};
 use tauri::test::{INVOKE_KEY, MockRuntime, get_ipc_response, mock_builder};
 use tauri::webview::InvokeRequest;
-use tauri::{WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const SAMPLE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../testdata/4.4-early.sav");
 /// The Stellaris 4.5 sample, whose galaxy was set up at 2x resource abundance and whose
@@ -60,16 +64,28 @@ pub fn opened(path: impl Serialize) -> WebviewWindow<MockRuntime> {
     webview
 }
 
-/// A fresh app with the document at `path` open and the install's game data loaded without
-/// mods, which may shadow what a test reads; `None` without an install.
+/// The install's game data without mods, which may shadow what a test reads, loaded once
+/// per binary; `None` without an install.
+static GAME_DATA: LazyLock<Option<Arc<GameData>>> = LazyLock::new(|| {
+    have_install().then(|| {
+        let opts = LoadOptions {
+            mods: false,
+            ..LoadOptions::default()
+        };
+        Arc::new(sgf_gamedata::load(&opts, &mut |_| {}).expect("load game data"))
+    })
+});
+
+/// A fresh app holding the install's game data, with the document at `path` open; `None`
+/// without an install.
 pub fn with_game_data(path: impl Serialize) -> Option<(WebviewWindow<MockRuntime>, OpenResult)> {
-    if !have_install() {
-        return None;
-    }
+    let game_data = GAME_DATA.as_ref()?;
     let webview = webview();
+    webview
+        .app_handle()
+        .state::<GameDataState>()
+        .store(Some(Arc::clone(game_data)));
     let opened = open(&webview, path);
-    invoke::<Value>(&webview, "load_game_data", json!({ "mods": false }))
-        .unwrap_or_else(|e| panic!("load game data: {}", e.message));
     Some((webview, opened))
 }
 

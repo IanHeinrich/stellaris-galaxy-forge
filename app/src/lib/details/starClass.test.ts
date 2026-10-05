@@ -199,74 +199,63 @@ describe("setStarClassOp", () => {
     });
   });
 
-  it("maps a binary's bodies by their class when they are stored in another order", () => {
-    const bodies = [
-      planet({ id: 20, class: "pc_neutron_star" }),
-      planet({ id: 21, class: "pc_b_star" }),
-    ];
-    const op = setStarClassOp(
-      { id: 2, star_class: "sc_binary_2" },
-      target("sc_binary_6"),
-      bodies,
-      CLASSES,
-    );
-    expect(op).toMatchObject({
-      bodies: [
-        { body: 20, class: "pc_g_star" },
-        { body: 21, class: "pc_m_star" },
+  it.each([
+    [
+      "maps a binary's bodies by their class when they are stored in another order",
+      "sc_binary_2",
+      "sc_binary_6",
+      [
+        [20, "pc_neutron_star"],
+        [21, "pc_b_star"],
       ],
-    });
-  });
-
-  it("gives two bodies of one class a position each", () => {
-    const bodies = [planet({ id: 30, class: "pc_b_star" }), planet({ id: 31, class: "pc_b_star" })];
-    const op = setStarClassOp(
-      { id: 3, star_class: "sc_binary_5" },
-      target("sc_binary_6"),
-      bodies,
-      CLASSES,
-    );
-    expect(op).toMatchObject({
-      bodies: [
-        { body: 30, class: "pc_m_star" },
-        { body: 31, class: "pc_g_star" },
+      [
+        [20, "pc_g_star"],
+        [21, "pc_m_star"],
       ],
-    });
-  });
-
-  it("falls back to list order for a class the install does not know", () => {
-    const bodies = [planet({ id: 40, class: "pc_x_star" }), planet({ id: 41, class: "pc_y_star" })];
-    const op = setStarClassOp(
-      { id: 4, star_class: "sc_modded" },
-      target("sc_binary_2"),
-      bodies,
-      CLASSES,
-    );
-    expect(op).toMatchObject({
-      bodies: [
-        { body: 40, class: "pc_b_star" },
-        { body: 41, class: "pc_neutron_star" },
+    ],
+    [
+      "gives two bodies of one class a position each",
+      "sc_binary_5",
+      "sc_binary_6",
+      [
+        [30, "pc_b_star"],
+        [31, "pc_b_star"],
       ],
-    });
-  });
-
-  it("fills a body that matches no position with the one left over", () => {
-    const bodies = [
-      planet({ id: 50, class: "pc_other_star" }),
-      planet({ id: 51, class: "pc_b_star" }),
-    ];
-    const op = setStarClassOp(
-      { id: 5, star_class: "sc_binary_2" },
-      target("sc_binary_6"),
-      bodies,
-      CLASSES,
-    );
-    expect(op).toMatchObject({
-      bodies: [
-        { body: 50, class: "pc_g_star" },
-        { body: 51, class: "pc_m_star" },
+      [
+        [30, "pc_m_star"],
+        [31, "pc_g_star"],
       ],
-    });
+    ],
+    [
+      "falls back to list order for a class the install does not know",
+      "sc_modded",
+      "sc_binary_2",
+      [
+        [40, "pc_x_star"],
+        [41, "pc_y_star"],
+      ],
+      [
+        [40, "pc_b_star"],
+        [41, "pc_neutron_star"],
+      ],
+    ],
+    [
+      "fills a body that matches no position with the one left over",
+      "sc_binary_2",
+      "sc_binary_6",
+      [
+        [50, "pc_other_star"],
+        [51, "pc_b_star"],
+      ],
+      [
+        [50, "pc_g_star"],
+        [51, "pc_m_star"],
+      ],
+    ],
+  ] as const)("%s", (_, from, to, stored, expected) => {
+    const bodies = stored.map(([id, cls]) => planet({ id, class: cls }));
+    const op = setStarClassOp({ id: 2, star_class: from }, target(to), bodies, CLASSES);
+    expect(op).toMatchObject({ bodies: expected.map(([body, cls]) => ({ body, class: cls })) });
   });
 });
 

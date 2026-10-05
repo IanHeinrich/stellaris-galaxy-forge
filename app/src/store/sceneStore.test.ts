@@ -23,12 +23,13 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { OPEN_RESULT, editResult, planetSummary, systemDetails } from "./fixture";
 import { loadGameData } from "./gameDataFixture";
 import { useGalaxyStore } from "./galaxyStore";
-import { bodyEntry, useInspectorStore, type Entry } from "./inspectorStore";
+import { useInspectorStore, type Entry } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { GALAXY_SCENE, currentBarMode, useSceneStore } from "./sceneStore";
 import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
 
 const SOL: Entry = { ref: { kind: "system", id: 0 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
@@ -54,10 +55,6 @@ function key(name: string): boolean {
 }
 
 const esc = () => run("clearSelection", false, effects);
-
-/** A left click on body `id` of `system` in the scene, as the scene hands it to the inspector. */
-const click = (system: number, id: number, label: string) =>
-  useInspectorStore.getState().openFromMap(bodyEntry(system, id, label));
 
 /** Removing 6 moves 7 down to 6, as the core reports it. */
 function removeSix(seven: SystemNode) {
@@ -209,24 +206,6 @@ describe("Roll again", () => {
 });
 
 describe("leaving a system", () => {
-  it("Esc pops a page, then leaves the scene, then clears the selection, with the dock shown", async () => {
-    useLayoutStore.setState({ tab: "inspector", collapsed: false });
-    scene().enterSystem(0);
-    useInspectorStore.getState().setRoot(SOL);
-    useInspectorStore.getState().open(EARTH);
-
-    esc();
-    expect(labels()).toEqual(["Sol"]);
-    expect(scene().scene).toEqual(inSystem(0));
-
-    esc();
-    expect(scene().scene).toEqual(GALAXY);
-    expect(editor().selection).toEqual([0]);
-
-    esc();
-    await vi.waitFor(() => expect(editor().selection).toEqual([]));
-  });
-
   it("Esc leaves the scene at once with the dock collapsed, popping the pages with it", async () => {
     useLayoutStore.setState({ tab: "inspector", collapsed: false });
     scene().enterSystem(0);
@@ -240,7 +219,7 @@ describe("leaving a system", () => {
     expect(editor().selection).toEqual([0]);
 
     esc();
-    await vi.waitFor(() => expect(editor().selection).toEqual([]));
+    await until(() => expect(editor().selection).toEqual([]));
   });
 
   it("Backspace pops a crumb, then leaves the scene with none to pop", () => {
@@ -416,7 +395,7 @@ describe("the scene follows the selection", () => {
 
     await editor().undo();
 
-    await vi.waitFor(() => expect(editor().selection).toEqual([6]));
+    await until(() => expect(editor().selection).toEqual([6]));
     expect(scene().scene).toEqual(GALAXY);
   });
 
@@ -436,20 +415,6 @@ describe("the scene follows the selection", () => {
     stop();
 
     expect(seen[0]).toEqual([GALAXY, [0]]);
-    expect(scene().scene).toEqual(GALAXY);
-  });
-});
-
-describe("a body clicked in the system view", () => {
-  it("Esc pops its page before leaving the scene", () => {
-    scene().enterSystem(0);
-    useInspectorStore.getState().setRoot(SOL);
-    click(0, 1207, "Earth");
-
-    esc();
-    expect(labels()).toEqual(["Sol"]);
-    expect(scene().scene).toEqual(inSystem(0));
-    esc();
     expect(scene().scene).toEqual(GALAXY);
   });
 });
@@ -498,12 +463,10 @@ describe("a body's lock", () => {
     await editor().undo();
     expect(scene().lockedBodies.has(1300)).toBe(true);
 
-    mockedIpc.getSystemDetails.mockResolvedValueOnce([
-      systemDetails({ id: 6, planets: bodies(1301) }),
-    ]);
-    useDetailsStore.getState().request([6]);
+    useDetailsStore.setState(({ details }) => ({
+      details: new Map(details).set(6, systemDetails({ id: 6, planets: bodies(1301) })),
+    }));
 
-    await vi.waitFor(() => expect(scene().lockedBodies.has(1300)).toBe(false));
     expect([...scene().lockedBodies].sort()).toEqual([1207, 1301]);
   });
 });

@@ -17,7 +17,7 @@ import { useSceneStore } from "../../store/sceneStore";
 import { applyGeometry } from "../../store/systemGeometry";
 import { byId, name, placedNode, saveBody, systemDetails } from "../../test/builders";
 import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
-import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./fixture";
+import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./drawFixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
 
