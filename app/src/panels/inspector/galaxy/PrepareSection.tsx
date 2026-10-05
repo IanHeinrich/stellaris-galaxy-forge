@@ -8,12 +8,14 @@ import {
   changesLine,
   choiceLabel,
   CLEAR_AROUND_LABEL,
+  CLEAR_AROUND_STATES,
   COUNTING,
   CURRENT_MARK,
   customLine,
   cutOffLine,
   FAITHFUL_PLAIN,
   KEPT_CLEAR,
+  keptClearCount,
   lineText,
   NOT_KEPT_CLEAR,
   NOT_NOW_LABEL,
@@ -67,6 +69,7 @@ function prepRowId(row: PrepareRow): string {
 }
 
 const CARD_ID = "prep-card";
+const CLEAR_AROUND_ID = "prep-clear-around";
 
 /** Who places what a choice leaves in the new game, as a small chip in that placer's colour. */
 function Tag({ placer }: { placer: Placer }) {
@@ -129,8 +132,8 @@ function PresetAnswers({ preset, profile }: { preset: PreparePreset; profile: Sc
 }
 
 /**
- * Keep threats away from starting positions: while on, how many systems it turns into normal
- * systems, ringed on hover; while off, the warning.
+ * Keep threats away from starting positions, and while it is on how many systems it turns into
+ * normal systems. Hovering it rings them and shows its card.
  */
 function ClearAroundSeats() {
   const on = usePrepareStore((s) => s.options.clear_around_seats);
@@ -139,6 +142,7 @@ function ClearAroundSeats() {
   const hover = usePrepareStore((s) => s.hover);
   return (
     <div
+      id={CLEAR_AROUND_ID}
       className="prep-option"
       onPointerEnter={() => hover("clear_around")}
       onPointerLeave={() => hover(null)}
@@ -146,17 +150,8 @@ function ClearAroundSeats() {
       <label>
         <input type="checkbox" checked={on} onChange={() => setClearAroundSeats(!on)} />
         <span>{CLEAR_AROUND_LABEL}</span>
+        {on && kept !== null && kept > 0 && <span className="muted">{keptClearCount(kept)}</span>}
       </label>
-      {on && kept !== 0 && (
-        <div className="muted prep-note">
-          <ChoiceLine answers={KEPT_CLEAR} n={kept} />
-        </div>
-      )}
-      {!on && (
-        <div className="ins-warn prep-note">
-          <ChoiceLine answers={NOT_KEPT_CLEAR} n={null} />
-        </div>
-      )}
     </div>
   );
 }
@@ -248,6 +243,48 @@ function ChoiceRow({
  * The hovered row's card, beside the dock: what the row holds, then each choice it offers with
  * its tag and sentences and the current one marked; while its list is open, the item the list is on.
  */
+/** One choice in a card: its name, marked while current, then its tag and sentences. */
+function CardChoice({
+  label,
+  current,
+  answers,
+  n,
+}: {
+  label: string;
+  current: boolean;
+  answers: Answers;
+  n: number | null;
+}) {
+  return (
+    <div className={`prep-card-choice${current ? " current" : ""}`}>
+      <span className="prep-card-choice-name">
+        {label}
+        {current && <span className="muted"> · {CURRENT_MARK}</span>}
+      </span>
+      <ChoiceLine answers={answers} n={n} />
+    </div>
+  );
+}
+
+const CLEAR_AROUND_ITEM: CardItem = { label: CLEAR_AROUND_LABEL, effects: [] };
+
+/** The card of the option to keep threats away, beside the dock: both states, the current marked. */
+function ClearAroundCard() {
+  const on = usePrepareStore((s) => s.options.clear_around_seats);
+  const kept = usePrepareStore((s) => s.preview?.kept_clear.length ?? null);
+  return (
+    <PickerCard
+      key={`clear_around:${on}:${kept}`}
+      id={CARD_ID}
+      item={CLEAR_AROUND_ITEM}
+      rowId={CLEAR_AROUND_ID}
+    >
+      <CardChoice label={CLEAR_AROUND_STATES.on} current={on} answers={KEPT_CLEAR} n={kept} />
+      <CardChoice label={CLEAR_AROUND_STATES.off} current={!on} answers={NOT_KEPT_CLEAR} n={null} />
+    </PickerCard>
+  );
+}
+
 function RowCard({
   row,
   copy,
@@ -282,13 +319,13 @@ function RowCard({
         const answers = copy.answers[offer];
         if (answers === undefined) return null;
         return (
-          <div key={offer} className={`prep-card-choice${offer === choice ? " current" : ""}`}>
-            <span className="prep-card-choice-name">
-              {choiceLabel(copy, offer)}
-              {offer === choice && <span className="muted"> · {CURRENT_MARK}</span>}
-            </span>
-            <ChoiceLine answers={answers} n={count} />
-          </div>
+          <CardChoice
+            key={offer}
+            label={choiceLabel(copy, offer)}
+            current={offer === choice}
+            answers={answers}
+            n={count}
+          />
         );
       })}
     </PickerCard>
@@ -408,6 +445,7 @@ function PrepareBody({ profile, footer }: { profile: ScenarioProfile; footer?: R
       {!gameData && <div className="muted ins-hint">{PREPARE_NEEDS_GAME_DATA}</div>}
       {gameData && error !== null && <div className="ins-warn">{error}</div>}
       <RowByRow copy={copy} profile={profile} onActive={onActive} />
+      {hovered === "clear_around" && <ClearAroundCard />}
       {cardRow !== null && (
         <RowCard
           row={cardRow}

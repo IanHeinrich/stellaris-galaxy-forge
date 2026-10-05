@@ -15,7 +15,7 @@ import { isLClusterSystem } from "../lib/guides";
 import { meshPairs, type MeshPoint } from "../lib/geometry/mesh";
 import { nodeName, stripped, templateName } from "../lib/names";
 import { SpatialGrid } from "../lib/spatialGrid";
-import { systemLabel } from "../lib/systemLabel";
+import { blankName, systemLabel, unnamedSystem } from "../lib/systemLabel";
 import { useGameDataStore } from "./gameDataStore";
 
 export interface GalaxyState {
@@ -178,7 +178,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
 
   systemName(id) {
     const system = get().systems.get(id);
-    return system ? nodeName(system.name) : `#${id}`;
+    if (system === undefined) return `#${id}`;
+    const name = nodeName(system.name);
+    return blankName(name) ? unnamedSystem(id) : name;
   },
 
   centralSystem(ownerId) {
@@ -273,7 +275,10 @@ export function galaxyIslandCount(systems: Systems): number {
   return topology.islands;
 }
 
-/** What `systemName` answers, from a galaxy and a localisation handed in rather than read. */
+/**
+ * What `systemName` answers, from a galaxy and a localisation handed in rather than read. A system
+ * whose name shows nothing is `Unnamed system #591`.
+ */
 export function systemNameOf(
   systems: Systems,
   names: ReadonlyMap<string, string>,
@@ -281,7 +286,10 @@ export function systemNameOf(
 ): string {
   const node = systems.get(id);
   if (node === undefined) return `#${id}`;
-  return node.name.literal ? node.name.key : (names.get(node.name.key) ?? stripped(node.name.key));
+  const name = node.name.literal
+    ? node.name.key
+    : (names.get(node.name.key) ?? stripped(node.name.key));
+  return blankName(name) ? unnamedSystem(id) : name;
 }
 
 /** What an undo description calls system `id` in the open galaxy: `Ferragon #489`, else `system #489`. */

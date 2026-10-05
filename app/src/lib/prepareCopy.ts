@@ -86,6 +86,13 @@ export const NO_FALLEN_EMPIRES =
   "A custom map gets no fallen empires without Paint a Galaxy, which spawns them from zones.";
 export const FAITHFUL_PLAIN = "A custom map gets no fallen empires without Paint a Galaxy.";
 export const CURRENT_MARK = "current";
+/** The two states of the option to keep threats away, as its card names them. */
+export const CLEAR_AROUND_STATES = { on: "On", off: "Off" } as const;
+
+/** `38 systems`: how many the option to keep threats away turns into normal systems. */
+export function keptClearCount(n: number): string {
+  return counted(n, "system");
+}
 
 /** `these 9 positions`, `this position`, or `these positions` while the count is not read. */
 function these(n: number | null, noun?: string): string {

@@ -13,6 +13,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { LGATE_OPENED_TITLE, LGATE_TEMPEST_NOTE } from "../../../lib/lgate";
 import {
+  CLEAR_AROUND_LABEL,
   FAITHFUL_PLAIN,
   lineText,
   NO_FALLEN_EMPIRES,
@@ -28,7 +29,12 @@ import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useLGateStore } from "../../../store/lgateStore";
-import { PREPARE_ROWS, PREPARE_SECTION, usePrepareStore } from "../../../store/prepareStore";
+import {
+  PREPARE_ROWS,
+  PREPARE_SECTION,
+  ringedSystems,
+  usePrepareStore,
+} from "../../../store/prepareStore";
 import { armSession, resetStores } from "../../../store/storeFixture";
 import { drawnBy, drawnButton, drawnCheckbox, drawnField } from "../../../test/drawn";
 import { openWith } from "../../../test/session";
@@ -459,21 +465,38 @@ describe("the Prepare section", () => {
     );
   });
 
-  it("counts what keeping capitals clear turns plain, and warns once while it is off", async () => {
+  it("counts what keeping threats away turns into normal systems, and shows both states on hover", async () => {
     await open("scenario");
     usePrepareStore.setState({
-      preview: previewOf({ guardians: [3, 4] }, { kept_clear: [3], changes: 2 }),
+      preview: previewOf({ guardians: [3, 4] }, { kept_clear: [3, 5, 6], changes: 2 }),
       current: true,
     });
     const on = drawnBy(galaxy);
-    expect(on).toContain(
-      "Turns the 1 system within 2 jumps of a starting position into a normal system.",
-    );
+    expect(on).toContain(`<span>${CLEAR_AROUND_LABEL}</span><span class="muted">3 systems</span>`);
+    expect(on).not.toContain("Turns the");
     expect(on).not.toContain(NOT_KEPT_CLEAR.text as string);
+    expect(on).not.toContain('id="prep-card"');
+
+    usePrepareStore.getState().hover("clear_around");
+    const hovered = galaxy();
+    const card = hovered.slice(hovered.indexOf('id="prep-card"'));
+    expect(card).toContain(CLEAR_AROUND_LABEL);
+    expect(card).toContain('On<span class="muted"> · current</span>');
+    expect(card).toContain(
+      '<span class="prep-tag forge">Galaxy Forge</span> Turns the 3 systems within 2 jumps',
+    );
+    expect(card).toContain(
+      `<span class="prep-tag game">The game</span> ${NOT_KEPT_CLEAR.text as string}`,
+    );
+    expect(ringedSystems(usePrepareStore.getState())).toEqual([3, 5, 6]);
+
     drawnCheckbox().onChange();
     expect(usePrepareStore.getState().options.clear_around_seats).toBe(false);
     const off = galaxy();
+    expect(off).not.toContain('<span class="muted">3 systems</span>');
+    expect(off).toContain('Off<span class="muted"> · current</span>');
     expect(off.split(NOT_KEPT_CLEAR.text as string).length - 1).toBe(1);
+    usePrepareStore.getState().hover(null);
     usePrepareStore.getState().setClearAroundSeats(true);
   });
 

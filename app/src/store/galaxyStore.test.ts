@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { issueGroups } from "../lib/browserRows";
+import { appIssue, byId, name, systemNode } from "../test/builders";
 import { OPEN_RESULT, SCENARIO_OWNERS, SYSTEMS, TERRITORY } from "./fixture";
-import { useGalaxyStore } from "./galaxyStore";
+import { systemNameOf, useGalaxyStore } from "./galaxyStore";
 
 beforeEach(() => {
   useGalaxyStore.getState().clear();
@@ -174,5 +176,21 @@ describe("galaxyStore", () => {
 
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     expect(useGalaxyStore.getState().hiddenCountries.size).toBe(0);
+  });
+});
+
+describe("a system with an empty name", () => {
+  it("is Unnamed system and its id in an issue row and wherever the store names it", () => {
+    const systems = byId(
+      systemNode({ id: 591, name: { key: "", literal: true, variables: [] } }),
+      systemNode({ id: 592, name: name("NAME_Sol") }),
+    );
+    const nameOf = (id: number) => systemNameOf(systems, new Map(), id);
+    const [group] = issueGroups([appIssue({ code: "disconnected", systems: [591, 592] })], nameOf);
+    expect(group.rows[0].systems).toBe("Unnamed system #591, Sol");
+
+    useGalaxyStore.setState({ systems });
+    expect(useGalaxyStore.getState().systemName(591)).toBe("Unnamed system #591");
+    expect(useGalaxyStore.getState().systemName(592)).toBe("Sol");
   });
 });
