@@ -4,4 +4,4 @@
 - A planet's modifiers show their first two effects and how long they last. Point at one to see a card with every effect.
 - The blocker picker lists the clearing technologies in one "Cleared by" drop-down.
 - Inspector fields line up on every page and fill the width of the inspector. Long choices end with an ellipsis.
-- Mining stations show the minerals icon, research stations the research icon and starbases their level. Fleet rows no longer have a shield in the owner's colour.
+- Mining and research stations show the icon of the resource they gather. Starbases show their level. Fleet rows no longer have a shield in the owner's colour.

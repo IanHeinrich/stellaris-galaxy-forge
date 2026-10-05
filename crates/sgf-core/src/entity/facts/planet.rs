@@ -45,6 +45,8 @@ pub(crate) struct PlanetFacts {
     pub anomaly: Option<String>,
     /// `entity_name`: the model the planet is drawn as, in place of its class's.
     pub entity_name: Option<String>,
+    /// `shipclass_orbital_station`: the mining or research station's fleet.
+    pub station: Option<u32>,
 }
 
 pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
@@ -65,6 +67,7 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> PlanetFacts {
         binary_flags: read::scalar_u32(node, keys::BINARY_FLAGS, src).unwrap_or(0),
         anomaly: read::scalar(node, keys::ANOMALY, src).map(str::to_owned),
         entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+        station: reference(node, keys::SHIPCLASS_ORBITAL_STATION, src),
     }
 }
 
@@ -236,7 +239,7 @@ pub(crate) fn page(doc: &Document, id: u32, node: &Node, src: &[u8]) -> PlanetPa
             .collect(),
         timed_modifiers: timed_modifiers(node, src),
         surveyed_by: reference(node, keys::SURVEYED_BY, src),
-        station: reference(node, keys::SHIPCLASS_ORBITAL_STATION, src),
+        station: facts.station,
         name: facts.name,
         name_key: facts.name_key,
         class: facts.class,

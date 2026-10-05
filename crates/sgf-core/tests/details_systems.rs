@@ -128,6 +128,50 @@ fn sol_reads_as_the_inspector_lists_it() {
     assert_eq!(sol_deposits, 18);
 }
 
+/// Each of Sol's stations works the planet naming it as `shipclass_orbital_station`: the
+/// mining station at the star gathers energy, and the research station engineering.
+#[test]
+fn a_station_works_what_its_planets_deposits_produce() {
+    let session = common::warmed();
+    let details = session.details().expect("build details");
+    let works = |resolver: &dyn DetailsResolver| {
+        let sol = details.resolve(217, resolver, false).expect("Sol resolved");
+        sol.fleets_present
+            .iter()
+            .map(|f| (f.id, f.works.join(",")))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        works(&HeuristicResolver),
+        [
+            (0, String::new()),
+            (369, "energy".to_owned()),
+            (370, "minerals".to_owned()),
+            (371, "energy".to_owned()),
+            (372, "minerals".to_owned()),
+            (373, "engineering".to_owned()),
+        ]
+    );
+    let star = sgf_core::entity::get_planet_page(session.doc(), 0).expect("Sol's page");
+    assert_eq!(star.station, Some(369), "the link the planet page reads");
+
+    /// Every deposit also yields minerals, after what the key names.
+    struct AlsoMinerals;
+    impl DetailsResolver for AlsoMinerals {
+        fn deposit_produces(&self, key: &str) -> Option<Vec<(String, f64)>> {
+            let mut produces = HeuristicResolver.deposit_produces(key)?;
+            produces.push(("minerals".to_owned(), 1.0));
+            Some(produces)
+        }
+        fn planet_habitable(&self, _class: &str) -> Option<bool> {
+            None
+        }
+    }
+    let worked = works(&AlsoMinerals);
+    assert_eq!(worked[1], (369, "energy,minerals".to_owned()));
+    assert_eq!(worked[2], (370, "minerals".to_owned()));
+}
+
 /// Alpha Centauri's red dwarf companion, 327, has two planets: each names it as `moon_of`
 /// without the moon bit of `binary_flags`, 512.
 #[test]

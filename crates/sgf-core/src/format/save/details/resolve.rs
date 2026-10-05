@@ -238,7 +238,8 @@ pub struct StarbaseSummary {
 }
 
 /// One system's raw details with each planet's deposits summed into resources by
-/// `resolver`, and the system's resources the sum of those rows.
+/// `resolver`, the system's resources the sum of those rows, and each station fleet's
+/// `works` the resources of the planet it works.
 pub(super) fn resolve(
     id: u32,
     raw: &RawSystemDetails,
@@ -247,6 +248,7 @@ pub(super) fn resolve(
 ) -> SystemDetails {
     let mut resources: Vec<ResourceAmount> = Vec::new();
     let mut planets = Vec::with_capacity(raw.planets.len());
+    let mut works: HashMap<u32, Vec<String>> = HashMap::new();
     let points = points(&raw.planets);
     for p in &raw.planets {
         let mut deposits: Vec<ResourceAmount> = Vec::new();
@@ -260,6 +262,12 @@ pub(super) fn resolve(
         }
         for row in &deposits {
             add_amount(&mut resources, row.resource.clone(), row.amount);
+        }
+        if let Some(station) = p.station {
+            works.insert(
+                station,
+                deposits.iter().map(|r| r.resource.clone()).collect(),
+            );
         }
         planets.push(PlanetSummary {
             id: p.id,
@@ -314,7 +322,14 @@ pub(super) fn resolve(
         planets,
         starbase,
         fleets: FleetPresence::of(&raw.fleets),
-        fleets_present: raw.fleets.clone(),
+        fleets_present: raw
+            .fleets
+            .iter()
+            .map(|f| FleetSummary {
+                works: works.remove(&f.id).unwrap_or_default(),
+                ..f.clone()
+            })
+            .collect(),
         megastructures: raw.megastructures.clone(),
         sites: raw.sites.clone(),
         with_game_data,

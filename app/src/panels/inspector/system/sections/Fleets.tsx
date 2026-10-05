@@ -4,6 +4,7 @@ import { fleetPowerClause } from "../../../../lib/details/fleets";
 import { capabilityFor, orderLabel } from "../../../../lib/entities";
 import { templateName } from "../../../../lib/names";
 import { useCountryName } from "../../../../store/browserRows";
+import { useDetailsStore } from "../../../../store/detailsStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
 import { useOpenEntity } from "../../entity/useEntity";
 import { Icon } from "../../../parts";
@@ -19,10 +20,11 @@ import {
 
 function FleetIcon({ fleet }: { fleet: FleetSummary }) {
   const shipSizes = useGameDataStore((s) => s.shipSizes);
+  const resourceIcons = useDetailsStore((s) => s.resourceIcons);
   return (
     <Icon
       className="fleet-icon"
-      keys={fleetIconKeys(fleet, shipSizes)}
+      keys={fleetIconKeys(fleet, shipSizes, resourceIcons)}
       glyph={fleetGlyph(fleetIcon(fleet, shipSizes))}
     />
   );

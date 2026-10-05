@@ -9,6 +9,7 @@ import {
   starbaseTileKey,
 } from "../../lib/details/icons";
 import { FALLBACK_HABITABLE, isColony } from "../../lib/details/labels";
+import { canonicalResource, resourceSprite } from "../../lib/resources";
 import { keyWords } from "../../lib/text";
 
 export const POP_ICON_KEY = "sprite:GFX_pop";
@@ -119,13 +120,21 @@ const STATION_ICON_KEYS = new Map<string, string>([
   ["starbase_citadel", starbaseTileKey(5)],
 ]);
 
-/** The texture keys a fleet row draws: a station's own picture, else its ship-size icon. */
+/**
+ * The texture keys a fleet row draws: the first resource a station works, then the station's own
+ * picture, else its ship-size icon.
+ */
 export function fleetIconKeys(
   f: FleetSummary,
   shipSizes: ReadonlyMap<string, ShipSizeView>,
+  resourceIcons: ReadonlyMap<string, string> = new Map(),
 ): string[] {
   const station = STATION_ICON_KEYS.get(f.ship_sizes[0]?.key ?? "");
-  if (station) return [station];
+  if (station) {
+    const worked = f.works[0];
+    if (worked === undefined) return [station];
+    return [resourceSprite(canonicalResource(worked), resourceIcons), station];
+  }
   const icon = fleetIcon(f, shipSizes);
   return icon ? [`sprite:GFX_${icon}`] : [];
 }
