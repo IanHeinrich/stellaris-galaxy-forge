@@ -127,6 +127,36 @@ describe("starClassRows", () => {
     expect(rows("sc_binary_5").map((r) => r.label)).toEqual(["Class B Star + Class B Star"]);
   });
 
+  it("groups a rolled class with no star after the multiple stars, and names it", () => {
+    const starless = starClassView("sc_starless");
+    const listed = starClassRows(
+      [
+        starless,
+        CLASSES.get("sc_trinary_1") as StarClassView,
+        CLASSES.get("sc_g") as StarClassView,
+      ],
+      (key) => names.get(key) ?? key,
+      NO_CRISIS,
+    );
+    expect(listed.map((r) => [r.group, r.label])).toEqual([
+      ["Stars", "Class G"],
+      ["Trinaries", "Class G Star + Class M Star + Class K Star"],
+      ["No star", "sc_starless"],
+    ]);
+  });
+
+  it("names a class listing the stars a system may have by its own name", () => {
+    const shell = {
+      ...starClassView("sc_shell", "pc_g_star", "pc_m_star", "pc_k_star", "pc_b_star"),
+      alternatives: true,
+    };
+    expect(
+      starClassRows([shell], (key) => (key === "sc_shell" ? "Shell" : key), NO_CRISIS).map(
+        (r) => r.label,
+      ),
+    ).toEqual(["Shell"]);
+  });
+
   it("groups classes a new galaxy never rolls after the others: special, then crisis variants", () => {
     const crisis = { ...starClassView("sc_crisis", "pc_m_star", "pc_g_star"), spawn_odds: 0 };
     const special = { ...starClassView("sc_rift", "pc_g_star", "pc_b_star"), spawn_odds: 0 };

@@ -280,19 +280,12 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(as_scenario.title, "4.4-early");
     assert!(as_scenario.path.is_none());
     assert_eq!(as_scenario.galaxy.systems.len(), 791);
-    let coded = |code: IssueCode| as_scenario.issues.iter().filter(|i| i.code == code).count();
-    assert_eq!(
-        coded(IssueCode::ExportDropped),
-        1,
-        "{:?}",
-        as_scenario.issues
-    );
-    assert_eq!(
-        coded(IssueCode::HomeInitializer),
-        4,
-        "{:?}",
-        as_scenario.issues
-    );
+    let dropped = as_scenario
+        .issues
+        .iter()
+        .filter(|i| i.code == IssueCode::ExportDropped)
+        .count();
+    assert_eq!(dropped, 1, "{:?}", as_scenario.issues);
     assert_eq!(
         kind(invoke::<ExportResult>(
             &w,
@@ -331,4 +324,42 @@ fn scenario_documents_open_start_and_export() {
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");
     assert_eq!(reopened.galaxy.systems.len(), 791);
+}
+
+#[test]
+fn a_save_opened_as_a_scenario_shows_the_issues_of_the_scenario_it_opened() {
+    let w = webview();
+    let dir = tempfile::tempdir().expect("tempdir");
+    for (i, (sample, profile, dropped_kinds)) in [
+        (SAMPLE, "plain", 1),
+        (SAMPLE, "paint_a_galaxy", 0),
+        (SAMPLE_45, "paint_a_galaxy", 0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let as_scenario: OpenResult = invoke(
+            &w,
+            "open_as_scenario",
+            json!({ "path": sample, "profile": profile }),
+        )
+        .expect("open as scenario");
+        let path = dir
+            .path()
+            .join(format!("{i}.txt"))
+            .to_string_lossy()
+            .into_owned();
+        invoke::<SaveResult>(&w, "save_as", json!({ "path": path })).expect("save as");
+        let reopened = open(&w, &path);
+        let (dropped, own): (Vec<_>, Vec<_>) = as_scenario
+            .issues
+            .into_iter()
+            .partition(|i| i.code == IssueCode::ExportDropped);
+        assert_eq!(own, reopened.issues, "{sample} as {profile}");
+        assert!(
+            !own.iter().any(|i| i.code == IssueCode::HomeInitializer),
+            "{sample} as {profile}"
+        );
+        assert_eq!(dropped.len(), dropped_kinds, "{sample} as {profile}");
+    }
 }

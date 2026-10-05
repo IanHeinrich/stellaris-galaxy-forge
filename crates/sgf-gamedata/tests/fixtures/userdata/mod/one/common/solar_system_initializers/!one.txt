@@ -1,4 +1,4 @@
-# Redefines a vanilla key from a differently-named file: last wins.
+# Redefines a vanilla key from a file that sorts before it: the first definition wins.
 basic_init_01 = {
 	class = sc_ember
 	usage = misc_system_init

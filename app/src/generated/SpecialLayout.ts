@@ -32,4 +32,10 @@ in_galaxy: number,
 /**
  * The DLC its odds rule it out without, when they check one.
  */
-dlc: DlcNeed | null, };
+dlc: DlcNeed | null, 
+/**
+ * For a mod's layout no galaxy places, [`crate::layouts::unplaced`]: the name of the
+ * mod that defines it. The menu lists these under that name, apart from the unique and
+ * other special systems.
+ */
+group: string | null, };

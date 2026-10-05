@@ -8,7 +8,7 @@ use sgf_core::export::{self, ExportReport, ScenarioProfile};
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
-use sgf_core::validate::Issue;
+use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{
     DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase, SaveResult,
     SgfError,
@@ -30,19 +30,19 @@ pub async fn open_save<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<OpenResult, SgfError> {
-    install(app, move |_| Ok(Session::open(path)?)).await
+    install(app, move |_| Ok((Session::open(path)?, Vec::new()))).await
 }
 
 /// Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is
-/// untouched, and what the scenario could not carry over follows its issues. `profile`
-/// is plain when absent. Emits `sgf://progress`.
+/// untouched, and the issues are the scenario's own, with a note per kind of bypass the
+/// scenario could not carry over. `profile` is plain when absent. Emits `sgf://progress`.
 #[tauri::command]
 pub async fn open_as_scenario<R: Runtime>(
     app: AppHandle<R>,
     path: String,
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
-    install_reporting(app, move |gd| {
+    install(app, move |gd| {
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let (session, report) = export::open_save_as_scenario(
             Path::new(&path),
@@ -50,7 +50,12 @@ pub async fn open_as_scenario<R: Runtime>(
             &sources,
             profile.unwrap_or_default(),
         )?;
-        Ok((session, report.issues()))
+        let dropped = report
+            .issues()
+            .into_iter()
+            .filter(|issue| issue.code == IssueCode::ExportDropped)
+            .collect();
+        Ok((session, dropped))
     })
     .await
 }
@@ -83,7 +88,8 @@ pub async fn new_scenario<R: Runtime>(
 ) -> Result<OpenResult, SgfError> {
     install(app, move |_| {
         let profile = profile.unwrap_or_default();
-        Ok(export::new_scenario(&name, radius, core_radius, profile)?)
+        let session = export::new_scenario(&name, radius, core_radius, profile)?;
+        Ok((session, Vec::new()))
     })
     .await
 }
@@ -154,16 +160,9 @@ pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportRepor
     .await
 }
 
-/// Build a session off the main thread, report it and make it the open one.
+/// Build a session off the main thread, report it and make it the open one. The build
+/// returns the session and any issues of its own to list after the session's.
 async fn install<R: Runtime>(
-    app: AppHandle<R>,
-    build: impl FnOnce(Option<Arc<GameData>>) -> Result<Session, SgfError> + Send + 'static,
-) -> Result<OpenResult, SgfError> {
-    install_reporting(app, move |gd| Ok((build(gd)?, Vec::new()))).await
-}
-
-/// As [`install`], for a build with issues of its own to add after the session's.
-async fn install_reporting<R: Runtime>(
     app: AppHandle<R>,
     build: impl FnOnce(Option<Arc<GameData>>) -> Result<(Session, Vec<Issue>), SgfError>
     + Send

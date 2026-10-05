@@ -40,6 +40,8 @@ fn vanilla_shows_every_class_it_can_roll() {
         &report.unnamed_rolled,
         &report.star_art_missing,
         &report.stars_without_body,
+        &report.placeholder_stars,
+        &report.star_choices,
     ] {
         assert!(empty.is_empty(), "{text}");
     }

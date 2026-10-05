@@ -177,6 +177,93 @@ fn keys(features: &[Feature]) -> Vec<(&str, bool)> {
     features.iter().map(|f| (f.key.as_str(), f.every)).collect()
 }
 
+/// A star and a rock, written with no `usage` as layout `key`.
+fn unplaced(key: &str, star: &str) -> String {
+    format!(
+        "{key} = {{\n\tclass = {star}\n\tplanet = {{ class = star orbit_distance = 0 }}\n\
+         \tplanet = {{ class = pc_rock orbit_distance = 50 }}\n}}\n"
+    )
+}
+
+/// Layouts with no `usage` from the install and from a mod. The mod's own has odds and a star
+/// only special layouts make. The mod also replaces the install's `zz_events.txt` by its
+/// filename, redefines the install's event-only `fx_event` without a usage, and writes a
+/// converted layout's key without one.
+fn with_unplaced_layouts() -> (tempfile::TempDir, sgf_gamedata::GameData) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = dir.path().join("install");
+    let user_dir = dir.path().join("user");
+    let story = unplaced("fx_story", "sc_sun");
+    let tale = unplaced("fx_tale", "sc_sun");
+    let mut files: Vec<(&str, &str)> = FILES.to_vec();
+    files.push(("localisation/english/fx_l_english.yml", "l_english:\n"));
+    files.push(("common/solar_system_initializers/zz_events.txt", &story));
+    files.push(("common/solar_system_initializers/zz_tales.txt", &tale));
+    for (rel, text) in files {
+        let file = install.join(rel);
+        std::fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
+        std::fs::write(file, text).expect("an install file");
+    }
+    let own = unplaced("fx_mod_hole", "sc_hole").replace("{\n", "{\n\tusage_odds = 100\n");
+    let overrides = unplaced("fx_event", "sc_sun") + &unplaced("sol_neighbor_t1", "sc_sun");
+    common::add_mod(
+        &user_dir,
+        "fx_mod",
+        &[
+            ("common/solar_system_initializers/fx_mod.txt", &own),
+            ("common/solar_system_initializers/zz_events.txt", &story),
+            (
+                "common/solar_system_initializers/!fx_mod_ow.txt",
+                &overrides,
+            ),
+        ],
+    );
+    common::enable(&user_dir, &["fx_mod"]);
+    let gd = common::load_tree(&install, Some(&user_dir), true);
+    (dir, gd)
+}
+
+#[test]
+fn a_mods_layouts_with_no_usage_are_listed_by_the_mod_and_never_drawn() {
+    let (_dir, gd) = with_unplaced_layouts();
+    let session = common::open_4_5();
+    let entries = special_layouts(&gd, &session);
+    let watched = [
+        "fx_haven",
+        "fx_mod_hole",
+        "fx_story",
+        "fx_tale",
+        "fx_event",
+        "sol_neighbor_t1",
+    ];
+    let groups: Vec<(&str, Option<&str>)> = entries
+        .iter()
+        .filter(|e| watched.contains(&e.key.as_str()))
+        .map(|e| (e.key.as_str(), e.group.as_deref()))
+        .collect();
+    assert_eq!(
+        groups,
+        [
+            ("fx_haven", None),
+            ("fx_mod_hole", Some("fx_mod")),
+            ("sol_neighbor_t1", None),
+        ],
+        "the game's own fx_tale is left out, and so are fx_story and fx_event, which the game \
+         defines though the mod's copy won; the converted layout keeps no mod group"
+    );
+    for seed in 0..40 {
+        for star in [None, Some("sc_hole")] {
+            let spec = generate(&gd, seed, "Fx", (0.0, 0.0), star, ABUNDANCE).expect("a system");
+            assert!(
+                !["fx_story", "fx_tale", "fx_event", "fx_mod_hole"]
+                    .contains(&spec.initializer.as_str()),
+                "seed {seed}, {star:?} drew {}",
+                spec.initializer
+            );
+        }
+    }
+}
+
 #[test]
 fn a_hand_written_install_summarises_each_pick_from_its_layouts() {
     let (_dir, gd) = layouts::hand_written();

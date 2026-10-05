@@ -3,6 +3,7 @@ import type { PlanetClassView } from "../../generated/PlanetClassView";
 import { planetClassView, starClassView } from "../../test/builders";
 import { details, planet } from "./fixture";
 import {
+  eachStarKeys,
   findPlanet,
   isStarBody,
   singleStarClasses,
@@ -110,5 +111,34 @@ describe("starMismatch", () => {
   it("says nothing for an unknown class or a system with no star bodies", () => {
     expect(starMismatch(["pc_g_star"], undefined)).toBeNull();
     expect(starMismatch([], binary)).toBeNull();
+  });
+
+  it("says nothing for a class that lists no star, as a placeholder does", () => {
+    const placeholder = { ...starClassView("sc_hollow"), spawn_odds: 0, placeholder: true };
+    expect(starMismatch(["pc_g_star"], placeholder)).toBeNull();
+    expect(starMismatch(["pc_g_star", "pc_m_star"], starClassView("sc_starless"))).toBeNull();
+  });
+
+  it("takes a class listing the stars a system may have as fitting any of them", () => {
+    const shell = {
+      ...starClassView("sc_shell", "pc_g_star", "pc_m_star", "pc_k_star", "pc_b_star"),
+      alternatives: true,
+    };
+    expect(starMismatch(["pc_g_star", "pc_g_star"], shell)).toBeNull();
+    expect(starMismatch(["pc_k_star"], shell)).toBeNull();
+    expect(starMismatch(["pc_g_star", "pc_neutron_star"], shell)).toEqual([
+      "pc_g_star",
+      "pc_neutron_star",
+    ]);
+  });
+});
+
+describe("eachStarKeys", () => {
+  it("gives a multiple star's bodies, and none for one star or a list of choices", () => {
+    expect(eachStarKeys(CLASSES.get("sc_binary_2"))).toEqual(["pc_b_star", "pc_neutron_star"]);
+    expect(eachStarKeys(CLASSES.get("sc_g"))).toEqual([]);
+    expect(eachStarKeys(undefined)).toEqual([]);
+    const shell = { ...starClassView("sc_shell", "pc_g_star", "pc_m_star"), alternatives: true };
+    expect(eachStarKeys(shell)).toEqual([]);
   });
 });

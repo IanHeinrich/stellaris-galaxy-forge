@@ -12,7 +12,8 @@ use crate::body_effects;
 use crate::generate;
 use crate::initializers::{Initializer, expand};
 use crate::layouts::{
-    DlcNeed, SaveFacts, UNIQUE_SYSTEM, converted, notable, special_initializers, star_body,
+    DlcNeed, SaveFacts, UNIQUE_SYSTEM, converted, defining_mod, notable, special_initializers,
+    star_body, unplaced,
 };
 use crate::loc::localisation::Localisation;
 
@@ -36,6 +37,10 @@ pub struct SpecialLayout {
     pub in_galaxy: u32,
     /// The DLC its odds rule it out without, when they check one.
     pub dlc: Option<DlcNeed>,
+    /// For a mod's layout no galaxy places, [`crate::layouts::unplaced`]: the name of the
+    /// mod that defines it. The menu lists these under that name, apart from the unique and
+    /// other special systems.
+    pub group: Option<String>,
 }
 
 /// The special layouts the Special menu offers: all but those a star-class pick of
@@ -67,6 +72,9 @@ pub fn special_layouts(gd: &GameData, session: &Session) -> Vec<SpecialLayout> {
             capped: init.max_instances.is_some(),
             in_galaxy: save.in_galaxy(&init.name),
             dlc: save.dlc_need(gd, init),
+            group: defining_mod(gd, init)
+                .filter(|_| unplaced(gd, init))
+                .map(str::to_owned),
         })
         .collect();
     entries.sort_by(|a, b| a.label.cmp(&b.label).then_with(|| a.key.cmp(&b.key)));
