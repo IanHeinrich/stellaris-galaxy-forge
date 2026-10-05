@@ -12,7 +12,7 @@ use crate::initializers::{BodyClass, InitAsteroidBelt, InitPlanet, Initializer, 
 use crate::install::script::Range;
 use crate::layouts::{
     Dlc, Eligibility, SaveFacts, StarSource, USAGE, Unsupported, converted, eligibility, generic,
-    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source,
+    layout_stars, odds, plain_initializers, special_initializers, star_body, star_source, unplaced,
 };
 use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
@@ -191,7 +191,7 @@ pub(crate) fn layouts_for<'g>(
 fn generic_specials(gd: &GameData) -> Vec<&Initializer> {
     special_initializers(gd)
         .into_iter()
-        .filter(|init| generic(init))
+        .filter(|init| generic(init) && !unplaced(gd, init))
         .collect()
 }
 

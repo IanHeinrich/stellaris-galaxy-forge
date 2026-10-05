@@ -275,6 +275,17 @@ order. Within a `common/` dir it processes files in filename order.
   one loaded wins in most `common/` dirs. A few dirs keep the first one
   or treat duplicates as errors. That matters for attributes. The set of
   keys is the same either way.
+- Of the dirs the editor reads, `common/solar_system_initializers` and
+  `common/scripted_variables` keep the first definition. The game logs
+  each later one in `error.log`: "An initializer called … already
+  exists" and "Variable name … is already taken", against the file that
+  lost. The wiki's table of folders agrees. Mods name their override
+  files to sort first for this reason: Planetary Diversity's
+  `!vanilla_sol_initializers_ow.txt`, Gigastructures'
+  `giga_overwrite_initializers.txt`, NSC's `!nsc_scripted_variables.txt`.
+  Every other dir the editor reads keeps the last. The one table of
+  first-wins dirs is `FIRST_WINS` in
+  `crates/sgf-gamedata/src/install/script.rs`.
 - `replace_path = "common/xyz"` in a descriptor discards every earlier
   file in that folder.
 - For a localisation key, the last file loaded wins. Files in
@@ -295,7 +306,7 @@ other folders by rules of their own:
 
 To apply this, build a `filename → winning path` map for each dir across
 the layers. Then parse the files in filename order and let later keys
-replace earlier ones. In practice, mods only add to the planet-class,
+replace earlier ones, except in the first-wins dirs. In practice, mods only add to the planet-class,
 star-class, deposit and planet-modifier dirs. The layering still has to
 be right there for the names.
 

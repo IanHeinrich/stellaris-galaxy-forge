@@ -42,21 +42,16 @@ fn discovers_version_and_mods_in_load_order() {
 }
 
 #[test]
-fn same_key_in_a_later_file_wins_with_an_override_diagnostic() {
+fn a_mod_initializer_in_a_file_that_sorts_first_wins_with_an_override_diagnostic() {
     let gd = common::cached_fixture_with_mods();
     let init = gd.initializers.get("basic_init_01").expect("basic_init_01");
     assert_eq!(init.class.as_deref(), Some("sc_ember"));
     assert_eq!(init.flags, ["modded"]);
-    assert!(
-        init.source.ends_with("zz_one.txt"),
-        "{}",
-        init.source.display()
-    );
-    assert_eq!(init.source.file_name().unwrap(), "zz_one.txt");
+    assert_eq!(init.source.file_name().unwrap(), "!one.txt");
     assert!(gd.diagnostics.iter().any(|d| matches!(
         d,
         Diagnostic::Override { key, from, to }
-            if key == "basic_init_01" && from.ends_with("00_a.txt") && to.ends_with("zz_one.txt")
+            if key == "basic_init_01" && from.ends_with("00_a.txt") && to.ends_with("!one.txt")
     )));
     assert!(gd.initializers.get("mod_one_init").is_some());
 }

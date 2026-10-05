@@ -65,7 +65,7 @@ fn a_mod_empire_is_named_through_the_country_flag_its_scripted_effect_sets() {
     assert!(
         origin
             .display
-            .starts_with("common/solar_system_initializers/zz_one.txt:"),
+            .starts_with("common/solar_system_initializers/!one.txt:"),
         "{}",
         origin.display
     );

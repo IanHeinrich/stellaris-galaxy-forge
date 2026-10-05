@@ -177,6 +177,66 @@ fn keys(features: &[Feature]) -> Vec<(&str, bool)> {
     features.iter().map(|f| (f.key.as_str(), f.every)).collect()
 }
 
+/// A layout with no `usage` from the install and one from a mod, the mod's with odds and a
+/// star only special layouts make.
+fn with_unplaced_layouts() -> (tempfile::TempDir, sgf_gamedata::GameData) {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let install = dir.path().join("install");
+    let user_dir = dir.path().join("user");
+    let mut files: Vec<(&str, &str)> = FILES.to_vec();
+    files.push(("localisation/english/fx_l_english.yml", "l_english:\n"));
+    files.push((
+        "common/solar_system_initializers/zz_events.txt",
+        "fx_story = {\n\tclass = sc_sun\n\tplanet = { class = star orbit_distance = 0 }\n\
+         \tplanet = { class = pc_husk orbit_distance = 40 }\n}\n",
+    ));
+    for (rel, text) in files {
+        let file = install.join(rel);
+        std::fs::create_dir_all(file.parent().expect("a directory")).expect("the install tree");
+        std::fs::write(file, text).expect("an install file");
+    }
+    common::add_mod(
+        &user_dir,
+        "fx_mod",
+        &[(
+            "common/solar_system_initializers/fx_mod.txt",
+            "fx_mod_hole = {\n\tclass = sc_hole\n\tusage_odds = 100\n\
+             \tplanet = { class = star orbit_distance = 0 }\n\
+             \tplanet = { class = pc_rock orbit_distance = 50 }\n}\n",
+        )],
+    );
+    common::enable(&user_dir, &["fx_mod"]);
+    let gd = common::load_tree(&install, Some(&user_dir), true);
+    (dir, gd)
+}
+
+#[test]
+fn a_mods_layouts_with_no_usage_are_listed_by_the_mod_and_never_drawn() {
+    let (_dir, gd) = with_unplaced_layouts();
+    let session = common::open_4_5();
+    let entries = special_layouts(&gd, &session);
+    let groups: Vec<(&str, Option<&str>)> = entries
+        .iter()
+        .filter(|e| ["fx_story", "fx_mod_hole", "fx_haven"].contains(&e.key.as_str()))
+        .map(|e| (e.key.as_str(), e.group.as_deref()))
+        .collect();
+    assert_eq!(
+        groups,
+        [("fx_haven", None), ("fx_mod_hole", Some("fx_mod"))],
+        "the game's own fx_story is left out"
+    );
+    for seed in 0..40 {
+        for star in [None, Some("sc_hole")] {
+            let spec = generate(&gd, seed, "Fx", (0.0, 0.0), star, ABUNDANCE).expect("a system");
+            assert!(
+                !["fx_story", "fx_mod_hole"].contains(&spec.initializer.as_str()),
+                "seed {seed}, {star:?} drew {}",
+                spec.initializer
+            );
+        }
+    }
+}
+
 #[test]
 fn a_hand_written_install_summarises_each_pick_from_its_layouts() {
     let (_dir, gd) = layouts::hand_written();

@@ -13,6 +13,7 @@ mod details_colonies;
 mod details_layout;
 mod details_stars;
 mod dig_site_choices;
+mod first_wins;
 mod flags;
 mod fonts;
 mod galaxy_shapes;
