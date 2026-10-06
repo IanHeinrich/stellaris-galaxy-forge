@@ -105,10 +105,11 @@ pub(crate) fn unit(seed: u64, system: u32) -> f64 {
 /// The statements of a system's `effect` block that make the game treat it as an empire's
 /// home, written whole by the plain profile on a seat it gives one of
 /// [`SEAT_INITIALIZERS`]: the star flag a random empire start sets itself, then the
-/// starting deposits it generates and a capital of the size it gives, 18 to 21, raised
-/// only from below and not for the origins that want a small one. The second statement is
-/// guarded, because an origin whose own start system replaces the seat's has done both
-/// already.
+/// starting deposits it generates and a capital of 20, inside the 18 to 21 it gives,
+/// raised only from below and not for the origins that want a small one. A random pick
+/// inside a scenario effect comes out the same on every system, so the size is fixed. The
+/// second statement is guarded, because an origin whose own start system replaces the
+/// seat's has done both already.
 pub(crate) const HOME_SYSTEM_EFFECT: [&str; 2] = [
     "set_star_flag = empire_home_system",
     concat!(
@@ -118,8 +119,7 @@ pub(crate) const HOME_SYSTEM_EFFECT: [&str; 2] = [
         "NOT = { is_planet_class = pc_habitat } owner = { NOT = { ",
         "has_origin = origin_void_dwellers has_origin = origin_toxic_knights ",
         "has_origin = origin_arc_welders } } } ",
-        "random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } ",
-        "25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } }",
+        "set_planet_size = 20 } }",
     ),
 ];
 

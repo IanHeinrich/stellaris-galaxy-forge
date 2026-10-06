@@ -715,9 +715,8 @@ for planets or deposits.
   generate_home_system_resources = yes every_system_planet = { limit = {
   is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat }
   owner = { NOT = { has_origin = origin_void_dwellers has_origin =
-  origin_toxic_knights has_origin = origin_arc_welders } } } random_list =
-  { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = {
-  set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } }
+  origin_toxic_knights has_origin = origin_arc_welders } } }
+  set_planet_size = 20 } } }
   ```
 
   The flag is what vanilla checks to keep turbulent nebulae and some
@@ -735,13 +734,18 @@ for planets or deposits.
   (`@homeworld_min_size` and `@homeworld_max_size` in
   `empire_initializers.txt`), and each point of size is one district
   (`NUM_DISTRICTS_FROM_PLANET_SIZE = 1`). The `every_system_planet` line
-  raises a capital under 18 to 18 to 21. It never shrinks one, and it
-  skips habitats and the origins that set a small capital on purpose:
-  Void Dwellers (6, a habitat), Toxic Knights (6) and Arc Welders (15).
-  The origins that set their own size otherwise run their own start
-  system, which the guard skips: Life-Seeded 30, Remnants 22, Synthetic
-  Fertility 20, Wilderness 18. I have not tested the size line in game
-  yet; round 9 checks it.
+  raises a capital under 18 to 20. It never shrinks one, and it skips
+  habitats and the origins that set a small capital on purpose: Void
+  Dwellers (6, a habitat), Toxic Knights (6) and Arc Welders (15). The
+  origins that set their own size otherwise run their own start system,
+  which the guard skips: Life-Seeded 30, Remnants 22, Synthetic Fertility
+  20, Wilderness 18. Checked on 4.5 (round 9): every small capital came
+  out bigger, the ones above 21 were left alone, and a resized capital
+  looks like a normal start. A `random_list` inside a scenario effect
+  gave 20 on all 8 resized capitals, so a random pick there is not drawn
+  per system, and the size is a fixed 20. The exclusions for Void
+  Dwellers, Toxic Knights and Arc Welders are untested, since none was
+  rolled.
 - `position = { x y z }` parses, but the game ignores `z`. A scenario
   with `z` from -50 to 1000 on 780 systems started a game whose day-one
   save has `visual_height=3.65056` on every system (4.5.1). Height can
