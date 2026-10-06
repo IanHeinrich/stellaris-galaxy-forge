@@ -8,6 +8,12 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-10-06
+
+### Fixed
+
+- A planet or moon added after deleting one no longer shows twice.
+
 ## [0.22.0] - 2026-10-06
 
 ### Added

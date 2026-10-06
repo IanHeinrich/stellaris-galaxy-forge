@@ -304,3 +304,36 @@ fn an_ironman_save_takes_a_planet() {
         .apply(meissa_v())
         .expect("an Ironman save takes a planet");
 }
+
+/// Moon 23 of system 463 is deleted, so the planet added after it takes its slot one
+/// generation on. The details list the new planet once and the deleted moon not at all, the
+/// moon cannot be deleted again, and taking the new planet out leaves the system as the
+/// delete left it.
+#[test]
+fn a_planet_added_in_a_deleted_moons_slot_is_listed_once() {
+    let mut session = open_4_5();
+    session
+        .apply(Op::DeleteBody { body: 23 })
+        .expect("delete the moon");
+    let after_delete = common::planet_ids(&session, 463);
+    let result = session
+        .apply(add(463, body("pc_barren", 10), 60.0, 0.0))
+        .expect("a planet");
+    let id = added(&result);
+    assert_eq!(
+        id,
+        23 | 1 << 24,
+        "the deleted moon's slot, one generation on"
+    );
+    let ids = common::planet_ids(&session, 463);
+    assert_eq!(ids.iter().filter(|&&p| p == id).count(), 1, "{ids:?}");
+    assert!(!ids.contains(&23), "{ids:?}");
+    assert_eq!(ids.len(), after_delete.len() + 1, "{ids:?}");
+    let error = session
+        .apply(Op::DeleteBody { body: 23 })
+        .expect_err("the moon is gone");
+    assert!(matches!(error, OpError::UnknownPlanet(23)), "{error}");
+
+    session.apply(result.inverse).expect("take it out again");
+    assert_eq!(common::planet_ids(&session, 463), after_delete);
+}

@@ -428,7 +428,7 @@ pub(crate) fn system_statement(doc: &Document, id: u32) -> Option<Anchor> {
 }
 
 /// The statement standing for planet `id`: one an op added, or the one loaded; `None` for
-/// a planet the save does not hold or holds as a tombstone.
+/// a planet the save does not hold, holds as a tombstone, or whose slot an added planet took.
 pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>, ProjectionError> {
     if let Some(anchor) = doc.added().get(EntityKind::Planet, id) {
         return Ok(Some(anchor));
@@ -437,7 +437,12 @@ pub(crate) fn planet_statement(doc: &Document, id: u32) -> Result<Option<Anchor>
         .inner_index(keys::PLANETS)?
         .and_then(|index| index.entity(keys::PLANET, u64::from(id)))
         .filter(|e| matches!(e.value, Value::Block { .. }))
-        .map(|e| Anchor::Original(e.stmt)))
+        .map(|e| Anchor::Original(e.stmt))
+        .filter(|&anchor| {
+            doc.added()
+                .entries(EntityKind::Planet)
+                .all(|(_, taken)| taken != anchor)
+        }))
 }
 
 /// The `<id>={ … }` entity `bytes` hold; `None` for a tombstone, `<id>=none`, or no
@@ -490,13 +495,15 @@ pub(crate) fn planet_system(node: &Node, src: &[u8], id: u32) -> Result<u32, OpE
 /// a tombstone is left out.
 pub(crate) fn planet_statements(doc: &Document) -> Result<Vec<(u32, Anchor)>, ProjectionError> {
     let mut planets: Vec<(u32, Anchor)> = doc.added().entries(EntityKind::Planet).collect();
+    let taken: BTreeSet<Anchor> = planets.iter().map(|&(_, anchor)| anchor).collect();
     if let Some(index) = doc.inner_index(keys::PLANETS)? {
         planets.extend(
             index
                 .entities(keys::PLANET)
                 .iter()
                 .filter(|e| matches!(e.value, Value::Block { .. }))
-                .filter_map(|e| Some((u32::try_from(e.id).ok()?, Anchor::Original(e.stmt)))),
+                .filter_map(|e| Some((u32::try_from(e.id).ok()?, Anchor::Original(e.stmt))))
+                .filter(|(_, anchor)| !taken.contains(anchor)),
         );
     }
     planets.sort_by_key(|&(_, anchor)| anchor);
