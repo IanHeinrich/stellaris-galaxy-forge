@@ -8,6 +8,24 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-06
+
+### Added
+
+- Improved experience for converting saves into static galaxy scenarios,
+  with a setup screen.
+  - Choose what the new game keeps, from starting positions to fallen
+    empires, and see the result on the map before you apply it.
+
+### Changed
+
+- A scenario made from a save starts New Game with that save's settings.
+
+### Fixed
+
+- Empires on a plain scenario start on a homeworld their species likes, at
+  the usual size and with the usual starting deposits.
+
 ## [0.21.0] - 2026-10-05
 
 ### Added
