@@ -17,8 +17,8 @@ use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::export::{
-    NAME, PLAIN_EXPORT, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes,
-    no_names, no_sources, seated,
+    NAME, PLAIN_EXPORT, SAVE_FILE, at_fixture_version, default_capitals, exported_as, home_systems,
+    lanes, no_names, no_sources, seated,
 };
 use common::fixture::{EXPORTED, GRAMMAR, from_scenario_text};
 
@@ -104,6 +104,13 @@ static_galaxy_scenario = {{
     );
     assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
     assert_eq!(seated(&text), capitals);
+    let replaced: BTreeSet<u32> = report
+        .home_initializers
+        .iter()
+        .filter(|h| h.replaced)
+        .map(|h| h.system)
+        .collect();
+    assert_eq!(home_systems(&text), replaced);
     assert_eq!(text.matches("spawn_weight").count(), seats);
 
     assert_eq!(report.seats, seats as u32);
@@ -170,13 +177,7 @@ static_galaxy_scenario = {{
         report.by_category
     );
 
-    let issues = report.issues();
-    let replaced: BTreeSet<u32> = report
-        .home_initializers
-        .iter()
-        .filter(|h| h.replaced)
-        .map(|h| h.system)
-        .collect();
+    let issues = report.issues(ScenarioProfile::Plain);
     assert_eq!(replaced.len(), 12);
     for issue in &issues {
         let info = issue
@@ -189,6 +190,14 @@ static_galaxy_scenario = {{
             Severity::Warning
         };
         assert_eq!(issue.severity, expected, "{issue:?}");
+        if info {
+            assert!(
+                issue
+                    .message
+                    .ends_with("and the export gave it an ordinary system"),
+                "{issue:?}"
+            );
+        }
     }
     assert!(
         issues.iter().all(|i| i.note),

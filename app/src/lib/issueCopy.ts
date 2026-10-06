@@ -82,7 +82,7 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   home_initializer: {
     title: "Seat on a start written for one empire",
     why: "This seat stands on a starting system written for one named empire. The generator offers that start to no other empire, so the seat fits only the one that began there.",
-    fix: "Select the system and pick an ordinary system with Choose… in the inspector's Initializer section. The Paint a Galaxy export does this for you.",
+    fix: "Select the system and pick a generic start with Choose… in the inspector's Initializer section. The Paint a Galaxy export does this for you.",
     detail: true,
   },
   fe_zone_blocked: {

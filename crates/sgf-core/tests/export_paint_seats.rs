@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use sgf_core::VERSION;
 use sgf_core::export::{self, DroppedBypasses, ScenarioProfile};
 use sgf_core::format::scenario::header_counts::{SeatCounts, seat_counts};
-use sgf_core::format::scenario::{is_seat_initializer, seat_initializer};
+use sgf_core::format::scenario::paint::random_empire_start;
 use sgf_core::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -14,8 +14,8 @@ use sgf_core::validate::{IssueCode, Severity};
 use crate::common;
 use common::coded;
 use common::export::{
-    NAME, Painted, SAVE_FILE, default_capitals, exported_as, find, no_names, no_sources, painted,
-    seated,
+    NAME, Painted, SAVE_FILE, default_capitals, exported_as, find, home_systems, no_names,
+    no_sources, painted, seated,
 };
 use common::fixture::from_scenario_text;
 use common::paint::left_out;
@@ -107,10 +107,10 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
             player: true,
         })
     );
-    assert_eq!(galaxy.systems[&player].initializer, "basic_init_03");
+    assert_eq!(galaxy.systems[&player].initializer, "random_empire_init_05");
     assert!(
         text.contains(
-            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = basic_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } } }
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|SOL|yes|RANDOM_MODULO|1|RANDOM_VALUE|0| modifier = { add = 100000 has_country_flag = human_1 } } }
 "
         ),
         "{text}"
@@ -152,27 +152,32 @@ fn the_une_player_takes_the_sol_seat_on_a_generic_start() {
     );
 }
 
-/// The export gives every seat whose initializer was an empire's home one of the game's
-/// ordinary systems, so each is reported as information only. The game's random empire
-/// starts are homes too, and every seat ends up on an ordinary system.
+/// The export gives every seat whose initializer was an empire's home a generic start,
+/// so each is reported as information only. Every seat stands on one of the game's random
+/// empire starts, which set what Paint a Galaxy's homeworld fix needs, so the export
+/// writes no home system effect.
 #[test]
-fn every_home_initializer_on_a_seat_is_replaced_by_an_ordinary_system() {
+fn every_home_initializer_on_a_seat_is_replaced_by_a_generic_start() {
     let Painted {
-        report, reopened, ..
+        text,
+        report,
+        reopened,
+        ..
     } = painted();
-    assert_eq!(report.home_initializers.len(), 16);
+    assert_eq!(report.home_initializers.len(), 4);
     assert!(report.home_initializers.iter().all(|h| h.replaced));
-    let reported = report.issues();
+    let reported = report.issues(ScenarioProfile::PaintAGalaxy);
     let homes = coded(&reported, IssueCode::HomeInitializer);
-    assert_eq!(homes.len(), 16);
+    assert_eq!(homes.len(), 4);
     assert!(
         homes.iter().all(|i| i.severity == Severity::Info),
         "{homes:?}"
     );
     for home in &report.home_initializers {
-        let written = &reopened.graph().systems[&home.system].initializer;
-        assert!(is_seat_initializer(written.as_str()), "{written}");
-        assert_eq!(written, seat_initializer(home.system));
+        assert_eq!(
+            reopened.graph().systems[&home.system].initializer,
+            random_empire_start(home.system)
+        );
     }
     let seats: Vec<(u32, &str)> = reopened
         .graph()
@@ -183,9 +188,13 @@ fn every_home_initializer_on_a_seat_is_replaced_by_an_ordinary_system() {
         .collect();
     assert_eq!(seats.len(), 17);
     assert!(
-        seats.iter().all(|(_, i)| is_seat_initializer(i)),
+        seats
+            .iter()
+            .all(|(_, i)| i.starts_with("random_empire_init_")),
         "{seats:?}"
     );
+    assert_eq!(home_systems(text), BTreeSet::new());
+    assert!(reopened.graph().systems.values().all(|s| !s.home_system));
 }
 
 /// The sample with the player's `human_1` country flag taken out: a player that is not
@@ -218,7 +227,7 @@ fn a_player_that_is_not_the_une_gets_a_first_player_seat() {
     assert_eq!(report.player_seat_kind, Some(PaintSpawnKind::Preferred));
     assert!(
         text.contains(
-            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = basic_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 has_country_flag = painted_galaxy_host } } }
+            "	system = { id = \"217\" name = \"NAME_Sol\" position = { x = 397.39 y = -180.25 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|7| modifier = { add = 100000 has_country_flag = painted_galaxy_host } } }
 "
         ),
         "{text}"
@@ -285,11 +294,11 @@ fn the_paint_a_galaxy_profile_seats_the_capitals_fills_their_neighbours_and_flag
     assert_eq!(report.dropped_summary, None);
     assert!(
         report
-            .issues()
+            .issues(ScenarioProfile::PaintAGalaxy)
             .iter()
             .all(|issue| issue.code != IssueCode::ExportDropped),
         "{:?}",
-        report.issues()
+        report.issues(ScenarioProfile::PaintAGalaxy)
     );
     let systems = text
         .lines()
@@ -340,7 +349,7 @@ static_galaxy_scenario = {{
         assert!(!system.initializer.is_empty(), "{id}");
         let expected = match save.graph().systems[id].initializer.as_str() {
             own if own.is_empty() || review.contains(id) || player => {
-                seat_initializer(*id).to_owned()
+                random_empire_start(*id).to_owned()
             }
             own => own.to_owned(),
         };

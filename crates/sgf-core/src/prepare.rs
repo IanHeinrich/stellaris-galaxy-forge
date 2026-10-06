@@ -17,7 +17,7 @@ use crate::format::scenario::header_counts::{
 };
 use crate::format::scenario::is_painted;
 use crate::format::scenario::marauder::{self, MarauderRole};
-use crate::format::scenario::{GOLDEN, mix, unit};
+use crate::format::scenario::{GOLDEN, is_seat_initializer, mix, unit};
 use crate::keys::scenario as keys;
 use crate::ops::Op;
 use crate::ops::rules::fe_zone as rules;
@@ -435,6 +435,7 @@ pub fn build(
     if ops.is_empty() {
         return Ok(None);
     }
+    ops.extend(home_systems(&plan, &ops));
     let changed = changed_in(plan.graph, &ops);
     ops.extend(header_counts(&plan, &ops));
     Ok(Some(Op::Batch {
@@ -543,7 +544,7 @@ fn row_ops(plan: &Plan<'_>, draw: &PlainDraw) -> Result<Vec<Op>, PrepareError> {
                 for node in nodes {
                     match plan.seats.contains(&node.id) {
                         true => {
-                            let start = dialect::generic_start(profile, node.id);
+                            let start = dialect::generic_start(profile, node.id).to_owned();
                             ops.extend(initializer(node, Some(start)));
                             ops.extend(dialect::without_sol_seat(profile, node));
                         }
@@ -989,7 +990,7 @@ impl<'a> Plan<'a> {
     /// system that still holds a seat once the batch applies, else a plain system.
     fn start(&self, node: &SystemNode, draw: &PlainDraw) -> Result<String, PrepareError> {
         match self.seats.contains(&node.id) {
-            true => Ok(dialect::generic_start(self.profile, node.id)),
+            true => Ok(dialect::generic_start(self.profile, node.id).to_owned()),
             false => dialect::plain_system(self.profile, node.id, draw),
         }
     }
@@ -1317,12 +1318,14 @@ fn initializer(node: &SystemNode, to: Option<String>) -> Option<Op> {
 
 /// Every question whose answer depends on the dialect the scenario is written in, one
 /// function each. A new profile adds one arm to each and touches nothing else.
+pub(crate) use dialect::generic_start;
+
 mod dialect {
     use std::collections::BTreeMap;
 
     use super::{PlainDraw, PrepareError, Stream, initializer, unit};
     use crate::export::ScenarioProfile;
-    use crate::format::scenario::paint::RL_BASIC;
+    use crate::format::scenario::paint::{RL_BASIC, random_empire_start, random_empire_start_at};
     use crate::format::scenario::{seat_initializer, seat_initializer_at};
     use crate::ops::Op;
     use crate::projections::galaxy::{PaintSpawnKind, SpawnScript, SystemNode};
@@ -1339,23 +1342,33 @@ mod dialect {
         }
     }
 
-    /// The initializer Generic start writes on seat `system`: one of the game's ordinary
-    /// systems, as the export gives a seat.
-    pub(super) fn generic_start(profile: ScenarioProfile, system: u32) -> String {
+    /// The initializer Generic start, and an export, writes on seat `system`: one of the
+    /// game's ordinary systems on a plain map, and one of its random empire starts for
+    /// Paint a Galaxy, whose homeworld fix runs only on the flag such a start sets.
+    pub(crate) fn generic_start(profile: ScenarioProfile, system: u32) -> &'static str {
         match profile {
-            ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
-                seat_initializer(system).to_owned()
-            }
+            ScenarioProfile::Plain => seat_initializer(system),
+            ScenarioProfile::PaintAGalaxy => random_empire_start(system),
         }
     }
 
-    /// The initializer a new random seat `system` gets: one of the same ordinary systems,
-    /// drawn from `seed`.
+    /// The initializer a new random seat `system` gets: one of the same starts, drawn
+    /// from `seed`.
     pub(super) fn drawn_start(profile: ScenarioProfile, system: u32, seed: u64) -> String {
+        let unit = unit(Stream::Starts.seed(seed), system);
         match profile {
-            ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
-                seat_initializer_at(unit(Stream::Starts.seed(seed), system)).to_owned()
-            }
+            ScenarioProfile::Plain => seat_initializer_at(unit).to_owned(),
+            ScenarioProfile::PaintAGalaxy => random_empire_start_at(unit).to_owned(),
+        }
+    }
+
+    /// Whether the profile writes the home system effect on a seat it gives one of the
+    /// game's ordinary systems: a plain map does, and Paint a Galaxy's random empire
+    /// starts set what they need themselves.
+    pub(super) fn writes_home_system(profile: ScenarioProfile) -> bool {
+        match profile {
+            ScenarioProfile::Plain => true,
+            ScenarioProfile::PaintAGalaxy => false,
         }
     }
 
@@ -1551,6 +1564,37 @@ pub fn changed(session: &Session, batch: &Op) -> usize {
     }
 }
 
+/// The members that leave the home system effect on exactly the systems that end the batch as
+/// a seat on one of the game's ordinary systems, on a profile that writes the effect itself:
+/// every system, whether the batch touches it or not.
+fn home_systems(plan: &Plan<'_>, ops: &[Op]) -> Vec<Op> {
+    if !dialect::writes_home_system(plan.profile) {
+        return Vec::new();
+    }
+    let written: HashMap<u32, &str> = ops
+        .iter()
+        .filter_map(|op| match op {
+            Op::SetInitializer {
+                system,
+                initializer,
+            } => Some((*system, initializer.as_deref().unwrap_or_default())),
+            _ => None,
+        })
+        .collect();
+    let graph = plan.graph;
+    graph
+        .order
+        .iter()
+        .filter_map(|id| graph.systems.get(id))
+        .filter_map(|node| {
+            let system = node.id;
+            let initializer = written.get(&system).copied().unwrap_or(&node.initializer);
+            let home = plan.seats.contains(&system) && is_seat_initializer(initializer);
+            (home != node.home_system).then_some(Op::SetHomeSystem { system, home })
+        })
+        .collect()
+}
+
 fn changed_in(graph: &GalaxyGraph, ops: &[Op]) -> usize {
     let systems: BTreeSet<u32> = ops.iter().flat_map(|op| systems_of(graph, op)).collect();
     systems.len()
@@ -1563,6 +1607,7 @@ fn systems_of(graph: &GalaxyGraph, op: &Op) -> Vec<u32> {
         | Op::SetSpawnScript { system, .. }
         | Op::SetSpawnWeight { system, .. }
         | Op::SetFeZone { system, .. }
+        | Op::SetHomeSystem { system, .. }
         | Op::RenameSystem { system, .. } => vec![system],
         Op::SetFeLinks { anchor, .. } => {
             let id = graph.systems.get(&anchor).and_then(|a| a.fe_link.id);

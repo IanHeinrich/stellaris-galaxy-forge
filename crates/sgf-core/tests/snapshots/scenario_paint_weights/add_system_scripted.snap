@@ -11,5 +11,5 @@ inverse: RemoveSystem { system: 14 }
  	add_hyperlane = { from = "4" to = "13" }
  	nebula = { name = " " position = { x = 0 y = 100 } radius = 30 }
  	nebula = { name = " " position = { x = -150 y = -120 } radius = 40 }
-+	system = { id = "14" name = "New Seat" position = { x = 60 y = 10 } initializer = basic_init_03 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|5| } }
++	system = { id = "14" name = "New Seat" position = { x = 60 y = 10 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|5| } }
  }

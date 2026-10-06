@@ -157,3 +157,134 @@ fn an_initializer_that_is_not_one_bare_key_is_refused_before_any_write() {
         }
     }
 }
+
+/// Seats on the game's ordinary systems on a plain map: one whose effect stands on one
+/// line, one whose effect spans several, and one with no effect.
+const SEATS: &str = "static_galaxy_scenario = {
+	name = \"seats\"
+	system = { id = \"1\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" } }
+	system = {
+		id = \"2\"
+		position = { x = 3 y = 4 }
+		initializer = basic_init_02
+		spawn_weight = { base = 1 }
+		effect = {
+			log = \"y\"
+		}
+	}
+	system = { id = \"3\" position = { x = 5 y = 6 } initializer = basic_init_03 spawn_weight = { base = 1 } }
+}
+";
+
+fn home_systems(home: bool) -> Op {
+    Op::Batch {
+        description: "home systems".to_owned(),
+        ops: [1, 2, 3]
+            .map(|system| Op::SetHomeSystem { system, home })
+            .to_vec(),
+    }
+}
+
+#[test]
+fn the_home_system_effect_goes_after_what_the_effect_holds_and_comes_out_alone() {
+    let mut session = common::fixture::from_scenario_text(SEATS);
+    session.apply(home_systems(true)).expect("mark the homes");
+    assert_eq!(
+        common::text(&session),
+        "static_galaxy_scenario = {
+	name = \"seats\"
+	system = { id = \"1\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+	system = {
+		id = \"2\"
+		position = { x = 3 y = 4 }
+		initializer = basic_init_02
+		spawn_weight = { base = 1 }
+		effect = {
+			log = \"y\"
+			set_star_flag = empire_home_system
+			if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes }
+		}
+	}
+	system = { id = \"3\" position = { x = 5 y = 6 } initializer = basic_init_03 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+}
+"
+    );
+    assert!(session.graph().systems.values().all(|s| s.home_system));
+    let again = session.apply(Op::SetHomeSystem {
+        system: 1,
+        home: true,
+    });
+    assert!(matches!(again, Err(OpError::Unchanged { .. })), "{again:?}");
+
+    session
+        .apply(home_systems(false))
+        .expect("take the marks off");
+    assert_eq!(common::text(&session), SEATS);
+    assert!(session.graph().systems.values().all(|s| !s.home_system));
+    session.undo().expect("undo").expect("an edit to undo");
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(common::text(&session), SEATS);
+}
+
+/// A seat written compactly with the whole effect, and one whose effect holds only the flag.
+const MARKED: &str = "static_galaxy_scenario = {
+	name = \"marked\"
+	system = { id = \"4\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect={set_star_flag=empire_home_system if={limit={NOT={any_system_planet={has_planet_flag=starting_deposit}}}generate_home_system_resources=yes}} }
+	system = { id = \"5\" position = { x = 3 y = 4 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system } }
+}
+";
+
+#[test]
+fn the_home_system_effect_is_read_by_its_tokens_and_a_flag_alone_is_written_whole() {
+    let mut session = common::fixture::from_scenario_text(MARKED);
+    assert!(
+        session.graph().systems[&4].home_system,
+        "compact spacing reads the same"
+    );
+    assert!(
+        !session.graph().systems[&5].home_system,
+        "the flag alone is half the effect"
+    );
+    let again = session.apply(Op::SetHomeSystem {
+        system: 4,
+        home: true,
+    });
+    assert!(matches!(again, Err(OpError::Unchanged { .. })), "{again:?}");
+
+    session
+        .apply(Op::SetHomeSystem {
+            system: 4,
+            home: false,
+        })
+        .expect("take the compact effect out");
+    let marked = session
+        .apply(Op::SetHomeSystem {
+            system: 5,
+            home: true,
+        })
+        .expect("write the half-marked effect whole");
+    assert_eq!(
+        common::text(&session),
+        "static_galaxy_scenario = {
+	name = \"marked\"
+	system = { id = \"4\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } }
+	system = { id = \"5\" position = { x = 3 y = 4 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+}
+"
+    );
+    assert_eq!(
+        marked.inverse,
+        Op::SetHomeSystem {
+            system: 5,
+            home: false,
+        },
+        "the inverse takes out both statements"
+    );
+    session.undo().expect("undo").expect("an edit to undo");
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(
+        common::text(&session),
+        MARKED,
+        "undo puts the flag alone back"
+    );
+}

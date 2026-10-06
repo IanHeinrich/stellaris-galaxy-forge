@@ -135,6 +135,8 @@ export interface FileSessionState {
   scenarioPrompt: ScenarioPrompt | null;
   /** What an export would carry over, waiting for the user to confirm or cancel it. */
   pendingExport: ExportReport | null;
+  /** The profile `pendingExport` was previewed under. */
+  pendingExportProfile: ScenarioProfile | null;
   /** The open scenario carries Paint a Galaxy's scripts or flags, or Forge's header for the mod. */
   painted: boolean;
   /** The open scenario was started or opened under the mod's profile, whatever its bytes say. */
@@ -190,6 +192,8 @@ export interface FileSessionState {
   saveIntoPaintMod(): Promise<void>;
   /** Previews what exporting the open save carries over, and asks whether to write it. */
   exportScenario(): Promise<void>;
+  /** Previews the pending export again under the standing profile; nothing once it is answered. */
+  refreshExport(): Promise<void>;
   /** Answers the pending export: writes the scenario under `profile`, or cancels on null. */
   confirmExport(profile: ScenarioProfile | null): Promise<void>;
   /** Resolves true when it is safe to discard the session: not dirty, or the user confirmed. */
@@ -237,6 +241,7 @@ const INITIAL = {
   pendingAsScenario: false,
   scenarioPrompt: null as ScenarioPrompt | null,
   pendingExport: null as ExportReport | null,
+  pendingExportProfile: null as ScenarioProfile | null,
   painted: false,
   paintChosen: false,
   fromSave: false,

@@ -20,7 +20,7 @@ issues: 51
 -	system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
 -	system = { id = "6" name = "Gaping_Maw" position = { x = 192.35 y = -238.8 } initializer = distantstars_init_06 }
 -	system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } initializer = basic_init_03 }
- 	system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = basic_init_01 spawn_weight = { base = 1 } }
+ 	system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
 -	system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } initializer = megacorp_interstellar_assembly_init_01 }
 -	system = { id = "10" name = "NAME_Tiyana_Vek" position = { x = 49.58 y = 130.32 } initializer = hostile_init_16 }
 -	system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = voidworms_spawn_system_tiny }

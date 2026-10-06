@@ -102,4 +102,9 @@ added: boolean,
  * A save system carrying the `turbulent_nebula` modifier, which the game gives a few
  * nebula members at game start. Always false for a scenario.
  */
-turbulent?: boolean, };
+turbulent?: boolean, 
+/**
+ * A scenario system whose `effect` block makes the game treat it as an empire's home.
+ * Always false for a save.
+ */
+home_system?: boolean, };

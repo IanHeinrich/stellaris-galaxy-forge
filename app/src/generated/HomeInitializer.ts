@@ -2,10 +2,10 @@
 
 /**
  * An empire seat on a home rather than a generic start: one written for one empire,
- * which may only fit it, or one of the game's random empire starts.
+ * which may only fit it, or on a plain map one of the game's random empire starts.
  */
 export type HomeInitializer = { system: number, initializer: string, 
 /**
- * Whether the export wrote one of the game's ordinary systems in its place.
+ * Whether the export wrote the start its profile gives a seat in its place.
  */
 replaced: boolean, };

@@ -1,7 +1,7 @@
-//! The `set_star_flag`s of a system's `effect` block that one feature owns. The
-//! feature's flags come out whole and go back in at the end of the block, in the shape
-//! its statements are written in; every other statement of the block stays byte for
-//! byte.
+//! The statements of a system's `effect` block that one feature owns, most of them
+//! `set_star_flag`s. The feature's statements come out whole and go back in at the end of
+//! the block, in the shape its statements are written in; every other statement of the
+//! block stays byte for byte.
 
 use crate::Span;
 use crate::cst::Node;
@@ -18,10 +18,48 @@ pub(super) fn rewrite_flags(
     of_interest: impl Fn(&str, Option<&str>) -> bool,
     new_flags: &[String],
 ) -> Result<(), OpError> {
+    let statements: Vec<String> = new_flags.iter().map(|f| statement(f)).collect();
+    let picks = |statement: Statement<'_>| {
+        statement.key == SET_STAR_FLAG
+            && statement
+                .value
+                .is_some_and(|flag| of_interest(flag, statement.before))
+    };
+    rewrite(edit, picks, &statements)
+}
+
+/// Take every statement `of_interest` picks by its text off the block and write
+/// `new_statements` at its end, as [`rewrite_flags`] does with flags.
+pub(super) fn rewrite_statements(
+    edit: &mut Edit,
+    of_interest: impl Fn(&str) -> bool,
+    new_statements: &[String],
+) -> Result<(), OpError> {
+    rewrite(
+        edit,
+        |statement| of_interest(statement.text),
+        new_statements,
+    )
+}
+
+/// One statement of the block as a predicate sees it: its key, its value when that is a
+/// scalar, its whole text and the flag on the statement right before it.
+#[derive(Clone, Copy)]
+struct Statement<'a> {
+    key: &'a str,
+    value: Option<&'a str>,
+    text: &'a str,
+    before: Option<&'a str>,
+}
+
+fn rewrite(
+    edit: &mut Edit,
+    of_interest: impl Fn(Statement<'_>) -> bool,
+    new_statements: &[String],
+) -> Result<(), OpError> {
     let Some(block) = block(edit, of_interest)? else {
-        if !new_flags.is_empty() {
-            let statements: Vec<String> = new_flags.iter().map(|f| statement(f)).collect();
-            let text = format!("{} = {{ {} }}", keys::EFFECT, statements.join(" "));
+        if !new_statements.is_empty() {
+            let text = format!("{} = {{ {} }}", keys::EFFECT, new_statements.join(" "));
             let last = edit
                 .entity()?
                 .children()
@@ -33,15 +71,15 @@ pub(super) fn rewrite_flags(
         }
         return Ok(());
     };
-    if new_flags.is_empty() && block.flags.len() == block.children {
+    if new_statements.is_empty() && block.picked.len() == block.children {
         edit.bytes().remove_statement(block.statement);
         return Ok(());
     }
-    for span in &block.flags {
+    for span in &block.picked {
         edit.bytes().remove_statement(*span);
     }
-    for flag in new_flags {
-        append(edit, &block, &statement(flag));
+    for text in new_statements {
+        append(edit, &block, text);
     }
     Ok(())
 }
@@ -60,13 +98,13 @@ struct Block {
     /// How many statements the block holds.
     children: usize,
     last_child: Option<Span>,
-    /// The `set_star_flag` statements `of_interest` picks, in file order.
-    flags: Vec<Span>,
+    /// The statements `of_interest` picks, in file order.
+    picked: Vec<Span>,
 }
 
 fn block(
     edit: &Edit,
-    of_interest: impl Fn(&str, Option<&str>) -> bool,
+    of_interest: impl Fn(Statement<'_>) -> bool,
 ) -> Result<Option<Block>, OpError> {
     let Some(node) = edit.entity()?.find(keys::EFFECT, &edit.buf) else {
         return Ok(None);
@@ -79,21 +117,26 @@ fn block(
             .then(|| child.scalar_str(&edit.buf))
             .flatten()
     };
-    let mut flags = Vec::new();
+    let mut picked = Vec::new();
     let mut before = None;
     for child in node.children() {
-        let flag = flag_of(child);
-        if flag.is_some_and(|flag| of_interest(flag, before)) {
-            flags.push(child.span());
+        let statement = Statement {
+            key: child.key_str(&edit.buf).unwrap_or_default(),
+            value: child.scalar_str(&edit.buf),
+            text: edit.text(child.span()),
+            before,
+        };
+        if of_interest(statement) {
+            picked.push(child.span());
         }
-        before = flag;
+        before = flag_of(child);
     }
     Ok(Some(Block {
         statement: node.span(),
         value: node.value_span(),
         children: node.children().len(),
         last_child: node.children().last().map(|child| child.span()),
-        flags,
+        picked,
     }))
 }
 

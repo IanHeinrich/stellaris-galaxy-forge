@@ -13,7 +13,9 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 pub(super) use header::{HeaderCounts, header};
 
 use crate::as_u32;
-use crate::export::{Draft, ExportReport, SpawnDraft, SystemDraft, clan_count, crises, report};
+use crate::export::{
+    Draft, ExportReport, ScenarioProfile, SpawnDraft, SystemDraft, clan_count, crises, report,
+};
 use crate::format::scenario::emit::ScenarioOptions;
 use crate::format::scenario::fe_zone::SET_STAR_FLAG;
 use crate::format::scenario::header_counts::{SeatCounts, is_seat};
@@ -21,7 +23,7 @@ use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
     WORMHOLE_FLAG_PREFIX,
 };
-use crate::format::scenario::seat_initializer;
+use crate::prepare::generic_start;
 use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 use crate::search::NameResolver;
 
@@ -112,8 +114,8 @@ fn player_seat(graph: &GalaxyGraph) -> Option<(u32, PaintSpawnKind)> {
 /// carries. The Sol seat is certain for the United Nations of Earth, since every other
 /// empire weighs it at zero. A 1st Player seat is all but certain for the host: an
 /// empire whose origin needs special placement is seated before the player and can
-/// still draw it. A seat with no initializer, or one the report says to review, gets one
-/// of the game's ordinary systems.
+/// still draw it. A seat with no initializer, or one the report says to review, gets a
+/// generic start.
 fn mark_spawns(
     draft: &mut Draft,
     report: &mut ExportReport,
@@ -144,10 +146,11 @@ fn mark_spawns(
                 }
             });
         system.spawn = SpawnDraft::Script(script);
-        // The player's empire brings its own home, so its seat gets an ordinary system.
+        // The player's empire brings its own home, so its seat gets a generic start.
         let players = player.as_ref().is_some_and(|(id, _)| *id == system.id);
         if system.initializer.is_none() || review.contains(&system.id) || players {
-            system.initializer = Some(seat_initializer(system.id).to_owned());
+            system.initializer =
+                Some(generic_start(ScenarioProfile::PaintAGalaxy, system.id).to_owned());
         }
     }
     for home in &mut report.home_initializers {

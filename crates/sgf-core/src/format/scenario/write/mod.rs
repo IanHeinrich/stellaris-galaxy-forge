@@ -15,12 +15,14 @@
 //! scenario's own keys, [`spawn`] for the weights the generator seats empires by and
 //! [`fe_zone`] for the star flags Paint a Galaxy seats fallen empires by, [`fe_link`]
 //! for the ones it lays a fallen empire's hyperlanes by and [`wormhole`] for the ones
-//! it joins a wormhole pair by; [`flags`] rewrites a feature's flags for those three.
+//! it joins a wormhole pair by; [`flags`] rewrites a feature's flags for those three, and
+//! the statements [`home`] makes a system an empire's home by.
 
 mod fe_link;
 mod fe_zone;
 mod flags;
 mod header;
+mod home;
 mod lanes;
 mod nebula;
 mod spawn;
@@ -104,6 +106,7 @@ pub(crate) fn write(plan: &mut Plan, s: &Session, op: &Op) -> Result<Planned, Op
         Op::SetWormholeEnds { entries } => wormhole::set_ends(plan, s, entries),
         Op::SetFeLinks { anchor, linked } => fe_link::set_links(plan, s, *anchor, linked),
         Op::SetFeLinkFlags { entries } => fe_link::set_flags(plan, s, entries),
+        Op::SetHomeSystem { system, home } => home::set_home_system(plan, s, *system, *home),
         Op::Batch { .. } => Err(OpError::NestedBatch),
         _ => Err(OpError::Unsupported {
             op: op.name(),

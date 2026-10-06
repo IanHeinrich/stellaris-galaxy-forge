@@ -44,14 +44,11 @@ pub async fn open_as_scenario<R: Runtime>(
 ) -> Result<OpenResult, SgfError> {
     install(app, move |gd| {
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
-        let (session, report) = export::open_save_as_scenario(
-            Path::new(&path),
-            &resolve,
-            &sources,
-            profile.unwrap_or_default(),
-        )?;
+        let profile = profile.unwrap_or_default();
+        let (session, report) =
+            export::open_save_as_scenario(Path::new(&path), &resolve, &sources, profile)?;
         let dropped = report
-            .issues()
+            .issues(profile)
             .into_iter()
             .filter(|issue| issue.code == IssueCode::ExportDropped)
             .collect();
@@ -140,20 +137,23 @@ pub async fn export_scenario<R: Runtime>(
     Ok(ExportResult { save, report })
 }
 
-/// What exporting the open save would report, without writing anything. The report is
-/// the plain draft's: the statement counts are the plain profile's, and the rest every
-/// profile shares.
+/// What exporting the open save under `profile` would report, without writing anything.
+/// `profile` is plain when absent.
 #[tauri::command]
-pub async fn preview_export<R: Runtime>(app: AppHandle<R>) -> Result<ExportReport, SgfError> {
+pub async fn preview_export<R: Runtime>(
+    app: AppHandle<R>,
+    profile: Option<ScenarioProfile>,
+) -> Result<ExportReport, SgfError> {
     let gd = app.state::<GameDataState>().loaded();
     with_session(app, move |guard| {
         let session = require(guard.as_ref(), is_save, ONLY_A_SAVE_EXPORTS)?;
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
-        let (_, report) = export::draft(
+        let (_, report) = export::scenario_text(
             session.graph(),
             &export::options_for_session(session, &session.title()),
             &resolve,
             &sources,
+            profile.unwrap_or_default(),
         );
         Ok(report)
     })

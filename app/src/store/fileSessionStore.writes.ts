@@ -14,14 +14,14 @@ import {
   type SessionApi,
 } from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
-import { paintScenariosDir, usePaintModStore } from "./paintModStore";
+import { paintScenariosDir, standingProfile, usePaintModStore } from "./paintModStore";
 
 export const SAVE_FILTER = DOCUMENT_KINDS.save.fileFilter;
 export const SCENARIO_FILTER = DOCUMENT_KINDS.scenario.fileFilter;
 
 type WriteActions = Pick<
   FileSessionState,
-  "save" | "saveAs" | "saveIntoPaintMod" | "exportScenario" | "confirmExport"
+  "save" | "saveAs" | "saveIntoPaintMod" | "exportScenario" | "refreshExport" | "confirmExport"
 >;
 
 /**
@@ -30,6 +30,28 @@ type WriteActions = Pick<
  */
 export function writeActions(session: SessionApi, opens: () => number): WriteActions {
   const { getState: get, setState: set } = session;
+
+  /**
+   * Previews the export under the standing profile. `again` reads it once more for an export
+   * already pending, and drops the answer if that export was answered meanwhile.
+   */
+  async function preview(again: boolean): Promise<void> {
+    const { status, saving, kind, pendingExport } = get();
+    if (status !== "ready" || saving || kind !== "save") return;
+    if (again && pendingExport === null) return;
+    const mine = opens();
+    const profile = standingProfile();
+    try {
+      const report = await ipc.previewExport(profile);
+      // A preview that lands after another document opened, after the profile changed, or after
+      // the export it was read again for was answered, belongs to nobody.
+      if (mine !== opens() || get().status !== "ready" || profile !== standingProfile()) return;
+      if (again && get().pendingExport === null) return;
+      set({ pendingExport: report, pendingExportProfile: profile });
+    } catch (e) {
+      set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
+    }
+  }
 
   /** Asks where the file goes, starting at `defaultPath`, and writes it there. */
   async function saveTo(
@@ -86,23 +108,17 @@ export function writeActions(session: SessionApi, opens: () => number): WriteAct
     },
 
     async exportScenario() {
-      const { status, saving, kind } = get();
-      if (status !== "ready" || saving || kind !== "save") return;
-      const mine = opens();
-      try {
-        const report = await ipc.previewExport();
-        // A preview that lands after another document opened belongs to nobody.
-        if (mine !== opens() || get().status !== "ready") return;
-        set({ pendingExport: report });
-      } catch (e) {
-        set({ error: ipc.errorMessage(e), errorKind: isSgfError(e) ? e.kind : null });
-      }
+      await preview(false);
+    },
+
+    async refreshExport() {
+      await preview(true);
     },
 
     async confirmExport(profile) {
       const { pendingExport, status, saving, kind, title } = get();
       if (pendingExport === null || status !== "ready" || saving || kind !== "save") return;
-      set({ pendingExport: null });
+      set({ pendingExport: null, pendingExportProfile: null });
       if (profile === null) return;
       const picked = await saveDialog({
         defaultPath: newFilePath(title, "txt", profile === "paint_a_galaxy"),

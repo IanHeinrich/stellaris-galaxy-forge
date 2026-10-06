@@ -12,11 +12,12 @@
 
 use std::collections::HashMap;
 
+use sgf_core::export::ScenarioProfile;
 use sgf_core::export::policy::is_generic_home;
 use sgf_core::format::scenario::header_counts::is_seat;
 use sgf_core::format::scenario::marauder;
 use sgf_core::format::scenario::paint::is_random_list;
-use sgf_core::prepare::{PlainDraw, PrepareRow, RowSystems, WeightedLayout};
+use sgf_core::prepare::{self, PlainDraw, PrepareRow, RowSystems, WeightedLayout};
 use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::session::Session;
 
@@ -30,6 +31,8 @@ use crate::special::{SpecialKind, classify_session};
 const HOME_START_USAGES: [&str; 3] = ["empire_init", "custom_empire", "origin"];
 /// The `usage` of a nomad empire's home.
 const NOMAD_USAGE: &str = "nomad_init";
+/// The `usage` of the game's random empire starts.
+const RANDOM_START_USAGE: &str = "empire_init";
 /// The star flag a prescripted empire's start carries.
 const HOME_FLAG: &str = "empire_home_system";
 /// The star flag every Sol layout sets.
@@ -48,6 +51,7 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
         .collect();
     let mut rows: HashMap<PrepareRow, Vec<u32>> = HashMap::new();
     let graph = session.graph();
+    let profile = prepare::profile(session);
     for node in graph.order.iter().filter_map(|id| graph.systems.get(id)) {
         let kinds = kinds.get(&node.id).copied().unwrap_or_default();
         let seat = is_seat(node);
@@ -70,7 +74,8 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
         } else if sol(gd, &node.initializer) {
             Some(PrepareRow::Sol)
         } else if seat {
-            let home = !node.initializer.is_empty() && !is_generic_home(&node.initializer);
+            let home =
+                !node.initializer.is_empty() && !generic_start(gd, profile, &node.initializer);
             home.then_some(PrepareRow::HomeStarts)
         } else {
             Some(initializer_row(gd, node, kinds))
@@ -110,6 +115,20 @@ fn sol(gd: &GameData, initializer: &str) -> bool {
     gd.initializers
         .get(initializer)
         .is_some_and(|init| init.flags.iter().any(|f| f == SOL_FLAG))
+}
+
+/// A start the game seats any empire on under `profile`. Paint a Galaxy's homeworld fix
+/// fits any of the game's random empire starts to the empire; a plain map has no such
+/// fix, so there a random start is a home to replace.
+fn generic_start(gd: &GameData, profile: ScenarioProfile, initializer: &str) -> bool {
+    is_generic_home(profile, initializer)
+        || match profile {
+            ScenarioProfile::Plain => false,
+            ScenarioProfile::PaintAGalaxy => gd
+                .initializers
+                .get(initializer)
+                .is_some_and(|init| init.usage.as_deref() == Some(RANDOM_START_USAGE)),
+        }
 }
 
 fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> PrepareRow {

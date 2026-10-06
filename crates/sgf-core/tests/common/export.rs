@@ -84,6 +84,24 @@ pub fn seated(text: &str) -> BTreeSet<u32> {
         .collect()
 }
 
+/// The ids of the `system` lines whose effect makes them an empire's home. A line states
+/// that effect at most once.
+pub fn home_systems(text: &str) -> BTreeSet<u32> {
+    let flag = "effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } }";
+    text.lines()
+        .filter(|line| line.starts_with("	system = { id = \""))
+        .filter(|line| {
+            let count = line.matches(flag).count();
+            assert!(count <= 1, "{line}");
+            count == 1
+        })
+        .map(|line| {
+            let id = &line[line.find("id = \"").unwrap() + 6..];
+            id[..id.find('"').unwrap()].parse().unwrap()
+        })
+        .collect()
+}
+
 /// Where `needle` first occurs in `bytes` at or after `from`.
 pub fn find(bytes: &[u8], from: usize, needle: &str) -> usize {
     from + bytes[from..]

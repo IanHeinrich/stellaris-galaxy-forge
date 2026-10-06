@@ -7,7 +7,7 @@ RenameSystem: 762
 SetFeLinks: 3
 SetFeZone: 8
 SetHeaderKeys: 1
-SetInitializer: 694
+SetInitializer: 698
 SetSpawnScript: 34
 SetWormholePair: 6
 -fallen_empire_max = 3
@@ -20,7 +20,7 @@ SetWormholePair: 6
 +system = { id = "2" position = { x = -78.27 y = 265.71 } }
 -system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } initializer = ai_system_01 }
 +system = { id = "3" position = { x = -197.59 y = -163.13 } }
--system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = basic_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|0| } }
+-system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|0| } }
 +system = { id = "4" position = { x = 143.51 y = 9.31 } }
 -system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
 +system = { id = "5" position = { x = 34.62 y = 124.97 } initializer = painted_galaxy_rl_basic }
@@ -28,12 +28,12 @@ SetWormholePair: 6
 +system = { id = "6" position = { x = 192.35 y = -238.8 } initializer = painted_galaxy_rl_basic }
 -system = { id = "7" name = "Girtab" position = { x = -97.27 y = -157.98 } initializer = basic_init_03 }
 +system = { id = "7" position = { x = -97.27 y = -157.98 } }
--system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = basic_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
-+system = { id = "8" position = { x = 62.72 y = -302.24 } initializer = basic_init_01 }
+-system = { id = "8" name = "PRESCRIPTED_system_name_xt489" position = { x = 62.72 y = -302.24 } initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|1| } }
++system = { id = "8" position = { x = 62.72 y = -302.24 } initializer = painted_galaxy_rl_basic }
 -system = { id = "9" name = "Eibriri" position = { x = -121.05 y = -14.26 } initializer = megacorp_interstellar_assembly_init_01 }
 +system = { id = "9" position = { x = -121.05 y = -14.26 } }
 -system = { id = "10" name = "NAME_Tiyana_Vek" position = { x = 49.58 y = 130.32 } initializer = hostile_init_16 }
-+system = { id = "10" position = { x = 49.58 y = 130.32 } initializer = basic_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
++system = { id = "10" position = { x = 49.58 y = 130.32 } initializer = random_empire_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|3| } }
 -system = { id = "11" name = "VOIDWORM_SYSTEM_05" position = { x = 42.43 y = -420.36 } initializer = voidworms_spawn_system_tiny }
 +system = { id = "11" position = { x = 42.43 y = -420.36 } }
 -system = { id = "12" name = "Quiet_Dark" position = { x = -146.97 y = 134.84 } initializer = marauder_2_1 }
@@ -47,7 +47,7 @@ SetWormholePair: 6
 -system = { id = "16" name = "Bas" position = { x = -103.3 y = 397.64 } initializer = shroudwalker_enclave_init_01 }
 +system = { id = "16" position = { x = -103.3 y = 397.64 } }
 -system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }
-+system = { id = "17" position = { x = -30.52 y = -300.86 } initializer = basic_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|2| } }
++system = { id = "17" position = { x = -30.52 y = -300.86 } initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|2| } }
 -system = { id = "18" name = "Stenbork" position = { x = -97.43 y = 224.27 } initializer = trinary_init_01 }
 +system = { id = "18" position = { x = -97.43 y = 224.27 } }
 -system = { id = "19" name = "Hells_Maw" position = { x = -219.04 y = 1.3 } initializer = guardians_curator_init_02 }
@@ -71,7 +71,7 @@ SetWormholePair: 6
 -system = { id = "28" name = "Molbion" position = { x = 230.15 y = 309.47 } initializer = guardians_curator_init_03 }
 +system = { id = "28" position = { x = 230.15 y = 309.47 } }
 -system = { id = "29" name = "NAME_Tiyun_Ort" position = { x = -297.52 y = 135.52 } initializer = hostile_init_21 effect = { set_star_flag = painted_galaxy_fe_custom_connection_to_1 } }
-+system = { id = "29" position = { x = -297.52 y = 135.52 } initializer = basic_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|9| } }
++system = { id = "29" position = { x = -297.52 y = 135.52 } initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|9| } }
 -system = { id = "30" name = "NAME_Chors_Compass" position = { x = -194.77 y = -40 } initializer = megacorp_caravaneer_init }
 +system = { id = "30" position = { x = -194.77 y = -40 } }
 -system = { id = "31" name = "Lazon" position = { x = -265.95 y = -302.27 } initializer = guardians_init_hive }

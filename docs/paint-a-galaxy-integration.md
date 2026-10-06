@@ -193,9 +193,9 @@ player can still draw a 1st Player seat at 10, against the 10 to 20 of
 each enabled seat.
 
 The report names the seat as `player_seat` and its kind as
-`player_seat_kind`. The player's seat always gets one of the game's
-ordinary `basic_init_0N` systems, whatever the save's capital had,
-because the player's empire brings its own home.
+`player_seat_kind`. The player's seat always gets a generic
+`random_empire_init_0N` start, whatever the save's capital had, because
+the player's empire brings its own home.
 
 A Sol seat naming `sol_system_initializer`, as Paint a Galaxy writes it,
 works in game (checked on 4.5). The UNE starts on it. When no one plays
@@ -207,27 +207,26 @@ built.
 
 A system that already carries a preferred, reserved or Sol script keeps
 that script's kind and random value rather than being reset to plain
-"enabled". A spawn system with no `initializer` is given one of the
-game's ordinary systems. A spawn system whose initializer the report
-lists under `home_initializers` gets one too. That is a home that is not
-a generic start, such as `shattered_ring_start` or one of the game's
-random empire starts, and the report's entry says `replaced`.
+"enabled". A spawn system with no `initializer` is given one of
+`random_empire_init_01` to `06`, picked by a hash of the system's id, so
+neighbouring ids land independently and the same id always gets the
+same start. So is a spawn system whose initializer the report lists
+under `home_initializers`, a home that is not a generic start, such as
+`shattered_ring_start`. In both cases the report's entry says
+`replaced`.
 
-The ordinary system is `basic_init_01`, `02`, `03`, `05` or `06`, at the
-game's own odds of 20, 20, 10, 6 and 4. The pick is a weighted draw
-keyed by a hash of the system's id, so neighbouring ids land
-independently and the same id always gets the same system.
-`basic_init_04` is left out because its last body can be an ice
-asteroid.
-
-On an ordinary system the game builds a homeworld for the empire's own
-class at 100% habitability. The random empire starts,
-`random_empire_init_0N`, build the homeworld before the game knows the
-species, and most empires on one start at 30 to 50% (checked on 4.5).
-That is why a random empire start on a seat counts as a home to replace,
-not as a generic start. On 4.5, an origin with its own start system,
-such as Shattered Ring or Ocean Machines, replaced a random empire start
-on its seat. I have not checked it on an ordinary system.
+Seats keep the game's random empire starts because the mod's homeworld
+fix needs them. `painted_galaxy_homeworld.1` runs on
+`empire_init_capital_colony` and only on a system that has the
+`empire_home_system` star flag. A random empire start sets that flag
+itself. In round 3 on 4.5, all 7 settled empires on random empire starts
+had their founder's own class: the fix handled 5 and origins 2, and they
+also got the full starting deposits. With `basic_init` and the flag set
+from a scenario `effect` instead (round 7, 4.5), the fix did not run,
+because scenario effects run after `empire_init_capital_colony`. A
+Remnants player got a continental world, not a relic world. The
+plain profile, which has no such fix, writes `basic_init` seats
+([format-notes.md](format-notes.md), Static galaxy scenarios).
 
 Every empty system within two lane jumps of a spawn, if it still has no
 `initializer`, gets the mod's random-list filler and the flag that marks
@@ -256,7 +255,7 @@ system:
 ```
 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|n| }
 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|n| modifier = { add = 100000 } }
-initializer = basic_init_0N
+initializer = random_empire_init_0N
 initializer = painted_galaxy_rl_basic
 effect = { set_star_flag = painted_galaxy_automatic_initializer }
 effect = { set_star_flag = painted_galaxy_wormhole_<n> set_star_flag = empire_cluster }

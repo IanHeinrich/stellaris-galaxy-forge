@@ -229,6 +229,10 @@ pub(super) fn examples() -> Vec<Example> {
                 },
             )],
         }),
+        Example::scenario(Op::SetHomeSystem {
+            system: 10,
+            home: true,
+        }),
         Example::scenario(Op::PreventLane { a: 0, b: 1 }),
         Example::scenario(Op::AllowLane { a: 10, b: 12 }),
     ]

@@ -2,8 +2,8 @@
 //! corpus alike, and the scripted spawns and zones the scenario tests write.
 use std::collections::{BTreeMap, BTreeSet};
 
-use sgf_core::export::ExportReport;
 use sgf_core::export::policy::is_generic_home;
+use sgf_core::export::{ExportReport, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::{FeDirection, FeKind, FeZone};
 use sgf_core::ops::Op;
 use sgf_core::projections::galaxy::{Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
@@ -59,7 +59,7 @@ pub fn assert_paint_export_holds_together(
                 .iter()
                 .any(|h| h.system == system.id && !h.replaced);
             assert!(
-                is_generic_home(&system.initializer) || listed,
+                is_generic_home(ScenarioProfile::PaintAGalaxy, &system.initializer) || listed,
                 "{}: {script:?} on {}",
                 system.id,
                 system.initializer

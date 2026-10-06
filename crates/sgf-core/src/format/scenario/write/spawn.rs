@@ -8,7 +8,6 @@ use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
-use crate::format::scenario::seat_initializer;
 use crate::keys::scenario as keys;
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -153,8 +152,8 @@ fn write_weight(
 type ScriptWritten = (String, (u32, Option<SpawnScript>), bool);
 
 /// Write one system's scripted seat whole. A seat needs a starting initializer, so a
-/// system naming none is given the dialect's basic one, before the weight as the dialect
-/// orders them.
+/// system naming none is given one of the game's random empire starts, before the weight
+/// as the dialect orders them.
 /// A block of modifiers is script this editor does not rewrite, so a seat is neither
 /// written over one nor cleared with one.
 fn write_script(
@@ -184,7 +183,7 @@ fn write_script(
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
                 gave_initializer = true;
                 let after = last_of_id_name_position(edit)?;
-                let text = format!("{} = {}", keys::INITIALIZER, seat_initializer(id));
+                let text = format!("{} = {}", keys::INITIALIZER, paint::random_empire_start(id));
                 edit.bytes().insert_after(after, &text);
             }
             let text = paint::weight_statement(script);

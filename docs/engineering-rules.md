@@ -63,7 +63,7 @@ format sees it.
   `BodyModifier`, `Belt`, `BeltRadius`, `BeltKind`, `InnerRadius`,
   `Wormhole`, `WormholePair`, `WormholeEnds`, `Deposit`, `Anomaly`,
   `DigSite`, `Colony`, `Entities`, `Empire`, `EmpireFlag`,
-  `EmpireMapColors`, `LGateOutcome`, `Initializer`, `SpawnWeight`,
+  `EmpireMapColors`, `LGateOutcome`, `Initializer`, `HomeSystem`, `SpawnWeight`,
   `SpawnScript`, `HeaderField`, `HeaderKeys`, `HeaderList`, `FeZone`,
   `FeLinks` and `FeLinkFlags`. A new subject takes the word the game or
   the player uses, and joins this list.

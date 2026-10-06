@@ -98,18 +98,19 @@ fn print_paint_report(report: &ExportReport) {
             fallen.systems_left_out
         );
     }
-    print_homes(report);
+    print_homes(report, ScenarioProfile::PaintAGalaxy);
     if report.setup_from_save {
         println!("header counts: from the save's setup");
     }
 }
 
-/// The home initializers the export left for review, then the ones it replaced with an
-/// ordinary system.
-fn print_homes(report: &ExportReport) {
+/// The home initializers the export under `profile` left for review, then the ones it
+/// replaced with the start it gives a seat.
+fn print_homes(report: &ExportReport, profile: ScenarioProfile) {
+    let replaced_with = format!("home initializers replaced with {}", profile.seat_start());
     for (replaced, heading) in [
         (false, "home initializers to review"),
-        (true, "home initializers replaced with an ordinary system"),
+        (true, replaced_with.as_str()),
     ] {
         let mut homes = report
             .home_initializers
@@ -130,7 +131,7 @@ fn print_homes(report: &ExportReport) {
 /// plain report does not describe its file.
 fn print_report(report: &ExportReport) {
     println!("empire seats: {}", report.seats);
-    print_homes(report);
+    print_homes(report, ScenarioProfile::Plain);
     if let Some(dropped) = &report.dropped_summary {
         println!("not carried over: {dropped}");
     }

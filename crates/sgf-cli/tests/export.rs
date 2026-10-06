@@ -1,7 +1,8 @@
 //! `sgf export-scenario` and `sgf new-scenario`.
 use crate::common::{SAMPLE, backups, ok, sgf, stdout};
 
-/// The sample's seats on a start written for one empire, which a plain export keeps.
+/// The sample's seats on a start written for one empire, which a plain export keeps and
+/// Paint a Galaxy replaces.
 const NAMED_HOMES: &str = concat!(
     "une_deneb_system (system 4), ",
     "shattered_ring_start (system 311), ",
@@ -9,8 +10,8 @@ const NAMED_HOMES: &str = concat!(
     "custom_starting_init_02 (system 787)",
 );
 
-/// The sample's seats on one of the game's random empire starts, which every export
-/// replaces.
+/// The sample's seats on one of the game's random empire starts, which a plain export
+/// replaces and Paint a Galaxy keeps.
 const RANDOM_STARTS: &str = concat!(
     "random_empire_init_04 (system 8), ",
     "random_empire_init_06 (system 99), ",
@@ -24,26 +25,6 @@ const RANDOM_STARTS: &str = concat!(
     "random_empire_init_06 (system 558), ",
     "random_empire_init_06 (system 590), ",
     "random_empire_init_02 (system 781)",
-);
-
-/// Every home seat the Paint a Galaxy export replaces, in system order.
-const HOMES: &str = concat!(
-    "une_deneb_system (system 4), ",
-    "random_empire_init_04 (system 8), ",
-    "random_empire_init_06 (system 99), ",
-    "random_empire_init_01 (system 126), ",
-    "random_empire_init_03 (system 146), ",
-    "random_empire_init_03 (system 189), ",
-    "random_empire_init_06 (system 192), ",
-    "random_empire_init_02 (system 302), ",
-    "shattered_ring_start (system 311), ",
-    "random_empire_init_04 (system 393), ",
-    "random_empire_init_05 (system 537), ",
-    "random_empire_init_06 (system 558), ",
-    "random_empire_init_06 (system 590), ",
-    "random_empire_init_02 (system 781), ",
-    "custom_starting_init_02 (system 786), ",
-    "custom_starting_init_02 (system 787)",
 );
 
 #[test]
@@ -163,7 +144,7 @@ static_galaxy_scenario = {
     );
     assert!(
         text.contains(&format!(
-            "\nhome initializers replaced with an ordinary system: {HOMES}\n"
+            "\nhome initializers replaced with a generic start: {NAMED_HOMES}\n"
         )),
         "{text}"
     );

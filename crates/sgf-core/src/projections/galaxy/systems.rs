@@ -145,6 +145,10 @@ pub struct SystemNode {
     /// nebula members at game start. Always false for a scenario.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub turbulent: bool,
+    /// A scenario system whose `effect` block makes the game treat it as an empire's home.
+    /// Always false for a save.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub home_system: bool,
 }
 
 /// One planet a save system lists: its `planet_class` and `planet_size`.

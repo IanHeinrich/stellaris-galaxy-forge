@@ -5,6 +5,7 @@ expression: out
 Prepared 601 systems for a new game
 RenameSystem: 601
 SetHeaderKeys: 1
+SetHomeSystem: 18
 SetInitializer: 540
 SetSpawnWeight: 22
 -marauder_empire_max = 2

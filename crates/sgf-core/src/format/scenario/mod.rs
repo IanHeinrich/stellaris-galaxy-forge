@@ -34,6 +34,7 @@ use crate::format::scenario::index::{
     Changes, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
 };
 use crate::keys::scenario as keys;
+use crate::lexer::{self, Mode};
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{
@@ -45,8 +46,8 @@ use crate::session::Session;
 use crate::validate::{Issue, IssueCode};
 use crate::views::{Capabilities, DocumentKind};
 
-/// The game's ordinary systems a seat is given, with the odds the game rolls each at.
-/// `basic_init_04` is left out because its last body can be an ice asteroid.
+/// The game's ordinary systems the plain profile gives a seat, with the odds the game rolls
+/// each at. `basic_init_04` is left out because its last body can be an ice asteroid.
 pub const SEAT_INITIALIZERS: [(&str, u32); 5] = [
     ("basic_init_01", 20),
     ("basic_init_02", 20),
@@ -55,8 +56,8 @@ pub const SEAT_INITIALIZERS: [(&str, u32); 5] = [
     ("basic_init_06", 4),
 ];
 
-/// The initializer a seat on system `id` is given when nothing draws one: a weighted
-/// draw from the id alone, so neighbouring ids land independently.
+/// The ordinary system a plain seat on system `id` is given when nothing draws one: a
+/// weighted draw from the id alone, so neighbouring ids land independently.
 pub fn seat_initializer(id: u32) -> &'static str {
     seat_initializer_at(unit(0, id))
 }
@@ -99,6 +100,35 @@ pub(crate) fn mix(z: u64) -> u64 {
 pub(crate) fn unit(seed: u64, system: u32) -> f64 {
     let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
     (z >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// The statements of a system's `effect` block that make the game treat it as an empire's
+/// home, written whole by the plain profile on a seat it gives one of
+/// [`SEAT_INITIALIZERS`]: the star flag a random empire start sets itself, and the
+/// starting deposits it generates. The deposits are guarded, because an origin whose own
+/// start system replaces the seat's has generated them already.
+pub(crate) const HOME_SYSTEM_EFFECT: [&str; 2] = [
+    "set_star_flag = empire_home_system",
+    "if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes }",
+];
+
+/// Whether two statements read the same token for token, however they are spaced.
+pub(crate) fn same_statement(a: &str, b: &str) -> bool {
+    tokens(a.as_bytes()).eq(tokens(b.as_bytes()))
+}
+
+fn tokens(bytes: &[u8]) -> impl Iterator<Item = (lexer::TokenKind, &[u8])> {
+    lexer::tokens_with(bytes, 0, Mode::Script).map(|token| (token.kind, token.span.slice(bytes)))
+}
+
+/// Whether `effect` holds every statement of [`HOME_SYSTEM_EFFECT`].
+fn is_home_system(effect: &Node, src: &[u8]) -> bool {
+    HOME_SYSTEM_EFFECT.iter().all(|wanted| {
+        effect.children().iter().any(|statement| {
+            let text = std::str::from_utf8(statement.span().slice(src)).unwrap_or("");
+            same_statement(text, wanted)
+        })
+    })
 }
 
 pub(crate) struct Scenario;
@@ -364,6 +394,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         fe_zone: fe_zone::parse(star_flags.iter().copied()),
         wormhole_pair: paint::wormhole_pair(star_flags.iter().copied()),
         fe_link: fe_link::parse(star_flags.iter().copied()),
+        home_system: node
+            .find(keys::EFFECT, src)
+            .is_some_and(|effect| is_home_system(effect, src)),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),
