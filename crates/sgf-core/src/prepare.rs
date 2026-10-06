@@ -920,7 +920,9 @@ impl<'a> Plan<'a> {
     /// go, in an order the seed gives, each kept whose ring stands clear of every zone kept
     /// before it and whose centre stands [`RANDOM_START_DISTANCE`] from every seat, up to the
     /// fallen empires the mod can seat. The zones inside the rim are taken first, then at
-    /// most [`MOST_RIM_ZONES`] on it. Each is a fallback of random kind.
+    /// most [`MOST_RIM_ZONES`] on it. A zone is on the rim when its centre stands at least
+    /// [`RIM_SHARE`] of the way out to the galaxy's edge in its direction, so an outlying
+    /// cluster moves the rim only on its own side. Each is a fallback of random kind.
     fn draw_zones(&self) -> Vec<(u32, FeZone)> {
         let going: BTreeSet<u32> = in_row(&self.systems, PrepareRow::FallenEmpires)
             .iter()
@@ -941,16 +943,16 @@ impl<'a> Plan<'a> {
             .filter_map(|id| self.graph.systems.get(id))
             .map(|s| (s.x, s.y))
             .collect();
-        let rim = RIM_FRACTION * self.graph.galaxy_radius;
-        let placed: Vec<(u32, FeZone, (f64, f64))> = candidates
+        let placed: Vec<(u32, FeZone, (f64, f64), bool)> = candidates
             .into_iter()
             .filter_map(|(id, zone)| {
                 let anchor = self.graph.systems.get(&id)?;
                 let centre = fe_zone::centre((anchor.x, anchor.y), &zone);
-                Some((id, zone, centre))
+                let on_rim = fe_zone::distance(centre, (0.0, 0.0))
+                    >= RIM_SHARE * edge_distance(self.graph, centre);
+                Some((id, zone, centre, on_rim))
             })
             .collect();
-        let on_rim = |centre: (f64, f64)| fe_zone::distance(centre, (0.0, 0.0)) > rim;
         let mut centres: Vec<(f64, f64)> = Vec::new();
         let mut zones = Vec::new();
         for (rim_pass, most) in [
@@ -958,11 +960,11 @@ impl<'a> Plan<'a> {
             (true, MOST_RIM_ZONES),
         ] {
             let mut taken = 0;
-            for (id, zone, centre) in &placed {
+            for (id, zone, centre, on_rim) in &placed {
                 if zones.len() == MOST_FALLEN_EMPIRES as usize || taken == most {
                     break;
                 }
-                let clear = on_rim(*centre) == rim_pass
+                let clear = *on_rim == rim_pass
                     && !centres.iter().any(|&c| fe_zone::overlaps(c, *centre))
                     && seats
                         .iter()
@@ -1008,8 +1010,12 @@ impl<'a> Plan<'a> {
     }
 }
 
-/// How far out, as a share of the map's radius, a new zone's centre stands on the rim.
-const RIM_FRACTION: f64 = 0.8;
+/// How far out a new zone's centre stands on the rim, as a share of the distance to the
+/// galaxy's edge in its direction.
+const RIM_SHARE: f64 = 0.75;
+/// How far either side of a direction from the galaxy's centre, in degrees, the systems lie
+/// whose farthest marks the edge in that direction.
+const EDGE_WEDGE_DEGREES: f64 = 15.0;
 /// The most new zones New random zones puts on the rim.
 const MOST_RIM_ZONES: usize = 2;
 
@@ -1049,6 +1055,22 @@ fn spaced(
         }
     }
     taken.into_iter().map(|(id, _)| id).collect()
+}
+
+/// The distance from the galaxy's centre of the farthest system within
+/// [`EDGE_WEDGE_DEGREES`] of the direction of `at`.
+fn edge_distance(graph: &GalaxyGraph, at: (f64, f64)) -> f64 {
+    let bearing = at.1.atan2(at.0);
+    let wedge = EDGE_WEDGE_DEGREES.to_radians();
+    graph
+        .systems
+        .values()
+        .filter(|s| {
+            let turn = s.y.atan2(s.x) - bearing;
+            turn.sin().atan2(turn.cos()).abs() <= wedge
+        })
+        .map(|s| s.x.hypot(s.y))
+        .fold(0.0, f64::max)
 }
 
 /// The systems of the largest part of the map that hyperlanes join, lower ids first on a tie.
