@@ -1,15 +1,20 @@
 //! Preparing the open scenario for a new game: what a set of choices would change, and the one
 //! edit that writes them.
 
+use std::sync::Arc;
+
 use sgf_core::ops::Op;
 use sgf_core::prepare::{self, PlainDraw, PrepareError, PrepareOptions, RowChoice, RowSystems};
 use sgf_core::session::Session;
 use sgf_core::views::{Capabilities, ErrorKind, SgfError};
+use sgf_gamedata::GameData;
 use sgf_gamedata::prepare::{classify, plain_draw};
+use sgf_gamedata::special;
 use tauri::{AppHandle, Runtime};
 
+use super::scenario::{placed_bypasses, scenario_owners};
 use super::{game_data, is_save, require, with_session};
-use crate::views::{NewZone, PreparePreview, PreparedEdit};
+use crate::views::{NewZone, PreparePreview, PreparedEdit, PreparedMap};
 
 const PREPARE: &str = "prepare a scenario for a new game";
 const ONLY_A_SCENARIO: &str = "only a scenario is prepared for a new game";
@@ -17,12 +22,14 @@ const ONLY_A_SCENARIO: &str = "only a scenario is prepared for a new game";
 /// What `choices` under `options` would do to the open scenario: each row's systems, sorted by
 /// the loaded game data, how many systems the one edit would change, the systems keeping the
 /// space around seats clear makes plain, the systems the edit cuts off, and the seats and zones
-/// it draws. A row left out of `choices` is kept.
+/// it draws, and with `map` the map as the edit would leave it. A row left out of `choices` is
+/// kept.
 #[tauri::command]
 pub async fn prepare_preview<R: Runtime>(
     app: AppHandle<R>,
     choices: Vec<RowChoice>,
     options: PrepareOptions,
+    map: bool,
 ) -> Result<PreparePreview, SgfError> {
     let gd = game_data(&app, PREPARE)?;
     with_session(app, move |guard| {
@@ -37,10 +44,19 @@ pub async fn prepare_preview<R: Runtime>(
             false => Vec::new(),
         };
         let drawn = prepare::drawn(session, &rows, &choices, &options).map_err(refused)?;
+        let changes = op.as_ref().map_or(0, |op| prepare::changed(session, op));
+        let cut_off = op
+            .as_ref()
+            .map_or_else(Vec::new, |op| prepare::cut_off(session, op));
+        let map = op
+            .filter(|_| map)
+            .map(|op| projected(session, &gd, op))
+            .transpose()?;
         Ok(PreparePreview {
             profile: prepare::profile(session),
-            changes: op.as_ref().map_or(0, |op| prepare::changed(session, op)),
-            cut_off: op.map_or_else(Vec::new, |op| prepare::cut_off(session, &op)),
+            changes,
+            cut_off,
+            map,
             kept_clear,
             new_seats: drawn.seats,
             new_zones: drawn
@@ -81,6 +97,28 @@ pub async fn prepare_apply<R: Runtime>(
         }))
     })
     .await
+}
+
+/// The map as `op` would leave the open scenario, read from a copy it is applied to.
+fn projected(session: &Session, gd: &GameData, op: Op) -> Result<PreparedMap, SgfError> {
+    let mut copy = session.clone();
+    let result = copy.apply(op)?;
+    let delta = copy.edit_result(result).delta;
+    debug_assert!(
+        delta.removed.is_empty() && delta.renumbered.is_empty(),
+        "Prepare removed or renumbered systems: {:?} {:?}",
+        delta.removed,
+        delta.renumbered
+    );
+    let owners = Capabilities::of(copy.doc())
+        .scripted_owners
+        .then(|| Arc::unwrap_or_clone(scenario_owners(&copy, gd, None)));
+    Ok(PreparedMap {
+        systems: delta.systems,
+        special: special::classify_session(&copy, Some(gd)).systems,
+        owners,
+        bypasses: placed_bypasses(&copy, Some(gd), None),
+    })
 }
 
 fn is_scenario(capabilities: Capabilities) -> bool {

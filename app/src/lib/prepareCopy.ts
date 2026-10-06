@@ -570,3 +570,6 @@ export const OUTCOME_LABELS = {
 
 /** What the map marks a system as: a new starting position or a new fallen empire zone. */
 export type Outcome = keyof typeof OUTCOME_LABELS;
+
+/** What the legend says while the map shows the galaxy as the choices leave it. */
+export const MAP_PREVIEW_NOTE = "The map shows the galaxy as these choices leave it.";
