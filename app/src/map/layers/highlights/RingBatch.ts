@@ -1,9 +1,11 @@
 import { Container, Graphics, GraphicsContext } from "pixi.js";
+import { FE_ZONE_RADIUS, feZoneCentre } from "../../../lib/feZone";
 import type { Pt } from "../../../lib/geometry/pt";
 import { ORIGIN_ALPHA } from "../../../lib/visual/style";
 import type { SystemNode } from "../../../generated/SystemNode";
 import type { Systems } from "../../RenderContext";
 import { destroyChildren } from "../destroyChildren";
+import { markerScale } from "../MapLayer";
 
 /** One kind of ring: its colour, its radius in marker units, and its stroke. */
 export interface RingSpec {
@@ -144,4 +146,65 @@ export function pointsOf(systems: Systems, ids: Iterable<number>, at: (s: System
     if (s) points.push(at(s));
   }
   return points;
+}
+
+/**
+ * Where the marks round the systems of `ids` the map holds go: the centre of the fallen empire
+ * zone a system anchors, else the system as `at` draws it.
+ */
+export function zoneMarksOf(
+  systems: Systems,
+  ids: Iterable<number>,
+  at: (s: SystemNode) => Pt,
+): { zones: Pt[]; points: Pt[] } {
+  const zones: Pt[] = [];
+  const points: Pt[] = [];
+  for (const id of ids) {
+    const s = systems.get(id);
+    if (!s) continue;
+    if (s.fe_zone) zones.push(feZoneCentre(s, s.fe_zone));
+    else points.push(at(s));
+  }
+  return { zones, points };
+}
+
+/** How far outside a zone's own ring its mark sits, in marker units. */
+const ZONE_MARK_GAP = 4;
+
+/**
+ * Rings just outside fallen empire zones' own rings: sized in world units to keep to the zone at
+ * any zoom, stroked as wide on screen as a `RingBatch` ring of the same spec.
+ */
+export class ZoneMarks {
+  readonly graphics: Graphics;
+  private centres: readonly Pt[] = [];
+  private camScale = 1;
+
+  constructor(
+    private readonly spec: Pick<RingSpec, "color" | "width" | "alpha">,
+    label: string,
+  ) {
+    this.graphics = new Graphics({ label });
+  }
+
+  place(centres: readonly Pt[]): void {
+    this.centres = centres;
+    this.draw();
+  }
+
+  setCamScale(camScale: number): void {
+    if (camScale === this.camScale) return;
+    this.camScale = camScale;
+    if (this.centres.length > 0) this.draw();
+  }
+
+  private draw(): void {
+    const g = this.graphics;
+    g.clear();
+    if (this.centres.length === 0) return;
+    const unit = markerScale(this.camScale) / this.camScale;
+    const radius = FE_ZONE_RADIUS + ZONE_MARK_GAP * unit;
+    for (const c of this.centres) g.circle(c.x, c.y, radius);
+    g.stroke({ color: this.spec.color, width: this.spec.width * unit, alpha: this.spec.alpha });
+  }
 }

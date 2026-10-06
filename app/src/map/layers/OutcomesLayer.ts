@@ -6,7 +6,14 @@ import { RING_RADIUS } from "../../lib/visual/style";
 import type { Camera } from "../Camera";
 import { EMPTY_CONTEXT, type RenderContext, type Systems } from "../RenderContext";
 import { DrawnPositions, movedAny, type DrawnChange } from "../drawnPositions";
-import { pointsOf, RingBatches, type RingSpec, type WantedRings } from "./highlights/RingBatch";
+import {
+  pointsOf,
+  RingBatches,
+  type RingSpec,
+  type WantedRings,
+  ZoneMarks,
+  zoneMarksOf,
+} from "./highlights/RingBatch";
 import { markerScale, type MapLayer } from "./MapLayer";
 
 function specOf(outcome: Outcome): RingSpec {
@@ -19,18 +26,21 @@ function specOf(outcome: Outcome): RingSpec {
 
 /**
  * A ring round every new starting position and new fallen empire zone the Prepare choices draw,
- * each in its own colour. Nothing else is marked.
+ * each in its own colour: a zone's round its own ring, not its anchor. Nothing else is marked.
  */
 export class OutcomesLayer implements MapLayer {
   readonly id = "outcomes" as const;
   readonly container = new Container();
   private readonly batches = new RingBatches(this.container, "outcome.");
+  private readonly zones = new ZoneMarks(specOf("zone"), "outcome.zones");
   private galaxy = EMPTY_CONTEXT.galaxy;
   private systems: Systems = EMPTY_CONTEXT.systems;
   private outcomes: ReadonlyMap<number, Outcome> = new Map();
   private readonly scale = { x: 1, y: 1 };
 
-  constructor(private readonly drawn: DrawnPositions) {}
+  constructor(private readonly drawn: DrawnPositions) {
+    this.container.addChild(this.zones.graphics);
+  }
 
   rebuild(ctx: RenderContext): void {
     const loaded = ctx.galaxy !== this.galaxy;
@@ -52,6 +62,7 @@ export class OutcomesLayer implements MapLayer {
   onViewport(cam: Camera): void {
     cam.childScale(markerScale(cam.scale), this.scale);
     this.batches.setScale(this.scale);
+    this.zones.setCamScale(cam.scale);
   }
 
   onDrawn({ moved }: DrawnChange): void {
@@ -74,13 +85,14 @@ export class OutcomesLayer implements MapLayer {
       if (systems === undefined) byOutcome.set(outcome, [system]);
       else systems.push(system);
     }
+    const zoned = zoneMarksOf(this.systems, byOutcome.get("zone") ?? [], this.drawn.at);
     const wanted = new Map<string, WantedRings>();
     for (const [outcome, systems] of byOutcome) {
-      wanted.set(outcome, {
-        spec: specOf(outcome),
-        points: pointsOf(this.systems, systems, this.drawn.at),
-      });
+      const points =
+        outcome === "zone" ? zoned.points : pointsOf(this.systems, systems, this.drawn.at);
+      wanted.set(outcome, { spec: specOf(outcome), points });
     }
     this.batches.sync(wanted);
+    this.zones.place(zoned.zones);
   }
 }

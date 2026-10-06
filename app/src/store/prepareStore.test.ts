@@ -26,6 +26,7 @@ import {
   cutOffSeats,
   nearestPreset,
   offeredChoices,
+  pendingChanges,
   PREPARE_ROWS,
   PREPARE_SECTION,
   presetOf,
@@ -262,6 +263,28 @@ describe("Apply", () => {
     expect(summaryLine(presetOf(choices, "plain"), preview?.changes ?? null, applied)).toBe(
       "Keep the galaxy · 6 systems changed",
     );
+  });
+
+  it("names what it changed in the header until a choice changes", async () => {
+    const header = () => {
+      const { choices, applied } = prepare();
+      return summaryLine(presetOf(choices, "plain"), pendingChanges(prepare()), applied);
+    };
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(5));
+    prepare().setPreset("fresh_start");
+    await until(() => expect(prepare().current).toBe(true));
+
+    // What a second Apply would draw again on the prepared map.
+    mockedIpc.preparePreview.mockResolvedValue(previewOf(123));
+    mockedIpc.prepareApply.mockResolvedValueOnce(prepared(1, 6));
+    expect(await prepare().apply()).toBe(true);
+    await until(() => expect(prepare().preview?.changes).toBe(123));
+    expect(header()).toBe("Keep the galaxy · 6 systems changed");
+
+    prepare().reroll();
+    await until(() => expect(prepare().current).toBe(true));
+    expect(header()).toBe("Keep the galaxy · changes 123 systems");
   });
 
   it("writes with the space around capitals as the preview had it", async () => {

@@ -167,7 +167,8 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
   follows(
     usePrepareStore,
     [(s) => s.hovered, (s) => s.preview],
-    (s, view) => view.highlights.setPrepared(new Set(ringedSystems(s))),
+    (s, view) =>
+      view.highlights.setPrepared(new Set(ringedSystems(s)), s.hovered === "fallen_empires"),
     "bind",
   ),
   follows(
