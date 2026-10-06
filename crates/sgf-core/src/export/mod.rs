@@ -32,6 +32,7 @@ use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::provenance;
+use crate::format::scenario::seat_initializer;
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
@@ -115,10 +116,11 @@ pub fn scenario_text(
     (text, report)
 }
 
-/// The galaxy as the plain profile writes it: an empire seat on every home system,
-/// everything else as the save holds it but the L-Cluster, which the game adds by
-/// itself. A lane to itself or to a system the draft does not hold is skipped, since
-/// the game would refuse it.
+/// The galaxy as the plain profile writes it: an empire seat on every home system, one
+/// of the game's ordinary systems on a seat the report says was replaced, everything
+/// else as the save holds it but the L-Cluster, which the game adds by itself. A lane
+/// to itself or to a system the draft does not hold is skipped, since the game would
+/// refuse it.
 pub fn draft(
     graph: &GalaxyGraph,
     options: &ScenarioOptions,
@@ -128,6 +130,12 @@ pub fn draft(
     let galaxy: &Galaxy = graph;
     let categories = report::categories(graph);
     let mut report = report::build(graph, &categories, sources);
+    let replaced: BTreeSet<u32> = report
+        .home_initializers
+        .iter()
+        .filter(|home| home.replaced)
+        .map(|home| home.system)
+        .collect();
     let omitted: BTreeSet<u32> = categories
         .iter()
         .filter(|(_, category)| **category == Category::LCluster)
@@ -149,7 +157,10 @@ pub fn draft(
             name: name_of(&system.name, resolve),
             x: system.x * SCENARIO_X_SIGN,
             y: system.y * SCENARIO_Y_SIGN,
-            initializer: Some(system.initializer.clone()).filter(|i| !i.is_empty()),
+            initializer: match replaced.contains(&system.id) {
+                true => Some(seat_initializer(system.id).to_owned()),
+                false => Some(system.initializer.clone()).filter(|i| !i.is_empty()),
+            },
             spawn: match categories.get(&system.id) {
                 Some(Category::Home) => SpawnDraft::Base(SEAT_WEIGHT),
                 _ => SpawnDraft::None,

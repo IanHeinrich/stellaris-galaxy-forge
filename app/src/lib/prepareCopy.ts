@@ -241,7 +241,8 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
   home_starts: {
     label: "Starting systems",
     unit: "position",
-    holds: "The home systems the old capitals had, such as Sol or Deneb.",
+    holds:
+      "The old capitals' home systems: a random empire start, or one written for one empire, such as Deneb.",
     answers: {
       keep: {
         placer: "forge",
@@ -249,9 +250,7 @@ const PLAIN_ROWS: Record<PrepareRow, RowCopy> = {
       },
       generic_start: {
         placer: "game",
-        text:
-          "Each starting position gets one of the game's random starting systems. " +
-          OWN_HOME_SYSTEM,
+        text: "Each starting position gets one of the game's ordinary systems. " + OWN_HOME_SYSTEM,
       },
     },
   },

@@ -98,18 +98,30 @@ fn print_paint_report(report: &ExportReport) {
             fallen.systems_left_out
         );
     }
-    let replaced = report.home_initializers.iter().filter(|h| h.replaced);
-    let replaced: Vec<String> = replaced
-        .map(|h| format!("{} (system {})", h.initializer, h.system))
-        .collect();
-    if !replaced.is_empty() {
-        println!(
-            "home initializers replaced by a generic start: {}",
-            replaced.join(", ")
-        );
-    }
+    print_homes(report);
     if report.setup_from_save {
         println!("header counts: from the save's setup");
+    }
+}
+
+/// The home initializers the export left for review, then the ones it replaced with an
+/// ordinary system.
+fn print_homes(report: &ExportReport) {
+    for (replaced, heading) in [
+        (false, "home initializers to review"),
+        (true, "home initializers replaced with an ordinary system"),
+    ] {
+        let mut homes = report
+            .home_initializers
+            .iter()
+            .filter(|h| h.replaced == replaced)
+            .peekable();
+        if homes.peek().is_some() {
+            println!(
+                "{heading}: {}",
+                join(homes.map(|h| format!("{} (system {})", h.initializer, h.system)))
+            );
+        }
     }
 }
 
@@ -118,17 +130,7 @@ fn print_paint_report(report: &ExportReport) {
 /// plain report does not describe its file.
 fn print_report(report: &ExportReport) {
     println!("empire seats: {}", report.seats);
-    if !report.home_initializers.is_empty() {
-        println!(
-            "home initializers to review: {}",
-            join(
-                report
-                    .home_initializers
-                    .iter()
-                    .map(|h| format!("{} (system {})", h.initializer, h.system))
-            )
-        );
-    }
+    print_homes(report);
     if let Some(dropped) = &report.dropped_summary {
         println!("not carried over: {dropped}");
     }

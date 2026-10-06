@@ -79,6 +79,6 @@ export function homeInitializerLines(
     .join(", ");
   const replaced = report.home_initializers
     .filter((h) => h.replaced)
-    .map((h) => `${nameOf(h.system)} had ${h.initializer}, replaced with a generic start.`);
+    .map((h) => `${nameOf(h.system)} had ${h.initializer}, replaced with an ordinary system.`);
   return { review, replaced };
 }

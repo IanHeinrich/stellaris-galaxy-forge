@@ -7,7 +7,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
+use crate::export::policy::{
+    Category, builds_gateway, builds_lgate, classify, is_generic_home, is_random_empire_start,
+};
 use crate::export::{Draft, SourceResolver};
 use crate::format::scenario::fe_zone::FeKind;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, PaintSpawnKind};
@@ -66,13 +68,14 @@ pub struct ExportReport {
     pub nebulae: Option<u32>,
 }
 
-/// An empire seat whose initializer may only fit the empire that started there.
+/// An empire seat on a home rather than a generic start: one written for one empire,
+/// which may only fit it, or one of the game's random empire starts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct HomeInitializer {
     pub system: u32,
     pub initializer: String,
-    /// Whether the Paint a Galaxy profile rewrote it to a generic start.
+    /// Whether the export wrote one of the game's ordinary systems in its place.
     pub replaced: bool,
 }
 
@@ -153,7 +156,7 @@ impl ExportReport {
                     Severity::Info,
                     IssueCode::HomeInitializer,
                     format!(
-                        "system {} is an empire seat on {}, and the export gave it a generic start",
+                        "system {} is an empire seat on {}, and the export gave it an ordinary system",
                         home.system, home.initializer
                     ),
                     vec![home.system],
@@ -277,7 +280,7 @@ pub(super) fn build(
             home_initializers.push(HomeInitializer {
                 system: id,
                 initializer: initializer.clone(),
-                replaced: false,
+                replaced: is_random_empire_start(initializer),
             });
         }
         if let Some(source) = sources(initializer) {

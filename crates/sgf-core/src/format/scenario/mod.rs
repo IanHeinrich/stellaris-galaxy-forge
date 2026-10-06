@@ -45,6 +45,62 @@ use crate::session::Session;
 use crate::validate::{Issue, IssueCode};
 use crate::views::{Capabilities, DocumentKind};
 
+/// The game's ordinary systems a seat is given, with the odds the game rolls each at.
+/// `basic_init_04` is left out because its last body can be an ice asteroid.
+pub const SEAT_INITIALIZERS: [(&str, u32); 5] = [
+    ("basic_init_01", 20),
+    ("basic_init_02", 20),
+    ("basic_init_03", 10),
+    ("basic_init_05", 6),
+    ("basic_init_06", 4),
+];
+
+/// The initializer a seat on system `id` is given when nothing draws one: a weighted
+/// draw from the id alone, so neighbouring ids land independently.
+pub fn seat_initializer(id: u32) -> &'static str {
+    seat_initializer_at(unit(0, id))
+}
+
+/// The seat initializer `unit`, in `[0, 1)`, falls on when [`SEAT_INITIALIZERS`] are laid
+/// end to end by their odds.
+pub(crate) fn seat_initializer_at(unit: f64) -> &'static str {
+    let mut at = unit * f64::from(seat_odds());
+    for (initializer, odds) in SEAT_INITIALIZERS {
+        if at < f64::from(odds) {
+            return initializer;
+        }
+        at -= f64::from(odds);
+    }
+    SEAT_INITIALIZERS[SEAT_INITIALIZERS.len() - 1].0
+}
+
+/// Whether `initializer` is one of [`SEAT_INITIALIZERS`].
+pub fn is_seat_initializer(initializer: &str) -> bool {
+    SEAT_INITIALIZERS
+        .iter()
+        .any(|(seat, _)| *seat == initializer)
+}
+
+fn seat_odds() -> u32 {
+    SEAT_INITIALIZERS.iter().map(|(_, odds)| odds).sum()
+}
+
+/// SplitMix64's increment.
+pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// SplitMix64's mix.
+pub(crate) fn mix(z: u64) -> u64 {
+    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
+pub(crate) fn unit(seed: u64, system: u32) -> f64 {
+    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
+    (z >> 11) as f64 / (1u64 << 53) as f64
+}
+
 pub(crate) struct Scenario;
 
 impl Format for Scenario {

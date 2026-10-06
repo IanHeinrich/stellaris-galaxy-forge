@@ -30,8 +30,6 @@ use crate::special::{SpecialKind, classify_session};
 const HOME_START_USAGES: [&str; 3] = ["empire_init", "custom_empire", "origin"];
 /// The `usage` of a nomad empire's home.
 const NOMAD_USAGE: &str = "nomad_init";
-/// The `usage` of the game's random empire starts.
-const RANDOM_START_USAGE: &str = "empire_init";
 /// The star flag a prescripted empire's start carries.
 const HOME_FLAG: &str = "empire_home_system";
 /// The star flag every Sol layout sets.
@@ -72,7 +70,7 @@ pub fn classify(session: &Session, gd: &GameData) -> Vec<RowSystems> {
         } else if sol(gd, &node.initializer) {
             Some(PrepareRow::Sol)
         } else if seat {
-            let home = !node.initializer.is_empty() && !generic_start(gd, &node.initializer);
+            let home = !node.initializer.is_empty() && !is_generic_home(&node.initializer);
             home.then_some(PrepareRow::HomeStarts)
         } else {
             Some(initializer_row(gd, node, kinds))
@@ -112,15 +110,6 @@ fn sol(gd: &GameData, initializer: &str) -> bool {
     gd.initializers
         .get(initializer)
         .is_some_and(|init| init.flags.iter().any(|f| f == SOL_FLAG))
-}
-
-/// A start the game seats any empire on.
-fn generic_start(gd: &GameData, initializer: &str) -> bool {
-    is_generic_home(initializer)
-        || gd
-            .initializers
-            .get(initializer)
-            .is_some_and(|init| init.usage.as_deref() == Some(RANDOM_START_USAGE))
 }
 
 fn initializer_row(gd: &GameData, node: &SystemNode, kinds: &[SpecialKind]) -> PrepareRow {

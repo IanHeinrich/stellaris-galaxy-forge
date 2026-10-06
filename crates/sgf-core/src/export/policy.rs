@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::format::scenario::is_seat_initializer;
 use crate::format::scenario::marauder::MARAUDER_PREFIX;
 use crate::format::scenario::paint::SOL_INITIALIZER;
 
@@ -28,8 +29,8 @@ const GENERIC_INITIALIZER_PREFIXES: [&str; 16] = [
     "empire_init",
 ];
 
-/// Initializers the generator seats any empire on.
-const GENERIC_HOME_PREFIXES: [&str; 2] = ["random_empire_init_", SOL_INITIALIZER];
+/// What the game's random empire starts are named with.
+const RANDOM_EMPIRE_START_PREFIX: &str = "random_empire_init_";
 const FALLEN_EMPIRE_PREFIX: &str = "fallen_";
 /// Vanilla initializers that `spawn_megastructure` an `lgate_base` besides those named
 /// after it (`distant_stars_initializers.txt`).
@@ -141,12 +142,17 @@ pub fn builds_gateway(initializer: &str) -> bool {
     initializer.starts_with("abandoned_gateways")
 }
 
-/// A home the generator can seat any empire on; another home initializer is worth a
-/// look, since it may only fit the empire that started there.
+/// One of the game's random empire starts. It names no empire, so an export swaps one on
+/// a seat for an ordinary system.
+pub fn is_random_empire_start(initializer: &str) -> bool {
+    initializer.starts_with(RANDOM_EMPIRE_START_PREFIX)
+}
+
+/// A seat's initializer that needs no look: one of the ordinary systems Forge writes on a
+/// seat, or Sol. Any other home may only fit the empire that started there, and a random
+/// empire start builds the homeworld before the game knows the species.
 pub fn is_generic_home(initializer: &str) -> bool {
-    GENERIC_HOME_PREFIXES
-        .iter()
-        .any(|p| initializer.starts_with(p))
+    is_seat_initializer(initializer) || initializer.starts_with(SOL_INITIALIZER)
 }
 
 #[cfg(test)]
@@ -230,7 +236,12 @@ mod tests {
         assert!(!is_generic_initializer("shattered_ring_start"));
         assert!(!is_generic_initializer(""));
 
-        assert!(is_generic_home("random_empire_init_06"));
+        assert!(is_generic_home("basic_init_02"));
+        assert!(!is_generic_home("basic_init_04"));
+        assert!(!is_generic_home("basic_init_12"));
+        assert!(!is_generic_home("random_empire_init_06"));
+        assert!(is_random_empire_start("random_empire_init_06"));
+        assert!(!is_random_empire_start("une_deneb_system"));
         assert!(is_generic_home("sol_system_initializer"));
         assert!(!is_generic_home("custom_starting_init_02"));
         assert!(!is_generic_home("une_deneb_system"));

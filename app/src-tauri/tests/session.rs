@@ -315,7 +315,7 @@ fn scenario_documents_open_start_and_export() {
     assert!(!exported.save.dirty, "export leaves the save session clean");
     assert_eq!(exported.report.seats, 17);
     assert_eq!(exported.report.dropped.wormhole_pairs, 6);
-    assert_eq!(exported.report.home_initializers.len(), 4);
+    assert_eq!(exported.report.home_initializers.len(), 16);
     assert_eq!(
         preview, exported.report,
         "the preview is the report the write gives"

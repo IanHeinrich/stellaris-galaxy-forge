@@ -19,8 +19,9 @@ use crate::format::scenario::fe_zone::SET_STAR_FLAG;
 use crate::format::scenario::header_counts::{SeatCounts, is_seat};
 use crate::format::scenario::paint::{
     AUTOMATIC_INITIALIZER_FLAG, EMPIRE_CLUSTER, RL_BASIC, SEAT_MODULO, UNE_FLAG,
-    WORMHOLE_FLAG_PREFIX, basic_initializer,
+    WORMHOLE_FLAG_PREFIX,
 };
+use crate::format::scenario::seat_initializer;
 use crate::projections::galaxy::{BypassLink, Galaxy, GalaxyGraph, PaintSpawnKind, SpawnScript};
 use crate::search::NameResolver;
 
@@ -111,8 +112,8 @@ fn player_seat(graph: &GalaxyGraph) -> Option<(u32, PaintSpawnKind)> {
 /// carries. The Sol seat is certain for the United Nations of Earth, since every other
 /// empire weighs it at zero. A 1st Player seat is all but certain for the host: an
 /// empire whose origin needs special placement is seated before the player and can
-/// still draw it. A seat with no initializer, or one the report says to review, gets a
-/// generic start.
+/// still draw it. A seat with no initializer, or one the report says to review, gets one
+/// of the game's ordinary systems.
 fn mark_spawns(
     draft: &mut Draft,
     report: &mut ExportReport,
@@ -143,10 +144,10 @@ fn mark_spawns(
                 }
             });
         system.spawn = SpawnDraft::Script(script);
-        // The player's empire brings its own home, so its seat gets a generic start.
+        // The player's empire brings its own home, so its seat gets an ordinary system.
         let players = player.as_ref().is_some_and(|(id, _)| *id == system.id);
         if system.initializer.is_none() || review.contains(&system.id) || players {
-            system.initializer = Some(basic_initializer(system.id).to_owned());
+            system.initializer = Some(seat_initializer(system.id).to_owned());
         }
     }
     for home in &mut report.home_initializers {

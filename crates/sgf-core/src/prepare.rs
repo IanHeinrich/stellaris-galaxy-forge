@@ -17,6 +17,7 @@ use crate::format::scenario::header_counts::{
 };
 use crate::format::scenario::is_painted;
 use crate::format::scenario::marauder::{self, MarauderRole};
+use crate::format::scenario::{GOLDEN, mix, unit};
 use crate::keys::scenario as keys;
 use crate::ops::Op;
 use crate::ops::rules::fe_zone as rules;
@@ -68,7 +69,7 @@ pub enum PrepareRow {
 pub enum PrepareChoice {
     /// As the scenario has it.
     Keep,
-    /// A seat gets one of the game's random empire starts, and a system the batch unseats
+    /// A seat gets one of the game's ordinary systems, and a system the batch unseats
     /// a plain system.
     GenericStart,
     /// An ordinary star in place of the initializer; a generic start on a Sol that keeps
@@ -365,22 +366,6 @@ impl PlainDraw {
         }
         Ok(&last.key)
     }
-}
-
-/// SplitMix64's increment.
-const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
-
-/// SplitMix64's mix.
-fn mix(z: u64) -> u64 {
-    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
-}
-
-/// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
-fn unit(seed: u64, system: u32) -> f64 {
-    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
-    (z >> 11) as f64 / (1u64 << 53) as f64
 }
 
 /// The draws one seed feeds beside Plain system's, each from its own stream, so that one
@@ -1337,7 +1322,8 @@ mod dialect {
 
     use super::{PlainDraw, PrepareError, Stream, initializer, unit};
     use crate::export::ScenarioProfile;
-    use crate::format::scenario::paint::{self, BASIC_INITIALIZERS, RL_BASIC};
+    use crate::format::scenario::paint::RL_BASIC;
+    use crate::format::scenario::{seat_initializer, seat_initializer_at};
     use crate::ops::Op;
     use crate::projections::galaxy::{PaintSpawnKind, SpawnScript, SystemNode};
 
@@ -1353,24 +1339,22 @@ mod dialect {
         }
     }
 
-    /// The initializer Generic start writes on seat `system`: one of the game's six random
-    /// empire starts, which Paint a Galaxy also gives a seat.
+    /// The initializer Generic start writes on seat `system`: one of the game's ordinary
+    /// systems, as the export gives a seat.
     pub(super) fn generic_start(profile: ScenarioProfile, system: u32) -> String {
         match profile {
             ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
-                paint::basic_initializer(system).to_owned()
+                seat_initializer(system).to_owned()
             }
         }
     }
 
-    /// The initializer a new random seat `system` gets: one of the same six starts, drawn
-    /// from `seed`.
+    /// The initializer a new random seat `system` gets: one of the same ordinary systems,
+    /// drawn from `seed`.
     pub(super) fn drawn_start(profile: ScenarioProfile, system: u32, seed: u64) -> String {
         match profile {
             ScenarioProfile::Plain | ScenarioProfile::PaintAGalaxy => {
-                let at = unit(Stream::Starts.seed(seed), system) * BASIC_INITIALIZERS.len() as f64;
-                let at = (at as usize).min(BASIC_INITIALIZERS.len() - 1);
-                BASIC_INITIALIZERS[at].to_owned()
+                seat_initializer_at(unit(Stream::Starts.seed(seed), system)).to_owned()
             }
         }
     }

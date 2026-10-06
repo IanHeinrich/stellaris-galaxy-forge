@@ -163,7 +163,7 @@ describe("the report", () => {
     expect(html).toContain(
       row(
         "Home initializers replaced",
-        "system 311 had shattered_ring_start, replaced with a generic start.",
+        "system 311 had shattered_ring_start, replaced with an ordinary system.",
       ),
     );
   });

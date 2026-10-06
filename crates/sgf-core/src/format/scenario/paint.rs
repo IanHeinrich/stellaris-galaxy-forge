@@ -83,16 +83,6 @@ pub(crate) const SOL_INITIALIZER: &str = "sol_system_initializer";
 /// The mod's Steam Workshop item.
 pub const WORKSHOP_ID: &str = "3532904115";
 
-/// The starting initializers the mod's minimum asks of a spawn system, one per residue.
-pub(crate) const BASIC_INITIALIZERS: [&str; 6] = [
-    "random_empire_init_01",
-    "random_empire_init_02",
-    "random_empire_init_03",
-    "random_empire_init_04",
-    "random_empire_init_05",
-    "random_empire_init_06",
-];
-
 /// The pair number of the first `painted_galaxy_wormhole_<n>` among `flags`.
 pub fn wormhole_pair<'a>(flags: impl Iterator<Item = &'a str>) -> Option<u32> {
     flags.filter_map(wormhole_pair_of).next()
@@ -287,12 +277,6 @@ pub(crate) fn weight_statement(script: &SpawnScript) -> String {
         keys::ADD,
         render(script)
     )
-}
-
-/// The starting initializer a spawn system is given when it names none, spread over
-/// the six the game ships by the system's id.
-pub fn basic_initializer(id: u32) -> &'static str {
-    BASIC_INITIALIZERS[id as usize % BASIC_INITIALIZERS.len()]
 }
 
 /// Whether a script is one Paint a Galaxy can read back: a reserved seat is named by

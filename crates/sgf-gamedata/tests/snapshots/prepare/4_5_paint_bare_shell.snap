@@ -7,7 +7,7 @@ RenameSystem: 579
 SetFeLinks: 2
 SetFeZone: 8
 SetHeaderKeys: 1
-SetInitializer: 549
+SetInitializer: 548
 SetSpawnScript: 18
 SetWormholePair: 7
 -fallen_empire_max = 2
@@ -69,7 +69,7 @@ SetWormholePair: 7
 -system = { id = "26" name = "Scorom" position = { x = 33.65 y = -284.48 } initializer = binary_init_02 }
 +system = { id = "26" position = { x = 33.65 y = -284.48 } }
 -system = { id = "27" name = "Manthall" position = { x = -215.89 y = -13.15 } initializer = salvager_enclave_init_02 }
-+system = { id = "27" position = { x = -215.89 y = -13.15 } initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|7| } }
++system = { id = "27" position = { x = -215.89 y = -13.15 } initializer = basic_init_02 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|7| } }
 -system = { id = "28" name = "NAME_Tiyana_Vek" position = { x = -45.98 y = 137.71 } initializer = hostile_init_16 }
 +system = { id = "28" position = { x = -45.98 y = 137.71 } }
 -system = { id = "29" name = "Asterope" position = { x = 117.23 y = -357.42 } initializer = star_lifting_system }

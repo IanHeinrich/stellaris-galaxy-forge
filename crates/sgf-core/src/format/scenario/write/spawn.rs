@@ -8,6 +8,7 @@ use crate::Span;
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::format::scenario::paint;
+use crate::format::scenario::seat_initializer;
 use crate::keys::scenario as keys;
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
@@ -183,7 +184,7 @@ fn write_script(
             if edit.entity()?.find(keys::INITIALIZER, &edit.buf).is_none() {
                 gave_initializer = true;
                 let after = last_of_id_name_position(edit)?;
-                let text = format!("{} = {}", keys::INITIALIZER, paint::basic_initializer(id));
+                let text = format!("{} = {}", keys::INITIALIZER, seat_initializer(id));
                 edit.bytes().insert_after(after, &text);
             }
             let text = paint::weight_statement(script);

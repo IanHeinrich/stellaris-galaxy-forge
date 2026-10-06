@@ -9,6 +9,7 @@ use crate::emit::quoted;
 use crate::format::scenario::emit::{SpawnStmt, SystemStmt, system_stmt};
 use crate::format::scenario::index::{LaneStmt, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, statement_id};
 use crate::format::scenario::paint;
+use crate::format::scenario::seat_initializer;
 use crate::keys::scenario as keys;
 use crate::ops::rules;
 use crate::ops::rules::systems::{decide_move, decide_moves};
@@ -146,7 +147,7 @@ fn emit_system(
         Some(statement) => verbatim(indent, id, statement)?,
         None => {
             let initializer = match (initializer, spawn_script) {
-                (None, Some(_)) => Some(paint::basic_initializer(id)),
+                (None, Some(_)) => Some(seat_initializer(id)),
                 (initializer, _) => initializer,
             };
             let spawn = match (spawn_weight, spawn_script) {
