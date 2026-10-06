@@ -12,10 +12,10 @@ a release is made.
 
 ### Added
 
-- Prepare for a new game, on a scenario's Galaxy page, readies a map for a
-  fresh game. Pick a preset or choose what to keep, from starting positions
-  to fallen empires. The map shows the result before you apply it.
-- Open save as scenario goes straight to Prepare for a new game.
+- Improved experience for converting saves into static galaxy scenarios,
+  with a setup screen.
+  - Choose what the new game keeps, from starting positions to fallen
+    empires, and see the result on the map before you apply it.
 
 ### Changed
 
