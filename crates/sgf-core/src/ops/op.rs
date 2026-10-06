@@ -258,8 +258,9 @@ pub enum Op {
     },
     /// Whether the game treats a system as an empire's home, which the plain profile writes
     /// on a seat it gives one of the game's ordinary systems: `home` writes the
-    /// `empire_home_system` star flag and a guarded `generate_home_system_resources` at
-    /// the end of the system's `effect` block, and `false` takes out only those, leaving
+    /// `empire_home_system` star flag and a guarded `if` that generates the starting
+    /// deposits and sizes the capital at the end of the system's `effect` block, and
+    /// `false` takes out only those, with an earlier `if` behind the same guard, leaving
     /// the block's other statements as they are. A system already as asked is refused; one
     /// holding only some of those statements is not marked, so marking it writes them whole.
     /// The inverse of marking takes out both statements, and undo puts the bytes back as

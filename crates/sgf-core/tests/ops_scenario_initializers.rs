@@ -193,7 +193,7 @@ fn the_home_system_effect_goes_after_what_the_effect_holds_and_comes_out_alone()
         common::text(&session),
         "static_galaxy_scenario = {
 	name = \"seats\"
-	system = { id = \"1\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+	system = { id = \"1\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } } }
 	system = {
 		id = \"2\"
 		position = { x = 3 y = 4 }
@@ -202,10 +202,10 @@ fn the_home_system_effect_goes_after_what_the_effect_holds_and_comes_out_alone()
 		effect = {
 			log = \"y\"
 			set_star_flag = empire_home_system
-			if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes }
+			if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } }
 		}
 	}
-	system = { id = \"3\" position = { x = 5 y = 6 } initializer = basic_init_03 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+	system = { id = \"3\" position = { x = 5 y = 6 } initializer = basic_init_03 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } } }
 }
 "
     );
@@ -229,7 +229,7 @@ fn the_home_system_effect_goes_after_what_the_effect_holds_and_comes_out_alone()
 /// A seat written compactly with the whole effect, and one whose effect holds only the flag.
 const MARKED: &str = "static_galaxy_scenario = {
 	name = \"marked\"
-	system = { id = \"4\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect={set_star_flag=empire_home_system if={limit={NOT={any_system_planet={has_planet_flag=starting_deposit}}}generate_home_system_resources=yes}} }
+	system = { id = \"4\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect={set_star_flag=empire_home_system if={limit={NOT={any_system_planet={has_planet_flag=starting_deposit}}}generate_home_system_resources=yes every_system_planet={limit={is_capital=yes planet_size<18 NOT={is_planet_class=pc_habitat}owner={NOT={has_origin=origin_void_dwellers has_origin=origin_toxic_knights has_origin=origin_arc_welders}}}random_list={25={set_planet_size=18}25={set_planet_size=19}25={set_planet_size=20}25={set_planet_size=21}}}}} }
 	system = { id = \"5\" position = { x = 3 y = 4 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system } }
 }
 ";
@@ -268,7 +268,7 @@ fn the_home_system_effect_is_read_by_its_tokens_and_a_flag_alone_is_written_whol
         "static_galaxy_scenario = {
 	name = \"marked\"
 	system = { id = \"4\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } }
-	system = { id = \"5\" position = { x = 3 y = 4 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+	system = { id = \"5\" position = { x = 3 y = 4 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } } }
 }
 "
     );
@@ -287,4 +287,36 @@ fn the_home_system_effect_is_read_by_its_tokens_and_a_flag_alone_is_written_whol
         MARKED,
         "undo puts the flag alone back"
     );
+}
+
+/// A seat marked with an earlier form of the effect, whose `if` shares the guard but not
+/// the body.
+const MARKED_BEFORE: &str = "static_galaxy_scenario = {
+	name = \"marked before\"
+	system = { id = \"6\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } } }
+}
+";
+
+#[test]
+fn an_earlier_form_of_the_home_system_effect_is_replaced_whole() {
+    let mut session = common::fixture::from_scenario_text(MARKED_BEFORE);
+    assert!(
+        !session.graph().systems[&6].home_system,
+        "the earlier form is not this one"
+    );
+    session
+        .apply(Op::SetHomeSystem {
+            system: 6,
+            home: true,
+        })
+        .expect("write the effect over its earlier form");
+    assert_eq!(
+        common::text(&session),
+        "static_galaxy_scenario = {
+	name = \"marked before\"
+	system = { id = \"6\" position = { x = 1 y = 2 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { log = \"x\" set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } } }
+}
+"
+    );
+    assert!(session.graph().systems[&6].home_system);
 }

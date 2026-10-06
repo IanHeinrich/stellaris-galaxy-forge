@@ -104,13 +104,54 @@ pub(crate) fn unit(seed: u64, system: u32) -> f64 {
 
 /// The statements of a system's `effect` block that make the game treat it as an empire's
 /// home, written whole by the plain profile on a seat it gives one of
-/// [`SEAT_INITIALIZERS`]: the star flag a random empire start sets itself, and the
-/// starting deposits it generates. The deposits are guarded, because an origin whose own
-/// start system replaces the seat's has generated them already.
+/// [`SEAT_INITIALIZERS`]: the star flag a random empire start sets itself, then the
+/// starting deposits it generates and a capital of the size it gives, 18 to 21, raised
+/// only from below and not for the origins that want a small one. The second statement is
+/// guarded, because an origin whose own start system replaces the seat's has done both
+/// already.
 pub(crate) const HOME_SYSTEM_EFFECT: [&str; 2] = [
     "set_star_flag = empire_home_system",
-    "if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes }",
+    concat!(
+        "if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } ",
+        "generate_home_system_resources = yes ",
+        "every_system_planet = { limit = { is_capital = yes planet_size < 18 ",
+        "NOT = { is_planet_class = pc_habitat } owner = { NOT = { ",
+        "has_origin = origin_void_dwellers has_origin = origin_toxic_knights ",
+        "has_origin = origin_arc_welders } } } ",
+        "random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } ",
+        "25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } }",
+    ),
 ];
+
+/// Whether `statement` is one the home system effect writes, in this form or an earlier
+/// one: a statement of [`HOME_SYSTEM_EFFECT`], or an `if` behind the same guard as its
+/// second, so that writing the effect replaces an older `if` rather than adding to it.
+pub(crate) fn is_home_system_statement(statement: &str) -> bool {
+    HOME_SYSTEM_EFFECT
+        .iter()
+        .any(|ours| same_statement(statement, ours))
+        || guard(statement).is_some_and(|theirs| guard(HOME_SYSTEM_EFFECT[1]) == Some(theirs))
+}
+
+/// The tokens of an `if` statement up to the end of its first block, its `limit`.
+fn guard(statement: &str) -> Option<Vec<(lexer::TokenKind, &[u8])>> {
+    let mut depth = 0u32;
+    let mut taken = Vec::new();
+    for token in tokens(statement.as_bytes()) {
+        taken.push(token);
+        match token.0 {
+            lexer::TokenKind::LBrace => depth += 1,
+            lexer::TokenKind::RBrace => {
+                depth = depth.checked_sub(1)?;
+                if depth == 1 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    (depth == 1 && taken.first().is_some_and(|token| token.1 == b"if")).then_some(taken)
+}
 
 /// Whether two statements read the same token for token, however they are spaced.
 pub(crate) fn same_statement(a: &str, b: &str) -> bool {

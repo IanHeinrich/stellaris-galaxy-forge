@@ -712,7 +712,12 @@ for planets or deposits.
   ```
   effect = { set_star_flag = empire_home_system if = { limit = { NOT = {
   any_system_planet = { has_planet_flag = starting_deposit } } }
-  generate_home_system_resources = yes } }
+  generate_home_system_resources = yes every_system_planet = { limit = {
+  is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat }
+  owner = { NOT = { has_origin = origin_void_dwellers has_origin =
+  origin_toxic_knights has_origin = origin_arc_welders } } } random_list =
+  { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = {
+  set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } }
   ```
 
   The flag is what vanilla checks to keep turbulent nebulae and some
@@ -724,6 +729,19 @@ for planets or deposits.
   deposits. The `if` guards against that, checked on 4.5: an origin
   with its own start system keeps that system's deposits, and the effect
   does not run a second time.
+- On a `basic_init` seat the game makes the system's last body the
+  homeworld and keeps its size, which ranged from 9 to 30 over rounds 6
+  to 8 (4.5). A random empire start makes it 18 to 21
+  (`@homeworld_min_size` and `@homeworld_max_size` in
+  `empire_initializers.txt`), and each point of size is one district
+  (`NUM_DISTRICTS_FROM_PLANET_SIZE = 1`). The `every_system_planet` line
+  raises a capital under 18 to 18 to 21. It never shrinks one, and it
+  skips habitats and the origins that set a small capital on purpose:
+  Void Dwellers (6, a habitat), Toxic Knights (6) and Arc Welders (15).
+  The origins that set their own size otherwise run their own start
+  system, which the guard skips: Life-Seeded 30, Remnants 22, Synthetic
+  Fertility 20, Wilderness 18. I have not tested the size line in game
+  yet; round 9 checks it.
 - `position = { x y z }` parses, but the game ignores `z`. A scenario
   with `z` from -50 to 1000 on 780 systems started a game whose day-one
   save has `visual_height=3.65056` on every system (4.5.1). Height can

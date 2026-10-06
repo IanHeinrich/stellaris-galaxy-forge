@@ -87,7 +87,7 @@ pub fn seated(text: &str) -> BTreeSet<u32> {
 /// The ids of the `system` lines whose effect makes them an empire's home. A line states
 /// that effect at most once.
 pub fn home_systems(text: &str) -> BTreeSet<u32> {
-    let flag = "effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes } }";
+    let flag = "effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } random_list = { 25 = { set_planet_size = 18 } 25 = { set_planet_size = 19 } 25 = { set_planet_size = 20 } 25 = { set_planet_size = 21 } } } } }";
     text.lines()
         .filter(|line| line.starts_with("	system = { id = \""))
         .filter(|line| {

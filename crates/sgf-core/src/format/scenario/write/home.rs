@@ -2,7 +2,7 @@
 //! of its `effect` block that [`HOME_SYSTEM_EFFECT`] lists.
 
 use super::flags::rewrite_statements;
-use crate::format::scenario::{HOME_SYSTEM_EFFECT, same_statement};
+use crate::format::scenario::{HOME_SYSTEM_EFFECT, is_home_system_statement};
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Plan, Planned};
 use crate::session::Session;
@@ -38,19 +38,12 @@ pub(super) fn set_home_system(
 
 /// Write every statement of [`HOME_SYSTEM_EFFECT`] at the end of the system's `effect`
 /// block, or take them out, leaving the block's other statements as they are. A copy of
-/// one already standing is taken out first, so the block never holds two.
+/// one already standing, or an earlier form of it, is taken out first, so the block never
+/// holds two.
 fn write_home_system(edit: &mut Edit, home: bool) -> Result<(), OpError> {
     let statements: Vec<String> = match home {
         true => HOME_SYSTEM_EFFECT.map(str::to_owned).to_vec(),
         false => Vec::new(),
     };
-    rewrite_statements(
-        edit,
-        |text| {
-            HOME_SYSTEM_EFFECT
-                .iter()
-                .any(|ours| same_statement(text, ours))
-        },
-        &statements,
-    )
+    rewrite_statements(edit, is_home_system_statement, &statements)
 }
