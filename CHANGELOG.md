@@ -8,6 +8,57 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-06
+
+### Added
+
+- Prepare for a new game, on a scenario's Galaxy page, readies a map for a
+  fresh New Game. Choose what the new game takes from the map: starting
+  positions, starting systems, Sol, guaranteed habitable worlds, fallen
+  empires, marauders, leviathans, enclaves, pre-FTL civilizations, unique
+  systems, wormhole pairs and system names.
+  - Keep everything leaves the map as it is. Keep the galaxy gives every
+    empire a new starting system. Keep the layout keeps only the stars,
+    hyperlanes and nebulae, draws new starting positions and, on Paint a
+    Galaxy maps, new fallen empire zones. The game rolls the rest.
+  - Each row says who places those things in the new game: Galaxy Forge,
+    the game, or no one. Hover over a row for a card with every choice.
+  - While the section is open, the map shows the galaxy as your choices
+    would leave it. New starting positions and fallen empire zones are
+    ringed, and Reroll draws them again.
+  - Leviathans, marauders and L-Gates are kept 2 jumps away from starting
+    positions. You can turn this off.
+  - The Sol row keeps Sol, turns it into a normal system, puts pre-FTL
+    humans on Earth, or leaves it to the game. On Paint a Galaxy maps it can
+    also keep Sol for the United Nations of Earth.
+  - The Wormhole pairs row warns you when removing the pairs cuts systems
+    off.
+  - Apply is one step to undo.
+- Open save as scenario goes straight to Prepare for a new game, with Apply
+  always in view. "Not now" shows the whole Galaxy page. Prepare is also in
+  the File menu.
+- The Issues tab notes systems near a starting position that have no
+  initializer. The game fills them at random, so a leviathan or a marauder
+  home can land there.
+
+### Changed
+
+- A scenario made from a save starts New Game at the save's crisis
+  strength. A plain scenario also takes the save's settings for empires,
+  wormholes and gateways, as Paint a Galaxy maps already did.
+- The scenario's name has its own field at the top of the Galaxy page.
+- The tool rail stays in the system view, with only Select.
+
+### Fixed
+
+- Empires on a plain scenario's starting positions start on a homeworld
+  their species likes, of the usual size and with the usual starting
+  deposits. Most used to start on a world at 30 to 50% habitability.
+  Paint a Galaxy maps keep the game's random empire starts, because the mod
+  already fixes those homeworlds.
+- A scenario made from a save with fewer habitable worlds no longer gets
+  fewer habitable worlds again on top of the New Game setting.
+
 ## [0.21.0] - 2026-10-05
 
 ### Added
