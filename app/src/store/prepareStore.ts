@@ -61,6 +61,8 @@ export interface PrepareState {
   /** Why the last preview failed; null when it landed. */
   error: string | null;
   applied: Applied | null;
+  /** No preset, choice, option or seed has changed since the last Apply. */
+  choicesApplied: boolean;
   /** The Apply undo took back, which a redo brings back. */
   undone: Applied | null;
   applying: boolean;
@@ -170,6 +172,17 @@ export function shownProjection(
   state: Pick<PrepareState, "outcomeShown" | "preview">,
 ): PreparedMap | null {
   return (state.outcomeShown && state.preview?.map) || null;
+}
+
+/**
+ * The count the closed section names as pending: none while the choices are the ones the last
+ * Apply wrote, so it names what Apply changed rather than what another Apply would.
+ */
+export function pendingChanges(
+  state: Pick<PrepareState, "preview" | "applied" | "choicesApplied">,
+): number | null {
+  if (state.applied !== null && state.choicesApplied) return null;
+  return state.preview?.changes ?? null;
 }
 
 function setupFor(fromSave: boolean, state: Pick<PrepareState, "applied" | "dismissed">): boolean {
@@ -286,6 +299,7 @@ function initial() {
     current: false,
     error: null,
     applied: null as Applied | null,
+    choicesApplied: false,
     undone: null as Applied | null,
     applying: false,
     rowsOpen: true,
@@ -299,25 +313,33 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
 
   setPreset(preset) {
     LAST_PRESET.save(preset);
-    set({ choices: presetChoices(preset, currentProfile()), current: false });
+    set({
+      choices: presetChoices(preset, currentProfile()),
+      current: false,
+      choicesApplied: false,
+    });
     void get().refresh();
   },
 
   setChoice(row, choice) {
     if (get().choices[row] === choice) return;
-    set({ choices: { ...get().choices, [row]: choice }, current: false });
+    set({ choices: { ...get().choices, [row]: choice }, current: false, choicesApplied: false });
     void get().refresh();
   },
 
   setClearAroundSeats(on) {
     if (get().options.clear_around_seats === on) return;
     CLEAR_AROUND_SEATS.save(on);
-    set({ options: { ...get().options, clear_around_seats: on }, current: false });
+    set({
+      options: { ...get().options, clear_around_seats: on },
+      current: false,
+      choicesApplied: false,
+    });
     void get().refresh();
   },
 
   reroll() {
-    set({ options: { ...get().options, seed: newSeed() }, current: false });
+    set({ options: { ...get().options, seed: newSeed() }, current: false, choicesApplied: false });
     void get().refresh();
   },
 
@@ -391,6 +413,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
           changed: done.changes,
           seq: done.seq,
         },
+        choicesApplied: true,
         undone: null,
         hovered: null,
       });

@@ -45,6 +45,7 @@ import {
   draws,
   nearestPreset,
   offeredChoices,
+  pendingChanges,
   PREPARE_PRESET_NAMES,
   PREPARE_ROWS,
   PREPARE_SECTION,
@@ -472,7 +473,7 @@ function useProfile(): ScenarioProfile {
  */
 export function PrepareSection({ setup = false }: { setup?: boolean }) {
   const choices = usePrepareStore((s) => s.choices);
-  const pending = usePrepareStore((s) => s.preview?.changes ?? null);
+  const pending = usePrepareStore(pendingChanges);
   const applied = usePrepareStore((s) => s.applied);
   const profile = useProfile();
   if (setup) {

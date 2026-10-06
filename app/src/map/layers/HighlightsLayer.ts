@@ -32,7 +32,7 @@ import { BrushOverlay } from "./highlights/BrushOverlay";
 import { dashedCircle } from "./dashes";
 import { FeZoneDragOverlay } from "./highlights/FeZoneDragOverlay";
 import { LaneDragOverlay } from "./highlights/LaneDragOverlay";
-import { pointsOf, RingBatch, type RingSpec } from "./highlights/RingBatch";
+import { pointsOf, RingBatch, type RingSpec, ZoneMarks, zoneMarksOf } from "./highlights/RingBatch";
 import { SymmetryGuide } from "./highlights/SymmetryGuide";
 import { markerScale, sameKeys, type DragState, type MapLayer } from "./MapLayer";
 
@@ -141,6 +141,7 @@ export class HighlightsLayer implements MapLayer {
   private readonly matchedRings = new RingBatch(MATCHED, "matchedRings");
   private readonly searchedRings = new RingBatch(SEARCHED, "searchedRings");
   private readonly preparedRings = new RingBatch(PREPARE, "preparedRings");
+  private readonly preparedZones = new ZoneMarks(PREPARE, "preparedZones");
   private readonly joiningRings = new RingBatch(JOINING, "joiningRings");
   private readonly leavingRings = new RingBatch(LEAVING, "leavingRings");
   private readonly midpoint = midpointButton();
@@ -168,6 +169,7 @@ export class HighlightsLayer implements MapLayer {
   private matched: ReadonlySet<number> = new Set();
   private searched: ReadonlySet<number> = new Set();
   private prepared: ReadonlySet<number> = new Set();
+  private preparedOnZones = false;
   private ghosts: readonly MoveGhost[] = [];
   private dragged: ReadonlyMap<number, MoveGhost> = new Map();
   private lanePreview: Array<[number, number]> | null = null;
@@ -207,6 +209,7 @@ export class HighlightsLayer implements MapLayer {
       this.matchedRings.container,
       this.searchedRings.container,
       this.preparedRings.container,
+      this.preparedZones.graphics,
       this.joiningRings.container,
       this.leavingRings.container,
       this.added.container,
@@ -254,6 +257,7 @@ export class HighlightsLayer implements MapLayer {
     this.hover.scale.set(this.scale.x, this.scale.y);
     this.cutRing.scale.set(this.scale.x, this.scale.y);
     for (const rings of this.batches()) rings.setScale(this.scale);
+    this.preparedZones.setCamScale(cam.scale);
     this.added.setScale(this.scale);
     cam.childScale(1, this.pixelScale);
     this.midpoint.scale.set(this.pixelScale.x, this.pixelScale.y);
@@ -347,9 +351,13 @@ export class HighlightsLayer implements MapLayer {
     this.placeSearched();
   }
 
-  /** Rings the systems of the Prepare row the pointer is on, or none. */
-  setPrepared(ids: ReadonlySet<number>): void {
+  /**
+   * Rings the systems of the Prepare row the pointer is on, or none; with `onZones`, a system
+   * anchoring a fallen empire zone is ringed round its zone.
+   */
+  setPrepared(ids: ReadonlySet<number>, onZones = false): void {
     this.prepared = ids;
+    this.preparedOnZones = onZones;
     this.placePrepared();
   }
 
@@ -415,7 +423,11 @@ export class HighlightsLayer implements MapLayer {
   }
 
   private placePrepared(): void {
-    this.preparedRings.place(pointsOf(this.systems, this.prepared, this.drawn.at));
+    const { zones, points } = this.preparedOnZones
+      ? zoneMarksOf(this.systems, this.prepared, this.drawn.at)
+      : { zones: [], points: pointsOf(this.systems, this.prepared, this.drawn.at) };
+    this.preparedRings.place(points);
+    this.preparedZones.place(zones);
   }
 
   /** The hover ring, unless the selection already rings that system, and the port ring. */
