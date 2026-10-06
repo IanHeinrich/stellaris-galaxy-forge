@@ -6,18 +6,21 @@ use sgf_app_lib::views::{PreparePreview, PreparedEdit};
 use sgf_core::export::ScenarioProfile;
 use sgf_core::prepare::{PreparePreset, PrepareRow};
 use sgf_core::views::{EditResult, ErrorKind, OpenResult};
+use sgf_gamedata::scripts::{ScenarioBypasses, ScenarioOwners};
+use sgf_gamedata::special::SpecialSystems;
 
 use crate::common;
-use common::{SAMPLE, game_data_webview, invoke, kind, open, webview};
+use common::{SAMPLE, SAMPLE_45, game_data_webview, invoke, kind, open, webview};
 
 /// `preset`'s choices on a plain map, which the sample opens as unless told otherwise.
 fn choices(preset: PreparePreset) -> Value {
     json!(preset.choices(ScenarioProfile::Plain))
 }
 
-/// The arguments both commands take for `preset`, the space around seats kept clear.
+/// The arguments both commands take for `preset`, the space around seats kept clear and no map
+/// asked for.
 fn args(preset: PreparePreset) -> Value {
-    json!({ "choices": choices(preset), "options": options(true, 0) })
+    json!({ "choices": choices(preset), "options": options(true, 0), "map": false })
 }
 
 fn options(clear_around_seats: bool, seed: u64) -> Value {
@@ -48,7 +51,7 @@ fn preview_seeded(
     invoke(
         w,
         "prepare_preview",
-        json!({ "choices": choices, "options": options(clear_around_seats, seed) }),
+        json!({ "choices": choices, "options": options(clear_around_seats, seed), "map": false }),
     )
     .expect("preview")
 }
@@ -105,6 +108,7 @@ fn prepare_needs_game_data_and_an_open_scenario() {
         json!({
             "choices": [{ "row": "empire_seats", "choice": "plain" }],
             "options": options(true, 0),
+            "map": false,
         }),
     )
     .expect_err("seats offer no plain system");
@@ -210,6 +214,7 @@ fn a_une_seat_is_refused_on_a_plain_map() {
         json!({
             "choices": [{ "row": "sol", "choice": "une_seat" }],
             "options": options(true, 0),
+            "map": false,
         }),
     )
     .expect_err("a plain map has no UNE seat");
@@ -258,4 +263,43 @@ fn a_paint_a_galaxy_map_previews_under_its_own_profile() {
         applied.edit.entry.description,
         format!("Prepared {} systems for a new game", shell.changes)
     );
+}
+
+#[test]
+fn the_preview_maps_what_apply_writes() {
+    let Some(w) = game_data_webview() else {
+        return;
+    };
+    invoke::<OpenResult>(
+        &w,
+        "open_as_scenario",
+        json!({ "path": SAMPLE_45, "profile": "paint_a_galaxy" }),
+    )
+    .expect("open as scenario");
+    let bare_shell = json!(PreparePreset::BareShell.choices(ScenarioProfile::PaintAGalaxy));
+    let args =
+        |map: bool| json!({ "choices": bare_shell, "options": options(true, 7), "map": map });
+    let unmapped: PreparePreview = invoke(&w, "prepare_preview", args(false)).expect("preview");
+    let shell: PreparePreview = invoke(&w, "prepare_preview", args(true)).expect("preview");
+    assert!(unmapped.map.is_none(), "no map unless asked for");
+    let map = shell.map.expect("a map for choices that change something");
+    assert_eq!(map.systems.len(), shell.changes);
+
+    let applied: PreparedEdit = invoke::<Option<PreparedEdit>>(
+        &w,
+        "prepare_apply",
+        json!({ "choices": bare_shell, "options": options(true, 7) }),
+    )
+    .expect("apply bare shell")
+    .expect("an edit");
+    assert_eq!(map.systems, applied.edit.delta.systems);
+    let special: SpecialSystems = invoke(&w, "get_special_systems", json!({})).expect("special");
+    assert_eq!(map.special, special.systems);
+    let owners: Option<ScenarioOwners> =
+        invoke(&w, "get_scenario_owners", json!({})).expect("owners");
+    assert!(owners.is_some(), "the sample's scripts own systems");
+    assert_eq!(map.owners, owners);
+    let bypasses: Option<ScenarioBypasses> =
+        invoke(&w, "get_scenario_bypasses", json!({})).expect("bypasses");
+    assert_eq!(Some(map.bypasses), bypasses);
 }

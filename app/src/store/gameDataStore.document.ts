@@ -99,6 +99,6 @@ export function documentActions(
 }
 
 /** Each scenario system mapped to the territory country that owns it; empty without scripted owners. */
-function ownerMap(owners: ScenarioOwners | null): Map<number, number> {
+export function ownerMap(owners: ScenarioOwners | null): Map<number, number> {
   return new Map(owners?.owners.map((o) => [o.system, o.territory]) ?? []);
 }

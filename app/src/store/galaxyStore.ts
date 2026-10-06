@@ -148,15 +148,8 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
     const { grid, scriptedOwners: previous } = get();
     const systems = new Map(get().systems);
     sameTopology(get().systems, systems);
-    const restamped: SystemNode[] = [];
-    for (const [id, node] of systems) {
-      const owner = owners.get(id) ?? null;
-      if (owner === node.owner || (owner === null && !previous.has(id))) continue;
-      const stampedNode = { ...node, owner };
-      systems.set(id, stampedNode);
-      grid?.update(stampedNode);
-      restamped.push(stampedNode);
-    }
+    const restamped = stampOwners(systems, owners, previous);
+    for (const node of restamped) grid?.update(node);
     set({
       scriptedOwners: owners,
       scriptedCountries: [...countries],
@@ -200,8 +193,28 @@ function stamped(node: SystemNode, owners: ReadonlyMap<number, number>): SystemN
   return owner === undefined || owner === node.owner ? node : { ...node, owner };
 }
 
+/**
+ * Writes `owners` onto `systems` in place: each system takes the owner `owners` gives it, and one
+ * `previous` gave an owner and `owners` does not loses it. Returns the nodes it rewrote.
+ */
+export function stampOwners(
+  systems: Map<number, SystemNode>,
+  owners: ReadonlyMap<number, number>,
+  previous: ReadonlyMap<number, number>,
+): SystemNode[] {
+  const restamped: SystemNode[] = [];
+  for (const [id, node] of systems) {
+    const owner = owners.get(id) ?? null;
+    if (owner === node.owner || (owner === null && !previous.has(id))) continue;
+    const stampedNode = { ...node, owner };
+    systems.set(id, stampedNode);
+    restamped.push(stampedNode);
+  }
+  return restamped;
+}
+
 /** The document's own countries first, so the owners layer's palette keeps their order. */
-function countryMap(
+export function countryMap(
   own: readonly CountryNode[],
   scripted: readonly CountryNode[],
 ): Map<number, CountryNode> {

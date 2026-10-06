@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 use sgf_core::export::ScenarioProfile;
 use sgf_core::format::scenario::FeZone;
 use sgf_core::prepare::RowSystems;
+use sgf_core::projections::galaxy::SystemNode;
 use sgf_core::views::EditResult;
+use sgf_gamedata::scripts::{ScenarioBypasses, ScenarioOwners};
+use sgf_gamedata::special::SpecialSystem;
 use ts_rs::TS;
 
 /// What adding a body answers with: the edit, and the id the new body took.
@@ -43,6 +46,29 @@ pub struct PreparePreview {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub seat_floor: Option<f64>,
+    /// The map as the edit would leave it; absent when the choices change nothing, or when
+    /// it was not asked for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub map: Option<PreparedMap>,
+}
+
+/// The map as a set of Prepare choices would leave the open scenario: what the commands that
+/// read the map would answer after Apply.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PreparedMap {
+    /// The systems the edit rewrites, as they would project.
+    pub systems: Vec<SystemNode>,
+    /// Every special system, in the scenario's system order.
+    pub special: Vec<SpecialSystem>,
+    /// Who would own each system at galaxy generation; absent where the scenario's scripts
+    /// own nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub owners: Option<ScenarioOwners>,
+    /// The bypasses the scripts and Paint a Galaxy's flagged pairs would place.
+    pub bypasses: ScenarioBypasses,
 }
 
 /// A fallen empire zone New random zones would fit: the system anchoring it, and the zone.

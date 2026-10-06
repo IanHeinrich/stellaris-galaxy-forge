@@ -1,4 +1,5 @@
 import type { GalaxyDelta } from "../generated/GalaxyDelta";
+import type { PreparedMap } from "../generated/PreparedMap";
 import type { SpecialKind } from "../generated/SpecialKind";
 import type { HeightPreview } from "../lib/height";
 import type { AppIssue } from "../lib/issues";
@@ -18,7 +19,13 @@ import { useLGateStore } from "../store/lgateStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
 import { usePaintModStore } from "../store/paintModStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
-import { ringedSystems, systemOutcomes, usePrepareStore } from "../store/prepareStore";
+import { mapInputs } from "../store/preparedMap";
+import {
+  ringedSystems,
+  shownProjection,
+  systemOutcomes,
+  usePrepareStore,
+} from "../store/prepareStore";
 import { useToolStore } from "../store/toolStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { follows, type Binding, type Store } from "./follows";
@@ -29,6 +36,7 @@ import { matchingSystems } from "./matchingSystems";
 
 const EMPTY_MATCH: ReadonlySet<number> = new Set();
 const NO_OUTCOME: ReadonlyMap<number, Outcome> = new Map();
+const NO_ISSUES: readonly AppIssue[] = [];
 
 /** What a store change moves: the layers, and the camera and context work the controller owns. */
 export interface MapView {
@@ -62,7 +70,7 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
       view.fit();
     } else if (state.version !== prev.version && state.lastDelta) {
       view.refreshContext();
-      applyDelta(view, state.lastDelta);
+      applyDelta(view, shownDelta(state.lastDelta));
     } else if (state.hiddenCountries !== prev.hiddenCountries) {
       view.refreshContext();
     }
@@ -168,6 +176,11 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     (s, view) => setOutcome(view, s.outcomeShown ? systemOutcomes(s) : NO_OUTCOME),
     "layers",
   ),
+  watches(usePrepareStore, (state, prev, view) => {
+    const before = shownProjection(prev);
+    const after = shownProjection(state);
+    if (before !== after) showProjection(view, before, after);
+  }),
 
   follows(
     usePlanetMoveStore,
@@ -176,7 +189,12 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
     "bind",
   ),
 
-  follows(useIssuesStore, [(s) => s.issues], (s, view) => setIssues(view, s.issues), "layers"),
+  follows(
+    useIssuesStore,
+    [(s) => s.issues],
+    (_s, view) => setIssues(view, shownIssues()),
+    "layers",
+  ),
   follows(
     useWatchlistStore,
     [(s) => s.entries, (s) => s.results],
@@ -262,6 +280,37 @@ function setSelectedNebula(view: MapView, index: number | null): void {
 
 function setIssues(view: MapView, issues: readonly AppIssue[]): void {
   for (const layer of view.layers) layer.setIssues?.(issues);
+}
+
+/** The issues the map marks: none while it shows the map as Prepare's choices would leave it. */
+function shownIssues(): readonly AppIssue[] {
+  return shownProjection(usePrepareStore.getState()) ? NO_ISSUES : useIssuesStore.getState().issues;
+}
+
+/**
+ * `delta` with each system as the map shows it, so a system Prepare's choices rewrite keeps the
+ * look they give it.
+ */
+function shownDelta(delta: GalaxyDelta): GalaxyDelta {
+  const { systems } = mapInputs();
+  return { ...delta, systems: delta.systems.flatMap((node) => systems.get(node.id) ?? []) };
+}
+
+/**
+ * Swaps the map between the document and the map as Prepare's choices would leave it. The layers
+ * that redraw one system at a time are handed each system either projection rewrites.
+ */
+function showProjection(
+  view: MapView,
+  before: PreparedMap | null,
+  after: PreparedMap | null,
+): void {
+  view.refreshContext();
+  const nodes = new Map(
+    [...(before?.systems ?? []), ...(after?.systems ?? [])].map((s) => [s.id, s]),
+  );
+  applyDelta(view, shownDelta({ systems: [...nodes.values()] }));
+  setIssues(view, shownIssues());
 }
 
 function setWatchlist(view: MapView, rings: readonly WatchRings[]): void {

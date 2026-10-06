@@ -35,7 +35,7 @@ pub async fn get_scenario_owners<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<ScenarioOwners>, SgfError> {
     let owners = with_scenario(app, |session, gd, state, generation| {
-        Some(scenario_owners(session, gd, state, generation))
+        Some(scenario_owners(session, gd, Some((state, generation))))
     })
     .await?;
     Ok(owners.map(|owners| (*owners).clone()))
@@ -54,14 +54,12 @@ pub async fn get_scenario_bypasses<R: Runtime>(
             return Ok(None);
         }
         let game_data = app.state::<GameDataState>();
-        let mut bypasses = match game_data.snapshot() {
+        Ok(Some(match game_data.snapshot() {
             Some((generation, gd)) => {
-                (*scenario_bypasses(session, &gd, &game_data, generation)).clone()
+                placed_bypasses(session, Some(&gd), Some((&game_data, generation)))
             }
-            None => ScenarioBypasses::default(),
-        };
-        add_flagged_pairs(&mut bypasses, &session.graph().bypasses);
-        Ok(Some(bypasses))
+            None => placed_bypasses(session, None, None),
+        }))
     })
     .await
 }
@@ -82,7 +80,7 @@ pub async fn get_system_scripts<R: Runtime>(
             ScenarioSystem::initializer_of(&system.initializer),
             effect,
         );
-        scripts.attach_territory(&scenario_owners(session, gd, state, generation));
+        scripts.attach_territory(&scenario_owners(session, gd, Some((state, generation))));
         Some(scripts)
     })
     .await
@@ -119,7 +117,7 @@ fn details_for(
             let Some((generation, gd)) = gd_state.snapshot() else {
                 return Ok(Vec::new());
             };
-            let owners = scenario_owners(session, &gd, gd_state, generation);
+            let owners = scenario_owners(session, &gd, Some((gd_state, generation)));
             let initializers: Vec<(u32, String)> = ids
                 .iter()
                 .filter_map(|&id| Some((id, session.system(id)?.initializer.clone())))
@@ -195,37 +193,55 @@ fn roll_for(
     }
 }
 
-/// Who owns each scenario system, computed from every system at once and kept until the
-/// game data or the scenario changes, so a per-system command need not recompute it.
-fn scenario_owners(
+/// Where a reading of every scenario system is kept between commands: the game data's state and
+/// the generation it was read for. A copy of the document passes none, so it never takes the
+/// open document's slot.
+pub(super) type Cache<'a> = Option<(&'a GameDataState, u64)>;
+
+/// Who owns each scenario system, computed from every system at once and kept in `cache` until
+/// the game data or the scenario changes, so a per-system command need not recompute it.
+pub(super) fn scenario_owners(
     session: &Session,
     gd: &GameData,
-    state: &GameDataState,
-    generation: u64,
+    cache: Cache<'_>,
 ) -> Arc<ScenarioOwners> {
     ScenarioSystem::of_session(session, |systems, digest| {
-        if let Some(cached) = state.owners(generation, digest) {
+        if let Some((state, generation)) = cache
+            && let Some(cached) = state.owners(generation, digest)
+        {
             return cached;
         }
         let owners = Arc::new(gd.scenario_owners(systems));
-        state.store_owners(generation, digest, Arc::clone(&owners));
+        if let Some((state, generation)) = cache {
+            state.store_owners(generation, digest, Arc::clone(&owners));
+        }
         owners
     })
 }
 
-/// The bypasses the initializers and the day-one events place, on the same terms.
-fn scenario_bypasses(
+/// What `get_scenario_bypasses` answers for `session`: the bypasses the initializers and the
+/// day-one events place by `gd`, kept in `cache` on the same terms as the owners, and the
+/// wormhole pairs Paint a Galaxy's star flags name. Without game data only the flagged pairs.
+pub(super) fn placed_bypasses(
     session: &Session,
-    gd: &GameData,
-    state: &GameDataState,
-    generation: u64,
-) -> Arc<ScenarioBypasses> {
-    ScenarioSystem::of_session(session, |systems, digest| {
-        if let Some(cached) = state.bypasses(generation, digest) {
-            return cached;
-        }
-        let bypasses = Arc::new(gd.scenario_bypasses(systems));
-        state.store_bypasses(generation, digest, Arc::clone(&bypasses));
-        bypasses
-    })
+    gd: Option<&GameData>,
+    cache: Cache<'_>,
+) -> ScenarioBypasses {
+    let mut bypasses = match gd {
+        Some(gd) => ScenarioSystem::of_session(session, |systems, digest| {
+            if let Some((state, generation)) = cache
+                && let Some(cached) = state.bypasses(generation, digest)
+            {
+                return (*cached).clone();
+            }
+            let bypasses = gd.scenario_bypasses(systems);
+            if let Some((state, generation)) = cache {
+                state.store_bypasses(generation, digest, Arc::new(bypasses.clone()));
+            }
+            bypasses
+        }),
+        None => ScenarioBypasses::default(),
+    };
+    add_flagged_pairs(&mut bypasses, &session.graph().bypasses);
+    bypasses
 }

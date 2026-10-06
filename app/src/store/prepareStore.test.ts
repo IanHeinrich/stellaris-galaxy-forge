@@ -5,7 +5,9 @@ vi.mock("../api/events");
 
 import type { EditResult } from "../generated/EditResult";
 import type { PreparePreview } from "../generated/PreparePreview";
+import type { PreparedMap } from "../generated/PreparedMap";
 import type { PrepareRow } from "../generated/PrepareRow";
+import type { SpecialSystems } from "../generated/SpecialSystems";
 import { PREPARE_PRESETS } from "../generated/constants";
 import { summaryLine } from "../lib/prepareCopy";
 import { stubPrefs } from "../test/prefs";
@@ -14,10 +16,12 @@ import { until } from "../test/wait";
 import { deferred, editor, openFixtureSave, openFixtureScenario } from "./editorFixture";
 import { editResult, historyEntry, SCENARIO_RESULT } from "./fixture";
 import { useFileSessionStore } from "./fileSessionStore";
+import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { GALAXY_ENTRY, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { PREF_KEYS } from "./prefKeys";
+import { mapDetails, mapInputs } from "./preparedMap";
 import {
   cutOffSeats,
   nearestPreset,
@@ -458,5 +462,107 @@ describe("opening the section", () => {
     expect(editor().selection).toEqual([]);
     expect(useInspectorStore.getState().sections[PREPARE_SECTION]).toBe(false);
     expect(useLayoutStore.getState().tab).toBe("inspector");
+  });
+});
+
+describe("the map while the outcome shows", () => {
+  /** The first system rolled again, with no special systems and no bypasses left. */
+  function projection(): PreparedMap {
+    const [first] = useGalaxyStore.getState().systems.values();
+    return {
+      systems: [{ ...first, initializer: "random" }],
+      special: [],
+      bypasses: {
+        bypasses: [],
+        open_endpoints: 0,
+        random_wormhole_pairs: 0,
+        random_gateways: 0,
+        with_game_data: true,
+      },
+    };
+  }
+
+  async function shownWith(map: PreparedMap): Promise<void> {
+    mockedIpc.preparePreview.mockResolvedValue({ ...previewOf(1), map });
+    useLayoutStore.getState().setTab("inspector");
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    await prepare().refresh();
+    await until(() => expect(prepare().preview?.map).toBe(map));
+  }
+
+  it("is the map as the choices leave it, and the document again after Not now", async () => {
+    const real = mapInputs();
+    expect(real.systems).toBe(useGalaxyStore.getState().systems);
+    const map = projection();
+    await shownWith(map);
+    expect(mockedIpc.preparePreview.mock.lastCall?.[2]).toBe(true);
+
+    const shown = mapInputs();
+    const [node] = map.systems;
+    expect(shown.systems.get(node.id)?.initializer).toBe("random");
+    expect(shown.systems.size).toBe(real.systems.size);
+    expect(shown.special.size).toBe(0);
+    expect(shown.placed).toBe(map.bypasses);
+    expect([...shown.changed]).toEqual([node.id]);
+    expect(mapDetails().version).toBeLessThan(0);
+
+    prepare().dismiss();
+    expect(mapInputs().systems).toBe(useGalaxyStore.getState().systems);
+    expect(mapInputs().changed.size).toBe(0);
+  });
+
+  it("is read with the preview once the section opens over a preview read without it", async () => {
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+    await previewed(1);
+    expect(mockedIpc.preparePreview.mock.lastCall?.[2]).toBe(false);
+    const map = projection();
+    mockedIpc.preparePreview.mockResolvedValue({ ...previewOf(1), map });
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    await until(() => expect(prepare().preview?.map).toBe(map));
+    expect(mockedIpc.preparePreview.mock.lastCall?.[2]).toBe(true);
+  });
+
+  it("is read again when the section opens while a read without it is in flight", async () => {
+    useLayoutStore.getState().setTab("inspector");
+    useInspectorStore.getState().closeSection(PREPARE_SECTION);
+    const slow = deferred<PreparePreview>();
+    mockedIpc.preparePreview.mockReturnValueOnce(slow.promise);
+    void prepare().refresh();
+    expect(mockedIpc.preparePreview.mock.lastCall?.[2]).toBe(false);
+    const map = projection();
+    mockedIpc.preparePreview.mockResolvedValue({ ...previewOf(1), map });
+    useInspectorStore.getState().showGalaxy(PREPARE_SECTION);
+    expect(mockedIpc.preparePreview.mock.lastCall?.[2]).toBe(true);
+    slow.resolve(previewOf(1));
+    await until(() => expect(prepare().preview?.map).toBe(map));
+  });
+
+  it("stays through Apply until the special systems and owners are read again", async () => {
+    await shownWith(projection());
+    mockedIpc.getSpecialSystems.mockClear();
+    const special = deferred<SpecialSystems>();
+    mockedIpc.getSpecialSystems.mockReturnValueOnce(special.promise);
+    const done = prepared(1, 1);
+    mockedIpc.prepareApply.mockResolvedValueOnce({
+      ...done,
+      edit: { ...done.edit, reclassifies: true },
+    });
+    const applying = prepare().apply();
+    await until(() => expect(mockedIpc.getSpecialSystems).toHaveBeenCalled());
+    expect(editor().history.undo).toHaveLength(1);
+    expect(mapInputs().changed.size).toBe(1);
+
+    special.resolve({ systems: [], counts: [], with_game_data: true });
+    expect(await applying).toBe(true);
+    expect(mapInputs().changed.size).toBe(0);
+  });
+
+  it("is the document again as soon as an edit lands", async () => {
+    await shownWith(projection());
+    mockedIpc.preparePreview.mockReturnValue(new Promise(() => undefined));
+    mockedIpc.applyOp.mockResolvedValueOnce(editResult());
+    await editor().applyOp({ type: "MoveSystem", system: 0, x: 1, y: 1 });
+    expect(prepare().preview?.map).toBeUndefined();
+    expect(mapInputs().changed.size).toBe(0);
   });
 });

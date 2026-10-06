@@ -631,6 +631,9 @@ new game…", or select nothing and open the section on the Galaxy page.
 It needs game data from your Stellaris install to sort the systems into
 rows.
 
+While the section is open, the map shows the galaxy as your choices would
+leave it.
+
 Start from a preset:
 
 - Keep everything leaves the map as it is, the old capitals' home

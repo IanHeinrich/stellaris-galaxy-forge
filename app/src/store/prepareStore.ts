@@ -5,6 +5,7 @@ import type { PrepareChoice } from "../generated/PrepareChoice";
 import type { PrepareOptions } from "../generated/PrepareOptions";
 import type { PreparePreset } from "../generated/PreparePreset";
 import type { PreparePreview } from "../generated/PreparePreview";
+import type { PreparedMap } from "../generated/PreparedMap";
 import type { PrepareRow } from "../generated/PrepareRow";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { RowChoice } from "../generated/RowChoice";
@@ -50,7 +51,10 @@ export interface PrepareState {
   options: PrepareOptions;
   /** The row or option the pointer is on; the map rings its systems. */
   hovered: PrepareHover | null;
-  /** What the choices last read would do to the scenario; null until read, or while it cannot be. */
+  /**
+   * What the choices last read would do to the scenario; null until read, or while it cannot be.
+   * It holds the map as they would leave it when read while the outcome was shown, until an edit.
+   */
   preview: PreparePreview | null;
   /** The preview was read for these choices and the document as it stands, so Apply may trust it. */
   current: boolean;
@@ -77,15 +81,20 @@ export interface PrepareState {
   setRowsOpen(open: boolean): void;
   /** Leaves the setup screen for the whole Galaxy page, with the section closed. */
   dismiss(): void;
+  /** Shows the outcome or not; shown after a read that did not ask for the map, it reads again. */
   showOutcome(shown: boolean): void;
   /**
-   * Follows an edit, undo or redo: the preview no longer counts the document. Undoing past an
+   * Follows an edit, undo or redo: the preview no longer counts the document, and its map goes
+   * so the map shows the document until the preview is read again. Undoing past an
    * Apply, so that `undo` no longer holds its history line, sets it aside, shows the Galaxy page
    * with the section open, and brings the setup screen back to a scenario taken from a save. A
    * redo that brings the line back restores it and closes the section, as Apply did.
    */
   followHistory(undo: readonly HistoryEntry[]): void;
-  /** Reads the preview again, for an open scenario with game data loaded; else drops it. */
+  /**
+   * Reads the preview again, for an open scenario with game data loaded; else drops it. While
+   * Apply runs it reads nothing: Apply reads it once its edit has landed.
+   */
   refresh(): Promise<void>;
   /** Writes the choices as one edit and closes the section; false when nothing was written. */
   apply(): Promise<boolean>;
@@ -154,6 +163,13 @@ export function systemOutcomes(state: Pick<PrepareState, "preview">): Map<number
   for (const zone of preview.new_zones) outcomes.set(zone.system, "zone");
   for (const system of preview.new_seats) outcomes.set(system, "seat");
   return outcomes;
+}
+
+/** The map as the choices would leave it, while the outcome is shown and the preview holds one. */
+export function shownProjection(
+  state: Pick<PrepareState, "outcomeShown" | "preview">,
+): PreparedMap | null {
+  return (state.outcomeShown && state.preview?.map) || null;
 }
 
 function setupFor(fromSave: boolean, state: Pick<PrepareState, "applied" | "dismissed">): boolean {
@@ -249,6 +265,13 @@ function previewable(): boolean {
 
 /** Bumped by every read and reset, so only the latest read lands. */
 let asks = 0;
+/** Whether the latest read asked for the map as the choices would leave it. */
+let mapAsked = false;
+
+/** `preview` without its map, which stands for the document only until an edit. */
+function unmapped(preview: PreparePreview): PreparePreview {
+  return { ...preview, map: undefined };
+}
 
 function newSeed(): number {
   return Math.floor(Math.random() * 2 ** 32);
@@ -312,12 +335,16 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
   },
 
   showOutcome(shown) {
-    if (get().outcomeShown !== shown) set({ outcomeShown: shown });
+    if (get().outcomeShown === shown) return;
+    set({ outcomeShown: shown });
+    if (shown && !mapAsked && previewable()) void get().refresh();
   },
 
   followHistory(undo) {
     asks += 1;
-    const { applied, undone, current } = get();
+    const { applied, undone, current, preview, applying } = get();
+    // Apply keeps the map until the classification it changed is read again.
+    if (preview?.map && !applying) set({ preview: unmapped(preview) });
     const holds = (entry: Applied) => undo.some(({ seq }) => seq === entry.seq);
     const gone = applied !== null && !holds(applied);
     const back = applied === null && undone !== null && holds(undone);
@@ -335,12 +362,15 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
 
   async refresh() {
     const ask = ++asks;
+    if (get().applying) return;
     if (!previewable()) {
       set({ preview: null, current: false, error: null });
       return;
     }
     try {
-      const preview = await ipc.preparePreview(rowChoices(get().choices), get().options);
+      const { choices, options, outcomeShown } = get();
+      mapAsked = outcomeShown;
+      const preview = await ipc.preparePreview(rowChoices(choices), options, outcomeShown);
       if (ask === asks) set({ preview, current: true, error: null });
     } catch (e) {
       if (ask === asks) set({ preview: null, current: false, error: ipc.errorMessage(e) });
@@ -351,10 +381,9 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
     const { choices, preview, current, applying } = get();
     if (applying || !current || preview === null || preview.changes === 0) return false;
     set({ applying: true });
+    let done: { seq: number; changes: number } | null = null;
     try {
-      const done = await useEditorStore
-        .getState()
-        .prepareForNewGame(rowChoices(choices), get().options);
+      done = await useEditorStore.getState().prepareForNewGame(rowChoices(choices), get().options);
       if (done === null) return false;
       set({
         applied: {
@@ -369,6 +398,9 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
       return true;
     } finally {
       set({ applying: false });
+      const held = get().preview;
+      if (done !== null && held?.map) set({ preview: unmapped(held) });
+      if (done !== null) void get().refresh();
     }
   },
 
@@ -382,6 +414,7 @@ export const usePrepareStore = create<PrepareState>((set, get) => ({
 
   reset() {
     asks += 1;
+    mapAsked = false;
     set(initial());
   },
 }));

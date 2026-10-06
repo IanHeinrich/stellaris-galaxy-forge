@@ -17,6 +17,8 @@
     to six new zones.
   - The map rings the new starting positions and zones, with a legend.
     Reroll draws them again.
+  - While the section is open, the map shows the galaxy as your choices
+    would leave it.
   - The Sol row keeps Sol, turns it into a normal system, puts pre-FTL
     humans on Earth, leaves it to the game, or keeps it for the United
     Nations of Earth on Paint a Galaxy maps.

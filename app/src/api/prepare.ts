@@ -11,13 +11,15 @@ import type { RowChoice } from "../generated/RowChoice";
 /**
  * What `choices` under `options` would do to the open scenario: each row's systems, how many
  * systems the one edit would change, the systems the options make plain and the systems it cuts
- * off. Rejects with `SgfError` (kind `op`) without game data or on a save.
+ * off, and with `map` the map as the edit would leave it. Rejects with `SgfError` (kind `op`)
+ * without game data or on a save.
  */
 export function preparePreview(
   choices: RowChoice[],
   options: PrepareOptions,
+  map: boolean,
 ): Promise<PreparePreview> {
-  return invoke<PreparePreview>("prepare_preview", { choices, options });
+  return invoke<PreparePreview>("prepare_preview", { choices, options, map });
 }
 
 /**

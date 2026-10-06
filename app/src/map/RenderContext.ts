@@ -38,8 +38,7 @@ import { getPaintLayer, useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { useGameDataStore } from "../store/gameDataStore";
 import { useMapChromeStore } from "../store/mapChromeStore";
-import { currentOwnership } from "../store/ownership";
-import { currentPrecursors } from "../store/precursors";
+import { mapDetails, mapInputs, mapOwnership, mapPrecursors } from "../store/preparedMap";
 import { SpatialGrid } from "../lib/spatialGrid";
 import { sameFields } from "./follows";
 
@@ -59,9 +58,10 @@ export const VANILLA_BORDER: BorderDefines = {
 
 /**
  * Everything the layers draw, as one frozen snapshot: the open save, the game data read from
- * the install, and the way to ask for the parts that are fetched lazily. The controller
- * assembles it from the stores; a layer compares the fields it cares about with the snapshot
- * it drew last to know what to redo.
+ * the install, and the way to ask for the parts that are fetched lazily. While Prepare shows its
+ * outcome, the systems and what is read of them are the map as its choices would leave it. The
+ * controller assembles it from the stores; a layer compares the fields it cares about with the
+ * snapshot it drew last to know what to redo.
  */
 export interface RenderContext {
   /** The open galaxy, one object per load: what a layer keys "everything changed" on. */
@@ -308,17 +308,19 @@ export function renderContext(): RenderContext {
   const session = useFileSessionStore.getState();
   const { kind } = session;
   const capabilities = documentCapabilities(session);
-  const ownership = currentOwnership();
+  const shown = mapInputs();
+  const ownership = mapOwnership();
+  const shownDetails = mapDetails();
   return Object.freeze({
     galaxy: galaxy.galaxy,
     lgate: galaxy.lgate,
     kind,
     capabilities,
     paintLayer: getPaintLayer(),
-    systems: galaxy.systems,
+    systems: shown.systems,
     nebulae: galaxy.nebulae,
     bypasses: shownBypasses(
-      { session, links: galaxy.bypasses, placed: data.scenarioBypasses },
+      { session, links: galaxy.bypasses, placed: shown.placed },
       chrome.layers.bypasses,
       chrome.layers.day_one_bypasses,
     ),
@@ -327,7 +329,7 @@ export function renderContext(): RenderContext {
     radius: galaxy.galaxy?.galaxy_radius ?? 0,
     coreRadius: galaxy.galaxy?.core_radius ?? 0,
     grid: galaxy.grid ?? EMPTY_GRID,
-    countries: galaxy.countries,
+    countries: shown.countries,
     owners: ownership.owners,
     table: ownership.table,
     hiddenCountries: galaxy.hiddenCountries,
@@ -343,25 +345,23 @@ export function renderContext(): RenderContext {
     starbaseLevels: data.starbaseLevels,
     bypassKinds: data.bypasses,
     countryTypes: data.countryTypes,
-    special: data.special,
+    special: shown.special,
     hiddenInitializers: chrome.layers.initializers ? chrome.hiddenInitializers : NO_KEYS,
-    precursors: chrome.layers.precursors ? currentPrecursors() : NO_PRECURSORS,
+    precursors: chrome.layers.precursors ? mapPrecursors() : NO_PRECURSORS,
     hiddenPrecursors: chrome.hiddenPrecursors,
     initializerLabels: capabilities.scripts && chrome.layers.initializers,
     territoriesShown: chrome.layers.owners && ownership.table.size > 0,
     starTints: chrome.layers.classes,
     coloniesShown: chrome.layers.colonies,
     hiddenOwners: hiddenOwnersIn(
-      capabilities.scripted_owners && !chrome.layers.claims
-        ? claimedIn(data.scenarioOwners)
-        : NO_OWNERS,
+      capabilities.scripted_owners && !chrome.layers.claims ? claimedIn(shown.owners) : NO_OWNERS,
       clansIn(ownership),
     ),
     specialWithGameData: data.specialWithGameData,
     border: data.summary?.border ?? VANILLA_BORDER,
     gameDataReady: ready,
-    details: details.details,
-    detailsVersion: details.version,
+    details: shownDetails.details,
+    detailsVersion: shownDetails.version,
     resourceIcons: details.resourceIcons,
     requestDetails: details.request,
     requestNames: (keys: string[]) => void data.fetchNames(keys),
