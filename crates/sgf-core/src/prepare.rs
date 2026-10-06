@@ -1253,7 +1253,9 @@ fn seat_counts_after(graph: &GalaxyGraph, ops: &[Op]) -> SeatCounts {
 /// holds once `ops` apply, for each of the two the ops change. A default above what is
 /// left comes down to it and one below stays; a max follows the map exactly where the
 /// dialect sizes it by the map, and comes down to it elsewhere. Only Paint a Galaxy states
-/// fallen empire zones. Under New random seats the empire default comes down to the seats
+/// fallen empire zones. When the game rolls the marauder clans, their max opens to the
+/// clans the game knows and their default stays, down to that many, so the in-game setting
+/// decides how many spawn. Under New random seats the empire default comes down to the seats
 /// any empire may take among the seats drawn, as the kinds move with them. Keys the header
 /// lacks or does not state as a whole number are left alone.
 fn header_counts(plan: &Plan<'_>, ops: &[Op]) -> Option<Op> {
@@ -1279,7 +1281,15 @@ fn header_counts(plan: &Plan<'_>, ops: &[Op]) -> Option<Op> {
             clamp(keys::FALLEN_EMPIRE_DEFAULT, fallen),
         ]);
     }
-    if now.clans != was.clans {
+    if plan.chosen(PrepareRow::MarauderClans) == PrepareChoice::GameDecides {
+        let known = u32::from(marauder::CLANS);
+        entries.extend([
+            clamp(keys::MARAUDER_EMPIRE_DEFAULT, known),
+            held(keys::MARAUDER_EMPIRE_MAX)
+                .filter(|&n| n != known)
+                .map(|_| (keys::MARAUDER_EMPIRE_MAX, known)),
+        ]);
+    } else if now.clans != was.clans {
         entries.extend([
             clamp(keys::MARAUDER_EMPIRE_DEFAULT, now.clans),
             max(keys::MARAUDER_EMPIRE_MAX, now.clans),

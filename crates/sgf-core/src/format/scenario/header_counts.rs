@@ -5,9 +5,11 @@
 //! `R` when the map has a 1st Player seat, which the host takes, or when the player's
 //! marker is on a reserved or Sol seat. The defaults are shares of `S - 1`. The fallen empire counts
 //! follow the zones the same way: one fallen empire per zone, up to the six kinds the
-//! mod knows. The marauder counts follow the clan homes: each home spawns its clan, so
-//! no more can appear than are placed.
+//! mod knows. The marauder counts follow the clan homes: each home spawns its clan
+//! whatever the setting, and the game rolls up to [`CLANS`] more into systems left
+//! without an initializer.
 
+use crate::format::scenario::marauder::CLANS;
 use crate::keys::scenario as keys;
 use crate::projections::galaxy::{Galaxy, GameSetup, PaintSpawnKind, SpawnScript, SystemNode};
 
@@ -149,8 +151,9 @@ pub(crate) enum HeaderMismatch {
     /// it finds no zone for, and seats at most six), or `fallen_empire_default` is more
     /// than the zones.
     FallenEmpires { allowed: u32 },
-    /// `marauder_empire_max` is not the clan homes the map places (a clan spawns only
-    /// from its home), or `marauder_empire_default` is more than the homes.
+    /// `marauder_empire_max` is below the clan homes the map places (each spawns its
+    /// clan whatever the setting) or above the clans the game knows, or
+    /// `marauder_empire_default` is above those clans.
     Marauders { allowed: u32 },
 }
 
@@ -192,8 +195,8 @@ pub(crate) fn header_mismatch(
         count(keys::MARAUDER_EMPIRE_MAX),
         count(keys::MARAUDER_EMPIRE_DEFAULT),
     ) {
-        (Some(max), _) if max != clans => Some(max),
-        (_, Some(default)) if default > clans => Some(default),
+        (Some(max), _) if !(clans..=u32::from(CLANS)).contains(&max) => Some(max),
+        (_, Some(default)) if default > u32::from(CLANS) => Some(default),
         _ => None,
     };
     marauders.map(|allowed| HeaderMismatch::Marauders { allowed })

@@ -466,6 +466,70 @@ fn one_marauder_clan_left_out_takes_the_marauder_counts_down_by_one() {
 }
 
 #[test]
+fn marauder_clans_the_game_rolls_open_the_marauder_slider_and_kept_ones_hold_it_to_the_homes() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    for profile in [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy] {
+        let label = format!("{profile:?}");
+        let count = |session: &Session, key| session.graph().header_count(key);
+        let mut session = scenario(common::open_4_5(), profile);
+        let original = session.doc().original().to_vec();
+        let exported_default = count(&session, "marauder_empire_default");
+        assert_eq!(exported_default, Some(2), "{label}");
+        let rows = classify(&session, gd);
+        let bare_shell = PreparePreset::BareShell.choices(profile);
+        assert!(
+            bare_shell.contains(&RowChoice {
+                row: PrepareRow::MarauderClans,
+                choice: PrepareChoice::GameDecides,
+            }),
+            "{label}"
+        );
+        let op = build(gd, &session, &rows, &bare_shell).expect("a change");
+        session.apply(op).expect("apply the batch");
+        assert_eq!(clan_count(session.graph()), 0, "{label}");
+        assert_eq!(count(&session, "marauder_empire_max"), Some(3), "{label}");
+        assert_eq!(
+            count(&session, "marauder_empire_default"),
+            exported_default,
+            "{label}"
+        );
+        assert_eq!(
+            header_count_issues(&session),
+            Vec::<String>::new(),
+            "{label}"
+        );
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), original, "{label}: undo is byte-exact");
+
+        let kept: Vec<RowChoice> = bare_shell
+            .iter()
+            .map(|&choice| match choice.row {
+                PrepareRow::MarauderClans => RowChoice {
+                    choice: PrepareChoice::Keep,
+                    ..choice
+                },
+                _ => choice,
+            })
+            .collect();
+        let op = build(gd, &session, &rows, &kept).expect("a change");
+        session.apply(op).expect("apply the batch");
+        let clans = Some(clan_count(session.graph()));
+        assert_eq!(clans, Some(2), "{label}");
+        assert_eq!(count(&session, "marauder_empire_max"), clans, "{label}");
+        assert_eq!(count(&session, "marauder_empire_default"), clans, "{label}");
+        assert_eq!(
+            header_count_issues(&session),
+            Vec::<String>::new(),
+            "{label}"
+        );
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), original, "{label}: undo is byte-exact");
+    }
+}
+
+#[test]
 fn a_paint_a_galaxy_export_has_no_home_starts_left_to_make_generic() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;

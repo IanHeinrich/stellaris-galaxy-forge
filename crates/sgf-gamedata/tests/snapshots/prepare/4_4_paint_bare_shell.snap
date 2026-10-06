@@ -5,17 +5,15 @@ expression: out
 Prepared 765 systems for a new game
 RenameSystem: 762
 SetFeLinks: 3
-SetFeZone: 9
+SetFeZone: 8
 SetHeaderKeys: 1
 SetInitializer: 698
 SetSpawnScript: 34
 SetWormholePair: 6
 -fallen_empire_max = 3
-+fallen_empire_max = 6
++fallen_empire_max = 5
 -marauder_empire_max = 2
-+marauder_empire_max = 0
--marauder_empire_default = 2
-+marauder_empire_default = 0
++marauder_empire_max = 3
 -system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
 +system = { id = "1" position = { x = 119.83 y = 38.74 } }
 -system = { id = "2" name = "Mili" position = { x = -78.27 y = 265.71 } initializer = ai_system_02 }
@@ -45,7 +43,7 @@ SetWormholePair: 6
 -system = { id = "14" name = "Samderaan" position = { x = 14.18 y = -306.8 } initializer = neighbor_t2 }
 +system = { id = "14" position = { x = 14.18 y = -306.8 } }
 -system = { id = "15" name = "VOIDWORM_SYSTEM_02" position = { x = -249.08 y = 249.36 } initializer = voidworms_spawn_system_medium }
-+system = { id = "15" position = { x = -249.08 y = 249.36 } effect = { set_star_flag = painted_galaxy_fe_spawn set_star_flag = painted_galaxy_fe_spawn_s set_star_flag = painted_galaxy_fe_spawn_random set_star_flag = painted_galaxy_fe_spawn_distance_40 set_star_flag = painted_galaxy_fe_spawn_fallback } }
++system = { id = "15" position = { x = -249.08 y = 249.36 } }
 -system = { id = "16" name = "Bas" position = { x = -103.3 y = 397.64 } initializer = shroudwalker_enclave_init_01 }
 +system = { id = "16" position = { x = -103.3 y = 397.64 } }
 -system = { id = "17" name = "Ponnell" position = { x = -30.52 y = -300.86 } initializer = salvager_enclave_init_01 }
@@ -90,4 +88,6 @@ SetWormholePair: 6
 +system = { id = "36" position = { x = -109.11 y = -142.44 } }
 -system = { id = "37" name = "Windseth" position = { x = 174.08 y = 108.91 } initializer = basic_init_01 }
 +system = { id = "37" position = { x = 174.08 y = 108.91 } }
-… 728 more changed lines
+-system = { id = "38" name = "Tierg" position = { x = 126.9 y = 290.47 } initializer = binary_init_01 }
++system = { id = "38" position = { x = 126.9 y = 290.47 } }
+… 727 more changed lines

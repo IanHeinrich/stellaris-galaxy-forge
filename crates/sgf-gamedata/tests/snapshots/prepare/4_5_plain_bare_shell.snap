@@ -7,10 +7,8 @@ RenameSystem: 601
 SetHeaderKeys: 1
 SetInitializer: 541
 SetSpawnWeight: 22
--marauder_empire_default = 2
-+marauder_empire_default = 0
 -marauder_empire_max = 2
-+marauder_empire_max = 0
++marauder_empire_max = 3
 -system = { id = "0" name = "Dristmak" position = { x = 155.95 y = 119.15 } initializer = ai_system_01 }
 +system = { id = "0" position = { x = 155.95 y = 119.15 } }
 -system = { id = "1" name = "Xu_Nur" position = { x = 109.55 y = -333.54 } initializer = ai_system_03 }
@@ -87,4 +85,6 @@ SetSpawnWeight: 22
 +system = { id = "36" position = { x = 220.63 y = 115.49 } }
 -system = { id = "37" name = "Astrkion" position = { x = -41.19 y = -337.97 } initializer = basic_init_03 }
 +system = { id = "37" position = { x = -41.19 y = -337.97 } }
-… 563 more changed lines
+-system = { id = "38" name = "Sargas" position = { x = 143.1 y = -347.35 } initializer = orbital_ring_init_01 }
++system = { id = "38" position = { x = 143.1 y = -347.35 } }
+… 562 more changed lines
