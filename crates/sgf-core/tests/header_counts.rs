@@ -250,18 +250,57 @@ fn the_fallen_counts_are_checked_against_the_zones_once_the_seats_fit() {
     ]);
     assert_eq!(unreadable.graph().header_count("fallen_empire_max"), None);
     assert!(coded(&unreadable.validate(), IssueCode::HeaderEmpireCount).is_empty());
+}
 
+#[test]
+fn the_marauder_max_may_open_to_the_clans_the_game_knows_but_not_below_the_homes() {
+    let seats_fit = ("num_empire_default = 3", "num_empire_default = 1");
     let fallen_fit = ("fallen_empire_max = 6", "fallen_empire_max = 2");
-    let max_high = PAINTED.open_edited(&[seats_fit, fallen_fit]);
+    let header_issues = |edits: &[(&str, &str)]| {
+        let session = PAINTED.open_edited(&[&[seats_fit, fallen_fit][..], edits].concat());
+        coded(&session.validate(), IssueCode::HeaderEmpireCount)
+            .into_iter()
+            .map(|issue| issue.message.clone())
+            .collect::<Vec<_>>()
+    };
+    let homes = [
+        (
+            "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" }",
+            "id = \"10\" position = { x = 150 y = -30 } name = \"Void\" initializer = marauder_1_1 }",
+        ),
+        (
+            "id = \"11\" position = { x = -150 y = -30 } }",
+            "id = \"11\" position = { x = -150 y = -30 } initializer = marauder_2_1 }",
+        ),
+    ];
     assert_eq!(
-        only_message(&max_high.validate(), IssueCode::HeaderEmpireCount),
-        "Header allows 3 marauder clans but the map has 0 clan homes. Update the empire counts."
+        clan_count(PAINTED.open_edited(&homes).graph()),
+        2,
+        "two homes placed"
     );
 
-    let default_high = PAINTED.open_edited(&[seats_fit, fallen_fit, no_clans]);
     assert_eq!(
-        only_message(&default_high.validate(), IssueCode::HeaderEmpireCount),
-        "Header allows 1 marauder clans but the map has 0 clan homes. Update the empire counts."
+        header_issues(&[]),
+        Vec::<String>::new(),
+        "rolled clans fill a max of 3"
+    );
+    assert_eq!(header_issues(&homes), Vec::<String>::new());
+    assert_eq!(
+        header_issues(&[("marauder_empire_max = 3", "marauder_empire_max = 4")]),
+        ["Header allows 4 marauder clans but the map has 0 clan homes. Update the empire counts."]
+    );
+    assert_eq!(
+        header_issues(&[("marauder_empire_default = 1", "marauder_empire_default = 4")]),
+        ["Header allows 4 marauder clans but the map has 0 clan homes. Update the empire counts."]
+    );
+    let max_low = [
+        homes[0],
+        homes[1],
+        ("marauder_empire_max = 3", "marauder_empire_max = 1"),
+    ];
+    assert_eq!(
+        header_issues(&max_low),
+        ["Header allows 1 marauder clans but the map has 2 clan homes. Update the empire counts."]
     );
 }
 

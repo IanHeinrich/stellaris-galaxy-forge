@@ -7,10 +7,8 @@ RenameSystem: 791
 SetHeaderKeys: 1
 SetInitializer: 693
 SetSpawnWeight: 34
--marauder_empire_default = 2
-+marauder_empire_default = 0
 -marauder_empire_max = 2
-+marauder_empire_max = 0
++marauder_empire_max = 3
 -system = { id = "0" name = "NAME_Gamma_Refuge" position = { x = -144.22 y = 57.36 } initializer = fallen_machine_3 }
 +system = { id = "0" position = { x = -144.22 y = 57.36 } initializer = fallen_machine_3 }
 -system = { id = "1" name = "Grugmora" position = { x = 119.83 y = 38.74 } initializer = ai_system_04 }
@@ -87,4 +85,6 @@ SetSpawnWeight: 34
 +system = { id = "36" position = { x = -109.11 y = -142.44 } }
 -system = { id = "37" name = "Windseth" position = { x = 174.08 y = 108.91 } initializer = basic_init_01 }
 +system = { id = "37" position = { x = 174.08 y = 108.91 } }
-… 753 more changed lines
+-system = { id = "38" name = "Tierg" position = { x = 126.9 y = 290.47 } initializer = binary_init_01 }
++system = { id = "38" position = { x = 126.9 y = 290.47 } }
+… 752 more changed lines
