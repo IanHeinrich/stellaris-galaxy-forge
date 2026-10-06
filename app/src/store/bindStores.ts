@@ -64,6 +64,18 @@ export function bindStores(): void {
   followBodyPages();
   followHeightPreview();
   followPrepare();
+  followExportProfile();
+}
+
+// The export dialog shows what the profile ticked in it writes, so a change of profile while it is
+// open previews the export again.
+function followExportProfile(): void {
+  usePaintModStore.subscribe((state, previous) => {
+    const file = useFileSessionStore.getState();
+    if (state.paintChoice !== previous.paintChoice && file.pendingExport !== null) {
+      void file.refreshExport();
+    }
+  });
 }
 
 // The Prepare preview counts what its choices would change in the document as it stands. An edit,

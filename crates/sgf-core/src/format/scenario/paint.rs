@@ -27,6 +27,7 @@ use std::collections::BTreeMap;
 use memchr::memmem;
 
 use crate::cst::Node;
+use crate::format::scenario::unit;
 use crate::keys::scenario as keys;
 use crate::ops::OpError;
 use crate::projections::galaxy::{BypassLink, Galaxy, PaintSpawnKind, SpawnScript};
@@ -83,8 +84,10 @@ pub(crate) const SOL_INITIALIZER: &str = "sol_system_initializer";
 /// The mod's Steam Workshop item.
 pub const WORKSHOP_ID: &str = "3532904115";
 
-/// The starting initializers the mod's minimum asks of a spawn system, one per residue.
-pub(crate) const BASIC_INITIALIZERS: [&str; 6] = [
+/// The game's random empire starts, which Paint a Galaxy gives a seat: the mod's homeworld
+/// fix runs only on a system whose initializer sets `empire_home_system`, before any
+/// effect the scenario writes.
+pub(crate) const RANDOM_EMPIRE_STARTS: [&str; 6] = [
     "random_empire_init_01",
     "random_empire_init_02",
     "random_empire_init_03",
@@ -92,6 +95,18 @@ pub(crate) const BASIC_INITIALIZERS: [&str; 6] = [
     "random_empire_init_05",
     "random_empire_init_06",
 ];
+
+/// The random empire start a seat on system `id` is given when nothing draws one: a draw
+/// from the id alone, so neighbouring ids land independently.
+pub fn random_empire_start(id: u32) -> &'static str {
+    random_empire_start_at(unit(0, id))
+}
+
+/// The random empire start `unit`, in `[0, 1)`, falls on, each as likely as the next.
+pub(crate) fn random_empire_start_at(unit: f64) -> &'static str {
+    let at = (unit * RANDOM_EMPIRE_STARTS.len() as f64) as usize;
+    RANDOM_EMPIRE_STARTS[at.min(RANDOM_EMPIRE_STARTS.len() - 1)]
+}
 
 /// The pair number of the first `painted_galaxy_wormhole_<n>` among `flags`.
 pub fn wormhole_pair<'a>(flags: impl Iterator<Item = &'a str>) -> Option<u32> {
@@ -287,12 +302,6 @@ pub(crate) fn weight_statement(script: &SpawnScript) -> String {
         keys::ADD,
         render(script)
     )
-}
-
-/// The starting initializer a spawn system is given when it names none, spread over
-/// the six the game ships by the system's id.
-pub fn basic_initializer(id: u32) -> &'static str {
-    BASIC_INITIALIZERS[id as usize % BASIC_INITIALIZERS.len()]
 }
 
 /// Whether a script is one Paint a Galaxy can read back: a reserved seat is named by

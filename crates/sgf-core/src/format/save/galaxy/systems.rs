@@ -73,6 +73,7 @@ pub(super) fn extract(
         fe_zone: None,
         wormhole_pair: None,
         fe_link: FeLinkFlags::default(),
+        home_system: false,
         prevented: Vec::new(),
         position_range: false,
         flags,

@@ -9,6 +9,7 @@ use sgf_core::document;
 use sgf_core::emit::rounded;
 use sgf_core::export::policy::Category;
 use sgf_core::export::{self, DroppedBypasses, ExportReport, HomeInitializer, ScenarioProfile};
+use sgf_core::format::scenario::seat_initializer;
 use sgf_core::projections::galaxy::{BypassLink, Galaxy};
 use sgf_core::session::Session;
 use sgf_core::validate::{IssueCode, Severity};
@@ -16,8 +17,8 @@ use sgf_core::views::DocumentKind;
 
 use crate::common;
 use common::export::{
-    NAME, PLAIN_EXPORT, SAVE_FILE, at_fixture_version, default_capitals, exported_as, lanes,
-    no_names, no_sources, seated,
+    NAME, PLAIN_EXPORT, SAVE_FILE, at_fixture_version, default_capitals, exported_as, home_systems,
+    lanes, no_names, no_sources, seated,
 };
 use common::fixture::{EXPORTED, GRAMMAR, from_scenario_text};
 
@@ -103,19 +104,38 @@ static_galaxy_scenario = {{
     );
     assert_eq!(text.matches("\tsupports_shape = ").count(), 10);
     assert_eq!(seated(&text), capitals);
+    let replaced: BTreeSet<u32> = report
+        .home_initializers
+        .iter()
+        .filter(|h| h.replaced)
+        .map(|h| h.system)
+        .collect();
+    assert_eq!(home_systems(&text), replaced);
     assert_eq!(text.matches("spawn_weight").count(), seats);
 
     assert_eq!(report.seats, seats as u32);
     let home = |system: u32, initializer: &str| HomeInitializer {
         system,
         initializer: initializer.to_owned(),
-        replaced: false,
+        replaced: initializer.starts_with("random_empire_init_"),
     };
     assert_eq!(
         report.home_initializers,
         [
             home(4, "une_deneb_system"),
+            home(8, "random_empire_init_04"),
+            home(99, "random_empire_init_06"),
+            home(126, "random_empire_init_01"),
+            home(146, "random_empire_init_03"),
+            home(189, "random_empire_init_03"),
+            home(192, "random_empire_init_06"),
+            home(302, "random_empire_init_02"),
             home(311, "shattered_ring_start"),
+            home(393, "random_empire_init_04"),
+            home(537, "random_empire_init_05"),
+            home(558, "random_empire_init_06"),
+            home(590, "random_empire_init_06"),
+            home(781, "random_empire_init_02"),
             home(786, "custom_starting_init_02"),
             home(787, "custom_starting_init_02"),
         ]
@@ -157,8 +177,28 @@ static_galaxy_scenario = {{
         report.by_category
     );
 
-    let issues = report.issues();
-    assert!(issues.iter().all(|i| i.severity == Severity::Warning));
+    let issues = report.issues(ScenarioProfile::Plain);
+    assert_eq!(replaced.len(), 12);
+    for issue in &issues {
+        let info = issue
+            .systems
+            .first()
+            .is_some_and(|id| replaced.contains(id));
+        let expected = if info {
+            Severity::Info
+        } else {
+            Severity::Warning
+        };
+        assert_eq!(issue.severity, expected, "{issue:?}");
+        if info {
+            assert!(
+                issue
+                    .message
+                    .ends_with("and the export gave it an ordinary system"),
+                "{issue:?}"
+            );
+        }
+    }
     assert!(
         issues.iter().all(|i| i.note),
         "an export's issues are notes"
@@ -180,16 +220,13 @@ static_galaxy_scenario = {{
             (i.systems.as_slice(), named)
         })
         .collect();
-    assert_eq!(
-        homes,
-        [
-            (&[4][..], true),
-            (&[311][..], true),
-            (&[786][..], true),
-            (&[787][..], true)
-        ]
-    );
-    assert_eq!(issues.len(), 5);
+    let listed: Vec<(&[u32], bool)> = report
+        .home_initializers
+        .iter()
+        .map(|h| (std::slice::from_ref(&h.system), true))
+        .collect();
+    assert_eq!(homes, listed);
+    assert_eq!(issues.len(), 17);
 
     let scenario = EXPORTED.open();
     assert_eq!(scenario.kind(), DocumentKind::Scenario);
@@ -202,7 +239,11 @@ static_galaxy_scenario = {{
             (written.x, written.y),
             (rounded(system.x), rounded(system.y))
         );
-        assert_eq!(written.initializer, system.initializer);
+        let initializer = match replaced.contains(id) {
+            true => seat_initializer(*id),
+            false => system.initializer.as_str(),
+        };
+        assert_eq!(written.initializer, initializer, "{id}");
         assert_eq!(
             written.spawn_weight,
             capitals.contains(id).then_some(1.0),

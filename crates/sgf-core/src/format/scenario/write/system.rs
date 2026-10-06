@@ -146,7 +146,7 @@ fn emit_system(
         Some(statement) => verbatim(indent, id, statement)?,
         None => {
             let initializer = match (initializer, spawn_script) {
-                (None, Some(_)) => Some(paint::basic_initializer(id)),
+                (None, Some(_)) => Some(paint::random_empire_start(id)),
                 (initializer, _) => initializer,
             };
             let spawn = match (spawn_weight, spawn_script) {

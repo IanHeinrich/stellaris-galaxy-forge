@@ -34,6 +34,7 @@ use crate::format::scenario::index::{
     Changes, SCENARIO_X_SIGN, SCENARIO_Y_SIGN, ScenarioIndex, index,
 };
 use crate::keys::scenario as keys;
+use crate::lexer::{self, Mode};
 use crate::ops::{Op, OpError, Plan, Planned, Subject};
 use crate::overlay::Anchor;
 use crate::projections::galaxy::{
@@ -44,6 +45,132 @@ use crate::projections::read;
 use crate::session::Session;
 use crate::validate::{Issue, IssueCode};
 use crate::views::{Capabilities, DocumentKind};
+
+/// The game's ordinary systems the plain profile gives a seat, with the odds the game rolls
+/// each at. `basic_init_04` is left out because its last body can be an ice asteroid.
+pub const SEAT_INITIALIZERS: [(&str, u32); 5] = [
+    ("basic_init_01", 20),
+    ("basic_init_02", 20),
+    ("basic_init_03", 10),
+    ("basic_init_05", 6),
+    ("basic_init_06", 4),
+];
+
+/// The ordinary system a plain seat on system `id` is given when nothing draws one: a
+/// weighted draw from the id alone, so neighbouring ids land independently.
+pub fn seat_initializer(id: u32) -> &'static str {
+    seat_initializer_at(unit(0, id))
+}
+
+/// The seat initializer `unit`, in `[0, 1)`, falls on when [`SEAT_INITIALIZERS`] are laid
+/// end to end by their odds.
+pub(crate) fn seat_initializer_at(unit: f64) -> &'static str {
+    let mut at = unit * f64::from(seat_odds());
+    for (initializer, odds) in SEAT_INITIALIZERS {
+        if at < f64::from(odds) {
+            return initializer;
+        }
+        at -= f64::from(odds);
+    }
+    SEAT_INITIALIZERS[SEAT_INITIALIZERS.len() - 1].0
+}
+
+/// Whether `initializer` is one of [`SEAT_INITIALIZERS`].
+pub fn is_seat_initializer(initializer: &str) -> bool {
+    SEAT_INITIALIZERS
+        .iter()
+        .any(|(seat, _)| *seat == initializer)
+}
+
+fn seat_odds() -> u32 {
+    SEAT_INITIALIZERS.iter().map(|(_, odds)| odds).sum()
+}
+
+/// SplitMix64's increment.
+pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// SplitMix64's mix.
+pub(crate) fn mix(z: u64) -> u64 {
+    let z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// A number in `[0, 1)` from `seed` and `system`, by SplitMix64's mix.
+pub(crate) fn unit(seed: u64, system: u32) -> f64 {
+    let z = mix((seed ^ u64::from(system).wrapping_mul(GOLDEN)).wrapping_add(GOLDEN));
+    (z >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// The statements of a system's `effect` block that make the game treat it as an empire's
+/// home, written whole by the plain profile on a seat it gives one of
+/// [`SEAT_INITIALIZERS`]: the star flag a random empire start sets itself, then the
+/// starting deposits it generates and a capital of 20, inside the 18 to 21 it gives,
+/// raised only from below and not for the origins that want a small one. A random pick
+/// inside a scenario effect comes out the same on every system, so the size is fixed. The
+/// second statement is guarded, because an origin whose own start system replaces the
+/// seat's has done both already.
+pub(crate) const HOME_SYSTEM_EFFECT: [&str; 2] = [
+    "set_star_flag = empire_home_system",
+    concat!(
+        "if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } ",
+        "generate_home_system_resources = yes ",
+        "every_system_planet = { limit = { is_capital = yes planet_size < 18 ",
+        "NOT = { is_planet_class = pc_habitat } owner = { NOT = { ",
+        "has_origin = origin_void_dwellers has_origin = origin_toxic_knights ",
+        "has_origin = origin_arc_welders } } } ",
+        "set_planet_size = 20 } }",
+    ),
+];
+
+/// Whether `statement` is one the home system effect writes, in this form or an earlier
+/// one: a statement of [`HOME_SYSTEM_EFFECT`], or an `if` behind the same guard as its
+/// second, so that writing the effect replaces an older `if` rather than adding to it.
+pub(crate) fn is_home_system_statement(statement: &str) -> bool {
+    HOME_SYSTEM_EFFECT
+        .iter()
+        .any(|ours| same_statement(statement, ours))
+        || guard(statement).is_some_and(|theirs| guard(HOME_SYSTEM_EFFECT[1]) == Some(theirs))
+}
+
+/// The tokens of an `if` statement up to the end of its first block, its `limit`.
+fn guard(statement: &str) -> Option<Vec<(lexer::TokenKind, &[u8])>> {
+    let mut depth = 0u32;
+    let mut taken = Vec::new();
+    for token in tokens(statement.as_bytes()) {
+        taken.push(token);
+        match token.0 {
+            lexer::TokenKind::LBrace => depth += 1,
+            lexer::TokenKind::RBrace => {
+                depth = depth.checked_sub(1)?;
+                if depth == 1 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    (depth == 1 && taken.first().is_some_and(|token| token.1 == b"if")).then_some(taken)
+}
+
+/// Whether two statements read the same token for token, however they are spaced.
+pub(crate) fn same_statement(a: &str, b: &str) -> bool {
+    tokens(a.as_bytes()).eq(tokens(b.as_bytes()))
+}
+
+fn tokens(bytes: &[u8]) -> impl Iterator<Item = (lexer::TokenKind, &[u8])> {
+    lexer::tokens_with(bytes, 0, Mode::Script).map(|token| (token.kind, token.span.slice(bytes)))
+}
+
+/// Whether `effect` holds every statement of [`HOME_SYSTEM_EFFECT`].
+fn is_home_system(effect: &Node, src: &[u8]) -> bool {
+    HOME_SYSTEM_EFFECT.iter().all(|wanted| {
+        effect.children().iter().any(|statement| {
+            let text = std::str::from_utf8(statement.span().slice(src)).unwrap_or("");
+            same_statement(text, wanted)
+        })
+    })
+}
 
 pub(crate) struct Scenario;
 
@@ -308,6 +435,9 @@ fn system(id: u32, node: &Node, src: &[u8]) -> SystemNode {
         fe_zone: fe_zone::parse(star_flags.iter().copied()),
         wormhole_pair: paint::wormhole_pair(star_flags.iter().copied()),
         fe_link: fe_link::parse(star_flags.iter().copied()),
+        home_system: node
+            .find(keys::EFFECT, src)
+            .is_some_and(|effect| is_home_system(effect, src)),
         prevented: Vec::new(),
         position_range: position_range(node, src),
         flags: Vec::new(),

@@ -20,7 +20,7 @@ SetWormholePair: 6
 +system = { id = "2" position = { x = -78.27 y = 265.71 } }
 -system = { id = "3" name = "Wanambis" position = { x = -197.59 y = -163.13 } initializer = ai_system_01 }
 +system = { id = "3" position = { x = -197.59 y = -163.13 } }
--system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = random_empire_init_05 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|0| } }
+-system = { id = "4" name = "NAME_Deneb" position = { x = 143.51 y = 9.31 } initializer = random_empire_init_01 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|0| } }
 +system = { id = "4" position = { x = 143.51 y = 9.31 } }
 -system = { id = "5" name = "Bir" position = { x = 34.62 y = 124.97 } initializer = ai_system_03 }
 +system = { id = "5" position = { x = 34.62 y = 124.97 } initializer = painted_galaxy_rl_basic }

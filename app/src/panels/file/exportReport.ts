@@ -1,5 +1,7 @@
 import type { Category } from "../../generated/Category";
 import type { ExportReport } from "../../generated/ExportReport";
+import type { ScenarioProfile } from "../../generated/ScenarioProfile";
+import { SEAT_START } from "../../generated/constants";
 import { feKindLabel } from "../../lib/feZone";
 import { counted } from "../../lib/text";
 
@@ -68,10 +70,11 @@ export function countsSummary(report: ExportReport): string | null {
   return report.setup_from_save ? "Counts from the save's setup." : null;
 }
 
-/** The seats whose initializer is not a generic start, as the export left them and as it rewrote them. */
+/** The seats whose initializer is not a generic start, as the export under `profile` left them and as it rewrote them. */
 export function homeInitializerLines(
   report: ExportReport,
   nameOf: NameOf,
+  profile: ScenarioProfile,
 ): { review: string; replaced: string[] } {
   const review = report.home_initializers
     .filter((h) => !h.replaced)
@@ -79,6 +82,6 @@ export function homeInitializerLines(
     .join(", ");
   const replaced = report.home_initializers
     .filter((h) => h.replaced)
-    .map((h) => `${nameOf(h.system)} had ${h.initializer}, replaced with a generic start.`);
+    .map((h) => `${nameOf(h.system)} had ${h.initializer}, replaced with ${SEAT_START[profile]}.`);
   return { review, replaced };
 }

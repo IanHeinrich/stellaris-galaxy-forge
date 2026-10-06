@@ -1,9 +1,10 @@
 import type { FormEvent } from "react";
 import type { ExportReport } from "../../generated/ExportReport";
+import type { ScenarioProfile } from "../../generated/ScenarioProfile";
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
-import { usePaintModStore } from "../../store/paintModStore";
+import { standingProfile } from "../../store/paintModStore";
 import { Dialog } from "../Dialog";
 import {
   CATEGORY_LABELS,
@@ -16,8 +17,14 @@ import {
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
 
-/** What the export carries over and what it leaves out, one row per fact that applies. */
-export function ExportReportRows({ report }: { report: ExportReport }) {
+/** What the export under `profile` carries over and what it leaves out, one row per fact that applies. */
+export function ExportReportRows({
+  report,
+  profile,
+}: {
+  report: ExportReport;
+  profile: ScenarioProfile;
+}) {
   const systems = useGalaxyStore((s) => s.systems);
   const names = useGameDataStore((s) => s.names);
   const nameOf = (id: number) =>
@@ -27,7 +34,7 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
   const omitted = omittedLines(report);
   const counts = countsSummary(report);
   const needs = report.sources.map((s) => s.source).join(", ");
-  const homes = homeInitializerLines(report, nameOf);
+  const homes = homeInitializerLines(report, nameOf, profile);
   return (
     <dl className="export-report">
       <dt>Seats</dt>
@@ -83,13 +90,18 @@ export function ExportReportRows({ report }: { report: ExportReport }) {
 }
 
 /** The report, the profile box and the two ways out; Enter exports under the profile the box says. */
-export function ExportForm({ report }: { report: ExportReport }) {
-  const paint = usePaintModStore((s) => s.paintChoice);
+export function ExportForm({
+  report,
+  profile,
+}: {
+  report: ExportReport;
+  profile: ScenarioProfile;
+}) {
   const confirmExport = useFileSessionStore((s) => s.confirmExport);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void confirmExport(paint ? "paint_a_galaxy" : "plain");
+    void confirmExport(standingProfile());
   };
   return (
     <form onSubmit={submit}>
@@ -97,7 +109,7 @@ export function ExportForm({ report }: { report: ExportReport }) {
         <h1>Export as scenario</h1>
       </div>
       <div className="open-dialog-body">
-        <ExportReportRows report={report} />
+        <ExportReportRows report={report} profile={profile} />
         <PaintChoice />
       </div>
       <div className="open-dialog-foot">
@@ -115,13 +127,14 @@ export function ExportForm({ report }: { report: ExportReport }) {
 /** What an export of the open save would carry over, before the file dialog asks where to put it. */
 export function ExportDialog() {
   const report = useFileSessionStore((s) => s.pendingExport);
+  const profile = useFileSessionStore((s) => s.pendingExportProfile);
   const confirmExport = useFileSessionStore((s) => s.confirmExport);
   if (report === null) return null;
 
   const cancel = () => void confirmExport(null);
   return (
     <Dialog className="open-dialog" label="Export as scenario" onClose={cancel} onDismiss={cancel}>
-      <ExportForm report={report} />
+      <ExportForm report={report} profile={profile ?? "plain"} />
     </Dialog>
   );
 }

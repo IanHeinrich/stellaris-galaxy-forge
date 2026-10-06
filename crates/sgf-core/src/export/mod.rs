@@ -32,8 +32,10 @@ use crate::format::scenario::header_counts::SeatCounts;
 use crate::format::scenario::index::{self as scenario, SCENARIO_X_SIGN, SCENARIO_Y_SIGN};
 use crate::format::scenario::marauder::{self, MarauderRole};
 use crate::format::scenario::provenance;
+use crate::format::scenario::{HOME_SYSTEM_EFFECT, is_seat_initializer};
 use crate::keys::scenario as keys;
 use crate::ops::rules::check_name;
+use crate::prepare::generic_start;
 use crate::projections::galaxy::{Galaxy, GalaxyGraph, ProjectionError};
 use crate::projections::name::NameTemplate;
 use crate::search::NameResolver;
@@ -74,6 +76,16 @@ pub enum ScenarioProfile {
     PaintAGalaxy,
 }
 
+impl ScenarioProfile {
+    /// What the profile gives a seat whose home it replaces, in the player's words.
+    pub const fn seat_start(self) -> &'static str {
+        match self {
+            Self::Plain => "an ordinary system",
+            Self::PaintAGalaxy => "a generic start",
+        }
+    }
+}
+
 /// A scenario file before it is text: the header, one entry per system in file
 /// order, each undirected lane once and each nebula.
 #[derive(Debug, Clone, PartialEq)]
@@ -102,10 +114,13 @@ pub fn scenario_text(
     sources: SourceResolver<'_>,
     profile: ScenarioProfile,
 ) -> (Vec<u8>, ExportReport) {
-    let (mut draft, mut report) = draft(graph, options, resolve, sources);
-    if profile == ScenarioProfile::PaintAGalaxy {
-        paint::decorate(&mut draft, &mut report, options, graph, resolve);
-        report.finish(&draft);
+    let (mut draft, mut report) = draft(graph, options, resolve, sources, profile);
+    match profile {
+        ScenarioProfile::Plain => mark_home_systems(&mut draft),
+        ScenarioProfile::PaintAGalaxy => {
+            paint::decorate(&mut draft, &mut report, options, graph, resolve);
+            report.finish(&draft);
+        }
     }
     let mut text = match &options.exported_from {
         Some(save) => comment_block(save, &draft, &report).into_bytes(),
@@ -115,19 +130,26 @@ pub fn scenario_text(
     (text, report)
 }
 
-/// The galaxy as the plain profile writes it: an empire seat on every home system,
-/// everything else as the save holds it but the L-Cluster, which the game adds by
-/// itself. A lane to itself or to a system the draft does not hold is skipped, since
-/// the game would refuse it.
+/// The galaxy as the plain profile writes it: an empire seat on every home system, the
+/// start `profile` gives a seat on one the report says was replaced, everything else as
+/// the save holds it but the L-Cluster, which the game adds by itself. A lane to itself
+/// or to a system the draft does not hold is skipped, since the game would refuse it.
 pub fn draft(
     graph: &GalaxyGraph,
     options: &ScenarioOptions,
     resolve: NameResolver<'_>,
     sources: SourceResolver<'_>,
+    profile: ScenarioProfile,
 ) -> (Draft, ExportReport) {
     let galaxy: &Galaxy = graph;
     let categories = report::categories(graph);
-    let mut report = report::build(graph, &categories, sources);
+    let mut report = report::build(graph, &categories, sources, profile);
+    let replaced: BTreeSet<u32> = report
+        .home_initializers
+        .iter()
+        .filter(|home| home.replaced)
+        .map(|home| home.system)
+        .collect();
     let omitted: BTreeSet<u32> = categories
         .iter()
         .filter(|(_, category)| **category == Category::LCluster)
@@ -149,7 +171,10 @@ pub fn draft(
             name: name_of(&system.name, resolve),
             x: system.x * SCENARIO_X_SIGN,
             y: system.y * SCENARIO_Y_SIGN,
-            initializer: Some(system.initializer.clone()).filter(|i| !i.is_empty()),
+            initializer: match replaced.contains(&system.id) {
+                true => Some(generic_start(profile, system.id).to_owned()),
+                false => Some(system.initializer.clone()).filter(|i| !i.is_empty()),
+            },
             spawn: match categories.get(&system.id) {
                 Some(Category::Home) => SpawnDraft::Base(SEAT_WEIGHT),
                 _ => SpawnDraft::None,
@@ -190,6 +215,27 @@ pub fn draft(
     };
     report.finish(&draft);
     (draft, report)
+}
+
+/// Give every seat on one of the game's ordinary systems the effect that makes the game
+/// treat its system as an empire's home.
+fn mark_home_systems(draft: &mut Draft) {
+    let seats = draft.systems.iter_mut().filter(|system| {
+        system.spawn != SpawnDraft::None
+            && system
+                .initializer
+                .as_deref()
+                .is_some_and(is_seat_initializer)
+    });
+    for system in seats {
+        let effect = system.effect.get_or_insert_with(String::new);
+        for statement in HOME_SYSTEM_EFFECT {
+            if !effect.is_empty() {
+                effect.push(' ');
+            }
+            effect.push_str(statement);
+        }
+    }
 }
 
 /// The marauder clans whose home systems `systems` hold: the most the game can spawn.

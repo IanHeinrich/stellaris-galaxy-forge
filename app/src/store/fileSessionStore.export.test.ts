@@ -9,6 +9,8 @@ import { getPaintLayer } from "./fileSessionStore";
 import { OPEN_RESULT, SCENARIO_RESULT, exportReport, saveResult } from "./fixture";
 import { edit, resetSession, session, withPaintMod } from "./sessionFixture";
 import { mockedIpc } from "../test/ipc";
+import { until } from "../test/wait";
+import { usePaintModStore } from "./paintModStore";
 
 beforeEach(resetSession);
 
@@ -21,6 +23,46 @@ describe("exporting a save as a scenario", () => {
     mockedIpc.previewExport.mockResolvedValueOnce(exportReport());
     await session().exportScenario();
   }
+
+  it("previews what the chosen profile writes, and previews again when the choice changes", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    usePaintModStore.setState({ paintChoice: false });
+    const plain = exportReport({ seats: 17 });
+    mockedIpc.previewExport.mockResolvedValueOnce(plain);
+    await session().exportScenario();
+    expect(mockedIpc.previewExport).toHaveBeenLastCalledWith("plain");
+    expect(session().pendingExport).toEqual(plain);
+
+    const painted = exportReport({ seats: 17, player_seat: 217, player_seat_kind: "sol" });
+    mockedIpc.previewExport.mockResolvedValueOnce(painted);
+    usePaintModStore.setState({ paintChoice: true });
+    await until(() => expect(session().pendingExport).toBe(painted));
+    expect(mockedIpc.previewExport).toHaveBeenLastCalledWith("paint_a_galaxy");
+
+    expect(session().pendingExportProfile).toBe("paint_a_galaxy");
+
+    await session().confirmExport(null);
+    mockedIpc.previewExport.mockClear();
+    usePaintModStore.setState({ paintChoice: false });
+    expect(mockedIpc.previewExport).not.toHaveBeenCalled();
+  });
+
+  it("drops a preview read again for a new profile when the export is answered before it lands", async () => {
+    await session().openSave(OPEN_RESULT.path);
+    usePaintModStore.setState({ paintChoice: false });
+    mockedIpc.previewExport.mockResolvedValueOnce(exportReport());
+    await session().exportScenario();
+
+    let land: (report: ExportReport) => void = () => {};
+    mockedIpc.previewExport.mockReturnValueOnce(new Promise((resolve) => (land = resolve)));
+    usePaintModStore.setState({ paintChoice: true });
+    await session().confirmExport(null);
+    land(exportReport({ player_seat: 217 }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session().pendingExport).toBeNull();
+    expect(session().pendingExportProfile).toBeNull();
+  });
 
   it("exporting previews the report, then writes a second file and leaves the save's own path, edits and save time alone", async () => {
     await session().openSave(OPEN_RESULT.path);

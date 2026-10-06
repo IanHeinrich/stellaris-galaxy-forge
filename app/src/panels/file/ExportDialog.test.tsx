@@ -97,7 +97,7 @@ beforeEach(() => {
 
 describe("the report", () => {
   it("lists the seats, the systems by category, and everything the export left out or needs", () => {
-    const html = renderToStaticMarkup(<ExportReportRows report={FULL} />);
+    const html = renderToStaticMarkup(<ExportReportRows report={FULL} profile="plain" />);
     expect(html).toContain(row("Seats", "17 seats."));
     expect(html).toContain(
       row("Systems", "Home 17 · Fallen empire 28 · L-Cluster 9 · Generic 737"),
@@ -120,7 +120,7 @@ describe("the report", () => {
         { system: 311, initializer: "void_dwellers_start", replaced: false },
       ],
     });
-    expect(renderToStaticMarkup(<ExportReportRows report={report} />)).toContain(
+    expect(renderToStaticMarkup(<ExportReportRows report={report} profile="plain" />)).toContain(
       row(
         "Home initializers to review",
         "shattered_ring_start (Barnard), void_dwellers_start (system 311)",
@@ -129,7 +129,7 @@ describe("the report", () => {
   });
 
   it("leaves out the rows with nothing to say", () => {
-    const html = renderToStaticMarkup(<ExportReportRows report={exportReport()} />);
+    const html = renderToStaticMarkup(<ExportReportRows report={exportReport()} profile="plain" />);
     expect(html).toContain(row("Seats", "17 seats."));
     expect(html).toContain(row("Systems", "Home 17 · Generic 774"));
     expect(html).not.toContain("Fallen empires");
@@ -142,7 +142,9 @@ describe("the report", () => {
   });
 
   it("says what a conversion for the mod did with the seats, the fallen empires and the rest", () => {
-    const html = renderToStaticMarkup(<ExportReportRows report={PAINTED} />);
+    const html = renderToStaticMarkup(
+      <ExportReportRows report={PAINTED} profile="paint_a_galaxy" />,
+    );
     expect(html).toContain(
       row(
         "Seats",
@@ -168,10 +170,25 @@ describe("the report", () => {
     );
   });
 
+  it("says a plain export gives a replaced seat an ordinary system", () => {
+    const report = exportReport({
+      home_initializers: [{ system: 8, initializer: "random_empire_init_04", replaced: true }],
+    });
+    expect(renderToStaticMarkup(<ExportReportRows report={report} profile="plain" />)).toContain(
+      row(
+        "Home initializers replaced",
+        "system 8 had random_empire_init_04, replaced with an ordinary system.",
+      ),
+    );
+  });
+
   it("names the player's capital from the galaxy", () => {
     useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
     const html = renderToStaticMarkup(
-      <ExportReportRows report={exportReport({ player_seat: 2, player_seat_kind: "preferred" })} />,
+      <ExportReportRows
+        report={exportReport({ player_seat: 2, player_seat_kind: "preferred" })}
+        profile="plain"
+      />,
     );
     expect(html).toContain("Your capital, Barnard, is a weighted 1st Player seat");
   });
@@ -272,18 +289,18 @@ describe("the dialog", () => {
     useFileSessionStore.setState({ pendingExport: FULL, confirmExport });
     const preventDefault = vi.fn();
 
-    form(<ExportForm report={FULL} />).props.onSubmit({ preventDefault });
+    form(<ExportForm report={FULL} profile="plain" />).props.onSubmit({ preventDefault });
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(confirmExport).toHaveBeenLastCalledWith("plain");
 
     usePaintModStore.setState({ paintChoice: true });
-    form(<ExportForm report={FULL} />).props.onSubmit({ preventDefault });
+    form(<ExportForm report={FULL} profile="plain" />).props.onSubmit({ preventDefault });
     expect(confirmExport).toHaveBeenLastCalledWith("paint_a_galaxy");
 
-    expect(renderToStaticMarkup(<ExportForm report={FULL} />)).toContain(
+    expect(renderToStaticMarkup(<ExportForm report={FULL} profile="plain" />)).toContain(
       '<button type="submit">Export</button>',
     );
-    buttonIn(<ExportForm report={FULL} />, "Cancel")!.props.onClick();
+    buttonIn(<ExportForm report={FULL} profile="plain" />, "Cancel")!.props.onClick();
     expect(confirmExport).toHaveBeenLastCalledWith(null);
   });
 });

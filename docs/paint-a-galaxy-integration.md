@@ -207,11 +207,26 @@ built.
 
 A system that already carries a preferred, reserved or Sol script keeps
 that script's kind and random value rather than being reset to plain
-"enabled". A spawn system with no `initializer` is given
-`random_empire_init_0N`, where `N` = `id % 6 + 1`. So is a spawn system
-whose initializer the report lists under `home_initializers`, a home
-that is not a generic start, such as `shattered_ring_start`. In both
-cases the report's entry says `replaced`.
+"enabled". A spawn system with no `initializer` is given one of
+`random_empire_init_01` to `06`, picked by a hash of the system's id, so
+neighbouring ids land independently and the same id always gets the
+same start. So is a spawn system whose initializer the report lists
+under `home_initializers`, a home that is not a generic start, such as
+`shattered_ring_start`. In both cases the report's entry says
+`replaced`.
+
+Seats keep the game's random empire starts because the mod's homeworld
+fix needs them. `painted_galaxy_homeworld.1` runs on
+`empire_init_capital_colony` and only on a system that has the
+`empire_home_system` star flag. A random empire start sets that flag
+itself. In round 3 on 4.5, all 7 settled empires on random empire starts
+had their founder's own class: the fix handled 5 and origins 2, and they
+also got the full starting deposits. With `basic_init` and the flag set
+from a scenario `effect` instead (round 7, 4.5), the fix did not run,
+because scenario effects run after `empire_init_capital_colony`. A
+Remnants player got a continental world, not a relic world. The
+plain profile, which has no such fix, writes `basic_init` seats
+([format-notes.md](format-notes.md), Static galaxy scenarios).
 
 Every empty system within two lane jumps of a spawn, if it still has no
 `initializer`, gets the mod's random-list filler and the flag that marks

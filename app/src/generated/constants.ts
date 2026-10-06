@@ -89,6 +89,9 @@ export const PREPARE_PRESETS: Record<ScenarioProfile, Record<PreparePreset, Reco
   },
 };
 
+/** What each profile's export gives a seat whose home it replaces, in the player's words. */
+export const SEAT_START: Record<ScenarioProfile, string> = { plain: "an ordinary system", paint_a_galaxy: "a generic start" };
+
 /** What a Stellaris 4.x save supports. */
 export const SAVE_CAPABILITIES: Capabilities = {
   empires: true,

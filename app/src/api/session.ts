@@ -44,9 +44,9 @@ export function exportScenario(path: string, profile: ScenarioProfile): Promise<
   return invoke<ExportResult>("export_scenario", { path, profile });
 }
 
-/** What exporting the open save would report, without writing anything. */
-export function previewExport(): Promise<ExportReport> {
-  return invoke<ExportReport>("preview_export");
+/** What exporting the open save under `profile` would report, without writing anything. */
+export function previewExport(profile: ScenarioProfile): Promise<ExportReport> {
+  return invoke<ExportReport>("preview_export", { profile });
 }
 
 /** The open document's galaxy as it stands, its stars drawn as the loaded game data says. */

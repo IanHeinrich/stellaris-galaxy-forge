@@ -3,6 +3,7 @@ source: crates/sgf-gamedata/tests/prepare.rs
 expression: out
 ---
 Prepared 9 systems for a new game
+SetHomeSystem: 4
 SetInitializer: 9
 -system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = voidworms_spawn_system_medium }
 +system = { id = "6" name = "VOIDWORM_SYSTEM_04" position = { x = 244.89 y = -254.58 } initializer = basic_init_01 }
@@ -11,14 +12,14 @@ SetInitializer: 9
 -system = { id = "11" name = "VOIDWORM_SYSTEM_08" position = { x = -5.34 y = 140.71 } initializer = voidworms_spawn_system_tiny }
 +system = { id = "11" name = "VOIDWORM_SYSTEM_08" position = { x = -5.34 y = 140.71 } initializer = basic_init_04 }
 -system = { id = "40" name = "SPEC_Sirgogg_system" position = { x = -144.98 y = 262.36 } initializer = fear_of_the_dark_system spawn_weight = { base = 1 } }
-+system = { id = "40" name = "SPEC_Sirgogg_system" position = { x = -144.98 y = 262.36 } initializer = random_empire_init_05 spawn_weight = { base = 1 } }
++system = { id = "40" name = "SPEC_Sirgogg_system" position = { x = -144.98 y = 262.36 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } set_planet_size = 20 } } } }
 -system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = protoplanetary_nomad_init spawn_weight = { base = 1 } }
-+system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = random_empire_init_03 spawn_weight = { base = 1 } }
++system = { id = "140" name = "SPEC_Tharbarite_system" position = { x = 259.3 y = 174.5 } initializer = basic_init_02 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } set_planet_size = 20 } } } }
 -system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = neutron_star_nomad_init spawn_weight = { base = 1 } }
-+system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = random_empire_init_01 spawn_weight = { base = 1 } }
++system = { id = "216" name = "SPEC_Kazam_system" position = { x = 87.53 y = -288.04 } initializer = basic_init_06 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } set_planet_size = 20 } } } }
 -system = { id = "590" name = "Athyorix" position = { x = -104.48846 y = 303.7334 } initializer = distar_sealed_1_1 }
 +system = { id = "590" name = "Athyorix" position = { x = -104.48846 y = 303.7334 } initializer = basic_init_02 }
 -system = { id = "591" name = "Scheat" position = { x = -92.22811 y = 327.79064 } initializer = distar_sealed_1_2 }
 +system = { id = "591" name = "Scheat" position = { x = -92.22811 y = 327.79064 } initializer = basic_init_04 }
 -system = { id = "592" name = "NAME_Aspharelle" position = { x = 307.92199 y = -356.80112 } initializer = the_chosen_home_initializer spawn_weight = { base = 1 } }
-+system = { id = "592" name = "NAME_Aspharelle" position = { x = 307.92199 y = -356.80112 } initializer = random_empire_init_05 spawn_weight = { base = 1 } }
++system = { id = "592" name = "NAME_Aspharelle" position = { x = 307.92199 y = -356.80112 } initializer = basic_init_01 spawn_weight = { base = 1 } effect = { set_star_flag = empire_home_system if = { limit = { NOT = { any_system_planet = { has_planet_flag = starting_deposit } } } generate_home_system_resources = yes every_system_planet = { limit = { is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat } owner = { NOT = { has_origin = origin_void_dwellers has_origin = origin_toxic_knights has_origin = origin_arc_welders } } } set_planet_size = 20 } } } }

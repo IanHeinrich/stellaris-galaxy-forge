@@ -107,7 +107,7 @@ fn a_system_added_with_a_script_is_seated_on_the_basic_initializer() {
     };
     let result = snapshot_step(&mut session, "add_system_scripted", add);
     let system = &session.graph().systems[&14];
-    assert_eq!(system.initializer, "random_empire_init_03");
+    assert_eq!(system.initializer, "random_empire_init_05");
     assert_eq!(system.spawn_script, script(PaintSpawnKind::Enabled, 5));
     assert_eq!(system.spawn_weight, Some(0.0));
     assert_eq!(result.details_stale, vec![14]);

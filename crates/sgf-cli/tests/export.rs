@@ -1,6 +1,32 @@
 //! `sgf export-scenario` and `sgf new-scenario`.
 use crate::common::{SAMPLE, backups, ok, sgf, stdout};
 
+/// The sample's seats on a start written for one empire, which a plain export keeps and
+/// Paint a Galaxy replaces.
+const NAMED_HOMES: &str = concat!(
+    "une_deneb_system (system 4), ",
+    "shattered_ring_start (system 311), ",
+    "custom_starting_init_02 (system 786), ",
+    "custom_starting_init_02 (system 787)",
+);
+
+/// The sample's seats on one of the game's random empire starts, which a plain export
+/// replaces and Paint a Galaxy keeps.
+const RANDOM_STARTS: &str = concat!(
+    "random_empire_init_04 (system 8), ",
+    "random_empire_init_06 (system 99), ",
+    "random_empire_init_01 (system 126), ",
+    "random_empire_init_03 (system 146), ",
+    "random_empire_init_03 (system 189), ",
+    "random_empire_init_06 (system 192), ",
+    "random_empire_init_02 (system 302), ",
+    "random_empire_init_04 (system 393), ",
+    "random_empire_init_05 (system 537), ",
+    "random_empire_init_06 (system 558), ",
+    "random_empire_init_06 (system 590), ",
+    "random_empire_init_02 (system 781)",
+);
+
 #[test]
 fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
     let dir = tempfile::tempdir().unwrap();
@@ -18,7 +44,13 @@ fn export_scenario_writes_a_file_that_opens_as_the_saves_galaxy() {
     assert!(text.contains(&format!("wrote {out_str}")), "{text}");
     assert!(text.contains("\nempire seats: 17\n"), "{text}");
     assert!(
-        text.contains("\nhome initializers to review: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        text.contains(&format!("\nhome initializers to review: {NAMED_HOMES}\n")),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!(
+            "\nhome initializers replaced with an ordinary system: {RANDOM_STARTS}\n"
+        )),
         "{text}"
     );
     assert!(
@@ -111,7 +143,9 @@ static_galaxy_scenario = {
         "{text}"
     );
     assert!(
-        text.contains("\nhome initializers replaced by a generic start: une_deneb_system (system 4), shattered_ring_start (system 311), custom_starting_init_02 (system 786), custom_starting_init_02 (system 787)\n"),
+        text.contains(&format!(
+            "\nhome initializers replaced with a generic start: {NAMED_HOMES}\n"
+        )),
         "{text}"
     );
     assert!(

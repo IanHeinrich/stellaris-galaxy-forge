@@ -695,6 +695,57 @@ for planets or deposits.
   `x = { min max }`. Ids are quoted decimal strings.
   They are arbitrary and non-contiguous, unlike the save's contiguous
   `galactic_object` ids.
+- A seat on one of the game's random empire starts
+  (`random_empire_init_0N`) gets a homeworld built before the game knows
+  the species. On a plain map most empires on one start at 30 to 50%
+  habitability (checked on 4.5). Forge's plain export and Prepare give
+  such a seat one of the game's ordinary systems instead:
+  `basic_init_01`, `02`, `03`, `05` or `06`, at the game's own odds of
+  20, 20, 10, 6 and 4, keyed by a hash of the system's id or drawn from
+  Prepare's seed. `basic_init_04` is left out because its last body can
+  be an ice asteroid. On an ordinary system the game builds a homeworld
+  for the empire's own class. Paint a Galaxy maps keep the random
+  empire starts ([paint-a-galaxy-integration.md](paint-a-galaxy-integration.md)).
+- An ordinary system lacks what a random empire start sets, so a plain
+  seat on one also gets this effect:
+
+  ```
+  effect = { set_star_flag = empire_home_system if = { limit = { NOT = {
+  any_system_planet = { has_planet_flag = starting_deposit } } }
+  generate_home_system_resources = yes every_system_planet = { limit = {
+  is_capital = yes planet_size < 18 NOT = { is_planet_class = pc_habitat }
+  owner = { NOT = { has_origin = origin_void_dwellers has_origin =
+  origin_toxic_knights has_origin = origin_arc_welders } } }
+  set_planet_size = 20 } } }
+  ```
+
+  The flag is what vanilla checks to keep turbulent nebulae and some
+  specials off a home system. On 4.5 (round 7), the flag with an
+  unguarded `generate_home_system_resources = yes` gave a `basic_init`
+  seat vanilla's starting deposits and left the capital's own alone.
+  Where an origin's own start system replaced the seat's initializer,
+  that start had already generated them, and a second run left fewer
+  deposits. The `if` guards against that, checked on 4.5: an origin
+  with its own start system keeps that system's deposits, and the effect
+  does not run a second time.
+- On a `basic_init` seat the game makes the system's last body the
+  homeworld and keeps its size, which ranged from 9 to 30 over rounds 6
+  to 8 (4.5). A random empire start makes it 18 to 21
+  (`@homeworld_min_size` and `@homeworld_max_size` in
+  `empire_initializers.txt`), and each point of size is one district
+  (`NUM_DISTRICTS_FROM_PLANET_SIZE = 1`). The `every_system_planet` line
+  raises a capital under 18 to 20. It never shrinks one, and it skips
+  habitats and the origins that set a small capital on purpose: Void
+  Dwellers (6, a habitat), Toxic Knights (6) and Arc Welders (15). The
+  origins that set their own size otherwise run their own start system,
+  which the guard skips: Life-Seeded 30, Remnants 22, Synthetic Fertility
+  20, Wilderness 18. Checked on 4.5 (round 9): every small capital came
+  out bigger, the ones above 21 were left alone, and a resized capital
+  looks like a normal start. A `random_list` inside a scenario effect
+  gave 20 on all 8 resized capitals, so a random pick there is not drawn
+  per system, and the size is a fixed 20. The exclusions for Void
+  Dwellers, Toxic Knights and Arc Welders are untested, since none was
+  rolled.
 - `position = { x y z }` parses, but the game ignores `z`. A scenario
   with `z` from -50 to 1000 on 780 systems started a game whose day-one
   save has `visual_height=3.65056` on every system (4.5.1). Height can

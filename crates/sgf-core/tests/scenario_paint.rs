@@ -196,7 +196,7 @@ fn a_system_without_an_initializer_is_given_the_basic_one_before_its_weight() {
         .apply(set(10, script(PaintSpawnKind::Enabled, 0)))
         .expect("script");
     let system = &session.graph().systems[&10];
-    assert_eq!(system.initializer, "random_empire_init_05");
+    assert_eq!(system.initializer, "random_empire_init_03");
     assert_eq!(system.spawn_script, script(PaintSpawnKind::Enabled, 0));
     assert_eq!(result.details_stale, vec![10]);
     common::snapshot("script_10_no_initializer", &plain_report(&session, &result));
@@ -242,14 +242,14 @@ fn a_system_without_an_initializer_is_given_the_basic_one_before_its_weight() {
 		id = \"7\"
 		position = { x = 1 y = 2 }
 		name = \"Seven\"
-		initializer = random_empire_init_02
+		initializer = random_empire_init_05
 		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|7| }
 		effect = { log = \"x\" }
 	}
 	system = {
 		id = \"8\"
 		position = { x = 3 y = 4 }
-		initializer = random_empire_init_03
+		initializer = random_empire_init_02
 		spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|PREFERRED|yes|RANDOM_MODULO|10|RANDOM_VALUE|8| }
 		effect = { log = \"y\" }
 	}
@@ -284,10 +284,10 @@ fn a_custom_initializer_and_the_effect_beside_it_are_kept() {
     assert_eq!(session.scenario_system_effect(9), Some(anchor));
     assert_eq!(
         session.graph().systems[&9].initializer,
-        "random_empire_init_04"
+        "random_empire_init_06"
     );
     assert!(common::text(&session).contains(
-        "name = \"Old Seat\" initializer = random_empire_init_04 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|4| } effect = { set_star_flag = painted_galaxy_fe_spawn"
+        "name = \"Old Seat\" initializer = random_empire_init_06 spawn_weight = { base = 0 add = value:painted_galaxy_spawn_weight|RANDOM_MODULO|10|RANDOM_VALUE|4| } effect = { set_star_flag = painted_galaxy_fe_spawn"
     ));
 
     session.undo().expect("undo").expect("an op to undo");

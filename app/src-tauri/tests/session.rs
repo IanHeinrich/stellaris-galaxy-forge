@@ -315,11 +315,29 @@ fn scenario_documents_open_start_and_export() {
     assert!(!exported.save.dirty, "export leaves the save session clean");
     assert_eq!(exported.report.seats, 17);
     assert_eq!(exported.report.dropped.wormhole_pairs, 6);
-    assert_eq!(exported.report.home_initializers.len(), 4);
+    assert_eq!(exported.report.home_initializers.len(), 16);
     assert_eq!(
         preview, exported.report,
         "the preview is the report the write gives"
     );
+    let paint = json!({ "profile": "paint_a_galaxy" });
+    let painted_preview: ExportReport = invoke(&w, "preview_export", paint).expect("preview");
+    let painted_out = dir
+        .path()
+        .join("painted.txt")
+        .to_string_lossy()
+        .into_owned();
+    let painted: ExportResult = invoke(
+        &w,
+        "export_scenario",
+        json!({ "path": painted_out, "profile": "paint_a_galaxy" }),
+    )
+    .expect("export for the mod");
+    assert_eq!(
+        painted_preview, painted.report,
+        "the preview is the report the chosen profile's write gives"
+    );
+    assert_eq!(painted.report.home_initializers.len(), 4);
     let reopened = open(&w, out);
     assert_eq!(reopened.kind, DocumentKind::Scenario);
     assert_eq!(reopened.title, "exported");

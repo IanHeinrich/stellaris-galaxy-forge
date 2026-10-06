@@ -208,6 +208,15 @@ fn the_rules_the_app_shares_are_exported_as_constants() {
         "PREPARE_PRESETS: Record<ScenarioProfile, Record<PreparePreset, Record<PrepareRow, PrepareChoice>>>",
         format!("{{\n{}\n}}", profiles.join("\n")),
     );
+    let seat_starts: Vec<String> = [ScenarioProfile::Plain, ScenarioProfile::PaintAGalaxy]
+        .into_iter()
+        .map(|profile| format!("{}: {:?}", serde_name(&profile), profile.seat_start()))
+        .collect();
+    constant(
+        "What each profile's export gives a seat whose home it replaces, in the player's words.",
+        "SEAT_START: Record<ScenarioProfile, string>",
+        format!("{{ {} }}", seat_starts.join(", ")),
+    );
     constant(
         "What a Stellaris 4.x save supports.",
         "SAVE_CAPABILITIES: Capabilities",

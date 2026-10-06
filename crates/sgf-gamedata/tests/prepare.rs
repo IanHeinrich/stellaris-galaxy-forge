@@ -11,8 +11,9 @@ use sgf_core::export::{self, ScenarioProfile};
 use sgf_core::format::scenario::fe_zone::{centre, distance};
 use sgf_core::format::scenario::header_counts;
 use sgf_core::format::scenario::marauder::clan_count;
-use sgf_core::format::scenario::paint::basic_initializer;
+use sgf_core::format::scenario::paint::random_empire_start;
 use sgf_core::format::scenario::{FeKind, FeZone};
+use sgf_core::format::scenario::{is_seat_initializer, seat_initializer};
 use sgf_core::ops::Op;
 use sgf_core::prepare::{
     self, PlainDraw, PrepareChoice, PrepareError, PrepareOptions, PreparePreset, PrepareRow,
@@ -529,6 +530,156 @@ fn marauder_clans_the_game_rolls_open_the_marauder_slider_and_kept_ones_hold_it_
     }
 }
 
+/// A seat on one of the game's random empire starts gets a homeworld built before the
+/// game knows the species, so it is a home start: Random starting system rewrites it and
+/// Keep as is keeps it. The export writes none, so the seats it gave ordinary systems are
+/// put back on a random empire start, as an older scenario has them.
+#[test]
+fn a_seat_on_a_random_empire_start_is_a_home_start() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let ordinary: Vec<u32> = row_of(&classify(&session, gd), PrepareRow::EmpireSeats)
+        .into_iter()
+        .filter(|&id| is_seat_initializer(initializer_of(&session, id)))
+        .collect();
+    assert_eq!(ordinary.len(), 12);
+    for &id in &ordinary {
+        set_initializer(&mut session, id, "random_empire_init_02");
+        session
+            .apply(Op::SetHomeSystem {
+                system: id,
+                home: false,
+            })
+            .expect("take the export's home mark off");
+    }
+    let rows = classify(&session, gd);
+    let homes = row_of(&rows, PrepareRow::HomeStarts);
+    assert_eq!(homes.len(), 16);
+    let random = ordinary;
+    assert!(random.iter().all(|id| homes.contains(id)), "{homes:?}");
+
+    let row = |choice| {
+        [RowChoice {
+            row: PrepareRow::HomeStarts,
+            choice,
+        }]
+    };
+    assert_eq!(build(gd, &session, &rows, &row(PrepareChoice::Keep)), None);
+    let before = current(&session);
+    let op = build(gd, &session, &rows, &row(PrepareChoice::GenericStart)).expect("a change");
+    session.apply(op).expect("apply Random starting system");
+    for &id in &homes {
+        let system = &session.graph().systems[&id];
+        assert!(
+            is_seat_initializer(&system.initializer),
+            "{id}: {}",
+            system.initializer
+        );
+        assert!(system.home_system, "{id} is an empire's home");
+    }
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), before, "undo is byte-exact");
+}
+
+/// On a plain map a batch leaves the home system effect on exactly the seats on one of the
+/// game's ordinary systems, whatever rows it touches: here a seat put on one without the
+/// effect gains it, and a system that holds the effect but no seat loses it.
+#[test]
+fn any_plain_batch_leaves_the_home_system_effect_on_exactly_the_ordinary_seats() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let deneb = 4;
+    set_initializer(&mut session, deneb, "basic_init_01");
+    let rows = classify(&session, gd);
+    let stray = row_of(&rows, PrepareRow::OrdinarySystems)[0];
+    session
+        .apply(Op::SetHomeSystem {
+            system: stray,
+            home: true,
+        })
+        .expect("mark a system that holds no seat");
+    let rows = classify(&session, gd);
+    let fallen_none = [RowChoice {
+        row: PrepareRow::FallenEmpires,
+        choice: PrepareChoice::None,
+    }];
+    let before = current(&session);
+    let op = build(gd, &session, &rows, &fallen_none).expect("a change");
+    session
+        .apply(op)
+        .expect("apply the fallen empires taken away");
+    let graph = session.graph();
+    assert!(
+        graph.systems[&deneb].home_system,
+        "the seat gains the effect"
+    );
+    assert!(
+        !graph.systems[&stray].home_system,
+        "{stray} loses the effect"
+    );
+    for system in graph.systems.values() {
+        let ordinary_seat =
+            header_counts::is_seat(system) && is_seat_initializer(&system.initializer);
+        assert_eq!(system.home_system, ordinary_seat, "{}", system.id);
+    }
+    session.undo().expect("undo").expect("an edit to undo");
+    assert_eq!(current(&session), before, "undo is byte-exact");
+}
+
+/// The home system effect goes with a seat on one of the game's ordinary systems on a
+/// plain map: New random seats gives it to each new seat and takes it off each old one,
+/// whatever the seed draws, in the one edit undo takes back. Paint a Galaxy's random
+/// empire starts set what they need themselves, so a Paint a Galaxy map gets none.
+#[test]
+fn new_random_seats_move_the_home_system_effect_with_them() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::Plain);
+    let homes = |session: &Session| -> BTreeSet<u32> {
+        let graph = session.graph();
+        graph
+            .systems
+            .values()
+            .filter(|s| s.home_system)
+            .map(|s| s.id)
+            .collect()
+    };
+    assert_eq!(
+        homes(&session).len(),
+        12,
+        "the export marks the seats it gave ordinary systems"
+    );
+    let rows = classify(&session, gd);
+    let choices = [random_seats()];
+    let before = current(&session);
+    for seed in [0, 1] {
+        let drawn: BTreeSet<u32> = prepare::drawn(&session, &rows, &choices, &options(seed))
+            .expect("draw")
+            .seats
+            .into_iter()
+            .collect();
+        let draw = plain_draw(gd, seed);
+        let op = prepare::build(&session, &rows, &choices, &draw, &options(seed))
+            .expect("build the batch")
+            .expect("a change");
+        session.apply(op).expect("apply new random seats");
+        assert_eq!(homes(&session), drawn, "seed {seed}");
+        session.undo().expect("undo").expect("an edit to undo");
+        assert_eq!(current(&session), before, "seed {seed}: undo is byte-exact");
+    }
+
+    let mut session = scenario(common::open_4_4(), ScenarioProfile::PaintAGalaxy);
+    let rows = classify(&session, gd);
+    let op = build(gd, &session, &rows, &choices).expect("a change");
+    session.apply(op).expect("apply new random seats");
+    assert_eq!(homes(&session), BTreeSet::new());
+}
+
 #[test]
 fn a_paint_a_galaxy_export_has_no_home_starts_left_to_make_generic() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -627,6 +778,15 @@ fn set_initializer(session: &mut Session, system: u32, initializer: &str) {
         .expect("set the initializer");
 }
 
+/// Whether `initializer` is a start the scenario's profile gives a seat: one of the game's
+/// ordinary systems on a plain map, one of its random empire starts for Paint a Galaxy.
+fn is_seat_start(session: &Session, initializer: &str) -> bool {
+    match prepare::profile(session) {
+        ScenarioProfile::Plain => is_seat_initializer(initializer),
+        ScenarioProfile::PaintAGalaxy => initializer.starts_with("random_empire_init_"),
+    }
+}
+
 fn initializer_of(session: &Session, system: u32) -> &str {
     &session.graph().systems[&system].initializer
 }
@@ -706,7 +866,7 @@ fn each_sol_choice_on_a_plain_scenario_is_one_edit_that_undo_takes_back() {
 
     let op = build(gd, &session, &rows, &sol(PrepareChoice::Plain)).expect("a change");
     session.apply(op).expect("apply Plain");
-    assert_eq!(initializer_of(&session, SOL), basic_initializer(SOL));
+    assert_eq!(initializer_of(&session, SOL), seat_initializer(SOL));
     assert!(is_seat(&session, SOL), "the seat stays");
     assert!(is_drawn(&session, primitive));
     session.undo().expect("undo").expect("an edit to undo");
@@ -1129,7 +1289,7 @@ fn new_random_seats_are_as_many_as_the_old_spaced_apart_on_generic_starts_with_t
         for (&id, (script, weight)) in drawn.seats.iter().zip(&old_seats) {
             let system = &graph.systems[&id];
             assert!(
-                system.initializer.starts_with("random_empire_init_"),
+                is_seat_start(&session, &system.initializer),
                 "{name}: {id} has {}",
                 system.initializer
             );
@@ -1178,18 +1338,35 @@ fn the_same_seed_draws_the_same_seats_and_another_seed_others() {
     let other = seats(1);
     assert_ne!(other, first);
 
-    let op = prepare::build(&session, &rows, &choices, &plain_draw(gd, 1), &options(1))
-        .expect("build the batch")
-        .expect("a change");
-    session.apply(op).expect("apply new random seats");
-    let seated: BTreeSet<u32> = session
-        .graph()
-        .systems
-        .values()
-        .filter(|s| header_counts::is_seat(s))
-        .map(|s| s.id)
-        .collect();
-    assert_eq!(seated, other.into_iter().collect());
+    // Each seed seats its own systems and draws each one's start; a system seated under
+    // several seeds must not always get the same start.
+    let drawn_by_seed: Vec<(u64, Vec<u32>)> = (0..8).map(|seed| (seed, seats(seed))).collect();
+    let mut starts: BTreeMap<u32, BTreeSet<String>> = BTreeMap::new();
+    for (seed, drawn) in drawn_by_seed {
+        let draw = plain_draw(gd, seed);
+        let op = prepare::build(&session, &rows, &choices, &draw, &options(seed))
+            .expect("build the batch")
+            .expect("a change");
+        session.apply(op).expect("apply new random seats");
+        let graph = session.graph();
+        let seated: BTreeSet<u32> = graph
+            .systems
+            .values()
+            .filter(|s| header_counts::is_seat(s))
+            .map(|s| s.id)
+            .collect();
+        assert_eq!(seated, drawn.iter().copied().collect(), "seed {seed}");
+        for id in &drawn {
+            let start = graph.systems[id].initializer.clone();
+            assert!(is_seat_start(&session, &start), "{id}: {start}");
+            starts.entry(*id).or_default().insert(start);
+        }
+        session.undo().expect("undo").expect("an edit to undo");
+    }
+    assert!(
+        starts.values().any(|drawn| drawn.len() > 1),
+        "no seat's start moved with the seed: {starts:?}"
+    );
 }
 
 #[test]
@@ -1276,7 +1453,7 @@ fn a_sol_left_to_the_game_loses_its_initializer_unless_it_keeps_its_seat() {
         .expect("build the batch")
         .expect("a change");
     session.apply(op).expect("apply Game decides");
-    assert_eq!(initializer_of(&session, SOL), basic_initializer(SOL));
+    assert_eq!(initializer_of(&session, SOL), seat_initializer(SOL));
     assert!(header_counts::is_seat(&session.graph().systems[&SOL]));
     session.undo().expect("undo").expect("an edit to undo");
     assert_eq!(current(&session), before, "undo is byte-exact");
@@ -1302,7 +1479,7 @@ fn a_sol_left_to_the_game_loses_its_initializer_unless_it_keeps_its_seat() {
         .expect("build the batch")
         .expect("a change");
     session.apply(op).expect("apply Game decides");
-    assert_eq!(initializer_of(&session, SOL), basic_initializer(SOL));
+    assert_eq!(initializer_of(&session, SOL), random_empire_start(SOL));
     assert_eq!(
         session.graph().systems[&SOL].spawn_script,
         Some(SpawnScript::PaintAGalaxy {

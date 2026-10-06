@@ -379,6 +379,7 @@ const WIDEN: { [T in Op["type"]]: Widen<T> | null } = {
   SetWormholeEnds: null,
   SetFeLinks: null,
   SetFeLinkFlags: null,
+  SetHomeSystem: null,
   PreventLane: (op) => preventOp([[op.a, op.b]], false) ?? op,
   AllowLane: (op) => allowOp([[op.a, op.b]]) ?? op,
   SetLGateOutcome: null,

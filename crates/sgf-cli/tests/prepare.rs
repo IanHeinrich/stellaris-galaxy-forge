@@ -39,6 +39,7 @@ fn a_preset_with_a_row_over_it_is_written_as_one_edit() {
     let written = std::fs::read_to_string(&out).expect("the prepared scenario");
     assert!(!written.contains("name = \"Grugmora\""), "names are gone");
     assert!(!written.contains("initializer = une_deneb_system"));
+    assert!(!written.contains("initializer = random_empire_init_"));
 }
 
 #[test]

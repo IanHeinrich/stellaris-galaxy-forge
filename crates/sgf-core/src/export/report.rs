@@ -7,8 +7,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::export::policy::{Category, builds_gateway, builds_lgate, classify, is_generic_home};
-use crate::export::{Draft, SourceResolver};
+use crate::export::policy::{
+    Category, builds_gateway, builds_lgate, classify, is_generic_home, is_random_empire_start,
+};
+use crate::export::{Draft, ScenarioProfile, SourceResolver};
 use crate::format::scenario::fe_zone::FeKind;
 use crate::projections::galaxy::{BypassLink, GalaxyGraph, PaintSpawnKind};
 use crate::validate::{Issue, IssueCode, Severity};
@@ -66,13 +68,14 @@ pub struct ExportReport {
     pub nebulae: Option<u32>,
 }
 
-/// An empire seat whose initializer may only fit the empire that started there.
+/// An empire seat on a home rather than a generic start: one written for one empire,
+/// which may only fit it, or on a plain map one of the game's random empire starts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct HomeInitializer {
     pub system: u32,
     pub initializer: String,
-    /// Whether the Paint a Galaxy profile rewrote it to a generic start.
+    /// Whether the export wrote the start its profile gives a seat in its place.
     pub replaced: bool,
 }
 
@@ -129,8 +132,8 @@ pub struct SourceCount {
 
 impl ExportReport {
     /// One warning per dropped kind, and per home initializer a note or a warning
-    /// according to whether the export replaced it.
-    pub fn issues(&self) -> Vec<Issue> {
+    /// according to whether the export under `profile` replaced it.
+    pub fn issues(&self, profile: ScenarioProfile) -> Vec<Issue> {
         let mut issues: Vec<Issue> = self
             .dropped
             .parts()
@@ -153,8 +156,10 @@ impl ExportReport {
                     Severity::Info,
                     IssueCode::HomeInitializer,
                     format!(
-                        "system {} is an empire seat on {}, and the export gave it a generic start",
-                        home.system, home.initializer
+                        "system {} is an empire seat on {}, and the export gave it {}",
+                        home.system,
+                        home.initializer,
+                        profile.seat_start()
                     ),
                     vec![home.system],
                 )
@@ -261,11 +266,13 @@ pub(super) fn categories(graph: &GalaxyGraph) -> BTreeMap<u32, Category> {
         .collect()
 }
 
-/// The report for `graph` as the plain profile writes it.
+/// The report for `graph` as the plain draft for `profile` writes it: on a plain map, a
+/// seat on a random empire start is replaced.
 pub(super) fn build(
     graph: &GalaxyGraph,
     categories: &BTreeMap<u32, Category>,
     sources: SourceResolver<'_>,
+    profile: ScenarioProfile,
 ) -> ExportReport {
     let mut home_initializers = Vec::new();
     let mut by_category: BTreeMap<Category, u32> = BTreeMap::new();
@@ -273,11 +280,11 @@ pub(super) fn build(
     for (&id, &category) in categories {
         *by_category.entry(category).or_default() += 1;
         let initializer = &graph.systems[&id].initializer;
-        if category == Category::Home && !is_generic_home(initializer) {
+        if category == Category::Home && !is_generic_home(profile, initializer) {
             home_initializers.push(HomeInitializer {
                 system: id,
                 initializer: initializer.clone(),
-                replaced: false,
+                replaced: profile == ScenarioProfile::Plain && is_random_empire_start(initializer),
             });
         }
         if let Some(source) = sources(initializer) {
