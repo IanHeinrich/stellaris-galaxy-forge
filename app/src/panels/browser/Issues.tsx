@@ -1,4 +1,5 @@
 import type { Severity } from "../../generated/Severity";
+import { issueAnchor } from "../../lib/guideLinks";
 import type { AppIssue, AppIssueCode } from "../../lib/issues";
 import { titleCase } from "../../lib/text";
 import { issueCopy, issueGroups, issueTitle } from "../../store/browserRows";
@@ -14,6 +15,7 @@ import {
   type IssueFilter,
 } from "../../store/issuesStore";
 import { openReservedSpawnsWorkshop } from "../chrome/paintMod";
+import { HelpLink } from "../HelpLink";
 import { useCollapse } from "./collapse";
 import { Action, Group, Row } from "./rows";
 
@@ -175,6 +177,7 @@ export function Issues() {
             label={group.title}
             count={group.rows.length}
             error={group.error}
+            help={<HelpLink place="issues" anchor={issueAnchor(group.code)} topic={group.title} />}
             note={
               <>
                 {copy.why}

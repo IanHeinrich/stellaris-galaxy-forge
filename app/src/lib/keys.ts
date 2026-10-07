@@ -130,6 +130,13 @@ function labelOf(b: Binding): string {
   return [b.mod && "Ctrl", b.alt && "Alt", b.shift && "Shift", key].filter(Boolean).join("+");
 }
 
+/** Every bound action with each of its keys, spelled as `shortcutLabel` spells the first. */
+export function shortcutLabelsByAction(): Map<KeyAction, string[]> {
+  const labels = new Map<KeyAction, string[]>();
+  for (const b of BINDINGS) labels.set(b.action, [...(labels.get(b.action) ?? []), labelOf(b)]);
+  return labels;
+}
+
 /** How menus and tooltips spell the key for `action`, such as "Ctrl+Z" or "V". */
 export function shortcutLabel(action: KeyAction): string {
   const binding = BINDINGS.find((b) => b.action === action);

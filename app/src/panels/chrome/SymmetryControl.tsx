@@ -3,6 +3,7 @@ import type { Symmetry } from "../../lib/geometry/symmetry";
 import { shortcutLabel } from "../../lib/keys";
 import { useToolStore } from "../../store/toolStore";
 import { Glyph } from "../Glyph";
+import { HelpLink } from "../HelpLink";
 import { outsidePressRef } from "../useOutsidePress";
 import { choiceOf, MIRRORS, ROTATIONS, SYMMETRY_OFF, type SymmetryChoice } from "./symmetryChoices";
 import "./chrome.css";
@@ -126,6 +127,7 @@ export function SymmetryControl() {
               <Choice key={c.value} choice={c} current={symmetry} />
             ))}
           </Row>
+          <HelpLink place="symmetry" topic="Symmetry" />
         </div>
       )}
     </div>

@@ -20,6 +20,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
+import { HelpLink } from "../HelpLink";
 import { useClipboard, type Clipboard } from "../useCut";
 import { GameDataPanel } from "./GameDataPanel";
 
@@ -293,7 +294,7 @@ export function StatusBar() {
       <span className="spacer" />
       {cloud && (
         <span className="warn" title={CLOUD_TITLE}>
-          ☁ Steam Cloud
+          ☁ Steam Cloud <HelpLink place="steamCloud" topic="Steam Cloud" />
         </span>
       )}
       {!dirty && lastSave && savedAt !== null && (

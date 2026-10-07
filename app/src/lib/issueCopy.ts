@@ -219,6 +219,8 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   },
 };
 
+export const ISSUE_CODES = Object.keys(COPY) as AppIssueCode[];
+
 /** Everything the panel and the map tooltip say about one kind of finding. */
 export function issueCopy(code: AppIssueCode): IssueCopy {
   return COPY[code];

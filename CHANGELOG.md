@@ -8,6 +8,18 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-07
+
+### Added
+
+- The user guide is much bigger and has moved to a dedicated website:
+  [ianheinrich.github.io/stellaris-galaxy-forge](https://ianheinrich.github.io/stellaris-galaxy-forge/).
+  - It covers a lot, so use the search to find what you need. It finds
+    the right section when you use a different word for it, such as
+    "Z coordinate" for system height.
+  - Help → User guide opens it, and the Issues tab, the main dialogs and
+    the brush bars have a "?" that opens the page about them.
+
 ## [0.23.0] - 2026-10-07
 
 ### Added

@@ -11,3 +11,6 @@ export const UPDATE_PROGRESS_EVENT = "sgf://update-progress";
 
 /** Where an update check would send the user, known without one. */
 export const RELEASES_URL = "https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest";
+
+/** The user guide's front page, which the Help menu opens and the guide's pages are opened under. */
+export const GUIDE_URL = "https://ianheinrich.github.io/stellaris-galaxy-forge/";

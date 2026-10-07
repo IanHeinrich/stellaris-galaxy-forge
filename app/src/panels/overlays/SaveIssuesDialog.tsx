@@ -1,5 +1,6 @@
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { Dialog } from "../Dialog";
+import { HelpLink } from "../HelpLink";
 import "./overlays.css";
 
 /** What a save found wrong with the map, and the three ways on from it. */
@@ -15,7 +16,9 @@ export function SaveIssuesDialog() {
       onClose={() => answer("cancel")}
       onDismiss={() => answer("cancel")}
     >
-      <h1>Save this map?</h1>
+      <h1>
+        Save this map? <HelpLink place="saving" topic="Saving" />
+      </h1>
       <p>
         This map has {count === 1 ? "1 issue" : `${count} issues`} that may change how it plays.
       </p>

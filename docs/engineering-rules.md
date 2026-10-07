@@ -5,7 +5,8 @@ For contributors (people and tools alike).
 A desktop editor for Stellaris `.sav` files: a galaxy editor first (move
 systems, add/remove hyperlanes). Rust core +
 Tauri 2 shell + React/TypeScript UI with a PixiJS map. The architecture
-is `docs/architecture.md`, the user guide `docs/user-guide.md`, the format
+is `docs/architecture.md`, the user guide `guide/` (published to
+GitHub Pages), the format
 facts `docs/format-notes.md`, the
 install and mod facts `docs/game-data-notes.md`, the decisions behind the
 architecture `docs/adr/`, and the in-game checks a change must pass
@@ -133,9 +134,17 @@ format sees it.
   scenario grammar allows. `mura.json` and `dorellion.json` are
   add-system specs, one system each, that the core and CLI tests add to
   the sample saves.
-- `docs/`: the user guide, the architecture, the save format notes, the
-  game data and mod notes, the Paint a Galaxy integration notes, and the
-  ADRs.
+- `guide/`: the user guide, a VitePress site published to GitHub Pages
+  with each release. One Markdown page per task, screenshots in
+  `guide/images/` (`guide/images/SHOTS.md` says how each was taken), and
+  the search questions it must keep answering in
+  `guide/search/queries.json`. `npm run build` in `guide/` runs a voice
+  lint, fails on a dead link and checks every question still finds its
+  page. `app/src/guide/` holds the tests that fail when a key, layer or
+  issue kind the app shows is missing from the guide.
+- `docs/`: the architecture, the save format notes, the game data and
+  mod notes, the Paint a Galaxy integration notes, and the ADRs.
+  `docs/user-guide.md` only points to the site.
 - `workshop/`: the Steam Workshop page, which carries no mod content:
   its description, preview images and inline images, and
   `workshop/uploader`, the tool that pushes them to Steam. The uploader
@@ -151,6 +160,8 @@ format sees it.
   `--section a,b` keeps either to those sections.
 - `cd app && npm test` (Vitest) · `npm run build` · `npm run lint`
 - `cd app && npm run tauri dev` (one instance per machine)
+- `cd guide && npm run dev` serves the user guide locally. `npm run
+  build` checks it as CI does.
 - `cargo test --workspace` also regenerates `app/src/generated/`; commit
   what it writes.
 - `cargo test --release -p sgf-core --test corpus --test scenario_corpus
@@ -211,8 +222,8 @@ format sees it.
 - A new major or minor version gets its save added to `testdata/` under
   LFS, so the tests cover it from then on.
 - Run the in-game checks in `.github/pull_request_template.md`.
-- Update the version claims in `README.md`, `docs/user-guide.md` and
-  `docs/game-data-notes.md`.
+- Update the version claims in `README.md`,
+  `guide/reference/versions.md` and `docs/game-data-notes.md`.
 
 ## Releases
 
@@ -246,7 +257,13 @@ format sees it.
 - Merging that PR to `main` runs the checks and the three platform
   builds side by side, and only once all of them pass tags `v<x.y.z>` and
   publishes a GitHub Release whose notes are that changelog section.
-  Merging anything else runs the checks and releases nothing.
+  The user guide is then built from the new tag and published to GitHub
+  Pages, so the site always describes the version players can download.
+  Merging anything else runs the checks and releases nothing. To publish
+  the guide without a release, run the `Guide` workflow from the Actions
+  tab. Left empty, it rebuilds the latest release tag. Given `main`, it
+  publishes what is on `main`, which may describe features not yet
+  released. GitHub Pages must have "GitHub Actions" as its source.
 - Tags are never made by hand; the `release.yml` workflow does it. To
   rebuild a release for an existing tag, use the Actions tab: the
   `Release` workflow, "Run workflow", enter the tag.
@@ -327,6 +344,14 @@ complex or specific.
 - **Not for layout or drawing.** Component and map tests stub text
   measurement and rendering, so they pass while a label overlaps or a
   row wraps. Nor for refactors the existing tests already cover.
+
+### The user guide
+
+A change a player can see updates its page in `guide/` in the same PR,
+and adds the questions a player would search for it to
+`guide/search/queries.json`. A new screenshot is listed in
+`guide/images/SHOTS.md`. A change that moves or restyles a panel retakes
+that panel's shots.
 
 ### Looking at the running app
 

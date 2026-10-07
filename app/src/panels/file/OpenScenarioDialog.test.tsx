@@ -44,7 +44,7 @@ describe("opening a scenario file", () => {
     expect(shown(dialog())).toContain(PAINT_CHECK);
     expect(shown(dialog())).toContain(NEVER_WARN);
     expect(shown(dialog())).toContain(NEVER_WARN_WHY.split(".")[0]);
-    expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
+    expect(buttons(dialog())).toEqual(["?", "Cancel", "Continue"]);
   });
 
   it("warns that the mod a Paint a Galaxy scenario needs is off, and offers no way to stop warning", () => {

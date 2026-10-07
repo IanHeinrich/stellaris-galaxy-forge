@@ -249,6 +249,33 @@ fn game_data_loads_reports_unloads_and_survives_a_failed_load() {
     assert!(names.is_empty());
 }
 
+/// The guide's front page and the pages under it are the app's links. A host or a path that
+/// only starts with the same letters is not.
+#[test]
+fn the_guide_and_its_pages_are_links_the_app_opens() {
+    use sgf_app_lib::commands::{GUIDE_URL, is_guide_url};
+
+    assert!(is_guide_url(GUIDE_URL));
+    assert!(is_guide_url(&format!(
+        "{GUIDE_URL}safety/issues#overlapping"
+    )));
+    for url in [
+        "https://ianheinrich.github.io/stellaris-galaxy-forge",
+        "https://ianheinrich.github.io/stellaris-galaxy-forge.evil/",
+        "https://ianheinrich.github.io/",
+        "http://ianheinrich.github.io/stellaris-galaxy-forge/",
+        "https://ianheinrich.github.io.evil.com/stellaris-galaxy-forge/",
+        "https://evil.com/https://ianheinrich.github.io/stellaris-galaxy-forge/",
+    ] {
+        assert!(!is_guide_url(url), "{url}");
+        assert_eq!(
+            kind(invoke::<()>(&webview(), "open_url", json!({ "url": url }))),
+            ErrorKind::NotFound,
+            "{url}"
+        );
+    }
+}
+
 /// The shell opens a link or a file only from the lists it holds, and refuses the rest before
 /// anything is handed to the system.
 #[test]

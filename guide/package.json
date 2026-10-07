@@ -1,0 +1,19 @@
+{
+  "name": "stellaris-galaxy-forge-guide",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "node scripts/voice-lint.mjs && vitepress build && node scripts/check-search.mjs",
+    "preview": "vitepress preview",
+    "lint:voice": "node scripts/voice-lint.mjs",
+    "check:search": "node scripts/check-search.mjs"
+  },
+  "devDependencies": {
+    "minisearch": "7.2.0",
+    "vitepress": "1.6.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

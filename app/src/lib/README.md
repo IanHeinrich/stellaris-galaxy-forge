@@ -102,7 +102,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   `releaseNotes` reads a release's notes into the spans the update dialog
   shows. `systemLabel` names a system in an undo line the way the core does,
   as `Name #id`. `systemsBatch` builds the one op, or the named batch, that
-  edits many systems at once.
+  edits many systems at once. `guideLinks` says where each "?" opens the
+  user guide, and the anchor the guide gives a heading.
 - The rows a screen lists, as pure functions of what has been read:
   `openRows` for the Open screen, `browserRows` for the dock's lists.
 - The editor's own vocabulary: `tools` (the rail's tools), `keys` (every key

@@ -533,7 +533,7 @@ describe("the setup screen", () => {
     await open("scenario", true);
     const html = drawnBy(galaxy);
     expect(html).toContain('<div class="prep-setup">');
-    expect(html).toContain(`<div class="prep-setup-title">${PREPARE_TITLE}</div>`);
+    expect(html).toContain(`<div class="prep-setup-title">${PREPARE_TITLE} <button`);
     expect(html).not.toContain('class="ins-sec"');
     expect(html).not.toContain(">Components<");
     expect(html).toContain(">Apply</button>");

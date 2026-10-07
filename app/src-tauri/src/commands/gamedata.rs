@@ -124,12 +124,15 @@ pub fn open_script(
     result.map_err(io_error)
 }
 
-/// Open one of the app's own links in the user's browser. Only the releases page and the
-/// [`WorkshopLinks`] pages are opened: the check keeps a URL that reached a view from
+/// Open one of the app's own links in the user's browser. Only the releases page, the guide and
+/// the [`WorkshopLinks`] pages are opened: the check keeps a URL that reached a view from
 /// elsewhere from being handed to the shell.
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), SgfError> {
-    if url != super::update::RELEASES_URL && !WorkshopLinks::default().contains(&url) {
+    if url != super::update::RELEASES_URL
+        && !super::update::is_guide_url(&url)
+        && !WorkshopLinks::default().contains(&url)
+    {
         return Err(SgfError::new(
             ErrorKind::NotFound,
             format!("{url} is not a link this app opens"),

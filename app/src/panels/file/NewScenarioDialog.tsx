@@ -5,6 +5,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { usePaintModStore } from "../../store/paintModStore";
 import { Glyph } from "../Glyph";
 import { Dialog } from "../Dialog";
+import { HelpLink } from "../HelpLink";
 import "./open.css";
 import { PaintChoice } from "./PaintChoice";
 
@@ -203,6 +204,7 @@ export function NewScenarioDialog() {
       <form onSubmit={submit}>
         <div className="open-dialog-head">
           <h1>New scenario</h1>
+          <HelpLink place="newScenario" topic="Make a scenario" />
         </div>
         <div className="open-dialog-body">
           <RouteCards route={route} onRoute={setRoute} />
