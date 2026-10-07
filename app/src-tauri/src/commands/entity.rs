@@ -1,5 +1,5 @@
 //! Reading the open document: a system, one entity's bytes, search, and where save planets
-//! may move.
+//! may move, and copies of them to paste.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use sgf_core::entity::{
     self, EntityAddr, EntityKind, EntitySchema, EntitySource, EntityView, PlanetPage,
 };
-use sgf_core::ops::Op;
+use sgf_core::ops::{NewBody, Op};
 use sgf_core::projections::galaxy::GalaxyGraph;
 use sgf_core::views::{
     OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SearchResult, SgfError, SystemDetail,
@@ -109,6 +109,35 @@ pub async fn planet_move_op<R: Runtime>(
     with_session(app, move |guard| {
         let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
         Ok(session.planet_move_op(&planets, to, at)?)
+    })
+    .await
+}
+
+/// The save bodies `bodies` as specs the app keeps to paste, each planet with its moons.
+#[tauri::command]
+pub async fn copy_bodies<R: Runtime>(
+    app: AppHandle<R>,
+    bodies: Vec<u32>,
+) -> Result<Vec<NewBody>, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.copy_bodies(&bodies)?)
+    })
+    .await
+}
+
+/// The op that pastes `copies` into system `system`, a single copy at `at` when given, for
+/// `apply_op`.
+#[tauri::command]
+pub async fn paste_bodies_op<R: Runtime>(
+    app: AppHandle<R>,
+    system: u32,
+    copies: Vec<NewBody>,
+    at: Option<OrbitPlacement>,
+) -> Result<Op, SgfError> {
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        Ok(session.paste_bodies_op(system, &copies, at)?)
     })
     .await
 }

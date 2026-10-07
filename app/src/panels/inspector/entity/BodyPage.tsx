@@ -168,11 +168,16 @@ function PlanetBlock({
       )}
       {planetClass !== null && (
         <PlanetClassField
-          id={id}
+          bodies={[
+            {
+              id,
+              name: name ?? "",
+              class: planetClass.current,
+              colonised: planetClass.colonised,
+              moon: planetClass.moon,
+            },
+          ]}
           edits={edits}
-          planetClass={planetClass.current}
-          colonised={planetClass.colonised}
-          moon={planetClass.moon}
         />
       )}
       {model !== null && (
@@ -239,7 +244,13 @@ function BodyOverview({ read }: { read: BodyRead }) {
   const star = useIsStar(summary);
   const offers = planetPageOffers(capabilities, {
     star,
-    ringable: read.listed && hasRingCheckbox(summary.class, planetClasses, starClasses),
+    ringable:
+      read.listed &&
+      hasRingCheckbox(
+        { class: summary.class, moon: summary.moon, ring: summary.ring === true },
+        planetClasses,
+        starClasses,
+      ),
     moonHost: false,
   });
   const starBlock = offers.starFields && read.listed && system !== undefined;

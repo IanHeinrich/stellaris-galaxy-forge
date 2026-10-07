@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import { bodyClassName } from "../../../lib/details/labels";
+import { documentCapabilities } from "../../../lib/capabilities";
 import { capabilityFor } from "../../../lib/entities";
 import type { Names } from "../../../lib/names";
-import { cutHint, cutLabel, movingBodies, selectionLine } from "../../../lib/planetMove";
+import { copyLabel, cutHint, cutLabel, movingBodies, selectionLine } from "../../../lib/planetMove";
 import { counted } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { bodyEntry, useInspectorStore, type Entry } from "../../../store/inspectorStore";
@@ -13,6 +15,12 @@ import { cutAvailability, cutPlanets, usePlanetMoveStore } from "../../../store/
 import { useSceneStore, type BodySelection } from "../../../store/sceneStore";
 import { useSystemBodyNamer } from "../entity/useBodyName";
 import { DrillLink, Empty, Section } from "../parts";
+import { BodySelectionFields } from "./BodySelectionFields";
+
+/** Past this many bodies the list shows the first `FOLDED_SHOWN` and a line to show the rest. */
+const FOLD_PAST = 6;
+const FOLDED_SHOWN = 5;
+const FOLD_SECTION = "bodies.planets.all";
 
 /** Whether `a` and `b` hold the same ids. */
 function sameIds(a: readonly number[], b: readonly number[]): boolean {
@@ -77,7 +85,8 @@ function SelectedBody({
 
 /**
  * Two or more bodies selected in a system's view: what moves with them, each body with a × that
- * drops it from the selection, and Cut, or Cancel move once these planets are cut.
+ * drops it from the selection, Cut, or Cancel move once these planets are cut, and in a save the
+ * planet page's fields for all of them at once.
  */
 export function BodySelectionView({ entry }: { entry: Entry }) {
   const system = entry.ref.kind === "bodies" ? entry.ref.system : null;
@@ -95,6 +104,8 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
   const cut = usePlanetMoveStore((s) => s.cut);
   const cutSelection = usePlanetMoveStore((s) => s.cutSelection);
   const cancelCut = usePlanetMoveStore((s) => s.cancelCut);
+  const copySelection = usePlanetMoveStore((s) => s.copySelection);
+  const copies = useFileSessionStore((s) => documentCapabilities(s).add_bodies);
   const read = useDetailsStore((s) => s.details.get(system));
   const names = useGameDataStore((s) => s.names);
   const countryName = useGalaxyStore((s) => s.countryName);
@@ -116,6 +127,11 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
   const availability = cutAvailability(selection, selectionTargets);
   const taken = cutPlanets(selection, selectionTargets, read);
   const isCut = cut !== null && cut.from === system && sameIds(cut.planets, taken);
+  const save = useFileSessionStore((s) => s.kind === "save");
+  const folded = useInspectorStore((s) => s.sections[FOLD_SECTION] ?? true);
+  const toggleSection = useInspectorStore((s) => s.toggleSection);
+  const foldable = selection.ids.length > FOLD_PAST;
+  const listed = foldable && folded ? selection.ids.slice(0, FOLDED_SHOWN) : selection.ids;
 
   return (
     <>
@@ -125,8 +141,23 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
       <div className="ins-line muted">
         <span>{selectionLine(moving.length, moonsAlong, leaving)}</span>
       </div>
-      <Section id="bodies.planets" title="Planets" count={selection.ids.length}>
-        {selection.ids.map((id) => {
+      <Section
+        id="bodies.planets"
+        title="Planets"
+        count={selection.ids.length}
+        action={
+          foldable && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => toggleSection(FOLD_SECTION, true)}
+            >
+              {folded ? `Show all ${selection.ids.length}` : "Show fewer"}
+            </button>
+          )
+        }
+      >
+        {listed.map((id) => {
           const body = bodyOf(id);
           return (
             <SelectedBody key={id} system={system} id={id} name={nameOf(id)}>
@@ -139,6 +170,9 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
             </SelectedBody>
           );
         })}
+        {foldable && folded && (
+          <div className="ins-line muted">and {selection.ids.length - FOLDED_SHOWN} more</div>
+        )}
       </Section>
       <Section id="bodies.actions" title="Actions">
         <div className="ins-bulk">
@@ -156,9 +190,17 @@ function SelectedBodies({ selection }: { selection: BodySelection }) {
               {cutLabel(taken.map((id) => ({ name: nameOf(id), moon: bodyOf(id)?.moon === true })))}
             </button>
           )}
+          {copies && (
+            <button type="button" onClick={() => void copySelection()}>
+              {copyLabel(
+                moving.map((id) => ({ name: nameOf(id), moon: bodyOf(id)?.moon === true })),
+              )}
+            </button>
+          )}
         </div>
         <div className="muted ins-hint">{cutHint(isCut)}</div>
       </Section>
+      {save && <BodySelectionFields selection={selection} read={read} />}
     </>
   );
 }

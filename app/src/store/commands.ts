@@ -20,7 +20,7 @@ import { refKey, useInspectorStore } from "./inspectorStore";
 import { useLayoutStore } from "./layoutStore";
 import { useMapChromeStore } from "./mapChromeStore";
 import { useOpenScreenStore } from "./openScreenStore";
-import { usePlanetMoveStore } from "./planetMoveStore";
+import { bodiesCanCopy, pastesInto, pointerPlacement, usePlanetMoveStore } from "./planetMoveStore";
 import { canEnterSystem, currentBarMode, sceneSystem, useSceneStore } from "./sceneStore";
 import { nudgeBody } from "./systemGeometry";
 import { symmetryAllowed, toolAllowed, useToolStore } from "./toolStore";
@@ -200,6 +200,46 @@ function clearShownBodies(): boolean {
   return true;
 }
 
+/** Whether planets are selected in the system shown. */
+function shownPlanetsSelected(): boolean {
+  const shown = sceneSystem();
+  return shown !== null && useSceneStore.getState().bodySelection?.system === shown;
+}
+
+/** Whether the user has text selected, which Ctrl+C copies rather than the planets. */
+function textSelected(): boolean {
+  const text = globalThis.getSelection?.();
+  return text != null && !text.isCollapsed;
+}
+
+/** Ctrl+X: cuts the planets selected in the system shown. True when it did. */
+function cutShownPlanets(): boolean {
+  return shownPlanetsSelected() && usePlanetMoveStore.getState().cutSelection();
+}
+
+/** Ctrl+C: copies the planets selected in the system shown. True when it asked the core to. */
+function copyShownPlanets(): boolean {
+  if (!shownPlanetsSelected() || !bodiesCanCopy() || textSelected()) return false;
+  void usePlanetMoveStore.getState().copySelection();
+  return true;
+}
+
+/**
+ * Ctrl+V: pastes the cut or copied planets into the system shown, a lone one at the pointer, or
+ * on the galaxy map into the one selected system. True when it did.
+ */
+function pasteHere(): boolean {
+  const shown = sceneSystem();
+  const { selection } = useEditorStore.getState();
+  const to = shown ?? (selection.length === 1 ? selection[0] : null);
+  const moves = usePlanetMoveStore.getState();
+  if (to === null || !pastesInto(moves, to)) return false;
+  // A copied group lines up at the pointer's angle; a cut goes there only when it is one planet.
+  const placed = moves.cut !== null ? moves.cut.planets.length === 1 : moves.copy !== null;
+  void moves.paste(to, shown !== null && placed ? pointerPlacement(to) : null);
+  return true;
+}
+
 function escape(inInput: boolean): void {
   if (useInitializerBrowserStore.getState().open) {
     useInitializerBrowserStore.getState().close();
@@ -214,7 +254,7 @@ function escape(inInput: boolean): void {
     chrome.closeContextMenu();
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
-  } else if (usePlanetMoveStore.getState().cancelCut()) {
+  } else if (usePlanetMoveStore.getState().clearClipboard()) {
     return;
   } else if (clearShownBodies()) {
     return;
@@ -304,6 +344,12 @@ export function run(action: KeyAction, inInput: boolean, effects: CommandEffects
     case "redo":
       redo();
       return true;
+    case "cutPlanets":
+      return cutShownPlanets();
+    case "copyPlanets":
+      return copyShownPlanets();
+    case "pastePlanets":
+      return pasteHere();
     case "save":
       save();
       return true;

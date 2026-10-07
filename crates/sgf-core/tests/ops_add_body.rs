@@ -3,7 +3,7 @@
 //! refused.
 
 use sgf_core::entity::EntityKind;
-use sgf_core::ops::{NewBody, Op, OpError};
+use sgf_core::ops::{BodyName, NewBody, Op, OpError};
 use sgf_core::session::OpResult;
 use sgf_core::views::OrbitPlacement;
 
@@ -18,8 +18,7 @@ fn body(class: &str, size: u32) -> NewBody {
         size,
         moon_of: None,
         name: None,
-        deposits: Vec::new(),
-        ring: false,
+        ..NewBody::default()
     }
 }
 
@@ -191,7 +190,7 @@ fn a_planet_and_a_moon_added_on_the_4_4_sample() {
 fn a_typed_name_and_a_ring_are_written_as_given() {
     let mut session = open_4_5();
     let spec = NewBody {
-        name: Some("New Hope".to_owned()),
+        name: Some(BodyName::Typed("New Hope".to_owned())),
         ring: true,
         ..body("pc_gas_giant", 20)
     };

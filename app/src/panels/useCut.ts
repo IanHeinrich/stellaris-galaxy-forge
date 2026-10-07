@@ -1,4 +1,6 @@
+import { documentCapabilities } from "../lib/capabilities";
 import type { MovedPlanet, WarningNames } from "../lib/planetMove";
+import { useFileSessionStore } from "../store/fileSessionStore";
 import { useGalaxyStore } from "../store/galaxyStore";
 import { usePlanetMoveStore } from "../store/planetMoveStore";
 import { useBodyLookup } from "./inspector/entity/useBodyName";
@@ -18,15 +20,21 @@ export function useMovedPlanets(ids: readonly number[]): MovedPlanet[] {
   return ids.map((id) => lookup(id));
 }
 
-/** The planets waiting for a paste and the system they stand in; null with no cut. */
-export function useCut(): {
-  planets: MovedPlanet[];
-  from: string;
-  fromId: number;
-  count: number;
-} | null {
+/** What waits for a paste: cut planets and the system they stand in, or copied planets. */
+export type Clipboard =
+  | { kind: "cut"; planets: MovedPlanet[]; from: string; fromId: number; count: number }
+  | { kind: "copy"; planets: readonly MovedPlanet[]; count: number };
+
+/** The planets waiting for a paste; null with none, or with a copy this document cannot take. */
+export function useClipboard(): Clipboard | null {
   const cut = usePlanetMoveStore((s) => s.cut);
+  const copy = usePlanetMoveStore((s) => s.copy);
+  const takesCopy = useFileSessionStore((s) => documentCapabilities(s).add_bodies);
   const planets = useMovedPlanets(cut?.planets ?? NONE);
   const from = useGalaxyStore((s) => (cut === null ? "" : s.systemName(cut.from)));
-  return cut === null ? null : { planets, from, fromId: cut.from, count: cut.planets.length };
+  if (cut !== null) {
+    return { kind: "cut", planets, from, fromId: cut.from, count: cut.planets.length };
+  }
+  if (copy === null || !takesCopy) return null;
+  return { kind: "copy", planets: copy.planets, count: copy.copies.length };
 }

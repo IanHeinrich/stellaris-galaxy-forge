@@ -14,7 +14,6 @@ import {
 } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useMapChromeStore, type ContextTarget } from "../../../store/mapChromeStore";
-import { usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../../store/sceneStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../initializers/entry";
 import { BulkActions, MarauderClanButton } from "../../BulkActions";
@@ -25,8 +24,8 @@ import { PasteItem } from "./PlanetMoveItems";
 import { useSelected, useZoneLink, useZones } from "./menuState";
 
 /**
- * The menu on a system: the cut planets pasted there, its lanes to the selection, its scenario
- * roles and its removal.
+ * The menu on a system: the cut or copied planets pasted there, its lanes to the selection, its
+ * scenario roles and its removal.
  */
 export function SystemMenu({
   target,
@@ -55,7 +54,6 @@ export function SystemMenu({
   const gameData = useGameDataStore((s) => s.status === "ready");
   const enterable = useFileSessionStore(canEnterSystem);
   const enterSystem = useSceneStore((s) => s.enterSystem);
-  const cut = usePlanetMoveStore((s) => s.cut !== null);
 
   const system = systems.get(target.id);
   const inSelection = selection.includes(target.id);
@@ -80,7 +78,7 @@ export function SystemMenu({
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
-      {cut && <PasteItem system={target.id} className="context-menu-lead" />}
+      <PasteItem system={target.id} className="context-menu-lead" />
       {enterable && <MenuItem run={() => enterSystem(target.id)}>Open system view</MenuItem>}
       {selection.length > 1 && inSelection ? (
         <BulkActions dismiss={closeContextMenu} itemRole="menuitem" />

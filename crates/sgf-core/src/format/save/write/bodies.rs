@@ -365,16 +365,18 @@ fn grow_by(
         number(current),
         number(grown)
     );
+    let mut ops = match inverse {
+        Op::Batch { ops, .. } => ops,
+        op => vec![op],
+    };
+    ops.push(Op::SetInnerRadius {
+        system,
+        radius: current,
+    });
     Ok(Planned {
         inverse: Op::Batch {
             description: format!("Undo of \"{description}\""),
-            ops: vec![
-                inverse,
-                Op::SetInnerRadius {
-                    system,
-                    radius: current,
-                },
-            ],
+            ops,
         },
         description,
     })

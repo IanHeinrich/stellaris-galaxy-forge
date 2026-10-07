@@ -1,0 +1,208 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added planet #16777273 to Tharbarite system #140 (pc_gas_giant, size 27) at orbit 200 at 45°, with 2 moons and 3 deposits; set the inner radius of Tharbarite system #140 from 190 to 245.02
+inverse: Batch { description: "Undo of \"Added planet #16777273 to Tharbarite system #140 (pc_gas_giant, size 27) at orbit 200 at 45°, with 2 moons and 3 deposits; set the inner radius of Tharbarite system #140 from 190 to 245.02\"", ops: [RemoveBody { body: 6376 }, RemoveBody { body: 6375 }, RemoveBody { body: 16777273 }, SetInnerRadius { system: 140, radius: 190.0 }] }
+
+--- gamestate
++++ gamestate
+@@ -38915,6 +38915,9 @@
+ 		planet=99
+ 		planet=100
+ 		planet=101
++		planet=16777273
++		planet=6375
++		planet=6376
+ 		ambient_object=
+ 		{
+ 			1 339 
+@@ -38966,8 +38969,8 @@
+ 		{
+ 			16777706 
+ 		}
+-		inner_radius=190
+-		outer_radius=290
++		inner_radius=245.02108
++		outer_radius=345.02108
+ 		starbases=
+ 		{
+ 			4294967295 64 
+@@ -82369,7 +82372,50 @@
+ 				128 
+ 			}
+ 		}
+-		57=none
++		16777273=
++		{
++			planet_class="pc_gas_giant"
++			planet_size=27
++			carrier_binary_flags=1
++			name=
++			{
++				key="LITHOID1_PLANET_RuktOtekk"
++			}
++			binary_flags=320
++			coordinate=
++			{
++				x=141.42136
++				y=141.42136
++				origin=140
++			}
++			orbit=200
++			last_bombardment=			"0.01.01"
++			moons=
++			{
++				6375 6376 
++			}
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="harvested_resources_mining"
++						days=6726
++					}
++ 
++				}
++			}
++			entity=3
++			deposits=
++			{
++				16777216 
++			}
++		}
+ 		58=
+ 		{
+ 			colony=30
+@@ -411928,6 +411974,88 @@
+ 				4047 
+ 			}
+ 		}
++		6375=
++		{
++			planet_class="pc_barren"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="LITHOID1_PLANET_OterrArrek"
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=151.39986
++				y=140.42146
++				origin=140
++			}
++			orbit=10.02847
++			last_bombardment=			"0.01.01"
++			moon_of=16777273
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="harvested_resources_mining"
++						days=6756
++					}
++ 
++				}
++			}
++			entity=2
++			deposits=
++			{
++				16777217 
++			}
++		}
++		6376=
++		{
++			planet_class="pc_toxic"
++			planet_size=5
++			carrier_binary_flags=1
++			name=
++			{
++				key="LITHOID1_PLANET_DettAttok"
++			}
++			binary_flags=576
++			coordinate=
++			{
++				x=126.82246
++				y=144.95761
++				origin=140
++			}
++			orbit=15.02108
++			last_bombardment=			"0.01.01"
++			moon_of=16777273
++			planet_orbitals=
++			{
++			}
++			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="harvested_resources_mining"
++						days=6006
++					}
++ 
++				}
++			}
++			entity=3
++			deposits=
++			{
++				16777218 
++			}
++		}
+ 	}
+ }
+ astral_rifts=
+@@ -1076220,9 +1076348,33 @@
+ }
+ deposit=
+ {
+-	0=none
+-	1=none
+-	2=none
++	16777216=
++	{
++		type="d_energy_3"
++		deposit_holder=
++		{
++			type=0
++			id=16777273
++		}
++	}
++	16777217=
++	{
++		type="d_physics_2"
++		deposit_holder=
++		{
++			type=0
++			id=6375
++		}
++	}
++	16777218=
++	{
++		type="d_minerals_3"
++		deposit_holder=
++		{
++			type=0
++			id=6376
++		}
++	}
+ 	3=none
+ 	4=none
+ 	5=none

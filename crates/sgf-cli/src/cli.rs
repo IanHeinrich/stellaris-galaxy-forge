@@ -226,6 +226,28 @@ pub enum Command {
         #[command(flatten)]
         out: OutArg,
     },
+    /// Copy save planets, each with its moons, and paste the copies as new bodies into
+    /// system --to: one at --at when given as `RADIUS,ANGLE`, else each on the next free
+    /// orbit past the system's reach. --from copies them from another save:
+    ///   sgf copy-planet game.sav --body 99,402 --to 216 -o out.sav
+    #[command(verbatim_doc_comment)]
+    CopyPlanet {
+        sav: PathBuf,
+        /// The bodies to copy, comma-separated.
+        #[arg(long = "body", value_delimiter = ',', required = true)]
+        bodies: Vec<u32>,
+        /// The system the copies go into.
+        #[arg(long)]
+        to: u32,
+        /// Where a single copy goes, as `RADIUS,ANGLE` about the system's centre.
+        #[arg(long, value_parser = point, allow_hyphen_values = true)]
+        at: Option<(f64, f64)>,
+        /// The save the bodies are copied from, instead of `sav`.
+        #[arg(long)]
+        from: Option<PathBuf>,
+        #[command(flatten)]
+        out: OutArg,
+    },
     /// Write a synthetic Stellaris-shaped save with N systems, for stress-testing.
     Synth {
         #[arg(long)]
@@ -357,7 +379,7 @@ fn row_choice(text: &str) -> Result<RowChoice, String> {
     })
 }
 
-/// `X,Y`, the `--at` of a generated system.
+/// `X,Y`, the `--at` of a generated system, or `RADIUS,ANGLE` of a copied planet.
 fn point(text: &str) -> Result<(f64, f64), String> {
     let (x, y) = text
         .split_once(',')

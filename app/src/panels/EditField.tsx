@@ -155,15 +155,22 @@ export function SwatchField({
 
 /**
  * A yes or no, as a labelled checkbox in the field style. In an edit block it starts at the field
- * column and takes the rest of the row, so a long label wraps after its checkbox.
+ * column and takes the rest of the row, so a long label wraps after its checkbox. `mixed` shows it
+ * partly ticked, for a value that is yes on some of what it edits; a click then ticks it.
  */
 export function ToggleField({
   label,
   checked,
+  mixed = false,
   title,
   disabledReason,
   onChange,
-}: FieldBase & { checked: boolean; title?: string; onChange: (checked: boolean) => void }) {
+}: FieldBase & {
+  checked: boolean;
+  mixed?: boolean;
+  title?: string;
+  onChange: (checked: boolean) => void;
+}) {
   const disabled = disabledReason !== undefined;
   return (
     <label
@@ -173,6 +180,9 @@ export function ToggleField({
       <input
         type="checkbox"
         checked={checked}
+        ref={(input) => {
+          if (input !== null) input.indeterminate = mixed;
+        }}
         disabled={disabled}
         onChange={(e) => onChange(e.currentTarget.checked)}
       />
@@ -209,9 +219,21 @@ export function EditRow({ label, children }: { label: string; children: ReactNod
   );
 }
 
-/** A line under the fields of an edit block, across the whole row. */
-export function EditNote({ children }: { children: ReactNode }) {
-  return <div className="edit-note">{children}</div>;
+/** A line under the fields of an edit block, across the whole row; `warn` for a warning. */
+export function EditNote({
+  children,
+  title,
+  warn = false,
+}: {
+  children: ReactNode;
+  title?: string;
+  warn?: boolean;
+}) {
+  return (
+    <div className={classes("edit-note", warn && "warn")} title={title}>
+      {children}
+    </div>
+  );
 }
 
 /** The foot of a page with editable fields: how to tell them from the information around them. */

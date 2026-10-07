@@ -37,7 +37,10 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   candidate needs. `planetEdits` is the words a planet's page shows beside
   its edits, and the hint of a body's Edit chip. `planetModel` is the Model
   field's rows, usual models first, and `planetClass` is the Class field's
-  rows, with a colony's narrower choice. A body's page reads its body through
+  rows, with a colony's narrower choice, and the rows several planets
+  share. `bodiesEdit` is the selection page's edit of several bodies of
+  one system: which bodies each field leaves out and why, the deposit and
+  modifier rows with who has each, and the one `Batch` each action sends. A body's page reads its body through
   a `BodySource`, one per kind of document (`panels/inspector/entity/bodySources.ts`),
   which also gives it the adapter that edits the body. The save's adapter,
   `store/planetEditAdapter.ts`, builds every op a save body's page sends.

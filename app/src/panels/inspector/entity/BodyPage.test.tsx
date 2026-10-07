@@ -269,6 +269,34 @@ describe("a save body its system's details can't list", () => {
   });
 });
 
+describe("a save moon's ring", () => {
+  const MOON = 745;
+  const RING_BOX = /<input type="checkbox"[^>]*\/>Ring<\/label>/;
+
+  async function arm(ring: boolean): Promise<void> {
+    await open("save");
+    await land(
+      details({
+        planets: [
+          planet(WORLD, "Nekkar_I"),
+          planet(MOON, "Nekkar_I_a", { moon: true, parent: WORLD, ring }),
+        ],
+      }),
+    );
+    await answerPage(planetPage({ id: MOON, parent: WORLD }));
+  }
+
+  it("has no Ring checkbox on a moon without one, since the game draws no ring round a moon", async () => {
+    await arm(false);
+    expect(render(MOON)).not.toMatch(RING_BOX);
+  });
+
+  it("keeps the Ring checkbox on a moon with a ring, so it can be taken off", async () => {
+    await arm(true);
+    expect(render(MOON)).toContain('<input type="checkbox" checked=""/>Ring</label>');
+  });
+});
+
 describe("Show in system view", () => {
   const SHOW = ">Show in system view</button>";
 

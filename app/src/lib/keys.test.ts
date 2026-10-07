@@ -36,7 +36,7 @@ const KEY_ACTIONS: [string, Partial<KeyLike>, boolean, boolean, KeyAction | null
   ["v", {}, false, false, "selectTool"],
   ["v", {}, true, false, null],
   ["V", { shiftKey: true }, false, false, null],
-  ["v", { ctrlKey: true }, false, false, null],
+  ["v", { ctrlKey: true }, false, false, "pastePlanets"],
   ["v", { altKey: true }, false, false, null],
   ["b", {}, false, false, "paintTool"],
   ["e", {}, false, false, "eraseTool"],
@@ -48,8 +48,12 @@ const KEY_ACTIONS: [string, Partial<KeyLike>, boolean, boolean, KeyAction | null
   ["x", {}, false, false, "cutTool"],
   ["c", {}, true, false, null],
   ["X", { shiftKey: true }, false, false, null],
-  ["c", { ctrlKey: true }, false, false, null],
-  ["x", { ctrlKey: true }, false, false, null],
+  ["c", { ctrlKey: true }, false, false, "copyPlanets"],
+  ["x", { ctrlKey: true }, false, false, "cutPlanets"],
+  ["c", { ctrlKey: true }, true, false, null],
+  ["x", { ctrlKey: true }, true, false, null],
+  ["v", { ctrlKey: true }, true, false, null],
+  ["V", { ctrlKey: true, shiftKey: true }, false, false, null],
   ["x", { altKey: true }, false, false, null],
   ["m", {}, false, false, "toggleSystemView"],
   ["M", { shiftKey: true }, false, false, "toggleSymmetry"],
@@ -149,6 +153,8 @@ describe("keys", () => {
   it("spells each binding as the tooltips show it, and gives every tool its own key", () => {
     expect(shortcutLabel("undo")).toBe("Ctrl+Z");
     expect(shortcutLabel("redo")).toBe("Ctrl+Y");
+    expect(shortcutLabel("copyPlanets")).toBe("Ctrl+C");
+    expect(shortcutLabel("pastePlanets")).toBe("Ctrl+V");
     expect(shortcutLabel("saveAs")).toBe("Ctrl+Shift+S");
     expect(shortcutLabel("fitSelection")).toBe("Shift+F");
     expect(shortcutLabel("clearSelection")).toBe("Esc");

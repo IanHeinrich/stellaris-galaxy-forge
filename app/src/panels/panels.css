@@ -336,6 +336,10 @@
   color: var(--fg-muted);
 }
 
+.edit-note.warn {
+  color: var(--warn);
+}
+
 .edit-key {
   display: flex;
   align-items: center;

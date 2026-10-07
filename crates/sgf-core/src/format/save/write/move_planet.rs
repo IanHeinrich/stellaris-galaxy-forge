@@ -333,7 +333,7 @@ fn member_ops(
 
 /// `planets` without repeats, and without a body whose parent, at any depth, is also
 /// among them.
-fn normalised_set(s: &Session, planets: &[u32]) -> Vec<u32> {
+pub(crate) fn normalised_set(s: &Session, planets: &[u32]) -> Vec<u32> {
     let mut kept = Vec::new();
     for &planet in planets {
         if !kept.contains(&planet) && !parents(s, planet).iter().any(|p| planets.contains(p)) {

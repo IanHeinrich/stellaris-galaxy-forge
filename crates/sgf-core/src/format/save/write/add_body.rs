@@ -1,31 +1,35 @@
-//! `AddBody` and `RemoveBody`: one planet or moon added to a save system, and
-//! taken out again. The body's entry and its deposits' take slots as
-//! [`super::add_system`] gives them, the system lists it after its last `planet=` line, a
-//! moon's planet lists it in `moons`, and the inner radius grows when the body lies past it.
-//! The game builds the body's construction queue when it loads.
+//! `AddBody` and `RemoveBody`: one planet or moon added to a save system, with any moons
+//! of its own, and taken out again. Each body's entry and its deposits' take slots as
+//! [`super::add_system`] gives them, the system lists them after its last `planet=` line,
+//! a moon's planet lists it in `moons`, and the inner radius grows when a body lies past
+//! it. The game builds each body's construction queue when it loads.
+
+use std::collections::BTreeSet;
 
 use crate::document::Document;
 use crate::emit::roman;
-use crate::emit::system::{MOON_FLAG, RING_FLAG};
+use crate::emit::system::{FIXED_NAME_FLAG, MOON_FLAG, RING_FLAG};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::row;
-use crate::format::save::alloc::SlotTable;
+use crate::format::save::alloc::{Slot, SlotTable};
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::system_spec::BodySpec;
 use crate::format::save::write::add_system::{
     self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
 };
-use crate::format::save::write::asteroid_names;
+use crate::format::save::write::asteroid_names::{self, Pool};
 use crate::format::save::write::bodies::{Stored, frame, grow_past, number};
 use crate::format::save::write::id_list::{list_planets, unlist_planets};
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::planet_entry::{list_moon, unlist_moon};
+use crate::format::save::write::planet_modifier;
+use crate::format::save::write::remove_system::return_asteroid_names_of;
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::check_placement;
 use crate::ops::rules::check_name;
 use crate::ops::rules::named;
-use crate::ops::{NewBody, Op, OpError, Plan, Planned, Subject};
+use crate::ops::{BodyName, NewBody, NewModifier, Op, OpError, Plan, Planned, Subject};
 use crate::plural;
 use crate::projections::geometry::{Body, drawn_radius, normalised, point, reach};
 use crate::projections::name::{NameTemplate, NameVariable};
@@ -41,19 +45,11 @@ pub(crate) fn plan_add(
     spec: &NewBody,
     at: OrbitPlacement,
 ) -> Result<Planned, OpError> {
-    let angle = normalised(at.angle);
-    let body_spec = BodySpec {
-        class: spec.class.clone(),
-        size: spec.size,
-        orbit: at.radius,
-        angle,
-        deposits: spec.deposits.clone(),
-        ring: spec.ring,
-        ..BodySpec::default()
-    };
-    check_body(&body_spec)?;
     check_spec(spec)?;
     check_placement(at.radius, at.angle)?;
+    for moon in &spec.moons {
+        check_placement(moon.at.radius, moon.at.angle)?;
+    }
     if !s.graph.systems.contains_key(&system) {
         return Err(OpError::UnknownSystem(system));
     }
@@ -66,30 +62,189 @@ pub(crate) fn plan_add(
         None => None,
     };
     let centre = parent.map_or((0.0, 0.0), |p| p.at);
+    let angle = normalised(at.angle);
     let (x, y) = point(centre, at.radius, angle);
-    let name = match &spec.name {
-        Some(typed) => NameTemplate {
-            literal: true,
-            ..NameTemplate::plain(typed)
-        },
-        None => numbered(s, system, &stored, spec.moon_of)?,
+    let pick = match spec.asteroid {
+        true => Some(asteroid_name(s, system)?),
+        false => None,
+    };
+    let name = match (&spec.name, &pick) {
+        (_, Some(pick)) => pick.name.clone(),
+        (Some(name), None) => written_name(name),
+        (None, None) => numbered(s, system, &stored, spec.moon_of)?,
     };
 
     let mut planets = SlotTable::planets(&s.doc)?;
-    let mut deposits = match spec.deposits.is_empty() {
-        true => None,
-        false => Some(SlotTable::deposits(&s.doc)?),
+    let has_deposits = std::iter::once(spec)
+        .chain(spec.moons.iter().map(|moon| &moon.spec))
+        .any(|body| !body.deposits.is_empty());
+    let mut deposits = match has_deposits {
+        true => Some(SlotTable::deposits(&s.doc)?),
+        false => None,
     };
     let slot = planets.take();
     let id = slot.id();
-    let body = add_system::Body {
-        spec: &body_spec,
-        star: false,
+    let moon_slots: Vec<Slot> = spec.moons.iter().map(|_| planets.take()).collect();
+    let moon_ids: Vec<u32> = moon_slots.iter().map(|slot| slot.id()).collect();
+    let mut tables = Tables {
+        planets: &mut planets,
+        deposits: deposits.as_mut(),
+    };
+    let new = NewEntry {
+        spec,
         name: &name,
-        x,
-        y,
+        at: (x, y),
+        orbit: at.radius,
+        angle,
         moon_of: spec.moon_of,
-        moons: Vec::new(),
+        moons: moon_ids.clone(),
+    };
+    write_new(plan, s, system, &new, slot, &mut tables)?;
+    let mut added = vec![Body {
+        id,
+        parent: spec.moon_of,
+        at: (x, y),
+        orbit: at.radius,
+    }];
+    let mut letters = 0;
+    for (moon, slot) in spec.moons.iter().zip(moon_slots) {
+        let moon_angle = normalised(moon.at.angle);
+        let moon_at = point((x, y), moon.at.radius, moon_angle);
+        let moon_name = match &moon.spec.name {
+            Some(name) => written_name(name),
+            None => {
+                letters += 1;
+                format(
+                    MOON_NAME,
+                    vec![
+                        (PARENT_VAR, name.clone()),
+                        (NUMERAL_VAR, literal(&letter(letters - 1))),
+                    ],
+                )
+            }
+        };
+        let new = NewEntry {
+            spec: &moon.spec,
+            name: &moon_name,
+            at: moon_at,
+            orbit: moon.at.radius,
+            angle: moon_angle,
+            moon_of: Some(id),
+            moons: Vec::new(),
+        };
+        write_new(plan, s, system, &new, slot, &mut tables)?;
+        added.push(Body {
+            id: slot.id(),
+            parent: Some(id),
+            at: moon_at,
+            orbit: moon.at.radius,
+        });
+    }
+    if let Some(entry) = pick.and_then(|pick| pick.entry) {
+        plan.erase(&s.doc, Subject::Record(entry), entry)?;
+    }
+    let listed: Vec<u32> = std::iter::once(id)
+        .chain(moon_ids.iter().copied())
+        .collect();
+    list_planets(plan.edit(&s.doc, system)?, &listed)?;
+    if let Some(parent) = spec.moon_of {
+        list_moon(plan.edit_planet(&s.doc, parent, system)?, id)?;
+    }
+
+    let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
+    after.extend(added.iter().copied());
+    let reached = added
+        .iter()
+        .map(|body| reach(&after, body))
+        .fold(0.0, f64::max);
+    let whose = match spec.moon_of {
+        Some(parent) => format!("moon #{id} of planet #{parent} in"),
+        None => format!("planet #{id} to"),
+    };
+    let description = format!(
+        "Added {whose} {} ({}, size {}) at orbit {} at {}°{}",
+        named(&s.graph, system),
+        spec.class,
+        spec.size,
+        number(at.radius),
+        number(angle),
+        with(spec),
+    );
+    let inverse = match moon_ids.is_empty() {
+        true => Op::RemoveBody { body: id },
+        false => Op::Batch {
+            description: format!("Undo of \"{description}\""),
+            ops: moon_ids
+                .iter()
+                .rev()
+                .chain(std::iter::once(&id))
+                .map(|&body| Op::RemoveBody { body })
+                .collect(),
+        },
+    };
+    grow_past(plan, s, system, reached, description, inverse)
+}
+
+/// ", with 2 moons and 3 deposits", counting the moons' deposits too; nothing when there
+/// are neither.
+fn with(spec: &NewBody) -> String {
+    let deposits = spec.deposits.len()
+        + spec
+            .moons
+            .iter()
+            .map(|moon| moon.spec.deposits.len())
+            .sum::<usize>();
+    let mut parts = Vec::new();
+    if !spec.moons.is_empty() {
+        parts.push(plural(spec.moons.len(), "moon"));
+    }
+    if deposits > 0 {
+        parts.push(plural(deposits, "deposit"));
+    }
+    match parts.is_empty() {
+        true => String::new(),
+        false => format!(", with {}", parts.join(" and ")),
+    }
+}
+
+/// The tables an add takes its slots from.
+struct Tables<'t> {
+    planets: &'t mut SlotTable,
+    deposits: Option<&'t mut SlotTable>,
+}
+
+/// One body of an add as its entry reads, its point relative to the system's centre.
+struct NewEntry<'a> {
+    spec: &'a NewBody,
+    name: &'a NameTemplate,
+    at: (f64, f64),
+    orbit: f64,
+    angle: f64,
+    moon_of: Option<u32>,
+    moons: Vec<u32>,
+}
+
+/// Write one body of an add into planet `slot`, with its deposits, modifiers and features.
+fn write_new(
+    plan: &mut Plan,
+    s: &Session,
+    system: u32,
+    new: &NewEntry<'_>,
+    slot: Slot,
+    tables: &mut Tables<'_>,
+) -> Result<(), OpError> {
+    let (timed, features) = modifier_lines(slot.id(), &new.spec.modifiers)?;
+    let spec = body_spec(new.spec, new.orbit, new.angle);
+    let body = add_system::Body {
+        spec: &spec,
+        star: false,
+        name: new.name,
+        x: new.at.0,
+        y: new.at.1,
+        moon_of: new.moon_of,
+        moons: new.moons.clone(),
+        timed,
+        features,
     };
     write_body(
         plan,
@@ -97,40 +252,85 @@ pub(crate) fn plan_add(
         system,
         &body,
         slot,
-        &mut planets,
-        deposits.as_mut(),
-    )?;
-    list_planets(plan.edit(&s.doc, system)?, &[id])?;
-    if let Some(parent) = spec.moon_of {
-        list_moon(plan.edit_planet(&s.doc, parent, system)?, id)?;
-    }
+        tables.planets,
+        tables.deposits.as_deref_mut(),
+    )
+}
 
-    let added = Body {
-        id,
-        parent: spec.moon_of,
-        at: (x, y),
-        orbit: at.radius,
-    };
-    let mut after: Vec<Body> = stored.iter().map(|b| b.body).collect();
-    after.push(added);
-    let whose = match spec.moon_of {
-        Some(parent) => format!("moon #{id} of planet #{parent} in"),
-        None => format!("planet #{id} to"),
-    };
-    let with = match spec.deposits.len() {
-        0 => String::new(),
-        n => format!(", with {}", plural(n, "deposit")),
-    };
-    let description = format!(
-        "Added {whose} {} ({}, size {}) at orbit {} at {}°{with}",
-        named(&s.graph, system),
-        spec.class,
-        spec.size,
-        number(at.radius),
-        number(angle),
-    );
-    let inverse = Op::RemoveBody { body: id };
-    grow_past(plan, s, system, reach(&after, &added), description, inverse)
+/// A body's `timed_modifier` items as (modifier, days), and its `planet_modifier` lines.
+type ModifierLines<'a> = (Vec<(&'a str, i32)>, Vec<&'a str>);
+
+/// The `timed_modifier` items and `planet_modifier` lines of planet `id`, refused when a
+/// modifier with days, or a feature, is listed twice.
+fn modifier_lines(id: u32, modifiers: &[NewModifier]) -> Result<ModifierLines<'_>, OpError> {
+    let mut timed = Vec::new();
+    let mut features: Vec<&str> = Vec::new();
+    for (i, modifier) in modifiers.iter().enumerate() {
+        let twice = modifiers[..i]
+            .iter()
+            .any(|earlier| earlier.modifier == modifier.modifier && !earlier.days.is_empty());
+        if twice && !modifier.days.is_empty() {
+            return Err(OpError::ModifierPresent(id, modifier.modifier.clone()));
+        }
+        timed.extend(
+            modifier
+                .days
+                .iter()
+                .map(|&days| (modifier.modifier.as_str(), days)),
+        );
+        if let Some(feature) = &modifier.feature {
+            if features.contains(&feature.as_str()) {
+                return Err(OpError::ModifierPresent(id, feature.clone()));
+            }
+            features.push(feature);
+        }
+    }
+    Ok((timed, features))
+}
+
+/// What the add-system writer takes of `spec`, standing at `orbit` and `angle`. A fixed name
+/// takes the fixed-name bit when the spec says so.
+fn body_spec(spec: &NewBody, orbit: f64, angle: f64) -> BodySpec {
+    BodySpec {
+        class: spec.class.clone(),
+        size: spec.size,
+        orbit,
+        angle,
+        entity: spec.entity.unwrap_or(0),
+        deposits: spec.deposits.clone(),
+        entity_name: spec.entity_name.clone(),
+        ring: spec.ring,
+        asteroid: spec.asteroid,
+        name: match &spec.name {
+            Some(BodyName::Typed(name) | BodyName::Fixed(name)) if spec.fixed_name => {
+                Some(name.clone())
+            }
+            _ => None,
+        },
+        ..BodySpec::default()
+    }
+}
+
+fn written_name(name: &BodyName) -> NameTemplate {
+    match name {
+        BodyName::Typed(typed) => NameTemplate {
+            literal: true,
+            ..NameTemplate::plain(typed)
+        },
+        BodyName::Fixed(key) => NameTemplate::plain(key),
+    }
+}
+
+/// How a spec names a body named `name`: `None` for a name built from variables, which the
+/// add numbers again.
+pub(crate) fn body_name(name: NameTemplate) -> Option<BodyName> {
+    if !name.variables.is_empty() {
+        return None;
+    }
+    Some(match name.literal {
+        true => BodyName::Typed(name.key),
+        false => BodyName::Fixed(name.key),
+    })
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<Planned, OpError> {
@@ -181,6 +381,7 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         deposits.settle(plan, &s.doc)?;
     }
     unlist_planets(plan.edit(&s.doc, system)?, &[planet])?;
+    return_asteroid_names_of(plan, s, &BTreeSet::from([planet]))?;
     if let Some(parent) = parent {
         unlist_moon(plan.edit_planet(&s.doc, parent, system)?, planet)?;
     }
@@ -194,14 +395,63 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     })
 }
 
-/// What [`check_body`] leaves to the add: the typed name, which the body spec does not
-/// hold, and a moon's ring.
+/// Refuse a spec whose body or moons [`check_body`] refuses, or whose moons break the rules
+/// [`Op::AddBody`] states.
 fn check_spec(spec: &NewBody) -> Result<(), OpError> {
-    if let Some(name) = &spec.name {
+    check_one(spec)?;
+    if spec.asteroid {
+        if spec.name.is_some() {
+            return Err(OpError::FixedNameNotAllowed(
+                "an asteroid named from the pool",
+            ));
+        }
+        if !spec.moons.is_empty() {
+            return Err(OpError::MoonsNotAllowed("an asteroid"));
+        }
+        if spec.moon_of.is_some() {
+            return Err(OpError::AsteroidNotAllowed("a moon"));
+        }
+    }
+    if spec.moon_of.is_some() {
+        if spec.ring {
+            return Err(OpError::RingNotAllowed("a moon"));
+        }
+        if !spec.moons.is_empty() {
+            return Err(OpError::MoonsNotAllowed("a moon"));
+        }
+    }
+    for moon in &spec.moons {
+        check_one(&moon.spec)?;
+        if moon.spec.ring {
+            return Err(OpError::RingNotAllowed("a moon"));
+        }
+        if moon.spec.asteroid {
+            return Err(OpError::AsteroidNotAllowed("a moon"));
+        }
+        if !moon.spec.moons.is_empty() {
+            return Err(OpError::MoonsNotAllowed("a moon"));
+        }
+        if let Some(parent) = moon.spec.moon_of {
+            let reason = format!("a new planet's moon orbits it, not planet {parent}");
+            return Err(OpError::InvalidParent { reason });
+        }
+    }
+    Ok(())
+}
+
+/// One body of a spec, its moons aside: what [`check_body`] refuses, its name and its
+/// modifiers.
+fn check_one(spec: &NewBody) -> Result<(), OpError> {
+    check_body(&body_spec(spec, 0.0, 0.0))?;
+    if let Some(BodyName::Typed(name) | BodyName::Fixed(name)) = &spec.name {
         check_name(name)?;
     }
-    if spec.ring && spec.moon_of.is_some() {
-        return Err(OpError::RingNotAllowed("a moon"));
+    for modifier in &spec.modifiers {
+        planet_modifier::check_new(
+            &modifier.modifier,
+            &modifier.days,
+            modifier.feature.as_deref(),
+        )?;
     }
     Ok(())
 }
@@ -306,21 +556,45 @@ fn variable<'a>(name: &'a NameTemplate, var: &str) -> Option<&'a NameTemplate> {
         .map(|v| &v.value)
 }
 
-/// The spec that adds the body `node` holds back: its class, size, ring, deposits, and its
-/// name when it was typed rather than numbered.
-fn spec_of(doc: &Document, node: &crate::cst::Node, src: &[u8], moon_of: Option<u32>) -> NewBody {
-    let name = read::name(node, src);
+/// A name from the save's pool of asteroid names for an asteroid of system `system`, and
+/// the pool entry it takes.
+fn asteroid_name(s: &Session, system: u32) -> Result<asteroid_names::Pick, OpError> {
+    let key = s
+        .graph
+        .systems
+        .get(&system)
+        .map(|node| node.name.key.clone())
+        .unwrap_or_default();
+    let mut picks = Pool::read(&s.doc).pick(&s.doc, &key, 1)?;
+    Ok(picks.remove(0))
+}
+
+/// The spec that adds the body `node` holds back, its moons aside: its class, size, ring,
+/// model, live deposits, modifiers and features, and its name unless it was numbered.
+pub(crate) fn spec_of(
+    doc: &Document,
+    node: &crate::cst::Node,
+    src: &[u8],
+    moon_of: Option<u32>,
+) -> NewBody {
     let flags = read::scalar_u32(node, keys::BINARY_FLAGS, src).unwrap_or(0);
+    let name = body_name(read::name(node, src));
     NewBody {
         class: read::text(node, keys::PLANET_CLASS, src),
         size: read::scalar_u32(node, keys::PLANET_SIZE, src).unwrap_or_default(),
         moon_of,
-        name: (name.literal && name.variables.is_empty()).then_some(name.key),
+        fixed_name: name.is_some() && flags & FIXED_NAME_FLAG != 0,
+        name,
         deposits: read::ids(node, keys::DEPOSITS, src)
             .into_iter()
             .filter_map(|id| deposit_kind(doc, id))
             .collect(),
         ring: flags & RING_FLAG != 0 && flags & MOON_FLAG == 0,
+        asteroid: asteroid_names::parts(&read::name(node, src)).is_some(),
+        entity: read::scalar_u32(node, keys::ENTITY, src),
+        entity_name: read::scalar(node, keys::ENTITY_NAME, src).map(str::to_owned),
+        modifiers: planet_modifier::read_all(node, src),
+        moons: Vec::new(),
     }
 }
 
@@ -331,7 +605,7 @@ fn deposit_kind(doc: &Document, id: u32) -> Option<String> {
 }
 
 /// Where `body` stands about the point a spec with `moon_of` places it from.
-fn placement(stored: &[Stored], body: &Body, moon_of: Option<u32>) -> OrbitPlacement {
+pub(crate) fn placement(stored: &[Stored], body: &Body, moon_of: Option<u32>) -> OrbitPlacement {
     let centre = moon_of
         .and_then(|parent| stored.iter().find(|b| b.body.id == parent))
         .map_or((0.0, 0.0), |parent| parent.body.at);

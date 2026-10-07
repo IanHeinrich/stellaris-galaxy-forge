@@ -12,7 +12,7 @@ use crate::format::save::write::planet_entry::PlanetEntry;
 use crate::format::save::write::timed_modifiers::{self, End, ItemEdit};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
-use crate::ops::{Edit, Op, OpError, ParseAt, Plan, Planned, StarEdit};
+use crate::ops::{Edit, NewModifier, Op, OpError, ParseAt, Plan, Planned, StarEdit};
 use crate::projections::read;
 use crate::session::Session;
 use crate::span::Span;
@@ -53,13 +53,7 @@ pub(crate) fn plan_add(
     feature: Option<&str>,
 ) -> Result<Planned, OpError> {
     let (node, src, system) = planet(s, id, modifier, feature)?;
-    let count = u32::try_from(days.len()).unwrap_or(u32::MAX);
-    if count > MAX_MODIFIER_COPIES || (count == 0 && feature.is_none()) {
-        return Err(OpError::ModifierCopies(count));
-    }
-    if days.contains(&0) {
-        return Err(OpError::ModifierDays);
-    }
+    check_days(days, feature)?;
     if timed_days(&node, src, modifier).next().is_some() {
         return Err(OpError::ModifierPresent(id, modifier.to_owned()));
     }
@@ -148,6 +142,72 @@ pub(crate) fn plan_remove(
     })
 }
 
+/// Refuse a modifier added for `days`: more items than `MAX_MODIFIER_COPIES`, none without
+/// a feature, and an item of 0 days.
+fn check_days(days: &[i32], feature: Option<&str>) -> Result<(), OpError> {
+    let count = u32::try_from(days.len()).unwrap_or(u32::MAX);
+    if count > MAX_MODIFIER_COPIES || (count == 0 && feature.is_none()) {
+        return Err(OpError::ModifierCopies(count));
+    }
+    if days.contains(&0) {
+        return Err(OpError::ModifierDays);
+    }
+    Ok(())
+}
+
+/// Refuse a modifier a new body is written with, as [`plan_add`] refuses one for a planet
+/// the save holds.
+pub(crate) fn check_new(
+    modifier: &str,
+    days: &[i32],
+    feature: Option<&str>,
+) -> Result<(), OpError> {
+    check_text("a modifier", modifier, Form::Bare)?;
+    if let Some(feature) = feature {
+        check_text("a planet feature", feature, Form::Bare)?;
+    }
+    check_days(days, feature)
+}
+
+/// The modifiers and features of planet `node`, as a [`NewBody`] writes them back: a feature
+/// pairs with the modifier its name holds after `pm_`, as the game names them, when the
+/// planet has that; the others stand alone. An item whose days are not a number is left out.
+pub(crate) fn read_all(node: &Node, src: &[u8]) -> Vec<NewModifier> {
+    let mut modifiers: Vec<NewModifier> = Vec::new();
+    for item in timed_items(node, src) {
+        let modifier = read::text(item, keys::MODIFIER, src);
+        let Ok(days) = read::text(item, keys::DAYS, src).parse() else {
+            continue;
+        };
+        match modifiers.iter_mut().find(|m| m.modifier == modifier) {
+            Some(held) => held.days.push(days),
+            None => modifiers.push(NewModifier {
+                modifier,
+                days: vec![days],
+                feature: None,
+            }),
+        }
+    }
+    let features = node
+        .find_all(keys::PLANET_MODIFIER, src)
+        .filter_map(|line| line.scalar_str(src));
+    for feature in features {
+        let named = feature.strip_prefix("pm_").unwrap_or(feature);
+        match modifiers
+            .iter_mut()
+            .find(|m| m.modifier == named && m.feature.is_none())
+        {
+            Some(held) => held.feature = Some(feature.to_owned()),
+            None => modifiers.push(NewModifier {
+                modifier: named.to_owned(),
+                days: Vec::new(),
+                feature: Some(feature.to_owned()),
+            }),
+        }
+    }
+    modifiers
+}
+
 fn add_description(id: u32, modifier: &str, days: &[i32], feature: Option<&str>) -> String {
     let what = match feature {
         Some(feature) => format!("planet feature {feature} ({modifier})"),
@@ -183,10 +243,15 @@ fn timed_days<'a>(
     src: &'a [u8],
     modifier: &'a str,
 ) -> impl Iterator<Item = (usize, String)> {
+    timed_items(node, src)
+        .filter(move |item| read::text(item, keys::MODIFIER, src) == modifier)
+        .map(move |item| (item.span().start, read::text(item, keys::DAYS, src)))
+}
+
+/// The planet's `timed_modifier` items, in order.
+fn timed_items<'a>(node: &'a Node, src: &'a [u8]) -> impl Iterator<Item = &'a Node> {
     node.find(keys::TIMED_MODIFIER, src)
         .and_then(|block| block.find(keys::ITEMS, src))
         .into_iter()
         .flat_map(|items| items.children())
-        .filter(move |item| read::text(item, keys::MODIFIER, src) == modifier)
-        .map(move |item| (item.span().start, read::text(item, keys::DAYS, src)))
 }

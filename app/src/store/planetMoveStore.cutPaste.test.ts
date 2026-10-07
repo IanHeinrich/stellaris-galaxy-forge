@@ -3,15 +3,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
+import type { NewBody } from "../generated/NewBody";
 import type { Op } from "../generated/Op";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { mockedIpc } from "../test/ipc";
-import { openFixtureSave } from "./editorFixture";
+import { run, type CommandEffects } from "./commands";
+import { useDetailsStore } from "./detailsStore";
+import { openFixtureSave, sessionError } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
-import { editResult } from "./fixture";
+import { useFileSessionStore } from "./fileSessionStore";
+import { editResult, name, OPEN_RESULT, planetSummary, systemDetails } from "./fixture";
 import { bodyEntry, useInspectorStore } from "./inspectorStore";
-import { cutAvailability, pasteCheckOf, usePlanetMoveStore } from "./planetMoveStore";
+import {
+  cutAvailability,
+  noteScenePointer,
+  pasteCheckOf,
+  pastesInto,
+  usePlanetMoveStore,
+} from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 import { flush } from "../test/flush";
 
@@ -282,5 +292,263 @@ describe("after an edit", () => {
     await useEditorStore.getState().applyOp({ type: "MoveSystem", system: 3, x: 1, y: 1 });
     await flush();
     expect(moves().cut).toBeNull();
+  });
+});
+
+/** A body as the core builds a copy of one: `planetClass` of size 16, nothing on it. */
+function spec(planetClass: string): NewBody {
+  return {
+    class: planetClass,
+    size: 16,
+    moon_of: null,
+    name: null,
+    deposits: [],
+    ring: false,
+    entity: null,
+    entity_name: null,
+    modifiers: [],
+    moons: [],
+  };
+}
+
+const CONTINENTAL = spec("pc_continental");
+const ARID = spec("pc_arid");
+const PASTE: Op = { type: "Batch", description: "Pasted 2 planets into Alpha Centauri", ops: [] };
+const effects: CommandEffects = { focusSearch: vi.fn(), browseInitializers: vi.fn() };
+
+describe("copy and paste", () => {
+  beforeEach(() => {
+    mockedIpc.copyBodies.mockResolvedValue([CONTINENTAL, ARID]);
+    mockedIpc.pasteBodiesOp.mockResolvedValue(PASTE);
+  });
+
+  it("copies the selection as the core builds it, named as the system lists it", async () => {
+    const planets = [
+      planetSummary({ id: EARTH, name: name("Earth"), name_key: "Earth" }),
+      planetSummary({ id: MARS, name: name("Mars"), name_key: "Mars" }),
+      planetSummary({ id: LUNA, name: name("Luna"), name_key: "Luna", moon: true, parent: EARTH }),
+    ];
+    useDetailsStore.setState({ details: new Map([[SOL, systemDetails({ id: SOL, planets })]]) });
+    await selectTwo();
+    useSceneStore.getState().toggleBody(SOL, LUNA);
+    expect(await moves().copySelection()).toBe(true);
+    expect(mockedIpc.copyBodies).toHaveBeenCalledWith([EARTH, MARS, LUNA]);
+    expect(moves().copy).toEqual({
+      copies: [CONTINENTAL, ARID],
+      planets: [
+        { name: "Earth", moon: false },
+        { name: "Mars", moon: false },
+      ],
+      from: SOL,
+    });
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+  });
+
+  it("pastes the copies into any system as new bodies, its own included, and keeps them to paste again", async () => {
+    await selectTwo();
+    await moves().copySelection();
+    expect(pastesInto(moves(), SOL)).toBe(true);
+    expect(await moves().paste(CENTAURI)).toBe(true);
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenCalledWith(CENTAURI, [CONTINENTAL, ARID], null);
+    expect(mockedIpc.applyOp).toHaveBeenCalledWith(PASTE);
+    expect(mockedIpc.planetMoveOp).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().selection).toEqual([CENTAURI]);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+
+    expect(await moves().paste(SOL)).toBe(true);
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenLastCalledWith(SOL, [CONTINENTAL, ARID], null);
+    expect(mockedIpc.applyOp).toHaveBeenCalledTimes(2);
+    expect(moves().copy?.copies).toEqual([CONTINENTAL, ARID]);
+  });
+
+  it("pastes a lone copy at the clicked orbit in the system view, and stays there", async () => {
+    mockedIpc.copyBodies.mockResolvedValue([CONTINENTAL]);
+    useSceneStore.getState().enterSystem(SOL);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    await moves().copySelection();
+    const at = { radius: 108, angle: 20 };
+    expect(await moves().paste(SOL, at)).toBe(true);
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenCalledWith(SOL, [CONTINENTAL], at);
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: SOL });
+  });
+
+  it("sends a group the point where the paste was asked, so it lines up at that angle", async () => {
+    await selectTwo();
+    await moves().copySelection();
+    const at = { radius: 108, angle: 20 };
+    await moves().paste(CENTAURI, at);
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenCalledWith(CENTAURI, [CONTINENTAL, ARID], at);
+  });
+
+  it("replaces a cut with a copy, and a copy with a cut", async () => {
+    await selectTwo();
+    moves().cutSelection();
+    await moves().copySelection();
+    expect(moves().cut).toBeNull();
+    expect(moves().copy?.copies).toEqual([CONTINENTAL, ARID]);
+
+    moves().cutSelection();
+    expect(moves().copy).toBeNull();
+    expect(moves().cut?.planets).toEqual([EARTH, MARS]);
+  });
+
+  it("drops a copy that lands after a newer cut", async () => {
+    let answer!: (copies: NewBody[]) => void;
+    mockedIpc.copyBodies.mockImplementationOnce(
+      () => new Promise<NewBody[]>((resolve) => (answer = resolve)),
+    );
+    await selectTwo();
+    const copying = moves().copySelection();
+    moves().cutSelection();
+    answer([CONTINENTAL]);
+    expect(await copying).toBe(false);
+    expect(moves().copy).toBeNull();
+    expect(moves().cut?.planets).toEqual([EARTH, MARS]);
+  });
+
+  it("drops a copy that lands after Esc or after another file opens", async () => {
+    const late = () => {
+      let answer!: (copies: NewBody[]) => void;
+      mockedIpc.copyBodies.mockImplementationOnce(
+        () => new Promise<NewBody[]>((resolve) => (answer = resolve)),
+      );
+      return (copies: NewBody[]) => answer(copies);
+    };
+    await selectTwo();
+    let answer = late();
+    let copying = moves().copySelection();
+    run("clearSelection", false, effects);
+    answer([CONTINENTAL]);
+    expect(await copying).toBe(false);
+    expect(moves().copy).toBeNull();
+
+    await selectTwo();
+    answer = late();
+    copying = moves().copySelection();
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    answer([CONTINENTAL]);
+    expect(await copying).toBe(false);
+    expect(moves().copy).toBeNull();
+  });
+
+  it("clears a copy on Esc, where a cut would be cancelled", async () => {
+    await selectTwo();
+    await moves().copySelection();
+    useSceneStore.getState().enterSystem(SOL);
+    run("clearSelection", false, effects);
+    expect(moves().copy).toBeNull();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "system", id: SOL });
+  });
+
+  it("keeps a copy when another file opens, and drops a cut", async () => {
+    await selectTwo();
+    await moves().copySelection();
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    expect(moves().copy?.copies).toEqual([CONTINENTAL, ARID]);
+
+    await selectTwo();
+    moves().cutSelection();
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    expect(moves().cut).toBeNull();
+  });
+
+  it("shows the core's refusal of a copy, and keeps the cut", async () => {
+    await selectTwo();
+    moves().cutSelection();
+    const refusal = "Sol is a star: only planets and moons can be copied";
+    mockedIpc.copyBodies.mockRejectedValue({ kind: "refused", message: refusal });
+    expect(await moves().copySelection()).toBe(false);
+    expect(sessionError()).toBe(refusal);
+    expect(moves().cut?.planets).toEqual([EARTH, MARS]);
+    expect(moves().copy).toBeNull();
+  });
+
+  it("shows a refused paste, and keeps the copy", async () => {
+    await selectTwo();
+    await moves().copySelection();
+    mockedIpc.pasteBodiesOp.mockRejectedValue({ kind: "refused", message: "Saves before 4.0" });
+    expect(await moves().paste(CENTAURI)).toBe(false);
+    expect(sessionError()).toBe("Saves before 4.0");
+    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(moves().copy).not.toBeNull();
+  });
+});
+
+describe("Ctrl+X, Ctrl+C and Ctrl+V", () => {
+  beforeEach(() => {
+    mockedIpc.copyBodies.mockResolvedValue([CONTINENTAL]);
+    mockedIpc.pasteBodiesOp.mockResolvedValue(PASTE);
+  });
+
+  it("copy the planets selected in the system view, and paste them there or into the one selected system", async () => {
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    expect(run("copyPlanets", false, effects)).toBe(false);
+
+    useSceneStore.getState().enterSystem(SOL);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    expect(run("copyPlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.copyBodies).toHaveBeenCalledWith([EARTH]);
+
+    expect(run("pastePlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenLastCalledWith(SOL, [CONTINENTAL], null);
+
+    useSceneStore.getState().exitScene();
+    await useEditorStore.getState().select(BARNARD);
+    expect(run("pastePlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenLastCalledWith(BARNARD, [CONTINENTAL], null);
+
+    await useEditorStore.getState().clearSelection();
+    expect(run("pastePlanets", false, effects)).toBe(false);
+  });
+
+  it("paste a lone cut planet at the pointer, and several into the next free orbits", async () => {
+    await selectTwo();
+    moves().cutSelection();
+    useSceneStore.getState().enterSystem(CENTAURI);
+    noteScenePointer({ system: CENTAURI, x: 0, y: 108 });
+    expect(run("pastePlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.planetMoveOp).toHaveBeenLastCalledWith([EARTH, MARS], CENTAURI, null);
+
+    useSceneStore.getState().enterSystem(SOL);
+    useSceneStore.getState().selectBody(SOL, JUPITER);
+    await flush();
+    moves().cutSelection();
+    useSceneStore.getState().enterSystem(CENTAURI);
+    expect(run("pastePlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.planetMoveOp).toHaveBeenLastCalledWith([JUPITER], CENTAURI, {
+      radius: 108,
+      angle: 90,
+    });
+    noteScenePointer(null);
+  });
+
+  it("paste a copied group at the pointer, lined up at its angle", async () => {
+    mockedIpc.copyBodies.mockResolvedValue([CONTINENTAL, ARID]);
+    await selectTwo();
+    await moves().copySelection();
+    useSceneStore.getState().enterSystem(CENTAURI);
+    noteScenePointer({ system: CENTAURI, x: 0, y: 108 });
+    expect(run("pastePlanets", false, effects)).toBe(true);
+    await flush();
+    expect(mockedIpc.pasteBodiesOp).toHaveBeenLastCalledWith(CENTAURI, [CONTINENTAL, ARID], {
+      radius: 108,
+      angle: 90,
+    });
+    noteScenePointer(null);
+  });
+
+  it("cut the planets selected in the system view, and leave a paste into their own system alone", async () => {
+    useSceneStore.getState().enterSystem(SOL);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    await flush();
+    expect(run("cutPlanets", false, effects)).toBe(true);
+    expect(moves().cut?.planets).toEqual([EARTH]);
+    expect(run("pastePlanets", false, effects)).toBe(false);
+    expect(mockedIpc.planetMoveOp).not.toHaveBeenCalled();
   });
 });

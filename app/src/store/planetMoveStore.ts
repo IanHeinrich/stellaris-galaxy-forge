@@ -1,16 +1,19 @@
 import { useEffect, useMemo } from "react";
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { NewBody } from "../generated/NewBody";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
 import type { PlanetMoveTargets } from "../generated/PlanetMoveTargets";
 import type { PlanetMoveWarning } from "../generated/PlanetMoveWarning";
 import { documentCapabilities } from "../lib/capabilities";
 import type { SystemDetails } from "../generated/SystemDetails";
-import { movingBodies, refusalLine } from "../lib/planetMove";
+import { bodyName } from "../lib/details/labels";
+import { movingBodies, placementAt, refusalLine, type MovedPlanet } from "../lib/planetMove";
 import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
+import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { sceneSystem, useSceneStore, type BodySelection } from "./sceneStore";
 
@@ -22,6 +25,19 @@ export interface PlanetCut {
   from: number;
   /** Where they may go, with the warnings each system gives. */
   targets: PlanetMoveTargets;
+}
+
+/**
+ * Planets copied and waiting for a paste as new bodies. The copies hold everything a paste
+ * needs, so they paste into another save too, and after the planets themselves are deleted.
+ */
+export interface PlanetCopy {
+  /** What the core built of the copied planets, their moons inside them. */
+  copies: readonly NewBody[];
+  /** The copied planets as named when copied, one per copy: a moon copied alone arrives as a planet. */
+  planets: readonly MovedPlanet[];
+  /** The system they were copied from, in the document they were copied from. */
+  from: number;
 }
 
 /** Where a planet may move as last read: its targets, or the failure to read them. */
@@ -38,6 +54,8 @@ export interface PlanetMoveState {
   /** Where the scene's body selection may move, fetched whenever it changes; null while on its way. */
   selectionTargets: PlanetMoveTargets | null;
   cut: PlanetCut | null;
+  /** The copied planets. At most one of `cut` and `copy` is set: each replaces the other. */
+  copy: PlanetCopy | null;
   /** The core's checks for destinations the cut's targets do not settle, by `checkKey`. */
   checks: ReadonlyMap<string, PlanetMoveCheck>;
   /**
@@ -53,12 +71,25 @@ export interface PlanetMoveState {
   cutSelection(): boolean;
   /** Drops the cut, and says whether there was one. */
   cancelCut(): boolean;
+  /**
+   * Copies the selection, replacing any cut or copy. False, with the core's refusal shown, when
+   * the core refuses it; false too with nothing selected or on a document without bodies to add.
+   */
+  copySelection(): Promise<boolean>;
+  /**
+   * Drops the cut, or a copy this document can paste, and says whether there was one. A copy
+   * still on its way is dropped too.
+   */
+  clearClipboard(): boolean;
   /** Asks the core what a paste of the cut onto `to`, at `at` if given, would meet; null with no cut. */
   checkPaste(to: number, at?: OrbitPlacement | null): Promise<PlanetMoveCheck | null>;
   /**
    * Moves the cut planets to `to` in one edit, a lone one at `at` if given, and the cut goes.
    * Two or more moved planets become the selection in `to`. In `to`'s view a lone one is
    * selected with its page open. On the galaxy map `to` becomes the selected system.
+   * A copy is added to `to` as new bodies in one edit instead, a lone one at `at`, the rest in
+   * the next free orbits. The copy stays to paste again, and on the galaxy map `to` becomes the
+   * selected system.
    */
   paste(to: number, at?: OrbitPlacement | null): Promise<boolean>;
   /**
@@ -80,6 +111,7 @@ export interface PlanetMoveState {
   refresh(): void;
   /** Asks again where the scene's body selection may move, as it has changed. */
   followSelection(): void;
+  /** Forgets what belonged to the open document, a copy on its way included. A copy made stays. */
   reset(): void;
 }
 
@@ -95,6 +127,31 @@ export function planetsCanMove(): boolean {
   return documentCapabilities(useFileSessionStore.getState()).planet_moves;
 }
 
+/** Whether the open document takes new bodies, and so copies of planets. */
+export function bodiesCanCopy(): boolean {
+  return documentCapabilities(useFileSessionStore.getState()).add_bodies;
+}
+
+/** Whether what `state` holds pastes into `to`: a cut into another system, a copy into any. */
+export function pastesInto(state: Pick<PlanetMoveState, "cut" | "copy">, to: number): boolean {
+  if (state.cut !== null) return state.cut.from !== to;
+  return state.copy !== null && bodiesCanCopy();
+}
+
+/** Where the pointer last stood in the system view, where a pasted lone planet goes. */
+let scenePointer: { system: number; x: number; y: number } | null = null;
+
+/** Notes the system view's pointer at world point (x, y) of `system`; null once it has left. */
+export function noteScenePointer(point: { system: number; x: number; y: number } | null): void {
+  scenePointer = point;
+}
+
+/** The orbit a lone planet pasted into `system` at the pointer goes to; null away from it. */
+export function pointerPlacement(system: number): OrbitPlacement | null {
+  if (scenePointer === null || scenePointer.system !== system) return null;
+  return placementAt(scenePointer.x, scenePointer.y);
+}
+
 /** Bumped by every selection change and reset, so a late answer for an older one is dropped. */
 let selectionAsk = 0;
 /** Bumped by every cut change and reset. */
@@ -103,6 +160,8 @@ let cutAsk = 0;
 let cutMade = 0;
 /** Bumped by every read of a page's planet's targets and every reset. */
 let planetAsk = 0;
+/** Bumped by every copy, cut, clear and reset, so a late copy does not land after any of them. */
+let copyAsk = 0;
 
 /** `planets` and the moons that move with them, as the read details list them. */
 function withMoons(planets: readonly number[]): number[] {
@@ -112,6 +171,18 @@ function withMoons(planets: readonly number[]): number[] {
       if (p.moon && p.parent !== null && ids.has(p.parent)) ids.add(p.id);
   }
   return [...ids];
+}
+
+/** The bodies of `ids` in `system` a copy takes, as named now: a moon goes inside its selected planet. */
+function copiedPlanets(system: number, ids: readonly number[]): MovedPlanet[] {
+  const read = useDetailsStore.getState().details.get(system);
+  const names = useGameDataStore.getState().names;
+  const planetOf = (id: number) => read?.planets.find((p) => p.id === id);
+  return movingBodies(ids, (id) => planetOf(id)?.parent ?? null).map((id) => {
+    const planet = planetOf(id);
+    if (planet === undefined) return { name: `#${id}`, moon: false };
+    return { name: bodyName(planet, names), moon: planet.moon === true };
+  });
 }
 
 export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
@@ -158,9 +229,28 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       });
   }
 
+  async function pasteCopy(
+    copy: PlanetCopy,
+    to: number,
+    at?: OrbitPlacement | null,
+  ): Promise<boolean> {
+    if (!bodiesCanCopy()) return false;
+    let op;
+    try {
+      op = await ipc.pasteBodiesOp(to, [...copy.copies], at ?? null);
+    } catch (e) {
+      useFileSessionStore.getState().setError(ipc.errorMessage(e));
+      return false;
+    }
+    if (!(await useEditorStore.getState().applyOp(op))) return false;
+    if (sceneSystem() === null) await useEditorStore.getState().select(to);
+    return true;
+  }
+
   return {
     selectionTargets: null,
     cut: null,
+    copy: null,
     checks: NO_CHECKS,
     planetTargets: null,
     lastMove: null,
@@ -174,8 +264,10 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       }
       cutAsk += 1;
       cutMade += 1;
+      copyAsk += 1;
       set({
         cut: { planets: availability.planets, from: selection.system, targets: selectionTargets },
+        copy: null,
         checks: NO_CHECKS,
       });
       return true;
@@ -185,6 +277,36 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       if (get().cut === null) return false;
       cutAsk += 1;
       set({ cut: null, checks: NO_CHECKS });
+      return true;
+    },
+
+    async copySelection() {
+      const selection = scene().bodySelection;
+      if (selection === null || !bodiesCanCopy()) return false;
+      const ask = ++copyAsk;
+      let copies;
+      try {
+        copies = await ipc.copyBodies([...selection.ids]);
+      } catch (e) {
+        if (ask === copyAsk) useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        return false;
+      }
+      if (ask !== copyAsk) return false;
+      const named = copiedPlanets(selection.system, selection.ids);
+      const planets =
+        named.length === copies.length
+          ? named
+          : copies.map(() => ({ name: "a planet", moon: false }));
+      cutAsk += 1;
+      set({ copy: { copies, planets, from: selection.system }, cut: null, checks: NO_CHECKS });
+      return true;
+    },
+
+    clearClipboard() {
+      copyAsk += 1;
+      if (get().cancelCut()) return true;
+      if (get().copy === null || !bodiesCanCopy()) return false;
+      set({ copy: null });
       return true;
     },
 
@@ -206,8 +328,8 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
     },
 
     async paste(to, at) {
-      const { cut } = get();
-      if (cut === null) return false;
+      const { cut, copy } = get();
+      if (cut === null) return copy !== null && pasteCopy(copy, to, at);
       const made = cutMade;
       const { planets } = cut;
       if (!(await get().move(planets, to, at))) return false;
@@ -272,6 +394,7 @@ export const usePlanetMoveStore = create<PlanetMoveState>((set, get) => {
       selectionAsk += 1;
       cutAsk += 1;
       planetAsk += 1;
+      copyAsk += 1;
       set({
         selectionTargets: null,
         cut: null,

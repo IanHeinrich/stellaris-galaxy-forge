@@ -2,7 +2,7 @@
 //! rolled again, is built from, named after its pool and given its Resource Abundance. And
 //! the planet class rules a class change in a save takes from the install.
 
-use sgf_core::ops::{NewBody, Op, PlanetClassRule, SystemSpec};
+use sgf_core::ops::{BodyName, NewBody, Op, PlanetClassRule, SystemSpec};
 use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, OrbitPlacement, SgfError};
 
@@ -186,9 +186,10 @@ pub fn body_for_save(
             class: body.class,
             size: body.size,
             moon_of: ask.parent,
-            name: ask.name,
+            name: ask.name.map(BodyName::Typed),
             deposits: body.deposits,
             ring: body.ring,
+            ..NewBody::default()
         },
         at: ask.at,
     })

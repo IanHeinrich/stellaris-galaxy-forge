@@ -151,6 +151,16 @@ fn run(cli: Cli) -> commands::Run {
             seed,
             &install.options(),
         ),
+        Some(Command::CopyPlanet {
+            sav,
+            bodies,
+            to,
+            at,
+            from,
+            out,
+        }) => {
+            commands::copy_planet::run(&sav, out.path.as_deref(), from.as_deref(), &bodies, to, at)
+        }
         Some(Command::Synth {
             systems,
             seed,

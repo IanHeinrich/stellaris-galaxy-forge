@@ -276,6 +276,14 @@ button.chip.jump:hover {
   margin-top: 6px;
 }
 
+/* The selection page's fields, all disabled at once while an edit's fresh reads are out. */
+.ins-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .ins-bulk {
   display: flex;
   flex-direction: column;

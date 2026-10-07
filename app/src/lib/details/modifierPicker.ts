@@ -40,29 +40,45 @@ export interface ModifierPickRow {
   description: string | null;
   /** The planet's class makes it a terraforming candidate with this modifier. */
   usual: boolean;
-  /** The planet has it already, so adding it again is refused. */
+  /** The planet has it already, so adding it again is refused; for several, every one has it. */
   held: boolean;
+  /** How many of several planets an add reaches, those without it; `null` for one planet. */
+  lacking: number | null;
   /** What the search matches, lower case: name, effects, category and keys. */
   search: string;
+}
+
+/** Whether a planet with the modifiers and features `has` has `modifier`, or the feature that applies it. */
+export function holdsModifier(
+  has: readonly string[],
+  modifier: string,
+  feature: string | null,
+): boolean {
+  return has.includes(modifier) || (feature !== null && has.includes(feature));
 }
 
 /**
  * The picker's rows for a body that has the modifiers and features `has`, by name. `usual` is the
  * terraforming candidate modifier the body's class links to, and `needs` says what terraforming
- * with a candidate modifier needs.
+ * with a candidate modifier needs. With `spread`, what each of several planets has, a row counts
+ * the planets without it.
  */
 export function modifierPickRows(
   choices: readonly ModifierChoice[],
   has: readonly string[],
   usual: string | null,
   needs: (modifier: string) => string,
+  spread?: readonly (readonly string[])[],
 ): ModifierPickRow[] {
-  const held = new Set(has);
   const rows = choices.map((choice): ModifierPickRow => {
     const label = choice.view.name || choice.view.key;
     const effects = choice.view.effects.map((e) => e.text);
     const need = choice.category === "Terraforming" ? needs(choice.modifier) : null;
     const described = [choice.description, need].filter((t): t is string => !!t).join("\n\n");
+    const lacking =
+      spread === undefined
+        ? null
+        : spread.filter((each) => !holdsModifier(each, choice.modifier, choice.feature)).length;
     return {
       choice,
       key: choice.feature ?? choice.modifier,
@@ -70,7 +86,8 @@ export function modifierPickRows(
       effects,
       description: described === "" ? null : described,
       usual: choice.modifier === usual,
-      held: held.has(choice.modifier) || (choice.feature !== null && held.has(choice.feature)),
+      held: lacking === null ? holdsModifier(has, choice.modifier, choice.feature) : lacking === 0,
+      lacking,
       search: searchText([
         label,
         effects.join(", "),

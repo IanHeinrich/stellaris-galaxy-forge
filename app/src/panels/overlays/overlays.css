@@ -378,6 +378,23 @@
   padding-bottom: 4px;
 }
 
+/* An entry with its key on the right of its label, and any warning under both. */
+.context-menu button.keyed {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 16px;
+  align-items: baseline;
+}
+
+.context-menu button.keyed > kbd {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.context-menu button.keyed > .warn {
+  grid-column: 1 / -1;
+}
+
 /* A warning under an entry's label, in the warning colour, whole in the tooltip too. */
 .context-menu button.hinted > .warn {
   display: block;

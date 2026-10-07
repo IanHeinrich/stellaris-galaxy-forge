@@ -1,12 +1,12 @@
 /**
  * How a body's page and menus edit it, whatever the document is: its fields, its removal, and its
  * deposits, modifiers, dig site and anomaly. `planetEditAdapterFor` is the one place a source is
- * chosen, and the save's ops are built here.
+ * chosen, and the save's ops are built here, as are those of `bodiesEdits`, which edits several
+ * selected save bodies at once.
  */
 import type { DocumentKind } from "../generated/DocumentKind";
+import type { ModifierView } from "../generated/ModifierView";
 import type { Op } from "../generated/Op";
-import type { PlanetClassRule } from "../generated/PlanetClassRule";
-import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetPage } from "../generated/PlanetPage";
 import type { PlanetPageDeposit } from "../generated/PlanetPageDeposit";
 import type { PlanetSummary } from "../generated/PlanetSummary";
@@ -18,10 +18,26 @@ import type {
   RowRefs,
 } from "../lib/details/picker";
 import type { ModifierRow } from "../lib/details/planetPage";
+import {
+  planAddDeposit,
+  planAddModifier,
+  planClass,
+  planFillDeposit,
+  planRemoveDeposit,
+  planRemoveModifier,
+  planRing,
+  planSize,
+  pickOf,
+  type BodiesPlan,
+  type SelectedBody,
+} from "../lib/details/bodiesEdit";
+import { classRule } from "../lib/details/planetClass";
 import { DEFAULT_MODEL } from "../lib/details/planetModel";
 import { PERMANENT } from "../lib/details/planetEdits";
 import { classForBodies } from "../lib/details/starBody";
+import { useDetailsStore } from "./detailsStore";
 import { useEditorStore } from "./editorStore";
+import { planetPageKey, useEntityStore } from "./entityStore";
 import { deletePlanet, removeColony } from "./planetRemoval";
 
 /** What a save's rows give back to remove one: the deposit, the page's modifier row, the site's id. */
@@ -38,10 +54,6 @@ export interface SaveRowRefs {
 type NoRowRefs = { [K in keyof RowRefs]: never };
 
 const NOTHING = Promise.resolve(false);
-
-function rule(view: PlanetClassView): PlanetClassRule {
-  return { class: view.key, change: view.change, models: view.models };
-}
 
 /** A save body's edits, made by the save's own ops on body `id`. A save takes no ranges. */
 function saveEdits({ id }: PlanetBody): PlanetEditAdapter<SaveRowRefs> {
@@ -62,7 +74,7 @@ function saveEdits({ id }: PlanetBody): PlanetEditAdapter<SaveRowRefs> {
       const from = planetClasses.get(current);
       const to = planetClasses.get(key);
       if (from === undefined || to === undefined || key === current) return NOTHING;
-      return apply({ type: "SetBodyClass", body: id, from: rule(from), to: rule(to) });
+      return apply({ type: "SetBodyClass", body: id, from: classRule(from), to: classRule(to) });
     },
     setModel(key, current) {
       const entity = key === DEFAULT_MODEL ? null : key;
@@ -189,4 +201,109 @@ export function savePickerTarget(
     anomaly,
   };
   return bodyPickerTarget("save", system, summary, held, saveEdits({ system, id: summary.id }));
+}
+
+/**
+ * Whether an edit has left the pages of bodies `ids` or the details of `system` to be read again:
+ * until they are, a plan built from them would act on what the bodies held before.
+ */
+export function bodiesStale(system: number, ids: readonly number[]): boolean {
+  const { stalePages, pending } = useEntityStore.getState();
+  const { stale } = useDetailsStore.getState();
+  return (
+    stale.has(system) || ids.some((id) => stalePages.has(id) || pending.has(planetPageKey(id)))
+  );
+}
+
+/** What the selection page's rows give back to act on: a deposit type, and a planet's modifier row. */
+export interface BodiesRowRefs {
+  deposit: string;
+  modifier: ModifierRow;
+  digSite: never;
+}
+
+/** Several save bodies' edits: the planet page's, and a row's deposit or modifier for each body without it. */
+export interface BodiesEditAdapter extends PlanetEditAdapter<BodiesRowRefs> {
+  /** Adds a deposit of type `kind` to each body that has none. */
+  fillDeposit(kind: string): Promise<boolean>;
+  /** Adds the modifier or feature of `row`, for ever, to each planet without it. */
+  fillModifier(row: ModifierRow): Promise<boolean>;
+}
+
+/** What several bodies' edits read besides the bodies: where they are and the names their lines use. */
+export interface BodiesEditContext {
+  bodies: readonly SelectedBody[];
+  system: number;
+  /** The system as an undo line names it. */
+  where: string;
+  /** Held while one of the edits sharing it is out, so a second click sends nothing. */
+  lock: { sending: boolean };
+  depositName(kind: string): string;
+  className(key: string): string;
+  modifierViews: ReadonlyMap<string, ModifierView>;
+}
+
+/**
+ * Save bodies `context.bodies` of one system edited at once: each edit is one `Batch` of the ops
+ * their own pages send, over the bodies that take it, and `report` hears the line saying what it
+ * did and skipped once it is applied.
+ */
+export function bodiesEdits(
+  context: BodiesEditContext,
+  report: (note: string | null) => void,
+): BodiesEditAdapter {
+  const { bodies, where, lock } = context;
+  const ids = bodies.map((b) => b.id);
+  const send = async (planned: () => BodiesPlan): Promise<boolean> => {
+    if (lock.sending || bodiesStale(context.system, ids)) return false;
+    const { op, note } = planned();
+    if (op === null) {
+      report(note);
+      return false;
+    }
+    lock.sending = true;
+    try {
+      const applied = await useEditorStore.getState().applyOp(op);
+      if (applied) report(note);
+      return applied;
+    } finally {
+      lock.sending = false;
+    }
+  };
+  return {
+    ...NO_PLANET_EDITS,
+    timedModifiers: true,
+    setSize: ({ min, max }) => (min === max ? send(() => planSize(bodies, min, where)) : NOTHING),
+    setClass: (key, _current, planetClasses) =>
+      send(() => planClass(bodies, key, context.className(key), planetClasses, where)),
+    setRing: (ring) => send(() => planRing(bodies, ring, where)),
+    addDeposit: (kind) =>
+      send(() => planAddDeposit(bodies, kind, context.depositName(kind), where)),
+    fillDeposit: (kind) =>
+      send(() => planFillDeposit(bodies, kind, context.depositName(kind), where)),
+    removeDeposit: (kind) =>
+      send(() => planRemoveDeposit(bodies, kind, context.depositName(kind), where)),
+    addModifier: (choice, days) =>
+      send(() =>
+        planAddModifier(
+          bodies,
+          { modifier: choice.modifier, feature: choice.feature },
+          days,
+          choice.view.name || choice.view.key,
+          where,
+        ),
+      ),
+    fillModifier: (row) =>
+      send(() => planAddModifier(bodies, pickOf(row), null, row.view?.name || row.key, where)),
+    removeModifier: (row) =>
+      send(() =>
+        planRemoveModifier(
+          bodies,
+          row.key,
+          row.view?.name || row.key,
+          context.modifierViews,
+          where,
+        ),
+      ),
+  };
 }

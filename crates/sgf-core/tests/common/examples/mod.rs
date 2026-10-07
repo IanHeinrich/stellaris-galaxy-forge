@@ -144,7 +144,7 @@ pub fn meissa_v() -> Op {
             moon_of: None,
             name: None,
             deposits: vec!["d_minerals_2".to_owned()],
-            ring: false,
+            ..NewBody::default()
         },
         at: OrbitPlacement {
             radius: 45.0,

@@ -1,10 +1,11 @@
 import type { Bounds } from "../../../generated/Bounds";
-import { bodySize } from "./bodyFields";
+import { bodySize, rangeText } from "./bodyFields";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemNode } from "../../../generated/SystemNode";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { starTypeChoices, starTypeRows } from "../../../lib/details/starBody";
 import { currentStarBodies, STARS_NEED_GAME_DATA } from "../../../lib/details/starClass";
+import { typedNumber } from "../../../lib/text";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { BoundsField } from "../../BoundsField";
@@ -77,15 +78,18 @@ function StarTypeField({
 
 /**
  * A body's size, sent to `edits`, which refuses what its source can't take: a range, a fraction
- * or less than 1. A refused size puts the field back.
+ * or less than 1. A refused size puts the field back. For several bodies of different sizes,
+ * `mixed` leaves the field empty with their range in grey, and a typed size goes to them all.
  */
 export function SizeField({
   edits,
   size,
+  mixed = false,
   title = "Change the body's size",
 }: {
   edits: PlanetEditAdapter;
   size: Bounds | null;
+  mixed?: boolean;
   title?: string;
 }) {
   if (size === null) {
@@ -96,6 +100,21 @@ export function SizeField({
         value="none"
         disabledReason={NO_SIZE}
         onCommit={() => undefined}
+      />
+    );
+  }
+  if (mixed) {
+    return (
+      <TextField
+        kind="text"
+        label="Size"
+        title={title}
+        value=""
+        placeholder={`${rangeText(size)} (mixed)`}
+        onCommit={(text) => {
+          const typed = typedNumber(text);
+          if (typed !== null) void edits.setSize({ min: typed, max: typed }, size.min);
+        }}
       />
     );
   }

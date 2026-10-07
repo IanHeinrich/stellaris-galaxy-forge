@@ -16,6 +16,9 @@ export type KeyAction =
   | "focusSearch"
   | "undo"
   | "redo"
+  | "cutPlanets"
+  | "copyPlanets"
+  | "pastePlanets"
   | "save"
   | "saveAs"
   | "close"
@@ -83,6 +86,9 @@ const BINDINGS: readonly Binding[] = [
   { key: "z", mod: true, shift: false, action: "undo" },
   { key: "y", mod: true, action: "redo" },
   { key: "z", mod: true, shift: true, action: "redo" },
+  { key: "x", mod: true, shift: false, action: "cutPlanets" },
+  { key: "c", mod: true, shift: false, action: "copyPlanets" },
+  { key: "v", mod: true, shift: false, action: "pastePlanets" },
   { key: "a", mod: true, action: "selectAll" },
   { key: "`", action: "toggleScriptLayers" },
   { key: "~", action: "toggleScriptLayers" },

@@ -49,6 +49,7 @@ import type { BodyClassPick } from "../../generated/BodyClassPick";
 import { useGeneratorStore } from "../../store/generatorStore";
 import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
+import { placementAt } from "../../lib/planetMove";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import { until } from "../../test/wait";
 import { flush } from "../../test/flush";
@@ -227,6 +228,22 @@ describe("the system view's empty space", () => {
     );
   });
 
+  it("pastes a copied group where it was pressed", async () => {
+    const copies = [{ class: "pc_arid" }, { class: "pc_desert" }] as never[];
+    const planets = [
+      { name: "Earth", moon: false },
+      { name: "Mars", moon: false },
+    ];
+    vi.mocked(ipc.pasteBodiesOp).mockResolvedValue({ type: "Batch", description: "x", ops: [] });
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    usePlanetMoveStore.setState({ copy: { copies, planets, from: 0 } });
+    inSol(target);
+    menuItem(<SceneSpaceMenu target={target} frame={{}} />, "Paste 2 planets here").props.onClick();
+    await until(() =>
+      expect(ipc.pasteBodiesOp).toHaveBeenCalledWith(0, copies, placementAt(target.x, target.y)),
+    );
+  });
+
   it("offers no belt on a scenario", async () => {
     await openWith(SCENARIO_RESULT);
     inSol(target);
@@ -375,10 +392,12 @@ describe("moving planets", () => {
     useSceneStore.getState().toggleBody(SOL, MARS);
     const body = { kind: "body", system: SOL, id: EARTH } as const;
     openOn(body);
-    expect(menu()).toMatch(/<button[^>]*disabled=""[^>]*>Cut 2 planets<\/button>/);
+    expect(menu()).toMatch(
+      /<button[^>]*disabled=""[^>]*>Cut 2 planets<kbd>Ctrl\+X<\/kbd><\/button>/,
+    );
 
     await flush();
-    expect(menu()).toContain('role="menuitem">Cut 2 planets</button>');
+    expect(menu()).toContain('class="keyed">Cut 2 planets<kbd>Ctrl+X</kbd></button>');
     menuItem(<BodyMenu target={body} frame={{}} />, "Cut 2 planets").props.onClick();
     expect(moves().cut).toMatchObject({ planets: [EARTH, MARS], from: SOL });
 
@@ -390,7 +409,7 @@ describe("moving planets", () => {
     useSceneStore.getState().toggleBody(SOL, MARS);
     await flush();
     openOn(body);
-    expect(menu()).toContain(`disabled="" title="${escaped(reason)}">Cut 2 planets</button>`);
+    expect(menu()).toContain(`title="${escaped(reason)}">Cut 2 planets<kbd>Ctrl+X</kbd></button>`);
   });
 
   it("puts Paste first on a system's menu, with the first warning under it and all of them on hover", async () => {
@@ -400,13 +419,13 @@ describe("moving planets", () => {
 
     openOn({ kind: "system", id: CENTAURI });
     let html = menu();
-    expect(buttons(html)[0]).toBe("Paste 2 planets here");
+    expect(buttons(html)[0]).toBe("Paste 2 planets here Ctrl+V");
     expect(html).not.toContain("⚠");
 
     openOn({ kind: "system", id: BARNARD });
     html = menu();
     expect(buttons(html)[0]).toBe(
-      "Paste 2 planets here ⚠ Mars will change ownership to Hissman Consciousness about a month after you load (and 1 more)",
+      "Paste 2 planets here ⚠ Mars will change ownership to Hissman Consciousness about a month after you load (and 1 more) Ctrl+V",
     );
     expect(html).toContain(
       'title="Mars will change ownership to Hissman Consciousness about a month after you load\n' +
@@ -423,7 +442,7 @@ describe("moving planets", () => {
     moves().cutSelection();
     openOn({ kind: "system", id: SOL });
     expect(menu()).toContain(
-      'disabled="" title="These planets are already in Sol">Paste 2 planets here</button>',
+      'disabled="" title="These planets are already in Sol">Paste 2 planets here<kbd>Ctrl+V</kbd></button>',
     );
 
     useSceneStore.getState().selectBody(SOL, EARTH);
@@ -445,7 +464,7 @@ describe("moving planets", () => {
     await moves().checkPaste(CENTAURI, at);
     openOn(target);
     const label = "Paste Earth here (orbit 108 · 90°)";
-    expect(buttons(menu())[0]).toBe(label);
+    expect(buttons(menu())[0]).toBe(`${label} Ctrl+V`);
 
     drawnBy(menu);
     drawnButton(label).onClick();
@@ -456,7 +475,7 @@ describe("moving planets", () => {
     useSceneStore.getState().selectBody(SOL, EARTH);
     await flush();
     openOn({ kind: "body", system: SOL, id: EARTH });
-    expect(menu()).toContain('role="menuitem">Cut Earth</button>');
+    expect(menu()).toContain('class="keyed">Cut Earth<kbd>Ctrl+X</kbd></button>');
   });
 
   it("hides the map's tooltip while a menu is open", () => {
@@ -465,6 +484,34 @@ describe("moving planets", () => {
     expect(tooltip()).toContain("Sol");
     openOn({ kind: "system", id: SOL });
     expect(tooltip()).toBe("");
+  });
+
+  it("copies from a body's menu, and pastes a copy into any system, its own included", async () => {
+    const copies = [{ class: "pc_arid" }, { class: "pc_desert" }];
+    vi.mocked(ipc.copyBodies).mockResolvedValue(copies as never);
+    vi.mocked(ipc.pasteBodiesOp).mockResolvedValue({ type: "Batch", description: "x", ops: [] });
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    await selectBoth();
+    const body = { kind: "body", system: SOL, id: EARTH } as const;
+    openOn(body);
+    expect(menu()).toContain('class="keyed">Copy 2 planets<kbd>Ctrl+C</kbd></button>');
+    menuItem(<BodyMenu target={body} frame={{}} />, "Copy 2 planets").props.onClick();
+    await until(() => expect(moves().copy?.copies).toEqual(copies));
+
+    openOn({ kind: "system", id: SOL });
+    expect(menu()).toContain('class="context-menu-lead keyed">Paste 2 planets here<kbd>');
+    drawnBy(menu);
+    drawnButton("Paste 2 planets here").onClick();
+    await until(() => expect(ipc.pasteBodiesOp).toHaveBeenCalledWith(SOL, copies, null));
+    expect(ipc.planetMoveCheck).not.toHaveBeenCalled();
+
+    useFileSessionStore.setState({
+      capabilities: { ...useFileSessionStore.getState().capabilities!, add_bodies: false },
+    });
+    openOn(body);
+    expect(menu()).not.toContain("Copy");
+    openOn({ kind: "system", id: SOL });
+    expect(menu()).not.toContain("Paste");
   });
 
   it("offers no Paste without a cut", () => {

@@ -143,6 +143,8 @@ pub(crate) fn write_bodies(
                 .filter(|(_, moon)| moon.parent == Some(i))
                 .map(|(m, _)| ids[m])
                 .collect(),
+            timed: Vec::new(),
+            features: Vec::new(),
         };
         write_body(
             plan,
@@ -301,6 +303,10 @@ pub(crate) struct Body<'a> {
     pub y: f64,
     pub moon_of: Option<u32>,
     pub moons: Vec<u32>,
+    /// Timed modifiers with their days, written after the spec's permanent ones.
+    pub timed: Vec<(&'a str, i32)>,
+    /// Planet features, each a `planet_modifier` line.
+    pub features: Vec<&'a str>,
 }
 
 /// Write one body of `system` into planet `slot`: a deposit per key into the slots
@@ -331,6 +337,13 @@ pub(crate) fn write_body(
         let text = |indent: &[u8]| deposit_entry(indent, &entry);
         write_slot(plan, doc, deposit, deposits, Emitted::Record, text)?;
     }
+    let modifiers: Vec<(&str, i32)> = body
+        .spec
+        .modifiers
+        .iter()
+        .map(|m| (m.as_str(), -1))
+        .chain(body.timed.iter().copied())
+        .collect();
     let entry = PlanetEntry {
         id: planet,
         class: &body.spec.class,
@@ -345,7 +358,8 @@ pub(crate) fn write_body(
         moons: &body.moons,
         fixed_name: body.spec.name.is_some(),
         ring: body.spec.ring,
-        modifiers: &body.spec.modifiers,
+        modifiers: &modifiers,
+        features: &body.features,
         entity: body.spec.entity,
         entity_name: body.spec.entity_name.as_deref(),
         deposits: &held,

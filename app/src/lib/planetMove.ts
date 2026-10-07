@@ -1,7 +1,7 @@
 /**
- * Moving save planets between systems: where a click in the system view places a lone planet,
- * and every sentence the menus, the bar and the inspector say about a cut and its paste. Names
- * come in resolved.
+ * Moving and copying save planets between systems: where a click in the system view places a
+ * lone planet, and every sentence the menus, the bar and the inspector say about a cut or a copy
+ * and its paste. Names come in resolved.
  */
 
 import type { Lane } from "../generated/Lane";
@@ -73,6 +73,21 @@ export function alreadyThere(planets: readonly MovedPlanet[], system: string): s
 /** The Cut item and button: `Cut 3 planets`, or the one body's name, `Cut Fatis I`. */
 export function cutLabel(planets: readonly MovedPlanet[]): string {
   return `Cut ${what(planets)}`;
+}
+
+/** The Copy item: `Copy 3 planets`, or the one body's name, `Copy Fatis I`. */
+export function copyLabel(planets: readonly MovedPlanet[]): string {
+  return `Copy ${what(planets)}`;
+}
+
+/** The bar while planets are copied: `3 planets copied`, `Luna copied as a planet`. */
+export function copiedLabel(planets: readonly MovedPlanet[]): string {
+  return `${what(planets)} copied${asPlanet(planets)}`;
+}
+
+/** The status bar while planets are copied: `3 planets copied`. */
+export function copyCountLabel(count: number): string {
+  return `${counted(count, "planet")} copied`;
 }
 
 /** The bar while planets are cut: `Moving 3 planets from Meissa`. */

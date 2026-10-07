@@ -20,11 +20,11 @@ import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
-import { CutItem } from "./PlanetMoveItems";
+import { CopyItem, CutItem } from "./PlanetMoveItems";
 
 /**
- * The menu on a body in the system view: its page, the selection's cut, its lock, a new moon of
- * it, its deletion, and the way back out.
+ * The menu on a body in the system view: its page, the selection's cut and copy, its lock, a
+ * new moon of it, its deletion, and the way back out.
  */
 export function BodyMenu({
   target,
@@ -83,6 +83,7 @@ export function BodyMenu({
         Inspect
       </MenuItem>
       <CutItem system={target.system} />
+      {!star && <CopyItem system={target.system} />}
       {lockable &&
         (locked ? (
           <MenuItem run={() => unlockBody(target.id)}>Unlock</MenuItem>

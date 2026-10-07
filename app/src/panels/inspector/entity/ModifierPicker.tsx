@@ -16,9 +16,25 @@ import { ModifierDuration } from "./ModifierDuration";
 import type { PickerItem } from "./PickerMenu";
 import type { PickerKind } from "./PlanetPicker";
 
-/** A modifier's row: its icon in its frame, and one Add button, spent once the body has it. */
+/** What a row's Add button says and its hover, for one planet or for several. */
+function addButtonText(row: ModifierPickRow): { text: string; title: string } {
+  if (row.lacking === null) {
+    return row.held
+      ? { text: "Has it", title: "This planet already has it" }
+      : { text: "Add", title: `Add ${row.label}` };
+  }
+  return row.held
+    ? { text: "All have it", title: "Every selected planet already has it" }
+    : { text: `Add to ${row.lacking}`, title: `Add ${row.label} to the planets without it` };
+}
+
+/**
+ * A modifier's row: its icon in its frame, and one Add button, spent once the body has it. For
+ * several planets the button counts those without it, and is spent once all have it.
+ */
 function modifierItem(row: ModifierPickRow): PickerItem {
   const view = row.choice.view;
+  const button = addButtonText(row);
   return {
     key: row.key,
     label: row.label,
@@ -34,9 +50,9 @@ function modifierItem(row: ModifierPickRow): PickerItem {
     ),
     buttons: [
       {
-        text: row.held ? "Has it" : "Add",
+        text: button.text,
         label: `Add ${row.label}`,
-        title: row.held ? "This planet already has it" : `Add ${row.label}`,
+        title: button.title,
         disabled: row.held,
       },
     ],
@@ -58,10 +74,14 @@ function useModifierRows(
     () =>
       choices === null
         ? null
-        : modifierPickRows(choices.list, target.modifiers, usual, (m) =>
-            terraformCandidateTitle(m, candidates),
+        : modifierPickRows(
+            choices.list,
+            target.modifiers,
+            usual,
+            (m) => terraformCandidateTitle(m, candidates),
+            target.spread,
           ),
-    [choices, target.modifiers, usual, candidates],
+    [choices, target.modifiers, target.spread, usual, candidates],
   );
 }
 
