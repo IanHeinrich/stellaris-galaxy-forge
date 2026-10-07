@@ -63,7 +63,7 @@ fn move_targets_drop_what_moves_with_its_parent_and_list_the_systems() {
             ),
             (
                 936,
-                "planet 936 has a megastructure, so it cannot move to another system"
+                "planet 936 has a megastructure, so it cannot be moved or copied"
             ),
             (99_999, "planet 99999 does not exist"),
         ]

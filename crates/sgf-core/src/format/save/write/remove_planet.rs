@@ -243,7 +243,7 @@ fn then(first: Op, description: String, rest: impl Iterator<Item = Op>) -> Op {
 /// What refuses both a colony's removal and a planet's deletion: a ring world segment, and a
 /// megastructure on or around the body. A habitat is a planet class with no megastructure
 /// entry of its own, so it passes.
-fn check_planet(
+pub(crate) fn check_planet(
     s: &Session,
     planet: u32,
     node: &Node,

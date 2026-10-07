@@ -5,7 +5,7 @@ import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
 import { nodeName, type Names } from "../../lib/names";
-import { cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
+import { copyCountLabel, cutCountLabel, PASTE_HINT, selectedHint } from "../../lib/planetMove";
 import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
@@ -18,9 +18,9 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { usePlanetMoveStore } from "../../store/planetMoveStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
+import { useClipboard, type Clipboard } from "../useCut";
 import { GameDataPanel } from "./GameDataPanel";
 
 const DOCUMENT_KIND: Record<string, string> = {
@@ -197,13 +197,13 @@ function SceneHint({ system }: { system: number }) {
   const roll = useSystemRoll(system, drawn);
   const sceneHint = useMapChromeStore((s) => s.sceneHint);
   const { editing } = useSystemGeometry(system);
-  const cut = usePlanetMoveStore((s) => s.cut?.planets.length ?? null);
+  const clipboard = useClipboard();
   const selected = useSceneStore((s) =>
     s.bodySelection !== null && s.bodySelection.system === system ? s.bodySelection.ids.length : 0,
   );
   if (reading) return <span className="muted">Reading the system…</span>;
   if (sceneHint !== null) return <span className="muted">{sceneHint}</span>;
-  if (cut !== null) return <CutHint count={cut} />;
+  if (clipboard !== null) return <ClipboardHint clipboard={clipboard} />;
   if (selected > 1) {
     return <span className="muted">{selectedHint(selected, shortcutLabel("clearSelection"))}</span>;
   }
@@ -215,12 +215,12 @@ function SceneHint({ system }: { system: number }) {
   return <span className="muted">{movable ? `${body} · ${DRAG_HINTS.movable}` : body}</span>;
 }
 
-/** While planets are cut: how to paste them, and how many there are. */
-function CutHint({ count }: { count: number }) {
+/** While planets are cut or copied: how to paste them, and how many there are. */
+function ClipboardHint({ clipboard: { kind, count } }: { clipboard: Clipboard }) {
   return (
     <>
       <span className="muted">{PASTE_HINT}</span>
-      <span className="muted">{cutCountLabel(count)}</span>
+      <span className="muted">{kind === "cut" ? cutCountLabel(count) : copyCountLabel(count)}</span>
     </>
   );
 }
@@ -231,12 +231,12 @@ function Hint() {
   const selectedLane = useEditorStore((s) => s.selectedLane);
   const selectedNebula = useEditorStore((s) => s.selectedNebula);
   const gesture = useMapChromeStore((s) => s.gesture);
-  const cut = usePlanetMoveStore((s) => s.cut?.planets.length ?? null);
+  const clipboard = useClipboard();
   if (gesture === "connecting") {
     return <span className="muted">release on a system to connect</span>;
   }
   if (shown !== null && gesture === null) return <SceneHint system={shown} />;
-  if (cut !== null && gesture === null) return <CutHint count={cut} />;
+  if (clipboard !== null && gesture === null) return <ClipboardHint clipboard={clipboard} />;
   if (hover !== null) {
     return <span className="muted">drag to move · drag ring to connect · Shift+click to add</span>;
   }

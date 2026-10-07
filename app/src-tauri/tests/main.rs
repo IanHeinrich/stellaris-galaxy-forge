@@ -6,6 +6,7 @@ mod add_body;
 mod add_system;
 mod capabilities;
 mod constants;
+mod copy_planet;
 mod edit;
 mod entity;
 mod gamedata;

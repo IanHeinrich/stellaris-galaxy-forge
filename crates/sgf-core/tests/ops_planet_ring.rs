@@ -48,13 +48,6 @@ fn a_planet_without_flags_is_given_a_ring() {
     assert_eq!(flags(&session, 585).as_deref(), Some("320"));
 }
 
-/// Moon 586 holds 576, the moon bit beside 64.
-#[test]
-fn a_moon_is_given_a_ring_beside_its_moon_bit() {
-    let session = change(586, true, "ring_on_moon_4_5");
-    assert_eq!(flags(&session, 586).as_deref(), Some("832"));
-}
-
 /// Gas giant 589 holds 320, so taking its ring leaves only 64 and the statement goes.
 #[test]
 fn a_ring_is_taken_off_and_the_statement_goes() {
@@ -66,13 +59,17 @@ fn a_ring_is_taken_off_and_the_statement_goes() {
     assert_eq!(flags(&session, 589).as_deref(), Some("320"));
 }
 
+/// Planet 8 is a moon of planet 6, and moon 586 holds 576, the moon bit beside 64: no save
+/// or vanilla initializer writes a ringed moon.
 #[test]
-fn a_ring_is_refused_for_an_unknown_planet_or_no_change() {
+fn a_ring_is_refused_for_an_unknown_planet_a_moon_or_no_change() {
     let mut session = open_4_5();
     let refusals = [
         (set(99_999, true), "planet 99999 does not exist"),
         (set(589, true), "planet 589 already has a ring"),
         (set(585, false), "planet 585 has no ring"),
+        (set(8, true), "a moon cannot have a ring"),
+        (set(586, true), "a moon cannot have a ring"),
     ];
     common::assert_refusals(&mut session, refusals);
 }

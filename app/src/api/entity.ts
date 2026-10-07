@@ -8,6 +8,7 @@ import type { EntityKind } from "../generated/EntityKind";
 import type { EntitySchema } from "../generated/EntitySchema";
 import type { EntitySource } from "../generated/EntitySource";
 import type { EntityView } from "../generated/EntityView";
+import type { NewBody } from "../generated/NewBody";
 import type { Op } from "../generated/Op";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PlanetMoveCheck } from "../generated/PlanetMoveCheck";
@@ -68,6 +69,27 @@ export function planetMoveOp(
   at: OrbitPlacement | null = null,
 ): Promise<Op> {
   return invoke<Op>("planet_move_op", { planets, to, at });
+}
+
+/**
+ * The save bodies as copies to paste, each planet with its moons; a moon whose planet is among them
+ * goes with it. Rejects with `SgfError` for a star, a megastructure or habitat, a ring world segment
+ * or a save before Stellaris 4.0.
+ */
+export function copyBodies(bodies: number[]): Promise<NewBody[]> {
+  return invoke<NewBody[]>("copy_bodies", { bodies });
+}
+
+/**
+ * The op that pastes `copies` into system `system`, a single copy at `at` when given, else each on
+ * the next free orbit past the system's reach, for `applyOp`.
+ */
+export function pasteBodiesOp(
+  system: number,
+  copies: NewBody[],
+  at: OrbitPlacement | null = null,
+): Promise<Op> {
+  return invoke<Op>("paste_bodies_op", { system, copies, at });
 }
 
 /** The labelled fields of a kind; keys outside it render raw. */

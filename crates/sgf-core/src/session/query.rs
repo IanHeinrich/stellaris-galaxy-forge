@@ -1,7 +1,7 @@
 use super::Session;
-use crate::format::save::write::move_planet;
+use crate::format::save::write::{copy_bodies, move_planet};
 use crate::format::scenario::effect;
-use crate::ops::{Op, OpError, Plan};
+use crate::ops::{NewBody, Op, OpError, Plan};
 use crate::search;
 use crate::views::{OrbitPlacement, PlanetMoveCheck, PlanetMoveTargets, SearchResult};
 
@@ -67,6 +67,29 @@ impl Session {
         at: Option<OrbitPlacement>,
     ) -> PlanetMoveCheck {
         move_planet::check(self, planets, to, at)
+    }
+
+    /// The save bodies `bodies` as specs that [`Self::paste_bodies_op`] writes back, in any
+    /// save: a moon whose planet is among them goes with its planet, a moon alone becomes a
+    /// planet, and each planet carries its moons placed about it. A numbered name is left
+    /// for the paste to number again. Refused for a star, a body with a megastructure on or
+    /// around it or a moon that has one, a ring world segment, and a save before Stellaris 4.0.
+    pub fn copy_bodies(&self, bodies: &[u32]) -> Result<Vec<NewBody>, OpError> {
+        copy_bodies::copy(self, bodies)
+    }
+
+    /// The op that pastes `copies` into system `system`: one [`Op::AddBody`] per copy,
+    /// batched when there are several. With `at`, the first copy goes there and each next one
+    /// follows outward at the same angle, past the one before and both their moons by the
+    /// system's usual gap. Without it, each takes the next free orbit past the system's
+    /// reach at 0°.
+    pub fn paste_bodies_op(
+        &self,
+        system: u32,
+        copies: &[NewBody],
+        at: Option<OrbitPlacement>,
+    ) -> Result<Op, OpError> {
+        copy_bodies::paste_op(self, system, copies, at)
     }
 
     /// Why `op` would be refused, or `None` when it would apply. Nothing is written: the op

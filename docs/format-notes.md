@@ -423,6 +423,10 @@ for planets or deposits.
   day-one sample, such as `pm_extensive_moon_system`, have only the
   line. Stellaris 3.4 writes `timed_modifier` after `planet_orbitals`
   and `planet_modifier` after `entity`.
+- A habitat has no `megastructure=` key of its own. Its `flags` block
+  holds `megastructure=` and `habitat=` instead, and it orbits its
+  planet with `moon_of` but without the moon bit (6268 in the 4.5
+  sample).
 - A planet's anomaly is `anomaly="<category>"`, the category's key in
   `common/anomalies`, written right after `planet_orbitals`. A country
   that has found it lists the planet in its `events.anomalies`, a list

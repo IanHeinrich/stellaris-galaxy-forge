@@ -5,7 +5,7 @@ import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
 import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
-import { planetsCanMove } from "../../store/planetMoveStore";
+import { noteScenePointer, planetsCanMove } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
 import type { Camera } from "../Camera";
 import type { InputKind } from "../interaction/MapIntent";
@@ -173,6 +173,7 @@ export class SystemInteraction {
       },
       {
         left: () => {
+          noteScenePointer(null);
           if (this.model.busy()) return;
           this.hover(null, 0, 0);
           this.scene.revealHandles(null);
@@ -350,6 +351,7 @@ export class SystemInteraction {
     if (kind === "down") this.pressToggles = input.shift || input.ctrl;
     if (kind === "move") {
       this.lastMove = input;
+      noteScenePointer(ctx.id === null ? null : { system: ctx.id, x: w.x, y: w.y });
       // A move with no button held means the release went elsewhere.
       if (e.buttons === 0) this.cancelDrag();
     }

@@ -5,7 +5,6 @@ import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { placementAt } from "../../../lib/planetMove";
 import { useSystemNames } from "../../../store/browserRows";
 import type { ContextTarget } from "../../../store/mapChromeStore";
-import { usePlanetMoveStore } from "../../../store/planetMoveStore";
 import { backToGalaxy } from "../../../store/commands";
 import { useEditorStore } from "../../../store/editorStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -16,8 +15,8 @@ import { MenuItem } from "./MenuItem";
 import { PasteItem } from "./PlanetMoveItems";
 
 /**
- * The menu on the empty space of the system view: the cut planets pasted where it was pressed, a
- * new planet or belt there, and the way out.
+ * The menu on the empty space of the system view: the cut or copied planets pasted where it was
+ * pressed, a new planet or belt there, and the way out.
  */
 export function SceneSpaceMenu({
   target,
@@ -27,7 +26,6 @@ export function SceneSpaceMenu({
   frame: Frame;
 }) {
   const [name] = useSystemNames([target.system]);
-  const cut = usePlanetMoveStore((s) => s.cut !== null);
   const { editing, frame: geometry } = useSystemGeometry(target.system);
   const radius = Math.round(Math.hypot(target.x, target.y));
   const belt = editing.belts && radius > 0;
@@ -44,7 +42,7 @@ export function SceneSpaceMenu({
   return (
     <MenuFrame {...frame} label={name}>
       <div className="context-menu-header">{name}</div>
-      {cut && <PasteItem system={target.system} at={placementAt(target.x, target.y)} />}
+      <PasteItem system={target.system} at={placementAt(target.x, target.y)} />
       {planet && (
         <AddBodyItems
           label={ADD_PLANET_LABEL}

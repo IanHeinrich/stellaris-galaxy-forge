@@ -1,7 +1,8 @@
 //! A save body's ring: the ring bit of `binary_flags` in its `planets.planet` entity. The
 //! bit is written whatever the body's class; the game is the judge of what a class draws.
+//! A moon is refused one: no save or vanilla initializer writes a ringed moon.
 
-use crate::emit::system::RING_FLAG;
+use crate::emit::system::{MOON_FLAG, RING_FLAG};
 use crate::format::save::write::planet_entry::{PlanetEntry, set_flag};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned};
@@ -15,7 +16,11 @@ pub(crate) fn plan_set(
     ring: bool,
 ) -> Result<Planned, OpError> {
     let PlanetEntry { node, src, system } = PlanetEntry::open(s, id)?;
-    let held = read::scalar_u32(&node, keys::BINARY_FLAGS, src).is_some_and(|f| f & RING_FLAG != 0);
+    let flags = read::scalar_u32(&node, keys::BINARY_FLAGS, src).unwrap_or(0);
+    let held = flags & RING_FLAG != 0;
+    if ring && flags & MOON_FLAG != 0 {
+        return Err(OpError::RingNotAllowed("a moon"));
+    }
     if held == ring {
         let state = if ring {
             "already has a ring"

@@ -257,5 +257,10 @@ export interface PickerTarget<R extends RowRefs = RowRefs> {
   modifiers: readonly string[];
   /** The anomaly it holds; `null` for none. */
   anomaly: HeldAnomaly | null;
+  /**
+   * Set on a target of several bodies: the modifiers and features each planet among them has,
+   * so the modifier picker can count the planets an add reaches.
+   */
+  spread?: readonly (readonly string[])[];
   edits: PlanetEditAdapter<R>;
 }

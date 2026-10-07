@@ -238,8 +238,9 @@ too.
   Search by name, or pick Found by surveys or Event only. A planet holds
   one site, so the list closes after an add. The two site types that do
   something in game as they are created aren't listed.
-- In a Stellaris 4.x save, a planet or moon has a Ring checkbox to give
-  it a ring or take its ring away.
+- In a Stellaris 4.x save, a planet has a Ring checkbox to give it a
+  ring or take its ring away. A moon only has the checkbox while it has
+  a ring, so you can take it off.
 - Deposits are shown with the game's own art and the district capacity
   they add up to, one row per type: what each one yields, or what it does
   while unworked. A blocked deposit shows a blocker mark, the tech and
@@ -289,6 +290,36 @@ too.
 
 The breadcrumb above the page goes back: "‹" for one step, a name in it
 for that page, or "Galaxy" for the whole map.
+
+#### Edit several planets at once
+
+In a Stellaris 4.x save, select planets in the system view with Ctrl- or
+Shift-click. The Inspector lists them, and below the list are the
+planet page's fields for all of them at once.
+
+- Size shows the size they share, or their range in grey. Type a size
+  and press Enter to give it to every selected body. The star takes it
+  too.
+- Class lists only the classes every selected planet can take. A colony
+  keeps the list to the classes a colony can have, and a moon leaves out
+  the classes a moon can't have. A warning under the field names the
+  planets that make the list shorter.
+- Ring is ticked when every planet has a ring and partly ticked when some
+  do. Click it to give a ring to the rest, and again to take every ring
+  away. Stars, asteroids, ring world segments and moons without a ring
+  are left out.
+- Deposits and Modifiers list one row for each type any selected planet
+  has, and say which planets have it. Add to the other N gives it to the
+  planets without it. Remove from N takes one off each planet that has
+  it. Add deposit, Add blocker and Add modifier work as on a planet's
+  page, for every selected planet. A star takes deposits but no
+  modifiers.
+- A line under each field says which bodies it leaves out. Hover it to
+  see why for each one.
+
+Each change is one edit, so one undo puts every planet back. A line
+under the section says what the last change did and which planets it
+skipped.
 
 ### System view
 
@@ -417,14 +448,17 @@ one edit, so one undo takes it away.
 
 In a save, you can move planets and moons to another system. Click a
 planet in the system view, then Ctrl- or Shift-click more to add them.
-Right-click one of them and choose Cut. The planets stay where they are
-for now. They are dimmed with a dashed outline, and a bar at the top of
-the map says what you're moving. Press Esc to cancel.
+Right-click one of them and choose Cut, or press Ctrl+X. The planets
+stay where they are for now. They are dimmed with a dashed outline, and
+a bar at the top of the map says what you're moving. Press Esc to
+cancel.
 
 To paste, right-click another system on the galaxy map, or right-click
-empty space in that system's view, and choose Paste. A single planet
-lands where you right-clicked. Several planets go into the next free
-orbits past the system's outermost planet. The whole move is one edit,
+empty space in that system's view, and choose Paste. Ctrl+V pastes into
+the system you're viewing, or into the one system selected on the
+galaxy map. A single planet lands where you right-clicked, or where the
+pointer is. Several planets go into the next free orbits past the
+system's outermost planet. The whole move is one edit,
 so one undo puts it all back.
 
 - A planet takes its moons with it. A moon you cut on its own becomes a
@@ -444,6 +478,29 @@ no one owns stays yours.
 To move a single planet, you can also use the System field on its page.
 Type a system's name and pick it from the list. The nearest systems come
 first.
+
+#### Copy planets
+
+In a save, you can copy planets and paste them as new ones. Select
+planets in the system view, right-click one of them and choose Copy, or
+press Ctrl+C. A bar at the top of the map says what you copied. Press Esc
+to clear it.
+
+Paste a copy the same way as a move: choose Paste from the right-click
+menu, or press Ctrl+V. A single planet lands where you right-clicked, or
+where the pointer is. Several planets line up outward from where you
+pasted. You can paste into the system you copied from, and paste the
+same copy as often as you like. Each paste is one edit.
+
+- A copy keeps the planet's class, size, look, ring, deposits and
+  modifiers. Its moons come with it. A moon you copy on its own becomes
+  a planet.
+- A copy has no colony, station, anomaly or dig site.
+- The copy stays when you open another save, so you can paste it there.
+- A pasted planet with a numbered name, such as Meissa II, takes the
+  next number in its new system.
+- Stars and planets with a megastructure can't be copied, and saves from
+  before Stellaris 4.0 can't take a copy.
 
 #### Wormholes
 
@@ -809,6 +866,7 @@ I haven't tested Ironman saves.
 | Tab | Hide or show the dock |
 | I, Shift+I | Issues tab, initializer browser |
 | Delete | Delete or cut what is selected |
+| Ctrl+X, Ctrl+C, Ctrl+V | Cut, copy or paste planets, in a save |
 
 ## Updates
 

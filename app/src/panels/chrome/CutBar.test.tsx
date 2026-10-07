@@ -21,7 +21,7 @@ import { flush } from "../../test/flush";
 
 bindStores();
 
-const [SOL, EARTH, LUNA] = [0, 12, 14];
+const [SOL, EARTH, LUNA, VENUS] = [0, 12, 14, 15];
 const moves = () => usePlanetMoveStore.getState();
 
 beforeEach(async () => {
@@ -31,6 +31,7 @@ beforeEach(async () => {
   const planets = [
     planetSummary({ id: EARTH, name: name("Earth"), name_key: "Earth" }),
     planetSummary({ id: LUNA, name: name("Luna"), name_key: "Luna", moon: true, parent: EARTH }),
+    planetSummary({ id: VENUS, name: name("Venus"), name_key: "Venus" }),
   ];
   useDetailsStore.setState({ details: new Map([[SOL, systemDetails({ id: SOL, planets })]]) });
   mockedIpc.planetMoveTargets.mockImplementation(async (planets) => ({
@@ -60,6 +61,26 @@ describe("the cut bar", () => {
   it("says a lone moon arrives as a planet", async () => {
     await cut(LUNA);
     expect(shown(renderToStaticMarkup(<CutBar />))).toContain("Moving Luna from Sol as a planet");
+  });
+
+  it("says what is copied and how to paste or clear it, and keeps it after a paste", async () => {
+    mockedIpc.copyBodies.mockResolvedValue([{ class: "pc_arid" }, { class: "pc_desert" }] as never);
+    useSceneStore.getState().selectBody(SOL, EARTH);
+    useSceneStore.getState().toggleBody(SOL, VENUS);
+    await moves().copySelection();
+    expect(shown(renderToStaticMarkup(<CutBar />))).toBe(
+      "2 planets copied · right-click a system to paste · Esc clears",
+    );
+    expect(renderToStaticMarkup(<StatusBar />)).toContain(
+      '<span class="muted">Right-click a system to paste</span><span class="muted">2 planets copied</span>',
+    );
+
+    mockedIpc.copyBodies.mockResolvedValue([{ class: "pc_barren" }] as never);
+    useSceneStore.getState().selectBody(SOL, LUNA);
+    await moves().copySelection();
+    expect(shown(renderToStaticMarkup(<CutBar />))).toContain("Luna copied as a planet");
+    moves().clearClipboard();
+    expect(renderToStaticMarkup(<CutBar />)).toBe("");
   });
 
   it("puts the paste hint and the count in the status bar in either view", async () => {

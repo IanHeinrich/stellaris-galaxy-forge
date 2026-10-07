@@ -14,6 +14,7 @@ pub(crate) mod asteroid_names;
 pub(crate) mod belts;
 pub(crate) mod bodies;
 pub(crate) mod bulk;
+pub(crate) mod copy_bodies;
 pub(crate) mod deposits;
 pub(crate) mod dig_site;
 pub(crate) mod empire_name;

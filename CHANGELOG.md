@@ -8,6 +8,18 @@ a release is made.
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-07
+
+### Added
+
+- Copy and paste planets, within a save or from one save to another.
+- Edit several planets in a system at once: size, class, ring, deposits
+  and modifiers.
+
+### Fixed
+
+- Moons no longer have a Ring checkbox.
+
 ## [0.22.1] - 2026-10-06
 
 ### Fixed

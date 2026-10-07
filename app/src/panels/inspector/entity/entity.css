@@ -274,6 +274,13 @@
   padding: 6px 2px 2px;
 }
 
+.pl-spread-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
 .pl-dep-confirm,
 .dp-confirm {
   display: flex;

@@ -1,12 +1,17 @@
 import type { OrbitPlacement } from "../../../generated/OrbitPlacement";
+import { documentCapabilities } from "../../../lib/capabilities";
+import { shortcutLabel } from "../../../lib/keys";
 import {
   alreadyThere,
+  copyLabel,
   cutLabel,
+  movingBodies,
   pasteLabel,
   warningLine,
   warningLines,
 } from "../../../lib/planetMove";
 import { useDetailsStore } from "../../../store/detailsStore";
+import { useFileSessionStore } from "../../../store/fileSessionStore";
 import {
   cutAvailability,
   cutPlanets,
@@ -14,14 +19,18 @@ import {
   usePlanetMoveStore,
 } from "../../../store/planetMoveStore";
 import { useSceneStore } from "../../../store/sceneStore";
-import { useCut, useMovedPlanets, useWarningNames } from "../../useCut";
+import { useClipboard, useMovedPlanets, useWarningNames } from "../../useCut";
 import { MenuItem } from "./MenuItem";
 
+const CUT_KEY = shortcutLabel("cutPlanets");
+const COPY_KEY = shortcutLabel("copyPlanets");
+const PASTE_KEY = shortcutLabel("pastePlanets");
+
 /**
- * Paste, while planets are cut: a lone planet at `at` where given, a group into the next free
- * orbits. A refused paste stays, disabled, with the refusal on hover; a warned one says the first
- * warning under its label and lists them all on hover. The planets' own system is refused without
- * asking the core.
+ * Paste, while planets are cut or copied: a copy, or a lone cut planet, at `at` where given, and
+ * a cut group into the next free orbits. A refused paste of a cut stays, disabled, with the refusal on hover; a warned
+ * one says the first warning under its label and lists them all on hover. The cut planets' own
+ * system is refused without asking the core. A copy pastes into any system, its own included.
  */
 export function PasteItem({
   system,
@@ -32,16 +41,25 @@ export function PasteItem({
   at?: OrbitPlacement | null;
   className?: string;
 }) {
-  const cut = useCut();
-  if (cut === null) return null;
-  const place = cut.count === 1 ? (at ?? null) : null;
-  const label = pasteLabel(cut.planets, place);
-  if (cut.fromId === system) {
+  const clipboard = useClipboard();
+  const paste = usePlanetMoveStore((s) => s.paste);
+  if (clipboard === null) return null;
+  const place = clipboard.kind === "copy" || clipboard.count === 1 ? (at ?? null) : null;
+  const label = pasteLabel(clipboard.planets, place);
+  if (clipboard.kind === "copy") {
+    return (
+      <MenuItem className={className} shortcut={PASTE_KEY} run={() => paste(system, place)}>
+        {label}
+      </MenuItem>
+    );
+  }
+  if (clipboard.fromId === system) {
     return (
       <MenuItem
         className={className}
         disabled
-        title={alreadyThere(cut.planets, cut.from)}
+        title={alreadyThere(clipboard.planets, clipboard.from)}
+        shortcut={PASTE_KEY}
         run={() => undefined}
       >
         {label}
@@ -77,6 +95,7 @@ function CheckedPaste({
       title={
         refusal ?? (warnings.length > 0 ? warningLines(warnings, names).join("\n") : undefined)
       }
+      shortcut={PASTE_KEY}
       run={() => paste(system, place)}
     >
       {label}
@@ -101,9 +120,26 @@ export function CutItem({ system }: { system: number }) {
     <MenuItem
       disabled={availability.kind !== "ready"}
       title={availability.kind === "refused" ? availability.reason : undefined}
+      shortcut={CUT_KEY}
       run={cutSelection}
     >
       {cutLabel(planets)}
+    </MenuItem>
+  );
+}
+
+/** Copy, on a body of the selection, on a document that takes new bodies. */
+export function CopyItem({ system }: { system: number }) {
+  const selection = useSceneStore((s) => s.bodySelection);
+  const copySelection = usePlanetMoveStore((s) => s.copySelection);
+  const read = useDetailsStore((s) => s.details.get(system));
+  const copies = useFileSessionStore((s) => documentCapabilities(s).add_bodies);
+  const parentOf = (id: number) => read?.planets.find((p) => p.id === id)?.parent ?? null;
+  const planets = useMovedPlanets(movingBodies(selection?.ids ?? [], parentOf));
+  if (!copies || selection === null) return null;
+  return (
+    <MenuItem shortcut={COPY_KEY} run={copySelection}>
+      {copyLabel(planets)}
     </MenuItem>
   );
 }

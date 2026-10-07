@@ -64,6 +64,13 @@ chips) given to one `PlanetPicker`.
 placed about a point, built on it. A page sends a geometry edit through
 `useGeometryEdit` and shows the refusal beside the field.
 
+Several bodies selected in the system view open
+`inspector/selection/BodySelectionView.tsx`. In a save, its
+`BodySelectionFields` draws the planet page's Size, Class, Ring, Deposits
+and Modifiers for all of them, with the body page's own field, row and
+picker components. Their adapter, `bodiesEdits` in
+`store/planetEditAdapter.ts`, sends each change as one batch.
+
 A system's Overview is a list of sections in `inspector/system/overviewSections.ts`,
 each with the capability it needs, so a kind of document shows the sections
 it supports.

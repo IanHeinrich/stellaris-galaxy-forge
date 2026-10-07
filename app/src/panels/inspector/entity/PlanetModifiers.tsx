@@ -5,6 +5,7 @@ import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
 import { PickedRow } from "./PickedRow";
+import type { Spread } from "./PlanetDeposits";
 import { modifierCard } from "./modifierCard";
 import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
@@ -28,9 +29,18 @@ function RowCard({
 /**
  * A modifier's row: its first two effects and how long it lasts, its card while the pointer or
  * the focus is on it, and where editable its remove button. A row without the button takes the
- * focus itself, and whichever has the focus names the card as its description.
+ * focus itself, and whichever has the focus names the card as its description. With `spread`,
+ * the row stands for several planets and says who has it.
  */
-function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() => void) | null }) {
+export function ModifierRowView({
+  row,
+  onRemove,
+  spread,
+}: {
+  row: ModifierRow;
+  onRemove: (() => void) | null;
+  spread?: Spread;
+}) {
   const view = row.view;
   const card = modifierCard(row);
   const name = card.label;
@@ -71,7 +81,18 @@ function ModifierRowView({ row, onRemove }: { row: ModifierRow; onRemove: (() =>
         }
         name={name}
         mono={view === undefined}
-        lines={line === undefined ? [] : [{ className: "l2", text: line }]}
+        lines={[
+          ...(line === undefined ? [] : [{ className: "l2" as const, text: line }]),
+          ...(spread === undefined
+            ? []
+            : [
+                { className: "l3" as const, text: spread.line },
+                {
+                  className: "l3" as const,
+                  text: <span className="pl-spread-acts">{spread.actions}</span>,
+                },
+              ]),
+        ]}
         remove={
           onRemove === null
             ? null

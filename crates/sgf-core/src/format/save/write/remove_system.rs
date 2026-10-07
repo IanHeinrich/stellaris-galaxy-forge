@@ -392,6 +392,15 @@ pub(crate) fn return_asteroid_names(
     for &id in removed {
         leaving_planets.extend(bodies(&s.doc, id)?);
     }
+    return_asteroid_names_of(plan, s, &leaving_planets)
+}
+
+/// [`return_asteroid_names`] for the planets `leaving_planets` names, whatever their systems.
+pub(crate) fn return_asteroid_names_of(
+    plan: &mut Plan,
+    s: &Session,
+    leaving_planets: &BTreeSet<u32>,
+) -> Result<(), OpError> {
     let mut leaving = BTreeSet::new();
     let mut staying: BTreeMap<(String, String), usize> = BTreeMap::new();
     for (planet, slot) in s.doc.added().entries(EntityKind::Planet) {

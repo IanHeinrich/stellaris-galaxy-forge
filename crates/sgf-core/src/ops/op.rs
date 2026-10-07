@@ -537,8 +537,9 @@ pub enum Op {
     /// The ring bit of a save body's `binary_flags`, set when `ring` and cleared when not:
     /// the statement is written before `entity_planet_class` or `coordinate` when the body
     /// has none, and goes when only the bit set beside any other is left. The body's class
-    /// is not checked. A ring bit already as asked is refused with
-    /// [`OpError::Unchanged`]; the inverse flips `ring`. Stellaris 4.x save documents
+    /// is not checked. A ring given to a moon, a body with the moon bit, is refused, and a
+    /// ring bit already as asked is refused with [`OpError::Unchanged`]; a moon's ring may
+    /// still be taken off. The inverse flips `ring`. Stellaris 4.x save documents
     /// only.
     SetBodyRing {
         body: u32,
@@ -699,14 +700,21 @@ pub enum Op {
     /// lowest dead slot of their tables one generation on, or the slot past the highest. It
     /// stands `at` its radius and angle about its parent's point, the system's centre for a
     /// planet, and the system lists it after its last `planet=` line. A moon gets `moon_of`
-    /// and the moon bit, and its planet lists it in `moons`. Without a name in the spec, a
-    /// planet takes the numeral after the highest of the system's numbered planets and a moon
-    /// the letter after its planet's highest. When the body lies past the system's
-    /// `inner_radius`, that radius grows to the body's reach plus its margin. The game builds
-    /// its construction queue when it loads, and nobody has surveyed it. A moon of a star, a
-    /// moon or an asteroid, and a parent outside the system, are refused. The inverse is
-    /// [`Op::RemoveBody`], batched with the old inner radius when it grew. Stellaris 4.x
-    /// save documents only.
+    /// and the moon bit, and its planet lists it in `moons`. The spec's moons follow it, each
+    /// at its own placement about it, listed after it. Its model, its timed modifiers with
+    /// their days and its planet features are written as the spec gives them, each modifier
+    /// held to the rules of [`Op::AddBodyModifier`]. Without a name in the spec, a planet
+    /// takes the numeral after the highest of the system's numbered planets and a moon the
+    /// letter after its planet's highest; the spec's moons are lettered a, b, … after it, but
+    /// for those with a name. An asteroid takes a name from the save's pool of asteroid
+    /// names, as an added system's asteroids do, and a fixed name key is written with the
+    /// layout's bit. When the body lies past the system's `inner_radius`, that radius grows
+    /// to its reach plus its margin. The game builds its construction queue when it loads,
+    /// and nobody has surveyed it. A moon of a star, a moon or an asteroid, a parent
+    /// outside the system, a spec with both `moon_of` and moons, and a moon with moons or a
+    /// `moon_of` of its own are refused. The inverse is [`Op::RemoveBody`] for each moon, last
+    /// first, then for the body, batched with the old inner radius when it grew. Stellaris
+    /// 4.x save documents only.
     AddBody {
         system: u32,
         spec: NewBody,
@@ -714,8 +722,9 @@ pub enum Op {
     },
     /// A save planet or moon [`Op::AddBody`] added since the file was opened, taken out
     /// again: its entry and its deposits' give their slots back as a removed system's bodies
-    /// do, its `planet=` line goes, and so does its id from its planet's `moons`. A body the
-    /// file held, and one with moons, are refused. The inverse adds it back, read as a spec,
+    /// do, its `planet=` line goes, and so does its id from its planet's `moons`. An
+    /// asteroid's name goes back to the pool it came from. A body the file held, and one
+    /// with moons, are refused. The inverse adds it back, read as a spec,
     /// at the radius and angle it stood at. Stellaris 4.x save documents only.
     RemoveBody {
         body: u32,
@@ -1071,7 +1080,7 @@ pub struct PlanetLook {
 }
 
 /// The body [`Op::AddBody`] writes, every value chosen by the caller.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct NewBody {
     /// `pc_desert`, `pc_gas_giant`, …
@@ -1080,15 +1089,65 @@ pub struct NewBody {
     /// The planet a moon orbits; `None` for a planet of the system's centre.
     #[serde(default)]
     pub moon_of: Option<u32>,
-    /// A name written as typed, with `literal=yes`; `None` numbers it after its siblings.
+    /// `None` numbers it after its siblings.
     #[serde(default)]
-    pub name: Option<String>,
+    pub name: Option<BodyName>,
     /// Deposit keys, `d_minerals_2`, …
     #[serde(default)]
     pub deposits: Vec<String>,
     /// Drawn with a ring around it. A moon is refused one.
     #[serde(default)]
     pub ring: bool,
+    /// Named from the save's pool of asteroid names and left out of the numbering. An
+    /// asteroid has no name of its own, no moons and is no moon.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(optional, as = "Option<bool>")]
+    pub asteroid: bool,
+    /// The name is written with the fixed-name bit of `binary_flags`, which the game sets on
+    /// a name some layouts fix and not on others. Only a named body takes it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(optional, as = "Option<bool>")]
+    pub fixed_name: bool,
+    /// Which of the class's models the game draws; the first when `None`.
+    #[serde(default)]
+    pub entity: Option<u32>,
+    /// The model the game draws in place of the class's own.
+    #[serde(default)]
+    pub entity_name: Option<String>,
+    #[serde(default)]
+    pub modifiers: Vec<NewModifier>,
+    /// Only a planet of the system's centre has them.
+    #[serde(default)]
+    pub moons: Vec<NewMoon>,
+}
+
+/// The name a [`NewBody`] is written with.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub enum BodyName {
+    /// A name as typed, written `{ key="<name>" literal=yes }`.
+    Typed(String),
+    /// A localisation key written as it stands, `NAME_Vermilion`.
+    Fixed(String),
+}
+
+/// One modifier of a [`NewBody`], as [`Op::AddBodyModifier`] takes it: a `timed_modifier`
+/// item per entry of `days`, and with `feature` a `planet_modifier` line.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewModifier {
+    pub modifier: String,
+    pub days: Vec<i32>,
+    #[serde(default)]
+    pub feature: Option<String>,
+}
+
+/// A moon of a [`NewBody`], placed about it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewMoon {
+    pub spec: NewBody,
+    pub at: OrbitPlacement,
 }
 
 /// One system to add in [`Op::AddSystems`]: an [`Op::AddSystem`] with its id given.

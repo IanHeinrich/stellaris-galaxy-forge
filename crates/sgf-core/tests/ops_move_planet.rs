@@ -130,7 +130,7 @@ fn moves_are_refused() {
         ),
         (
             move_planet(936, 216),
-            "planet 936 has a megastructure, so it cannot move to another system",
+            "planet 936 has a megastructure, so it cannot be moved or copied",
         ),
         (
             move_planet(619, 216),

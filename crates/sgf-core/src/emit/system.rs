@@ -17,7 +17,7 @@ const BODY_CARRIER_FLAGS: u32 = 1;
 /// `entity_name`, a ring and a moon. The game sets 64 beside any of them, and writes no
 /// `binary_flags` when none is set. A model set by an event's `set_planet_entity` has no bit
 /// 2, and the game draws `entity_name` either way.
-const FIXED_NAME_FLAG: u32 = 1;
+pub(crate) const FIXED_NAME_FLAG: u32 = 1;
 pub(crate) const ENTITY_NAME_FLAG: u32 = 2;
 pub(crate) const ANY_FLAG: u32 = 64;
 pub(crate) const RING_FLAG: u32 = 256;
@@ -68,8 +68,10 @@ pub struct PlanetEntry<'a> {
     /// The name is the layout's own rather than one built from the system's.
     pub fixed_name: bool,
     pub ring: bool,
-    /// Planet modifiers, each written as a timed modifier that never expires.
-    pub modifiers: &'a [String],
+    /// Timed modifiers with their days, `-1` for one that never expires.
+    pub modifiers: &'a [(&'a str, i32)],
+    /// Planet features, each a `planet_modifier` line.
+    pub features: &'a [&'a str],
     pub entity: u32,
     pub entity_name: Option<&'a str>,
     pub deposits: &'a [u32],
@@ -192,8 +194,10 @@ pub fn planet_entry(indent: &[u8], p: &PlanetEntry<'_>) -> Vec<u8> {
     w.close(1);
     w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
     if !p.modifiers.is_empty() {
-        let items: Vec<(&str, i32)> = p.modifiers.iter().map(|m| (m.as_str(), -1)).collect();
-        w.timed_modifiers(1, &items);
+        w.timed_modifiers(1, p.modifiers);
+    }
+    for feature in p.features {
+        w.pair(1, keys::PLANET_MODIFIER, &quoted(feature));
     }
     w.pair(1, keys::ENTITY, &p.entity.to_string());
     if let Some(name) = p.entity_name {

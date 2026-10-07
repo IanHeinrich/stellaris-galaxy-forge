@@ -233,7 +233,7 @@ pub enum OpError {
     NoBodies(u32),
     #[error("system {system} holds planet {body} from the save; move it out first")]
     HoldsBody { system: u32, body: u32 },
-    #[error("planet {0} has a megastructure, so it cannot move to another system")]
+    #[error("planet {0} has a megastructure, so it cannot be moved or copied")]
     MegastructurePlanet(u32),
     #[error("planet {0} has a megastructure, so it keeps its class")]
     MegastructureClass(u32),
@@ -457,6 +457,7 @@ pub enum StarEdit {
     Class,
     Move,
     Delete,
+    Copy,
 }
 
 impl fmt::Display for StarEdit {
@@ -469,6 +470,7 @@ impl fmt::Display for StarEdit {
             Self::Class => "is a star; its star type is changed on the star's page",
             Self::Move => "is a star: only a planet can move to another system",
             Self::Delete => "is a star: only a planet or moon can be deleted",
+            Self::Copy => "is a star: only a planet or moon can be copied",
         })
     }
 }
