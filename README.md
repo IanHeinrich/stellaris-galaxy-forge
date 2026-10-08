@@ -10,9 +10,8 @@ and delete planets, and edit each planet's class, deposits and colony.
 You can also turn a save into a scenario and start a new game from it
 with the Paint a Galaxy mod.
 
-**[Read the user guide](https://ianheinrich.github.io/stellaris-galaxy-forge/)** for installing, every tool with
-screenshots, making a scenario and playing it with Paint a Galaxy. Use
-its search to find an answer.
+**[Read the user guide](https://ianheinrich.github.io/stellaris-galaxy-forge/)** for help with installing, how to
+use the tool and frequently asked questions.
 
 - Download: [the latest release](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest)
 - On the Steam Workshop: [Galaxy Forge](https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137).
