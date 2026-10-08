@@ -164,7 +164,12 @@
 
 .VPHero .image-src {
   max-width: 100%;
-  border-radius: 12px;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 72%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 72%, transparent 100%);
+}
+
+.VPHero .image-bg {
+  opacity: 0;
 }
 
 /* FAQ questions are too long for one line of the outline. */
