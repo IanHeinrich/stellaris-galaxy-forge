@@ -28,6 +28,7 @@ scenario starts a new one.
    seat to 1st Player for yourself.
 4. Use File → "Prepare for a new game…" and click Apply. This keeps
    leviathans, marauders and L-Gates away from the starting positions.
+   If it says "Nothing to change.", go on to the next step.
 5. In Game setup, click "Update counts" if it says the counts no longer
    match.
 6. [Save into the Paint a Galaxy mod](play.md#play-a-paint-a-galaxy-map),

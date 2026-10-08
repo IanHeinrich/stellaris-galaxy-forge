@@ -32,7 +32,7 @@ can put the original back over your edited copy. Read
    to undo an edit.
 5. For a first try, select File → "Save as…" and give the copy a new
    name. Keep the copy in the save's own folder, where the dialog opens,
-   so Stellaris lists it.
+   so Stellaris lists it. It shows there under its new name.
    Later, <kbd>Ctrl</kbd>+<kbd>S</kbd> saves over the open file and keeps
    the previous one beside it as a [backup](../safety/saving.md).
 6. Load the copy in Stellaris with the same DLC and mods, and check your

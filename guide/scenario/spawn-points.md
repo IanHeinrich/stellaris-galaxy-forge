@@ -21,7 +21,8 @@ The Spawn point checkbox on the system's page does the same.
 
 On a map for Paint a Galaxy, set each seat's kind. Enabled seats accept
 any empire. The 1st Player seat is for you, or the host in multiplayer.
-Sol is for the United Nations of Earth. Reserved seats A to Z and Alpha
+Sol is for the United Nations of Earth, or an empire whose species has
+the Reserved Spawn Sol trait. Reserved seats A to Z and Alpha
 to Omega are for one specific empire each. Reserved seats need the
 [Reserved Spawns submod](https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682).
 
@@ -44,7 +45,8 @@ That empire is then certain to start on the seat.
 - Each empire starts on a seat and brings its own home system. Anything
   the seat's initializer spawns nearby still appears. The planets shown
   on a seat are the ones that spawn if no empire starts there.
-- Only the United Nations of Earth can start on a Sol seat. Only an
+- Only the United Nations of Earth, or an empire whose species has the
+  Reserved Spawn Sol trait, can start on a Sol seat. Only an
   empire whose species has the matching trait from the Reserved Spawns
   submod can start on a reserved seat. With "Weighted for its empire"
   ticked on the seat, that empire is certain to start there.

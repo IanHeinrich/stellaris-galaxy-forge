@@ -58,11 +58,12 @@ and start it:
 
 ```sh
 cd ~/Downloads
-chmod +x Stellaris-Galaxy-Forge-0.24.0-Linux.AppImage
-./Stellaris-Galaxy-Forge-0.24.0-Linux.AppImage
+chmod +x Stellaris-Galaxy-Forge-*-Linux.AppImage
+./Stellaris-Galaxy-Forge-*-Linux.AppImage
 ```
 
-Use the folder and version number of your download. There are also
+Use the folder you downloaded it to. If it holds more than one version,
+use the full file name in place of the `*`. There are also
 `Linux-Debian-Ubuntu.deb` and `Linux-Fedora.rpm` packages. All of them
 are built on Ubuntu 22.04 for x86_64.
 
