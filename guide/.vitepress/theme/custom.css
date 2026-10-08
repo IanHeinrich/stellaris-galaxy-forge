@@ -175,3 +175,11 @@
   overflow: visible;
   text-overflow: clip;
 }
+
+.vp-doc .download {
+  margin: 20px 0 24px;
+}
+
+.vp-doc .download a {
+  text-decoration: none;
+}

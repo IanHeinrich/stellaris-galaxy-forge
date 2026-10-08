@@ -1,5 +1,5 @@
 import { h } from 'vue'
-import DefaultTheme from 'vitepress/theme'
+import DefaultTheme, { VPButton } from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 import Annotated from './components/Annotated.vue'
 import GuideVersion from './components/GuideVersion.vue'
@@ -17,5 +17,6 @@ export default {
   enhanceApp({ app }) {
     app.component('Annotated', Annotated)
     app.component('GuideVersion', GuideVersion)
+    app.component('VPButton', VPButton)
   }
 } satisfies Theme

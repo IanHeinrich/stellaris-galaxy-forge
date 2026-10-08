@@ -6,8 +6,14 @@ aliases: [download, installer, setup, exe, msi, windows defender, defender, smar
 # Install and update
 
 Galaxy Forge is a desktop app that runs outside the game, on Windows,
-macOS and Linux. Download it from the
-[Releases page](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest).
+macOS and Linux.
+
+<p class="download">
+  <VPButton tag="a" size="big" theme="brand" text="Download the latest release" href="https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest" />
+</p>
+
+The Releases page lists a file for each system. The sections below say
+which one to pick.
 
 ## Install on Windows
 
