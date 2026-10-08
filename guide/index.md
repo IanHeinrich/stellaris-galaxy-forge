@@ -19,7 +19,7 @@ hero:
       link: https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest
 
 features:
-  - title: Change my campaign
+  - title: Edit my save
     details: Move systems, draw and cut hyperlanes, and edit planets in a save you are playing.
     link: /edit/select-and-move
   - title: Build a galaxy for a new game
