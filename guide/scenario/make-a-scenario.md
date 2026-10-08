@@ -6,16 +6,18 @@ aliases: [new scenario, blank canvas, export as scenario, open as scenario, conv
 # Make a scenario <Badge type="info" text="Scenario" />
 
 A [scenario](what-is-a-scenario.md) is a galaxy map that a new game
-starts from. You can start one from nothing or from a save.
+starts from. Start from a blank map or from the galaxy in a save.
 
 ## Start a scenario
 
 There are three ways to make one:
 
 - "New scenario…" then "Blank canvas" gives you an empty map.
-- "New scenario…" then "A galaxy from the game": start a new game in
-  Stellaris, save on day one, and open that save here. You get the game's
-  own layout, names and empires to edit.
+- "New scenario…" then "A galaxy from the game" gives you the game's own
+  layout, names and empires to edit:
+  1. In Stellaris, start a new game with the size and shape you want.
+  2. Save on day one.
+  3. In Galaxy Forge, open that save as a scenario.
 - Pick any save and click "Open as scenario", or use File → "Export as
   scenario…". The original save remains unchanged. After "Open as
   scenario", the Galaxy page opens with
@@ -43,8 +45,8 @@ you click Export.
 
 ## Edit a scenario
 
-Selecting and moving systems, hyperlanes and nebulae work as in a save.
-A scenario adds these:
+You select and move systems, edit hyperlanes and edit nebulae as in a
+save. A scenario adds these:
 
 - [Add systems](../edit/add-systems.md#add-a-system-to-a-scenario),
   [rename any system](../edit/add-systems.md#rename-a-system) and
@@ -75,7 +77,8 @@ version. Each time Galaxy Forge or Paint a Galaxy saves the file, it adds
 itself to that line, so the line lists every tool and version that wrote
 the file.
 
-## Good to know
+## Day-one estimates
 
-The Scripts tab and the day-one layers are a best guess at what scripts
-will do on day one. Galaxy Forge can't follow every script.
+The Scripts tab and the day-one layers estimate what scripts will do
+when the game starts. Galaxy Forge can't follow every script, so they
+can miss things.

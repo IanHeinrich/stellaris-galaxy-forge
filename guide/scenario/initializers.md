@@ -5,14 +5,15 @@ aliases: [initializer, initialiser, solar system initializer, custom spawn syste
 ---
 # Initializers <Badge type="info" text="Scenario" />
 
-An initializer sets what a system spawns: its star, its planets and
-anything else the game places there.
+An initializer is a definition, from the game or a mod, of what a
+system spawns: its star, its planets and anything else the game places
+there.
 
 ## Choose a system's initializer
 
-<kbd>Shift</kbd>+<kbd>I</kbd> opens the initializer browser, which sets
-what a system spawns. It shows what each one places before you assign
-it.
+Select one or more systems and press <kbd>Shift</kbd>+<kbd>I</kbd> to
+open the initializer browser. Pick an initializer to see what it places,
+then click Assign to give it to the selected systems.
 
 <Annotated :marks="[
   { n: 1, box: [15, 13, 1115, 36], label: 'Search, with the filter prefixes listed under it' },
@@ -26,15 +27,21 @@ it.
 
 </Annotated>
 
+Set as default makes the initializer the one a new system spawns from
+when you right-click empty space and select "New system". Pin adds it to
+the Pinned group at the top of the list, and <kbd>Ctrl</kbd>+<kbd>D</kbd>
+does the same.
+
 To add a new system from an initializer, see
 [Add a system to a scenario](../edit/add-systems.md#add-a-system-to-a-scenario).
 The [system view](../system/system-view.md#see-how-a-scenario-system-rolls)
-shows what a system's initializer places.
+shows what a system's initializer places, with an example roll where it
+leaves things to chance.
 
 ## Filter the list
 
-Type words to filter the list. Every word has to match. These prefixes
-match one field only:
+Type words to filter the list. An initializer shows only when it matches
+every word. Use these prefixes to search one field:
 
 | Filter | Matches |
 | --- | --- |

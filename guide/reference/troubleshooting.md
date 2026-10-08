@@ -7,14 +7,15 @@ aliases: [troubleshooting, problem, problems, not working, broken, error, bug, c
 
 ## My edits are gone when I load the save
 
-Steam Cloud has probably put the original save back over your edited
-copy. Before you play an edited save, close Steam or turn off Steam
-Cloud for Stellaris. See [Steam Cloud](../safety/steam-cloud.md).
+First check that you loaded the file you edited. If it's a cloud save,
+Steam Cloud may have put the original back over your edited copy. Before
+you play an edited cloud save, close Steam or turn off Steam Cloud for
+Stellaris. See [Steam Cloud](../safety/steam-cloud.md).
 
 ## Save says the file changed on disk
 
-Something, usually Stellaris, wrote the file after you opened it. The
-dialog offers three choices:
+The file has changed on disk since you opened or last saved it, often
+because Stellaris saved over it. The dialog offers three choices:
 
 - "Save As…" saves your edits to another file and leaves the game's
   version alone.
@@ -36,29 +37,31 @@ subscribe to it on the Workshop first. See
 
 ![The Open dialog for a plain scenario, with the For the Paint a Galaxy mod checkbox ticked](../images/scenario/plain-scenario-warning.png)
 
-The scenario was written without Paint a Galaxy. Keep "For the Paint a
-Galaxy mod" ticked to edit it for the mod, which most maps need. Untick
+Open shows this warning when the scenario was written without Paint a
+Galaxy. Keep "For the Paint a Galaxy mod" ticked to edit it for the
+mod, which most maps need. Untick
 it only for a map that belongs to a mod of your own. "Don't warn me
 again" stops the question. "Warn on plain scenarios" in the Help menu
 turns it back on. See [Paint a Galaxy](../scenario/paint-a-galaxy.md).
 
 ## Stars look plain and names look wrong
 
-Galaxy Forge hasn't read your Stellaris install. The Game data pill in
+Galaxy Forge hasn't read your Stellaris install. The Game data button in
 the status bar says "Game data off" or "Game data unavailable". Click
 it, then "Load now", or "Locate Stellaris…" to pick the game's folder.
 See [Game data and mods](../start/game-data.md).
 
 ## Put the original save back
 
-Galaxy Forge keeps a backup every time it saves. See
+Galaxy Forge keeps the file it replaces as a backup each time it saves.
+See
 [Restore the original](../safety/saving.md#restore-the-original).
 
 ## The Issues tab warns about something
 
-The Issues tab lists problems on the map, errors first. Each kind has a
-section on the Issues page that says what it costs in game and how to
-fix it. See [Issues](../safety/issues.md).
+The Issues tab lists problems on the map, errors first. The
+[Issues](../safety/issues.md) page explains each one, what it does in
+game and how to fix it.
 
 ## Report a bug
 
@@ -69,3 +72,10 @@ easier to reproduce. If you don't have a GitHub account, leave a comment
 on the
 [Workshop page](https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137)
 instead.
+
+These help me find the problem:
+
+- The Galaxy Forge version, from the Help menu
+- The Stellaris version and your operating system
+- The mods in your playset
+- What you did, what you expected and what happened instead

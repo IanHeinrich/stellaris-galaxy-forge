@@ -1,12 +1,13 @@
 ---
 layout: home
 title: Galaxy Forge
-description: A desktop editor for the galaxy map of a Stellaris save, or for a galaxy scenario that a new game starts from.
+description: A desktop editor for Stellaris saves and galaxy scenarios.
 aliases: [galaxy editor, save editor, map editor, stellaris editor]
 
 hero:
   name: Stellaris Galaxy Forge
   text: User guide
+  tagline: Edit a campaign you're playing, or build a galaxy for a new one.
   image:
     src: /galaxy.png
     alt: A whole galaxy in Galaxy Forge, with empire territories
@@ -20,13 +21,13 @@ hero:
 
 features:
   - title: Edit my save
-    details: Move systems, draw and cut hyperlanes, and edit planets in a save you are playing.
-    link: /edit/select-and-move
+    details: Move systems, draw and cut hyperlanes, and edit planets in a save.
+    link: /start/first-edit
   - title: Build a galaxy for a new game
     details: Turn a save into a scenario, or start from a blank map.
     link: /scenario/what-is-a-scenario
   - title: Play the galaxy I made
-    details: Save your map into the Paint a Galaxy mod and start a new game on it.
+    details: Save your map into the Paint a Galaxy mod, then start a new game on it.
     link: /scenario/play
   - title: Something went wrong
     details: Fix common problems and report a bug.

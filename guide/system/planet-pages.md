@@ -41,15 +41,15 @@ game demolishes districts over a lowered cap within a month.
 In a Stellaris 4.x save, change a planet's or moon's look in its Model
 field, such as the Ocean Paradise, Earth or Previously Terraformed
 look. The looks the game uses on the planet's class come first.
-Default puts back its class's look. A class change in game, such as
-terraforming, also puts it back.
+Select Default to go back to the look of the planet's class. Terraforming
+or any other class change in game also resets the look.
 
 ## Change a planet's class
 
 In a Stellaris 4.x save, change a planet's or moon's class in its
 Class field. Deposits, modifiers and any colony stay as they are. The
 planet takes the new class's look, and the Model field can set
-another. A colony can only move between the habitable classes with
+another. A colonised planet can only change to another habitable class with
 ordinary districts, such as continental, ocean or tomb world. Stars,
 habitats, ring worlds, arks and other special worlds keep their class.
 
@@ -61,8 +61,8 @@ a ring, so you can take it off.
 
 ## Go back
 
-The breadcrumb above the page goes back: "‹" for one step, a name in it
-for that page, or "Galaxy" for the whole map.
+Use the breadcrumb above the page to go back. Click "‹" to go back one
+step, a name in it to go to that page, or "Galaxy" for the Galaxy page.
 
 Deposits, modifiers, anomalies and dig sites are on
 [Deposits and modifiers](deposits-and-modifiers.md). A planet's colony

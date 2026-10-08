@@ -6,36 +6,40 @@ aliases: [colony, remove colony, delete planet, delete moon, remove planet, pops
 # Colonies and deleting planets <Badge type="tip" text="Save" />
 
 A colonised planet has a Colony section: its owner, designation, when
-it was colonised, and its pops by species.
+it was colonised, and its pops by species. Before you remove or delete
+an empire's capital or a species' home planet, read
+[Capitals and home planets](#capitals-and-home-planets).
 
 ## Remove a colony
 
-In a Stellaris 4.x save, press Remove colony in the planet's Colony
+In a Stellaris 4.x save, click Remove colony in the planet's Colony
 section to remove the colony and keep the planet. The planet stays, with
 no owner. Its pops, jobs, districts, buildings, defence armies and
-orbital ring go. A system's own starbase that orbits the planet stays.
+orbital ring are removed. The system's starbase stays, even if it orbits
+the planet.
 
 ## Delete a planet or moon
 
 In a Stellaris 4.x save, you can delete a planet or moon. Right-click it
-in the system view and choose Delete planet or Delete moon, or use the
+in the system view and select Delete planet or Delete moon, or click the
 button at the bottom of its page. The app asks before it deletes
 anything, and one undo puts it all back.
 
-- A planet takes its moons with it. Deleting a moon leaves its planet in
-  place.
-- A colonised planet loses its colony first. The confirm says what goes:
-  the colony, its pops, its buildings, its defence armies and any orbital
-  ring. Colonies on its moons go too, and the confirm says so.
+- A planet that was in the save when you opened it takes its moons with
+  it. Deleting a moon leaves its planet in place.
+- A planet you added since you opened the save can't be deleted while
+  it has moons. Delete its moons first.
+- A colonised planet loses its colony first. The confirmation lists what
+  goes: the colony, its pops, buildings, defence armies and any orbital
+  ring. Colonies on its moons go too, and the confirmation says so.
 - A mining or research station goes with the planet it works.
-- A dig site on the planet goes too, as its ✕ removes one. A science
-  ship excavating it stops on the game's first day.
+- A dig site on the planet is removed too. A science ship excavating it
+  stops on the game's first day.
 - An anomaly on the planet goes too, and no empire lists it any more.
-- A planet you added can't be deleted while it has moons. Delete its
-  moons first.
 - Deposits and survey records stay in the save. The game tidies them up
-  when it loads. Fleets parked at the planet stay where they are. I
-  haven't tried what the game does with them.
+  when it loads.
+- Fleets parked at the planet stay where they are. I haven't tested
+  what the game does with them once the planet is gone.
 
 ## Capitals and home planets
 

@@ -11,17 +11,17 @@ is a Steam Workshop mod for playing hand-made galaxies.
 
 ## Why use the mod
 
-Stellaris gets some things wrong when it loads a hand-made galaxy. The
-mod fixes them.
+On a hand-made galaxy, Stellaris builds no fallen empires and gives
+some empires a poor homeworld. The mod fixes both.
 
-- The game builds no fallen empires on a hand-made galaxy. The mod builds
-  them in the fallen empire zones you place.
+- The mod builds fallen empires in the fallen empire zones you place.
 - Most empires on the game's random empire starts get a homeworld at 30
   to 50% habitability. The mod gives them a homeworld of their own class.
   A plain scenario from Galaxy Forge gives its seats ordinary systems
   instead, and the game builds each empire a homeworld of its own class
   there.
-- Marauder clans you place in Galaxy Forge spawn with or without the mod.
+- Marauder clans you place in Galaxy Forge spawn with or without the
+  mod. A clan made in Galaxy Forge has its home and both outposts.
 
 ## Tick the Paint a Galaxy checkbox
 
@@ -34,10 +34,12 @@ own.
 
 When a save is converted for the mod, your capital becomes your seat and
 each fallen empire becomes a fallen empire zone at its old capital. The
-L-Cluster is left out because the game adds its own.
+save's wormhole pairs stay. The L-Cluster is left out because the game
+adds its own. [Prepare for a new game](prepare.md#what-a-save-keeps-as-a-scenario)
+lists what else a converted save keeps.
 
-A scenario for the mod shows a "PaG" badge in the top bar. The badge
-warns you when the mod isn't installed or isn't enabled.
+A "PaG" badge in the top bar marks a scenario made for the mod. It also
+warns you when the mod isn't installed or isn't enabled in your playset.
 
 ![The warning when a Paint a Galaxy scenario is opened while the mod is not enabled in the playset](../images/scenario/paint-mod-not-enabled.png)
 
@@ -58,18 +60,20 @@ On a map for Paint a Galaxy you can also:
 - It opens your wormhole pairs.
 - It gives each empire on a random empire start a homeworld of its own
   class.
-- It adds guaranteed habitable worlds, as your Guaranteed Habitable
-  Worlds setting asks.
-- It adds the two raid bases beside a marauder clan home that has none.
+- It adds guaranteed habitable worlds according to your Guaranteed
+  Habitable Worlds setting.
+- It adds two outposts beside a marauder clan home that has none. A home
+  that already has one outpost gets no second one.
 - The game adds its own L-Cluster and some event systems, such as the
   Sealed System.
 
 Where each empire starts is on
 [Spawn points](spawn-points.md#who-starts-where-on-day-one).
 
-## Good to know
+## The mod's limits
 
-The mod's Workshop page lists its limits. The Advanced Neighbors setting
-has no effect. Every precursor is enabled. Sol gets no Sol-specific
-neighbours, and the Local Cluster mod is the usual fix. Nomads with
-random homes don't start in a nomad system.
+The mod's Workshop page lists its limits, which can change when the mod
+updates. The Advanced Neighbors setting has no effect. Every precursor
+is enabled. Sol gets no Sol-specific neighbours, and the Local Cluster
+mod is the usual fix. Nomads with random homes don't start in a nomad
+system.

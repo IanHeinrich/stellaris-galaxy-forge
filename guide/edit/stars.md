@@ -9,8 +9,8 @@ A system's star has a page of its own, like a planet.
 
 ## Change a star's type and size
 
-Each star in a system's planet list has an "Edit" mark. Its page sets
-the star's type and size.
+Click a star in a system's Planets list to open its page. Change its
+Star type and Size there.
 
 ## Change the star class of several systems
 

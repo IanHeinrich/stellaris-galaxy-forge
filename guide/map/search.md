@@ -10,9 +10,9 @@ open it too.
 
 ## Find a system, empire or planet
 
-Search finds systems, empires, planets, fleets and nebulae, and systems
-by what is in them, such as "gaia", or by their precursor, such as
-"Vultaum". In a scenario it finds systems and nebulae.
+Search finds systems, empires, planets, fleets and nebulae by name. It
+also finds systems by what is in them, such as "gaia", or by their
+precursor, such as "Vultaum". In a scenario it finds systems and nebulae.
 
 ![Search open with "gaia" typed, listing Gaia World systems while the map rings them](../images/map/search.png)
 
@@ -22,7 +22,7 @@ the search open. <kbd>Esc</kbd> closes it.
 
 ## Search one kind of thing
 
-Start the search with a prefix to find one kind only:
+Start the search with a prefix to find only one kind:
 
 | Prefix | Finds |
 | --- | --- |
@@ -38,8 +38,9 @@ planets, fleets, nebulae and back to everything.
 
 ## Pin a search
 
-Pin a search to keep its systems ringed on every save.
-<kbd>Ctrl</kbd>+<kbd>Enter</kbd> pins the search, or unpins it. The
+Pin a search to see the systems it finds in every file you open. They
+show a coloured ring on the map. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> pins
+the search, or unpins it. The
 Pinned searches tab in the dock lists your pins, and so does the empty
 search box.
 

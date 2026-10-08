@@ -10,9 +10,10 @@ opens it.
 
 ## Read the Issues tab
 
-Errors are things the game can't be expected to cope with, such as a
-hyperlane that exists at only one end. Warnings are worth a look, such
-as a system with no hyperlanes. Click an issue to jump to it.
+Errors are broken data the game can't be expected to cope with, such as
+a hyperlane written at only one end. Warnings are worth a look, such as
+a system with no hyperlanes, which you may have meant. Click an issue to
+jump to it.
 
 <Annotated :marks="[
   { n: 1, box: [8, 63, 320, 24], label: 'From my edits, Already in the file, Everything' },
@@ -25,216 +26,253 @@ as a system with no hyperlanes. Click an issue to jump to it.
 
 </Annotated>
 
-The sections below are every kind of issue the tab can show, with what
-it costs in game and how to fix it.
+The sections below explain each issue by the name the tab gives it,
+what it does in game and how to fix it. They are grouped by what the
+issue is about.
 
-## Hyperlane written at one end only
+## Hyperlanes
+
+### Hyperlane written at one end only
 
 Stellaris writes a hyperlane into both of the systems it joins. Only one
 end of this one is written. Cut the lane and draw it again, which writes
 both ends.
 
-## Hyperlane to a system that is not here
+### Hyperlane to a system that is not here
 
 The lane leads to a system the file does not contain, so the map cannot
 draw it. The editor cannot cut this one lane. Right-click the system and
-choose Isolate, which clears every hyperlane it has, then draw the good
+select Isolate, which clears every hyperlane it has, then draw the good
 ones again.
 
-## Hyperlane from a system to itself
+### Hyperlane from a system to itself
 
 The system is joined to itself. The map draws nothing for it. Open the
 system and cut the lane to itself from its Hyperlanes list.
 
-## The same hyperlane written twice
+### The same hyperlane written twice
 
-The file lists this hyperlane twice. Stellaris writes duplicates like
-this in its own saves and they do no harm. Nothing needs doing. Deleting
-the lane removes both copies.
+The file lists this hyperlane twice. Stellaris also writes these
+duplicates in its own saves, and they do no harm. No action is needed.
+Deleting the lane removes both copies.
 
-## System with no hyperlanes
+### System with no hyperlanes
 
-Nothing links this system to the rest of the galaxy. Only a gate or a
-jump drive can reach it. Draw a hyperlane to a neighbour, or delete the
-system.
+Nothing links this system to the rest of the galaxy. Fleets can reach it
+only through a bypass, such as a wormhole or a gateway, or with a jump
+drive. Draw a hyperlane to a neighbour, or leave it if you meant it. In
+a scenario, or for a system you added since you opened the save, you
+can also
+[delete the system](../edit/add-systems.md#delete-systems).
 
-## System outside the galaxy edge
-
-The system sits further from the centre than the galaxy's own radius,
-outside the edge the map draws. Drag it back inside the galaxy edge.
-
-## Galaxy split into unconnected pieces
+### Galaxy split into unconnected pieces
 
 Your edits have broken the galaxy into more pieces than it had when the
-file opened. A fleet in one piece cannot reach the others. Choose Join
-islands to link the pieces with the shortest hyperlanes that cross none,
-or undo the lane you removed.
+file opened. A fleet in one piece cannot reach the others. Click Join
+islands to reconnect the pieces with the shortest hyperlanes that don't
+cross any others. Or undo the edit that split them.
 
-## Nebula list does not match the map
+## Positions and space
+
+### System outside the galaxy edge
+
+The system is further from the centre than the galaxy's own radius,
+outside the edge the map draws. Drag it back inside the galaxy edge.
+
+### Positions shifted before the game reads them
+
+This scenario shifts every position before the game places its systems.
+The map draws the positions as the file writes them, so the galaxy in
+game will be somewhere else. No action is needed. Start a game on this
+map to see where the systems end up.
+
+### Position written as a range
+
+The position here is written as a range, and the generator picks a point
+inside it every time it builds the galaxy. The map draws the middle.
+No action is needed. Moving the system pins it to one point.
+
+### Nebula list does not match the map
 
 The save lists each nebula's systems separately from where those systems
 lie. Here the two disagree. Move the system or change the nebula's
 radius until the two agree. The list itself cannot be edited here.
 
-## Positions shifted before the game reads them
+### System in the L-Cluster's space
 
-This scenario shifts every position before the game places its systems.
-The map draws the positions as the file writes them, so the galaxy in
-game will sit elsewhere. Nothing needs doing. Start a game on this map
-to see where the systems land.
+When it generates the galaxy the game keeps a patch of space for the
+L-Cluster, and this system is in it. The map draws that patch as a
+circle. Move the system clear of the circle if you want the L-Cluster
+left to itself.
 
-## Position written as a range
+## Scenario export
 
-The position here is written as a range, and the generator picks a point
-inside it every time it builds the galaxy. The map draws the middle.
-Nothing needs doing. Moving the system pins it to one point.
+### Wormholes and gates left behind
 
-## Wormholes and gates left behind
+The export couldn't write some of the save's bypasses into the scenario.
 
-A scenario file has no way to say where a wormhole, a gateway or an
-L-Gate goes. The export dropped the ones this save had. Nothing can put
-them back. The galaxy settings decide how many the game places and
-where.
+- A plain scenario has no way to say where a wormhole goes, so the
+  export drops every wormhole pair. On a map for Paint a Galaxy the export
+  keeps them, and the mod opens them on day one. The export drops only
+  a pair with an end in a system it left out.
+- Gateways and L-Gates are dropped unless the system's initializer
+  builds them again.
 
-## Seat on a start written for one empire
+You can't put the dropped ones back as they were. On a map for Paint a
+Galaxy you can
+[link new wormhole pairs](../edit/wormholes.md#link-wormholes-on-a-paint-a-galaxy-map).
+Otherwise the game places its own, as the galaxy settings decide.
 
-This seat stands on a starting system written for one named empire. The
+### Seat on a start written for one empire
+
+This seat is on a starting system written for one named empire. The
 generator offers that start to no other empire, so the seat fits only
 the one that began there. Select the system and pick a generic start
-with Choose… in the inspector's Initializer section. The Paint a Galaxy
+with Choose… in the Inspector's Initializer section. The Paint a Galaxy
 export does this for you.
 
-## System in a fallen empire's space
+## Scenario settings
 
-A system stands inside the ring where Paint a Galaxy builds this fallen
+### Galaxy settings do not match the map
+
+This file's settings and the map disagree on how many empires, fallen
+empires or marauders there are. The new game screen will offer numbers
+the map cannot seat. Click Update counts.
+
+### Another file in the mod uses this name
+
+Two files in the mod are listed under the same name. The game shows one
+galaxy size per name, so one of them never reaches the new game screen.
+Change the name in the galaxy Inspector's Scenario header, or rename the
+other file.
+
+### Far more systems than the largest galaxy
+
+The scenario has many more systems than the biggest galaxy size the game
+and your mods offer. A galaxy this large may slow the game, especially
+later in the campaign. No action is needed if the game runs well for
+you. Otherwise remove some systems.
+
+### Initializer used more often than the game allows
+
+The game limits how many systems may use this initializer. Systems past
+the limit may not get what the initializer puts there, or the game may
+place it only once. Give the extra systems another initializer.
+
+## Fallen empires
+
+### System in a fallen empire's space
+
+A system is inside the ring where Paint a Galaxy builds this fallen
 empire. The mod needs that ring clear. Move the system clear of the
 ring, or fit the zones again.
 
-## Two fallen empire zones overlap
+### Two fallen empire zones overlap
 
 Two zones' rings cover the same space, and the mod cannot build two
 fallen empires there. Move one of the zones, or fit the zones again.
 
-## Fallen empire zone off the edge of the map
+### Fallen empire zone off the edge of the map
 
 The zone's centre lies off the canvas Paint a Galaxy paints on. The mod
 has nowhere to build the fallen empire. Move the zone's system further
 in, or fit the zones again.
 
-## No fallen empire zones on the map
+### No fallen empire zones on the map
 
-Paint a Galaxy builds fallen empires only where the map lays a ring for
-them. This map lays none, so a game started on it gets none however many
-you ask for. Press Fit zones… to lay some.
+Paint a Galaxy builds fallen empires only in a fallen empire zone. This
+map has none, so a game started on it gets no fallen empires, whatever
+the game setup asks for. Click Fit zones… to add some.
 
-## Fallen empire with no way in
+### Fallen empire with no way in
 
 This zone takes hand-picked connections and no system links to it. The
 fallen empire gets no hyperlane, so it starts cut off from the galaxy.
-Press Use nearest systems to link the systems around it.
+Click Use nearest systems to link the systems around it.
 
-## Link to a fallen empire that is not there
+### Link to a fallen empire that is not there
 
 This system is set to connect to a fallen empire zone, and no zone
-claims that connection. Press Unlink to drop the connection.
+claims that connection. Click Unlink to drop the connection.
 
-## Two fallen empires share a connection
+### Two fallen empires share a connection
 
 Both zones take the same connection, so every system linked to it joins
 both fallen empires. Open one of the zones and give it a connection of
 its own.
 
-## Long link to a fallen empire
+### Long link to a fallen empire
 
 The link to this fallen empire zone reaches from further off than Paint
-a Galaxy's own rule allows. The mod lays the hyperlane anyway. Nothing
-needs doing. Link a nearer system if you want a shorter lane.
+a Galaxy's own rule allows. The mod adds the hyperlane anyway. No action
+is needed. Link a nearer system if you want a shorter lane.
 
-## Galaxy settings do not match the map
+## Spawn points
 
-This file's settings and the map disagree on how many empires, fallen
-empires or marauders there are. The new game screen will offer numbers
-the map cannot seat. Press Update counts.
-
-## Two seats reserved for the same empire
+### Two seats reserved for the same empire
 
 A reservation keeps a seat for the one empire that has its trait. More
 than one seat here is reserved for the same empire, and it can only
 start on one. Open a seat's Spawn point section and give it a different
 reservation.
 
-## More than one seat weighted for the player
+### More than one seat weighted for the player
 
-You start on one of them. Which one comes down to the order the game
-places empires in. Clear Weighted for its empire on the seats that are
-not yours.
+You can start on only one of these seats, and you can't choose which.
+It comes down to the order the game places empires in. Clear Weighted
+for its empire on the seats that are not yours.
 
-## System in the L-Cluster's space
-
-When it generates the galaxy the game keeps a patch of space for the
-L-Cluster, and this system stands in it. The map draws that patch as a
-circle. Move the system clear of the circle if you want the L-Cluster
-left to itself.
-
-## Another file in the mod uses this name
-
-Two files in the mod are listed under the same name. The game shows one
-galaxy size per name, so one of them never reaches the new game screen.
-Change the name in the galaxy inspector's Scenario header, or rename the
-other file.
-
-## Reserved seats need another mod
+### Reserved seats need another mod
 
 A seat reserved for one empire only works with the
 [Reserved Spawns submod](https://steamcommunity.com/sharedfiles/filedetails/?id=3762808682). That submod is not in your playset, so these seats are filled at
-random. Press Subscribe ↗, then enable the mod in your playset.
+random. Click Subscribe ↗, then enable the mod in your playset.
 
-## Far more systems than the largest galaxy
+### Systems near a seat left for the game to fill
 
-The scenario has many more systems than the biggest galaxy size the game
-and your mods offer. A galaxy this large can make the game slow, most of
-all late on. Nothing needs doing if the game runs well for you.
-Otherwise remove some systems.
+These systems are within 2 hyperlane jumps of a seat and have no
+initializer. The game fills them at random when a new game starts, so
+they may get a leviathan, a marauder home, an L-Gate or voidworms right
+next to a starting empire. Give them an initializer, or apply Prepare
+for a new game with
+[Keep leviathans, marauders and L-Gates away from starting positions](../scenario/prepare.md#keep-leviathans-marauders-and-l-gates-away-from-starting-positions)
+ticked. It turns them into normal systems.
 
-## Initializer used more often than the game allows
+## Marauders
 
-The game limits how many systems may use this initializer. The systems
-past the limit may not get what it makes, or the game may place it only
-once. Give the extra systems another initializer.
-
-## One marauder clan with two homes
+### One marauder clan with two homes
 
 A marauder clan has one home, and more than one system here claims to be
 the same clan's. The clan spawns from only one of them. Give the others
 a different clan's home, or an ordinary start.
 
-## Outpost with no clan home beside it
+### Outpost with no clan home beside it
 
 An outpost only works with a hyperlane to its clan's home. This one has
 none, so nothing spawns there. Draw a hyperlane from the outpost to its
 clan's home.
 
-## Marauder clan short of outposts
+### Marauder clan short of outposts
 
-A marauder clan is its home and two outposts hyperlaned to it. This home
-has fewer, and nothing in the game adds the rest. Press Add the
-outposts.
+A marauder clan is a home with two outposts, each joined to it by a
+hyperlane. This home has fewer. Click Add the outposts to complete the
+clan.
 
-## Marauder clan beside an empire seat
+- With no outposts, the tab shows a warning. On a plain scenario
+  nothing adds them. On a map for Paint a Galaxy the mod adds both on
+  day one.
+- With one outpost, the tab shows it as information. The clan still
+  works, and nothing adds the second.
 
-This clan's home stands close to an empire seat. Whoever starts there
-takes the raids first. Nothing needs doing. Move the home away from the
-seat if you would rather the raids were spread.
+### Marauder clan beside an empire seat
 
-## Systems near a seat left for the game to fill
+This clan's home is close to an empire seat. Whoever starts there takes
+the raids first. No action is needed. Move the home away from the seat
+if you would rather the raids were spread.
 
-These systems have no initializer, so the game fills them at random when
-a new game starts. Nothing keeps leviathans, marauder homes, L-Gates or
-voidworms away from a capital. Give them an initializer, or apply
-Prepare for a new game with Keep leviathans, marauders and L-Gates away
-from starting positions ticked. It turns them into normal systems.
+## Planets
 
-## Two bodies in the same place
+### Two bodies in the same place
 
 Two planets or moons share an orbit and an angle, so the game draws one
 on top of the other. Open the system view and drag one along its orbit,

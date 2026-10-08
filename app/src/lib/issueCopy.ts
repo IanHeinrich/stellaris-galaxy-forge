@@ -39,8 +39,8 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   },
   system_isolated: {
     title: "System with no hyperlanes",
-    why: "Nothing links this system to the rest of the galaxy. Only a gate or a jump drive can reach it.",
-    fix: "Draw a hyperlane to a neighbour, or delete the system.",
+    why: "Nothing links this system to the rest of the galaxy. Fleets can reach it only through a wormhole, a gateway or a jump drive.",
+    fix: "Draw a hyperlane to a neighbour, or leave it if you meant it.",
     detail: false,
   },
   out_of_bounds: {
@@ -75,8 +75,8 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   },
   export_dropped: {
     title: "Wormholes and gates left behind",
-    why: "A scenario file has no way to say where a wormhole, a gateway or an L-Gate goes. The export dropped the ones this save had.",
-    fix: "Nothing can put them back. The galaxy settings decide how many the game places and where.",
+    why: "The export couldn't write some of the save's wormholes, gateways or L-Gates into the scenario. A map for Paint a Galaxy keeps wormhole pairs unless one end was left out.",
+    fix: "The dropped ones can't be put back as they were. On a map for Paint a Galaxy you can link new wormhole pairs. Otherwise the galaxy settings decide how many the game places and where.",
     detail: true,
   },
   home_initializer: {
@@ -195,8 +195,8 @@ const COPY: Record<AppIssueCode, IssueCopy> = {
   },
   marauder_bases_missing: {
     title: "Marauder clan short of outposts",
-    why: "A marauder clan is its home and two outposts hyperlaned to it. This home has fewer, and nothing in the game adds the rest.",
-    fix: "Press Add the outposts.",
+    why: "A marauder clan is a home with two outposts, each joined to it by a hyperlane. This home has fewer. Paint a Galaxy adds both to a home with none. Nothing adds the second to a home with one.",
+    fix: "Click Add the outposts.",
     detail: true,
   },
   marauder_near_seat: {

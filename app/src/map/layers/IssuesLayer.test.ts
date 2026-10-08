@@ -42,7 +42,7 @@ describe("the issues layer", () => {
       title: "Error",
       lines: [
         "System with no hyperlanes",
-        "Nothing links this system to the rest of the galaxy. Only a gate or a jump drive can reach it.",
+        "Nothing links this system to the rest of the galaxy. Fleets can reach it only through a wormhole, a gateway or a jump drive.",
       ],
     });
 

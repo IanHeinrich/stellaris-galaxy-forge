@@ -33,9 +33,9 @@ wrong when the game loads one. Most scenarios are made for it. See
 
 ## Initializer
 
-A definition that sets what a system spawns: its star, its planets and
-anything else the game places there. The game and your mods define them. In a scenario you
-pick one for each system. See [Initializers](../scenario/initializers.md).
+A definition, from the game or a mod, of what a system spawns: its
+star, its planets and anything else the game places there. In a scenario you pick one for each system.
+See [Initializers](../scenario/initializers.md).
 
 ## Spawn point
 
@@ -73,8 +73,14 @@ systems. In a save you can read and change what waits behind it. See
 
 ## Hyperlane
 
-The lanes ships travel along between systems. See
+A lane that ships travel along between two systems. See
 [Hyperlanes](../edit/hyperlanes.md).
+
+## Component
+
+A group of systems joined by hyperlanes and cut off from the rest. A
+galaxy with more than one component is split. The status bar counts
+them. See [Join a split galaxy](../edit/hyperlanes.md#join-a-split-galaxy).
 
 ## Bypass
 
@@ -88,8 +94,9 @@ Two wormholes that link two systems. See [Wormholes](../edit/wormholes.md).
 
 ## Gateway
 
-A bypass that empires build or repair, and travel between. Galaxy Forge
-shows gateways but can't add or move them. See
+A bypass that empires build or repair. Fleets can travel from one
+working gateway to any other. Galaxy Forge shows gateways but can't add
+or move them. See
 [Layers](../map/layers.md#every-layer).
 
 ## Nebula
@@ -100,6 +107,11 @@ A cloud over a group of systems. See [Nebulae](../edit/nebulae.md).
 
 How far a system sits above or below the galaxy plane, in a save. See
 [System heights](../edit/heights.md).
+
+## Inner radius
+
+The circle the system's hyperlane exits sit on. See
+[Asteroid belts and the inner radius](../system/belts.md).
 
 ## Galaxy core
 
@@ -124,6 +136,12 @@ A planet feature or timed effect, such as being a terraforming
 candidate. See
 [Deposits and modifiers](../system/deposits-and-modifiers.md#add-or-remove-a-modifier).
 
+## Model
+
+The field on a planet page that sets which art the game uses for a
+planet or moon, such as the Earth look. It doesn't change the class.
+See [Planet pages](../system/planet-pages.md#change-a-planet-s-look).
+
 ## Ironman
 
 The game mode where the game keeps one save and writes it itself. The Open
@@ -137,9 +155,15 @@ save. See [Steam Cloud](../safety/steam-cloud.md).
 
 ## Game data
 
-What Galaxy Forge reads from your Stellaris install and your mods: star
-art, names, planet classes and initializers. See
-[Game data and mods](../start/game-data.md).
+The definitions, names and art Galaxy Forge reads from your Stellaris
+install and your enabled mods, such as star art, planet classes and
+initializers. See [Game data and mods](../start/game-data.md).
+
+## Playset
+
+The list of mods you enable in the Paradox launcher. Galaxy Forge reads
+the mods in the playset Stellaris last started with. See
+[Game data and mods](../start/game-data.md#check-what-it-loaded).
 
 ## Issues
 

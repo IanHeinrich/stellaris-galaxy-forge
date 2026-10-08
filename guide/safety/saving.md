@@ -5,8 +5,9 @@ aliases: [save, save as, backup, bak, restore, original save, undo save, revert,
 ---
 # Save, back up and restore
 
-Galaxy Forge keeps a backup every time it saves, so you can always go
-back to the file you started from.
+Each time Galaxy Forge saves over a file, it keeps the file that was
+there as a backup. The earliest backup is the file as it was before
+Galaxy Forge first saved over it.
 
 ## Save your edits
 
@@ -15,8 +16,8 @@ back to the file you started from.
 Only the parts you changed are rewritten. Everything else is copied
 unchanged.
 
-If Stellaris wrote the file after you opened it, Save asks before
-replacing it. See
+If the file has changed on disk since you opened or last saved it,
+Galaxy Forge asks before overwriting it. See
 [Save says the file changed on disk](../reference/troubleshooting.md#save-says-the-file-changed-on-disk).
 
 When the map has [issues](issues.md), Save asks "Save this map?" first.
@@ -26,14 +27,20 @@ Cancel writes nothing.
 
 ## Find the backups
 
-::: tip Backups
-Each save keeps the previous file beside the new one, as
-`<name>.sav.bak-<date>-<time>`. The earliest backup is the file you
-originally opened. Up to eight backups are kept per file: the original,
-the three newest and a spread of the rest.
-:::
+The backups sit beside the file, named `<name>.sav.bak-<date>-<time>`,
+such as `2250.03.14.sav.bak-20261008-143205`. A scenario's backups
+follow the same rule, with `.txt` in place of `.sav`.
+
+- A backup is made whenever a save replaces a file. That includes
+  "Save as…" over an existing file, and "Overwrite" when the game
+  changed the file.
+- A save that changes nothing writes nothing and makes no backup.
+- Up to eight backups are kept per file: the earliest, the three newest
+  and four spread across the rest.
+- The earliest is never removed to make room. It stays until you move
+  or delete it.
 
 ## Restore the original
 
-Move or delete the edited `.sav`, then rename its earliest backup to
-`<name>.sav`.
+Move the edited `.sav` somewhere else. Then copy the earliest backup and
+rename the copy to `<name>.sav`.

@@ -17,8 +17,10 @@ save folder and in Steam's cloud folder. Cloud saves are marked "☁" (see
 the Saves tab, a save shows the name you gave it in the game, with its
 date underneath.
 
-<kbd>Enter</kbd> or a double-click opens the selected row. A save first
-asks whether to edit it as a save or as a scenario.
+<kbd>Enter</kbd> or a double-click opens the selected row. For a save,
+Galaxy Forge first asks whether to "Edit as save" or "Edit as
+scenario". "Edit as scenario" starts a new scenario from the save's
+galaxy and leaves the save unchanged.
 
 <Annotated :marks="[
   { n: 1, box: [19, 55, 1010, 36], label: 'Filter the list by empire, campaign, file, scenario or mod' },
@@ -37,11 +39,12 @@ asks whether to edit it as a save or as a scenario.
 
 ## Reopen a recent file
 
-The Recent list holds the last 10 documents you opened. The All tab
-shows the newest 5, and "Show all" opens the rest under Recent. Clear
-empties the list. Files you have deleted drop off it.
+The Recent list holds the last 10 files you opened. The All tab shows
+the 5 you opened most recently, and "Show all" switches to the Recent
+tab. Clear empties the list. Files that are no longer there are removed
+from it.
 
 ## Open any other file
 
-"Browse…" opens any `.sav` or scenario `.txt` file. Once a document is
-open, <kbd>Ctrl</kbd>+<kbd>O</kbd> brings the list back.
+Click "Browse…" to pick a `.sav` file or a scenario `.txt` file. Once a
+document is open, <kbd>Ctrl</kbd>+<kbd>O</kbd> brings the list back.
