@@ -6,6 +6,7 @@ import type { ModView } from "../../generated/ModView";
 import type { Progress } from "../../generated/Progress";
 import { counted, phaseLabel } from "../../lib/text";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { HelpLink } from "../HelpLink";
 import { FilterField } from "../parts";
 import "./chrome.css";
 import { EyeRow, Menu, MenuItem } from "./Menu";
@@ -131,7 +132,9 @@ export function GameDataPanel() {
       <Menu label={pillLabel(status, summary, progress)} title={title} align="right" up>
         {(dismiss) => (
           <>
-            <div className="menu-section">Install</div>
+            <div className="menu-section">
+              Install <HelpLink place="gameData" topic="Game data" dismiss={dismiss} />
+            </div>
             <div className="menu-note">{install ?? "none found yet"}</div>
             {status === "error" && error && <div className="menu-note warn">{error}</div>}
             <div className="menu-rule" />

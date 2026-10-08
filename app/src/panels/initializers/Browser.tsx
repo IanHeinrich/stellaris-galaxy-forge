@@ -13,6 +13,7 @@ import {
 } from "../../store/initializerBrowserStore";
 import { ENTER } from "../keys";
 import { Dialog } from "../Dialog";
+import { HelpLink } from "../HelpLink";
 import "./browser.css";
 import { Detail } from "./Detail";
 import { GroupTree } from "./GroupTree";
@@ -156,7 +157,9 @@ function Browsing() {
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
           />
-          <div className="muted ib-hint">{PREFIX_HINT}</div>
+          <div className="muted ib-hint">
+            {PREFIX_HINT} <HelpLink place="initializers" topic="Initializers" />
+          </div>
         </div>
         <div className="ib-cols">
           <GroupTree

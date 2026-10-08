@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState } from "react";
 import { useGameDataStore } from "../../store/gameDataStore";
+import { HelpLink } from "../HelpLink";
 import "./open.css";
 
 const EXPLANATION =
@@ -39,7 +40,10 @@ export function Setup() {
           void continueSetup(wanted);
         }}
       >
-        <h1>{notFound ? "Stellaris was not found" : "Before you start"}</h1>
+        <h1>
+          {notFound ? "Stellaris was not found" : "Before you start"}{" "}
+          <HelpLink place="gameDataSetup" topic="Game data" />
+        </h1>
         {notFound && error && <div className="error-box">{error}</div>}
         <label className="setup-check">
           <input
@@ -63,7 +67,7 @@ export function Setup() {
           </button>
         </div>
         <div className="setup-actions">
-          <span className="hint">You can change this later under Game data in the top bar.</span>
+          <span className="hint">You can change this later under Game data in the status bar.</span>
           <button type="submit" ref={go} disabled={status === "loading"}>
             Continue
           </button>

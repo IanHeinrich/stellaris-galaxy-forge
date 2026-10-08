@@ -10,8 +10,11 @@ and delete planets, and edit each planet's class, deposits and colony.
 You can also turn a save into a scenario and start a new game from it
 with the Paint a Galaxy mod.
 
+**[Read the user guide](https://ianheinrich.github.io/stellaris-galaxy-forge/)** for installing, every tool with
+screenshots, making a scenario and playing it with Paint a Galaxy. Use
+its search to find an answer.
+
 - Download: [the latest release](https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest)
-- How to use it: [the user guide](docs/user-guide.md)
 - On the Steam Workshop: [Galaxy Forge](https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137).
   Subscribing does not install the editor. The item contains no mod
   files; it exists so Galaxy Forge can be found through the Workshop.
@@ -52,8 +55,8 @@ to continue the same campaign.
 - **Edit the L-Gate outcome.** See which outcome the save rolled and
   change it until a gate opens.
 
-The user guide's [Edit a save](docs/user-guide.md#edit-a-save) and
-[Add a system](docs/user-guide.md#add-a-system) list the menus and keys
+The user guide's [Edit a save](https://ianheinrich.github.io/stellaris-galaxy-forge/edit/select-and-move) and
+[Add a system](https://ianheinrich.github.io/stellaris-galaxy-forge/edit/add-systems) list the menus and keys
 for each of these.
 
 ### The system view
@@ -84,8 +87,8 @@ Every planet and moon in a save has its own page. On it you can:
 
 Colonised planets can be edited too. The page warns you first when the
 game will take something away for an edit, such as districts over a
-lowered cap. [System view](docs/user-guide.md#system-view) and
-[Planet pages](docs/user-guide.md#planet-moon-star-and-asteroid-pages)
+lowered cap. [System view](https://ianheinrich.github.io/stellaris-galaxy-forge/system/system-view) and
+[Planet pages](https://ianheinrich.github.io/stellaris-galaxy-forge/system/planet-pages)
 in the user guide go through each of these.
 
 ## Making a galaxy for a new game
@@ -115,7 +118,7 @@ a save. Scenarios also let you:
 - Set the counts offered on the new-game screen, such as the number of AI
   empires.
 
-The steps are in [Make a scenario](docs/user-guide.md#make-a-scenario).
+The steps are in [Make a scenario](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/make-a-scenario).
 
 ## Painting and symmetry
 
@@ -152,7 +155,7 @@ When your map is ready:
 
 Steam may replace the mod's folder when the Workshop mod updates, so keep
 another copy of your map somewhere safe.
-[Play your scenario](docs/user-guide.md#play-your-scenario) covers the
+[Play your scenario](https://ianheinrich.github.io/stellaris-galaxy-forge/scenario/play) covers the
 available seats, what happens on day one and the limits imposed by the
 mod.
 
@@ -195,7 +198,7 @@ Zoom in and the map shows each system's planets, stations and resources,
 using the art and names from your installation. The Layers menu lets
 you show and hide map layers, such as where each precursor's anomalies
 can turn up. The main layers have a number key.
-[Get around the map](docs/user-guide.md#get-around-the-map) lists the
+[Get around the map](https://ianheinrich.github.io/stellaris-galaxy-forge/map/navigate) lists the
 keys.
 
 ## What Galaxy Forge can change and what it only shows
@@ -251,7 +254,7 @@ inside a freshly written zip.
   of the galaxy. It is not a substitute for the game. Loading the save in
   Stellaris is the final check.
 
-[Save and back up](docs/user-guide.md#save-and-back-up) explains how to
+[Save, back up and restore](https://ianheinrich.github.io/stellaris-galaxy-forge/safety/saving) explains how to
 restore the original.
 
 ## Limits
@@ -269,7 +272,7 @@ planets needs a 4.x save. I haven't tested Ironman saves.
 If Stellaris uses Steam Cloud, Steam may restore the cloud copy over an
 edited save. Close Steam or disable Steam Cloud for Stellaris before
 playing an edited save. See
-[Steam Cloud saves](docs/user-guide.md#steam-cloud-saves).
+[Steam Cloud](https://ianheinrich.github.io/stellaris-galaxy-forge/safety/steam-cloud).
 
 Nothing from the game is included with Galaxy Forge itself. It reads
 game definitions, names and artwork directly from your Stellaris
@@ -361,7 +364,7 @@ downloaded installer too.
 verify a download before running it.
 
 Once it's installed, the user guide's
-[Quick start](docs/user-guide.md#quick-start) takes you from opening a
+[Quick start](https://ianheinrich.github.io/stellaris-galaxy-forge/start/first-edit#quick-start) takes you from opening a
 save to loading it in the game.
 
 ## Command line
@@ -369,7 +372,7 @@ save to loading it in the game.
 The `sgf` tool reads saves and scenarios from a terminal. `sgf apply`
 applies edits that JSON files hold, with the same backups as the app. It
 is on the Releases page beside the app. The commands are listed in the
-[user guide](docs/user-guide.md#command-line).
+[user guide](https://ianheinrich.github.io/stellaris-galaxy-forge/reference/command-line).
 
 ## How it works
 

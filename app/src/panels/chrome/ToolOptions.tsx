@@ -8,7 +8,7 @@ import {
 } from "../../lib/brush/heightBrush";
 import { heightTint } from "../../lib/height";
 import { typedNumber } from "../../lib/text";
-import type { Tool } from "../../lib/tools";
+import { TOOLS, type Tool } from "../../lib/tools";
 import {
   choiceOf,
   densityLimit,
@@ -35,6 +35,8 @@ import {
   spacingOfSlider,
   useToolStore,
 } from "../../store/toolStore";
+import type { GuidePlace } from "../../lib/guideLinks";
+import { HelpLink } from "../HelpLink";
 import { LaneDensitySlider } from "../LaneDensitySlider";
 import { useDraft } from "../useDraft";
 import "./chrome.css";
@@ -402,23 +404,26 @@ function HeightOptions() {
   );
 }
 
-/** The controls a tool shows while it is active; null for a tool with none. */
-const OPTIONS: Record<Tool, ComponentType | null> = {
+/** The controls a tool shows while active and its place in the guide; null for none. */
+const OPTIONS: Record<Tool, { Options: ComponentType; help: GuidePlace } | null> = {
   select: null,
-  paint: PaintOptions,
-  erase: EraseOptions,
-  connect: ConnectOptions,
-  cut: SizeOption,
-  height: HeightOptions,
+  paint: { Options: PaintOptions, help: "paintBrushes" },
+  erase: { Options: EraseOptions, help: "paintBrushes" },
+  connect: { Options: ConnectOptions, help: "laneBrushes" },
+  cut: { Options: SizeOption, help: "laneBrushes" },
+  height: { Options: HeightOptions, help: "heightBrush" },
 };
 
 /** The active brush's options, floating over the map's top-left corner beside the tool rail. */
 export function ToolOptions() {
-  const Options = OPTIONS[useToolStore((s) => s.tool)];
-  if (Options === null) return null;
+  const tool = useToolStore((s) => s.tool);
+  const options = OPTIONS[tool];
+  if (options === null) return null;
+  const { Options, help } = options;
   return (
     <div className="tool-options" role="toolbar" aria-label="Brush options">
       <Options />
+      <HelpLink place={help} topic={TOOLS.find((t) => t.id === tool)!.label} />
     </div>
   );
 }

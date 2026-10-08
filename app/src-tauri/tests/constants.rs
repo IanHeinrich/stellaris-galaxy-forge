@@ -1,11 +1,11 @@
-//! The event names and the releases URL the shell owns that the app reads too, written beside
+//! The event names and the URLs the shell owns that the app reads too, written beside
 //! the ts-rs types as `shell.ts` so the app has one copy and a change reaches it on the next
 //! test run.
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use sgf_app_lib::commands::{
-    GAME_DATA_CHANGED_EVENT, PROGRESS_EVENT, RELEASES_URL, UPDATE_PROGRESS_EVENT,
+    GAME_DATA_CHANGED_EVENT, GUIDE_URL, PROGRESS_EVENT, RELEASES_URL, UPDATE_PROGRESS_EVENT,
 };
 
 fn export_dir() -> PathBuf {
@@ -40,6 +40,11 @@ fn the_names_the_app_shares_are_exported_as_constants() {
             "Where an update check would send the user, known without one.",
             "RELEASES_URL",
             RELEASES_URL,
+        ),
+        (
+            "The user guide's front page, which the Help menu opens and the guide's pages are opened under.",
+            "GUIDE_URL",
+            GUIDE_URL,
         ),
     ] {
         writeln!(out, "/** {doc} */\nexport const {name} = {value:?};\n").unwrap();

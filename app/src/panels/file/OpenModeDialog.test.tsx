@@ -23,7 +23,7 @@ describe("opening a save as a scenario", () => {
 
   it("asks the Paint a Galaxy question", () => {
     expect(shown(dialog())).toContain(PAINT_CHECK);
-    expect(buttons(dialog())).toEqual(["Cancel", "Continue"]);
+    expect(buttons(dialog())).toEqual(["?", "Cancel", "Continue"]);
   });
 
   it("leaves the question without a way to stop asking", () => {

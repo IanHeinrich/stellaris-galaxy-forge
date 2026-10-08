@@ -112,4 +112,4 @@ export const appVersion = command("appVersion");
 export { errorMessage, isSgfError } from "../errors";
 
 /** Not a command either: the releases URL is the constant the store holds before any check. */
-export { RELEASES_URL } from "../update";
+export { GUIDE_URL, RELEASES_URL } from "../update";

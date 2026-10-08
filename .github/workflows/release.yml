@@ -413,3 +413,21 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: gh release upload "$TAG" assets/* --clobber
+
+  # A release made with the workflow token starts no other workflow, so the guide is
+  # published from here. A dispatch rebuilds an older tag's assets and leaves the guide alone.
+  guide:
+    name: Guide
+    needs: [version, publish]
+    if: >-
+      ${{ !cancelled()
+          && github.event_name == 'push'
+          && needs.version.outputs.released == 'true'
+          && needs.publish.result == 'success' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/guide.yml
+    with:
+      ref: ${{ needs.version.outputs.tag }}

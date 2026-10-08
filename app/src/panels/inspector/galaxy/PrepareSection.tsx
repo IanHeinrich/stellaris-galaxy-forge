@@ -54,6 +54,7 @@ import {
   usePrepareStore,
 } from "../../../store/prepareStore";
 import { PickerField } from "../../EditField";
+import { HelpLink } from "../../HelpLink";
 import { Twisty } from "../../Twisty";
 import { PickerCard, type CardItem } from "../entity/PickerCard";
 import { Section } from "../parts";
@@ -479,7 +480,9 @@ export function PrepareSection({ setup = false }: { setup?: boolean }) {
   if (setup) {
     return (
       <>
-        <div className="prep-setup-title">{PREPARE_TITLE}</div>
+        <div className="prep-setup-title">
+          {PREPARE_TITLE} <HelpLink place="prepare" topic={PREPARE_TITLE} />
+        </div>
         <PrepareBody profile={profile} />
         <Footer setup />
       </>
@@ -487,7 +490,13 @@ export function PrepareSection({ setup = false }: { setup?: boolean }) {
   }
   const summary = summaryLine(presetOf(choices, profile), pending, applied);
   return (
-    <Section id={PREPARE_SECTION} title={PREPARE_TITLE} aside={summary} startClosed>
+    <Section
+      id={PREPARE_SECTION}
+      title={PREPARE_TITLE}
+      aside={summary}
+      startClosed
+      action={<HelpLink place="prepare" topic={PREPARE_TITLE} />}
+    >
       <PrepareBody profile={profile} footer={<Footer setup={false} />} />
     </Section>
   );

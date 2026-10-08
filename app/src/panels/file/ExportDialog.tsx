@@ -6,6 +6,7 @@ import { systemNameOf, useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
 import { standingProfile } from "../../store/paintModStore";
 import { Dialog } from "../Dialog";
+import { HelpLink } from "../HelpLink";
 import {
   CATEGORY_LABELS,
   countsSummary,
@@ -107,6 +108,7 @@ export function ExportForm({
     <form onSubmit={submit}>
       <div className="open-dialog-head">
         <h1>Export as scenario</h1>
+        <HelpLink place="exportScenario" topic="Export as scenario" />
       </div>
       <div className="open-dialog-body">
         <ExportReportRows report={report} profile={profile} />

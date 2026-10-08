@@ -6,7 +6,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import type { UpdateCheck } from "../generated/UpdateCheck";
 
-export { RELEASES_URL } from "../generated/shell";
+export { GUIDE_URL, RELEASES_URL } from "../generated/shell";
 
 /** Ask the endpoint what it offers, and park what it answers for `installUpdate`. */
 export function checkForUpdate(): Promise<UpdateCheck> {

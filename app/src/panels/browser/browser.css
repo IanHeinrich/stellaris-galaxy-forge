@@ -176,6 +176,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.browser-head .help-link {
+  flex: none;
+}
+
 .browser-actions {
   flex: none;
   display: flex;

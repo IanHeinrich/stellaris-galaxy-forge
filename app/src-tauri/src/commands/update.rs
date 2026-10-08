@@ -14,6 +14,12 @@ use crate::views::{InstallKind, UpdateCheck, UpdateProgress, UpdateView};
 pub const UPDATE_PROGRESS_EVENT: &str = "sgf://update-progress";
 pub const RELEASES_URL: &str =
     "https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest";
+pub const GUIDE_URL: &str = "https://ianheinrich.github.io/stellaris-galaxy-forge/";
+
+/// Whether `url` is the guide's front page or a page under it.
+pub fn is_guide_url(url: &str) -> bool {
+    url.starts_with(GUIDE_URL)
+}
 
 /// Ask the endpoint what it offers, and park what it answers for `install_update`.
 #[tauri::command]

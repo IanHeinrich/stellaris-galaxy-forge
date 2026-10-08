@@ -617,3 +617,10 @@
 .height-hint {
   font-size: var(--text-hint);
 }
+
+button.link.help-link {
+  padding: 0 4px;
+  font-size: var(--text-control);
+  font-weight: 600;
+  line-height: 1;
+}

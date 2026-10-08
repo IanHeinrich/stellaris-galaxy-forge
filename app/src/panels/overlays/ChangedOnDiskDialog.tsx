@@ -1,5 +1,6 @@
 import { useFileSessionStore } from "../../store/fileSessionStore";
 import { Dialog } from "../Dialog";
+import { HelpLink } from "../HelpLink";
 import "./overlays.css";
 
 /** A save whose file something else wrote since it was opened, and the three ways on from it. */
@@ -13,7 +14,9 @@ export function ChangedOnDiskDialog() {
       onClose={() => answer("cancel")}
       onDismiss={() => answer("cancel")}
     >
-      <h1>The file changed on disk</h1>
+      <h1>
+        The file changed on disk <HelpLink place="changedOnDisk" topic="The file changed on disk" />
+      </h1>
       <p>
         Something (probably Stellaris) wrote this file after you opened it. Overwriting keeps that
         newer version as a backup beside it.

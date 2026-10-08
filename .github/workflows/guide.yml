@@ -1,0 +1,118 @@
+name: Guide
+
+on:
+  pull_request:
+    paths:
+      - "guide/**"
+      - "app/src/lib/keys.ts"
+      - "app/src/lib/tools.ts"
+      - "app/src/lib/visual/layerIds.ts"
+      - "app/src/lib/issueCopy.ts"
+      - "app/src/lib/guideLinks.ts"
+      - "app/src/guide/**"
+      - ".github/workflows/guide.yml"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to publish. Leave empty for the latest release.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: Release tag to build and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build guide
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.target.outputs.publish }}
+    steps:
+      - name: Choose what to build
+        id: target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CALLED_REF: ${{ inputs.ref }}
+        run: |
+          if [ -n "$CALLED_REF" ]; then
+            ref="$CALLED_REF"
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            ref=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          else
+            ref=""
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          if [ -n "$ref" ]; then echo "publish=true" >> "$GITHUB_OUTPUT"; else echo "publish=false" >> "$GITHUB_OUTPUT"; fi
+          echo "Building ${ref:-the pull request}"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.ref }}
+          # "Last updated" on each page comes from the git history.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: guide/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: guide
+
+      - name: Build and check
+        run: npm run build
+        working-directory: guide
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.target.outputs.publish == 'true'
+        with:
+          path: guide/.vitepress/dist
+
+  drift:
+    name: Guide matches the app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: app
+
+      - name: Check the guide against the app
+        run: npx vitest run src/guide
+        working-directory: app
+
+  deploy:
+    name: Publish guide
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,200 @@
+.vp-doc kbd,
+.HomeSearch kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--vp-c-divider);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background-color: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85em;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.vp-doc img {
+  max-width: 100%;
+  max-height: 560px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+}
+
+:root {
+  --annotated-mark: #ffc43d;
+  --annotated-mark-text: #1b1b1f;
+  --annotated-marker-size: 26px;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --annotated-marker-size: 18px;
+  }
+}
+
+.Annotated {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 24px;
+  margin: 24px 0;
+}
+
+.Annotated-frame {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.vp-doc .Annotated-frame > p {
+  margin: 0;
+}
+
+.Annotated-frame img {
+  display: block;
+}
+
+.Annotated-overlay {
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+}
+
+.Annotated-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--annotated-mark);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.Annotated-box.active {
+  border-style: solid;
+  background-color: rgba(255, 196, 61, 0.12);
+}
+
+.Annotated-marker,
+.Annotated-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--annotated-mark);
+  color: var(--annotated-mark-text);
+  font-family: var(--vp-font-family-base);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.Annotated-marker {
+  position: absolute;
+  width: var(--annotated-marker-size);
+  height: var(--annotated-marker-size);
+  padding: 0;
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--annotated-marker-size) * 0.55);
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+  cursor: default;
+  pointer-events: auto;
+}
+
+.Annotated-marker.active {
+  box-shadow:
+    0 0 0 2px var(--annotated-mark-text),
+    0 0 0 4px var(--annotated-mark);
+}
+
+.Annotated-marker:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 4px;
+}
+
+.vp-doc .Annotated-legend {
+  flex: 1 1 220px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc .Annotated-legend li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 2px 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.vp-doc .Annotated-legend li.active {
+  background-color: var(--vp-c-default-soft);
+}
+
+.Annotated-badge {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+:root {
+  --vp-c-brand-1: #8a6100;
+  --vp-c-brand-2: #a67400;
+  --vp-c-brand-3: #c08a10;
+  --vp-c-brand-soft: rgba(192, 138, 16, 0.14);
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+}
+
+.dark {
+  --vp-c-brand-1: #ffc43d;
+  --vp-c-brand-2: #f0b429;
+  --vp-c-brand-3: #ffc43d;
+  --vp-c-brand-soft: rgba(255, 196, 61, 0.16);
+  --vp-button-brand-text: #1b1b1f;
+  --vp-button-brand-hover-text: #1b1b1f;
+  --vp-button-brand-active-text: #1b1b1f;
+}
+
+.VPHero .image-src {
+  max-width: 100%;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 72%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side, #000 72%, transparent 100%);
+}
+
+.VPHero .image-bg {
+  opacity: 0;
+}
+
+/* FAQ questions are too long for one line of the outline. */
+.VPDocAsideOutline .outline-link {
+  padding: 5px 0;
+  line-height: 1.45;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.vp-doc .download {
+  margin: 20px 0 24px;
+}
+
+.vp-doc .download a {
+  text-decoration: none;
+}
+
+.VPHero .image {
+  margin-top: 0;
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container {
+    transform: translate(-32px, 16px);
+  }
+}
