@@ -188,3 +188,13 @@
 .vp-doc .download a {
   text-decoration: none;
 }
+
+.VPHero .image {
+  margin-top: 0;
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container {
+    transform: translate(-32px, 16px);
+  }
+}
