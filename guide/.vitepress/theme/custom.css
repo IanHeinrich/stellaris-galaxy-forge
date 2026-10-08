@@ -166,3 +166,12 @@
   max-width: 100%;
   border-radius: 12px;
 }
+
+/* FAQ questions are too long for one line of the outline. */
+.VPDocAsideOutline .outline-link {
+  padding: 5px 0;
+  line-height: 1.45;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
