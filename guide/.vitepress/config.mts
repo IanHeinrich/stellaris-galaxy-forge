@@ -120,7 +120,7 @@ export default defineConfig({
     logo: '/app-icon.png',
 
     nav: [
-      { text: 'Download', link: `${repo}/releases/latest` },
+      { text: 'Download', link: '/start/install-and-update' },
       { text: 'Report a problem', link: `${repo}/issues` },
       { text: 'Workshop', link: 'https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137' },
       { component: 'GuideVersion', props: { text: `Guide for ${version}` } }

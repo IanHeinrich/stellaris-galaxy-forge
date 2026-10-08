@@ -16,7 +16,7 @@ hero:
       link: /start/first-edit
     - theme: alt
       text: Download
-      link: https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest
+      link: /start/install-and-update
 
 features:
   - title: Edit my save
