@@ -12,8 +12,8 @@ hyperlanes follow it. Stars start flat, at 0.
 ## Set a system's height
 
 A system's Overview tab has a Height slider under Position. The map
-follows the slider as you drag, and the edit lands when you let go.
-Flat puts it back at 0.
+shows the new height as you drag. The edit is made when you let go of
+the slider. Click Flat to put the height back to 0.
 
 ## Change several systems at once
 
@@ -26,8 +26,9 @@ puts them back at 0.
 The Height brush (<kbd>H</kbd>) on the tool strip has four modes. Set
 gives everything under the brush one height. Raise lifts the middle most
 and the edge least, and <kbd>Alt</kbd> lowers instead. Smooth evens out
-the systems under it. Ripple drops rings of crests and troughs where you
-let go. The Ripples, Waves, Dome and Crater presets are a starting
+the systems under it. Ripple raises and lowers systems in rings around
+the spot where you let go of the mouse button, and <kbd>Alt</kbd> swaps
+the raised and lowered rings. The Ripples, Waves, Dome and Crater presets are a starting
 point, and the graph shows the shape before you click.
 
 ![The Height brush options in Raise mode, with Size and Strength](../images/edit/height-brush-options.png)
@@ -36,8 +37,9 @@ point, and the graph shows the shape before you click.
 
 ## See the heights
 
-The Heights layer is on by default. A raised star has an amber ring and
-a sunk one a blue ring. Flat stars look as before.
+The Heights layer is on by default. A star above the galaxy plane has
+an amber ring, and a star below it has a blue ring. A star at height 0
+has no ring.
 
 The Tilt slider at the bottom right tilts the map so you can see the
 heights. The Stellaris mark is the game's own camera angle.
@@ -46,7 +48,7 @@ tilted, including moving systems and editing lanes.
 
 ![The galaxy tilted to 37°, with a ripple of amber raised rings and blue sunk rings around the core](../images/edit/heights-ripple-tilted.png)
 
-## Good to know
+## Heights in a scenario
 
 Scenarios have no heights. The game ignores a height in a scenario, so
 these tools are hidden there.

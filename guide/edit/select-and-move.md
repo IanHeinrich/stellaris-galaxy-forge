@@ -5,8 +5,7 @@ aliases: [move system, drag star, relocate, reposition, nudge, position, coordin
 ---
 # Select and move systems <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
-Most edits start with a selection. A moved system takes its lanes,
-planets and fleets along.
+Most edits start by selecting systems.
 
 ## Select systems
 
@@ -20,10 +19,10 @@ the selection.
 
 Drag a star to move it. If it is part of a selection, the whole
 selection moves. <kbd>Shift</kbd>+arrow nudges the selection. For an
-exact spot, type into the Position fields on the Inspector's Overview
-tab. A moved system keeps its hyperlanes and their lengths are updated.
+exact position, type coordinates into the Position fields on the
+Inspector's Overview tab. A moved system keeps its hyperlanes and their lengths are updated.
 Its planets and fleets move with it.
 
 ![A system's Overview tab in the Inspector, with its Position fields, Height slider, hyperlanes and planets](../images/edit/system-inspector.png)
 
-To take systems out, see [Delete systems](add-systems.md#delete-systems).
+To remove systems, see [Delete systems](add-systems.md#delete-systems).

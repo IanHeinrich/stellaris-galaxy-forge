@@ -13,10 +13,10 @@ Galaxy Forge is a desktop app. Open it from the Start menu, or from
 Applications on a Mac. Stellaris and its launcher don't start it. See
 [Install and update](../start/install-and-update.md#open-it-again).
 
-## Windows Defender or my browser flags the installer
+## Windows warns about the installer
 
-The installer is signed, but the certificate is new, so SmartScreen may
-still warn. Click More info, then Run anyway. See
+The installer is signed, but the certificate is new, so Windows
+SmartScreen may still show a warning. Click More info, then Run anyway. See
 [Install and update](../start/install-and-update.md#get-past-the-windows-warning).
 
 ## Does it work on Linux or Mac?
@@ -28,22 +28,22 @@ less use. See
 
 ## Is it a mod? Do I need to subscribe?
 
-No. Galaxy Forge is an app, and the Workshop page is its home page. It
-has no mod files, so subscribing installs nothing. You only need the
-Paint a Galaxy mod, and only to play a scenario.
+No. Galaxy Forge is a desktop app. Its Workshop page links to the
+downloads and this guide. It has no mod files, so subscribing installs
+nothing. Editing a save needs no mod. Most scenarios are played
+through the Paint a Galaxy mod.
 
 ## Does it break Ironman or achievements?
 
-Galaxy Forge only rewrites the parts of the save you edit. I haven't
-tested Ironman saves or achievements. Keep the
+I don't know. I haven't tested Ironman saves or achievements. Keep the
 [backup](../safety/saving.md#find-the-backups) until you know the save
 works. See
 [Go back to your campaign](../safety/back-to-campaign.md#ironman).
 
 ## Why do I need the Paint a Galaxy mod?
 
-Stellaris gets some things wrong when it loads a hand-made galaxy. The
-mod fixes them. Without it, the game builds no fallen empires. On a map
+On a hand-made galaxy, Stellaris builds no fallen empires and gives
+some empires a poor homeworld. The mod fixes both. On a map
 for the mod you can also place fallen empire zones and wormhole pairs,
 and choose the kind of each seat. Untick its box only for a map meant for
 a mod of your own. See
@@ -51,14 +51,16 @@ a mod of your own. See
 
 ## Does it work with custom origins?
 
-Yes, modded ones included. An origin that brings its own starting system
-replaces the system on its seat when the game starts, as it does in a
-random galaxy. See [Spawn points](../scenario/spawn-points.md).
+Yes. An origin that brings its own starting system replaces the system
+on its seat when the game starts, as it does in a random galaxy. Modded
+origins that do this work the same way. See
+[Spawn points](../scenario/spawn-points.md).
 
 ## What is an initializer? Can I make a custom spawn system?
 
-An initializer sets what a system spawns: its star, its planets and
-anything else the game places there. You can give a system any
+An initializer is a definition, from the game or a mod, of what a
+system spawns: its star, its planets and anything else the game places
+there. You can give a system any
 initializer from the game or your mods. The initializer browser shows the
 file each one comes from, under Source. You can't edit or save
 initializers yet. See [Initializers](../scenario/initializers.md).
@@ -71,7 +73,7 @@ but doesn't write them.
 ## How do I place wormholes myself?
 
 In a save, or on a map for Paint a Galaxy, select two systems,
-right-click one and choose "Link as wormhole pair". In a save you can
+right-click one and select "Link as wormhole pair". In a save you can
 also drag a wormhole to a new place in its system. On any other scenario
 the game places wormholes itself, from the Wormhole Pairs setting on the
 new-game screen. See [Wormholes](../edit/wormholes.md).
@@ -113,14 +115,14 @@ owner.
 
 ## Does it work with older versions of Stellaris?
 
-It works with Stellaris 4.x saves. Hyperlane editing also works on saves
-from 3.4 through 3.9. Adding systems and planets needs a 4.x save. See
-[Supported game versions](versions.md).
+It's made for Stellaris 4.x. Hyperlane editing also works on saves from
+3.4 through 3.9. [Supported game versions](versions.md) lists what works
+on which version and what I've tested in game.
 
 ## Could it be a website?
 
-No. Galaxy Forge reads your Stellaris install and your mods from disk,
-and a website can't do that.
+No. Galaxy Forge needs your Stellaris install, your mods and your save
+files on disk, so it's a desktop app. There is no web version.
 
 ## Can I turn a star into a planet?
 

@@ -263,8 +263,8 @@ planets in it, and empires' names, flags and colours. Fleets, pops,
 leaders and techs can't be changed.
 
 Galaxy Forge works with Stellaris 4.x saves. I test with all DLC and no
-mods. I've tested the galaxy map edits in-game on 4.4.6 and 4.5, and the
-system view, planet, empire and wormhole edits on 4.5 only. Hyperlane
+mods. I've tested the galaxy map edits in-game on 4.4.6 and 4.5.1, and the
+system view, planet, empire and wormhole edits on 4.5.1 only. Hyperlane
 editing also works on saves from 3.4 through 3.9. Adding systems and
 planets needs a 4.x save. I haven't tested Ironman saves.
 

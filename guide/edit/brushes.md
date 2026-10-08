@@ -37,10 +37,11 @@ Paint has these options:
 
 Erase has these options:
 
-- Target picks Systems, which takes their lanes too, or Lanes only.
-- With Also erase special systems ticked, the brush takes systems with
-  an initializer, a spawn point or another special role. Without it, the
-  brush leaves them.
+- Target sets what the brush removes. Systems removes the systems and
+  their lanes. Lanes only removes the lanes and leaves the systems.
+- Tick Also erase special systems to let the brush remove systems with
+  an initializer, a spawn point or another special role. Leave it
+  unticked to keep them.
 
 ![The Erase brush options: Size, Target set to Systems, and Also erase special systems](../images/edit/erase-brush-options.png)
 
@@ -49,11 +50,11 @@ The Height brush (<kbd>H</kbd>) is on the
 
 ## Use symmetry <Badge type="info" text="Scenario" />
 
-In a scenario, the Symmetry button under the tools, or
-<kbd>Shift</kbd>+<kbd>M</kbd>, mirrors your edits around the centre of
-the galaxy or repeats them around it. Pick "Mirror left–right", "Mirror
-top–bottom", or a 2-, 3-, 4-, 6- or 8-fold rotation. Saves have no
-symmetry.
+In a scenario, symmetry mirrors your edits around the centre of the
+galaxy or repeats them around it. Click the Symmetry button under the
+tools and pick "Mirror left–right", "Mirror top–bottom", or a 2-, 3-,
+4-, 6- or 8-fold rotation. <kbd>Shift</kbd>+<kbd>M</kbd> turns symmetry
+off, and on again with the last choice. Saves have no symmetry.
 
 ![The Symmetry menu, with Off, the two Mirror buttons and the Rotate choices](../images/edit/symmetry-control.png)
 

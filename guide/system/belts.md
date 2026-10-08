@@ -5,8 +5,10 @@ aliases: [asteroid belt, belt, rubble, inner radius, hyperlane exit, system edge
 ---
 # Asteroid belts and the inner radius <Badge type="tip" text="Save" />
 
-A system can have asteroid belts, and an inner radius where the
-hyperlane exits sit.
+A system can have asteroid belts. Its
+[inner radius](../reference/glossary.md#inner-radius) is the circle its
+hyperlane exits sit on. You change both on the system's page or in the
+system view.
 
 ## Change belts on the system's page
 
@@ -23,6 +25,6 @@ game data loaded to change one.
 In the [system view](system-view.md), each belt and the inner radius
 has six small ring handles. They show when you hover over the belt or
 the circle. Drag any of them to change the radius. Right-click a belt's
-handle and choose Remove belt to remove it. Its asteroids stay where
-they are. Right-click empty space and choose Add belt here to add a belt
+handle and select Remove belt to remove it. Its asteroids stay where
+they are. Right-click empty space and select Add belt here to add a belt
 at that distance from the star.

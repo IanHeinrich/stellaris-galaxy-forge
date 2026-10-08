@@ -5,8 +5,9 @@ aliases: [overlay, show, hide, toggle, number keys, territory, borders, precurso
 ---
 # Layers <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
-Layers decide what the map shows. The Layers menu in the top bar holds
-every layer, and "Reset to defaults" at its foot puts them back.
+Layers decide what the map shows. The Layers menu in the top bar lists
+every layer. Select "Reset to defaults" at the bottom of the menu to put
+every layer back to how it started.
 
 ## Switch the main layers
 
@@ -32,7 +33,7 @@ surveys a planet, so the layer shows the systems that can have them,
 not the planets that will. Each precursor has its own ring colour.
 A system in two precursors' regions shows a split ring, and a system
 in none has a thin grey ring. The menu lists every precursor with its
-number of systems. Click the eye beside one to hide its rings. The
+number of systems. Click a precursor's row to hide or show its rings. The
 layer needs game data from your Stellaris install.
 
 ## Every layer
@@ -48,12 +49,12 @@ menu when the open file can have it.
 | --- | --- |
 | Hyperlanes | The lanes between systems. |
 | Systems | The stars. |
-| Star classes | Each star in its class's look. With it off, every star looks the same. |
+| Star classes | Each star with the icon of its class, such as a pulsar or a black hole. With it off, every star has the same icon. |
 | Names | System names. |
 | System details | The icons, resources, habitable planets and fleets under each system when you zoom in. |
 | Orbit radii | The radius of each orbit, in a [system view](../system/system-view.md) only. |
 | Colonies | The owner's flag and colour on a colony's name. |
-| Heights | A ring on each raised or sunk star, in a save. See [System heights](../edit/heights.md). |
+| Heights | A ring on each star above or below the galaxy plane, in a save. See [System heights](../edit/heights.md). |
 
 ### Overlays
 
@@ -85,6 +86,6 @@ menu when the open file can have it.
 
 In a scenario the menu groups the layers by where they come from:
 Scenario, Initializers and Scripts. Initializers and Scripts each have
-an "all" switch. <kbd>0</kbd> flips the Initializers group, and
-<kbd>&#96;</kbd> or <kbd>~</kbd> flips the Scripts group. Both groups need
+an "all" switch. Press <kbd>0</kbd> to toggle the Initializers group,
+and <kbd>&#96;</kbd> or <kbd>~</kbd> to toggle the Scripts group. Both groups need
 game data from your Stellaris install.

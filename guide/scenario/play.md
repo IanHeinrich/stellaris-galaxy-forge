@@ -5,8 +5,8 @@ aliases: [export, play scenario, start game, save into mod, setup_scenarios, gal
 ---
 # Export and play <Badge type="info" text="Scenario" />
 
-A scenario reaches the game through a mod's `map/setup_scenarios`
-folder. Most maps go into Paint a Galaxy's.
+To play a scenario, save it into the `map/setup_scenarios` folder of a
+mod enabled in your playset. Most maps go into Paint a Galaxy's.
 
 ## Play a Paint a Galaxy map <Badge type="warning" text="Paint a Galaxy" />
 
@@ -25,11 +25,12 @@ folder. Most maps go into Paint a Galaxy's.
    under the name in the scenario's header. The status bar shows you the
    name when you save into the mod. Once you pick your map, the game
    doesn't ask for a galaxy shape.
-5. Keep AI empires at or below the "safe AI empires" number in Game
-   setup. Above that, there are more empires than seats.
+5. Set AI Empires on the new-game screen no higher than the "safe AI
+   empires" number in Galaxy Forge's Game setup. Above that, there are
+   more empires than seats.
 
-Give each map in the mod's folder its own name. The game shows only one
-galaxy size per name.
+Give each map in the mod's folder its own Name on the Galaxy page. The
+game shows only one galaxy size per name.
 
 [What the mod does on day one](paint-a-galaxy.md#what-the-mod-does-on-day-one)
 and [who starts where](spawn-points.md#who-starts-where-on-day-one) are

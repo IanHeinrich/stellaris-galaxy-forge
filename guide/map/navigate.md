@@ -9,9 +9,9 @@ The galaxy map fills the window, with the dock on the right.
 
 ## Pan and zoom
 
-Hold the middle mouse button and drag to pan, or hold <kbd>W</kbd>
-<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys. The wheel
-zooms. <kbd>Home</kbd> fits the whole galaxy.
+Drag with the middle mouse button to pan, or hold <kbd>W</kbd>
+<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys. Scroll the mouse wheel to zoom. Press
+<kbd>Home</kbd> to fit the whole galaxy in the window.
 
 ![The galaxy map zoomed in, with system names, resource counts under each system and height rings](../images/map/map-zoomed-in.png)
 
@@ -24,7 +24,7 @@ The dock on the right has the Inspector, Empires, Points of interest,
 Pinned searches, Issues and Changes tabs. With nothing selected, the
 Inspector shows the whole galaxy. <kbd>Tab</kbd> hides or shows the dock.
 
-## Good to know
+## Star art and names
 
 When the app finds your Stellaris install, the map uses the game's star
 art and names, with your mods. Without it, the map draws plain stars and

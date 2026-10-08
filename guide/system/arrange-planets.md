@@ -17,8 +17,8 @@ them. A star at the system's centre stays where it is. Ring world
 segments stay where they are too, and can't have moons.
 
 Drag a body to move it. Its distance and its angle both follow the
-pointer, in whole units and whole degrees. Near another orbit, it lands
-on that orbit. Hold <kbd>Shift</kbd> to snap the angle to 15° steps.
+pointer, in whole units and whole degrees. Near another orbit, it snaps
+to that orbit. Hold <kbd>Shift</kbd> to snap the angle to 15° steps.
 Hold <kbd>Ctrl</kbd> to change only one of them: drag along the orbit to
 change the angle, or across orbits to change the distance. While
 <kbd>Ctrl</kbd> is held, the body stays with what it orbits. Its moons
@@ -42,9 +42,9 @@ from its star.
 ## Lock a body to what it orbits
 
 To move a body without it becoming a moon or leaving what it orbits,
-right-click it and choose Lock to, followed by what it orbits. A locked
+right-click it and select Lock to, followed by what it orbits. A locked
 body shows a small lock. You can still drag it along its orbit and out
-or in, but it stays with its planet or star. Choose Unlock on the same
+or in, but it stays with its planet or star. Select Unlock on the same
 menu to let it go. The lock only lasts while the save is open and isn't
 saved in the file.
 
@@ -55,7 +55,7 @@ saved in the file.
 <kbd>Shift</kbd>+arrow moves the body whose page is open. Left and Right
 move it along its orbit, and Up and Down move it out and in. Each press
 moves it 1° or 1 unit. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+arrow moves it
-10. The arrows on their own still pan the view.
+10° or 10 units. The arrows on their own still pan the view.
 
 You can make the same edits in the Orbit block on the body's page.
 
@@ -67,26 +67,26 @@ You can make the same edits in the Orbit block on the body's page.
 - Angle is where it stands on that orbit, in degrees. A moon's radius
   and angle are measured from its planet.
 
-If you move a planet or a belt near or past the system's inner radius,
-the inner radius moves out with it. How far out follows the defines in
-your install and mods. The system view draws the hyperlane exits on the
-inner radius circle.
+The system's [inner radius](../reference/glossary.md#inner-radius) is
+the circle the hyperlane exits sit on. If you move a planet or a belt
+near or past it, the inner radius moves out with it. How far out follows
+the defines in your install and mods.
 
 ## Add planets and moons
 
 In a Stellaris 4.x save, right-click empty space in the system view and
-choose Add planet here. Pick Random, or a planet class from the list.
-Each class shows the sizes it comes in. The planet lands where you
+select Add planet here. Select Random, or a planet class from the list.
+Each class shows the sizes it comes in. The planet goes where you
 right-clicked.
 
-To add a moon, right-click a planet and choose Add moon. The moon goes on
-the next free moon orbit of its planet.
+To add a moon, right-click a planet and select Add moon. The moon goes
+on the next free moon orbit of its planet.
 
-The rest is rolled by the game's own rules. Random picks a class that
-suits the orbit, the size comes from the class's range, and the body gets
-the deposits a new body would. The new body is selected and its page
-opens, so you can change its name, size and deposits there. Adding it is
-one edit, so one undo takes it away.
+Galaxy Forge rolls the rest by the game's rules, read from your install.
+Random picks a class that suits the orbit, the size comes from the
+class's range, and the body gets the deposits a new body would. The new
+body is selected and its page opens, so you can change its name, size
+and deposits there. Adding it is one edit, so one undo takes it away.
 
 - A new planet takes the numeral after the system's highest, so a planet
   added to Meissa after Meissa IV is Meissa V. A moon takes the letter
@@ -95,4 +95,5 @@ one edit, so one undo takes it away.
 - Adding a planet or moon needs game data loaded.
 - If a new planet or moon sits past the system's inner radius, the inner
   radius moves out with it, as it does when you move a planet there.
-- The body starts unsurveyed. The game adds the rest when the save loads.
+- The new body starts unsurveyed. The game fills in the rest when you
+  load the save.

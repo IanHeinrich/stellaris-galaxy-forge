@@ -12,8 +12,7 @@ macOS and Linux.
   <VPButton tag="a" size="big" theme="brand" text="Download the latest release" href="https://github.com/IanHeinrich/stellaris-galaxy-forge/releases/latest" />
 </p>
 
-The Releases page lists a file for each system. The sections below say
-which one to pick.
+Each section below says which file on the Releases page to download.
 
 ## Install on Windows
 
@@ -34,17 +33,37 @@ Your browser may also say the file isn't commonly downloaded. Choose
 Keep. `SHA256SUMS` on the Releases page lists a checksum for every file,
 so you can check a download before you run it.
 
+An antivirus that reports the file as malware is a different warning
+from SmartScreen. Check the file against `SHA256SUMS` first. If it
+matches, [report it](../reference/troubleshooting.md#report-a-bug) with
+the name of the detection.
+
 ## Install on a Mac
 
-Download `Stellaris-Galaxy-Forge-<version>-Mac.dmg`, for Intel and Apple
-silicon Macs. It isn't signed, so Gatekeeper refuses to open it until you
-run `xattr -cr "/Applications/Stellaris Galaxy Forge.app"`, or
-right-click the app and choose Open.
+Download `Stellaris-Galaxy-Forge-<version>-Mac.dmg`. It runs on Intel and
+Apple silicon Macs.
+
+1. Open the `.dmg` and move Stellaris Galaxy Forge into Applications.
+2. The app isn't signed, so Gatekeeper refuses to open it at first. Open
+   Terminal and run
+   `xattr -cr "/Applications/Stellaris Galaxy Forge.app"`, or
+   right-click the app in Applications and choose Open.
+3. Open the app from Applications.
 
 ## Install on Linux
 
-Download `Stellaris-Galaxy-Forge-<version>-Linux.AppImage` and run
-`chmod +x` on it before you start it. There are also
+Download `Stellaris-Galaxy-Forge-<version>-Linux.AppImage`. In a
+terminal, go to the folder you saved it in, make the file executable
+and start it:
+
+```sh
+cd ~/Downloads
+chmod +x Stellaris-Galaxy-Forge-*-Linux.AppImage
+./Stellaris-Galaxy-Forge-*-Linux.AppImage
+```
+
+Use the folder you downloaded it to. If it holds more than one version,
+use the full file name in place of the `*`. There are also
 `Linux-Debian-Ubuntu.deb` and `Linux-Fedora.rpm` packages. All of them
 are built on Ubuntu 22.04 for x86_64.
 
@@ -57,11 +76,11 @@ Galaxy Forge is an app of its own. Open it from the Start menu on
 Windows, or from Applications on a Mac. Stellaris and its launcher don't
 start it.
 
-It isn't a mod. The
+It isn't a mod. Its
 [Workshop page](https://steamcommunity.com/sharedfiles/filedetails/?id=3805578137)
-has no mod files, so subscribing to it installs nothing. You only need a
-mod, [Paint a Galaxy](../scenario/paint-a-galaxy.md), to play a
-scenario.
+has no mod files, so subscribing to it installs nothing. Most scenarios
+are played through the [Paint a Galaxy](../scenario/paint-a-galaxy.md)
+mod.
 
 ## Update the app
 

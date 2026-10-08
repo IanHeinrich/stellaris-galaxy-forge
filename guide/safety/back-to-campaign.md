@@ -10,16 +10,18 @@ with.
 
 ## What works in game
 
-From what I've checked in-game:
+I've checked these in game on the versions listed in
+[Supported game versions](../reference/versions.md):
 
 - A moved system sits at its new position with its lanes.
 - Fleets can use a new lane in both directions.
 - A cut lane is gone and routes go around it.
-- An isolated system has no hyperlanes and the game carries on.
+- A system you isolate stays without hyperlanes, and the campaign keeps
+  running.
 - You can keep playing, save in the game and open that save here again.
 
 ## Ironman
 
 ::: warning Ironman
-I haven't tested Ironman saves.
+I haven't tested Ironman saves or achievements.
 :::
