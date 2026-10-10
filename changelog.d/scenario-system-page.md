@@ -8,5 +8,5 @@
 
 ### Changed
 
-- The line under a system's name counts planets only. Moons and
-  asteroids are counted in the Planets header.
+- The line under a system's name and the Planets header count planets
+  only. Moons and asteroids are counted in the System total row.

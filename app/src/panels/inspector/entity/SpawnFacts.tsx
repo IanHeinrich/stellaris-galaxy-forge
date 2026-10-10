@@ -29,7 +29,7 @@ import type { BodyRead } from "./bodySources";
 import type { PlanetSectionProps } from "./planetSection";
 
 /** What the initializer's effect does to a value the block states. */
-const CHANGED_BY_EFFECT = "Changed by the initializer's effect.";
+const CHANGED_BY_EFFECT = "The initializer changes it when the system is built.";
 
 /** `G 24% · K 16%`: a star list's members with their odds, as the star's Class row lists them. */
 function OddsLine({ star }: { star: Extract<SpawnStar, { state: "rolled" }> }) {
@@ -125,7 +125,7 @@ export function SpawnProperties({
       ) : (
         <PropertyRow label="Size">
           {size === null ? (
-            <Rolled>Set by its class</Rolled>
+            <Rolled>Rolled from its class's sizes</Rolled>
           ) : size.min === size.max ? (
             <PlanetSize size={rangeText(size)} />
           ) : (

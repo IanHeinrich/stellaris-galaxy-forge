@@ -99,7 +99,7 @@ export function PlanetRow({
     named === "" ? null : state === "rolled" ? (
       <Rolled>rolled class</Rolled>
     ) : state === "unknown" ? (
-      <Unknown>class decided at start</Unknown>
+      <Unknown>class picked at game start</Unknown>
     ) : (
       classText
     );
@@ -182,26 +182,20 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const counts = usePlanetCounter()(details);
   const fixed = counts.planets !== null && !isRanged(counts.planets) ? counts.planets.min : null;
   const shown = all ? planets : planets.slice(0, LIST_LIMIT);
-  const rest = [
+  const summary: ReactNode =
+    fixed !== null ? undefined : counts.planets === null ? (
+      <Unknown>from a script</Unknown>
+    ) : (
+      <Rolled>{rangeWords(counts.planets)}</Rolled>
+    );
+  const total = [
+    planetsText(counts),
     ...moonsAndAsteroids(counts),
     `${totals.colonies} colonies`,
-    totals.pops > 0 ? `${formatPops(totals.pops)} pops` : null,
+    totals.preFtl > 0 ? `${totals.preFtl} pre-FTL` : null,
   ]
     .filter(Boolean)
     .join(" · ");
-  const summary: ReactNode =
-    fixed !== null ? (
-      rest
-    ) : (
-      <>
-        {counts.planets === null ? (
-          <Unknown>from a script</Unknown>
-        ) : (
-          <Rolled>{rangeWords(counts.planets)}</Rolled>
-        )}
-        {` · ${rest}`}
-      </>
-    );
   const openView =
     enterable && !inView ? (
       <button type="button" className="link" onClick={() => enterSystem(details.id)}>
@@ -225,8 +219,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             <span>
               <span className="l1">System total</span>
               <span className="l2">
-                {planetsText(counts)} · {totals.colonies} colonies
-                {totals.preFtl > 0 && ` · ${totals.preFtl} pre-FTL`}
+                {total}
                 <SizeAndPops size={null} pops={totals.pops} />
               </span>
               <span className="l3">

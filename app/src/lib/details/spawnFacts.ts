@@ -165,9 +165,9 @@ export function unknownClassWhy(reason: UnknownClass, written: string): string {
         "there is no empire nearby when the system is built, so the class is usually random."
       );
     case "script":
-      return "Its effect changes the class only under a condition, which Galaxy Forge doesn't read.";
+      return "The initializer changes the class only when a condition holds, and Galaxy Forge can't tell whether it will.";
     case "undefined":
-      return `The game data has no planet class or list called ${written}.`;
+      return `Your installed game and mods have no planet class called ${written}.`;
   }
 }
 
@@ -365,7 +365,24 @@ export function anomalyLine(anomalies: StatedAnomalies, noun: string): string | 
 
 /** Statements as the file writes them, one after another. */
 export function rawText(statements: readonly RawStatement[]): string {
-  return statements.map((s) => s.text).join("\n");
+  return statements.map((s) => dedent(s.text)).join("\n");
+}
+
+/** The spaces and tabs a line starts with. */
+function indentOf(line: string): number {
+  return line.length - line.trimStart().length;
+}
+
+/**
+ * A statement with its inner lines moved left by the indent they share, as the file nests it: the
+ * first line starts at the statement's key and keeps its place.
+ */
+export function dedent(text: string): string {
+  const [first, ...rest] = text.split("\n");
+  const indents = rest.filter((line) => line.trim() !== "").map(indentOf);
+  const cut = indents.length === 0 ? 0 : Math.min(...indents);
+  const moved = rest.map((line) => line.slice(Math.min(cut, indentOf(line))));
+  return [first.trimStart(), ...moved].join("\n");
 }
 
 /** The system's Script hint: what the game does with lines Galaxy Forge doesn't read. */

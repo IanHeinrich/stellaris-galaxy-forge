@@ -51,7 +51,7 @@ describe("a save system's overview", () => {
     expect(sections(html)).toEqual([
       "Hyperlanes · 4",
       "Bypasses · 0",
-      "Planets · 1 · 0 colonies",
+      "Planets · 1",
       "Flags · 0",
       "Initializer",
     ]);

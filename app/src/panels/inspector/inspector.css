@@ -463,8 +463,13 @@ button.link.ins-drill:hover {
   background: transparent;
 }
 
-.ins-raw {
-  margin: 4px 0 2px;
+/* Script as the file writes it: its own case, nesting kept at a narrow tab, and room below. */
+.ins-written {
+  margin: 4px 0 8px;
+}
+
+.ins-written-text {
+  margin: 0;
   padding: 6px 8px;
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -474,7 +479,28 @@ button.link.ins-drill:hover {
   font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 1.45;
+  text-transform: none;
   white-space: pre;
+  tab-size: 2;
+}
+
+/* The control that shows a long script whole, in the link colour with its caret. */
+button.link.ins-written-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 0;
+  color: var(--accent);
+  font-size: var(--text-note);
+}
+
+button.link.ins-written-more:hover {
+  text-decoration: underline;
+}
+
+button.link.ins-written-more .tri {
+  color: inherit;
 }
 
 .ins-subhead {

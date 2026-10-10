@@ -63,7 +63,7 @@ the placeholders.
 The system's page in the Inspector shows what the initializer places,
 in the same sections a save's page has. The line under the name counts
 planets only, as it does for a save. Moons and asteroids are counted in
-the Planets header. A count the game rolls shows as a range, such as
+the System total row at the top of the Planets section. A count the game rolls shows as a range, such as
 "2 to 10 planets".
 
 Values show in one of three ways:

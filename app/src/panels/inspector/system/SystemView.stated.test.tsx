@@ -83,12 +83,13 @@ describe("a rolled scenario system", () => {
       '<span class="ins-st-rolled" title="Rolled when the game starts">Random star</span>',
     );
     expect(head).toContain(">2 to 10 planets</span>");
-    expect(html).toContain(`Planets · ${ROLLED_MARK}2 to 10</span> · 0 to 10 moons`);
+    expect(html).toContain(`Planets · ${ROLLED_MARK}2 to 10</span></span>`);
+    expect(html).toContain("2 to 10 planets · 0 to 10 moons · 0 colonies");
     expect(html).toContain(`Star class · 3 · ${ROLLED_MARK}rolled</span>`);
     expect(sections(html)).toEqual([
       "Spawn point",
       "Star class · 3 · rolled",
-      "Planets · 2 to 10 · 0 to 10 moons · 0 colonies",
+      "Planets · 2 to 10",
       "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
@@ -164,10 +165,11 @@ describe("a fixed scenario system", () => {
     const html = overview();
     const head = headLine(html);
     expect(head).toContain("3 planets");
+    expect(html).toContain("3 planets · 1 moon · 2 asteroids · 0 colonies");
     expect(head).not.toContain("ins-st-rolled");
     expect(sections(html)).toEqual([
       "Spawn point",
-      "Planets · 3 · 1 moon · 2 asteroids · 0 colonies",
+      "Planets · 3",
       "Ambient objects · 1",
       "Flags · 2",
       "Initializer",
@@ -237,7 +239,8 @@ describe("a scenario system whose bodies come from a script", () => {
 
     const html = overview();
     expect(headLine(html)).toContain('<span class="ins-st-unknown">planets from a script</span>');
-    expect(sections(html)).toContain("Planets · from a script · 0 colonies");
+    expect(sections(html)).toContain("Planets · from a script");
+    expect(html).toContain("planets from a script · 0 colonies");
     expect(html).toContain('Planets · <span class="ins-st-unknown">from a script</span>');
     expect(html).toContain(
       '<div class="ins-from">every body comes from grand_archive/voidworms_system_planet_initializer</div>',
@@ -273,7 +276,7 @@ describe("a save system's head", () => {
 
     const html = overview();
     expect(headLine(html)).toContain("2 planets · nebula");
-    expect(sections(html)).toContain("Planets · 2 · 1 moon · 1 asteroid · 0 colonies");
-    expect(html).toContain("2 planets · 0 colonies");
+    expect(sections(html)).toContain("Planets · 2");
+    expect(html).toContain("2 planets · 1 moon · 1 asteroid · 0 colonies");
   });
 });

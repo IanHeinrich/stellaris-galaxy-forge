@@ -10,6 +10,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
+import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { bodyLayout } from "../../../test/builders";
@@ -66,7 +67,7 @@ describe("a scenario body's page", () => {
     );
     expect(row(html, "Name")).toContain("Named by the game when it starts");
     expect(row(html, "Class")).toContain("Rolled from the classes that fit its orbit");
-    expect(row(html, "Size")).toContain("Set by its class");
+    expect(row(html, "Size")).toContain("Rolled from its class&#x27;s sizes");
     expect(row(html, "Ring")).toContain(">Rolled by the game</span>");
     expect(row(html, "Model")).toContain("One of its class&#x27;s models");
     expect(html).toContain("Can appear when the planet is surveyed.");
@@ -256,6 +257,41 @@ describe("a scenario body's page", () => {
     expect(html).toContain("d_zro_1");
     expect(html).not.toContain("replaces");
     expect(row(html, "Class")).toContain("Rolled from the habitable classes that fit its orbit");
+  });
+
+  it("shows script as written, its nesting moved left, and a long one cut behind a control that shows the rest", async () => {
+    const nested = `if = {
+		limit = { has_leviathans = yes }
+		set_owner = event_target:owner
+	}`;
+    const long = Array.from({ length: 14 }, (_, i) => ({
+      key: `set_planet_flag`,
+      text: `set_planet_flag = flag_${i}`,
+      modelled: 0,
+    }));
+    const world = planet(100, "World", {
+      class: "pc_barren",
+      spawn: bodySpawn({ script: [{ key: "if", text: nested, modelled: 0 }, ...long] }),
+    });
+    await open("scenario");
+    await land(details({ planets: [world], spawn: systemSpawn() }));
+
+    const html = drawnBy(() => page(100, "World"));
+    expect(html).toContain(
+      `if = {
+	limit = { has_leviathans = yes }
+	set_owner = event_target:owner
+}`,
+    );
+    expect(html).toContain('class="ins-written-text"');
+    expect(html).toContain("Show all 18 lines");
+    expect(html).not.toContain("flag_13");
+    expect(html).toContain('aria-expanded="false"');
+    const more = lastDrawn(
+      (el) => el.type === "button" && el.props.className === "link ins-written-more",
+      "the show all control",
+    ) as { onClick(): void; "aria-expanded": boolean };
+    expect(more["aria-expanded"]).toBe(false);
   });
 
   it("names an anomaly prevented across the system", async () => {
