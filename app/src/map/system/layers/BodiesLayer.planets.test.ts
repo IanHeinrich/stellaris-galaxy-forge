@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../../api/gamedata", () => import("../../../test/textures"));
 
 import { BitmapText, Container, Graphics, Texture } from "pixi.js";
+import { bodySpawn } from "../../../test/spawn";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
 import { byId, placedNode, planetClassView, saveBody, systemDetails } from "../../../test/builders";
 import { textureFetch } from "../../../test/textures";
@@ -60,6 +61,29 @@ describe("the planets of the system scene's bodies layer", () => {
       (h) => h.children.filter((c) => c instanceof BitmapText).length,
     );
     expect(glyphs.sort()).toEqual([0, 0, 1, 1]);
+    layer.destroy();
+  });
+
+  it("rings a body the game may not place with a dashed halo, and no other", () => {
+    const planets = [
+      scenarioSun,
+      body(
+        2,
+        "pc_barren",
+        { orbit: fixed(60) },
+        { spawn: bodySpawn({ always: false, copy: 3, count: { min: 2, max: 4 } }) },
+      ),
+      body(3, "pc_barren", { orbit: fixed(90) }, { spawn: bodySpawn() }),
+    ];
+    const layer = new BodiesLayer(blankSceneTextures());
+    layer.rebuild(scenario(planets, rollOf(planets)));
+    viewport(layer, 2);
+    const halos = (layer.container.children as Container[]).flatMap((h) => {
+      const halo = graphics(h, "halo");
+      return halo === undefined ? [] : [halo];
+    });
+    expect(halos).toHaveLength(1);
+    expect(halos[0].bounds.width).toBeGreaterThan(0);
     layer.destroy();
   });
 

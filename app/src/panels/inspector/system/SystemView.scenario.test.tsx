@@ -86,10 +86,10 @@ describe("a scenario system's overview", () => {
     const html = overview();
     expect(sections(html)).toEqual([
       "Spawn point",
-      "Initializer",
       "Planets · 2 · 0 colonies",
       "Station",
       "Megastructures · 1",
+      "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
     ]);
@@ -120,8 +120,8 @@ describe("a scenario system's overview", () => {
     const html = overview();
     expect(sections(html)).toEqual([
       "Spawn point",
-      "Initializer",
       "Resources · 2",
+      "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
     ]);

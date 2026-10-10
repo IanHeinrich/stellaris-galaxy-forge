@@ -109,7 +109,7 @@ describe("a save system's belts", () => {
     expect(html).toMatch(/aria-label="Belt 1 radius"[^>]*value="80"/);
   });
 
-  it("is plain text where nothing can be edited, and the scenario overview leaves it out", async () => {
+  it("is plain text where nothing can be edited, as the scenario overview shows it", async () => {
     await open("scenario");
     useGameDataStore.setState({ summary: gameDataSummary({ belt_kinds: KINDS }) });
     await land(BELTED);
@@ -121,6 +121,7 @@ describe("a save system's belts", () => {
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("Remove belt");
 
-    expect(sections(overview())).not.toContain("Belts · 2");
+    expect(sections(overview())).toContain("Belts · 2");
+    expect(overview()).not.toContain("Remove belt");
   });
 });

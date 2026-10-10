@@ -398,3 +398,88 @@ button.link.ins-drill:hover {
   display: flex;
   flex-direction: column;
 }
+
+/* A scenario value's three states: fixed is plain, rolled is blue with a die, unknown is muted with a question mark. */
+.ins-st-rolled {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #7fb3ff;
+}
+
+.ins-st-rolled::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  background: radial-gradient(circle, currentColor 0 1.5px, transparent 2px);
+  transform: translateY(1px);
+}
+
+.ins-st-unknown {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-style: italic;
+  color: #9aa6ba;
+}
+
+.ins-st-unknown::before {
+  content: "?";
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 1px dashed currentColor;
+  border-radius: 50%;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 10px;
+  text-align: center;
+  transform: translateY(1px);
+}
+
+.ins-why {
+  grid-column: 1 / -1;
+  color: var(--fg-muted);
+  font-size: var(--text-note);
+}
+
+.ins-from {
+  padding: 2px;
+  color: var(--fg-muted);
+  font-size: var(--text-note);
+}
+
+.ins-from::before {
+  content: "↳ ";
+}
+
+.chip.ins-maybe {
+  border-style: dashed;
+  border-color: #8c97ab;
+  background: transparent;
+}
+
+.ins-raw {
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg-soft);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.ins-subhead {
+  margin: 8px 0 2px;
+  padding: 0 2px;
+  color: var(--fg-muted);
+  font-size: var(--text-note);
+}

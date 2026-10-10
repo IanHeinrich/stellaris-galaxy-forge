@@ -63,7 +63,6 @@ export function orderedPlanets(
 }
 
 export interface PlanetTotals {
-  planets: number;
   colonies: number;
   preFtl: number;
   pops: number;
@@ -71,7 +70,6 @@ export interface PlanetTotals {
 
 export function planetTotals(planets: readonly PlanetSummary[]): PlanetTotals {
   return {
-    planets: planets.length,
     colonies: planets.filter(isColony).length,
     preFtl: planets.filter((p) => p.pre_ftl).length,
     pops: planets.reduce((total, p) => total + p.pops, 0),

@@ -1,7 +1,7 @@
 ---
 title: System view
 description: Open one system to see its star, planets, moons and belts laid out as in the game, and get back to the galaxy.
-aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy]
+aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy, may not spawn, star list, rolled value, initializer facts]
 ---
 # System view <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -46,6 +46,10 @@ blue. The body's page lists its orbit step, its angle step and whether
 it has a ring. Click the name in the angle step to go to the body it
 turns from.
 
+Some blocks of an initializer place a range of planets, such as 2 to
+10. The view draws every planet the block can place. The ones past the
+lowest count have a dashed halo, because the game may not place them.
+
 A scenario system whose initializer is `random`, missing or unknown to
 your install gets its planets rolled when the game starts. An
 initializer that places its planets only through a script works the
@@ -53,6 +57,36 @@ same way. The view shows faint placeholder planets for such a system,
 rolled by the game's rules for its star. The game rolls its own planets
 at the start, so they won't match the placeholders. You can't select
 the placeholders.
+
+## Rolled values and planets that may not spawn <Badge type="info" text="Scenario" />
+
+The system's page in the Inspector shows what the initializer places,
+in the same sections a save's page has. The line under the name counts
+planets only, as it does for a save. Moons and asteroids are counted in
+the Planets header. A count the game rolls shows as a range, such as
+"2 to 10 planets".
+
+Values show in one of three ways:
+
+- A value the initializer sets shows as plain text, as in a save.
+- A value the game rolls when the game starts shows in blue with a small
+  square mark. Hover over it to see "Rolled when the game starts".
+- A value the game decides in a way Galaxy Forge can't show is in grey
+  italics with a question mark. Where Galaxy Forge knows why, the reason
+  is under it.
+
+A planet the game may not place has a "may not spawn" mark in the
+Planets list and on its page. A star drawn from a star list has a Star
+class section that lists the list's star classes with their odds.
+
+## A scenario system's Initializer section <Badge type="info" text="Scenario" />
+
+The Initializer section shows the initializer's other facts. Under
+"Only in random galaxies" are the keys a random galaxy uses to pick the
+layout, such as its usage and neighbours. A scenario names the
+initializer, so they do nothing on your map. Script lines that Galaxy
+Forge doesn't read show as text. Nothing on a scenario system's page can
+be edited yet.
 
 ## Show orbit radii
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import type { SystemNode } from "../../../../generated/SystemNode";
+import type { SystemSpawn } from "../../../../generated/SystemSpawn";
 import { displayName } from "../../../../lib/names";
 import { kindLabel } from "../../../../lib/special";
 import { useCanEdit } from "../../../../store/fileSessionStore";
@@ -11,6 +12,7 @@ import { SourceChip } from "../../../parts";
 import { Section } from "../../parts";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
+import { InitializerFacts } from "./scenario/InitializerFacts";
 import { ScriptActions } from "./scenario/scriptActions";
 
 export const SEAT_INITIALIZER_HINT =
@@ -55,13 +57,16 @@ function InitializerEditor({ system }: { system: SystemNode }) {
 /**
  * The initializer, whether the loaded game data knows it, and the countries it spawns here. The
  * bodies it places are listed only where the system's own contents are not: they are the same list.
+ * `stated` is what the initializer says that a save has no field for.
  */
 export function InitializerSection({
   system,
   spawn = true,
+  stated,
 }: {
   system: SystemNode;
   spawn?: boolean;
+  stated?: SystemSpawn;
 }) {
   const special = useGameDataStore((s) => s.special.get(system.id));
   const ready = useGameDataStore((s) => s.status === "ready");
@@ -123,6 +128,7 @@ export function InitializerSection({
           ))}
         </div>
       )}
+      {stated !== undefined && <InitializerFacts spawn={stated} />}
       {spawn && system.initializer !== "" && <InitializerSpawn name={system.initializer} />}
     </Section>
   );

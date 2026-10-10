@@ -103,5 +103,8 @@
   {"q": "file menu", "expect": "start/the-window#use-the-file-menu"},
   {"q": "tilt", "expect": "start/the-window"},
   {"q": "supported versions", "expect": "reference/versions"},
-  {"q": "open it again", "expect": "start/install-and-update#open-it-again"}
+  {"q": "open it again", "expect": "start/install-and-update#open-it-again"},
+  {"q": "may not spawn", "expect": "system/system-view#rolled-values-and-planets-that-may-not-spawn"},
+  {"q": "rolled when the game starts", "expect": "system/system-view#rolled-values-and-planets-that-may-not-spawn"},
+  {"q": "scenario planet page", "expect": "system/planet-pages#a-scenario-body-s-page"}
 ]

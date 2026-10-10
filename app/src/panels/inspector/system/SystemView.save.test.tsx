@@ -223,7 +223,7 @@ describe("the star class at the head", () => {
 
     const html = overview();
     // The fixture has no names for the bodies.
-    expect(shown(html)).toMatch(/pc_a_star \+ pc_pulsar · \d+ planets · nebula/);
+    expect(shown(html)).toContain("pc_a_star + pc_pulsar · 1 planet · nebula");
     expect(html).not.toContain("Star class");
     expect(html).not.toContain('aria-haspopup="listbox"');
   });

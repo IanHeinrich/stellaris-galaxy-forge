@@ -42,7 +42,7 @@ export function Section({
   id: string;
   title: string;
   count?: number;
-  summary?: string;
+  summary?: ReactNode;
   /** A line of its own at the header's right, in sentence case, cut short where it runs out of room. */
   aside?: string;
   startClosed?: boolean;
@@ -70,7 +70,7 @@ export function Section({
       <span className="ins-sec-title">
         {title}
         {count !== undefined && ` · ${count}`}
-        {summary && ` · ${summary}`}
+        {summary && <> · {summary}</>}
       </span>
       {source !== undefined && <SourceChip source={source} />}
       {aside !== undefined && (

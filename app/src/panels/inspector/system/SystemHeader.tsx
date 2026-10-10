@@ -1,5 +1,15 @@
+import type { ReactNode } from "react";
+import type { SpawnStar } from "../../../generated/SpawnStar";
 import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemNode } from "../../../generated/SystemNode";
+import {
+  countWords,
+  isRanged,
+  PLANETS_FROM_SCRIPT,
+  RANDOM_STAR,
+  UNKNOWN_STAR,
+  type PlanetCounts,
+} from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
 import { nodeName } from "../../../lib/names";
 import { kindLabel } from "../../../lib/special";
@@ -15,10 +25,12 @@ import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
 import { Chip, SourceChip } from "../../parts";
 import { DrillLink, Swatch } from "../parts";
+import { Rolled, Unknown } from "../states";
 import { ADDED_CHIP_TITLE, AddedSystemBlock } from "./AddedSystemBlock";
 import { kindHover } from "./sections/kindHover";
 import { StarMismatchNote } from "./StarClassLine";
 import { HeightRow } from "./SystemHeight";
+import { usePlanetCounter } from "./usePlanetCounter";
 import { useStarClassLabel } from "./useStarNames";
 import { renameSystemOp } from "./systemName";
 import { shortcutLabel } from "../../../lib/keys";
@@ -118,6 +130,21 @@ function OwnerName({ id, label }: { id: number; label: string | null }) {
   );
 }
 
+/** The head's star: its class, or what an initializer that rolls it or names none says. */
+function StarText({ star, label }: { star: SpawnStar | undefined; label: string }): ReactNode {
+  if (star?.state === "rolled") return <Rolled>{RANDOM_STAR}</Rolled>;
+  if (star?.state === "unknown") return <Unknown>{UNKNOWN_STAR}</Unknown>;
+  return label;
+}
+
+/** The head's planet count, planets alone: a range the game rolls, or a script's. */
+function PlanetCount({ counts }: { counts: PlanetCounts }): ReactNode {
+  const planets = counts.planets;
+  if (planets === null) return <Unknown>{PLANETS_FROM_SCRIPT}</Unknown>;
+  const words = countWords(planets, "planet");
+  return isRanged(planets) ? <Rolled>{words}</Rolled> : words;
+}
+
 export function Header({ detail }: { detail: SystemDetail }) {
   const { system } = detail;
   const select = useEditorStore((s) => s.select);
@@ -137,7 +164,8 @@ export function Header({ detail }: { detail: SystemDetail }) {
   const rolled = useCanEdit("rolled_layout");
   const details = useDetailsStore((s) => s.details.get(system.id));
   const capital = details?.planets.some((p) => p.capital && p.owner === system.owner) ?? false;
-  const planets = details?.planets.length ?? system.planet_count;
+  const countPlanets = usePlanetCounter();
+  const counts = details && countPlanets(details);
   const starClass = names.get(system.star_class) ?? system.star_class;
   const multiple = useStarClassLabel(system, starClass);
   const starLabel = rolled ? starClass : multiple;
@@ -157,8 +185,19 @@ export function Header({ detail }: { detail: SystemDetail }) {
       </div>
       {system.name.key === "" && <div className="ins-sub muted">{RANDOM_NAME_NOTE}</div>}
       <div className="ins-sub muted">
-        {starLabel !== "" && `${starLabel} · `}
-        {planets} planets · nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
+        {starLabel !== "" && (
+          <>
+            <StarText star={details?.spawn?.star} label={starLabel} />
+            {" · "}
+          </>
+        )}
+        {counts !== undefined && (
+          <>
+            <PlanetCount counts={counts} />
+            {" · "}
+          </>
+        )}
+        nebula: {detail.nebula ? nodeName(detail.nebula.name) : "none"}
       </div>
       {!rolled && starLabel !== "" && (
         <StarMismatchNote system={system} planets={details?.planets} label={starLabel} />

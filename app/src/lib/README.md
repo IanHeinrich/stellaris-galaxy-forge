@@ -73,7 +73,11 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   and adapter, once for the scene, the pages and the nudge. A place that
   has to differ by kind picks a row of `documentKinds` or a `BodySource`,
   and a new kind fails to compile until each has its row.
-  `discs` sizes each body's disc.
+  `discs` sizes each body's disc. `spawnFacts` is what a scenario system's
+  initializer says beyond a save's fields, in the Inspector's words: its
+  planet, moon and asteroid counts, how a star or a class is decided, why a
+  body may not spawn, the lines its deposits, features and anomalies add,
+  and the facts only a random galaxy uses.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
 - The game's concepts, one module each and named for it: `feZone`, `feLinks`,

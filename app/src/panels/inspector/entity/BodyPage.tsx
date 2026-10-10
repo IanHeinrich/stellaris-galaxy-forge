@@ -22,6 +22,7 @@ import { Chip } from "../../parts";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
+import { MayNotSpawnChip } from "../states";
 import { StarRowIcon } from "../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
@@ -41,6 +42,7 @@ import { DeletePlanetAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
+import { BodyFlags, BodyInitializer, SpawnHeadNotes, SpawnProperties } from "./SpawnFacts";
 import { SizeField, StarBlock } from "./StarBlock";
 import "./entity.css";
 
@@ -112,6 +114,8 @@ function Head({
       {body?.colonised && <Chip>colonised</Chip>}
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
+      {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
+      {body?.spawn?.always === false && <MayNotSpawnChip />}
       {action}
     </div>
   );
@@ -226,6 +230,8 @@ const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionPro
   { id: "colony", Component: PlanetColony },
   { id: "about", Component: PlanetAbout },
   { id: "moons", Component: PlanetMoons },
+  { id: "flags", Component: BodyFlags },
+  { id: "initializer", Component: BodyInitializer },
   { id: "delete", Component: DeleteSection },
 ];
 
@@ -290,8 +296,12 @@ function BodyOverview({ read }: { read: BodyRead }) {
       {hasFields(fields) && <PlanetBlock id={summary.id} edits={target.edits} fields={fields} />}
       {starBlock && <StarBlock planet={summary} system={system} edits={target.edits} />}
       {starWait && <Empty>{READING_STARS}</Empty>}
+      <SpawnHeadNotes read={read} />
       <OrbitBlock system={details.id} body={summary.id} />
-      {(showClass || showSize || showRing) && (
+      {summary.spawn !== undefined && (
+        <SpawnProperties read={read} spawn={summary.spawn} star={star} />
+      )}
+      {summary.spawn === undefined && (showClass || showSize || showRing) && (
         <Properties>
           {showClass && (
             <PropertyRow label="Class">

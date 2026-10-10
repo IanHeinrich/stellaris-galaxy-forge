@@ -4,6 +4,7 @@ import type { SystemDetail } from "../../../generated/SystemDetail";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { supports } from "../../../lib/capabilities";
 import {
+  AmbientObjects,
   Belts,
   Bypasses,
   ClosedLanes,
@@ -22,6 +23,7 @@ import {
   Sites,
   SpawningInitializer,
   SpawnPoint,
+  StarList,
   Station,
   UtilityFleets,
   WormholePair,
@@ -61,6 +63,8 @@ export type OverviewKey =
   | "utility"
   | "flags"
   | "flagsIfAny"
+  | "starList"
+  | "ambientObjects"
   | "scripts";
 
 /** Every section a system's Overview can show. */
@@ -85,6 +89,8 @@ export const OVERVIEW_SECTIONS: Record<OverviewKey, OverviewSection> = {
   utility: { component: UtilityFleets, requires: "details" },
   flags: { component: Flags },
   flagsIfAny: { component: FlagsIfAny },
+  starList: { component: StarList },
+  ambientObjects: { component: AmbientObjects },
   scripts: { component: Scripts, requires: "scripts" },
 };
 
@@ -105,7 +111,8 @@ const HELD_ORDER: readonly OverviewKey[] = [
 
 /**
  * A system whose bodies are rolled from its initializer: its roles first, then what the
- * initializer and scripts place, each shown only where there is something, its lanes last.
+ * initializer and scripts place, each shown only where there is something, then the initializer
+ * itself, its lanes last.
  */
 const ROLLED_ORDER: readonly OverviewKey[] = [
   "spawn",
@@ -113,13 +120,16 @@ const ROLLED_ORDER: readonly OverviewKey[] = [
   "feLinks",
   "marauder",
   "wormholePair",
-  "spawningInitializer",
+  "starList",
   "planetsOrResources",
+  "belts",
   "station",
   "megastructures",
   "bypasses",
   "sites",
+  "ambientObjects",
   "flagsIfAny",
+  "spawningInitializer",
   "closedLanes",
   "scripts",
 ];
