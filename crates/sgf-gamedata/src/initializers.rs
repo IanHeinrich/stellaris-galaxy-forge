@@ -52,8 +52,8 @@ pub struct InitPlanet {
     /// Degrees each instance turns on from the one before.
     pub orbit_angle: Option<Range>,
     /// The sum of the `change_orbit` statements between the previous sibling block and
-    /// this one, which moves every later instance out (or in).
-    pub change_orbit: f64,
+    /// this one, which moves every later instance out (or in): a range when one of them is.
+    pub change_orbit: Range,
     /// `has_ring = yes` or `no`; `None` leaves it to the class's `chance_of_ring`.
     pub has_ring: Option<bool>,
     /// `entity = "…"`: the model drawn in place of the class's own.
@@ -325,7 +325,8 @@ impl GameData {
 pub struct InitAsteroidBelt {
     /// `rocky_asteroid_belt`, `icy_asteroid_belt`, …
     pub kind: String,
-    pub radius: Option<f64>,
+    /// Its `radius`, a range when the game draws it.
+    pub radius: Option<Range>,
 }
 
 /// The `create_starbase` block: what the system is generated with.
@@ -593,18 +594,20 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
 
 fn bodies(parent: &Node, keys: &[&str], def: &Def, splices: &[InlineScript]) -> Vec<InitPlanet> {
     let mut out = Vec::new();
-    let mut change_orbit = 0.0;
+    let mut change_orbit = Range::fixed(0.0);
     for child in parent.children() {
         match child.key_str(&def.src) {
             Some("change_orbit") => {
-                change_orbit += child
-                    .scalar_str(&def.src)
-                    .and_then(|text| def.number_of(text))
-                    .unwrap_or(0.0);
+                if let Some(step) = def.initializer_range_of(child) {
+                    change_orbit = Range {
+                        min: change_orbit.min + step.min,
+                        max: change_orbit.max + step.max,
+                    };
+                }
             }
             Some(found) if keys.contains(&found) => {
                 out.push(body(child, change_orbit, def, splices));
-                change_orbit = 0.0;
+                change_orbit = Range::fixed(0.0);
             }
             _ => {}
         }
@@ -612,7 +615,7 @@ fn bodies(parent: &Node, keys: &[&str], def: &Def, splices: &[InlineScript]) -> 
     out
 }
 
-fn body(node: &Node, change_orbit: f64, def: &Def, splices: &[InlineScript]) -> InitPlanet {
+fn body(node: &Node, change_orbit: Range, def: &Def, splices: &[InlineScript]) -> InitPlanet {
     let src = &def.src;
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
@@ -622,10 +625,10 @@ fn body(node: &Node, change_orbit: f64, def: &Def, splices: &[InlineScript]) -> 
         name: scalar(node, "name", src).map(str::to_owned),
         class: BodyClass::of(scalar(node, "class", src).unwrap_or(RANDOM)),
         size: def
-            .range_in(node, "size")
+            .initializer_range_in(node, "size")
             .map(|r| (whole(r.min), whole(r.max))),
-        orbit_distance: def.range_in(node, "orbit_distance"),
-        orbit_angle: def.range_in(node, "orbit_angle"),
+        orbit_distance: def.initializer_range_in(node, "orbit_distance"),
+        orbit_angle: orbit_angle(node, def),
         change_orbit,
         has_ring: match scalar(node, "has_ring", src) {
             Some("yes") => Some(true),
@@ -633,7 +636,9 @@ fn body(node: &Node, change_orbit: f64, def: &Def, splices: &[InlineScript]) -> 
             _ => None,
         },
         entity: scalar(node, "entity", src).map(str::to_owned),
-        count: def.range_in(node, "count").unwrap_or(Range::fixed(1.0)),
+        count: def
+            .initializer_range_in(node, "count")
+            .unwrap_or(Range::fixed(1.0)),
         home_planet,
         colonised: home_planet
             || colony_owner.is_some()
@@ -649,6 +654,22 @@ fn body(node: &Node, change_orbit: f64, def: &Def, splices: &[InlineScript]) -> 
         stated: stated::body(node, def, InlineScript::holding(splices, node)),
     }
 }
+
+/// A block's `orbit_angle`: a number, a range, or `random`, read as anywhere on the orbit as
+/// for a block that writes none (assumed: no game file says what range `random` draws from).
+fn orbit_angle(node: &Node, def: &Def) -> Option<Range> {
+    let found = node.find("orbit_angle", &def.src)?;
+    match found.scalar_str(&def.src) {
+        Some(RANDOM) => Some(ANY_ANGLE),
+        _ => def.initializer_range_of(found),
+    }
+}
+
+/// The turn a body written `orbit_angle = random` is drawn from.
+const ANY_ANGLE: Range = Range {
+    min: 0.0,
+    max: 360.0,
+};
 
 /// A `set_owner` beside one of these gives the body to that empire as a
 /// colony; on its own it only makes the system that empire's territory.
@@ -776,7 +797,7 @@ fn asteroid_belts(def: &Def) -> Vec<InitAsteroidBelt> {
             kind: scalar(belt, "type", &def.src)
                 .unwrap_or_default()
                 .to_owned(),
-            radius: scalar(belt, "radius", &def.src).and_then(|text| def.number_of(text)),
+            radius: def.initializer_range_in(belt, "radius"),
         })
         .collect()
 }

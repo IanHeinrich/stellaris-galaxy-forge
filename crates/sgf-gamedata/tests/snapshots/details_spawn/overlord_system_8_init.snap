@@ -1,0 +1,157 @@
+---
+source: crates/sgf-gamedata/tests/details_spawn.rs
+assertion_line: 599
+expression: out
+---
+{
+  "belts": [
+    {
+      "inner_radius": 45.0,
+      "kind": "rocky_asteroid_belt"
+    },
+    {
+      "inner_radius": 75.0,
+      "kind": "rocky_asteroid_belt"
+    }
+  ],
+  "fleets": {
+    "fleet_count": 0,
+    "military_count": 0,
+    "military_power": 0.0,
+    "ship_count": 0
+  },
+  "fleets_present": [],
+  "id": 1,
+  "inner_radius": null,
+  "megastructures": [
+    {
+      "id": 1342177280,
+      "kind": "gateway_derelict",
+      "owner": null,
+      "planet": null
+    }
+  ],
+  "planets": null,
+  "resources": [],
+  "sites": [],
+  "spawn": {
+    "ambient_objects": [],
+    "asteroids": {
+      "max": 2,
+      "min": 1
+    },
+    "belt_radii": [
+      {
+        "max": 55.0,
+        "min": 35.0
+      },
+      {
+        "max": 85.0,
+        "min": 65.0
+      }
+    ],
+    "flags": [
+      "overlord_empire_flag",
+      "overlord_colony_flag"
+    ],
+    "from_script": null,
+    "inline_scripts": [],
+    "inner_radius": {
+      "max": 265.0,
+      "min": 215.0
+    },
+    "inner_radius_offset": null,
+    "max_instances": null,
+    "moons": {
+      "max": 2,
+      "min": 2
+    },
+    "namelist": null,
+    "neighbors": [],
+    "other_keys": [],
+    "outer_radius_offset": null,
+    "planets": {
+      "max": 4,
+      "min": 2
+    },
+    "prevent_anomalies": false,
+    "primitive_system": false,
+    "scaled_spawn_chance": null,
+    "script": [],
+    "sites": [],
+    "spawn_chance": null,
+    "star": {
+      "list": "rl_standard_stars",
+      "members": [
+        {
+          "key": "sc_a",
+          "weight": 10.0
+        },
+        {
+          "key": "sc_b",
+          "weight": 10.0
+        },
+        {
+          "key": "sc_f",
+          "weight": 15.0
+        },
+        {
+          "key": "sc_g",
+          "weight": 30.0
+        },
+        {
+          "key": "sc_k",
+          "weight": 20.0
+        },
+        {
+          "key": "sc_m",
+          "weight": 20.0
+        },
+        {
+          "key": "sc_m_giant",
+          "weight": 20.0
+        }
+      ],
+      "state": "rolled"
+    },
+    "usage": null,
+    "usage_odds": null,
+    "variables": []
+  },
+  "starbase": {
+    "buildings": [
+      "hydroponics_bay",
+      "naval_logistics_office"
+    ],
+    "hull": 0.0,
+    "id": 1879048193,
+    "kind": "",
+    "level": "starbase_starhold",
+    "max_hull": 0.0,
+    "modules": [
+      "shipyard",
+      "shipyard",
+      "anchorage",
+      "anchorage"
+    ],
+    "name": {
+      "key": "",
+      "literal": false,
+      "variables": []
+    },
+    "name_key": "",
+    "owner": null,
+    "shipyard": true
+  },
+  "with_game_data": true,
+  "wormholes": []
+}
+{"id":1073741824,"class":"pc_g_star","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"primary","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":0.0,"max":0.0},"at":null,"size":{"min":20.0,"max":30.0},"orbit_step":{"min":0.0,"max":0.0},"angle_step":{"min":1.0,"max":1.0},"turns_from":null},"ring":false,"star_class":"sc_g","drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"rolled","pool":{"kind":"star_list","list":"rl_standard_stars"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"ring":{"state":"fixed","ring":false},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_energy_2","chance":null},{"key":"d_energy_3","chance":null},{"key":"d_energy_4","chance":null},{"key":"d_energy_5","chance":null},{"key":"d_physics_2","chance":null},{"key":"d_physics_3","chance":null},{"key":"d_physics_4","chance":null},{"key":"d_physics_5","chance":null}]},"rolled_features":{"state":"rolled","entries":[]},"naming":{"state":"template","format":"STAR_NAME_1_OF_1","parent":null,"numerals":[]}}}
+{"id":1073741825,"class":"pc_asteroid","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":5,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":45.0,"max":45.0},"at":null,"size":{"min":5.0,"max":5.0},"orbit_step":{"min":0.0,"max":0.0},"angle_step":{"min":120.0,"max":300.0},"turns_from":1073741824},"ring":false,"drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":2},"class":{"state":"fixed","class":"pc_asteroid"},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"ring":{"state":"fixed","ring":false},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_alloys_1","chance":0.04576659038901602},{"key":"d_alloys_2","chance":0.011441647597254004},{"key":"d_minerals_2","chance":0.22883295194508008},{"key":"d_minerals_3","chance":0.17162471395881007},{"key":"d_minerals_4","chance":0.09153318077803203},{"key":"d_minerals_5","chance":0.011441647597254004},{"key":"d_trade_value_2","chance":0.22883295194508008},{"key":"d_trade_value_3","chance":0.11441647597254004},{"key":"d_trade_value_4","chance":0.04576659038901602},{"key":"d_trade_value_5","chance":0.004576659038901602},{"key":"d_volatile_motes_1","chance":0.034324942791762014},{"key":"d_volatile_motes_2","chance":0.011441647597254004}]},"rolled_features":{"state":"rolled","entries":[]},"naming":{"state":"unknown"}}}
+{"id":1073741826,"class":"pc_asteroid","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":5,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":45.0,"max":45.0},"at":null,"size":{"min":5.0,"max":5.0},"orbit_step":{"min":0.0,"max":0.0},"angle_step":{"min":120.0,"max":300.0},"turns_from":1073741825},"ring":false,"drawn":false,"spawn":{"always":false,"copy":2,"count":{"min":1,"max":2},"class":{"state":"fixed","class":"pc_asteroid"},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"ring":{"state":"fixed","ring":false},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_alloys_1","chance":0.04576659038901602},{"key":"d_alloys_2","chance":0.011441647597254004},{"key":"d_minerals_2","chance":0.22883295194508008},{"key":"d_minerals_3","chance":0.17162471395881007},{"key":"d_minerals_4","chance":0.09153318077803203},{"key":"d_minerals_5","chance":0.011441647597254004},{"key":"d_trade_value_2","chance":0.22883295194508008},{"key":"d_trade_value_3","chance":0.11441647597254004},{"key":"d_trade_value_4","chance":0.04576659038901602},{"key":"d_trade_value_5","chance":0.004576659038901602},{"key":"d_volatile_motes_1","chance":0.034324942791762014},{"key":"d_volatile_motes_2","chance":0.011441647597254004}]},"rolled_features":{"state":"rolled","entries":[]},"naming":{"state":"unknown"}}}
+{"id":1073741827,"class":"pc_gas_giant","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":25,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":115.0,"max":115.0},"at":null,"size":{"min":25.0,"max":25.0},"orbit_step":{"min":25.0,"max":25.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741826},"ring":null,"drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"fixed","class":"pc_gas_giant"},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}],"ring":{"state":"rolled","chance":0.6},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_energy_2","chance":0.2554278416347382},{"key":"d_energy_3","chance":0.1277139208173691},{"key":"d_energy_4","chance":0.05108556832694764},{"key":"d_energy_5","chance":0.005108556832694764},{"key":"d_engineering_2","chance":0.05108556832694764},{"key":"d_engineering_3","chance":0.02554278416347382},{"key":"d_engineering_4","chance":0.005108556832694764},{"key":"d_engineering_5","chance":0.001277139208173691},{"key":"d_exotic_gases_1","chance":0.03831417624521073},{"key":"d_exotic_gases_2","chance":0.01277139208173691},{"key":"d_society_2","chance":0.1277139208173691},{"key":"d_society_3","chance":0.06385696040868455},{"key":"d_society_4","chance":0.01277139208173691},{"key":"d_society_5","chance":0.002554278416347382},{"key":"d_trade_value_2","chance":0.1277139208173691},{"key":"d_trade_value_3","chance":0.06385696040868455},{"key":"d_trade_value_4","chance":0.02554278416347382},{"key":"d_trade_value_5","chance":0.002554278416347382}]},"rolled_features":{"state":"rolled","entries":[{"key":"pm_extensive_moon_system","chance":null}]},"naming":{"state":"template","format":"PLANET_NAME_FORMAT","parent":null,"numerals":["I"]}}}
+{"id":1073741828,"class":"random_non_colonizable","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741827,"layout":{"orbit":{"min":14.0,"max":14.0},"at":null,"size":null,"orbit_step":{"min":4.0,"max":4.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random_non_colonizable","at_orbit":[{"class":"pc_barren","weight":10.0},{"class":"pc_barren_cold","weight":10.0}]}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"orbit_fit":"always","ring":{"state":"fixed","ring":false},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_minerals_2","chance":0.5813953488372093},{"key":"d_minerals_3","chance":0.29069767441860467},{"key":"d_minerals_4","chance":0.11627906976744186},{"key":"d_minerals_5","chance":0.011627906976744188}]},"rolled_features":{"state":"rolled","entries":[{"key":"pm_carbon_world","chance":null},{"key":"pm_mineral_poor","chance":null},{"key":"pm_obsidian_lakes","chance":null}]},"naming":{"state":"template","format":"SUBPLANET_NAME_FORMAT","parent":1073741827,"numerals":["a"]}}}
+{"id":1073741829,"class":"random_colonizable","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":true,"capital":true,"habitable":true,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741827,"layout":{"orbit":{"min":24.0,"max":24.0},"at":null,"size":{"min":15.0,"max":20.0},"orbit_step":{"min":10.0,"max":10.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741828},"ring":false,"drawn":true,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random_colonizable","at_orbit":[]}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":true,"features":{"modifier":null,"none":true,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":"body"},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":true,"other_keys":[],"script":[{"key":"save_event_target_as","text":"save_event_target_as = imperial_colony","modelled":0},{"key":"event_target:origin_imperial_species","text":"event_target:origin_imperial_species = {\n\t\t\t\t\tcreate_species = {\n\t\t\t\t\t\tis_mod = yes\n\t\t\t\t\t\tname = this\n\t\t\t\t\t\tplural = this\n\t\t\t\t\t\tclass = this\n\t\t\t\t\t\tportrait = this\n\t\t\t\t\t\ttraits = this\n\t\t\t\t\t\tcan_be_modified = this\n\t\t\t\t\t\thomeworld = this\n\t\t\t\t\t\tnamelist = this\n\t\t\t\t\t\ttraits = {\n\t\t\t\t\t\t\tideal_planet_class = event_target:imperial_colony\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}","modelled":0},{"key":"last_created_species","text":"last_created_species = {\n\t\t\t\t\tsave_event_target_as = local_imperial_species\n\t\t\t\t}","modelled":0},{"key":"set_owner","text":"set_owner = event_target:origin_imperial_homeland_country","modelled":0},{"key":"set_controller","text":"set_controller = event_target:origin_imperial_homeland_country","modelled":0},{"key":"while","text":"while = {\n\t\t\t\t\tcount = 10\n\t\t\t\t\tcreate_pop_group = {\n\t\t\t\t\t\tspecies = event_target:local_imperial_species\n\t\t\t\t\t}\n\t\t\t\t}","modelled":0},{"key":"while","text":"while = {\n\t\t\t\t\tcount = 10\n\t\t\t\t\tcreate_pop_group = {\n\t\t\t\t\t\tspecies = event_target:origin_imperial_species_robot\n\t\t\t\t\t}\n\t\t\t\t}","modelled":0},{"key":"add_district_and_planet_size_if_needed_effect","text":"add_district_and_planet_size_if_needed_effect = {\n\t\t\t\t\tdistrict = district_city\n\t\t\t\t}","modelled":0},{"key":"add_district_and_planet_size_if_needed_effect","text":"add_district_and_planet_size_if_needed_effect = {\n\t\t\t\t\tdistrict = district_mining\n\t\t\t\t}","modelled":0},{"key":"add_district_and_planet_size_if_needed_effect","text":"add_district_and_planet_size_if_needed_effect = {\n\t\t\t\t\tdistrict = district_farming\n\t\t\t\t}","modelled":0},{"key":"add_district_and_planet_size_if_needed_effect","text":"add_district_and_planet_size_if_needed_effect = {\n\t\t\t\t\tdistrict = district_generator\n\t\t\t\t}","modelled":0},{"key":"remove_all_buildings","text":"remove_all_buildings = yes","modelled":0},{"key":"add_building","text":"add_building = building_capital","modelled":0},{"key":"add_building","text":"add_building = building_bureaucratic_1","modelled":0},{"key":"add_building","text":"add_building = building_research_lab_1","modelled":0},{"key":"validate_planet_buildings_and_districts","text":"validate_planet_buildings_and_districts = yes","modelled":0}],"from_script":null,"variables":[],"orbit_fit":"never","ring":{"state":"fixed","ring":false},"rolled_deposits":{"state":"fixed"},"rolled_features":{"state":"fixed"}}}
+{"id":1073741830,"class":"random_non_colonizable","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":185.0,"max":185.0},"at":null,"size":null,"orbit_step":{"min":25.0,"max":25.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741827},"ring":null,"drawn":true,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":3},"class":{"state":"rolled","pool":{"kind":"random","draw":"random_non_colonizable","at_orbit":[{"class":"pc_barren","weight":10.0},{"class":"pc_barren_cold","weight":10.0},{"class":"pc_frozen","weight":10.0},{"class":"pc_gas_giant","weight":6.0}]}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"orbit_fit":"always","ring":{"state":"rolled","chance":0.2111111111111111},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_minerals_2","chance":null},{"key":"d_minerals_3","chance":null},{"key":"d_minerals_4","chance":null},{"key":"d_minerals_5","chance":null},{"key":"d_engineering_2","chance":null},{"key":"d_engineering_3","chance":null},{"key":"d_engineering_4","chance":null},{"key":"d_engineering_5","chance":null},{"key":"d_rare_crystals_1","chance":null},{"key":"d_rare_crystals_2","chance":null},{"key":"d_energy_2","chance":null},{"key":"d_energy_3","chance":null},{"key":"d_energy_4","chance":null},{"key":"d_energy_5","chance":null},{"key":"d_exotic_gases_1","chance":null},{"key":"d_exotic_gases_2","chance":null},{"key":"d_society_2","chance":null},{"key":"d_society_3","chance":null},{"key":"d_society_4","chance":null},{"key":"d_society_5","chance":null},{"key":"d_trade_value_2","chance":null},{"key":"d_trade_value_3","chance":null},{"key":"d_trade_value_4","chance":null},{"key":"d_trade_value_5","chance":null}]},"rolled_features":{"state":"rolled","entries":[{"key":"pm_asteroid_belt","chance":null},{"key":"pm_carbon_world","chance":null},{"key":"pm_mineral_poor","chance":null},{"key":"pm_obsidian_lakes","chance":null},{"key":"pm_extensive_moon_system","chance":null}]},"naming":{"state":"template","format":"PLANET_NAME_FORMAT","parent":null,"numerals":["II"]}}}
+{"id":1073741831,"class":"random_non_colonizable","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":210.0,"max":210.0},"at":null,"size":null,"orbit_step":{"min":25.0,"max":25.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741830},"ring":null,"drawn":true,"spawn":{"always":false,"copy":2,"count":{"min":1,"max":3},"class":{"state":"rolled","pool":{"kind":"random","draw":"random_non_colonizable","at_orbit":[{"class":"pc_frozen","weight":10.0},{"class":"pc_gas_giant","weight":6.0}]}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"orbit_fit":"always","ring":{"state":"rolled","chance":0.22499999999999998},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_engineering_2","chance":null},{"key":"d_engineering_3","chance":null},{"key":"d_engineering_4","chance":null},{"key":"d_engineering_5","chance":null},{"key":"d_minerals_2","chance":null},{"key":"d_minerals_3","chance":null},{"key":"d_minerals_4","chance":null},{"key":"d_minerals_5","chance":null},{"key":"d_rare_crystals_1","chance":null},{"key":"d_rare_crystals_2","chance":null},{"key":"d_energy_2","chance":null},{"key":"d_energy_3","chance":null},{"key":"d_energy_4","chance":null},{"key":"d_energy_5","chance":null},{"key":"d_exotic_gases_1","chance":null},{"key":"d_exotic_gases_2","chance":null},{"key":"d_society_2","chance":null},{"key":"d_society_3","chance":null},{"key":"d_society_4","chance":null},{"key":"d_society_5","chance":null},{"key":"d_trade_value_2","chance":null},{"key":"d_trade_value_3","chance":null},{"key":"d_trade_value_4","chance":null},{"key":"d_trade_value_5","chance":null}]},"rolled_features":{"state":"rolled","entries":[{"key":"pm_asteroid_belt","chance":null},{"key":"pm_mineral_poor","chance":null},{"key":"pm_extensive_moon_system","chance":null}]},"naming":{"state":"template","format":"PLANET_NAME_FORMAT","parent":null,"numerals":["III"]}}}
+{"id":1073741832,"class":"random_non_colonizable","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":235.0,"max":235.0},"at":null,"size":null,"orbit_step":{"min":25.0,"max":25.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741831},"ring":null,"drawn":true,"spawn":{"always":false,"copy":3,"count":{"min":1,"max":3},"class":{"state":"rolled","pool":{"kind":"random","draw":"random_non_colonizable","at_orbit":[{"class":"pc_frozen","weight":10.0},{"class":"pc_gas_giant","weight":6.0}]}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[],"orbit_fit":"always","ring":{"state":"rolled","chance":0.22499999999999998},"rolled_deposits":{"state":"rolled","entries":[{"key":"d_engineering_2","chance":null},{"key":"d_engineering_3","chance":null},{"key":"d_engineering_4","chance":null},{"key":"d_engineering_5","chance":null},{"key":"d_minerals_2","chance":null},{"key":"d_minerals_3","chance":null},{"key":"d_minerals_4","chance":null},{"key":"d_minerals_5","chance":null},{"key":"d_rare_crystals_1","chance":null},{"key":"d_rare_crystals_2","chance":null},{"key":"d_energy_2","chance":null},{"key":"d_energy_3","chance":null},{"key":"d_energy_4","chance":null},{"key":"d_energy_5","chance":null},{"key":"d_exotic_gases_1","chance":null},{"key":"d_exotic_gases_2","chance":null},{"key":"d_society_2","chance":null},{"key":"d_society_3","chance":null},{"key":"d_society_4","chance":null},{"key":"d_society_5","chance":null},{"key":"d_trade_value_2","chance":null},{"key":"d_trade_value_3","chance":null},{"key":"d_trade_value_4","chance":null},{"key":"d_trade_value_5","chance":null}]},"rolled_features":{"state":"rolled","entries":[{"key":"pm_asteroid_belt","chance":null},{"key":"pm_mineral_poor","chance":null},{"key":"pm_extensive_moon_system","chance":null}]},"naming":{"state":"template","format":"PLANET_NAME_FORMAT","parent":null,"numerals":["III","IV"]}}}

@@ -77,6 +77,18 @@ impl Weight {
         weight
     }
 
+    /// The weight for `subject` when it settles every modifier's conditions; `None` when it
+    /// cannot settle one.
+    pub fn settled(&self, subject: &dyn Subject) -> Option<f64> {
+        let mut weight = self.base * self.factor;
+        for modifier in &self.modifiers {
+            if modifier.when.evaluate(subject)? {
+                weight = modifier.apply(weight);
+            }
+        }
+        Some(weight)
+    }
+
     /// Whether some subject like `subject` could draw a weight above zero: every modifier
     /// whose conditions could hold adds, and only those that surely hold multiply or set it.
     pub fn could_be_positive(&self, subject: &dyn Subject) -> bool {

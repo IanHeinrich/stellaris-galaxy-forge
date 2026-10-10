@@ -18,6 +18,7 @@ use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
+use crate::rolls::{ClassDraw, RingRoll, can_be, fixed_name, list_members, ring_roll};
 
 mod save;
 
@@ -30,6 +31,8 @@ pub use save::{
 const DEPOSIT_STREAM: u64 = 0x6465_706F;
 /// Separates the ring draw from the system draw of the same seed.
 const RING_STREAM: u64 = 0x7269_6E67;
+/// Separates the draw of a ranged belt radius from the system draw of the same seed.
+const BELT_STREAM: u64 = 0x6265_6C74;
 /// The classes the game never spawns, each with the scripted effect that sets its deposits
 /// wherever the game makes one (`common/scripted_effects/archaeology_event_effects.txt`). A
 /// class of no spawn odds that is not listed gets no deposits.
@@ -242,7 +245,13 @@ fn build(
         star_named_by_class: roller.star_named_by_class,
         star,
         planets,
-        belts: init.asteroid_belts.iter().filter_map(belt).collect(),
+        belts: {
+            let mut radii = Rng::new(seed ^ BELT_STREAM);
+            init.asteroid_belts
+                .iter()
+                .filter_map(|b| rolled_belt(b, &mut radii))
+                .collect()
+        },
         flags: init
             .flags
             .iter()
@@ -270,12 +279,27 @@ fn share(gd: &GameData, init: &Initializer, class: &str) -> f64 {
     }
 }
 
-/// A belt as the save writes it: its `radius` is the `inner_radius`.
+/// A belt as the details list it: its `radius` is the `inner_radius`, a ranged one its
+/// midpoint, as a ranged count is shown.
 pub(crate) fn belt(belt: &InitAsteroidBelt) -> Option<BeltSpec> {
     (!belt.kind.is_empty()).then_some(())?;
     Some(BeltSpec {
         kind: belt.kind.clone(),
-        inner_radius: belt.radius?,
+        inner_radius: belt.radius?.midpoint(),
+    })
+}
+
+/// A belt as the save writes it, a ranged `radius` drawn from `rng` as an orbit distance is
+/// (assumed: no game file says how the game draws it).
+fn rolled_belt(belt: &InitAsteroidBelt, rng: &mut Rng) -> Option<BeltSpec> {
+    (!belt.kind.is_empty()).then_some(())?;
+    let radius = belt.radius?;
+    Some(BeltSpec {
+        kind: belt.kind.clone(),
+        inner_radius: match radius.min == radius.max {
+            true => radius.min,
+            false => draw::distance(rng, radius),
+        },
     })
 }
 
@@ -310,7 +334,9 @@ fn roll_star<'g>(
 /// no angle is drawn at random; a drawn class is any with odds whose
 /// `min/max_distance_from_sun` holds the orbit (a moon's, its planet's orbit, with classes
 /// marked `can_be_moon = no` left out), weighted by `spawn_odds` times the star's factor
-/// for it; and a planet list draws each of its classes alike.
+/// for it; and a planet list draws each of its classes alike, wherever the body lands. A
+/// random body no class fits is not spawned, as the game's own files say of a failed draw,
+/// and nor are its moons ([`ClassDraw`]).
 struct Roller<'g> {
     gd: &'g GameData,
     star_class: &'g StarClass,
@@ -399,55 +425,31 @@ impl<'g> Roller<'g> {
         draw_ring(&mut self.rings, Some(block), class)
     }
 
+    /// The class of a body written as `class` at `orbit` from the star: one drawn alike among
+    /// a planet list's, a class of the install, or one drawn there; `None` when no class a
+    /// random draw can give fits the orbit.
     fn class(
         &mut self,
         class: &BodyClass,
         orbit: f64,
         moon: bool,
-    ) -> Result<&'g PlanetClassDef, GenerateError> {
-        let colonizable = match class {
-            BodyClass::Random(colonizable) => *colonizable,
-            BodyClass::Named(key) => return self.fixed_or_listed(key, moon),
-            BodyClass::Star => {
-                return Err(GenerateError::UnknownPlanetClass(
-                    class.written().to_owned(),
-                ));
+    ) -> Result<Option<&'g PlanetClassDef>, GenerateError> {
+        let unknown = || GenerateError::UnknownPlanetClass(class.written().to_owned());
+        if let Some(key) = class.named() {
+            if let Some(listed) = list_members(self.gd, key, moon) {
+                return self
+                    .rng
+                    .pick(&listed)
+                    .copied()
+                    .map(Some)
+                    .ok_or_else(unknown);
             }
-        };
-        let weighted = drawable_at(self.gd, self.star_class, moon, colonizable, orbit);
-        self.rng
-            .weighted(&weighted)
-            .copied()
-            .ok_or(GenerateError::NoPlanetClass(orbit))
-    }
-
-    /// A class of the install, or one drawn alike among a planet list's; for a moon, among
-    /// those that can be one when any can.
-    fn fixed_or_listed(
-        &mut self,
-        class: &str,
-        moon: bool,
-    ) -> Result<&'g PlanetClassDef, GenerateError> {
-        let classes = &self.gd.planet_classes;
-        let Some(list) = self.gd.planet_lists.get(class) else {
-            return classes
-                .get(class)
-                .ok_or_else(|| GenerateError::UnknownPlanetClass(class.to_owned()));
-        };
-        let listed: Vec<&PlanetClassDef> = list.iter().filter_map(|key| classes.get(key)).collect();
-        let moons: Vec<&PlanetClassDef> = listed
-            .iter()
-            .copied()
-            .filter(|c| c.moon_size.is_some() && c.can_be_moon)
-            .collect();
-        let pool = match moon && !moons.is_empty() {
-            true => moons,
-            false => listed,
-        };
-        self.rng
-            .pick(&pool)
-            .copied()
-            .ok_or_else(|| GenerateError::UnknownPlanetClass(class.to_owned()))
+            if let Some(fixed) = self.gd.planet_classes.get(key) {
+                return Ok(Some(fixed));
+            }
+        }
+        let draw = ClassDraw::of(self.gd, self.star_class, class, moon).ok_or_else(unknown)?;
+        Ok(self.rng.weighted(&draw.at(orbit).0).copied())
     }
 
     fn size(
@@ -469,38 +471,22 @@ impl<'g> Roller<'g> {
     }
 }
 
-/// Each class a random body about a star of `star` can be drawn as, with its weight: those at
-/// `orbit` when one is given, and those `colonizable` or not when it says.
-fn drawable<'g>(
-    gd: &'g GameData,
-    star: &StarClass,
-    moon: bool,
-    colonizable: Option<bool>,
-    orbit: Option<f64>,
-) -> Vec<(&'g PlanetClassDef, f64)> {
-    gd.planet_classes
-        .drawable(colonizable)
-        .filter(|c| {
-            c.distance_from_sun
-                .is_some_and(|band| orbit.is_none_or(|orbit| band.contains(orbit)))
-        })
-        .filter(|c| can_be(c, moon))
-        .map(|c| (c, c.spawn_odds * star.planet_odds(&c.key)))
-        .collect()
-}
-
-/// The classes [`drawable`] gives at `orbit`, or at any orbit when none spawns there.
+/// The classes a random body about a star of `star` is drawn among at `orbit`, or at any
+/// orbit when none spawns there: a body added to a save goes where the player puts it.
 fn drawable_at<'g>(
     gd: &'g GameData,
     star: &StarClass,
     moon: bool,
-    colonizable: Option<bool>,
     orbit: f64,
 ) -> Vec<(&'g PlanetClassDef, f64)> {
-    let banded = drawable(gd, star, moon, colonizable, Some(orbit));
+    let Some(draw) = ClassDraw::of(gd, star, &BodyClass::Random(None), moon) else {
+        return Vec::new();
+    };
+    let banded = draw.at(orbit).0;
+    let any = draw.0;
     match banded.iter().any(|(_, weight)| *weight > 0.0) {
         true => banded,
-        false => drawable(gd, star, moon, colonizable, None),
+        false => any,
     }
 }
 
@@ -518,19 +504,14 @@ fn draw_size(
 }
 
 /// Whether a planet has a ring: the layout's `has_ring` when it says, else a roll against the
-/// class's `chance_of_ring`, drawn from `rings` either way.
+/// class's `chance_of_ring`, drawn from `rings` either way. A `has_ring` written in a shape the
+/// reader does not take (`No`) is left to the roll, where a scenario's details call the ring
+/// unknown.
 fn draw_ring(rings: &mut Rng, block: Option<&InitPlanet>, class: &PlanetClassDef) -> bool {
     let roll = rings.unit();
-    block
-        .and_then(|b| b.has_ring)
-        .unwrap_or(roll < class.chance_of_ring)
-}
-
-/// Whether a random draw can give a body of `class` as a moon, or as a planet.
-fn can_be(class: &PlanetClassDef, moon: bool) -> bool {
-    match moon {
-        true => class.moon_size.is_some() && class.can_be_moon,
-        false => class.planet_size.is_some(),
+    match ring_roll(block.and_then(|b| b.has_ring), class) {
+        RingRoll::Fixed(ring) => ring,
+        RingRoll::Chance(chance) => roll < chance,
     }
 }
 
@@ -575,7 +556,7 @@ pub fn roll_body(gd: &GameData, seed: u64, roll: &BodyRoll<'_>) -> Result<BodySp
                 .star_classes
                 .get(roll.star_class)
                 .ok_or_else(|| GenerateError::UnknownStar(roll.star_class.to_owned()))?;
-            let weighted = drawable_at(gd, star, roll.moon, None, roll.orbit);
+            let weighted = drawable_at(gd, star, roll.moon, roll.orbit);
             rng.weighted(&weighted)
                 .copied()
                 .ok_or(GenerateError::NoPlanetClass(roll.orbit))?
@@ -677,7 +658,9 @@ impl<'g> Bodies<'g> for Planets<'g> {
             self.star = Some(Rolled { spec, block });
             return Ok(());
         }
-        let class = roller.class(&block.class, orbit, false)?;
+        let Some(class) = roller.class(&block.class, orbit, false)? else {
+            return Ok(());
+        };
         let size = roller.size(block, class, false)?;
         let moons = roller.moons(&block.moons, orbit)?;
         let ring = roller.ring(block, class);
@@ -706,7 +689,9 @@ impl<'g> Bodies<'g> for Moons<'g> {
         block: &'g InitPlanet,
         placed: Placed<f64>,
     ) -> Result<(), GenerateError> {
-        let class = roller.class(&block.class, self.planet_orbit, true)?;
+        let Some(class) = roller.class(&block.class, self.planet_orbit, true)? else {
+            return Ok(());
+        };
         let size = roller.size(block, class, true)?;
         let spec = BodySpec {
             asteroid: false,
@@ -721,14 +706,15 @@ impl<'g> Bodies<'g> for Moons<'g> {
 /// install makes its class a star. An asteroid with no fixed name is named from the save's
 /// pool, unless it is a moon, which is lettered after its planet.
 fn body(class: &PlanetClassDef, size: u32, orbit: f64, angle: f64, block: &InitPlanet) -> BodySpec {
+    let name = fixed_name(block).map(str::to_owned);
     BodySpec {
         class: class.key.clone(),
         size,
         orbit,
         angle: (angle.rem_euclid(360.0) * 100.0).round() / 100.0,
         entity: 0,
-        asteroid: class.asteroid && block.name.is_none(),
-        name: block.name.clone(),
+        asteroid: class.asteroid && name.is_none(),
+        name,
         entity_name: block.entity.clone(),
         star: class.star,
         ..Default::default()

@@ -9,9 +9,9 @@ use std::convert::Infallible;
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
     ClassPool, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
-    FleetPresence, ListMember, MegastructureSummary, NeighborSystem, PlanetSummary, ResourceAmount,
-    SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures, SystemDetails,
-    SystemSpawn, UnknownClass,
+    FleetPresence, ListMember, MegastructureSummary, NeighborSystem, OrbitFit, PlanetSummary,
+    ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
+    SystemDetails, SystemSpawn, UnknownClass,
 };
 use sgf_core::projections::galaxy::StarClasses;
 use sgf_core::projections::name::NameTemplate;
@@ -25,7 +25,9 @@ use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
+use crate::rolls::RANDOM_ASTEROID;
 use crate::scripts::ScenarioOwners;
+use crate::spawn_rolls::Rolls;
 use crate::stated::StatedDeposit;
 use crate::views::{PlaceholderBody, RolledBody, SystemRoll};
 
@@ -46,8 +48,6 @@ struct Bodies {
     ambient_objects: Vec<AmbientObject>,
 }
 
-/// The class a body written `random_asteroid` is drawn from: an asteroid class.
-const RANDOM_ASTEROID: &str = "random_asteroid";
 /// The classes an empire at the root of the initializer tree decides.
 const IDEAL: [&str; 3] = [
     "ideal_planet_class",
@@ -117,7 +117,7 @@ impl GameData {
             buildings: s.buildings.clone(),
             shipyard: s.modules.iter().any(|m| m == "shipyard"),
         });
-        let resources = system_resources(&planets);
+        let resources = system_resources(planets.iter().filter(|p| certain(p)));
         Some(SystemDetails {
             id,
             resources,
@@ -131,7 +131,17 @@ impl GameData {
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
             wormholes: Vec::new(),
-            spawn: Some(self.system_spawn(init, ambient_objects)),
+            spawn: Some(SystemSpawn {
+                inner_radius: Rolls::new(self, init).inner_radius(init),
+                belt_radii: Some(
+                    init.asteroid_belts
+                        .iter()
+                        .filter(|b| belt(b).is_some())
+                        .filter_map(|b| b.radius.map(bounds))
+                        .collect(),
+                ),
+                ..self.system_spawn(init, ambient_objects)
+            }),
         })
     }
 
@@ -178,6 +188,8 @@ impl GameData {
             script: stated.script.clone(),
             inline_scripts: stated.inline_scripts.clone(),
             variables: stated.variables.clone(),
+            inner_radius: None,
+            belt_radii: None,
         }
     }
 
@@ -304,6 +316,11 @@ impl GameData {
             script: stated.script.clone(),
             from_script: stated.from_script.clone(),
             variables: stated.variables.clone(),
+            orbit_fit: None,
+            ring: None,
+            rolled_deposits: None,
+            rolled_features: None,
+            naming: None,
         }
     }
 
@@ -324,6 +341,7 @@ impl GameData {
         let random = || SpawnClass::Rolled {
             pool: ClassPool::Random {
                 draw: written.to_owned(),
+                at_orbit: None,
             },
         };
         let key = match &block.class {
@@ -364,6 +382,7 @@ impl GameData {
                             weight: None,
                         })
                         .collect(),
+                    at_orbit: None,
                 },
             },
             None => unknown(UnknownClass::Undefined),
@@ -578,6 +597,7 @@ impl GameData {
             })
             .collect();
         let layouts = Layouts::of(&init.planets);
+        let walked = expanded.clone();
         let bodies = expanded.into_iter().zip(layouts).zip(classes).zip(roles);
         for (((body, layout), class), role) in bodies {
             let id = planet_id(out.planets.len());
@@ -603,6 +623,7 @@ impl GameData {
                 });
             }
         }
+        Rolls::new(self, init).fill(&walked, &mut out.planets);
         out
     }
 
@@ -850,9 +871,17 @@ fn bounds(range: Range) -> Bounds {
     }
 }
 
-fn system_resources(planets: &[PlanetSummary]) -> Vec<ResourceAmount> {
+/// Whether the game surely spawns `planet`: every copy its block's count allows, around a body
+/// it surely spawns, with a class that fits its orbit wherever it lands.
+fn certain(planet: &PlanetSummary) -> bool {
+    planet.spawn.as_ref().is_none_or(|spawn| {
+        spawn.always && spawn.orbit_fit.is_none_or(|fit| fit == OrbitFit::Always)
+    })
+}
+
+fn system_resources<'p>(planets: impl Iterator<Item = &'p PlanetSummary>) -> Vec<ResourceAmount> {
     let mut rows = Vec::new();
-    for row in planets.iter().flat_map(|p| &p.deposits) {
+    for row in planets.flat_map(|p| &p.deposits) {
         add(&mut rows, &row.resource, row.amount);
     }
     rows
