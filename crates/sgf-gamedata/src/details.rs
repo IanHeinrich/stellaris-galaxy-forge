@@ -7,8 +7,11 @@
 use std::convert::Infallible;
 
 use sgf_core::format::save::details::{
-    ArchaeologySite, BodyLayout, BodyRole, Bounds, DepositCount, DetailsResolver, FleetPresence,
-    MegastructureSummary, PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
+    AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
+    ClassPool, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
+    FleetPresence, ListMember, MegastructureSummary, NeighborSystem, PlanetSummary, ResourceAmount,
+    SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures, SystemDetails,
+    SystemSpawn, UnknownClass,
 };
 use sgf_core::projections::galaxy::StarClasses;
 use sgf_core::projections::name::NameTemplate;
@@ -17,12 +20,13 @@ use crate::GameData;
 use crate::generate::{belt, generate};
 use crate::initializers::{self, Body, BodyClass, InitPlanet, Initializer, body_size};
 use crate::install::script::Range;
-use crate::layouts::star_body;
+use crate::layouts::{StarSource, star_body, star_source};
 use crate::orbit_walk::{self, Placed, Walk, draw};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::rng::Rng;
 use crate::scripts::ScenarioOwners;
+use crate::stated::StatedDeposit;
 use crate::views::{PlaceholderBody, RolledBody, SystemRoll};
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
@@ -33,11 +37,30 @@ const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
 const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
 
-/// The planets and moons one initializer spawns, with the dig sites they carry.
+/// The planets and moons one initializer spawns, with the dig sites they carry and the
+/// ambient objects their effects create.
 #[derive(Debug, Default)]
 struct Bodies {
     planets: Vec<PlanetSummary>,
     sites: Vec<ArchaeologySite>,
+    ambient_objects: Vec<AmbientObject>,
+}
+
+/// The class a body written `random_asteroid` is drawn from: an asteroid class.
+const RANDOM_ASTEROID: &str = "random_asteroid";
+/// The classes an empire at the root of the initializer tree decides.
+const IDEAL: [&str; 3] = [
+    "ideal_planet_class",
+    "ideal_design_class",
+    "random_non_ideal",
+];
+
+/// How many planets, moons and asteroids an initializer spawns at fewest and most.
+#[derive(Debug, Clone, Copy)]
+struct Counts {
+    planets: CountRange,
+    moons: CountRange,
+    asteroids: CountRange,
 }
 
 impl GameData {
@@ -55,7 +78,8 @@ impl GameData {
         let init = self.initializers.get(key)?;
         let Bodies {
             mut planets,
-            mut sites,
+            sites,
+            ambient_objects,
         } = self.bodies(init);
         for colony in owners.iter().flat_map(|o| &o.colonies) {
             if colony.system != id {
@@ -67,17 +91,6 @@ impl GameData {
             {
                 planet.colonised = true;
                 planet.owner = Some(colony.territory);
-            }
-        }
-        // A site the system's own effects dig: which body it lands on is a guess, and one
-        // with no body to sit on is dropped.
-        if let Some(first) = planets.first().map(|p| p.id) {
-            for kind in &init.sites {
-                sites.push(ArchaeologySite {
-                    id: SITE_BASE + index(sites.len()),
-                    kind: kind.clone(),
-                    planet: first,
-                });
             }
         }
         let megastructures: Vec<MegastructureSummary> = init
@@ -118,7 +131,284 @@ impl GameData {
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
             wormholes: Vec::new(),
+            spawn: Some(self.system_spawn(init, ambient_objects)),
         })
+    }
+
+    /// What `init` states of its system beyond a save's fields, `ambient_objects` those its
+    /// bodies' effects create.
+    fn system_spawn(&self, init: &Initializer, ambient_objects: Vec<AmbientObject>) -> SystemSpawn {
+        let stated = &init.stated;
+        let counts = (!init.inline_script).then(|| self.counts(&init.planets, None, (1, 1)));
+        let mut flags = init.flags.clone();
+        flags.extend(stated.flags.iter().cloned());
+        let own_objects = stated.ambient_objects.iter().map(|kind| AmbientObject {
+            kind: kind.clone(),
+            body: None,
+        });
+        SystemSpawn {
+            star: self.spawn_star(init),
+            planets: counts.map(|c| c.planets),
+            moons: counts.map(|c| c.moons),
+            asteroids: counts.map(|c| c.asteroids),
+            from_script: stated.from_script.clone(),
+            flags,
+            namelist: stated.namelist.clone(),
+            prevent_anomalies: stated.prevent_anomalies,
+            primitive_system: stated.primitive_system,
+            inner_radius_offset: stated.inner_radius_offset,
+            outer_radius_offset: stated.outer_radius_offset,
+            sites: init.sites.clone(),
+            ambient_objects: own_objects.chain(ambient_objects).collect(),
+            usage: init.usage.clone(),
+            usage_odds: stated.usage_odds.clone(),
+            spawn_chance: stated.spawn_chance,
+            scaled_spawn_chance: stated.scaled_spawn_chance,
+            max_instances: init.max_instances,
+            neighbors: stated
+                .neighbors
+                .iter()
+                .map(|n| NeighborSystem {
+                    initializer: n.initializer.clone(),
+                    distance: n.distance.map(bounds),
+                    hyperlane_jumps: n.hyperlane_jumps.map(bounds),
+                })
+                .collect(),
+            other_keys: stated.other_keys.clone(),
+            script: stated.script.clone(),
+            inline_scripts: stated.inline_scripts.clone(),
+            variables: stated.variables.clone(),
+        }
+    }
+
+    /// How the game decides `init`'s star class.
+    fn spawn_star(&self, init: &Initializer) -> SpawnStar {
+        match star_source(self, init) {
+            StarSource::Fixed(class) => SpawnStar::Fixed {
+                class: class.key.clone(),
+            },
+            StarSource::List(list) => SpawnStar::Rolled {
+                list: list.key.clone(),
+                members: list
+                    .stars
+                    .iter()
+                    .map(|key| ListMember {
+                        key: key.clone(),
+                        weight: self.star_classes.get(key).map(|c| c.spawn_odds),
+                    })
+                    .collect(),
+            },
+            StarSource::Unknown => SpawnStar::Unknown {
+                written: init.class.clone(),
+            },
+        }
+    }
+
+    /// The planets, moons and asteroids `blocks` spawn at fewest and most, each block of them
+    /// spawned `times` as often, around a body of class `parent` when they are its moons.
+    fn counts(
+        &self,
+        blocks: &[InitPlanet],
+        parent: Option<&BodyClass>,
+        times: (u32, u32),
+    ) -> Counts {
+        let none = CountRange { min: 0, max: 0 };
+        let mut out = Counts {
+            planets: none,
+            moons: none,
+            asteroids: none,
+        };
+        for block in blocks.iter().filter(|b| !b.spacer()) {
+            let copies = block.copies();
+            let spawned = (
+                times.0.saturating_mul(copies.min),
+                times.1.saturating_mul(copies.max),
+            );
+            let tally = if self.star_block(&block.class) {
+                None
+            } else if self.asteroid_block(&block.class) {
+                Some(&mut out.asteroids)
+            } else if parent.is_some_and(|p| !self.star_block(p)) {
+                Some(&mut out.moons)
+            } else {
+                Some(&mut out.planets)
+            };
+            if let Some(tally) = tally {
+                add_count(tally, spawned);
+            }
+            let inner = self.counts(&block.moons, Some(&block.class), spawned);
+            add_count(&mut out.planets, (inner.planets.min, inner.planets.max));
+            add_count(&mut out.moons, (inner.moons.min, inner.moons.max));
+            add_count(
+                &mut out.asteroids,
+                (inner.asteroids.min, inner.asteroids.max),
+            );
+        }
+        out
+    }
+
+    /// A block written as a star: the bare `star`, a star's planet class or a star class.
+    fn star_block(&self, class: &BodyClass) -> bool {
+        star_body(self, class)
+            || class
+                .named()
+                .is_some_and(|key| self.star_classes.get(key).is_some())
+    }
+
+    /// A block of an asteroid class, or drawn as one.
+    fn asteroid_block(&self, class: &BodyClass) -> bool {
+        class.named().is_some_and(|key| {
+            key == RANDOM_ASTEROID || self.planet_classes.get(key).is_some_and(|c| c.asteroid)
+        })
+    }
+
+    /// What `body`'s block states of it beyond a save's fields, in a system of `init` whose
+    /// star `class` resolves to.
+    fn body_spawn(&self, body: Body<'_>, init: &Initializer, class: &str) -> BodySpawn {
+        let block = body.block;
+        let stated = &block.stated;
+        let prevented = match (stated.prevent_anomaly, init.stated.prevent_anomalies) {
+            (true, _) => Some(AnomalyPrevention::Body),
+            (false, true) => Some(AnomalyPrevention::System),
+            (false, false) => None,
+        };
+        BodySpawn {
+            always: body.always,
+            copy: body.copy,
+            count: block.copies(),
+            class: self.spawn_class(block, init, class),
+            changed_class: stated.changed_class.clone(),
+            changed_size: stated.changed_size,
+            deposits: stated
+                .deposits
+                .iter()
+                .map(|d| self.deposit_step(d))
+                .collect(),
+            no_blockers: stated.no_blockers,
+            features: StatedFeatures {
+                modifier: stated.modifier.clone(),
+                none: stated.no_modifiers,
+                cleared: stated.clears_modifiers,
+                added: stated.added_modifiers.clone(),
+            },
+            anomalies: StatedAnomalies {
+                categories: stated.anomalies.clone(),
+                prevented,
+            },
+            entity: stated.set_entity.clone().or_else(|| stated.entity.clone()),
+            name: stated.set_name.clone(),
+            flags: stated.flags.clone(),
+            starting_planet: stated.starting_planet,
+            home_planet: stated.home_planet,
+            other_keys: stated.other_keys.clone(),
+            script: stated.script.clone(),
+            from_script: stated.from_script.clone(),
+            variables: stated.variables.clone(),
+        }
+    }
+
+    /// How the game decides the class of a body of `block` in a system of `init`, `resolved`
+    /// the class a star body takes from the system's star class.
+    fn spawn_class(&self, block: &InitPlanet, init: &Initializer, resolved: &str) -> SpawnClass {
+        let written = block.class.written();
+        let unknown = |reason| SpawnClass::Unknown {
+            written: written.to_owned(),
+            reason,
+        };
+        if block.stated.class_by_script {
+            return unknown(UnknownClass::Script);
+        }
+        let fixed = |class: &str| SpawnClass::Fixed {
+            class: class.to_owned(),
+        };
+        let random = || SpawnClass::Rolled {
+            pool: ClassPool::Random {
+                draw: written.to_owned(),
+            },
+        };
+        let key = match &block.class {
+            BodyClass::Star => {
+                return match star_source(self, init) {
+                    StarSource::Fixed(_) => fixed(resolved),
+                    StarSource::List(list) => SpawnClass::Rolled {
+                        pool: ClassPool::StarList {
+                            list: list.key.clone(),
+                        },
+                    },
+                    StarSource::Unknown => unknown(UnknownClass::Undefined),
+                };
+            }
+            BodyClass::Random(_) => return random(),
+            BodyClass::Named(key) => key.as_str(),
+        };
+        if key == RANDOM_ASTEROID {
+            return random();
+        }
+        if IDEAL.contains(&key) {
+            return unknown(UnknownClass::Ideal);
+        }
+        if self.planet_classes.get(key).is_some() {
+            return fixed(key);
+        }
+        if self.star_classes.get(key).is_some() {
+            return fixed(resolved);
+        }
+        match self.planet_lists.get(key) {
+            Some(list) => SpawnClass::Rolled {
+                pool: ClassPool::PlanetList {
+                    list: key.to_owned(),
+                    members: list
+                        .iter()
+                        .map(|member| ListMember {
+                            key: member.clone(),
+                            weight: None,
+                        })
+                        .collect(),
+                },
+            },
+            None => unknown(UnknownClass::Undefined),
+        }
+    }
+
+    fn deposit_step(&self, step: &StatedDeposit) -> DepositStep {
+        match step {
+            StatedDeposit::Add(deposit) => DepositStep::Add {
+                deposit: deposit.clone(),
+            },
+            StatedDeposit::Set(deposit) => DepositStep::Set {
+                deposit: deposit.clone(),
+                category: self.deposits.get(deposit).and_then(|d| d.category.clone()),
+                replaces: DepositReplacement::Unknown,
+            },
+            StatedDeposit::Clear(category) => DepositStep::Clear {
+                category: category.clone(),
+            },
+            StatedDeposit::AddBlocker(deposit) => DepositStep::AddBlocker {
+                deposit: deposit.clone(),
+            },
+            StatedDeposit::ClearBlockers => DepositStep::ClearBlockers,
+        }
+    }
+
+    /// The deposits a body's block states, the steps run in order. Which deposits a
+    /// `set_deposit` replaces is not known ([`DepositReplacement::Unknown`]), so it adds its
+    /// own and the ones stated before it stay listed.
+    fn stated_deposits(&self, steps: &[StatedDeposit]) -> Vec<String> {
+        let mut held: Vec<String> = Vec::new();
+        for step in steps {
+            match step {
+                StatedDeposit::Add(key)
+                | StatedDeposit::AddBlocker(key)
+                | StatedDeposit::Set(key) => held.push(key.clone()),
+                StatedDeposit::Clear(None) => held.clear(),
+                StatedDeposit::Clear(Some(category)) => held.retain(|key| {
+                    self.deposits.get(key).and_then(|d| d.category.as_deref())
+                        != Some(category.as_str())
+                }),
+                StatedDeposit::ClearBlockers => held.retain(|key| !self.is_blocker(key)),
+            }
+        }
+        held
     }
 
     /// The star class a scenario system with `initializer` is drawn as: the initializer's
@@ -234,7 +524,7 @@ impl GameData {
 
     /// Whether the game places planets the details of a scenario system with `initializer`
     /// cannot list: it is `random`, empty or not defined by the install, or it places its
-    /// bodies only through an `inline_script`, which the details do not expand.
+    /// bodies only through an `inline_script` the install has no text for.
     pub fn rolls_planets(&self, initializer: &str) -> bool {
         self.initializers
             .get(initializer)
@@ -291,8 +581,20 @@ impl GameData {
         let bodies = expanded.into_iter().zip(layouts).zip(classes).zip(roles);
         for (((body, layout), class), role) in bodies {
             let id = planet_id(out.planets.len());
-            out.planets
-                .push(self.summary(body, class, id, layout, role, system));
+            out.ambient_objects
+                .extend(
+                    body.block
+                        .stated
+                        .ambient_objects
+                        .iter()
+                        .map(|kind| AmbientObject {
+                            kind: kind.clone(),
+                            body: Some(id),
+                        }),
+                );
+            let mut summary = self.summary(body, class, id, layout, role, system);
+            summary.spawn = Some(self.body_spawn(body, init, &summary.class));
+            out.planets.push(summary);
             for kind in &body.block.sites {
                 out.sites.push(ArchaeologySite {
                     id: SITE_BASE + index(out.sites.len()),
@@ -321,6 +623,7 @@ impl GameData {
             body_size(Some(body), self.planet_classes.get(&class), expanded.moon).map(bounds);
         let name_key = body.name.clone().unwrap_or_default();
         let habitable = self.planet_habitable(&class);
+        let deposits = self.stated_deposits(&body.stated.deposits);
         PlanetSummary {
             id,
             name: if name_key.is_empty() {
@@ -337,10 +640,13 @@ impl GameData {
             moon: role == BodyRole::Moon,
             role,
             pre_ftl: body.pre_ftl,
-            size: layout.size.map(|size| size.min.round() as u32),
+            size: layout
+                .size
+                .filter(|size| size.min == size.max)
+                .map(|size| size.min.round() as u32),
             orbit: None,
-            deposits: self.deposit_rows(&body.deposits),
-            deposit_keys: deposit_counts(&body.deposits),
+            deposits: self.deposit_rows(&deposits),
+            deposit_keys: deposit_counts(&deposits),
             pops: 0,
             parent: expanded.parent.map(planet_id),
             layout: Some(layout),
@@ -350,6 +656,7 @@ impl GameData {
             permanent_modifiers: None,
             anomaly: None,
             entity_name: None,
+            spawn: None,
             class,
         }
     }
@@ -458,7 +765,7 @@ impl<'p> Walk<'p> for Layouts {
 
     /// The same count [`initializers::expand`] gives, so each layout meets its body.
     fn count(&mut self, block: &'p InitPlanet) -> u32 {
-        block.instances()
+        block.copies().max
     }
 
     fn distance(&mut self, distance: Range) -> Bounds {
@@ -489,7 +796,7 @@ impl<'p> Walk<'p> for Layouts {
 }
 
 /// One roll of an initializer's walk, each distance and angle drawn as the add-system roller
-/// draws it. A block's count is not drawn: every roll spawns its rounded midpoint, as
+/// draws it. A block's count is not drawn: every roll spawns the most it can, as
 /// [`initializers::expand`] does, so each body meets its details by id.
 struct Example {
     rng: Rng,
@@ -501,7 +808,7 @@ impl<'p> Walk<'p> for Example {
     type Error = Infallible;
 
     fn count(&mut self, block: &'p InitPlanet) -> u32 {
-        block.instances()
+        block.copies().max
     }
 
     fn distance(&mut self, distance: Range) -> f64 {
@@ -559,6 +866,11 @@ fn add(rows: &mut Vec<ResourceAmount>, resource: &str, amount: f64) {
             amount,
         }),
     }
+}
+
+fn add_count(tally: &mut CountRange, (min, max): (u32, u32)) {
+    tally.min = tally.min.saturating_add(min);
+    tally.max = tally.max.saturating_add(max);
 }
 
 /// Each deposit key with how often the initializer places it, in first-seen order.

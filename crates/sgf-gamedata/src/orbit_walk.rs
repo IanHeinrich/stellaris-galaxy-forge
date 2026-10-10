@@ -85,7 +85,8 @@ pub(crate) trait Walk<'p> {
 }
 
 /// Walks `blocks` in file order from [`WALK_START`]. A block with no distance steps by
-/// [`NO_DISTANCE`], one with no angle by [`Walk::no_angle`].
+/// [`NO_DISTANCE`], one with no angle by [`Walk::no_angle`]. A spacer steps the running
+/// orbit out and places nothing.
 pub(crate) fn walk<'p, W: Walk<'p>>(
     blocks: &'p [InitPlanet],
     walker: &mut W,
@@ -94,6 +95,12 @@ pub(crate) fn walk<'p, W: Walk<'p>>(
     let mut angle = W::Number::fixed(WALK_START);
     for block in blocks {
         orbit = orbit.plus(W::Number::fixed(block.change_orbit));
+        if block.spacer() {
+            for _ in 0..walker.count(block) {
+                orbit = orbit.plus(walker.distance(block.orbit_distance.unwrap_or(NO_DISTANCE)));
+            }
+            continue;
+        }
         for _ in 0..walker.count(block) {
             let base = orbit;
             let step = walker.distance(block.orbit_distance.unwrap_or(NO_DISTANCE));

@@ -91,6 +91,355 @@ pub struct SystemDetails {
     pub inner_radius: Option<f64>,
     /// A save's natural wormholes and shroud tunnels, in file order; empty in a scenario.
     pub wormholes: Vec<WormholeSummary>,
+    /// What only a scenario system's initializer says of the system. `None` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spawn: Option<SystemSpawn>,
+}
+
+/// What a scenario system's initializer says of the system beyond a save's fields.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SystemSpawn {
+    /// How the game decides the system's star class.
+    pub star: SpawnStar,
+    /// The fewest and the most planets the initializer can spawn, its stars, moons and
+    /// asteroids aside. `None` when an `inline_script` the install has no text for places
+    /// bodies, so the game's count cannot be told.
+    pub planets: Option<CountRange>,
+    /// The fewest and the most moons, asteroids aside; `None` as for `planets`.
+    pub moons: Option<CountRange>,
+    /// The fewest and the most bodies of an asteroid class, or drawn as one; `None` as for
+    /// `planets`.
+    pub asteroids: Option<CountRange>,
+    /// The `inline_script` that gives the system its star class and every body, by its
+    /// `script`.
+    pub from_script: Option<String>,
+    /// The system's `flags`, then each `set_star_flag` its `init_effect` runs unconditionally.
+    pub flags: Vec<String>,
+    /// `namelist`: the star name list the system's name is drawn from.
+    pub namelist: Option<String>,
+    /// `prevent_anomalies = yes`: no generic anomaly appears on its bodies when surveyed.
+    pub prevent_anomalies: bool,
+    /// `primitive_system = yes`.
+    pub primitive_system: bool,
+    /// `inner_radius_offset`, as written. No game file says how the game applies it.
+    pub inner_radius_offset: Option<f64>,
+    /// `outer_radius_offset`, as written. No game file says how the game applies it.
+    pub outer_radius_offset: Option<f64>,
+    /// Each `create_archaeological_site` written directly in the system's own `init_effect`,
+    /// on no body.
+    pub sites: Vec<String>,
+    /// Each `create_ambient_object` the system's and its bodies' `init_effect`s run.
+    pub ambient_objects: Vec<AmbientObject>,
+    /// How a random galaxy places the initializer: kept as written, whatever a placed
+    /// system makes of them.
+    pub usage: Option<String>,
+    /// `usage_odds`: the weight a random galaxy draws the initializer with for its `usage`.
+    pub usage_odds: Option<UsageOdds>,
+    /// `spawn_chance`, `@variable`s resolved.
+    pub spawn_chance: Option<f64>,
+    /// `scaled_spawn_chance`, `@variable`s resolved.
+    pub scaled_spawn_chance: Option<f64>,
+    /// `max_instances`: the most systems a random galaxy makes from the initializer.
+    pub max_instances: Option<u32>,
+    /// Each `neighbor_system` block.
+    pub neighbors: Vec<NeighborSystem>,
+    /// Every statement of the block this reader does not model, as written.
+    pub other_keys: Vec<RawStatement>,
+    /// Each statement of the system's `init_effect` this reader does not model, as written.
+    pub script: Vec<RawStatement>,
+    /// Each `inline_script` read in place of its call.
+    pub inline_scripts: Vec<InlineScriptUse>,
+    /// Each value of the block written as an `@variable`.
+    pub variables: Vec<VariableUse>,
+}
+
+/// A system's star class: fixed, drawn from a star list, or not one the install defines.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum SpawnStar {
+    /// `class = sc_…`.
+    Fixed { class: String },
+    /// `class = rl_…`: the game draws one of `members` when it generates the galaxy.
+    Rolled {
+        list: String,
+        members: Vec<ListMember>,
+    },
+    /// The initializer names no star class or list the install defines; `None` when it
+    /// names none at all.
+    Unknown { written: Option<String> },
+}
+
+/// The fewest and the most of something a draw can give, both included.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct CountRange {
+    /// The fewest, included.
+    pub min: u32,
+    /// The most, included.
+    pub max: u32,
+}
+
+/// One entry of an `rl_` list.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ListMember {
+    pub key: String,
+    /// A star class's `spawn_odds`. `None` for a planet list, whose file gives no weights,
+    /// and for a star class the install does not define.
+    pub weight: Option<f64>,
+}
+
+/// A `create_ambient_object`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AmbientObject {
+    /// Its `type`.
+    pub kind: String,
+    /// The body whose `init_effect` creates it; `None` for the system's own.
+    pub body: Option<u32>,
+}
+
+/// An initializer's `usage_odds`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum UsageOdds {
+    Number {
+        value: f64,
+    },
+    /// A scalar that is neither a number nor an `@variable` the install defines, as written.
+    Unknown {
+        written: String,
+    },
+    /// A block of conditions, as written, with the `base` it writes.
+    Script {
+        text: String,
+        base: Option<f64>,
+    },
+}
+
+/// A `neighbor_system` block: the initializer it places and how far away.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NeighborSystem {
+    pub initializer: String,
+    /// `distance`.
+    pub distance: Option<Bounds>,
+    /// `hyperlane_jumps`.
+    pub hyperlane_jumps: Option<Bounds>,
+}
+
+/// A statement as the file writes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RawStatement {
+    pub key: String,
+    /// The whole statement, key included.
+    pub text: String,
+    /// The statements inside it that this reader models where they are written
+    /// unconditionally, such as an `add_deposit` under an `if`.
+    pub modelled: u32,
+}
+
+/// An `inline_script` whose text was read in place of the call.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct InlineScriptUse {
+    /// Its `script`, the path under `common/inline_scripts` without `.txt`.
+    pub script: String,
+    /// The keys its text writes at the top level, in order, each once.
+    pub keys: Vec<String>,
+}
+
+/// A value written as an `@variable`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VariableUse {
+    /// The key it is the value of, its block's key before a dot when it is a bound
+    /// (`size.min`).
+    pub key: String,
+    /// As written, `@` included.
+    pub variable: String,
+}
+
+/// What a scenario body's initializer says of it beyond a save's fields.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct BodySpawn {
+    /// `false` when the game may not spawn the body: a copy past the low end of its block's
+    /// ranged `count`, or a body around one.
+    pub always: bool,
+    /// Which copy of its block it is, from 1.
+    pub copy: u32,
+    /// How many copies its block spawns.
+    pub count: CountRange,
+    /// How the game decides the body's class.
+    pub class: SpawnClass,
+    /// The class an unconditional `change_pc` gives the body once it spawns.
+    pub changed_class: Option<String>,
+    /// The size an unconditional `set_planet_size` gives the body once it spawns.
+    pub changed_size: Option<u32>,
+    /// The deposit statements its `init_effect` runs unconditionally, in order.
+    pub deposits: Vec<DepositStep>,
+    /// `deposit_blockers = none`: the body rolls no blockers.
+    pub no_blockers: bool,
+    /// The planet features the block and its `init_effect` state.
+    pub features: StatedFeatures,
+    /// The anomalies the block and its `init_effect` state, and what prevents others.
+    pub anomalies: StatedAnomalies,
+    /// The model it is drawn as: an unconditional `set_planet_entity`'s, else `entity`.
+    pub entity: Option<String>,
+    /// The name an unconditional `set_name` gives it.
+    pub name: Option<String>,
+    /// The block's `flags`, then each `set_planet_flag` and `set_star_flag` its
+    /// `init_effect` runs unconditionally.
+    pub flags: Vec<String>,
+    /// `starting_planet = yes`: a planet an empire can start on.
+    pub starting_planet: bool,
+    /// `home_planet = yes`: the home planet of whoever is placed in the system.
+    pub home_planet: bool,
+    /// Every statement of the block this reader does not model, as written.
+    pub other_keys: Vec<RawStatement>,
+    /// Each statement of its `init_effect` this reader does not model, as written.
+    pub script: Vec<RawStatement>,
+    /// The `inline_script` its block was read from, by its `script`.
+    pub from_script: Option<String>,
+    /// Each value of the block written as an `@variable`.
+    pub variables: Vec<VariableUse>,
+}
+
+/// How the game decides a body's class.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum SpawnClass {
+    /// The block names the class, or the system's fixed star class gives a star its own.
+    Fixed { class: String },
+    /// The game draws it when it generates the galaxy.
+    Rolled { pool: ClassPool },
+    /// The game decides it at the start in a way the install cannot tell; `written` is the
+    /// block's `class`.
+    Unknown {
+        written: String,
+        reason: UnknownClass,
+    },
+}
+
+/// What a rolled class is drawn from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum ClassPool {
+    /// `random`, `random_colonizable`, `random_non_colonizable` or `random_asteroid`: the
+    /// engine's draw among the classes that fit the body's orbit.
+    Random { draw: String },
+    /// A planet `rl_` list.
+    PlanetList {
+        list: String,
+        members: Vec<ListMember>,
+    },
+    /// A star whose system's class is drawn from the star list `list`.
+    StarList { list: String },
+}
+
+/// Why a body's class cannot be told before the game starts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum UnknownClass {
+    /// `ideal_planet_class`, `ideal_design_class` or `random_non_ideal`: decided by the
+    /// empire at the root of the initializer tree, which a placed system has none of.
+    Ideal,
+    /// A `change_pc` under a condition, a loop or a random choice.
+    Script,
+    /// No class or list of the install has the key, or the star's system names no star
+    /// class the install defines.
+    Undefined,
+}
+
+/// A deposit statement of a body's `init_effect`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum DepositStep {
+    Add {
+        deposit: String,
+    },
+    /// `set_deposit`, with the deposit's own `category`.
+    Set {
+        deposit: String,
+        category: Option<String>,
+        replaces: DepositReplacement,
+    },
+    /// `clear_deposits`: every deposit, or those of one category.
+    Clear {
+        category: Option<String>,
+    },
+    AddBlocker {
+        deposit: String,
+    },
+    ClearBlockers,
+}
+
+/// Which of a body's deposits a `set_deposit` replaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum DepositReplacement {
+    /// Every deposit.
+    All,
+    /// The deposits of its own category.
+    Category,
+    /// The install does not say: the game's effect list says only that it "replaces
+    /// resource deposit on the scoped planet".
+    Unknown,
+}
+
+/// The planet features an initializer states for a body.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StatedFeatures {
+    /// `modifier = pm_…`: the feature the block gives in place of a roll.
+    pub modifier: Option<String>,
+    /// `modifiers = none`: the body rolls no features.
+    pub none: bool,
+    /// An unconditional `clear_planet_modifiers`.
+    pub cleared: bool,
+    /// Each unconditional `add_modifier`, in order.
+    pub added: Vec<AddedModifier>,
+}
+
+/// An `add_modifier`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddedModifier {
+    pub modifier: String,
+    /// Its `days`, `-1` for one that never runs out; `None` when it states none.
+    pub days: Option<f64>,
+}
+
+/// The anomalies an initializer states for a body.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StatedAnomalies {
+    /// The block's `anomaly`, then each unconditional `add_anomaly`'s category.
+    pub categories: Vec<String>,
+    /// What stops generic anomalies appearing on it when it is surveyed.
+    pub prevented: Option<AnomalyPrevention>,
+}
+
+/// Where a body's generic anomalies are prevented.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum AnomalyPrevention {
+    /// An unconditional `prevent_anomaly` in its own `init_effect`.
+    Body,
+    /// The system's `prevent_anomalies`.
+    System,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -116,7 +465,8 @@ pub struct PlanetSummary {
     pub role: BodyRole,
     /// Owned by a `primitive` country.
     pub pre_ftl: bool,
-    /// `planet_size`, the game's tile count.
+    /// `planet_size`, the game's tile count. `None` for a scenario body whose size is a
+    /// range, which its `layout` holds.
     pub size: Option<u32>,
     /// `orbit`: the radius around the star, or around the planet a moon orbits. `None`
     /// for a scenario's bodies, which the game places at generation.
@@ -163,6 +513,10 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub entity_name: Option<String>,
+    /// What only a scenario body's initializer says of it. `None` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spawn: Option<BodySpawn>,
 }
 
 /// A number an initializer may leave to a draw: `min == max` when it is fixed,
@@ -313,6 +667,7 @@ pub(super) fn resolve(
             permanent_modifiers: Some(p.permanent_modifiers.clone()),
             anomaly: p.anomaly.clone(),
             entity_name: p.entity_name.clone(),
+            spawn: None,
         });
     }
     let starbase = raw.starbases.first().map(|s| StarbaseSummary {
@@ -352,6 +707,7 @@ pub(super) fn resolve(
         belts: raw.belts.clone(),
         inner_radius: raw.inner_radius,
         wormholes: raw.wormholes.clone(),
+        spawn: None,
     }
 }
 

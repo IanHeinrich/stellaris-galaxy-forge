@@ -1,0 +1,120 @@
+---
+source: crates/sgf-gamedata/tests/details_spawn.rs
+expression: out
+---
+{
+  "belts": [],
+  "fleets": {
+    "fleet_count": 0,
+    "military_count": 0,
+    "military_power": 0.0,
+    "ship_count": 0
+  },
+  "fleets_present": [],
+  "id": 1,
+  "inner_radius": null,
+  "megastructures": [],
+  "planets": null,
+  "resources": [
+    {
+      "amount": 3.0,
+      "resource": "sr_dark_matter"
+    }
+  ],
+  "sites": [],
+  "spawn": {
+    "ambient_objects": [],
+    "asteroids": {
+      "max": 0,
+      "min": 0
+    },
+    "flags": [
+      "voidworms_system",
+      "space_ecology_system"
+    ],
+    "from_script": "grand_archive/voidworms_system_planet_initializer",
+    "inline_scripts": [
+      {
+        "keys": [
+          "class",
+          "flags",
+          "usage",
+          "usage_odds",
+          "max_instances",
+          "planet",
+          "init_effect"
+        ],
+        "script": "grand_archive/voidworms_system_planet_initializer"
+      }
+    ],
+    "inner_radius_offset": null,
+    "max_instances": 1,
+    "moons": {
+      "max": 0,
+      "min": 0
+    },
+    "namelist": "voidworm_star_names",
+    "neighbors": [],
+    "other_keys": [],
+    "outer_radius_offset": null,
+    "planets": {
+      "max": 3,
+      "min": 3
+    },
+    "prevent_anomalies": false,
+    "primitive_system": false,
+    "scaled_spawn_chance": null,
+    "script": [
+      {
+        "key": "save_global_event_target_as",
+        "modelled": 0,
+        "text": "save_global_event_target_as = voidworm_system_tiny"
+      },
+      {
+        "key": "create_voidworms_country",
+        "modelled": 0,
+        "text": "create_voidworms_country = yes"
+      },
+      {
+        "key": "event_target:voidworms_country",
+        "modelled": 0,
+        "text": "event_target:voidworms_country = {\n\t\tcreate_voidworms_small_fleet = { LOCATION = event_target:toxic_planet_3 }\n\t\tcreate_voidworms_medium_fleet = { LOCATION = event_target:toxic_planet_2 }\n\t\tcreate_voidworms_large_fleet = { LOCATION = event_target:toxic_planet_1 }\n\t}"
+      },
+      {
+        "key": "create_fleet",
+        "modelled": 0,
+        "text": "create_fleet = {\n\t\tname = \"NAME_Voidworms_Starbase\"\n\t\tsettings = { spawn_debris = no }\n\t\teffect = {\n\t\t\tset_owner = event_target:voidworms_country\n\t\t\tcreate_ship = {\n\t\t\t\tname = \"NAME_Voidworms_Starbase\"\n\t\t\t\tdesign = \"NAME_Voidworms_Starbase\"\n\t\t\t\tupgradable = no\n\t\t\t\teffect = {\n\t\t\t\t\tset_ship_flag = voidworms_starbase\n\t\t\t\t}\n\t\t\t}\n\t\t\tset_location = {\n\t\t\t\ttarget = event_target:toxic_planet_1\n\t\t\t\tdistance = 40\n\t\t\t\tangle = random\n\t\t\t}\n\t\t}\n\t}"
+      },
+      {
+        "key": "create_fleet",
+        "modelled": 0,
+        "text": "create_fleet = {\n\t\tname = \"NAME_Voidworms_Starbase\"\n\t\tsettings = { spawn_debris = no }\n\t\teffect = {\n\t\t\tset_owner = event_target:voidworms_country\n\t\t\tcreate_ship = {\n\t\t\t\tname = \"NAME_Voidworms_Starbase\"\n\t\t\t\tdesign = \"NAME_Voidworms_Starbase\"\n\t\t\t\tupgradable = no\n\t\t\t\teffect = {\n\t\t\t\t\tset_ship_flag = voidworms_starbase\n\t\t\t\t}\n\t\t\t}\n\t\t\tset_location = {\n\t\t\t\ttarget = event_target:toxic_planet_2\n\t\t\t\tdistance = 45\n\t\t\t\tangle = random\n\t\t\t}\n\t\t}\n\t}"
+      },
+      {
+        "key": "create_fleet",
+        "modelled": 0,
+        "text": "create_fleet = {\n\t\tname = \"NAME_Voidworms_Starbase\"\n\t\tsettings = { spawn_debris = no }\n\t\teffect = {\n\t\t\tset_owner = event_target:voidworms_country\n\t\t\tcreate_ship = {\n\t\t\t\tname = \"NAME_Voidworms_Starbase\"\n\t\t\t\tdesign = \"NAME_Voidworms_Starbase\"\n\t\t\t\tupgradable = no\n\t\t\t\teffect = {\n\t\t\t\t\tset_ship_flag = voidworms_starbase\n\t\t\t\t}\n\t\t\t}\n\t\t\tset_location = {\n\t\t\t\ttarget = event_target:toxic_planet_3\n\t\t\t\tdistance = 30\n\t\t\t\tangle = random\n\t\t\t}\n\t\t}\n\t}"
+      }
+    ],
+    "sites": [],
+    "spawn_chance": null,
+    "star": {
+      "class": "sc_black_hole",
+      "state": "fixed"
+    },
+    "usage": "misc_system_init",
+    "usage_odds": {
+      "base": null,
+      "kind": "script",
+      "text": "usage_odds = {\n\tadd = value:voidworms_tiny_spawn_chance\n\tmodifier = {\n\t\tfactor = 0\n\t\thas_grand_archive_dlc = no\n\t}\n\tmodifier = {\n\t\tfactor = 0\n\t\tvoidworms_enabled = no\n\t}\n\tmodifier = {\n\t\tfactor = 0\n\t\tOR = {\n\t\t\thas_star_flag = empire_cluster\n\t\t\tany_neighbor_system = {\n\t\t\t\thas_star_flag = empire_cluster\n\t\t\t}\n\t\t}\n\t}\n\tmodifier = {\n\t\tfactor = 0\n\t\tis_bottleneck_system = yes\n\t}\n\tmodifier = {\n\t\tfactor = 0\n\t\tany_neighbor_system = {\n\t\t\texists = owner\n\t\t\towner = {\n\t\t\t\tOR = {\n\t\t\t\t\tis_fallen_empire = yes\n\t\t\t\t\tis_country_type = dormant_marauders\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n}"
+    },
+    "variables": []
+  },
+  "starbase": null,
+  "with_game_data": true,
+  "wormholes": []
+}
+{"id":1073741824,"class":"pc_black_hole","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"primary","pre_ftl":false,"size":30,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":0.0,"max":0.0},"at":null,"size":{"min":30.0,"max":30.0},"orbit_step":{"min":0.0,"max":0.0},"angle_step":{"min":1.0,"max":1.0},"turns_from":null},"ring":false,"star_class":"sc_black_hole","drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"fixed","class":"pc_black_hole"},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":"grand_archive/voidworms_system_planet_initializer","variables":[]}}
+{"id":1073741825,"class":"pc_toxic","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":26,"orbit":null,"deposits":[{"resource":"sr_dark_matter","amount":1.0}],"deposit_keys":[{"key":"d_dark_matter_deposit_1","count":1}],"pops":0,"parent":null,"layout":{"orbit":{"min":90.0,"max":110.0},"at":null,"size":{"min":26.0,"max":26.0},"orbit_step":{"min":90.0,"max":110.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741824},"ring":null,"drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"fixed","class":"pc_toxic"},"changed_class":null,"changed_size":null,"deposits":[{"kind":"set","deposit":"d_dark_matter_deposit_1","category":"orbital_research_deposits","replaces":"unknown"}],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":"body"},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[{"key":"save_event_target_as","text":"save_event_target_as = toxic_planet_1","modelled":0},{"key":"if","text":"if = {\n\t\t\tlimit = {\n\t\t\t\thas_toxoids = yes\n\t\t\t}\n\t\t\tset_carrier_flag = toxic_terraforming_candidate\n\t\t\tadd_modifier = {\n\t\t\t\tmodifier = toxic_terraforming_candidate\n\t\t\t}\n\t\t}","modelled":1}],"from_script":"grand_archive/voidworms_system_planet_initializer","variables":[]}}
+{"id":1073741826,"class":"pc_toxic","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":34,"orbit":null,"deposits":[{"resource":"sr_dark_matter","amount":1.0}],"deposit_keys":[{"key":"d_dark_matter_deposit_1","count":1}],"pops":0,"parent":null,"layout":{"orbit":{"min":110.0,"max":150.0},"at":null,"size":{"min":34.0,"max":34.0},"orbit_step":{"min":20.0,"max":40.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741825},"ring":null,"drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"fixed","class":"pc_toxic"},"changed_class":null,"changed_size":null,"deposits":[{"kind":"set","deposit":"d_dark_matter_deposit_1","category":"orbital_research_deposits","replaces":"unknown"}],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":"body"},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[{"key":"save_event_target_as","text":"save_event_target_as = toxic_planet_2","modelled":0},{"key":"if","text":"if = {\n\t\t\tlimit = {\n\t\t\t\thas_toxoids = yes\n\t\t\t}\n\t\t\tset_carrier_flag = toxic_terraforming_candidate\n\t\t\tadd_modifier = {\n\t\t\t\tmodifier = toxic_terraforming_candidate\n\t\t\t}\n\t\t}","modelled":1}],"from_script":"grand_archive/voidworms_system_planet_initializer","variables":[]}}
+{"id":1073741827,"class":"pc_toxic","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":20,"orbit":null,"deposits":[{"resource":"sr_dark_matter","amount":1.0}],"deposit_keys":[{"key":"d_dark_matter_deposit_1","count":1}],"pops":0,"parent":null,"layout":{"orbit":{"min":140.0,"max":220.0},"at":null,"size":{"min":20.0,"max":20.0},"orbit_step":{"min":30.0,"max":70.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741826},"ring":null,"drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"fixed","class":"pc_toxic"},"changed_class":null,"changed_size":null,"deposits":[{"kind":"set","deposit":"d_dark_matter_deposit_1","category":"orbital_research_deposits","replaces":"unknown"}],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":"body"},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[{"key":"save_event_target_as","text":"save_event_target_as = toxic_planet_3","modelled":0},{"key":"if","text":"if = {\n\t\t\tlimit = {\n\t\t\t\thas_toxoids = yes\n\t\t\t}\n\t\t\tset_carrier_flag = toxic_terraforming_candidate\n\t\t\tadd_modifier = {\n\t\t\t\tmodifier = toxic_terraforming_candidate\n\t\t\t}\n\t\t}","modelled":1}],"from_script":"grand_archive/voidworms_system_planet_initializer","variables":[]}}

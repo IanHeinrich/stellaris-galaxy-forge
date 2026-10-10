@@ -50,13 +50,14 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     );
     assert_eq!(
         resources(&details.resources),
-        [("glow", 10.0)],
-        "five bodies of d_glow_2; d_fixture_blocker is a blocker, not an orbital deposit"
+        [("glow", 6.0)],
+        "the star and both moons state d_glow_2; the world's under a random_list is left to \
+         chance; d_fixture_blocker is a blocker, not an orbital deposit"
     );
     let star = &details.planets[0];
     assert_eq!(star.name_key, "NAME_Fixture_Star");
     assert_eq!(star.name.key, "NAME_Fixture_Star");
-    assert_eq!(star.size, Some(20), "the minimum of a size range");
+    assert_eq!(star.size, None, "a size range has no one size");
     assert_eq!(star.habitable, Some(false));
     assert!(!star.capital && !star.colonised);
 
@@ -69,7 +70,9 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
     assert!(world.capital && world.colonised, "starting_planet = yes");
     assert_eq!(world.habitable, Some(true));
     assert_eq!(world.size, Some(16));
-    assert_eq!(resources(&world.deposits), [("glow", 2.0)]);
+    assert!(world.deposits.is_empty());
+    let deposit_keys: Vec<&str> = world.deposit_keys.iter().map(|d| d.key.as_str()).collect();
+    assert_eq!(deposit_keys, ["d_fixture_blocker"]);
     assert!(
         details
             .planets

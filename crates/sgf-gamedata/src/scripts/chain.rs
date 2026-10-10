@@ -66,8 +66,8 @@ impl Chain {
     }
 }
 
-/// Walk `name`'s body, the scripted effects it calls one level deep, and the
-/// initializers it spawns.
+/// Walk `name`'s body, the inline scripts its block reads in place, the scripted
+/// effects it calls one level deep, and the initializers it spawns.
 pub fn walk(index: &ScriptIndex, initializers: &Initializers, name: &str) -> Chain {
     let mut walk = Walk {
         index,
@@ -82,6 +82,15 @@ pub fn walk(index: &ScriptIndex, initializers: &Initializers, name: &str) -> Cha
             in_system: true,
         };
         walk.collect(&def.node, scope);
+    }
+    for script in initializers.inline_scripts(name) {
+        let scope = Scope {
+            src: &script.src,
+            file: Some(&script.file),
+            expand: true,
+            in_system: true,
+        };
+        walk.collect(&script.root, scope);
     }
     let mut chain = walk.chain;
     if let Some(init) = initializers.get(name) {

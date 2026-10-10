@@ -176,6 +176,15 @@ fn an_initializer_placing_its_bodies_only_through_an_inline_script_rolls_its_pla
     let (_dir, gd) = common::hand_written(&FACT_FILES);
     let worms = gd.system_roll(1, "fx_worms", "sc_sun", 0, 150.0);
     assert!(worms.rolls_planets && worms.bodies.is_empty());
+    let spawn = gd
+        .initializer_details(1, "fx_worms", None)
+        .and_then(|d| d.spawn)
+        .expect("fx_worms' spawn");
+    assert_eq!(
+        (spawn.planets, spawn.moons, spawn.asteroids),
+        (None, None, None),
+        "the script's bodies cannot be counted"
+    );
     for key in ["fx_scripted", "fx_body_scripted", "fx_facts"] {
         let roll = gd.system_roll(1, key, "sc_sun", 0, 150.0);
         assert!(!roll.rolls_planets && roll.placeholders.is_empty(), "{key}");

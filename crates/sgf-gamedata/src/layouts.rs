@@ -458,7 +458,7 @@ fn unsupported(gd: &GameData, init: &Initializer) -> Option<Unsupported> {
     if converted {
         return None;
     }
-    let def = gd.initializers.def(&init.name)?;
+    let def = gd.initializers.spliced(&init.name)?;
     def.node
         .find_all("init_effect", &def.src)
         .find_map(|block| body_effects::undropped(block, def, Dropping::Script))

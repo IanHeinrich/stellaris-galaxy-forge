@@ -7,6 +7,7 @@ import type { MegastructureSummary } from "./MegastructureSummary";
 import type { PlanetSummary } from "./PlanetSummary";
 import type { ResourceAmount } from "./ResourceAmount";
 import type { StarbaseSummary } from "./StarbaseSummary";
+import type { SystemSpawn } from "./SystemSpawn";
 import type { WormholeSummary } from "./WormholeSummary";
 
 export type SystemDetails = { id: number, resources: Array<ResourceAmount>, planets: Array<PlanetSummary>, starbase: StarbaseSummary | null, fleets: FleetPresence, 
@@ -25,4 +26,8 @@ inner_radius: number | null,
 /**
  * A save's natural wormholes and shroud tunnels, in file order; empty in a scenario.
  */
-wormholes: Array<WormholeSummary>, };
+wormholes: Array<WormholeSummary>, 
+/**
+ * What only a scenario system's initializer says of the system. `None` in a save.
+ */
+spawn?: SystemSpawn, };

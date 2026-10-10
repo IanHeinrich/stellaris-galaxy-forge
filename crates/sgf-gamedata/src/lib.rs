@@ -35,6 +35,7 @@ pub(crate) mod resolver;
 pub mod rng;
 pub mod scripts;
 pub mod special;
+pub mod stated;
 pub mod summary;
 pub mod textures;
 pub mod views;

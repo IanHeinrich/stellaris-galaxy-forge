@@ -38,7 +38,7 @@ impl InitPlanetView {
             count: p.instances(),
             home_planet: p.home_planet,
             deposits: p.deposits.clone(),
-            moons: p.moons.iter().map(|m| Self::new(m, true, gd)).collect(),
+            moons: bodies(&p.moons).map(|m| Self::new(m, true, gd)).collect(),
         }
     }
 }
@@ -83,12 +83,15 @@ impl InitializerView {
             flags: i.flags.clone(),
             countries: i.countries.clone(),
             spawns: i.spawns.clone(),
-            planets: i
-                .planets
-                .iter()
+            planets: bodies(&i.planets)
                 .map(|p| InitPlanetView::new(p, false, gd))
                 .collect(),
             planet_count: i.planets.iter().map(InitPlanet::total).sum(),
         }
     }
+}
+
+/// The blocks of `blocks` that place a body: a spacer places none.
+fn bodies(blocks: &[InitPlanet]) -> impl Iterator<Item = &InitPlanet> {
+    blocks.iter().filter(|b| !b.spacer())
 }
