@@ -11,7 +11,7 @@ import { systemNameOf, useGalaxyStore, type Systems } from "../../store/galaxySt
 import { useGameDataStore } from "../../store/gameDataStore";
 import { useWatchlistStore } from "../../store/watchlistStore";
 import { useOutsidePress } from "../useOutsidePress";
-import { RowIcon, type RowKind } from "./icons";
+import { RowIcon, StarTypeIcon, type RowKind } from "./icons";
 import { PinnedRows, PinToggle } from "./Pins";
 import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel, type Query } from "./query";
 import "./search.css";
@@ -28,6 +28,8 @@ interface Row {
   key: string;
   group: string;
   icon: RowKind;
+  /** A star type row's class, whose map icon the row shows. */
+  starClass?: string;
   /** Resolved at render so a row picks up localisation as it arrives. */
   name(): string;
   subline: string;
@@ -96,11 +98,31 @@ function subline(hit: SearchHit, look: Lookups): string {
     case "fleet":
       return parts([owner, systemName(look, hit.system_id)]);
     case "nebula":
+    case "star_type":
       return systemCount(hit.system_count) ?? "";
   }
 }
 
+/** A star type rings and frames its systems, or adds them all to the selection. */
+function starTypeRow(hit: SearchHit, group: string, look: Lookups): Row {
+  const systems = hit.systems ?? [];
+  return {
+    key: `${hit.kind}.${hit.id}`,
+    group,
+    icon: hit.kind,
+    starClass: hit.star_class,
+    name: () => templateName(hit),
+    subline: subline(hit, look),
+    activate: (add) => {
+      const editor = useEditorStore.getState();
+      if (add) void editor.setSelection(systems, "add");
+      else editor.ringSystems(systems);
+    },
+  };
+}
+
 function hitRow(hit: SearchHit, group: string, look: Lookups): Row {
+  if (hit.kind === "star_type") return starTypeRow(hit, group, look);
   const editor = useEditorStore.getState();
   return {
     key: `${hit.kind}.${hit.id}`,
@@ -381,7 +403,11 @@ function SearchPanel() {
                     take(row, e.shiftKey);
                   }}
                 >
-                  <RowIcon kind={row.icon} />
+                  {row.starClass === undefined ? (
+                    <RowIcon kind={row.icon} />
+                  ) : (
+                    <StarTypeIcon starClass={row.starClass} />
+                  )}
                   <span className="palette-name">{row.name()}</span>
                   <span className="palette-sub">{row.subline}</span>
                 </div>

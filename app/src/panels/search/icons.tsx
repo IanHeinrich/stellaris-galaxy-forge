@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { SearchKind } from "../../generated/SearchKind";
+import { useGameDataStore } from "../../store/gameDataStore";
 import { Glyph, NebulaMark, OwnerMark, StarMark } from "../Glyph";
+import { StarPaletteIcon } from "../StarIcon";
 
 /** What a row shows: a kind of hit. */
 export type RowKind = SearchKind;
@@ -11,6 +13,7 @@ function PaletteGlyph({ children }: { children: ReactNode }) {
 
 function glyphOf(kind: RowKind): ReactNode {
   switch (kind) {
+    case "star_type":
     case "system":
       return (
         <PaletteGlyph>
@@ -48,6 +51,12 @@ function glyphOf(kind: RowKind): ReactNode {
 /** A row's 16 px mark, drawn in `currentColor`. */
 export function RowIcon({ kind }: { kind: RowKind }) {
   return <>{glyphOf(kind)}</>;
+}
+
+/** A star type row's mark: the map's icon for `starClass` when game data has it, else a star. */
+export function StarTypeIcon({ starClass }: { starClass: string }) {
+  const view = useGameDataStore((s) => s.starClasses.get(starClass));
+  return view ? <StarPaletteIcon view={view} /> : <RowIcon kind="star_type" />;
 }
 
 /** The pin on the field's Pin button, 12 px in `currentColor`. */

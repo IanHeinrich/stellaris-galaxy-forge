@@ -11,7 +11,7 @@ import type { MapLayer } from "./layers/MapLayer";
 import { layersFor } from "./layers/registry";
 import { EMPTY_CONTEXT, renderContext, sameContext, type RenderContext } from "./RenderContext";
 import type { Scene } from "./Scene";
-import { selectionFrame } from "./selectionFrame";
+import { selectionFrame, type Frame } from "./selectionFrame";
 import { bindViewState, dressLayers, type MapView } from "./viewState";
 
 const FOCUS_SCALE = 4;
@@ -139,11 +139,16 @@ export class GalaxyScene implements Scene, MapView {
     const { selection, selectedNebula } = useEditorStore.getState();
     const nebula = selectedNebula === null ? undefined : this.ctx.nebulae[selectedNebula];
     const frame = selectionFrame(this.ctx.systems, selection, nebula, (s) => this.drawn.y(s));
-    if (!frame) {
-      this.fit();
-      return;
-    }
-    const { minX, minY, maxX, maxY } = frame;
+    if (frame) this.easeToFrame(frame);
+    else this.fit();
+  }
+
+  frameSystems(ids: readonly number[]): void {
+    const frame = selectionFrame(this.ctx.systems, ids, undefined, (s) => this.drawn.y(s));
+    if (frame) this.easeToFrame(frame);
+  }
+
+  private easeToFrame({ minX, minY, maxX, maxY }: Frame): void {
     const { width, height } = this.renderer;
     const scale = Math.min(
       this.cam.fitScale((maxX - minX) / 2, width, width),

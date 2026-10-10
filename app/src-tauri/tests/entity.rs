@@ -122,6 +122,14 @@ fn a_search_reads_the_loaded_game_data() {
             .all(|h| h.matched_on.as_deref() != Some("Leviathan")),
         "{lairs:?}"
     );
+    let star_types = |w: &tauri::WebviewWindow<tauri::test::MockRuntime>, query: &str| {
+        search(w, query, 50)
+            .hits
+            .into_iter()
+            .filter(|h| h.kind == SearchKind::StarType)
+            .collect::<Vec<SearchHit>>()
+    };
+    assert!(star_types(&w, "binary").len() > 1, "a type per class key");
 
     let Some((w, _)) = common::with_game_data(SAMPLE) else {
         return;
@@ -143,4 +151,7 @@ fn a_search_reads_the_loaded_game_data() {
         .collect();
     assert_eq!(systems.len(), 1, "{hits:?}");
     assert_eq!(systems[0].name_key, "NAME_Custodian_Nexus");
+    // Every binary class is named "Binary Stars", so they are one type.
+    let binaries = star_types(&w, "binary stars");
+    assert_eq!(binaries.len(), 1, "{binaries:?}");
 }

@@ -624,3 +624,9 @@ button.link.help-link {
   font-weight: 600;
   line-height: 1;
 }
+
+/* Game star art sits on opaque black, which the map draws additively; so do these. */
+.star-class-icon {
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
+}

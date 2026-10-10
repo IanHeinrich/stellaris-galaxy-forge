@@ -1,11 +1,11 @@
 //! Search by id, name and what a system holds, on the real sample save.
-use sgf_core::projections::galaxy::display_name;
+use sgf_core::projections::galaxy::{StarClasses, display_name};
 use sgf_core::search::NameResolver;
 use sgf_core::session::Session;
 use sgf_core::views::{SearchHit, SearchKind};
 
 use crate::common;
-use common::open;
+use common::{open, open_4_5};
 
 fn no_loc(_: &str) -> Option<String> {
     None
@@ -119,9 +119,10 @@ fn hits_come_back_grouped_by_kind() {
     grouped.sort();
     assert_eq!(
         kinds, grouped,
-        "systems first, then countries, planets, fleets, nebulae"
+        "star types first, then systems, countries, planets, fleets, nebulae"
     );
     for kind in [
+        SearchKind::StarType,
         SearchKind::System,
         SearchKind::Country,
         SearchKind::Planet,
@@ -378,4 +379,211 @@ fn a_flag_matches_by_its_localised_name() {
             assert!(found(query, &no_loc).is_empty(), "{query} without a name");
         }
     }
+}
+
+/// The names the base game's localisation gives the star classes the samples hold.
+fn star_loc(key: &str) -> Option<String> {
+    let name = match key {
+        "sc_b" => "Class B Star",
+        "sc_a" => "Class A Star",
+        "sc_f" => "Class F Star",
+        "sc_g" => "Class G Star",
+        "sc_k" => "Class K Star",
+        "sc_m" => "Class M Star",
+        "sc_m_giant" => "Class M Red Giant",
+        "sc_t" => "Class T Brown Dwarf",
+        "sc_black_hole" => "Black Hole",
+        "sc_neutron_star" => "Neutron Star",
+        "sc_pulsar" => "Pulsar",
+        _ if key.starts_with("sc_binary_") => "Binary Stars",
+        _ if key.starts_with("sc_trinary_") => "Trinary Stars",
+        _ => return None,
+    };
+    Some(name.to_owned())
+}
+
+/// The star classes of the star type hits for `query`, in the order they come back.
+fn star_types(s: &Session, query: &str, loc: NameResolver<'_>) -> Vec<String> {
+    of_kind(&find(s, query, 50, loc), SearchKind::StarType)
+        .iter()
+        .map(|h| h.star_class.clone().expect("a star type names its class"))
+        .collect()
+}
+
+/// Every system of `class`, ascending.
+fn of_class(s: &Session, class: &str) -> Vec<u32> {
+    let mut ids: Vec<u32> = s
+        .graph()
+        .systems
+        .values()
+        .filter(|system| system.star_class == class)
+        .map(|system| system.id)
+        .collect();
+    ids.sort_unstable();
+    ids
+}
+
+#[test]
+fn a_letter_class_is_found_by_its_letter_in_any_common_form() {
+    let s = open();
+    for query in [
+        "g",
+        "G",
+        "g star",
+        "g class",
+        "class g",
+        "g-class",
+        "G-Class",
+        "class g star",
+    ] {
+        assert_eq!(star_types(&s, query, &no_loc), ["sc_g"], "{query}");
+        assert_eq!(star_types(&s, query, &star_loc), ["sc_g"], "{query}");
+    }
+    for (letter, class) in [
+        ("b", "sc_b"),
+        ("a", "sc_a"),
+        ("f", "sc_f"),
+        ("k", "sc_k"),
+        ("m", "sc_m"),
+    ] {
+        assert_eq!(star_types(&s, letter, &star_loc), [class], "{letter}");
+    }
+    // The 4.4 sample has no brown dwarf; the 4.5 sample has one.
+    assert!(star_types(&s, "t", &star_loc).is_empty());
+    assert_eq!(star_types(&open_4_5(), "t", &star_loc), ["sc_t"]);
+
+    // One letter that is no class, or only starts a longer key or name, finds no star type.
+    for query in ["x", "p", "n", "c", "s"] {
+        assert!(star_types(&s, query, &star_loc).is_empty(), "{query}");
+    }
+}
+
+#[test]
+fn a_star_type_hit_counts_and_locates_every_system_of_its_class() {
+    let s = open();
+    let result = s.search("g", 5, &no_loc, &no_special);
+    let yellow = s.search("yellow", 5, &no_loc, &no_special);
+    let hits = of_kind(&result.hits, SearchKind::StarType);
+    let g = &hits[0];
+    let systems = of_class(&s, "sc_g");
+    assert!(systems.len() > 5, "more than the limit");
+    assert_eq!(g.name.key, "sc_g", "the UI localises the class");
+    assert_eq!(
+        g.name_key, "g",
+        "without game data, the key without its prefix"
+    );
+    assert_eq!(g.system_count, Some(u32::try_from(systems.len()).unwrap()));
+    assert_eq!(g.systems.as_deref(), Some(systems.as_slice()));
+    assert_eq!(g.system_id, None);
+    assert_eq!(g.position, None);
+    assert!(
+        !systems.iter().all(|id| result.systems.contains(id)),
+        "only the names \"g\" starts ring"
+    );
+    assert!(yellow.systems.is_empty(), "{:?}", yellow.systems);
+    assert_eq!(
+        of_kind(&yellow.hits, SearchKind::StarType)[0]
+            .systems
+            .as_deref(),
+        Some(systems.as_slice()),
+        "the hit lists the systems it rings when taken"
+    );
+
+    // The group comes before the systems a name matches.
+    let kinds: Vec<SearchKind> = result.hits.iter().map(|h| h.kind).collect();
+    assert_eq!(kinds[0], SearchKind::StarType, "{kinds:?}");
+    assert!(kinds.contains(&SearchKind::System), "{kinds:?}");
+
+    let m_giant = &of_kind(&find(&s, "red giant", 5, &star_loc), SearchKind::StarType)[0];
+    assert_eq!(m_giant.name_key, "m giant");
+    common::snapshot(
+        "pulsar",
+        &report(&of_kind(
+            &find(&s, "pulsar", 5, &star_loc),
+            SearchKind::StarType,
+        )),
+    );
+}
+
+#[test]
+fn a_star_type_is_found_by_a_colour_word() {
+    let s = open();
+    for loc in [&no_loc as NameResolver<'_>, &star_loc] {
+        assert_eq!(star_types(&s, "yellow", loc), ["sc_g"]);
+        assert_eq!(star_types(&s, "Yellow star", loc), ["sc_g"]);
+        assert_eq!(star_types(&s, "orange", loc), ["sc_k"]);
+        assert_eq!(star_types(&s, "red", loc), ["sc_m", "sc_m_giant"]);
+        assert_eq!(star_types(&s, "blue", loc), ["sc_b"]);
+        assert_eq!(star_types(&s, "white", loc), ["sc_a", "sc_f"]);
+        assert_eq!(
+            star_types(&s, "yel", loc),
+            ["sc_g"],
+            "a colour's first letters"
+        );
+    }
+    assert!(
+        star_types(&s, "brown", &no_loc).is_empty(),
+        "no brown dwarf"
+    );
+    assert_eq!(star_types(&open_4_5(), "brown", &no_loc), ["sc_t"]);
+}
+
+#[test]
+fn a_star_type_is_found_by_its_key_and_localised_name_at_a_word_start() {
+    let s = open();
+    for loc in [&no_loc as NameResolver<'_>, &star_loc] {
+        assert_eq!(star_types(&s, "pul", loc), ["sc_pulsar"]);
+        assert_eq!(star_types(&s, "PULSAR", loc), ["sc_pulsar"]);
+        assert_eq!(star_types(&s, "black", loc), ["sc_black_hole"]);
+        assert_eq!(star_types(&s, "hole", loc), ["sc_black_hole"]);
+        assert_eq!(star_types(&s, "neutron", loc), ["sc_neutron_star"]);
+        assert!(star_types(&s, "ulsar", loc).is_empty(), "mid-word");
+    }
+    // Only the localised name says "dwarf" or "binary stars".
+    assert!(star_types(&open_4_5(), "dwarf", &no_loc).is_empty());
+    assert_eq!(star_types(&open_4_5(), "dwarf", &star_loc), ["sc_t"]);
+    assert!(star_types(&s, "binary stars", &no_loc).is_empty());
+    assert!(!star_types(&s, "binary stars", &star_loc).is_empty());
+}
+
+#[test]
+fn classes_the_localisation_names_alike_are_one_star_type() {
+    let s = open();
+    let binaries: Vec<String> = (1..=10).map(|n| format!("sc_binary_{n}")).collect();
+    let mut every: Vec<u32> = binaries.iter().flat_map(|c| of_class(&s, c)).collect();
+    every.sort_unstable();
+
+    let named = of_kind(&find(&s, "binary", 50, &star_loc), SearchKind::StarType);
+    assert_eq!(named.len(), 1, "{named:?}");
+    assert_eq!(named[0].star_class.as_deref(), Some("sc_binary_1"));
+    assert_eq!(named[0].systems.as_deref(), Some(every.as_slice()));
+
+    // Without game data each class is its own type, named by its key.
+    let keyed = star_types(&s, "binary", &no_loc);
+    let mut sorted = binaries.clone();
+    sorted.sort();
+    assert_eq!(keyed, sorted);
+}
+
+#[test]
+fn a_scenario_has_no_star_types() {
+    let mut s = common::fixture::EXPORTED.open();
+    let initializers = s
+        .graph()
+        .systems
+        .values()
+        .map(|system| (system.initializer.clone(), "sc_g".to_owned()))
+        .collect();
+    s.set_star_classes(StarClasses {
+        bodies: None,
+        initializers,
+    });
+    assert!(
+        s.graph()
+            .systems
+            .values()
+            .any(|system| system.star_class == "sc_g")
+    );
+    assert!(star_types(&s, "g", &star_loc).is_empty());
+    assert!(star_types(&s, "yellow", &star_loc).is_empty());
 }

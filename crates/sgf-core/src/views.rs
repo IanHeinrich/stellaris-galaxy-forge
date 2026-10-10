@@ -266,6 +266,7 @@ impl SystemDetail {
 #[ts(export)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchKind {
+    StarType,
     System,
     Country,
     Planet,
@@ -278,21 +279,25 @@ pub enum SearchKind {
 #[ts(export)]
 pub struct SearchHit {
     pub kind: SearchKind,
-    /// The entity's id; for a nebula, its index in `GalaxyView::nebulae`.
+    /// The entity's id; for a nebula, its index in `GalaxyView::nebulae`; for a star type,
+    /// its place among the galaxy's star types by key.
     pub id: u32,
     /// The name as the save writes it; the UI resolves it with game data.
     pub name: NameTemplate,
-    /// The no-game-data stand-in (`NameTemplate::stand_in`).
+    /// The no-game-data stand-in (`NameTemplate::stand_in`); for a star type, its key
+    /// without the `sc_` prefix.
     pub name_key: String,
     /// The system to focus: the system itself, the country's capital system, the planet's
-    /// or fleet's system; `None` for a nebula, which has its own `x`/`y`.
+    /// or fleet's system; `None` for a nebula, which has its own `x`/`y`, and for a star
+    /// type, which lists its systems.
     pub system_id: Option<u32>,
     /// The owning country's name: the system's owner, the fleet's owner; `None` when
     /// nothing owns it. The palette phrases it.
     pub owner: Option<NameTemplate>,
     /// The country's `country_type` key; `Country` hits only.
     pub country_type: Option<String>,
-    /// Systems the country owns, or the nebula lists; `Country` and `Nebula` hits.
+    /// Systems the country owns, the nebula lists, or of the star type; `Country`,
+    /// `Nebula` and `StarType` hits.
     pub system_count: Option<u32>,
     /// The planet's class key (`pc_continental`); `Planet` hits only.
     pub planet_class: Option<String>,
@@ -308,6 +313,15 @@ pub struct SearchHit {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub matched_bypass: Option<String>,
+    /// A star type's class key (`sc_pulsar`), the lowest when the localisation names
+    /// several classes alike; `StarType` hits only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub star_class: Option<String>,
+    /// Every system of a star type, ascending; `StarType` hits only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub systems: Option<Vec<u32>>,
 }
 
 impl SearchHit {
@@ -326,6 +340,8 @@ impl SearchHit {
             position,
             matched_on: None,
             matched_bypass: None,
+            star_class: None,
+            systems: None,
         }
     }
 }
@@ -336,8 +352,8 @@ impl SearchHit {
 pub struct SearchResult {
     /// At most `limit` of each kind; see [`SearchHit`].
     pub hits: Vec<SearchHit>,
-    /// Ascending, without duplicates, and not capped by `limit`; countries and nebulae
-    /// add none.
+    /// Ascending, without duplicates, and not capped by `limit`; countries, nebulae and
+    /// star types add none.
     pub systems: Vec<u32>,
 }
 

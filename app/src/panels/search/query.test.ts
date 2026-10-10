@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextPrefix, parseQuery } from "./query";
+import { GROUP_LABELS, KIND_ORDER, nextPrefix, parseQuery, prefixLabel } from "./query";
 
 describe("palette query", () => {
   it("reads a kind prefix or none", () => {
@@ -9,6 +9,8 @@ describe("palette query", () => {
     expect(parseQuery("f:")).toEqual({ kind: "fleet", text: "" });
     expect(parseQuery("n:mia")).toEqual({ kind: "nebula", text: "mia" });
     expect(parseQuery("s:sol")).toEqual({ kind: "system", text: "sol" });
+    expect(parseQuery("t:pulsar")).toEqual({ kind: "star_type", text: "pulsar" });
+    expect(parseQuery("T: g")).toEqual({ kind: "star_type", text: "g" });
     expect(parseQuery("  sol ")).toEqual({ kind: null, text: "sol" });
   });
 
@@ -22,6 +24,14 @@ describe("palette query", () => {
     expect(nextPrefix("e:sol")).toBe("p:sol");
     expect(nextPrefix("p:sol")).toBe("f:sol");
     expect(nextPrefix("f:sol")).toBe("n:sol");
-    expect(nextPrefix("n:sol")).toBe("sol");
+    expect(nextPrefix("n:sol")).toBe("t:sol");
+    expect(nextPrefix("t:sol")).toBe("sol");
+  });
+
+  it("lists star types above systems, under their own heading", () => {
+    expect(KIND_ORDER[0]).toBe("star_type");
+    expect(KIND_ORDER[1]).toBe("system");
+    expect(GROUP_LABELS.star_type).toBe("Star types");
+    expect(prefixLabel(parseQuery("t:red"))).toBe("Star types");
   });
 });

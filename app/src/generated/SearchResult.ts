@@ -10,7 +10,7 @@ export type SearchResult = {
  */
 hits: Array<SearchHit>, 
 /**
- * Ascending, without duplicates, and not capped by `limit`; countries and nebulae
- * add none.
+ * Ascending, without duplicates, and not capped by `limit`; countries, nebulae and
+ * star types add none.
  */
 systems: Array<number>, };

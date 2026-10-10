@@ -17,7 +17,7 @@ import { useSceneStore } from "../../../store/sceneStore";
 import { drawnBy, lastDrawn, type DrawnProps } from "../../../test/drawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { DrillLink, DrillRow } from "../parts";
-import { StarRowIcon } from "../StarIcon";
+import { StarRowIcon } from "../../StarIcon";
 import { bodyLayout, planetClassView, starClassView } from "../../../test/builders";
 import { mockedIpc } from "../../../test/ipc";
 import { rolledBody, systemRoll } from "../../../test/rolls";

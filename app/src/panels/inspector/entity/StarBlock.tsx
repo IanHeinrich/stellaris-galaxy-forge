@@ -11,7 +11,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { BoundsField } from "../../BoundsField";
 import { EditBlock, EditRow, PickerField, TextField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
-import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
+import { StarRowIcon, StarTriggerIcon } from "../../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { useNamed } from "../../useNamed";
 import { useSingleStarClasses } from "./useStarClasses";
