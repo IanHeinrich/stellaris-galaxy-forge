@@ -7,7 +7,8 @@ use sgf_core::ops::BeltSpec;
 
 use common::{INSTALL, fixed, range};
 
-/// Distances add up from the running orbit, at each level; a count is its midpoint.
+/// Distances add up from the running orbit, at each level; a ranged count lists the most it
+/// can spawn.
 #[test]
 fn a_fixture_systems_layout_is_what_its_initializer_defines() {
     let gd = common::cached_fixture();
@@ -34,11 +35,12 @@ fn a_fixture_systems_layout_is_what_its_initializer_defines() {
             (Some(id(1)), Some(fixed(10.0)), None),
             (None, Some(range(60.0, 65.0)), None),
             (None, Some(range(80.0, 85.0)), None),
-            (None, Some(range(90.0, 105.0)), None),
-            (None, Some(range(115.0, 130.0)), None),
+            (None, Some(range(100.0, 105.0)), None),
+            (None, Some(range(110.0, 125.0)), None),
+            (None, Some(range(135.0, 150.0)), None),
         ],
         "change_orbit moves the moons out, and the siblings \
-         after it; a count of one to three spawns two; an undeclared distance lies 10 to \
+         after it; a count of one to three lists three; an undeclared distance lies 10 to \
          20 past the running orbit and moves the bodies after it out as far"
     );
     assert_eq!(
@@ -244,20 +246,36 @@ fn a_defined_initializer_that_places_nothing_answers_with_empty_lists() {
     }
 }
 
-/// The void worms' systems place their bodies through an `inline_script`, which the details do
-/// not expand: the game rolls its planets, and the record lists none of them.
+/// The void worms' systems place their bodies through an `inline_script`, which is read in place
+/// of the call: its star class and bodies are the system's, and the game rolls none of them.
 #[test]
-fn an_initializer_placing_its_bodies_through_an_inline_script_is_marked() {
+fn an_initializer_placing_its_bodies_through_an_inline_script_lists_the_scripts_bodies() {
     let Some(gd) = INSTALL.as_ref() else {
         return;
     };
     let worms = gd
         .initializer_details(4, "voidworms_spawn_system_tiny", None)
         .expect("a record for a defined initializer");
-    assert!(worms.planets.is_empty());
+    let classes: Vec<&str> = worms.planets.iter().map(|p| p.class.as_str()).collect();
+    assert_eq!(
+        classes,
+        ["pc_black_hole", "pc_toxic", "pc_toxic", "pc_toxic"]
+    );
+    let script = "grand_archive/voidworms_system_planet_initializer";
+    assert!(worms.planets.iter().all(|p| {
+        p.spawn
+            .as_ref()
+            .is_some_and(|s| s.from_script.as_deref() == Some(script))
+    }));
+    let spawn = worms.spawn.expect("a scenario system's spawn");
+    assert_eq!(spawn.from_script.as_deref(), Some(script));
+    assert_eq!(
+        gd.scenario_star_class("voidworms_spawn_system_tiny"),
+        "sc_black_hole"
+    );
     let roll = gd.system_roll(4, "voidworms_spawn_system_tiny", "", 0, 150.0);
-    assert!(roll.rolls_planets, "the game rolls what the script places");
-    assert!(!roll.placeholders.is_empty());
+    assert!(!roll.rolls_planets && roll.placeholders.is_empty());
+    assert_eq!(roll.bodies.len(), worms.planets.len());
     assert!(!gd.rolls_planets("basic_init_05"));
     assert!(
         !gd.rolls_planets("fallen_1_2"),
@@ -291,8 +309,9 @@ fn a_fixture_systems_bodies_step_and_turn_as_the_walk_drew_them() {
             (Some(fixed(2.0)), Some(range(10.0, 50.0)), Some(id(2))),
             (Some(fixed(20.0)), Some(range(-30.0, 30.0)), Some(id(1))),
             (Some(fixed(20.0)), Some(range(-30.0, 30.0)), Some(id(4))),
-            (Some(range(10.0, 20.0)), Some(fixed(45.0)), Some(id(5))),
-            (Some(fixed(25.0)), None, Some(id(6))),
+            (Some(fixed(20.0)), Some(range(-30.0, 30.0)), Some(id(5))),
+            (Some(range(10.0, 20.0)), Some(fixed(45.0)), Some(id(6))),
+            (Some(fixed(25.0)), None, Some(id(7))),
         ],
         "a moon's walk starts afresh; an undeclared distance steps 10 to 20"
     );
@@ -332,7 +351,7 @@ fn a_fixture_systems_example_roll_is_its_walk_drawn_once() {
             let turned = body.angle - body.from;
             let fits = [turned - 360.0, turned, turned + 360.0]
                 .iter()
-                .any(|t| turn.min <= *t && *t <= turn.max);
+                .any(|t| turn.min - 1e-9 <= *t && *t <= turn.max + 1e-9);
             assert!(fits, "{body:?} turned {turned} of {turn:?}");
         }
     }

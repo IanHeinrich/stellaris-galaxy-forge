@@ -13,7 +13,7 @@ pub struct SystemRoll {
     pub bodies: Vec<RolledBody>,
     /// The game rolls the system's planets when it generates the galaxy: its initializer is
     /// `random`, empty or one the install does not define, or it places its bodies only
-    /// through an `inline_script`.
+    /// through an `inline_script` the install has no text for.
     pub rolls_planets: bool,
     /// Planets rolled for the system's star class to show the game's roll: no body of the
     /// system, each about the centre and inside the radius asked for. Empty unless

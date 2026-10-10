@@ -196,7 +196,7 @@ fn used_as(init: &Initializer, usages: &[&str]) -> bool {
 fn primitive(gd: &GameData, init: &Initializer) -> bool {
     let scaled = gd
         .initializers
-        .def(&init.name)
+        .spliced(&init.name)
         .is_some_and(|def| def.scalar(PRIMITIVE_KEY) == Some("yes"));
     scaled || init.flags.iter().any(|f| f == PRIMITIVE_KEY) || init.planets.iter().any(pre_ftl)
 }

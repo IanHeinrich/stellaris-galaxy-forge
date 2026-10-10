@@ -11,6 +11,7 @@ mod deposit_roll_install;
 mod details;
 mod details_colonies;
 mod details_layout;
+mod details_spawn;
 mod details_stars;
 mod dig_site_choices;
 mod first_wins;

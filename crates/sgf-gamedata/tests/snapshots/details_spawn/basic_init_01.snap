@@ -1,0 +1,114 @@
+---
+source: crates/sgf-gamedata/tests/details_spawn.rs
+expression: out
+---
+{
+  "belts": [],
+  "fleets": {
+    "fleet_count": 0,
+    "military_count": 0,
+    "military_power": 0.0,
+    "ship_count": 0
+  },
+  "fleets_present": [],
+  "id": 1,
+  "inner_radius": null,
+  "megastructures": [],
+  "planets": null,
+  "resources": [],
+  "sites": [],
+  "spawn": {
+    "ambient_objects": [],
+    "asteroids": {
+      "max": 0,
+      "min": 0
+    },
+    "flags": [],
+    "from_script": null,
+    "inline_scripts": [],
+    "inner_radius_offset": null,
+    "max_instances": null,
+    "moons": {
+      "max": 10,
+      "min": 0
+    },
+    "namelist": null,
+    "neighbors": [],
+    "other_keys": [],
+    "outer_radius_offset": null,
+    "planets": {
+      "max": 10,
+      "min": 2
+    },
+    "prevent_anomalies": false,
+    "primitive_system": false,
+    "scaled_spawn_chance": null,
+    "script": [],
+    "sites": [],
+    "spawn_chance": null,
+    "star": {
+      "list": "rl_standard_stars",
+      "members": [
+        {
+          "key": "sc_a",
+          "weight": 10.0
+        },
+        {
+          "key": "sc_b",
+          "weight": 10.0
+        },
+        {
+          "key": "sc_f",
+          "weight": 15.0
+        },
+        {
+          "key": "sc_g",
+          "weight": 30.0
+        },
+        {
+          "key": "sc_k",
+          "weight": 20.0
+        },
+        {
+          "key": "sc_m",
+          "weight": 20.0
+        },
+        {
+          "key": "sc_m_giant",
+          "weight": 20.0
+        }
+      ],
+      "state": "rolled"
+    },
+    "usage": "misc_system_init",
+    "usage_odds": {
+      "kind": "number",
+      "value": 20.0
+    },
+    "variables": []
+  },
+  "starbase": null,
+  "with_game_data": true,
+  "wormholes": []
+}
+{"id":1073741824,"class":"pc_g_star","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":false,"owner":null,"moon":false,"role":"primary","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":0.0,"max":0.0},"at":null,"size":{"min":20.0,"max":30.0},"orbit_step":{"min":0.0,"max":0.0},"angle_step":{"min":1.0,"max":1.0},"turns_from":null},"ring":false,"star_class":"sc_g","drawn":false,"spawn":{"always":true,"copy":1,"count":{"min":1,"max":1},"class":{"state":"rolled","pool":{"kind":"star_list","list":"rl_standard_stars"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741825,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":65.0,"max":65.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741824},"ring":null,"drawn":true,"spawn":{"always":true,"copy":1,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741826,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741825,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741827,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":85.0,"max":85.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741825},"ring":null,"drawn":true,"spawn":{"always":true,"copy":2,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741828,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741827,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741829,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":105.0,"max":105.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741827},"ring":null,"drawn":true,"spawn":{"always":false,"copy":3,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741830,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741829,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741831,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":125.0,"max":125.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741829},"ring":null,"drawn":true,"spawn":{"always":false,"copy":4,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741832,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741831,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741833,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":145.0,"max":145.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741831},"ring":null,"drawn":true,"spawn":{"always":false,"copy":5,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741834,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741833,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741835,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":165.0,"max":165.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741833},"ring":null,"drawn":true,"spawn":{"always":false,"copy":6,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741836,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741835,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741837,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":185.0,"max":185.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741835},"ring":null,"drawn":true,"spawn":{"always":false,"copy":7,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741838,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741837,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741839,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":205.0,"max":205.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741837},"ring":null,"drawn":true,"spawn":{"always":false,"copy":8,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741840,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741839,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741841,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":225.0,"max":225.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741839},"ring":null,"drawn":true,"spawn":{"always":false,"copy":9,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741842,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741841,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}
+{"id":1073741843,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":false,"role":"planet","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":null,"layout":{"orbit":{"min":245.0,"max":245.0},"at":null,"size":null,"orbit_step":{"min":20.0,"max":20.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":1073741841},"ring":null,"drawn":true,"spawn":{"always":false,"copy":10,"count":{"min":2,"max":10},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[{"key":"change_orbit","variable":"@base_moon_distance"}]}}
+{"id":1073741844,"class":"random","name":{"key":"","literal":false,"variables":[]},"name_key":"","colonised":false,"capital":false,"habitable":null,"owner":null,"moon":true,"role":"moon","pre_ftl":false,"size":null,"orbit":null,"deposits":[],"deposit_keys":[],"pops":0,"parent":1073741843,"layout":{"orbit":{"min":15.0,"max":15.0},"at":null,"size":null,"orbit_step":{"min":5.0,"max":5.0},"angle_step":{"min":90.0,"max":270.0},"turns_from":null},"ring":false,"drawn":true,"spawn":{"always":false,"copy":1,"count":{"min":0,"max":1},"class":{"state":"rolled","pool":{"kind":"random","draw":"random"}},"changed_class":null,"changed_size":null,"deposits":[],"no_blockers":false,"features":{"modifier":null,"none":false,"cleared":false,"added":[]},"anomalies":{"categories":[],"prevented":null},"entity":null,"name":null,"flags":[],"starting_planet":false,"home_planet":false,"other_keys":[],"script":[],"from_script":null,"variables":[]}}

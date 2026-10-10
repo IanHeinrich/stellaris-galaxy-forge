@@ -26,8 +26,11 @@ pub use extract::{
     ShipSizeCount, WormholeSummary,
 };
 pub use resolve::{
-    BodyLayout, Bounds, DepositCount, DetailsResolver, FleetPresence, HeuristicResolver,
-    PlanetSummary, ResourceAmount, StarbaseSummary, SystemDetails,
+    AddedModifier, AmbientObject, AnomalyPrevention, BodyLayout, BodySpawn, Bounds, ClassPool,
+    CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver, FleetPresence,
+    HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, PlanetSummary, RawStatement,
+    ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
+    SystemDetails, SystemSpawn, UnknownClass, UsageOdds, VariableUse,
 };
 
 #[derive(Debug, Clone)]
