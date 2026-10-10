@@ -181,6 +181,12 @@ format sees it.
   playset_report::the_enabled_mods -- --nocapture` loads the enabled mods as the app does, prints that
   report and fails on a parse error or an unreadable file. It is
   skipped without the variable.
+- `SGF_INITIALIZER_CORPUS=1 cargo test -p sgf-gamedata --release --test
+  integration initializer_corpus -- --nocapture` reads the initializers of
+  the install and of every installed mod, enabled or not, each mod on its
+  own over the base game. It resolves every initializer as the scenario
+  view does and fails on a panic, a parse error or an unreadable file. It
+  prints one line per source and is skipped without the variable.
 - `SGF_REQUIRE_INSTALL=1` turns the tests that skip without a real
   Stellaris install into failures.
 - `ci.yml` runs on every PR that changes more than documentation, and is

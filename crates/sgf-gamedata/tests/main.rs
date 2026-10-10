@@ -22,6 +22,7 @@ mod generate;
 mod generate_effects;
 mod generate_pinned;
 mod generate_star_class;
+mod initializer_corpus;
 mod initializers;
 mod install;
 mod layering;
