@@ -55,18 +55,43 @@ impl Def {
     /// `key` below `node` as a [`Range`]: `key = n` or `key = { min = a max = b }`,
     /// `@variables` substituted; one no file defines gives `None`.
     pub fn range_in(&self, node: &Node, key: &str) -> Option<Range> {
-        let found = node.find(key, &self.src)?;
+        self.range_of(node.find(key, &self.src)?)
+    }
+
+    /// `found`'s value as a [`Range`], as [`Self::range_in`] reads it.
+    pub fn range_of(&self, found: &Node) -> Option<Range> {
         if let Some(text) = found.scalar_str(&self.src) {
             return self.number_of(text).map(Range::fixed);
         }
-        let bound = |key: &str| {
-            let text = found.find(key, &self.src)?.scalar_str(&self.src)?;
-            self.number_of(text)
-        };
         Some(Range {
-            min: bound("min")?,
-            max: bound("max")?,
+            min: self.bound(found, "min")?,
+            max: self.bound(found, "max")?,
         })
+    }
+
+    /// An initializer's own value `found` (a `count`, `size`, `orbit_distance`, `orbit_angle`,
+    /// `change_orbit` or belt `radius`) as a [`Range`]: as [`Self::range_of`] reads it, but a
+    /// block that writes one bound only is that number, fixed. No game file says what the game
+    /// does with the missing bound, so this is assumed.
+    pub fn initializer_range_of(&self, found: &Node) -> Option<Range> {
+        if found.scalar_span().is_some() {
+            return self.range_of(found);
+        }
+        match (self.bound(found, "min"), self.bound(found, "max")) {
+            (Some(min), Some(max)) => Some(Range { min, max }),
+            (Some(one), None) | (None, Some(one)) => Some(Range::fixed(one)),
+            (None, None) => None,
+        }
+    }
+
+    /// `key` below `node` as [`Self::initializer_range_of`] reads it.
+    pub fn initializer_range_in(&self, node: &Node, key: &str) -> Option<Range> {
+        self.initializer_range_of(node.find(key, &self.src)?)
+    }
+
+    /// The number `found`'s `key` bound writes.
+    fn bound(&self, found: &Node, key: &str) -> Option<f64> {
+        self.number_of(found.find(key, &self.src)?.scalar_str(&self.src)?)
     }
 
     /// The definition's own `key` as a [`Range`].

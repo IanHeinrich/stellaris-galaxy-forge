@@ -28,9 +28,10 @@ pub use extract::{
 pub use resolve::{
     AddedModifier, AmbientObject, AnomalyPrevention, BodyLayout, BodySpawn, Bounds, ClassPool,
     CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver, FleetPresence,
-    HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, PlanetSummary, RawStatement,
-    ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
-    SystemDetails, SystemSpawn, UnknownClass, UsageOdds, VariableUse,
+    HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, OrbitFit, PlanetSummary,
+    PoolClass, PoolEntry, RawStatement, ResourceAmount, SpawnClass, SpawnName, SpawnPool,
+    SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures, SystemDetails,
+    SystemSpawn, UnknownClass, UsageOdds, VariableUse,
 };
 
 #[derive(Debug, Clone)]

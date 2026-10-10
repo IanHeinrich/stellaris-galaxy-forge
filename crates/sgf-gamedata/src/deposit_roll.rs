@@ -225,6 +225,70 @@ pub(crate) fn roll(
     roll.have
 }
 
+/// What one draw of the roll is made among.
+struct Draw {
+    colonizable: bool,
+    /// Blockers may be drawn.
+    blockers: bool,
+    /// The null deposit may be drawn.
+    null: bool,
+    part: Part,
+}
+
+/// Each deposit a draw of `draw`'s kind can give `subject`, with its `drop_weight` for it,
+/// before the galaxy's Resource Abundance or the habitable factor scales it, in the install's
+/// order. A deposit whose `potential` does not surely hold is left out.
+fn weighed<'a>(gd: &'a GameData, subject: &NewBody<'_>, draw: &Draw) -> Vec<(&'a DepositDef, f64)> {
+    gd.deposits
+        .iter()
+        .filter(|d| match d.roll.is_null {
+            true => draw.null,
+            false => d.is_for_colonizable == draw.colonizable,
+        })
+        .filter(|d| draw.blockers || !gd.is_blocker(&d.key))
+        .filter(|d| match draw.part {
+            Part::Any => true,
+            Part::Blockers => d.roll.for_minimums && !d.roll.is_null && gd.is_blocker(&d.key),
+            Part::Others => d.roll.for_minimums && !d.roll.is_null && !gd.is_blocker(&d.key),
+        })
+        .filter(|d| {
+            d.roll
+                .potential
+                .as_ref()
+                .is_none_or(|p| p.evaluate(subject) == Some(true))
+        })
+        .map(|d| (d, d.roll.drop_weight.evaluate(subject)))
+        .collect()
+}
+
+/// What the first draw of `body`'s roll is made among, as [`roll`] makes it with `blockers`:
+/// each deposit but the null one, with its weight for the body before any setting scales it.
+/// Every draw's weights scale alike, so each one's share of the whole is its chance of being
+/// the deposit a draw gives.
+pub(crate) fn first_draw<'a>(
+    gd: &'a GameData,
+    body: &RollBody<'_>,
+    blockers: bool,
+) -> Vec<(&'a DepositDef, f64)> {
+    let class_def = gd.planet_classes.get(body.class);
+    let draw = Draw {
+        colonizable: body.kind != Kind::Star && class_def.is_some_and(|c| c.colonizable),
+        blockers,
+        null: false,
+        part: Part::Any,
+    };
+    let subject = NewBody {
+        body,
+        class_def,
+        deposits: &[],
+        triggers: &gd.scripted_triggers,
+    };
+    weighed(gd, &subject, &draw)
+        .into_iter()
+        .filter(|(_, weight)| *weight > 0.0)
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Part {
     Any,
@@ -258,37 +322,21 @@ impl<'a> Roll<'a> {
     }
 
     fn pool(&self, null: bool, part: Part) -> Vec<(&'a DepositDef, f64)> {
-        let gd: &'a GameData = self.gd;
         let subject = NewBody {
             body: self.body,
             class_def: self.class_def,
             deposits: &self.have,
-            triggers: &gd.scripted_triggers,
+            triggers: &self.gd.scripted_triggers,
         };
-        gd.deposits
-            .iter()
-            .filter(|d| match d.roll.is_null {
-                true => null,
-                false => d.is_for_colonizable == self.colonizable,
-            })
-            .filter(|d| self.blockers || !self.gd.is_blocker(&d.key))
-            .filter(|d| match part {
-                Part::Any => true,
-                Part::Blockers => {
-                    d.roll.for_minimums && !d.roll.is_null && self.gd.is_blocker(&d.key)
-                }
-                Part::Others => {
-                    d.roll.for_minimums && !d.roll.is_null && !self.gd.is_blocker(&d.key)
-                }
-            })
-            .filter(|d| {
-                d.roll
-                    .potential
-                    .as_ref()
-                    .is_none_or(|p| p.evaluate(&subject) == Some(true))
-            })
-            .filter_map(|d| {
-                let weight = d.roll.drop_weight.evaluate(&subject);
+        let draw = Draw {
+            colonizable: self.colonizable,
+            blockers: self.blockers,
+            null,
+            part,
+        };
+        weighed(self.gd, &subject, &draw)
+            .into_iter()
+            .filter_map(|(d, weight)| {
                 let weight = if d.roll.is_null {
                     weight
                 } else {

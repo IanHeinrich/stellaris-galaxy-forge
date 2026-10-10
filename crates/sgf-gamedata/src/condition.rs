@@ -37,6 +37,8 @@ pub enum Condition {
     Asteroid(bool),
     Colonizable(bool),
     Size(Comparison, f64),
+    /// `num_modifiers`: how many planet features the planet has.
+    Modifiers(Comparison, f64),
     HasDeposit(String),
     Not(Box<Condition>),
     All(Vec<Condition>),
@@ -225,6 +227,7 @@ impl Condition {
             Self::Asteroid(_) => "is_asteroid",
             Self::Colonizable(_) => "is_colonizable",
             Self::Size(..) => "planet_size",
+            Self::Modifiers(..) => "num_modifiers",
             Self::HasDeposit(_) => "has_deposit",
             Self::Not(_) => "NOT",
             Self::All(_) => "AND",
@@ -307,6 +310,10 @@ impl Compiler<'_> {
             "is_asteroid" => flag(Condition::Asteroid),
             "is_colonizable" => flag(Condition::Colonizable),
             "planet_size" => self.size(node).unwrap_or_else(unknown),
+            "num_modifiers" => self
+                .comparison(node)
+                .map(|(cmp, n)| Condition::Modifiers(cmp, n))
+                .unwrap_or_else(unknown),
             _ => match yes {
                 Some(want) => Condition::Call(key.to_owned(), want),
                 None => unknown(),
@@ -316,11 +323,17 @@ impl Compiler<'_> {
 
     /// `planet_size < 15`: the operator is whatever the file writes between key and value.
     fn size(&self, node: &Node) -> Option<Condition> {
+        let (cmp, n) = self.comparison(node)?;
+        Some(Condition::Size(cmp, n))
+    }
+
+    /// The operator and number of `key < n`.
+    fn comparison(&self, node: &Node) -> Option<(Comparison, f64)> {
         let key = node.key?;
         let value = node.scalar_span()?;
         let op = std::str::from_utf8(self.src.get(key.end..value.start)?).ok()?;
         let cmp = Comparison::parse(op.trim())?;
         let n = (self.number)(node.scalar_str(self.src)?)?;
-        Some(Condition::Size(cmp, n))
+        Some((cmp, n))
     }
 }

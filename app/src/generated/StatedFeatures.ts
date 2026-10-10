@@ -6,7 +6,8 @@ import type { AddedModifier } from "./AddedModifier";
  */
 export type StatedFeatures = { 
 /**
- * `modifier = pm_…`: the feature the block gives in place of a roll.
+ * `modifier = pm_…`: the feature the block gives. That it is given beside the body's own
+ * roll, not in place of it, is assumed.
  */
 modifier: string | null, 
 /**
