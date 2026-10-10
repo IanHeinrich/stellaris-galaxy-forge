@@ -29,6 +29,7 @@ mod header_counts;
 mod header_list;
 mod index;
 mod issues;
+mod line_endings;
 mod marauders;
 mod op_kinds;
 mod ops_add_body;

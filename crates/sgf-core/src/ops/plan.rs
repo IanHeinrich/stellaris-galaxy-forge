@@ -170,6 +170,7 @@ impl Plan {
         let out = BufEdit {
             buf: &meta.buf,
             splices: &mut meta.splices,
+            document_eol: b"\n",
         };
         Ok((&meta.root, out))
     }

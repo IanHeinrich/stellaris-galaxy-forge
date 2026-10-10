@@ -35,7 +35,10 @@ pub(super) fn set_field(
             check_value(key, raw, at)?;
             match held {
                 Some(held) => rewrite(plan, s, key, raw, &held),
-                None => Ok(insert(plan, key, raw, insert_at, indent)),
+                None => {
+                    let eol = eol_at(s, insert_at);
+                    Ok(insert(plan, key, raw, insert_at, indent, eol))
+                }
             }
         }
         // Which of a repeated key's statements the inverse would put back is not the one
@@ -134,8 +137,9 @@ pub(super) fn set_list(
         ),
         None => (header.insert_at, header.indent.clone()),
     };
+    let eol = eol_at(s, at);
     for raw in values.iter().skip(existing.len()) {
-        insert(plan, key, raw, at, indent.clone());
+        insert(plan, key, raw, at, indent.clone(), eol);
     }
     Ok(Planned {
         description: format!("Set {key} to {} values", values.len()),
@@ -187,9 +191,21 @@ fn rewrite(
     })
 }
 
-fn insert(plan: &mut Plan, key: &str, raw: &str, at: usize, indent: Vec<u8>) -> Planned {
+fn eol_at(s: &Session, at: usize) -> &'static [u8] {
+    cst::eol_at(s.doc.original(), at)
+}
+
+fn insert(
+    plan: &mut Plan,
+    key: &str,
+    raw: &str,
+    at: usize,
+    indent: Vec<u8>,
+    eol: &[u8],
+) -> Planned {
     let mut text = indent;
-    text.extend_from_slice(format!("{key} = {raw}\n").as_bytes());
+    text.extend_from_slice(format!("{key} = {raw}").as_bytes());
+    text.extend_from_slice(eol);
     plan.emit(Emitted::Header, at, text);
     Planned {
         description: format!("Added header {key} = {raw}"),

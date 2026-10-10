@@ -2,6 +2,7 @@
 //! the radius rather than a list, so moving one moves nothing else.
 
 use super::{index, nebula_indent, set_position};
+use crate::cst;
 use crate::emit::coord;
 use crate::emit::quoted;
 use crate::format;
@@ -47,6 +48,7 @@ pub(super) fn add_nebula(
         added.y * SCENARIO_Y_SIGN,
         added.radius,
     );
+    let text = cst::with_eol(&text, cst::eol_at(s.doc.original(), scenario.insert_at));
     plan.emit(Emitted::Nebula(added.index), scenario.insert_at, text);
     Ok(Planned {
         description: added.describe(),
