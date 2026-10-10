@@ -103,6 +103,8 @@ pub(crate) struct Edit {
     pub buf: Vec<u8>,
     pub root: Node,
     pub splices: Vec<Splice>,
+    /// The document's line ending at the statement, for when `buf` holds no line end.
+    pub document_eol: &'static [u8],
 }
 
 impl Edit {
@@ -221,6 +223,11 @@ impl Edit {
         cst::indent_of(&self.buf, at).to_vec()
     }
 
+    /// The line ending of the line holding `at`, to end text inserted beside it with.
+    pub fn eol(&self, at: usize) -> &'static [u8] {
+        cst::eol_in(&self.buf, at).unwrap_or(self.document_eol)
+    }
+
     /// Refuse a block that is not in the game's multi-line shape: the open brace either
     /// alone on its own line, or the last non-blank thing on the key's line (as 3.4 to 3.9
     /// write it), and the close brace and every child's braces alone on theirs. Line
@@ -283,7 +290,8 @@ impl Edit {
     pub fn insert_first(&mut self, value: Span, first_child: Option<Span>, text: &str) {
         match first_child {
             Some(child) if self.starts_line(child.start) => {
-                let line = [&self.indent(child.start)[..], text.as_bytes(), b"\n"].concat();
+                let eol = self.eol(child.start);
+                let line = [&self.indent(child.start)[..], text.as_bytes(), eol].concat();
                 self.insert(self.line_start(child.start), line);
             }
             _ => self.insert(value.start + 1, format!(" {text}").into_bytes()),
@@ -295,6 +303,7 @@ impl Edit {
         BufEdit {
             buf: &self.buf,
             splices: &mut self.splices,
+            document_eol: self.document_eol,
         }
     }
 }
@@ -305,9 +314,15 @@ impl Edit {
 pub(crate) struct BufEdit<'b> {
     pub buf: &'b [u8],
     pub splices: &'b mut Vec<Splice>,
+    /// The line ending to use when `buf` holds no line end to copy.
+    pub document_eol: &'static [u8],
 }
 
 impl BufEdit<'_> {
+    fn eol(&self, at: usize) -> &'static [u8] {
+        cst::eol_in(self.buf, at).unwrap_or(self.document_eol)
+    }
+
     /// Write `text` in place of `span` of the bytes.
     pub fn replace_span(&mut self, span: Span, text: impl Into<Vec<u8>>) {
         self.splices.push((span.range(), text.into()));
@@ -337,6 +352,8 @@ impl BufEdit<'_> {
         let mut end = cst::line_end(self.buf, span.end);
         if self.buf[end..].starts_with(b" \n") {
             end += 2;
+        } else if self.buf[end..].starts_with(b" \r\n") {
+            end += 3;
         }
         self.splices.push((start..end, Vec::new()));
     }
@@ -347,7 +364,8 @@ impl BufEdit<'_> {
     pub fn insert_after(&mut self, after: usize, text: &str) {
         let end = cst::line_end(self.buf, after);
         if ends_line(self.buf, after) && self.buf[..end].ends_with(b"\n") {
-            let line = [cst::indent_of(self.buf, after), text.as_bytes(), b"\n"].concat();
+            let eol = self.eol(after);
+            let line = [cst::indent_of(self.buf, after), text.as_bytes(), eol].concat();
             self.insert(end, line);
         } else {
             self.insert(after, format!(" {text}").into_bytes());
@@ -359,7 +377,8 @@ impl BufEdit<'_> {
     /// removal leaves off. Without that removal, text beside a statement lands after it.
     pub fn insert_before(&mut self, span: Span, text: &str) {
         if starts_line(self.buf, span.start) {
-            let line = [cst::indent_of(self.buf, span.start), text.as_bytes(), b"\n"].concat();
+            let eol = self.eol(span.start);
+            let line = [cst::indent_of(self.buf, span.start), text.as_bytes(), eol].concat();
             self.insert(cst::line_start(self.buf, span.start), line);
         } else {
             self.insert(span.end, format!(" {text}").into_bytes());
@@ -424,6 +443,7 @@ pub(super) fn parsed(
         buf,
         root,
         splices: Vec::new(),
+        document_eol: cst::eol_at(doc.original(), stmt.start()),
     })
 }
 
@@ -478,7 +498,30 @@ pub(crate) fn spliced(buf: &[u8], mut splices: Vec<Splice>) -> Result<Vec<u8>, u
 
 #[cfg(test)]
 mod tests {
-    use super::{Subject, splice};
+    use super::{Subject, load, splice};
+    use crate::Span;
+    use crate::document::Document;
+    use crate::format;
+
+    #[test]
+    fn a_line_beside_a_one_line_statement_takes_the_ending_of_the_file() {
+        let text = "static_galaxy_scenario = {\r\n\tsystem = { id = \"0\" position = { x = 0 y = 0 } }\r\n\tsystem = { id = \"1\" position = { x = 5 y = 0 } }\r\n}";
+        let doc = Document::from_scenario_bytes(text.as_bytes().to_vec()).unwrap();
+        for system in [0, 1] {
+            let subject = Subject::System(system);
+            let anchor = format::of(doc.kind()).statement(&doc, subject).unwrap();
+            let mut edit = load(&doc, subject, anchor).unwrap();
+            assert!(!edit.buf.contains(&b'\n'));
+            let whole = Span::new(0, edit.buf.len());
+            edit.bytes().replace_statement(whole, "note = 1");
+            let written: Vec<u8> = edit
+                .splices
+                .iter()
+                .flat_map(|(_, text)| text.clone())
+                .collect();
+            assert_eq!(written, b"note = 1\r\n".to_vec(), "system {system}");
+        }
+    }
 
     #[test]
     fn splices_apply_in_offset_order_and_reject_overlap() {

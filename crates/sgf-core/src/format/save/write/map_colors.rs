@@ -40,6 +40,7 @@ pub(crate) fn plan_set(
     let mut out = BufEdit {
         buf: &edit.buf,
         splices: &mut splices,
+        document_eol: edit.document_eol,
     };
     let old = current
         .write(&mut out, colors)

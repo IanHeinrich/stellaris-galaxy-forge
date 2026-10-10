@@ -4,6 +4,7 @@
 use std::collections::BTreeSet;
 
 use super::{erase, index, lane_indent, matching, undirected};
+use crate::cst;
 use crate::format::scenario::emit::{hyperlane_stmt, prevent_hyperlane_stmt};
 use crate::format::scenario::index::LaneStmt;
 use crate::ops::rules::lanes as lane_rules;
@@ -95,11 +96,12 @@ fn emit_lanes(plan: &mut Plan, s: &Session, pairs: &[LanePair]) -> Result<(), Op
     }
     let scenario = index(&s.doc);
     let indent = lane_indent(&s.doc, scenario);
+    let eol = cst::eol_at(s.doc.original(), scenario.insert_at);
     for lane in pairs {
         plan.emit(
             Emitted::Lane(lane.a, lane.b),
             scenario.insert_at,
-            hyperlane_stmt(&indent, lane.a, lane.b),
+            cst::with_eol(&hyperlane_stmt(&indent, lane.a, lane.b), eol),
         );
     }
     Ok(())
@@ -271,7 +273,10 @@ pub(super) fn prevent_lane(
     plan.emit(
         Emitted::Lane(a, b),
         scenario.insert_at,
-        prevent_hyperlane_stmt(&indent, a, b),
+        cst::with_eol(
+            &prevent_hyperlane_stmt(&indent, a, b),
+            cst::eol_at(s.doc.original(), scenario.insert_at),
+        ),
     );
     Ok(Planned {
         description: format!(

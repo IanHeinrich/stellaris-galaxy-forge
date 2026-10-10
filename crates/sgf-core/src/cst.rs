@@ -381,6 +381,42 @@ pub fn line_end(src: &[u8], offset: usize) -> usize {
     memchr::memchr(b'\n', &src[offset..]).map_or(src.len(), |i| offset + i + 1)
 }
 
+/// The line ending of the line containing `offset`: `\r\n` when it ends that way, else
+/// `\n`. Past the last line end of `src` the line before gives it, and text with no line
+/// end at all is read as LF.
+pub fn eol_at(src: &[u8], offset: usize) -> &'static [u8] {
+    eol_in(src, offset).unwrap_or(b"\n")
+}
+
+/// [`eol_at`], or `None` when `src` holds no line end to read it from.
+pub fn eol_in(src: &[u8], offset: usize) -> Option<&'static [u8]> {
+    let offset = offset.min(src.len());
+    let at = memchr::memchr(b'\n', &src[offset..])
+        .map(|i| offset + i)
+        .or_else(|| memchr::memrchr(b'\n', &src[..offset]))?;
+    Some(if at > 0 && src[at - 1] == b'\r' {
+        b"\r\n"
+    } else {
+        b"\n"
+    })
+}
+
+/// `text` with every `\n` that no `\r` precedes written as `eol`.
+pub fn with_eol(text: &[u8], eol: &[u8]) -> Vec<u8> {
+    if eol == b"\n" {
+        return text.to_vec();
+    }
+    let mut out = Vec::with_capacity(text.len() + text.len() / 16);
+    for (i, &b) in text.iter().enumerate() {
+        if b == b'\n' && (i == 0 || text[i - 1] != b'\r') {
+            out.extend_from_slice(eol);
+        } else {
+            out.push(b);
+        }
+    }
+    out
+}
+
 /// The run of tabs and spaces at the start of the line containing `offset`.
 pub fn indent_of(src: &[u8], offset: usize) -> &[u8] {
     let start = line_start(src, offset);

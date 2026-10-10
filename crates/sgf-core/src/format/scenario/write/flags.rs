@@ -147,7 +147,7 @@ fn append(edit: &mut Edit, block: &Block, text: &str) {
     match block.last_child {
         Some(child) if edit.starts_line(child.start) => {
             let indent = edit.indent(child.start);
-            let line = [&indent[..], text.as_bytes(), b"\n"].concat();
+            let line = [&indent[..], text.as_bytes(), edit.eol(child.start)].concat();
             let at = edit.line_end(child.end);
             edit.insert(at, line);
         }

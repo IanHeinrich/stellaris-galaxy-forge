@@ -8,6 +8,7 @@ use memchr::memchr;
 
 use super::paint;
 use crate::VERSION;
+use crate::cst;
 use crate::document::Document;
 
 /// A zero-width space follows the `#`, so a comment someone typed never reads as the line.
@@ -66,10 +67,8 @@ pub(crate) fn restamp(original: &[u8], untouched: usize) -> Option<(usize, Vec<u
     };
     let rest = &original[bom..];
     let line = &rest[..memchr(b'\n', rest).unwrap_or(rest.len())];
-    let (line, eol): (&[u8], &[u8]) = match line.strip_suffix(b"\r") {
-        Some(line) => (line, b"\r\n"),
-        None => (line, b"\n"),
-    };
+    let eol = cst::eol_at(rest, 0);
+    let line = line.strip_suffix(b"\r").unwrap_or(line);
     let line = std::str::from_utf8(line).ok()?;
     let found = line.strip_prefix(PREFIX);
     let writer = match found {
