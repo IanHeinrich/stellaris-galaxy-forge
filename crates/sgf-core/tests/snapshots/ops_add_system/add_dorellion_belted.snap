@@ -32,7 +32,7 @@ inverse: RemoveSystem { system: 791 }
 +			x=433.43269
 +			y=-205.48736
 +			origin=4294967295
-+			visual_height=4.31213
++			visual_height=3.65056
 +		}
 +		name=
 +		{

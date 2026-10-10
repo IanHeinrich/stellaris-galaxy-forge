@@ -1,6 +1,7 @@
 //! A save system's height above the galactic plane: rewritten in place on the 4.5 sample,
 //! added to the 3.4 sample's coordinates, which write none, and refused for a scenario.
 
+use sgf_core::emit::DEFAULT_SYSTEM_HEIGHT;
 use sgf_core::ops::{Op, OpError, SystemHeight};
 use sgf_core::views::Capabilities;
 
@@ -90,8 +91,23 @@ fn a_3_4_system_gets_the_height_it_lacked_and_the_inverse_takes_it_out() {
     assert_eq!(current(&session), session.doc().original());
 }
 
-/// Dorellion, added as 791, comes back from a spec, which the game writes at 4.31213: the
-/// removal's inverse puts back the height it was given.
+/// A system added from a spec stands at the generator's height, like every generated system.
+#[test]
+fn an_added_system_stands_at_the_generated_height() {
+    let mut session = open();
+    session
+        .apply(Op::AddSystemFromSpec {
+            spec: spec::dorellion(),
+        })
+        .expect("add Dorellion");
+    assert_eq!(
+        session.graph().systems[&791].height,
+        Some(DEFAULT_SYSTEM_HEIGHT)
+    );
+}
+
+/// Dorellion, added as 791, comes back from a spec: the removal's inverse puts back the
+/// height it was given.
 #[test]
 fn removing_an_added_system_inverts_to_the_height_it_was_given() {
     let mut session = open();
