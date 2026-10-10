@@ -65,6 +65,71 @@ describe("the symmetry guides", () => {
   });
 });
 
+describe("the middle button pressed during a system drag", () => {
+  /** A system at the origin pressed and dragged 20 pixels right, its moves recorded. */
+  function dragged() {
+    const applyOp = vi.fn(async () => true);
+    useEditorStore.setState({ applyOp });
+    const drags: Array<DragState | null> = [];
+    const layer = { setDragState: (d: DragState | null) => drags.push(d) } as unknown as MapLayer;
+    const { cam, surface } = mapOver([systemNode({ id: 1 })], [layer]);
+    const from = cam.worldToScreen(0, 0);
+    const at = { x: from.x + 20, y: from.y };
+    const held = cam.screenToWorld(at.x, at.y);
+    surface.fire("pointerdown", from.x, from.y);
+    surface.fire("pointermove", at.x, at.y, { buttons: 1 });
+    const ghost = () => drags[drags.length - 1]?.ghosts[0];
+    return { applyOp, cam, surface, at, held: { x: held.x, y: held.y }, ghost };
+  }
+
+  it("pans the map while it is held, and the drag commits where the left button is released", () => {
+    const { applyOp, cam, surface, at, held, ghost } = dragged();
+
+    surface.fire("pointermove", at.x, at.y, { button: 1, buttons: 5 });
+    surface.fire("pointermove", at.x + 100, at.y + 40, { buttons: 5 });
+    expect(cam.worldToScreen(held.x, held.y)).toEqual({
+      x: expect.closeTo(at.x + 100),
+      y: expect.closeTo(at.y + 40),
+    });
+    expect(ghost()).toMatchObject({ x: expect.closeTo(held.x), y: expect.closeTo(held.y) });
+    surface.fire("pointermove", at.x + 100, at.y + 40, { button: 1, buttons: 1 });
+    expect(applyOp).not.toHaveBeenCalled();
+
+    const end = cam.worldToScreen(held.x + 10, held.y);
+    surface.fire("pointermove", end.x, end.y, { buttons: 1 });
+    surface.fire("pointerup", end.x, end.y);
+    expect(applyOp).toHaveBeenCalledTimes(1);
+    expect(applyOp.mock.calls[0]).toEqual([
+      { type: "MoveSystem", system: 1, x: expect.closeTo(held.x + 10), y: expect.closeTo(held.y) },
+    ]);
+  });
+
+  it("commits the drag when the left button is released first, and the middle pans on", () => {
+    const { applyOp, cam, surface, at, held } = dragged();
+
+    surface.fire("pointermove", at.x, at.y, { button: 1, buttons: 5 });
+    surface.fire("pointermove", at.x + 50, at.y, { buttons: 5 });
+    surface.fire("pointermove", at.x + 50, at.y, { button: 0, buttons: 4 });
+    expect(applyOp).toHaveBeenCalledTimes(1);
+    expect(applyOp.mock.calls[0]).toEqual([
+      { type: "MoveSystem", system: 1, x: expect.closeTo(held.x), y: expect.closeTo(held.y) },
+    ]);
+
+    surface.fire("pointermove", at.x + 80, at.y, { buttons: 4 });
+    expect(cam.worldToScreen(held.x, held.y).x).toBeCloseTo(at.x + 80);
+    surface.fire("pointerup", at.x + 80, at.y, { button: 1 });
+    expect(applyOp).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the dragged system under the pointer when the keys pan the camera", () => {
+    const { cam, at, ghost } = dragged();
+    cam.panBy(-60, 0);
+    current().follow();
+    const under = cam.screenToWorld(at.x, at.y);
+    expect(ghost()).toMatchObject({ x: expect.closeTo(under.x), y: expect.closeTo(under.y) });
+  });
+});
+
 describe("a drag under symmetry", () => {
   it("previews each counterpart moving by the image of the drag", () => {
     useToolStore.setState({ tool: "select", symmetry: { kind: "mirror", axis: "x" } });

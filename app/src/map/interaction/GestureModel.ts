@@ -150,7 +150,7 @@ export class GestureModel implements MapModel {
       case "none":
         return "consumed";
       case "marquee":
-        intent.previewMarquee(press.sx, press.sy, input.sx, input.sy);
+        intent.previewMarquee(press.wx, press.wy, input.wx, input.wy);
         return "consumed";
       case "move":
         intent.previewMove(this.drag.id, input.wx, input.wy);

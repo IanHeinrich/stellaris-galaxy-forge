@@ -164,6 +164,7 @@ export class GalaxyScene implements Scene, MapView {
   }
 
   tick(): void {
+    this.interaction.follow();
     this.drawn.setPreview(this.wantedPreview);
     if (this.cam.rev === this.appliedRev) return;
     this.appliedRev = this.cam.rev;

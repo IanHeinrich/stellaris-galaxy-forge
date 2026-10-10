@@ -135,6 +135,7 @@ export class InteractionController {
           this.hover(null);
           if (!this.model.busy()) this.brushes.end();
         },
+        remeasure: (input) => this.remeasure(input),
       },
     );
 
@@ -162,7 +163,7 @@ export class InteractionController {
   }
 
   private buildIntent(): MapIntent {
-    const { cam, highlights } = this;
+    const { highlights } = this;
     const systems = () => useGalaxyStore.getState().systems;
     const linkAll = (anchor: number, ids: number[]) => editor().linkToFeZoneAll(anchor, ids);
 
@@ -181,14 +182,12 @@ export class InteractionController {
       enterSystem: (id) => {
         if (canEnterSystem()) useSceneStore.getState().enterSystem(id);
       },
-      previewMarquee: (sx0, sy0, sx1, sy1) => {
-        const a = cam.screenToWorld(sx0, sy0);
-        const b = cam.screenToWorld(sx1, sy1);
+      previewMarquee: (x0, y0, x1, y1) => {
         highlights.setMarquee({
-          x0: Math.min(a.x, b.x),
-          y0: Math.min(a.y, b.y),
-          x1: Math.max(a.x, b.x),
-          y1: Math.max(a.y, b.y),
+          x0: Math.min(x0, x1),
+          y0: Math.min(y0, y1),
+          x1: Math.max(x0, x1),
+          y1: Math.max(y0, y1),
         });
       },
       endMarquee: () => highlights.setMarquee(null),
@@ -285,6 +284,11 @@ export class InteractionController {
     this.bindKeyboard();
   }
 
+  /** Keeps a drag under the pointer when the camera moved without it. */
+  follow(): void {
+    this.pointer.follow();
+  }
+
   deactivate(): void {
     this.unbind();
     this.dropDrag();
@@ -331,6 +335,13 @@ export class InteractionController {
       prevented: null,
     };
     return this.model === this.models.select ? this.pick(input, w) : input;
+  }
+
+  /** `input` at the same screen point under the camera as it stands now, picked again. */
+  private remeasure(input: MapInput): MapInput {
+    const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
+    const moved = { ...input, wx: w.x, wy: w.y, selection: editor().selection };
+    return this.model === this.models.select ? this.pick(moved, w) : moved;
   }
 
   /**

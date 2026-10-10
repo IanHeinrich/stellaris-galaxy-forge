@@ -63,8 +63,8 @@ export interface MapIntent {
   clearSelection(): void;
   /** Shows system `id` on its own, where the open document offers that. */
   enterSystem(id: number): void;
-  /** The marquee's corners in screen pixels, in press order. */
-  previewMarquee(sx0: number, sy0: number, sx1: number, sy1: number): void;
+  /** The marquee's corners in world units, in press order. */
+  previewMarquee(x0: number, y0: number, x1: number, y1: number): void;
   /** Drops the marquee rectangle, whether or not it selected anything. */
   endMarquee(): void;
   /** Selects every system inside the world rectangle, `x0 <= x1` and `y0 <= y1`. */

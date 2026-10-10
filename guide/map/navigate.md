@@ -10,8 +10,13 @@ The galaxy map fills the window, with the dock on the right.
 ## Pan and zoom
 
 Drag with the middle mouse button to pan, or hold <kbd>W</kbd>
-<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys. Scroll the mouse wheel to zoom. Press
-<kbd>Home</kbd> to fit the whole galaxy in the window.
+<kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or the arrow keys. Hold <kbd>Shift</kbd> as well to pan
+faster. Scroll the mouse wheel to zoom. Press <kbd>Home</kbd> to fit the whole galaxy in the
+window.
+
+While you drag a system with the left button, you can still pan with the middle mouse button,
+so you can move the system past the edge of the window. Hold the middle button and move the mouse
+to pan, then let go of it and keep dragging. The system lands where you let go of the left button.
 
 ![The galaxy map zoomed in, with system names, resource counts under each system and height rings](../images/map/map-zoomed-in.png)
 

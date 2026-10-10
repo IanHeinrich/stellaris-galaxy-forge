@@ -103,5 +103,7 @@
   {"q": "file menu", "expect": "start/the-window#use-the-file-menu"},
   {"q": "tilt", "expect": "start/the-window"},
   {"q": "supported versions", "expect": "reference/versions"},
-  {"q": "open it again", "expect": "start/install-and-update#open-it-again"}
+  {"q": "open it again", "expect": "start/install-and-update#open-it-again"},
+  {"q": "pan faster", "expect": "map/navigate#pan-and-zoom"},
+  {"q": "pan while dragging a system", "expect": "map/navigate#pan-and-zoom"}
 ]
