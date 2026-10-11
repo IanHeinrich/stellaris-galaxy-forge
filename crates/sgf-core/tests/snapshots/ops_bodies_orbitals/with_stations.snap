@@ -1,0 +1,113 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #10 from orbit 160.08 at 203.99° to orbit 160.08 at 200°, with its moons #11, #12 and #13
+inverse: MoveBody { system: 169, body: 10, radius: 160.075270303, angle: 203.989469506 }
+
+--- gamestate
++++ gamestate
+@@ -80343,8 +80343,8 @@
+ 			binary_flags=328
+ 			coordinate=
+ 			{
+-				x=-146.248
+-				y=-65.0816
++				x=-150.42155
++				y=-54.74897
+ 				origin=169
+ 			}
+ 			orbit=160
+@@ -80384,8 +80384,8 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-133.5019
+-				y=-72.9953
++				x=-137.67545
++				y=-62.66267
+ 				origin=169
+ 			}
+ 			orbit=15
+@@ -80418,8 +80418,8 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-165.3322
+-				y=-59.0354
++				x=-169.50575
++				y=-48.70277
+ 				origin=169
+ 			}
+ 			orbit=20
+@@ -80444,8 +80444,8 @@
+ 			binary_flags=584
+ 			coordinate=
+ 			{
+-				x=-129.7395
+-				y=-46.30535
++				x=-133.91305
++				y=-35.97272
+ 				origin=169
+ 			}
+ 			orbit=25
+@@ -932232,14 +932232,14 @@
+ 		}
+ 		coordinate=
+ 		{
+-			x=-135.7395
+-			y=-52.30535
++			x=-139.91305
++			y=-41.97272
+ 			origin=169
+ 		}
+ 		target_coordinate=
+ 		{
+-			x=-135.7395
+-			y=-52.30535
++			x=-139.91305
++			y=-41.97272
+ 			origin=169
+ 		}
+ 		post_move_angle=-0.78561
+@@ -932293,14 +932293,14 @@
+ 		}
+ 		coordinate=
+ 		{
+-			x=-158.848
+-			y=-77.6816
++			x=-163.02155
++			y=-67.34897
+ 			origin=169
+ 		}
+ 		target_coordinate=
+ 		{
+-			x=-158.848
+-			y=-77.6816
++			x=-163.02155
++			y=-67.34897
+ 			origin=169
+ 		}
+ 		post_move_angle=-0.78561
+@@ -1031340,8 +1031340,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-135.7395
+-				y=-52.30535
++				x=-139.91305
++				y=-41.97272
+ 				origin=169
+ 			}
+ 			target=
+@@ -1031481,8 +1031481,8 @@
+ 			}
+ 			coordinate=
+ 			{
+-				x=-158.848
+-				y=-77.6816
++				x=-163.02155
++				y=-67.34897
+ 				origin=169
+ 			}
+ 			target=

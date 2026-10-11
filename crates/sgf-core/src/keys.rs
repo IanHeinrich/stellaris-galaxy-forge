@@ -213,6 +213,7 @@ save_keys! {
     STARBASE_MGR = "starbase_mgr",
     STAR_CLASS = "star_class",
     STAR_NAMES = "star_names",
+    STATE = "state",
     STATION = "station",
     STORM = "storm",
     SURVEYED_BY = "surveyed_by",

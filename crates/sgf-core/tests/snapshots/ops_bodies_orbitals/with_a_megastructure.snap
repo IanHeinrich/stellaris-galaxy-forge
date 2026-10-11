@@ -1,0 +1,35 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Moved planet #936 from orbit 125.07 at 67.64° to orbit 140 at 45°
+inverse: MoveBody { system: 38, body: 936, radius: 125.07155813, angle: 67.638303952 }
+
+--- gamestate
++++ gamestate
+@@ -128302,11 +128302,11 @@
+ 			binary_flags=72
+ 			coordinate=
+ 			{
+-				x=47.58375
+-				y=115.66625
++				x=98.99495
++				y=98.99495
+ 				origin=38
+ 			}
+-			orbit=125
++			orbit=140
+ 			last_bombardment=			"0.01.01"
+ 			planet_orbitals=
+ 			{
+@@ -1400704,8 +1400704,8 @@
+ 		type="orbital_ring_ruined"
+ 		coordinate=
+ 		{
+-			x=47.58375
+-			y=115.66625
++			x=98.99495
++			y=98.99495
+ 			origin=38
+ 		}
+ 		planet=936

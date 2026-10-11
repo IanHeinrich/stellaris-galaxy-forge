@@ -1,7 +1,7 @@
 ---
 title: Arrange planets and moons
 description: Move planets, moons and stars inside a system, and add new planets and moons.
-aliases: [move planet, drag planet, orbit, make moon, add planet, add moon, new planet, lock orbit, binary system, trinary, inner radius]
+aliases: [move planet, drag planet, orbit, make moon, add planet, add moon, new planet, lock orbit, binary system, trinary, inner radius, move orbital ring, move station, mining station, research station]
 ---
 # Arrange planets and moons <Badge type="tip" text="Save" />
 
@@ -23,6 +23,11 @@ Hold <kbd>Ctrl</kbd> to change only one of them: drag along the orbit to
 change the angle, or across orbits to change the distance. While
 <kbd>Ctrl</kbd> is held, the body stays with what it orbits. Its moons
 move with it. Press <kbd>Esc</kbd> during a drag to put it back.
+
+Mining and research stations, an Orbital Ring and fleets parked at the
+body move with it, and so do the stations of its moons. A megastructure
+built at it, such as an Arc Furnace, moves with it too. Fleets on their
+way to or from the body are not moved.
 
 ![A selected planet in the system view, with a line out to it from the star and its orbit radius of 90](../images/system/system-view-planet-selected.png)
 
