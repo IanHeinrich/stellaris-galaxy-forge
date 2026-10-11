@@ -190,21 +190,24 @@ impl Textures {
         memo(&self.models, layout, model::Assets::read)
     }
 
-    /// Holds `models`, the index a [`crate::GameData`] read for `layout`, as the one a
-    /// `model:` key of that layout reads.
-    pub(crate) fn share_models(&self, layout: &Layout, models: &Arc<model::Assets>) {
-        let mut held = self.models.lock().unwrap_or_else(PoisonError::into_inner);
-        if !matches!(&*held, Some((_, shared)) if Arc::ptr_eq(shared, models)) {
-            *held = Some((layout.clone(), Arc::clone(models)));
-        }
-    }
-
     pub fn cache_dir(&self) -> &Path {
         &self.cache_dir
     }
 
     pub fn load(&self, layout: &Layout, lookups: &Lookups<'_>, key: &str) -> TextureView {
-        match self.png(layout, lookups, key) {
+        self.load_with(layout, lookups, None, key)
+    }
+
+    /// [`Self::load`], a `model:` key reading `models` when given, else this cache's own
+    /// index of `layout`.
+    pub(crate) fn load_with(
+        &self,
+        layout: &Layout,
+        lookups: &Lookups<'_>,
+        models: Option<&Arc<Assets>>,
+        key: &str,
+    ) -> TextureView {
+        match self.png_with(layout, lookups, models, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -228,8 +231,20 @@ impl Textures {
         lookups: &Lookups<'_>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
+        self.png_with(layout, lookups, None, key)
+    }
+
+    /// [`Self::png`], a `model:` key reading `models` when given, else this cache's own index
+    /// of `layout`.
+    pub(crate) fn png_with(
+        &self,
+        layout: &Layout,
+        lookups: &Lookups<'_>,
+        models: Option<&Arc<Assets>>,
+        key: &str,
+    ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, lookups, self)?;
+        let job = Job::plan(&key, layout, lookups, self, models)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             renew(&cache_file);
@@ -345,6 +360,7 @@ impl Job {
         layout: &Layout,
         lookups: &Lookups<'_>,
         textures: &Textures,
+        models: Option<&Arc<Assets>>,
     ) -> Result<Self, TextureError> {
         let Lookups {
             sprites, colour, ..
@@ -353,7 +369,7 @@ impl Job {
             TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
             TextureKey::Model { culture, entity } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
-                textures.models(layout),
+                models.map_or_else(|| textures.models(layout), Arc::clone),
                 &(lookups.cultures)(culture),
                 entity,
             )?)),

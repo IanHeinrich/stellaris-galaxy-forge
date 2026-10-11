@@ -294,6 +294,36 @@ fn a_later_asset_files_entity_replaces_an_earlier_one_of_its_name() {
     assert_eq!(disc.dimensions(), (128, 128));
 }
 
+/// A later entity of the same name that adds only a state or a particle keeps the surface map
+/// of the entity it replaces.
+#[test]
+fn a_later_entity_with_only_a_state_or_a_particle_keeps_the_earlier_surface() {
+    let surfaced = |name: &str| {
+        format!(
+            "entity = {{\n\tname = \"{name}_01_entity\"\n\tmeshsettings = {{\n\t\tname = \"planet_geosphereShape\"\n\t\ttexture_diffuse = \"kept_diffuse.dds\"\n\t}}\n}}\n"
+        )
+    };
+    let earlier = surfaced("stated_planet") + &surfaced("sparkling_planet");
+    let later = "entity = {\n\tname = \"stated_planet_01_entity\"\n\tstate = { name = \"idle\" }\n}\nentity = {\n\tname = \"sparkling_planet_01_entity\"\n\tparticle = \"planet_sparkle_effect\"\n}\n";
+    let (_dir, gd) = common::hand_written_bytes(&[
+        (
+            "common/planet_classes/00_kept.txt",
+            b"pc_stated = {\n\tentity = \"stated_planet\"\n}\npc_sparkling = {\n\tentity = \"sparkling_planet\"\n}\n"
+                .to_vec(),
+        ),
+        ("gfx/models/planets/a_kept.asset", earlier.into_bytes()),
+        ("gfx/models/planets/b_kept.asset", later.as_bytes().to_vec()),
+        (
+            "gfx/models/planets/kept_diffuse.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+    ]);
+    for class in ["pc_stated", "pc_sparkling"] {
+        let disc = common::bake_disc(&gd, &format!("planet_disc:{class}"));
+        assert_eq!(disc.dimensions(), (128, 128), "{class}");
+    }
+}
+
 /// Entities with no map or mesh of their own, only `attach` lines, shaped as More Arcologies
 /// writes its city worlds: the first attached entity with a surface gives the disc, a wrapper
 /// of a wrapper is followed down, `planetloc` comes before a moon attached ahead of it, a

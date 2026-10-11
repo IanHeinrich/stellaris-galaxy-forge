@@ -80,13 +80,13 @@ impl<'a> Lookups<'a> {
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
-        textures.share_models(&self.layout, &self.models);
-        self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
+        let models = Some(&self.models);
+        self.with_lookups(|lookups| textures.load_with(&self.layout, lookups, models, key))
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
-        textures.share_models(&self.layout, &self.models);
-        self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
+        let models = Some(&self.models);
+        self.with_lookups(|lookups| textures.png_with(&self.layout, lookups, models, key))
     }
 
     /// This install's own lookups, built once and handed to `use_lookups`.

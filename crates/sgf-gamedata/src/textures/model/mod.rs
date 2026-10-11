@@ -15,7 +15,7 @@ use image::RgbaImage;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::{Input, TextureError, Textures, encode_png};
+use super::{Input, TextureError, encode_png};
 use crate::GameData;
 use crate::install::layers::Layout;
 use assets::{Placed, ROOT, Step};
@@ -429,18 +429,13 @@ fn crc32(bytes: &[u8]) -> u32 {
 impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
-    pub fn model_bounds(
-        &self,
-        textures: &Textures,
-        key: &str,
-    ) -> Result<ModelBounds, TextureError> {
+    pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
         let super::TextureKey::Model { culture, entity } = key.parse()? else {
             return Err(TextureError::BadKey(key.to_owned()));
         };
-        textures.share_models(&self.layout, &self.models);
         ModelJob::plan(
             &self.layout,
-            textures.models(&self.layout),
+            Arc::clone(&self.models),
             &self.graphical_cultures.chain(&culture),
             &entity,
         )?
