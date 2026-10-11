@@ -46,7 +46,13 @@ export interface GalaxyState {
   version: number;
   /** The delta behind the latest version bump, for incremental layer updates. */
   lastDelta: GalaxyDelta | null;
-  load(view: GalaxyView): void;
+  /** Whether the map frames the galaxy that last landed afresh; false for a file read again in place. */
+  framed: boolean;
+  /**
+   * Takes `view` as the galaxy shown. With `keepView`, the document's own file was read again: the
+   * map keeps its camera and the empires it hides.
+   */
+  load(view: GalaxyView, options?: { keepView?: boolean }): void;
   applyDelta(delta: GalaxyDelta): void;
   /** Takes the scripted ownership of a scenario: the systems it stamps and the countries it draws. */
   setScriptedOwners(owners: Map<number, number>, countries: readonly CountryNode[]): void;
@@ -76,6 +82,7 @@ function empty() {
     grid: null,
     hiddenCountries: new Set<number>(),
     lastDelta: null,
+    framed: true,
   };
 }
 
@@ -83,7 +90,7 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
   ...empty(),
   version: 0,
 
-  load(view) {
+  load(view, { keepView = false } = {}) {
     const systems = new Map<number, SystemNode>();
     for (const s of view.systems) systems.set(s.id, s);
     const grid = new SpatialGrid();
@@ -102,8 +109,9 @@ export const useGalaxyStore = create<GalaxyState>((set, get) => ({
       scriptedOwners: new Map(),
       scriptedCountries: [],
       grid,
-      hiddenCountries: new Set(),
+      hiddenCountries: keepView ? get().hiddenCountries : new Set(),
       lastDelta: null,
+      framed: !keepView,
       version: get().version + 1,
     });
   },

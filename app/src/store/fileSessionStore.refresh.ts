@@ -11,17 +11,6 @@ import type { SessionApi } from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { issuesDocument, useIssuesStore } from "./issuesStore";
-import { useAnomalyPickerStore } from "./anomalyPickerStore";
-import { useDepositPickerStore } from "./depositPickerStore";
-import { useDigSitePickerStore } from "./digSitePickerStore";
-import { forgetReclassify } from "./editorEdits";
-import { useEntityStore } from "./entityStore";
-import { useGeneratorStore } from "./generatorStore";
-import { useHeightPreviewStore } from "./heightPreviewStore";
-import { forgetPlanetOpens } from "./inspectorStore";
-import { useModifierPickerStore } from "./modifierPickerStore";
-import { useOpCheckStore } from "./opCheckStore";
-import { usePlanetMoveStore } from "./planetMoveStore";
 import { useSceneStore } from "./sceneStore";
 
 /** The open document's file changed on disk, as the watcher or the focus check found it. */
@@ -64,7 +53,9 @@ export function refreshActions(session: SessionApi): RefreshActions {
     reading = true;
     try {
       const result = await ipc.reloadDocument(discard);
-      keepView(session, result);
+      // Imported here, not above: the scopes reach `prepareStore`, which reads this store as it is made.
+      const { FILE_SCOPED } = await import("./resetScopes");
+      keepView(session, result, FILE_SCOPED);
       if (!discard) set({ notice: `Reloaded ${fileName(result.path)} after it changed on disk.` });
     } catch (e) {
       if (!discard && isSgfError(e) && e.kind === "op") ask();
@@ -114,25 +105,6 @@ export function refreshActions(session: SessionApi): RefreshActions {
   };
 }
 
-/**
- * What was read from the old bytes: `DOCUMENT_SCOPED` without the tilt, which is the view's, and
- * without Prepare, which follows the history the reload clears.
- */
-const READ_FROM_THE_FILE: readonly (() => void)[] = [
-  () => useHeightPreviewStore.getState().clear(),
-  () => useSceneStore.getState().clearBodies(),
-  () => usePlanetMoveStore.getState().reset(),
-  () => useEntityStore.getState().clear(),
-  () => useGeneratorStore.getState().clearPicks(),
-  () => useOpCheckStore.getState().reset(),
-  forgetReclassify,
-  forgetPlanetOpens,
-  () => useAnomalyPickerStore.getState().reset(),
-  () => useDepositPickerStore.getState().reset(),
-  () => useDigSitePickerStore.getState().reset(),
-  () => useModifierPickerStore.getState().reset(),
-];
-
 /** The one subscription to the watcher's reports, held for the app's lifetime. */
 let reports: Promise<() => void> | null = null;
 
@@ -145,11 +117,15 @@ export function followDiskChanges(note: (changed: DocumentChanged) => void): voi
 }
 
 /**
- * Takes `result` as the open document without the open's fresh start: the selection keeps the
- * systems the file still holds and the system view stays, while the undo history, the issues
- * and everything read from the old bytes are dropped.
+ * Takes `result` as the open document without the open's fresh start: the camera, the tilt and
+ * the system view stay and the selection keeps the systems the file still holds, while the undo
+ * history, the issues and `fileScoped`, what was read from the old bytes, are dropped.
  */
-function keepView({ setState }: SessionApi, result: OpenResult): void {
+function keepView(
+  { setState }: SessionApi,
+  result: OpenResult,
+  fileScoped: readonly (() => void)[],
+): void {
   const ids = new Set(result.galaxy.systems.map((s) => s.id));
   const editor = useEditorStore.getState();
   const selection = editor.selection.filter((id) => ids.has(id));
@@ -171,12 +147,12 @@ function keepView({ setState }: SessionApi, result: OpenResult): void {
     errorKind: null,
     diskChange: null,
   });
-  for (const reset of READ_FROM_THE_FILE) reset();
+  for (const reset of fileScoped) reset();
   const scene = useSceneStore.getState();
   if (scene.scene.kind === "system" && !ids.has(scene.scene.id)) scene.exitScene();
   editor.resetSession();
   useIssuesStore.getState().load(result.issues);
-  useGalaxyStore.getState().load(result.galaxy);
+  useGalaxyStore.getState().load(result.galaxy, { keepView: true });
   useEditorStore.setState({ selection, selectedLane, selectedNebula });
   void useGameDataStore.getState().onSaveOpened();
   const opened = issuesDocument();

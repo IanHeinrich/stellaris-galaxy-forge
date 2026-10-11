@@ -25,8 +25,10 @@ Galaxy Forge asks before overwriting it. See
 Galaxy Forge notices when another program saves the file you have open,
 such as your text editor or Stellaris. Its own saves don't count.
 
-- A scenario with no unsaved changes reloads by itself. The status bar
-  says "Reloaded my_galaxy.txt after it changed on disk."
+- A scenario with no unsaved changes reloads by itself. The map stays
+  where it was, and the systems you selected stay selected if the file
+  still has them. The status bar says "Reloaded my_galaxy.txt after it
+  changed on disk."
 - A scenario with unsaved changes shows a bar under the top bar.
   "Reload" reads the file again. Your unsaved changes and their undo
   history are lost. "Keep my changes" leaves your edits as they are.

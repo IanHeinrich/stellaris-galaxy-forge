@@ -25,21 +25,29 @@ const PICKERS: readonly (() => void)[] = [
 ];
 
 /**
- * What belongs to the open document, store or module counter alike. `bindStores` runs each
- * whenever another document starts opening or none is left.
+ * What was read from the open document's bytes, store or module counter alike. Reading its file
+ * again in place runs each, and leaves the view as it was.
  */
-export const DOCUMENT_SCOPED: readonly (() => void)[] = [
+export const FILE_SCOPED: readonly (() => void)[] = [
   () => useHeightPreviewStore.getState().clear(),
   () => useSceneStore.getState().clearBodies(),
   () => usePlanetMoveStore.getState().reset(),
   () => useEntityStore.getState().clear(),
   () => useGeneratorStore.getState().clearPicks(),
-  () => useToolStore.getState().setTilt(0),
   () => useOpCheckStore.getState().reset(),
   () => usePrepareStore.getState().reset(),
   forgetReclassify,
   forgetPlanetOpens,
   ...PICKERS,
+];
+
+/**
+ * What belongs to the open document: what was read from its file, and the map's tilt.
+ * `bindStores` runs each whenever another document starts opening or none is left.
+ */
+export const DOCUMENT_SCOPED: readonly (() => void)[] = [
+  ...FILE_SCOPED,
+  () => useToolStore.getState().setTilt(0),
 ];
 
 /**

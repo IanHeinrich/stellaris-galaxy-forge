@@ -10,6 +10,7 @@ import { diskChangeShown } from "./fileSessionStore.refresh";
 import { OPEN_RESULT, SCENARIO_RESULT, saveResult } from "./fixture";
 import { useGalaxyStore } from "./galaxyStore";
 import { edit, resetSession, session } from "./sessionFixture";
+import { useToolStore } from "./toolStore";
 import { mockedIpc } from "../test/ipc";
 
 let heard: ((changed: DocumentChanged) => void) | null = null;
@@ -57,6 +58,26 @@ describe("a scenario with no unsaved changes", () => {
     expect(useGalaxyStore.getState().systems.has(3)).toBe(false);
     expect(useEditorStore.getState().selection).toEqual([2]);
     expect(diskChangeShown(session())).toBeNull();
+  });
+
+  it("keeps the view: the camera, the tilt and the empires the map hides", async () => {
+    expect(useGalaxyStore.getState().framed).toBe(true);
+    useToolStore.getState().setTilt(30);
+    useGalaxyStore.getState().toggleCountryHidden(7);
+    mockedIpc.reloadDocument.mockResolvedValueOnce(REREAD);
+
+    await session().noteDiskChange(changed());
+
+    const galaxy = useGalaxyStore.getState();
+    expect(galaxy.systems.has(3)).toBe(false);
+    expect(galaxy.framed).toBe(false);
+    expect(galaxy.hiddenCountries).toEqual(new Set([7]));
+    expect(useToolStore.getState().tilt).toBe(30);
+
+    mockedIpc.openSave.mockResolvedValueOnce(SCENARIO_RESULT);
+    await session().reload();
+    expect(useGalaxyStore.getState().framed).toBe(true);
+    expect(useToolStore.getState().tilt).toBe(0);
   });
 
   it("asks instead when an edit made meanwhile stops the reload", async () => {
