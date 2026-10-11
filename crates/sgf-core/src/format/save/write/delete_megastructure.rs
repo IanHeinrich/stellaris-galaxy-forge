@@ -11,7 +11,7 @@ use crate::format::save::added::{Table, row};
 use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
 use crate::format::save::write::remove_planet::check_segment;
 use crate::format::save::write::restore::{Saved, tombstoned};
-use crate::format::save::write::teardown::{Teardown, some_id};
+use crate::format::save::write::teardown::Teardown;
 use crate::format::save::{entity_at, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
@@ -51,9 +51,6 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         },
         None => None,
     };
-    if upgrading(doc, id)? {
-        return Err(refuse("a construction ship is upgrading it".to_owned()));
-    }
     let colony = made_colony(s, &tied)?;
 
     let mut saved = Saved::default();
@@ -115,44 +112,6 @@ fn made_colony(s: &Session, tied: &Tied) -> Result<Option<Teardown>, OpError> {
     };
     check_segment(&node, src, refuse)?;
     Teardown::read(s, planet, system, &node, src).map(Some)
-}
-
-/// Whether a construction ship's order to build a megastructure upgrades row `id`. No op
-/// writes such an order, so the fleets the loaded bytes hold one in are the only ones read.
-fn upgrading(doc: &Document, id: u32) -> Result<bool, OpError> {
-    let src = doc.original();
-    let order = keys::BUILD_MEGASTRUCTURE_FLEET_ORDER.as_bytes();
-    for fleet in doc.index().entities(keys::FLEET) {
-        if memchr::memmem::find(fleet.stmt.slice(src), order).is_none() {
-            continue;
-        }
-        let anchor = Anchor::Original(fleet.stmt);
-        let Some((node, bytes)) = entity_at(doc, anchor)
-            .map_err(|e| Subject::Record(anchor).parse_error(e.offset, e.reason))?
-        else {
-            continue;
-        };
-        let mut orders = Vec::new();
-        build_orders(&node, bytes, &mut orders);
-        if orders
-            .iter()
-            .any(|order| some_id(order, keys::UPGRADE, bytes) == Some(id))
-        {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// Every `build_megastructure_fleet_order` below `node`.
-fn build_orders<'n>(node: &'n Node, src: &[u8], out: &mut Vec<&'n Node>) {
-    for child in node.children() {
-        if child.key_str(src) == Some(keys::BUILD_MEGASTRUCTURE_FLEET_ORDER) {
-            out.push(child);
-        } else {
-            build_orders(child, src, out);
-        }
-    }
 }
 
 /// Log row `tied` in `dead_mega_structure` as the game logs a row it destroys: a `map` line

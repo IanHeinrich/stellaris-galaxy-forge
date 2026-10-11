@@ -35,5 +35,4 @@ deleted:
 
 - an L-Gate, or a megastructure with any other link than a relay's or a
   gateway's
-- a megastructure that a fleet is building or upgrading
 - a save from before Stellaris 4.0

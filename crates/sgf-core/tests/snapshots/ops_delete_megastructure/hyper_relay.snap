@@ -1,0 +1,95 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted megastructure #16 (hyper_relay) in Dristmak #0, and its bypass #23
+inverse: RestoreEntities { description: "Restored megastructure #16 (hyper_relay)", entities: [SavedEntity { table: System, id: 0, text: "0=\n\t{\n\t\tmegastructures=\n\t\t{\n\t\t\t16 \n\t\t}\n\t\tbypasses=\n\t\t{\n\t\t\t23 \n\t\t}\n\t\tcoordinate=\n\t\t{\n\t\t\tx=155.95\n\t\t\ty=119.15\n\t\t\torigin=4294967295\n\t\t\trandomized=yes\n\t\t\tvisual_height=3.65056\n\t\t}\n\t\tname=\n\t\t{\n\t\t\tkey=\"Dristmak\"\n\t\t}\n\t\tplanet=571\n\t\tplanet=572\n\t\tplanet=573\n\t\tplanet=574\n\t\tplanet=575\n\t\tplanet=576\n\t\tplanet=577\n\t\tplanet=578\n\t\tplanet=579\n\t\tplanet=580\n\t\tplanet=581\n\t\tplanet=582\n\t\tplanet=583\n\t\tambient_object=\n\t\t{\n\t\t\t318 \n\t\t}\n\t\tstar_class=\"sc_g\"\n\t\thyperlane=\n\t\t{\n\t\t\t\n\t\t\t{\n\t\t\t\tto=148\n\t\t\t\tlength=30\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=358\n\t\t\t\tlength=24\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=448\n\t\t\t\tlength=22\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=67\n\t\t\t\tlength=18\n\t\t\t}\n \n\t\t}\n\t\tarm=1\n\t\tflags=\n\t\t{\n\t\t\tAI_hub=62808000\n\t\t\tAI_system_1=62808000\n\t\t\tprecursor_3=62808000\n\t\t\tresource_region_volatile_motes_rich=62808000\n\t\t}\n\t\tinitializer=\"ai_system_01\"\n\t\tinner_radius=267.44\n\t\touter_radius=367.44\n\t\tstarbases=\n\t\t{\n\t\t\t4294967295 \n\t\t}\n\t\tsector=4294967295\n\t\tindex=27\n\t\ttimed_modifier=\n\t\t{\n\t\t\titems=\n\t\t\t{\n\t\t\t\t\n\t\t\t\t{\n\t\t\t\t\tmodifier=\"nebula_cloaking\"\n\t\t\t\t\tdays=-1\n\t\t\t\t}\n \n\t\t\t\t{\n\t\t\t\t\tmodifier=\"turbulent_nebula\"\n\t\t\t\t\tdays=-1\n\t\t\t\t}\n \n\t\t\t}\n\t\t}\n\t\tstorm_influence_fields=\n\t\t{\n\t\t\t2 4 6 \n\t\t}\n\t\tstorm=4294967295\n\t}" }, SavedEntity { table: Megastructure, id: 16, text: "16=\n\t{\n\t\ttype=\"hyper_relay\"\n\t\tcoordinate=\n\t\t{\n\t\t\tx=10\n\t\t\ty=20\n\t\t\torigin=0\n\t\t}\n\t\tbypass=23\n\t\torbitals=\n\t\t{\n\t\t}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}" }, SavedEntity { table: Bypass, id: 23, text: "23=\n\t{\n\t\ttype=\"relay_bypass\"\n\t\tactive=yes\n\t\tconnections=\n\t\t{\n\t\t\t24 \n\t\t}\n\t\tactive_connections=\n\t\t{\n\t\t\t24 \n\t\t}\n\t\towner=\n\t\t{\n\t\t\ttype=6\n\t\t\tid=16\n\t\t}\n\t}" }, SavedEntity { table: Bypass, id: 24, text: "24=\n\t{\n\t\ttype=\"relay_bypass\"\n\t\tactive=yes\n\t\tconnections=\n\t\t{\n\t\t\t23 25 \n\t\t}\n\t\tactive_connections=\n\t\t{\n\t\t\t23 25 \n\t\t}\n\t\towner=\n\t\t{\n\t\t\ttype=6\n\t\t\tid=17\n\t\t}\n\t}" }] }
+
+--- gamestate
++++ gamestate
+@@ -28824,14 +28824,6 @@
+ {
+ 	0=
+ 	{
+-		megastructures=
+-		{
+-			16 
+-		}
+-		bypasses=
+-		{
+-			23 
+-		}
+ 		coordinate=
+ 		{
+ 			x=155.95
+@@ -1400933,23 +1400925,6 @@
+ 			origin=148
+ 		}
+ 		bypass=24
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
+-	16=
+-	{
+-		type="hyper_relay"
+-		coordinate=
+-		{
+-			x=10
+-			y=20
+-			origin=0
+-		}
+-		bypass=23
+ 		orbitals=
+ 		{
+ 		}
+@@ -1400957,6 +1400932,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
++	16=none
+ }
+ bypasses=
+ {
+@@ -1401401,35 +1401377,18 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
+-	23=
+-	{
+-		type="relay_bypass"
+-		active=yes
+-		connections=
+-		{
+-			24 
+-		}
+-		active_connections=
+-		{
+-			24 
+-		}
+-		owner=
+-		{
+-			type=6
+-			id=16
+-		}
+-	}
++	
+ 	24=
+ 	{
+ 		type="relay_bypass"
+ 		active=yes
+ 		connections=
+ 		{
+-			23 25 
++			25 
+ 		}
+ 		active_connections=
+ 		{
+-			23 25 
++			25 
+ 		}
+ 		owner=
+ 		{

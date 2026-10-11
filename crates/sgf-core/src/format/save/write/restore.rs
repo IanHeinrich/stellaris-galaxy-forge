@@ -55,12 +55,14 @@ pub(crate) fn plan_restore(
 }
 
 /// Whether `text` is one statement standing for entity `id` of `table`: the entity or its
-/// tombstone, or the dead megastructure table whole.
+/// tombstone, the dead megastructure table whole, or nothing for a bypass row a deletion
+/// emptied.
 fn holds(table: SavedTable, id: u32, text: &str) -> bool {
     match table {
         SavedTable::DeadMegastructures => {
             id == 0 && statement_key(text, false).as_deref() == Some(keys::DEAD_MEGA_STRUCTURE)
         }
+        SavedTable::Bypass if text.is_empty() => true,
         _ => statement_key(text, true).and_then(|key| key.parse().ok()) == Some(id),
     }
 }
