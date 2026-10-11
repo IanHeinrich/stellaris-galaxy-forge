@@ -1,0 +1,26 @@
+@offset_y = -20
+
+fixture_tank = {
+	entity = "fixture_tank_entity"
+	construction_entity = "fixture_platform_entity"
+	construction_scale = 1.02
+	place_entity_on_planet_plane = no
+	entity_offset = { x = 0 y = @offset_y }
+	upgrade_from = {
+		fixture_tank_0
+	}
+}
+
+fixture_ring = {
+	entity = ""
+	construction_entity = "fixture_ring_construction_entity"
+	place_entity_on_planet_plane = yes
+	scales_with_planet = yes
+	build_type = inside_gravity_well
+}
+
+fixture_relay = {
+	entity = "fixture_relay_entity"
+	build_outside_gravity_well = yes
+	bypass_type = relay_bypass
+}

@@ -53,6 +53,8 @@ pub struct StarbaseLevelView {
     pub key: String,
     pub icon_frame: Option<u32>,
     pub empire_shield: bool,
+    /// The station's model, without the graphical culture prefix the game puts before it.
+    pub station_entity: Option<String>,
 }
 
 impl From<&StarbaseLevelDef> for StarbaseLevelView {
@@ -61,6 +63,7 @@ impl From<&StarbaseLevelDef> for StarbaseLevelView {
             key: s.key.clone(),
             icon_frame: s.icon_frame,
             empire_shield: s.empire_shield,
+            station_entity: s.station_entity.clone(),
         }
     }
 }

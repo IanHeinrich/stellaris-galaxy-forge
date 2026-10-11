@@ -119,7 +119,9 @@ describe("the details layer's rows", () => {
     const sol: SystemDetails = {
       ...details(SOL),
       planets: [natives],
-      megastructures: [{ id: 50, kind: "dyson_sphere_2", owner: null, planet: 7 }],
+      megastructures: [
+        { id: 50, kind: "dyson_sphere_2", owner: null, planet: 7, at: null, culture: null },
+      ],
       sites: [{ id: 60, kind: "site_tiyanki_graveyard", planet: 7 }],
     };
     const layer = new DetailsLayer(new DrawnPositions());

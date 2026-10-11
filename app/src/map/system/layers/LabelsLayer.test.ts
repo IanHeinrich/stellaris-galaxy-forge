@@ -323,7 +323,16 @@ describe("the system scene's labels layer", () => {
     const ctx = systemContext({
       ...context({
         planets: [SUN, holding, MARS],
-        megastructures: [{ id: 50, kind: "dyson_sphere_2", owner: null, planet: EARTH.id }],
+        megastructures: [
+          {
+            id: 50,
+            kind: "dyson_sphere_2",
+            owner: null,
+            planet: EARTH.id,
+            at: null,
+            culture: null,
+          },
+        ],
         sites: [
           { id: 60, kind: "site_tiyanki_graveyard", planet: EARTH.id },
           { id: 61, kind: "site_zroni_ruins", planet: MARS.id },

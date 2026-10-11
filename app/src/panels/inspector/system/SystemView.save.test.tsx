@@ -76,9 +76,13 @@ describe("a save system's overview", () => {
           id: 0,
           hull: 0,
           max_hull: 0,
+          at: null,
+          culture: null,
           shipyard: false,
         },
-        megastructures: [{ id: 5, kind: "ring_world_ruined", owner: null, planet: null }],
+        megastructures: [
+          { id: 5, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
+        ],
         fleets_present: [
           fleet(1, "Home Fleet"),
           fleet(2, "Colossus", { military_power: 0, planet_killer: true }),
@@ -362,6 +366,8 @@ function starbase(level: string, kind: string): StarbaseSummary {
     id: 0,
     hull: 0,
     max_hull: 0,
+    at: null,
+    culture: null,
     shipyard: false,
   };
 }

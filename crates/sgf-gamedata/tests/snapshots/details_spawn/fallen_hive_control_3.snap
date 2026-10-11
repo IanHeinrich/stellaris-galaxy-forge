@@ -91,7 +91,9 @@ expression: out
     "variables": []
   },
   "starbase": {
+    "at": null,
     "buildings": [],
+    "culture": null,
     "hull": 0.0,
     "id": 1879048193,
     "kind": "",

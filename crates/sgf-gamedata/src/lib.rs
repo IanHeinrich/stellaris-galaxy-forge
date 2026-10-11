@@ -55,7 +55,9 @@ use registries::galaxy_sizes::GalaxySizes;
 use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
-use registries::{colors, flags, gfx, planet_lists, registry, star_names, starbase_levels};
+use registries::{
+    colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
+};
 use sgf_core::ops::SystemRadii;
 
 pub use initializers::Initializers;
@@ -74,12 +76,14 @@ pub use registries::dig_site_types::DigSiteTypes;
 pub use registries::flags::Flags;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
+pub use registries::megastructures::MegastructureTypes;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::planet_lists::PlanetLists;
 pub use registries::planet_modifiers::PlanetModifiers;
 pub use registries::precursors::PrecursorCivilizations;
 pub use registries::registry::Registry;
 pub use registries::scripted_triggers::ScriptedTriggers;
+pub use registries::section_templates::SectionTemplates;
 pub use registries::ship_sizes::ShipSizes;
 pub use registries::star_classes::{StarClasses, StarLists};
 pub use registries::starbase_levels::StarbaseLevels;
@@ -135,6 +139,10 @@ pub struct GameData {
     pub terraform_links: Arc<TerraformLinks>,
     pub starbase_levels: Arc<StarbaseLevels>,
     pub ship_sizes: Arc<ShipSizes>,
+    /// `common/section_templates`, by each template's `key`.
+    pub section_templates: Arc<SectionTemplates>,
+    /// `common/megastructures`: the model and placement of each megastructure type.
+    pub megastructures: Arc<MegastructureTypes>,
     pub galaxy_shapes: Arc<GalaxyShapes>,
     pub galaxy_sizes: Arc<GalaxySizes>,
     /// `common/precursor_civilizations`: the star flags that mark each precursor's region.
@@ -339,7 +347,15 @@ impl GameData {
         ));
         let terraform_links = TerraformLinks::load(&layout, &mut diagnostics);
         let ship_sizes = registry::load(&layout, &vars, &mut diagnostics);
-        let starbase_levels = starbase_levels::load(&layout, &ship_sizes, &vars, &mut diagnostics);
+        let section_templates = section_templates::load(&layout, &mut diagnostics);
+        let starbase_levels = starbase_levels::load(
+            &layout,
+            &ship_sizes,
+            &section_templates,
+            &vars,
+            &mut diagnostics,
+        );
+        let megastructures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
         let precursors = PrecursorCivilizations::load(&layout, &mut diagnostics);
@@ -389,6 +405,8 @@ impl GameData {
             terraform_links: Arc::new(terraform_links),
             starbase_levels: Arc::new(starbase_levels),
             ship_sizes: Arc::new(ship_sizes),
+            section_templates: Arc::new(section_templates),
+            megastructures: Arc::new(megastructures),
             galaxy_shapes: Arc::new(galaxy_shapes),
             galaxy_sizes: Arc::new(galaxy_sizes),
             precursors: Arc::new(precursors),

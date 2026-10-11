@@ -242,6 +242,52 @@ YAML**.
   bakes the sphere from the shader and draws the glow, beams, jets and
   wisps itself.
 
+## Megastructure and starbase models
+
+- Each type in `common/megastructures` names `entity` and
+  `construction_entity` without a culture prefix. The model is
+  `<culture>_<entity>`, for example `mammalian_01_thinktank_phase_03_entity`
+  for `think_tank_3`. `common/graphical_culture` gives each culture a
+  `fallback`, and the chains end at `mammalian_01`. `orbital_ring` has
+  `entity = ""` and draws no model of its own.
+- `entity_offset = { x y }` moves the model from the row's coordinate,
+  in save units. The Science Nexus has (0, −20), written through the
+  file's `@entity_x` and `@entity_y`. Screenshots of a 4.5.1 game show it
+  20 units above its planet. Other offsets: Sentry Array (−15, −5) at
+  stage 0 then (−15, −15); Art Installation, Strategic Coordination
+  Center, Interstellar Assembly and Mega Shipyard (−27, −27); Matter
+  Decompressor (−20, −20); habitats under construction (−7, −7).
+- `scales_with_planet = yes` is set on `orbital_ring`, its ruined and
+  restored types and every `orbital_arc_furnace_*` stage. In game these
+  grow with their planet. By how much hasn't been measured. A structure
+  on a star stays the same size whatever the star's size.
+- `construction_scale` sizes the construction model and defaults to 1.
+  The Arc Furnace uses 1.02 so the two models don't overlap.
+- `build_type` is `inside_gravity_well`, `outside_gravity_well` or
+  `around_planet`, the default. The older `build_outside_gravity_well =
+  yes` means `outside_gravity_well`: `hyper_relay` still uses it, and
+  `gateway_0` uses `build_type`.
+- `bypass_type` names the `common/bypass` type a row stands for, and
+  `upgrade_from = { … }` lists the types a stage is built over.
+  `place_entity_on_planet_plane`, `scale_offset`, `rotate_to_center` and
+  `plane_offset` are undocumented. The README in the folder documents
+  only `construction_scale`, `scales_with_planet` and `build_type`.
+- A starbase level's model takes four steps to find. The level names a
+  `ship_size`. The ship size lists its `section_slots`, and the first
+  (`"core"` on a starbase) holds the station. Every block in
+  `common/section_templates` is a `ship_section_template`, named by its
+  own `key`. The one that lists the size in `ship_size` and that slot in
+  `fits_on_slot` names the station's `entity`, again without a culture
+  prefix: `starbase_outpost_section_entity` to
+  `starbase_citadel_section_entity`. Module sections fit the same sizes
+  in slots `"1"` to `"6"`. The editor takes the template latest in load
+  order when several fit, as a mod's override would win. Which one the
+  game takes hasn't been checked in game.
+- Waystations draw the starport, starhold and starfortress sections.
+  Marauder, caravaneer, swarm, AI and voidworm nest levels draw
+  `empty_section_entity`. In 4.5 no template fits `starbase_fe_outpost`,
+  `starbase_hatchery` or `military_arkship_champions_forge`.
+
 ## Where mods are registered
 
 These files all sit in the user data dir. That is

@@ -87,8 +87,8 @@ describe("the bodies of a system", () => {
         id: SYSTEM,
         planets,
         megastructures: [
-          { id: 50, kind: "dyson_sphere_2", owner: null, planet: 2 },
-          { id: 51, kind: "gateway_final", owner: null, planet: 2 },
+          { id: 50, kind: "dyson_sphere_2", owner: null, planet: 2, at: null, culture: null },
+          { id: 51, kind: "gateway_final", owner: null, planet: 2, at: null, culture: null },
         ],
         sites: [{ id: 60, kind: "site_zroni_ruins", planet: 3 }],
       }),
