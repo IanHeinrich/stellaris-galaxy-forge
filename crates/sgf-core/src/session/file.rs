@@ -91,21 +91,37 @@ impl Session {
         self.save_as_with(path, force, progress)
     }
 
+    /// How the session's own file stands against the stamp taken when it was opened or last
+    /// saved. A document never saved has no file, so it is [`DiskChange::Unchanged`].
+    pub fn disk_change(&self) -> DiskChange {
+        let Some(own) = self.path.as_deref() else {
+            return DiskChange::Unchanged;
+        };
+        match (self.stamp, DiskStamp::read(own)) {
+            (_, None) => DiskChange::Gone,
+            (Some(recorded), Some(now)) if recorded != now => DiskChange::Changed,
+            _ => DiskChange::Unchanged,
+        }
+    }
+
     /// Whether `path` is the session's own file and no longer stands as it was opened or
     /// last saved. Another path is never checked: the file dialog already asked about it.
     /// A file that is gone is no conflict.
     fn changed_on_disk(&self, path: &Path) -> bool {
-        let Some(own) = self.path.as_deref() else {
-            return false;
-        };
-        if !same_file(own, path) {
-            return false;
-        }
-        match (self.stamp, DiskStamp::read(path)) {
-            (Some(recorded), Some(now)) => recorded != now,
-            _ => false,
-        }
+        self.path.as_deref().is_some_and(|own| same_file(own, path))
+            && self.disk_change() == DiskChange::Changed
     }
+}
+
+/// How the open document's file stands against the session's record of it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiskChange {
+    /// As opened or last saved, or no file to compare.
+    Unchanged,
+    /// Something else wrote it since.
+    Changed,
+    /// Nothing is at its path any more.
+    Gone,
 }
 
 /// Whether `a` and `b` name one file, however each is spelled (on Windows, whatever its

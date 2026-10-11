@@ -10,6 +10,7 @@ import { CLOUD_TITLE } from "../../lib/sessionCopy";
 import { counted } from "../../lib/text";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { diskChangeShown } from "../../store/fileSessionStore.refresh";
 import { useGalaxyVersion, useSystemNames } from "../../store/browserRows";
 import { useDetailsStore, useSystemRoll } from "../../store/detailsStore";
 import { galaxyLaneCount, useGalaxyStore } from "../../store/galaxyStore";
@@ -113,6 +114,17 @@ function AutoReloadBadge() {
   return (
     <span className="badge warn auto-reload" title={reason}>
       ⟳ {watching === 0 ? "Auto-reload off" : "Auto-reload incomplete"}
+    </span>
+  );
+}
+
+/** The open file changed on disk and the user chose to keep editing: the next save asks. */
+function DiskChangeBadge() {
+  const shown = useFileSessionStore(diskChangeShown);
+  if (shown !== "badge") return null;
+  return (
+    <span className="badge warn" title="Saving asks whether to overwrite the other version.">
+      Changed on disk
     </span>
   );
 }
@@ -309,6 +321,7 @@ export function StatusBar() {
       <Counts />
       <IssueBadge />
       <AutoReloadBadge />
+      <DiskChangeBadge />
       {error && <span className="warn">{error}</span>}
       {!error && notice && <span className="muted">{notice}</span>}
       <span className="spacer" />

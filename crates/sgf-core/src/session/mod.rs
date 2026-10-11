@@ -29,6 +29,7 @@ use crate::projections::galaxy::{
 };
 use crate::validate::{self, Issue, validate};
 use crate::views::{DocumentKind, ErrorKind, HistoryEntry, HistoryView, SgfError};
+pub use file::DiskChange;
 use file::DiskStamp;
 
 #[derive(Debug, thiserror::Error)]

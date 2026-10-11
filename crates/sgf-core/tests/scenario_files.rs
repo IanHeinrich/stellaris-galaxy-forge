@@ -9,7 +9,7 @@ use sgf_core::format::scenario::listings::{
     ScenarioRoot, ScenarioSource, list_scenarios_in, sibling_names,
 };
 use sgf_core::ops::Op;
-use sgf_core::session::Session;
+use sgf_core::session::{DiskChange, Session};
 use sgf_core::views::DocumentKind;
 
 use crate::common;
@@ -121,6 +121,71 @@ fn saving_as_another_path_ignores_a_change_to_the_opened_file() {
     session
         .save_to(None)
         .expect("the new path is the baseline now");
+}
+
+#[test]
+fn a_file_written_by_something_else_is_changed_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let (session, path) = open_copy(dir.path());
+    assert_eq!(session.disk_change(), DiskChange::Unchanged);
+
+    write_outside(&path);
+    assert_eq!(session.disk_change(), DiskChange::Changed);
+}
+
+#[test]
+fn the_sessions_own_saves_leave_the_file_unchanged_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, _) = open_copy(dir.path());
+    session
+        .apply(Op::MoveSystem {
+            system: 2,
+            x: 12.5,
+            y: -60.25,
+        })
+        .expect("move a system");
+    let outcome = session.save_to(None).expect("save in place");
+    assert!(outcome.backup.is_some(), "the save renamed the file aside");
+    assert_eq!(session.disk_change(), DiskChange::Unchanged);
+
+    let other = dir.path().join("elsewhere.txt");
+    session.save_as(&other).expect("save as another path");
+    assert_eq!(session.disk_change(), DiskChange::Unchanged);
+}
+
+#[test]
+fn a_forced_save_over_a_changed_file_leaves_it_unchanged_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut session, path) = open_copy(dir.path());
+    write_outside(&path);
+    session
+        .save_to_with(None, true, |_| {})
+        .expect("forced save");
+    assert_eq!(session.disk_change(), DiskChange::Unchanged);
+}
+
+#[test]
+fn a_file_moved_or_deleted_is_gone_and_one_renamed_over_it_is_changed() {
+    let dir = tempfile::tempdir().unwrap();
+    let (session, path) = open_copy(dir.path());
+    let aside = dir.path().join("aside.txt");
+    std::fs::rename(&path, &aside).unwrap();
+    assert_eq!(session.disk_change(), DiskChange::Gone);
+
+    let written = dir.path().join("written.tmp");
+    write_outside(&written);
+    std::fs::rename(&written, &path).unwrap();
+    assert_eq!(session.disk_change(), DiskChange::Changed);
+}
+
+#[test]
+fn a_document_never_saved_has_no_file_to_change() {
+    let session = Session::from_document(
+        None,
+        Document::from_scenario_bytes(GRAMMAR.bytes()).unwrap(),
+    )
+    .expect("a session on the grammar");
+    assert_eq!(session.disk_change(), DiskChange::Unchanged);
 }
 
 #[test]

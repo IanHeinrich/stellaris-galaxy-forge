@@ -6,6 +6,9 @@ export const PROGRESS_EVENT = "sgf://progress";
 /** Emitted when the game data is rebuilt, and when the auto-reload watcher pauses or resumes. */
 export const GAME_DATA_CHANGED_EVENT = "sgf://gamedata-changed";
 
+/** Emitted when the open document's file changes on disk, other than by the app's own save. */
+export const DOCUMENT_CHANGED_EVENT = "sgf://document-changed";
+
 /** Emitted while an update downloads. */
 export const UPDATE_PROGRESS_EVENT = "sgf://update-progress";
 

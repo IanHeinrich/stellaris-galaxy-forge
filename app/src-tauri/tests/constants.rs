@@ -5,7 +5,8 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use sgf_app_lib::commands::{
-    GAME_DATA_CHANGED_EVENT, GUIDE_URL, PROGRESS_EVENT, RELEASES_URL, UPDATE_PROGRESS_EVENT,
+    DOCUMENT_CHANGED_EVENT, GAME_DATA_CHANGED_EVENT, GUIDE_URL, PROGRESS_EVENT, RELEASES_URL,
+    UPDATE_PROGRESS_EVENT,
 };
 
 fn export_dir() -> PathBuf {
@@ -30,6 +31,11 @@ fn the_names_the_app_shares_are_exported_as_constants() {
             "Emitted when the game data is rebuilt, and when the auto-reload watcher pauses or resumes.",
             "GAME_DATA_CHANGED_EVENT",
             GAME_DATA_CHANGED_EVENT,
+        ),
+        (
+            "Emitted when the open document's file changes on disk, other than by the app's own save.",
+            "DOCUMENT_CHANGED_EVENT",
+            DOCUMENT_CHANGED_EVENT,
         ),
         (
             "Emitted while an update downloads.",
