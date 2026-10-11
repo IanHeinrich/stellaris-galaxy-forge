@@ -14,7 +14,8 @@ use sgf_core::span::Span;
 
 use crate::initializers::{Origin, source_line};
 use crate::install::script::{self, Def, Range};
-use crate::scripts::scope::{is_guard, keeps_scope};
+use crate::scripts::scope::{is_guard, keeps_scope, keeps_system_scope};
+use crate::structure_spawns::SPAWN_MEGASTRUCTURE;
 
 /// The keys of a `planet` or `moon` block the reader models.
 const BODY_KEYS: [&str; 19] = [
@@ -63,7 +64,7 @@ const SYSTEM_KEYS: [&str; 18] = [
 ];
 
 /// The statements of a body's `init_effect` the reader models.
-const BODY_EFFECTS: [&str; 17] = [
+const BODY_EFFECTS: [&str; 18] = [
     "add_deposit",
     "set_deposit",
     "clear_deposits",
@@ -81,6 +82,7 @@ const BODY_EFFECTS: [&str; 17] = [
     "add_anomaly",
     "create_ambient_object",
     "create_archaeological_site",
+    "spawn_megastructure",
 ];
 
 /// The statements of a system's `init_effect` the reader models.
@@ -360,9 +362,30 @@ fn body_effect(child: &Node, key: &str, def: &Def, out: &mut StatedBody) -> bool
             out.ambient_objects.push(kind);
         }
         "create_archaeological_site" => return scalar.is_some(),
+        SPAWN_MEGASTRUCTURE => return typed(child, src),
+        "solar_system" => return only_spawns(child, src, None),
         _ => return false,
     }
     true
+}
+
+/// A `spawn_megastructure` that names its `type`.
+fn typed(node: &Node, src: &[u8]) -> bool {
+    node.find("type", src)
+        .and_then(|n| n.scalar_str(src))
+        .is_some()
+}
+
+/// A `solar_system = { … }` block of nothing but typed `spawn_megastructure`s and `starbase`,
+/// the `create_starbase` the system's starbase is read from.
+fn only_spawns(block: &Node, src: &[u8], starbase: Option<Span>) -> bool {
+    let children = block.children();
+    !children.is_empty()
+        && children.iter().all(|child| match child.key_str(src) {
+            Some(SPAWN_MEGASTRUCTURE) => typed(child, src),
+            Some("create_starbase") => starbase == Some(child.span()),
+            _ => false,
+        })
 }
 
 /// What an initializer's own block `node` states, the keys an inline script supplied
@@ -439,6 +462,7 @@ fn system_effects(
             CREATE_AMBIENT_OBJECT | "spawn_megastructure" => has("type"),
             "create_archaeological_site" => scalar.is_some(),
             "create_starbase" => starbase == Some(child.span()),
+            "solar_system" => only_spawns(child, src, starbase),
             _ => false,
         };
         if !modelled {
@@ -525,13 +549,13 @@ fn collect_ambient(node: &Node, src: &[u8], same_scope: bool, out: &mut Vec<Stri
 }
 
 /// How many statements keyed one of `keys` lie below `node`, through blocks that keep the
-/// scope they are written in.
+/// system scope they are written in.
 fn within(node: &Node, src: &[u8], keys: &[&str]) -> u32 {
     node.children()
         .iter()
         .map(|child| match child.key_str(src) {
             Some(key) if keys.contains(&key) => 1,
-            Some(key) if keeps_scope(key) && !is_guard(key) => within(child, src, keys),
+            Some(key) if keeps_system_scope(key) && !is_guard(key) => within(child, src, keys),
             _ => 0,
         })
         .sum()
@@ -539,7 +563,7 @@ fn within(node: &Node, src: &[u8], keys: &[&str]) -> u32 {
 
 /// `node`, keyed `key`, as written, with the statements keyed one of `modelled` inside it.
 fn raw(node: &Node, key: &str, src: &[u8], origin: &Origin, modelled: &[&str]) -> RawStatement {
-    let inside = match keeps_scope(key) {
+    let inside = match keeps_system_scope(key) {
         true => within(node, src, modelled),
         false => 0,
     };

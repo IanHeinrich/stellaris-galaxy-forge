@@ -15,6 +15,7 @@ use crate::entity::facts;
 use crate::entity::facts::planet::{BodyRole, PlanetFacts};
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
+use crate::format::save::details::StructureSpawn;
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
 use crate::format::save::galaxy::starbases::fleet_owners;
@@ -171,6 +172,10 @@ pub struct MegastructureSummary {
     /// The graphical culture its model is drawn in: the row's `graphical_culture`, else its
     /// owner's; `None` when neither names one.
     pub culture: Option<String>,
+    /// What only a scenario's initializer says of it. `None` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spawn: Option<StructureSpawn>,
 }
 
 /// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.
@@ -494,6 +499,7 @@ pub(super) fn megastructures(
             planet: mega.planet,
             at: mega.at,
             culture,
+            spawn: None,
         });
     }
     Ok(())

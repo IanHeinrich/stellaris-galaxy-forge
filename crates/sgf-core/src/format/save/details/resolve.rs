@@ -374,6 +374,52 @@ pub struct BodySpawn {
     pub at: Option<SourceLine>,
 }
 
+/// What a scenario's initializer says of a megastructure or starbase it places.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct StructureSpawn {
+    /// Where its `spawn_megastructure` or `create_starbase` is written: the scripted effect's
+    /// or inline script's file when it was read from one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub at: Option<SourceLine>,
+    /// `false` when the game may not place it: it is written under an `if`, a `random_list` or
+    /// a loop, or in a body the game may not spawn.
+    pub always: bool,
+    /// How the game decides where it stands.
+    pub place: SpawnPlace,
+    /// Its `owner` as written, when that names no territory of the scenario.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub owner_written: Option<String>,
+}
+
+/// How the game decides where a scenario's megastructure or starbase stands.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum SpawnPlace {
+    /// No position written: the system's centre.
+    Centre,
+    /// `orbit_distance` and `orbit_angle` about the centre, as written. The game turns the
+    /// angle on from 180°, as it does a body's. A range is drawn when the game starts, and the
+    /// row's point is its midpoint.
+    Orbit { distance: Bounds, angle: Bounds },
+    /// `planet = …`: tied to that body, standing where it is drawn.
+    Body { body: u32 },
+    /// `coords_from = …`: at that body's point, not tied to it.
+    NearBody { body: u32 },
+    /// `random_pos = yes`: the game picks the point, and the row's point is a typical spot.
+    Random,
+    /// The system's main starbase, beside its star at (a, −a), a = 11.7 + 0.33 × the star's
+    /// size. A ranged size is drawn when the game starts, and the row's point takes its
+    /// midpoint.
+    Starbase { star_size: Bounds },
+    /// The body it stands at is one the initializer does not save, such as one an event
+    /// saves, or the star's size is not known: the row has no point.
+    Unknown { written: String },
+}
+
 /// Whether the game can draw a body a class at the orbits it can land at. A draw that no class
 /// fits gives no body, and no body around it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -773,13 +819,18 @@ pub struct StarbaseSummary {
     /// The `station` ship's hull; both are zero when the entry names no station.
     pub hull: f64,
     pub max_hull: f64,
-    /// Where the station stands, relative to the system's centre; `None` in a scenario.
+    /// Where the station stands, relative to the system's centre. In a scenario, where the
+    /// game puts a main starbase beside the star, `None` when the star's size is not known.
     pub at: Option<(f64, f64)>,
     /// The planet the station orbits, as its fleet names it; an orbital ring's is the planet
     /// it rings. `None` in a scenario.
     pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`; `None` in a scenario.
     pub culture: Option<String>,
+    /// What only a scenario's initializer says of it. `None` in a save.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spawn: Option<StructureSpawn>,
 }
 
 /// The ship sizes of the stations that gather what a planet's deposits produce.
@@ -877,6 +928,7 @@ pub(super) fn resolve(
         at: s.at,
         planet: s.planet,
         culture: s.culture.clone(),
+        spawn: None,
     });
     let starbase = starbases.next();
     let other_starbases = starbases.collect();

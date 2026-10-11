@@ -50,6 +50,42 @@ pub(crate) fn keeps_scope(key: &str) -> bool {
     ) || key.parse::<f64>().is_ok()
 }
 
+/// Bodies that still describe this system, the branches every script walk
+/// keeps aside. Anything else (a country, a fleet, an ambient object,
+/// another system) is a scope of its own, and a target saved there names
+/// that, not the system the walk started in.
+const SYSTEM_BODIES: [&str; 7] = [
+    "planet",
+    "moon",
+    "star",
+    "solar_system",
+    "random_system_planet",
+    "every_system_planet",
+    "any_system_planet",
+];
+
+/// Blocks whose body still describes the system the walk started in: its branches, and its
+/// bodies, whose targets and owners are this system's.
+pub(crate) fn describes_system(key: &str) -> bool {
+    SYSTEM_BODIES.contains(&key) || keeps_scope(key)
+}
+
+/// Blocks whose body still runs in the system's own scope: the branches of the scope they are
+/// written in, and `solar_system`, which names the system from a body. A body's scope, such as
+/// `every_system_planet`, is not one, though it [describes the system](describes_system).
+pub(crate) fn keeps_system_scope(key: &str) -> bool {
+    keeps_scope(key) || key == "solar_system"
+}
+
+/// Blocks whose body runs whenever the block is reached: they keep the scope and are no branch,
+/// loop or chance.
+pub(crate) fn runs_always(key: &str) -> bool {
+    matches!(
+        key,
+        "immediate" | "after" | "init_effect" | "hidden_effect" | "solar_system"
+    )
+}
+
 /// A scripted effect is called as `key = yes` or `key = { … }`.
 pub(crate) fn is_call(node: &Node, src: &[u8]) -> bool {
     match node.scalar_str(src) {

@@ -281,6 +281,7 @@ fn megastructures_name_their_kind_owner_and_orbit() {
             planet: None,
             at: Some((45.20385, -0.00045)),
             culture: Some("mammalian_01".to_owned()),
+            spawn: None,
         }]
     );
     assert_eq!(raw(672).megastructures.len(), 3);

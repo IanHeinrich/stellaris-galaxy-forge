@@ -19,6 +19,11 @@ pub struct SystemRoll {
     /// system, each about the centre and inside the radius asked for. Empty unless
     /// `rolls_planets`.
     pub placeholders: Vec<PlaceholderBody>,
+    /// Each megastructure of the system's details that stands at a body, by the same id, at
+    /// that body's point in this roll.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<RolledStructure>>", optional)]
+    pub structures: Vec<RolledStructure>,
 }
 
 impl SystemRoll {
@@ -30,6 +35,7 @@ impl SystemRoll {
             bodies: Vec::new(),
             rolls_planets: false,
             placeholders: Vec::new(),
+            structures: Vec::new(),
         }
     }
 }
@@ -48,6 +54,15 @@ pub struct RolledBody {
     /// The angle it turned on from: its layout's `turns_from` body's, or the walk's start.
     /// Degrees in `[0, 360)`.
     pub from: f64,
+}
+
+/// Where one roll puts a scenario megastructure that stands at a body: on the body's point,
+/// about the system's centre.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RolledStructure {
+    pub id: u32,
+    pub at: (f64, f64),
 }
 
 /// A planet drawn only to show that the game rolls the system's planets.

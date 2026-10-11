@@ -24,12 +24,22 @@ expression: out
   "inner_radius": null,
   "megastructures": [
     {
-      "at": null,
+      "at": [
+        -210.43498,
+        210.43498
+      ],
       "culture": null,
       "id": 1342177280,
       "kind": "gateway_derelict",
       "owner": null,
-      "planet": null
+      "planet": null,
+      "spawn": {
+        "always": true,
+        "owner_written": "event_target:origin_imperial_homeland_country",
+        "place": {
+          "kind": "random"
+        }
+      }
     }
   ],
   "other_starbases": [],
@@ -121,7 +131,10 @@ expression: out
     "variables": []
   },
   "starbase": {
-    "at": null,
+    "at": [
+      19.95,
+      -19.95
+    ],
     "buildings": [
       "hydroponics_bay",
       "naval_logistics_office"
@@ -146,7 +159,18 @@ expression: out
     "name_key": "",
     "owner": null,
     "planet": null,
-    "shipyard": true
+    "shipyard": true,
+    "spawn": {
+      "always": true,
+      "owner_written": "event_target:origin_imperial_homeland_country",
+      "place": {
+        "kind": "starbase",
+        "star_size": {
+          "max": 30.0,
+          "min": 20.0
+        }
+      }
+    }
   },
   "with_game_data": true,
   "wormholes": []
