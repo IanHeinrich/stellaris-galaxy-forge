@@ -283,6 +283,51 @@ YAML**.
   in slots `"1"` to `"6"`. The editor takes the template latest in load
   order when several fit, as a mod's override would win. Which one the
   game takes hasn't been checked in game.
+- Which faces of a mesh the game draws and how it blends them is set by
+  its shader's `Effect` in `gfx/FX/pdxmesh.shader`. A mod that ships its
+  own `pdxmesh.shader` replaces the game's. Back faces are culled unless
+  the effect names `RasterizerStateNoCulling`, as `PdxMeshPlanetRings`
+  and `PdxMeshExtraDimensionalShip` do, and Gigastructures'
+  `OmniMeshED`, `OmniMeshEDSphere` and
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`. The line in
+  `PdxMeshTerraConstruction` is commented out, so it culls. No `.asset`
+  or `.gfx` key makes a mesh double-sided.
+- A mesh's triangles are wound counter-clockwise about its vertex
+  normals, so that is the front face. Of 1215 megastructure and starbase
+  meshes in 4.5 and Gigastructures 3.40, 13 have more than one triangle
+  in twenty wound the other way. The editor reverses the test for a part
+  placed with a negative scale. I haven't checked whether the game does.
+- `AlphaBlend_00`, `AlphaBlendNoDepth`, `PdxMeshTerraAlphaBlend`,
+  `PdxMeshShipDiffuseEmissiveAlpha`, `PdxMeshPlanetRings` and the clouds
+  shaders blend at the diffuse map's alpha. So does Gigastructures'
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`, whose blend state also tests
+  alpha. `PdxMeshAlphaBlend` does not blend, whatever its name says: it
+  defines `ALPHA_TEST`, draws only where the diffuse alpha is 1 and is
+  opaque there. Gigastructures' `OmniMeshMegaAlpha` adds its colour onto
+  what is behind it.
+- `PdxMeshExtraDimensionalShip` blends too, and Gigastructures'
+  `OmniMeshED` and `OmniMeshEDSphere` add. Their pixel shaders build the
+  colour in ways the editor doesn't draw yet, so it draws them opaque
+  with both faces, as before. `PixelPdxMeshExtraDimensionalShip` reads no
+  specular map. It adds the diffuse map twice, unlit, on the faces towards
+  the camera, and only a faint rim on the others. `PixelOmniMeshED`
+  builds its colour from a rim light and the specular red, both in the
+  owner's colour.
+- The ship pixel shader tints what the specular map's red marks in the
+  owner's colour, and the see-through shaders that run it do too:
+  `AlphaBlend_00`, `AlphaBlendNoDepth` and
+  `PdxMeshShipDiffuseEmissiveAlpha`. `PixelPdxMeshStandard` does that
+  only with `ADD_COLOR`, which none of the see-through shaders that run it
+  define. The glass of Gigastructures' Yggdrasil Orchid is
+  `AlphaBlendNoDepth` over a neutral grey diffuse whose specular red is
+  255, so it shows in its owner's colour at 92% alpha. Its `.asset` and
+  `.gfx` set no tint.
+- Gigastructures' Macroengineering Testing Station (stages 3 and 4)
+  attaches the game's shattered planet mesh as a hologram. The mesh's
+  inner sphere is an opaque orange `PdxMeshAlphaBlend` with its faces
+  outwards. The idle animation `hologram_explode.anim` keeps that sphere
+  at scale 0 and the whole hologram at 0.06. The editor draws the bind
+  pose, so the sphere shows as an orange ball over the station.
 - Waystations draw the starport, starhold and starfortress sections.
   Marauder, caravaneer, swarm, AI and voidworm nest levels draw
   `empty_section_entity`. In 4.5 no template fits `starbase_fe_outpost`,
