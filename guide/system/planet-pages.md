@@ -63,12 +63,13 @@ a ring, so you can take it off.
 
 In a scenario, a body's page shows what its initializer says about it.
 It has the Name, Class, Size, Ring and Model rows, each set by the
-initializer, rolled by the game or decided when the game starts. A
-"may not spawn" mark and a line under the name say when the game may
-place fewer copies of the body. The page also lists the deposits,
+initializer, rolled by the game or decided when the game starts. When
+the initializer places several planets like this one, a line under the
+name says how many and when the game places this one. The page also lists the deposits,
 modifiers, anomaly and flags the initializer states. A start planet has
-a "start planet" mark and a Start planet row. Nothing on the page can
-be edited yet.
+a "start planet" mark and a Start planet row. The Initializer section
+shows the lines the initializer runs for the body, and its other keys.
+Nothing on the page can be edited yet.
 
 ## Go back
 

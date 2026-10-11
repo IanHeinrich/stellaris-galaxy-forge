@@ -284,7 +284,9 @@ describe("a scenario system's source", () => {
 
     useInspectorStore.setState({ tab: "source" });
     const source = overview();
-    expect(source).toContain("id=1");
+    expect(source).toContain(
+      '<span class="snippet-key">id</span>=<span class="snippet-number">1</span>',
+    );
     expect(source).not.toContain("no text of their own");
   });
 

@@ -326,7 +326,7 @@ describe("the spawn point section", () => {
 
     const html = overview();
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("basic_init_01"));
-    expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Choose"));
+    expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Change…"));
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Hyperlanes"));
     expect(html).toContain(">scenario<");
   });
@@ -336,6 +336,6 @@ describe("the spawn point section", () => {
     useMapChromeStore.getState().toggleGroup("initializers");
 
     expect(sections(overview())).toContain("Initializer");
-    expect(overview()).toContain("Choose");
+    expect(overview()).toContain("Change…");
   });
 });

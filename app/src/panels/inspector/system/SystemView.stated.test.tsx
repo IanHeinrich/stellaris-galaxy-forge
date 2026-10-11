@@ -10,8 +10,10 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
-import { details, land, open, overview, planet, resetStores } from "../inspectorFixture";
+import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { mockedIpc } from "../../../test/ipc";
+import { drawnBy, lastDrawn } from "../../../test/drawn";
+import { useInspectorStore } from "../../../store/inspectorStore";
 
 bindStores();
 
@@ -73,7 +75,7 @@ describe("a rolled scenario system", () => {
     spawn: bodySpawn({ always: false, copy: 7, count: { min: 2, max: 10 }, class: rolled }),
   });
 
-  it("gives the range of planets in its head and its Planets section, and marks a body that may not spawn", async () => {
+  it("gives the range of planets in its head and its Planets section", async () => {
     await open("scenario");
     await land(details({ planets: [STAR, second, seventh], spawn }));
 
@@ -94,13 +96,54 @@ describe("a rolled scenario system", () => {
       "Hyperlanes · 4",
       "Scripts · …",
     ]);
-    const row = html.slice(html.indexOf(">Kanthe VII"));
-    expect(row.slice(0, row.indexOf(`class="l2"`))).toContain(
-      '<span class="chip ins-maybe">may not spawn</span>',
-    );
-    const other = html.slice(html.indexOf(">Kanthe II<"));
-    expect(other.slice(0, other.indexOf("Kanthe VII"))).not.toContain("may not spawn");
+    expect(html).not.toContain("may not spawn");
     expect(html).toContain(">rolled class</span>");
+  });
+
+  it("lists a block the game places a random number of times as one row, its count explained on hover", async () => {
+    const block = { min: 1, max: 4 };
+    const copy = (id: number, n: number) =>
+      planet(id, "", {
+        class: "random",
+        drawn: true,
+        spawn: bodySpawn({ always: n === 1, copy: n, count: block, class: rolled }),
+      });
+    const moonOf = (id: number, parent: number) =>
+      planet(id, "", {
+        class: "random",
+        moon: true,
+        parent,
+        drawn: true,
+        spawn: bodySpawn({ always: false, count: { min: 0, max: 1 }, class: rolled }),
+      });
+    const bodies = [STAR];
+    for (let n = 1; n <= 4; n++) bodies.push(copy(98 + 2 * n, n), moonOf(99 + 2 * n, 98 + 2 * n));
+    await open("scenario");
+    await land(
+      details({
+        planets: bodies,
+        spawn: systemSpawn({ planets: block, moons: { min: 0, max: 4 } }),
+      }),
+    );
+
+    const html = drawnBy(overview);
+    expect(html.split('<div class="ins-prow').length - 1).toBe(2);
+    expect(html).toContain(`${ROLLED_MARK}Random planets</span>`);
+    expect(html).toContain(`${ROLLED_MARK}any class</span>`);
+    expect(html).toContain("<span>each with up to 1 moon</span>");
+    expect(html).toContain(
+      '<span class="ins-block-count ins-st-rolled" title="The game places 1 to 4 of these planets when it builds the system.">1 to 4</span>',
+    );
+    expect(html).not.toContain("Random moon");
+    expect(html).toContain("1 to 4 planets · 0 to 4 moons · 0 colonies");
+
+    const row = lastDrawn(
+      (el) => typeof el.props.onOpen === "function" && el.props.className === "ins-prow",
+      "the block's row",
+    ) as { onOpen(): void };
+    row.onOpen();
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: 100 });
   });
 
   it("lists the star list's classes likeliest first, with their odds", async () => {
@@ -121,19 +164,36 @@ describe("a rolled scenario system", () => {
     expect(html).toContain("from the star list rl_standard_stars");
   });
 
-  it("states what only a random galaxy reads, as facts that do nothing here", async () => {
+  it("states what only a random galaxy reads in an open group that says it does nothing here", async () => {
     await open("scenario");
     await land(details({ planets: [STAR, second], spawn }));
 
     const html = overview();
-    expect(html).toContain("Only in random galaxies");
     expect(html).toContain(
-      "A random galaxy uses these to pick this layout. A scenario names the initializer, so they do nothing here.",
+      '<button type="button" class="ins-group-head" aria-expanded="true"><span class="tri">▾</span><span class="ins-group-title">Random galaxy settings</span><span class="ins-group-tail">no effect here</span></button>',
     );
     expect(html).toContain(
-      '<span class="k">Usage</span><span class="mono">misc_system_init</span>',
+      "A random galaxy uses these to decide how often to add this system. This map places it by name, so they don&#x27;t apply.",
     );
-    expect(html).toContain('<span class="k">Usage odds</span><span>20</span>');
+    expect(html).toContain(
+      '<span class="k">Used as</span><span class="mono">misc_system_init</span>',
+    );
+    expect(html).toContain('<span class="k">How often</span><span>20</span>');
+    expect(html).toContain(
+      '<span class="mono ins-init-name">basic_init_01</span><button type="button">Change…</button>',
+    );
+  });
+
+  it("closes a group when asked and remembers it", async () => {
+    await open("scenario");
+    await land(details({ planets: [STAR, second], spawn }));
+    useInspectorStore.getState().toggleSection("system.initializer.random", false);
+
+    const html = overview();
+    expect(html).toContain(
+      'aria-expanded="false"><span class="tri">▸</span><span class="ins-group-title">Random galaxy settings',
+    );
+    expect(html).not.toContain("How often");
   });
 });
 
@@ -186,8 +246,8 @@ describe("a fixed scenario system", () => {
     const html = overview();
     expect(html).toContain("Large Debris");
     expect(html).toContain("Yuhtaan Majoris ›");
-    expect(html).toContain('<span class="k">Instances</span><span>1 per galaxy</span>');
-    expect(html).toContain("A system placed on the map counts first, so the game rolls no other.");
+    expect(html).toContain('<span class="k">Per galaxy</span><span>At most 1</span>');
+    expect(html).toContain("This system is that one, so a new game won&#x27;t add another.");
     expect(html).toContain('<span class="k">Pre-FTL</span><span>Yes</span>');
   });
 });
@@ -245,13 +305,25 @@ describe("a scenario system whose bodies come from a script", () => {
     expect(html).toContain(
       '<div class="ins-from">every body comes from grand_archive/voidworms_system_planet_initializer</div>',
     );
-    expect(html).toContain('<span class="k">Usage odds</span><span>1, changed by a script</span>');
-    expect(html).toContain("base = 1");
-    expect(html).toContain("Other keys · 1");
-    expect(html).toContain("orbital_line = yes");
-    expect(html).toContain("Script · 1");
-    expect(html).toContain("create_voidworms_country = yes");
-    expect(html).toContain("On a scenario map there is no root system and no hyperlane neighbour");
+    expect(html).toContain(
+      '<span class="k">How often</span><span>Starts at 1. The conditions below change it.</span>',
+    );
+    expect(html).toContain(
+      '<span class="snippet-key">base</span> = <span class="snippet-number">1</span>',
+    );
+    expect(html).toContain(
+      '<span class="ins-group-title">Other keys</span><span class="ins-group-tail">1</span>',
+    );
+    expect(html).toContain(
+      '<span class="snippet-key">orbital_line</span> = <span class="snippet-bool">yes</span>',
+    );
+    expect(html).toContain(
+      '<span class="ins-group-title">Script it runs</span><span class="ins-group-tail">1 line</span>',
+    );
+    expect(html).toContain("create_voidworms_country</span>");
+    expect(html).toContain(
+      "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring system find none.",
+    );
     expect(html).toContain(
       "class, planet come from grand_archive/voidworms_system_planet_initializer",
     );

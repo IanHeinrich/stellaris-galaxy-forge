@@ -19,6 +19,7 @@ import type { StatedFeatures } from "../../generated/StatedFeatures";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemSpawn } from "../../generated/SystemSpawn";
 import type { UnknownClass } from "../../generated/UnknownClass";
+import { dedent } from "../scriptText";
 import { counted } from "../text";
 import type { ModifierRow } from "./planetPage";
 
@@ -178,18 +179,42 @@ export const MODEL_ROLLED = "One of its class's models";
 /** What the Name row says where the initializer names none. */
 export const NAME_UNKNOWN = "Named by the game when it starts";
 
-/** The chip on a body that may not spawn, and the head's hint under it. */
-export const MAY_NOT_SPAWN = "may not spawn";
+/** `1st`, `2nd`, `3rd`, `11th`: a copy's place among its block's. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
 
-/** Why a body may not spawn: past its block's low count, or around a body that may not. */
-export function mayNotSpawnHint(spawn: BodySpawn, moon: boolean): string {
-  if (spawn.copy <= spawn.count.min) return "It orbits a body that may not spawn.";
-  const nouns = moon ? "moons" : "planets";
-  const fewer = spawn.copy === 1 ? "none" : `fewer than ${spawn.copy}`;
-  return (
-    `The initializer places ${rangeWords(spawn.count)} of these ${nouns}. ` +
-    `The game may place ${fewer}.`
-  );
+/**
+ * What a body's page says of its place among the bodies its block places: how many the
+ * initializer places like it, which one it is and when the game places it, and whether it orbits
+ * a planet not every game has. `null` for a body placed once that every game has.
+ */
+export function copyLine(spawn: BodySpawn, moon: boolean): string | null {
+  const { count, copy, always } = spawn;
+  const sentences: string[] = [];
+  const several = count.max > 1 || isRanged(count);
+  if (several) {
+    const around = moon ? " around its planet" : "";
+    sentences.push(
+      `The initializer places ${rangeWords(count)} ${moon ? "moons" : "planets"} like this one${around}.`,
+    );
+  }
+  const optional = isRanged(count) && copy > count.min;
+  if (optional) {
+    sentences.push(
+      `This is the ${ordinal(copy)}, so the game places it only when it rolls ${copy} or more.`,
+    );
+  } else if (several) {
+    sentences.push(
+      always
+        ? `This is the ${ordinal(copy)}, so every game has it.`
+        : `This is the ${ordinal(copy)}.`,
+    );
+  }
+  if (!always && !optional) sentences.push("It orbits a planet that not every game has.");
+  return sentences.length === 0 ? null : sentences.join(" ");
 }
 
 /** What a body's page calls it in a sentence. */
@@ -368,36 +393,28 @@ export function rawText(statements: readonly RawStatement[]): string {
   return statements.map((s) => dedent(s.text)).join("\n");
 }
 
-/** The spaces and tabs a line starts with. */
-function indentOf(line: string): number {
-  return line.length - line.trimStart().length;
+/** How many lines statements take as written. */
+export function lineCount(statements: readonly RawStatement[]): number {
+  return rawText(statements).split("\n").length;
 }
 
-/**
- * A statement with its inner lines moved left by the indent they share, as the file nests it: the
- * first line starts at the statement's key and keeps its place.
- */
-export function dedent(text: string): string {
-  const [first, ...rest] = text.split("\n");
-  const indents = rest.filter((line) => line.trim() !== "").map(indentOf);
-  const cut = indents.length === 0 ? 0 : Math.min(...indents);
-  const moved = rest.map((line) => line.slice(Math.min(cut, indentOf(line))));
-  return [first.trimStart(), ...moved].join("\n");
-}
+/** The heading over the lines an initializer runs, which Galaxy Forge shows but doesn't read. */
+export const SCRIPT_TITLE = "Script it runs";
 
-/** The system's Script hint: what the game does with lines Galaxy Forge doesn't read. */
+/** What the system's Script it runs group says over its lines. */
 export const SYSTEM_SCRIPT_HINT =
-  "Galaxy Forge doesn't read these lines. The game runs them once, when it builds the system. " +
-  "On a scenario map there is no root system and no hyperlane neighbour when they run.";
+  "The game runs these lines once, when it builds the system. Galaxy Forge shows them as written. " +
+  "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring " +
+  "system find none.";
 
-/** A body's Script hint. */
+/** What a body's Script it runs group says over its lines. */
 export function bodyScriptHint(noun: string): string {
-  return `Galaxy Forge doesn't read these lines. The game runs them once, when it builds the ${noun}.`;
+  return `The game runs these lines once, when it builds the ${noun}. Galaxy Forge shows them as written.`;
 }
 
-/** The Other keys hint: keys of the block Galaxy Forge keeps but doesn't show. */
-export const OTHER_KEYS_HINT =
-  "Galaxy Forge keeps these keys of the initializer but doesn't show them anywhere else.";
+/** The heading over the initializer's keys Galaxy Forge keeps as written, and what it says of them. */
+export const OTHER_KEYS_TITLE = "Other keys";
+export const OTHER_KEYS_HINT = "Keys Galaxy Forge keeps but doesn't show elsewhere.";
 
 /** What the start planet's Initializer row says under it. */
 export const START_PLANET_HINT =
@@ -414,13 +431,18 @@ export function hasRandomOnly(spawn: SystemSpawn): boolean {
   );
 }
 
-/** The heading over the facts only a random galaxy uses, and why they do nothing here. */
-export const RANDOM_ONLY_TITLE = "Only in random galaxies";
+/** The heading over what only a random galaxy reads, the note beside it, and why it does nothing here. */
+export const RANDOM_SETTINGS_TITLE = "Random galaxy settings";
+export const RANDOM_SETTINGS_TAIL = "no effect here";
+export const RANDOM_SETTINGS_HINT =
+  "A random galaxy uses these to decide how often to add this system. " +
+  "This map places it by name, so they don't apply.";
 
-export function randomOnlyHint(spawn: SystemSpawn): string {
-  const what =
-    spawn.neighbors.length > 0 ? "pick this layout and link it to others" : "pick this layout";
-  return `A random galaxy uses these to ${what}. A scenario names the initializer, so they do nothing here.`;
+/** The How often row of `usage_odds` written as conditions, from the number they start at. */
+export function usageOddsText(base: number | null): string {
+  return base === null
+    ? "Set by the conditions below."
+    : `Starts at ${base}. The conditions below change it.`;
 }
 
 /** What the Neighbours row says under its list. */
@@ -438,16 +460,21 @@ export function neighbourText(neighbor: NeighborSystem): string {
   return [neighbor.initializer, ...reach].join(" · ");
 }
 
-/** The Instances row's value and the hint under it. */
-export function instancesText(max: number): string {
-  return `${max} per galaxy`;
+/** The Per galaxy row: the most systems a galaxy makes from the initializer. */
+export function perGalaxyText(max: number): string {
+  return `At most ${max}`;
 }
 
-/** What the Instances row says under it: placed systems count toward the most first. */
-export function instancesHint(max: number): string {
+/** What the Per galaxy row says under it: systems on the map count towards the most. */
+export function perGalaxyHint(max: number): string {
   return max === 1
-    ? "A system placed on the map counts first, so the game rolls no other."
-    : `Systems placed on the map count first, so the game rolls no more than ${max} in all.`;
+    ? "This system is that one, so a new game won't add another."
+    : "Systems on this map count towards that.";
+}
+
+/** Whether the initializer states how many a galaxy holds, that it is pre-FTL, or its name list. */
+export function hasStatedRows(spawn: SystemSpawn): boolean {
+  return spawn.max_instances !== null || spawn.primitive_system || spawn.namelist !== null;
 }
 
 /** The Pre-FTL row's hint. */

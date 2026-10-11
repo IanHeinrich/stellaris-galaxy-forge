@@ -1,4 +1,5 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
+import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
@@ -7,8 +8,16 @@ import { isStarBody } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
 import { templateName } from "../../../../lib/names";
 import {
+  blockCountTitle,
+  blockNoun,
+  bodyBlocks,
+  drawWords,
+  moonsEach,
+} from "../../../../lib/details/bodyBlocks";
+import {
   countWords,
   everyBodyFrom,
+  isAsteroidClass,
   isRanged,
   moonsAndAsteroids,
   PLANETS_FROM_SCRIPT,
@@ -23,7 +32,7 @@ import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
-import { ComesFrom, MayNotSpawnChip, Rolled, Unknown } from "../../states";
+import { ComesFrom, Rolled, Unknown } from "../../states";
 import { usePlanetCounter } from "../usePlanetCounter";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
 import {
@@ -62,15 +71,34 @@ function openRowMenu(e: MouseEvent, system: number, id: number): void {
   });
 }
 
+/** The count at the right of a block's row, rolled where the game draws it, with its sentence on hover. */
+function BlockCount({ count, noun }: { count: CountRange; noun: string }) {
+  const ranged = isRanged(count);
+  return (
+    <span
+      className={ranged ? "ins-block-count ins-st-rolled" : "ins-block-count"}
+      title={blockCountTitle(count, noun)}
+    >
+      {ranged ? rangeWords(count) : `×${count.max}`}
+    </span>
+  );
+}
+
 export function PlanetRow({
   planet,
   details,
   editHint,
+  count = null,
+  moons = 0,
 }: {
   planet: PlanetSummary;
   details: SystemDetails;
   /** Why the row carries the Edit chip, or `null` when its page edits nothing. */
   editHint: string | null;
+  /** How many its block places, where the row stands for several copies of it. */
+  count?: CountRange | null;
+  /** On a block of planets, the most moons each of them has. */
+  moons?: number;
 }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
@@ -87,22 +115,33 @@ export function PlanetRow({
   const size = planet.layout?.size ? boundsText(planet.layout.size) : planet.size;
   const spawn = planet.spawn;
   const state = spawn?.class.state;
+  const noun = blockNoun(planet.moon, isAsteroidClass(planet.class, classes));
+  const random = unrolled || (state !== undefined && state !== "fixed");
+  const title =
+    count === null || named !== ""
+      ? name
+      : random
+        ? `Random ${noun}`
+        : noun.charAt(0).toUpperCase() + noun.slice(1);
   const shownName: ReactNode =
     named !== "" || state === undefined || state === "fixed" ? (
-      name
+      title
     ) : state === "rolled" ? (
-      <Rolled>{name}</Rolled>
+      <Rolled>{title}</Rolled>
     ) : (
-      <Unknown>{name}</Unknown>
+      <Unknown>{title}</Unknown>
     );
   const classShown: ReactNode =
-    named === "" ? null : state === "rolled" ? (
-      <Rolled>rolled class</Rolled>
+    named === "" && count === null ? null : spawn?.class.state === "rolled" ? (
+      <Rolled>{named === "" ? drawWords(spawn.class.pool) : "rolled class"}</Rolled>
     ) : state === "unknown" ? (
       <Unknown>class picked at game start</Unknown>
+    ) : count !== null && unrolled ? (
+      "any class"
     ) : (
       classText
     );
+  const countMark = count === null ? null : <BlockCount count={count} noun={noun} />;
   return (
     <DrillRow
       className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
@@ -118,7 +157,6 @@ export function PlanetRow({
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
           {spawn?.starting_planet && <Chip>start planet</Chip>}
-          {spawn?.always === false && <MayNotSpawnChip />}
           {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit
@@ -127,9 +165,10 @@ export function PlanetRow({
         </span>
         <span className="l2">
           {classShown}
-          {planet.moon && !unrolled && <span>moon</span>}
+          {planet.moon && !unrolled && count === null && <span>moon</span>}
           <SizeAndPops size={size} pops={planet.pops} />
-          {planet.orbit !== null && <span>orbit {Math.round(planet.orbit)}</span>}
+          {moons > 0 && <span>{moonsEach(moons)}</span>}
+          {planet.orbit !== null && count === null && <span>orbit {Math.round(planet.orbit)}</span>}
           {!planet.colonised && habitable(planet) && (
             <span className="ok">habitable, unclaimed</span>
           )}
@@ -141,9 +180,10 @@ export function PlanetRow({
           </span>
         )}
       </span>
-      {!wide && (
+      {(!wide || countMark !== null) && (
         <span className="rs" title={depositTitle(planet.deposit_keys)}>
-          <Pills rows={rows} />
+          {countMark}
+          {!wide && <Pills rows={rows} />}
         </span>
       )}
     </DrillRow>
@@ -178,10 +218,11 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const [all, setAll] = useState(false);
   const isStar = (p: PlanetSummary) => isStarBody(p.class, classes, starClasses);
   const planets = orderedPlanets(details.planets, isStar);
+  const blocks = bodyBlocks(planets);
   const totals = planetTotals(details.planets);
   const counts = usePlanetCounter()(details);
   const fixed = counts.planets !== null && !isRanged(counts.planets) ? counts.planets.min : null;
-  const shown = all ? planets : planets.slice(0, LIST_LIMIT);
+  const shown = all ? blocks : blocks.slice(0, LIST_LIMIT);
   const summary: ReactNode =
     fixed !== null ? undefined : counts.planets === null ? (
       <Unknown>from a script</Unknown>
@@ -227,16 +268,18 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
               </span>
             </span>
           </div>
-          {shown.map((p) => (
+          {shown.map(({ body, count, moons }) => (
             <PlanetRow
-              key={p.id}
-              planet={p}
+              key={body.id}
+              planet={body}
               details={details}
-              editHint={bodyEditHint(p.class, bodies, classes, starClasses)}
+              editHint={bodyEditHint(body.class, bodies, classes, starClasses)}
+              count={count}
+              moons={moons}
             />
           ))}
-          {!all && planets.length > LIST_LIMIT && (
-            <MoreButton count={planets.length - LIST_LIMIT} onClick={() => setAll(true)} />
+          {!all && blocks.length > LIST_LIMIT && (
+            <MoreButton count={blocks.length - LIST_LIMIT} onClick={() => setAll(true)} />
           )}
           {details.spawn?.from_script != null && (
             <ComesFrom>{everyBodyFrom(details.spawn.from_script)}</ComesFrom>

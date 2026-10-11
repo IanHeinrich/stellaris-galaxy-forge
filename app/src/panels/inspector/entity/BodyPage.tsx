@@ -22,7 +22,6 @@ import { Chip } from "../../parts";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
-import { MayNotSpawnChip } from "../states";
 import { StarRowIcon } from "../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
@@ -115,7 +114,6 @@ function Head({
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
       {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
-      {body?.spawn?.always === false && <MayNotSpawnChip />}
       {action}
     </div>
   );

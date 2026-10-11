@@ -5,7 +5,9 @@ top bar, its menus, the dock frame, the status bar and the map's tool rail),
 `file/` (the launch and open screens), `initializers/` (the initializer
 browser), `inspector/` (the right-hand pane), `overlays/` (dialogs, the context
 menu, the map tooltip) and `search/` (the palette). A file more than one
-folder uses sits at the root of `panels/`.
+folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
+piece of script text the app shows: the Initializer sections' groups and the
+Inspector's Source tab.
 
 ## Stylesheets
 

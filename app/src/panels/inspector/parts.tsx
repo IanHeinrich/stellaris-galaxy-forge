@@ -95,6 +95,40 @@ export function Section({
   );
 }
 
+/**
+ * A group inside a section, under a rule: a heading with its caret and, at the right, a short
+ * `tail` such as a count. It starts open, and its open state is remembered as a section's is.
+ */
+export function Group({
+  id,
+  title,
+  tail,
+  children,
+}: {
+  id: string;
+  title: string;
+  tail?: string;
+  children: ReactNode;
+}) {
+  const collapsed = useInspectorStore((s) => s.sections[id] ?? false);
+  const toggleSection = useInspectorStore((s) => s.toggleSection);
+  return (
+    <div className="ins-group">
+      <button
+        type="button"
+        className="ins-group-head"
+        aria-expanded={!collapsed}
+        onClick={() => toggleSection(id, false)}
+      >
+        <Twisty open={!collapsed} />
+        <span className="ins-group-title">{title}</span>
+        {tail !== undefined && <span className="ins-group-tail">{tail}</span>}
+      </button>
+      {!collapsed && <div className="ins-group-body">{children}</div>}
+    </div>
+  );
+}
+
 /** A label, a value and, later, the control the schema decides. */
 export function PropertyRow({
   label,

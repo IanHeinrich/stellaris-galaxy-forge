@@ -131,6 +131,50 @@ describe("a save system's overview", () => {
     expect(html).toContain('aria-label="Filter 21 flags"');
   });
 
+  it("heads its Initializer section with the key, and lists the countries it creates", async () => {
+    useGameDataStore.setState({
+      special: new Map([
+        [
+          SYSTEM,
+          {
+            id: SYSTEM,
+            primary: "leviathan",
+            kinds: ["leviathan"],
+            initializer: "guardians_init_dragon",
+            initializer_known: true,
+            source_file: "leviathans_system_initializers.txt",
+            flags: [],
+            countries: [
+              {
+                id: null,
+                name_key: "Voidwyrm",
+                name: "Voidwyrm",
+                country_type: "guardian_dragon",
+                icon: null,
+                generated_name: false,
+              },
+            ],
+            label: "Voidwyrm",
+            label_is_generated_name: false,
+          },
+        ],
+      ]),
+    });
+    await open("save");
+    await land(details());
+    useInspectorStore.setState({ sections: { "system.initializer": false } });
+
+    const html = overview();
+    expect(html).toContain(
+      '<div class="ins-init"><div class="ins-init-head"><span class="mono ins-init-name">',
+    );
+    expect(html).toContain(
+      '<span class="k">Creates</span><span><span class="ins-init-country">Voidwyrm</span></span>',
+    );
+    expect(html).not.toContain("Change…");
+    expect(html).not.toContain("ins-group");
+  });
+
   it("opens the flags on what galaxy generation hid here, one readable line each", async () => {
     const flags = ["AI_hub", "AI_system_2", "hidden_cutholoid"];
     mockedIpc.getSystem.mockImplementation(async (id) => {

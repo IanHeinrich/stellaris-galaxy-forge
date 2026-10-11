@@ -6,24 +6,31 @@ import {
   bodyScriptHint,
   CLASS_DECIDED,
   comesFrom,
-  mayNotSpawnHint,
+  copyLine,
+  lineCount,
   MODEL_ROLLED,
   NAME_UNKNOWN,
   OTHER_KEYS_HINT,
+  OTHER_KEYS_TITLE,
   percent,
   rawText,
   RING_ROLLED,
   rolledClassText,
+  SCRIPT_TITLE,
   START_PLANET_HINT,
   starOdds,
   unknownClassWhy,
 } from "../../../lib/details/spawnFacts";
 import { templateName } from "../../../lib/names";
+import { counted } from "../../../lib/text";
+import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
+import { ScriptSnippet } from "../../ScriptSnippet";
 import { useNamed } from "../../useNamed";
-import { Properties, PropertyRow, Section } from "../parts";
-import { ComesFrom, RawText, Rolled, SubHead, Unknown, Why } from "../states";
+import { Group, Properties, PropertyRow, Section } from "../parts";
+import { ComesFrom, Rolled, Unknown, Why } from "../states";
 import { PlanetSize } from "../system/sections/bodies";
+import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
 import type { PlanetSectionProps } from "./planetSection";
@@ -154,15 +161,17 @@ export function SpawnProperties({
   );
 }
 
-/** Under a scenario body's head: why it may not spawn, and the inline script it comes from. */
+/**
+ * Under a scenario body's head: its place among the bodies its block places, and the inline script
+ * it comes from.
+ */
 export function SpawnHeadNotes({ read }: { read: BodyRead }) {
   const spawn = read.summary.spawn;
   if (spawn === undefined) return null;
+  const copy = copyLine(spawn, read.summary.moon);
   return (
     <>
-      {!spawn.always && (
-        <div className="muted ins-hint">{mayNotSpawnHint(spawn, read.summary.moon)}</div>
-      )}
+      {copy !== null && <div className="muted ins-hint">{copy}</div>}
       {spawn.from_script !== null && <ComesFrom>comes from {spawn.from_script}</ComesFrom>}
     </>
   );
@@ -188,6 +197,8 @@ export function BodyFlags({ read }: PlanetSectionProps) {
  * on it, the keys and script Galaxy Forge keeps as written, and where values come from.
  */
 export function BodyInitializer({ read }: PlanetSectionProps) {
+  const system = useGalaxyStore((s) => s.systems.get(read.details.id));
+  const file = useInitializerFile(system?.initializer ?? "");
   const spawn = read.summary.spawn;
   if (spawn === undefined) return null;
   const from = comesFrom({ inline_scripts: [], variables: spawn.variables });
@@ -199,36 +210,45 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
     from.length > 0;
   if (!shown) return null;
   const noun = bodyNoun(read.summary);
+  const source = file === null ? undefined : { file };
   return (
     <Section id="planet.initializer" title="Initializer">
-      {(spawn.starting_planet || spawn.home_planet) && (
-        <Properties>
-          {spawn.starting_planet && (
-            <>
-              <PropertyRow label="Start planet">Yes</PropertyRow>
-              <Why>{START_PLANET_HINT}</Why>
-            </>
-          )}
-          {spawn.home_planet && <PropertyRow label="Home planet">Yes</PropertyRow>}
-        </Properties>
-      )}
-      {spawn.other_keys.length > 0 && (
-        <>
-          <SubHead title="Other keys" count={spawn.other_keys.length} />
-          <div className="muted ins-hint">{OTHER_KEYS_HINT}</div>
-          <RawText text={rawText(spawn.other_keys)} />
-        </>
-      )}
-      {spawn.script.length > 0 && (
-        <>
-          <SubHead title="Script" count={spawn.script.length} />
-          <div className="muted ins-hint">{bodyScriptHint(noun)}</div>
-          <RawText text={rawText(spawn.script)} />
-        </>
-      )}
-      {from.map((line) => (
-        <ComesFrom key={line}>{line}</ComesFrom>
-      ))}
+      <div className="ins-init">
+        {(spawn.starting_planet || spawn.home_planet) && (
+          <Properties>
+            {spawn.starting_planet && (
+              <>
+                <PropertyRow label="Start planet">Yes</PropertyRow>
+                <Why>{START_PLANET_HINT}</Why>
+              </>
+            )}
+            {spawn.home_planet && <PropertyRow label="Home planet">Yes</PropertyRow>}
+          </Properties>
+        )}
+        {spawn.script.length > 0 && (
+          <Group
+            id="planet.initializer.script"
+            title={SCRIPT_TITLE}
+            tail={counted(lineCount(spawn.script), "line")}
+          >
+            <div className="muted ins-hint">{bodyScriptHint(noun)}</div>
+            <ScriptSnippet text={rawText(spawn.script)} source={source} />
+          </Group>
+        )}
+        {spawn.other_keys.length > 0 && (
+          <Group
+            id="planet.initializer.other"
+            title={OTHER_KEYS_TITLE}
+            tail={`${spawn.other_keys.length}`}
+          >
+            <div className="muted ins-hint">{OTHER_KEYS_HINT}</div>
+            <ScriptSnippet text={rawText(spawn.other_keys)} source={source} />
+          </Group>
+        )}
+        {from.map((line) => (
+          <ComesFrom key={line}>{line}</ComesFrom>
+        ))}
+      </div>
     </Section>
   );
 }

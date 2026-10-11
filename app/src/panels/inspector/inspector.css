@@ -457,55 +457,117 @@ button.link.ins-drill:hover {
   content: "↳ ";
 }
 
-.chip.ins-maybe {
-  border-style: dashed;
-  border-color: #8c97ab;
-  background: transparent;
-}
-
-/* Script as the file writes it: its own case, nesting kept at a narrow tab, and room below. */
-.ins-written {
-  margin: 4px 0 8px;
-}
-
-.ins-written-text {
-  margin: 0;
-  padding: 6px 8px;
-  overflow-x: auto;
+/* The count of a row that stands for several copies of a body, at the row's right. */
+.ins-block-count {
+  padding: 0 5px;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--fg-soft);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  line-height: 1.45;
-  text-transform: none;
-  white-space: pre;
-  tab-size: 2;
+  border-radius: 3px;
+  font-size: var(--text-hint);
+  white-space: nowrap;
 }
 
-/* The control that shows a long script whole, in the link colour with its caret. */
-button.link.ins-written-more {
-  display: inline-flex;
+.ins-block-count.ins-st-rolled {
+  border-color: rgba(127, 179, 255, 0.35);
+  background: rgba(127, 179, 255, 0.08);
+}
+
+/* The Initializer section: its name and button, its kind and file, one grid of rows, then groups. */
+.ins-init-head {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 2px 0;
-  color: var(--accent);
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.ins-init-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ins-init-head button {
+  flex: none;
+}
+
+.ins-init-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  margin: -2px 0 8px;
   font-size: var(--text-note);
 }
 
-button.link.ins-written-more:hover {
+.ins-init-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ins-init-links {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.ins-init-links button.link {
+  padding: 0 4px;
+  font-size: var(--text-note);
   text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
 }
 
-button.link.ins-written-more .tri {
-  color: inherit;
+.ins-init-country {
+  display: block;
 }
 
-.ins-subhead {
-  margin: 8px 0 2px;
-  padding: 0 2px;
+.ins-init .ins-kv .ins-why {
+  grid-column: 2 / -1;
+  margin-bottom: 2px;
+}
+
+.ins-init .ins-kv + .ins-kv {
+  margin-top: 6px;
+}
+
+/* A group inside a section: a rule, a heading with its caret and tail, its body one indent in. */
+.ins-group {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+button.ins-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  color: var(--fg);
+  font-size: var(--text-control);
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+button.ins-group-head .tri {
+  width: 10px;
   color: var(--fg-muted);
-  font-size: var(--text-note);
+}
+
+.ins-group-tail {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.ins-group-body {
+  padding: 4px 0 2px 16px;
+}
+
+.ins-group-body > .ins-hint:first-child {
+  padding-top: 0;
 }

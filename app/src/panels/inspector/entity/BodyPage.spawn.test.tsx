@@ -47,7 +47,7 @@ function row(html: string, label: string): string {
 const ROLLED = { state: "rolled" as const, pool: { kind: "random" as const, draw: "random" } };
 
 describe("a scenario body's page", () => {
-  it("marks a copy that may not spawn, with its block's count, and says what the game rolls", async () => {
+  it("says which copy of its block it is and when the game places it, and what the game rolls", async () => {
     const seventh = planet(106, "", {
       class: "random",
       drawn: true,
@@ -61,9 +61,9 @@ describe("a scenario body's page", () => {
 
     const html = page(106, "Random planet");
     const head = html.slice(0, html.indexOf("</div>"));
-    expect(head).toContain('<span class="chip ins-maybe">may not spawn</span>');
+    expect(head).not.toContain("may not spawn");
     expect(html).toContain(
-      "The initializer places 2 to 10 of these planets. The game may place fewer than 7.",
+      "The initializer places 2 to 10 planets like this one. This is the 7th, so the game places it only when it rolls 7 or more.",
     );
     expect(row(html, "Name")).toContain("Named by the game when it starts");
     expect(row(html, "Class")).toContain("Rolled from the classes that fit its orbit");
@@ -76,7 +76,7 @@ describe("a scenario body's page", () => {
     expect(html).not.toContain("Modifiers");
   });
 
-  it("says a moon around a body that may not spawn may not spawn either, and a lone optional moon may be left out", async () => {
+  it("says a moon around a planet not every game has may be missing too, and when a lone optional moon is placed", async () => {
     const moon = planet(107, "", {
       class: "random",
       moon: true,
@@ -92,9 +92,9 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [moon, optional], spawn: systemSpawn() }));
 
-    expect(page(107, "Random moon")).toContain("It orbits a body that may not spawn.");
+    expect(page(107, "Random moon")).toContain("It orbits a planet that not every game has.");
     expect(page(108, "Random moon")).toContain(
-      "The initializer places 0 to 1 of these moons. The game may place none.",
+      "The initializer places 0 to 1 moons like this one around its planet. This is the 1st, so the game places it only when it rolls 1 or more.",
     );
   });
 
@@ -174,8 +174,15 @@ describe("a scenario body's page", () => {
     expect(row(html, "Start planet")).toContain(
       "The empire that spawns here starts on this planet, unless it brings its own starting system.",
     );
-    expect(html).toContain("Script · 1");
-    expect(html).toContain("save_global_event_target_as = sol_system_earth");
+    expect(html).toContain(
+      '<span class="ins-group-title">Script it runs</span><span class="ins-group-tail">1 line</span>',
+    );
+    expect(html).toContain(
+      "The game runs these lines once, when it builds the planet. Galaxy Forge shows them as written.",
+    );
+    expect(html).toContain(
+      '<span class="snippet-key">save_global_event_target_as</span> = sol_system_earth',
+    );
     expect(html).toContain("orbit_distance from @base_moon_distance");
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("pl-dep-remove");
@@ -278,17 +285,18 @@ describe("a scenario body's page", () => {
 
     const html = drawnBy(() => page(100, "World"));
     expect(html).toContain(
-      `if = {
-	limit = { has_leviathans = yes }
-	set_owner = event_target:owner
-}`,
+      '<span class="snippet-line"><span class="snippet-keyword">if</span> = {</span>' +
+        '<span class="snippet-line">	<span class="snippet-keyword">limit</span> = {',
     );
-    expect(html).toContain('class="ins-written-text"');
+    expect(html).toContain(
+      '<span class="snippet-line">	<span class="snippet-key">set_owner</span> = ' +
+        '<span class="snippet-scope">event_target:owner</span></span><span class="snippet-line">}</span>',
+    );
     expect(html).toContain("Show all 18 lines");
     expect(html).not.toContain("flag_13");
     expect(html).toContain('aria-expanded="false"');
     const more = lastDrawn(
-      (el) => el.type === "button" && el.props.className === "link ins-written-more",
+      (el) => el.type === "button" && el.props.className === "link snippet-more",
       "the show all control",
     ) as { onClick(): void; "aria-expanded": boolean };
     expect(more["aria-expanded"]).toBe(false);
