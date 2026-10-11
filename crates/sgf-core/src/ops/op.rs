@@ -876,8 +876,10 @@ impl Op {
             | Self::RemoveBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
+            // A megastructure written back stands in its system's details, though no body
+            // of the system is rewritten.
             Self::RestoreEntities { .. } => OpReach::of(SAVE)
-                .details(Bodies)
+                .details(Rebuild)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }

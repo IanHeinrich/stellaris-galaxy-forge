@@ -1,0 +1,53 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted megastructure #1 (strategic_coordination_center_ruined) in Nimirroth #7
+inverse: RestoreEntities { description: "Restored megastructure #1 (strategic_coordination_center_ruined)", entities: [SavedEntity { table: System, id: 7, text: "7=\n\t{\n\t\tcoordinate=\n\t\t{\n\t\t\tx=-20.11\n\t\t\ty=-165.45\n\t\t\torigin=4294967295\n\t\t\trandomized=yes\n\t\t\tvisual_height=3.65056\n\t\t}\n\t\tname=\n\t\t{\n\t\t\tkey=\"Nimirroth\"\n\t\t}\n\t\tplanet=631\n\t\tplanet=632\n\t\tplanet=633\n\t\tplanet=634\n\t\tplanet=635\n\t\tplanet=636\n\t\tplanet=637\n\t\tplanet=638\n\t\tplanet=639\n\t\tplanet=640\n\t\tplanet=641\n\t\tplanet=642\n\t\tambient_object=\n\t\t{\n\t\t\t6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 \n\t\t}\n\t\tmegastructures=\n\t\t{\n\t\t\t1 \n\t\t}\n\t\tstar_class=\"sc_k\"\n\t\thyperlane=\n\t\t{\n\t\t\t\n\t\t\t{\n\t\t\t\tto=586\n\t\t\t\tlength=21\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=161\n\t\t\t\tlength=16\n\t\t\t}\n \n\t\t}\n\t\tarm=0\n\t\tflags=\n\t\t{\n\t\t\tempire_cluster=62808000\n\t\t\truined_strategic_coordination_center_system=62808000\n\t\t\tgalactic_landmark_system=62808000\n\t\t\tprecursor_5=62808000\n\t\t\tresource_region_not_resource_rich=62808000\n\t\t}\n\t\tinitializer=\"megacorp_strategic_coordination_center_init_01\"\n\t\tinner_radius=254.1\n\t\touter_radius=354.1\n\t\tstarbases=\n\t\t{\n\t\t\t4294967295 \n\t\t}\n\t\tsector=4294967295\n\t\tindex=15\n\t\tstorm=4294967295\n\t}" }, SavedEntity { table: Planet, id: 631, text: "631=\n\t\t{\n\t\t\tplanet_class=\"pc_k_star\"\n\t\t\tplanet_size=25\n\t\t\tcarrier_binary_flags=3\n\t\t\tbuild_queue=748\n\t\t\tname=\n\t\t\t{\n\t\t\t\tkey=\"STAR_NAME_1_OF_1\"\n\t\t\t\tvariables=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"NAME\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"Nimirroth\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}\n\t\t\tcoordinate=\n\t\t\t{\n\t\t\t\tx=0\n\t\t\t\ty=0\n\t\t\t\torigin=7\n\t\t\t}\n\t\t\torbit=0\n\t\t\tlast_bombardment=\t\t\t\"0.01.01\"\n\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n\t\t\tmegastructure=1\n\t\t\tbombardment_damage=0\n\t\t\tentity=0\n\t\t\tdeposits=\n\t\t\t{\n\t\t\t\t883 \n\t\t\t}\n\t\t}" }, SavedEntity { table: Megastructure, id: 1, text: "1=\n\t{\n\t\ttype=\"strategic_coordination_center_ruined\"\n\t\tcoordinate=\n\t\t{\n\t\t\tx=0\n\t\t\ty=0\n\t\t\torigin=7\n\t\t}\n\t\tplanet=631\n\t\torbitals=\n\t\t{\n\t\t}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}" }] }
+
+--- gamestate
++++ gamestate
+@@ -29360,10 +29360,6 @@
+ 		{
+ 			6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 
+ 		}
+-		megastructures=
+-		{
+-			1 
+-		}
+ 		star_class="sc_k"
+ 		hyperlane=
+ 		{
+@@ -112588,7 +112584,6 @@
+ 			planet_orbitals=
+ 			{
+ 			}
+-			megastructure=1
+ 			bombardment_damage=0
+ 			entity=0
+ 			deposits=
+@@ -1400646,23 +1400641,7 @@
+ 		dismantle_progress=0
+ 		dismantle_finish_date="0.01.01"
+ 	}
+-	1=
+-	{
+-		type="strategic_coordination_center_ruined"
+-		coordinate=
+-		{
+-			x=0
+-			y=0
+-			origin=7
+-		}
+-		planet=631
+-		orbitals=
+-		{
+-		}
+-		build_queue=4294967295
+-		dismantle_progress=0
+-		dismantle_finish_date="0.01.01"
+-	}
++	1=none
+ 	2=
+ 	{
+ 		type="shroud_seal"
