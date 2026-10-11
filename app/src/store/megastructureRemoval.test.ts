@@ -5,9 +5,10 @@ vi.mock("../api/events");
 
 import type { EntityAddr } from "../generated/EntityAddr";
 import { mockedIpc } from "../test/ipc";
-import { name, planetPage } from "../test/builders";
+import { megastructureTypeView, name, planetPage } from "../test/builders";
 import { openFixtureSave, sessionError } from "./editorFixture";
 import { editResult, entityNode, entityView, scalar } from "./fixture";
+import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { deleteMegastructure } from "./megastructureRemoval";
 
@@ -59,9 +60,10 @@ const asked = () => mockedIpc.confirm.mock.calls[0]?.[0];
 
 beforeEach(async () => {
   await openFixtureSave();
+  useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
   madeIt = false;
   mockedIpc.confirm.mockResolvedValue(true);
-  mockedIpc.applyOp.mockResolvedValue(editResult());
+  mockedIpc.deleteMegastructure.mockResolvedValue(editResult());
 });
 
 describe("deleting a megastructure", () => {
@@ -72,13 +74,10 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(true);
 
     expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete Science Nexus in Sol? It is removed from the save. What it did to its system stays as the game left it.",
+      "Delete Science Nexus in Sol? It is removed from the save. Without game data, the modifiers its construction added stay. What it did to its system stays as the game left it.",
       expect.objectContaining({ title: "Science Nexus", kind: "warning" }),
     );
-    expect(mockedIpc.applyOp).toHaveBeenCalledWith({
-      type: "DeleteMegastructure",
-      megastructure: NEXUS,
-    });
+    expect(mockedIpc.deleteMegastructure).toHaveBeenCalledWith(NEXUS);
     expect(labels()).toEqual(["Ostiuq"]);
   });
 
@@ -89,7 +88,7 @@ describe("deleting a megastructure", () => {
 
     expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(false);
 
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.deleteMegastructure).not.toHaveBeenCalled();
     expect(labels()).toEqual(["Ostiuq", "Science Nexus", "Colony #18"]);
   });
 
@@ -97,7 +96,7 @@ describe("deleting a megastructure", () => {
     armRow("hyper_relay", null, 23);
     await deleteMegastructure(NEXUS, "Hyper Relay", null);
     expect(asked()).toBe(
-      "Delete Hyper Relay? It is removed from the save. Its relay link goes too. What it did to its system stays as the game left it.",
+      "Delete Hyper Relay? It is removed from the save. Its relay link goes too. Without game data, the modifiers its construction added stay. What it did to its system stays as the game left it.",
     );
 
     mockedIpc.confirm.mockClear();
@@ -124,7 +123,7 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Cosmogenesis World", 0)).toBe(true);
 
     expect(asked()).toBe(
-      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. What it did to its system and planet stays as the game left it.",
+      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Without game data, the modifiers its construction added stay. What it did to its system and planet stays as the game left it.",
     );
     expect(mockedIpc.getEntity).toHaveBeenCalledWith({ kind: "planet", id: WORLD }, ["flags"]);
     expect(labels()).toEqual(["Ostiuq"]);
@@ -149,6 +148,36 @@ describe("deleting a megastructure", () => {
     expect(labels()).toEqual(["Ostiuq", "Colony #18"]);
   });
 
+  it("says what the game data says its construction added goes too", async () => {
+    useGameDataStore.setState({
+      status: "ready",
+      megastructureTypes: new Map([
+        [
+          "orbital_arc_furnace_4",
+          megastructureTypeView("orbital_arc_furnace_4", {
+            dismantle: {
+              modifiers: ["orbital_arc_furnace_4_mod"],
+              deposits: ["d_arc_furnace_4"],
+              variables: [{ variable: "arc_furnace_counter", by: 1 }],
+            },
+          }),
+        ],
+      ]),
+    });
+    armRow("orbital_arc_furnace_4", null);
+    await deleteMegastructure(NEXUS, "Arc Furnace", 0);
+    expect(asked()).toBe(
+      "Delete Arc Furnace in Sol? It is removed from the save. The modifiers, deposits and counters its construction added go too. Anything else it did to its system stays as the game left it.",
+    );
+
+    mockedIpc.confirm.mockClear();
+    armRow("think_tank_3", null);
+    await deleteMegastructure(NEXUS, "Science Nexus", 0);
+    expect(asked()).toBe(
+      "Delete Science Nexus in Sol? It is removed from the save. What it did to its system stays as the game left it.",
+    );
+  });
+
   it("says what it could not read, and asks nothing", async () => {
     mockedIpc.getEntity.mockRejectedValue({ kind: "entity", message: "no megastructure 359" });
     onTheStructure();
@@ -159,12 +188,15 @@ describe("deleting a megastructure", () => {
       "Couldn't read Science Nexus, so nothing was deleted: no megastructure 359",
     );
     expect(mockedIpc.confirm).not.toHaveBeenCalled();
-    expect(mockedIpc.applyOp).not.toHaveBeenCalled();
+    expect(mockedIpc.deleteMegastructure).not.toHaveBeenCalled();
   });
 
   it("keeps the pages open when the core refuses", async () => {
     armRow("lgate_base", null);
-    mockedIpc.applyOp.mockRejectedValueOnce({ kind: "op", message: "megastructure 0 is kept" });
+    mockedIpc.deleteMegastructure.mockRejectedValueOnce({
+      kind: "op",
+      message: "megastructure 0 is kept",
+    });
     onTheStructure();
 
     expect(await deleteMegastructure(NEXUS, "L-Gate", 0)).toBe(false);

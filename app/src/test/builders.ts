@@ -405,6 +405,7 @@ export function megastructureTypeView(
     upgrade_from: [],
     rotate_to_center: true,
     produces: [],
+    dismantle: { modifiers: [], deposits: [], variables: [] },
     ...over,
   };
 }
