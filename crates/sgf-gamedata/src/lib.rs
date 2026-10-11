@@ -58,8 +58,7 @@ use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
 use registries::{
-    colors, flags, gfx, planet_lists, registry, section_templates, star_names,
-    starbase_levels,
+    colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
 };
 use sgf_core::ops::SystemRadii;
 
