@@ -20,7 +20,7 @@ pub mod system;
 pub mod trigger;
 pub mod view;
 
-pub use index::{CreatedCountry, Prescripted, RefSite, ScriptIndex, SiteKind};
+pub use index::{CreatedCountry, FallenEmpire, Prescripted, RefSite, ScriptIndex, SiteKind};
 pub use view::{
     BypassKind, BypassSource, LGateModTouch, LGateTouchKind, OwnerIdentity, OwnerTier,
     ROW_KIND_ORDER, ROW_LIMIT, ReferenceVia, SITE_LIMIT, ScenarioBypass, ScenarioBypasses,
@@ -44,6 +44,15 @@ impl<'a> ScenarioSystem<'a> {
             id,
             initializer: Self::initializer_of(initializer),
             effect,
+            at: None,
+        }
+    }
+
+    /// The same system standing at `(x, y)`.
+    pub const fn at(self, x: f64, y: f64) -> Self {
+        Self {
+            at: Some((x, y)),
+            ..self
         }
     }
 
@@ -64,13 +73,18 @@ impl<'a> ScenarioSystem<'a> {
             .graph()
             .systems
             .values()
-            .map(|s| ScenarioSystem::new(s.id, &s.initializer, by_system.get(&s.id).copied()))
+            .map(|s| {
+                ScenarioSystem::new(s.id, &s.initializer, by_system.get(&s.id).copied())
+                    .at(s.x, s.y)
+            })
             .collect();
         f(&systems, digest(&systems))
     }
 }
 
-/// What the territories are computed from: every system's id, initializer and effect.
+/// What the territories are computed from: every system's id, initializer and effect. A
+/// move leaves it as it was, as it leaves the classification: which fallen empire a system
+/// nearest two homes goes to holds until the next initializer change.
 fn digest(systems: &[ScenarioSystem<'_>]) -> u64 {
     let mut hasher = DefaultHasher::new();
     systems.len().hash(&mut hasher);

@@ -54,6 +54,9 @@ pub struct Chain {
     pub called_effects: Vec<String>,
     /// The chain plants a starbase, whoever it belongs to.
     pub has_starbase: bool,
+    /// The chain plants a starbase with no owner or `owner = root`, which the
+    /// country whose chain spawned the system gets.
+    pub root_starbase: bool,
     /// Initializers this one places nearby, transitively, nearest first.
     pub spawned: Vec<String>,
 }
@@ -174,8 +177,14 @@ impl Walk<'_> {
                 "set_planet_flag" => flag(child, scope.src, &mut self.chain.planet_flags),
                 "create_starbase" => {
                     self.chain.has_starbase = true;
-                    if let Some(node) = child.find("owner", scope.src) {
-                        owner(&mut self.chain, node, scope.src);
+                    match child.find("owner", scope.src) {
+                        Some(node) => {
+                            self.chain.root_starbase |= node
+                                .scalar_str(scope.src)
+                                .is_some_and(|o| o.eq_ignore_ascii_case("root"));
+                            owner(&mut self.chain, node, scope.src);
+                        }
+                        None => self.chain.root_starbase = true,
                     }
                 }
                 _ => self.call(key, child, scope),

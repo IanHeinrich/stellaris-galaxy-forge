@@ -3,4 +3,4 @@
 /**
  * How much the identity resolver could say about a territory's owner.
  */
-export type OwnerIdentity = "created" | "country_flag" | "prescripted" | "custom_empire_spawn" | "unresolved";
+export type OwnerIdentity = "created" | "country_flag" | "prescripted" | "fallen_empire" | "custom_empire_spawn" | "unresolved";

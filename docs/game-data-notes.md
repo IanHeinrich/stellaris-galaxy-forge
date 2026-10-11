@@ -768,6 +768,49 @@ one. They are then drawn in about the star until the outermost fits
 inside the smallest inner radius a system has, `NGameplay`'s
 `SYSTEM_MIN_INNER_RADIUS` (150 in vanilla).
 
+## Fallen empires in a scenario
+
+`common/fallen_empires/*.txt` has one entry per kind of fallen empire.
+Its `initializer` names the home system's initializer. Galaxy Forge
+also reads the `name`, `type`, first `ethos.ethic` and `flag` of the
+`create_country` in its `create_country_effect`. Vanilla writes
+`name = random` and `flag = random` in every entry, so a territory is
+named by the entry's localisation (`fallen_machine_empire`) or by its
+ethic with `fanatic_` dropped ("Materialist Fallen Empire"). It has no
+colours of its own. When two files define the same entry, the last one
+read is kept. I haven't checked that against the game.
+
+The home initializer writes `set_owner = root` on its planets. The
+systems it spawns call `create_fe_outpost`, a `create_starbase` with no
+owner. The game gives both to `root`, the country it creates in the
+home system. A fallen empire's territory is its home system and every
+system its chain spawns, up to four spawns deep, that plants a starbase
+with no owner or `owner = root`, or sets an owner through `root`.
+`fallen_1_2` has `usage = fallen_empire_init` too, but no entry names
+it, so it is a member and not a home.
+
+Every vanilla fallen empire spawn writes `distance = { min max }`,
+measured from the system that spawns it. A member has to stand within
+the sum of those `max` values along its spawns, plus a quarter, of the
+home system. That is 50 for an outpost the home spawns and 100 for a
+colony spawned by one of those outposts. A `spawn_system`'s
+`max_distance` counts the same way. A spawn bounded only by
+`hyperlane_jumps`, or by nothing, puts no limit on the distance. In the
+4.4 sample the farthest member stands 58 from its home.
+
+When two fallen empires of the same kind could hold a system, it goes
+to the nearer home. The owners are cached until an initializer or a
+statement's `effect` changes, and moving a system changes neither, so
+the nearer home is the one at the last change, not after the move.
+
+The 4.4 sample's scenario has three fallen empires. In the save,
+country 15 holds `fallen_machine` (246) and the four systems it
+spawns: 0, 64, 672 and 774. The materialist empire holds `fallen_1`
+(58) and its seven spawned systems. The spiritualist empire holds
+`fallen_2` (521) and six spawned systems, and also three plain systems
+(63, 641 and 721) that no initializer gives it. The holy worlds
+(`fallen_holy_01` to `04`) build nothing for it and are unowned.
+
 ## References (for edge cases, never for bundling)
 
 - `jomini` (Rust) parses this dialect including comments and operators.
