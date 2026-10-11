@@ -7,6 +7,7 @@ import * as ipc from "../api/ipc";
 import type { MegastructureDismantle } from "../generated/MegastructureDismantle";
 import { bodyName } from "../lib/details/labels";
 import {
+  addedThisSession,
   deleteMegastructureQuestion,
   EMPTY_DISMANTLE,
   madeByMegastructure,
@@ -24,15 +25,17 @@ import { useInspectorStore } from "./inspectorStore";
  * the megastructure made. The colony goes first only there; an ordinary colony stays.
  */
 async function lossOf(id: number): Promise<MegastructureLoss> {
-  const row = megastructureRow((await ipc.getEntity({ kind: "megastructure", id })).nodes);
+  const view = await ipc.getEntity({ kind: "megastructure", id });
+  const row = megastructureRow(view.nodes);
+  const added = addedThisSession(view);
   const dismantle = dismantleOf(row.kind);
-  if (row.planet === null) return { row, colony: null, dismantle };
+  if (row.planet === null) return { row, added, colony: null, dismantle };
   const page = await ipc.getPlanetPage(row.planet);
-  if (page.colony === null || page.flags === 0) return { row, colony: null, dismantle };
+  if (page.colony === null || page.flags === 0) return { row, added, colony: null, dismantle };
   const flags = await ipc.getEntity({ kind: "planet", id: row.planet }, ["flags"]);
-  if (!madeByMegastructure(flags.nodes)) return { row, colony: null, dismantle };
+  if (!madeByMegastructure(flags.nodes)) return { row, added, colony: null, dismantle };
   const planet = bodyName(page, useGameDataStore.getState().names);
-  return { row, colony: { planet, page }, dismantle };
+  return { row, added, colony: { planet, page }, dismantle };
 }
 
 /** What the loaded game data says a megastructure of `kind` takes back when deleted; null without it. */

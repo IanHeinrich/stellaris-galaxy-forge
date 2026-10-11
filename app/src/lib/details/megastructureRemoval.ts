@@ -4,6 +4,7 @@
  */
 import { NULL_ID } from "../../generated/constants";
 import type { EntityNode } from "../../generated/EntityNode";
+import type { EntityView } from "../../generated/EntityView";
 import type { MegastructureDismantle } from "../../generated/MegastructureDismantle";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
@@ -63,6 +64,11 @@ export function megastructureRow(nodes: readonly EntityNode[]): MegastructureRow
   };
 }
 
+/** Whether an entity was added since the file was opened: its statement has no bytes in the file. */
+export function addedThisSession(view: EntityView): boolean {
+  return view.span[0] === view.span[1];
+}
+
 /** Whether a planet's `flags` say a megastructure made it. */
 export function madeByMegastructure(flags: readonly EntityNode[]): boolean {
   return flags.some((n) => n.key === MADE_BY_MEGASTRUCTURE);
@@ -71,6 +77,8 @@ export function madeByMegastructure(flags: readonly EntityNode[]): boolean {
 /** What a deletion takes besides the row: read before the confirm asks. */
 export interface MegastructureLoss {
   row: MegastructureRow;
+  /** The row was added since the file was opened, so its removal takes back what its add wrote. */
+  added: boolean;
   /** The planet a megastructure made, with the colony on it that goes first; null otherwise. */
   colony: { planet: string; page: PlanetPage } | null;
   /** What the game data says its dismantle takes back; null without game data. */
@@ -91,7 +99,7 @@ export const EMPTY_DISMANTLE: MegastructureDismantle = {
 export function deleteMegastructureQuestion(
   name: string,
   system: string | null,
-  { colony, dismantle }: MegastructureLoss,
+  { colony, dismantle, added }: MegastructureLoss,
 ): string {
   const where = system === null ? "" : ` in ${system}`;
   const settled =
@@ -99,6 +107,8 @@ export function deleteMegastructureQuestion(
       ? ""
       : ` The colony on ${colony.planet} goes with it: ${colonyParts(colony.page)}. The planet stays.`;
   const kept =
-    dismantle === null ? " Without game data, the modifiers its construction added stay." : "";
+    dismantle === null && !added
+      ? " Without game data, the modifiers its construction added stay."
+      : "";
   return `Delete ${name}${where}? It is removed from the save.${settled}${kept}`;
 }
