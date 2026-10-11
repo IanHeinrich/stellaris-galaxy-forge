@@ -98,6 +98,9 @@ fn game_data_commands_degrade_without_an_install() {
     let names: HashMap<String, String> =
         invoke(&w, "get_names", json!({ "keys": ["NAME_Sol"] })).expect("names");
     assert!(names.is_empty(), "{names:?}");
+    let raw: HashMap<String, String> =
+        invoke(&w, "get_raw_names", json!({ "keys": ["STAR_NAME_1_OF_2"] })).expect("raw names");
+    assert!(raw.is_empty(), "{raw:?}");
     let resolved: Vec<String> = invoke(
         &w,
         "resolve_names",
@@ -198,6 +201,23 @@ fn game_data_commands_answer_with_the_install() {
         "base64 PNG"
     );
     assert!(textures[1].error.is_some());
+}
+
+#[test]
+fn raw_names_keep_their_references_unexpanded() {
+    let Some((w, _)) = common::with_game_data(SAMPLE_45) else {
+        return;
+    };
+
+    let raw: HashMap<String, String> = invoke(
+        &w,
+        "get_raw_names",
+        json!({ "keys": ["STAR_NAME_1_OF_2", "NO_SUCH_KEY"] }),
+    )
+    .expect("raw names");
+    assert_eq!(raw.len(), 1, "only the keys the localisation has: {raw:?}");
+    let text = raw.get("STAR_NAME_1_OF_2").expect("STAR_NAME_1_OF_2");
+    assert!(text.contains("$NAME$"), "{text}");
 }
 
 #[test]

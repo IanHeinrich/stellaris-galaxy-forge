@@ -1,6 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import type { SystemDetails } from "../../generated/SystemDetails";
-import { bodyName } from "../../lib/details/labels";
+import { shownBodyName } from "../../lib/details/labels";
+import type { GivenName } from "../../lib/details/spawnNames";
 import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
@@ -19,10 +20,10 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
-import { givenNamesNow } from "../../store/nameFormatsStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
 import { HelpLink } from "../HelpLink";
+import { useGivenNames } from "../inspector/entity/useBodyName";
 import { useClipboard, type Clipboard } from "../useCut";
 import { GameDataPanel } from "./GameDataPanel";
 
@@ -205,13 +206,13 @@ function bodyReadout(
   details: SystemDetails,
   layout: SystemLayout,
   id: number,
+  given: ReadonlyMap<number, GivenName>,
   names: Names,
 ): string | null {
   const planet = details.planets.find((p) => p.id === id);
   const placed = layout.bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
-  const given = givenNamesNow(details.id, details.planets).get(id);
-  const name = given === undefined ? bodyName(planet, names) : given.text;
+  const name = shownBodyName(planet, given, names);
   if (placed.ring === null) return name;
   const orbit = Math.round(placed.ring.radius);
   return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;
@@ -229,6 +230,7 @@ function SceneHint({ system }: { system: number }) {
   );
   const top = useInspectorStore((s) => s.stack[s.stack.length - 1]);
   const names = useGameDataStore((s) => s.names);
+  const given = useGivenNames(details);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const moonScale = useGameDataStore(moonScaleOf);
   const drawn = useSceneStore((s) => s.roll);
@@ -247,7 +249,8 @@ function SceneHint({ system }: { system: number }) {
   }
   const layout = details && systemLayout(details, roll, planetClasses, moonScale);
   const id = layout ? inspectedBody(layout, system, top?.ref ?? null) : null;
-  const body = details && layout && id !== null ? bodyReadout(details, layout, id, names) : null;
+  const body =
+    details && layout && id !== null ? bodyReadout(details, layout, id, given, names) : null;
   if (body === null) return <span className="muted">{LEAVE_HINT}</span>;
   const movable = id !== null && editing.bodies.get(id)?.move === true;
   return <span className="muted">{movable ? `${body} · ${DRAG_HINTS.movable}` : body}</span>;

@@ -11,6 +11,7 @@ import type { WormholeSummary } from "../../generated/WormholeSummary";
 import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
+import type { GivenName } from "./spawnNames";
 import { wholeTurn } from "./orbits";
 import { capitalised, keyWords, titleCase } from "../text";
 import {
@@ -181,6 +182,15 @@ export function bodyName(
   const named = templateName(planet);
   if (named !== "") return named;
   return capitalised(bodyClassName(planet.class, names, planet.moon));
+}
+
+/** A body's name as the system list shows it: the name the game gives a scenario body, where told. */
+export function shownBodyName(
+  planet: PlanetSummary,
+  given: ReadonlyMap<number, GivenName>,
+  names: Names,
+): string {
+  return given.get(planet.id)?.text ?? bodyName(planet, names);
 }
 
 /** A plain outpost earns no icon: the border already says the system is held. */

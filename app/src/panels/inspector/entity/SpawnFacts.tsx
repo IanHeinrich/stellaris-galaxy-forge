@@ -138,7 +138,7 @@ function ClassRow({ spawn, read }: { spawn: BodySpawn; read: BodyRead }) {
   if (spawn.changed_class !== null) {
     return (
       <HintedRow label="Class" hint={CHANGED_BY_EFFECT}>
-        {bodyClassName(spawn.changed_class, names)}
+        {bodyClassName(spawn.changed_class, names, summary.moon)}
       </HintedRow>
     );
   }

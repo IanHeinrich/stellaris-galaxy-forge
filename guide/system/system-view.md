@@ -80,9 +80,9 @@ Values show in one of three ways:
 - A value the game decides in a way Galaxy Forge can't show is in grey
   italics with a question mark.
 
-A value with a dotted underline has more to say. Hover over it to see
-the explanation, such as why the game decides a class when a new game
-starts or which variable sets a size. Ranges read "10 to 20".
+A value with a dotted underline has an explanation. Hover over it to
+read it. It says, for example, why the game decides a class when a new
+game starts or which variable sets a size. Ranges read "10 to 20".
 
 Some initializers place a planet a random number of times. The Planets
 list shows those planets as one row, such as "Random planets", with the

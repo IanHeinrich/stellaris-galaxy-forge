@@ -13,7 +13,7 @@ import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import { ADD_BASES, NO_HOME_BESIDE } from "./MarauderSection";
-import { CLAN_CARD, homeLine } from "./sectionCopy";
+import { CLAN_CARD } from "./sectionCopy";
 import { drawnBy } from "../../../../../test/drawn";
 import { hintOf } from "../../../../../test/hints";
 import { mockedIpc } from "../../../../../test/ipc";
@@ -82,7 +82,6 @@ describe("a scenario system's marauder clan", () => {
     await openWith({ home: 1 }, { 0: [{ base: 1 }, 2], 2: [{ base: 1 }, 3], 3: [{ base: 2 }] });
     const html = drawnBy(overview);
     expect(html).toContain("Clan 1&#x27;s home. The clan spawns here at game start.");
-    expect(homeLine(1)).toBe("Clan 1's home. The clan spawns here at game start.");
     expect(hintOf("Marauder clan")).toBe(CLAN_CARD);
     expect(html).not.toContain("two outposts");
     expect(html).toMatch(/Outpost 2: <button[^>]*>Sol<\/button>/);

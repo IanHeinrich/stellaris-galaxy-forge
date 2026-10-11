@@ -2,7 +2,7 @@ import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import type { Bounds } from "../../../generated/Bounds";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyClassName, bodyName, shownBodyName } from "../../../lib/details/labels";
 import { isStarBody } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
@@ -29,7 +29,7 @@ import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditF
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
-import { NeverPlaced, Rolled } from "../states";
+import { Hinted, NeverPlaced, Rolled } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
@@ -50,7 +50,7 @@ import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { BodyFlags, BodyInitializer, SpawnHeadNotes, SpawnProperties } from "./SpawnFacts";
 import { SizeField, StarBlock } from "./StarBlock";
-import { shownBodyName, useGivenNames } from "./useBodyName";
+import { useGivenNames } from "./useBodyName";
 import "./entity.css";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations, anomaly, dig site and class names. */
@@ -121,8 +121,16 @@ function Head({
       {body?.colonised && <Chip>colonised</Chip>}
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
-      {body?.spawn?.starting_planet && <Chip title={START_PLANET_TITLE}>start planet</Chip>}
-      {body?.spawn?.home_planet && <Chip title={HOME_PLANET_TITLE}>home planet</Chip>}
+      {body?.spawn?.starting_planet && (
+        <Hinted label="Start planet" hint={START_PLANET_TITLE} focusable={false}>
+          <Chip>start planet</Chip>
+        </Hinted>
+      )}
+      {body?.spawn?.home_planet && (
+        <Hinted label="Home planet" hint={HOME_PLANET_TITLE} focusable={false}>
+          <Chip>home planet</Chip>
+        </Hinted>
+      )}
       {neverSpawns(body?.spawn) && <NeverPlaced />}
       {action}
     </div>

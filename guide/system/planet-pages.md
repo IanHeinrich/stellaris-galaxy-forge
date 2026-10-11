@@ -63,9 +63,9 @@ a ring, so you can take it off.
 
 In a scenario, a body's page shows what its initializer says about it.
 It has the Name, Class, Size, Ring and Model rows, each set by the
-initializer, rolled by the game or decided when a new game starts. A
-value with a dotted underline has more to say. Hover over it to see the
-explanation. A line under the name says when some games don't have the
+initializer, rolled by the game or decided when a new game starts.
+[Values with a dotted underline](system-view.md#rolled-values-and-how-many-planets-spawn)
+have an explanation. A line under the name says when some games don't have the
 body, and how many bodies like it the game places. The page also lists
 the deposits, modifiers, anomaly and flags the initializer states. A
 start planet has a "start planet" mark beside its name, and a home
@@ -83,7 +83,7 @@ the class could give. It starts closed.
 An unnamed body shows the name the game gives it, made from the
 system's name, such as "Yunak II" or "Yunak IIa". The game numbers
 planets in order. Where some bodies before it may not be placed, the
-name is rolled, and the line under it lists every name it can have.
+name is rolled. Hover over the name to see every name it can have.
 Lists, links and the system view show the first name it can have, such
 as "Yunak II". A row of the Planets list that stands for several
 planets shows the names they can have, such as "Yunak II to IV".

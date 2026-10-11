@@ -99,7 +99,7 @@ const add = (a: number | null, b: number | null) => (a === null || b === null ? 
 
 /**
  * The bar rows of a deposit pool, likeliest first: each resource's deposits gathered into one row
- * with a segment per amount, and each deposit that yields nothing in a row of its own. A row with
+ * with a segment per amount, and each blocker or deposit that yields nothing in a row of its own. A row with
  * any amount whose chance the install can't tell has no bar, only its amounts, and follows the
  * rows that have one.
  */
@@ -111,7 +111,7 @@ export function depositBars(
   for (const pick of picks) {
     const view = views.get(pick.key);
     const yields = view?.yields ?? [];
-    if (yields.length === 0) {
+    if (view?.blocker === true || yields.length === 0) {
       rows.set(`deposit:${pick.key}`, {
         key: pick.key,
         name: plainName(pick.key, view),
@@ -226,14 +226,17 @@ export function depositKindsTail(kinds: DepositKinds): string {
 }
 
 /**
- * What a deposit pool's line counts: its resources by kind where none of its odds are known, else
- * its rows.
+ * What a deposit pool's line counts: its resource rows, or its other rows as kinds where it gives
+ * no resource.
  */
 export function depositPoolTail(
   picks: readonly PoolPick[],
   views: ReadonlyMap<string, DepositTypeView>,
 ): string {
-  return picks.every((pick) => pick.chance === null)
-    ? depositKindsTail(depositKinds(picks, views))
-    : counted(depositBars(picks, views).length, "resource");
+  if (picks.every((pick) => pick.chance === null)) {
+    return depositKindsTail(depositKinds(picks, views));
+  }
+  const rows = depositBars(picks, views);
+  const resources = rows.filter((row) => !row.plain).length;
+  return resources > 0 ? counted(resources, "resource") : counted(rows.length, "kind");
 }

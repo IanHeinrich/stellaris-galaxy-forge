@@ -17,14 +17,12 @@ import { useIssuesStore } from "../../../../../store/issuesStore";
 import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import {
   AUTOMATIC_NOTE,
-  FALLBACK_HINT,
   FALLBACK_LABEL,
-  KIND_HINT,
   LINK_HINT,
   NEAREST_NOTE,
   NONE_LINKED,
 } from "./FeZoneSection";
-import { FE_ZONE_CARD, FE_ZONE_LINE } from "./sectionCopy";
+import { FE_ZONE_LINE } from "./sectionCopy";
 import { appIssue } from "../../../../../test/builders";
 import { escaped } from "../../../../../test/elements";
 import { drawnBy } from "../../../../../test/drawn";
@@ -74,7 +72,14 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html.indexOf("Fallen empire zone")).toBeLessThan(html.indexOf("basic_init_01"));
     expect(html).toContain(FE_ZONE_LINE);
     expect(html).not.toContain("hyperlanes to systems nearby");
-    expect(hintOf("Fallen empire zone")).toBe(escaped(FE_ZONE_CARD));
+    expect(hintOf("Fallen empire zone")).toBe(
+      escaped(
+        "At game start the mod creates the fallen empire's home system at the centre of the ring, " +
+          "its other systems around it, and hyperlanes to systems nearby. Nothing already on the " +
+          "map is used or moved, so keep the ring clear of your systems. Each zone is measured " +
+          "from one of your systems, so add it from the system you want it near.",
+      ),
+    );
   });
 
   it("says None and offers to add a zone where there is room", async () => {
@@ -119,8 +124,12 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html).toContain('<option value="se" selected="">South-east</option>');
     expect(html).toContain('<option value="60" selected="">60</option>');
     expect(html.match(/<option value="\d+"/g)).toHaveLength(18);
-    expect(html).not.toContain(KIND_HINT);
-    expect(hintOf("Type")).toBe(escaped(KIND_HINT));
+    const kind = escaped(
+      "Random lets the game pick the fallen empire. A named type puts that empire here first, if " +
+        "the game spawns one.",
+    );
+    expect(html).not.toContain(kind);
+    expect(hintOf("Type")).toBe(kind);
     const placement = escaped(
       "Where the ring sits, measured from Alpha Centauri. The mod can only place a fallen " +
         "empire at these eight directions and distances.",
@@ -129,7 +138,12 @@ describe("a scenario system's fallen empire zone", () => {
     expect(hintOf("Distance")).toBe(placement);
     expect(html).toContain(FALLBACK_LABEL);
     expect(html.match(/<input type="checkbox"[^>]*>/g)!.pop()).toContain("checked=");
-    expect(hintOf("Fallback")).toBe(escaped(FALLBACK_HINT));
+    expect(hintOf("Fallback")).toBe(
+      "If no fallen empire is placed here, the mod creates a few ordinary systems in the ring instead.",
+    );
+    const labels = html.match(/<label>[\s\S]*?<\/label>/g) ?? [];
+    expect(labels.length).toBeGreaterThanOrEqual(4);
+    for (const label of labels) expect(label).not.toContain("tabindex");
     expect(html).not.toContain(AUTOMATIC_NOTE);
     expect(html).toContain(">Remove zone</button>");
     expect(html).not.toContain(">None<");

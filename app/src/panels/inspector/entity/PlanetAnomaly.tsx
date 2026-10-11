@@ -90,7 +90,7 @@ function PlacedAnomalyRow({ category, noun }: { category: string; noun: string }
   );
 }
 
-/** What a scenario body's initializer says of its anomalies: the ones it places, or whether one can appear. */
+/** What a scenario body's initializer says of its anomalies: the ones it places. */
 function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies; noun: string }) {
   if (anomalies.categories.length === 0) return null;
   return (

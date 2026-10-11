@@ -109,7 +109,7 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
       ))}
       <div className="ins-fe-zone">
         <label>
-          <Hinted label="Type" hint={KIND_HINT}>
+          <Hinted label="Type" hint={KIND_HINT} focusable={false}>
             Type
           </Hinted>
           <select
@@ -127,7 +127,7 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
       </div>
       <div className="ins-fe-zone">
         <label>
-          <Hinted label="Direction" hint={placementHint(anchor)}>
+          <Hinted label="Direction" hint={placementHint(anchor)} focusable={false}>
             Direction
           </Hinted>
           <select
@@ -143,7 +143,7 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           </select>
         </label>
         <label>
-          <Hinted label="Distance" hint={placementHint(anchor)}>
+          <Hinted label="Distance" hint={placementHint(anchor)} focusable={false}>
             Distance
           </Hinted>
           <select
@@ -166,7 +166,7 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
             checked={zone.fallback}
             onChange={() => write({ fallback: !zone.fallback })}
           />
-          <Hinted label="Fallback" hint={FALLBACK_HINT}>
+          <Hinted label="Fallback" hint={FALLBACK_HINT} focusable={false}>
             {FALLBACK_LABEL}
           </Hinted>
         </label>

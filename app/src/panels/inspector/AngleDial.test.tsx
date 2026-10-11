@@ -13,15 +13,29 @@ function onRim(angle: number): { x: string; y: string } {
   return { x: (d.x * R).toFixed(2), y: (d.y * R).toFixed(2) };
 }
 
+/**
+ * The SVG sweep flag of an arc drawn the way save angles grow on screen, from the system view's
+ * camera as the screenDirection test reads it.
+ */
+function growingSweep(): string {
+  const camera = new Camera();
+  camera.setViewport(2, 2);
+  const at = (angle: number) => {
+    const world = polar(0, 0, 1, angle);
+    const screen = camera.worldToScreen(world.x, world.y);
+    return { x: screen.x - 1, y: screen.y - 1 };
+  };
+  const [a, b] = [at(30), at(31)];
+  return a.x * b.y - a.y * b.x > 0 ? "1" : "0";
+}
+
 describe("the angle dial", () => {
   it("draws a ranged step as a wedge from the body before it, between the step's ends", () => {
     const html = renderToStaticMarkup(<AngleDial step={{ min: 30, max: 120 }} />);
     const from = onRim(30);
     const to = onRim(120);
-    expect(html).toMatch(
-      new RegExp(
-        `<path class="ins-dial-wedge" d="M0 0 L${from.x} ${from.y} A12 12 0 0 [01] ${to.x} ${to.y} Z"></path>`,
-      ),
+    expect(html).toContain(
+      `<path class="ins-dial-wedge" d="M0 0 L${from.x} ${from.y} A12 12 0 0 ${growingSweep()} ${to.x} ${to.y} Z"></path>`,
     );
     expect(html).not.toContain("ins-dial-line");
     expect(html).not.toContain("ins-dial-any");

@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import type { NameTemplate } from "../../../generated/NameTemplate";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
-import { bodyName } from "../../../lib/details/labels";
+import { bodyName, shownBodyName } from "../../../lib/details/labels";
 import { givenNamesFrom, nameFormats, type GivenName } from "../../../lib/details/spawnNames";
 import { findPlanet } from "../../../lib/details/starBody";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -35,6 +35,16 @@ function useFormats(planets: readonly PlanetSummary[] | undefined): ReadonlyMap<
   return formats;
 }
 
+interface KeptNames {
+  systemName: NameTemplate | undefined;
+  names: ReadonlyMap<string, string>;
+  formats: ReadonlyMap<string, string>;
+  given: ReadonlyMap<number, GivenName>;
+}
+
+// Kept per planet list rather than with useMemo, so the menus that read it run outside a render.
+const GIVEN = new WeakMap<readonly PlanetSummary[], KeptNames>();
+
 /**
  * The names the game gives a scenario system's bodies, by id, made from the system's name as it
  * stands; empty for a save's.
@@ -46,19 +56,19 @@ export function useGivenNames(
   const systemName = useGalaxyStore((s) => s.systems.get(details?.id ?? -1)?.name);
   const planets = details?.planets;
   const formats = useFormats(planets);
-  return useMemo(
-    () => givenNamesFrom(planets, systemName, names, formats),
-    [planets, systemName, names, formats],
-  );
-}
-
-/** A body's name as the system list shows it: the name the game gives a scenario body, where told. */
-export function shownBodyName(
-  planet: PlanetSummary,
-  given: ReadonlyMap<number, GivenName>,
-  names: ReadonlyMap<string, string>,
-): string {
-  return given.get(planet.id)?.text ?? bodyName(planet, names);
+  if (planets === undefined) return givenNamesFrom(planets, systemName, names, formats);
+  const kept = GIVEN.get(planets);
+  if (
+    kept !== undefined &&
+    kept.systemName === systemName &&
+    kept.names === names &&
+    kept.formats === formats
+  ) {
+    return kept.given;
+  }
+  const given = givenNamesFrom(planets, systemName, names, formats);
+  GIVEN.set(planets, { systemName, names, formats, given });
+  return given;
 }
 
 /** A body's name as a list or link shows it: the lowest it can have, and whether its numeral is rolled. */
@@ -74,18 +84,11 @@ export interface ListedBodyName {
 export function useSystemBodyNames(system: number): (id: number) => ListedBodyName | undefined {
   const names = useGameDataStore((s) => s.names);
   const details = useDetailsStore((s) => s.details.get(system));
-  const systemName = useGalaxyStore((s) => s.systems.get(system)?.name);
-  const formats = useFormats(details?.planets);
-  const given = givenNamesFrom(details?.planets, systemName, names, formats);
+  const given = useGivenNames(details);
   return (id) => {
     const planet = details?.planets.find((p) => p.id === id);
     if (planet === undefined) return undefined;
-    const own = given.get(id);
-    if (own === undefined) {
-      const text = bodyName(planet, names);
-      return { text, rolled: false };
-    }
-    return { text: own.text, rolled: own.rolled };
+    return { text: shownBodyName(planet, given, names), rolled: given.get(id)?.rolled ?? false };
   };
 }
 

@@ -103,7 +103,6 @@ describe("a rolled scenario system", () => {
     ]);
     expect(html).not.toContain("may not spawn");
     expect(html).toContain(">random class</span>");
-    expect(html).not.toContain("rolled class");
   });
 
   it("lists a block the game places a random number of times as one row, its count explained on hover", async () => {
@@ -156,7 +155,6 @@ describe("a rolled scenario system", () => {
     await land(details({ planets: [STAR, second], spawn }));
 
     const html = drawnBy(overview);
-    expect(html).not.toContain("as often as shown");
     expect(hintOf("Star class")).toBe("From the game&#x27;s star list rl_standard_stars.");
     const g = html.indexOf(">sc_g<");
     const k = html.indexOf(">sc_k<");
@@ -207,7 +205,9 @@ describe("a rolled scenario system", () => {
     toggleGroup("system.initializer.random");
 
     const html = overview();
-    expect(html).toContain('aria-expanded="false"><span class="tri">▸</span>');
+    expect(html).toMatch(
+      /aria-expanded="false"><span class="tri">▸<\/span><span class="ins-group-title"><span id="[^"]*" class="ins-hinted">Random galaxy settings<\/span>/,
+    );
     expect(html).not.toContain("How often");
   });
 
@@ -302,7 +302,6 @@ describe("a seat's scenario system", () => {
 
     const html = drawnBy(overview);
     expect(html).toContain("An empire that spawns here brings its own starting system.</span>");
-    expect(html).not.toContain("in place of this one");
     expect(hintOf("Spawn point")).toBe(
       "The empire&#x27;s system replaces this one. What this initializer spawns around it, like Sol&#x27;s neighbours, still appears. If no empire lands here, the initializer is used as written.",
     );

@@ -158,13 +158,7 @@ export function PlanetRow({
   const state = spawn?.class.state;
   const asteroid = isAsteroidClass(planet.class, classes);
   const plural = count !== null && count.max > 1;
-  const noun = plural
-    ? blockNoun(planet.moon, asteroid)
-    : asteroid
-      ? "asteroid"
-      : planet.moon
-        ? "moon"
-        : "planet";
+  const noun = blockNoun(planet.moon, asteroid, !plural);
   const random = unrolled || (state !== undefined && state !== "fixed");
   const described = named === "" && (plural || random);
   const title =
@@ -201,7 +195,7 @@ export function PlanetRow({
   const parentNever =
     never && details.planets.some((p) => p.id === planet.parent && neverSpawns(p.spawn));
   const countMark = never ? (
-    <NeverPlaced hint={neverLine(noun.replace(/s$/, ""), parentNever)} />
+    <NeverPlaced hint={neverLine(blockNoun(planet.moon, asteroid, true), parentNever)} />
   ) : count === null ? null : (
     <BlockCount count={count} moon={planet.moon} asteroid={asteroid} />
   );
@@ -219,8 +213,16 @@ export function PlanetRow({
           {shownName}
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
-          {spawn?.starting_planet && <Chip title={START_PLANET_TITLE}>start planet</Chip>}
-          {spawn?.home_planet && <Chip title={HOME_PLANET_TITLE}>home planet</Chip>}
+          {spawn?.starting_planet && (
+            <Hinted label="Start planet" hint={START_PLANET_TITLE} focusable={false}>
+              <Chip>start planet</Chip>
+            </Hinted>
+          )}
+          {spawn?.home_planet && (
+            <Hinted label="Home planet" hint={HOME_PLANET_TITLE} focusable={false}>
+              <Chip>home planet</Chip>
+            </Hinted>
+          )}
           {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit

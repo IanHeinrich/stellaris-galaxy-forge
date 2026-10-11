@@ -62,6 +62,15 @@ function row(html: string, label: string): string {
   return next === -1 ? rest : rest.slice(0, next);
 }
 
+/** The edit row labelled `label`, up to the next edit row. */
+function editRow(html: string, label: string): string {
+  const start = html.indexOf(`<span class="edit-label">${label}</span>`);
+  expect(start, `a ${label} row`).toBeGreaterThan(-1);
+  const rest = html.slice(start + 1);
+  const next = rest.indexOf('<span class="edit-label">');
+  return next === -1 ? rest : rest.slice(0, next);
+}
+
 /** The die that marks a rolled value, as it renders. */
 const DIE = renderToStaticMarkup(<RolledMark />);
 
@@ -144,7 +153,6 @@ describe("what a scenario body can roll", () => {
       [expect.stringContaining("barren"), "100.0%", "75%"],
       [expect.stringContaining("toxic"), "33.3%", "25%"],
     ]);
-    expect(cls).not.toContain("depends on");
     const list = row(
       drawnBy(() => page(101, "Listed")),
       "Class",
@@ -213,7 +221,6 @@ describe("what a scenario body can roll", () => {
     ]);
     expect(listed.every((r) => r.cell === "" && r.chance === "")).toBe(true);
     expect(listed.every((r) => r.icon.includes('class="pi'))).toBe(true);
-    expect(wide).not.toContain("Which of these");
     drawnBy(() => page(101, "Planet"));
     expect(hintOf("Class")).toBe(
       '<span class="ins-set-by">Rolled from the classes that fit its orbit.</span>' +
@@ -281,7 +288,7 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 2 resources");
+    expect(html).toContain("Can roll · 2 kinds");
     expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
     expect(html).toContain("Can roll · 2 planet features");
     const features = poolRows(html.slice(html.indexOf("planet features")));
@@ -320,7 +327,7 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
-    expect(html).toContain("Can also roll · 1 resource");
+    expect(html).toContain("Can also roll · 1 kind");
     expect(depositRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
@@ -345,7 +352,14 @@ describe("what a scenario body can roll", () => {
           "d_mystery_1",
           depositTypeView("d_mystery_1", { yields: [resourceAmount("sr_mystery", 1, "Mystery")] }),
         ],
-        ["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp", blocker: true })],
+        [
+          "d_toxic_kelp",
+          depositTypeView("d_toxic_kelp", {
+            name: "Toxic Kelp",
+            blocker: true,
+            yields: [resourceAmount("energy", 1, "Energy")],
+          }),
+        ],
       ]),
     });
     const world = drawn(100, {
@@ -365,7 +379,7 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 4 resources");
+    expect(html).toContain("Can roll · 3 resources");
     const rows = depositRows(html);
     expect(rows.map((r) => r.title)).toEqual([
       "Minerals · 40%",
@@ -547,7 +561,6 @@ describe("what a scenario body can roll", () => {
 
     openGroups("planet.deposits.roll");
     const opened = row(page(100, "Planet"), "Deposits");
-    console.log("DBG", opened);
     expect(poolRows(opened)).toEqual([]);
     expect(poolChips(opened).map((c) => [c.title, c.amounts])).toEqual([
       ["Minerals", "+1 to +3"],
@@ -810,7 +823,6 @@ describe("what a scenario body can roll", () => {
       expect(row(html, label)).not.toContain("What it can roll");
       expect(hintOf(label)).toBe("The game rolls these to suit the class the planet gets.");
     }
-    expect(html).not.toContain("With its class");
     expect(html).not.toContain('class="ins-sec-title">Deposits');
     expect(html).not.toContain('class="ins-sec-title">Modifiers');
   });
@@ -1010,9 +1022,8 @@ describe("a scenario system's radii", () => {
     );
 
     const html = overview();
-    expect(html).toContain("Inner radius");
-    expect(html).toContain(rolled("150 to 380"));
-    expect(html).toContain(rolled("120 to 140"));
+    expect(editRow(html, "Inner radius")).toContain(rolled("150 to 380"));
+    expect(editRow(html, "rocky_asteroid_belt")).toContain(rolled("120 to 140"));
   });
 });
 

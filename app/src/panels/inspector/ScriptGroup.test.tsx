@@ -46,6 +46,7 @@ describe("the script an initializer runs at game start", () => {
     ]);
     expect(html).toContain(">Script at game start</span>");
     expect(html).not.toContain("ins-warn");
+    expect(html).not.toContain("neighbouring system");
   });
 
   it("shows nothing for an initializer that runs no script", () => {

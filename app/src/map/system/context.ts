@@ -5,7 +5,13 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
 import { bypassIconKey, PLANET_ICON_KEYS } from "../../lib/details/icons";
-import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
+import {
+  boundsText,
+  isColony,
+  shownBodyName,
+  wormholeLabel,
+  wormholePlateName,
+} from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
@@ -473,8 +479,7 @@ function readoutOf(
 
 /** A body's name in the scene: the name the game gives it, at its lowest numeral. */
 function bodyLabel(src: SystemSources, planet: PlanetSummary): string {
-  const given = src.givenNames.get(planet.id);
-  return given === undefined ? src.templateName(planet) : given.text;
+  return shownBodyName(planet, src.givenNames, src.names);
 }
 
 function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {

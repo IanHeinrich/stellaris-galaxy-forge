@@ -89,15 +89,15 @@ export function bodyBlocks(bodies: readonly PlanetSummary[]): BodyBlock[] {
   return rows;
 }
 
-/** What a block's bodies are, plural. */
-export function blockNoun(moon: boolean, asteroid: boolean): string {
-  if (asteroid) return "asteroids";
-  return moon ? "moons" : "planets";
+/** What a block's bodies are, plural, or what one of them is. */
+export function blockNoun(moon: boolean, asteroid: boolean, singular = false): string {
+  const noun = asteroid ? "asteroid" : moon ? "moon" : "planet";
+  return singular ? noun : `${noun}s`;
 }
 
 /** What a block's count says on hover. */
 export function blockCountTitle(count: CountRange, moon: boolean, asteroid: boolean): string {
-  const noun = blockNoun(moon, asteroid).slice(0, -1);
+  const noun = blockNoun(moon, asteroid, true);
   if (count.max <= 1) return `Some games have this ${noun} and some don't.`;
   return placedWords(count, noun, moon);
 }
