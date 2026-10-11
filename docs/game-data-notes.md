@@ -806,6 +806,48 @@ one. They are then drawn in about the star until the outermost fits
 inside the smallest inner radius a system has, `NGameplay`'s
 `SYSTEM_MIN_INNER_RADIUS` (150 in vanilla).
 
+A scenario system's megastructures and starbase are placed from its
+initializer too. A `spawn_megastructure` with `orbit_angle` and
+`orbit_distance` stands at that distance and at the written angle plus
+180°, the same start the bodies' walk uses. The L-Gate written at 225°
+stands at 45° in the 4.4 sample, and the fallen machine empire's ring
+quadrant written at −90° stands at 90°. A ranged distance or angle is
+placed at its midpoint. Every ring quadrant written at 45 stands at
+45.20385 in the saves, in four systems. I can't explain the extra 0.2, and
+the editor places it at 45. A spawn with no position stands at the
+centre.
+
+`planet = star` ties a structure to the system's star, and `planet =
+event_target:X` to the body whose block saves `X`, the last copy when the
+block spawns several. A tied row stands on its body in the save.
+`coords_from` puts it at a body's point without tying it. A spawn written
+in a body's block, through `solar_system = { … }`, is spawned once per
+copy of that block, and `planet = prev` there names the body. A target
+the initializer doesn't save, such as one an event saves, leaves the
+structure with no point.
+
+`random_pos = yes` leaves the point to the game. Five vanilla spawns use
+it: a ruined gateway, a ruined Ness gateway, two derelict gateways and a
+ruined Hyper Relay. The ruined gateways in the 4.4 sample stand at 1.18 to 1.30 × the system's
+`inner_radius`, at any angle. The editor shows a stand-in at 1.24 ×
+`inner_radius`, and a relay at 1.05 ×, where every built relay stands.
+
+The main starbase stands at (a, −a), with a = 11.7 + 0.33 × the star's
+size. 509 of the 558 starbases in the saves checked fit this. A fallen
+empire's citadel comes from `create_fe_citadel = yes`, a scripted effect
+with no parameters whose body is one `create_starbase`. The editor reads
+the spawns and starbases of such an effect when an initializer's own
+effects call it, one level deep. Effects that take parameters are not
+read.
+
+A spawn or starbase with an `owner = event_target:X` belongs to the
+territory that token makes. One with no owner belongs to the territory
+the system joins. Fallen empire ring quadrants name no owner, and the
+saves show them owned by the fallen empire. A fallen empire's systems
+join no territory in a scenario, because the initializer gives the
+system to `root`, the empire the game spawns there. So their quadrants
+and citadels show no owner.
+
 ## References (for edge cases, never for bundling)
 
 - `jomini` (Rust) parses this dialect including comments and operators.

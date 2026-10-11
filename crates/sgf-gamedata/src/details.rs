@@ -1,19 +1,22 @@
 //! What a scenario system shows in place of the save's details projection: everything its
 //! initializer statically defines, in the [`SystemDetails`] shape a save answers with.
 //!
-//! Effects a scripted effect hides (`spawn_dreadnought = yes`) are not resolved, so a
-//! system shows what its initializer file writes out and nothing more.
+//! A scripted effect the system's own effects call is read one level deep, and only when it
+//! takes no parameters, for the megastructures and starbase it creates
+//! (`create_fe_citadel = yes`). Anything else an effect hides (`spawn_dreadnought = yes`) is
+//! not resolved, so a system shows what its initializer file writes out and little more.
 
 use std::convert::Infallible;
 
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
     ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep,
-    DetailsResolver, FleetPresence, ListMember, MegastructureSummary, NeighborSystem, OrbitFit,
-    PlanetSummary, ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies,
-    StatedFeatures, SystemDetails, SystemSpawn, UnknownClass,
+    DetailsResolver, FleetPresence, ListMember, NeighborSystem, OrbitFit, PlanetSummary,
+    RawStatement, ResourceAmount, SpawnClass, SpawnStar, StatedAnomalies, StatedFeatures,
+    SystemDetails, SystemSpawn, UnknownClass,
 };
 use sgf_core::projections::galaxy::StarClasses;
+use sgf_core::projections::geometry::point;
 use sgf_core::projections::name::NameTemplate;
 use sgf_core::views::{ErrorKind, SgfError};
 
@@ -30,14 +33,15 @@ use crate::rolls::RANDOM_ASTEROID;
 use crate::scripts::ScenarioOwners;
 use crate::spawn_rolls::Rolls;
 use crate::stated::StatedDeposit;
-use crate::views::{PlaceholderBody, RolledBody, SystemRoll};
+use crate::structure_spawns::EffectCall;
+use crate::views::{PlaceholderBody, RolledBody, RolledStructure, SystemRoll};
 
 /// Bodies an initializer gives no id: each collection counts from a base far above any id
 /// a save or a scenario writes, so a synthetic id never collides with a real one.
 const PLANET_BASE: u32 = 0x4000_0000;
-const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
+pub(crate) const MEGASTRUCTURE_BASE: u32 = 0x5000_0000;
 /// A scenario starbase's synthetic id: one per system, never a real entity.
-const STARBASE_BASE: u32 = 0x7000_0000;
+pub(crate) const STARBASE_BASE: u32 = 0x7000_0000;
 const SITE_BASE: u32 = 0x6000_0000;
 
 /// The planets and moons one initializer spawns, with the dig sites they carry and the
@@ -117,61 +121,39 @@ impl GameData {
                 planet.owner = Some(colony.territory);
             }
         }
-        let megastructures: Vec<MegastructureSummary> = init
-            .megastructures
-            .iter()
-            .enumerate()
-            .map(|(i, kind)| MegastructureSummary {
-                id: MEGASTRUCTURE_BASE + index(i),
-                kind: kind.clone(),
-                owner: None,
-                planet: None,
-                at: None,
-                culture: None,
-            })
-            .collect();
-        let starbase = init.starbase.as_ref().map(|s| StarbaseSummary {
-            id: STARBASE_BASE.saturating_add(id).min(u32::MAX - 1),
-            hull: 0.0,
-            max_hull: 0.0,
-            level: s.size.clone(),
-            kind: String::new(),
-            name: NameTemplate::default(),
-            name_key: String::new(),
-            owner: None,
-            modules: s.modules.clone(),
-            buildings: s.buildings.clone(),
-            shipyard: s.modules.iter().any(|m| m == "shipyard"),
-            at: None,
-            planet: None,
-            culture: None,
-        });
+        let inner_radius = Rolls::new(self, init).inner_radius(init);
+        let (_, points) = example(&init.planets, roll_seed(id, 0));
+        let structures = self.structures(id, init, &planets, &points, inner_radius, owners);
+        let mut spawn = SystemSpawn {
+            inner_radius,
+            belt_radii: Some(
+                init.asteroid_belts
+                    .iter()
+                    .filter(|b| belt(b).is_some())
+                    .filter_map(|b| b.radius.map(bounds))
+                    .collect(),
+            ),
+            ..self.system_spawn(init, ambient_objects)
+        };
+        for call in &structures.modelled_calls {
+            modelled(&mut spawn.script, call);
+        }
         let resources = system_resources(planets.iter().filter(|p| certain(p)));
         Some(SystemDetails {
             id,
             resources,
             planets,
-            starbase,
+            starbase: structures.starbase,
             other_starbases: Vec::new(),
             fleets: FleetPresence::default(),
             fleets_present: Vec::new(),
-            megastructures,
+            megastructures: structures.megastructures,
             sites,
             with_game_data: true,
             belts: init.asteroid_belts.iter().filter_map(belt).collect(),
             inner_radius: None,
             wormholes: Vec::new(),
-            spawn: Some(SystemSpawn {
-                inner_radius: Rolls::new(self, init).inner_radius(init),
-                belt_radii: Some(
-                    init.asteroid_belts
-                        .iter()
-                        .filter(|b| belt(b).is_some())
-                        .filter_map(|b| b.radius.map(bounds))
-                        .collect(),
-                ),
-                ..self.system_spawn(init, ambient_objects)
-            }),
+            spawn: Some(spawn),
         })
     }
 
@@ -534,7 +516,9 @@ impl GameData {
     }
 
     /// One example roll, `roll`, of scenario system `id` of `initializer`: where each body
-    /// its details list lands, the same for the same system and roll. When the game rolls the
+    /// its details list lands, and each megastructure that stands at one, the same for the
+    /// same system and roll. Roll 0 is the one the details' own points are taken from. When
+    /// the game rolls the
     /// system's planets, placeholder planets the generator rolls for star class `star_class`
     /// (or [`RANDOM_STAR_CLASS`] without one), their orbits drawn in to fit inside `within`.
     pub fn system_roll(
@@ -557,17 +541,23 @@ impl GameData {
                 ..SystemRoll::none(id, roll)
             };
         }
-        let planets = self
-            .initializers
-            .get(initializer)
-            .map_or(&[][..], |init| init.planets.as_slice());
-        let mut example = Example {
-            rng: Rng::new(seed),
-            bodies: Vec::new(),
+        let Some(init) = self.initializers.get(initializer) else {
+            return SystemRoll::none(id, roll);
         };
-        let Ok(()) = orbit_walk::walk(planets, &mut example);
+        let (bodies, points) = example(&init.planets, seed);
+        let (_, unrolled) = self.unrolled(init);
+        let structures = self
+            .structures(id, init, &unrolled.planets, &points, None, None)
+            .anchored
+            .into_iter()
+            .map(|(id, body)| RolledStructure {
+                id,
+                at: points[body],
+            })
+            .collect();
         SystemRoll {
-            bodies: example.bodies,
+            bodies,
+            structures,
             ..SystemRoll::none(id, roll)
         }
     }
@@ -918,6 +908,50 @@ impl<'p> Walk<'p> for Example {
     }
 }
 
+/// Roll `seed` of `planets`: each body where it lands about its parent, and its point about the
+/// system's centre, in the order [`initializers::expand`] gives them.
+fn example(planets: &[InitPlanet], seed: u64) -> (Vec<RolledBody>, Vec<(f64, f64)>) {
+    let mut example = Example {
+        rng: Rng::new(seed),
+        bodies: Vec::new(),
+    };
+    let Ok(()) = orbit_walk::walk(planets, &mut example);
+    let mut points: Vec<(f64, f64)> = Vec::with_capacity(example.bodies.len());
+    for (body, expanded) in example.bodies.iter().zip(initializers::expand(planets)) {
+        let centre = expanded.parent.map_or((0.0, 0.0), |p| points[p]);
+        points.push(point(centre, body.orbit, body.angle));
+    }
+    (example.bodies, points)
+}
+
+/// Counts `call` as modelled among the system's unmodelled `script` statements: drops the
+/// statement it is, or adds one to the wrapper it is written in.
+fn modelled(script: &mut Vec<RawStatement>, call: &EffectCall) {
+    let at = |statement: &RawStatement| {
+        statement
+            .at
+            .as_ref()
+            .filter(|at| at.file == call.line.file)
+            .map(|at| at.line)
+    };
+    if let Some(i) = script
+        .iter()
+        .position(|s| s.key == call.key && at(s) == Some(call.line.line))
+    {
+        script.remove(i);
+        return;
+    }
+    let holds = |s: &RawStatement| {
+        at(s).is_some_and(|first| {
+            let last = first + index(s.text.lines().count().saturating_sub(1));
+            (first..=last).contains(&call.line.line)
+        })
+    };
+    if let Some(wrapper) = script.iter_mut().find(|s| holds(s)) {
+        wrapper.modelled += 1;
+    }
+}
+
 /// How far inside the radius they must fit the outermost placeholder planet stays.
 const PLACEHOLDER_MARGIN: f64 = 20.0;
 
@@ -926,7 +960,7 @@ fn roll_seed(id: u32, roll: u32) -> u64 {
     (u64::from(id) << 32) | u64::from(roll)
 }
 
-fn bounds(range: Range) -> Bounds {
+pub(crate) fn bounds(range: Range) -> Bounds {
     Bounds {
         min: range.min,
         max: range.max,
@@ -994,6 +1028,6 @@ pub(crate) fn star_class_of(init: Option<&Initializer>) -> &str {
 }
 
 /// Never [`u32::MAX`]: the format's null id.
-fn index(n: usize) -> u32 {
+pub(crate) fn index(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX - 1)
 }

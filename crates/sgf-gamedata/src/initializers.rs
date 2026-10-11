@@ -18,6 +18,7 @@ use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
 use crate::stated::{self, StatedBody, StatedSystem};
+use crate::structure_spawns::{self, EffectCall, InitMegastructure};
 use crate::weight::Weight;
 use crate::{Diagnostic, GameData};
 
@@ -73,6 +74,11 @@ pub struct InitPlanet {
     pub sites: Vec<String>,
     /// Every `add_deposit = d_…` in this block's effects, its moons aside.
     pub deposits: Vec<String>,
+    /// Every `spawn_megastructure` in this block's effects, its moons aside, in file order:
+    /// each instance of the block spawns them.
+    pub megastructures: Vec<InitMegastructure>,
+    /// The event targets this block's effects save on the body.
+    pub saves_target: Vec<String>,
     /// `false` for `deposit_blockers = none`: the body rolls no blockers.
     pub blockers: bool,
     /// What this block's `init_effect` runs that a generated body is given, in order.
@@ -296,8 +302,11 @@ pub struct Initializer {
     pub asteroid_belts: Vec<InitAsteroidBelt>,
     /// In file order, each carrying the `change_orbit` written before it.
     pub planets: Vec<InitPlanet>,
-    /// Every `spawn_megastructure` type in the system's own effects, in file order.
-    pub megastructures: Vec<String>,
+    /// Every `spawn_megastructure` in the system's own effects, in file order.
+    pub megastructures: Vec<InitMegastructure>,
+    /// The `key = yes` statements of the system's own effects, in file order: each a
+    /// scripted effect called with no parameters, when the install defines one by that name.
+    pub calls: Vec<EffectCall>,
     /// The bypasses the system's own effects spawn, its own ones drawable.
     pub bypasses: InitBypasses,
     /// Every `create_archaeological_site` written directly in the system's own
@@ -337,6 +346,11 @@ pub struct InitStarbase {
     pub size: String,
     pub modules: Vec<String>,
     pub buildings: Vec<String>,
+    /// `owner`, as written.
+    pub owner: Option<String>,
+    /// Written outside every `if`, `random_list`, loop and other scope.
+    pub always: bool,
+    pub line: SourceLine,
 }
 
 impl FromDef for Initializer {
@@ -354,6 +368,7 @@ impl Initializer {
         let src = &def.src;
         let node = &def.node;
         let planets = bodies(node, &["planet"], def, origin);
+        let written = structure_spawns::read(node, def, origin);
         let mut stated = stated::system(node, def, origin);
         stated.inline_scripts = origin.splices.iter().map(InlineScript::use_of).collect();
         stated.from_script = origin
@@ -379,10 +394,11 @@ impl Initializer {
             spawns: spawns(node, src),
             asteroid_belts: asteroid_belts(def),
             planets,
-            megastructures: megastructures(node, src),
+            megastructures: written.megastructures,
+            calls: written.calls,
             bypasses: bypasses(node, src),
             sites: own_sites(node, src),
-            starbase: starbase(node, src),
+            starbase: written.starbase,
             inline_script: places_by_script(node, src),
             stated,
         }
@@ -649,6 +665,8 @@ fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPla
         pre_ftl: has_effect(node, src, body_effects::pre_ftl),
         sites: sites(node, src),
         deposits: deposits(node, src),
+        megastructures: structure_spawns::read(node, def, origin).megastructures,
+        saves_target: structure_spawns::saved_targets(node, src),
         blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,
         unwritten,
@@ -710,14 +728,6 @@ fn deposits(node: &Node, src: &[u8]) -> Vec<String> {
         .collect()
 }
 
-fn megastructures(node: &Node, src: &[u8]) -> Vec<String> {
-    effects(node, "spawn_megastructure", src)
-        .into_iter()
-        .filter_map(|m| m.find("type", src)?.scalar_str(src))
-        .map(str::to_owned)
-        .collect()
-}
-
 /// Each `create_archaeological_site = site` written directly in the system's own
 /// `init_effect`: one under a condition or in another scope is left to the script.
 fn own_sites(node: &Node, src: &[u8]) -> Vec<String> {
@@ -731,22 +741,6 @@ fn own_sites(node: &Node, src: &[u8]) -> Vec<String> {
 fn sites(node: &Node, src: &[u8]) -> Vec<String> {
     effects(node, "create_archaeological_site", src)
         .into_iter()
-        .filter_map(|n| n.scalar_str(src))
-        .map(str::to_owned)
-        .collect()
-}
-
-fn starbase(node: &Node, src: &[u8]) -> Option<InitStarbase> {
-    let block = first_effect(node, "create_starbase", src)?;
-    Some(InitStarbase {
-        size: scalar(block, "size", src)?.to_owned(),
-        modules: values(block, "module", src),
-        buildings: values(block, "building", src),
-    })
-}
-
-fn values(node: &Node, key: &str, src: &[u8]) -> Vec<String> {
-    node.find_all(key, src)
         .filter_map(|n| n.scalar_str(src))
         .map(str::to_owned)
         .collect()

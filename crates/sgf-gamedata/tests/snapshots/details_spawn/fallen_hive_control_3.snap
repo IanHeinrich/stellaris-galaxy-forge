@@ -91,7 +91,10 @@ expression: out
     "variables": []
   },
   "starbase": {
-    "at": null,
+    "at": [
+      19.95,
+      -19.95
+    ],
     "buildings": [],
     "culture": null,
     "hull": 0.0,
@@ -108,7 +111,18 @@ expression: out
     "name_key": "",
     "owner": null,
     "planet": null,
-    "shipyard": false
+    "shipyard": false,
+    "spawn": {
+      "always": true,
+      "owner_written": "event_target:fallen_empire_hive_control",
+      "place": {
+        "kind": "starbase",
+        "star_size": {
+          "max": 30.0,
+          "min": 20.0
+        }
+      }
+    }
   },
   "with_game_data": true,
   "wormholes": []

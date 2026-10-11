@@ -41,6 +41,8 @@ pub mod scripts;
 pub(crate) mod spawn_rolls;
 pub mod special;
 pub mod stated;
+pub mod structure_spawns;
+pub(crate) mod structures;
 pub mod summary;
 pub mod textures;
 pub mod views;

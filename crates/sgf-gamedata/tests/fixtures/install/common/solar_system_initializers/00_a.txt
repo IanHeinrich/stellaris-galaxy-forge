@@ -134,3 +134,175 @@ empty_init = {
 	class = sc_sun
 	usage = misc_system_init
 }
+
+# Every way a spawn_megastructure says where it stands, and a starbase with an owner.
+structures_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		class = star
+		size = 20
+		orbit_distance = 0
+		orbit_angle = 0
+	}
+	planet = {
+		class = pc_meadow
+		orbit_distance = 40
+		orbit_angle = { min = 80 max = 100 }
+		init_effect = {
+			save_event_target_as = fixture_ring_planet
+		}
+	}
+	planet = {
+		count = 2
+		class = pc_meadow
+		orbit_distance = 20
+		orbit_angle = 180
+		init_effect = {
+			solar_system = {
+				spawn_megastructure = {
+					type = "fixture_tank"
+					planet = prev
+				}
+			}
+		}
+	}
+	planet = {
+		class = pc_meadow
+		orbit_distance = 20
+		orbit_angle = 0
+		init_effect = {
+			solar_system = {
+				spawn_megastructure = {
+					type = "fixture_system_itself"
+					planet = this
+				}
+			}
+		}
+	}
+	planet = {
+		count = { min = 0 max = 1 }
+		class = pc_meadow
+		orbit_distance = 20
+		orbit_angle = 0
+		init_effect = {
+			save_event_target_as = fixture_maybe_planet
+		}
+	}
+	init_effect = {
+		spawn_megastructure = { type = "fixture_core" }
+		spawn_megastructure = {
+			type = "fixture_arc"
+			orbit_distance = { min = 40 max = 50 }
+			orbit_angle = 225
+			owner = event_target:fixture_fallen
+			graphical_culture = "fixture_culture"
+		}
+		spawn_megastructure = {
+			type = "fixture_ring"
+			planet = event_target:fixture_ring_planet
+			owner = root
+		}
+		spawn_megastructure = {
+			type = "fixture_shipyard"
+			planet = star
+		}
+		spawn_megastructure = {
+			type = "fixture_near"
+			coords_from = event_target:fixture_ring_planet
+		}
+		spawn_megastructure = {
+			type = "fixture_gateway"
+			random_pos = yes
+			orbit_angle = 360
+		}
+		spawn_megastructure = {
+			type = "hyper_relay_ruined"
+			random_pos = yes
+			orbit_angle = 360
+		}
+		spawn_megastructure = {
+			type = "fixture_lost"
+			planet = event_target:fixture_saved_by_an_event
+		}
+		if = {
+			limit = { always = yes }
+			spawn_megastructure = {
+				type = "fixture_maybe"
+				orbit_distance = 30
+			}
+		}
+		spawn_megastructure = {
+			type = "fixture_on_a_maybe_planet"
+			planet = event_target:fixture_maybe_planet
+		}
+		spawn_megastructure = {
+			type = "fixture_any_angle"
+			orbit_distance = 35
+			orbit_angle = random
+		}
+		spawn_megastructure = {
+			type = "fixture_unread"
+			orbit_distance = @fixture_no_such_distance
+			orbit_angle = 90
+		}
+		random_neighbor_system = {
+			spawn_megastructure = { type = "fixture_elsewhere" }
+		}
+		every_system_planet = {
+			solar_system = {
+				spawn_megastructure = { type = "fixture_per_planet" }
+			}
+		}
+		random_system_planet = {
+			solar_system = {
+				spawn_megastructure = {
+					type = "fixture_named_from_a_planet"
+					planet = event_target:fixture_ring_planet
+				}
+			}
+		}
+		every_system = {
+			spawn_megastructure = { type = "fixture_galaxy_wide" }
+		}
+		last_created_country = {
+			spawn_megastructure = { type = "fixture_country_scope" }
+		}
+		create_starbase = {
+			size = "starbase_fixture"
+			owner = event_target:fixture_fallen
+		}
+	}
+}
+
+# A starbase made through a scripted effect that takes no parameters, and one that takes some.
+citadel_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		class = star
+		size = 30
+		orbit_distance = 0
+	}
+	init_effect = {
+		create_fixture_platform = yes
+		create_fixture_citadel = yes
+	}
+}
+
+# The same citadel under a condition.
+citadel_if_init = {
+	class = sc_sun
+	usage = misc_system_init
+	planet = {
+		class = star
+		size = 30
+		orbit_distance = 0
+	}
+	init_effect = {
+		if = {
+			limit = { always = yes }
+			create_fixture_citadel = yes
+		}
+	}
+}
