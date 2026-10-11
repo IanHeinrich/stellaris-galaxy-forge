@@ -342,6 +342,23 @@
   text-align: right;
 }
 
+/* The type list hangs below its field, past the body's edge, so the body must not clip it. */
+.megastructure-add-body {
+  overflow: visible;
+}
+
+.megastructure-add-type {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.megastructure-add-type .icon-picker,
+.megastructure-add-type .icon-picker-trigger {
+  flex: 1;
+  min-width: 0;
+}
+
 .save-issues-dialog {
   width: min(420px, 100%);
   display: flex;

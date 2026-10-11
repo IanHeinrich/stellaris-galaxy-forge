@@ -177,6 +177,9 @@ don't have installed shows the game's megastructure icon instead.
 Press <kbd>7</kbd> in a system view to hide them, or turn off
 Megastructures and starbases in the Layers menu.
 
+To add a megastructure, right-click a body or empty space. See
+[Add a megastructure](megastructures.md#add-a-megastructure).
+
 ## Names and layers in a system
 
 Each body's name sits on a plate under it. A colonised planet's plate

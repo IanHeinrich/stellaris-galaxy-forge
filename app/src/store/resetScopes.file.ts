@@ -7,6 +7,7 @@ import { useEntityStore } from "./entityStore";
 import { useGeneratorStore } from "./generatorStore";
 import { useHeightPreviewStore } from "./heightPreviewStore";
 import { forgetPlanetOpens } from "./inspectorStore";
+import { useMegastructureAddStore } from "./megastructureAdd";
 import { useModifierPickerStore } from "./modifierPickerStore";
 import { useOpCheckStore } from "./opCheckStore";
 import { usePlanetMoveStore } from "./planetMoveStore";
@@ -29,6 +30,7 @@ export const FILE_SCOPED: readonly (() => void)[] = [
   () => useHeightPreviewStore.getState().clear(),
   () => useSceneStore.getState().clearBodies(),
   () => usePlanetMoveStore.getState().reset(),
+  () => useMegastructureAddStore.getState().cancel(),
   () => useEntityStore.getState().clear(),
   () => useGeneratorStore.getState().clearPicks(),
   () => useOpCheckStore.getState().reset(),

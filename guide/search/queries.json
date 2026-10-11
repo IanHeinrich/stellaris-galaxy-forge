@@ -149,5 +149,10 @@
   {"q": "dyson sphere energy output", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "habitat model", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "ring world segments", "expect": "system/system-view#megastructures-and-starbases"},
-  {"q": "select planet under megastructure", "expect": "system/system-view#megastructures-and-starbases"}
+  {"q": "select planet under megastructure", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "add megastructure", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "add dyson sphere", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "add hyper relay", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "add gateway", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "megastructure owner", "expect": "system/megastructures#add-a-megastructure"}
 ]

@@ -31,6 +31,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
 import {
+  megastructureSummary,
   namedPlanets,
   orbitClasses,
   orbitSystem,
@@ -49,6 +50,13 @@ import type { BodyClassPick } from "../../generated/BodyClassPick";
 import { useGeneratorStore } from "../../store/generatorStore";
 import type { PlanetMoveTargets } from "../../generated/PlanetMoveTargets";
 import { usePlanetMoveStore } from "../../store/planetMoveStore";
+import { useMegastructureAddStore } from "../../store/megastructureAdd";
+import {
+  ADD_MEGASTRUCTURE_HERE_LABEL,
+  ADD_MEGASTRUCTURE_LABEL,
+  BODY_HAS_MEGASTRUCTURE,
+  MEGASTRUCTURES_NEED_GAME_DATA,
+} from "../../lib/megastructurePicks";
 import { placementAt } from "../../lib/planetMove";
 import type { ContextTarget } from "../../store/mapChromeStore";
 import { until } from "../../test/wait";
@@ -343,6 +351,61 @@ describe("adding a planet or moon in the system view", () => {
     useSceneStore.getState().enterSystem(0);
     expect(menuOn(space)).not.toContain("Add planet here");
     expect(menuOn(body(2))).not.toContain("Add moon");
+  });
+});
+
+describe("adding a megastructure in the system view", () => {
+  const space = { kind: "systemSpace", system: 0, x: 90, y: -120 } as const;
+  const body = (id: number) => ({ kind: "body", system: 0, id }) as const;
+  const prompt = () => useMegastructureAddStore.getState().prompt;
+
+  beforeEach(() => {
+    inSystem(systemDetails({ id: 0, planets: namedPlanets(orbitSystem({ id: 0 }).planets) }));
+    useGameDataStore.setState({ status: "ready", planetClasses: orbitClasses() });
+  });
+
+  const menuOn = (target: ContextTarget) => {
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+    return menu();
+  };
+
+  it("opens the dialog where empty space was pressed, and on a planet or the star", () => {
+    expect(buttons(menuOn(space))).toContain(ADD_MEGASTRUCTURE_HERE_LABEL);
+    menuItem(
+      <SceneSpaceMenu target={space} frame={{}} />,
+      ADD_MEGASTRUCTURE_HERE_LABEL,
+    ).props.onClick();
+    expect(prompt()).toEqual({ system: 0, spot: { kind: "space", x: 90, y: -120 } });
+
+    expect(buttons(menuOn(body(2)))).toContain(ADD_MEGASTRUCTURE_LABEL);
+    menuItem(<BodyMenu target={body(2)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
+    expect(prompt()).toEqual({ system: 0, spot: { kind: "body", body: 2, star: false } });
+
+    menuItem(<BodyMenu target={body(1)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
+    expect(prompt()).toEqual({ system: 0, spot: { kind: "body", body: 1, star: true } });
+  });
+
+  it("stays disabled, with the reason under it, on a body that has one and without game data", () => {
+    const read = useDetailsStore.getState().details.get(0)!;
+    const ring = megastructureSummary({ kind: "orbital_ring_ruined", planet: 2 });
+    useDetailsStore.setState({
+      details: new Map([[0, { ...read, megastructures: [ring] }]]),
+    });
+    let html = menuOn(body(2));
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure…/);
+    expect(html).toContain(BODY_HAS_MEGASTRUCTURE);
+
+    useGameDataStore.setState({ status: "idle" });
+    html = menuOn(space);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Add megastructure here…/);
+    expect(html).toContain(MEGASTRUCTURES_NEED_GAME_DATA);
+  });
+
+  it("is not offered on a scenario", async () => {
+    await openWith(SCENARIO_RESULT);
+    useSceneStore.getState().enterSystem(0);
+    expect(menuOn(space)).not.toContain("Add megastructure");
+    expect(menuOn(body(2))).not.toContain("Add megastructure");
   });
 });
 

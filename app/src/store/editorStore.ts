@@ -4,6 +4,7 @@ import type { FeDirection } from "../generated/FeDirection";
 import type { FeZone } from "../generated/FeZone";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { HistoryView } from "../generated/HistoryView";
+import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PrepareOptions } from "../generated/PrepareOptions";
 import type { RowChoice } from "../generated/RowChoice";
@@ -213,6 +214,17 @@ export interface EditorState {
     parent?: number | null,
     planetClass?: string | null,
   ): Promise<boolean>;
+  /**
+   * Adds a finished megastructure of type `kind` to system `system` of the open save in one
+   * edit, at `at`, owned by `owner` or by no one. Answers the new row's id, or null when the
+   * core refused it.
+   */
+  addMegastructure(
+    system: number,
+    kind: string,
+    at: MegastructurePlace,
+    owner: number | null,
+  ): Promise<number | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any

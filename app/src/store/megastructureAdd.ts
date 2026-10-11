@@ -1,0 +1,67 @@
+/**
+ * The Add megastructure dialog: where in the system view it was opened, and the add itself, which
+ * opens the new row's page once the edit lands.
+ */
+import { create } from "zustand";
+import { megastructureLabel } from "../lib/details/labels";
+import {
+  MEGASTRUCTURES_NEED_GAME_DATA,
+  megastructurePlace,
+  type MegastructureSpot,
+} from "../lib/megastructurePicks";
+import { useDetailsStore } from "./detailsStore";
+import { useEditorStore } from "./editorStore";
+import { useFileSessionStore } from "./fileSessionStore";
+import { useGameDataStore } from "./gameDataStore";
+import { megastructureEntry, useInspectorStore } from "./inspectorStore";
+
+/** Where the dialog adds: a spot of system `system`'s view. */
+export interface MegastructureAddPrompt {
+  system: number;
+  spot: MegastructureSpot;
+}
+
+interface MegastructureAddState {
+  prompt: MegastructureAddPrompt | null;
+  /** Opens the dialog for `spot` of system `system`; without game data, says why not instead. */
+  open(system: number, spot: MegastructureSpot): boolean;
+  cancel(): void;
+  /**
+   * Closes the dialog and adds a finished megastructure of type `kind` at its spot, owned by
+   * `owner` or by no one, in one edit. A type built outside the gravity well stands just outside
+   * the system's inner radius, in the direction pressed. The new row's page opens.
+   */
+  add(kind: string, owner: number | null): Promise<boolean>;
+}
+
+export const useMegastructureAddStore = create<MegastructureAddState>((set, get) => ({
+  prompt: null,
+
+  open(system, spot) {
+    if (useGameDataStore.getState().status !== "ready") {
+      useFileSessionStore.getState().setError(MEGASTRUCTURES_NEED_GAME_DATA);
+      return false;
+    }
+    set({ prompt: { system, spot } });
+    return true;
+  },
+
+  cancel() {
+    if (get().prompt !== null) set({ prompt: null });
+  },
+
+  async add(kind, owner) {
+    const { prompt } = get();
+    if (prompt === null) return false;
+    set({ prompt: null });
+    const { system, spot } = prompt;
+    const data = useGameDataStore.getState();
+    const inner = useDetailsStore.getState().details.get(system)?.inner_radius ?? 0;
+    const at = megastructurePlace(spot, data.megastructureTypes.get(kind), inner);
+    const id = await useEditorStore.getState().addMegastructure(system, kind, at, owner);
+    if (id === null) return false;
+    const name = data.names.get(kind) ?? megastructureLabel(kind);
+    useInspectorStore.getState().openFromMap(megastructureEntry(id, name));
+    return true;
+  },
+}));
