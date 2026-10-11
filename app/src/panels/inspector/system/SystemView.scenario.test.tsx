@@ -86,10 +86,10 @@ describe("a scenario system's overview", () => {
     const html = overview();
     expect(sections(html)).toEqual([
       "Spawn point",
-      "Initializer",
-      "Planets · 2 · 0 colonies",
+      "Planets · 2",
       "Station",
       "Megastructures · 1",
+      "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
     ]);
@@ -120,8 +120,8 @@ describe("a scenario system's overview", () => {
     const html = overview();
     expect(sections(html)).toEqual([
       "Spawn point",
-      "Initializer",
       "Resources · 2",
+      "Initializer",
       "Hyperlanes · 4",
       "Scripts · …",
     ]);
@@ -284,7 +284,9 @@ describe("a scenario system's source", () => {
 
     useInspectorStore.setState({ tab: "source" });
     const source = overview();
-    expect(source).toContain("id=1");
+    expect(source).toContain(
+      '<span class="snippet-key">id</span>=<span class="snippet-number">1</span>',
+    );
     expect(source).not.toContain("no text of their own");
   });
 

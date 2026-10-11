@@ -104,6 +104,22 @@ fn a_scenario_systems_details_come_from_its_initializer() {
         "basic_init_02's bodies: {:?}",
         details[1].planets
     );
+    for record in &details {
+        let spawn = record
+            .spawn
+            .as_ref()
+            .unwrap_or_else(|| panic!("system {}'s initializer facts", record.id));
+        assert!(
+            spawn.planets.is_some(),
+            "system {}'s planet count is known",
+            record.id
+        );
+        assert!(
+            record.planets.iter().all(|p| p.spawn.is_some()),
+            "every body of system {} has its initializer facts",
+            record.id
+        );
+    }
 
     let undone: EditResult = invoke::<Option<EditResult>>(&w, "undo", json!({}))
         .expect("undo")
@@ -366,6 +382,11 @@ fn a_saves_system_details_come_with_and_without_game_data() {
     assert_eq!(details[0].id, 217);
     assert!(!details[0].with_game_data);
     assert!(!details[0].planets.is_empty());
+    assert!(
+        details[0].spawn.is_none(),
+        "a save has no initializer facts"
+    );
+    assert!(details[0].planets.iter().all(|p| p.spawn.is_none()));
 
     let Some((w, _)) = with_game_data(SAMPLE) else {
         return;

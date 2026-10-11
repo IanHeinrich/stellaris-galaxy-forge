@@ -33,7 +33,6 @@
 
 .ins-prow:hover .ins-script-actions button,
 .ins-script-site:hover .ins-script-actions button,
-.ins-init-line .ins-script-actions button,
 .ins-script-actions button:focus-visible {
   opacity: 1;
 }

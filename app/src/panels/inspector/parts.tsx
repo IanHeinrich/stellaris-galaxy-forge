@@ -42,7 +42,7 @@ export function Section({
   id: string;
   title: string;
   count?: number;
-  summary?: string;
+  summary?: ReactNode;
   /** A line of its own at the header's right, in sentence case, cut short where it runs out of room. */
   aside?: string;
   startClosed?: boolean;
@@ -70,7 +70,7 @@ export function Section({
       <span className="ins-sec-title">
         {title}
         {count !== undefined && ` · ${count}`}
-        {summary && ` · ${summary}`}
+        {summary && <> · {summary}</>}
       </span>
       {source !== undefined && <SourceChip source={source} />}
       {aside !== undefined && (
@@ -92,6 +92,40 @@ export function Section({
       )}
       {!collapsed && children}
     </>
+  );
+}
+
+/**
+ * A group inside a section, under a rule: a heading with its caret and, at the right, a short
+ * `tail` such as a count. It starts open, and its open state is remembered as a section's is.
+ */
+export function Group({
+  id,
+  title,
+  tail,
+  children,
+}: {
+  id: string;
+  title: string;
+  tail?: string;
+  children: ReactNode;
+}) {
+  const collapsed = useInspectorStore((s) => s.sections[id] ?? false);
+  const toggleSection = useInspectorStore((s) => s.toggleSection);
+  return (
+    <div className="ins-group">
+      <button
+        type="button"
+        className="ins-group-head"
+        aria-expanded={!collapsed}
+        onClick={() => toggleSection(id, false)}
+      >
+        <Twisty open={!collapsed} />
+        <span className="ins-group-title">{title}</span>
+        {tail !== undefined && <span className="ins-group-tail">{tail}</span>}
+      </button>
+      {!collapsed && <div className="ins-group-body">{children}</div>}
+    </div>
   );
 }
 

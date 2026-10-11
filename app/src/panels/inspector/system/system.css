@@ -383,16 +383,6 @@
   width: 100%;
 }
 
-.ins-init-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ins-kind {
-  color: var(--fg-muted);
-}
-
 .ins-fe-zone-intro {
   margin: 0 0 6px;
   padding-left: 14px;

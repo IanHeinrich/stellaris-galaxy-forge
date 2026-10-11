@@ -624,3 +624,131 @@ button.link.help-link {
   font-weight: 600;
   line-height: 1;
 }
+
+/* Script text as the file writes it, in the colours modders know, on the app's own background. */
+.snippet {
+  margin: 6px 0 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.snippet-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px 1px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: var(--text-hint);
+}
+
+.snippet-where {
+  flex: 1;
+  min-width: 0;
+}
+
+.snippet-bar button.link {
+  padding: 1px 4px;
+  font-size: var(--text-hint);
+}
+
+.snippet-text {
+  margin: 0;
+  padding: 6px 0;
+  overflow-x: auto;
+  color: var(--script-text);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  text-transform: none;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.snippet-text.wrap {
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.snippet-line {
+  display: block;
+  padding: 0 8px;
+  border-left: 2px solid transparent;
+}
+
+.snippet-line:empty::before {
+  content: " ";
+}
+
+.snippet-line.changed,
+.snippet-legend-mark {
+  border-left-color: var(--accent);
+}
+
+.snippet-changed {
+  background: var(--accent-bg-strong);
+}
+
+.snippet-key,
+.snippet-variable {
+  color: var(--script-key);
+}
+
+.snippet-keyword,
+.snippet-scope,
+.snippet-bool {
+  color: var(--script-keyword);
+}
+
+.snippet-number {
+  color: var(--script-number);
+}
+
+.snippet-string {
+  color: var(--script-string);
+}
+
+.snippet-comment {
+  color: var(--script-comment);
+}
+
+.snippet-foot {
+  padding: 2px 8px 4px;
+  border-top: 1px solid var(--border);
+}
+
+/* The control that shows a long snippet whole, in the link colour with its caret. */
+button.link.snippet-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  color: var(--link);
+  font-size: var(--text-note);
+}
+
+button.link.snippet-more:hover:not(:disabled) {
+  color: var(--link);
+  text-decoration: underline;
+}
+
+button.link.snippet-more .tri {
+  color: inherit;
+}
+
+.snippet-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 8px;
+  font-size: var(--text-hint);
+}
+
+.snippet-legend-mark {
+  width: 10px;
+  height: 10px;
+  border-left-width: 2px;
+  border-left-style: solid;
+}

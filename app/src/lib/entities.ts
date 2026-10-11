@@ -58,29 +58,6 @@ export function capabilityFor(kind: EntityKind): keyof Capabilities | undefined 
   return kind === "country" || kind === "sector" ? "empires" : "details";
 }
 
-export interface SourceSegment {
-  text: string;
-  changed: boolean;
-}
-
-/** `text` cut into the ranges an op changed and the ones it left alone, in order. */
-export function sourceSegments(
-  text: string,
-  changed: readonly (readonly [number, number])[],
-): SourceSegment[] {
-  const segments: SourceSegment[] = [];
-  let at = 0;
-  for (const [start, end] of [...changed].sort((a, b) => a[0] - b[0])) {
-    const from = Math.max(at, Math.min(start, text.length));
-    const to = Math.max(from, Math.min(end, text.length));
-    if (from > at) segments.push({ text: text.slice(at, from), changed: false });
-    if (to > from) segments.push({ text: text.slice(from, to), changed: true });
-    at = Math.max(at, to);
-  }
-  if (at < text.length) segments.push({ text: text.slice(at), changed: false });
-  return segments;
-}
-
 /** Whether a row answers the filter, which narrows by key and by value alike. */
 export function rowMatches(label: string, value: string, needle: string): boolean {
   if (needle === "") return true;

@@ -16,7 +16,9 @@ import { FeLinksSection } from "./sections/scenario/FeLinksSection";
 import { FeZoneSection } from "./sections/scenario/FeZoneSection";
 import { MarauderSection } from "./sections/scenario/MarauderSection";
 import { SCRIPTS_TAB_TITLE } from "./sections/scenario/ScriptsTab";
+import { AmbientObjectSection } from "./sections/scenario/AmbientObjects";
 import { SpawnPointSection } from "./sections/scenario/SpawnPointSection";
+import { StarListSection } from "./sections/scenario/StarList";
 import { SiteSection } from "./sections/Sites";
 import { StationSection } from "./sections/Station";
 import { WormholePairSection } from "./sections/WormholePair";
@@ -102,7 +104,9 @@ export function Marauder({ detail }: OverviewProps) {
 /** The initializer lists the bodies it places only while the system's own list is empty. */
 export function SpawningInitializer({ detail, details }: OverviewProps) {
   const planets = details?.planets.length ?? 0;
-  return <InitializerSection system={detail.system} spawn={planets === 0} />;
+  return (
+    <InitializerSection system={detail.system} spawn={planets === 0} stated={details?.spawn} />
+  );
 }
 
 export function Initializer({ detail }: OverviewProps) {
@@ -134,9 +138,23 @@ export function Megastructures({ detail, details }: OverviewProps) {
   return <MegastructureSection megastructures={details.megastructures} system={detail.system.id} />;
 }
 
+/** The digs in the system: on its bodies, then those an initializer places on no body. */
 export function Sites({ details }: OverviewProps) {
-  if (!details || details.sites.length === 0) return null;
-  return <SiteSection sites={details.sites} />;
+  const own = details?.spawn?.sites ?? [];
+  if (!details || (details.sites.length === 0 && own.length === 0)) return null;
+  return <SiteSection sites={details.sites} systemKinds={own} />;
+}
+
+/** The star list a scenario system's star is rolled from; nothing for a fixed star. */
+export function StarList({ details }: OverviewProps) {
+  const star = details?.spawn?.star;
+  return star?.state === "rolled" ? <StarListSection star={star} /> : null;
+}
+
+export function AmbientObjects({ detail, details }: OverviewProps) {
+  const objects = details?.spawn?.ambient_objects ?? [];
+  if (objects.length === 0) return null;
+  return <AmbientObjectSection system={detail.system.id} objects={objects} />;
 }
 
 export function MilitaryFleets({ detail, details }: OverviewProps) {
@@ -167,6 +185,8 @@ export function Flags({ detail }: OverviewProps) {
   return <FlagsSection system={detail.system} />;
 }
 
-export function FlagsIfAny({ detail }: OverviewProps) {
-  return detail.system.flags.length > 0 ? <FlagsSection system={detail.system} /> : null;
+/** The system's flags and those its initializer sets, where there are any. */
+export function FlagsIfAny({ detail, details }: OverviewProps) {
+  const flags = [...new Set([...detail.system.flags, ...(details?.spawn?.flags ?? [])])];
+  return flags.length > 0 ? <FlagsSection system={detail.system} flags={flags} /> : null;
 }

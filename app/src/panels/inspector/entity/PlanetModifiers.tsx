@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
+import { bodyNoun, modifierLine } from "../../../lib/details/spawnFacts";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
@@ -111,15 +112,22 @@ export function ModifierRowView({
 
 /**
  * The planet's modifiers; where the page offers them, each with its remove button and the picker
- * below, both through the target's adapter.
+ * below, both through the target's adapter. A scenario body's initializer adds whether it stops
+ * or clears the planet features the game rolls.
  */
 export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
   const editable = offers.modifiers;
   const { modifiers } = read.rows;
   const { target } = read;
-  if (modifiers.length === 0 && !editable) return null;
+  const spawn = read.summary.spawn;
+  const line =
+    spawn === undefined
+      ? null
+      : modifierLine(spawn.features, bodyNoun(read.summary), modifiers.length);
+  if (modifiers.length === 0 && !editable && line === null) return null;
   return (
     <Section id="planet.modifiers" title="Modifiers" count={modifiers.length}>
+      {line !== null && <div className="muted ins-hint">{line}</div>}
       {modifiers.map(({ row, ref }) => (
         <ModifierRowView
           key={row.key}

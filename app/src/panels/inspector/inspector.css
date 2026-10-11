@@ -398,3 +398,166 @@ button.link.ins-drill:hover {
   display: flex;
   flex-direction: column;
 }
+
+/* A scenario value's three states: fixed is plain, rolled is blue with a die, unknown is muted with a question mark. */
+.ins-st-rolled {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #7fb3ff;
+}
+
+.ins-st-rolled::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  background: radial-gradient(circle, currentColor 0 1.5px, transparent 2px);
+  transform: translateY(1px);
+}
+
+.ins-st-unknown {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-style: italic;
+  color: #9aa6ba;
+}
+
+.ins-st-unknown::before {
+  content: "?";
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 1px dashed currentColor;
+  border-radius: 50%;
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 10px;
+  text-align: center;
+  transform: translateY(1px);
+}
+
+.ins-why {
+  grid-column: 1 / -1;
+  color: var(--fg-muted);
+  font-size: var(--text-note);
+}
+
+/* The count of a row that stands for several copies of a body, at the row's right. */
+.ins-block-count {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: var(--text-hint);
+  white-space: nowrap;
+}
+
+.ins-block-count.ins-st-rolled {
+  border-color: rgba(127, 179, 255, 0.35);
+  background: rgba(127, 179, 255, 0.08);
+}
+
+/* The Initializer section: its name and button, its kind and file, one grid of rows, then groups. */
+.ins-init-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.ins-init-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ins-init-head button {
+  flex: none;
+}
+
+.ins-init-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  margin: -2px 0 8px;
+  font-size: var(--text-note);
+}
+
+.ins-init-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ins-init-links {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.ins-init-links button.link {
+  padding: 0 4px;
+  font-size: var(--text-note);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+
+.ins-init-country {
+  display: block;
+}
+
+.ins-init .ins-kv .ins-why {
+  grid-column: 2 / -1;
+  margin-bottom: 2px;
+}
+
+.ins-init .ins-kv + .ins-kv {
+  margin-top: 6px;
+}
+
+/* A group inside a section: a rule, a heading with its caret and tail, its body one indent in. */
+.ins-group {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+button.ins-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  color: var(--fg);
+  font-size: var(--text-control);
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+button.ins-group-head .tri {
+  width: 10px;
+  color: var(--fg-muted);
+}
+
+.ins-group-tail {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.ins-group-body {
+  padding: 4px 0 2px 16px;
+}
+
+.ins-group-body > .ins-hint:first-child {
+  padding-top: 0;
+}

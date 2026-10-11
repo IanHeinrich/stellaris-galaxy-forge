@@ -94,6 +94,8 @@ export interface Chance {
   readonly planetClass: boolean;
   /** Whether it has a ring is left to its class's chance. */
   readonly ring: boolean;
+  /** The game may not place it: a copy past the low end of its block's count, or a body round one. */
+  readonly mayNotSpawn: boolean;
 }
 
 const NO_CHANCE: Chance = Object.freeze({
@@ -101,6 +103,7 @@ const NO_CHANCE: Chance = Object.freeze({
   angle: false,
   planetClass: false,
   ring: false,
+  mayNotSpawn: false,
 });
 
 /**
@@ -432,6 +435,7 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
     angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
+    mayNotSpawn: planet.spawn?.always === false,
   };
 }
 
