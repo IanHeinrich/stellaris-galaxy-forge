@@ -152,6 +152,8 @@ its star, and an Arc Furnace rings its planet. A megastructure built on
 a planet or moon stays with it when you move the planet. Ring world
 sections turn to face their star, so the pieces of a ring world join up.
 
+![A system with a Dyson Sphere drawn from the game's model](../images/system/megastructures.png)
+
 Habitats and ring world segments are planets, and they show as their
 models from the game too. You select, move and name them as you do any
 other planet.
