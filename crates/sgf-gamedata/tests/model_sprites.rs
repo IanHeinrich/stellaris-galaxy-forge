@@ -60,6 +60,35 @@ entity = {
 \tlocator = { name = \"side\" position = { 0 0 30 } }
 \tattach = { side = \"mammalian_01_ball_entity\" }
 }
+entity = {
+\tname = \"mammalian_01_hollow_entity\"
+\tpdxmesh = \"hollow_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_glass_entity\"
+\tpdxmesh = \"glass_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_nested_entity\"
+\tpdxmesh = \"nested_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_sided_entity\"
+\tpdxmesh = \"sided_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_added_entity\"
+\tpdxmesh = \"added_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_tested_entity\"
+\tpdxmesh = \"tested_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_mirrored_entity\"
+\tpdxmesh = \"mirrored_mesh\"
+\tscale = -1
+}
 ";
 
 /// Two cultures that fall back in a chain to `mammalian_01`, and two that fall back to each
@@ -75,6 +104,21 @@ const MESHES: &str = "objectTypes = {
 \tpdxmesh = { name = \"broken_mesh\" file = \"gfx/models/test/broken.mesh\" }
 \tpdxmesh = { name = \"furnace_mesh\" file = \"gfx/models/test/furnace.mesh\" }
 \tpdxmesh = { name = \"ball_mesh\" file = \"gfx/models/test/ball.mesh\" }
+\tpdxmesh = { name = \"hollow_mesh\" file = \"gfx/models/test/hollow.mesh\" }
+\tpdxmesh = {
+\t\tname = \"glass_mesh\"
+\t\tfile = \"gfx/models/test/glass.mesh\"
+\t\tmeshsettings = { name = \"glassShape\" index = 1 texture_specular = \"mask.dds\" }
+\t}
+\tpdxmesh = { name = \"nested_mesh\" file = \"gfx/models/test/nested.mesh\" }
+\tpdxmesh = { name = \"sided_mesh\" file = \"gfx/models/test/sided.mesh\" }
+\tpdxmesh = {
+\t\tname = \"added_mesh\"
+\t\tfile = \"gfx/models/test/added.mesh\"
+\t\tmeshsettings = { name = \"addedShape\" index = 1 texture_specular = \"mask.dds\" }
+\t}
+\tpdxmesh = { name = \"tested_mesh\" file = \"gfx/models/test/tested.mesh\" }
+\tpdxmesh = { name = \"mirrored_mesh\" file = \"gfx/models/test/mirrored.mesh\" }
 }
 ";
 
@@ -86,7 +130,8 @@ struct MeshData {
     diffuse: Option<&'static str>,
 }
 
-/// A box `2x` world units along model X, `2y` along Y and `2z` along Z, centred on the origin.
+/// A box `2x` world units along model X, `2y` along Y and `2z` along Z, centred on the origin,
+/// its faces wound counter-clockwise seen from outside, as the game's meshes are.
 fn cuboid(x: f32, y: f32, z: f32) -> MeshData {
     let positions = (0..8)
         .map(|i| {
@@ -106,14 +151,14 @@ fn cuboid(x: f32, y: f32, z: f32) -> MeshData {
         positions,
         triangles: faces
             .iter()
-            .flat_map(|[a, b, c, d]| [[*a, *b, *c], [*a, *c, *d]])
+            .flat_map(|[a, b, c, d]| [[*a, *c, *b], [*a, *d, *c]])
             .collect(),
         shader: "PdxMeshStandard",
         diffuse: None,
     }
 }
 
-/// A sphere of `radius` world units about the origin.
+/// A sphere of `radius` world units about the origin, wound as [`cuboid`] is.
 fn sphere(radius: f32, shader: &'static str, diffuse: Option<&'static str>) -> MeshData {
     const RINGS: i32 = 12;
     const SEGMENTS: i32 = 24;
@@ -135,8 +180,8 @@ fn sphere(radius: f32, shader: &'static str, diffuse: Option<&'static str>) -> M
         .flat_map(|ring| {
             (0..SEGMENTS).flat_map(move |s| {
                 [
-                    [at(ring, s), at(ring + 1, s), at(ring + 1, s + 1)],
-                    [at(ring, s), at(ring + 1, s + 1), at(ring, s + 1)],
+                    [at(ring, s), at(ring + 1, s + 1), at(ring + 1, s)],
+                    [at(ring, s), at(ring, s + 1), at(ring + 1, s + 1)],
                 ]
             })
         })
@@ -220,6 +265,82 @@ fn furnace_mesh() -> Vec<u8> {
     ])
 }
 
+/// `mesh` with each triangle wound the other way, so its faces point inwards.
+fn inside_out(mesh: MeshData) -> MeshData {
+    MeshData {
+        triangles: mesh
+            .triangles
+            .iter()
+            .map(|[a, b, c]| [*a, *c, *b])
+            .collect(),
+        ..mesh
+    }
+}
+
+/// A red box 6 world units across, opaque.
+fn red_box() -> MeshData {
+    MeshData {
+        diffuse: Some("red.dds"),
+        ..cuboid(3.0, 3.0, 3.0)
+    }
+}
+
+/// A red box in a blue sphere 30 world units across whose faces point inwards.
+fn hollow_mesh() -> Vec<u8> {
+    let shell = inside_out(sphere(15.0, "PdxMeshShip", Some("blue.dds")));
+    mesh_file(&[("hollowShape", vec![red_box(), shell])])
+}
+
+/// A red box in a sphere 30 world units across of white glass at half alpha, which its
+/// specular map marks for the empire colour.
+fn glass_mesh() -> Vec<u8> {
+    let glass = sphere(15.0, "AlphaBlendNoDepth", Some("glass.dds"));
+    mesh_file(&[("glassShape", vec![red_box(), glass])])
+}
+
+/// A green cloud 30 world units across round a red one 20 across, each at half alpha, the
+/// outer one first in the file.
+fn nested_mesh() -> Vec<u8> {
+    let outer = sphere(15.0, "PdxMeshClouds", Some("green_half.dds"));
+    let inner = sphere(10.0, "PdxMeshClouds", Some("red_half.dds"));
+    mesh_file(&[("nestedShape", vec![outer, inner])])
+}
+
+/// A red box in a blue sphere whose faces point inwards, drawn with a shader that shows both
+/// faces.
+fn sided_mesh() -> Vec<u8> {
+    let shell = inside_out(sphere(
+        15.0,
+        "PdxMeshExtraDimensionalShip",
+        Some("blue.dds"),
+    ));
+    mesh_file(&[("sidedShape", vec![red_box(), shell])])
+}
+
+/// A red box in a grey shell that adds its colour, which its specular map marks for the
+/// empire colour.
+fn added_mesh() -> Vec<u8> {
+    let shell = sphere(15.0, "OmniMeshMegaAlpha", Some("grey.dds"));
+    mesh_file(&[("addedShape", vec![red_box(), shell])])
+}
+
+/// A red box in a blue sphere, both wound outwards, for an entity that scales them by −1.
+fn mirrored_mesh() -> Vec<u8> {
+    let shell = sphere(15.0, "PdxMeshShip", Some("blue.dds"));
+    mesh_file(&[("mirroredShape", vec![red_box(), shell])])
+}
+
+/// A red box in a blue sphere alpha-tested at a diffuse alpha below 1.
+fn tested_mesh() -> Vec<u8> {
+    let shell = sphere(15.0, "PdxMeshAlphaBlend", Some("blue_faint.dds"));
+    mesh_file(&[("testedShape", vec![red_box(), shell])])
+}
+
+/// A 4×4 texture of one colour.
+fn solid(texel: [u8; 4]) -> Vec<u8> {
+    common::dds(4, &[vec![texel; 16]])
+}
+
 fn boxes() -> (TempDir, GameData) {
     common::hand_written_bytes(&[
         ("gfx/models/test/box.asset", ENTITIES.as_bytes().to_vec()),
@@ -232,6 +353,21 @@ fn boxes() -> (TempDir, GameData) {
         ),
         (LAVA, b"not a texture".to_vec()),
         ("gfx/models/test/broken.mesh", b"@@b@[[[".to_vec()),
+        ("gfx/models/test/hollow.mesh", hollow_mesh()),
+        ("gfx/models/test/glass.mesh", glass_mesh()),
+        ("gfx/models/test/red.dds", solid([255, 0, 0, 255])),
+        ("gfx/models/test/blue.dds", solid([0, 0, 255, 255])),
+        ("gfx/models/test/glass.dds", solid([255, 255, 255, 128])),
+        ("gfx/models/test/mask.dds", solid([255, 0, 0, 255])),
+        ("gfx/models/test/nested.mesh", nested_mesh()),
+        ("gfx/models/test/sided.mesh", sided_mesh()),
+        ("gfx/models/test/added.mesh", added_mesh()),
+        ("gfx/models/test/tested.mesh", tested_mesh()),
+        ("gfx/models/test/mirrored.mesh", mirrored_mesh()),
+        ("gfx/models/test/green_half.dds", solid([0, 255, 0, 128])),
+        ("gfx/models/test/red_half.dds", solid([255, 0, 0, 128])),
+        ("gfx/models/test/grey.dds", solid([128, 128, 128, 255])),
+        ("gfx/models/test/blue_faint.dds", solid([0, 0, 255, 254])),
         ("common/planet_classes/00_none.txt", Vec::new()),
         (
             "common/graphical_culture/00_cultures.txt",
@@ -418,6 +554,124 @@ fn a_planet_a_model_is_built_round_is_left_clear_and_its_atmosphere_is_not_drawn
     assert!(
         moon.pixels().any(|p| p.0[3] == 255),
         "a ball away from the model's origin is drawn"
+    );
+}
+
+/// The pixel the model's origin falls on.
+fn pixel_at_origin(image: &RgbaImage, placement: &ModelPlacement) -> [u8; 4] {
+    let x = (placement.anchor_x * f64::from(image.width())) as u32;
+    let y = (placement.anchor_y * f64::from(image.height())) as u32;
+    image.get_pixel(x, y).0
+}
+
+#[test]
+fn faces_wound_away_from_the_camera_are_not_drawn() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (hollow, placement) = sprite(&gd, &textures, "model:mammalian_01:hollow_entity");
+    let [r, _, b, a] = pixel_at_origin(&hollow, &placement);
+    assert_eq!(a, 255);
+    assert!(
+        r > b + 100,
+        "the near side of the inside-out sphere is culled, so the red box shows: {r} red, {b} blue"
+    );
+    assert!(
+        hollow.pixels().any(|p| p.0[2] > p.0[0] + 100),
+        "the far side faces the camera and is drawn round the box"
+    );
+}
+
+#[test]
+fn glass_is_blended_over_what_is_behind_it_in_the_empire_colour() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (glass, placement) = sprite(&gd, &textures, "model:mammalian_01:glass_entity");
+    let [r, g, b, a] = pixel_at_origin(&glass, &placement);
+    assert_eq!(a, 255, "the box behind the glass is opaque");
+    assert!(
+        r > g + 40,
+        "the red box shows through the white glass: {r} {g} {b}"
+    );
+    assert!(
+        b > g + 40,
+        "the ship shader tints the glass its mask marks in the empire colour: {r} {g} {b}"
+    );
+    assert!(
+        glass.pixels().any(|p| (100..=160).contains(&p.0[3])),
+        "glass with nothing behind it is half clear"
+    );
+}
+
+#[test]
+fn see_through_surfaces_are_laid_on_farthest_first() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (nested, placement) = sprite(&gd, &textures, "model:mammalian_01:nested_entity");
+    let [r, g, _, _] = pixel_at_origin(&nested, &placement);
+    assert!(
+        g > r + 40,
+        "the outer green cloud lies over the inner red one: {r} red, {g} green"
+    );
+}
+
+#[test]
+fn a_double_sided_shader_draws_faces_wound_away_from_the_camera() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (sided, placement) = sprite(&gd, &textures, "model:mammalian_01:sided_entity");
+    let [r, _, b, a] = pixel_at_origin(&sided, &placement);
+    assert_eq!(a, 255);
+    assert!(
+        b > r + 100,
+        "the near side of the inside-out sphere is drawn over the red box: {r} red, {b} blue"
+    );
+}
+
+#[test]
+fn an_added_shell_brightens_what_is_behind_it_without_the_empire_colour() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (added, placement) = sprite(&gd, &textures, "model:mammalian_01:added_entity");
+    let [r, g, b, a] = pixel_at_origin(&added, &placement);
+    assert_eq!(a, 255);
+    assert!(
+        r > g + 40 && g > 60,
+        "the grey shell is added onto the red box: {r} {g} {b}"
+    );
+    assert!(
+        g.abs_diff(b) < 8,
+        "the standard shader leaves the mask alone: {r} {g} {b}"
+    );
+}
+
+#[test]
+fn a_part_scaled_inside_out_still_shows_its_outside() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (mirrored, placement) = sprite(&gd, &textures, "model:mammalian_01:mirrored_entity");
+    let [r, _, b, a] = pixel_at_origin(&mirrored, &placement);
+    assert_eq!(a, 255);
+    assert!(
+        b > r + 100,
+        "the negative scale reverses the winding, so the sphere's near side hides the box: \
+         {r} red, {b} blue"
+    );
+}
+
+#[test]
+fn an_alpha_tested_surface_is_not_drawn_where_its_alpha_is_below_one() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let (tested, placement) = sprite(&gd, &textures, "model:mammalian_01:tested_entity");
+    let [r, _, b, a] = pixel_at_origin(&tested, &placement);
+    assert_eq!(a, 255);
+    assert!(
+        r > b + 100,
+        "the blue sphere at alpha 254 is clipped, so the red box shows: {r} red, {b} blue"
+    );
+    assert!(
+        tested.pixels().all(|p| p.0[3] == 0 || p.0[0] > p.0[2]),
+        "nothing of the sphere is drawn"
     );
 }
 

@@ -43,7 +43,7 @@ pub use star_disc::StarAtmosphere;
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
 /// disc, a composed flag, a cropped frame) is baked afresh rather than served stale from a
 /// user's disk cache.
-const BAKE: u32 = 4;
+const BAKE: u32 = 5;
 
 /// A cached PNG nobody has asked for in this long is deleted at start-up.
 const CACHE_MAX_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
