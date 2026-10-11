@@ -13,8 +13,9 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added megastructure";
 
 /// Add a finished megastructure of type `kind` to system `system` of the open save as one
 /// `AddMegastructure`, at `place`, owned by `owner` when given. A gateway or relay gets its
-/// bypass, open when the type opens it, and an Orbital Ring ruin marks its planet as the
-/// game does. A type the install does not define, or one the editor does not add, is
+/// bypass, open when the type opens it, a type whose build marks its planet marks it, and
+/// an Orbital Ring ruin flags its planet as the game does. A type built only around a star
+/// is refused on any other body. A type the install does not define, or one the editor does not add, is
 /// refused with the reason.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
@@ -83,6 +84,8 @@ fn add_op(
         owner,
         bypass,
         ruined_orbital_ring: def.ruined_orbital_ring,
+        megastructure_flag: def.sets_has_megastructure,
+        star_only: matches!(def.placement, Placement::Body { star_only: true }),
     })
 }
 

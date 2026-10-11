@@ -716,9 +716,10 @@ for planets or deposits.
   `owner`, `graphical_culture`, `planet`, `bypass`, `orbitals`,
   `build_queue`, `dismantle_progress`, `dismantle_finish_date`. A 4.5.0
   day-one ruin has no `owner` and no `graphical_culture`.
-- Where the lists go: a system's `megastructures` right before
-  `star_class`, after any `ambient_object`. A system's `bypasses` after
-  `hyperlane`, or after `natural_wormholes` when it has one, and before
+- Where the lists go: a system's `megastructures` right before `claims`
+  when the system has one, else before `star_class`, after any
+  `ambient_object`. A system's `bypasses` after `hyperlane`, or after
+  `natural_wormholes` or `astral_rifts` when it has one, and before
   `asteroid_belts`. A country's `owned_megastructures` right after
   `owned_leaders`, written only when it lists a row (the 4.5 sample:
   country 16 only). A planet's `megastructure=<id>` right before
@@ -727,7 +728,16 @@ for planets or deposits.
   any `timed_modifier`, before `planet_modifier` and `entity`.
 - `ruined_orbital_ring_planet` is dated the save's day one,
   `62808000` in both 4.x samples, the same as the global flag
-  `game_started`.
+  `game_started`. A flag's date counts hours in years of 365 days:
+  2200.01.01 is 62808000, and each day adds 24. In the 4.5 sample, saved
+  on 2201.03.25, the latest flags are dated 62818560, eight days before
+  the save's own 62818752.
+- In a 4.5.2 late-game save every working structure tied to a body has
+  the planet flag `has_megastructure` on that body, stars included:
+  16 of 16 Dyson Swarms and 10 of 10 Arc Furnaces. Ruins don't. A stage
+  whose `on_build_complete` runs `set_planet_flag = has_megastructure`
+  sets it, and the stages built over it keep it. Gas giants 6267, 6269
+  and 6271 of the 4.5 sample have the flag with no row tied to them.
 - A relay's bypass row `connections` lists the relay bypasses of the
   systems its hyperlanes lead to, in numeric order, and
   `active_connections` lists the same ids; a relay with none has neither

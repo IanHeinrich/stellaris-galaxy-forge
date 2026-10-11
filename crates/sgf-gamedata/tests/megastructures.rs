@@ -269,11 +269,45 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("deep_space_citadel_0", &starbase),
         ("waystation_megastructure", &starbase),
         ("ring_world_1", &ring_world),
+        ("galactic_crucible_0", &star),
+        ("dyson_gun_0", &star),
+        ("habitat_central_complex", &any),
+        ("grand_archive_0", &any),
+        ("cosmogenesis_world_0", &any),
+        ("behemoth_egg", &any),
     ];
     for (key, placement) in pins {
         assert_eq!(&mega(key).placement, placement, "{key}");
     }
     assert_eq!(mega("lgate_base").placement, bypass("lgate"));
+    for key in [
+        "quantum_catapult_1",
+        "quantum_catapult_2",
+        "quantum_catapult_3",
+    ] {
+        assert!(
+            matches!(
+                mega(key).placement,
+                Placement::Unsupported {
+                    why: Unsupported::Bypass { .. }
+                }
+            ),
+            "{key}: {:?}",
+            mega(key).placement
+        );
+    }
+    for key in [
+        "think_tank_3",
+        "dyson_swarm_2",
+        "orbital_arc_furnace_3",
+        "grand_archive_0",
+        "orbital_ring",
+    ] {
+        assert!(mega(key).sets_has_megastructure, "{key}");
+    }
+    for key in ["orbital_ring_ruined", "dyson_sphere_ruined", "hyper_relay"] {
+        assert!(!mega(key).sets_has_megastructure, "{key}");
+    }
     for key in ["gateway_final", "gateway_restored", "gateway_derelict"] {
         assert!(mega(key).activates_gateway, "{key}");
     }

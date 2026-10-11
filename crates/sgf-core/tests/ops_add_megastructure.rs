@@ -24,6 +24,8 @@ struct Row<'a> {
     owner: Option<u32>,
     bypass: Option<(&'a str, bool)>,
     ruin: bool,
+    flag: bool,
+    star_only: bool,
 }
 
 impl Row<'_> {
@@ -38,6 +40,8 @@ impl Row<'_> {
                 active,
             }),
             ruined_orbital_ring: self.ruin,
+            megastructure_flag: self.flag,
+            star_only: self.star_only,
         }
     }
 }
@@ -50,6 +54,8 @@ fn body_row(system: u32, kind: &str, body: u32) -> Row<'_> {
         owner: None,
         bypass: None,
         ruin: false,
+        flag: false,
+        star_only: false,
     }
 }
 
@@ -61,6 +67,8 @@ fn free_row<'a>(system: u32, kind: &'a str, bypass: &'a str, active: bool) -> Ro
         owner: None,
         bypass: Some((bypass, active)),
         ruin: false,
+        flag: false,
+        star_only: false,
     }
 }
 
@@ -292,7 +300,7 @@ fn what_an_add_and_a_removal_refuse() {
             ),
             (
                 free_ruin,
-                "a hyper_relay cannot be added there: the ruined orbital ring flag goes on a planet, and a free point has none",
+                "a hyper_relay cannot be added there: it stands on or around a planet or star, and a free point has none",
             ),
             (nan, "value is not a finite number"),
             (on_body(SOL, "", 6), "a megastructure type may not be empty"),
@@ -327,4 +335,128 @@ fn deleting_an_added_row_removes_it() {
         &mut session,
         [(remove(99), "Megastructure 99 does not exist")],
     );
+}
+
+/// The second relay's bypass, 24, is left with no connections when the first goes.
+#[test]
+fn the_first_of_two_linked_relays_removed_while_the_second_stands() {
+    let mut session = open_4_5();
+    session
+        .apply(free(0, "hyper_relay", "relay_bypass", true))
+        .expect("the first relay");
+    session
+        .apply(free(148, "hyper_relay", "relay_bypass", true))
+        .expect("the second relay");
+    let removed = session.apply(remove(16)).expect("take the first out");
+    assert_eq!(
+        removed.inverse,
+        free(0, "hyper_relay", "relay_bypass", true)
+    );
+    let text = String::from_utf8(current(&session)).expect("text");
+    assert!(
+        text.contains(
+            "
+	16=none
+"
+        ),
+        "16 is left as a tombstone"
+    );
+    let bypasses = text
+        .split(
+            "
+bypasses=
+{",
+        )
+        .nth(1)
+        .and_then(|rest| {
+            rest.split(
+                "
+}
+",
+            )
+            .next()
+        })
+        .expect("the bypasses table");
+    let second = bypasses
+        .split(
+            "
+	24=
+",
+        )
+        .nth(1)
+        .and_then(|rest| {
+            rest.split(
+                "
+	}",
+            )
+            .next()
+        })
+        .expect("bypass 24");
+    assert!(
+        !second.contains("connections"),
+        "24 keeps no list naming 23: {second}"
+    );
+    assert!(
+        !bypasses.contains(
+            "
+	23=
+"
+        ),
+        "bypass 23 is erased"
+    );
+    let relays: Vec<&BypassLink> = session
+        .graph()
+        .bypasses
+        .iter()
+        .filter(|link| matches!(link, BypassLink::Other { kind, .. } if kind == "relay_bypass"))
+        .collect();
+    assert_eq!(
+        relays,
+        [&BypassLink::Other {
+            system: 148,
+            kind: "relay_bypass".to_owned()
+        }]
+    );
+    session.apply(remove(17)).expect("take the second out");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// Gas giant 6267 of system 596 has the `has_megastructure` flag with no row tied to it,
+/// and planet 585 of Xu Nur (1) is not its star, 584.
+#[test]
+fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
+    let mut session = open_4_5();
+    let sphere = |body| {
+        Row {
+            star_only: true,
+            ..body_row(1, "dyson_sphere_5", body)
+        }
+        .op()
+    };
+    assert_refusals(
+        &mut session,
+        [
+            (
+                on_body(596, "think_tank_3", 6267),
+                "a think_tank_3 cannot be added there: the game counts a megastructure built at planet 6267 already",
+            ),
+            (
+                sphere(585),
+                "a dyson_sphere_5 cannot be added there: it is built only around a star, and planet 585 is not one",
+            ),
+        ],
+    );
+    session.apply(sphere(584)).expect("the sphere on the star");
+}
+
+/// The 4.5 sample was saved on 2201.03.25, which a planet flag dates 62818752.
+#[test]
+fn a_flagged_add_is_read_back_by_its_removal() {
+    let mut session = open_4_5();
+    session.apply(nexus()).expect("the Nexus");
+    let planet = entity_text(&session, EntityKind::Planet, 6);
+    assert!(planet.contains("has_megastructure=62818752"), "{planet}");
+    let removed = session.apply(remove(16)).expect("the removal");
+    assert_eq!(removed.inverse, nexus());
+    assert_eq!(current(&session), session.doc().original());
 }

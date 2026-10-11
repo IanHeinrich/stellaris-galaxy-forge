@@ -18,15 +18,20 @@ inverse: RemoveMegastructure { megastructure: 16 }
  		star_class="sc_g"
  		hyperlane=
  		{
-@@ -80238,6 +80242,7 @@
+@@ -80238,7 +80242,12 @@
  			planet_orbitals=
  			{
  			}
 +			megastructure=16
  			bombardment_damage=0
++			flags=
++			{
++				has_megastructure=62818752
++			}
  			entity=0
  		}
-@@ -417930,6 +417935,10 @@
+ 		7=
+@@ -417930,6 +417939,10 @@
  		{
  			587202589 385875995 452984858 452984857 452984856 154 
  		}
@@ -37,7 +42,7 @@ inverse: RemoveMegastructure { megastructure: 16 }
  		owned_armies=
  		{
  			40 41 42 43 44 
-@@ -1400882,6 +1400891,25 @@
+@@ -1400882,6 +1400895,25 @@
  	}
  	14=none
  	16777231=none

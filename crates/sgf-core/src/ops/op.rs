@@ -780,17 +780,18 @@ pub enum Op {
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
     /// owner lists it in `owned_megastructures`. A row on a [`MegastructurePlace::Body`]
-    /// stands at the body's point and names it, and the body gets `megastructure=<id>`;
-    /// with `ruined_orbital_ring` it also gets the planet flag `ruined_orbital_ring_planet`
-    /// dated day one. The system lists the row in `megastructures`. With `bypass`, a
-    /// `bypasses` row owned by the new row is written past the highest, connected both ways
-    /// to the relays of the systems a lane joins to `system` or to every other gateway, and
-    /// the system lists it in `bypasses`; the game fills in its lock fields on load. The
-    /// game's build effects do not run. An unknown country, a body outside the system, a
-    /// body that has a megastructure, a ruin flag on a free point, a bypass other than a
-    /// gateway or a relay, a second bypass of that kind in the system, a type that is not an
-    /// identifier, a point that is not finite and a save before Stellaris 4.0 are refused.
-    /// The inverse is [`Op::RemoveMegastructure`]. Save documents only.
+    /// stands at the body's point and names it, and the body gets `megastructure=<id>`, with
+    /// the planet flags `has_megastructure` and `ruined_orbital_ring_planet` when asked. The
+    /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
+    /// new row is written past the highest, connected both ways to the relays of the systems
+    /// a lane joins to `system` or to every other gateway, and the system lists it in
+    /// `bypasses`; the game fills in its lock fields on load. The game's build effects do not
+    /// run. An unknown country, a body outside the system, a body that has a megastructure
+    /// or the `has_megastructure` flag, a body that is not a star for a `star_only` type, a
+    /// flag or `star_only` on a free point, a bypass other than a gateway or a relay, a
+    /// second bypass of that kind in the system, a type that is not an identifier, a point
+    /// that is not finite and a save before Stellaris 4.0 are refused. The inverse is
+    /// [`Op::RemoveMegastructure`]. Save documents only.
     AddMegastructure {
         system: u32,
         kind: String,
@@ -801,9 +802,19 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         bypass: Option<NewBypass>,
+        /// The body gets the planet flag `ruined_orbital_ring_planet`, dated day one.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         #[ts(optional, as = "Option<bool>")]
         ruined_orbital_ring: bool,
+        /// The body gets the planet flag `has_megastructure`, dated the save's current date,
+        /// as a type whose build sets it leaves its body.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        megastructure_flag: bool,
+        /// The type is built only around a star: a body that is not one is refused.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        star_only: bool,
     },
     /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
     /// taken out again: it gives its slot back as an added body does, and it is unlinked as

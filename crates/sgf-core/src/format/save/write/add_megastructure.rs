@@ -10,6 +10,8 @@
 use std::collections::BTreeMap;
 
 use crate::NULL_ID;
+use crate::archive;
+use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::megastructure::{BypassRow, MegastructureRow, bypass_row, megastructure_row};
 use crate::emit::{Lines, inline};
@@ -18,9 +20,11 @@ use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
 use crate::format::save::write::add_system::{day_one, write_slot};
+use crate::format::save::write::bodies::frame;
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, drop_bypass, unlink};
 use crate::format::save::write::place::{self, insert_key};
+use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named};
@@ -44,6 +48,8 @@ pub(crate) struct NewRow<'a> {
     pub owner: Option<u32>,
     pub bypass: Option<&'a NewBypass>,
     pub ruined_orbital_ring: bool,
+    pub megastructure_flag: bool,
+    pub star_only: bool,
 }
 
 pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result<Planned, OpError> {
@@ -62,10 +68,9 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             if !(x.is_finite() && y.is_finite()) {
                 return Err(OpError::NotFinite);
             }
-            if new.ruined_orbital_ring {
+            if new.ruined_orbital_ring || new.megastructure_flag || new.star_only {
                 return Err(refuse(
-                    "the ruined orbital ring flag goes on a planet, and a free point has none"
-                        .to_owned(),
+                    "it stands on or around a planet or star, and a free point has none".to_owned(),
                 ));
             }
             ((x, y), None)
@@ -81,6 +86,16 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             if let Some(held) = held {
                 return Err(refuse(format!(
                     "planet {body} already has megastructure {held}"
+                )));
+            }
+            if planet_flag(&node, src, keys::HAS_MEGASTRUCTURE) {
+                return Err(refuse(format!(
+                    "the game counts a megastructure built at planet {body} already"
+                )));
+            }
+            if new.star_only && !is_star_body(s, system, body, &node, src)? {
+                return Err(refuse(format!(
+                    "it is built only around a star, and planet {body} is not one"
                 )));
             }
             let at = read::coordinate(&node, src)
@@ -145,11 +160,14 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         )?;
     }
     if let Some(body) = body {
-        let date = match new.ruined_orbital_ring {
-            true => Some(day_one(&s.doc)?),
-            false => None,
-        };
-        tie(plan.edit_planet(&s.doc, body, system)?, id, date.as_deref())?;
+        let mut flags = Vec::new();
+        if new.megastructure_flag {
+            flags.push((keys::HAS_MEGASTRUCTURE, today(&s.doc)?));
+        }
+        if new.ruined_orbital_ring {
+            flags.push((keys::RUINED_ORBITAL_RING_PLANET, day_one(&s.doc)?));
+        }
+        tie(plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
     }
     let with = match bypass_id {
         Some(bypass) => format!(", with bypass #{bypass}"),
@@ -183,9 +201,16 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         }),
         None => None,
     };
-    let ruined_orbital_ring = match tied.planet {
-        Some(body) => ruin_flagged(s, body)?,
-        None => false,
+    let (ruined_orbital_ring, megastructure_flag, star_only) = match tied.planet {
+        Some(body) => {
+            let (node, src) = planet_entity(&s.doc, body)?;
+            (
+                planet_flag(&node, src, keys::RUINED_ORBITAL_RING_PLANET),
+                planet_flag(&node, src, keys::HAS_MEGASTRUCTURE),
+                false,
+            )
+        }
+        None => (false, false, false),
     };
     let at = match tied.planet {
         Some(body) => MegastructurePlace::Body { body },
@@ -212,6 +237,8 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         owner: tied.owner,
         bypass,
         ruined_orbital_ring,
+        megastructure_flag,
+        star_only,
     };
     Ok(Planned {
         description: format!(
@@ -223,12 +250,50 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     })
 }
 
-/// Whether body `body` has the ruined orbital ring flag.
-fn ruin_flagged(s: &Session, body: u32) -> Result<bool, OpError> {
-    let (node, src) = planet_entity(&s.doc, body)?;
-    Ok(node
-        .find(keys::FLAGS, src)
-        .is_some_and(|flags| flags.find(keys::RUINED_ORBITAL_RING_PLANET, src).is_some()))
+/// Whether the planet `node` holds has the planet flag `flag`.
+fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
+    node.find(keys::FLAGS, src)
+        .is_some_and(|flags| flags.find(flag, src).is_some())
+}
+
+/// Whether body `body` of `system`, whose entry is `node`, is a star.
+fn is_star_body(
+    s: &Session,
+    system: u32,
+    body: u32,
+    node: &Node,
+    src: &[u8],
+) -> Result<bool, OpError> {
+    let primary = frame(s, system)?
+        .first()
+        .is_some_and(|first| first.body.id == body);
+    Ok(is_star(role(node, src, primary, s.star_classes())))
+}
+
+/// The save's current date as the game dates a planet flag it sets: hours counted from a
+/// fixed origin, in years of 365 days. The save's `meta` holds the date it was written on.
+fn today(doc: &Document) -> Result<String, OpError> {
+    let date = archive::parse_meta(doc.meta())
+        .map(|meta| meta.date)
+        .map_err(|_| OpError::MissingKey(keys::meta::DATE))?;
+    flag_hours(&date)
+        .map(|hours| hours.to_string())
+        .ok_or_else(|| OpError::parse(ParseAt::Meta, 0, format!("date {date:?} is not a date")))
+}
+
+/// The day before each month starts, in a 365-day year.
+const MONTH_STARTS: [u64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+/// The hour count of year 0's first day: `2200.01.01` is 62808000, the date of
+/// `game_started` in both 4.x samples.
+const FLAG_ORIGIN: u64 = 43_536_000;
+
+/// `yyyy.mm.dd` as a planet flag's date.
+fn flag_hours(date: &str) -> Option<u64> {
+    let mut parts = date.split('.').map(|part| part.parse::<u64>().ok());
+    let (year, month, day) = (parts.next()??, parts.next()??, parts.next()??);
+    let start = *MONTH_STARTS.get(usize::try_from(month.checked_sub(1)?).ok()?)?;
+    let days = year * 365 + start + day.checked_sub(1)?;
+    Some(days * 24 + FLAG_ORIGIN)
 }
 
 /// The `graphical_culture` the country `edit` holds names, when it names one.
@@ -304,30 +369,37 @@ fn connect(
     Ok(())
 }
 
-/// Tie the body `edit` holds to row `id`, with the ruin flag dated `ruin` when given.
-fn tie(edit: &mut Edit, id: u32, ruin: Option<&str>) -> Result<(), OpError> {
+/// Tie the body `edit` holds to row `id`, with the planet flags `flags`, each with its date.
+fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError> {
     insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
         format!("{}={id}", keys::MEGASTRUCTURE)
     })?;
-    let Some(date) = ruin else {
+    if flags.is_empty() {
         return Ok(());
-    };
-    let flag = format!("{}={date}", keys::RUINED_ORBITAL_RING_PLANET);
-    let flags = edit.entity()?.find(keys::FLAGS, &edit.buf).cloned();
-    match flags.as_ref().and_then(|block| block.children().last()) {
+    }
+    let lines: Vec<String> = flags
+        .iter()
+        .map(|(flag, date)| format!("{flag}={date}"))
+        .collect();
+    let block = edit.entity()?.find(keys::FLAGS, &edit.buf).cloned();
+    match block.as_ref().and_then(|block| block.children().last()) {
         Some(last) => {
             let end = last.span().end;
-            edit.bytes().insert_after(end, &flag);
+            for line in &lines {
+                edit.bytes().insert_after(end, line);
+            }
         }
         None => {
             let write = |indent: &[u8]| {
                 let mut w = Lines::new(indent);
                 w.open(0, keys::FLAGS);
-                w.line(1, &flag);
+                for line in &lines {
+                    w.line(1, line);
+                }
                 w.close(0);
                 inline(indent, &w.into_bytes())
             };
-            match flags {
+            match block {
                 Some(block) => {
                     let text = write(&edit.indent(block.span().start));
                     edit.bytes().replace_statement(block.span(), &text);

@@ -41,12 +41,17 @@ pub(crate) mod system {
     pub(crate) const MEGASTRUCTURES: Place = Place {
         key: keys::MEGASTRUCTURES,
         after: &[],
-        before: &[keys::STAR_CLASS],
+        before: &[keys::CLAIMS, keys::STAR_CLASS],
         last: false,
     };
     pub(crate) const BYPASSES: Place = Place {
         key: keys::BYPASSES,
-        after: &[keys::NATURAL_WORMHOLES, keys::HYPERLANE, keys::STAR_CLASS],
+        after: &[
+            keys::ASTRAL_RIFTS,
+            keys::NATURAL_WORMHOLES,
+            keys::HYPERLANE,
+            keys::STAR_CLASS,
+        ],
         before: &[keys::ARM, keys::FLAGS, keys::INITIALIZER],
         last: false,
     };

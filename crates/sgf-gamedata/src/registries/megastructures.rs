@@ -46,6 +46,9 @@ pub struct MegastructureDef {
     pub spawns_starbase: bool,
     /// `on_build_complete` runs `activate_gateway`.
     pub activates_gateway: bool,
+    /// Building this stage, or a stage it is built over, sets the planet flag
+    /// `has_megastructure` on its body.
+    pub sets_has_megastructure: bool,
     /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
     pub planet_possible_star: bool,
     /// Where the editor adds a row of this type, read once every type is loaded.
@@ -129,6 +132,7 @@ impl FromDef for MegastructureDef {
             ruined_orbital_ring: def.flag("is_ruined_orbital_ring"),
             spawns_starbase: def.node.find("starbase", &def.src).is_some(),
             activates_gateway: activates_gateway(def),
+            sets_has_megastructure: sets_has_megastructure(def),
             planet_possible_star: planet_possible_star(def),
             placement: Placement::Body { star_only: false },
         }
@@ -137,13 +141,17 @@ impl FromDef for MegastructureDef {
 
 /// `types` with each type's [`Placement`] resolved; the first rule that matches wins.
 pub(crate) fn placed(mut types: MegastructureTypes) -> MegastructureTypes {
-    let placements: Vec<(String, Placement)> = types
+    let resolved: Vec<(String, Placement, bool)> = types
         .iter()
-        .map(|def| (def.key.clone(), placement(&types, def)))
+        .map(|def| {
+            let flags = stages(&types, def).any(|stage| stage.sets_has_megastructure);
+            (def.key.clone(), placement(&types, def), flags)
+        })
         .collect();
-    for (key, placement) in placements {
+    for (key, placement, flags) in resolved {
         if let Some(def) = types.get_mut(&key) {
             def.placement = placement;
+            def.sets_has_megastructure = flags;
         }
     }
     types
@@ -198,6 +206,35 @@ fn first_stage<'t>(
         stage = earlier;
     }
     stage
+}
+
+/// `def` and every stage it is built over, through each `upgrade_from`, each once.
+fn stages<'t>(
+    types: &'t MegastructureTypes,
+    def: &'t MegastructureDef,
+) -> impl Iterator<Item = &'t MegastructureDef> {
+    let mut seen = vec![def];
+    let mut next = 0;
+    while let Some(stage) = seen.get(next).copied() {
+        next += 1;
+        for earlier in stage.upgrade_from.iter().filter_map(|key| types.get(key)) {
+            if !seen.iter().any(|s| s.key == earlier.key) {
+                seen.push(earlier);
+            }
+        }
+    }
+    seen.into_iter()
+}
+
+/// `on_build_complete` sets the planet flag `has_megastructure`.
+fn sets_has_megastructure(def: &Def) -> bool {
+    let mut found = Vec::new();
+    if let Some(block) = def.node.find("on_build_complete", &def.src) {
+        script::find_deep(block, "set_planet_flag", &def.src, &mut found);
+    }
+    found
+        .iter()
+        .any(|flag| flag.scalar_str(&def.src) == Some("has_megastructure"))
 }
 
 fn activates_gateway(def: &Def) -> bool {

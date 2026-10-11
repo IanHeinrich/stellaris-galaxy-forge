@@ -269,7 +269,7 @@ fn write_points(
     for (fleet, body) in parked(s, system, &ids)? {
         move_fleet(plan, s, fleet, [system, system], Some(step_of(body)))?;
     }
-    for (row, body) in tied_megastructures(s, system, &ids) {
+    for (row, body) in tied_megastructures(s, system, &ids)? {
         let edit = plan.edit_record(&s.doc, row)?;
         let Ok((x, y)) = read::coordinate(edit.entity()?, &edit.buf) else {
             continue;
@@ -282,16 +282,19 @@ fn write_points(
 
 /// The `megastructures` rows of system `system` tied to a body of `bodies` by their `planet`,
 /// each with the body, the ones an op added included.
-fn tied_megastructures(s: &Session, system: u32, bodies: &[u32]) -> Vec<(Anchor, u32)> {
-    rows(&s.doc, Table::Entity(EntityKind::Megastructure))
-        .unwrap_or_default()
+fn tied_megastructures(
+    s: &Session,
+    system: u32,
+    bodies: &[u32],
+) -> Result<Vec<(Anchor, u32)>, OpError> {
+    Ok(rows(&s.doc, Table::Entity(EntityKind::Megastructure))?
         .into_iter()
         .filter_map(|row| {
             let body = read::scalar_u32(&row.node, keys::PLANET, row.src)?;
             (bodies.contains(&body) && read::origin(&row.node, row.src) == Some(system))
                 .then_some((row.anchor, body))
         })
-        .collect()
+        .collect())
 }
 
 /// The body's orbit and angle about the point it orbits, as the description names them

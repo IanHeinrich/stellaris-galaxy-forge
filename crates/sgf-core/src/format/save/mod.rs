@@ -301,6 +301,8 @@ impl Format for Save {
                 owner,
                 bypass,
                 ruined_orbital_ring,
+                megastructure_flag,
+                star_only,
             } => add_megastructure::plan_add(
                 plan,
                 s,
@@ -311,6 +313,8 @@ impl Format for Save {
                     owner: *owner,
                     bypass: bypass.as_ref(),
                     ruined_orbital_ring: *ruined_orbital_ring,
+                    megastructure_flag: *megastructure_flag,
+                    star_only: *star_only,
                 },
             ),
             Op::RemoveMegastructure { megastructure } => {

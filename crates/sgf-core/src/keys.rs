@@ -275,6 +275,11 @@ pub(crate) const OPTIONAL: &[&str] = &[
     SOLAR_SYSTEM,
 ];
 
+/// Written on a system while an empire claims it, which no sample save's system is.
+pub(crate) const CLAIMS: &str = "claims";
+/// Written on a system holding an astral rift, which no sample save's system holds.
+pub(crate) const ASTRAL_RIFTS: &str = "astral_rifts";
+
 /// Written on a planet while it terraforms, which no sample save's planet does, so the
 /// save-key test cannot look for it.
 pub(crate) const TERRAFORM_PROCESS: &str = "terraform_process";

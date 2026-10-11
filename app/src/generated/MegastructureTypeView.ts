@@ -55,6 +55,11 @@ spawns_starbase: boolean,
  */
 activates_gateway: boolean, 
 /**
+ * Building this stage, or a stage it is built over, sets the planet flag
+ * `has_megastructure` on its body.
+ */
+sets_has_megastructure: boolean, 
+/**
  * `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
  */
 planet_possible_star: boolean, 

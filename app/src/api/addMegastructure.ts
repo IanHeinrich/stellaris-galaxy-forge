@@ -1,5 +1,5 @@
 /**
- * Adding a megastructure of any type the install defines to a save system.
+ * Adding a megastructure of a type the install defines to a save system.
  * Command and argument names match `app/src-tauri/src/commands/add_megastructure.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";

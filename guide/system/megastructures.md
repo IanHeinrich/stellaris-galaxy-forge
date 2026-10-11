@@ -1,6 +1,6 @@
 ---
 title: Megastructures
-description: Add or delete a megastructure in a save, of any type your install and mods define, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring.
+description: Add or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring.
 aliases: [megastructure, add megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world]
 ---
 # Megastructures <Badge type="tip" text="Save" />
@@ -11,9 +11,10 @@ says how to find them and open their pages.
 
 ## Add a megastructure
 
-You can add any megastructure your Stellaris install and enabled mods
+You can add most megastructures your Stellaris install and enabled mods
 define to a system in a Stellaris 4.x save. You need the game data
-loaded.
+loaded. The ones you can't add yet are listed at the end of this
+section.
 
 The megastructure is added finished. The game's build effects don't
 run, so a Dyson Sphere doesn't freeze the system's planets. A planet
@@ -46,14 +47,17 @@ megastructure starts with no owner. You can pick any empire, or No
 owner.
 
 A planet, moon or star holds one megastructure. If it already has one,
-Add megastructure is greyed out.
+Add megastructure is greyed out. The game also marks a planet when a
+megastructure is built there, and some planets keep that mark with no
+megastructure left. Adding one to such a planet is refused, and the
+dialog says why.
 
 Galaxy Forge can't add these yet, so they aren't in the list:
 
 - Ring worlds.
 - L-Gates and the later stages of the Quantum Catapult.
-- Megastructures that become a starbase when they are built, such as
-  the Deep Space Citadel.
+- Megastructures that become a starbase when they are built: the Deep
+  Space Citadel and the Nomads' waystations.
 
 ## Delete a megastructure
 

@@ -206,6 +206,8 @@ pub(super) fn examples() -> Vec<Example> {
                 active: true,
             }),
             ruined_orbital_ring: false,
+            megastructure_flag: false,
+            star_only: false,
         }),
         Example::added_megastructure(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,

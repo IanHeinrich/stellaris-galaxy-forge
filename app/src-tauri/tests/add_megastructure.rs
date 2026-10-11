@@ -2,6 +2,8 @@
 use serde_json::json;
 use sgf_app_lib::views::AddedMegastructure;
 use sgf_core::entity::{EntityAddr, EntityKind};
+use sgf_core::format::save::details::SystemDetails;
+use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::views::{EditResult, ErrorKind};
 
 use crate::common;
@@ -57,6 +59,50 @@ fn a_megastructure_is_added_and_undone() {
 
     let undone: EditResult = invoke(&w, "undo", json!({})).expect("undo");
     assert_eq!(undone.history.undo.len(), 1);
+    let links = undone.delta.bypasses.expect("the bypass links");
+    assert!(
+        !links
+            .iter()
+            .any(|link| matches!(link, BypassLink::Other { system: 0, .. })),
+        "{links:?}"
+    );
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [0, 169] })).expect("details");
+    let rows = |system: u32| -> Vec<u32> {
+        details
+            .iter()
+            .find(|d| d.id == system)
+            .unwrap_or_else(|| panic!("system {system}"))
+            .megastructures
+            .iter()
+            .map(|m| m.id)
+            .collect()
+    };
+    assert!(rows(0).is_empty(), "the relay is gone");
+    assert_eq!(rows(169), [16], "the Nexus stays");
+}
+
+/// A Dyson Sphere is built only around a star: planet 585 of Xu Nur (1) is refused, its star
+/// 584 is not.
+#[test]
+fn a_star_only_type_is_refused_off_a_star() {
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let sphere = |body: u32| {
+        json!({
+            "system": 1, "kind": "dyson_sphere_5",
+            "place": { "place": "body", "body": body }, "owner": null
+        })
+    };
+    let refused =
+        invoke::<AddedMegastructure>(&w, "add_megastructure", sphere(585)).expect_err("a planet");
+    assert!(
+        refused.message.contains("only around a star"),
+        "{}",
+        refused.message
+    );
+    invoke::<AddedMegastructure>(&w, "add_megastructure", sphere(584)).expect("the star");
 }
 
 #[test]

@@ -411,6 +411,7 @@ export function megastructureTypeView(
     ruined_orbital_ring: false,
     spawns_starbase: false,
     activates_gateway: false,
+    sets_has_megastructure: false,
     planet_possible_star: false,
     placement: { place: "body", star_only: false },
     ...over,

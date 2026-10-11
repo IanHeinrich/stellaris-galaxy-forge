@@ -151,7 +151,7 @@ pub fn save_4_5_with_added_megastructure() -> Session {
 pub const ADDED_MEGASTRUCTURE: u32 = 16;
 
 /// A Science Nexus on gas giant 6 of the 4.5 sample's capital system, Alari (169), owned
-/// by country 0.
+/// by country 0, which marks its planet as the game's build does.
 pub fn sol_nexus() -> Op {
     Op::AddMegastructure {
         system: 169,
@@ -160,6 +160,8 @@ pub fn sol_nexus() -> Op {
         owner: Some(0),
         bypass: None,
         ruined_orbital_ring: false,
+        megastructure_flag: true,
+        star_only: false,
     }
 }
 
