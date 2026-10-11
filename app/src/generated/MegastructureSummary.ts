@@ -8,4 +8,14 @@ kind: string, owner: number | null,
 /**
  * The planet it orbits, when it orbits one.
  */
-planet: number | null, };
+planet: number | null, 
+/**
+ * `coordinate` x/y, relative to the system's centre. The game writes a row tied to a body
+ * at that body's coordinate, and adds the type's `entity_offset` only where it draws it.
+ */
+at: [number, number] | null, 
+/**
+ * The graphical culture its model is drawn in: the row's `graphical_culture`, else its
+ * owner's; `None` when neither names one.
+ */
+culture: string | null, };

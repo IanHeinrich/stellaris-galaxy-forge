@@ -77,9 +77,13 @@ describe("a scenario system's overview", () => {
           id: 0,
           hull: 0,
           max_hull: 0,
+          at: null,
+          culture: null,
           shipyard: true,
         },
-        megastructures: [{ id: 5, kind: "ring_world_ruined", owner: null, planet: null }],
+        megastructures: [
+          { id: 5, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
+        ],
       }),
     );
 

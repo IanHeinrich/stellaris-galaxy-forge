@@ -84,7 +84,9 @@ describe("badgeLabel", () => {
       initializer: "ring_world_init_01",
       label: "Aldan",
     });
-    const megastructures = [{ id: 7, kind: "ring_world_ruined", owner: null, planet: null }];
+    const megastructures = [
+      { id: 7, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
+    ];
     expect(badgeLabel("landmark", ruin, "Aldan", NAMES, megastructures)).toBe(
       "Ring World (ruined)",
     );

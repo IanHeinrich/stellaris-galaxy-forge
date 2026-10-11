@@ -20,6 +20,7 @@ use crate::registries::deposit_categories::DepositCategory;
 use crate::registries::deposits::DepositDef;
 use crate::registries::dig_site_types::DigSiteTypeDef;
 use crate::registries::galaxy_sizes::GalaxySizes;
+use crate::registries::megastructures::MegastructureDef;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::planet_modifiers::PlanetModifierDef;
 use crate::registries::registry::FromDef;
@@ -28,8 +29,8 @@ use crate::registries::ship_sizes::ShipSizeDef;
 use crate::registries::star_classes::StarClass;
 use crate::registries::static_modifiers::StaticModifierDef;
 use crate::registries::{
-    colors, flags, galaxy_shapes, precursors, registry, star_names, starbase_levels,
-    terraform_links,
+    colors, flags, galaxy_shapes, precursors, registry, section_templates, star_names,
+    starbase_levels, terraform_links,
 };
 use crate::scripts::{ScriptIndex, index};
 use crate::textures::planet_disc;
@@ -75,7 +76,7 @@ const ALL: [RegistryKind; 10] = [
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 29] = [
+const DIRS: [(&str, RegistryKind); 31] = [
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/inline_scripts", RegistryKind::Initializers),
     (index::EFFECTS_DIR, RegistryKind::Scripts),
@@ -98,6 +99,8 @@ const DIRS: [(&str, RegistryKind); 29] = [
     (AsteroidBeltDef::DIR, RegistryKind::Definitions),
     (ShipSizeDef::DIR, RegistryKind::Definitions),
     (starbase_levels::DIR, RegistryKind::Definitions),
+    (section_templates::DIR, RegistryKind::Definitions),
+    (MegastructureDef::DIR, RegistryKind::Definitions),
     (DEFINES_DIR, RegistryKind::Definitions),
     (star_names::DIR, RegistryKind::Definitions),
     (precursors::DIR, RegistryKind::Definitions),

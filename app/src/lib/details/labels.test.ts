@@ -28,13 +28,21 @@ describe("starbaseKeys / starbaseLabel", () => {
   const levels = new Map<string, StarbaseLevelView>([
     [
       "starbase_level_citadel",
-      { key: "starbase_level_citadel", icon_frame: 5, empire_shield: false },
+      { key: "starbase_level_citadel", icon_frame: 5, empire_shield: false, station_entity: null },
     ],
     [
       "starbase_level_outpost",
-      { key: "starbase_level_outpost", icon_frame: null, empire_shield: false },
+      {
+        key: "starbase_level_outpost",
+        icon_frame: null,
+        empire_shield: false,
+        station_entity: null,
+      },
     ],
-    ["starbase_level_hut", { key: "starbase_level_hut", icon_frame: null, empire_shield: true }],
+    [
+      "starbase_level_hut",
+      { key: "starbase_level_hut", icon_frame: null, empire_shield: true, station_entity: null },
+    ],
   ]);
 
   it("names the level glyph", () => {
@@ -155,7 +163,7 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
 
   it("collapses every megastructure into one generic icon, titled by the one or the count", () => {
     const one = megastructureIcon([
-      { id: 1, kind: "ring_world_ruined", owner: null, planet: null },
+      { id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
     ]);
     expect(one).toEqual({
       keys: ["sprite:GFX_ship_class_small#22"],
@@ -164,18 +172,32 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
       frame: "poi",
     });
     const two = megastructureIcon([
-      { id: 1, kind: "ring_world_ruined", owner: null, planet: null },
-      { id: 2, kind: "dyson_sphere_3", owner: 4, planet: null },
+      { id: 1, kind: "ring_world_ruined", owner: null, planet: null, at: null, culture: null },
+      { id: 2, kind: "dyson_sphere_3", owner: 4, planet: null, at: null, culture: null },
     ]);
     expect(two?.label).toBe("2 megastructures");
     expect(megastructureIcon([])).toBeNull();
   });
 
   it("leaves gateways, L-Gates and hyper relays to the bypass icon", () => {
-    const lgate = { id: 1, kind: "lgate_base", owner: null, planet: null };
-    const gateway = { id: 2, kind: "gateway_final", owner: 3, planet: null };
-    const relay = { id: 3, kind: "hyper_relay", owner: 3, planet: null };
-    const ring = { id: 4, kind: "ring_world_ruined", owner: null, planet: null };
+    const lgate = { id: 1, kind: "lgate_base", owner: null, planet: null, at: null, culture: null };
+    const gateway = {
+      id: 2,
+      kind: "gateway_final",
+      owner: 3,
+      planet: null,
+      at: null,
+      culture: null,
+    };
+    const relay = { id: 3, kind: "hyper_relay", owner: 3, planet: null, at: null, culture: null };
+    const ring = {
+      id: 4,
+      kind: "ring_world_ruined",
+      owner: null,
+      planet: null,
+      at: null,
+      culture: null,
+    };
     expect(shownMegastructures([lgate, gateway, relay, ring])).toEqual([ring]);
     expect(megastructureIcon([lgate, relay])).toBeNull();
     expect(megastructureIcon([relay, ring])?.label).toBe("Ring World (ruined)");
@@ -255,6 +277,8 @@ describe("detailNameKeys", () => {
         id: 0,
         hull: 0,
         max_hull: 0,
+        at: null,
+        culture: null,
         shipyard: false,
       },
       resources: [

@@ -18,6 +18,7 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
@@ -217,6 +218,11 @@ export function getTerraformCandidates(): Promise<TerraformCandidateView[]> {
 /** Every starbase level of the loaded game data; empty without it. */
 export function getStarbaseLevels(): Promise<StarbaseLevelView[]> {
   return invoke<StarbaseLevelView[]>("get_starbase_levels");
+}
+
+/** Every megastructure type of the loaded game data, with its models; empty without it. */
+export function getMegastructureTypes(): Promise<MegastructureTypeView[]> {
+  return invoke<MegastructureTypeView[]>("get_megastructure_types");
 }
 
 /** Every ship size of the loaded game data with its map icon key; empty without it. */

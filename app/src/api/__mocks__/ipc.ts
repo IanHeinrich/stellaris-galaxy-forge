@@ -99,6 +99,7 @@ export const getFlagParts = command("getFlagParts");
 export const getPlanetClasses = command("getPlanetClasses");
 export const getTerraformCandidates = command("getTerraformCandidates");
 export const getStarbaseLevels = command("getStarbaseLevels");
+export const getMegastructureTypes = command("getMegastructureTypes");
 export const getShipSizes = command("getShipSizes");
 export const getCountryTypes = command("getCountryTypes");
 export const getResourceIcons = command("getResourceIcons");

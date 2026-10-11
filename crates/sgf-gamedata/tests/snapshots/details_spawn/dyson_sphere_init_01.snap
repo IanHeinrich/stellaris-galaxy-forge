@@ -16,6 +16,8 @@ expression: out
   "inner_radius": null,
   "megastructures": [
     {
+      "at": null,
+      "culture": null,
       "id": 1342177280,
       "kind": "dyson_sphere_ruined",
       "owner": null,

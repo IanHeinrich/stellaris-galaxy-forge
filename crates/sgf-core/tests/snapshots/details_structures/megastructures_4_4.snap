@@ -1,0 +1,29 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+system 0 #6 ring_world_ruined at (-45.20385, 0) culture fallen_machine_empire_01
+system 0 #7 ring_world_ruined at (-0.00045, -45.20385) culture fallen_machine_empire_01
+system 0 #8 ring_world_ruined at (45.20385, -0.00045) culture fallen_machine_empire_01
+system 0 #9 ring_world_ruined at (0.00045, 45.20385) culture fallen_machine_empire_01
+system 6 #10 lgate_base at (21.2148, 21.2142) culture -
+system 9 #11 interstellar_assembly_ruined at (0, 0) culture -
+system 41 #12 orbital_ring_ruined at (6.78875, 125.25875) culture -
+system 88 #13 gateway_ruined at (-224.90793, 16.99467) culture -
+system 101 #14 gateway_ruined at (80.93926, 218.84821) culture -
+system 108 #15 lgate_base at (21.2148, 21.2142) culture -
+system 111 #16 gateway_ruined at (-191.24937, -176.289) culture -
+system 125 #17 gateway_ruined at (-292.71721, -8.99909) culture -
+system 158 #18 gateway_ruined at (258.64748, 106.34111) culture -
+system 164 #19 gateway_ruined at (158.82399, 185.35527) culture -
+system 166 #20 gateway_ruined at (67.89897, -245.60249) culture -
+system 183 #21 gateway_ruined at (-273.58262, -58.96194) culture -
+system 208 #22 lgate_base at (21.2148, 21.2142) culture -
+system 246 #2 ring_world_ruined at (-0.00045, 45.20385) culture fallen_machine_empire_01
+system 287 #23 lgate_base at (21.2148, 21.2142) culture -
+system 311 #1 ring_world_ruined at (45.20385, -0.00045) culture mammalian_01
+system 400 #24 lgate_base at (21.2148, 21.2142) culture -
+system 499 #25 lgate_base at (21.2148, 21.2142) culture -
+system 672 #3 ring_world_ruined at (-45.20385, 0) culture fallen_machine_empire_01
+system 672 #4 ring_world_ruined at (45.20385, -0.00045) culture fallen_machine_empire_01
+system 672 #5 ring_world_ruined at (0.00045, 45.20385) culture fallen_machine_empire_01

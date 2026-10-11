@@ -629,6 +629,63 @@ for planets or deposits.
   Neither sample has a relay. `has_access_to_relay_network=yes` on a
   system is something else: the 4.4 sample sets it on 20 systems.
 
+## Megastructures and starbases
+
+- The top-level `megastructures` table comes after `ship_design` and
+  before `bypasses`. A row holds `type`, `coordinate={ x y origin }`,
+  `planet` (the body it is tied to, or null), `orbitals`, `build_queue`,
+  and in 4.x `dismantle_progress` and `dismantle_finish_date`. `owner`,
+  `graphical_culture`, `bypass`, `save_on_death`, `overclock_type`,
+  `name`, `flags` and `upgrade` are optional. No row has an `orbit`.
+- `type` holds the state as well as the kind: `_ruined`, `_restored`,
+  `_permanently_ruined`, or a stage number (`dyson_sphere_5`).
+- Ids follow the planet slot scheme, `slot | generation << 24`. A dead
+  slot is written `<id>=none`: the 4.5 sample has `14=none` and
+  `16777231=none`. There is no `last_created_` counter for this table.
+  In a 4.5.1 late-game save every dead slot had been taken by a later row
+  of a higher generation, and the old id was logged in
+  `dead_mega_structure={ map={ <old id>=<index> } objects={ <index>={
+  type solar_system } } }`.
+- An upgrade in progress sits on the row:
+  `upgrade={ upgrade_to="dyson_swarm_2" progress=461 halted=0
+  indefinitely_halted=no }`.
+- A new structure under construction has no row. The build is the
+  construction ship's order in `fleet`:
+  `current_order={ build_megastructure_fleet_order={ type="hyper_relay"
+  coordinate={ x y origin } planet=<id or null> … } }`. `build_queue` on
+  rows is null, and `construction` holds no megastructure items.
+- The game writes a row tied to a body at that body's coordinate, not
+  the body plus the type's `entity_offset`. It adds the offset where it
+  draws the model. The 4.5 sample's `orbital_ring_ruined` (row 4) is
+  written at planet 936's (47.58375, 115.66625), as are 29 of 29 tied
+  rows in a 4.5.1 save. Moving the body in the editor does not rewrite
+  the row, so after a move the two differ. A Dyson Swarm row stands at (0, 0) with
+  `planet=<star>`, and the star gets `megastructure=<id>`.
+- A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
+  agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
+  Shroud tunnel have `owner={ type=7 … }`.
+- Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
+  system's centre: 330 of 330 rows across three 4.5 saves of one game,
+  and every relay build order too. The angle follows no rule: it is the
+  player's click or the AI's pick. In a 4.5.1 late-game save, waystation
+  starbases stand at the same distance, each at its own angle. A built gateway is probably
+  placed the same way, which hasn't been checked in game.
+- `graphical_culture` on a row is the culture its model is drawn in. It
+  is missing on ruins, L-Gates and most rows without an owner. Where a
+  row has both, it matches its owner country's `graphical_culture`,
+  except on Hyper Relays, which keep their builder's. A row that names
+  none is assumed to use its owner's. That hasn't been checked in game.
+- A starbase's position is its station fleet's
+  `movement_manager={ coordinate={ x y origin } }`, reached as
+  `starbase_mgr.starbases.<id>.station` → `ships.<id>.fleet` → `fleet`.
+  Sol's starport in the 4.4 sample stands at (21.6, −21.6). In a 4.5.1
+  late-game save, a system's main starbase stands at (a, −a) with
+  a = 11.7 + 0.33 × the star's `planet_size` in 509 of 558 systems. The others are
+  in systems with no star body at the centre. Deep-space citadels stand
+  wherever they were built.
+- The station ship's `graphical_culture` is the starbase's culture.
+  Every station ship in both 4.x samples names one.
+
 ## Global flags
 
 - The top-level `flags={ ... }` block holds the galaxy's global flags,

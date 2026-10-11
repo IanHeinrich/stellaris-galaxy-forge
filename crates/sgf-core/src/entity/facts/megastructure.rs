@@ -19,6 +19,9 @@ pub(crate) struct MegastructureFacts {
     pub planet: Option<u32>,
     /// `coordinate.origin`: the system it sits in.
     pub origin: Option<u32>,
+    /// `coordinate` x/y, relative to the system's centre.
+    pub at: Option<(f64, f64)>,
+    pub graphical_culture: Option<String>,
     pub bypass: Option<u32>,
     pub orbitals: u32,
     pub dismantle_progress: f64,
@@ -30,6 +33,8 @@ pub(crate) fn read(node: &Node, src: &[u8]) -> MegastructureFacts {
         owner: reference(node, keys::OWNER, src),
         planet: reference(node, keys::PLANET, src),
         origin: read::origin(node, src).filter(|&id| id != crate::NULL_ID),
+        at: read::coordinate(node, src).ok(),
+        graphical_culture: read::scalar(node, keys::GRAPHICAL_CULTURE, src).map(str::to_owned),
         bypass: reference(node, keys::BYPASS, src),
         orbitals: count(node, keys::ORBITALS, src),
         dismantle_progress: read::scalar(node, keys::DISMANTLE_PROGRESS, src)

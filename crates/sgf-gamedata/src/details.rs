@@ -102,6 +102,8 @@ impl GameData {
                 kind: kind.clone(),
                 owner: None,
                 planet: None,
+                at: None,
+                culture: None,
             })
             .collect();
         let starbase = init.starbase.as_ref().map(|s| StarbaseSummary {
@@ -116,6 +118,8 @@ impl GameData {
             modules: s.modules.clone(),
             buildings: s.buildings.clone(),
             shipyard: s.modules.iter().any(|m| m == "shipyard"),
+            at: None,
+            culture: None,
         });
         let resources = system_resources(planets.iter().filter(|p| certain(p)));
         Some(SystemDetails {

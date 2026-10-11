@@ -725,6 +725,10 @@ pub struct StarbaseSummary {
     /// The `station` ship's hull; both are zero when the entry names no station.
     pub hull: f64,
     pub max_hull: f64,
+    /// Where the station stands, relative to the system's centre; `None` in a scenario.
+    pub at: Option<(f64, f64)>,
+    /// The `station` ship's `graphical_culture`; `None` in a scenario.
+    pub culture: Option<String>,
 }
 
 /// The ship sizes of the stations that gather what a planet's deposits produce.
@@ -818,6 +822,8 @@ pub(super) fn resolve(
         buildings: s.buildings.clone(),
         hull: s.hull,
         max_hull: s.max_hull,
+        at: s.at,
+        culture: s.culture.clone(),
     });
     SystemDetails {
         id,

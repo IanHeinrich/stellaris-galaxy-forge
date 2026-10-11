@@ -11,6 +11,7 @@ mod cygnus;
 mod details;
 mod details_geometry;
 mod details_layout;
+mod details_structures;
 mod details_systems;
 mod emit;
 mod entity;
