@@ -4,6 +4,7 @@ import type { Capabilities } from "../generated/Capabilities";
 import type { EntityKind } from "../generated/EntityKind";
 import { documentCapabilities } from "../lib/capabilities";
 import { renumberedId, renumberedLane, type Renumbering } from "../lib/renumber";
+import { useClassRollsStore } from "./classRollsStore";
 import { useDetailsStore } from "./detailsStore";
 import { planetPageKey, useEntityStore, type EntityState } from "./entityStore";
 import { useFileSessionStore } from "./fileSessionStore";
@@ -188,6 +189,11 @@ function kindOf<R extends EntityRef>(ref: R): RefKind<R> {
   return REF_KINDS[ref.kind] as unknown as RefKind<R>;
 }
 
+/** The key of body `body`'s page, under which its picked class is kept. */
+export function classPickKey(system: number, body: number): string {
+  return refKey({ kind: "body", system, id: body });
+}
+
 export function refKey(ref: EntityRef): string {
   return kindOf(ref).key(ref);
 }
@@ -333,6 +339,11 @@ export interface InspectorState {
    * use their own default.
    */
   groups: Record<string, boolean>;
+  /**
+   * The class picked in each body page's class list, by page, for this session; a page not here
+   * shows Any.
+   */
+  classPicks: Record<string, string>;
   /** Follows the map selection: a different entity restarts the stack, the same one leaves it alone. */
   setRoot(entry: Entry): void;
   /**
@@ -388,6 +399,11 @@ export interface InspectorState {
   closeSection(key: string): void;
   toggleSection(key: string, fallback: boolean): void;
   toggleGroup(key: string, fallback: boolean): void;
+  /**
+   * Picks `className` in the class list of body `body`'s page, and reads what the body rolls as
+   * it. `null`, or the class already picked, goes back to Any.
+   */
+  pickClass(system: number, body: number, className: string | null): void;
   /** Drops the user's choice for each of `keys`, so those sections take their default again. */
   resetSections(keys: readonly string[]): void;
   collapsed(key: string, fallback: boolean): boolean;
@@ -427,6 +443,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   tab: "overview",
   sections: SECTIONS.read(),
   groups: {},
+  classPicks: {},
 
   setRoot(entry) {
     const { stack, tab } = get();
@@ -578,6 +595,17 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   toggleGroup(key, fallback) {
     const groups = get().groups;
     set({ groups: { ...groups, [key]: !(groups[key] ?? fallback) } });
+  },
+
+  pickClass(system, body, className) {
+    const key = classPickKey(system, body);
+    const { [key]: picked, ...rest } = get().classPicks;
+    if (className === null || className === picked) {
+      set({ classPicks: rest });
+      return;
+    }
+    set({ classPicks: { ...rest, [key]: className } });
+    useClassRollsStore.getState().request(system, body, className);
   },
 
   resetSections(keys) {

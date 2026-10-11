@@ -831,6 +831,45 @@
   background: var(--bg-elevated);
 }
 
+/* A class list that picks the class a body's page shows it as: Any first, the picked one ringed. */
+.pl-class-pick {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pl-class-pick:hover,
+.pl-class-pick:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.pl-class-pick > .ins-hinted {
+  display: inline-flex;
+  text-decoration: none;
+  cursor: inherit;
+}
+
+.pl-class-any {
+  padding: 1px 6px;
+  color: var(--fg);
+}
+
+.pl-pool-row[role="button"] {
+  cursor: pointer;
+}
+
+.pl-class-pick[aria-pressed="true"],
+.pl-pool-row[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 /* Blockers and other deposits a roll can give, counted on one line each, and features as names. */
 .pl-pool-kinds,
 .pl-pool-names {

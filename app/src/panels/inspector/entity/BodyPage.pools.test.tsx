@@ -9,6 +9,8 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
+import type { ClassRolls } from "../../../generated/ClassRolls";
+import { CAN_ROLL_TITLE } from "../../../lib/details/spawnFacts";
 import { depositBars } from "../../../lib/details/depositBars";
 import { oddsRows, readableTint, starListName } from "../../../lib/details/oddsBars";
 import { NEUTRAL_RAMP } from "../../../lib/details/resourceColors";
@@ -22,12 +24,12 @@ import { drawnBy } from "../../../test/drawn";
 import { openGroups } from "../../../test/groups";
 import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
-import { poolChips, poolRows } from "../../../test/poolRows";
-import { rolledBody, systemRoll } from "../../../test/rolls";
+import { poolChips, poolRows, type ShownPoolRow } from "../../../test/poolRows";
+import { classRolls, rolledBody, systemRoll } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { bodyLayout, name } from "../../../test/builders";
+import { bodyLayout, name, starClassView } from "../../../test/builders";
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { Rolled, RolledMark } from "../states";
@@ -112,6 +114,13 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
   });
 }
 
+/** The class rows of a Class row's picker, after its Any. */
+function classRows(html: string) {
+  const [any, ...classes] = poolRows(html);
+  expect(any.name).toBe("Any");
+  return classes;
+}
+
 /** The rows of the Deposits section, without the Class row's or the Modifiers section's. */
 function depositRows(html: string) {
   const start = html.indexOf('class="ins-sec-title">Deposits');
@@ -148,7 +157,7 @@ describe("what a scenario body can roll", () => {
     );
     expect(cls).toContain(">Random class</span>");
     expect(hintOf("Class")).toContain("Rolled from the classes that fit its orbit.");
-    const odds = poolRows(cls).map((r) => [r.name.toLowerCase(), r.width, r.chance]);
+    const odds = classRows(cls).map((r) => [r.name.toLowerCase(), r.width, r.chance]);
     expect(odds).toEqual([
       [expect.stringContaining("barren"), "100.0%", "75%"],
       [expect.stringContaining("toxic"), "33.3%", "25%"],
@@ -193,7 +202,7 @@ describe("what a scenario body can roll", () => {
     });
     await land(details({ planets: [listed], spawn: systemSpawn() }));
 
-    const rows = poolRows(row(page(101, "Listed"), "Class"));
+    const rows = classRows(row(page(101, "Listed"), "Class"));
     expect(rows.map((r) => r.name)).toEqual(["Barren World", "Frozen World"]);
   });
 
@@ -214,7 +223,7 @@ describe("what a scenario body can roll", () => {
       '<span class="ins-set-by">Rolled from the classes that fit its orbit.</span>' +
         '<span class="ins-set-by">Which of these it can be depends on its orbit and on the system&#x27;s star.</span>',
     );
-    const listed = poolRows(wide);
+    const listed = classRows(wide);
     expect(listed.map((r) => r.name.toLowerCase())).toEqual([
       expect.stringContaining("barren"),
       expect.stringContaining("toxic"),
@@ -739,7 +748,7 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [four], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(poolRows(row(html, "Class"))).toHaveLength(classes.length);
+    expect(classRows(row(html, "Class"))).toHaveLength(classes.length);
     expect(html).not.toContain("pl-class-strip");
     expect(html).toContain("Can roll · 2 planet features");
     const features = poolRows(html.slice(html.indexOf("planet features")));
@@ -1203,5 +1212,250 @@ describe("a block of copies in the Planets list", () => {
     );
     const none = overview();
     expect(none.match(/never placed/g)).toHaveLength(1);
+  });
+});
+
+describe("a scenario body's class picker", () => {
+  const CLASSES = ["pc_desert", "pc_arid", "pc_savannah", "pc_tropical", "pc_toxic", "pc_barren"];
+
+  /** A planet drawn from six classes whose odds are unknown, rolling deposits and features to suit. */
+  async function landSix(): Promise<void> {
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        [
+          "d_minerals_2",
+          depositTypeView("d_minerals_2", { yields: [resourceAmount("minerals", 2, "Minerals")] }),
+        ],
+        [
+          "d_energy_3",
+          depositTypeView("d_energy_3", { yields: [resourceAmount("energy", 3, "Energy")] }),
+        ],
+      ]),
+    });
+    const world = planet(100, "", {
+      class: "random",
+      drawn: true,
+      size: null,
+      ring: null,
+      spawn: bodySpawn({
+        class: {
+          state: "rolled",
+          pool: {
+            kind: "random",
+            draw: "random",
+            at_orbit: CLASSES.map((c) => ({ class: c, weight: 1 })),
+          },
+        },
+        ring: { state: "unknown" },
+        rolled_deposits: {
+          state: "rolled",
+          entries: ["d_minerals_2", "d_energy_3"].map((key) => ({ key, chance: null })),
+        },
+        rolled_features: {
+          state: "rolled",
+          entries: [{ key: "pm_mineral_poor", chance: null }],
+        },
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [world], spawn: systemSpawn() }));
+  }
+
+  /** What planet 100 rolls as Toxic World. */
+  const TOXIC = classRolls({
+    body: 100,
+    class: "pc_toxic",
+    size: { min: 10, max: 25 },
+    ring: { state: "rolled", chance: 0.21 },
+    deposits: {
+      state: "rolled",
+      entries: [
+        { key: "d_minerals_2", chance: 0.6 },
+        { key: "d_energy_3", chance: 0.3 },
+      ],
+    },
+    features: { state: "rolled", entries: [{ key: "pm_mineral_poor", chance: 0.5 }] },
+  });
+
+  /** Picks `className` on planet 100's page as a click does, and lets its read answer. */
+  async function pick(className: string | null): Promise<void> {
+    useInspectorStore.getState().pickClass(SYSTEM, 100, className);
+    await vi.advanceTimersByTimeAsync(0);
+  }
+
+  /** Whether a pool row that toggles is pressed. */
+  const pressed = (r: ShownPoolRow) => /aria-pressed="(\w+)"/.exec(r.html)?.[1];
+
+  /** The strip's toggle buttons, by what each names, and whether each is pressed. */
+  function toggles(html: string): [string, string][] {
+    return [
+      ...html.matchAll(
+        /<button type="button" class="pl-class-pick[^"]*" aria-pressed="(true|false)">(?:Any|<span[^>]*><span role="img" aria-label="([^"]*)")/g,
+      ),
+    ].map(([, pressed, name]) => [name ?? "Any", pressed]);
+  }
+
+  it("starts on Any, with every class a toggle and the page as it was", async () => {
+    await landSix();
+
+    const html = drawnBy(() => page(100, "Planet"));
+    expect(toggles(row(html, "Class"))).toEqual([
+      ["Any", "true"],
+      ["Desert World", "false"],
+      ["Arid World", "false"],
+      ["Savannah World", "false"],
+      ["Tropical World", "false"],
+      ["Toxic", "false"],
+      ["Barren", "false"],
+    ]);
+    expect(hintOf("Toxic")).toBe('<span class="mono">pc_toxic</span>');
+    expect(html).not.toContain("If it rolls");
+    expect(html).not.toContain("aria-busy");
+    expect(row(html, "Size")).toContain(rolled("Suits its class"));
+    expect(row(html, "Ring")).toContain(rolled("Suits its class"));
+    expect(row(html, "Deposits")).toContain(CAN_ROLL_TITLE);
+    expect(row(html, "Planet features")).toContain(CAN_ROLL_TITLE);
+    expect(mockedIpc.getClassRolls).not.toHaveBeenCalled();
+  });
+
+  it("shows the page as the class picked, with its size, ring chance and pools as a fixed class's", async () => {
+    await landSix();
+    let answer: (rolls: ClassRolls) => void = () => {};
+    mockedIpc.getClassRolls.mockImplementation(
+      () => new Promise<ClassRolls>((resolve) => (answer = resolve)),
+    );
+
+    await pick("pc_toxic");
+    expect(mockedIpc.getClassRolls).toHaveBeenCalledWith(SYSTEM, 100, "pc_toxic");
+    const waiting = page(100, "Planet");
+    expect(waiting).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
+    expect(waiting).toContain('<div class="ins-busy" aria-busy="true">');
+    expect(row(waiting, "Deposits")).toContain(CAN_ROLL_TITLE);
+
+    answer(TOXIC);
+    await vi.advanceTimersByTimeAsync(0);
+    const html = drawnBy(() => page(100, "Planet"));
+    expect(toggles(row(html, "Class")).filter(([, pressed]) => pressed === "true")).toEqual([
+      ["Toxic", "true"],
+    ]);
+    expect(html).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
+    expect(html).not.toContain("aria-busy");
+    expect(row(html, "Size")).toContain("10 to 25");
+    expect(row(html, "Size")).toContain(DIE);
+    expect(row(html, "Ring")).toContain(rolled("21% chance"));
+    expect(row(html, "Model")).toContain(rolled("Suits its class"));
+    expect(html).not.toContain(CAN_ROLL_TITLE);
+    expect(html).not.toContain('<span class="k">Deposits</span>');
+    expect(html).toContain("Can roll · 2 resources");
+    expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals · 60%", "Energy · 30%"]);
+    expect(html).toContain("Can roll · 1 planet feature");
+    expect(poolRows(html.slice(html.indexOf("1 planet feature"))).map((r) => r.chance)).toEqual([
+      "50%",
+    ]);
+  });
+
+  it("goes back to Any from Any or from the class picked", async () => {
+    await landSix();
+    mockedIpc.getClassRolls.mockResolvedValue(TOXIC);
+    const any = page(100, "Planet");
+
+    await pick("pc_toxic");
+    expect(page(100, "Planet")).not.toBe(any);
+    await pick(null);
+    expect(page(100, "Planet")).toBe(any);
+    await pick("pc_toxic");
+    await pick("pc_toxic");
+    expect(page(100, "Planet")).toBe(any);
+  });
+
+  it("says why under the picker when what the class rolls can't be read, and keeps the page on Any's", async () => {
+    await landSix();
+    mockedIpc.getClassRolls.mockRejectedValue(new Error("body 100 cannot be pc_toxic"));
+
+    await pick("pc_toxic");
+    const html = page(100, "Planet");
+    const cls = row(html, "Class");
+    expect(cls).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
+    expect(cls).toContain('<div class="ins-warn">body 100 cannot be pc_toxic</div>');
+    expect(html).not.toContain("aria-busy");
+    expect(row(html, "Deposits")).toContain(CAN_ROLL_TITLE);
+  });
+
+  it("reads what a class rolls once, and forgets the class picked when another document opens", async () => {
+    await landSix();
+    mockedIpc.getClassRolls.mockResolvedValue(TOXIC);
+
+    await pick("pc_toxic");
+    await pick(null);
+    await pick("pc_toxic");
+    expect(mockedIpc.getClassRolls).toHaveBeenCalledTimes(1);
+    expect(page(100, "Planet")).toContain("If it rolls Toxic");
+
+    await landSix();
+    expect(useInspectorStore.getState().classPicks).toEqual({});
+    expect(page(100, "Planet")).not.toContain("If it rolls");
+    await pick("pc_toxic");
+    expect(mockedIpc.getClassRolls).toHaveBeenCalledTimes(2);
+  });
+
+  it("makes a few classes' rows toggles after an Any row", async () => {
+    const few = drawn(100);
+    await open("scenario");
+    await land(details({ planets: [few], spawn: systemSpawn() }));
+    mockedIpc.getClassRolls.mockResolvedValue(classRolls({ body: 100, class: "pc_barren" }));
+
+    await pick("pc_barren");
+    const rows = poolRows(row(page(100, "Planet"), "Class"));
+    expect(rows.map((r) => [r.name.toLowerCase(), pressed(r)])).toEqual([
+      ["any", "false"],
+      [expect.stringContaining("barren"), "true"],
+      [expect.stringContaining("toxic"), "false"],
+    ]);
+    expect(rows.every((r) => r.html.includes('role="button" tabindex="0"'))).toBe(true);
+  });
+
+  it("gives a star of a rolled list the same picker over its odds, asking as its star's class", async () => {
+    useGameDataStore.setState({
+      starClasses: new Map([
+        ["sc_k", starClassView("sc_k", "pc_k_star")],
+        ["sc_g", starClassView("sc_g", "pc_g_star")],
+      ]),
+    });
+    const star = planet(99, "", {
+      class: "pc_k_star",
+      star_class: "sc_k",
+      role: "primary",
+      spawn: bodySpawn({
+        class: { state: "rolled", pool: { kind: "star_list", list: "rl_pair" } },
+      }),
+    });
+    const spawn = systemSpawn({
+      star: {
+        state: "rolled",
+        list: "rl_pair",
+        members: [
+          { key: "sc_k", weight: 1 },
+          { key: "sc_g", weight: 3 },
+        ],
+      },
+    });
+    await open("scenario");
+    await land(details({ planets: [star], spawn }));
+    mockedIpc.getClassRolls.mockResolvedValue(
+      classRolls({ body: 99, class: "pc_g_star", size: { min: 30, max: 30 } }),
+    );
+
+    useInspectorStore.getState().pickClass(SYSTEM, 99, "pc_g_star");
+    await vi.advanceTimersByTimeAsync(0);
+    const html = page(99, "Star");
+    expect(mockedIpc.getClassRolls).toHaveBeenCalledWith(SYSTEM, 99, "pc_g_star");
+    const rows = poolRows(row(html, "Class"));
+    expect(rows.map((r) => [r.name, r.chance, pressed(r)])).toEqual([
+      ["Any", "", "false"],
+      ["sc_g", "75%", "true"],
+      ["sc_k", "25%", "false"],
+    ]);
+    expect(html).toContain("If it rolls sc_g");
+    expect(row(html, "Size")).toContain(">30</span>");
   });
 });

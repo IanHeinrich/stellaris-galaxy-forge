@@ -345,6 +345,15 @@ button.chip.jump:hover {
   font-size: var(--text-note);
 }
 
+/* What the class picked on a body's page decides, while what it rolls as that class is read. */
+.ins-busy {
+  display: contents;
+}
+
+.ins-busy > * {
+  opacity: 0.5;
+}
+
 .ins-warn {
   margin-top: 4px;
   padding: 4px 6px;

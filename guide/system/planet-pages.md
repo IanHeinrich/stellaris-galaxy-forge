@@ -78,7 +78,9 @@ edited yet.
 Where only the class the body gets decides its model, ring, deposits or
 planet features, that row reads "Suits its class". Under the
 Deposits and Planet features rows, click What it can roll to see what
-the class could give. It starts closed.
+the class could give. It starts closed. To see what one of the classes
+gives, click it in the Class row's list
+([See what one class rolls](deposits-and-modifiers.md#see-what-one-class-rolls)).
 
 An unnamed body shows the name the game gives it, made from the
 system's name, such as "Yunak II" or "Yunak IIa". The game numbers
@@ -96,7 +98,8 @@ fixed, each class has a bar and its odds, and the likeliest class's bar
 is the longest. A class picked from a named list of
 classes lists every class in the list. The game may roll any of them,
 even one that doesn't fit the orbit. More than four classes without odds
-show as a row of icons. Hover over an icon to see the class's name. A
+show as a row of icons. Hover over an icon to see the class's name.
+Click a class to see the body as that class, and click Any to go back. A
 rolled ring shows its chance.
 
 Some bodies are never placed, because none of the classes they can roll

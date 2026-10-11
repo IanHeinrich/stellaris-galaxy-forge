@@ -118,6 +118,21 @@ Deposits or Planet features row. A star with no planet features is one
 example. Where the class the game picks decides the roll and Galaxy
 Forge can't list it, the row or the section reads "Suits its class".
 
+### See what one class rolls
+
+When a scenario planet can roll several classes, its Class row lists
+them under an Any button. Any is picked at first, and the page shows
+what every class could give, as described above. Click a class's icon
+or row to see the planet as that class. A line under the list reads
+"If it rolls Toxic World", for example. The Size row shows that class's
+range, the Ring row its ring chance, and the deposits and planet
+features show as bars with their percentages, as on a planet whose
+class the initializer sets.
+
+Click Any, or the class again, to go back. Picking a class only changes
+what the page shows. The scenario stays as it is. A star rolled from a
+star list has the same buttons over its star classes.
+
 ## Make a planet a terraforming candidate
 
 A barren, frozen, toxic or grey goo world's terraforming candidate

@@ -1,3 +1,4 @@
+import { useClassRollsStore } from "./classRollsStore";
 import { setRollWithin } from "./detailsStore";
 import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
@@ -15,7 +16,7 @@ export const DOCUMENT_SCOPED: readonly (() => void)[] = [
   ...FILE_SCOPED,
   () => usePrepareStore.getState().reset(),
   () => useToolStore.getState().setTilt(0),
-  () => useInspectorStore.setState({ groups: {} }),
+  () => useInspectorStore.setState({ groups: {}, classPicks: {} }),
 ];
 
 /**
@@ -26,6 +27,7 @@ export const GAME_DATA_SCOPED: readonly (() => void)[] = [
   () => usePlanetDataStore.getState().clear(),
   () => useGeneratorStore.getState().clear(),
   () => useInspectorStore.getState().dropBodies(),
+  () => useClassRollsStore.getState().clear(),
   () => setRollWithin(systemRadiiOf(useGameDataStore.getState()).min_inner),
   ...PICKERS,
 ];

@@ -190,7 +190,16 @@ export function shownBodyName(
   given: ReadonlyMap<number, GivenName>,
   names: Names,
 ): string {
-  return given.get(planet.id)?.text ?? bodyName(planet, names);
+  return givenBodyName(planet, given.get(planet.id), names);
+}
+
+/** A body's name as `shownBodyName` gives it, from the one name the game gives it, if any. */
+export function givenBodyName(
+  planet: PlanetSummary,
+  given: GivenName | undefined,
+  names: Names,
+): string {
+  return given?.text ?? bodyName(planet, names);
 }
 
 /** A plain outpost earns no icon: the border already says the system is held. */

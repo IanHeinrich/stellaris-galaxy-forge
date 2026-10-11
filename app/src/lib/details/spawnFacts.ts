@@ -569,6 +569,14 @@ export const DEPENDS_ON_CLASS = "Depends on the class it gets.";
 /** The heading over what a row rolled to suit its class can give, folded until opened. */
 export const CAN_ROLL_TITLE = "What it can roll";
 
+/** The first choice of a body's class picker, which shows what every class it can roll gives. */
+export const ANY_CLASS = "Any";
+
+/** The line under a body's class picker while one class is picked, named as the list names it. */
+export function ifItRolls(name: string): string {
+  return `If it rolls ${name}`;
+}
+
 /** The lines that name the blockers and the other deposits a roll can give, by their count. */
 export const BLOCKERS_LABEL = "Blockers";
 export const OTHER_DEPOSITS_LABEL = "Other";

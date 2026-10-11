@@ -3,6 +3,8 @@
 - A scenario planet's page shows what the game can roll for it: its
   class, deposits, planet features and ring. Odds show as bars where the
   game's files give them.
+- On a scenario planet that can roll several classes, click a class to
+  see what the planet rolls as that class.
 - Unnamed planets and moons in a scenario show the name the game gives
   them, such as "Yunak II".
 - Planets the game never places show "never placed" and look faint in

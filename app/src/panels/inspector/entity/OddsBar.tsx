@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { cssShare, type OddsRow } from "../../../lib/details/oddsBars";
 import { percent } from "../../../lib/details/spawnFacts";
 import "./entity.css";
@@ -59,24 +59,58 @@ export function PoolRow({
   );
 }
 
+/** A row that toggles: whether it is pressed, and what a click or Enter or Space on it does. */
+export interface Press {
+  pressed: boolean;
+  onPress(): void;
+}
+
+/** The attributes that make a row a toggle button. */
+function pressable({ pressed, onPress }: Press): HTMLAttributes<HTMLDivElement> {
+  return {
+    role: "button",
+    tabIndex: 0,
+    "aria-pressed": pressed,
+    onClick: onPress,
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      onPress();
+    },
+  };
+}
+
 /** One row of an odds list as it shows: its icon, its name and how it is drawn. */
 export interface ShownOdds {
   row: OddsRow;
   name: string;
   icon?: ReactNode;
+  /** Where the row is a toggle button. */
+  press?: Press;
 }
 
-/** A draw's odds, likeliest first: each row's icon, name, a bar where its share is known, and its share. */
-export function OddsList({ rows }: { rows: readonly ShownOdds[] }) {
+/**
+ * A draw's odds, likeliest first: each row's icon, name, a bar where its share is known, and its
+ * share. `lead` is a toggle row before them, with a name alone.
+ */
+export function OddsList({
+  rows,
+  lead,
+}: {
+  rows: readonly ShownOdds[];
+  lead?: { name: string; press: Press };
+}) {
   return (
     <PoolList>
-      {rows.map(({ row, name, icon }) => (
+      {lead !== undefined && <PoolRow name={lead.name} chance={null} {...pressable(lead.press)} />}
+      {rows.map(({ row, name, icon, press }) => (
         <PoolRow
           key={row.key}
           icon={icon}
           name={name}
           bar={row.share === null ? null : <BarTrack width={row.width} color={row.color} />}
           chance={row.share}
+          {...(press === undefined ? {} : pressable(press))}
         />
       ))}
     </PoolList>

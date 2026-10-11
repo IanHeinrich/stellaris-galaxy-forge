@@ -3,7 +3,7 @@ import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
-import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
+import { bodyClassName, boundsText, givenBodyName } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
@@ -152,7 +152,7 @@ export function PlanetRow({
   const unrolled = planet.class === "" || planet.class === "random";
   const classText = bodyClassName(planet.class, names, planet.moon);
   const named = given?.text ?? templateName(planet);
-  const name = given?.text ?? bodyName(planet, names);
+  const name = givenBodyName(planet, given, names);
   const size = planet.layout?.size ? boundsText(planet.layout.size) : planet.size;
   const spawn = planet.spawn;
   const state = spawn?.class.state;

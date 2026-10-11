@@ -301,7 +301,8 @@ function summaryRows(
   };
 }
 
-function summaryDataKeys(summary: PlanetSummary): PlanetDataKeys {
+/** The game data keys a body read from its summary shows. */
+export function summaryDataKeys(summary: PlanetSummary): PlanetDataKeys {
   return {
     deposits: [
       ...summary.deposit_keys.map((d) => d.key),

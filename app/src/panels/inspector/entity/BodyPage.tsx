@@ -48,9 +48,16 @@ import { DeletePlanetAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
-import { BodyFlags, BodyInitializer, SpawnHeadNotes, SpawnProperties } from "./SpawnFacts";
+import {
+  BodyFlags,
+  BodyInitializer,
+  ClassDependent,
+  SpawnHeadNotes,
+  SpawnProperties,
+} from "./SpawnFacts";
 import { SizeField, StarBlock } from "./StarBlock";
 import { useGivenNames } from "./useBodyName";
+import { useClassPreview } from "./useClassPreview";
 import "./entity.css";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations, anomaly, dig site and class names. */
@@ -237,10 +244,17 @@ function DeleteSection({ read, offers }: PlanetSectionProps) {
   );
 }
 
-/** What the page lists below its fields, in order; each leaves itself out where it has nothing to show. */
-const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionProps> }[] = [
-  { id: "deposits", Component: PlanetDeposits },
-  { id: "modifiers", Component: PlanetModifiers },
+/**
+ * What the page lists below its fields, in order; each leaves itself out where it has nothing to
+ * show. Those that `pooled` list what the body rolls, which the class picked decides.
+ */
+const SECTIONS: readonly {
+  id: string;
+  Component: ComponentType<PlanetSectionProps>;
+  pooled?: true;
+}[] = [
+  { id: "deposits", Component: PlanetDeposits, pooled: true },
+  { id: "modifiers", Component: PlanetModifiers, pooled: true },
   { id: "anomaly", Component: PlanetAnomaly },
   { id: "digSite", Component: PlanetDigSite },
   { id: "colony", Component: PlanetColony },
@@ -255,7 +269,9 @@ const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionPro
  * A body's Overview: a star's own fields first, then what the body is, holds and carries, who
  * lives there, where it is and the moons around it.
  */
-function BodyOverview({ read }: { read: BodyRead }) {
+function BodyOverview({ read: listedRead }: { read: BodyRead }) {
+  const preview = useClassPreview(listedRead);
+  const read = preview.read;
   usePlanetData(read);
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
@@ -316,7 +332,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
       <SpawnHeadNotes read={read} />
       <OrbitBlock system={details.id} body={summary.id} />
       {summary.spawn !== undefined && (
-        <SpawnProperties read={read} spawn={summary.spawn} star={star} />
+        <SpawnProperties read={read} spawn={summary.spawn} star={star} preview={preview} />
       )}
       {summary.spawn === undefined && (showClass || showSize || showRing) && (
         <Properties>
@@ -333,8 +349,10 @@ function BodyOverview({ read }: { read: BodyRead }) {
           {showRing && <PropertyRow label="Ring">{ringText(summary.ring)}</PropertyRow>}
         </Properties>
       )}
-      {SECTIONS.map(({ id, Component }) => (
-        <Component key={id} read={read} offers={offers} orbitEdited={orbitEdited} />
+      {SECTIONS.map(({ id, Component, pooled }) => (
+        <ClassDependent key={id} busy={pooled === true && preview.busy}>
+          <Component read={read} offers={offers} orbitEdited={orbitEdited} />
+        </ClassDependent>
       ))}
       {(starBlock || hasFields(fields) || editsAny || orbitEdited) && <EditKey />}
     </>
