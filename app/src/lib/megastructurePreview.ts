@@ -2,6 +2,7 @@
  * What the Add megastructure dialog shows of a type: its tile's picture in the chosen owner's
  * culture, and the preview beside the tiles with the game's description and what it produces.
  */
+import type { CountryNode } from "../generated/CountryNode";
 import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { SystemDetails } from "../generated/SystemDetails";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
@@ -23,14 +24,18 @@ export function megastructureThumbKeys(
 }
 
 /**
- * The graphical culture `owner` builds in, as the save shows it on a station or megastructure
- * it owns in `systems`; null for no owner, or one with none read yet.
+ * The graphical culture `owner` builds in: the one its country in `countries` names, else the
+ * one the save shows on a station or megastructure it owns in `systems`; null for no owner,
+ * or one with none read yet.
  */
 export function ownerCulture(
   owner: number | null,
   systems: Iterable<SystemDetails>,
+  countries?: ReadonlyMap<number, CountryNode>,
 ): string | null {
   if (owner === null) return null;
+  const named = countries?.get(owner)?.graphical_culture;
+  if (named) return named;
   const all = [...systems];
   const stations = all.flatMap((d) => [d.starbase, ...d.other_starbases]);
   const rows = [...stations, ...all.flatMap((d) => d.megastructures)];

@@ -365,7 +365,7 @@ impl GameData {
         let megastructure_defs =
             script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
         let megastructures = megastructures::placed(
-            megastructures::load(&megastructure_defs, &scripts),
+            megastructures::load(&megastructure_defs, &scripts, &layout),
             &scripts,
         );
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);

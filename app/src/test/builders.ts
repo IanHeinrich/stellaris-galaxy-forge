@@ -415,6 +415,7 @@ export function megastructureTypeView(
     planet_possible_star: false,
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
+    source: null,
     ...over,
   };
 }

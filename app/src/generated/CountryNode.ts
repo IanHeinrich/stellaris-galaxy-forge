@@ -55,4 +55,9 @@ has_map_colors?: boolean, flag_icon: FlagRef | null, flag_background: FlagRef | 
  * `preftl_age`, the age a primitive stands in (`stone_age`); `None` for any other
  * country.
  */
-preftl_age?: string, };
+preftl_age?: string, 
+/**
+ * `graphical_culture`, the art set its ships and megastructures are drawn in
+ * (`mammalian_01`); `None` when the country names none.
+ */
+graphical_culture?: string, };

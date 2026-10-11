@@ -30,9 +30,6 @@ import "./overlays.css";
 
 const NO_OWNER = "none";
 
-/** The mod a type comes from: the type view does not say, so every family is listed as the game's. */
-const fromGame = () => null;
-
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
 export function AddMegastructureDialog() {
   const prompt = useMegastructureAddStore((s) => s.prompt);
@@ -59,7 +56,11 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const typeKeys = useMemo(() => [...types.keys()], [types]);
   useNamed(typeKeys);
   const families = useMemo(
-    () => megastructureFamilies(megastructurePicks(types, names, spot), fromGame),
+    () =>
+      megastructureFamilies(
+        megastructurePicks(types, names, spot),
+        (key) => types.get(key)?.source ?? null,
+      ),
     [types, names, spot],
   );
   const [picked, setPicked] = useState<string | null>(null);
@@ -72,7 +73,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const kind = current?.key;
   const type = kind === undefined ? undefined : types.get(kind);
   const owner = ownerPicked === undefined ? defaultOwner(kind ?? "", systemOwner) : ownerPicked;
-  const culture = ownerCulture(owner, details.values());
+  const culture = ownerCulture(owner, details.values(), countries);
   const owners = useMemo(
     () =>
       [...countries.values()]

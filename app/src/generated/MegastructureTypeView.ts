@@ -71,4 +71,8 @@ placement: MegastructurePlacement,
 /**
  * What its `on_dismantle_complete` takes back from its system and owner.
  */
-dismantle: MegastructureDismantle, };
+dismantle: MegastructureDismantle, 
+/**
+ * The mod whose file won for this type; `None` for the base game.
+ */
+source: string | null, };

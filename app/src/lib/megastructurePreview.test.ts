@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  countryNode,
   megastructureSummary,
   megastructureTypeView,
   starbaseSummary,
@@ -68,6 +69,18 @@ describe("the picture a megastructure's tile shows", () => {
     expect(ownerCulture(4, systems)).toBe("avian_01");
     expect(ownerCulture(9, systems)).toBeNull();
     expect(ownerCulture(null, systems)).toBeNull();
+  });
+
+  it("takes the culture the owner's country names before any it owns", () => {
+    const systems = [
+      systemDetails({ id: 1, starbase: starbaseSummary({ owner: 3, culture: "humanoid_01" }) }),
+    ];
+    const countries = new Map([
+      [3, countryNode({ id: 3, graphical_culture: "plantoid_01" })],
+      [4, countryNode({ id: 4 })],
+    ]);
+    expect(ownerCulture(3, systems, countries)).toBe("plantoid_01");
+    expect(ownerCulture(4, systems, countries)).toBeNull();
   });
 });
 

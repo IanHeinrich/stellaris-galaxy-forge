@@ -15,6 +15,7 @@ use crate::construction::{self, Construction};
 use crate::dismantle;
 use crate::scripts::ScriptIndex;
 
+use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
 
@@ -62,6 +63,8 @@ pub struct MegastructureDef {
     pub placement: Placement,
     /// What its `on_dismantle_complete` takes back from its system and owner.
     pub dismantle: MegastructureDismantle,
+    /// The mod whose file won for this type; `None` for the base game.
+    pub source: Option<String>,
     /// What its build chain adds to its system and owner, replayed against a save system
     /// when a row of it is added.
     #[serde(skip)]
@@ -191,6 +194,7 @@ impl FromDef for MegastructureDef {
             planet_possible_star: planet_possible_star(def),
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
+            source: None,
             construction: Construction::default(),
             family: None,
         }
@@ -478,11 +482,20 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
 }
 
 /// Every type `defs`, the definitions of `common/megastructures`, holds, each with what its
-/// dismantle takes back as `scripts` resolve the effects it calls.
-pub(crate) fn load(defs: &BTreeMap<String, Def>, scripts: &ScriptIndex) -> MegastructureTypes {
+/// dismantle takes back and its build chain adds as `scripts` resolve the effects they call,
+/// and the mod of `layout` whose file defines it.
+pub(crate) fn load(
+    defs: &BTreeMap<String, Def>,
+    scripts: &ScriptIndex,
+    layout: &Layout,
+) -> MegastructureTypes {
     defs.iter()
         .map(|(key, def)| {
             let mut kind = MegastructureDef::read(key.clone(), def);
+            kind.source = layout
+                .layer_of(&def.file)
+                .map(|(layer, _)| layer.name.clone())
+                .filter(|name| name != VANILLA);
             kind.dismantle = dismantle::read(def, scripts);
             kind.construction = construction::read(defs, key, scripts);
             (key.clone(), kind)
