@@ -15,7 +15,6 @@ import {
   depositCategories,
   depositLines,
   depositsWithClass,
-  DEPOSIT_POOL,
 } from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -30,7 +29,7 @@ import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
-import { depositBars } from "../../../lib/details/depositBars";
+import { depositPoolTail } from "../../../lib/details/depositBars";
 import { DepositPoolBars } from "./DepositPoolBars";
 import { ResourceIcon } from "./ResourceIcon";
 import { PoolLines } from "./SpawnFacts";
@@ -350,9 +349,8 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
       <PoolLines
         pool={pool}
         stated={features.length + blockers.length}
-        kind={DEPOSIT_POOL}
         noun={noun}
-        rows={(picks) => depositBars(picks, views).length}
+        tail={(picks) => depositPoolTail(picks, views)}
         body={(picks) => <DepositPoolBars picks={picks} noun={noun} />}
       />
       {editable && (

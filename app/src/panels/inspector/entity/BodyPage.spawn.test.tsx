@@ -75,8 +75,9 @@ describe("a scenario body's page", () => {
     expect(row(html, "Size")).toContain(">Rolled to suit its class</span>");
     expect(hintOf("Size")).toContain("The game rolls these to suit the class the planet gets.");
     expect(row(html, "Ring")).toContain(">Rolled</span>");
-    expect(html).not.toContain('<span class="k">Model</span>');
-    expect(row(html, "With its class")).toContain(">Model</span>");
+    expect(row(html, "Model")).toContain(">Rolled to suit its class</span>");
+    expect(hintOf("Model")).toBe("The game rolls these to suit the class the planet gets.");
+    expect(html).not.toContain("With its class");
     expect(html).not.toContain("Anomaly");
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("Deposits");
@@ -202,6 +203,48 @@ describe("a scenario body's page", () => {
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("pl-dep-remove");
     expect(html).not.toContain("+ Add");
+  });
+
+  it("shows a home planet with no deposits as its badge and short rows, each explanation in its card", async () => {
+    const gatria = planet(100, "Gatria", {
+      class: "pc_continental",
+      size: 16,
+      spawn: bodySpawn({
+        class: { state: "fixed", class: "pc_continental" },
+        home_planet: true,
+        no_blockers: true,
+        features: { modifier: null, none: true, cleared: false, added: [] },
+        anomalies: { categories: [], prevented: "body" },
+        variables: [{ key: "size", variable: "@gatria_size" }],
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [gatria], spawn: systemSpawn() }));
+
+    const html = drawnBy(() => page(100, "Gatria"));
+    const head = html.slice(0, html.indexOf("</div>"));
+    expect(head).toContain(
+      '<span class="chip" title="The home planet of the empire placed in this system.">home planet</span>',
+    );
+    expect(head).not.toContain("start planet");
+    expect(html).not.toContain('<span class="k">Home planet</span>');
+    expect(html).not.toContain('<span class="k">Start planet</span>');
+    expect(row(html, "Name")).toContain("Gatria");
+    expect(row(html, "Name")).not.toContain("<div");
+    expect(row(html, "Class")).toContain("Continental World");
+    expect(row(html, "Class")).not.toContain("<div");
+    expect(html).not.toContain("ins-why");
+    expect(row(html, "Model")).toContain(">Rolled to suit its class</span>");
+    expect(hintOf("Model")).toBe("The game rolls these to suit the class the planet gets.");
+    const stopped = row(html, "Stopped");
+    expect(stopped).toContain("⊘</span>Blockers</span>");
+    expect(stopped).toContain("⊘</span>Planet features</span>");
+    expect(stopped).toContain("⊘</span>Anomaly</span>");
+    expect(hintOf("Size")).toContain(
+      '<span class="ins-set-by">Size: from <span class="mono">@gatria_size</span></span>',
+    );
+    expect(html).not.toContain('<span class="k">Deposits</span>');
+    expect(html).not.toContain('class="ins-sec-title">Deposits');
   });
 
   it("gives an unknown class its reason, and an anomaly the initializer places with no remove button", async () => {

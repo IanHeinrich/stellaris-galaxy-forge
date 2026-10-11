@@ -424,20 +424,10 @@ export function poolTitle(stated: number, tail: string): string {
   return `${stated > 0 ? "Can also roll" : "Can roll"} · ${tail}`;
 }
 
-/** What a pool lists: deposits or planet features. */
-export interface PoolKind {
-  /** The line's tail after "Can roll ·", given how many rows it shows. */
-  tail: (count: number) => string;
+/** `3 planet features`: what a planet features pool's line counts, each name once. */
+export function featuresTail(count: number): string {
+  return counted(count, "planet feature");
 }
-
-/** Deposits show one row per resource, so their line counts resources. */
-export const DEPOSIT_POOL: PoolKind = {
-  tail: (count) => counted(count, "resource"),
-};
-
-export const FEATURE_POOL: PoolKind = {
-  tail: (count) => counted(count, "planet feature"),
-};
 
 /** The planet features and modifiers an initializer states, as the Modifiers section lists them. */
 export function statedModifierRows(
@@ -532,56 +522,61 @@ export function stoppedFacts(spawn: BodySpawn, modifiers: number, noun: string):
   return facts;
 }
 
-/** Whether a body's deposits are only what its class decides: it states none and rolls by class. */
-export function depositsWithClass(spawn: BodySpawn, listed: number): boolean {
-  return spawn.rolled_deposits?.state === "unknown" && listed === 0 && spawn.deposits.length === 0;
-}
-
-/** Whether a body's planet features are only what its class decides. */
-export function featuresWithClass(spawn: BodySpawn, listed: number): boolean {
-  const { features } = spawn;
-  return (
-    spawn.rolled_features?.state === "unknown" &&
-    listed === 0 &&
-    !features.none &&
-    !features.cleared
-  );
+/**
+ * Whether the class a body rolls decides what a pool gives it: the install can't tell what the
+ * pool holds, or the chance of anything in it.
+ */
+export function suitsClass(pool: SpawnPool | undefined): boolean {
+  if (pool === undefined || pool.state === "fixed") return false;
+  return pool.state === "unknown" || pool.entries.every((entry) => entry.chance === null);
 }
 
 /**
- * What only the class a body rolls decides of it, as the With its class row lists it in place of
- * its own rows and sections: its ring, model, deposits and planet features.
+ * Whether a body's deposits show as a row rolled to suit its class, in place of a section: it
+ * states none, and its class decides what it rolls.
  */
-export function withClassParts(
-  spawn: BodySpawn,
-  { star, deposits, modifiers }: { star: boolean; deposits: number; modifiers: number },
-): string[] {
-  const parts: string[] = [];
-  if (!star && spawn.ring?.state === "unknown") parts.push("ring");
-  if (!star && spawn.entity === null) parts.push("model");
-  if (depositsWithClass(spawn, deposits)) parts.push("deposits");
-  if (featuresWithClass(spawn, modifiers)) parts.push("planet features");
-  return parts;
+export function depositsWithClass(spawn: BodySpawn, listed: number): boolean {
+  return suitsClass(spawn.rolled_deposits) && listed === 0 && spawn.deposits.length === 0;
 }
 
-/** `Ring, model and deposits`. */
-export function withClassWords(parts: readonly string[]): string {
-  const said =
-    parts.length <= 1
-      ? (parts[0] ?? "")
-      : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-  return said.charAt(0).toUpperCase() + said.slice(1);
+/** Whether a body's planet features show as a row rolled to suit its class, in place of a section. */
+export function featuresWithClass(spawn: BodySpawn, listed: number): boolean {
+  const { features } = spawn;
+  return suitsClass(spawn.rolled_features) && listed === 0 && !features.none && !features.cleared;
 }
 
-/** What the With its class row says in its card. */
-export function withClassHint(noun: string): string {
-  return classSuitedHint(noun);
+/** The heading over what a row rolled to suit its class can give, folded until opened. */
+export const CAN_ROLL_TITLE = "What it can roll";
+
+/** The lines that name the blockers and the other deposits a roll can give, by their count. */
+export const BLOCKERS_LABEL = "Blockers";
+export const OTHER_DEPOSITS_LABEL = "Other";
+
+/**
+ * Picks that show under one name as one, their chances added, null where any is unknown;
+ * likeliest first, and in the order each name first comes among equals.
+ */
+export function mergedByName(
+  picks: readonly PoolPick[],
+  name: (key: string) => string,
+): (PoolPick & { name: string })[] {
+  const merged = new Map<string, PoolPick & { name: string }>();
+  for (const pick of picks) {
+    const shown = name(pick.key);
+    const known = merged.get(shown);
+    if (known === undefined) merged.set(shown, { ...pick, name: shown });
+    else
+      known.chance =
+        known.chance === null || pick.chance === null ? null : known.chance + pick.chance;
+  }
+  return [...merged.values()]
+    .map((pick, index) => ({ pick, index }))
+    .sort((a, b) => (b.pick.chance ?? -1) - (a.pick.chance ?? -1) || a.index - b.index)
+    .map(({ pick }) => pick);
 }
 
 /** What the Stopped row's card heads its lines with. */
 export const STOPPED_LABEL = "Stopped";
-/** The With its class row's label. */
-export const WITH_CLASS_LABEL = "With its class";
 
 /** The keys whose `@variable` the Size row's card names, and those the Orbit step row's card names. */
 const SIZE_KEYS = new Set(["size", "size.min", "size.max"]);

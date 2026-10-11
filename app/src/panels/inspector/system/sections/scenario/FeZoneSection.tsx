@@ -15,10 +15,8 @@ import { usePaintLayer } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
 import { Section } from "../../../parts";
-import { FE_ZONE_INTRO } from "./sectionCopy";
-
-export const ADD_ZONE_HINT =
-  "Marks empty space nearby where the mod will create a fallen empire's systems at game start.";
+import { Hinted } from "../../../states";
+import { FE_ZONE_CARD, FE_ZONE_LINE } from "./sectionCopy";
 
 export const KIND_HINT =
   "Random lets the game pick the fallen empire. A named type puts that empire here first, if " +
@@ -58,11 +56,11 @@ export function FeZoneSection({ system }: { system: SystemNode }) {
   if (!paint) return null;
   return (
     <Section id="system.feZone" title="Fallen empire zone">
-      <ul className="muted ins-hint ins-fe-zone-intro">
-        {FE_ZONE_INTRO.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+      <div className="muted ins-hint">
+        <Hinted label="Fallen empire zone" hint={FE_ZONE_CARD}>
+          {FE_ZONE_LINE}
+        </Hinted>
+      </div>
       {system.fe_zone === null ? (
         <NoZone system={system} />
       ) : (
@@ -89,7 +87,6 @@ function NoZone({ system }: { system: SystemNode }) {
           Add zone
         </button>
       </div>
-      <div className="muted ins-hint">{ADD_ZONE_HINT}</div>
     </>
   );
 }
@@ -116,7 +113,9 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
       ))}
       <div className="ins-fe-zone">
         <label>
-          Type
+          <Hinted label="Type" hint={KIND_HINT}>
+            Type
+          </Hinted>
           <select
             aria-label="Fallen empire type"
             value={zone.kind}
@@ -130,10 +129,11 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           </select>
         </label>
       </div>
-      <div className="muted ins-hint">{KIND_HINT}</div>
       <div className="ins-fe-zone">
         <label>
-          Direction
+          <Hinted label="Direction" hint={placementHint(anchor)}>
+            Direction
+          </Hinted>
           <select
             aria-label="Zone direction"
             value={zone.direction}
@@ -147,7 +147,9 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           </select>
         </label>
         <label>
-          Distance
+          <Hinted label="Distance" hint={placementHint(anchor)}>
+            Distance
+          </Hinted>
           <select
             aria-label="Zone distance"
             value={zone.distance}
@@ -161,7 +163,6 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
           </select>
         </label>
       </div>
-      <div className="muted ins-hint">{placementHint(anchor)}</div>
       <div className="ins-fe-zone">
         <label>
           <input
@@ -169,10 +170,11 @@ function Zone({ system, zone }: { system: SystemNode; zone: FeZone }) {
             checked={zone.fallback}
             onChange={() => write({ fallback: !zone.fallback })}
           />
-          {FALLBACK_LABEL}
+          <Hinted label="Fallback" hint={FALLBACK_HINT}>
+            {FALLBACK_LABEL}
+          </Hinted>
         </label>
       </div>
-      <div className="muted ins-hint">{FALLBACK_HINT}</div>
       {!zone.preferred && <div className="muted ins-hint">{AUTOMATIC_NOTE}</div>}
       <Connections system={system} />
       <div className="ins-actions">
@@ -200,8 +202,11 @@ function Connections({ system }: { system: SystemNode }) {
     return (
       <>
         <div className="ins-sub">Connections</div>
-        <div className="ins-line">{NEAREST_NOTE}</div>
-        <div className="muted ins-hint">{LINK_HINT}</div>
+        <div className="ins-line">
+          <Hinted label="Connections" hint={LINK_HINT}>
+            {NEAREST_NOTE}
+          </Hinted>
+        </div>
       </>
     );
   }

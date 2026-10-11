@@ -287,9 +287,11 @@ describe("a seat's scenario system", () => {
     await open("scenario");
     await land(details({ planets: [STAR, earth], spawn: systemSpawn() }));
 
-    const html = overview();
-    expect(html).toContain(
-      "An empire that spawns here brings its own starting system in place of this one.",
+    const html = drawnBy(overview);
+    expect(html).toContain("An empire that spawns here brings its own starting system.</span>");
+    expect(html).not.toContain("in place of this one");
+    expect(hintOf("Spawn point")).toBe(
+      "The empire&#x27;s system replaces this one. What this initializer spawns around it, like Sol&#x27;s neighbours, still appears. If no empire lands here, the initializer is used as written.",
     );
     const row = html.slice(html.indexOf(">Earth"));
     expect(row.slice(0, row.indexOf(`class="l2"`))).toContain(">start planet</span>");

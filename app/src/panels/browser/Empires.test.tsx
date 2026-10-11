@@ -50,11 +50,12 @@ describe("a scenario's territory rows", () => {
     expect(html, "generation row").toContain("Fixture Empire");
     expect(html, "day-one row").toContain("Fixture Day One Empire");
     // Two rows, and only the day-one one carries a badge of each kind.
-    expect(html.match(/class="chip src" title="Claimed on day one/g), "day-one badge").toHaveLength(
-      1,
-    );
     expect(
-      html.match(/class="chip warn" title="A claim whose conditions/g),
+      html.match(/class="chip src" title="An event gives these systems/g),
+      "day-one badge",
+    ).toHaveLength(1);
+    expect(
+      html.match(/class="chip warn" title="Galaxy Forge can&#x27;t check this claim/g),
       "assumed badge",
     ).toHaveLength(1);
     expect(html, "day-one chip").toContain(">day 1<");

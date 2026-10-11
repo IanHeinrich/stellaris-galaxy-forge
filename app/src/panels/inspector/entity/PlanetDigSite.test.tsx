@@ -68,12 +68,12 @@ describe("a planet's dig site", () => {
     usePlanetDataStore.setState({ digSites: new Map(SITE_TYPES.map((t) => [t.key, t])) });
 
     const html = drawnBy(() => render(WORLD));
-    expect(html).toContain("Dig site");
+    expect(html).toContain("Archaeological site");
     expect(html).toContain("Never Forget");
     expect(html).toContain("Stage 2 of 3 · 5 clues · Excavating");
     expect(html).toContain('<span class="l3">Records of a people who chose to remember.</span>');
     expect(html).not.toContain("+ Add dig site…");
-    expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Dig site"));
+    expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Archaeological site"));
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove Never Forget").onClick();

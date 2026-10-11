@@ -816,3 +816,36 @@
 .pl-pool-deposits {
   grid-column: 2 / -1;
 }
+
+/* Classes listed without odds, too many for a row each: their icons wrap, each named in its card. */
+.pl-class-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+
+.pl-class-strip > .ins-hinted {
+  display: inline-flex;
+  padding: 1px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+.pl-class-strip > .ins-hinted:hover,
+.pl-class-strip > .ins-hinted:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.pl-class-strip .pi {
+  width: 16px;
+  height: 16px;
+}
+
+/* Blockers and other deposits a roll can give, counted on one line each, and features as names. */
+.pl-pool-kinds,
+.pl-pool-names {
+  margin-top: 4px;
+  font-size: var(--text-note);
+  color: var(--fg-muted);
+}

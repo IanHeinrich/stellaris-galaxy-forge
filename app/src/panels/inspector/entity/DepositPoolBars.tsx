@@ -1,13 +1,21 @@
 import { useId, useState } from "react";
 import {
   DEPOSIT_CARD_NOTE,
+  depositKinds,
   depositOddsUnknown,
   depositBars,
   type BarRow,
+  type DepositKinds,
 } from "../../../lib/details/depositBars";
-import { percent, type PoolPick } from "../../../lib/details/spawnFacts";
+import {
+  BLOCKERS_LABEL,
+  OTHER_DEPOSITS_LABEL,
+  percent,
+  type PoolPick,
+} from "../../../lib/details/spawnFacts";
+import { counted } from "../../../lib/text";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { Unknown } from "../states";
+import { Hinted, Unknown } from "../states";
 import { BarTrack, PoolList, PoolRow } from "./OddsBar";
 import { PickerCard } from "./PickerCard";
 import { ResourceIcon } from "./ResourceIcon";
@@ -127,12 +135,56 @@ function BarLine({ row }: { row: BarRow }) {
   return <BarLineView row={row} shown={shown} onShow={setShown} />;
 }
 
+/** `Blockers: 3 kinds`, the kinds named in its card; nothing where there are none. */
+function KindsLine({ label, names }: { label: string; names: readonly string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div className="pl-pool-kinds">
+      {label}:{" "}
+      <Hinted label={label} hint={names.join(", ")}>
+        {counted(names.length, "kind")}
+      </Hinted>
+    </div>
+  );
+}
+
+/**
+ * A deposit pool whose odds are unknown: a row per resource with the amounts it can give, then the
+ * blockers and the other deposits, each kind counted on one line.
+ */
+export function DepositKindsList({ kinds }: { kinds: DepositKinds }) {
+  return (
+    <>
+      {kinds.resources.length > 0 && (
+        <PoolList>
+          {kinds.resources.map((row) => (
+            <BarLine key={row.key} row={row} />
+          ))}
+        </PoolList>
+      )}
+      <KindsLine label={BLOCKERS_LABEL} names={kinds.blockers} />
+      <KindsLine label={OTHER_DEPOSITS_LABEL} names={kinds.other} />
+    </>
+  );
+}
+
 /**
  * The deposits a scenario body can roll, one bar per resource, likeliest first, and a line saying
- * so where some rows show their amounts because the odds can't be told.
+ * so where some rows show their amounts because the odds can't be told. Where none of the odds
+ * are known, the resources show their amounts and the rest are counted by kind.
  */
 export function DepositPoolBars({ picks, noun }: { picks: readonly PoolPick[]; noun: string }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
+  if (picks.every((pick) => pick.chance === null)) {
+    return (
+      <>
+        <DepositKindsList kinds={depositKinds(picks, views)} />
+        <div className="muted ins-hint">
+          <Unknown>{depositOddsUnknown(noun)}</Unknown>
+        </div>
+      </>
+    );
+  }
   const rows = depositBars(picks, views);
   return (
     <>

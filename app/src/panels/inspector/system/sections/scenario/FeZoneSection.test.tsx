@@ -4,6 +4,7 @@ vi.mock("../../../../../api/ipc");
 vi.mock("../../../../../api/events");
 vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../../../test/drawn"));
 
 import type { FeLinkFlags } from "../../../../../generated/FeLinkFlags";
 import type { FeZone } from "../../../../../generated/FeZone";
@@ -15,7 +16,6 @@ import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { useIssuesStore } from "../../../../../store/issuesStore";
 import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import {
-  ADD_ZONE_HINT,
   AUTOMATIC_NOTE,
   FALLBACK_HINT,
   FALLBACK_LABEL,
@@ -24,9 +24,11 @@ import {
   NEAREST_NOTE,
   NONE_LINKED,
 } from "./FeZoneSection";
-import { FE_ZONE_INTRO } from "./sectionCopy";
+import { FE_ZONE_CARD, FE_ZONE_LINE } from "./sectionCopy";
 import { appIssue } from "../../../../../test/builders";
 import { escaped } from "../../../../../test/elements";
+import { drawnBy } from "../../../../../test/drawn";
+import { hintOf } from "../../../../../test/hints";
 import { mockedIpc } from "../../../../../test/ipc";
 
 bindStores();
@@ -66,11 +68,13 @@ describe("a scenario system's fallen empire zone", () => {
     expect(sections(overview())).not.toContain("Fallen empire zone");
 
     useFileSessionStore.setState({ painted: true });
-    const html = overview();
+    const html = drawnBy(overview);
     expect(sections(html)).toContain("Fallen empire zone");
     expect(html.indexOf("Spawn point")).toBeLessThan(html.indexOf("Fallen empire zone"));
     expect(html.indexOf("Fallen empire zone")).toBeLessThan(html.indexOf("basic_init_01"));
-    for (const line of FE_ZONE_INTRO) expect(html).toContain(escaped(line));
+    expect(html).toContain(FE_ZONE_LINE);
+    expect(html).not.toContain("hyperlanes to systems nearby");
+    expect(hintOf("Fallen empire zone")).toBe(escaped(FE_ZONE_CARD));
   });
 
   it("says None and offers to add a zone where there is room", async () => {
@@ -79,7 +83,7 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html).toContain(">None<");
     const button = html.match(/<button[^>]*>Add zone<\/button>/)![0];
     expect(button).not.toContain("disabled=");
-    expect(html).toContain(escaped(ADD_ZONE_HINT));
+    expect(html).toContain(FE_ZONE_LINE);
   });
 
   it("refuses to add a zone where every ring at distance 40 would cover a system, and says why", async () => {
@@ -105,7 +109,7 @@ describe("a scenario system's fallen empire zone", () => {
 
   it("shows the zone's type, direction, distance and fallback, each with its hint", async () => {
     await openWith({ ...newFeZone("se", 60), kind: "materialist", fallback: true });
-    const html = overview();
+    const html = drawnBy(overview);
     expect(html).toContain('<option value="materialist" selected="">Materialist</option>');
     expect(
       html.match(
@@ -115,14 +119,17 @@ describe("a scenario system's fallen empire zone", () => {
     expect(html).toContain('<option value="se" selected="">South-east</option>');
     expect(html).toContain('<option value="60" selected="">60</option>');
     expect(html.match(/<option value="\d+"/g)).toHaveLength(18);
-    expect(html).toContain(KIND_HINT);
-    expect(html).toContain(
+    expect(html).not.toContain(KIND_HINT);
+    expect(hintOf("Type")).toBe(escaped(KIND_HINT));
+    const placement = escaped(
       "Where the ring sits, measured from Alpha Centauri. The mod can only place a fallen " +
         "empire at these eight directions and distances.",
     );
+    expect(hintOf("Direction")).toBe(placement);
+    expect(hintOf("Distance")).toBe(placement);
     expect(html).toContain(FALLBACK_LABEL);
     expect(html.match(/<input type="checkbox"[^>]*>/g)!.pop()).toContain("checked=");
-    expect(html).toContain(FALLBACK_HINT);
+    expect(hintOf("Fallback")).toBe(escaped(FALLBACK_HINT));
     expect(html).not.toContain(AUTOMATIC_NOTE);
     expect(html).toContain(">Remove zone</button>");
     expect(html).not.toContain(">None<");
@@ -130,10 +137,11 @@ describe("a scenario system's fallen empire zone", () => {
 
   it("says the mod links the zone to its nearest systems, and how to link one by hand", async () => {
     await openWith(newFeZone("n"));
-    const html = overview();
+    const html = drawnBy(overview);
     expect(html).toContain("Connections");
     expect(html).toContain(NEAREST_NOTE);
-    expect(html).toContain(LINK_HINT);
+    expect(html).not.toContain(LINK_HINT);
+    expect(hintOf("Connections")).toBe(LINK_HINT);
     expect(html).not.toContain("Use nearest instead");
   });
 

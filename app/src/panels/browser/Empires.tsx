@@ -17,11 +17,11 @@ import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
 
 /** Why a territory's day-one badge means what it means, shown on hover. */
-const DAY_ONE_TITLE =
-  "Claimed on day one, by an event on_game_start fires, not at galaxy generation.";
+const DAY_ONE_TITLE = "An event gives these systems to the empire on the first day of the game.";
 
 /** Why a territory's assumed marker means what it means, shown on hover. */
-const ASSUMED_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
+const ASSUMED_TITLE =
+  "Galaxy Forge can't check this claim's conditions, so it assumes the claim holds.";
 
 function EmpireLine({
   row,

@@ -76,8 +76,10 @@ a rolled feature.
 
 In a scenario, the Deposits and Modifiers sections list what the
 initializer states. Under them, a heading such as "Can also roll · 3
-deposits" starts what the game can roll for the planet. When the
-initializer states none, it reads "Can roll · 9 deposits".
+resources" starts what the game can roll for the planet. When the
+initializer states none, it reads "Can roll · 4 resources". A modifier
+the initializer adds shows how long it lasts, such as "lasts 360 days"
+or "permanent".
 
 The deposits show as one bar per resource, likeliest first. Each row
 starts with the resource's icon. A bar's length is how likely one roll
@@ -90,17 +92,26 @@ Hover over a row to see the resource's name, each amount with its
 chance, and the deposits that give it. A deposit that yields nothing, such as a blocker,
 has a plain bar of its own, with its name in place of an icon.
 
-Where the class the planet rolls decides the odds, a resource's row
-shows the amounts it can give, such as "+1 to +3", in place of a bar,
-and a line under the list says so.
+Where the class the planet rolls decides the odds, there are no bars.
+When the initializer states no deposits, the Deposits row at the top of
+the page reads "Rolled to suit its class". Click What it can roll under
+it to open the list. Each resource has a row with the amounts it can
+give, such as "+1 to +3". The blockers are counted on one line, such as
+"Blockers: 5 kinds", and deposits that give no resource on an Other
+line. Hover over the count to see their names. When the initializer
+states deposits too, the same list is in the Deposits section, under
+"Can also roll".
 
 Planet features are listed the same way, likeliest first, each with a
 bar and its percentage. A percentage there is how likely the first
-feature the game rolls is to be that one. Some features have no bar or
-percentage, because it depends on the planet's class or size.
+feature the game rolls is to be that one. Features with the same name
+are listed once. Where none of the odds are known, the features show
+as one line of names, under the Planet features row or in the Modifiers
+section.
 
 Where the initializer leaves nothing to roll, there is no list. Where
-the class the game picks decides the roll, the section says so.
+the class the game picks decides the roll and Galaxy Forge can't list
+it, the row or the section reads "Rolled to suit its class".
 
 ## Make a planet a terraforming candidate
 

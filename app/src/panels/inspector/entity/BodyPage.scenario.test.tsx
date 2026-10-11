@@ -22,6 +22,7 @@ import { bodyLayout, planetClassView, starClassView } from "../../../test/builde
 import { mockedIpc } from "../../../test/ipc";
 import { rolledBody, systemRoll } from "../../../test/rolls";
 import { planetPage } from "../../../test/builders";
+import { bodySpawn } from "../../../test/spawn";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -241,6 +242,24 @@ describe("a scenario body's page", () => {
     expect(page(103, "Naboo")).toContain(
       '<path class="ins-dial-wedge" d="M0 0 L-0.00 12.00 A12 12 0 0 0 0.00 -12.00 Z"></path>',
     );
+  });
+
+  it("draws no dial for an angle step a variable sets", async () => {
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        orbit_step: fixed(60),
+        angle_step: { min: 90, max: 270 },
+      }),
+      spawn: bodySpawn({ variables: [{ key: "orbit_angle", variable: "@naboo_angle" }] }),
+    });
+    await open("scenario");
+    await land(details({ planets: [naboo] }));
+
+    const html = page(103, "Naboo");
+    expect(html).toContain('<span class="k">Angle step</span>');
+    expect(html).not.toContain("ins-dial");
   });
 
   it("says the game places a body whose initializer gives no orbit", async () => {

@@ -413,7 +413,7 @@ describe("what a scenario body can roll", () => {
     );
   });
 
-  it("shows each resource's amounts in place of a bar where the class it rolls decides the odds", async () => {
+  it("folds what it can roll under its Deposits row where the class it rolls decides the odds, a resource's amounts in place of a bar", async () => {
     const yielding = (key: string, resource: string, amount: number, label: string) =>
       [key, depositTypeView(key, { yields: [resourceAmount(resource, amount, label)] })] as const;
     usePlanetDataStore.setState({
@@ -444,16 +444,194 @@ describe("what a scenario body can roll", () => {
     await open("scenario");
     await land(details({ planets: [gottara], spawn: systemSpawn() }));
 
-    const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 3 resources");
-    expect(depositRows(html).map((r) => [r.title, r.cell, r.chance, r.width])).toEqual([
+    const html = drawnBy(() => page(100, "Planet"));
+    expect(row(html, "Deposits")).toContain(rolled("Rolled to suit its class"));
+    expect(hintOf("Deposits")).toBe("The game rolls these to suit the class the planet gets.");
+    expect(row(html, "Deposits")).toContain(
+      '<button type="button" class="ins-group-head" aria-expanded="false">',
+    );
+    expect(row(html, "Deposits")).toContain(
+      '<span class="ins-group-title">What it can roll</span><span class="ins-group-tail">3 resources</span>',
+    );
+    expect(poolRows(row(html, "Deposits"))).toEqual([]);
+    expect(html).not.toContain('class="ins-sec-title">Deposits');
+    expect(html).not.toContain("Can roll");
+
+    useInspectorStore.setState({ sections: { "planet.deposits.roll": false } });
+    const opened = row(page(100, "Planet"), "Deposits");
+    expect(poolRows(opened).map((r) => [r.title, r.cell, r.chance, r.width])).toEqual([
       ["Minerals", '<span class="muted pl-pool-amounts">+1 to +3</span>', "", undefined],
       ["Energy", '<span class="muted pl-pool-amounts">+1, +2, +5</span>', "", undefined],
       ["Exotic Gases", '<span class="muted pl-pool-amounts">+1</span>', "", undefined],
     ]);
-    expect(html).toContain(
-      '<span class="ins-st-unknown">The odds depend on the class the planet gets.</span>',
+    expect(opened).not.toContain("The odds depend on");
+  });
+
+  it("shows a random class's many classes as icons, and folds its many deposits and features by kind, each name once", async () => {
+    const classes = ["pc_desert", "pc_arid", "pc_savannah", "pc_tropical", "pc_toxic", "pc_barren"];
+    const yielding = (key: string, resource: string, amount: number, label: string) =>
+      [key, depositTypeView(key, { yields: [resourceAmount(resource, amount, label)] })] as const;
+    const blocker = (key: string, label: string) =>
+      [key, depositTypeView(key, { name: label, blocker: true })] as const;
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        yielding("d_minerals_2", "minerals", 2, "Minerals"),
+        yielding("d_minerals_5", "minerals", 5, "Minerals"),
+        yielding("d_energy_3", "energy", 3, "Energy"),
+        blocker("d_active_volcano", "Active Volcano"),
+        blocker("d_toxic_kelp", "Toxic Kelp"),
+        blocker("d_toxic_kelp_2", "Toxic Kelp"),
+        ["d_crystal_forest", depositTypeView("d_crystal_forest", { name: "Crystal Forest" })],
+      ]),
+      modifiers: new Map(
+        [
+          ["pm_obsidian_lakes", "Obsidian Lakes"],
+          ["pm_obsidian_lakes_2", "Obsidian Lakes"],
+          ["pm_asteroid_belt", "Asteroid Belt"],
+          ["pm_asteroid_belt_2", "Asteroid Belt"],
+          ["pm_high_quality_minerals", "High Quality Minerals"],
+        ].map(([key, label]) => [
+          key,
+          { key, name: label, static_modifier: null, icon: null, icon_frame: null, effects: [] },
+        ]),
+      ),
+    });
+    const ulrikae = planet(100, "", {
+      class: "random",
+      drawn: true,
+      size: null,
+      ring: null,
+      spawn: bodySpawn({
+        class: {
+          state: "rolled",
+          pool: {
+            kind: "random",
+            draw: "random",
+            at_orbit: classes.map((c) => ({ class: c, weight: 1 })),
+          },
+        },
+        rolled_deposits: {
+          state: "rolled",
+          entries: [
+            "d_minerals_2",
+            "d_active_volcano",
+            "d_minerals_5",
+            "d_toxic_kelp",
+            "d_energy_3",
+            "d_toxic_kelp_2",
+            "d_crystal_forest",
+          ].map((key) => ({ key, chance: null })),
+        },
+        rolled_features: {
+          state: "rolled",
+          entries: [
+            "pm_obsidian_lakes",
+            "pm_asteroid_belt",
+            "pm_obsidian_lakes_2",
+            "pm_high_quality_minerals",
+            "pm_asteroid_belt_2",
+          ].map((key) => ({ key, chance: null })),
+        },
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [ulrikae], spawn: systemSpawn() }));
+
+    const html = drawnBy(() => page(100, "Planet"));
+    const cls = row(html, "Class");
+    expect(poolRows(cls)).toEqual([]);
+    const strip = cls.slice(cls.indexOf('class="pl-class-strip"'));
+    expect(strip.match(/class="ins-hinted"/g)).toHaveLength(classes.length);
+    expect(strip.match(/class="pi/g)).toHaveLength(classes.length);
+    expect(strip).toContain('role="img" aria-label="Toxic"');
+    expect(strip).not.toContain(">Toxic<");
+    expect(hintOf("Toxic")).toBe('<span class="mono">pc_toxic</span>');
+
+    const deposits = row(html, "Deposits");
+    expect(deposits).toContain(rolled("Rolled to suit its class"));
+    expect(deposits).toContain('aria-expanded="false"');
+    expect(deposits).toContain('<span class="ins-group-tail">2 resources</span>');
+    expect(deposits).not.toContain("Blockers");
+    const features = row(html, "Planet features");
+    expect(features).toContain(rolled("Rolled to suit its class"));
+    expect(hintOf("Planet features")).toBe(
+      "The game rolls these to suit the class the planet gets.",
     );
+    expect(features).toContain('aria-expanded="false"');
+    expect(features).toContain('<span class="ins-group-tail">3 planet features</span>');
+    expect(features).not.toContain("Obsidian Lakes");
+    expect(html).not.toContain('class="ins-sec-title">Deposits');
+    expect(html).not.toContain('class="ins-sec-title">Modifiers');
+
+    useInspectorStore.setState({
+      sections: { "planet.deposits.roll": false, "planet.features.roll": false },
+    });
+    const opened = drawnBy(() => page(100, "Planet"));
+    const rolledDeposits = row(opened, "Deposits");
+    expect(poolRows(rolledDeposits).map((r) => [r.title, r.cell])).toEqual([
+      ["Minerals", '<span class="muted pl-pool-amounts">+2, +5</span>'],
+      ["Energy", '<span class="muted pl-pool-amounts">+3</span>'],
+    ]);
+    expect(rolledDeposits).toMatch(
+      /<div class="pl-pool-kinds">Blockers: <span id="[^"]*" class="ins-hinted" tabindex="0">2 kinds<\/span><\/div>/,
+    );
+    expect(hintOf("Blockers")).toBe("Active Volcano, Toxic Kelp");
+    expect(rolledDeposits).toMatch(/<div class="pl-pool-kinds">Other: <span[^>]*>1 kind<\/span>/);
+    expect(hintOf("Other")).toBe("Crystal Forest");
+    expect(rolledDeposits).not.toContain("Active Volcano");
+    expect(row(opened, "Planet features")).toContain(
+      '<div class="pl-pool-names">Obsidian Lakes, Asteroid Belt, High Quality Minerals</div>',
+    );
+  });
+
+  it("lists a few classes without odds a row each, and adds up the chances of features that share a name", async () => {
+    const classes = ["pc_desert", "pc_arid", "pc_savannah", "pc_tropical"];
+    usePlanetDataStore.setState({
+      modifiers: new Map(
+        [
+          ["pm_asteroid_belt", "Asteroid Belt"],
+          ["pm_asteroid_belt_2", "Asteroid Belt"],
+          ["pm_mineral_poor", "Mineral Poor"],
+        ].map(([key, label]) => [
+          key,
+          { key, name: label, static_modifier: null, icon: null, icon_frame: null, effects: [] },
+        ]),
+      ),
+    });
+    const four = planet(100, "", {
+      class: "random",
+      drawn: true,
+      spawn: bodySpawn({
+        class: {
+          state: "rolled",
+          pool: {
+            kind: "random",
+            draw: "random",
+            at_orbit: classes.map((c) => ({ class: c, weight: 1 })),
+          },
+        },
+        rolled_features: {
+          state: "rolled",
+          entries: [
+            { key: "pm_mineral_poor", chance: 0.4 },
+            { key: "pm_asteroid_belt", chance: 0.3 },
+            { key: "pm_asteroid_belt_2", chance: 0.2 },
+          ],
+        },
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [four], spawn: systemSpawn() }));
+
+    const html = page(100, "Planet");
+    expect(poolRows(row(html, "Class"))).toHaveLength(classes.length);
+    expect(html).not.toContain("pl-class-strip");
+    expect(html).toContain("Can roll · 2 planet features");
+    const features = poolRows(html.slice(html.indexOf("planet features")));
+    expect(features.map((r) => [r.name, r.chance])).toEqual([
+      ["Asteroid Belt", "50%"],
+      ["Mineral Poor", "40%"],
+    ]);
   });
 
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
@@ -471,10 +649,30 @@ describe("what a scenario body can roll", () => {
     const plain = page(100, "Planet");
     expect(plain).not.toContain("Can roll");
     expect(plain).not.toContain("Deposits");
-    const html = page(101, "Planet");
-    expect(row(html, "With its class")).toContain("Model, deposits and planet features");
+    const html = drawnBy(() => page(101, "Planet"));
+    for (const label of ["Model", "Deposits", "Planet features"]) {
+      expect(row(html, label)).toContain(rolled("Rolled to suit its class"));
+      expect(row(html, label)).not.toContain("What it can roll");
+      expect(hintOf(label)).toBe("The game rolls these to suit the class the planet gets.");
+    }
+    expect(html).not.toContain("With its class");
     expect(html).not.toContain('class="ins-sec-title">Deposits');
     expect(html).not.toContain('class="ins-sec-title">Modifiers');
+  });
+
+  it("gives a ring its class decides its own row, rolled to suit the class", async () => {
+    await open("scenario");
+    await land(
+      details({ planets: [drawn(100, { ring: { state: "unknown" } })], spawn: systemSpawn() }),
+    );
+
+    expect(
+      row(
+        drawnBy(() => page(100, "Planet")),
+        "Ring",
+      ),
+    ).toContain(rolled("Rolled to suit its class"));
+    expect(hintOf("Ring")).toBe("The game rolls these to suit the class the planet gets.");
   });
 
   it("gives a rolled ring its chance", async () => {

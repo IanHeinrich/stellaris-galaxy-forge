@@ -19,6 +19,7 @@ import { open, overview, resetStores, sections, SYSTEM } from "../inspectorFixtu
 import { DEFAULT_SPAWN_WEIGHT } from "../../spawnPoint";
 import { drawnBy, drawnButton, drawnCheckbox } from "../../../test/drawn";
 import { shown } from "../../../test/elements";
+import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
 
 bindStores();
@@ -45,11 +46,18 @@ describe("a scenario system's initializer hint for a seat", () => {
   it("shows what an empire landing here brings, and stays quiet for a plain system", async () => {
     withWeight(3);
     await open("scenario");
-    expect(overview()).toContain("If no empire lands here, it is used as written.");
+    expect(drawnBy(overview)).toContain(
+      "An empire that spawns here brings its own starting system.",
+    );
+    expect(hintOf("Spawn point")).toContain(
+      "If no empire lands here, the initializer is used as written.",
+    );
 
     withWeight(null);
     await open("scenario");
-    expect(overview()).not.toContain("If no empire lands here, it is used as written.");
+    expect(drawnBy(overview)).not.toContain(
+      "An empire that spawns here brings its own starting system.",
+    );
   });
 });
 
@@ -73,7 +81,7 @@ describe("a scenario system's spawn weight", () => {
     await open("scenario");
     const without = overview();
     expect(without).toContain("disabled=");
-    expect(without).toContain("choose one first");
+    expect(without).toContain("Choose an initializer first");
   });
 
   it("sends the weight the toggle writes, and clears it when it is turned off", async () => {

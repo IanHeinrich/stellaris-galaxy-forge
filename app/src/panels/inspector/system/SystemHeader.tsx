@@ -37,10 +37,11 @@ import { shortcutLabel } from "../../../lib/keys";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
 const DAY_ONE_OWNER_TITLE =
-  "Claimed on day one, by an event on_game_start fires, not at galaxy generation.";
+  "An event gives this system to the empire on the first day of the game.";
 
 /** Why the owner line's assumed marker means what it means, shown on hover. */
-const ASSUMED_OWNER_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
+const ASSUMED_OWNER_TITLE =
+  "Galaxy Forge can't check this claim's conditions, so it assumes the claim holds.";
 
 function PositionBlock({ system }: { system: SystemNode }) {
   const applyOp = useApplySymmetricOp();
@@ -221,8 +222,8 @@ export function Header({ detail }: { detail: SystemDetail }) {
             source={claimedBy === null ? "initializers" : "scripts"}
             title={
               claimedBy === null
-                ? "The owner is the one the initializer's chain claims this system for at generation."
-                : "The owner is the one an event claims this system for on day one."
+                ? "Its initializer gives this system to this empire when a new game starts."
+                : "An event gives this system to this empire on the first day."
             }
           />
         </div>

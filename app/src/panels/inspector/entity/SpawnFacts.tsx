@@ -8,6 +8,7 @@ import { modelLabel } from "../../../lib/details/planetModel";
 import {
   bodyFrom,
   bodyNoun,
+  CAN_ROLL_TITLE,
   CLASS_DECIDED,
   CLASS_SUITED,
   classFitHint,
@@ -15,15 +16,18 @@ import {
   classOdds,
   classSuitedHint,
   copyFacts,
+  depositsWithClass,
+  featuresTail,
+  featuresWithClass,
   isAsteroidClass,
   LIST_ORBIT_HINT,
+  mergedByName,
   NAME_RANDOM,
   NAME_RANDOM_WHY,
   neverLine,
   neverSpawns,
   poolPicks,
   poolTitle,
-  type PoolKind,
   type PoolPick,
   RING_ROLLED,
   ringWords,
@@ -38,10 +42,6 @@ import {
   stoppedFacts,
   unknownClassWhy,
   valueSources,
-  WITH_CLASS_LABEL,
-  withClassHint,
-  withClassParts,
-  withClassWords,
 } from "../../../lib/details/spawnFacts";
 import {
   NAMED_AFTER_SYSTEM,
@@ -50,12 +50,12 @@ import {
   rolledNameWhy,
   SYSTEM_UNNAMED_WHY,
 } from "../../../lib/details/spawnNames";
+import { depositKinds, depositKindsTail } from "../../../lib/details/depositBars";
 import { templateName } from "../../../lib/names";
-import { keyWords } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { Properties, PropertyRow, Section } from "../parts";
+import { Group, Properties, PropertyRow, Section } from "../parts";
 import { OtherLinesGroup, ScriptGroup } from "../ScriptGroup";
 import {
   Hinted,
@@ -72,17 +72,44 @@ import { StarOddsList } from "../system/sections/scenario/StarList";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
+import { DepositKindsList } from "./DepositPoolBars";
 import { OddsList } from "./OddsBar";
 import type { PlanetSectionProps } from "./planetSection";
 import { useGivenNames } from "./useBodyName";
+import { useFeatureNamer } from "./useFeatureNamer";
 
 /** What the initializer's effect does to a value the block states. */
 const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
 
-/** Planet classes a draw can give, as an odds list: each class's icon and name, a bar and its share where known. */
+/** The most classes listed a row each where none of their odds are known; more show as icons. */
+const MOST_CLASS_ROWS = 4;
+
+/**
+ * Planet classes a draw can give, as an odds list: each class's icon and name, a bar and its share
+ * where known. More than a few classes with no odds known show as a strip of icons, each named in
+ * its card.
+ */
 function ClassList({ odds, moon }: { odds: readonly StarOdds[]; moon: boolean }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
+  if (odds.length > MOST_CLASS_ROWS && odds.every((o) => o.share === null)) {
+    return (
+      <div className="ins-why">
+        <span className="pl-class-strip">
+          {odds.map(({ key }) => {
+            const name = bodyClassName(key, names, moon);
+            return (
+              <Hinted key={key} label={name} hint={<span className="mono">{key}</span>}>
+                <span role="img" aria-label={name}>
+                  <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} />
+                </span>
+              </Hinted>
+            );
+          })}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="ins-why">
       <OddsList
@@ -252,10 +279,90 @@ function SizeRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
   );
 }
 
+/** A row whose value only the class the body rolls decides, with why in its card. */
+function ClassSuitedRow({ label, noun }: { label: string; noun: string }) {
+  return (
+    <HintedRow label={label} hint={classSuitedHint(noun)}>
+      <Rolled>{CLASS_SUITED}</Rolled>
+    </HintedRow>
+  );
+}
+
+/** A pool's picks, or none where the install can't tell them. */
+function picksOf(pool: SpawnPool | undefined): PoolPick[] {
+  return pool?.state === "rolled" ? poolPicks(pool) : [];
+}
+
+/** The Deposits row of deposits rolled to suit the class, and what they can be folded under it. */
+function ClassSuitedDeposits({ spawn, noun }: { spawn: BodySpawn; noun: string }) {
+  const views = usePlanetDataStore((s) => s.depositTypes);
+  const picks = picksOf(spawn.rolled_deposits);
+  const kinds = depositKinds(picks, views);
+  return (
+    <>
+      <ClassSuitedRow label="Deposits" noun={noun} />
+      {picks.length > 0 && (
+        <Group
+          id="planet.deposits.roll"
+          title={CAN_ROLL_TITLE}
+          tail={depositKindsTail(kinds)}
+          folded
+        >
+          <DepositKindsList kinds={kinds} />
+        </Group>
+      )}
+    </>
+  );
+}
+
+/** The Planet features row of features rolled to suit the class, and what they can be folded under it. */
+function ClassSuitedFeatures({ spawn, noun }: { spawn: BodySpawn; noun: string }) {
+  const named = useFeatureNamer();
+  const picks = picksOf(spawn.rolled_features);
+  return (
+    <>
+      <ClassSuitedRow label="Planet features" noun={noun} />
+      {picks.length > 0 && (
+        <Group
+          id="planet.features.roll"
+          title={CAN_ROLL_TITLE}
+          tail={featuresTail(mergedByName(picks, named).length)}
+          folded
+        >
+          <FeaturePool picks={picks} />
+        </Group>
+      )}
+    </>
+  );
+}
+
+/** The Ring row: stated, a chance, or left to the class the body rolls. */
+function RingRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun: string }) {
+  const ring = spawn.ring;
+  if (ring?.state === "unknown") return <ClassSuitedRow label="Ring" noun={noun} />;
+  return (
+    <PropertyRow label="Ring">
+      {ring === undefined ? (
+        read.summary.ring === null ? (
+          <Rolled>{RING_ROLLED}</Rolled>
+        ) : read.summary.ring ? (
+          "Yes"
+        ) : (
+          "No"
+        )
+      ) : ring.state === "rolled" ? (
+        <Rolled>{ringWords(ring)}</Rolled>
+      ) : (
+        ringWords(ring)
+      )}
+    </PropertyRow>
+  );
+}
+
 /**
- * A scenario body's facts in the save page's rows: its name, class and size, its ring and model
- * where the initializer says more than its class does, what only its class decides, and what the
- * initializer stops on it. Explanations show in each value's card.
+ * A scenario body's facts in the save page's rows: its name, class, size, ring and model, its
+ * deposits and planet features where only its class decides them, and what the initializer stops
+ * on it. Explanations show in each value's card.
  */
 export function SpawnProperties({
   read,
@@ -269,37 +376,21 @@ export function SpawnProperties({
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const { summary } = read;
   const noun = isAsteroidClass(summary.class, planetClasses) ? "asteroid" : bodyNoun(summary);
-  const counts = { deposits: read.rows.deposits.count, modifiers: read.rows.modifiers.length };
-  const withClass = neverSpawns(spawn) ? [] : withClassParts(spawn, { star, ...counts });
-  const stopped = stoppedFacts(spawn, counts.modifiers, noun);
-  const ringShown = !star && !neverSpawns(spawn) && !withClass.includes("ring");
+  const placed = !neverSpawns(spawn);
+  const stopped = stoppedFacts(spawn, read.rows.modifiers.length, noun);
   return (
     <Properties>
       <NameRow read={read} spawn={spawn} noun={noun} />
       <ClassRow spawn={spawn} read={read} />
       <SizeRow read={read} spawn={spawn} noun={noun} />
-      {ringShown && (
-        <PropertyRow label="Ring">
-          {spawn.ring === undefined ? (
-            summary.ring === null ? (
-              <Rolled>{RING_ROLLED}</Rolled>
-            ) : summary.ring ? (
-              "Yes"
-            ) : (
-              "No"
-            )
-          ) : spawn.ring.state === "rolled" ? (
-            <Rolled>{ringWords(spawn.ring)}</Rolled>
-          ) : (
-            ringWords(spawn.ring)
-          )}
-        </PropertyRow>
-      )}
+      {!star && placed && <RingRow read={read} spawn={spawn} noun={noun} />}
       {!star && spawn.entity !== null && <ModelRow entity={spawn.entity} />}
-      {withClass.length > 0 && (
-        <HintedRow label={WITH_CLASS_LABEL} hint={withClassHint(noun)}>
-          <Rolled>{withClassWords(withClass)}</Rolled>
-        </HintedRow>
+      {!star && placed && spawn.entity === null && <ClassSuitedRow label="Model" noun={noun} />}
+      {placed && depositsWithClass(spawn, read.rows.deposits.count) && (
+        <ClassSuitedDeposits spawn={spawn} noun={noun} />
+      )}
+      {placed && featuresWithClass(spawn, read.rows.modifiers.length) && (
+        <ClassSuitedFeatures spawn={spawn} noun={noun} />
       )}
       {stopped.length > 0 && (
         <HintedRow
@@ -402,43 +493,42 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
   );
 }
 
-/** A planet feature's name, as its game data gives it. */
-function useFeatureNamer(): (key: string) => string {
-  const modifiers = usePlanetDataStore((s) => s.modifiers);
-  return (key) => modifiers.get(key)?.name ?? keyWords(key.replace(/^pm_/, ""));
-}
-
-/** Planet features the roll can give, likeliest first: a bar for each whose chance is known. */
-function FeatureOdds({ picks }: { picks: readonly PoolPick[] }) {
+/**
+ * Planet features the roll can give, each name once and likeliest first: a bar for each whose
+ * chance is known, or the names in one line where none is.
+ */
+export function FeaturePool({ picks }: { picks: readonly PoolPick[] }) {
   const named = useFeatureNamer();
+  const merged = mergedByName(picks, named);
+  if (merged.every((pick) => pick.chance === null)) {
+    return <div className="pl-pool-names">{merged.map((pick) => pick.name).join(", ")}</div>;
+  }
   const rows = oddsRows(
-    picks.map((p) => ({ key: p.key, share: p.chance })),
+    merged.map((p) => ({ key: p.key, share: p.chance })),
     () => NEUTRAL_BAR,
   );
-  return <OddsList rows={rows.map((row) => ({ row, name: named(row.key) }))} />;
+  return <OddsList rows={rows.map((row, i) => ({ row, name: merged[i].name }))} />;
 }
 
 /**
  * After the rows a scenario body's initializer states, what its own roll can give it, likeliest
  * first: nothing where it rolls none, and why where the class it rolls decides. `body` shows the
- * picks in place of the list of planet features.
+ * picks, and `tail` counts them as they show.
  */
 export function PoolLines({
   pool,
   stated,
-  kind,
   noun,
-  rows,
+  tail,
   body,
 }: {
   pool: SpawnPool | undefined;
   stated: number;
-  kind: PoolKind;
   /** What the page calls the body, for the cards. */
   noun: string;
-  /** How many rows the picks show as; one each by default. */
-  rows?: (picks: PoolPick[]) => number;
-  body?: (picks: PoolPick[]) => ReactNode;
+  /** The line's tail after "Can roll ·". */
+  tail: (picks: PoolPick[]) => string;
+  body: (picks: PoolPick[]) => ReactNode;
 }) {
   if (pool === undefined || pool.state === "fixed") return null;
   if (pool.state === "unknown") {
@@ -458,9 +548,9 @@ export function PoolLines({
         <span className="ins-st-rolled">
           <RolledMark />
         </span>
-        {poolTitle(stated, kind.tail(rows === undefined ? picks.length : rows(picks)))}
+        {poolTitle(stated, tail(picks))}
       </div>
-      {body === undefined ? <FeatureOdds picks={picks} /> : body(picks)}
+      {body(picks)}
     </>
   );
 }

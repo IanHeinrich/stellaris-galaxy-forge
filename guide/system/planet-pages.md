@@ -63,13 +63,22 @@ a ring, so you can take it off.
 
 In a scenario, a body's page shows what its initializer says about it.
 It has the Name, Class, Size, Ring and Model rows, each set by the
-initializer, rolled by the game or decided when the game starts. A line
-under the name says when some games don't have the body, and how many
-bodies like it the game places. The page also lists the deposits,
-modifiers, anomaly and flags the initializer states. A start planet has
-a "start planet" mark and a Start planet row. The Initializer section
-shows the lines the initializer runs for the body, and its other keys.
-Nothing on the page can be edited yet.
+initializer, rolled by the game or decided when a new game starts. A
+value with a dotted underline has more to say. Hover over it to see the
+explanation. A line under the name says when some games don't have the
+body, and how many bodies like it the game places. The page also lists
+the deposits, modifiers, anomaly and flags the initializer states. A
+start planet has a "start planet" mark beside its name, and a home
+planet a "home planet" mark. A Stopped row lists what the initializer
+stops on the body, such as Blockers, Planet features or Anomaly. The
+Initializer section shows Script at game start, the lines the game runs
+for the body, and Other initializer lines. Nothing on the page can be
+edited yet.
+
+Where only the class the body gets decides its model, ring, deposits or
+planet features, that row reads "Rolled to suit its class". Under the
+Deposits and Planet features rows, click What it can roll to see what
+the class could give. It starts closed.
 
 An unnamed body shows the name the game gives it, made from the
 system's name, such as "Yunak II" or "Yunak IIa". The game numbers
@@ -78,14 +87,17 @@ name is rolled, and the line under it lists every name it can have.
 Lists, links and the system view show the first name it can have, such
 as "Yunak II". A row of the Planets list that stands for several
 planets shows the names they can have, such as "Yunak II to IV".
-Asteroids get names the game draws at random.
+Asteroids get names the game draws at random, and their Name row reads
+"Random".
 
 A rolled class lists the classes that fit the body's orbit, likeliest
 first. Where the orbit is a single distance and the system's star is
 fixed, each class has a bar and its odds, and the likeliest class's bar
 is the longest. A class picked from a named list of
 classes lists every class in the list. The game may roll any of them,
-even one that doesn't fit the orbit. A rolled ring shows its chance.
+even one that doesn't fit the orbit. More than four classes without odds
+show as a row of icons. Hover over an icon to see the class's name. A
+rolled ring shows its chance.
 
 Some bodies are never placed, because none of the classes they can roll
 fit their orbit. They show "never placed" on their row and their page,

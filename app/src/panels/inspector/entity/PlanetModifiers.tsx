@@ -3,8 +3,9 @@ import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
 import {
   bodyNoun,
-  FEATURE_POOL,
+  featuresTail,
   featuresWithClass,
+  mergedByName,
   modifierLine,
 } from "../../../lib/details/spawnFacts";
 import { Icon } from "../../parts";
@@ -16,7 +17,8 @@ import { modifierCard } from "./modifierCard";
 import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
-import { PoolLines } from "./SpawnFacts";
+import { FeaturePool, PoolLines } from "./SpawnFacts";
+import { useFeatureNamer } from "./useFeatureNamer";
 
 /** A row's card while `shown`; nothing else. */
 function RowCard({
@@ -130,6 +132,7 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
     spawn === undefined
       ? null
       : modifierLine(spawn.features, bodyNoun(read.summary), modifiers.length);
+  const named = useFeatureNamer();
   const pool = spawn?.rolled_features;
   const folded = spawn !== undefined && featuresWithClass(spawn, modifiers.length);
   const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
@@ -147,8 +150,9 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
       <PoolLines
         pool={pool}
         stated={modifiers.length}
-        kind={FEATURE_POOL}
         noun={bodyNoun(read.summary)}
+        tail={(picks) => featuresTail(mergedByName(picks, named).length)}
+        body={(picks) => <FeaturePool picks={picks} />}
       />
       {editable && <PlanetPicker kind={MODIFIER_PICKER} target={target} />}
     </Section>

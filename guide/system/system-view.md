@@ -1,7 +1,7 @@
 ---
 title: System view
 description: Open one system to see its star, planets, moons and belts laid out as in the game, and get back to the galaxy.
-aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy, may not spawn, star list, rolled value, initializer facts, script text, source tab]
+aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy, may not spawn, star list, rolled value, initializer facts, script text, script at game start, angle dial, source tab]
 ---
 # System view <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -15,7 +15,7 @@ To open a system:
 - Double-click the system on the map.
 - Select the system and press <kbd>Enter</kbd> or <kbd>M</kbd>.
 - Right-click the system and select Open system view.
-- Click Open system view in the Planets header of the system's page.
+- Click Show in system view in the Planets header of the system's page.
 - Select the system and use View → Open system view.
 
 Each body sits on its orbit around the star, or around its planet for a
@@ -46,6 +46,12 @@ blue. The body's page lists its orbit step, its angle step and whether
 it has a ring. Click the name in the angle step to go to the body it
 turns from.
 
+A small dial before the angle step shows the turn as the system view
+does. The dot on its rim is the body it turns from. A shaded wedge is
+the range of angles it can stand at, and a line to a dot is a fixed
+turn. A fully shaded dial means any angle. There is no dial where a
+variable sets the turn.
+
 Some blocks of an initializer place a range of planets, such as 2 to
 10. The view draws every planet the block can place. The ones past the
 lowest count have a dashed halo, because the game may not place them.
@@ -72,8 +78,11 @@ Values show in one of three ways:
 - A value the game rolls when a new game starts shows in blue after a
   small die. Hover over the die to see "Rolled when a new game starts".
 - A value the game decides in a way Galaxy Forge can't show is in grey
-  italics with a question mark. Where Galaxy Forge knows why, the reason
-  is under it.
+  italics with a question mark.
+
+A value with a dotted underline has more to say. Hover over it to see
+the explanation, such as why the game decides a class when a new game
+starts or which variable sets a size. Ranges read "10 to 20".
 
 Some initializers place a planet a random number of times. The Planets
 list shows those planets as one row, such as "Random planets", with the
@@ -96,15 +105,16 @@ The rows below say which empire or creature the initializer creates,
 how many of these systems a galaxy can have, and which values come from
 a variable or an inline script. Three groups follow:
 
-- Script it runs lists the lines the game runs when it builds the
-  system. On a scenario map they run before hyperlanes exist.
+- Script at game start lists the lines the game runs once, when a new
+  game starts. On a scenario map they run before hyperlanes exist. Where
+  a line looks for a neighbouring system, a warning says it finds none.
 - Random galaxy settings are the keys a random galaxy uses to decide how
   often to add the system. Your map already places it, so they have no
-  effect.
-- Other keys lists the initializer's keys that Galaxy Forge keeps but
-  doesn't show elsewhere.
+  effect. This group starts closed.
+- Other initializer lines lists the lines Galaxy Forge keeps as written
+  but doesn't show elsewhere.
 
-Click a group's heading to close it. Script text shows as the file
+Click a group's heading to open or close it. Script text shows as the file
 writes it, in the colours of the CWTools extension for VS Code. Click
 "Show all" under a long piece to see the rest.
 

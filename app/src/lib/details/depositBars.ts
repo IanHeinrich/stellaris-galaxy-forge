@@ -4,7 +4,7 @@
  */
 import type { DepositTypeView } from "../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../generated/ResourceAmountView";
-import { keyWords } from "../text";
+import { counted, keyWords } from "../text";
 import { formatAmount } from "./resources";
 import { NEUTRAL_RAMP, resourceRamp, shadeIndex, textOn } from "./resourceColors";
 import { percent, type PoolPick } from "./spawnFacts";
@@ -193,4 +193,55 @@ function barRow(row: Gathered, most: number): BarRow {
 
 function rowBase(row: Gathered): Pick<BarRow, "key" | "name" | "icon" | "chance"> {
   return { key: row.key, name: row.name, icon: row.icon, chance: row.chance };
+}
+
+/**
+ * A deposit pool whose odds the install can't tell, by kind: a row per resource, then the
+ * blockers and the deposits that yield nothing by name, each name once.
+ */
+export interface DepositKinds {
+  resources: BarRow[];
+  blockers: string[];
+  other: string[];
+}
+
+/** A pool's deposits by kind, a blocker by its game data however it yields. */
+export function depositKinds(
+  picks: readonly PoolPick[],
+  views: ReadonlyMap<string, DepositTypeView>,
+): DepositKinds {
+  const yielding: PoolPick[] = [];
+  const blockers = new Set<string>();
+  const other = new Set<string>();
+  for (const pick of picks) {
+    const view = views.get(pick.key);
+    if (view?.blocker === true) blockers.add(plainName(pick.key, view));
+    else if ((view?.yields.length ?? 0) > 0) yielding.push(pick);
+    else other.add(plainName(pick.key, view));
+  }
+  return {
+    resources: depositBars(yielding, views),
+    blockers: [...blockers],
+    other: [...other],
+  };
+}
+
+/** `4 resources`, or `3 kinds` for a pool that gives no resource: what a pool's line counts. */
+export function depositKindsTail(kinds: DepositKinds): string {
+  return kinds.resources.length > 0
+    ? counted(kinds.resources.length, "resource")
+    : counted(kinds.blockers.length + kinds.other.length, "kind");
+}
+
+/**
+ * What a deposit pool's line counts: its resources by kind where none of its odds are known, else
+ * its rows.
+ */
+export function depositPoolTail(
+  picks: readonly PoolPick[],
+  views: ReadonlyMap<string, DepositTypeView>,
+): string {
+  return picks.every((pick) => pick.chance === null)
+    ? depositKindsTail(depositKinds(picks, views))
+    : counted(depositBars(picks, views).length, "resource");
 }

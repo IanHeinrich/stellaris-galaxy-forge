@@ -113,7 +113,7 @@ export function PlanetDigSite({ read, offers }: PlanetSectionProps) {
   const editable = offers.digSite;
   if (held === null && !editable) return null;
   return (
-    <Section id="planet.digSite" title="Dig site">
+    <Section id="planet.digSite" title="Archaeological site">
       {held !== null && (
         <DigSiteRow
           site={held.site}

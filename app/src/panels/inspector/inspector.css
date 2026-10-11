@@ -217,6 +217,20 @@ button.chip.jump:hover {
   color: var(--fg-muted);
 }
 
+/* What a row can roll, folded under it: the width of the rows, no rule, the heading quieter. */
+.ins-kv > .ins-group {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.ins-kv > .ins-group button.ins-group-head {
+  color: var(--fg-muted);
+  font-size: var(--text-note);
+  font-weight: 400;
+}
+
 .ins-kv.mono,
 .ins-kv .mono {
   font-family: var(--font-mono);
