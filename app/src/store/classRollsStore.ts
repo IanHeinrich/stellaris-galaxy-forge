@@ -14,6 +14,11 @@ export interface ClassRollsState {
   generation: number;
   /** Reads what body `body` of system `system` rolls as `className`, once per session. */
   request(system: number, body: number, className: string): void;
+  /**
+   * Drops the answers on the bodies of `systems`, which an edit changed. Every ask still out is
+   * dropped too, and asked again by the page that wants it.
+   */
+  forget(systems: readonly number[]): void;
   clear(): void;
 }
 
@@ -41,6 +46,14 @@ export const useClassRollsStore = create<ClassRollsState>((set, get) => ({
       (rolls) => land({ rolls }),
       (e: unknown) => land({ error: ipc.errorMessage(e) }),
     );
+  },
+
+  forget(systems) {
+    const answers = new Map(get().answers);
+    for (const key of answers.keys()) {
+      if (systems.some((system) => key.startsWith(`${system}:`))) answers.delete(key);
+    }
+    set({ answers, pending: new Set(), generation: get().generation + 1 });
   },
 
   clear() {

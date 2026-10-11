@@ -211,13 +211,14 @@ function KindsLine({ label, names }: { label: string; names: readonly string[] }
 }
 
 /**
- * A deposit pool whose odds are unknown: a line saying the class decides, a chip per resource with
- * the amounts it can give, then the blockers and the other deposits, each kind counted on one line.
+ * A deposit pool whose odds are unknown: a line saying the class decides, unless one is `picked`,
+ * a chip per resource with the amounts it can give, then the blockers and the other deposits, each
+ * kind counted on one line.
  */
-export function DepositKindsList({ kinds }: { kinds: DepositKinds }) {
+export function DepositKindsList({ kinds, picked }: { kinds: DepositKinds; picked: boolean }) {
   return (
     <>
-      <DependsOnClass />
+      {!picked && <DependsOnClass />}
       {kinds.resources.length > 0 && (
         <div className="pl-class-strip">
           {kinds.resources.map((row) => (
@@ -233,14 +234,20 @@ export function DepositKindsList({ kinds }: { kinds: DepositKinds }) {
 
 /**
  * The deposits a scenario body can roll, one bar per resource, likeliest first, and a line saying
- * the class decides where some rows show their amounts because the odds can't be told. Where none
- * of the odds are known, the resources are chips with their amounts and the rest are counted by
- * kind.
+ * the class decides where some rows show their amounts because the odds can't be told, unless a
+ * class is `picked`. Where none of the odds are known, the resources are chips with their amounts
+ * and the rest are counted by kind.
  */
-export function DepositPoolBars({ picks }: { picks: readonly PoolPick[] }) {
+export function DepositPoolBars({
+  picks,
+  picked,
+}: {
+  picks: readonly PoolPick[];
+  picked: boolean;
+}) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   if (picks.every((pick) => pick.chance === null)) {
-    return <DepositKindsList kinds={depositKinds(picks, views)} />;
+    return <DepositKindsList kinds={depositKinds(picks, views)} picked={picked} />;
   }
   const rows = depositBars(picks, views);
   return (
@@ -250,7 +257,7 @@ export function DepositPoolBars({ picks }: { picks: readonly PoolPick[] }) {
           <BarLine key={row.key} row={row} />
         ))}
       </PoolList>
-      {rows.some((row) => row.amounts !== null) && <DependsOnClass />}
+      {!picked && rows.some((row) => row.amounts !== null) && <DependsOnClass />}
     </>
   );
 }

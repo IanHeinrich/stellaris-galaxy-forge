@@ -8,8 +8,9 @@ vi.mock("../api/events");
 import { addedNode, editor, openFixtureSave, withAddedSystems } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
 import { useWatchlistStore } from "./watchlistStore";
+import { classRollsKey, useClassRollsStore } from "./classRollsStore";
 import { useDetailsStore } from "./detailsStore";
-import { GALAXY_ENTRY, useInspectorStore } from "./inspectorStore";
+import { GALAXY_ENTRY, classPickKey, useInspectorStore } from "./inspectorStore";
 import { useGalaxyStore } from "./galaxyStore";
 import {
   SCENARIO_OWNERS,
@@ -20,6 +21,7 @@ import {
   systemDetails,
 } from "./fixture";
 import { name } from "../test/builders";
+import { classRolls } from "../test/rolls";
 import { mockedIpc } from "../test/ipc";
 import { until } from "../test/wait";
 
@@ -141,6 +143,22 @@ describe("following a delete that renumbers", () => {
     ]);
     expect(useWatchlistStore.getState().results.get("added")).toEqual([6, 3]);
     expect(editor().inspected?.system.id).toBe(6);
+  });
+
+  it("forgets every class picked on a body page, and what each rolls", async () => {
+    const [, seven] = withAddedSystems();
+    useInspectorStore.setState({ classPicks: { [classPickKey(3, 30)]: "pc_toxic" } });
+    useClassRollsStore.setState({
+      answers: new Map([
+        [classRollsKey(3, 30, "pc_toxic"), { rolls: classRolls({ body: 30, class: "pc_toxic" }) }],
+      ]),
+      pending: new Set(),
+    });
+
+    await removeSix(seven);
+
+    expect(useInspectorStore.getState().classPicks).toEqual({});
+    expect(useClassRollsStore.getState().answers.size).toBe(0);
   });
 
   it("closes the page of the system it removed and clears the selection", async () => {

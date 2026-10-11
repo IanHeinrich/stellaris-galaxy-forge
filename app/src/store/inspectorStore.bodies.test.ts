@@ -6,6 +6,7 @@ vi.mock("../api/events");
 
 import {
   bodyEntry,
+  classPickKey,
   entityAddr,
   openPlanet,
   refKey,
@@ -158,6 +159,15 @@ describe("a body opened from the system view", () => {
     inspector().openFromMap(bodyEntry(452, 1207, "Earth"));
     await loadGameData();
     expect(refs()).toEqual([SOL.ref, EARTH.ref]);
+  });
+
+  it("forgets the class picked on a scenario body's page when the game data reloads", async () => {
+    await openFixtureScenario();
+    useInspectorStore.setState({ classPicks: { [classPickKey(1, 100)]: "pc_toxic" } });
+
+    await loadGameData();
+
+    expect(inspector().classPicks).toEqual({});
   });
 
   it("closes a scenario body's page when a rebuilt registry finds the game data gone", async () => {

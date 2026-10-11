@@ -297,7 +297,8 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           category,
         });
   const pool = spawn?.rolled_deposits;
-  const folded = spawn !== undefined && depositsWithClass(spawn, deposits.count);
+  const picked = read.pickedClass !== undefined;
+  const folded = spawn !== undefined && depositsWithClass(spawn, deposits.count, picked);
   const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
   const says = stated.notes.length > 0 || stated.blockers !== null || rolls;
   if (deposits.count === 0 && !editable && !says) return null;
@@ -352,7 +353,7 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
         stated={features.length + blockers.length}
         noun={noun}
         tail={(picks) => depositPoolTail(picks, views)}
-        body={(picks) => <DepositPoolBars picks={picks} />}
+        body={(picks) => <DepositPoolBars picks={picks} picked={picked} />}
       />
       {editable && (
         <PlanetPicker

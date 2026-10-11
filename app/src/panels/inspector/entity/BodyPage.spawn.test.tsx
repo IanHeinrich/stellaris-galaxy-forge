@@ -238,7 +238,7 @@ describe("a scenario body's page", () => {
     expect(row(html, "Name")).toContain("Gatria");
     expect(row(html, "Name")).not.toContain("<div");
     expect(row(html, "Class")).toContain("Continental World");
-    expect(row(html, "Class")).not.toContain("<div");
+    expect(row(html, "Class")).not.toContain("ins-why");
     expect(html).not.toContain("ins-why");
     expect(row(html, "Model")).toContain(">Suits its class</span>");
     expect(hintOf("Model")).toBe("The game rolls these to suit the class the planet gets.");

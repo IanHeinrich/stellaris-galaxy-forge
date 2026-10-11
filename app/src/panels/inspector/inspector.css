@@ -346,7 +346,7 @@ button.chip.jump:hover {
 }
 
 /* What the class picked on a body's page decides, while what it rolls as that class is read. */
-.ins-busy {
+.ins-class-dependent {
   display: contents;
 }
 

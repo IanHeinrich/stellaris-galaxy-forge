@@ -368,6 +368,8 @@ export interface InspectorState {
    * opened from it. A document with planets of its own keeps them.
    */
   dropBodies(systems?: readonly number[]): void;
+  /** Forgets the class picked on every body page in `systems`, or on every one without. */
+  dropClassPicks(systems?: readonly number[]): void;
   /** Moves every page on one of `bodies` to `system`, where a move has taken them. */
   moveBodies(bodies: readonly number[], system: number): void;
   /** Closes every page on one of `planets` or `colonies`, with everything opened from it. */
@@ -500,6 +502,16 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     if (at < 0) return;
     const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
     set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+  },
+
+  dropClassPicks(systems) {
+    const picks = get().classPicks;
+    const kept = Object.entries(picks).filter(
+      ([key]) =>
+        systems !== undefined && !systems.some((system) => key.startsWith(`body:${system}:`)),
+    );
+    if (kept.length === Object.keys(picks).length) return;
+    set({ classPicks: Object.fromEntries(kept) });
   },
 
   moveBodies(bodies, system) {

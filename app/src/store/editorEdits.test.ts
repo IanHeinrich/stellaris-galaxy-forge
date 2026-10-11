@@ -6,13 +6,15 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import { editor, openFixtureSave, sessionError } from "./editorFixture";
+import { classRollsKey, useClassRollsStore } from "./classRollsStore";
 import { useDetailsStore } from "./detailsStore";
 import { useFileSessionStore } from "./fileSessionStore";
-import { useInspectorStore } from "./inspectorStore";
+import { classPickKey, useInspectorStore } from "./inspectorStore";
 import { useIssuesStore } from "./issuesStore";
 import { useGalaxyStore } from "./galaxyStore";
 import { OPEN_RESULT, SYSTEMS, editResult, planetSummary, systemDetails } from "./fixture";
 import { appIssue, name } from "../test/builders";
+import { classRolls } from "../test/rolls";
 import { mockedIpc } from "../test/ipc";
 import { until } from "../test/wait";
 
@@ -313,4 +315,42 @@ describe("the systems the core reports stale", () => {
     expect(useDetailsStore.getState().details.get(1)).toBeDefined();
     expect(useDetailsStore.getState().pending.has(1)).toBe(true);
   });
+
+  /** Toxic picked on body 10 of system 1 and on body 20 of system 2, with what each rolls as it. */
+  function pickToxic(): void {
+    useInspectorStore.setState({
+      classPicks: { [classPickKey(1, 10)]: "pc_toxic", [classPickKey(2, 20)]: "pc_toxic" },
+    });
+    useClassRollsStore.setState({
+      answers: new Map([
+        [classRollsKey(1, 10, "pc_toxic"), { rolls: classRolls({ body: 10, class: "pc_toxic" }) }],
+        [classRollsKey(2, 20, "pc_toxic"), { rolls: classRolls({ body: 20, class: "pc_toxic" }) }],
+      ]),
+      pending: new Set(),
+    });
+  }
+
+  it.each([
+    [
+      "an edit",
+      () => mockedIpc.applyOp,
+      () => editor().applyOp({ type: "SetInitializer", system: 1, initializer: "guardian_dragon" }),
+    ],
+    ["an undo", () => mockedIpc.undo, () => editor().undo()],
+  ])(
+    "forgets the classes picked on the bodies of a stale system after %s, and what they roll",
+    async (_, command, run) => {
+      pickToxic();
+      command().mockResolvedValueOnce(editResult({ details_stale: [1] }));
+
+      await run();
+
+      expect(useInspectorStore.getState().classPicks).toEqual({
+        [classPickKey(2, 20)]: "pc_toxic",
+      });
+      expect([...useClassRollsStore.getState().answers.keys()]).toEqual([
+        classRollsKey(2, 20, "pc_toxic"),
+      ]);
+    },
+  );
 });

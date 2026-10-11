@@ -831,13 +831,23 @@
   background: var(--bg-elevated);
 }
 
-/* A class list that picks the class a body's page shows it as: Any first, the picked one ringed. */
-.pl-class-pick {
+/*
+ * A class list that picks the class a body's page shows it as: Any first, each a button with a
+ * hairline, the picked one ringed.
+ */
+.pl-class-strip > .ins-hinted-toggle {
+  display: inline-flex;
+}
+
+.pl-class-pick,
+.pl-class-strip .ins-toggle {
   display: inline-flex;
   align-items: center;
   padding: 1px;
   border: none;
   border-radius: 3px;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
   background: none;
   color: inherit;
   font: inherit;
@@ -845,14 +855,10 @@
 }
 
 .pl-class-pick:hover,
-.pl-class-pick:focus-visible {
+.pl-class-pick:focus-visible,
+.pl-class-strip .ins-toggle:hover,
+.pl-class-strip .ins-toggle:focus-visible {
   background: var(--bg-elevated);
-}
-
-.pl-class-pick > .ins-hinted {
-  display: inline-flex;
-  text-decoration: none;
-  cursor: inherit;
 }
 
 .pl-class-any {
@@ -865,6 +871,7 @@
 }
 
 .pl-class-pick[aria-pressed="true"],
+.pl-class-strip .ins-toggle[aria-pressed="true"],
 .pl-pool-row[aria-pressed="true"] {
   outline: 2px solid var(--accent);
   outline-offset: -1px;

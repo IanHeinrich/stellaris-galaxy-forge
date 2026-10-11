@@ -134,7 +134,8 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
   const line = spawn === undefined ? null : modifierLine(spawn.features, noun, modifiers.length);
   const named = useFeatureNamer();
   const pool = spawn?.rolled_features;
-  const folded = spawn !== undefined && featuresWithClass(spawn, modifiers.length);
+  const picked = read.pickedClass !== undefined;
+  const folded = spawn !== undefined && featuresWithClass(spawn, modifiers.length, picked);
   const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
   if (modifiers.length === 0 && !editable && line === null && !rolls) return null;
   return (
@@ -152,7 +153,7 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
         stated={modifiers.length}
         noun={noun}
         tail={(picks) => featuresTail(mergedByName(picks, named).length)}
-        body={(picks) => <FeaturePool picks={picks} />}
+        body={(picks) => <FeaturePool picks={picks} picked={picked} />}
       />
       {editable && <PlanetPicker kind={MODIFIER_PICKER} target={target} />}
     </Section>

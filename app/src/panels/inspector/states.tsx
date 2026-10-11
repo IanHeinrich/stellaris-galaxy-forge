@@ -7,6 +7,7 @@ import {
   type ValueSource,
 } from "../../lib/details/spawnFacts";
 import { Chip } from "../parts";
+import type { Press } from "./entity/OddsBar";
 import { PickerCard } from "./entity/PickerCard";
 import { PropertyRow } from "./parts";
 
@@ -74,46 +75,74 @@ export function NeverPlaced({ hint }: { hint?: string }) {
 
 /**
  * A value with more to say than fits its row: underlined, with what it says in a card beside the
- * Inspector on hover or focus. `label` heads the card.
+ * Inspector on hover or focus. `label` heads the card. With `press` it is a toggle button named
+ * `label`, and the card shows beside the button rather than inside it.
  */
 export function Hinted({
   label,
   hint,
   focusable = true,
+  press,
   children,
 }: {
   label: string;
   hint: ReactNode;
   /** Takes the focus to show its card; false inside a control that takes it already. */
   focusable?: boolean;
+  press?: Press;
   children: ReactNode;
 }) {
   const id = useId();
   const cardId = `${id}-card`;
   const [shown, setShown] = useState(false);
   const item = useMemo(() => ({ label, effects: [] }), [label]);
+  const describedBy = shown ? cardId : undefined;
+  const focus = { onFocus: () => setShown(true), onBlur: () => setShown(false) };
+  const card = shown && (
+    <PickerCard
+      id={cardId}
+      rowId={id}
+      item={item}
+      beside=".ins-kv, .ins-group, .ins-sec, .ins-body"
+    >
+      <span className="dp-card-text">{hint}</span>
+    </PickerCard>
+  );
+  if (press !== undefined) {
+    return (
+      <span
+        id={id}
+        className="ins-hinted-toggle"
+        onMouseEnter={() => setShown(true)}
+        onMouseLeave={() => setShown(false)}
+      >
+        <button
+          type="button"
+          className="ins-toggle"
+          aria-label={label}
+          aria-pressed={press.pressed}
+          aria-describedby={describedBy}
+          onClick={press.onPress}
+          {...focus}
+        >
+          {children}
+        </button>
+        {card}
+      </span>
+    );
+  }
   return (
     <span
       id={id}
       className="ins-hinted"
       tabIndex={focusable ? 0 : undefined}
-      aria-describedby={shown ? cardId : undefined}
+      aria-describedby={describedBy}
       onMouseEnter={() => setShown(true)}
       onMouseLeave={() => setShown(false)}
-      onFocus={focusable ? () => setShown(true) : undefined}
-      onBlur={focusable ? () => setShown(false) : undefined}
+      {...(focusable ? focus : {})}
     >
       {children}
-      {shown && (
-        <PickerCard
-          id={cardId}
-          rowId={id}
-          item={item}
-          beside=".ins-kv, .ins-group, .ins-sec, .ins-body"
-        >
-          <span className="dp-card-text">{hint}</span>
-        </PickerCard>
-      )}
+      {card}
     </span>
   );
 }

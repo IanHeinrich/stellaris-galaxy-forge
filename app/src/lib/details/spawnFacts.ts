@@ -551,16 +551,27 @@ function suitsClass(pool: SpawnPool | undefined): boolean {
 
 /**
  * Whether a body's deposits show as a row rolled to suit its class, in place of a section: it
- * states none, and its class decides what it rolls.
+ * states none, its class decides what it rolls, and no class is `picked` on its page.
  */
-export function depositsWithClass(spawn: BodySpawn, listed: number): boolean {
-  return suitsClass(spawn.rolled_deposits) && listed === 0 && spawn.deposits.length === 0;
+export function depositsWithClass(spawn: BodySpawn, listed: number, picked: boolean): boolean {
+  return (
+    !picked && suitsClass(spawn.rolled_deposits) && listed === 0 && spawn.deposits.length === 0
+  );
 }
 
-/** Whether a body's planet features show as a row rolled to suit its class, in place of a section. */
-export function featuresWithClass(spawn: BodySpawn, listed: number): boolean {
+/**
+ * Whether a body's planet features show as a row rolled to suit its class, in place of a section;
+ * never while a class is `picked` on its page.
+ */
+export function featuresWithClass(spawn: BodySpawn, listed: number, picked: boolean): boolean {
   const { features } = spawn;
-  return suitsClass(spawn.rolled_features) && listed === 0 && !features.none && !features.cleared;
+  return (
+    !picked &&
+    suitsClass(spawn.rolled_features) &&
+    listed === 0 &&
+    !features.none &&
+    !features.cleared
+  );
 }
 
 /** What a list says where the class a body gets decides the odds, which Galaxy Forge can't tell. */
@@ -577,9 +588,42 @@ export function ifItRolls(name: string): string {
   return `If it rolls ${name}`;
 }
 
+/** What shows under a body's class picker when what it rolls as the class picked can't be read. */
+export function classRollsFailed(name: string): string {
+  return `Galaxy Forge can't work out what it rolls as ${name}.`;
+}
+
+/**
+ * The class each row of a class picker asks for, given the classes each row shows: its one class,
+ * or null where it shows several or an earlier row asks for the same one.
+ */
+export function rowAsks(rows: readonly (readonly string[])[]): (string | null)[] {
+  const asked = new Set<string>();
+  return rows.map((classes) => {
+    const distinct = new Set(classes);
+    if (distinct.size !== 1) return null;
+    const [only] = distinct;
+    if (asked.has(only)) return null;
+    asked.add(only);
+    return only;
+  });
+}
+
+/** The classes a picker over rows asking `asks` offers: each once, and none unless there are two. */
+export function offeredAsks(asks: readonly (string | null)[]): string[] {
+  const offered = [...new Set(asks.filter((ask) => ask !== null))];
+  return offered.length > 1 ? offered : [];
+}
+
 /** The lines that name the blockers and the other deposits a roll can give, by their count. */
 export const BLOCKERS_LABEL = "Blockers";
 export const OTHER_DEPOSITS_LABEL = "Other";
+
+/** Picks shown under one name: the first one's key, every key under the name, their chances added. */
+export interface NamedPick extends PoolPick {
+  name: string;
+  keys: string[];
+}
 
 /**
  * Picks that show under one name as one, their chances added, null where any is unknown;
@@ -588,15 +632,18 @@ export const OTHER_DEPOSITS_LABEL = "Other";
 export function mergedByName(
   picks: readonly PoolPick[],
   name: (key: string) => string,
-): (PoolPick & { name: string })[] {
-  const merged = new Map<string, PoolPick & { name: string }>();
+): NamedPick[] {
+  const merged = new Map<string, NamedPick>();
   for (const pick of picks) {
     const shown = name(pick.key);
     const known = merged.get(shown);
-    if (known === undefined) merged.set(shown, { ...pick, name: shown });
-    else
-      known.chance =
-        known.chance === null || pick.chance === null ? null : known.chance + pick.chance;
+    if (known === undefined) {
+      merged.set(shown, { ...pick, name: shown, keys: [pick.key] });
+      continue;
+    }
+    known.keys.push(pick.key);
+    known.chance =
+      known.chance === null || pick.chance === null ? null : known.chance + pick.chance;
   }
   return likeliestFirst([...merged.values()], (pick) => pick.chance);
 }

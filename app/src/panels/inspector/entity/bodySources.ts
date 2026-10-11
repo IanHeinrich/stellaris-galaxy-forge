@@ -97,6 +97,8 @@ export interface BodyRead {
   listed: boolean;
   /** Its orbit radius has a row of its own; else About gives it beside what the body orbits. */
   orbitRow: boolean;
+  /** The class its page's class picker shows it as, once what it rolls as that class is read. */
+  pickedClass?: string;
 }
 
 /**

@@ -125,9 +125,11 @@ them under an Any button. Any is picked at first, and the page shows
 what every class could give, as described above. Click a class's icon
 or row to see the planet as that class. A line under the list reads
 "If it rolls Toxic World", for example. The Size row shows that class's
-range, the Ring row its ring chance, and the deposits and planet
-features show as bars with their percentages, as on a planet whose
-class the initializer sets.
+range, and the Ring row shows its ring chance. The Deposits and
+Modifiers sections list what the planet can roll as that class, as on
+a planet whose class the initializer sets. Each shows a bar with its
+percentage where Galaxy Forge can work out the odds, and only its name
+where it can't.
 
 Click Any, or the class again, to go back. Picking a class only changes
 what the page shows. The scenario stays as it is. A star rolled from a

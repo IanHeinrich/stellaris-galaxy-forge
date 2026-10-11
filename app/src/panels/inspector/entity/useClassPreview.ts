@@ -1,12 +1,14 @@
 import { useEffect, useMemo } from "react";
 import type { ClassRolls } from "../../../generated/ClassRolls";
+import { offeredAsks } from "../../../lib/details/spawnFacts";
 import { classRollsKey, useClassRollsStore } from "../../../store/classRollsStore";
 import { classPickKey, useInspectorStore } from "../../../store/inspectorStore";
 import { summaryDataKeys, type BodyRead } from "./bodySources";
+import { useClassList } from "./useClassList";
 
 /** The class picked in a body page's class list, and the body as the page shows it. */
 export interface ClassPreview {
-  /** The class picked; `null` for Any. */
+  /** The class picked, where its class list still offers it; `null` for Any. */
   picked: string | null;
   /** Picks a class, or Any for `null` or the class already picked. */
   pick(className: string | null): void;
@@ -42,14 +44,17 @@ function rolledAs(read: BodyRead, rolls: ClassRolls): BodyRead {
       rolled_features: rolls.features,
     },
   };
-  return { ...read, summary: shown, dataKeys: summaryDataKeys(shown) };
+  return { ...read, summary: shown, dataKeys: summaryDataKeys(shown), pickedClass: rolls.class };
 }
 
 /** The class picked in body `read`'s class list, and what the body rolls as it. */
 export function useClassPreview(read: BodyRead): ClassPreview {
   const system = read.details.id;
   const body = read.summary.id;
-  const picked = useInspectorStore((s) => s.classPicks[classPickKey(system, body)] ?? null);
+  const stored = useInspectorStore((s) => s.classPicks[classPickKey(system, body)] ?? null);
+  const list = useClassList(read);
+  const offered = offeredAsks(list?.asks ?? []);
+  const picked = stored !== null && offered.includes(stored) ? stored : null;
   const key = picked === null ? null : classRollsKey(system, body, picked);
   const answer = useClassRollsStore((s) => (key === null ? undefined : s.answers.get(key)));
   const asked = useClassRollsStore((s) => key !== null && s.pending.has(key));

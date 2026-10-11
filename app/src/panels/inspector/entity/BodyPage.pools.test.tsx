@@ -10,7 +10,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
 import type { ClassRolls } from "../../../generated/ClassRolls";
-import { CAN_ROLL_TITLE } from "../../../lib/details/spawnFacts";
+import { CAN_ROLL_TITLE, DEPENDS_ON_CLASS } from "../../../lib/details/spawnFacts";
 import { depositBars } from "../../../lib/details/depositBars";
 import { oddsRows, readableTint, starListName } from "../../../lib/details/oddsBars";
 import { NEUTRAL_RAMP } from "../../../lib/details/resourceColors";
@@ -19,7 +19,7 @@ import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useDetailsStore } from "../../../store/detailsStore";
-import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { classPickKey, useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { drawnBy } from "../../../test/drawn";
 import { openGroups } from "../../../test/groups";
 import { hintOf } from "../../../test/hints";
@@ -173,7 +173,7 @@ describe("what a scenario body can roll", () => {
     );
   });
 
-  it("lists classes that show under one name as one row", async () => {
+  it("lists classes that show under one name as one row, which picks none of them", async () => {
     const listed = planet(101, "Listed", {
       class: "rl_barren",
       drawn: true,
@@ -187,6 +187,7 @@ describe("what a scenario body can roll", () => {
               { key: "pc_barren", weight: null },
               { key: "pc_barren_cold", weight: null },
               { key: "pc_frozen", weight: null },
+              { key: "pc_toxic", weight: null },
             ],
           },
         },
@@ -198,12 +199,17 @@ describe("what a scenario body can roll", () => {
         ["pc_barren", "Barren World"],
         ["pc_barren_cold", "Barren World"],
         ["pc_frozen", "Frozen World"],
+        ["pc_toxic", "Toxic World"],
       ]),
     });
     await land(details({ planets: [listed], spawn: systemSpawn() }));
 
     const rows = classRows(row(page(101, "Listed"), "Class"));
-    expect(rows.map((r) => r.name)).toEqual(["Barren World", "Frozen World"]);
+    expect(rows.map((r) => [r.name, /aria-pressed/.test(r.html)])).toEqual([
+      ["Barren World", false],
+      ["Frozen World", true],
+      ["Toxic World", true],
+    ]);
   });
 
   it("lists the classes without odds where the orbit is a range or the star is rolled", async () => {
@@ -660,7 +666,7 @@ describe("what a scenario body can roll", () => {
     const cls = row(html, "Class");
     expect(poolRows(cls)).toEqual([]);
     const strip = cls.slice(cls.indexOf('class="pl-class-strip"'));
-    expect(strip.match(/class="ins-hinted"/g)).toHaveLength(classes.length);
+    expect(strip.match(/class="ins-hinted-toggle"/g)).toHaveLength(classes.length);
     expect(strip.match(/class="pi/g)).toHaveLength(classes.length);
     expect(strip).toContain('role="img" aria-label="Toxic"');
     expect(strip).not.toContain(">Toxic<");
@@ -1290,9 +1296,9 @@ describe("a scenario body's class picker", () => {
   function toggles(html: string): [string, string][] {
     return [
       ...html.matchAll(
-        /<button type="button" class="pl-class-pick[^"]*" aria-pressed="(true|false)">(?:Any|<span[^>]*><span role="img" aria-label="([^"]*)")/g,
+        /<button type="button" class="[^"]*"(?: aria-label="([^"]*)")? aria-pressed="(true|false)"/g,
       ),
-    ].map(([, pressed, name]) => [name ?? "Any", pressed]);
+    ].map(([, name, pressed]) => [name ?? "Any", pressed]);
   }
 
   it("starts on Any, with every class a toggle and the page as it was", async () => {
@@ -1310,7 +1316,7 @@ describe("a scenario body's class picker", () => {
     ]);
     expect(hintOf("Toxic")).toBe('<span class="mono">pc_toxic</span>');
     expect(html).not.toContain("If it rolls");
-    expect(html).not.toContain("aria-busy");
+    expect(html).not.toContain('aria-busy="true"');
     expect(row(html, "Size")).toContain(rolled("Suits its class"));
     expect(row(html, "Ring")).toContain(rolled("Suits its class"));
     expect(row(html, "Deposits")).toContain(CAN_ROLL_TITLE);
@@ -1329,7 +1335,7 @@ describe("a scenario body's class picker", () => {
     expect(mockedIpc.getClassRolls).toHaveBeenCalledWith(SYSTEM, 100, "pc_toxic");
     const waiting = page(100, "Planet");
     expect(waiting).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
-    expect(waiting).toContain('<div class="ins-busy" aria-busy="true">');
+    expect(waiting).toContain('<div class="ins-class-dependent ins-busy" aria-busy="true">');
     expect(row(waiting, "Deposits")).toContain(CAN_ROLL_TITLE);
 
     answer(TOXIC);
@@ -1339,7 +1345,7 @@ describe("a scenario body's class picker", () => {
       ["Toxic", "true"],
     ]);
     expect(html).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
-    expect(html).not.toContain("aria-busy");
+    expect(html).not.toContain('aria-busy="true"');
     expect(row(html, "Size")).toContain("10 to 25");
     expect(row(html, "Size")).toContain(DIE);
     expect(row(html, "Ring")).toContain(rolled("21% chance"));
@@ -1373,12 +1379,61 @@ describe("a scenario body's class picker", () => {
     mockedIpc.getClassRolls.mockRejectedValue(new Error("body 100 cannot be pc_toxic"));
 
     await pick("pc_toxic");
-    const html = page(100, "Planet");
+    const html = drawnBy(() => page(100, "Planet"));
     const cls = row(html, "Class");
     expect(cls).toContain('<div class="muted ins-hint">If it rolls Toxic</div>');
-    expect(cls).toContain('<div class="ins-warn">body 100 cannot be pc_toxic</div>');
-    expect(html).not.toContain("aria-busy");
+    expect(cls).toContain("Galaxy Forge can&#x27;t work out what it rolls as Toxic.</span></div>");
+    expect(cls).not.toContain("cannot be pc_toxic");
+    expect(hintOf("Toxic")).toBe("body 100 cannot be pc_toxic");
+    expect(html).not.toContain('aria-busy="true"');
     expect(row(html, "Deposits")).toContain(CAN_ROLL_TITLE);
+  });
+
+  it("names each class in the strip to a keyboard, with its card on focus outside the button", async () => {
+    await landSix();
+
+    const html = drawnBy(() => page(100, "Planet"));
+    const cls = row(html, "Class");
+    const strip = cls.slice(cls.indexOf('class="pl-class-strip"'));
+    expect(strip).toContain(
+      '<button type="button" class="ins-toggle" aria-label="Toxic" aria-pressed="false">',
+    );
+    expect(strip).not.toMatch(/<button[^>]*>(?:(?!<\/button>).)*class="ins-hinted"/);
+    expect(strip).not.toContain('tabindex="0"');
+  });
+
+  it("shows the planet features and deposits whose odds are unknown in their sections once a class is picked", async () => {
+    await landSix();
+    mockedIpc.getClassRolls.mockResolvedValue(
+      classRolls({
+        body: 100,
+        class: "pc_toxic",
+        deposits: {
+          state: "rolled",
+          entries: ["d_minerals_2", "d_energy_3"].map((key) => ({ key, chance: null })),
+        },
+        features: { state: "rolled", entries: [{ key: "pm_mineral_poor", chance: null }] },
+      }),
+    );
+
+    await pick("pc_toxic");
+    const html = page(100, "Planet");
+    expect(html).not.toContain(CAN_ROLL_TITLE);
+    expect(html).not.toContain('<span class="k">Deposits</span>');
+    expect(html).not.toContain('<span class="k">Planet features</span>');
+    expect(html).toContain("Can roll · 2 resources");
+    expect(html).toContain("Can roll · 1 planet feature");
+    expect(html).not.toContain(DEPENDS_ON_CLASS);
+  });
+
+  it("ignores a class picked that the list no longer offers", async () => {
+    await landSix();
+    useInspectorStore.setState({ classPicks: { [classPickKey(SYSTEM, 100)]: "pc_gaia" } });
+
+    const html = page(100, "Planet");
+    expect(html).not.toContain("If it rolls");
+    expect(toggles(row(html, "Class"))[0]).toEqual(["Any", "true"]);
+    expect(mockedIpc.getClassRolls).not.toHaveBeenCalled();
   });
 
   it("reads what a class rolls once, and forgets the class picked when another document opens", async () => {
@@ -1457,5 +1512,47 @@ describe("a scenario body's class picker", () => {
     ]);
     expect(html).toContain("If it rolls sc_g");
     expect(row(html, "Size")).toContain(">30</span>");
+  });
+
+  it("gives a toggle only to the first of the star classes that ask as one planet class", async () => {
+    useGameDataStore.setState({
+      starClasses: new Map([
+        ["sc_k", starClassView("sc_k", "pc_k_star")],
+        ["sc_g", starClassView("sc_g", "pc_g_star")],
+        ["sc_g_giant", starClassView("sc_g_giant", "pc_g_star")],
+      ]),
+    });
+    const star = planet(99, "", {
+      class: "pc_k_star",
+      star_class: "sc_k",
+      role: "primary",
+      spawn: bodySpawn({
+        class: { state: "rolled", pool: { kind: "star_list", list: "rl_three" } },
+      }),
+    });
+    const spawn = systemSpawn({
+      star: {
+        state: "rolled",
+        list: "rl_three",
+        members: [
+          { key: "sc_k", weight: 1 },
+          { key: "sc_g", weight: 3 },
+          { key: "sc_g_giant", weight: 2 },
+        ],
+      },
+    });
+    await open("scenario");
+    await land(details({ planets: [star], spawn }));
+    mockedIpc.getClassRolls.mockResolvedValue(classRolls({ body: 99, class: "pc_g_star" }));
+
+    useInspectorStore.getState().pickClass(SYSTEM, 99, "pc_g_star");
+    await vi.advanceTimersByTimeAsync(0);
+    const rows = poolRows(row(page(99, "Star"), "Class"));
+    expect(rows.map((r) => [r.name, pressed(r)])).toEqual([
+      ["Any", "false"],
+      ["sc_g", "true"],
+      ["sc_g_giant", undefined],
+      ["sc_k", "false"],
+    ]);
   });
 });

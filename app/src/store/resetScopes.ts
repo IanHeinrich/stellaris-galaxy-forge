@@ -27,6 +27,7 @@ export const GAME_DATA_SCOPED: readonly (() => void)[] = [
   () => usePlanetDataStore.getState().clear(),
   () => useGeneratorStore.getState().clear(),
   () => useInspectorStore.getState().dropBodies(),
+  () => useInspectorStore.getState().dropClassPicks(),
   () => useClassRollsStore.getState().clear(),
   () => setRollWithin(systemRadiiOf(useGameDataStore.getState()).min_inner),
   ...PICKERS,

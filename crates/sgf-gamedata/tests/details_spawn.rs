@@ -5,9 +5,9 @@
 use crate::common;
 
 use sgf_core::format::save::details::{
-    AmbientObject, AnomalyPrevention, ClassPool, CountRange, DepositReplacement, DepositStep,
-    ListMember, PlanetSummary, SpawnClass, SpawnPool, SpawnRing, SpawnStar, SystemDetails,
-    UnknownClass, UsageOdds, VariableUse,
+    AmbientObject, AnomalyPrevention, BodyRole, Bounds, ClassPool, CountRange, DepositReplacement,
+    DepositStep, ListMember, PlanetSummary, SpawnClass, SpawnPool, SpawnRing, SpawnStar,
+    SystemDetails, UnknownClass, UsageOdds, VariableUse,
 };
 
 use sgf_gamedata::details::ClassRollsError;
@@ -765,6 +765,7 @@ fn a_body_rolls_as_one_class_a_part_of_its_pool() {
         .initializer_details(1, "ai_system_04", None)
         .expect("ai_system_04's details");
     let mut drawn = 0;
+    let mut ringed = 0;
     for planet in &details.planets {
         let spawn = planet.spawn.as_ref().expect("a body's spawn");
         let SpawnClass::Rolled {
@@ -799,8 +800,35 @@ fn a_body_rolls_as_one_class_a_part_of_its_pool() {
             for key in pool_keys(&rolls.features) {
                 assert!(features.contains(&key), "{key} as {}", class.class);
             }
+            let def = gd.planet_classes.get(&class.class).expect("a drawn class");
+            let moon = planet.role == BodyRole::Moon;
+            let stated = planet.layout.as_ref().and_then(|l| l.size);
+            let class_size = def.size(moon).map(|r| Bounds {
+                min: r.min,
+                max: r.max,
+            });
+            assert_eq!(rolls.size, stated.or(class_size), "size as {}", class.class);
+            if moon {
+                assert_eq!(
+                    rolls.ring,
+                    SpawnRing::Fixed { ring: false },
+                    "a moon's ring"
+                );
+                ringed += 1;
+            } else if !matches!(spawn.ring, Some(SpawnRing::Fixed { .. })) {
+                let ring = if def.chance_of_ring > 0.0 {
+                    SpawnRing::Rolled {
+                        chance: Some(def.chance_of_ring),
+                    }
+                } else {
+                    SpawnRing::Fixed { ring: false }
+                };
+                assert_eq!(rolls.ring, ring, "ring as {}", class.class);
+                ringed += 1;
+            }
         }
     }
+    assert!(ringed > 0, "a drawn body's ring is left to its class");
     assert!(
         drawn > 0,
         "ai_system_04 has bodies drawn from several classes"
