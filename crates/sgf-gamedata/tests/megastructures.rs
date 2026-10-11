@@ -8,7 +8,7 @@ use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
     ModifierHost, VariableDrop, VariableRaise,
 };
-use sgf_gamedata::registries::megastructures::{BuildType, Placement, Unsupported};
+use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
 
@@ -283,6 +283,15 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("grand_archive_0", &any),
         ("cosmogenesis_world_0", &any),
         ("behemoth_egg", &any),
+        ("dyson_sphere_ruined", &star),
+        ("dyson_sphere_restored", &star),
+        ("dyson_sphere_permanently_ruined", &star),
+        ("matter_decompressor_ruined", &star),
+        ("matter_decompressor_permanently_ruined", &star),
+        ("quantum_catapult_ruined", &star),
+        ("spy_orb_ruined", &any),
+        ("spy_orb_permanently_ruined", &any),
+        ("orbital_arc_furnace_destroyed", &any),
     ];
     for (key, placement) in pins {
         assert_eq!(&mega(key).placement, placement, "{key}");
@@ -320,6 +329,20 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         assert!(mega(key).activates_gateway, "{key}");
     }
     assert!(!mega("gateway_ruined").activates_gateway);
+    let family = |key: &str| mega(key).family.clone().map(|f| (f.working, f.linked));
+    assert_eq!(
+        family("dyson_sphere_ruined"),
+        Some(("dyson_sphere_0".to_owned(), Linked::Stem))
+    );
+    assert_eq!(
+        family("matter_decompressor_ruined"),
+        Some(("matter_decompressor_1".to_owned(), Linked::Files))
+    );
+    assert_eq!(
+        family("orbital_ring_ruined"),
+        None,
+        "its family becomes a starbase"
+    );
     assert!(mega("orbital_ring_ruined").ruined_orbital_ring);
     assert!(!mega("orbital_ring").ruined_orbital_ring);
 }
@@ -622,5 +645,46 @@ country_event = {
         built.skipped[1].contains("planet 10: cannot judge has_owner"),
         "{:?}",
         built.skipped
+    );
+}
+
+/// A mod's ruin takes the placement of the type a scripted effect spawns it in place of,
+/// though their keys share no stem.
+#[test]
+fn a_ruin_a_scripted_effect_spawns_takes_its_working_types_placement() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_beacon_1 = {\n\tplacement_rules = { planet_possible = { is_star = yes } }\n}\nmod_wreck = {\n\tentity = \"wreck_entity\"\n}\n",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_ruin_it = {\n\tif = {\n\t\tlimit = { is_megastructure_type = mod_beacon_1 }\n\t\tsolar_system = { spawn_megastructure = { type = \"mod_wreck\" coords_from = prev } }\n\t}\n}\n",
+        ),
+    ]);
+    let wreck = gd.megastructures.get("mod_wreck").expect("mod_wreck");
+    assert_eq!(
+        wreck.placement,
+        Placement::Body { star_only: false },
+        "no variant suffix"
+    );
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_beacon_1 = {\n\tplacement_rules = { planet_possible = { is_star = yes } }\n}\nmod_tower_ruined = {\n\tentity = \"wreck_entity\"\n}\n",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_ruin_it = {\n\tif = {\n\t\tlimit = { is_megastructure_type = mod_beacon_1 }\n\t\tsolar_system = { spawn_megastructure = { type = \"mod_tower_ruined\" coords_from = prev } }\n\t}\n}\n",
+        ),
+    ]);
+    let ruin = gd
+        .megastructures
+        .get("mod_tower_ruined")
+        .expect("mod_tower_ruined");
+    assert_eq!(ruin.placement, Placement::Body { star_only: true });
+    assert_eq!(
+        ruin.family.clone().map(|f| (f.working, f.linked)),
+        Some(("mod_beacon_1".to_owned(), Linked::Files))
     );
 }

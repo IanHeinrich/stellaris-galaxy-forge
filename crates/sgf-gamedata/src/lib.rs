@@ -364,8 +364,10 @@ impl GameData {
         );
         let megastructure_defs =
             script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
-        let megastructures =
-            megastructures::placed(megastructures::load(&megastructure_defs, &scripts));
+        let megastructures = megastructures::placed(
+            megastructures::load(&megastructure_defs, &scripts),
+            &scripts,
+        );
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);

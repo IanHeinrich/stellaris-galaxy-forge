@@ -67,6 +67,47 @@ pub struct MegastructureDef {
     #[serde(skip)]
     #[ts(skip)]
     pub construction: Construction,
+    /// For a ruined, restored, destroyed or derelict variant placed around a body, the
+    /// working type whose placement it takes, and how the two were linked.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub family: Option<Family>,
+}
+
+/// The working type a variant takes its placement from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Family {
+    pub working: String,
+    pub linked: Linked,
+}
+
+/// How a variant was linked to its working type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Linked {
+    /// The files name the two together: an `upgrade_from`, or a scripted effect branch that
+    /// asks for the one and spawns the other in its place.
+    Files,
+    /// Their keys share a stem, the variant's suffix taken off.
+    Stem,
+}
+
+/// The suffixes a variant's key adds to its family's stem.
+const VARIANT_SUFFIXES: [&str; 5] = [
+    "_permanently_ruined",
+    "_ruined",
+    "_restored",
+    "_destroyed",
+    "_derelict",
+];
+
+/// The stem of a variant's key: what stands before its variant suffix. `None` for a
+/// working type.
+fn variant_stem(key: &str) -> Option<&str> {
+    VARIANT_SUFFIXES
+        .iter()
+        .filter_map(|suffix| key.find(suffix))
+        .min()
+        .map(|at| &key[..at])
 }
 
 /// Where the editor adds a row of a type.
@@ -151,26 +192,173 @@ impl FromDef for MegastructureDef {
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
             construction: Construction::default(),
+            family: None,
         }
     }
 }
 
-/// `types` with each type's [`Placement`] resolved; the first rule that matches wins.
-pub(crate) fn placed(mut types: MegastructureTypes) -> MegastructureTypes {
-    let resolved: Vec<(String, Placement, bool)> = types
+/// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A
+/// variant placed around a body takes the placement of the first stage of the working type
+/// it belongs to, as [`families`] links them, when that stage too stands around a body.
+pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> MegastructureTypes {
+    let families = families(&types, scripts);
+    let resolved: Vec<(String, Placement, bool, Option<Family>)> = types
         .iter()
         .map(|def| {
             let flags = stages(&types, def).any(|stage| stage.sets_has_megastructure);
-            (def.key.clone(), placement(&types, def), flags)
+            let own = placement(&types, def);
+            let taken = match own {
+                Placement::Body { .. } => families.get(&def.key).and_then(|family| {
+                    let working = types.get(&family.working)?;
+                    let placement = placement(&types, first_stage(&types, working));
+                    matches!(placement, Placement::Body { .. }).then(|| (placement, family.clone()))
+                }),
+                _ => None,
+            };
+            match taken {
+                Some((placement, family)) => (def.key.clone(), placement, flags, Some(family)),
+                None => (def.key.clone(), own, flags, None),
+            }
         })
         .collect();
-    for (key, placement, flags) in resolved {
+    for (key, placement, flags, family) in resolved {
         if let Some(def) = types.get_mut(&key) {
             def.placement = placement;
             def.sets_has_megastructure = flags;
+            def.family = family;
         }
     }
     types
+}
+
+/// Each variant's working type: one the files link it to, through any chain of
+/// `upgrade_from` and scripted effect branches, else the first working type, in key order,
+/// whose key is its stem or starts with it.
+fn families(types: &MegastructureTypes, scripts: &ScriptIndex) -> BTreeMap<String, Family> {
+    let mut groups: Vec<Vec<String>> = Vec::new();
+    for def in types.iter() {
+        if variant_stem(&def.key).is_some() {
+            for earlier in &def.upgrade_from {
+                groups.push(vec![def.key.clone(), earlier.clone()]);
+            }
+        }
+    }
+    for effect in scripts.effects() {
+        spawn_groups(&effect.node, &effect.src, &mut groups);
+    }
+    let mut links: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for group in &groups {
+        let known: Vec<&str> = group
+            .iter()
+            .filter_map(|key| types.get(key).map(|def| def.key.as_str()))
+            .collect();
+        for pair in known.windows(2) {
+            links.entry(pair[0]).or_default().push(pair[1]);
+            links.entry(pair[1]).or_default().push(pair[0]);
+        }
+    }
+
+    let mut out = BTreeMap::new();
+    for def in types.iter() {
+        let Some(stem) = variant_stem(&def.key) else {
+            continue;
+        };
+        let mut seen = vec![def.key.as_str()];
+        let mut next = 0;
+        while let Some(&key) = seen.get(next) {
+            next += 1;
+            for &linked in links.get(key).into_iter().flatten() {
+                if !seen.contains(&linked) {
+                    seen.push(linked);
+                }
+            }
+        }
+        let mut working: Vec<&str> = seen
+            .into_iter()
+            .filter(|key| variant_stem(key).is_none())
+            .collect();
+        working.sort_unstable();
+        let family = match working.first() {
+            Some(&key) => Some(Family {
+                working: key.to_owned(),
+                linked: Linked::Files,
+            }),
+            None => types
+                .iter()
+                .filter(|other| variant_stem(&other.key).is_none())
+                .find(|other| {
+                    other.key == stem
+                        || other
+                            .key
+                            .strip_prefix(stem)
+                            .is_some_and(|rest| rest.starts_with('_'))
+                })
+                .map(|other| Family {
+                    working: other.key.clone(),
+                    linked: Linked::Stem,
+                }),
+        };
+        if let Some(family) = family {
+            out.insert(def.key.clone(), family);
+        }
+    }
+    out
+}
+
+/// Each block of `node` that asks with its `limit` for megastructure types and spawns one
+/// in their place, as the types it names: those of `is_megastructure_type` in the limit,
+/// outside a `NOT`, and those of `spawn_megastructure`'s `type` in the block.
+fn spawn_groups(node: &Node, src: &[u8], out: &mut Vec<Vec<String>>) {
+    for child in node.children() {
+        if child.scalar_span().is_some() {
+            continue;
+        }
+        if let Some(limit) = child.find("limit", src) {
+            let mut group = Vec::new();
+            asked_types(limit, src, &mut group);
+            if !group.is_empty() {
+                let before = group.len();
+                spawned_types(child, src, &mut group);
+                if group.len() > before {
+                    out.push(group);
+                }
+            }
+        }
+        spawn_groups(child, src, out);
+    }
+}
+
+fn asked_types(node: &Node, src: &[u8], out: &mut Vec<String>) {
+    for child in node.children() {
+        match child.key_str(src) {
+            Some("is_megastructure_type") => {
+                if let Some(kind) = child.scalar_str(src) {
+                    out.push(kind.to_owned());
+                }
+            }
+            Some(key) if key.eq_ignore_ascii_case("not") || key.eq_ignore_ascii_case("nor") => {}
+            _ => asked_types(child, src, out),
+        }
+    }
+}
+
+/// The types the `spawn_megastructure` blocks in `node` spawn, leaving out a block with a
+/// `limit` of its own.
+fn spawned_types(node: &Node, src: &[u8], out: &mut Vec<String>) {
+    for child in node.children() {
+        if child.scalar_span().is_some() {
+            continue;
+        }
+        if child.key_str(src) == Some("spawn_megastructure") {
+            if let Some(kind) = child.find("type", src).and_then(|t| t.scalar_str(src)) {
+                out.push(kind.to_owned());
+            }
+            continue;
+        }
+        if child.key_str(src) != Some("limit") && child.find("limit", src).is_none() {
+            spawned_types(child, src, out);
+        }
+    }
 }
 
 fn placement(types: &MegastructureTypes, def: &MegastructureDef) -> Placement {
