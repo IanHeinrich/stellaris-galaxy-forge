@@ -10,6 +10,10 @@ export type EditorChoices = {
  */
 editors: Array<EditorView>, 
 /**
+ * The name of the program picked for Other…; `None` until one is picked.
+ */
+other: string | null, 
+/**
  * The file is the game's own or a Workshop mod's, which Steam replaces when it updates.
  */
 steam_replaces: boolean, };

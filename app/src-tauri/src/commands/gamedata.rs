@@ -24,13 +24,14 @@ use sgf_gamedata::views::{
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
+use tauri_plugin_dialog::DialogExt;
 
 use super::{
     DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress,
-    refit_open_session,
+    refit_open_session, with_session,
 };
-use crate::editors::{self, Editor, EditorChoices, EditorPick, OpenedFile};
-use crate::state::{AppState, GameDataState, TextureState, relock};
+use crate::editors::{self, EditorChoices, EditorPick, OpenedFile, PickedProgramFile};
+use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
 /// Read the install (discovered through Steam unless `install_path` is given) and the
@@ -100,43 +101,77 @@ fn summary<R: Runtime>(app: &AppHandle<R>, gd: &GameData) -> GameDataSummary {
     }
 }
 
-/// Open a game-data file or the open scenario's own file with the system default, or show it
-/// in its folder. The check in [`openable`] keeps a stray path in a view from reaching the
-/// shell.
+/// Open a game-data script file or the open scenario's own file with the system default, or
+/// show it in its folder. The check in [`openable`] keeps a stray path in a view, or a program,
+/// from reaching the shell.
 #[tauri::command]
-pub fn open_script<R: Runtime>(
+pub async fn open_script<R: Runtime>(
     app: AppHandle<R>,
     path: String,
     reveal: bool,
 ) -> Result<(), SgfError> {
-    let file = openable(&app, &path)?;
-    let result = match reveal {
+    let file = openable(&app, path).await?;
+    tauri::async_runtime::spawn_blocking(move || match reveal {
         true => tauri_plugin_opener::reveal_item_in_dir(&file),
         false => tauri_plugin_opener::open_path(&file, None::<&str>),
-    };
-    result.map_err(io_error)
+    })
+    .await
+    .map_err(io_error)?
+    .map_err(io_error)
 }
 
-/// The editors found on this machine, looked for once a run off the UI thread, and whether
-/// Steam replaces the file at `path` when the game or its mod updates.
+/// The editors found on this machine, looked for once a run off the UI thread, the program
+/// picked for Other…, and whether Steam replaces the file at `path` when it updates.
 #[tauri::command]
 pub async fn editor_choices<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<EditorChoices, SgfError> {
-    let install = app
-        .state::<GameDataState>()
-        .loaded()
-        .map(|gd| gd.layout.install.clone());
-    let editors = found_editors().await;
-    Ok(EditorChoices {
-        editors: editors.iter().map(|editor| editor.view.clone()).collect(),
+    let install = install_dir(&app);
+    let store = picked_program_file(&app);
+    tauri::async_runtime::spawn_blocking(move || EditorChoices {
+        editors: editors::found()
+            .iter()
+            .map(|editor| editor.view.clone())
+            .collect(),
+        other: store
+            .as_deref()
+            .and_then(editors::picked_program)
+            .map(|program| editors::program_name(&program)),
         steam_replaces: editors::steam_replaces(Path::new(&path), install.as_deref()),
     })
+    .await
+    .map_err(io_error)
+}
+
+/// Ask for the program Other… opens files with in the system's file dialog, and keep it in the
+/// app's config folder. Answers with its name; `None` when the dialog was cancelled.
+#[tauri::command]
+pub async fn choose_editor_program<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Option<String>, SgfError> {
+    let store = picked_program_file(&app)
+        .ok_or_else(|| SgfError::new(ErrorKind::Io, "The app has no settings folder"))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .set_title("Choose the editor")
+            .blocking_pick_file()
+        else {
+            return Ok(None);
+        };
+        let program = picked.into_path().map_err(io_error)?;
+        editors::keep_program(&store, &program).map_err(io_error)?;
+        Ok(Some(editors::program_name(&program)))
+    })
+    .await
+    .map_err(io_error)?
 }
 
 /// Open a file [`open_script`] would open in `editor`, at `line` or at its top without one.
-/// An editor that cannot be started leaves the file to the system default, and the answer
+/// Other… opens it with the program [`choose_editor_program`] kept, and is refused before one
+/// is. An editor that cannot be started leaves the file to the system default, and the answer
 /// says so.
 #[tauri::command]
 pub async fn open_in_editor<R: Runtime>(
@@ -145,50 +180,82 @@ pub async fn open_in_editor<R: Runtime>(
     line: Option<u32>,
     editor: EditorPick,
 ) -> Result<OpenedFile, SgfError> {
-    let file = openable(&app, &path)?;
-    let found = found_editors().await;
-    let started = editors::launch_for(&editor, found, &file, line)
-        .is_some_and(|launch| editors::start(&launch).is_ok());
-    if !started {
-        tauri_plugin_opener::open_path(&file, None::<&str>).map_err(io_error)?;
-    }
-    Ok(OpenedFile {
-        fell_back: !started && editor != EditorPick::SystemDefault,
+    let file = openable(&app, path).await?;
+    let install = install_dir(&app);
+    let store = picked_program_file(&app);
+    tauri::async_runtime::spawn_blocking(move || {
+        let picked = match editor {
+            EditorPick::Other { .. } => Some(
+                store
+                    .as_deref()
+                    .and_then(editors::picked_program)
+                    .ok_or_else(|| {
+                        SgfError::new(ErrorKind::NotFound, "Choose a program for Other… first")
+                    })?,
+            ),
+            _ => None,
+        };
+        let started =
+            editors::launch_for(&editor, editors::found(), picked.as_deref(), &file, line)
+                .is_some_and(|launch| editors::start(&launch).is_ok());
+        if !started {
+            tauri_plugin_opener::open_path(&file, None::<&str>).map_err(io_error)?;
+        }
+        Ok(OpenedFile {
+            fell_back: !started && editor != EditorPick::SystemDefault,
+            steam_replaces: editors::steam_replaces(&file, install.as_deref()),
+        })
+    })
+    .await
+    .map_err(io_error)?
+}
+
+fn install_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    app.state::<GameDataState>()
+        .loaded()
+        .map(|gd| gd.layout.install.clone())
+}
+
+fn picked_program_file<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    app.state::<PickedProgramFile>().get().or_else(|| {
+        let dir = app.path().app_config_dir().ok()?;
+        Some(dir.join(editors::PICKED_PROGRAM_FILE))
     })
 }
 
-async fn found_editors() -> &'static [Editor] {
-    tauri::async_runtime::spawn_blocking(editors::found)
-        .await
-        .unwrap_or(&[])
-}
-
-/// `path`, when it is a file the app opens for the user: one of the loaded game data's, or the
-/// open scenario's own. A save is never one: its gamestate is zipped.
-fn openable<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<PathBuf, SgfError> {
-    let file = PathBuf::from(path);
-    if is_open_scenario(app, &file) {
-        return Ok(file);
-    }
-    let Some(gd) = app.state::<GameDataState>().loaded() else {
-        return Err(SgfError::no_game_data("open a script"));
-    };
-    if !gd.layout.contains(&file) {
-        return Err(SgfError::new(
-            ErrorKind::NotFound,
-            format!("{path} is not a file of the loaded game data or the open scenario"),
-        ));
-    }
-    Ok(file)
-}
-
-fn is_open_scenario<R: Runtime>(app: &AppHandle<R>, file: &Path) -> bool {
-    let state = app.state::<AppState>();
-    let session = relock(&state.0);
-    session.as_ref().is_some_and(|session| {
-        session.kind() == DocumentKind::Scenario
-            && session.path().is_some_and(|open| same_file(open, file))
+/// `path`, when it is a file the app opens for the user: the open scenario's own, or a script
+/// text file of the loaded game data. A save is never one, since its gamestate is zipped, and
+/// nor is a program or a shortcut under the game's folders, which the system would run.
+async fn openable<R: Runtime>(app: &AppHandle<R>, path: String) -> Result<PathBuf, SgfError> {
+    let gd = app.state::<GameDataState>().loaded();
+    with_session(app.clone(), move |session| {
+        let scenario = session
+            .as_ref()
+            .filter(|session| session.kind() == DocumentKind::Scenario)
+            .and_then(|session| session.path().map(Path::to_path_buf));
+        drop(session);
+        let file = PathBuf::from(&path);
+        if scenario.is_some_and(|open| same_file(&open, &file)) {
+            return Ok(file);
+        }
+        if !editors::is_script_text(&file) {
+            return Err(SgfError::new(
+                ErrorKind::NotFound,
+                format!("{path} is not a script file"),
+            ));
+        }
+        let Some(gd) = gd else {
+            return Err(SgfError::no_game_data("open a script"));
+        };
+        if !gd.layout.contains(&file) {
+            return Err(SgfError::new(
+                ErrorKind::NotFound,
+                format!("{path} is not a file of the loaded game data or the open scenario"),
+            ));
+        }
+        Ok(file)
     })
+    .await
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {

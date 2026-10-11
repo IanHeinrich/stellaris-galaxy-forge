@@ -403,7 +403,7 @@
   white-space: normal;
 }
 
-/* The editor chooser: a radio a row, and the program the user names under Other…. */
+/* The editor chooser: a radio a row, and the program the user picked under Other…. */
 .editor-chooser {
   display: flex;
   flex-direction: column;
@@ -434,7 +434,9 @@
   gap: 6px;
 }
 
-.editor-chooser-program input {
+.editor-chooser-program > span {
   flex: 1;
   min-width: 0;
+  align-self: center;
+  overflow-wrap: anywhere;
 }

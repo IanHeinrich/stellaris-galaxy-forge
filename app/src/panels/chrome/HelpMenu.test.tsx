@@ -60,11 +60,15 @@ describe("the Help menu's script editor setting", () => {
   });
 
   it("names the remembered editor, forgets it, and opens the chooser to change it", async () => {
-    vi.mocked(ipc.editorChoices).mockResolvedValueOnce({ editors: [], steam_replaces: false });
+    vi.mocked(ipc.editorChoices).mockResolvedValueOnce({
+      editors: [],
+      other: null,
+      steam_replaces: false,
+    });
     useScriptEditorStore.setState({
       choice: { pick: { kind: "found", id: "vscode" }, name: "VS Code", remember: true },
     });
-    expect(renderToStaticMarkup(<HelpMenuItems dismiss={dismiss} />)).toContain("Open in VS Code");
+    expect(renderToStaticMarkup(<HelpMenuItems dismiss={dismiss} />)).toContain("Opens in VS Code");
 
     item("Forget editor").props.onClick();
     expect(useScriptEditorStore.getState().choice).toBeNull();

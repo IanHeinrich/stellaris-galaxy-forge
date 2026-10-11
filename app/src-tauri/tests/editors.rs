@@ -6,13 +6,14 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde_json::json;
-use sgf_app_lib::editors::{self, EditorPick, Places, Platform};
-use sgf_core::views::ErrorKind;
-use tauri::WebviewWindow;
+use serde_json::{Value, json};
+use sgf_app_lib::editors::{self, EditorPick, PickedProgramFile, Places, Platform};
+use sgf_app_lib::state::GameDataState;
+use sgf_core::views::{ErrorKind, SgfError};
 use tauri::test::MockRuntime;
+use tauri::{Manager, WebviewWindow};
 
-use crate::common::{self, SAMPLE, invoke, kind, webview};
+use crate::common::{self, SAMPLE, SCENARIO, invoke, kind, open, webview};
 
 /// Empty files at each of `rels` below `root`, as the programs an install leaves.
 fn programs(root: &Path, rels: &[&str]) {
@@ -168,32 +169,35 @@ fn the_editors_a_linux_machine_has_are_found_on_its_path() {
 }
 
 #[test]
-fn a_program_the_user_names_takes_its_arguments_with_the_file_and_line_put_in() {
+fn the_picked_program_takes_its_arguments_with_the_file_and_line_put_in() {
     let file = Path::new("/mods/my mod/common/x.txt");
-    let other = |program: &str, pattern: &str, line: Option<u32>| {
+    let program = Path::new(r"C:\Tools\ed.exe");
+    let other = |pattern: &str, picked: Option<&Path>, line: Option<u32>| {
         let pick = EditorPick::Other {
-            program: program.to_owned(),
             args: pattern.to_owned(),
         };
-        editors::launch_for(&pick, &[], file, line).expect("a launch")
+        editors::launch_for(&pick, &[], picked, file, line)
     };
-    let launch = other(
-        r#""C:\Tools\ed.exe""#,
-        r#"--goto "{file}:{line}" -w"#,
-        Some(7),
-    );
-    assert_eq!(launch.program, PathBuf::from(r"C:\Tools\ed.exe"));
+    let launch = other(r#"--goto "{file}:{line}" -w"#, Some(program), Some(7)).expect("a launch");
+    assert_eq!(launch.program, program);
     assert_eq!(
         launch.args,
         args(&["--goto", "/mods/my mod/common/x.txt:7", "-w"])
     );
+    assert!(
+        !launch.no_console,
+        "a program the user picked may need its console"
+    );
     assert_eq!(
-        other("ed", "+{line}", None).args,
+        other("+{line}", Some(program), None)
+            .expect("a launch")
+            .args,
         args(&["+1", "/mods/my mod/common/x.txt"]),
         "the file goes last when the pattern does not place it, at line 1 without a line"
     );
+    assert_eq!(other("{file}", None, Some(7)), None, "no program picked");
     assert_eq!(
-        editors::launch_for(&EditorPick::SystemDefault, &[], file, Some(7)),
+        editors::launch_for(&EditorPick::SystemDefault, &[], None, file, Some(7)),
         None
     );
     assert_eq!(
@@ -202,11 +206,29 @@ fn a_program_the_user_names_takes_its_arguments_with_the_file_and_line_put_in() 
                 id: "vscode".to_owned()
             },
             &[],
+            None,
             file,
             Some(7)
         ),
         None,
         "an editor no longer found falls to the system default"
+    );
+}
+
+#[test]
+fn the_picked_program_is_kept_in_a_file_and_named_for_its_file() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let store = dir.path().join("config/editor.json");
+    assert_eq!(editors::picked_program(&store), None);
+    let program = dir.path().join("Tools/my editor.exe");
+    editors::keep_program(&store, &program).expect("kept");
+    assert_eq!(editors::picked_program(&store), Some(program.clone()));
+    assert_eq!(editors::program_name(&program), "my editor.exe");
+    fs::write(&store, "not json").expect("written");
+    assert_eq!(
+        editors::picked_program(&store),
+        None,
+        "an unreadable file is no pick"
     );
 }
 
@@ -225,29 +247,74 @@ fn steam_replaces_the_games_files_and_workshop_downloads_but_not_a_local_mod() {
     )));
 }
 
-/// The open commands refuse a file that is neither game data nor the open scenario before any
-/// program is looked for.
-#[test]
-fn a_file_outside_the_game_data_and_the_open_scenario_is_not_opened_in_an_editor() {
-    let w = webview();
-    let open = |w: &WebviewWindow<MockRuntime>| {
-        invoke::<()>(
-            w,
-            "open_in_editor",
-            json!({ "path": SAMPLE, "line": 3, "editor": { "kind": "system_default" } }),
-        )
+fn opened(w: &WebviewWindow<MockRuntime>, command: &str, path: &str) -> Result<Value, SgfError> {
+    let args = match command {
+        "open_script" => json!({ "path": path, "reveal": false }),
+        _ => json!({ "path": path, "line": 3, "editor": { "kind": "system_default" } }),
     };
-    assert_eq!(
-        kind(open(&w)),
-        ErrorKind::Op,
-        "no game data, no script index"
-    );
-    let Some((w, _)) = common::with_game_data(SAMPLE) else {
+    invoke::<Value>(w, command, args)
+}
+
+/// Both open commands refuse a file that is not a script text file of the game data or the open
+/// scenario, before anything is handed to the system: a save, a program, a script or a
+/// shortcut would be run or unpacked.
+#[test]
+fn a_program_a_shortcut_or_a_save_is_not_opened() {
+    let w = webview();
+    for command in ["open_script", "open_in_editor"] {
+        for path in [
+            SAMPLE,
+            "C:/Steam/steamapps/common/Stellaris/stellaris.exe",
+            "C:/Users/me/Documents/mod/mine/run.bat",
+            "C:/Users/me/Documents/mod/mine/Stellaris.lnk",
+            "C:/Users/me/Documents/mod/mine/page.url",
+        ] {
+            assert_eq!(
+                kind(opened(&w, command, path)),
+                ErrorKind::NotFound,
+                "{command} {path}"
+            );
+        }
+        assert_eq!(
+            kind(opened(&w, command, SCENARIO)),
+            ErrorKind::Op,
+            "{command}: a script file, but no game data to hold it and no scenario open"
+        );
+    }
+    let Some(w) = common::game_data_webview() else {
         return;
     };
-    assert_eq!(
-        kind(open(&w)),
-        ErrorKind::NotFound,
-        "a save is not a file the app opens"
-    );
+    let gd = w
+        .app_handle()
+        .state::<GameDataState>()
+        .loaded()
+        .expect("game data");
+    let exe = gd.layout.install.join("stellaris.exe");
+    for command in ["open_script", "open_in_editor"] {
+        assert_eq!(
+            kind(opened(&w, command, &exe.display().to_string())),
+            ErrorKind::NotFound,
+            "{command}: the game's own program"
+        );
+    }
+}
+
+/// Other… opens files only with the program picked in the shell's own file dialog: before one
+/// is picked, it is refused rather than left to the system default.
+#[test]
+fn other_is_refused_until_a_program_is_picked() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let w = webview();
+    w.app_handle()
+        .state::<PickedProgramFile>()
+        .point_at(dir.path().join("editor.json"));
+    open(&w, SCENARIO);
+    let refused = invoke::<Value>(
+        &w,
+        "open_in_editor",
+        json!({ "path": SCENARIO, "line": 3, "editor": { "kind": "other", "args": "{file}" } }),
+    )
+    .expect_err("no program picked");
+    assert_eq!(refused.kind, ErrorKind::NotFound);
+    assert_eq!(refused.message, "Choose a program for Other… first");
 }

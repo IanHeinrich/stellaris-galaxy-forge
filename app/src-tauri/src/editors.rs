@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -30,9 +30,9 @@ pub enum EditorPick {
     Found { id: String },
     /// Whatever the system opens the file with.
     SystemDefault,
-    /// A program the user named, and its arguments, where `{file}` is the file and `{line}`
-    /// the line.
-    Other { program: String, args: String },
+    /// The program the user picked in the shell's file dialog, with these arguments, where
+    /// `{file}` is the file and `{line}` the line.
+    Other { args: String },
 }
 
 /// What the chooser offers for one file.
@@ -41,6 +41,8 @@ pub enum EditorPick {
 pub struct EditorChoices {
     /// The editors found, in the order modders use them most.
     pub editors: Vec<EditorView>,
+    /// The name of the program picked for Other…; `None` until one is picked.
+    pub other: Option<String>,
     /// The file is the game's own or a Workshop mod's, which Steam replaces when it updates.
     pub steam_replaces: bool,
 }
@@ -51,6 +53,23 @@ pub struct EditorChoices {
 pub struct OpenedFile {
     /// The editor asked for could not be started, so the system default opened the file.
     pub fell_back: bool,
+    /// The file is the game's own or a Workshop mod's, which Steam replaces when it updates.
+    pub steam_replaces: bool,
+}
+
+/// The extensions of the text files the app opens: those the game-data reader reads, and the
+/// interface and name-list files beside them. None of them runs when the system opens it.
+const SCRIPT_EXTENSIONS: [&str; 6] = ["txt", "yml", "gfx", "asset", "gui", "csv"];
+
+/// `file` is a script text file, by its extension.
+pub fn is_script_text(file: &Path) -> bool {
+    file.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            SCRIPT_EXTENSIONS
+                .iter()
+                .any(|known| ext.eq_ignore_ascii_case(known))
+        })
 }
 
 /// The operating system whose places and program names detection uses.
@@ -128,18 +147,38 @@ impl Places {
     }
 }
 
-/// The program `name`'s App Paths entry, read with `reg.exe`: the value's type is the one word
-/// of its line that does not depend on the system's language.
+/// The program `name`'s App Paths entry, exported by `reg.exe` to a file: an export is written
+/// in UTF-16, where `reg query` prints in the console's code page and garbles a path outside it.
 fn app_path(name: &str) -> Option<PathBuf> {
     let key = format!(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{name}");
+    let export = std::env::temp_dir().join(format!("sgf-app-path-{}.reg", std::process::id()));
     let mut command = Command::new("reg");
-    command.args(["query", &key, "/ve"]);
+    command.arg("export").arg(&key).arg(&export).arg("/y");
     no_console(&mut command);
-    let out = command.output().ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    let value = text.lines().find_map(|line| line.split_once("REG_SZ"))?.1;
-    let value = value.trim().trim_matches('"');
-    (!value.is_empty()).then(|| PathBuf::from(value))
+    let exported = command.output().is_ok_and(|out| out.status.success());
+    let bytes = std::fs::read(&export).ok();
+    let _ = std::fs::remove_file(&export);
+    default_value(&utf16(&bytes.filter(|_| exported)?)).map(PathBuf::from)
+}
+
+fn utf16(bytes: &[u8]) -> String {
+    let units: Vec<u16> = bytes
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| u16::from_le_bytes(*pair))
+        .collect();
+    String::from_utf16_lossy(&units)
+}
+
+/// The key's default value in a `.reg` export: the `@="…"` line, its backslashes unescaped.
+fn default_value(export: &str) -> Option<String> {
+    let line = export
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("@="))?;
+    let value = line.strip_prefix('"')?.strip_suffix('"')?;
+    let value = value.replace(r"\\", r"\").replace(r#"\""#, "\"");
+    (!value.is_empty()).then_some(value)
 }
 
 #[cfg(windows)]
@@ -344,6 +383,9 @@ pub struct Editor {
 pub struct Launch {
     pub program: PathBuf,
     pub args: Vec<OsString>,
+    /// Started without a console window: a found editor's command-line helper, such as
+    /// `subl.exe`, would open one. A program the user picked may need its console.
+    pub no_console: bool,
 }
 
 impl Editor {
@@ -352,6 +394,7 @@ impl Editor {
         Launch {
             program: self.program.clone(),
             args: line_args(self.args, file, line),
+            no_console: true,
         }
     }
 }
@@ -470,11 +513,12 @@ pub fn found() -> &'static [Editor] {
     })
 }
 
-/// How `pick` opens `file` at `line`: `None` for the system default, and for an editor `found`
-/// no longer holds.
+/// How `pick` opens `file` at `line`, `picked` the program picked for Other…: `None` for the
+/// system default, for an editor `found` no longer holds, and for Other… with no program.
 pub fn launch_for(
     pick: &EditorPick,
     found: &[Editor],
+    picked: Option<&Path>,
     file: &Path,
     line: Option<u32>,
 ) -> Option<Launch> {
@@ -484,14 +528,14 @@ pub fn launch_for(
             .find(|editor| editor.view.id == *id)
             .map(|editor| editor.launch(file, line)),
         EditorPick::SystemDefault => None,
-        EditorPick::Other { program, args } => Some(other(program, args, file, line)),
+        EditorPick::Other { args } => picked.map(|program| other(program, args, file, line)),
     }
 }
 
-/// The program the user named and its arguments: `args` split at spaces, a part in double
+/// The program the user picked and its arguments: `args` split at spaces, a part in double
 /// quotes kept whole, `{file}` and `{line}` put in, the line 1 without one. The file goes last
 /// when `args` does not place it.
-fn other(program: &str, args: &str, file: &Path, line: Option<u32>) -> Launch {
+fn other(program: &Path, args: &str, file: &Path, line: Option<u32>) -> Launch {
     let line = line.unwrap_or(1).to_string();
     let parts = split_args(args);
     let mut out: Vec<OsString> = parts
@@ -502,8 +546,9 @@ fn other(program: &str, args: &str, file: &Path, line: Option<u32>) -> Launch {
         out.push(file.as_os_str().to_owned());
     }
     Launch {
-        program: PathBuf::from(program.trim().trim_matches('"')),
+        program: program.to_path_buf(),
         args: out,
+        no_console: false,
     }
 }
 
@@ -547,12 +592,69 @@ fn put_in(part: &str, file: &OsStr, line: &str) -> OsString {
     out
 }
 
-/// Start `launch` without waiting for the program to close.
+/// Start `launch` without waiting for the program to close. Windows ignores the no-console flag
+/// for a program that is not a console program, so a GUI editor's window still shows.
 pub fn start(launch: &Launch) -> std::io::Result<()> {
-    let mut child = Command::new(&launch.program).args(&launch.args).spawn()?;
+    let mut command = Command::new(&launch.program);
+    command.args(&launch.args);
+    if launch.no_console {
+        no_console(&mut command);
+    }
+    let mut child = command.spawn()?;
     std::thread::spawn(move || child.wait());
     Ok(())
 }
+
+/// The program picked for Other…, kept in the JSON file `store`; `None` when none was picked,
+/// or the file is unreadable.
+pub fn picked_program(store: &Path) -> Option<PathBuf> {
+    let text = std::fs::read_to_string(store).ok()?;
+    let picked: Picked = serde_json::from_str(&text).ok()?;
+    Some(picked.program)
+}
+
+/// Keeps `program` as the one picked for Other… in the JSON file `store`.
+pub fn keep_program(store: &Path, program: &Path) -> std::io::Result<()> {
+    if let Some(dir) = store.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let picked = Picked {
+        program: program.to_path_buf(),
+    };
+    let text = serde_json::to_string_pretty(&picked).map_err(std::io::Error::other)?;
+    std::fs::write(store, text)
+}
+
+/// What a button calls `program`: its file name.
+pub fn program_name(program: &Path) -> String {
+    program.file_name().map_or_else(
+        || program.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    )
+}
+
+#[derive(Serialize, Deserialize)]
+struct Picked {
+    program: PathBuf,
+}
+
+/// The file the program picked for Other… is kept in: `editor.json` in the app's config
+/// folder, unless a test points it elsewhere.
+#[derive(Default)]
+pub struct PickedProgramFile(Mutex<Option<PathBuf>>);
+
+impl PickedProgramFile {
+    pub fn point_at(&self, store: PathBuf) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(store);
+    }
+
+    pub fn get(&self) -> Option<PathBuf> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+}
+
+/// The name of the file in the app's config folder that [`PickedProgramFile`] defaults to.
+pub const PICKED_PROGRAM_FILE: &str = "editor.json";
 
 /// Steam replaces `file` when the game or a mod updates: it is under the game's `install`, or
 /// in a Workshop download.

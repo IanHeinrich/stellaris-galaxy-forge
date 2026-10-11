@@ -7,4 +7,8 @@ export type OpenedFile = {
 /**
  * The editor asked for could not be started, so the system default opened the file.
  */
-fell_back: boolean, };
+fell_back: boolean, 
+/**
+ * The file is the game's own or a Workshop mod's, which Steam replaces when it updates.
+ */
+steam_replaces: boolean, };

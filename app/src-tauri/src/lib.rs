@@ -18,6 +18,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(watch::WatchState::default())
         .manage(watch::document::DocumentWatchState::default())
         .manage(state::UpdateState::default())
+        .manage(editors::PickedProgramFile::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::save_dirs,
@@ -81,6 +82,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::open_script,
             commands::editor_choices,
             commands::open_in_editor,
+            commands::choose_editor_program,
             commands::open_url,
             commands::paint_mod,
             commands::workshop_links,

@@ -314,10 +314,10 @@ fn a_link_or_a_file_outside_the_apps_lists_is_not_opened() {
         kind(invoke::<()>(
             &w,
             "open_script",
-            json!({ "path": SAMPLE, "reveal": false })
+            json!({ "path": common::SCENARIO, "reveal": false })
         )),
         ErrorKind::Op,
-        "no game data, no script index"
+        "no game data, no script index, and no scenario open"
     );
 
     let Some((w, _)) = common::with_game_data(SAMPLE) else {

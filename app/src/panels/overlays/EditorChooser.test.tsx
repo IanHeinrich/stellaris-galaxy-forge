@@ -14,6 +14,7 @@ const FOUND: EditorChoices = {
     { id: "vscode", name: "VS Code" },
     { id: "notepad_plus_plus", name: "Notepad++" },
   ],
+  other: null,
   steam_replaces: false,
 };
 
@@ -26,6 +27,7 @@ function html(props: Partial<ChooserBodyProps>): string {
       choices={FOUND}
       last={null}
       onChoose={noop}
+      onBrowse={noop}
       onCancel={noop}
       {...props}
     />,
@@ -67,32 +69,45 @@ describe("the editor chooser", () => {
     expect(markup).toMatch(/<input type="checkbox"\/><span>Remember my choice<\/span>/);
   });
 
-  it("says once that Steam replaces a file of the game or a Workshop mod", () => {
+  it("says that Steam replaces a file of the game or a Workshop mod", () => {
     const markup = html({ choices: { ...FOUND, steam_replaces: true } });
     expect(markup).toContain(
       escaped(
-        "Steam replaces this file when the game or the mod updates, so changes you make here are lost.",
+        "Steam replaces this file when the game or the mod updates, so your changes to it are lost.",
       ),
     );
   });
 
   it("offers the system default and a program of one's own when no editor is found", () => {
-    expect(radios(html({ choices: { editors: [], steam_replaces: false } }))).toEqual({
+    expect(radios(html({ choices: { editors: [], other: null, steam_replaces: false } }))).toEqual({
       labels: ["System default", "Other…"],
       checked: "System default",
     });
   });
 
-  it("asks for a program and its arguments under Other…, and saves without a file from the Help menu", () => {
+  it("names the program picked under Other…, and saves without a file from the Help menu", () => {
     const last: EditorChoice = {
-      pick: { kind: "other", program: "C:/Tools/ed.exe", args: "-l {line} {file}" },
+      pick: { kind: "other", args: "-l {line} {file}" },
       name: "ed.exe",
       remember: true,
     };
-    const markup = html({ last, target: null });
+    const markup = html({ last, target: null, choices: { ...FOUND, other: "ed.exe" } });
     expect(radios(markup).checked).toBe("Other…");
-    expect(markup).toContain('value="C:/Tools/ed.exe"');
+    expect(shown(markup)).toContain("ed.exe Browse…");
+    expect(markup).not.toContain('type="text" value="ed.exe"');
     expect(markup).toContain('value="-l {line} {file}"');
-    expect(markup).toContain(">Save<");
+    expect(markup).toMatch(/<button type="submit"[^>]*>Save</);
+    expect(markup).not.toMatch(/<button type="submit"[^>]*disabled/);
+  });
+
+  it("cannot open with Other… before a program is picked", () => {
+    const last: EditorChoice = {
+      pick: { kind: "other", args: "{file}" },
+      name: null,
+      remember: true,
+    };
+    const markup = html({ last });
+    expect(shown(markup)).toContain("No program chosen yet Browse…");
+    expect(markup).toMatch(/<button type="submit"[^>]*disabled/);
   });
 });

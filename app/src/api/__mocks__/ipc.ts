@@ -74,6 +74,7 @@ export const paintMod = command("paintMod");
 export const openScript = command("openScript");
 export const editorChoices = command("editorChoices");
 export const openInEditor = command("openInEditor");
+export const chooseEditorProgram = command("chooseEditorProgram");
 export const openUrl = command("openUrl");
 export const workshopLinks = command("workshopLinks");
 export const getNames = command("getNames");

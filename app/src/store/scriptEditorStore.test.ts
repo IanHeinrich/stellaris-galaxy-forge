@@ -20,6 +20,7 @@ import {
 const mocked = {
   editorChoices: vi.mocked(ipc.editorChoices),
   openInEditor: vi.mocked(ipc.openInEditor),
+  chooseEditorProgram: vi.mocked(ipc.chooseEditorProgram),
 };
 
 const FILE = "C:/Steam/steamapps/common/Stellaris/common/solar_system_initializers/sol.txt";
@@ -31,6 +32,7 @@ const FOUND: EditorChoices = {
     { id: "vscode", name: "VS Code" },
     { id: "notepad_plus_plus", name: "Notepad++" },
   ],
+  other: null,
   steam_replaces: true,
 };
 
@@ -44,7 +46,7 @@ beforeEach(() => {
   useFileSessionStore.setState({ ...useFileSessionStore.getInitialState() });
   useScriptEditorStore.setState({ ...useScriptEditorStore.getInitialState() });
   mocked.editorChoices.mockResolvedValue(FOUND);
-  mocked.openInEditor.mockResolvedValue({ fell_back: false });
+  mocked.openInEditor.mockResolvedValue({ fell_back: false, steam_replaces: false });
 });
 
 afterEach(() => {
@@ -104,11 +106,33 @@ describe("a remembered editor", () => {
     useScriptEditorStore.setState({
       choice: { pick: VS_CODE, name: "VS Code", remember: true },
     });
-    mocked.openInEditor.mockResolvedValueOnce({ fell_back: true });
+    mocked.openInEditor.mockResolvedValueOnce({ fell_back: true, steam_replaces: false });
 
     await openInEditor({ file: FILE, line: 3 });
     expect(useFileSessionStore.getState().notice).toBe(
       "VS Code didn't start, so the file opened in your default program.",
+    );
+  });
+
+  it("says in the status bar on every open that Steam replaces a file of the game or a Workshop mod", async () => {
+    useScriptEditorStore.setState({
+      choice: { pick: VS_CODE, name: "VS Code", remember: true },
+    });
+    mocked.openInEditor.mockResolvedValue({ fell_back: false, steam_replaces: true });
+    const steam =
+      "Steam replaces this file when the game or the mod updates, so your changes to it are lost.";
+
+    await openInEditor({ file: FILE, line: 3 });
+    expect(useFileSessionStore.getState().notice).toBe(steam);
+
+    useFileSessionStore.getState().setNotice(null);
+    await openInEditor({ file: FILE, line: 4 });
+    expect(useFileSessionStore.getState().notice).toBe(steam);
+
+    mocked.openInEditor.mockResolvedValueOnce({ fell_back: true, steam_replaces: true });
+    await openInEditor({ file: FILE, line: 5 });
+    expect(useFileSessionStore.getState().notice).toBe(
+      `VS Code didn't start, so the file opened in your default program. ${steam}`,
     );
   });
 
@@ -154,11 +178,14 @@ describe("the editor setting", () => {
     expect(state().chooser).toEqual({ target: null });
     expect(mocked.editorChoices).toHaveBeenCalledWith("");
 
-    await state().choose(
-      { kind: "other", program: "C:/Tools/ed.exe", args: "{file}" },
-      "ed.exe",
-      true,
-    );
+    mocked.chooseEditorProgram.mockResolvedValueOnce(null);
+    await state().pickProgram();
+    expect(state().choices?.other).toBeNull();
+    mocked.chooseEditorProgram.mockResolvedValueOnce("ed.exe");
+    await state().pickProgram();
+    expect(state().choices?.other).toBe("ed.exe");
+
+    await state().choose({ kind: "other", args: "{file}" }, "ed.exe", true);
     expect(mocked.openInEditor).not.toHaveBeenCalled();
     expect(label()).toBe("Open in ed.exe");
   });

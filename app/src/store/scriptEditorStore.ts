@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as ipc from "../api/ipc";
 import type { EditorChoices } from "../generated/EditorChoices";
 import type { EditorPick } from "../generated/EditorPick";
-import { fellBackNotice, openLabel, SAVE_TO_OPEN_AT_LINE } from "../lib/editorCopy";
+import { fellBackNotice, openLabel, SAVE_TO_OPEN_AT_LINE, STEAM_REPLACES } from "../lib/editorCopy";
 import { normalise } from "../lib/paths";
 import { useFileSessionStore } from "./fileSessionStore";
 import { PREF_KEYS } from "./prefKeys";
@@ -35,6 +35,8 @@ export interface ScriptEditorState {
   openInEditor(target: OpenTarget): Promise<void>;
   /** The chooser's answer: keeps `pick` and opens the chooser's file with it. */
   choose(pick: EditorPick, name: string | null, remember: boolean): Promise<void>;
+  /** Has the shell ask for the program Other… opens files with, and names it in the chooser. */
+  pickProgram(): Promise<void>;
   cancel(): void;
   /** Shows the chooser to change the editor, without opening a file. */
   change(): Promise<void>;
@@ -51,7 +53,7 @@ function isEditorPick(value: unknown): value is EditorPick {
     case "system_default":
       return true;
     case "other":
-      return typeof pick.program === "string" && typeof pick.args === "string";
+      return typeof pick.args === "string";
     default:
       return false;
   }
@@ -80,7 +82,11 @@ async function launch(file: string, line: number | null, choice: EditorChoice): 
   const session = useFileSessionStore.getState();
   try {
     const opened = await ipc.openInEditor(file, line, choice.pick);
-    if (opened.fell_back) session.setNotice(fellBackNotice(choice.name));
+    const notes = [
+      ...(opened.fell_back ? [fellBackNotice(choice.name)] : []),
+      ...(opened.steam_replaces ? [STEAM_REPLACES] : []),
+    ];
+    if (notes.length > 0) session.setNotice(notes.join(" "));
   } catch (e) {
     session.setError(ipc.errorMessage(e));
   }
@@ -121,6 +127,18 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
       CHOICE.save(choice);
       set({ choice, chooser: null, choices: null });
       if (target !== null) await launch(target.file, target.line ?? null, choice);
+    },
+
+    async pickProgram() {
+      let name: string | null;
+      try {
+        name = await ipc.chooseEditorProgram();
+      } catch (e) {
+        useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        return;
+      }
+      const choices = get().choices;
+      if (name !== null && choices !== null) set({ choices: { ...choices, other: name } });
     },
 
     cancel() {

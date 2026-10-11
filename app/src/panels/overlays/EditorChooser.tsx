@@ -1,9 +1,9 @@
-import { open } from "@tauri-apps/plugin-dialog";
 import { useState, type FormEvent } from "react";
 import type { EditorChoices } from "../../generated/EditorChoices";
 import type { EditorPick } from "../../generated/EditorPick";
 import {
   ARGS_HINT,
+  NO_PROGRAM,
   CHOOSER_TITLE,
   OTHER_EDITOR,
   REMEMBER_CHOICE,
@@ -41,6 +41,7 @@ export function EditorChooser() {
   const last = useScriptEditorStore((s) => s.choice);
   const choose = useScriptEditorStore((s) => s.choose);
   const cancel = useScriptEditorStore((s) => s.cancel);
+  const pickProgram = useScriptEditorStore((s) => s.pickProgram);
   if (chooser === null) return null;
   return (
     <Dialog
@@ -60,6 +61,7 @@ export function EditorChooser() {
           choices={choices}
           last={last}
           onChoose={(pick, name, remember) => void choose(pick, name, remember)}
+          onBrowse={() => void pickProgram()}
           onCancel={cancel}
         />
       )}
@@ -73,29 +75,34 @@ export interface ChooserBodyProps {
   choices: EditorChoices;
   last: EditorChoice | null;
   onChoose(pick: EditorPick, name: string | null, remember: boolean): void;
+  /** Has the shell ask for the program Other… opens files with. */
+  onBrowse(): void;
   onCancel(): void;
 }
 
 /**
- * The editors found, most used by modders first, then the system default and a program of the
- * user's own, with the checkbox that keeps the pick: ticked unless the last pick was not kept.
+ * The editors found, most used by modders first, then the system default and the program the
+ * user picked in the shell's file dialog, with the checkbox that keeps the pick: ticked unless the
+ * last pick was not kept.
  */
-export function ChooserBody({ target, choices, last, onChoose, onCancel }: ChooserBodyProps) {
+export function ChooserBody({
+  target,
+  choices,
+  last,
+  onChoose,
+  onBrowse,
+  onCancel,
+}: ChooserBodyProps) {
   const [selected, setSelected] = useState(() => firstKey(choices, last));
-  const [program, setProgram] = useState(last?.pick.kind === "other" ? last.pick.program : "");
   const [args, setArgs] = useState(last?.pick.kind === "other" ? last.pick.args : "{file}");
   const [remember, setRemember] = useState(last?.remember ?? true);
   const other = selected === OTHER;
+  const program = choices.other;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (other) {
-      if (program.trim() === "") return;
-      onChoose(
-        { kind: "other", program: program.trim(), args },
-        fileName(program.trim()),
-        remember,
-      );
+      if (program !== null) onChoose({ kind: "other", args }, program, remember);
       return;
     }
     if (selected === SYSTEM) {
@@ -104,11 +111,6 @@ export function ChooserBody({ target, choices, last, onChoose, onCancel }: Choos
     }
     const editor = choices.editors.find((e) => `found:${e.id}` === selected);
     if (editor) onChoose({ kind: "found", id: editor.id }, editor.name, remember);
-  };
-
-  const browse = async () => {
-    const picked = await open({ directory: false, multiple: false, title: "Choose the editor" });
-    if (typeof picked === "string") setProgram(picked);
   };
 
   const radio = (key: string, label: string) => (
@@ -140,20 +142,12 @@ export function ChooserBody({ target, choices, last, onChoose, onCancel }: Choos
       </div>
       {other && (
         <div className="editor-chooser-other">
-          <label>
-            <span>Program</span>
-            <span className="editor-chooser-program">
-              <input
-                type="text"
-                value={program}
-                spellCheck={false}
-                onChange={(e) => setProgram(e.currentTarget.value)}
-              />
-              <button type="button" onClick={() => void browse()}>
-                Browse…
-              </button>
-            </span>
-          </label>
+          <span className="editor-chooser-program">
+            <span className={program === null ? "muted" : undefined}>{program ?? NO_PROGRAM}</span>
+            <button type="button" onClick={onBrowse}>
+              Browse…
+            </button>
+          </span>
           <label>
             <span>Arguments</span>
             <input
@@ -175,7 +169,7 @@ export function ChooserBody({ target, choices, last, onChoose, onCancel }: Choos
         <span>{REMEMBER_CHOICE}</span>
       </label>
       <div className="save-issues-actions">
-        <button type="submit" autoFocus disabled={other && program.trim() === ""}>
+        <button type="submit" autoFocus disabled={other && program === null}>
           {target === null ? "Save" : "Open"}
         </button>
         <button type="button" onClick={onCancel}>

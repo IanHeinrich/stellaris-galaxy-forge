@@ -68,19 +68,28 @@ export function paintMod(): Promise<PaintModView | null> {
   return invoke<PaintModView | null>("paint_mod");
 }
 
-/** Open a game-data file or the open scenario with the system default, or show it in its folder; refused for any other file. */
+/** Open a game-data script file or the open scenario with the system default, or show it in its folder; refused for any other file. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
 }
 
-/** The editors on this machine, found once a run, and whether Steam replaces `path` when it updates. */
+/** The editors on this machine, found once a run, the program picked for Other…, and whether Steam replaces `path` when it updates. */
 export function editorChoices(path: string): Promise<EditorChoices> {
   return invoke<EditorChoices>("editor_choices", { path });
 }
 
 /**
- * Open a file `openScript` would open in `editor`, at `line` or at its top when null; an editor
- * that cannot be started leaves it to the system default, and the answer says so.
+ * Ask for the program Other… opens files with in the system's file dialog, which the shell keeps;
+ * its name, or null when the dialog was cancelled.
+ */
+export function chooseEditorProgram(): Promise<string | null> {
+  return invoke<string | null>("choose_editor_program");
+}
+
+/**
+ * Open a file `openScript` would open in `editor`, at `line` or at its top when null. Other… needs a
+ * program from `chooseEditorProgram` first. An editor that cannot be started leaves the file to
+ * the system default, and the answer says so.
  */
 export function openInEditor(
   path: string,

@@ -65,9 +65,9 @@ in the header of each script snippet.
 The first time you click it, Galaxy Forge asks which editor to use. It
 lists the editors it finds on your computer: VS Code, VSCodium,
 Notepad++, Sublime Text, JetBrains IDEs and Kate. "System default" opens
-the file in the program Windows opens `.txt` files with. "Other…" takes a
-program and its arguments, where `{file}` is the file and `{line}` the
-line.
+the file in the program your computer opens `.txt` files with. For
+"Other…", click Browse… to pick the program, then type its arguments,
+where `{file}` is the file and `{line}` the line.
 
 With "Remember my choice" ticked, later files open straight away, and the
 button names the editor, such as "Open in VS Code". Untick it to choose
@@ -76,7 +76,8 @@ select "Change editor…" or "Forget editor".
 
 Files of the game and of Workshop mods open too, but Steam replaces them
 when the game or the mod updates, so changes you make there are lost.
-Copy the file into a mod of your own before you edit it.
+The chooser and the status bar say so each time you open one. Copy the
+file into a mod of your own before you edit it.
 
 While a scenario has unsaved edits, its file on disk doesn't match what
 you see, so the scenario's own file opens at the top. Save first to open

@@ -12,17 +12,20 @@ export const CHOOSER_TITLE = "Open with";
 /** The chooser's entry for whatever the system opens a file with. */
 export const SYSTEM_DEFAULT = "System default";
 
-/** The chooser's entry for a program the user names. */
+/** The chooser's entry for a program the user picks. */
 export const OTHER_EDITOR = "Other…";
 
 /** The chooser's checkbox, ticked by default. */
 export const REMEMBER_CHOICE = "Remember my choice";
 
-/** What the chooser says once for a file of the game or of a Workshop mod. */
+/** What the chooser and the status bar say for a file of the game or of a Workshop mod. */
 export const STEAM_REPLACES =
-  "Steam replaces this file when the game or the mod updates, so changes you make here are lost.";
+  "Steam replaces this file when the game or the mod updates, so your changes to it are lost.";
 
-/** The hint under the arguments of a program the user names. */
+/** What Other… says before a program is picked. */
+export const NO_PROGRAM = "No program chosen yet";
+
+/** The hint under the arguments of the program the user picked. */
 export const ARGS_HINT =
   "{file} is the file and {line} the line. Without {file}, the file goes last.";
 
@@ -41,5 +44,5 @@ export function editorSettingNote(
   choice: { name: string | null; remember: boolean } | null,
 ): string {
   if (choice === null || !choice.remember) return "Asks which editor to use";
-  return `Open in ${choice.name ?? "the system default"}`;
+  return `Opens in ${choice.name ?? "the system default"}`;
 }

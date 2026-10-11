@@ -3,4 +3,4 @@
 /**
  * The program a file is opened with.
  */
-export type EditorPick = { "kind": "found", id: string, } | { "kind": "system_default" } | { "kind": "other", program: string, args: string, };
+export type EditorPick = { "kind": "found", id: string, } | { "kind": "system_default" } | { "kind": "other", args: string, };
