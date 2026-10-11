@@ -106,6 +106,7 @@ save_keys! {
     GALAXY_RADIUS = "galaxy_radius",
     /// The global flag dated with the save's day one.
     GAME_STARTED = "game_started",
+    GRAPHICAL_CULTURE = "graphical_culture",
     GROUND_SUPPORT_STANCE = "ground_support_stance",
     GROWTH_STAGE = "growth_stage",
     GROWTH_STAGES = "growth_stages",

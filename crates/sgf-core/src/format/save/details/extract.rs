@@ -19,6 +19,7 @@ use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
 use crate::format::save::galaxy::starbases::fleet_owners;
 use crate::format::save::system_spec::BeltSpec;
+use crate::format::save::write::fleets;
 use crate::format::save::{dig_sites, read_spec};
 use crate::format::save::{entity_at, planet_statement, planet_statements, system_statement};
 use crate::overlay::Anchor;
@@ -106,6 +107,12 @@ pub struct RawStarbase {
     /// when the entry names no station.
     pub hull: f64,
     pub max_hull: f64,
+    /// Where the station stands, relative to the system's centre: the station fleet's
+    /// `movement_manager.coordinate`, reached as `station` → ship → `fleet`. `None` when
+    /// that fleet is gone or stands in another system.
+    pub at: Option<(f64, f64)>,
+    /// The `station` ship's `graphical_culture`.
+    pub culture: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -144,7 +151,7 @@ pub struct ShipSizeCount {
     pub count: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct MegastructureSummary {
     pub id: u32,
@@ -153,6 +160,12 @@ pub struct MegastructureSummary {
     pub owner: Option<u32>,
     /// The planet it orbits, when it orbits one.
     pub planet: Option<u32>,
+    /// `coordinate` x/y, relative to the system's centre. The game writes a row tied to a body
+    /// at that body's coordinate, and adds the type's `entity_offset` only where it draws it.
+    pub at: Option<(f64, f64)>,
+    /// The graphical culture its model is drawn in: the row's `graphical_culture`, else its
+    /// owner's; `None` when neither names one.
+    pub culture: Option<String>,
 }
 
 /// One `natural_wormholes` entry standing in the system: a wormhole, or a shroud tunnel.
@@ -189,6 +202,8 @@ pub(super) struct Countries {
     fleet_owner: HashMap<u32, u32>,
     /// Countries whose `type` is `primitive`.
     primitives: HashSet<u32>,
+    /// Country id → its `graphical_culture`.
+    cultures: HashMap<u32, String>,
 }
 
 pub(super) fn countries(raw: &[RawCountry]) -> Countries {
@@ -199,6 +214,10 @@ pub(super) fn countries(raw: &[RawCountry]) -> Countries {
             .iter()
             .filter(|c| c.country_type == "primitive")
             .map(|c| c.id)
+            .collect(),
+        cultures: raw
+            .iter()
+            .filter_map(|c| Some((c.id, c.graphical_culture.clone()?)))
             .collect(),
     }
 }
@@ -446,6 +465,7 @@ fn current_entity<'d>(
 pub(super) fn megastructures(
     index: &Index,
     src: &[u8],
+    countries: &Countries,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
     for entity in index.entities(keys::MEGASTRUCTURES) {
@@ -459,11 +479,17 @@ pub(super) fn megastructures(
         let Some(details) = mega.origin.and_then(|o| by_system.get_mut(&o)) else {
             continue;
         };
+        let culture = mega.graphical_culture.or_else(|| {
+            mega.owner
+                .and_then(|owner| countries.cultures.get(&owner).cloned())
+        });
         details.megastructures.push(MegastructureSummary {
             id,
             kind: mega.kind,
             owner: mega.owner,
             planet: mega.planet,
+            at: mega.at,
+            culture,
         });
     }
     Ok(())
@@ -595,11 +621,16 @@ pub(super) fn present(
                 .map(|entity| read::entity_node(entity, src, keys::SHIPS))
                 .transpose()?
                 .flatten();
-            let owner = ship
+            let fleet = ship
                 .as_ref()
-                .and_then(|s| read::scalar_u32(s, keys::FLEET, src))
+                .and_then(|s| read::scalar_u32(s, keys::FLEET, src));
+            let owner = fleet
                 .and_then(|fleet| countries.fleet_owner.get(&fleet).copied())
                 .or(system_owner);
+            let at = fleet
+                .and_then(|fleet| fleets::position(doc, fleet))
+                .filter(|&(origin, _)| origin == id)
+                .and_then(|(_, at)| at);
             let hull = ship
                 .as_ref()
                 .and_then(|s| facts::starbase::hull(s, src))
@@ -621,6 +652,11 @@ pub(super) fn present(
                 buildings: station.buildings.clone(),
                 hull: hull.hitpoints,
                 max_hull: hull.max_hitpoints,
+                at,
+                culture: ship
+                    .as_ref()
+                    .and_then(|s| read::scalar(s, keys::GRAPHICAL_CULTURE, src))
+                    .map(str::to_owned),
             });
         }
         for fleet in system.fleet_presence {

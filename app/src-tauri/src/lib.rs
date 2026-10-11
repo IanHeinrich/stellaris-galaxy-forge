@@ -105,6 +105,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_dig_site_choices,
             commands::get_planet_models,
             commands::get_starbase_levels,
+            commands::get_megastructure_types,
             commands::get_ship_sizes,
             commands::get_country_types,
             commands::get_resource_icons,

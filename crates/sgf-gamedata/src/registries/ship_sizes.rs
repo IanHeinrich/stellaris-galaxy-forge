@@ -12,6 +12,9 @@ pub struct ShipSizeDef {
     pub icon: Option<String>,
     /// The frame of the starbase icon sheet; `icon_frame = -1` means none.
     pub icon_frame: Option<u32>,
+    /// The `section_slots` names in file order: the first holds the hull's own section, as
+    /// `core` does on a starbase.
+    pub section_slots: Vec<String>,
 }
 
 impl FromDef for ShipSizeDef {
@@ -26,6 +29,18 @@ impl FromDef for ShipSizeDef {
                 .and_then(|s| s.parse::<i64>().ok())
                 .filter(|&n| n >= 0)
                 .and_then(|n| u32::try_from(n).ok()),
+            section_slots: def
+                .node
+                .find("section_slots", &def.src)
+                .map(|slots| {
+                    slots
+                        .children()
+                        .iter()
+                        .filter_map(|slot| slot.key_str(&def.src))
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
     }
 }

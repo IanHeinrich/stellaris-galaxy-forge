@@ -161,7 +161,7 @@ function armGameDataCommands(): void {
     { key: "relay_bypass", icon_frame: null },
   ]);
   mockedIpc.getStarbaseLevels.mockResolvedValue([
-    { key: "starbase_outpost", icon_frame: 1, empire_shield: false },
+    { key: "starbase_outpost", icon_frame: 1, empire_shield: false, station_entity: null },
   ]);
   mockedIpc.getShipSizes.mockResolvedValue([{ key: "corvette", icon: "ship_size_military_1" }]);
   mockedIpc.getResourceIcons.mockResolvedValue([

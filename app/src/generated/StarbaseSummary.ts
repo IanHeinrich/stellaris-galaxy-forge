@@ -18,4 +18,12 @@ shipyard: boolean,
 /**
  * The `station` ship's hull; both are zero when the entry names no station.
  */
-hull: number, max_hull: number, };
+hull: number, max_hull: number, 
+/**
+ * Where the station stands, relative to the system's centre; `None` in a scenario.
+ */
+at: [number, number] | null, 
+/**
+ * The `station` ship's `graphical_culture`; `None` in a scenario.
+ */
+culture: string | null, };

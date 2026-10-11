@@ -176,6 +176,7 @@ pub(crate) struct RawCountry {
     pub flags: Vec<String>,
     /// The fleets of `fleets_manager.owned_fleets`.
     pub owned_fleets: Vec<u32>,
+    pub graphical_culture: Option<String>,
 }
 
 /// Every `country` entity, in file order.
@@ -292,6 +293,7 @@ pub(crate) fn country(id: u32, node: &Node, src: &[u8]) -> RawCountry {
         preftl_age: scalar(node, keys::PREFTL_AGE, src).map(str::to_owned),
         flags,
         owned_fleets,
+        graphical_culture: scalar(node, keys::GRAPHICAL_CULTURE, src).map(str::to_owned),
     }
 }
 

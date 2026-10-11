@@ -279,6 +279,8 @@ fn megastructures_name_their_kind_owner_and_orbit() {
             kind: "ring_world_ruined".to_owned(),
             owner: Some(16777227),
             planet: None,
+            at: Some((45.20385, -0.00045)),
+            culture: Some("mammalian_01".to_owned()),
         }]
     );
     assert_eq!(raw(672).megastructures.len(), 3);

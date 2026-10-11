@@ -50,6 +50,8 @@ function starbase(id: number, level: string): StarbaseSummary {
     shipyard: false,
     hull: 0,
     max_hull: 0,
+    at: null,
+    culture: null,
   };
 }
 

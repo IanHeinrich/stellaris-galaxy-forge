@@ -1,6 +1,10 @@
 starbase_hut = {
 	icon_frame = 2
 	icon = ship_size_military_1
+	section_slots = {
+		"core" = { locator = "part1" }
+		"1" = { locator = "part2" }
+	}
 }
 
 starbase_roamer = {
