@@ -36,6 +36,7 @@ mod star_disc;
 
 pub use key::TextureKey;
 pub use lookups::{Lookups, StarBody};
+pub(crate) use model::Assets;
 pub use model::{ModelBounds, ModelPlacement};
 pub use star_disc::StarAtmosphere;
 
@@ -98,7 +99,10 @@ pub enum TextureError {
     NoDisc(String),
     #[error("planet model `{0}` has no surface map to draw as a disc")]
     NoModelDisc(String),
-    #[error("no `.asset` file defines the model `{0}` for that culture or `mammalian_01`")]
+    #[error(
+        "no `.asset` file defines the model `{0}` for that culture, the cultures it falls back \
+         to or `mammalian_01`"
+    )]
     NoModel(String),
     #[error("the model `{0}` has nothing to draw")]
     EmptyModel(String),
@@ -191,7 +195,19 @@ impl Textures {
     }
 
     pub fn load(&self, layout: &Layout, lookups: &Lookups<'_>, key: &str) -> TextureView {
-        match self.png(layout, lookups, key) {
+        self.load_with(layout, lookups, None, key)
+    }
+
+    /// [`Self::load`], a `model:` key reading `models` when given, else this cache's own
+    /// index of `layout`.
+    pub(crate) fn load_with(
+        &self,
+        layout: &Layout,
+        lookups: &Lookups<'_>,
+        models: Option<&Arc<Assets>>,
+        key: &str,
+    ) -> TextureView {
+        match self.png_with(layout, lookups, models, key) {
             Ok(png) => {
                 let (width, height) = png_size(&png);
                 TextureView {
@@ -215,8 +231,20 @@ impl Textures {
         lookups: &Lookups<'_>,
         key: &str,
     ) -> Result<Vec<u8>, TextureError> {
+        self.png_with(layout, lookups, None, key)
+    }
+
+    /// [`Self::png`], a `model:` key reading `models` when given, else this cache's own index
+    /// of `layout`.
+    pub(crate) fn png_with(
+        &self,
+        layout: &Layout,
+        lookups: &Lookups<'_>,
+        models: Option<&Arc<Assets>>,
+        key: &str,
+    ) -> Result<Vec<u8>, TextureError> {
         let key: TextureKey = key.parse()?;
-        let job = Job::plan(&key, layout, lookups, self)?;
+        let job = Job::plan(&key, layout, lookups, self, models)?;
         let cache_file = self.cache_dir.join(job.cache_name(&key));
         if let Ok(png) = fs::read(&cache_file) {
             renew(&cache_file);
@@ -332,6 +360,7 @@ impl Job {
         layout: &Layout,
         lookups: &Lookups<'_>,
         textures: &Textures,
+        models: Option<&Arc<Assets>>,
     ) -> Result<Self, TextureError> {
         let Lookups {
             sprites, colour, ..
@@ -340,8 +369,8 @@ impl Job {
             TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
             TextureKey::Model { culture, entity } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
-                textures.models(layout),
-                culture,
+                models.map_or_else(|| textures.models(layout), Arc::clone),
+                &(lookups.cultures)(culture),
                 entity,
             )?)),
             TextureKey::PlanetDisc { class } => {

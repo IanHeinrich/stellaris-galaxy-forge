@@ -83,6 +83,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::workshop_links,
             commands::get_system_scripts,
             commands::get_names,
+            commands::get_raw_names,
             commands::resolve_names,
             commands::get_star_classes,
             commands::get_generator_star_classes,
@@ -114,6 +115,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_map_font,
             commands::get_system_details,
             commands::get_system_roll,
+            commands::get_class_rolls,
             commands::check_for_update,
             commands::install_update,
         ])

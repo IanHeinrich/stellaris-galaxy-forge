@@ -1,48 +1,31 @@
 import type { SpawnStar } from "../../../../../generated/SpawnStar";
-import {
-  percent,
-  STAR_LIST_HINT,
-  starListSource,
-  starOdds,
-} from "../../../../../lib/details/spawnFacts";
-import { useGameDataStore } from "../../../../../store/gameDataStore";
-import { useNamed } from "../../../../useNamed";
-import { Icon } from "../../../../parts";
+import { starListSource } from "../../../../../lib/details/spawnFacts";
+import { OddsList } from "../../../entity/OddsBar";
 import { Section } from "../../../parts";
-import { Rolled } from "../../../states";
+import { Hinted, Rolled } from "../../../states";
+import { useStarOdds } from "./useStarOdds";
 
 type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
-/** One star class of the list, with its art and its share of the draw. */
-function StarOddsRow({ starClass, share }: { starClass: string; share: number | null }) {
-  const named = useNamed([starClass]);
-  const texture = useGameDataStore((s) => s.starClasses.get(starClass)?.texture_key);
-  return (
-    <div className="ins-prow static">
-      <Icon className="pi ghost" keys={texture ? [texture] : []} glyph="★" />
-      <span>
-        <span className="l1">{named(starClass)}</span>
-      </span>
-      <span className="rs">{share === null ? "" : percent(share)}</span>
-    </div>
-  );
+/** The star classes an `rl_` list draws a star from, likeliest first, each with its bar and odds. */
+export function StarOddsList({ star }: { star: RolledStar }) {
+  return <OddsList rows={useStarOdds(star)} />;
 }
 
 /** The star classes an `rl_` list draws the system's star from, likeliest first, with the odds the game's files give. */
 export function StarListSection({ star }: { star: RolledStar }) {
-  const odds = starOdds(star.members);
   return (
     <Section
       id="system.starList"
       title="Star class"
-      count={odds.length}
-      summary={<Rolled>rolled</Rolled>}
+      count={star.members.length}
+      summary={
+        <Hinted label="Star class" hint={starListSource(star.list)} focusable={false}>
+          <Rolled>rolled</Rolled>
+        </Hinted>
+      }
     >
-      <div className="muted ins-hint">{STAR_LIST_HINT}</div>
-      {odds.map((o) => (
-        <StarOddsRow key={o.key} starClass={o.key} share={o.share} />
-      ))}
-      <div className="muted ins-hint">{starListSource(star.list)}</div>
+      <StarOddsList star={star} />
     </Section>
   );
 }

@@ -13,15 +13,17 @@ import { useNamed } from "../../../useNamed";
 import { TextField } from "../../../EditField";
 import { openGameFile } from "../../../openGameFile";
 import { Properties, PropertyRow, Section } from "../../parts";
+import { Hinted } from "../../states";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
 import { StatedGroups, StatedRows } from "./scenario/InitializerFacts";
 import { useInitializerFile } from "./scenario/useInitializerFile";
 
-export const SEAT_INITIALIZER_HINT =
-  "An empire that spawns here brings its own starting system in place of this one. " +
-  "What this initializer spawns around it, like Sol's neighbours, still appears. " +
-  "If no empire lands here, it is used as written.";
+const SEAT_INITIALIZER_HINT = "An empire that spawns here brings its own starting system.";
+
+const SEAT_INITIALIZER_CARD =
+  "The empire's system replaces this one. What this initializer spawns around it, like Sol's " +
+  "neighbours, still appears. If no empire lands here, the initializer is used as written.";
 
 /** The initializer's name typed in, for when no game data is loaded to browse. */
 function InitializerField({ system }: { system: SystemNode }) {
@@ -141,11 +143,7 @@ export function InitializerSection({
         <div className="ins-init-head">
           <span className="mono ins-init-name">
             {system.initializer || (editable ? "Random (no initializer)" : "—")}
-            {unknown && (
-              <span className="ins-unknown">
-                {editable ? " (not in loaded game data)" : " (unknown to game data)"}
-              </span>
-            )}
+            {unknown && <span className="ins-unknown"> (not in your game data)</span>}
           </span>
           {editable && ready && (
             <button type="button" onClick={() => browseInitializers([system.id])}>
@@ -155,7 +153,13 @@ export function InitializerSection({
         </div>
         <SubLine system={system} file={file} />
         {editable && !ready && <InitializerField system={system} />}
-        {seat && <div className="muted ins-hint">{SEAT_INITIALIZER_HINT}</div>}
+        {seat && (
+          <div className="muted ins-hint">
+            <Hinted label="Spawn point" hint={SEAT_INITIALIZER_CARD}>
+              {SEAT_INITIALIZER_HINT}
+            </Hinted>
+          </div>
+        )}
         {rows && (
           <Properties>
             {countries.length > 0 && (

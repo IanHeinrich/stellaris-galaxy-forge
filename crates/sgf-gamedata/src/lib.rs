@@ -76,6 +76,7 @@ pub use registries::dig_site_types::DigSiteTypes;
 pub use registries::flags::Flags;
 pub use registries::galaxy_shapes::GalaxyShapes;
 pub use registries::gfx::Sprites;
+pub use registries::graphical_cultures::GraphicalCultures;
 pub use registries::megastructures::MegastructureTypes;
 pub use registries::planet_classes::PlanetClasses;
 pub use registries::planet_lists::PlanetLists;
@@ -143,6 +144,8 @@ pub struct GameData {
     pub section_templates: Arc<SectionTemplates>,
     /// `common/megastructures`: the model and placement of each megastructure type.
     pub megastructures: Arc<MegastructureTypes>,
+    /// `common/graphical_culture`: the culture each culture's models fall back to.
+    pub graphical_cultures: Arc<GraphicalCultures>,
     pub galaxy_shapes: Arc<GalaxyShapes>,
     pub galaxy_sizes: Arc<GalaxySizes>,
     /// `common/precursor_civilizations`: the star flags that mark each precursor's region.
@@ -160,8 +163,9 @@ pub struct GameData {
     discovery: Vec<Diagnostic>,
     /// What the generator makes of each layout, worked out once for these registries.
     eligibility: Arc<OnceLock<HashMap<String, Eligibility>>>,
-    /// What `gfx/models/planets` says about each entity's surface, read once for this layout.
-    surface_maps: Arc<OnceLock<textures::planet_disc::SurfaceMaps>>,
+    /// What the `.asset` and `.gfx` files of `gfx/models` say about each entity and model, read
+    /// once for this layout and lent to the texture cache.
+    models: Arc<textures::Assets>,
     /// The planet classes drawn from their icons alone, worked out once for this layout.
     flat_art: Arc<OnceLock<BTreeSet<String>>>,
     /// The planet classes drawn broken apart, worked out once for this layout.
@@ -356,6 +360,7 @@ impl GameData {
             &mut diagnostics,
         );
         let megastructures = registry::load(&layout, &vars, &mut diagnostics);
+        let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);
         let precursors = PrecursorCivilizations::load(&layout, &mut diagnostics);
@@ -367,9 +372,9 @@ impl GameData {
         let deposit_defines = DepositDefines::load(&define_files);
         let system_radii = registries::defines::system_radii(&define_files);
         let scripted_triggers = registry::load(&layout, &vars, &mut diagnostics);
-        let surface_maps = textures::planet_disc::surface_maps(&layout);
+        let models = textures::Assets::read(&layout);
         let planet_classes = planet_classes.marked(scripts.class_uses(), &planet_lists, |e| {
-            textures::planet_disc::draws_nothing(&surface_maps, e)
+            textures::planet_disc::draws_nothing(&models, e)
         });
 
         progress(Phase::Localisation);
@@ -407,6 +412,7 @@ impl GameData {
             ship_sizes: Arc::new(ship_sizes),
             section_templates: Arc::new(section_templates),
             megastructures: Arc::new(megastructures),
+            graphical_cultures: Arc::new(graphical_cultures),
             galaxy_shapes: Arc::new(galaxy_shapes),
             galaxy_sizes: Arc::new(galaxy_sizes),
             precursors: Arc::new(precursors),
@@ -418,7 +424,7 @@ impl GameData {
             diagnostics,
             discovery,
             eligibility: Arc::default(),
-            surface_maps: Arc::new(OnceLock::from(surface_maps)),
+            models: Arc::new(models),
             flat_art: Arc::default(),
             shattered: Arc::default(),
         }

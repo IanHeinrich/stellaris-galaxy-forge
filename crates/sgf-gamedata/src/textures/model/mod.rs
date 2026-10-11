@@ -15,7 +15,7 @@ use image::RgbaImage;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::{Input, TextureError, Textures, encode_png};
+use super::{Input, TextureError, encode_png};
 use crate::GameData;
 use crate::install::layers::Layout;
 use assets::{Placed, ROOT, Step};
@@ -115,11 +115,11 @@ impl ModelJob {
     pub(super) fn plan(
         layout: &Layout,
         assets: Arc<Assets>,
-        culture: &str,
+        cultures: &[String],
         entity: &str,
     ) -> Result<Self, TextureError> {
         let missing = || TextureError::NoModel(entity.to_owned());
-        let name = assets.entity_name(culture, entity).ok_or_else(missing)?;
+        let name = assets.entity_name(cultures, entity).ok_or_else(missing)?;
         let placed = assets.resolve(&name).ok_or_else(missing)?;
         if placed.is_empty() {
             return Err(TextureError::EmptyModel(entity.to_owned()));
@@ -429,18 +429,14 @@ fn crc32(bytes: &[u8]) -> u32 {
 impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
-    pub fn model_bounds(
-        &self,
-        textures: &Textures,
-        key: &str,
-    ) -> Result<ModelBounds, TextureError> {
+    pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
         let super::TextureKey::Model { culture, entity } = key.parse()? else {
             return Err(TextureError::BadKey(key.to_owned()));
         };
         ModelJob::plan(
             &self.layout,
-            textures.models(&self.layout),
-            &culture,
+            Arc::clone(&self.models),
+            &self.graphical_cultures.chain(&culture),
             &entity,
         )?
         .bounds()

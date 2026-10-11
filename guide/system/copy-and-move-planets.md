@@ -60,7 +60,7 @@ edit.
 - A copy keeps the planet's class, size, look, ring, deposits and
   modifiers. Its moons come with it. A moon you copy on its own becomes
   a planet.
-- A copy has no colony, station, anomaly or dig site.
+- A copy has no colony, station, anomaly or archaeological site.
 - Copied planets are still there to paste after you open another save.
   Closing the app clears them.
 - A pasted planet with a numbered name, such as Meissa II, takes the

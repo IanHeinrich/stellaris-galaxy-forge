@@ -8,6 +8,11 @@ export function titleCase(words: readonly string[], special: Record<string, stri
     .join(" ");
 }
 
+/** `habitable class` → `Habitable class`: words as they start a line. */
+export function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** `ship_role_science` → `Ship Role Science`: a key's words, for when nothing names it. */
 export function keyWords(key: string): string {
   return titleCase(key.split("_"));

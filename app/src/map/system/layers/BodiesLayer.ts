@@ -36,6 +36,8 @@ const LARGE_ICON_PX = 48;
 const CHANCE_RING_ALPHA = 0.4;
 /** A body cut and waiting for a paste, and each moon that goes with it. */
 const CUT_ALPHA = 0.3;
+/** A body the game never places shows faint, behind its dashed halo. */
+const NEVER_ALPHA = 0.4;
 /**
  * The dashed halo round a body the game may not place: its gap past the disc and its width in
  * screen pixels, its dashes, colour and alpha.
@@ -130,7 +132,8 @@ function drawnAlike(a: SceneBody, b: SceneBody): boolean {
     a.moon === b.moon &&
     a.chance.ring === b.chance.ring &&
     a.chance.planetClass === b.chance.planetClass &&
-    a.chance.mayNotSpawn === b.chance.mayNotSpawn
+    a.chance.mayNotSpawn === b.chance.mayNotSpawn &&
+    a.chance.never === b.chance.never
   );
 }
 
@@ -186,7 +189,7 @@ export class BodiesLayer implements SystemLayer {
     for (const { body, holder } of this.drawn) {
       const { id, moon, parent } = body.placement;
       const dimmed = cut.has(id) || (moon && parent !== null && cut.has(parent));
-      holder.alpha = dimmed ? CUT_ALPHA : 1;
+      holder.alpha = dimmed ? CUT_ALPHA : body.chance.never ? NEVER_ALPHA : 1;
     }
   }
 
@@ -217,6 +220,7 @@ export class BodiesLayer implements SystemLayer {
     holder.position.set(placement.x, placement.y);
     holder.scale.set(SAVE_X_SIGN, SAVE_Y_SIGN);
     const { look, chance } = body;
+    if (chance.never) holder.alpha = NEVER_ALPHA;
     const tint = look.tint;
     const sprite = (label: string, texture: Texture) => {
       const s = new Sprite(texture);

@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { detailOf } from "../../../store/fixture";
 
@@ -11,9 +12,13 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import { RolledMark } from "../states";
 import { mockedIpc } from "../../../test/ipc";
+import { poolRows } from "../../../test/poolRows";
+import { hintOf } from "../../../test/hints";
 import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore } from "../../../store/inspectorStore";
+import { toggleGroup } from "../../../test/groups";
 import { useGameDataStore } from "../../../store/gameDataStore";
 
 bindStores();
@@ -39,7 +44,8 @@ function sections(html: string): string[] {
   ].map((m) => m[1].replace(/<[^>]*>/g, ""));
 }
 
-const ROLLED_MARK = '<span class="ins-st-rolled" title="Rolled when the game starts">';
+const DIE = renderToStaticMarkup(<RolledMark />);
+const ROLLED_MARK = `<span class="ins-st-rolled">${DIE}`;
 
 /** The head's line under the name: the star, the planets and the nebula. */
 function headLine(html: string): string {
@@ -82,13 +88,11 @@ describe("a rolled scenario system", () => {
 
     const html = overview();
     const head = headLine(html);
-    expect(head).toContain(
-      '<span class="ins-st-rolled" title="Rolled when the game starts">Random star</span>',
-    );
+    expect(head).toContain(`${ROLLED_MARK}Random star</span>`);
     expect(head).toContain(">2 to 10 planets</span>");
     expect(html).toContain(`Planets · ${ROLLED_MARK}2 to 10</span></span>`);
     expect(html).toContain("2 to 10 planets · 0 to 10 moons · 0 colonies");
-    expect(html).toContain(`Star class · 3 · ${ROLLED_MARK}rolled</span>`);
+    expect(html).toContain(`class="ins-hinted">${ROLLED_MARK}rolled</span></span>`);
     expect(sections(html)).toEqual([
       "Spawn point",
       "Star class · 3 · rolled",
@@ -98,7 +102,7 @@ describe("a rolled scenario system", () => {
       "Scripts · …",
     ]);
     expect(html).not.toContain("may not spawn");
-    expect(html).toContain(">rolled class</span>");
+    expect(html).toContain(">random class</span>");
   });
 
   it("lists a block the game places a random number of times as one row, its count explained on hover", async () => {
@@ -130,11 +134,10 @@ describe("a rolled scenario system", () => {
     const html = drawnBy(overview);
     expect(html.split('<div class="ins-prow').length - 1).toBe(2);
     expect(html).toContain(`${ROLLED_MARK}Random planets</span>`);
-    expect(html).toContain(`${ROLLED_MARK}any class</span>`);
+    expect(html).toContain(`${ROLLED_MARK}random class</span>`);
     expect(html).toContain("<span>each with up to 1 moon</span>");
-    expect(html).toContain(
-      '<span class="ins-block-count ins-st-rolled" title="The game places 1 to 4 of these planets when it builds the system.">1 to 4</span>',
-    );
+    expect(html).toContain(`<span class="ins-block-count ins-st-rolled">${DIE}1 to 4</span>`);
+    expect(hintOf("Copies")).toBe("The game places 1 to 4 planets like this one.");
     expect(html).not.toContain("Random moon");
     expect(html).toContain("1 to 4 planets · 0 to 4 moons · 0 colonies");
 
@@ -151,31 +154,38 @@ describe("a rolled scenario system", () => {
     await open("scenario");
     await land(details({ planets: [STAR, second], spawn }));
 
-    const html = overview();
-    expect(html).toContain("The game rolls one of these when a game starts, as often as shown.");
+    const html = drawnBy(overview);
+    expect(hintOf("Star class")).toBe("From the game&#x27;s star list rl_standard_stars.");
     const g = html.indexOf(">sc_g<");
     const k = html.indexOf(">sc_k<");
     const b = html.indexOf(">sc_b<");
     expect(g).toBeGreaterThan(-1);
     expect(g).toBeLessThan(k);
     expect(k).toBeLessThan(b);
-    expect(html).toContain('<span class="rs">50%</span>');
-    expect(html).toContain('<span class="rs">33%</span>');
-    expect(html).toContain('<span class="rs">17%</span>');
-    expect(html).toContain("from the star list rl_standard_stars");
+    const rows = poolRows(html);
+    expect(rows.every((r) => /^<span class="pi ghost"/.test(r.icon))).toBe(true);
+    const bars = rows.map((r) => [r.width, r.segments[0]?.fill, r.chance]);
+    expect(bars).toEqual([
+      ["100.0%", "#ffe066", "50%"],
+      ["66.7%", "#ffa64d", "33%"],
+      ["33.3%", "#9fc4ff", "17%"],
+    ]);
   });
 
-  it("states what only a random galaxy reads in an open group that says it does nothing here", async () => {
+  it("states what only a random galaxy reads in a group, folded at first, that says it does nothing here", async () => {
     await open("scenario");
     await land(details({ planets: [STAR, second], spawn }));
 
-    const html = overview();
-    expect(html).toContain(
-      '<button type="button" class="ins-group-head" aria-expanded="true"><span class="tri">▾</span><span class="ins-group-title">Random galaxy settings</span><span class="ins-group-tail">no effect here</span></button>',
+    const folded = drawnBy(overview);
+    expect(folded).toMatch(
+      /<button type="button" class="ins-group-head" aria-expanded="false"><span class="tri">▸<\/span><span class="ins-group-title"><span id="[^"]*" class="ins-hinted">Random galaxy settings<\/span><\/span><span class="ins-group-tail">no effect here<\/span><\/button>/,
     );
-    expect(html).toContain(
+    expect(folded).not.toContain("How often");
+    expect(hintOf("Random galaxy settings")).toBe(
       "A random galaxy uses these to decide how often to add this system. This map already places it, so they don&#x27;t apply.",
     );
+    toggleGroup("system.initializer.random");
+    const html = overview();
     expect(html).toContain(
       '<span class="k">Used as</span><span><span title="misc_system_init">a special system away from empires</span></span>',
     );
@@ -187,16 +197,31 @@ describe("a rolled scenario system", () => {
     );
   });
 
-  it("closes a group when asked and remembers it", async () => {
+  it("opens a folded group when asked, then closes it again", async () => {
     await open("scenario");
     await land(details({ planets: [STAR, second], spawn }));
-    useInspectorStore.getState().toggleSection("system.initializer.random", false);
+    toggleGroup("system.initializer.random");
+    expect(overview()).toContain("How often");
+    toggleGroup("system.initializer.random");
 
     const html = overview();
-    expect(html).toContain(
-      'aria-expanded="false"><span class="tri">▸</span><span class="ins-group-title">Random galaxy settings',
+    expect(html).toMatch(
+      /aria-expanded="false"><span class="tri">▸<\/span><span class="ins-group-title"><span id="[^"]*" class="ins-hinted">Random galaxy settings<\/span>/,
     );
     expect(html).not.toContain("How often");
+  });
+
+  it("keeps a group opened on one page folded on every other page", async () => {
+    await open("scenario");
+    await land(details({ planets: [STAR, second], spawn }));
+    toggleGroup("system.initializer.random");
+    expect(overview()).toContain("How often");
+
+    useInspectorStore.getState().open({ ref: { kind: "system", id: 2 }, label: "Other" });
+    expect(overview()).not.toContain("How often");
+
+    useInspectorStore.getState().back();
+    expect(overview()).toContain("How often");
   });
 });
 
@@ -246,12 +271,16 @@ describe("a fixed scenario system", () => {
     await open("scenario");
     await land(details({ planets: bodies, spawn }));
 
-    const html = overview();
+    const html = drawnBy(overview);
     expect(html).toContain("Large Debris");
     expect(html).toContain("Yuhtaan Majoris ›");
-    expect(html).toContain('<span class="k">Per galaxy</span><span>At most 1</span>');
-    expect(html).toContain("This system is that one, so a new game won&#x27;t add another.");
-    expect(html).toContain('<span class="k">Pre-FTL</span><span>Yes</span>');
+    expect(html).toMatch(
+      /<span class="k">Per galaxy<\/span><span><span[^>]*class="ins-hinted"[^>]*>At most 1</,
+    );
+    expect(hintOf("Per galaxy")).toBe(
+      "This system is that one, so a new game won&#x27;t add another.",
+    );
+    expect(hintOf("Pre-FTL")).toContain("Pre-FTL Civilizations setting");
   });
 });
 
@@ -271,9 +300,10 @@ describe("a seat's scenario system", () => {
     await open("scenario");
     await land(details({ planets: [STAR, earth], spawn: systemSpawn() }));
 
-    const html = overview();
-    expect(html).toContain(
-      "An empire that spawns here brings its own starting system in place of this one.",
+    const html = drawnBy(overview);
+    expect(html).toContain("An empire that spawns here brings its own starting system.</span>");
+    expect(hintOf("Spawn point")).toBe(
+      "The empire&#x27;s system replaces this one. What this initializer spawns around it, like Sol&#x27;s neighbours, still appears. If no empire lands here, the initializer is used as written.",
     );
     const row = html.slice(html.indexOf(">Earth"));
     expect(row.slice(0, row.indexOf(`class="l2"`))).toContain(">start planet</span>");
@@ -300,40 +330,37 @@ describe("a scenario system whose bodies come from a script", () => {
     await open("scenario");
     await land(details({ planets: [STAR, planet(100, "", { class: "pc_toxic" })], spawn }));
 
-    const html = overview();
+    toggleGroup("system.initializer.random");
+    const html = drawnBy(overview);
     expect(headLine(html)).toContain('<span class="ins-st-unknown">planets from a script</span>');
     expect(sections(html)).toContain("Planets · from a script");
     expect(html).toContain("planets from a script · 0 colonies");
     expect(html).toContain('Planets · <span class="ins-st-unknown">from a script</span>');
-    expect(html).toContain(
-      '<div class="muted ins-hint">Every body here comes from the inline script grand_archive/voidworms_system_planet_initializer.</div>',
+    expect(html).toContain("Every body here comes from a shared script.</span></div>");
+    expect(hintOf("Shared script")).toBe(
+      "From the shared script grand_archive/voidworms_system_planet_initializer.",
     );
-    expect(html).toContain(
-      '<span class="k">How often</span><span>Starts at 1. The conditions below change it.</span>',
-    );
+    expect(html).toContain("Starts at 1</span>");
+    expect(hintOf("How often")).toBe("The conditions below change it.");
     expect(html).toContain(
       '<span class="snippet-key">base</span> = <span class="snippet-number">1</span>',
     );
-    expect(html).toContain(
-      '<span class="ins-group-title">Other keys</span><span class="ins-group-tail">1</span>',
+    expect(html).toMatch(
+      /<span class="ins-group-title"><span id="[^"]*" class="ins-hinted">Other initializer lines<\/span><\/span><span class="ins-group-tail">1<\/span>/,
     );
     expect(html).toContain(
       '<span class="snippet-key">orbital_line</span> = <span class="snippet-bool">yes</span>',
     );
-    expect(html).toContain(
-      '<span class="ins-group-title">Script it runs</span><span class="ins-group-tail">1 line</span>',
+    expect(html).toMatch(
+      /<span class="ins-group-title"><span id="[^"]*" class="ins-hinted">Script at game start<\/span><\/span><span class="ins-group-tail">1 line<\/span>/,
     );
     expect(html).toContain("create_voidworms_country</span>");
+    expect(html).not.toContain("hyperlanes exist");
     expect(html).toContain(
-      "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring system find none.",
+      'From the shared script <span class="mono">grand_archive/voidworms_system_planet_initializer</span>',
     );
-    expect(html).toContain(
-      '<span class="k">Class</span><span>Set by the inline script <span class="mono">grand_archive/voidworms_system_planet_initializer</span></span>',
-    );
-    expect(html).toContain('<span class="k">Planets</span><span>Set by the inline script');
-    expect(html).toContain(
-      '<span class="k">Spawn chance</span><span>Set by the variable <span class="mono">@voidworm_chance</span></span>',
-    );
+    expect(html).toContain('From <span class="mono">@voidworm_chance</span>');
+    expect(hintOf("Spawn chance")).toBe("A value the game files define once and reuse.");
   });
 });
 
@@ -402,7 +429,7 @@ describe("a scenario system's single rows", () => {
     const html = overview();
     expect(html).toContain(`${ROLLED_MARK}Random planet</span>`);
     expect(html).toContain(
-      `<span class="l2">${ROLLED_MARK}any class</span><span aria-hidden="true">·</span><span class="sz">`,
+      `<span class="l2">${ROLLED_MARK}random class</span><span aria-hidden="true">·</span><span class="sz">`,
     );
     expect(html).not.toContain("Random planet, any class");
   });
@@ -421,10 +448,9 @@ describe("a scenario system's single rows", () => {
     await open("scenario");
     await land(details({ planets: [STAR, maybe, moon], spawn: systemSpawn() }));
 
-    const html = overview();
-    expect(html).toContain(
-      '<span class="ins-block-count ins-st-rolled" title="Some games have this planet and some don&#x27;t.">0 to 1</span>',
-    );
+    const html = drawnBy(overview);
+    expect(html).toContain(`<span class="ins-block-count ins-st-rolled">${DIE}0 to 1</span>`);
+    expect(hintOf("Copies")).toBe("Some games have this planet and some don&#x27;t.");
     expect(html).toContain(`${ROLLED_MARK}Random moon</span>`);
   });
 });

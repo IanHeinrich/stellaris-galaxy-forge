@@ -65,7 +65,7 @@ describe("a colony's page", () => {
     ]);
     expect(html).toMatch(/<input type="text" aria-label="Name"/);
     expect(html).toContain("+ Add modifier…");
-    expect(html).toContain("+ Add dig site…");
+    expect(html).toContain("+ Add archaeological site…");
     expect(html).toContain("Add deposit");
     expect(html).toContain("+ Add anomaly…");
     expect(html.match(/pl-dep-remove/g)).toHaveLength(3);

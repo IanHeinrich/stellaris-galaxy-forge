@@ -4,6 +4,7 @@ import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName, stepText, turnText } from "../../../lib/details/labels";
 import { rangeText } from "./bodyFields";
 import { ANY_ANGLE, systemLayout } from "../../../lib/details/orbits";
+import { setsOrbitStep, valueSources } from "../../../lib/details/spawnFacts";
 import { counted } from "../../../lib/text";
 import { openSystem } from "../../../store/commands";
 import { useSystemRoll } from "../../../store/detailsStore";
@@ -16,7 +17,9 @@ import { openBody } from "./openBody";
 import { AnomalyRow } from "./PlanetAnomaly";
 import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
-import { useSystemBodyNamer } from "./useBodyName";
+import { AngleDial } from "../AngleDial";
+import { HintedRow, Rolled, SetByLines } from "../states";
+import { useSystemBodyNames } from "./useBodyName";
 
 /** What the body orbits, opening its page, and its radius where no row of its own gives it. */
 function Orbits({
@@ -28,14 +31,15 @@ function Orbits({
   parent: number;
   radius: Bounds | null;
 }) {
-  const name = useSystemBodyNamer(system)(parent) ?? `#${parent}`;
+  const listed = useSystemBodyNames(system)(parent);
+  const name = listed?.text ?? `#${parent}`;
   return (
     <PropertyRow label="Orbits">
       <DrillLink
         title="Open the page of the body it orbits"
         onOpen={() => openBody(system, parent, name)}
       >
-        {name}
+        {listed?.rolled ? <Rolled>{name}</Rolled> : name}
       </DrillLink>
       {radius !== null && <span className="muted"> radius {rangeText(radius)}</span>}
     </PropertyRow>
@@ -58,7 +62,8 @@ function Anchor({
   const names = useGameDataStore((s) => s.names);
   const open = useInspectorStore((s) => s.open);
   const setLinkedBody = useSceneStore((s) => s.setLinkedBody);
-  const name = bodyName(anchor, names);
+  const listed = useSystemBodyNames(details.id)(anchor.id);
+  const name = listed?.text ?? bodyName(anchor, names);
   return (
     <DrillLink
       title="Open the page of the body its angle turns from"
@@ -68,7 +73,8 @@ function Anchor({
         open({ ref: { kind: "body", system: details.id, id: anchor.id }, label: name });
       }}
     >
-      {`${name} at ${Math.round(radius)}`}
+      {listed?.rolled ? <Rolled>{name}</Rolled> : name}
+      {` (orbit ${Math.round(radius)})`}
     </DrillLink>
   );
 }
@@ -94,11 +100,26 @@ function Steps({
   const anchorId = placed.find((p) => p.id === body.id)?.turn?.anchor ?? null;
   const anchor = details.planets.find((p) => p.id === anchorId);
   const anchorRadius = placed.find((p) => p.id === anchorId)?.ring?.radius ?? 0;
+  const angle = body.layout?.angle_step ?? ANY_ANGLE;
+  const angleVariable = (body.spawn?.variables ?? []).some((v) => v.key === "orbit_angle");
+  const stepSources = valueSources(
+    {
+      inline_scripts: [],
+      variables: (body.spawn?.variables ?? []).filter((v) => setsOrbitStep(v.key)),
+    },
+    body.moon,
+  );
   return (
     <>
-      <PropertyRow label="Orbit step">{stepText(step)}</PropertyRow>
+      <HintedRow
+        label="Orbit step"
+        hint={stepSources.length === 0 ? null : <SetByLines sources={stepSources} />}
+      >
+        {stepText(step)}
+      </HintedRow>
       <PropertyRow label="Angle step">
-        {turnText(body.layout?.angle_step ?? ANY_ANGLE)}
+        <AngleDial step={angleVariable ? null : angle} />
+        {turnText(angle)}
         {anchor && anchorRadius > 0 && (
           <>
             {" from "}

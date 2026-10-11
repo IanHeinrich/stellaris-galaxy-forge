@@ -2,29 +2,26 @@ import type { SystemSpawn } from "../../../../../generated/SystemSpawn";
 import type { UsageOdds } from "../../../../../generated/UsageOdds";
 import {
   hasRandomOnly,
-  lineCount,
   NEIGHBOURS_WHY,
   neighbourText,
-  OTHER_KEYS_HINT,
-  OTHER_KEYS_TITLE,
   perGalaxyHint,
   perGalaxyText,
   PRIMITIVE_HINT,
   RANDOM_SETTINGS_HINT,
   RANDOM_SETTINGS_TAIL,
   RANDOM_SETTINGS_TITLE,
-  rawText,
-  SCRIPT_TITLE,
-  SYSTEM_SCRIPT_HINT,
+  SCALED_CHANCE_HINT,
+  SPAWN_CHANCE_HINT,
+  usageOddsHint,
   usageOddsText,
   usageWeight,
   usageWords,
   valueSources,
 } from "../../../../../lib/details/spawnFacts";
-import { counted } from "../../../../../lib/text";
 import { ScriptSnippet, type SnippetSource } from "../../../../ScriptSnippet";
 import { Group, Properties, PropertyRow } from "../../../parts";
-import { SetByRow, Why } from "../../../states";
+import { HintedRow, SetByRow, Why } from "../../../states";
+import { OtherLinesGroup, ScriptGroup } from "../../../ScriptGroup";
 
 /** `usage_odds` as written: a number, a value Galaxy Forge can't read, or where conditions change it. */
 function HowOftenRow({ odds }: { odds: UsageOdds }) {
@@ -38,7 +35,11 @@ function HowOftenRow({ odds }: { odds: UsageOdds }) {
         </PropertyRow>
       );
     case "script":
-      return <PropertyRow label="How often">{usageOddsText(odds.base)}</PropertyRow>;
+      return (
+        <HintedRow label="How often" hint={usageOddsHint(odds.base)}>
+          {usageOddsText(odds.base)}
+        </HintedRow>
+      );
   }
 }
 
@@ -49,7 +50,6 @@ function RandomSettings({ spawn, source }: { spawn: SystemSpawn; source?: Snippe
     spawn.spawn_chance !== null || spawn.scaled_spawn_chance !== null || spawn.neighbors.length > 0;
   return (
     <>
-      <div className="muted ins-hint">{RANDOM_SETTINGS_HINT}</div>
       {(spawn.usage !== null || odds !== null) && (
         <Properties>
           {spawn.usage !== null && (
@@ -64,20 +64,25 @@ function RandomSettings({ spawn, source }: { spawn: SystemSpawn; source?: Snippe
       {chances && (
         <Properties>
           {spawn.spawn_chance !== null && (
-            <PropertyRow label="Spawn chance">{spawn.spawn_chance}</PropertyRow>
+            <HintedRow label="Spawn chance" hint={SPAWN_CHANCE_HINT}>
+              {spawn.spawn_chance}
+            </HintedRow>
           )}
           {spawn.scaled_spawn_chance !== null && (
-            <PropertyRow label="Scaled chance">{spawn.scaled_spawn_chance}</PropertyRow>
+            <HintedRow label="Scaled chance" hint={SCALED_CHANCE_HINT}>
+              {spawn.scaled_spawn_chance}
+            </HintedRow>
           )}
           {spawn.neighbors.length > 0 && (
             <>
-              <PropertyRow label="Neighbours">{spawn.neighbors.length}</PropertyRow>
-              <span className="ins-why mono">
+              <HintedRow label="Neighbours" hint={NEIGHBOURS_WHY}>
+                {spawn.neighbors.length}
+              </HintedRow>
+              <Why mono>
                 {spawn.neighbors.map((n, i) => (
                   <div key={`${n.initializer}-${i}`}>{neighbourText(n)}</div>
                 ))}
-              </span>
-              <Why>{NEIGHBOURS_WHY}</Why>
+              </Why>
             </>
           )}
         </Properties>
@@ -95,16 +100,14 @@ export function StatedRows({ spawn }: { spawn: SystemSpawn }) {
   return (
     <>
       {spawn.max_instances !== null && (
-        <>
-          <PropertyRow label="Per galaxy">{perGalaxyText(spawn.max_instances)}</PropertyRow>
-          <Why>{perGalaxyHint(spawn.max_instances)}</Why>
-        </>
+        <HintedRow label="Per galaxy" hint={perGalaxyHint(spawn.max_instances)}>
+          {perGalaxyText(spawn.max_instances)}
+        </HintedRow>
       )}
       {spawn.primitive_system && (
-        <>
-          <PropertyRow label="Pre-FTL">Yes</PropertyRow>
-          <Why>{PRIMITIVE_HINT}</Why>
-        </>
+        <HintedRow label="Pre-FTL" hint={PRIMITIVE_HINT}>
+          Yes
+        </HintedRow>
       )}
       {spawn.namelist !== null && (
         <PropertyRow label="Name list" mono>
@@ -127,35 +130,19 @@ export function StatedGroups({ spawn, file }: { spawn: SystemSpawn; file: string
   const source = file === null ? undefined : { file };
   return (
     <>
-      {spawn.script.length > 0 && (
-        <Group
-          id="system.initializer.script"
-          title={SCRIPT_TITLE}
-          tail={counted(lineCount(spawn.script), "line")}
-        >
-          <div className="muted ins-hint">{SYSTEM_SCRIPT_HINT}</div>
-          <ScriptSnippet text={rawText(spawn.script)} source={source} />
-        </Group>
-      )}
+      <ScriptGroup id="system.initializer.script" statements={spawn.script} file={file} />
       {hasRandomOnly(spawn) && (
         <Group
           id="system.initializer.random"
           title={RANDOM_SETTINGS_TITLE}
+          hint={RANDOM_SETTINGS_HINT}
           tail={RANDOM_SETTINGS_TAIL}
+          folded
         >
           <RandomSettings spawn={spawn} source={source} />
         </Group>
       )}
-      {spawn.other_keys.length > 0 && (
-        <Group
-          id="system.initializer.other"
-          title={OTHER_KEYS_TITLE}
-          tail={`${spawn.other_keys.length}`}
-        >
-          <div className="muted ins-hint">{OTHER_KEYS_HINT}</div>
-          <ScriptSnippet text={rawText(spawn.other_keys)} source={source} />
-        </Group>
-      )}
+      <OtherLinesGroup id="system.initializer.other" statements={spawn.other_keys} file={file} />
     </>
   );
 }

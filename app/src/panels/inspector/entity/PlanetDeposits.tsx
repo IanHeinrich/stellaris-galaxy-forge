@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
-import { formatAmount, resourceAbbrev } from "../../../lib/details/resources";
+import { formatAmount } from "../../../lib/details/resources";
 import {
   BLOCKER_ICON,
   districtTotals,
@@ -14,6 +14,7 @@ import {
   categoryWords,
   depositCategories,
   depositLines,
+  depositsWithClass,
 } from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -28,6 +29,10 @@ import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
+import { depositPoolTail } from "../../../lib/details/depositBars";
+import { DepositPoolBars } from "./DepositPoolBars";
+import { ResourceIcon } from "./ResourceIcon";
+import { PoolLines } from "./SpawnFacts";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
@@ -64,16 +69,6 @@ export function RemovalConfirm({ removal }: { removal: Removal | null }) {
 
 function signed(n: number): string {
   return n > 0 ? `+${formatAmount(n)}` : formatAmount(n);
-}
-
-function ResourceIcon({ amount }: { amount: ResourceAmountView }) {
-  return (
-    <Icon
-      className="gi"
-      keys={amount.icon === null ? [] : [amount.icon]}
-      glyph={resourceAbbrev(amount.resource)}
-    />
-  );
 }
 
 function DistrictStrip({ totals }: { totals: readonly DistrictTotal[] }) {
@@ -288,6 +283,8 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const [confirming, setConfirming] = useState<string | null>(null);
   useNamed(editable ? deposits.nameKeys : []);
   const spawn = read.summary.spawn;
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const noun = bodyNoun(read.summary, planetClasses);
   const category = useNamed(
     spawn === undefined ? [] : depositCategories(spawn.deposits),
     categoryWords,
@@ -295,11 +292,15 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const stated =
     spawn === undefined
       ? { notes: [], blockers: null }
-      : depositLines(spawn.deposits, spawn.no_blockers, deposits.count, bodyNoun(read.summary), {
+      : depositLines(spawn.deposits, deposits.count, {
           deposit: (key) => views.get(key)?.name ?? key,
           category,
         });
-  const says = stated.notes.length > 0 || stated.blockers !== null;
+  const pool = spawn?.rolled_deposits;
+  const picked = read.pickedClass !== undefined;
+  const folded = spawn !== undefined && depositsWithClass(spawn, deposits.count, picked);
+  const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
+  const says = stated.notes.length > 0 || stated.blockers !== null || rolls;
   if (deposits.count === 0 && !editable && !says) return null;
   const removal = (group: HeldDeposit): Removal | null => {
     const held = editable ? group.removal : null;
@@ -347,6 +348,13 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           {note}
         </div>
       ))}
+      <PoolLines
+        pool={pool}
+        stated={features.length + blockers.length}
+        noun={noun}
+        tail={(picks) => depositPoolTail(picks, views)}
+        body={(picks) => <DepositPoolBars picks={picks} picked={picked} />}
+      />
       {editable && (
         <PlanetPicker
           kind={DEPOSIT_PICKERS.deposits}

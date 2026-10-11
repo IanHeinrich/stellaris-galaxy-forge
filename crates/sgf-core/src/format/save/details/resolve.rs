@@ -393,6 +393,20 @@ pub enum SpawnPool {
     Unknown,
 }
 
+/// What a scenario body rolls once its class is `class`: its size, ring, deposits and planet
+/// features, worked out as for a body whose block names that class.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ClassRolls {
+    pub body: u32,
+    pub class: String,
+    /// The size it can be as that class; `None` when neither its block nor the class gives one.
+    pub size: Option<Bounds>,
+    pub ring: SpawnRing,
+    pub deposits: SpawnPool,
+    pub features: SpawnPool,
+}
+
 /// One thing a body's roll can draw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]

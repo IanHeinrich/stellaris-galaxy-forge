@@ -8,12 +8,13 @@ use std::convert::Infallible;
 
 use sgf_core::emit::roman;
 use sgf_core::format::save::details::{
-    BodyRole, Bounds, ClassPool, DepositStep, OrbitFit, PlanetSummary, PoolClass, PoolEntry,
-    SpawnClass, SpawnName, SpawnPool, SpawnRing,
+    BodyRole, Bounds, ClassPool, ClassRolls, DepositStep, OrbitFit, PlanetSummary, PoolClass,
+    PoolEntry, SpawnClass, SpawnName, SpawnPool, SpawnRing,
 };
 
 use crate::GameData;
 use crate::deposit_roll::{self, Kind, RollBody};
+use crate::details::ClassRollsError;
 use crate::feature_roll;
 use crate::initializers::{Body, BodyClass, InitPlanet, Initializer, body_size};
 use crate::install::script::{Range, whole};
@@ -103,6 +104,29 @@ struct Drawn<'g> {
     settled: bool,
 }
 
+/// What the walk over a system's bodies finds for one of them.
+struct Placement<'g> {
+    /// What its class can be at its orbit; `None` when its class is not drawn by orbit.
+    drawn: Option<Drawn<'g>>,
+    /// Whether it spawns; `None` when neither its class nor that of a body it orbits is drawn.
+    fit: Option<Fit>,
+    moon: bool,
+}
+
+impl<'g> Placement<'g> {
+    /// What its class can be, when the system's stars tell it.
+    fn known(&self) -> Option<&Drawn<'g>> {
+        self.drawn.as_ref().filter(|d| d.fit != Fit::Unknown)
+    }
+}
+
+/// What a body's own roll can give it.
+struct Pools {
+    ring: SpawnRing,
+    deposits: SpawnPool,
+    features: SpawnPool,
+}
+
 impl<'g> Rolls<'g> {
     pub(crate) fn new(gd: &'g GameData, init: &Initializer) -> Self {
         let stars = match star_source(gd, init) {
@@ -127,25 +151,15 @@ impl<'g> Rolls<'g> {
     /// Fills each of `planets`' spawn with what the game can roll for it, `bodies` the bodies
     /// they were expanded from, in the same order.
     pub(crate) fn fill(&mut self, bodies: &[Body<'_>], planets: &mut [PlanetSummary]) {
-        let draw_orbits = draw_orbits(bodies, planets);
-        let mut fits: Vec<Option<Fit>> = Vec::with_capacity(planets.len());
-        for (i, body) in bodies.iter().enumerate() {
-            let moon = planets[i].role == BodyRole::Moon;
-            let drawn = self.drawn(body.block, draw_orbits[i], moon);
-            let own = drawn.as_ref().map(|d| d.fit);
-            let parent = body.parent.and_then(|p| fits[p]);
-            let fit = match (own, parent) {
-                (Some(own), Some(parent)) => Some(own.and(parent)),
-                (own, parent) => own.or(parent),
-            };
-            fits.push(fit);
+        let placements = self.placements(bodies, planets);
+        for (i, (body, placed)) in bodies.iter().zip(&placements).enumerate() {
             let class = planets[i].class.clone();
             let Some(spawn) = planets[i].spawn.as_mut() else {
                 continue;
             };
-            spawn.orbit_fit = fit.map(Fit::shown);
+            spawn.orbit_fit = placed.fit.map(Fit::shown);
             if let SpawnClass::Rolled { pool } = &mut spawn.class {
-                let at_orbit = drawn.as_ref().filter(|d| d.fit != Fit::Unknown).map(|d| {
+                let at_orbit = placed.known().map(|d| {
                     d.classes
                         .iter()
                         .map(|(class, weight)| PoolClass {
@@ -158,26 +172,102 @@ impl<'g> Rolls<'g> {
                     *slot = at_orbit;
                 }
             }
-            let classes = self.classes(&spawn.class, &class, drawn.as_ref(), moon);
-            let never = fit == Some(Fit::Never);
-            spawn.ring = Some(ring(
-                body.block,
-                moon,
-                &spawn.class,
-                &classes,
-                drawn.as_ref(),
-            ));
-            let kind = self.kind(&classes, moon);
-            spawn.rolled_deposits = Some(match never {
-                true => SpawnPool::Fixed,
-                false => self.deposit_pool(body.block, &spawn.deposits, &classes, kind),
-            });
-            spawn.rolled_features = Some(match never {
-                true => SpawnPool::Fixed,
-                false => self.feature_pool(body.block, &classes, kind),
-            });
+            let classes = self.classes(&spawn.class, &class, placed);
+            let pools = self.pools(body.block, &spawn.deposits, &spawn.class, &classes, placed);
+            spawn.ring = Some(pools.ring);
+            spawn.rolled_deposits = Some(pools.deposits);
+            spawn.rolled_features = Some(pools.features);
         }
+        let fits: Vec<Option<Fit>> = placements.iter().map(|p| p.fit).collect();
         self.name(bodies, planets, &fits);
+    }
+
+    /// What body `index` of `planets` rolls once its class is `class`, as for a body whose
+    /// block names that class; `bodies` are those `planets` were expanded from.
+    pub(crate) fn class_rolls(
+        &mut self,
+        bodies: &[Body<'_>],
+        planets: &[PlanetSummary],
+        index: usize,
+        class: &str,
+    ) -> Result<ClassRolls, ClassRollsError> {
+        let planet = &planets[index];
+        let block = bodies[index].block;
+        let spawn = planet
+            .spawn
+            .as_ref()
+            .ok_or(ClassRollsError::Unknown(planet.id))?;
+        let placed = self.placements(bodies, planets).swap_remove(index);
+        let classes = self
+            .classes(&spawn.class, &planet.class, &placed)
+            .ok_or(ClassRollsError::Unknown(planet.id))?;
+        let Some((def, _)) = classes.into_iter().find(|(def, _)| def.key == class) else {
+            return Err(ClassRollsError::NotRolled {
+                body: planet.id,
+                class: class.to_owned(),
+            });
+        };
+        let fixed = SpawnClass::Fixed {
+            class: def.key.clone(),
+        };
+        let classes = Some(vec![(def, None)]);
+        let pools = self.pools(block, &spawn.deposits, &fixed, &classes, &placed);
+        Ok(ClassRolls {
+            body: planet.id,
+            class: def.key.clone(),
+            size: size(block, def, self.kind(&classes, placed.moon)).map(|range| Bounds {
+                min: range.min,
+                max: range.max,
+            }),
+            ring: pools.ring,
+            deposits: pools.deposits,
+            features: pools.features,
+        })
+    }
+
+    /// What each of `planets`, expanded from `bodies` in the same order, can be drawn as at its
+    /// orbit, and whether it spawns: a body around another spawns no more surely than it.
+    fn placements(&self, bodies: &[Body<'_>], planets: &[PlanetSummary]) -> Vec<Placement<'g>> {
+        let draw_orbits = draw_orbits(bodies, planets);
+        let mut out: Vec<Placement<'g>> = Vec::with_capacity(planets.len());
+        for (i, body) in bodies.iter().enumerate() {
+            let moon = planets[i].role == BodyRole::Moon;
+            let drawn = self.drawn(body.block, draw_orbits[i], moon);
+            let own = drawn.as_ref().map(|d| d.fit);
+            let parent = body.parent.and_then(|p| out[p].fit);
+            let fit = match (own, parent) {
+                (Some(own), Some(parent)) => Some(own.and(parent)),
+                (own, parent) => own.or(parent),
+            };
+            out.push(Placement { drawn, fit, moon });
+        }
+        out
+    }
+
+    /// The ring, deposits and planet features a body of `block` can roll as one of `classes`,
+    /// `spawn` how its class is decided and `steps` its `init_effect`'s deposit statements.
+    fn pools(
+        &mut self,
+        block: &InitPlanet,
+        steps: &[DepositStep],
+        spawn: &SpawnClass,
+        classes: &Option<Vec<(&'g PlanetClassDef, Option<f64>)>>,
+        placed: &Placement<'g>,
+    ) -> Pools {
+        let ring = ring(block, placed.moon, spawn, classes, placed.drawn.as_ref());
+        if placed.fit == Some(Fit::Never) {
+            return Pools {
+                ring,
+                deposits: SpawnPool::Fixed,
+                features: SpawnPool::Fixed,
+            };
+        }
+        let kind = self.kind(classes, placed.moon);
+        Pools {
+            ring,
+            deposits: self.deposit_pool(block, steps, classes, kind),
+            features: self.feature_pool(block, classes, kind),
+        }
     }
 
     /// What a drawn body of `block` can be at `orbit` from the star, a moon among the classes
@@ -253,8 +343,7 @@ impl<'g> Rolls<'g> {
         &self,
         spawn: &SpawnClass,
         resolved: &str,
-        drawn: Option<&Drawn<'g>>,
-        moon: bool,
+        placed: &Placement<'g>,
     ) -> Option<Vec<(&'g PlanetClassDef, Option<f64>)>> {
         let gd = self.gd;
         match spawn {
@@ -284,16 +373,14 @@ impl<'g> Rolls<'g> {
             SpawnClass::Rolled {
                 pool: ClassPool::PlanetList { list, .. },
             } => Some(
-                list_members(gd, list, moon)?
+                list_members(gd, list, placed.moon)?
                     .into_iter()
                     .map(|c| (c, None))
                     .collect(),
             ),
             SpawnClass::Rolled {
                 pool: ClassPool::Random { .. },
-            } => drawn
-                .filter(|d| d.fit != Fit::Unknown)
-                .map(|d| d.classes.clone()),
+            } => placed.known().map(|d| d.classes.clone()),
             SpawnClass::Unknown { .. } => None,
         }
     }
@@ -398,8 +485,7 @@ impl<'g> Rolls<'g> {
     ) -> Vec<(&'g PlanetClassDef, u32)> {
         let mut out = Vec::new();
         for (class, _) in classes {
-            let range = body_size(Some(block), Some(class), kind == Kind::Moon)
-                .unwrap_or(Range::fixed(0.0));
+            let range = size(block, class, kind).unwrap_or(Range::fixed(0.0));
             out.push((*class, whole(range.min)));
             if range.max != range.min {
                 out.push((*class, whole(range.max)));
@@ -633,6 +719,12 @@ impl<'g> Rolls<'g> {
             false => stars.iter().any(fits),
         }
     }
+}
+
+/// The fewest and most tiles a body of `block` can have as `class`, `kind` what it is to the
+/// deposit roll.
+fn size(block: &InitPlanet, class: &PlanetClassDef, kind: Kind) -> Option<Range> {
+    body_size(Some(block), Some(class), kind == Kind::Moon)
 }
 
 /// The orbit from the star at which each body's class is drawn: its own for a body about the

@@ -8,6 +8,7 @@ import { PLANET_ICON_KEYS } from "../../lib/details/icons";
 import {
   bodyLayout,
   countryNode,
+  name,
   planetClassView,
   planetSummary,
   systemDetails,
@@ -126,6 +127,17 @@ describe("the bodies of a system", () => {
     expect([moon.moon, world.moon]).toEqual([true, false]);
     expect([moon.placement.moon, world.placement.moon]).toEqual([true, false]);
     expect(moon.placement.disc).toBeLessThan(world.placement.disc);
+  });
+
+  it("names a body with no name of its own by its class, as the system list does", () => {
+    const unnamed = planetSummary({
+      id: 2,
+      class: "pc_gas_giant",
+      name: name(""),
+      name_key: "",
+      layout: bodyLayout({ orbit: fixed(50), at: [50, 0], size: fixed(10) }),
+    });
+    expect(save([sun, unnamed]).bodies.find((b) => b.planet?.id === 2)?.name).toBe("Gas Giant");
   });
 
   it("leaves a save body with no class a planet, not a star", () => {

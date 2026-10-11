@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let file = out.join(format!("{}.png", model.replace(':', "_")));
         fs::write(&file, BASE64_STANDARD.decode(png)?)?;
-        let [x, y, up] = gd.model_bounds(&textures, &key)?.size();
+        let [x, y, up] = gd.model_bounds(&key)?.size();
         println!(
             "{key}: {}x{} px, sprite {:.2} x {:.2} save units, origin at ({:.3}, {:.3}), \
              model {x:.2} wide (save x) x {y:.2} long (save y) x {up:.2} tall, baked in {took:.2?}, cached in {cached:.2?}, {}",

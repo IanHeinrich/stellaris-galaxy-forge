@@ -3,7 +3,7 @@ import type { ScenarioOwners } from "../../generated/ScenarioOwners";
 import type { Territory } from "../../generated/Territory";
 import { empireGroups, specialSystemOfCountry } from "../../lib/browserRows";
 import { empireFlagKey } from "../../lib/details/fleets";
-import { systemsOf, type Ownership } from "../../lib/ownership";
+import { ASSUMED_CLAIM_TITLE, systemsOf, type Ownership } from "../../lib/ownership";
 import { ownerColor, toCss } from "../../lib/visual/ownerColors";
 import { rowLookups, type EmpireRow } from "../../store/browserRows";
 import { useEditorStore } from "../../store/editorStore";
@@ -17,11 +17,7 @@ import { useCollapse } from "./collapse";
 import { Action, Emblem, Eye, Group, Row } from "./rows";
 
 /** Why a territory's day-one badge means what it means, shown on hover. */
-const DAY_ONE_TITLE =
-  "Claimed on day one, by an event on_game_start fires, not at galaxy generation.";
-
-/** Why a territory's assumed marker means what it means, shown on hover. */
-const ASSUMED_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
+const DAY_ONE_TITLE = "An event gives these systems to the empire on the first day of the game.";
 
 function EmpireLine({
   row,
@@ -83,7 +79,7 @@ function EmpireLine({
             </Chip>
           )}
           {territory?.assumed && (
-            <Chip warn title={ASSUMED_TITLE}>
+            <Chip warn title={ASSUMED_CLAIM_TITLE}>
               assumed
             </Chip>
           )}
@@ -92,8 +88,8 @@ function EmpireLine({
               source={territory.tier === "day_one" ? "scripts" : "initializers"}
               title={
                 territory.tier === "day_one"
-                  ? "These systems are claimed on day one, by the events on_game_start fires."
-                  : "These systems are claimed at generation, by the initializers the file names."
+                  ? "An event gives these systems to this empire on the first day."
+                  : "Their initializers give these systems to this empire when a new game starts."
               }
             />
           )}
@@ -142,9 +138,10 @@ function EmpireLine({
 
 /** What a scenario's rows are, and why some of its systems have no owner at all. */
 export const TERRITORY_NOTE =
-  "Territories are the systems the scripts hand out: at galaxy generation, and on day one by the " +
-  "events on_game_start fires. A claim whose conditions this editor cannot judge is marked " +
-  "assumed. Owners set through a scope (prev, from, this, root) are not drawn.";
+  "Territories are the systems the scripts hand out. Initializers give them to empires when a " +
+  "new game starts, and events give more on the first day. Where Galaxy Forge can't check a " +
+  "claim's conditions, the claim is marked assumed. Owners set through a scope (prev, from, " +
+  "this, root) are not drawn.";
 
 const TERRITORY_NONE =
   "No initializer script in the loaded game data gives any of this scenario's systems an owner.";

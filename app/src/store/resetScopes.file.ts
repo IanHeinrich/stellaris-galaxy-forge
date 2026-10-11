@@ -1,4 +1,5 @@
 import { useAnomalyPickerStore } from "./anomalyPickerStore";
+import { useClassRollsStore } from "./classRollsStore";
 import { useDepositPickerStore } from "./depositPickerStore";
 import { useDigSitePickerStore } from "./digSitePickerStore";
 import { forgetReclassify } from "./editorEdits";
@@ -31,6 +32,7 @@ export const FILE_SCOPED: readonly (() => void)[] = [
   () => useEntityStore.getState().clear(),
   () => useGeneratorStore.getState().clearPicks(),
   () => useOpCheckStore.getState().reset(),
+  () => useClassRollsStore.getState().clear(),
   forgetReclassify,
   forgetPlanetOpens,
   ...PICKERS,

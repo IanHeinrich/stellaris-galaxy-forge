@@ -28,6 +28,8 @@ import { currentOwnership, subscribeOwnership } from "../../store/ownership";
 import { useSceneStore } from "../../store/sceneStore";
 import { follows, sameFields, type Binding } from "../follows";
 import type { Systems } from "../RenderContext";
+import type { GivenName } from "../../lib/details/spawnNames";
+import { givenNamesNow, useNameFormatsStore } from "../../store/nameFormatsStore";
 
 /** A system a hyperlane leads to from the one the scene shows. */
 export interface Neighbour {
@@ -84,6 +86,8 @@ export interface SystemSources extends SceneSubject {
    */
   readonly rolledLayout: boolean;
   readonly gameDataReady: boolean;
+  /** The names the game gives a scenario system's bodies, by id; empty for a save's. */
+  readonly givenNames: ReadonlyMap<number, GivenName>;
   readonly resourceIcons: ReadonlyMap<string, string>;
   /**
    * Which of the scene's switches are on: names, resources, clouds, wormholes, orbit radii, and
@@ -120,6 +124,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   starbaseLevels: new Map<string, StarbaseLevelView>(),
   rolledLayout: false,
   gameDataReady: false,
+  givenNames: new Map<number, GivenName>(),
   resourceIcons: new Map<string, string>(),
   sceneLayers: Object.freeze({
     labels: true,
@@ -142,6 +147,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
 /** Whether two snapshots were read from the same state, so the layers can be left alone. */
 export const sameSources = sameFields<SystemSources>({
   id: true,
+  givenNames: true,
   systems: true,
   details: true,
   node: true,
@@ -261,6 +267,7 @@ export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
   follows(useFileSessionStore, [(s) => s.kind, (s) => s.capabilities], refresh),
   follows(useMapChromeStore, [(s) => s.sceneLayers], refresh),
   follows(useSceneStore, [(s) => s.lockedBodies], refresh),
+  follows(useNameFormatsStore, [(s) => s.formats], refresh),
   { when: "change", subscribe: (view) => subscribeOwnership(() => view.refresh()) },
 ];
 
@@ -279,9 +286,11 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     if (text === undefined) data.requestName(t);
     return text;
   };
+  const read = subject.read(id);
   return Object.freeze({
     id,
-    ...subject.read(id),
+    ...read,
+    givenNames: givenNamesNow(id, read.details?.planets),
     systems: galaxy.systems,
     names,
     planetClasses: data.planetClasses,

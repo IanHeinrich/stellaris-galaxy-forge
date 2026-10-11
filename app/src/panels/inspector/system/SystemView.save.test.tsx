@@ -478,14 +478,14 @@ describe("the Planets header's system view button", () => {
   it("offers the view on a save or a scenario until it shows this system", async () => {
     await open("save");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(buttons(overview())).toContain("Open system view");
+    expect(buttons(overview())).toContain("Show in system view");
 
     useSceneStore.getState().enterSystem(SYSTEM);
-    expect(overview()).not.toContain("Open system view");
+    expect(overview()).not.toContain("Show in system view");
 
     useSceneStore.getState().exitScene();
     await open("scenario");
     await land(details({ planets: [planet(100, "Tarkin")] }));
-    expect(buttons(overview())).toContain("Open system view");
+    expect(buttons(overview())).toContain("Show in system view");
   });
 });

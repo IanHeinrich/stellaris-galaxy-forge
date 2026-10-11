@@ -20,6 +20,7 @@ use crate::registries::deposit_categories::DepositCategory;
 use crate::registries::deposits::DepositDef;
 use crate::registries::dig_site_types::DigSiteTypeDef;
 use crate::registries::galaxy_sizes::GalaxySizes;
+use crate::registries::graphical_cultures::GraphicalCulture;
 use crate::registries::megastructures::MegastructureDef;
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::planet_modifiers::PlanetModifierDef;
@@ -76,7 +77,7 @@ const ALL: [RegistryKind; 10] = [
 ];
 
 /// The `.txt` directories each registry's loader reads, by path below a layer root.
-const DIRS: [(&str, RegistryKind); 31] = [
+const DIRS: [(&str, RegistryKind); 32] = [
     (Initializer::DIR, RegistryKind::Initializers),
     ("common/inline_scripts", RegistryKind::Initializers),
     (index::EFFECTS_DIR, RegistryKind::Scripts),
@@ -101,6 +102,7 @@ const DIRS: [(&str, RegistryKind); 31] = [
     (starbase_levels::DIR, RegistryKind::Definitions),
     (section_templates::DIR, RegistryKind::Definitions),
     (MegastructureDef::DIR, RegistryKind::Definitions),
+    (GraphicalCulture::DIR, RegistryKind::Definitions),
     (DEFINES_DIR, RegistryKind::Definitions),
     (star_names::DIR, RegistryKind::Definitions),
     (precursors::DIR, RegistryKind::Definitions),
@@ -212,7 +214,7 @@ impl GameData {
             let marked = self.planet_classes.marked(
                 out.scripts.class_uses(),
                 &self.planet_lists,
-                |entity| planet_disc::draws_nothing(self.surface_maps(), entity),
+                |entity| planet_disc::draws_nothing(self.models(), entity),
             );
             out.planet_classes = Arc::new(marked);
         }

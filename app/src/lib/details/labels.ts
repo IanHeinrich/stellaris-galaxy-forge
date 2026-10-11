@@ -11,8 +11,9 @@ import type { WormholeSummary } from "../../generated/WormholeSummary";
 import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
+import type { GivenName } from "./spawnNames";
 import { wholeTurn } from "./orbits";
-import { keyWords, titleCase } from "../text";
+import { capitalised, keyWords, titleCase } from "../text";
 import {
   ANOMALY_ICON_KEY,
   ARCHAEOLOGY_ICON_KEYS,
@@ -80,7 +81,7 @@ export function isColony(p: Pick<PlanetSummary, "colonised" | "pre_ftl">): boole
 export function boundsText(bounds: Bounds): string {
   const min = Math.round(bounds.min);
   const max = Math.round(bounds.max);
-  return min === max ? `${min}` : `${min}–${max}`;
+  return min === max ? `${min}` : `${min} to ${max}`;
 }
 
 /** A step out as a label reads it, with a plus where it steps outwards. */
@@ -180,8 +181,25 @@ export function bodyName(
 ): string {
   const named = templateName(planet);
   if (named !== "") return named;
-  const text = bodyClassName(planet.class, names, planet.moon);
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return capitalised(bodyClassName(planet.class, names, planet.moon));
+}
+
+/** A body's name as the system list shows it: the name the game gives a scenario body, where told. */
+export function shownBodyName(
+  planet: PlanetSummary,
+  given: ReadonlyMap<number, GivenName>,
+  names: Names,
+): string {
+  return givenBodyName(planet, given.get(planet.id), names);
+}
+
+/** A body's name as `shownBodyName` gives it, from the one name the game gives it, if any. */
+export function givenBodyName(
+  planet: PlanetSummary,
+  given: GivenName | undefined,
+  names: Names,
+): string {
+  return given?.text ?? bodyName(planet, names);
 }
 
 /** A plain outpost earns no icon: the border already says the system is held. */
@@ -306,9 +324,9 @@ export function megastructureIcon(megastructures: readonly MegastructureSummary[
   );
 }
 
-/** One icon for all the archaeology sites here; null without any. */
+/** One icon for all the archaeological sites here; null without any. */
 export function siteIcon(kinds: readonly string[]): Icon | null {
-  return collapsedIcon(kinds.map(siteLabel), "archaeology site", ARCHAEOLOGY_ICON_KEYS, "⚱");
+  return collapsedIcon(kinds.map(siteLabel), "archaeological site", ARCHAEOLOGY_ICON_KEYS, "⚱");
 }
 
 function collapsedIcon(labels: string[], noun: string, keys: string[], glyph: string): Icon | null {

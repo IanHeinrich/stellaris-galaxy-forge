@@ -9,6 +9,7 @@ export * from "./entity";
 export * from "./errors";
 export * from "./gamedata";
 export * from "./listing";
+export * from "./names";
 export * from "./nebula";
 export * from "./paint";
 export * from "./prepare";

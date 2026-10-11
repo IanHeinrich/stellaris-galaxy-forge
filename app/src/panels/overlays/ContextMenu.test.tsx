@@ -106,7 +106,7 @@ describe("a scenario system's spawn point item", () => {
     const html = menu();
     const item = html.match(/<button[^>]*>Set as spawn point<\/button>/)![0];
     expect(item).toContain("disabled=");
-    expect(item).toContain("choose one first");
+    expect(item).toContain("Choose an initializer first");
   });
 
   it("takes it under the Paint a Galaxy profile, whose op supplies the initializer", async () => {
@@ -116,7 +116,7 @@ describe("a scenario system's spawn point item", () => {
     const html = menu();
     const item = html.match(/<button[^>]*>Set as spawn point<\/button>/)![0];
     expect(item).not.toContain("disabled=");
-    expect(item).not.toContain("choose one first");
+    expect(item).not.toContain("Choose an initializer first");
   });
 });
 

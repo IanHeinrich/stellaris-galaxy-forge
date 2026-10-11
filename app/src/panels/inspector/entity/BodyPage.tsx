@@ -2,11 +2,17 @@ import { useEffect, useMemo, type ComponentType, type ReactNode } from "react";
 import type { Bounds } from "../../../generated/Bounds";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
-import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { bodyClassName, bodyName, shownBodyName } from "../../../lib/details/labels";
 import { isStarBody } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
+import {
+  HOME_PLANET_TITLE,
+  RING_ROLLED,
+  neverSpawns,
+  START_PLANET_TITLE,
+} from "../../../lib/details/spawnFacts";
 import { COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { bodyOrbit } from "../../../lib/details/orbitIntent";
@@ -23,6 +29,7 @@ import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditF
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
+import { Hinted, NeverPlaced, Rolled } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
@@ -41,8 +48,16 @@ import { DeletePlanetAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
-import { BodyFlags, BodyInitializer, SpawnHeadNotes, SpawnProperties } from "./SpawnFacts";
+import {
+  BodyFlags,
+  BodyInitializer,
+  ClassDependent,
+  SpawnHeadNotes,
+  SpawnProperties,
+} from "./SpawnFacts";
 import { SizeField, StarBlock } from "./StarBlock";
+import { useGivenNames } from "./useBodyName";
+import { useClassPreview } from "./useClassPreview";
 import "./entity.css";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations, anomaly, dig site and class names. */
@@ -113,7 +128,17 @@ function Head({
       {body?.colonised && <Chip>colonised</Chip>}
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
-      {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
+      {body?.spawn?.starting_planet && (
+        <Hinted label="Start planet" hint={START_PLANET_TITLE} focusable={false}>
+          <Chip>start planet</Chip>
+        </Hinted>
+      )}
+      {body?.spawn?.home_planet && (
+        <Hinted label="Home planet" hint={HOME_PLANET_TITLE} focusable={false}>
+          <Chip>home planet</Chip>
+        </Hinted>
+      )}
+      {neverSpawns(body?.spawn) && <NeverPlaced />}
       {action}
     </div>
   );
@@ -199,8 +224,8 @@ function PlanetBlock({
 }
 
 /** A body's `ring`: stated, or left to its class's chance. */
-function ringText(ring: boolean | null): string {
-  if (ring === null) return "Rolled by the game";
+function ringText(ring: boolean | null): ReactNode {
+  if (ring === null) return <Rolled>{RING_ROLLED}</Rolled>;
   return ring ? "Yes" : "No";
 }
 
@@ -219,10 +244,17 @@ function DeleteSection({ read, offers }: PlanetSectionProps) {
   );
 }
 
-/** What the page lists below its fields, in order; each leaves itself out where it has nothing to show. */
-const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionProps> }[] = [
-  { id: "deposits", Component: PlanetDeposits },
-  { id: "modifiers", Component: PlanetModifiers },
+/**
+ * What the page lists below its fields, in order; each leaves itself out where it has nothing to
+ * show. Those that `pooled` list what the body rolls, which the class picked decides.
+ */
+const SECTIONS: readonly {
+  id: string;
+  Component: ComponentType<PlanetSectionProps>;
+  pooled?: true;
+}[] = [
+  { id: "deposits", Component: PlanetDeposits, pooled: true },
+  { id: "modifiers", Component: PlanetModifiers, pooled: true },
   { id: "anomaly", Component: PlanetAnomaly },
   { id: "digSite", Component: PlanetDigSite },
   { id: "colony", Component: PlanetColony },
@@ -237,7 +269,9 @@ const SECTIONS: readonly { id: string; Component: ComponentType<PlanetSectionPro
  * A body's Overview: a star's own fields first, then what the body is, holds and carries, who
  * lives there, where it is and the moons around it.
  */
-function BodyOverview({ read }: { read: BodyRead }) {
+function BodyOverview({ read: listedRead }: { read: BodyRead }) {
+  const preview = useClassPreview(listedRead);
+  const read = preview.read;
   usePlanetData(read);
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
@@ -245,6 +279,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const { details, summary, target } = read;
   const system = useGalaxyStore((s) => s.systems.get(details.id));
+  const given = useGivenNames(details);
   const star = useIsStar(summary);
   const offers = planetPageOffers(capabilities, {
     star,
@@ -259,7 +294,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
   });
   const starBlock = offers.starFields && read.listed && system !== undefined;
   const starWait = offers.starFields && read.listed && !starBlock;
-  const name = bodyName(summary, names);
+  const name = shownBodyName(summary, given, names);
   const size = bodySize(summary);
   const fields: PlanetFields = {
     name: offers.planetFields ? name : null,
@@ -297,7 +332,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
       <SpawnHeadNotes read={read} />
       <OrbitBlock system={details.id} body={summary.id} />
       {summary.spawn !== undefined && (
-        <SpawnProperties read={read} spawn={summary.spawn} star={star} />
+        <SpawnProperties read={read} spawn={summary.spawn} star={star} preview={preview} />
       )}
       {summary.spawn === undefined && (showClass || showSize || showRing) && (
         <Properties>
@@ -314,8 +349,10 @@ function BodyOverview({ read }: { read: BodyRead }) {
           {showRing && <PropertyRow label="Ring">{ringText(summary.ring)}</PropertyRow>}
         </Properties>
       )}
-      {SECTIONS.map(({ id, Component }) => (
-        <Component key={id} read={read} offers={offers} orbitEdited={orbitEdited} />
+      {SECTIONS.map(({ id, Component, pooled }) => (
+        <ClassDependent key={id} busy={pooled === true && preview.busy}>
+          <Component read={read} offers={offers} orbitEdited={orbitEdited} />
+        </ClassDependent>
       ))}
       {(starBlock || hasFields(fields) || editsAny || orbitEdited) && <EditKey />}
     </>

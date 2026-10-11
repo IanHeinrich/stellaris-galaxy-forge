@@ -213,7 +213,7 @@ export function HyperlaneSection({
 
 /** Why an endpoint is marked assumed, shown on hover. */
 const ASSUMED_BYPASS_TITLE =
-  "An endpoint whose conditions this editor cannot judge is marked assumed.";
+  "Galaxy Forge can't check this endpoint's conditions, so it assumes the endpoint is there.";
 
 /** The system at the far end, named and jumped to. */
 function PartnerLink({ id }: { id: number }) {

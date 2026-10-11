@@ -12,7 +12,8 @@ import { useSystemNames } from "../../../../../store/browserRows";
 import { useEditorStore } from "../../../../../store/editorStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { Section } from "../../../parts";
-import { homeIntro } from "./sectionCopy";
+import { Hinted } from "../../../states";
+import { CLAN_CARD, homeLine } from "./sectionCopy";
 
 /** What the section says of a base with no home of its clan on a lane. */
 export const NO_HOME_BESIDE = "No clan home beside it. Nothing spawns here.";
@@ -52,11 +53,11 @@ function Home({ system, clan }: { system: SystemNode; clan: number }) {
   const heldByAnother = (n: number) => (homes.get(n) ?? []).some((id) => id !== system.id);
   return (
     <Section id="system.marauder" title={`Marauder clan ${clan}`}>
-      <ul className="muted ins-hint ins-fe-zone-intro">
-        {homeIntro(clan).map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+      <div className="muted ins-hint">
+        <Hinted label="Marauder clan" hint={CLAN_CARD}>
+          {homeLine(clan)}
+        </Hinted>
+      </div>
       {BASE_SITES.map((site) => {
         const base = bySite.get(site);
         return (
