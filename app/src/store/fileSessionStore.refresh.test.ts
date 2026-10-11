@@ -138,6 +138,15 @@ describe("a scenario with unsaved changes", () => {
     expect(diskChangeShown(session())).toBe("badge");
   });
 
+  it("takes down the line about an earlier reload when it asks", async () => {
+    session().setNotice("Reloaded my_galaxy.txt after it changed on disk.");
+
+    await session().noteDiskChange(changed({ dirty: true }));
+
+    expect(diskChangeShown(session())).toBe("banner");
+    expect(session().notice).toBeNull();
+  });
+
   it("Reload drops the edits and their undo history", async () => {
     await session().noteDiskChange(changed({ dirty: true }));
     mockedIpc.reloadDocument.mockResolvedValueOnce(REREAD);

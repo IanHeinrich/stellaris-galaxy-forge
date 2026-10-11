@@ -47,7 +47,7 @@ export function refreshActions(session: SessionApi): RefreshActions {
   /** Raises the banner, unless the badge already stands for an earlier change the user kept. */
   const ask = () => {
     if (diskChangeShown(get()) === "badge") return;
-    set({ diskChange: { change: "changed", kept: false, at: Date.now() } });
+    set({ diskChange: { change: "changed", kept: false, at: Date.now() }, notice: null });
   };
 
   const reread = async (discard: boolean) => {
