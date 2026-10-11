@@ -5,12 +5,11 @@ import {
   NO_OWNER_NOTE,
   OWNER_NOTE,
   WRITTEN_FINISHED,
-  defaultStage,
   entryDefault,
-  findStage,
   matchingEntries,
   megastructureEntries,
   megastructureRefusal,
+  selectedStage,
   whereText,
 } from "../../lib/megastructurePicks";
 import {
@@ -74,9 +73,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const visible = useMemo(() => matchingEntries(entries, query), [entries, query]);
-  const found =
-    findStage(visible, picked ?? defaultStage(entries, spot, last)) ??
-    (visible.length > 0 ? findStage(visible, entryDefault(visible[0])) : null);
+  const found = selectedStage(entries, visible, picked, spot, last);
   useNamed(found === null ? [] : megastructureDescriptionKeys(found.stage.key, found.chain));
   const kind = found?.stage.key;
   const type = kind === undefined ? undefined : types.get(kind);

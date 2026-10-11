@@ -139,7 +139,7 @@ describe("the Add megastructure dialog", () => {
     expect(html).not.toContain("Stage ");
   });
 
-  it("lists the base game's megastructures first and a mod's under its name, and greys out a second relay with the reason", () => {
+  it("lists the base game's megastructures first and a mod's under its name, opens past a second relay, and greys it out with the reason", () => {
     inSystem(
       systemDetails({
         id: SYSTEM,
@@ -147,8 +147,15 @@ describe("the Add megastructure dialog", () => {
       }),
     );
     openAt(space);
-    const html = dialog();
+    let html = dialog();
     expect(html.indexOf("Base game")).toBeLessThan(html.indexOf("Zeta Structures"));
+    expect(html).toContain(">Hyper Relay</li>");
+    expect(html).toContain("<h2>Beacon</h2>");
+
+    const types = new Map(useGameDataStore.getState().megastructureTypes);
+    types.delete("mod_beacon");
+    useGameDataStore.setState({ megastructureTypes: types });
+    html = dialog();
     expect(html).toContain("<h2>Hyper Relay</h2>");
     expect(html).toContain('aria-disabled="true"');
     expect(html).toContain("The system already has a hyper relay.");

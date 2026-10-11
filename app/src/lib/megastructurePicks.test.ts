@@ -7,6 +7,7 @@ import {
   entryStages,
   matchingEntries,
   megastructureEntries,
+  selectedStage,
   megastructurePlace,
   megastructureRefusal,
   RELAY_RADIUS_FACTOR,
@@ -201,6 +202,33 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     const list = megastructureEntries(noRelay, NAMES, space);
     expect(defaultStage(list, space, null)).toBe("gateway_final");
     expect(defaultStage([], space, null)).toBeNull();
+  });
+});
+
+describe("the stage the dialog has selected", () => {
+  const relayed = (type: MegastructureTypeView) =>
+    type.bypass_type === "relay_bypass" ? "The system already has a hyper relay." : null;
+
+  it("opens past a stage the save would refuse here, to the first one it takes", () => {
+    const list = entries(space, relayed);
+    expect(defaultStage(list, space, null)).toBe("gateway_final");
+    expect(defaultStage(list, space, "hyper_relay")).toBe("gateway_final");
+    const refusedAll = entries(space, () => "No.");
+    expect(defaultStage(refusedAll, space, null)).toBe("gateway_final");
+  });
+
+  it("selects only a stage the filter shows", () => {
+    const list = entries(star);
+    const visible = matchingEntries(list, "nexus");
+    const found = selectedStage(list, visible, "dyson_sphere_5", star, null);
+    expect(found?.stage.key).toBe("think_tank_3");
+    expect(selectedStage(list, visible, null, star, null)?.stage.key).toBe("think_tank_3");
+    expect(
+      selectedStage(list, matchingEntries(list, "gateway"), "dyson_sphere_5", star, null),
+    ).toBeNull();
+    expect(selectedStage(list, list, "dyson_sphere_0", star, null)?.stage.key).toBe(
+      "dyson_sphere_0",
+    );
   });
 });
 

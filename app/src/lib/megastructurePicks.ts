@@ -248,21 +248,47 @@ export function matchingEntries(
 const USUAL = { star: "dyson_sphere_5", planet: "think_tank_3", space: "hyper_relay" } as const;
 
 /**
- * The stage the dialog opens on: `last`, the type added last, when it goes here; else a Dyson
- * Sphere on a star, a Science Nexus on a planet or a Hyper Relay in space, when the base game's
- * section has it; else the first base game megastructure's finished stage, else the first one's.
+ * The stage the dialog opens on, passing over any the save would refuse here: `last`, the type
+ * added last, when it goes here; else a Dyson Sphere on a star, a Science Nexus on a planet or a
+ * Hyper Relay in space, when the base game's section has it; else the first finished stage, base
+ * game first; else the first stage at all. When every stage is refused, the first megastructure's
+ * finished one.
  */
 export function defaultStage(
   entries: readonly MegastructureEntry[],
   spot: MegastructureSpot,
   last: string | null,
 ): string | null {
-  if (last !== null && findStage(entries, last) !== null) return last;
+  const usable = (list: readonly MegastructureEntry[], key: string | null) =>
+    findStage(list, key)?.stage.refused === null;
+  if (usable(entries, last)) return last;
   const base = entries.filter((entry) => entry.section === null);
   const usual = spot.kind === "space" ? USUAL.space : spot.star ? USUAL.star : USUAL.planet;
-  if (findStage(base, usual) !== null) return usual;
-  const first = base[0] ?? entries[0];
-  return first === undefined ? null : entryDefault(first);
+  if (usable(base, usual)) return usual;
+  const finished = [...base, ...entries].map(entryDefault).find((key) => usable(entries, key));
+  if (finished !== undefined) return finished;
+  const any = entries.flatMap(entryStages).find((stage) => stage.refused === null);
+  if (any !== undefined) return any.key;
+  return entries.length === 0 ? null : entryDefault(entries[0]);
+}
+
+/**
+ * The stage the dialog has selected among the megastructures `visible` through the filter: the
+ * one `picked`, else the one it opens on, when visible; else the first visible megastructure's
+ * opening stage. Null when the filter hides every megastructure, so Add and Enter act only on a
+ * stage the player can see.
+ */
+export function selectedStage(
+  entries: readonly MegastructureEntry[],
+  visible: readonly MegastructureEntry[],
+  picked: string | null,
+  spot: MegastructureSpot,
+  last: string | null,
+): { entry: MegastructureEntry; chain: MegastructureChain; stage: MegastructureStage } | null {
+  return (
+    findStage(visible, picked ?? defaultStage(entries, spot, last)) ??
+    findStage(visible, defaultStage(visible, spot, null))
+  );
 }
 
 const BYPASS_NAMES: Readonly<Record<string, string>> = {
