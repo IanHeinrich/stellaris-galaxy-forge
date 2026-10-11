@@ -10,8 +10,8 @@ use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
 use sgf_core::validate::{Issue, IssueCode};
 use sgf_core::views::{
-    DocumentKind, EditResult, ExportResult, GalaxyView, OpenResult, ProgressPhase, SaveResult,
-    SgfError,
+    DocumentKind, EditResult, ErrorKind, ExportResult, GalaxyView, OpenResult, ProgressPhase,
+    SaveResult, SgfError,
 };
 use sgf_gamedata::GameData;
 use tauri::{AppHandle, Manager, Runtime};
@@ -20,6 +20,8 @@ use super::{
     DONE, START, VALIDATE_AT, fit_to_game_data, io_error, is_save, progress, require, with_session,
 };
 use crate::state::GameDataState;
+use crate::views::DocumentChanged;
+use crate::watch::document as watched;
 
 const ONLY_A_SAVE_EXPORTS: &str = "only a save can be exported as a scenario";
 
@@ -30,7 +32,66 @@ pub async fn open_save<R: Runtime>(
     app: AppHandle<R>,
     path: String,
 ) -> Result<OpenResult, SgfError> {
-    install(app, move |_| Ok((Session::open(path)?, Vec::new()))).await
+    install(app, any_session, move |_| {
+        Ok((Session::open(path)?, Vec::new()))
+    })
+    .await
+}
+
+/// Read the open document's file again as the session. Unless `discard`, refuses with an `Op`
+/// error while the document holds unsaved edits, so an edit made after the change on disk was
+/// seen is never lost. Emits `sgf://progress`.
+#[tauri::command]
+pub async fn reload_document<R: Runtime>(
+    app: AppHandle<R>,
+    discard: Option<bool>,
+) -> Result<OpenResult, SgfError> {
+    let discard = discard.unwrap_or(false);
+    let path = with_session(app.clone(), move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        if !discard {
+            keep_unsaved_edits(Some(session))?;
+        }
+        session
+            .path()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| SgfError::new(ErrorKind::Op, "the document has no file to read again"))
+    })
+    .await?;
+    let replaces = if discard {
+        any_session
+    } else {
+        keep_unsaved_edits
+    };
+    install(app, replaces, move |_| {
+        Ok((Session::open(path)?, Vec::new()))
+    })
+    .await
+}
+
+/// How the open document's file stands on disk, as the watcher reports it; `None` while it
+/// stands as opened or last saved, and when nothing with a file is open.
+#[tauri::command]
+pub async fn check_document_on_disk<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Option<DocumentChanged>, SgfError> {
+    tauri::async_runtime::spawn_blocking(move || watched::check(&app))
+        .await
+        .map_err(io_error)
+}
+
+fn any_session(_: Option<&Session>) -> Result<(), SgfError> {
+    Ok(())
+}
+
+fn keep_unsaved_edits(session: Option<&Session>) -> Result<(), SgfError> {
+    match session {
+        Some(session) if session.is_dirty() => Err(SgfError::new(
+            ErrorKind::Op,
+            "the document has unsaved changes",
+        )),
+        _ => Ok(()),
+    }
 }
 
 /// Open the save at `path` as a new, unsaved scenario holding its galaxy; the save is
@@ -42,7 +103,7 @@ pub async fn open_as_scenario<R: Runtime>(
     path: String,
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
-    install(app, move |gd| {
+    install(app, any_session, move |gd| {
         let (resolve, sources) = sgf_gamedata::export_resolvers(gd.as_deref());
         let profile = profile.unwrap_or_default();
         let (session, report) =
@@ -83,7 +144,7 @@ pub async fn new_scenario<R: Runtime>(
     core_radius: f64,
     profile: Option<ScenarioProfile>,
 ) -> Result<OpenResult, SgfError> {
-    install(app, move |_| {
+    install(app, any_session, move |_| {
         let profile = profile.unwrap_or_default();
         let session = export::new_scenario(&name, radius, core_radius, profile)?;
         Ok((session, Vec::new()))
@@ -160,10 +221,12 @@ pub async fn preview_export<R: Runtime>(
     .await
 }
 
-/// Build a session off the main thread, report it and make it the open one. The build
-/// returns the session and any issues of its own to list after the session's.
+/// Build a session off the main thread, report it and make it the open one, unless `replaces`
+/// refuses the session open by then. The build returns the session and any issues of its own to
+/// list after the session's.
 async fn install<R: Runtime>(
     app: AppHandle<R>,
+    replaces: fn(Option<&Session>) -> Result<(), SgfError>,
     build: impl FnOnce(Option<Arc<GameData>>) -> Result<(Session, Vec<Issue>), SgfError>
     + Send
     + 'static,
@@ -183,12 +246,14 @@ async fn install<R: Runtime>(
     .map_err(io_error)??;
     let fitting = app.clone();
     with_session(app.clone(), move |mut guard| {
+        replaces(guard.as_ref())?;
         let mut session = session;
         fit_to_game_data(&fitting, &mut session);
         *guard = Some(session);
         Ok(())
     })
     .await?;
+    watched::follow(&app, result.path.as_deref().map(Path::new));
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)
 }
@@ -299,15 +364,18 @@ async fn save_to<R: Runtime>(
         Ok(session.save_result(outcome))
     })
     .await?;
+    watched::follow(&app, Some(Path::new(&result.path)));
     progress(&app, ProgressPhase::Done, DONE);
     Ok(result)
 }
 
 #[tauri::command]
 pub async fn close_save<R: Runtime>(app: AppHandle<R>) -> Result<(), SgfError> {
-    with_session(app, |mut guard| {
+    with_session(app.clone(), |mut guard| {
         *guard = None;
         Ok(())
     })
-    .await
+    .await?;
+    watched::follow(&app, None);
+    Ok(())
 }

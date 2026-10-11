@@ -15,7 +15,9 @@ Stellaris. See [Steam Cloud](../safety/steam-cloud.md).
 ## Save says the file changed on disk
 
 The file has changed on disk since you opened or last saved it, often
-because Stellaris saved over it. The dialog offers three choices:
+because Stellaris saved over it. You see this after choosing "Keep my
+changes" when the file changed, or when Galaxy Forge couldn't tell, as
+can happen on a network drive. The dialog offers three choices:
 
 - "Save As…" saves your edits to another file and leaves the game's
   version alone.

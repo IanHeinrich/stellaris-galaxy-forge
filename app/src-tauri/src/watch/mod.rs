@@ -7,6 +7,7 @@
 //! Whatever the watcher cannot do it says why in [`WatchView::reason`], which
 //! rides the summary and every `sgf://gamedata-changed`.
 
+pub mod document;
 mod guard;
 
 use std::collections::BTreeSet;

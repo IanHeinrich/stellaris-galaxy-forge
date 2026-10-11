@@ -139,6 +139,20 @@ describe("the notice", () => {
   });
 });
 
+describe("the file changed on disk", () => {
+  it("shows a badge once the user keeps their changes, until a save after it", () => {
+    useFileSessionStore.setState({ diskChange: { change: "changed", kept: false, at: 1000 } });
+    expect(bar()).not.toContain("Changed on disk");
+
+    useFileSessionStore.setState({ diskChange: { change: "changed", kept: true, at: 1000 } });
+    expect(bar()).toContain("Changed on disk");
+    expect(bar()).toContain('title="Saving asks whether to overwrite the other version."');
+
+    useFileSessionStore.setState({ savedAt: 2000 });
+    expect(bar()).not.toContain("Changed on disk");
+  });
+});
+
 describe("the gesture hint", () => {
   it("follows the pointer: idle, a star, a lane under it, and a lane being dragged out", () => {
     expect(bar()).toContain("middle-drag to pan");

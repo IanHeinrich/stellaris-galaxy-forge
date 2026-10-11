@@ -4,6 +4,7 @@ import { isSgfError } from "../api/errors";
 import { onProgress } from "../api/events";
 import * as ipc from "../api/ipc";
 import type { Capabilities } from "../generated/Capabilities";
+import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { ErrorKind } from "../generated/ErrorKind";
 import type { ExportReport } from "../generated/ExportReport";
@@ -23,6 +24,12 @@ import {
   type ScenarioOpenPrompt,
 } from "../lib/paint";
 import { fileName } from "../lib/paths";
+import {
+  followDiskChanges,
+  refreshActions,
+  type DiskChangeAnswer,
+  type DiskChangeNote,
+} from "./fileSessionStore.refresh";
 import { saveGateActions } from "./fileSessionStore.saveGate";
 import { SAVE_FILTER, SCENARIO_FILTER, writeActions } from "./fileSessionStore.writes";
 import { useGalaxyStore } from "./galaxyStore";
@@ -184,6 +191,17 @@ export interface FileSessionState {
   ): Promise<void>;
   /** Re-reads the open file from disk, discarding unsaved changes on confirmation. */
   reload(): Promise<void>;
+  /** The open file's change on disk the user has yet to settle; null while there is none. */
+  diskChange: DiskChangeNote | null;
+  /**
+   * What the watcher found of the open file: a scenario with no unsaved changes is read again,
+   * anything else asks first.
+   */
+  noteDiskChange(changed: DocumentChanged): Promise<void>;
+  /** Answers the banner a change on disk raised. */
+  answerDiskChange(answer: DiskChangeAnswer): Promise<void>;
+  /** Asks the shell how the open file stands on disk, as when the window gets focus back. */
+  checkDisk(): Promise<void>;
   close(): Promise<void>;
   save(): Promise<void>;
   /** Asks where the file goes, starting at `defaultPath`; left out, its own path or a name for it. */
@@ -237,6 +255,7 @@ const INITIAL = {
   saveIssuesPrompt: null as SaveIssuesPrompt | null,
   changedOnDiskPrompt: null as ChangedOnDiskPrompt | null,
   pausedSave: null as PausedSave | null,
+  diskChange: null as DiskChangeNote | null,
   pendingOpen: null as string | null,
   pendingAsScenario: false,
   scenarioPrompt: null as ScenarioPrompt | null,
@@ -251,6 +270,7 @@ export const useFileSessionStore = create<FileSessionState>((set, get, session) 
   ...INITIAL,
   ...writeActions(session, () => opens),
   ...saveGateActions(session),
+  ...refreshActions(session),
 
   openSave(path, profile) {
     return openDocument(path, () => ipc.openSave(path), { profile });
@@ -451,6 +471,7 @@ async function openDocument(
       });
     }
     useGalaxyStore.getState().load(result.galaxy);
+    followDiskChanges((changed) => void getState().noteDiskChange(changed));
     if (result.kind === "scenario" && useGameDataStore.getState().status === "ready") {
       setState({ settling: true });
       try {

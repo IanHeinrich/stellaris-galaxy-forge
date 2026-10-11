@@ -38,6 +38,7 @@ use crate::state::{AppState, GameDataState, relock};
 
 pub const PROGRESS_EVENT: &str = "sgf://progress";
 pub const GAME_DATA_CHANGED_EVENT: &str = "sgf://gamedata-changed";
+pub const DOCUMENT_CHANGED_EVENT: &str = "sgf://document-changed";
 
 /// Progress fractions: `START` and `DONE` bracket every job; the rest are where a
 /// phase begins within its job (open: validate; game data: discover, definitions, localisation).

@@ -68,7 +68,9 @@ On a Mac, read <kbd>Cmd</kbd> wherever this guide says <kbd>Ctrl</kbd>.
 - "Open…" (<kbd>Ctrl</kbd>+<kbd>O</kbd>) brings back the
   [Open screen](open.md).
 - "Reload from disk" reads the file again. It asks first if you have
-  unsaved edits.
+  unsaved edits. A scenario with no unsaved edits reloads by itself when
+  another program saves it. See
+  [When the file changes on disk](../safety/saving.md#when-the-file-changes-on-disk).
 - "Save" and "Save as…" write your edits. See
   [Save, back up and restore](../safety/saving.md).
 - "Save into the Paint a Galaxy mod…" saves a scenario where the mod

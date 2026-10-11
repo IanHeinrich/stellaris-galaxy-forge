@@ -3,6 +3,7 @@
  * Command and argument names match `app/src-tauri/src/commands/session.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { DocumentChanged } from "../generated/DocumentChanged";
 import type { DocumentKind } from "../generated/DocumentKind";
 import type { EditResult } from "../generated/EditResult";
 import type { ExportReport } from "../generated/ExportReport";
@@ -77,6 +78,19 @@ export function undo(): Promise<EditResult | null> {
 /** Redo the last undone edit; resolves null when there is nothing to redo. */
 export function redo(): Promise<EditResult | null> {
   return invoke<EditResult | null>("redo");
+}
+
+/**
+ * Read the open document's file again as the session. Unless `discard`, refuses while the
+ * document has unsaved changes.
+ */
+export function reloadDocument(discard = false): Promise<OpenResult> {
+  return invoke<OpenResult>("reload_document", { discard });
+}
+
+/** How the open document's file stands on disk; null while it is as opened or last saved. */
+export function checkDocumentOnDisk(): Promise<DocumentChanged | null> {
+  return invoke<DocumentChanged | null>("check_document_on_disk");
 }
 
 export function closeSave(): Promise<void> {

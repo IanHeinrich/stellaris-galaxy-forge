@@ -6,5 +6,8 @@ export const onProgress = vi.fn(async () => () => undefined);
 /** The same shape: a test that drives a rebuild captures the handler. */
 export const onGameDataChanged = vi.fn(async () => () => undefined);
 
+/** The same shape: a test that drives a change on disk captures the handler. */
+export const onDocumentChanged = vi.fn(async () => () => undefined);
+
 /** The same shape: a test that drives a download captures the handler. */
 export const onUpdateProgress = vi.fn(async () => () => undefined);

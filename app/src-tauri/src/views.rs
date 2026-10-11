@@ -1,4 +1,5 @@
-//! The shell's own IPC view types: what the updater, add-body and prepare commands answer with.
+//! The shell's own IPC view types: what the updater, add-body and prepare commands answer with,
+//! and what the document watcher reports.
 //!
 //! Each type derives `TS`; `cargo test -p sgf-app` writes the TypeScript
 //! declarations to `app/src/generated/` (directory set in `.cargo/config.toml`).
@@ -127,4 +128,25 @@ pub struct UpdateProgress {
     #[ts(type = "number | null")]
     pub total: Option<u64>,
     pub done: bool,
+}
+
+/// What happened to the open document's file since it was opened or last saved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentChange {
+    /// Something else wrote it.
+    Changed,
+    /// Nothing is at its path any more.
+    Gone,
+}
+
+/// The open document's file changed on disk: which file, how, and whether the document holds
+/// edits a reload would drop.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct DocumentChanged {
+    pub path: String,
+    pub change: DocumentChange,
+    pub dirty: bool,
 }

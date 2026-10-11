@@ -69,7 +69,7 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
   watches(useGalaxyStore, (state, prev, view) => {
     if (state.galaxy !== prev.galaxy) {
       view.rebuild();
-      view.fit();
+      if (state.framed) view.fit();
     } else if (state.version !== prev.version && state.lastDelta) {
       view.refreshContext();
       applyDelta(view, shownDelta(state.lastDelta));

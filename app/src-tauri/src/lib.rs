@@ -15,6 +15,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(state::GameDataState::default())
         .manage(state::TextureState(Textures::new(None)))
         .manage(watch::WatchState::default())
+        .manage(watch::document::DocumentWatchState::default())
         .manage(state::UpdateState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -27,6 +28,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::missing_paths,
             commands::document_kind,
             commands::open_save,
+            commands::reload_document,
+            commands::check_document_on_disk,
             commands::open_as_scenario,
             commands::new_scenario,
             commands::export_scenario,
