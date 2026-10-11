@@ -1,0 +1,5 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+{"kind":"star_type","id":10,"name":{"key":"sc_pulsar","literal":false,"variables":[]},"name_key":"pulsar","system_id":null,"owner":null,"country_type":null,"system_count":17,"planet_class":null,"position":null,"matched_on":null,"star_class":"sc_pulsar","systems":[28,50,89,98,170,191,262,272,291,594,632,638,674,675,684,756,761]}

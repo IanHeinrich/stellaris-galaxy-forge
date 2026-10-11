@@ -108,9 +108,26 @@ export function resizeNebula(step: number): boolean {
   return true;
 }
 
+/**
+ * Whether Shift+Arrow has something to move now: the body the inspector shows in a system view,
+ * else the galaxy's selected nebula or systems. Without one, Shift+Arrow pans the map fast.
+ */
+export function nudgeHasTarget(): boolean {
+  if (!barTakesNow("nudge")) return false;
+  if (currentBarMode() === "system") {
+    const stack = useInspectorStore.getState().stack;
+    const ref = stack[stack.length - 1]?.ref;
+    return ref?.kind === "body" && ref.system === sceneSystem();
+  }
+  const editor = useEditorStore.getState();
+  const index = editor.selectedNebula;
+  if (index !== null) return useGalaxyStore.getState().nebulae[index] !== undefined;
+  return editor.selection.length > 0;
+}
+
 /** Shift+Arrow: moves the body the inspector shows in a system view, else the galaxy's selection. */
 export function nudgeSelected(nudge: Nudge): void {
-  if (!barTakesNow("nudge")) return;
+  if (!nudgeHasTarget()) return;
   if (currentBarMode() === "system") {
     void nudgeBody(orbitNudge(nudge));
     return;

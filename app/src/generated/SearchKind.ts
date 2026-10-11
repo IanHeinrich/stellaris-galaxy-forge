@@ -3,4 +3,4 @@
 /**
  * What a search hit names.
  */
-export type SearchKind = "system" | "country" | "planet" | "fleet" | "nebula";
+export type SearchKind = "star_type" | "system" | "country" | "planet" | "fleet" | "nebula";

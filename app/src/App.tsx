@@ -41,6 +41,7 @@ import { ViewMenu } from "./panels/chrome/ViewMenu";
 import { TrafficLightInset, WindowControls } from "./panels/chrome/WindowControls";
 import {
   canGoBack,
+  nudgeHasTarget,
   nudgeSelected,
   resizeBrush,
   resizeNebula,
@@ -139,7 +140,7 @@ function App() {
         return;
       }
       const nudge = nudgeOf(e, inInput);
-      if (nudge) {
+      if (nudge && nudgeHasTarget()) {
         e.preventDefault();
         nudgeSelected(nudge);
         return;

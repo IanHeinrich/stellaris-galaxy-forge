@@ -10,7 +10,7 @@ import {
 import { useGameDataStore } from "../../store/gameDataStore";
 import type { IconPickerItem } from "../IconPicker";
 import { useNamed } from "../useNamed";
-import { StarRowIcon } from "./StarIcon";
+import { StarRowIcon } from "../StarIcon";
 import { counted } from "../../lib/text";
 
 /** The key of the row that reveals the internal classes: never a star class key. */

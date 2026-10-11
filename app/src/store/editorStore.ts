@@ -54,6 +54,12 @@ export interface Pan {
   nonce: number;
 }
 
+/** Systems the map frames together; the nonce repeats a frame of the same systems. */
+export interface Framed {
+  ids: number[];
+  nonce: number;
+}
+
 /** How many search hits the palette offers again on an empty query. */
 export const RECENT_HITS = 8;
 
@@ -92,6 +98,10 @@ export interface EditorState {
   recentHits: SearchHit[];
   /** Every system the search palette's current query locates; the map rings them. */
   searchRings: number[];
+  /** The systems of the star type last taken from the palette, ringed until the next search. */
+  heldRings: number[];
+  /** Set by ringSystems; the map frames the systems whenever the nonce changes. */
+  framed: Framed | null;
   /** Bumped by requestFit; the map re-fits the galaxy whenever it changes. */
   fitNonce: number;
   /** Bumped by fitSelection; the map eases to the selected systems whenever it changes. */
@@ -129,6 +139,8 @@ export interface EditorState {
   runSearch(text: string, limit: number): Promise<SearchResult | null>;
   /** Drops the rings and whatever search is still on its way. */
   clearSearch(): void;
+  /** Rings `ids` past the palette's close, until the next search comes back, and frames them. */
+  ringSystems(ids: number[]): void;
   setHover(id: number | null): void;
   requestFit(): void;
   /** Frames the selected systems, or the whole galaxy when nothing is selected. */
@@ -340,6 +352,8 @@ const INITIAL = {
   pan: null as Pan | null,
   recentHits: [] as SearchHit[],
   searchRings: [] as number[],
+  heldRings: [] as number[],
+  framed: null as Framed | null,
   history: { undo: [], redo: [] } as HistoryView,
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,
 } satisfies Partial<EditorState>;

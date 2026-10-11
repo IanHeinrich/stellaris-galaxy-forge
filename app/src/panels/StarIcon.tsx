@@ -1,9 +1,11 @@
-import type { StarClassView } from "../../generated/StarClassView";
-import { useTextureUrl } from "../useTextureUrl";
+import type { StarClassView } from "../generated/StarClassView";
+import { useTextureUrl } from "./useTextureUrl";
+import "./panels.css";
 
 /** A star icon's side in pixels at `icon_scale` 1, and the most any scale may make it. */
 const ROW_ICON = { base: 22, max: 32 };
 const TRIGGER_ICON = { base: 12, max: 18 };
+const PALETTE_ICON = { base: 16, max: 20 };
 
 /** The icon the map draws for `view`, sized by its `icon_scale`. */
 function StarIcon({ view, size }: { view: StarClassView; size: { base: number; max: number } }) {
@@ -21,4 +23,9 @@ export function StarRowIcon({ view }: { view: StarClassView }) {
 /** The icon a star class picker's button shows for `view`. */
 export function StarTriggerIcon({ view }: { view: StarClassView }) {
   return <StarIcon view={view} size={TRIGGER_ICON} />;
+}
+
+/** The icon a search palette row shows for `view`. */
+export function StarPaletteIcon({ view }: { view: StarClassView }) {
+  return <StarIcon view={view} size={PALETTE_ICON} />;
 }

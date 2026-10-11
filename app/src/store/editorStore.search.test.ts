@@ -77,3 +77,47 @@ describe("search rings", () => {
     expect(editor().searchRings).toEqual([]);
   });
 });
+
+describe("a star type taken from the palette", () => {
+  it("keeps its systems ringed after the palette clears, and frames them", () => {
+    editor().ringSystems([0, 2]);
+    editor().clearSearch();
+
+    expect(editor().heldRings).toEqual([0, 2]);
+    expect(editor().framed).toEqual({ ids: [0, 2], nonce: 1 });
+
+    editor().ringSystems([1]);
+    expect(editor().framed).toEqual({ ids: [1], nonce: 2 });
+  });
+
+  it("lets go of its rings when the next search comes back", async () => {
+    editor().ringSystems([0, 2]);
+    search.mockResolvedValueOnce(result([1]));
+
+    await editor().runSearch("gaia", 20);
+
+    expect(editor().heldRings).toEqual([]);
+    expect(editor().searchRings).toEqual([1]);
+  });
+
+  it("is not ringed by a search that was on its way when it was taken", async () => {
+    let answer: (r: SearchResult) => void = () => undefined;
+    search.mockReturnValueOnce(new Promise<SearchResult>((resolve) => (answer = resolve)));
+    const pending = editor().runSearch("g", 20);
+
+    editor().ringSystems([0, 2]);
+    answer(result([1]));
+
+    expect(await pending).toBeNull();
+    expect(editor().heldRings).toEqual([0, 2]);
+    expect(editor().searchRings).toEqual([]);
+  });
+
+  it("drops its rings when the document closes", async () => {
+    editor().ringSystems([0, 2]);
+
+    await useFileSessionStore.getState().close();
+
+    expect(editor().heldRings).toEqual([]);
+  });
+});

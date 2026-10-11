@@ -6,7 +6,7 @@ vi.mock("../api/events");
 
 import { SAVE_Y_SIGN } from "../lib/geometry/geometry";
 import { mockedIpc } from "../test/ipc";
-import { nudgeSelected, run, type CommandEffects } from "./commands";
+import { nudgeHasTarget, nudgeSelected, run, type CommandEffects } from "./commands";
 import { useDetailsStore } from "./detailsStore";
 import { openFixtureSave } from "./editorFixture";
 import { useEditorStore } from "./editorStore";
@@ -20,6 +20,7 @@ import { useMapChromeStore } from "./mapChromeStore";
 import { useSceneStore } from "./sceneStore";
 import { resetStores } from "./storeFixture";
 import { until } from "../test/wait";
+import { name } from "../test/builders";
 
 const SOL: Entry = { ref: { kind: "system", id: 452 }, label: "Sol" };
 const EARTH: Entry = { ref: { kind: "body", system: 452, id: 1207 }, label: "Earth" };
@@ -134,6 +135,26 @@ describe("Shift+Arrow", () => {
       radius: 101,
       angle: expect.closeTo(120, 9),
     });
+  });
+
+  it("has something to move with a selection, a selected nebula, or a body's page in a system view", () => {
+    expect(nudgeHasTarget()).toBe(false);
+    useEditorStore.setState({ selection: [SYSTEM] });
+    expect(nudgeHasTarget()).toBe(true);
+
+    useEditorStore.setState({ selection: [], selectedNebula: 0 });
+    useGalaxyStore.setState({ nebulae: [] });
+    expect(nudgeHasTarget()).toBe(false);
+    useGalaxyStore.setState({
+      nebulae: [{ name: name("Cloud"), x: 0, y: 0, radius: 40, systems: [] }],
+    });
+    expect(nudgeHasTarget()).toBe(true);
+
+    useEditorStore.setState({ selection: [SYSTEM], selectedNebula: null });
+    useSceneStore.getState().enterSystem(SYSTEM);
+    expect(nudgeHasTarget()).toBe(false);
+    useInspectorStore.getState().openFromMap(bodyEntry(SYSTEM, LONE, "Body"));
+    expect(nudgeHasTarget()).toBe(true);
   });
 
   it("on the galaxy, moves the selected systems", async () => {

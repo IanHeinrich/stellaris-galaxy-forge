@@ -22,7 +22,7 @@ import { Chip } from "../../parts";
 import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditField";
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
-import { StarRowIcon } from "../StarIcon";
+import { StarRowIcon } from "../../StarIcon";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";

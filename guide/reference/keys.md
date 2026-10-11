@@ -28,7 +28,7 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | <kbd>Esc</kbd> | Clear the selection, or step back. See [What Esc does](#what-esc-does) |
 | <kbd>Del</kbd> | Delete or cut what is selected |
 | <kbd>Backspace</kbd> | Back one Inspector page, or out of the system view. With nowhere to go back to, the same as <kbd>Del</kbd> |
-| <kbd>Shift</kbd>+arrow | Nudge the selection by 1, or 10° or 10 units with <kbd>Ctrl</kbd> |
+| <kbd>Shift</kbd>+arrow | Nudge the selection by 1, or 10° or 10 units with <kbd>Ctrl</kbd>. With nothing selected, pan faster |
 | <kbd>Ctrl</kbd>+<kbd>X</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>V</kbd> | Cut, copy or paste planets, in a save |
 
 ## Map
@@ -36,6 +36,7 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | Key | Action |
 | --- | --- |
 | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, arrows | Pan while held |
+| <kbd>Shift</kbd>+<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> | Pan three times faster while held. <kbd>Shift</kbd>+arrow does the same when nothing is selected |
 | <kbd>F</kbd>, <kbd>Ctrl</kbd>+<kbd>K</kbd>, <kbd>/</kbd> | Search |
 | <kbd>Home</kbd> | Fit the whole galaxy |
 | <kbd>Shift</kbd>+<kbd>F</kbd> | Frame the selection |

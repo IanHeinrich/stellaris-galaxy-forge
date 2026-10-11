@@ -3,7 +3,7 @@ import * as ipc from "../api/ipc";
 import type { SearchResult } from "../generated/SearchResult";
 import type { EditorState } from "./editorStore";
 
-type SearchActions = Pick<EditorState, "runSearch" | "clearSearch">;
+type SearchActions = Pick<EditorState, "runSearch" | "clearSearch" | "ringSystems">;
 
 export function searchActions(
   set: StoreApi<EditorState>["setState"],
@@ -25,13 +25,19 @@ export function searchActions(
         throw e;
       }
       if (seq !== latest) return null;
-      set({ searchRings: result.systems });
+      set({ searchRings: result.systems, heldRings: [] });
       return result;
     },
 
     clearSearch() {
       latest++;
       unring();
+    },
+
+    ringSystems(ids) {
+      latest++;
+      unring();
+      set({ heldRings: ids, framed: { ids, nonce: (get().framed?.nonce ?? 0) + 1 } });
     },
   };
 }

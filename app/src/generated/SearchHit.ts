@@ -7,7 +7,8 @@ import type { SearchKind } from "./SearchKind";
  */
 export type SearchHit = { kind: SearchKind, 
 /**
- * The entity's id; for a nebula, its index in `GalaxyView::nebulae`.
+ * The entity's id; for a nebula, its index in `GalaxyView::nebulae`; for a star type,
+ * its place among the galaxy's star types by key.
  */
 id: number, 
 /**
@@ -15,12 +16,14 @@ id: number,
  */
 name: NameTemplate, 
 /**
- * The no-game-data stand-in (`NameTemplate::stand_in`).
+ * The no-game-data stand-in (`NameTemplate::stand_in`); for a star type, its key
+ * without the `sc_` prefix.
  */
 name_key: string, 
 /**
  * The system to focus: the system itself, the country's capital system, the planet's
- * or fleet's system; `None` for a nebula, which has its own `x`/`y`.
+ * or fleet's system; `None` for a nebula, which has its own `x`/`y`, and for a star
+ * type, which lists its systems.
  */
 system_id: number | null, 
 /**
@@ -33,7 +36,8 @@ owner: NameTemplate | null,
  */
 country_type: string | null, 
 /**
- * Systems the country owns, or the nebula lists; `Country` and `Nebula` hits.
+ * Systems the country owns, the nebula lists, or of the star type; `Country`,
+ * `Nebula` and `StarType` hits.
  */
 system_count: number | null, 
 /**
@@ -55,4 +59,13 @@ matched_on: string | null,
  * When [`Self::matched_on`] is a bypass, its key (`wormhole`, `gateway`, `l_gate`, or
  * the kind the save names), for the app to label.
  */
-matched_bypass?: string, };
+matched_bypass?: string, 
+/**
+ * A star type's class key (`sc_pulsar`), the lowest when the localisation names
+ * several classes alike; `StarType` hits only.
+ */
+star_class?: string, 
+/**
+ * Every system of a star type, ascending; `StarType` hits only.
+ */
+systems?: Array<number>, };

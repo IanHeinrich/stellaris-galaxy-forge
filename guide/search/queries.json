@@ -66,6 +66,9 @@
   {"q": "keyboard shortcuts", "expect": "reference/keys"},
   {"q": "command line", "expect": "reference/command-line"},
   {"q": "search", "expect": "map/search"},
+  {"q": "find pulsars", "expect": "map/search#find-a-system-empire-or-planet"},
+  {"q": "find star type", "expect": "map/search#find-a-system-empire-or-planet"},
+  {"q": "select all black holes", "expect": "map/search#find-a-system-empire-or-planet"},
   {"q": "layers", "expect": "map/layers"},
   {"q": "precursor", "expect": "map/layers#see-where-precursors-can-turn-up"},
   {"q": "give systems to empire", "expect": "reference/faq#can-i-give-systems-to-an-empire"},
@@ -103,5 +106,7 @@
   {"q": "file menu", "expect": "start/the-window#use-the-file-menu"},
   {"q": "tilt", "expect": "start/the-window"},
   {"q": "supported versions", "expect": "reference/versions"},
-  {"q": "open it again", "expect": "start/install-and-update#open-it-again"}
+  {"q": "open it again", "expect": "start/install-and-update#open-it-again"},
+  {"q": "pan faster", "expect": "map/navigate#pan-and-zoom"},
+  {"q": "pan while dragging a system", "expect": "map/navigate#pan-and-zoom"}
 ]

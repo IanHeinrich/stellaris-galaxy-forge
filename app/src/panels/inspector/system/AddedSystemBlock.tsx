@@ -7,7 +7,7 @@ import { specialFor } from "../../../store/generatorStore";
 import { EditBlock, EditNote, EditRow, PickerField, TextField } from "../../EditField";
 import type { IconPickerItem } from "../../IconPicker";
 import { useGeneratorData } from "../../useGeneratorData";
-import { StarRowIcon, StarTriggerIcon } from "../StarIcon";
+import { StarRowIcon, StarTriggerIcon } from "../../StarIcon";
 
 const DELETABLE_UNTIL_REOPENED = "You can delete it until the file is reopened.";
 export const ADDED_CHIP_TITLE = `Added since you opened this file. ${DELETABLE_UNTIL_REOPENED}`;
