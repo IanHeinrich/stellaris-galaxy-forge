@@ -75,6 +75,7 @@ export const openScript = command("openScript");
 export const openUrl = command("openUrl");
 export const workshopLinks = command("workshopLinks");
 export const getNames = command("getNames");
+export const getRawNames = command("getRawNames");
 export const resolveNames = command("resolveNames");
 export const getStarClasses = command("getStarClasses");
 export const getGeneratorStarClasses = command("getGeneratorStarClasses");

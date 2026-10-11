@@ -24,6 +24,7 @@ import {
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
+import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
@@ -94,8 +95,13 @@ export interface Chance {
   readonly planetClass: boolean;
   /** Whether it has a ring is left to its class's chance. */
   readonly ring: boolean;
-  /** The game may not place it: a copy past the low end of its block's count, or a body round one. */
+  /**
+   * The game may not place it: a copy past the low end of its block's count, a body round one, or
+   * a body at some of whose orbits no class it can roll fits.
+   */
   readonly mayNotSpawn: boolean;
+  /** The game never places it: no class it can roll fits any orbit it can land at. */
+  readonly never: boolean;
 }
 
 const NO_CHANCE: Chance = Object.freeze({
@@ -104,6 +110,7 @@ const NO_CHANCE: Chance = Object.freeze({
   planetClass: false,
   ring: false,
   mayNotSpawn: false,
+  never: false,
 });
 
 /**
@@ -435,7 +442,8 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
     angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
-    mayNotSpawn: planet.spawn?.always === false,
+    mayNotSpawn: maySpawn(planet.spawn) || neverSpawns(planet.spawn),
+    never: neverSpawns(planet.spawn),
   };
 }
 

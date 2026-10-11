@@ -118,5 +118,8 @@
   {"q": "open initializer file", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
   {"q": "script text colours", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
   {"q": "rolled when the game starts", "expect": "system/system-view#rolled-values-and-how-many-planets-spawn"},
-  {"q": "scenario planet page", "expect": "system/planet-pages#a-scenario-body-s-page"}
+  {"q": "scenario planet page", "expect": "system/planet-pages#a-scenario-body-s-page"},
+  {"q": "never placed", "expect": "system/planet-pages#a-scenario-body-s-page"},
+  {"q": "can also roll", "expect": "system/deposits-and-modifiers#what-a-scenario-planet-can-roll"},
+  {"q": "scenario belt radius", "expect": "system/belts#belts-in-a-scenario"}
 ]

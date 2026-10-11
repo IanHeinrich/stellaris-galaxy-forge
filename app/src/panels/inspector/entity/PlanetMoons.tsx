@@ -4,6 +4,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { Section } from "../parts";
 import { PlanetRow } from "../system/sections/Planets";
 import type { PlanetSectionProps } from "./planetSection";
+import { useGivenNames } from "./useBodyName";
 
 /** The moons around the body, as its system's details list them, each opening its own page. */
 export function PlanetMoons({ read }: PlanetSectionProps) {
@@ -11,6 +12,7 @@ export function PlanetMoons({ read }: PlanetSectionProps) {
   const starClasses = useGameDataStore((s) => s.starClasses);
   const bodies = useCanEdit("bodies");
   const { details, summary } = read;
+  const given = useGivenNames(details);
   const moons = details.planets.filter((p) => p.parent === summary.id);
   if (moons.length === 0) return null;
   return (
@@ -21,6 +23,7 @@ export function PlanetMoons({ read }: PlanetSectionProps) {
           planet={moon}
           flat
           details={details}
+          given={given.get(moon.id)}
           editHint={bodyEditHint(moon.class, bodies, planetClasses, starClasses)}
         />
       ))}

@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
-import { bodyNoun, modifierLine } from "../../../lib/details/spawnFacts";
+import { bodyNoun, FEATURE_POOL, modifierLine } from "../../../lib/details/spawnFacts";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
@@ -11,6 +11,7 @@ import { modifierCard } from "./modifierCard";
 import { EffectSummary, PickerCard } from "./PickerCard";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
+import { PoolLines } from "./SpawnFacts";
 
 /** A row's card while `shown`; nothing else. */
 function RowCard({
@@ -124,7 +125,9 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
     spawn === undefined
       ? null
       : modifierLine(spawn.features, bodyNoun(read.summary), modifiers.length);
-  if (modifiers.length === 0 && !editable && line === null) return null;
+  const pool = spawn?.rolled_features;
+  const rolls = pool !== undefined && pool.state !== "fixed";
+  if (modifiers.length === 0 && !editable && line === null && !rolls) return null;
   return (
     <Section id="planet.modifiers" title="Modifiers" count={modifiers.length}>
       {line !== null && <div className="muted ins-hint">{line}</div>}
@@ -135,6 +138,7 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
           onRemove={editable ? () => void target.edits.removeModifier(ref) : null}
         />
       ))}
+      <PoolLines pool={pool} stated={modifiers.length} kind={FEATURE_POOL} />
       {editable && <PlanetPicker kind={MODIFIER_PICKER} target={target} />}
     </Section>
   );

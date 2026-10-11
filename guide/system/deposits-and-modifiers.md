@@ -1,9 +1,9 @@
 ---
 title: Deposits and modifiers
 description: Add and remove a planet's deposits, blockers, modifiers, anomaly and dig site.
-aliases: [deposit, resources, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeology, add_modifier, minerals, energy]
+aliases: [deposit, resources, can also roll, deposit pool, planet feature pool, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeology, add_modifier, minerals, energy]
 ---
-# Deposits and modifiers <Badge type="tip" text="Save" />
+# Deposits and modifiers <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 These sections are on a [planet's page](planet-pages.md), below its
 name, size and class.
@@ -71,6 +71,16 @@ Adding or removing a timed modifier does what the console's
 `add_modifier` and `remove_modifier` do. A planet feature also has a
 line of its own, which is added and removed with it, as the game writes
 a rolled feature.
+
+## What a scenario planet can roll <Badge type="info" text="Scenario" />
+
+In a scenario, the Deposits and Modifiers sections list what the
+initializer states. Under them, "Can also roll" lists the deposits or
+planet features the game can roll for the planet, likeliest first. A
+percentage is how often one roll gives it. "Can roll" heads the list
+when the initializer states none. Where the initializer stops the roll,
+there is no list. Where the class the game picks decides the roll, the
+section says so.
 
 ## Make a planet a terraforming candidate
 

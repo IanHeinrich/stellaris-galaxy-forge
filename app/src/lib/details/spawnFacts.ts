@@ -11,9 +11,12 @@ import type { DepositStep } from "../../generated/DepositStep";
 import type { ListMember } from "../../generated/ListMember";
 import type { ModifierView } from "../../generated/ModifierView";
 import type { NeighborSystem } from "../../generated/NeighborSystem";
+import type { PoolClass } from "../../generated/PoolClass";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { RawStatement } from "../../generated/RawStatement";
+import type { SpawnPool } from "../../generated/SpawnPool";
+import type { SpawnRing } from "../../generated/SpawnRing";
 import type { StatedAnomalies } from "../../generated/StatedAnomalies";
 import type { StatedFeatures } from "../../generated/StatedFeatures";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -119,6 +122,24 @@ export function starOdds(members: readonly ListMember[]): StarOdds[] {
     }));
 }
 
+/** The classes a random draw can give at a body's orbit, likeliest first, each with its share where every weight is known. */
+export function classOdds(classes: readonly PoolClass[]): StarOdds[] {
+  return starOdds(classes.map((c) => ({ key: c.class, weight: c.weight })));
+}
+
+/** What the Class row says under classes listed without odds: which fit depends on the roll. */
+export function classFitHint(orbitRanged: boolean, starRolled: boolean): string {
+  if (orbitRanged && starRolled) {
+    return "Which of these it can be depends on where it lands and on the star the system rolls.";
+  }
+  return orbitRanged
+    ? "Which of these it can be depends on where it lands."
+    : "Which of these it can be depends on the star the system rolls.";
+}
+
+/** What the Class row says under a planet list's members: the list may not be held to the orbit. */
+export const LIST_ORBIT_HINT = "The game may roll any of these, whether or not it fits the orbit.";
+
 /** `24%`: a share of a draw as the star list shows it. */
 export function percent(share: number): string {
   return `${Math.round(share * 100)}%`;
@@ -174,6 +195,18 @@ export function unknownClassWhy(reason: UnknownClass, written: string): string {
 
 /** What a row says of a ring the initializer leaves to the class's chance. */
 export const RING_ROLLED = "Rolled by the game";
+
+/** The Ring row's words: stated, a chance, or left to a class the game decides. */
+export function ringWords(ring: SpawnRing): string {
+  switch (ring.state) {
+    case "fixed":
+      return ring.ring ? "Yes" : "No";
+    case "rolled":
+      return ring.chance === null ? RING_ROLLED : `${percent(ring.chance)} chance`;
+    case "unknown":
+      return "Decided by the class it rolls";
+  }
+}
 /** What the Model row says where the initializer names none. */
 export const MODEL_ROLLED = "One of its class's models";
 /** What the Name row says where the initializer names none. */
@@ -194,14 +227,49 @@ export function ordinal(n: number): string {
 export function copyLine(spawn: BodySpawn, noun: string): string | null {
   const { count, copy, always } = spawn;
   const some = `Some games have this ${noun} and some don't.`;
-  if (count.max <= 1) return always ? null : some;
+  const orbit = spawn.orbit_fit === "sometimes" ? orbitMayLeaveOut(noun) : null;
+  if (count.max <= 1) return always ? orbit : some;
   const around = noun === "moon" ? " around its planet" : "";
   const placed = `The game places ${rangeWords(count)} ${noun}s like this one${around}.`;
   const nth = `This is the ${ordinal(copy)}`;
   if (isRanged(count) && copy > count.min) {
     return `${placed} ${nth}, so it is only there when the game places ${copy} or more.`;
   }
+  if (orbit !== null) return `${placed} ${nth}. ${orbit}`;
   return always ? `${placed} ${nth}, so every game has it.` : `${placed} ${nth}. ${some}`;
+}
+
+/** Whether the game never places the body: no class it can roll fits any orbit it can land at. */
+export function neverSpawns(spawn: BodySpawn | undefined): boolean {
+  return spawn?.orbit_fit === "never";
+}
+
+/** Whether some games lack the body, for its count or for its orbit. */
+export function maySpawn(spawn: BodySpawn | undefined): boolean {
+  return spawn !== undefined && (!spawn.always || spawn.orbit_fit === "sometimes");
+}
+
+/** What the Inner radius row says where the initializer also writes an offset the range leaves out. */
+export function innerOffsetHint(offset: number): string {
+  return `The initializer also sets an offset of ${offset} for the inner radius. This range doesn't count it in, because no game file says how the game uses it.`;
+}
+
+/** The mark a row and a page head show on a body the game never places. */
+export const NEVER_PLACED = "never placed";
+
+/**
+ * What a body's page says of a body the game never places, and why: no class it can roll fits its
+ * orbit, or the body it orbits is never placed.
+ */
+export function neverLine(noun: string, parentNever: boolean): string {
+  return parentNever
+    ? `The game never places this ${noun}, because it never places the body it orbits.`
+    : `The game never places this ${noun}. None of the classes it can roll fit its orbit.`;
+}
+
+/** What a body's page adds where its orbit can leave it out of some games. */
+export function orbitMayLeaveOut(noun: string): string {
+  return `Some games have this ${noun} and some don't. At some of the orbits it can land at, none of the classes it can roll fit.`;
 }
 
 /** What a body's page calls it in a sentence. */
@@ -301,6 +369,62 @@ export function depositCategories(steps: readonly DepositStep[]): string[] {
     (step.kind === "clear" || step.kind === "set") && step.category !== null ? [step.category] : [],
   );
 }
+
+/** One thing a body's roll can give it, with the chance one roll gives it where that is known. */
+export interface PoolPick {
+  key: string;
+  chance: number | null;
+}
+
+/** A pool's entries, likeliest first, the install's order kept among equals and unknown chances last. */
+export function poolPicks(pool: Extract<SpawnPool, { state: "rolled" }>): PoolPick[] {
+  return pool.entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => (b.entry.chance ?? -1) - (a.entry.chance ?? -1) || a.index - b.index)
+    .map(({ entry }) => ({ key: entry.key, chance: entry.chance }));
+}
+
+/** The keys a pool can give, for their names to be read. */
+export function poolKeys(pool: SpawnPool | undefined): string[] {
+  return pool?.state === "rolled" ? pool.entries.map((e) => e.key) : [];
+}
+
+/** `Can roll · 9` or `Can also roll · 3`: the line over a pool, after the stated rows when there are some. */
+export function poolTitle(stated: number, tail: string): string {
+  return `${stated > 0 ? "Can also roll" : "Can roll"} · ${tail}`;
+}
+
+/** What a pool's chance says on hover. */
+export const DEPOSIT_CHANCE_TITLE = "How often a deposit the game rolls here is this one";
+export const FEATURE_CHANCE_TITLE =
+  "The chance the first planet feature the game rolls here is this one";
+
+/** What the Deposits and Modifiers sections say where the class the body rolls decides the pool. */
+export const DEPOSITS_UNKNOWN = "Decided by the class it rolls";
+export const DEPOSITS_UNKNOWN_WHY = "The game rolls deposits for the class it picks.";
+export const FEATURES_UNKNOWN_WHY = "The game rolls planet features for the class it picks.";
+
+/** What a pool lists: deposits or planet features. */
+export interface PoolKind {
+  /** The line's tail after "Can roll ·", given how many it lists. */
+  tail: (count: number) => string;
+  /** What a chance says on hover. */
+  chanceTitle: string;
+  /** Why an unknown pool can't be told. */
+  unknownWhy: string;
+}
+
+export const DEPOSIT_POOL: PoolKind = {
+  tail: (count) => `${count}`,
+  chanceTitle: DEPOSIT_CHANCE_TITLE,
+  unknownWhy: DEPOSITS_UNKNOWN_WHY,
+};
+
+export const FEATURE_POOL: PoolKind = {
+  tail: () => "planet features",
+  chanceTitle: FEATURE_CHANCE_TITLE,
+  unknownWhy: FEATURES_UNKNOWN_WHY,
+};
 
 /** The planet features and modifiers an initializer states, as the Modifiers section lists them. */
 export function statedModifierRows(

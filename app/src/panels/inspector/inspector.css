@@ -455,6 +455,21 @@ button.link.ins-drill:hover {
   background: rgba(127, 179, 255, 0.08);
 }
 
+/* What a scenario body's roll can give it, under the rows its initializer states. */
+.ins-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 5px;
+  font-size: var(--text-note);
+}
+
+/* A body the game never places: its mark in the count's place, and on its page's head. */
+.ins-never {
+  border-style: dashed;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
 /* The Initializer section: its name and button, its kind and file, one grid of rows, then groups. */
 .ins-init-head {
   display: flex;

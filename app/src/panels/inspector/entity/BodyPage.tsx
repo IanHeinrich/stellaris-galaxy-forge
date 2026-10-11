@@ -7,6 +7,7 @@ import { isStarBody } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
+import { NEVER_PLACED, neverSpawns } from "../../../lib/details/spawnFacts";
 import { COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { bodyOrbit } from "../../../lib/details/orbitIntent";
@@ -43,6 +44,7 @@ import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
 import { BodyFlags, BodyInitializer, SpawnHeadNotes, SpawnProperties } from "./SpawnFacts";
 import { SizeField, StarBlock } from "./StarBlock";
+import { shownBodyName, useGivenNames } from "./useBodyName";
 import "./entity.css";
 
 /** Asks for the game data the page shows: its deposits, modifiers, designations, anomaly, dig site and class names. */
@@ -114,6 +116,9 @@ function Head({
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
       {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
+      {neverSpawns(body?.spawn) && (
+        <span className="ins-block-count ins-never">{NEVER_PLACED}</span>
+      )}
       {action}
     </div>
   );
@@ -245,6 +250,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const { details, summary, target } = read;
   const system = useGalaxyStore((s) => s.systems.get(details.id));
+  const given = useGivenNames(details);
   const star = useIsStar(summary);
   const offers = planetPageOffers(capabilities, {
     star,
@@ -259,7 +265,7 @@ function BodyOverview({ read }: { read: BodyRead }) {
   });
   const starBlock = offers.starFields && read.listed && system !== undefined;
   const starWait = offers.starFields && read.listed && !starBlock;
-  const name = bodyName(summary, names);
+  const name = shownBodyName(summary, given, names);
   const size = bodySize(summary);
   const fields: PlanetFields = {
     name: offers.planetFields ? name : null,

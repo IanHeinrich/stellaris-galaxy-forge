@@ -59,6 +59,20 @@ describe("what a scenario may not place", () => {
     const ctx = scenario(planets, rollOf(planets));
     expect(ctx.bodies.map((b) => b.chance.mayNotSpawn)).toEqual([false, true, false]);
   });
+
+  it("marks a body whose orbit no class fits around some stars, and fades one it never places", () => {
+    const planets = [
+      scenarioSun,
+      body(2, "pc_barren", { orbit: fixed(60) }, { spawn: bodySpawn({ orbit_fit: "sometimes" }) }),
+      body(3, "pc_barren", { orbit: fixed(90) }, { spawn: bodySpawn({ orbit_fit: "never" }) }),
+    ];
+    const ctx = scenario(planets, rollOf(planets));
+    expect(ctx.bodies.map((b) => [b.chance.mayNotSpawn, b.chance.never])).toEqual([
+      [false, false],
+      [true, false],
+      [true, true],
+    ]);
+  });
 });
 
 describe("orbit radius readouts", () => {

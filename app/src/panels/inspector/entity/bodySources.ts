@@ -28,7 +28,7 @@ import {
   type ModifierRow,
 } from "../../../lib/details/planetPage";
 import type { Names } from "../../../lib/names";
-import { statedModifierKeys, statedModifierRows } from "../../../lib/details/spawnFacts";
+import { poolKeys, statedModifierKeys, statedModifierRows } from "../../../lib/details/spawnFacts";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
   bodyPickerTarget,
@@ -303,8 +303,14 @@ function summaryRows(
 
 function summaryDataKeys(summary: PlanetSummary): PlanetDataKeys {
   return {
-    deposits: summary.deposit_keys.map((d) => d.key),
-    modifiers: summary.spawn === undefined ? [] : statedModifierKeys(summary.spawn.features),
+    deposits: [
+      ...summary.deposit_keys.map((d) => d.key),
+      ...poolKeys(summary.spawn?.rolled_deposits),
+    ],
+    modifiers: [
+      ...(summary.spawn === undefined ? [] : statedModifierKeys(summary.spawn.features)),
+      ...poolKeys(summary.spawn?.rolled_features),
+    ],
     colonyTypes: [],
     anomalies: [
       ...(summary.anomaly === undefined ? [] : [summary.anomaly]),

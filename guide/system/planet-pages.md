@@ -1,7 +1,7 @@
 ---
 title: Planet pages
 description: Open a planet, moon, star or asteroid page and change its name, size, look, class and ring.
-aliases: [planet page, scenario planet page, start planet, edit planet, rename planet, planet size, planet class, change planet type, planet model, look, skin, ring, moon, asteroid, tomb world, post-apocalyptic, previously terraformed]
+aliases: [planet page, scenario planet page, never placed, planet name, ring chance, start planet, edit planet, rename planet, planet size, planet class, change planet type, planet model, look, skin, ring, moon, asteroid, tomb world, post-apocalyptic, previously terraformed]
 ---
 # Planet pages <Badge type="tip" text="Save" />
 
@@ -70,6 +70,24 @@ modifiers, anomaly and flags the initializer states. A start planet has
 a "start planet" mark and a Start planet row. The Initializer section
 shows the lines the initializer runs for the body, and its other keys.
 Nothing on the page can be edited yet.
+
+An unnamed body shows the name the game gives it, made from the
+system's name, such as "Yunak II" or "Yunak IIa". The game numbers
+planets in order. Where some bodies before it may not be placed, the
+name is rolled, and the line under it lists every name it can have.
+Asteroids get names the game draws at random.
+
+A rolled class lists the classes that fit the body's orbit, likeliest
+first. Where the orbit is one value and the system's star is fixed, each
+class shows its odds. A class from a planet list lists the list's
+classes. The game may roll any of them, whether or not it fits the
+orbit. A rolled ring shows its chance.
+
+Some bodies are never placed, because none of the classes they can roll
+fit their orbit. They show "never placed" on their row and their page,
+and look faint in the system view. A row of several planets counts only
+the ones the game can place. A body whose orbit only some classes
+fit around some stars is in some games and not in others.
 
 ## Go back
 

@@ -14,6 +14,7 @@ import {
   categoryWords,
   depositCategories,
   depositLines,
+  DEPOSIT_POOL,
 } from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
@@ -28,6 +29,7 @@ import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
+import { PoolLines } from "./SpawnFacts";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
 const ROOT: readonly string[] = [];
@@ -299,7 +301,9 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           deposit: (key) => views.get(key)?.name ?? key,
           category,
         });
-  const says = stated.notes.length > 0 || stated.blockers !== null;
+  const pool = spawn?.rolled_deposits;
+  const rolls = pool !== undefined && pool.state !== "fixed";
+  const says = stated.notes.length > 0 || stated.blockers !== null || rolls;
   if (deposits.count === 0 && !editable && !says) return null;
   const removal = (group: HeldDeposit): Removal | null => {
     const held = editable ? group.removal : null;
@@ -347,6 +351,7 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           {note}
         </div>
       ))}
+      <PoolLines pool={pool} stated={features.length + blockers.length} kind={DEPOSIT_POOL} />
       {editable && (
         <PlanetPicker
           kind={DEPOSIT_PICKERS.deposits}
