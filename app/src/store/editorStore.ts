@@ -178,6 +178,8 @@ export interface EditorState {
   setNebulaRadius(index: number, radius: number): Promise<void>;
   /** Renames the nebula at `index`; the text is written as the file's own literal. */
   setNebulaName(index: number, name: string): Promise<void>;
+  /** Makes every system of the nebula at `index` turbulent, or every one calm. */
+  setNebulaTurbulent(index: number, turbulent: boolean): Promise<void>;
   /**
    * Removes the nebula at `index` once the user has agreed to the systems that leave it,
    * renumbering the ones after it, and deselects.

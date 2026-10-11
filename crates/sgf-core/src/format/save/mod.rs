@@ -343,6 +343,7 @@ impl Format for Save {
             details: true,
             lane_lengths: true,
             nebulae: true,
+            nebula_turbulence: whole_entries,
             bypasses: true,
             special: true,
             precursors: true,
