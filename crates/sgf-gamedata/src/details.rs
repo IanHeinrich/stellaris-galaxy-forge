@@ -349,6 +349,7 @@ impl GameData {
             rolled_deposits: None,
             rolled_features: None,
             naming: None,
+            at: stated.at.clone(),
         }
     }
 

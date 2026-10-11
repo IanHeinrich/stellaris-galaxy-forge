@@ -228,14 +228,16 @@ button.chip.jump:hover {
 }
 
 /* What a row can roll, folded under it: the width of the rows, no rule, the heading quieter. */
-.ins-kv > .ins-group {
+.ins-kv > .ins-group,
+.ins-kv > .ins-class-dependent > .ins-group {
   grid-column: 1 / -1;
   margin: 0 0 4px;
   padding-top: 0;
   border-top: none;
 }
 
-.ins-kv > .ins-group button.ins-group-head {
+.ins-kv > .ins-group button.ins-group-head,
+.ins-kv > .ins-class-dependent > .ins-group button.ins-group-head {
   color: var(--fg-muted);
   font-size: var(--text-note);
   font-weight: 400;
@@ -603,6 +605,11 @@ button.link.ins-drill:hover {
   text-decoration: underline;
   text-decoration-color: var(--border);
   text-underline-offset: 2px;
+}
+
+/* An initializer's definition under the entity's own text on the Source tab. */
+.ins-init-source {
+  margin-top: 14px;
 }
 
 .ins-init-country {

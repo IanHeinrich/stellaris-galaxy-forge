@@ -12,9 +12,12 @@ import type { DepositChoice } from "../generated/DepositChoice";
 import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositView } from "../generated/DepositView";
 import type { DigSiteChoice } from "../generated/DigSiteChoice";
+import type { EditorChoices } from "../generated/EditorChoices";
+import type { EditorPick } from "../generated/EditorPick";
 import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
+import type { InitializerDefinition } from "../generated/InitializerDefinition";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
@@ -22,6 +25,7 @@ import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
+import type { OpenedFile } from "../generated/OpenedFile";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
@@ -65,9 +69,43 @@ export function paintMod(): Promise<PaintModView | null> {
   return invoke<PaintModView | null>("paint_mod");
 }
 
-/** Open a game-data file in the shell's editor, or show it in its folder; refused outside the loaded roots. */
+/** Open a game-data script file or the open scenario with the system default, or show it in its folder; refused for any other file. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
+}
+
+/** The editors on this machine, found once a run, the program picked for Other…, and whether Steam replaces `path` when it updates. */
+export function editorChoices(path: string): Promise<EditorChoices> {
+  return invoke<EditorChoices>("editor_choices", { path });
+}
+
+/**
+ * Ask for the program Other… opens files with in the system's file dialog, which the shell holds
+ * until the chooser answers; its name, or null when the dialog was cancelled.
+ */
+export function chooseEditorProgram(): Promise<string | null> {
+  return invoke<string | null>("choose_editor_program");
+}
+
+/**
+ * Tell the shell the editor chooser's answer: `editor` picked, or null when it was cancelled.
+ * Other… keeps the program `chooseEditorProgram` found; any other answer drops it.
+ */
+export function answerEditorChooser(editor: EditorPick | null): Promise<void> {
+  return invoke<void>("answer_editor_chooser", { editor });
+}
+
+/**
+ * Open a file `openScript` would open in `editor`, at `line` or at its top when null. Other… needs a
+ * program from `chooseEditorProgram`, kept by `answerEditorChooser`, first. An editor that cannot be started leaves the file to
+ * the system default, and the answer says so.
+ */
+export function openInEditor(
+  path: string,
+  line: number | null,
+  editor: EditorPick,
+): Promise<OpenedFile> {
+  return invoke<OpenedFile>("open_in_editor", { path, line, editor });
 }
 
 /** The Steam Workshop pages the app links to, which `openUrl` opens. */
@@ -170,6 +208,11 @@ export function getBypasses(): Promise<BypassView[]> {
 /** Every solar system initializer of the loaded game data; empty without it. */
 export function getInitializers(): Promise<InitializerView[]> {
   return invoke<InitializerView[]>("get_initializers");
+}
+
+/** Initializer `name`'s definition as the file that won it writes it, with its file and line; refused without game data and for a name it lacks. */
+export function getInitializerDefinition(name: string): Promise<InitializerDefinition> {
+  return invoke<InitializerDefinition>("get_initializer_definition", { name });
 }
 
 /** Every galaxy shape a scenario can list itself under, in the loaded game data's order; empty without it. */

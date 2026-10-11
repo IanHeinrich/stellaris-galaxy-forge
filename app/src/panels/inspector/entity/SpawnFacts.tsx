@@ -58,6 +58,7 @@ import { capitalised } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { OpenButton } from "../../OpenButton";
 import { Group, Properties, PropertyRow, Section } from "../parts";
 import { OtherLinesGroup, ScriptGroup } from "../ScriptGroup";
 import {
@@ -66,7 +67,7 @@ import {
   HintedRow,
   Rolled,
   SetByLines,
-  SetByRow,
+  SetByRows,
   StoppedTag,
   Unknown,
   Why,
@@ -509,8 +510,8 @@ export function SpawnProperties({
 }
 
 /**
- * Under a scenario body's head: its place among the bodies its block places, and the inline script
- * it comes from.
+ * Under a scenario body's head: its place among the bodies its block places, the inline script it
+ * comes from, and the Open button for its `planet` or `moon` block.
  */
 export function SpawnHeadNotes({ read }: { read: BodyRead }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
@@ -532,11 +533,20 @@ export function SpawnHeadNotes({ read }: { read: BodyRead }) {
           </Hinted>
         </div>
       )}
-      {spawn.from_script !== null && (
-        <div className="muted ins-hint">
-          <Hinted label="Shared script" hint={sharedScriptHint(spawn.from_script)}>
-            {bodyFrom(noun)}
-          </Hinted>
+      {(spawn.from_script !== null || spawn.at !== undefined) && (
+        <div className="muted ins-init-sub">
+          {spawn.from_script !== null && (
+            <span className="ins-init-what">
+              <Hinted label="Shared script" hint={sharedScriptHint(spawn.from_script)}>
+                {bodyFrom(noun)}
+              </Hinted>
+            </span>
+          )}
+          {spawn.at !== undefined && (
+            <span className="ins-init-links">
+              <OpenButton target={spawn.at} />
+            </span>
+          )}
         </div>
       )}
     </>
@@ -569,17 +579,14 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
   if (spawn === undefined) return null;
   const orbitStep = read.summary.layout?.orbit_step != null;
   const variables = spawn.variables.filter((v) => !shownWithItsRow(v.key, orbitStep));
-  const from = valueSources({ inline_scripts: [], variables }, read.summary.moon);
-  const shown = from.length > 0 || spawn.other_keys.length > 0 || spawn.script.length > 0;
+  const shown = variables.length > 0 || spawn.other_keys.length > 0 || spawn.script.length > 0;
   if (!shown) return null;
   return (
     <Section id="planet.initializer" title="Initializer">
       <div className="ins-init">
-        {from.length > 0 && (
+        {variables.length > 0 && (
           <Properties>
-            {from.map((source) => (
-              <SetByRow key={`${source.label}-${source.name}`} source={source} />
-            ))}
+            <SetByRows uses={{ inline_scripts: [], variables }} moon={read.summary.moon} />
           </Properties>
         )}
         <ScriptGroup id="planet.initializer.script" statements={spawn.script} file={file} />

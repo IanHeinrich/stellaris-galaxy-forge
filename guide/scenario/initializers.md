@@ -1,7 +1,7 @@
 ---
 title: Initializers
-description: Choose what a scenario system spawns with the initializer browser, and filter its list.
-aliases: [initializer, initialiser, solar system initializer, custom spawn system, system layout, shift i, browser, usage, mod filter]
+description: Choose what a scenario system spawns with the initializer browser, filter its list, and open its script in your editor.
+aliases: [initializer, initialiser, solar system initializer, custom spawn system, system layout, shift i, browser, usage, mod filter, open in editor, vs code, notepad++, sublime text, edit script, text editor]
 ---
 # Initializers <Badge type="info" text="Scenario" />
 
@@ -53,3 +53,36 @@ every word. Use these prefixes to search one field:
 
 The [Initializer keys layer](../map/layers.md#every-layer) shows each
 system's initializer on the map.
+
+## Open a script in your editor
+
+Galaxy Forge shows script text but doesn't change it. To edit a script,
+open its file in your own editor at the line you're reading. The Open
+file button sits in the Initializer section, beside each script on the
+Scripts tab, on the Source tab, on a body's page and in the header of
+each script snippet. Where a value comes from a variable or an inline
+script, click its name to open the file where it's set.
+
+The first time you click it, Galaxy Forge asks which editor to use. It
+lists the editors it finds on your computer: VS Code, VSCodium,
+Notepad++, Sublime Text, JetBrains IDEs and Kate. "System default" opens
+the file in the program your computer opens `.txt` files with. For
+"Other…", click Browse… to pick the program, then type its arguments,
+where `{file}` is the file and `{line}` the line.
+
+With "Remember my choice" ticked, later files open straight away, and the
+button names the editor, such as "Open in VS Code". Untick it to choose
+each time. To change the editor or forget it, open the Help menu and
+select "Change editor…" or "Forget editor".
+
+Files of the game and of Workshop mods open too, but Steam replaces them
+when the game or the mod updates, so changes you make there are lost.
+The chooser and the status bar say so each time you open one. Copy the
+file into a mod of your own before you edit it.
+
+While a scenario has unsaved edits, its file on disk doesn't match what
+you see, so the scenario's own file opens at the top. Save first to open
+it at the line.
+
+If the editor doesn't start, the file opens in the system default
+instead, and the status bar says so.

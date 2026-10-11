@@ -128,7 +128,7 @@ function Contents({ view }: { view: EntityViewData }) {
   );
 }
 
-function EntityBody({ addr, label }: { addr: EntityAddr; label: string }) {
+function EntityBody({ addr, label, system }: { addr: EntityAddr; label: string; system?: number }) {
   const tab = useInspectorStore((s) => s.tab);
   const { value: view, error } = useEntityView(addr, ROOT);
   if (tab === "data") {
@@ -143,7 +143,7 @@ function EntityBody({ addr, label }: { addr: EntityAddr; label: string }) {
     return (
       <>
         <Head label={label} addr={addr} view={view} />
-        <SourceTab addr={addr} />
+        <SourceTab addr={addr} system={system} />
       </>
     );
   }
@@ -186,5 +186,6 @@ export function EntityView({ entry }: { entry: Entry }) {
       </>
     );
   }
-  return <EntityBody addr={addr} label={entry.label} />;
+  const system = ref.kind === "body" ? ref.system : undefined;
+  return <EntityBody addr={addr} label={entry.label} system={system} />;
 }

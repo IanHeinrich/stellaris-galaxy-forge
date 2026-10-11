@@ -1,11 +1,15 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
+import type { SourceLine } from "../../generated/SourceLine";
+import type { SystemSpawn } from "../../generated/SystemSpawn";
 import {
   DEPENDS_ON_CLASS,
   NEVER_PLACED,
   ROLLED_TITLE,
   SHARED_VALUE_HINT,
+  valueSources,
   type ValueSource,
 } from "../../lib/details/spawnFacts";
+import { OpenButton } from "../OpenButton";
 import { Chip } from "../parts";
 import type { Press } from "./entity/OddsBar";
 import { PickerCard } from "./entity/PickerCard";
@@ -184,15 +188,21 @@ export function StoppedTag({ children }: { children: ReactNode }) {
   );
 }
 
-/** `@base_size`, or `the shared script grand_archive/x`: where a value the game files define once comes from. */
-function SourceName({ source }: { source: ValueSource }) {
-  return source.via === "variable" ? (
-    <span className="mono">{source.name}</span>
-  ) : (
-    <>
-      the shared script <span className="mono">{source.name}</span>
-    </>
-  );
+/**
+ * `@base_size`, or `the shared script grand_archive/x`: where a value the game files define once
+ * comes from. With `at`, the name opens that file at the script's block or the variable's line.
+ */
+function SourceName({ source, at }: { source: ValueSource; at?: SourceLine }) {
+  const mono = <span className="mono">{source.name}</span>;
+  const name =
+    at === undefined ? (
+      mono
+    ) : (
+      <OpenButton className="ins-drill" target={at}>
+        {mono}
+      </OpenButton>
+    );
+  return source.via === "variable" ? name : <>the shared script {name}</>;
 }
 
 /** What sets a value, as a line in its card: `The smallest size: from @base_size`. */
@@ -218,10 +228,41 @@ export function SetByLines({ sources }: { sources: readonly ValueSource[] }) {
 }
 
 /** A value an inline script or an `@variable` gives, as a row: what it is, then what sets it. */
-export function SetByRow({ source }: { source: ValueSource }) {
+function SetByRow({ source, at }: { source: ValueSource; at?: SourceLine }) {
   return (
     <HintedRow label={source.label} hint={SHARED_VALUE_HINT}>
-      From <SourceName source={source} />
+      From <SourceName source={source} at={at} />
     </HintedRow>
+  );
+}
+
+/** Where the inline script or `@variable` that sets `source` is written. */
+function sourceAt(
+  uses: Pick<SystemSpawn, "inline_scripts" | "variables">,
+  source: ValueSource,
+): SourceLine | undefined {
+  return source.via === "variable"
+    ? uses.variables.find((use) => use.variable === source.name)?.at
+    : uses.inline_scripts.find((use) => use.script === source.name)?.at;
+}
+
+/** A row per value the inline scripts and `@variable`s of `uses` give; `moon` names a moon's. */
+export function SetByRows({
+  uses,
+  moon,
+}: {
+  uses: Pick<SystemSpawn, "inline_scripts" | "variables">;
+  moon?: boolean;
+}) {
+  return (
+    <>
+      {valueSources(uses, moon).map((source) => (
+        <SetByRow
+          key={`${source.label}-${source.name}`}
+          source={source}
+          at={sourceAt(uses, source)}
+        />
+      ))}
+    </>
   );
 }

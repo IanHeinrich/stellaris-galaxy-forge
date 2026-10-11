@@ -10,7 +10,9 @@ use sgf_app_lib::watch;
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::install::layers::Layer;
 use sgf_gamedata::textures::TextureView;
-use sgf_gamedata::views::{FlagParts, GameDataSummary, InitializerView, PaintModView};
+use sgf_gamedata::views::{
+    FlagParts, GameDataSummary, InitializerDefinition, InitializerView, PaintModView,
+};
 use tauri::Manager;
 
 use crate::common;
@@ -314,10 +316,10 @@ fn a_link_or_a_file_outside_the_apps_lists_is_not_opened() {
         kind(invoke::<()>(
             &w,
             "open_script",
-            json!({ "path": SAMPLE, "reveal": false })
+            json!({ "path": common::SCENARIO, "reveal": false })
         )),
         ErrorKind::Op,
-        "no game data, no script index"
+        "no game data, no script index, and no scenario open"
     );
 
     let Some((w, _)) = common::with_game_data(SAMPLE) else {
@@ -411,4 +413,44 @@ fn an_op_sizes_the_system_by_the_loaded_installs_defines() {
     common::open(&w, SAMPLE_45);
     let description = grown(&w);
     assert!(description.ends_with(" to 1050"), "{description}");
+}
+
+#[test]
+fn an_initializer_a_save_system_names_reads_as_its_file_writes_it() {
+    let w = webview();
+    let opened = common::open(&w, SAMPLE);
+    let named = opened
+        .galaxy
+        .systems
+        .iter()
+        .find(|s| !s.initializer.is_empty())
+        .expect("a system the save names an initializer for");
+    let err = invoke::<InitializerDefinition>(
+        &w,
+        "get_initializer_definition",
+        json!({ "name": named.initializer }),
+    )
+    .expect_err("nothing to read without game data");
+    assert_eq!(err.kind, ErrorKind::Op);
+
+    let Some((w, _)) = common::with_game_data(SAMPLE) else {
+        return;
+    };
+    let def: InitializerDefinition = invoke(
+        &w,
+        "get_initializer_definition",
+        json!({ "name": named.initializer }),
+    )
+    .expect("the definition");
+    assert_eq!(def.name, named.initializer);
+    assert!(def.text.starts_with(&named.initializer), "{}", def.text);
+    assert!(def.at.line > 0);
+    assert_eq!(
+        kind(invoke::<InitializerDefinition>(
+            &w,
+            "get_initializer_definition",
+            json!({ "name": "no_such_initializer" }),
+        )),
+        ErrorKind::NotFound
+    );
 }

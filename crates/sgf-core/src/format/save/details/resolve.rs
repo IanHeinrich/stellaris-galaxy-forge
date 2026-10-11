@@ -255,6 +255,19 @@ pub struct RawStatement {
     /// The statements inside it that this reader models where they are written
     /// unconditionally, such as an `add_deposit` under an `if`.
     pub modelled: u32,
+    /// Where it is written: the inline script's file when it was read from one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub at: Option<SourceLine>,
+}
+
+/// A line of a file, from 1.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct SourceLine {
+    /// The file's absolute path.
+    pub file: String,
+    pub line: u32,
 }
 
 /// An `inline_script` whose text was read in place of the call.
@@ -265,6 +278,10 @@ pub struct InlineScriptUse {
     pub script: String,
     /// The keys its text writes at the top level, in order, each once.
     pub keys: Vec<String>,
+    /// Its file, at its first statement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub at: Option<SourceLine>,
 }
 
 /// A value written as an `@variable`.
@@ -276,6 +293,10 @@ pub struct VariableUse {
     pub key: String,
     /// As written, `@` included.
     pub variable: String,
+    /// Where the variable is defined; `None` when no file defines it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub at: Option<SourceLine>,
 }
 
 /// What a scenario body's initializer says of it beyond a save's fields.
@@ -343,6 +364,11 @@ pub struct BodySpawn {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub naming: Option<SpawnName>,
+    /// Where its `planet` or `moon` block is written: the inline script's file when it was read
+    /// from one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub at: Option<SourceLine>,
 }
 
 /// Whether the game can draw a body a class at the orbits it can land at. A draw that no class
