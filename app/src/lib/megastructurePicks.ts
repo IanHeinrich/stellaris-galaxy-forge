@@ -25,14 +25,37 @@ export type MegastructureSpot =
   | { readonly kind: "body"; readonly body: number; readonly star: boolean }
   | { readonly kind: "space"; readonly x: number; readonly y: number };
 
-/** Whether a type of `placement` goes at `spot`: a free point in empty space, a body on a body. */
+/** What the dialog says of a type it lists but cannot add yet. */
+export const CHANGES_BODY = "Changes the planet's class, which Galaxy Forge can't add yet.";
+export const WHOLE_STRUCTURE =
+  "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
+export const RING_WORLD = "Ring worlds are added whole, which Galaxy Forge can't do yet.";
+
+/** Why the dialog lists a type it cannot add, greyed out; null for one it adds or never lists. */
+function greyedOut(type: MegastructureTypeView): string | null {
+  const { placement } = type;
+  if (placement.place !== "unsupported") return null;
+  if (placement.why.kind === "changes_body") return CHANGES_BODY;
+  if (placement.why.kind === "whole_structure") return WHOLE_STRUCTURE;
+  if (placement.why.kind === "ring_world") return RING_WORLD;
+  return null;
+}
+
+/** Whether a type goes at `spot`: a free point in empty space, a body on a body. */
 function fits(type: MegastructureTypeView, spot: MegastructureSpot): boolean {
   const { placement } = type;
   if (spot.kind === "space") return placement.place === "free";
-  return placement.place === "body" && (!placement.star_only || spot.star);
+  if (placement.place === "body") return !placement.star_only || spot.star;
+  if (placement.place !== "unsupported") return false;
+  const { why } = placement;
+  if (why.kind === "changes_body") return true;
+  if (why.kind === "whole_structure") return !why.star_only || spot.star;
+  if (why.kind === "ring_world") return !spot.star;
+  return false;
 }
 
 const VARIANT = /_(permanently_ruined|ruined|restored|destroyed|derelict)(_|$)/;
+const VARIANT_WORDS = new Set(["permanently", "ruined", "restored", "destroyed", "derelict"]);
 
 /** Whether a type is a ruined, restored, destroyed or derelict variant of a working one. */
 function isVariant(type: MegastructureTypeView): boolean {
@@ -42,23 +65,37 @@ function isVariant(type: MegastructureTypeView): boolean {
 /** One stage the dialog offers, as a tile. */
 export interface MegastructureStage {
   key: string;
-  /** Its localised name, else the words of its key. */
+  /** Its localised name, else the words of its key; with what tells it apart in brackets when
+   * another stage of its megastructure has the same name. */
   label: string;
-  /** Why the save would refuse it here, such as a second relay in the system; null when it fits. */
+  /** Its name without the megastructure's: `Site`, `Nascency`, `Finished`. */
+  short: string;
+  /** Its place in its row, from 1. */
+  index: number;
+  /** How many stages its row has. */
+  count: number;
+  /** Why it can't be added here, such as a second relay in the system; null when it fits. */
   refused: string | null;
 }
 
-/** One upgrade chain of a megastructure, as a row of tiles. */
+/**
+ * What a row of a megastructure holds: its build chain, the ruined and restored versions, or a
+ * variant's chain, such as one star class's or one an event builds.
+ */
+export type MegastructureRowKind = "build" | "ruins" | "variant";
+
+/** One chain of a megastructure, as a row of tiles. */
 export interface MegastructureChain {
   /** What tells the row apart from the megastructure's other rows; null for a megastructure of one. */
   label: string | null;
+  kind: MegastructureRowKind;
   /** The key of its first stage. */
   first: string;
-  /** Its working stages in chain order, then its ruined and restored variants. */
+  /** Its stages in chain order. */
   stages: MegastructureStage[];
   /** How many of `stages` are working stages. */
   working: number;
-  /** The key of its finished stage: its last working one. */
+  /** The key of its finished stage: its last working one, else its last. */
   finished: string;
 }
 
@@ -66,10 +103,15 @@ export interface MegastructureChain {
 export interface MegastructureEntry {
   /** Its section and name, unique in the list. */
   key: string;
-  /** The localised name of its finished stage. */
+  /** The localised name of its main chain's finished stage. */
   label: string;
   /** The mod it comes from; null for the base game's. */
   section: string | null;
+  /** No type of it has a localised name: the list shows it only to a filter on its keys, last
+   * in its section. */
+  unnamed: boolean;
+  /** How many stages its build chain has and what other rows it has: `4 stages · 2 variants`. */
+  summary: string;
   chains: MegastructureChain[];
 }
 
@@ -88,7 +130,16 @@ function stageOf(
   return stage;
 }
 
-/** The groups `upgrade_from` and the variant links join `types` into, each in file order. */
+/** The first of `type`'s `upgrade_from` that `pool` holds: the stage it is built over. */
+function builtOver(type: MegastructureTypeView, pool: ReadonlySet<string>): string | null {
+  return type.upgrade_from.find((from) => pool.has(from)) ?? null;
+}
+
+/**
+ * The groups `types` join into: each type with the stage it is built over, the working type it
+ * is a variant of, and the types its build turns into. A later `upgrade_from`, such as a Dyson
+ * Sphere stage built over a finished Dyson Swarm, joins nothing.
+ */
 function linked(types: ReadonlyMap<string, MegastructureTypeView>): MegastructureTypeView[][] {
   const parent = new Map<string, string>();
   const root = (key: string): string => {
@@ -96,15 +147,17 @@ function linked(types: ReadonlyMap<string, MegastructureTypeView>): Megastructur
     while (parent.get(at) !== at) at = parent.get(at)!;
     return at;
   };
-  const join = (a: string, b: string) => {
-    if (!types.has(a) || !types.has(b)) return;
+  const join = (a: string | null, b: string | null) => {
+    if (a === null || b === null || !types.has(a) || !types.has(b)) return;
     const [x, y] = [root(a), root(b)];
     if (x !== y) parent.set(x, y);
   };
-  for (const key of types.keys()) parent.set(key, key);
+  const keys = new Set(types.keys());
+  for (const key of keys) parent.set(key, key);
   for (const type of types.values()) {
-    for (const from of type.upgrade_from) join(type.key, from);
-    if (type.variant_of !== null) join(type.key, type.variant_of);
+    join(type.key, builtOver(type, keys));
+    join(type.key, type.variant_of);
+    for (const into of type.turns_into) join(type.key, into);
   }
   const groups = new Map<string, MegastructureTypeView[]>();
   for (const type of types.values()) {
@@ -114,6 +167,16 @@ function linked(types: ReadonlyMap<string, MegastructureTypeView>): Megastructur
   }
   return [...groups.values()];
 }
+
+/** A key's words with stage numbers left out: `ehof_megastructure_phase0` → ehof megastructure phase. */
+function stemWords(key: string): string[] {
+  return key
+    .split("_")
+    .map((word) => word.replace(/\d+$/, ""))
+    .filter((word) => word !== "");
+}
+
+const stem = (key: string) => stemWords(key).join("_");
 
 /** `o star` → `O-class star`, `scaling` → `Scaling`; `Standard` for no words. */
 function keyWords(words: readonly string[]): string {
@@ -126,30 +189,282 @@ function keyWords(words: readonly string[]): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/**
- * What tells `chains` apart, in order: the names of their first stages when those differ from
- * each other and from the megastructure's, else the part of their finished keys after the words
- * they all share, stage numbers left out.
- */
-function rowLabels(
-  chains: readonly MegastructureChain[],
-  label: string,
-  nameOf: (key: string) => string,
-): string[] {
-  const firsts = chains.map((chain) => nameOf(chain.first));
-  if (new Set(firsts).size === firsts.length && !firsts.includes(label)) return firsts;
-  const words = chains.map((chain) => chain.finished.split("_").filter((w) => !/^\d+$/.test(w)));
+/** `words` past the ones it shares, from the start, with `other`. */
+function pastShared(words: readonly string[], other: readonly string[]): string[] {
   let shared = 0;
-  while (words.every((w) => w.length > shared && w[shared] === words[0][shared])) shared++;
-  return words.map((w) => keyWords(w.slice(shared)));
+  while (shared < words.length && words[shared] === other[shared]) shared++;
+  return words.slice(shared);
+}
+
+interface Row {
+  kind: MegastructureRowKind;
+  keys: string[];
+  label: string | null;
+  /** For a ruins row, the label of the variant row whose star class or kind it shares. */
+  attached: string | null;
+  /** For a ruins row, what tells it apart from the others of its kind. */
+  part?: string;
+}
+
+/** Whether a row holds only types the game makes from script and no localisation names. */
+function isInternal(
+  row: Row,
+  types: ReadonlyMap<string, MegastructureTypeView>,
+  named: (key: string) => boolean,
+): boolean {
+  return row.keys.every((key) => types.get(key)!.script_only && !named(key));
 }
 
 /**
- * The megastructures that go at `spot`: each upgrade chain of `types` with its ruined and restored
- * variants, the chains of one name in one section merged into one megastructure. The base game's
- * come first, then each mod's under its name, each section by name. A type whose placement can
- * never go at `spot`, or that the editor does not add, is left out; `refusalOf` says why the save
- * would refuse one that does fit.
+ * The rows of one group, its main build chain first: from the first stage, each next stage
+ * built over it with the same key words and built as a player builds it. Then each other
+ * working chain, then each chain of ruined and restored versions.
+ */
+function groupRows(
+  group: readonly MegastructureTypeView[],
+  byStage: (a: MegastructureTypeView, b: MegastructureTypeView) => number,
+  order: ReadonlyMap<string, number>,
+): Row[] {
+  const working = group.filter((type) => !isVariant(type)).sort(byStage);
+  const variants = group.filter(isVariant).sort(byStage);
+  const turnedInto = new Set(group.flatMap((type) => type.turns_into));
+  const placed = new Set<string>();
+  const chainFrom = (
+    start: MegastructureTypeView,
+    pool: readonly MegastructureTypeView[],
+    main: boolean,
+  ): string[] => {
+    const keys = new Set(pool.map((type) => type.key));
+    const row = [start.key];
+    placed.add(start.key);
+    for (let at = start; ;) {
+      const next = pool.filter((type) => !placed.has(type.key) && builtOver(type, keys) === at.key);
+      const same = next.filter((type) => stem(type.key) === stem(at.key) && !type.script_only);
+      const pick = same[0] ?? (main && row.length > 1 ? undefined : next[0]);
+      if (pick === undefined || (main && pick.script_only)) return row;
+      row.push(pick.key);
+      placed.add(pick.key);
+      at = pick;
+    }
+  };
+  const rows: Row[] = [];
+  const workingKeys = new Set(working.map((type) => type.key));
+  const roots = working
+    .filter((type) => builtOver(type, workingKeys) === null)
+    .sort(
+      (a, b) =>
+        Number(a.upgrade_from.length > 0) - Number(b.upgrade_from.length > 0) ||
+        Number(a.script_only) - Number(b.script_only) ||
+        Number(turnedInto.has(a.key)) - Number(turnedInto.has(b.key)) ||
+        stemWords(a.key).length - stemWords(b.key).length ||
+        order.get(a.key)! - order.get(b.key)!,
+    );
+  if (roots.length > 0) {
+    rows.push({
+      kind: "build",
+      keys: chainFrom(roots[0], working, true),
+      label: null,
+      attached: null,
+    });
+  }
+  for (const type of working) {
+    if (placed.has(type.key)) continue;
+    rows.push({
+      kind: "variant",
+      keys: chainFrom(type, working, false),
+      label: null,
+      attached: null,
+    });
+  }
+  const ruins: Row[] = [];
+  for (const type of variants) {
+    if (placed.has(type.key)) continue;
+    ruins.push({
+      kind: "ruins",
+      keys: chainFrom(type, variants, false),
+      label: null,
+      attached: null,
+    });
+  }
+  ruins.sort((a, b) => a.keys[0].split("_").length - b.keys[0].split("_").length);
+  return [...rows, ...ruins];
+}
+
+const clean = (name: string) => name.replace(/\u200b/g, "").trim();
+
+const plainWords = (text: string) =>
+  text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
+    .filter((word) => word !== "");
+
+/**
+ * `name` without the megastructure's name `family`, when it holds all of its words or two of
+ * them in a row: `Dyson Sphere Site` → `Site`, `Art Installation: Nascency` → `Nascency`.
+ */
+function shortName(name: string, family: string): string {
+  const own = name.split(/\s+/).filter((word) => word !== "");
+  const theirs = plainWords(family);
+  const holds = own.map((word) => theirs.includes(plainWords(word)[0] ?? ""));
+  const run = holds.some((held, i) => held && holds[i + 1]);
+  const all = theirs.every((word) => own.some((w) => plainWords(w)[0] === word));
+  if (!run && !all) return name;
+  const left = own
+    .filter((_, i) => !holds[i])
+    .join(" ")
+    .replace(/^[\s:,–-]+|[\s:,–-]+$/g, "");
+  return left === "" ? "" : left.charAt(0).toUpperCase() + left.slice(1);
+}
+
+/** The variant words of `key`, as the player says them: `permanently_ruined` → Permanently ruined. */
+function variantWords(key: string): string {
+  return keyWords(key.split("_").filter((word) => VARIANT_WORDS.has(word)));
+}
+
+/** Whether `label` names a star class: `O-class star`, `M-class giant star`. */
+const starClass = (label: string) => /^[A-Z]-class\b/.test(label);
+
+/**
+ * Labels `rows`, the rows of one megastructure named `family`, each told apart from the others:
+ * a star class from its keys, else the localised name of its finished stage, else the words of
+ * its keys that differ.
+ */
+function labelRows(
+  rows: Row[],
+  family: string,
+  nameOf: (key: string) => string,
+  named: (key: string) => boolean,
+): void {
+  if (rows.length < 2) return;
+  const [main] = rows;
+  const variants = rows.filter((row) => row.kind === "variant");
+  const firsts = [main, ...variants].map((row) => stemWords(row.keys[0]));
+  const shared = firsts[0].filter((word, i) => firsts.every((w) => w[i] === word)).length;
+  const own = (row: Row) => keyWords(stemWords(row.keys[0]).slice(shared));
+  main.label = starClass(own(main)) ? own(main) : family;
+  const mainWords = stemWords(main.keys[0]);
+  const leafName = (row: Row) => {
+    const leaf = row.keys[row.keys.length - 1];
+    return named(leaf) ? nameOf(leaf) : null;
+  };
+  const leafNames = variants.map(leafName);
+  for (const row of variants) {
+    const fromKeys = keyWords(pastShared(stemWords(row.keys[0]), mainWords));
+    const name = leafName(row);
+    const unique = name !== null && leafNames.filter((n) => n === name).length === 1;
+    if (!starClass(fromKeys) && unique && name !== family) row.label = name;
+    else row.label = stemWords(row.keys[0]).length > shared ? fromKeys : nameOf(row.keys[0]);
+  }
+  const ruins = rows.filter((row) => row.kind === "ruins");
+  for (const row of ruins) {
+    const root = row.keys[0];
+    const bare = stemWords(root)
+      .filter((word) => !VARIANT_WORDS.has(word))
+      .join("_");
+    const owner =
+      stem(main.keys[0]) === bare
+        ? undefined
+        : variants.find((other) => stem(other.keys[0]) === bare);
+    row.attached = owner?.label ?? null;
+    row.label = owner ? `${variantWords(root)} (${owner.label})` : variantWords(root);
+  }
+  const byLabel = new Map<string, Row[]>();
+  for (const row of ruins) byLabel.set(row.label!, [...(byLabel.get(row.label!) ?? []), row]);
+  for (const same of byLabel.values()) {
+    if (same.length < 2) continue;
+    const words = same.map((row) => stemWords(row.keys[0]));
+    const common = words[0].filter((word) => words.every((w) => w.includes(word)));
+    for (const row of same) {
+      const part = stemWords(row.keys[0]).filter((word) => !common.includes(word));
+      if (part.length === 0) continue;
+      row.part = keyWords(part);
+      row.label = `${row.label} (${row.part})`;
+    }
+  }
+  const seen = new Map<string, number>();
+  for (const row of rows) {
+    const label = row.label!;
+    const count = (seen.get(label) ?? 0) + 1;
+    seen.set(label, count);
+    if (count > 1) row.label = `${label} (${count})`;
+  }
+}
+
+/** Each stage's title, unique in its megastructure: its name, then what tells it apart. */
+function stageTitles(rows: readonly Row[], nameOf: (key: string) => string): Map<string, string> {
+  const titles = new Map<string, string>();
+  const byName = new Map<string, { key: string; row: Row; index: number }[]>();
+  for (const row of rows) {
+    row.keys.forEach((key, index) => {
+      const name = nameOf(key);
+      titles.set(key, name);
+      const same = byName.get(name);
+      if (same) same.push({ key, row, index });
+      else byName.set(name, [{ key, row, index }]);
+    });
+  }
+  for (const [name, same] of byName) {
+    if (same.length < 2) continue;
+    const keeper =
+      same.find((s) => s.row === rows[0]) ??
+      (same.every((s) => s.row.kind === "variant")
+        ? null
+        : [...same].sort((a, b) => a.key.split("_").length - b.key.split("_").length)[0]);
+    const words = same.map((s) => s.key.split("_"));
+    const common = words[0].filter((word) => words.every((w) => w.includes(word)));
+    const named = plainWords(name);
+    for (const s of same) {
+      if (s === keeper) continue;
+      const own = s.key.split("_").filter((word) => !common.includes(word));
+      const state = variantWords(s.key);
+      const stated = plainWords(state).every((word) => named.includes(word));
+      const tag = s.row.attached ?? s.row.part;
+      let part: string;
+      if (s.row === keeper?.row) {
+        part = own.every((word) => /^\d+$/.test(word)) ? `Stage ${s.index + 1}` : keyWords(own);
+      } else if (s.row.kind === "variant" && s.row.label !== null && s.row.label !== name) {
+        part = s.row.label;
+      } else if (s.row.kind === "ruins") {
+        part = tag === undefined ? state : stated ? tag : `${tag}, ${state.toLowerCase()}`;
+      } else {
+        part = keyWords(own);
+      }
+      titles.set(s.key, `${name} (${part})`);
+    }
+  }
+  const taken = new Map<string, number>();
+  for (const [key, title] of titles) {
+    const count = (taken.get(title) ?? 0) + 1;
+    taken.set(title, count);
+    if (count > 1) titles.set(key, `${title} (${key})`);
+  }
+  return titles;
+}
+
+/** `4 stages · by star class`, `4 stages · 2 variants`. */
+function summaryOf(rows: readonly Row[]): string {
+  const stages = rows[0].keys.length;
+  const parts = [`${stages} ${stages === 1 ? "stage" : "stages"}`];
+  const variants = rows.filter((row) => row.kind === "variant");
+  const starClass = variants.filter((row) => /-class/i.test(row.label ?? "")).length;
+  if (starClass > 0 && starClass * 2 >= variants.length) parts.push("by star class");
+  const others = rows.length - 1 - (starClass * 2 >= variants.length ? starClass : 0);
+  if (others > 0) parts.push(`${others} ${others === 1 ? "variant" : "variants"}`);
+  return parts.join(" · ");
+}
+
+/**
+ * The megastructures that go at `spot`. Each is a group of types joined by the stages they are
+ * built over, the working type a ruin belongs to and the type a build turns into, and the groups
+ * of one name in one section are one megastructure. Its main build chain names it and comes
+ * first, then its other chains, then its ruined and restored versions. The base game's come
+ * first, then each mod's under its name, each section by name, and a mod's unnamed types last.
+ * A type whose placement can never go at `spot` is left out, and so is one the editor does not
+ * add, unless it only changes its planet, builds a whole structure or is a ring world: those
+ * are listed greyed out with the reason. A row of a megastructure whose types are all made from
+ * script and have no localised name, such as the Gateway family's `blokkat_dummy_mega`, is left
+ * out. `refusalOf` says why the save would refuse a type that does fit.
  */
 export function megastructureEntries(
   types: ReadonlyMap<string, MegastructureTypeView>,
@@ -157,47 +472,77 @@ export function megastructureEntries(
   spot: MegastructureSpot,
   refusalOf: (type: MegastructureTypeView) => string | null = () => null,
 ): MegastructureEntry[] {
-  const nameOf = (key: string) => names.get(key) ?? megastructureLabel(key);
+  const named = (key: string) => clean(names.get(key) ?? "") !== "";
+  const nameOf = (key: string) => (named(key) ? clean(names.get(key)!) : megastructureLabel(key));
   const fitting = new Map([...types].filter(([, type]) => fits(type, spot)));
   const known = new Map<string, number>();
   const order = new Map([...types.keys()].map((key, i) => [key, i]));
   const byStage = (a: MegastructureTypeView, b: MegastructureTypeView) =>
     stageOf(a.key, types, known) - stageOf(b.key, types, known) ||
     order.get(a.key)! - order.get(b.key)!;
-  const entries = new Map<string, MegastructureEntry>();
+  const families = new Map<
+    string,
+    { label: string; section: string | null; unnamed: boolean; rows: Row[] }
+  >();
   for (const group of linked(fitting)) {
-    const working = group.filter((type) => !isVariant(type)).sort(byStage);
-    const variants = group.filter(isVariant).sort(byStage);
-    const ordered = [...working, ...variants];
-    const finished = working[working.length - 1] ?? ordered[ordered.length - 1];
-    const label = nameOf(finished.key);
-    const section = finished.base_game ? null : finished.source;
-    const key = `${section ?? ""}/${label}`;
-    const chain: MegastructureChain = {
-      label: null,
-      first: ordered[0].key,
-      stages: ordered.map((type) => ({
-        key: type.key,
-        label: nameOf(type.key),
-        refused: refusalOf(type),
-      })),
-      working: working.length,
-      finished: finished.key,
-    };
-    const entry = entries.get(key);
-    if (entry) entry.chains.push(chain);
-    else entries.set(key, { key, label, section, chains: [chain] });
+    const [mainRow, ...otherRows] = groupRows(group, byStage, order);
+    const rows = [mainRow, ...otherRows.filter((row) => !isInternal(row, types, named))];
+    const main = rows[0].keys;
+    const finished = main[main.length - 1];
+    const unnamed = !group.some((type) => named(type.key));
+    const namedStage = [...main].reverse().find(named) ?? group.map((t) => t.key).find(named);
+    const label = unnamed ? megastructureLabel(stem(finished)) : nameOf(namedStage ?? finished);
+    const top = fitting.get(finished)!;
+    const section = top.base_game ? null : top.source;
+    const key = `${section ?? ""}/${unnamed ? `?${stem(finished)}` : label}`;
+    const family = families.get(key);
+    if (!family) {
+      families.set(key, { label, section, unnamed, rows });
+      continue;
+    }
+    const [first, ...rest] = rows;
+    family.rows.push({ ...first, kind: "variant" }, ...rest);
+    family.rows.sort((a, b) => Number(a.kind === "ruins") - Number(b.kind === "ruins"));
   }
-  for (const entry of entries.values()) {
-    if (entry.chains.length < 2) continue;
-    const labels = rowLabels(entry.chains, entry.label, nameOf);
-    entry.chains.forEach((chain, i) => (chain.label = labels[i]));
-    entry.chains.sort((a, b) => a.label!.localeCompare(b.label!) || a.first.localeCompare(b.first));
+  const entries: MegastructureEntry[] = [];
+  for (const [key, family] of families) {
+    const { label, section, unnamed, rows } = family;
+    labelRows(rows, label, nameOf, named);
+    const titles = stageTitles(rows, nameOf);
+    const chains = rows.map((row): MegastructureChain => {
+      const working = row.keys.filter((k) => !isVariant(types.get(k)!)).length;
+      const shorts = row.keys.map((k, i) => {
+        const short = shortName(nameOf(k), label);
+        if (short !== "") return short;
+        if (isVariant(types.get(k)!)) return variantWords(k);
+        return i === row.keys.length - 1 ? "Finished" : `Stage ${i + 1}`;
+      });
+      return {
+        label: row.label,
+        kind: row.kind,
+        first: row.keys[0],
+        stages: row.keys.map((k, i) => ({
+          key: k,
+          label: titles.get(k)!,
+          short:
+            shorts.indexOf(shorts[i]) === shorts.lastIndexOf(shorts[i])
+              ? shorts[i]
+              : `${shorts[i]} (${i + 1})`,
+          index: i + 1,
+          count: row.keys.length,
+          refused: greyedOut(types.get(k)!) ?? refusalOf(types.get(k)!),
+        })),
+        working,
+        finished: row.keys[Math.max(working, 1) - 1],
+      };
+    });
+    entries.push({ key, label, section, unnamed, summary: summaryOf(rows), chains });
   }
-  return [...entries.values()].sort(
+  return entries.sort(
     (a, b) =>
       Number(a.section !== null) - Number(b.section !== null) ||
       (a.section ?? "").localeCompare(b.section ?? "") ||
+      Number(a.unnamed) - Number(b.unnamed) ||
       a.label.localeCompare(b.label),
   );
 }
@@ -228,20 +573,23 @@ export function entryDefault(entry: MegastructureEntry): string {
 
 /**
  * The megastructures whose name, or the name or key of one of whose stages, holds `query`,
- * ignoring case; every one for a blank query.
+ * ignoring case; every named one for a blank query. An unnamed one shows only when the key of
+ * one of its stages holds the query.
  */
 export function matchingEntries(
   entries: readonly MegastructureEntry[],
   query: string,
 ): MegastructureEntry[] {
   const needle = query.trim().toLowerCase();
-  if (needle === "") return [...entries];
   const holds = (text: string) => text.toLowerCase().includes(needle);
-  return entries.filter(
-    (entry) =>
+  return entries.filter((entry) => {
+    if (entry.unnamed) return needle !== "" && entryStages(entry).some((s) => holds(s.key));
+    return (
+      needle === "" ||
       holds(entry.label) ||
-      entryStages(entry).some((stage) => holds(stage.label) || holds(stage.key)),
-  );
+      entryStages(entry).some((stage) => holds(stage.label) || holds(stage.key))
+    );
+  });
 }
 
 /** The base game type each kind of spot opens on when nothing was added before. */
@@ -262,12 +610,13 @@ export function defaultStage(
   const usable = (list: readonly MegastructureEntry[], key: string | null) =>
     findStage(list, key)?.stage.refused === null;
   if (usable(entries, last)) return last;
-  const base = entries.filter((entry) => entry.section === null);
+  const listed = entries.filter((entry) => !entry.unnamed);
+  const base = listed.filter((entry) => entry.section === null);
   const usual = spot.kind === "space" ? USUAL.space : spot.star ? USUAL.star : USUAL.planet;
   if (usable(base, usual)) return usual;
-  const finished = [...base, ...entries].map(entryDefault).find((key) => usable(entries, key));
+  const finished = [...base, ...listed].map(entryDefault).find((key) => usable(entries, key));
   if (finished !== undefined) return finished;
-  const any = entries.flatMap(entryStages).find((stage) => stage.refused === null);
+  const any = listed.flatMap(entryStages).find((stage) => stage.refused === null);
   if (any !== undefined) return any.key;
   return entries.length === 0 ? null : entryDefault(entries[0]);
 }

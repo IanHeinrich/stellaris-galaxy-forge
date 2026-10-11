@@ -15,6 +15,7 @@ use crate::construction::{self, Construction};
 use crate::dismantle;
 use crate::scripts::ScriptIndex;
 
+use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
@@ -59,6 +60,11 @@ pub struct MegastructureDef {
     pub sets_has_megastructure: bool,
     /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
     pub planet_possible_star: bool,
+    /// `potential = { always = no }`: the game makes it only from script, never as a build.
+    pub script_only: bool,
+    /// The types its `on_build_complete` turns the finished row into, such as one per star
+    /// class, in file order.
+    pub turns_into: Vec<String>,
     /// Where the editor adds a row of this type, read once every type is loaded.
     pub placement: Placement,
     /// What its `on_dismantle_complete` takes back from its system and owner.
@@ -80,7 +86,149 @@ pub struct MegastructureDef {
     #[serde(skip)]
     #[ts(skip)]
     pub family: Option<Family>,
+    /// What its `on_build_complete` does beyond its own row.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub completes: Completes,
 }
+
+/// What a stage's `on_build_complete` writes beyond its own row.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Completes {
+    /// Under `fromfrom.planet`, a `change_pc` or `set_planet_size`.
+    pub converts_body: bool,
+    /// The scripted effects called under `fromfrom.planet` with `= yes`.
+    pub body_effects: Vec<String>,
+    /// A `spawn_planet` outside any `if`, `else_if`, `else` or `switch`.
+    pub spawns_planet: bool,
+    /// How many `spawn_megastructure` stand outside any `if`, `else_if`, `else` or `switch`.
+    pub spawns_rows: usize,
+    /// The type of each `spawn_megastructure`, in file order.
+    pub spawned: Vec<String>,
+    /// The types a block spawns in place of the row, removing it with
+    /// `remove_megastructure = fromfrom`, in file order.
+    pub replaced_by: Vec<String>,
+}
+
+impl Completes {
+    fn read(def: &Def) -> Self {
+        let Some(block) = def.node.find("on_build_complete", &def.src) else {
+            return Self::default();
+        };
+        let src = &def.src;
+        let mut hosts = Vec::new();
+        script::find_deep(block, "fromfrom.planet", src, &mut hosts);
+        let converts_body = hosts.iter().any(|host| converts(host, src));
+        let mut body_effects = Vec::new();
+        for host in &hosts {
+            effects_called(host, src, &mut body_effects);
+        }
+        let mut rows = Vec::new();
+        script::find_deep(block, "spawn_megastructure", src, &mut rows);
+        let mut replaced_by = Vec::new();
+        replacements(block, src, &mut replaced_by);
+        Self {
+            converts_body,
+            body_effects,
+            spawns_planet: unconditional(block, "spawn_planet", src) > 0,
+            spawns_rows: unconditional(block, "spawn_megastructure", src),
+            spawned: rows
+                .iter()
+                .filter_map(|row| spawned_type(row, src))
+                .collect(),
+            replaced_by,
+        }
+    }
+
+    /// It builds a structure of several rows or planets: whatever happens, it spawns two rows
+    /// or more, or a mod's type spawns a planet. The base game's Cosmogenesis World spawns its
+    /// planet too, and the editor has added it as a row since before this rule.
+    fn builds_whole(&self, base_game: bool) -> bool {
+        self.spawns_rows > 1 || (self.spawns_planet && !base_game)
+    }
+}
+
+/// Whether `node` holds a `change_pc` or `set_planet_size`.
+fn converts(node: &Node, src: &[u8]) -> bool {
+    CONVERTS.iter().any(|key| {
+        let mut found = Vec::new();
+        script::find_deep(node, key, src, &mut found);
+        !found.is_empty()
+    })
+}
+
+/// The keys of each `key = yes` below `node`: the scripted effects it calls, among others.
+fn effects_called(node: &Node, src: &[u8], out: &mut Vec<String>) {
+    for child in node.children() {
+        match (child.key_str(src), child.scalar_str(src)) {
+            (Some(key), Some("yes")) => out.push(key.to_owned()),
+            _ => effects_called(child, src, out),
+        }
+    }
+}
+
+/// How deep [`changes_body`] follows scripted effects calling scripted effects.
+const EFFECT_DEPTH: usize = 4;
+
+/// Whether `stage`'s `on_build_complete` changes the body it stands at, itself or through the
+/// scripted effects it calls on that body.
+fn changes_body(stage: &MegastructureDef, scripts: &ScriptIndex) -> bool {
+    fn through(effect: &str, scripts: &ScriptIndex, depth: usize) -> bool {
+        let Some(def) = scripts.effect(effect) else {
+            return false;
+        };
+        if converts(&def.node, &def.src) {
+            return true;
+        }
+        let mut called = Vec::new();
+        effects_called(&def.node, &def.src, &mut called);
+        depth < EFFECT_DEPTH && called.iter().any(|e| through(e, scripts, depth + 1))
+    }
+    stage.completes.converts_body
+        || stage
+            .completes
+            .body_effects
+            .iter()
+            .any(|effect| through(effect, scripts, 1))
+}
+
+/// The blocks whose effects run only on a condition.
+const CONDITIONAL: [&str; 4] = ["if", "else_if", "else", "switch"];
+
+/// How many `key` statements stand below `node` outside a conditional block.
+fn unconditional(node: &Node, key: &str, src: &[u8]) -> usize {
+    node.children()
+        .iter()
+        .map(|child| match child.key_str(src) {
+            Some(found) if found == key => 1,
+            Some(found) if CONDITIONAL.contains(&found) => 0,
+            _ => unconditional(child, key, src),
+        })
+        .sum()
+}
+
+fn spawned_type(row: &Node, src: &[u8]) -> Option<String> {
+    Some(row.find("type", src)?.scalar_str(src)?.to_owned())
+}
+
+/// The type each block below `node` spawns where it also removes the row it runs for.
+fn replacements(node: &Node, src: &[u8], out: &mut Vec<String>) {
+    let removes = node.children().iter().any(|child| {
+        child.key_str(src) == Some("remove_megastructure")
+            && child.scalar_str(src) == Some("fromfrom")
+    });
+    for child in node.children() {
+        if removes && child.key_str(src) == Some("spawn_megastructure") {
+            out.extend(spawned_type(child, src));
+        } else {
+            replacements(child, src, out);
+        }
+    }
+}
+
+/// The effects that change the class or size of the body a structure stands at in place. A
+/// model change alone is left out: the base game's Arc Furnace hides its planet that way.
+const CONVERTS: [&str; 2] = ["change_pc", "set_planet_size"];
 
 /// The working type a variant takes its placement from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +290,12 @@ pub enum Unsupported {
     RingWorld,
     /// Building it makes a starbase.
     BecomesStarbase,
+    /// Building it, or a stage it is built over, changes the class or size of the planet it
+    /// stands at.
+    ChangesBody,
+    /// It is part of a structure of several rows or planets that its chain spawns, such as an
+    /// Alderson disk. Tied to a star only when `star_only`.
+    WholeStructure { star_only: bool },
 }
 
 /// The bypass types a row the editor adds may stand for.
@@ -174,6 +328,7 @@ impl FromDef for MegastructureDef {
     const DIR: &'static str = "common/megastructures";
 
     fn read(key: String, def: &Def) -> Self {
+        let completes = Completes::read(def);
         let model = |field: &str| {
             def.scalar(field)
                 .filter(|name| !name.is_empty())
@@ -197,6 +352,8 @@ impl FromDef for MegastructureDef {
             activates_gateway: activates_gateway(def),
             sets_has_megastructure: sets_has_megastructure(def),
             planet_possible_star: planet_possible_star(def),
+            script_only: script_only(def),
+            turns_into: unique(&completes.replaced_by),
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
             source: None,
@@ -204,8 +361,28 @@ impl FromDef for MegastructureDef {
             variant_of: None,
             construction: Construction::default(),
             family: None,
+            completes,
         }
     }
+}
+
+/// `keys` in order, each once.
+fn unique(keys: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for key in keys {
+        if !out.contains(key) {
+            out.push(key.clone());
+        }
+    }
+    out
+}
+
+/// `potential = { always = no }`.
+fn script_only(def: &Def) -> bool {
+    def.node
+        .find("potential", &def.src)
+        .and_then(|potential| potential.find("always", &def.src))
+        .is_some_and(|always| always.scalar_str(&def.src) == Some("no"))
 }
 
 /// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A
@@ -215,20 +392,34 @@ impl FromDef for MegastructureDef {
 pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> MegastructureTypes {
     let families = families(&types, scripts);
     let bypassed = bypass_groups(&types, &families);
+    let whole = whole_structures(&types);
+    let on_stars = star_stages(&types);
     let resolved: Vec<(String, Placement, bool, Option<Family>)> = types
         .iter()
         .map(|def| {
             let flags = stages(&types, def).any(|stage| stage.sets_has_megastructure);
-            let own = match placement(&types, def) {
+            let own = match placement(&types, def, &on_stars) {
                 Placement::Body { .. } if bypassed.contains(&def.key) => Placement::Free {
                     outside_gravity_well: true,
                 },
+                Placement::Body { star_only } if whole.contains(&def.key) => {
+                    Placement::Unsupported {
+                        why: Unsupported::WholeStructure { star_only },
+                    }
+                }
+                Placement::Body { star_only: false }
+                    if stages(&types, def).any(|stage| changes_body(stage, scripts)) =>
+                {
+                    Placement::Unsupported {
+                        why: Unsupported::ChangesBody,
+                    }
+                }
                 own => own,
             };
             let taken = match own {
                 Placement::Body { .. } => families.get(&def.key).and_then(|family| {
                     let working = types.get(&family.working)?;
-                    let placement = placement(&types, first_stage(&types, working));
+                    let placement = placement(&types, first_stage(&types, working), &on_stars);
                     matches!(placement, Placement::Body { .. }).then(|| (placement, family.clone()))
                 }),
                 _ => None,
@@ -249,6 +440,61 @@ pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> Me
         }
     }
     types
+}
+
+/// The first stages built only around a star: those whose `placement_rules` ask for one, and
+/// the types a star's first stage turns into on completion, such as one per star class.
+fn star_stages(types: &MegastructureTypes) -> BTreeSet<String> {
+    let mut stars: BTreeSet<String> = types
+        .iter()
+        .filter(|def| def.planet_possible_star)
+        .map(|def| def.key.clone())
+        .collect();
+    let turned: Vec<String> = types
+        .iter()
+        .filter(|def| stars.contains(&first_stage(types, def).key))
+        .flat_map(|def| def.turns_into.iter().cloned())
+        .collect();
+    stars.extend(turned);
+    stars
+}
+
+/// The types that belong to a structure of several rows or planets: each type whose build
+/// spawns one whatever happens, and every type joined to them by `upgrade_from` or by a
+/// spawn that does not replace the row.
+fn whole_structures(types: &MegastructureTypes) -> BTreeSet<String> {
+    let mut reached: Vec<&str> = types
+        .iter()
+        .filter(|def| def.completes.builds_whole(def.base_game))
+        .map(|def| def.key.as_str())
+        .collect();
+    let mut links: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for def in types.iter() {
+        let spawned = def
+            .completes
+            .spawned
+            .iter()
+            .filter(|key| !def.completes.replaced_by.contains(key));
+        for other in def
+            .upgrade_from
+            .iter()
+            .chain(spawned)
+            .filter_map(|key| types.get(key))
+        {
+            links.entry(&def.key).or_default().push(&other.key);
+            links.entry(&other.key).or_default().push(&def.key);
+        }
+    }
+    let mut next = 0;
+    while let Some(&key) = reached.get(next) {
+        next += 1;
+        for &linked in links.get(key).into_iter().flatten() {
+            if !reached.contains(&linked) {
+                reached.push(linked);
+            }
+        }
+    }
+    reached.into_iter().map(str::to_owned).collect()
 }
 
 /// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a
@@ -423,7 +669,11 @@ fn spawned_types(node: &Node, src: &[u8], out: &mut Vec<String>) {
     }
 }
 
-fn placement(types: &MegastructureTypes, def: &MegastructureDef) -> Placement {
+fn placement(
+    types: &MegastructureTypes,
+    def: &MegastructureDef,
+    on_stars: &BTreeSet<String>,
+) -> Placement {
     if let Some(bypass) = def
         .bypass_type
         .as_ref()
@@ -459,7 +709,7 @@ fn placement(types: &MegastructureTypes, def: &MegastructureDef) -> Placement {
             outside_gravity_well: false,
         },
         BuildType::AroundPlanet => Placement::Body {
-            star_only: first_stage(types, def).planet_possible_star,
+            star_only: on_stars.contains(&first_stage(types, def).key),
         },
     }
 }
@@ -539,15 +789,23 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
         })
 }
 
-/// Every type `defs`, the definitions of `common/megastructures`, holds, each with what its
-/// dismantle takes back and its build chain adds as `scripts` resolve the effects they call,
-/// and the mod of `layout` whose file defines it.
+/// Every type `defs`, the definitions of `common/megastructures`, holds, each read with the
+/// inline scripts it calls in place of the calls, with what its dismantle takes back and its
+/// build chain adds as `scripts` resolve the effects they call, and the mod of `layout` whose
+/// file defines it.
 pub(crate) fn load(
     defs: &BTreeMap<String, Def>,
     scripts: &ScriptIndex,
     layout: &Layout,
 ) -> MegastructureTypes {
     let vanilla = vanilla_keys(layout);
+    let defs: BTreeMap<String, Def> = defs
+        .iter()
+        .map(|(key, def)| {
+            let read = inline_script::expand(def, layout).unwrap_or_else(|| def.clone());
+            (key.clone(), read)
+        })
+        .collect();
     defs.iter()
         .map(|(key, def)| {
             let mut kind = MegastructureDef::read(key.clone(), def);
@@ -557,7 +815,7 @@ pub(crate) fn load(
                 .filter(|name| name != VANILLA);
             kind.base_game = kind.source.is_none() || vanilla.contains(key);
             kind.dismantle = dismantle::read(def, scripts);
-            kind.construction = construction::read(defs, key, scripts);
+            kind.construction = construction::read(&defs, key, scripts);
             (key.clone(), kind)
         })
         .collect()

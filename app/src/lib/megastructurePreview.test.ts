@@ -33,8 +33,10 @@ const TYPES = new Map(
 );
 
 const planet = { kind: "body", body: 12, star: false } as const;
-const chains = (names: ReadonlyMap<string, string>) =>
-  megastructureEntries(TYPES, names, planet).flatMap((entry) => entry.chains);
+const shipyard = (names: ReadonlyMap<string, string>) => {
+  const [entry] = megastructureEntries(TYPES, names, planet);
+  return entry;
+};
 
 describe("the picture a megastructure's tile shows", () => {
   it("draws the model in the owner's culture, bare without one, with the map icon behind it", () => {
@@ -97,18 +99,20 @@ describe("the preview of the selected type", () => {
         "A massive §YStarbase§! with £alloys£  20 berths.\nBuilt $UNKNOWN_REF$ once.",
       ],
     ]);
-    const [chain] = chains(names);
-    const stage = chain.stages[2];
-    expect(megastructureDescriptionKeys(stage.key, chain)).toEqual([
+    const entry = shipyard(names);
+    const chain = entry.chains[1];
+    expect(chain.kind).toBe("ruins");
+    const stage = chain.stages[0];
+    expect(megastructureDescriptionKeys(stage.key, entry)).toEqual([
       "mega_shipyard_restored_DESC",
       "mega_shipyard_restored_MEGASTRUCTURE_DETAILS",
       "mega_shipyard_0_MEGASTRUCTURE_DETAILS",
     ]);
 
-    const preview = megastructurePreview(stage, chain, TYPES.get(stage.key), names);
+    const preview = megastructurePreview(stage, chain, entry, TYPES.get(stage.key), names);
     expect(preview).toMatchObject({
       key: "mega_shipyard_restored",
-      label: "Mega Shipyard",
+      label: "Mega Shipyard (Restored)",
       stage: null,
       model: true,
       refused: null,
@@ -125,15 +129,18 @@ describe("the preview of the selected type", () => {
       ["mega_shipyard_1_DESC", "The initial framework."],
       ["mega_shipyard_0_MEGASTRUCTURE_DETAILS", "A massive Starbase."],
     ]);
-    const [chain] = chains(names);
-    expect(megastructurePreview(chain.stages[1], chain, undefined, names).description).toBe(
+    const entry = shipyard(names);
+    const chain = entry.chains[0];
+    expect(megastructurePreview(chain.stages[1], chain, entry, undefined, names).description).toBe(
       "The initial framework.",
     );
-    expect(megastructurePreview(chain.stages[1], chain, undefined, new Map())).toMatchObject({
-      description: null,
-      stage: "Stage 2 of 2",
-      produces: [],
-    });
+    expect(megastructurePreview(chain.stages[1], chain, entry, undefined, new Map())).toMatchObject(
+      {
+        description: null,
+        stage: "Stage 2 of 2",
+        produces: [],
+      },
+    );
     expect(descriptionText("§R§!")).toBeNull();
   });
 });

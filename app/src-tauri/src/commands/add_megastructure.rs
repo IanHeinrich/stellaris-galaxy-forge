@@ -127,5 +127,11 @@ fn unsupported(why: &Unsupported) -> String {
         Unsupported::BecomesStarbase => {
             "building it makes a starbase, which the editor does not write".to_owned()
         }
+        Unsupported::ChangesBody => {
+            "it changes the class or size of its planet, which the editor does not write".to_owned()
+        }
+        Unsupported::WholeStructure { .. } => {
+            "it is built with more planets or sections, which the editor does not write".to_owned()
+        }
     }
 }

@@ -74,7 +74,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const [query, setQuery] = useState("");
   const visible = useMemo(() => matchingEntries(entries, query), [entries, query]);
   const found = selectedStage(entries, visible, picked, spot, last);
-  useNamed(found === null ? [] : megastructureDescriptionKeys(found.stage.key, found.chain));
+  useNamed(found === null ? [] : megastructureDescriptionKeys(found.stage.key, found.entry));
   const kind = found?.stage.key;
   const type = kind === undefined ? undefined : types.get(kind);
   const culture = ownerCulture(owner, details.values(), countries);
@@ -146,7 +146,14 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               )}
               {found !== null && (
                 <MegastructurePreviewPane
-                  preview={megastructurePreview(found.stage, found.chain, type, names, icons)}
+                  preview={megastructurePreview(
+                    found.stage,
+                    found.chain,
+                    found.entry,
+                    type,
+                    names,
+                    icons,
+                  )}
                   row={found.chain.label}
                   type={type}
                   culture={culture}
