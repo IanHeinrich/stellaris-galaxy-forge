@@ -470,7 +470,8 @@ fn soyun() -> ConstructionSite {
 /// An Arc Furnace's stages replayed from the first: only the last stage's modifier and
 /// deposit stay, on the planets its event picks. A Dyson Swarm leaves its last stage's
 /// modifier on its star, the Shroud Seal its modifier on the system, and a Dyson Sphere, a
-/// Science Nexus and a Hyper Relay nothing.
+/// Science Nexus and a Hyper Relay nothing. With no owner the furnace adds nothing: its
+/// events fire from its owner's scope.
 #[test]
 fn the_installs_construction_is_replayed_on_a_system() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -547,11 +548,16 @@ fn the_installs_construction_is_replayed_on_a_system() {
         .expect("orbital_arc_furnace_4")
         .construction
         .replay(gd, &site, Some(6141), false);
-    assert!(unowned.construction.variables.is_empty());
+    assert!(
+        unowned.construction.is_empty(),
+        "{:?}",
+        unowned.construction
+    );
 }
 
 /// A mod's construction is read the same way: a scripted effect's parameters filled in,
-/// an event it fires followed, and a limit the editor cannot judge left out and said so.
+/// an event it fires followed, a planet's owner judged from the save, and an effect the
+/// editor cannot place left out and said so.
 #[test]
 fn a_construction_follows_effects_and_events_and_says_what_it_cannot() {
     let (_dir, gd) = common::hand_written(&[
@@ -613,6 +619,10 @@ country_event = {
                 ..body(10, "pc_g_star", &[])
             },
             body(11, "pc_molten", &[]),
+            SiteBody {
+                colony: true,
+                ..body(12, "pc_continental", &[])
+            },
         ],
         ..ConstructionSite::default()
     };
@@ -625,24 +635,29 @@ country_event = {
                 modifier: "mod_forge_3_mod".to_owned(),
                 days: 360,
             }],
-            deposits: vec![ConstructionDeposit {
-                body: 11,
-                kind: "d_mod_forge".to_owned(),
-            }],
+            deposits: vec![
+                ConstructionDeposit {
+                    body: 11,
+                    kind: "d_mod_forge".to_owned(),
+                },
+                ConstructionDeposit {
+                    body: 12,
+                    kind: "d_mod_forge".to_owned(),
+                },
+                ConstructionDeposit {
+                    body: 12,
+                    kind: "d_mod_owned".to_owned(),
+                },
+            ],
             variables: vec![VariableRaise {
                 variable: "mod_forges".to_owned(),
                 by: 2,
             }],
         }
     );
-    assert_eq!(built.skipped.len(), 3, "{:?}", built.skipped);
+    assert_eq!(built.skipped.len(), 1, "{:?}", built.skipped);
     assert!(
         built.skipped[0].contains("random_system_planet"),
-        "{:?}",
-        built.skipped
-    );
-    assert!(
-        built.skipped[1].contains("planet 10: cannot judge has_owner"),
         "{:?}",
         built.skipped
     );
