@@ -2,8 +2,14 @@
 //! model stands against the row's coordinate and whether it turns to face the star, how the
 //! type is placed when built, what it produces, and the types it links to.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::MegastructureDismantle;
 use ts_rs::TS;
+
+use crate::dismantle;
+use crate::scripts::ScriptIndex;
 
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
@@ -37,6 +43,8 @@ pub struct MegastructureDef {
     pub rotate_to_center: bool,
     /// What `resources = { produces = { … } }` gives each month, per resource, in file order.
     pub produces: Vec<(String, f64)>,
+    /// What its `on_dismantle_complete` takes back from its system and owner.
+    pub dismantle: MegastructureDismantle,
 }
 
 /// Where a type is placed when it is built: `build_type`, or `outside_gravity_well` for the
@@ -84,8 +92,21 @@ impl FromDef for MegastructureDef {
             upgrade_from: script::list_items(&def.node, "upgrade_from", &def.src),
             rotate_to_center: def.scalar("rotate_to_center") != Some("no"),
             produces: produces(def),
+            dismantle: MegastructureDismantle::default(),
         }
     }
+}
+
+/// Every type `defs`, the definitions of `common/megastructures`, holds, each with what its
+/// dismantle takes back as `scripts` resolve the effects it calls.
+pub(crate) fn load(defs: &BTreeMap<String, Def>, scripts: &ScriptIndex) -> MegastructureTypes {
+    defs.iter()
+        .map(|(key, def)| {
+            let mut kind = MegastructureDef::read(key.clone(), def);
+            kind.dismantle = dismantle::read(def, scripts);
+            (key.clone(), kind)
+        })
+        .collect()
 }
 
 fn produces(def: &Def) -> Vec<(String, f64)> {

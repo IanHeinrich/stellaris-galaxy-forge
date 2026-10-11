@@ -703,13 +703,21 @@ pub enum Op {
     /// `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves them. When
     /// the body has the planet flag `megastructure`, which a body the structure made has, its
     /// colony goes first as [`Op::RemoveColony`] takes it, and the body stays. The system's
-    /// and owner's flags and modifiers stay. A row upgrading goes with its `upgrade` block. A
-    /// row standing in no system, a bypass of any other kind and any colony
-    /// [`Op::RemoveColony`] refuses for a reason other than the structure are refused. The
-    /// inverse is the [`Op::RestoreEntities`] that writes back every entity it rewrote.
-    /// Stellaris 4.x save documents only.
+    /// and owner's flags stay. With `dismantle`, what the type's dismantle takes back goes
+    /// too: each `timed_modifier` item of the system and its bodies naming one of its
+    /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and
+    /// leaves its body's `deposits`, and each owner variable it lowers, unless that would
+    /// take the variable below 0. A row upgrading goes with its `upgrade` block. A row
+    /// standing in no system, a bypass of any other kind, any colony [`Op::RemoveColony`]
+    /// refuses for a reason other than the structure, and a modifier, deposit type or
+    /// variable that is not an identifier are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
+    /// documents only.
     DeleteMegastructure {
         megastructure: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        dismantle: Option<MegastructureDismantle>,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
     /// [`Op::RemoveColony`], [`Op::DeleteBody`] and [`Op::DeleteMegastructure`] invert to. Each text must be one
@@ -1298,6 +1306,34 @@ pub struct NebulaCloud {
     pub kind: String,
 }
 
+/// What a megastructure type's dismantle takes back, read from the install's
+/// `on_dismantle_complete` and the scripted effects it calls: what [`Op::DeleteMegastructure`]
+/// takes back with a row.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MegastructureDismantle {
+    /// The modifiers it removes, `orbital_arc_furnace_4_mod`.
+    pub modifiers: Vec<String>,
+    /// The deposit types it removes, `d_arc_furnace_4`.
+    pub deposits: Vec<String>,
+    /// The variables it lowers on the owner, `arc_furnace_counter`.
+    pub variables: Vec<VariableDrop>,
+}
+
+impl MegastructureDismantle {
+    pub fn is_empty(&self) -> bool {
+        self.modifiers.is_empty() && self.deposits.is_empty() && self.variables.is_empty()
+    }
+}
+
+/// One owner variable a dismantle lowers, and by how much.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VariableDrop {
+    pub variable: String,
+    pub by: u32,
+}
+
 /// One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
 /// whole `<id>={ … }` statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -1334,6 +1370,7 @@ pub enum SavedTable {
     Bypass,
     /// The whole top-level `dead_mega_structure` statement, with id 0.
     DeadMegastructures,
+    Deposit,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

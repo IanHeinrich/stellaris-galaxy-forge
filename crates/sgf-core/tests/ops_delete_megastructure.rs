@@ -3,7 +3,7 @@
 //! structure made, byte-exact undo and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::Op;
+use sgf_core::ops::{MegastructureDismantle, Op, VariableDrop};
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
 
@@ -15,7 +15,10 @@ use common::{
 };
 
 fn delete(megastructure: u32) -> Op {
-    Op::DeleteMegastructure { megastructure }
+    Op::DeleteMegastructure {
+        megastructure,
+        dismantle: None,
+    }
 }
 
 /// The 4.5 sample with `edit` applied to its gamestate.
@@ -323,4 +326,198 @@ fn a_row_mid_upgrade_goes_with_its_upgrade() {
     });
     session.apply(delete(2)).expect("delete");
     assert!(!text(&session).contains("upgrade_to=\"shroud_seal_2\""));
+}
+
+/// What the install says an Arc Furnace's dismantle takes back.
+fn furnace_dismantle() -> MegastructureDismantle {
+    MegastructureDismantle {
+        modifiers: (1..=4)
+            .map(|n| format!("orbital_arc_furnace_{n}_mod"))
+            .collect(),
+        deposits: (1..=4).map(|n| format!("d_arc_furnace_{n}")).collect(),
+        variables: vec![VariableDrop {
+            variable: "arc_furnace_counter".to_owned(),
+            by: 1,
+        }],
+    }
+}
+
+/// A `timed_modifier` block of `modifiers`, each for ever, as a planet holds one.
+fn modifiers_block(modifiers: &[&str]) -> String {
+    let items: String = modifiers
+        .iter()
+        .map(|m| {
+            format!(
+                "\t\t\t\t\t{{\n\t\t\t\t\t\tmodifier=\"{m}\"\n\t\t\t\t\t\tdays=-1\n\t\t\t\t\t}}\n \n"
+            )
+        })
+        .collect();
+    format!(
+        "\t\t\ttimed_modifier=\n\t\t\t{{\n\t\t\t\titems=\n\t\t\t\t{{\n\t\t\t\t\t\n{items}\t\t\t\t}}\n\t\t\t}}\n"
+    )
+}
+
+/// Planet `planet` of the 4.5 sample given `block` after its `bombardment_damage`.
+fn after_bombardment(text: &mut String, planet: u32, block: &str) {
+    insert_after(
+        text,
+        &format!("\n\t\t{planet}=\n\t\t{{\n"),
+        "\t\t\tbombardment_damage=0\n",
+        block,
+    );
+}
+
+/// Country 11's `variables` given `line` first.
+fn owner_variable(text: &mut String, line: &str) {
+    let country = text
+        .find(
+            "
+country=
+{
+",
+        )
+        .expect("country");
+    let start = country
+        + text[country..]
+            .find(
+                "
+	11=
+	{
+",
+            )
+            .expect("country 11");
+    let at = start
+        + text[start..]
+            .find(
+                "		variables=
+		{
+",
+            )
+            .expect("its variables")
+        + "		variables=
+		{
+"
+        .len();
+    text.insert_str(at, line);
+}
+
+/// The 4.5 sample with Arc Furnace row 16 of country 11 around planet 517 of Vinh: the
+/// furnace's modifier on 514, 515 and 517, which keeps a modifier of its own, deposit 790
+/// of 517's eleven and 802, 520's only one, made furnace deposits, and the owner's counter.
+fn furnace_system() -> Session {
+    edited_4_5(|text| {
+        let planet = "\n\t\t517=\n\t\t{\n";
+        insert_after(
+            text,
+            planet,
+            "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            "\t\t\tmegastructure=16\n",
+        );
+        insert_after(
+            text,
+            planet,
+            "\t\t\tflags=\n\t\t\t{\n",
+            "\t\t\t\thas_megastructure=62808000\n\t\t\t\thas_arc_furnace=62808000\n",
+        );
+        row(
+            text,
+            16,
+            "orbital_arc_furnace_4",
+            174,
+            "\t\towner=11\n\t\tplanet=517\n",
+        );
+        let furnace = ["orbital_arc_furnace_4_mod"];
+        after_bombardment(text, 514, &modifiers_block(&furnace));
+        after_bombardment(text, 515, &modifiers_block(&furnace));
+        after_bombardment(
+            text,
+            517,
+            &modifiers_block(&["orbital_arc_furnace_4_mod", "hazardous_weather"]),
+        );
+        for (deposit, kind) in [(790, "d_hot_springs"), (802, "d_exotic_gases_1")] {
+            let was = format!("\n\t{deposit}=\n\t{{\n\t\ttype=\"{kind}\"\n");
+            let now = format!("\n\t{deposit}=\n\t{{\n\t\ttype=\"d_arc_furnace_4\"\n");
+            assert!(text.contains(&was), "deposit {deposit}");
+            *text = text.replacen(&was, &now, 1);
+        }
+        owner_variable(text, "\t\t\tarc_furnace_counter=1\n");
+    })
+}
+
+fn delete_furnace() -> Op {
+    Op::DeleteMegastructure {
+        megastructure: 16,
+        dismantle: Some(furnace_dismantle()),
+    }
+}
+
+#[test]
+fn an_arc_furnace_takes_back_its_modifiers_deposits_and_counter() {
+    let mut session = furnace_system();
+    let result = snapshot_step(&mut session, "arc_furnace_dismantled", delete_furnace());
+    assert_eq!(
+        result.entry.description,
+        "Deleted megastructure #16 (orbital_arc_furnace_4) in Vinh #174, and took back 3 modifiers, 2 deposits and 1 counter"
+    );
+    round_trip(furnace_system(), delete_furnace());
+}
+
+#[test]
+fn the_inverse_of_a_dismantles_inverse_deletes_again() {
+    let mut session = furnace_system();
+    let result = session.apply(delete_furnace()).expect("delete");
+    let edited = current(&session);
+    let restored = session.apply_inverse(result.inverse).expect("restore");
+    session
+        .apply_inverse(restored.inverse)
+        .expect("delete again");
+    assert_eq!(current(&session), edited);
+}
+
+#[test]
+fn a_dyson_swarm_takes_back_its_stars_modifier() {
+    let swarm = || {
+        edited_4_5(|text| {
+            row(
+                text,
+                16,
+                "dyson_swarm_3",
+                174,
+                "\t\towner=11\n\t\tplanet=511\n",
+            );
+            after_bombardment(text, 511, &modifiers_block(&["dyson_swarm_3_mod"]));
+            owner_variable(text, "\t\t\tdyson_swarm_counter=2\n");
+        })
+    };
+    let op = Op::DeleteMegastructure {
+        megastructure: 16,
+        dismantle: Some(MegastructureDismantle {
+            modifiers: vec!["dyson_swarm_3_mod".to_owned()],
+            deposits: Vec::new(),
+            variables: vec![VariableDrop {
+                variable: "dyson_swarm_counter".to_owned(),
+                by: 1,
+            }],
+        }),
+    };
+    let mut session = swarm();
+    snapshot_step(&mut session, "dyson_swarm_dismantled", op.clone());
+    round_trip(swarm(), op);
+}
+
+#[test]
+fn a_dismantle_names_identifiers() {
+    assert_refusals(
+        &mut open_4_5(),
+        [(
+            Op::DeleteMegastructure {
+                megastructure: 6,
+                dismantle: Some(MegastructureDismantle {
+                    modifiers: vec!["two words".to_owned()],
+                    ..MegastructureDismantle::default()
+                }),
+            },
+            "\"two words\" cannot be written as a modifier",
+        )],
+    );
 }

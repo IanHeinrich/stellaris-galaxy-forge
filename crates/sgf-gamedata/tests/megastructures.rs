@@ -3,6 +3,7 @@
 
 use crate::common;
 
+use sgf_core::ops::{MegastructureDismantle, VariableDrop};
 use sgf_gamedata::registries::megastructures::BuildType;
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -197,5 +198,93 @@ fn the_installs_megastructure_types_and_station_models() {
     assert_eq!(
         station("starbase_level_citadel"),
         Some("starbase_citadel_section_entity")
+    );
+}
+
+/// What each vanilla type's dismantle takes back, followed through the scripted effects it
+/// calls: an Arc Furnace its stage modifiers, deposits and counter, a Dyson Swarm its star's
+/// modifier and counter, the Shroud Seal its system's modifier. A type the game cannot
+/// dismantle takes back nothing.
+#[test]
+fn the_install_says_what_a_dismantle_takes_back() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let dismantle = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .dismantle
+            .clone()
+    };
+    let lowers = |variable: &str| {
+        vec![VariableDrop {
+            variable: variable.to_owned(),
+            by: 1,
+        }]
+    };
+    let furnace = MegastructureDismantle {
+        modifiers: (1..=4)
+            .map(|n| format!("orbital_arc_furnace_{n}_mod"))
+            .collect(),
+        deposits: (1..=4).map(|n| format!("d_arc_furnace_{n}")).collect(),
+        variables: lowers("arc_furnace_counter"),
+    };
+    for stage in 1..=4 {
+        assert_eq!(dismantle(&format!("orbital_arc_furnace_{stage}")), furnace);
+    }
+    for stage in 1..=3 {
+        assert_eq!(
+            dismantle(&format!("dyson_swarm_{stage}")),
+            MegastructureDismantle {
+                modifiers: vec![format!("dyson_swarm_{stage}_mod")],
+                deposits: Vec::new(),
+                variables: lowers("dyson_swarm_counter"),
+            }
+        );
+    }
+    assert_eq!(
+        dismantle("shroud_seal"),
+        MegastructureDismantle {
+            modifiers: vec!["shroud_seal_modifier".to_owned()],
+            ..MegastructureDismantle::default()
+        },
+        "through the scripted effect it calls"
+    );
+    for kept in [
+        "dyson_sphere_5",
+        "think_tank_3",
+        "hyper_relay",
+        "gateway_final",
+    ] {
+        assert!(dismantle(kept).is_empty(), "{kept}");
+    }
+}
+
+/// A mod's dismantle is read the same way: a scripted effect's parameters are filled in from
+/// the call, and `subtract_variable` on the owner lowers it as `change_variable` does.
+#[test]
+fn a_dismantle_follows_the_parameters_it_passes() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_furnace = {\n\ton_dismantle_complete = {\n\t\tevery_system_planet = {\n\t\t\tlimit = { remove_modifier = in_a_limit }\n\t\t\tmod_take_back = { STAGE = 2 }\n\t\t}\n\t\tfrom = {\n\t\t\tsubtract_variable = { which = mod_furnaces value = 2 }\n\t\t\tremove_modifier = on_the_owner\n\t\t}\n\t}\n}\n",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_take_back = {\n\tremove_modifier = mod_furnace_$STAGE$_mod\n\tremove_deposit = d_mod_furnace_$STAGE$\n}\n",
+        ),
+    ]);
+    let furnace = gd.megastructures.get("mod_furnace").expect("mod_furnace");
+    assert_eq!(
+        furnace.dismantle,
+        MegastructureDismantle {
+            modifiers: vec!["mod_furnace_2_mod".to_owned()],
+            deposits: vec!["d_mod_furnace_2".to_owned()],
+            variables: vec![VariableDrop {
+                variable: "mod_furnaces".to_owned(),
+                by: 2,
+            }],
+        }
     );
 }

@@ -8,6 +8,7 @@
 use crate::cst::Node;
 use crate::document::Document;
 use crate::format::save::added::{Table, row};
+use crate::format::save::write::dismantle::{self, TakenBack};
 use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
 use crate::format::save::write::remove_planet::check_segment;
 use crate::format::save::write::restore::{Saved, tombstoned};
@@ -15,7 +16,7 @@ use crate::format::save::write::teardown::Teardown;
 use crate::format::save::{entity_at, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
-use crate::ops::{Edit, OpError, Plan, Planned, SavedTable, Subject};
+use crate::ops::{Edit, MegastructureDismantle, OpError, Plan, Planned, SavedTable, Subject};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
@@ -23,8 +24,16 @@ use crate::session::Session;
 /// The bypass kinds a deletion takes along; another has not been tried in game.
 const DROPPED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
 
-pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
+pub(crate) fn plan_delete(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    dismantle: Option<&MegastructureDismantle>,
+) -> Result<Planned, OpError> {
     let doc = &s.doc;
+    if let Some(dismantle) = dismantle {
+        dismantle::check(dismantle)?;
+    }
     let tied = megastructure_links::read(doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,
         id,
@@ -67,6 +76,12 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
     if tied.save_on_death {
         log_death(plan, doc, &mut saved, &tied, system)?;
     }
+    let taken = match dismantle {
+        Some(dismantle) => {
+            dismantle::take_back(plan, s, &mut saved, system, tied.owner, dismantle)?
+        }
+        None => TakenBack::default(),
+    };
 
     let with_colony = colony
         .map(|teardown| format!(", with the colony on planet #{}", teardown.planet))
@@ -76,9 +91,10 @@ pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         .unwrap_or_default();
     Ok(Planned {
         description: format!(
-            "Deleted megastructure #{id} ({}) in {}{with_colony}{with_bypass}",
+            "Deleted megastructure #{id} ({}) in {}{with_colony}{with_bypass}{}",
             tied.kind,
-            named(&s.graph, system)
+            named(&s.graph, system),
+            taken.what()
         ),
         inverse: saved.inverse(format!("Restored megastructure #{id} ({})", tied.kind)),
     })
