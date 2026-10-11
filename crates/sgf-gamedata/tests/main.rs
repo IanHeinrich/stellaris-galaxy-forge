@@ -25,6 +25,7 @@ mod generate_pinned;
 mod generate_star_class;
 mod initializer_corpus;
 mod initializers;
+mod inline_script_reload;
 mod install;
 mod layering;
 mod localisation;
