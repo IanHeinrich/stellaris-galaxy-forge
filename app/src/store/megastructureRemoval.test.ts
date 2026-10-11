@@ -74,7 +74,7 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Science Nexus", 0)).toBe(true);
 
     expect(mockedIpc.confirm).toHaveBeenCalledWith(
-      "Delete Science Nexus in Sol? It is removed from the save. Without game data, the modifiers its construction added stay. What it did to its system stays as the game left it.",
+      "Delete Science Nexus in Sol? It is removed from the save. Without game data, the modifiers its construction added stay.",
       expect.objectContaining({ title: "Science Nexus", kind: "warning" }),
     );
     expect(mockedIpc.deleteMegastructure).toHaveBeenCalledWith(NEXUS);
@@ -92,17 +92,12 @@ describe("deleting a megastructure", () => {
     expect(labels()).toEqual(["Ostiuq", "Science Nexus", "Colony #18"]);
   });
 
-  it("says a relay's link and a gateway's go with it", async () => {
+  it("asks the same for a relay", async () => {
     armRow("hyper_relay", null, 23);
     await deleteMegastructure(NEXUS, "Hyper Relay", null);
     expect(asked()).toBe(
-      "Delete Hyper Relay? It is removed from the save. Its relay link goes too. Without game data, the modifiers its construction added stay. What it did to its system stays as the game left it.",
+      "Delete Hyper Relay? It is removed from the save. Without game data, the modifiers its construction added stay.",
     );
-
-    mockedIpc.confirm.mockClear();
-    armRow("gateway_ruined", null, 3);
-    await deleteMegastructure(NEXUS, "Derelict Gateway", null);
-    expect(asked()).toContain(" Its link to the other gateways goes too. ");
   });
 
   it("takes the colony first on a planet the megastructure made, and closes its page", async () => {
@@ -123,7 +118,7 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Cosmogenesis World", 0)).toBe(true);
 
     expect(asked()).toBe(
-      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Without game data, the modifiers its construction added stay. What it did to its system and planet stays as the game left it.",
+      "Delete Cosmogenesis World in Sol? It is removed from the save. The colony on Genesis goes with it: 3,400 pops, 2 buildings, its defence armies and any orbital ring. The planet stays. Without game data, the modifiers its construction added stay.",
     );
     expect(mockedIpc.getEntity).toHaveBeenCalledWith({ kind: "planet", id: WORLD }, ["flags"]);
     expect(labels()).toEqual(["Ostiuq"]);
@@ -144,11 +139,10 @@ describe("deleting a megastructure", () => {
     expect(await deleteMegastructure(NEXUS, "Orbital Ring", 0)).toBe(true);
 
     expect(asked()).not.toContain("colony");
-    expect(asked()).toContain("its system and planet");
     expect(labels()).toEqual(["Ostiuq", "Colony #18"]);
   });
 
-  it("says what the game data says its construction added goes too", async () => {
+  it("leaves out the game data warning once the game data is loaded", async () => {
     useGameDataStore.setState({
       status: "ready",
       megastructureTypes: new Map([
@@ -166,16 +160,12 @@ describe("deleting a megastructure", () => {
     });
     armRow("orbital_arc_furnace_4", null);
     await deleteMegastructure(NEXUS, "Arc Furnace", 0);
-    expect(asked()).toBe(
-      "Delete Arc Furnace in Sol? It is removed from the save. The modifiers, deposits and counters its construction added go too. Anything else it did to its system stays as the game left it.",
-    );
+    expect(asked()).toBe("Delete Arc Furnace in Sol? It is removed from the save.");
 
     mockedIpc.confirm.mockClear();
     armRow("think_tank_3", null);
     await deleteMegastructure(NEXUS, "Science Nexus", 0);
-    expect(asked()).toBe(
-      "Delete Science Nexus in Sol? It is removed from the save. What it did to its system stays as the game left it.",
-    );
+    expect(asked()).toBe("Delete Science Nexus in Sol? It is removed from the save.");
   });
 
   it("says what it could not read, and asks nothing", async () => {

@@ -8,7 +8,7 @@ import type { MegastructureDismantle } from "../../generated/MegastructureDisman
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { Op } from "../../generated/Op";
 import type { PlanetPage } from "../../generated/PlanetPage";
-import { isGatewayMegastructure, megastructureLabel } from "./labels";
+import { megastructureLabel } from "./labels";
 import { colonyParts } from "./planetRemoval";
 
 export const DELETE_MEGASTRUCTURE = "Delete megastructure";
@@ -84,19 +84,6 @@ export const EMPTY_DISMANTLE: MegastructureDismantle = {
   variables: [],
 };
 
-/** "The modifiers and deposits it added go too.", or nothing when it added none. */
-function takenBack(dismantle: MegastructureDismantle): string {
-  const parts = [
-    dismantle.modifiers.length > 0 ? "modifiers" : null,
-    dismantle.deposits.length > 0 ? "deposits" : null,
-    dismantle.variables.length > 0 ? "counters" : null,
-  ].filter((part) => part !== null);
-  if (parts.length === 0) return "";
-  const last = parts.pop();
-  const listed = parts.length === 0 ? last : `${parts.join(", ")} and ${last}`;
-  return ` The ${listed} its construction added go too.`;
-}
-
 /**
  * The confirm for deleting the megastructure named `name` in the system named `system`, or in
  * no system read so far.
@@ -104,22 +91,14 @@ function takenBack(dismantle: MegastructureDismantle): string {
 export function deleteMegastructureQuestion(
   name: string,
   system: string | null,
-  { row, colony, dismantle }: MegastructureLoss,
+  { colony, dismantle }: MegastructureLoss,
 ): string {
   const where = system === null ? "" : ` in ${system}`;
-  const link = !row.bypass
-    ? ""
-    : isGatewayMegastructure(row.kind)
-      ? " Its link to the other gateways goes too."
-      : " Its relay link goes too.";
   const settled =
     colony === null
       ? ""
       : ` The colony on ${colony.planet} goes with it: ${colonyParts(colony.page)}. The planet stays.`;
-  const left = row.planet === null ? "its system" : "its system and planet";
-  const taken = dismantle === null ? "" : takenBack(dismantle);
   const kept =
     dismantle === null ? " Without game data, the modifiers its construction added stay." : "";
-  const rest = taken === "" ? "What it did" : "Anything else it did";
-  return `Delete ${name}${where}? It is removed from the save.${link}${settled}${taken}${kept} ${rest} to ${left} stays as the game left it.`;
+  return `Delete ${name}${where}? It is removed from the save.${settled}${kept}`;
 }
