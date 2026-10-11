@@ -286,12 +286,12 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(stage(planet, "alderson_disk_1")).toBeUndefined();
   });
 
-  it("lists a ring world greyed out on a planet, and never opens on it", () => {
-    const listed = entries(planet);
+  it("lists a ring world greyed out on a star, hides it on a planet and in space, and never opens on it", () => {
+    const listed = entries(star);
     const ring = listed.find((entry) => entry.chains[0].first === "ring_world_1");
     expect(ring?.chains[0].stages[0].refused).toBe(RING_WORLD);
     expect(
-      entries(star)
+      entries(planet)
         .flatMap(entryStages)
         .map((s) => s.key),
     ).not.toContain("ring_world_1");
@@ -300,11 +300,11 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         .flatMap(entryStages)
         .map((s) => s.key),
     ).not.toContain("ring_world_1");
-    expect(defaultStage(listed, planet, null)).toBe("think_tank_3");
+    expect(defaultStage(listed, star, null)).toBe("dyson_sphere_5");
     expect(
       defaultStage(
         listed.filter((entry) => entry === ring),
-        planet,
+        star,
         null,
       ),
     ).toBe("ring_world_1");
@@ -327,11 +327,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
   });
 
   it("offers star-only types on a star alone, any body's on a planet or star, free types in space alone, and never one that stands for a bypass", () => {
-    expect(entries(planet).map((e) => e.label)).toEqual([
-      "Ring World",
-      "Science Nexus",
-      "Automated Strip Mine",
-    ]);
+    expect(entries(planet).map((e) => e.label)).toEqual(["Science Nexus", "Automated Strip Mine"]);
     const offered = [planet, star, space].flatMap((spot) =>
       entries(spot).flatMap((e) => entryStages(e).map((s) => s.key)),
     );

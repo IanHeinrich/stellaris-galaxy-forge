@@ -48,15 +48,17 @@ The new megastructure's page opens in the Inspector. Press
 construction added.
 
 The list shows each megastructure once, under Base game or the name of
-the mod that adds it. Type in the box above the list to filter it by
-megastructure or stage name.
+the mod that adds it. Its build stages, ruins and variants are inside
+it, so a Dyson Sphere is one entry in the list and not one for each
+stage. Type in the box above the list to filter it by megastructure or
+stage name.
 
 The tiles show the stages of the megastructure you picked, each with its
 model, in the order they are built. Its ruined and restored versions come
 after them. A mod that has several versions of one megastructure, such
-as a Dyson Sphere for each star class, shows one row of tiles for each,
-with a label above the row. A tile marked No model yet is a megastructure
-the app can't draw yet.
+as the Dyson Sphere for each star class in Gigastructural Engineering,
+shows one row of tiles for each, with a label above the row. A tile
+marked No model yet is a megastructure the app can't draw yet.
 
 The preview beside the tiles shows the stage you clicked, with the
 game's description and what it produces each month. The dialog opens on
@@ -81,9 +83,21 @@ megastructure is built there, and some planets keep that mark with no
 megastructure left. Adding one to such a planet is refused, and the
 dialog says why.
 
-Galaxy Forge can't add these yet, so they aren't in the list:
+Some types are in the list greyed out. Select one to read the reason in
+the preview. Galaxy Forge can't add these yet:
 
-- Ring worlds.
+- Ring worlds. A ring world goes around a star, so it is greyed out on
+  a star and is not in the list on a planet or in empty space.
+- Megastructures that change their planet's class or size, such as an
+  Automated Strip Mine.
+- Megastructures that are built as a whole with more planets or
+  sections, such as an Alderson Disk.
+
+Types the game gives no name are left out of the list. Type part of the
+type's key in the filter to find one.
+
+Galaxy Forge can't add these yet, and they aren't in the list:
+
 - L-Gates and the later stages of the Quantum Catapult.
 - Megastructures that become a starbase when they are built: the Deep
   Space Citadel and the Nomads' waystations.

@@ -50,7 +50,7 @@ function fits(type: MegastructureTypeView, spot: MegastructureSpot): boolean {
   const { why } = placement;
   if (why.kind === "changes_body") return true;
   if (why.kind === "whole_structure") return !why.star_only || spot.star;
-  if (why.kind === "ring_world") return !spot.star;
+  if (why.kind === "ring_world") return spot.star;
   return false;
 }
 
