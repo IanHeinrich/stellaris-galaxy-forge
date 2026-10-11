@@ -149,5 +149,11 @@
   {"q": "dyson sphere energy output", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "habitat model", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "ring world segments", "expect": "system/system-view#megastructures-and-starbases"},
-  {"q": "select planet under megastructure", "expect": "system/system-view#megastructures-and-starbases"}
+  {"q": "select planet under megastructure", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "delete megastructure", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "remove dyson sphere", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete hyper relay", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete ruined orbital ring", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete gateway", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "cosmogenesis world colony", "expect": "system/megastructures#delete-a-megastructure"}
 ]

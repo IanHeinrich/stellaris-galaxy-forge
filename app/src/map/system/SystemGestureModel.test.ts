@@ -88,7 +88,7 @@ describe("SystemGestureModel", () => {
     ]);
   });
 
-  it("opens the body menu on a right-click on a body, the belt menu on a belt's handle, and the space menu elsewhere", () => {
+  it("opens the body menu on a right-click on a body, the belt menu on a belt's handle, a megastructure's on its model, and the space menu elsewhere", () => {
     const model = new SystemGestureModel();
     const intent = recorder();
     model.handle(at("down", 10, 10, { button: 2, target: over("body", 3) }), intent);
@@ -97,15 +97,23 @@ describe("SystemGestureModel", () => {
     model.handle(at("down", 70, 80, { button: 2, target: grip(belt) }), intent);
     const inner = { kind: "innerRadius" as const };
     model.handle(at("down", 90, 80, { button: 2, target: grip(inner), wx: 0, wy: -200 }), intent);
+    const structure = { kind: "megastructure" as const, id: 6 };
+    model.handle(at("down", 30, 40, { button: 2, target: structure }), intent);
+    const station = { kind: "starbase" as const, id: 77 };
+    model.handle(at("down", 20, 20, { button: 2, target: station, wx: 1, wy: 2 }), intent);
     const body: ContextTarget = { kind: "body", system: SYSTEM, id: 3 };
     const space: ContextTarget = { kind: "systemSpace", system: SYSTEM, x: 12.5, y: -4 };
     const onBelt: ContextTarget = { kind: "belt", system: SYSTEM, index: 1 };
     const onInner: ContextTarget = { kind: "systemSpace", system: SYSTEM, x: 0, y: -200 };
+    const onStructure: ContextTarget = { kind: "megastructure", system: SYSTEM, id: 6 };
+    const onStation: ContextTarget = { kind: "systemSpace", system: SYSTEM, x: 1, y: 2 };
     expect(intent.calls).toEqual([
       ["contextMenu", body, 10, 10],
       ["contextMenu", space, 50, 60],
       ["contextMenu", onBelt, 70, 80],
       ["contextMenu", onInner, 90, 80],
+      ["contextMenu", onStructure, 30, 40],
+      ["contextMenu", onStation, 20, 20],
     ]);
   });
 

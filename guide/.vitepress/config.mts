@@ -55,7 +55,8 @@ const sidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Deposits and modifiers', link: '/system/deposits-and-modifiers' },
       { text: 'Edit several planets at once', link: '/system/edit-several-planets' },
       { text: 'Asteroid belts and the inner radius', link: '/system/belts' },
-      { text: 'Colonies and deleting planets', link: '/system/colonies' }
+      { text: 'Colonies and deleting planets', link: '/system/colonies' },
+      { text: 'Megastructures', link: '/system/megastructures' }
     ]
   },
   {

@@ -17,8 +17,11 @@ import {
   SCENARIO_RESULT,
   countryNode,
   editResult,
+  entityNode,
+  entityView,
   name,
   planetSummary,
+  scalar,
   systemDetails,
 } from "../../store/fixture";
 import { useGameDataStore } from "../../store/gameDataStore";
@@ -31,6 +34,7 @@ import { useLayoutStore } from "../../store/layoutStore";
 import { buttons, escaped, menuItem } from "../../test/elements";
 import { drawnBy, drawnButton, lastDrawn } from "../../test/drawn";
 import {
+  megastructureSummary,
   namedPlanets,
   orbitClasses,
   orbitSystem,
@@ -43,6 +47,7 @@ import { MapTooltip } from "./MapTooltip";
 import { BeltMenu } from "./contextMenu/BeltMenu";
 import { BodyMenu } from "./contextMenu/BodyMenu";
 import { BodyRowMenu } from "./contextMenu/BodyRowMenu";
+import { MegastructureMenu } from "./contextMenu/MegastructureMenu";
 import { SceneSpaceMenu } from "./contextMenu/SceneSpaceMenu";
 import { MenuItem } from "./contextMenu/MenuItem";
 import type { BodyClassPick } from "../../generated/BodyClassPick";
@@ -201,6 +206,73 @@ describe("a belt's handle in the system view", () => {
     inSol(target);
     const html = menu();
     expect(html).not.toContain("Remove belt");
+    expect(html).toContain(">Back to galaxy</button>");
+  });
+});
+
+describe("a megastructure in the system view", () => {
+  const target = { kind: "megastructure", system: 0, id: 6 } as const;
+
+  function atTheNexus(): void {
+    const nexus = megastructureSummary({ id: 6, kind: "think_tank_3" });
+    inSystem(systemDetails({ id: 0, megastructures: [nexus] }));
+    useGameDataStore.setState({ names: new Map([["think_tank_3", "Science Nexus"]]) });
+    useMapChromeStore.getState().openContextMenu({ target, x: 0, y: 0 });
+  }
+
+  it("inspects it, and deletes it after asking", async () => {
+    atTheNexus();
+    const html = menu();
+    expect(html).toContain('<div class="context-menu-header">Science Nexus</div>');
+    expect(html.indexOf("Inspect")).toBeLessThan(html.indexOf("Delete megastructure"));
+    expect(html.indexOf("Delete megastructure")).toBeLessThan(html.indexOf("Back to galaxy"));
+    expect(ipc.checkOp).toHaveBeenCalledWith({ type: "DeleteMegastructure", megastructure: 6 });
+
+    menuItem(<MegastructureMenu target={target} frame={{}} />, "Inspect").props.onClick();
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1]).toEqual({
+      ref: { kind: "megastructure", id: 6 },
+      label: "Science Nexus",
+    });
+
+    vi.mocked(ipc.getEntity).mockResolvedValue(
+      entityView("megastructure", { nodes: [entityNode("type", scalar("think_tank_3"))] }),
+    );
+    vi.mocked(dialog.confirm).mockResolvedValue(true);
+    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    await flush();
+    menuItem(
+      <MegastructureMenu target={target} frame={{}} />,
+      "Delete megastructure",
+    ).props.onClick();
+    await until(() =>
+      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteMegastructure", megastructure: 6 }),
+    );
+    expect(dialog.confirm).toHaveBeenCalledWith(
+      expect.stringMatching(/^Delete Science Nexus in Sol\? It is removed from the save\./),
+      expect.objectContaining({ kind: "warning" }),
+    );
+    expect(useInspectorStore.getState().stack.map((e) => e.ref.kind)).not.toContain(
+      "megastructure",
+    );
+  });
+
+  it("greys Delete out with the core's reason", async () => {
+    const refusal = "megastructure 6 cannot be deleted: its bypass is a lgate";
+    vi.mocked(ipc.checkOp).mockResolvedValue(refusal);
+    atTheNexus();
+    menu();
+    await flush();
+    const html = menu();
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Delete megastructure<span/);
+    expect(html).toContain(`<span class="muted">${refusal}</span>`);
+  });
+
+  it("offers no deletion on a scenario", async () => {
+    await openWith(SCENARIO_RESULT);
+    atTheNexus();
+    const html = menu();
+    expect(html).not.toContain("Delete megastructure");
     expect(html).toContain(">Back to galaxy</button>");
   });
 });

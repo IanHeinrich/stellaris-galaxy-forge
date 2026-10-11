@@ -7,8 +7,8 @@ import {
 } from "../../../lib/details/planetRemoval";
 import { useOpCheck } from "../../useOpCheck";
 
-/** One destructive action of a planet's page, disabled with its reason while the core refuses it. */
-function Action({
+/** One destructive action of a page, disabled with its reason while the core refuses it. */
+export function RemovalAction({
   refusal,
   label,
   run,
@@ -46,7 +46,9 @@ export function RemoveColonyAction({
   edits: PlanetEditAdapter;
 }) {
   const refusal = useOpCheck(removeColonyOp(body), system);
-  return <Action refusal={refusal} label={REMOVE_COLONY} run={() => edits.removeColony(name)} />;
+  return (
+    <RemovalAction refusal={refusal} label={REMOVE_COLONY} run={() => edits.removeColony(name)} />
+  );
 }
 
 /** Deletes body `body` of system `system`, named `name`, with its moons and any colony, through `edits`. */
@@ -65,6 +67,10 @@ export function DeletePlanetAction({
 }) {
   const refusal = useOpCheck(deleteOp(body), system);
   return (
-    <Action refusal={refusal} label={deleteLabel(moon)} run={() => edits.remove(name, moon)} />
+    <RemovalAction
+      refusal={refusal}
+      label={deleteLabel(moon)}
+      run={() => edits.remove(name, moon)}
+    />
   );
 }
