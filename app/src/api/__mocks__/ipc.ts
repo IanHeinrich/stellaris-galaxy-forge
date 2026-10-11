@@ -34,6 +34,7 @@ export const applyOp = command("applyOp");
 export const addRandomSystem = command("addRandomSystem");
 export const addBody = command("addBody");
 export const addMegastructure = command("addMegastructure");
+export const deleteMegastructure = command("deleteMegastructure");
 export const addSpecialSystem = command("addSpecialSystem");
 export const rerollSystem = command("rerollSystem");
 export const removeAddedSystems = command("removeAddedSystems");

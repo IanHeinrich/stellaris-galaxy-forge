@@ -252,6 +252,11 @@ export interface EditorState {
    */
   removeSystems(ids: readonly number[]): Promise<boolean>;
   /**
+   * Deletes megastructure row `megastructure` of the open save, with what its type's dismantle
+   * takes back as the loaded game data says. Resolves true when the edit applied.
+   */
+  deleteMegastructure(megastructure: number): Promise<boolean>;
+  /**
    * Adds a paint stroke's systems at `points`, numbered from the next free id, and its lanes in
    * one edit; a pair's negative id -k names `points[k - 1]`.
    */

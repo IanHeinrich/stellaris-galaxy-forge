@@ -5,6 +5,7 @@
  */
 export * from "./addBody";
 export * from "./addMegastructure";
+export * from "./megastructure";
 export * from "./addSystem";
 export * from "./entity";
 export * from "./errors";

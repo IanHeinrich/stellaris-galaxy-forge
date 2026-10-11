@@ -258,9 +258,10 @@ impl Format for Save {
             Op::SetBodyRing { body, ring } => planet_ring::plan_set(plan, s, *body, *ring),
             Op::RemoveColony { body } => remove_planet::plan_remove_colony(plan, s, *body),
             Op::DeleteBody { body } => remove_planet::plan_delete(plan, s, *body),
-            Op::DeleteMegastructure { megastructure } => {
-                delete_megastructure::plan_delete(plan, s, *megastructure)
-            }
+            Op::DeleteMegastructure {
+                megastructure,
+                dismantle,
+            } => delete_megastructure::plan_delete(plan, s, *megastructure, dismantle.as_ref()),
             Op::RestoreEntities {
                 description,
                 entities,

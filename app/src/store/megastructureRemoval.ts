@@ -4,10 +4,11 @@
  */
 import { confirm } from "@tauri-apps/plugin-dialog";
 import * as ipc from "../api/ipc";
+import type { MegastructureDismantle } from "../generated/MegastructureDismantle";
 import { bodyName } from "../lib/details/labels";
 import {
-  deleteMegastructureOp,
   deleteMegastructureQuestion,
+  EMPTY_DISMANTLE,
   madeByMegastructure,
   megastructureRow,
   type MegastructureLoss,
@@ -24,13 +25,21 @@ import { useInspectorStore } from "./inspectorStore";
  */
 async function lossOf(id: number): Promise<MegastructureLoss> {
   const row = megastructureRow((await ipc.getEntity({ kind: "megastructure", id })).nodes);
-  if (row.planet === null) return { row, colony: null };
+  const dismantle = dismantleOf(row.kind);
+  if (row.planet === null) return { row, colony: null, dismantle };
   const page = await ipc.getPlanetPage(row.planet);
-  if (page.colony === null || page.flags === 0) return { row, colony: null };
+  if (page.colony === null || page.flags === 0) return { row, colony: null, dismantle };
   const flags = await ipc.getEntity({ kind: "planet", id: row.planet }, ["flags"]);
-  if (!madeByMegastructure(flags.nodes)) return { row, colony: null };
+  if (!madeByMegastructure(flags.nodes)) return { row, colony: null, dismantle };
   const planet = bodyName(page, useGameDataStore.getState().names);
-  return { row, colony: { planet, page } };
+  return { row, colony: { planet, page }, dismantle };
+}
+
+/** What the loaded game data says a megastructure of `kind` takes back when deleted; null without it. */
+function dismantleOf(kind: string): MegastructureDismantle | null {
+  const gameData = useGameDataStore.getState();
+  if (gameData.status !== "ready") return null;
+  return gameData.megastructureTypes.get(kind)?.dismantle ?? EMPTY_DISMANTLE;
 }
 
 /**
@@ -55,7 +64,7 @@ export async function deleteMegastructure(
   const where = system === null ? null : useGalaxyStore.getState().systemName(system);
   const question = deleteMegastructureQuestion(name, where, loss);
   if (!(await confirm(question, { title: name, kind: "warning" }))) return false;
-  if (!(await useEditorStore.getState().applyOp(deleteMegastructureOp(id)))) return false;
+  if (!(await useEditorStore.getState().deleteMegastructure(id))) return false;
   const colonies = loss.colony?.page.colony ? [loss.colony.page.colony.id] : [];
   useInspectorStore.getState().dropMegastructure(id, colonies);
   return true;

@@ -246,15 +246,13 @@ describe("a megastructure in the system view", () => {
       entityView("megastructure", { nodes: [entityNode("type", scalar("think_tank_3"))] }),
     );
     vi.mocked(dialog.confirm).mockResolvedValue(true);
-    vi.mocked(ipc.applyOp).mockResolvedValue(editResult());
+    vi.mocked(ipc.deleteMegastructure).mockResolvedValue(editResult());
     await flush();
     menuItem(
       <MegastructureMenu target={target} frame={{}} />,
       "Delete megastructure",
     ).props.onClick();
-    await until(() =>
-      expect(ipc.applyOp).toHaveBeenCalledWith({ type: "DeleteMegastructure", megastructure: 6 }),
-    );
+    await until(() => expect(ipc.deleteMegastructure).toHaveBeenCalledWith(6));
     expect(dialog.confirm).toHaveBeenCalledWith(
       expect.stringMatching(/^Delete Science Nexus in Sol\? It is removed from the save\./),
       expect.objectContaining({ kind: "warning" }),

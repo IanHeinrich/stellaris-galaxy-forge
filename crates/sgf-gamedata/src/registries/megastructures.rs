@@ -3,10 +3,16 @@
 //! type is placed when built, what it produces, the types it links to, and where the editor
 //! can add one.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+use sgf_core::ops::MegastructureDismantle;
 use ts_rs::TS;
 
 use sgf_core::cst::Node;
+
+use crate::dismantle;
+use crate::scripts::ScriptIndex;
 
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
@@ -53,6 +59,8 @@ pub struct MegastructureDef {
     pub planet_possible_star: bool,
     /// Where the editor adds a row of this type, read once every type is loaded.
     pub placement: Placement,
+    /// What its `on_dismantle_complete` takes back from its system and owner.
+    pub dismantle: MegastructureDismantle,
 }
 
 /// Where the editor adds a row of a type.
@@ -135,6 +143,7 @@ impl FromDef for MegastructureDef {
             sets_has_megastructure: sets_has_megastructure(def),
             planet_possible_star: planet_possible_star(def),
             placement: Placement::Body { star_only: false },
+            dismantle: MegastructureDismantle::default(),
         }
     }
 }
@@ -271,6 +280,18 @@ fn asks_star(block: &Node, src: &[u8]) -> bool {
             }
             _ => asks_star(child, src),
         })
+}
+
+/// Every type `defs`, the definitions of `common/megastructures`, holds, each with what its
+/// dismantle takes back as `scripts` resolve the effects it calls.
+pub(crate) fn load(defs: &BTreeMap<String, Def>, scripts: &ScriptIndex) -> MegastructureTypes {
+    defs.iter()
+        .map(|(key, def)| {
+            let mut kind = MegastructureDef::read(key.clone(), def);
+            kind.dismantle = dismantle::read(def, scripts);
+            (key.clone(), kind)
+        })
+        .collect()
 }
 
 fn produces(def: &Def) -> Vec<(String, f64)> {

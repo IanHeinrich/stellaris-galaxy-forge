@@ -746,6 +746,20 @@ for planets or deposits.
   `on_build_complete` runs `activate_gateway` is active once built.
   The game fills in `lock_country`, `lock_remaining_days` and
   `is_manual_lock` on load, as it does for wormholes.
+- What a structure's construction added stays in the save after its row
+  goes, unless its dismantle takes it back. An Arc Furnace leaves
+  `orbital_arc_furnace_<n>_mod` as a `timed_modifier` item with
+  `days=-1` on the planets of its system that its event picked, 12 of 14
+  in one 4.5.2 system. It also leaves `d_arc_furnace_<n>` deposits, and
+  its owner's `variables` keep `arc_furnace_counter`. A Dyson Swarm
+  leaves `dyson_swarm_<n>_mod` on its star and `dyson_swarm_counter` on
+  its owner. The Shroud Seal leaves `shroud_seal_modifier` in its
+  system's own `timed_modifier`. A counter at 0 stays written as 0. The
+  install's `on_dismantle_complete`, through the scripted effects it
+  calls, names what goes: `dismantle_arc_furnace_effect` removes all
+  four furnace modifiers and deposits whatever the stage. Types without
+  `on_dismantle_complete`, such as the Dyson Sphere and the Science
+  Nexus, add no such modifier.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

@@ -1,5 +1,5 @@
 use super::Session;
-use crate::format::save::write::{copy_bodies, move_planet};
+use crate::format::save::write::{copy_bodies, megastructure_links, move_planet};
 use crate::format::scenario::effect;
 use crate::ops::{NewBody, Op, OpError, Plan};
 use crate::search;
@@ -9,6 +9,15 @@ impl Session {
     /// A scenario system's own `effect = { … }` block and the line it starts on.
     pub fn scenario_system_effect(&self, id: u32) -> Option<(String, u32)> {
         effect::system_effect(&self.doc, id)
+    }
+
+    /// The `type` of save megastructure row `id` as it stands now; `None` when the document
+    /// holds no such row.
+    pub fn megastructure_kind(&self, id: u32) -> Option<String> {
+        megastructure_links::read(&self.doc, id)
+            .ok()
+            .flatten()
+            .map(|tied| tied.kind)
     }
 
     /// Every scenario system carrying an `effect = { … }` block, in file order: its id,

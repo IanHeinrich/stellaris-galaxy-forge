@@ -6,6 +6,7 @@ use std::collections::btree_map::Entry;
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::entity::views::EntityKind;
 use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
@@ -150,6 +151,12 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
                 .added()
                 .get(Table::Bypass, id)
                 .or_else(|| entry(doc.index(), keys::BYPASSES, id)));
+        }
+        SavedTable::Deposit => {
+            return Ok(doc
+                .added()
+                .get(EntityKind::Deposit, id)
+                .or_else(|| entry(doc.index(), keys::DEPOSIT, id)));
         }
         SavedTable::DeadMegastructures => {
             return Ok(doc

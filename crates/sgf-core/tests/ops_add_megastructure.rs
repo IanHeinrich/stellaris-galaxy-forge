@@ -325,7 +325,10 @@ fn deleting_an_added_row_removes_it() {
         let mut session = open_4_5();
         session.apply(op.clone()).expect("the add");
         let deleted = session
-            .apply(Op::DeleteMegastructure { megastructure: 16 })
+            .apply(Op::DeleteMegastructure {
+                megastructure: 16,
+                dismantle: None,
+            })
             .expect("the delete");
         assert_eq!(current(&session), session.doc().original(), "{op:?}");
         assert_eq!(deleted.inverse, op);
