@@ -62,4 +62,9 @@ change: ClassChange,
  * How many models the install numbers for it, `<model>_01_entity` on; 0 when it names
  * none.
  */
-models: number, };
+models: number, 
+/**
+ * Save units of disc radius per `planet_size` point, as the game draws it; `None` for a
+ * class the game's size rule is not known to fit, which the app sizes by its own rule.
+ */
+disc_scale?: number, };

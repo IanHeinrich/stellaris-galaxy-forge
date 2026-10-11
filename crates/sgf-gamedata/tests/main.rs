@@ -14,6 +14,7 @@ mod details_layout;
 mod details_spawn;
 mod details_stars;
 mod dig_site_choices;
+mod disc_scales;
 mod first_wins;
 mod flags;
 mod fonts;

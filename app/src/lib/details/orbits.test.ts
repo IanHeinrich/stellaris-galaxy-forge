@@ -49,8 +49,8 @@ const EARTH_AT = polar(0, 0, 90, 30);
 const LUNA_AT = polar(EARTH_AT.x, EARTH_AT.y, 12, 200);
 
 /** Sol (217) of the 4.4 sample: the Sun, Earth (3) at 90 and Luna (4) at 12 about Earth. */
-function sol(): SystemLayout {
-  return laid(
+function sol(planetClasses: ReadonlyMap<string, PlanetClassView> = NO_CLASSES): SystemLayout {
+  return systemLayout(
     systemDetails({
       id: 217,
       planets: [
@@ -64,6 +64,9 @@ function sol(): SystemLayout {
       ],
       inner_radius: 350,
     }),
+    null,
+    planetClasses,
+    VANILLA_MOON_SCALE,
   );
 }
 
@@ -277,6 +280,28 @@ describe("disc sizes", () => {
     expect(discRadius(20, { star: true, view: brownDwarf })).toBe(planet);
     const rock = { ...planetClassView("pc_cutholoid", false), asteroid: true };
     expect(discRadius(20, { view: rock })).toBeGreaterThan(planet);
+  });
+
+  it("draws a class with a disc scale at that scale per size, a moon of it smaller by the moon scale, and a star of it with nothing added", () => {
+    const gasGiant = planetClassView("pc_gas_giant", false, null, { disc_scale: 0.27384 });
+    const redGiant = planetClassView("pc_m_giant_star", true, null, { disc_scale: 0.652 });
+    expect(discRadius(25, { view: gasGiant })).toBeCloseTo(6.85, 2);
+    expect(discRadius(10, { moon: true, view: gasGiant, moonScale: 0.7 })).toBeCloseTo(1.92, 2);
+    expect(discRadius(21, { star: true, view: redGiant })).toBeCloseTo(13.69, 2);
+  });
+
+  it("draws Sol's Sun, Earth and Luna at the sizes their classes' disc scales give", () => {
+    const rocky = { disc_scale: 0.1793 };
+    const layout = sol(
+      new Map([
+        ["pc_g_star", planetClassView("pc_g_star", true, null, { disc_scale: 0.4238 })],
+        ["pc_continental", planetClassView("pc_continental", false, null, rocky)],
+        ["pc_barren_cold", planetClassView("pc_barren_cold", false, null, rocky)],
+      ]),
+    );
+    expect(body(layout, 1).disc).toBeCloseTo(12.71, 2);
+    expect(body(layout, 3).disc).toBeCloseTo(2.87, 2);
+    expect(body(layout, 4).disc).toBeCloseTo(0.63, 2);
   });
 });
 

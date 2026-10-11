@@ -4,8 +4,10 @@ use ts_rs::TS;
 
 use super::hex;
 use crate::registries::deposits::DepositDef;
+use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::star_classes::StarClass;
 use crate::textures::TextureKey;
+use crate::textures::planet_disc;
 use crate::{GameData, Localisation};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -148,6 +150,11 @@ pub struct PlanetClassView {
     /// How many models the install numbers for it, `<model>_01_entity` on; 0 when it names
     /// none.
     pub models: u32,
+    /// Save units of disc radius per `planet_size` point, as the game draws it; `None` for a
+    /// class the game's size rule is not known to fit, which the app sizes by its own rule.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub disc_scale: Option<f64>,
 }
 
 /// A modifier that makes a planet a terraforming candidate, from the install's
@@ -161,6 +168,10 @@ pub struct TerraformCandidateView {
     /// "another condition" when the `OR` also allows something else.
     pub requires: Vec<String>,
 }
+
+/// Save units of disc radius per `planet_size` point for each unit of `entity_scale` times the
+/// model's `scale`, fitted to planets and stars measured in game.
+const DISC_PER_ENTITY_SCALE: f64 = 0.0163;
 
 /// `true` as `Some(true)`, the shape of a flag this view sends only when it matters.
 fn marker(flag: bool) -> Option<bool> {
@@ -195,8 +206,27 @@ impl GameData {
                 hidden_model: marker(pc.hidden_model),
                 change: pc.change(),
                 models: self.class_models(&pc.key),
+                disc_scale: self.disc_scale(pc),
             })
             .collect()
+    }
+
+    /// How large the game draws a body of `class` per `planet_size` point, from its
+    /// `entity_scale` and its model's `scale`. `None` where the model is not a planet or star
+    /// sphere (an asteroid, a habitat, a ring world segment, a class drawn from its icon or in
+    /// pieces), for a class drawn at a fixed scale, and for one that names no `entity_scale` or
+    /// no model the install defines.
+    fn disc_scale(&self, class: &PlanetClassDef) -> Option<f64> {
+        let not_a_sphere = class.asteroid
+            || class.habitat
+            || class.ringworld
+            || self.flat_art(&class.key)
+            || self.shattered(&class.key);
+        if not_a_sphere || class.fixed_entity_scale {
+            return None;
+        }
+        let asset_scale = planet_disc::asset_scale(self.surface_maps(), class.entity.as_deref()?)?;
+        Some(DISC_PER_ENTITY_SCALE * class.entity_scale? * asset_scale)
     }
 
     /// What changing a save planet's class needs to know of `class`; `None` when the install
