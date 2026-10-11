@@ -17,7 +17,11 @@ details: boolean,
 /**
  * Lanes carry a `length`, so the length ops and the stale-lane marks apply.
  */
-lane_lengths: boolean, nebulae: boolean, bypasses: boolean, 
+lane_lengths: boolean, nebulae: boolean, 
+/**
+ * A nebula's members can be made turbulent or calm.
+ */
+nebula_turbulence: boolean, bypasses: boolean, 
 /**
  * Points of interest: initializers, flags and the countries standing in a system.
  */

@@ -23,6 +23,7 @@ type NebulaActions = Pick<
   | "addNebulaAt"
   | "setNebulaRadius"
   | "setNebulaName"
+  | "setNebulaTurbulent"
   | "removeNebula"
 >;
 
@@ -57,6 +58,10 @@ export function nebulaActions(
 
     async setNebulaName(index, name) {
       await get().applyOp({ type: "RenameNebula", index, name });
+    },
+
+    async setNebulaTurbulent(index, turbulent) {
+      await get().applyOp({ type: "SetNebulaTurbulent", nebula: index, turbulent });
     },
 
     async removeNebula(index) {

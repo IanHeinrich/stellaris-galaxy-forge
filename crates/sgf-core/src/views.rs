@@ -97,6 +97,8 @@ pub struct Capabilities {
     /// Lanes carry a `length`, so the length ops and the stale-lane marks apply.
     pub lane_lengths: bool,
     pub nebulae: bool,
+    /// A nebula's members can be made turbulent or calm.
+    pub nebula_turbulence: bool,
     pub bypasses: bool,
     /// Points of interest: initializers, flags and the countries standing in a system.
     pub special: bool,

@@ -46,7 +46,8 @@ to continue the same campaign.
   to a selection of systems.
 - **Edit nebulae.** Add, move, resize, rename and remove nebulae. Newly
   created nebulae use names from the game's name list. Systems inside a
-  nebula get its cloud and hide ships, as they do in the game. A checkbox on the nebula's page makes it turbulent or calm.
+  nebula get its cloud and hide ships, as they do in the game. The
+  Turbulent checkbox on a nebula's page makes it turbulent or calm.
 - **Edit wormholes.** Select two systems and right-click to link them as
   a wormhole pair, or unlink a pair.
 - **Edit empires.** Rename an empire and change its flag. On a Stellaris

@@ -1,7 +1,7 @@
 ---
 title: Nebulae
-description: Add, move, resize, rename and delete nebulae.
-aliases: [nebula, cloud, add nebula, nebula size, nebula radius]
+description: Add, move, resize, rename and delete nebulae, and make them turbulent or calm.
+aliases: [nebula, cloud, add nebula, nebula size, nebula radius, turbulent, turbulent nebula, calm nebula]
 ---
 # Nebulae <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -22,3 +22,15 @@ name from the game's own name list.
 
 You can rename a nebula on its page. To delete one, right-click it and
 select "Delete nebula", or click "Delete nebula" on its page.
+
+## Make a nebula turbulent or calm <Badge type="tip" text="Save" />
+
+On a nebula's page, tick Turbulent to make every system in the nebula
+turbulent. Untick it to make every system calm. The systems get the
+clouds and modifiers the game gives turbulent and calm nebulae.
+
+When only some of a nebula's systems are turbulent, the checkbox is
+partly ticked. Click it to make them all turbulent.
+
+The game never puts a home system in a turbulent nebula. If you make
+one turbulent anyway, the undo list names the home system.

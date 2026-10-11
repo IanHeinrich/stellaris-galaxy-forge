@@ -2,19 +2,24 @@ import { nodeName } from "../../lib/names";
 import { useEditorStore } from "../../store/editorStore";
 import { useSystemNames } from "../../store/browserRows";
 import { useGalaxyStore } from "../../store/galaxyStore";
+import { useCanEdit } from "../../store/fileSessionStore";
 import { NEBULA_RADIUS_INPUT_ID } from "../nebula";
-import { EditBlock, EditRow, TextField } from "../EditField";
+import { EditBlock, EditRow, TextField, ToggleField } from "../EditField";
 import { Empty, Properties, PropertyRow, Swatch } from "./parts";
 import { shortcutLabel } from "../../lib/keys";
 import { counted } from "../../lib/text";
 
 const NO_SYSTEMS: number[] = [];
 
+export const TURBULENT = "Turbulent";
+
 /** One nebula: where it sits, how wide it is, which systems it holds, and the one way to unmake it. */
 export function NebulaView({ index }: { index: number }) {
   const selectNebula = useEditorStore((s) => s.selectNebula);
   const setNebulaRadius = useEditorStore((s) => s.setNebulaRadius);
   const setNebulaName = useEditorStore((s) => s.setNebulaName);
+  const setNebulaTurbulent = useEditorStore((s) => s.setNebulaTurbulent);
+  const canSetTurbulence = useCanEdit("nebula_turbulence");
   const jumpTo = useEditorStore((s) => s.jumpTo);
   const removeNebula = useEditorStore((s) => s.removeNebula);
   const nebulae = useGalaxyStore((s) => s.nebulae);
@@ -55,6 +60,18 @@ export function NebulaView({ index }: { index: number }) {
             onCommit={(radius) => void setNebulaRadius(index, radius)}
           />
         </EditRow>
+        {canSetTurbulence && nebula.turbulence !== undefined && (
+          <ToggleField
+            label={TURBULENT}
+            title="Ticked: every system in this nebula is turbulent. Unticked: every one is calm."
+            checked={nebula.turbulence === "all"}
+            mixed={nebula.turbulence === "some"}
+            disabledReason={
+              nebula.systems.length === 0 ? "There are no systems in this nebula." : undefined
+            }
+            onChange={(turbulent) => void setNebulaTurbulent(index, turbulent)}
+          />
+        )}
       </EditBlock>
       <div className="edit-block-title ins-about">About</div>
       <Properties>

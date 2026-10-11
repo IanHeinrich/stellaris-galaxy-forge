@@ -48,6 +48,7 @@
   {"q": "rename empire", "expect": "edit/empires#rename-an-empire"},
   {"q": "rename system", "expect": "edit/add-systems#rename-a-system"},
   {"q": "nebula", "expect": "edit/nebulae"},
+  {"q": "turbulent nebula", "expect": "edit/nebulae#make-a-nebula-turbulent-or-calm"},
   {"q": "hyperlane", "expect": "edit/hyperlanes"},
   {"q": "draw lane", "expect": "edit/hyperlanes#draw-a-hyperlane"},
   {"q": "cut lane", "expect": "edit/hyperlanes#cut-a-hyperlane"},
