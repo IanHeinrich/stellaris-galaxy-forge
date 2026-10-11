@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { DepositTypeView } from "../../../generated/DepositTypeView";
 import type { ResourceAmountView } from "../../../generated/ResourceAmountView";
-import { formatAmount, resourceAbbrev } from "../../../lib/details/resources";
+import { formatAmount } from "../../../lib/details/resources";
 import {
   BLOCKER_ICON,
   districtTotals,
@@ -29,6 +29,8 @@ import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
+import { DepositPoolBars } from "./DepositPoolBars";
+import { ResourceIcon } from "./ResourceIcon";
 import { PoolLines } from "./SpawnFacts";
 import { useEntityView, useOpenEntity } from "./useEntity";
 
@@ -66,16 +68,6 @@ export function RemovalConfirm({ removal }: { removal: Removal | null }) {
 
 function signed(n: number): string {
   return n > 0 ? `+${formatAmount(n)}` : formatAmount(n);
-}
-
-function ResourceIcon({ amount }: { amount: ResourceAmountView }) {
-  return (
-    <Icon
-      className="gi"
-      keys={amount.icon === null ? [] : [amount.icon]}
-      glyph={resourceAbbrev(amount.resource)}
-    />
-  );
 }
 
 function DistrictStrip({ totals }: { totals: readonly DistrictTotal[] }) {
@@ -326,18 +318,6 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
     };
   };
   const { features, blockers } = deposits;
-  const poolLabel = (key: string): ReactNode => {
-    const view = views.get(key);
-    if (view === undefined) return null;
-    return view.yields.length > 0 ? <Yields yields={view.yields} /> : view.name;
-  };
-  const poolTitle = (key: string): string | undefined => {
-    const view = views.get(key);
-    if (view === undefined) return undefined;
-    const named = view.name.replace(/£[^£]*£/g, "").trim();
-    if (/[a-z]/i.test(named)) return named;
-    return view.yields.map((y) => `${signed(y.amount)} ${y.name}`).join(", ") || undefined;
-  };
   const totals = ready ? districtTotals([...features, ...blockers]) : [];
   const blocked = blockers.reduce((n, g) => n + g.count, 0);
   const row = (g: HeldDeposit) => (
@@ -367,8 +347,7 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
         pool={pool}
         stated={features.length + blockers.length}
         kind={DEPOSIT_POOL}
-        label={poolLabel}
-        title={poolTitle}
+        body={(picks) => <DepositPoolBars picks={picks} />}
       />
       {editable && (
         <PlanetPicker

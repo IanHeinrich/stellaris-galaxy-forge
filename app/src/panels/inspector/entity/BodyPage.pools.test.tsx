@@ -93,6 +93,37 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
   });
 }
 
+/** A segment of a deposit roll's bar, as it renders. */
+interface ShownSegment {
+  title: string;
+  grow: number;
+  fill: string;
+  text: string;
+  label: string;
+}
+
+/** The rows of a deposit roll's bars, in order, each with its parts as they render. */
+function barRows(html: string) {
+  return [...html.matchAll(/<div class="pl-pool-row" title="([^"]*)">(.*?)<\/span><\/div>/g)].map(
+    ([, title, inner]) => {
+      const width = /class="pl-pool-bar" style="width:([^"]*)"/.exec(inner)?.[1];
+      const segments: ShownSegment[] = [
+        ...inner.matchAll(
+          /class="pl-pool-seg" title="([^"]*)" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
+        ),
+      ].map(([, segTitle, grow, fill, text, label]) => ({
+        title: segTitle,
+        grow: Number(grow),
+        fill,
+        text,
+        label,
+      }));
+      const chance = /class="muted pl-pool-chance"[^>]*>([^<]*)$/.exec(inner)?.[1];
+      return { title, html: inner, width, segments, chance };
+    },
+  );
+}
+
 /** One entry of a roll line, as it shows: its name, then its chance muted, then a dot when more follow. */
 function pick(name: string, chance: string, title: string, more: boolean, hover?: string): string {
   const dot = more ? '<span aria-hidden="true">·</span>' : "";
@@ -213,9 +244,7 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 2 deposits");
-    expect(html).toContain(
-      `${pick("Minerals 1", "75%", DEPOSIT_CHANCE_TITLE, true)}${pick("Energy 1", "25%", DEPOSIT_CHANCE_TITLE, false)}`,
-    );
+    expect(barRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
     expect(html).toContain("Can roll · 2 planet features");
     expect(html).toContain(pick("Mineral Poor", "50%", FEATURE_CHANCE_TITLE, true));
     expect(html).toContain('<span class="ins-pool-pick"><span>Carbon World</span></span>');
@@ -251,22 +280,29 @@ describe("what a scenario body can roll", () => {
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
     expect(html).toContain("Can also roll · 1 deposit");
-    expect(html).toContain(
-      pick("Mineral Field", "100%", DEPOSIT_CHANCE_TITLE, false, "Mineral Field"),
-    );
+    expect(barRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
   });
 
-  it("shows a deposit named only by its icon and amount by what it yields, with its name on hover and a tiny chance as <1%", async () => {
+  it("shows the deposits it can roll as one bar per resource, split by amount from the least, likeliest first", async () => {
+    const energy = (amount: number) =>
+      depositTypeView(`d_energy_${amount}`, {
+        name: `£energy£ +${amount}`,
+        yields: [resourceAmount("energy", amount, "Energy")],
+      });
     usePlanetDataStore.setState({
       depositTypes: new Map([
+        ["d_energy_2", energy(2)],
+        ["d_energy_3", energy(3)],
+        ["d_energy_5", energy(5)],
         [
-          "d_orbital_energy",
-          depositTypeView("d_orbital_energy", {
-            name: "£energy£ +2",
-            yields: [resourceAmount("energy", 2, "Energy")],
-          }),
+          "d_minerals_2",
+          depositTypeView("d_minerals_2", { yields: [resourceAmount("minerals", 2, "Minerals")] }),
+        ],
+        [
+          "d_mystery_1",
+          depositTypeView("d_mystery_1", { yields: [resourceAmount("sr_mystery", 1, "Mystery")] }),
         ],
         ["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp", blocker: true })],
       ]),
@@ -275,7 +311,11 @@ describe("what a scenario body can roll", () => {
       rolled_deposits: {
         state: "rolled",
         entries: [
-          { key: "d_orbital_energy", chance: 0.26 },
+          { key: "d_energy_3", chance: 0.13 },
+          { key: "d_energy_2", chance: 0.13 },
+          { key: "d_energy_5", chance: 0.01 },
+          { key: "d_minerals_2", chance: 0.4 },
+          { key: "d_mystery_1", chance: 0.3 },
           { key: "d_toxic_kelp", chance: 0.004 },
         ],
       },
@@ -284,15 +324,36 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    const line = html.slice(html.indexOf("ins-pool "));
-    expect(line).toContain(
-      '<span class="ins-pool-pick"><span title="+2 Energy"><span class="pl-yield">',
-    );
-    expect(line).toContain("+2</span>Energy</span>");
-    expect(line).toContain(`<span class="muted" title="${DEPOSIT_CHANCE_TITLE}">26%</span>`);
-    expect(line).toContain('<span title="Toxic Kelp">Toxic Kelp</span>');
-    expect(line).toContain("&lt;1%");
-    expect(line).not.toContain(">0%");
+    expect(html).toContain("Can roll · 6 deposits");
+    const rows = barRows(html);
+    expect(rows.map((r) => r.title)).toEqual([
+      "Minerals · 40%: +2 40%",
+      "Mystery · 30%: +1 30%",
+      "Energy · 27%: +2 13%, +3 13%, +5 1%",
+      "Toxic Kelp · &lt;1%",
+    ]);
+    const [minerals, mystery, energyRow, kelp] = rows;
+    expect(minerals.width).toBe("100.0%");
+    expect(energyRow.width).toBe("67.5%");
+    expect(minerals.html).toContain('<span class="gi">M</span>Minerals</span>');
+    expect(minerals.chance).toBe("40%");
+    expect(minerals.html).toContain(`title="${DEPOSIT_CHANCE_TITLE}">40%`);
+
+    expect(energyRow.segments.map((g) => g.title)).toEqual([
+      "+2 Energy · 13%",
+      "+3 Energy · 13%",
+      "+5 Energy · 1%",
+    ]);
+    expect(energyRow.segments.map((g) => g.grow.toFixed(3))).toEqual(["0.481", "0.481", "0.037"]);
+    expect(energyRow.segments.map((g) => g.fill)).toEqual(["#ffe08a", "#d99100", "#8a5a00"]);
+    expect(energyRow.segments.map((g) => g.text)).toEqual(["#1b1f27", "#f4f6fa", "#f4f6fa"]);
+    expect(energyRow.segments.map((g) => g.label)).toEqual(["+2", "+3", ""]);
+
+    expect(mystery.segments.map((g) => g.fill)).toEqual(["#aab0ba"]);
+    expect(kelp.html).not.toContain('class="gi"');
+    expect(kelp.segments).toHaveLength(1);
+    expect(kelp.segments[0].label).toBe("");
+    expect(kelp.chance).toBe("&lt;1%");
     expect(html).not.toContain("£");
   });
 

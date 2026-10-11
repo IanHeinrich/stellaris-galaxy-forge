@@ -27,6 +27,7 @@ import {
   poolPicks,
   poolTitle,
   type PoolKind,
+  type PoolPick,
   rawText,
   RING_ROLLED,
   rolledClassText,
@@ -400,19 +401,15 @@ export function PoolLines({
   pool,
   stated,
   kind,
-  label,
-  title,
+  body,
 }: {
   pool: SpawnPool | undefined;
   stated: number;
   kind: PoolKind;
-  /** How an entry reads, where its section shows it as its own rows do; its name where this gives null. */
-  label?: (key: string) => ReactNode;
-  /** What an entry says on hover; nothing by default. */
-  title?: (key: string) => string | undefined;
+  /** What shows under the heading in place of the list of names. */
+  body?: (picks: PoolPick[]) => ReactNode;
 }) {
   const named = usePoolNamer();
-  const shown = (key: string) => label?.(key) ?? named(key);
   if (pool === undefined || pool.state === "fixed") return null;
   if (pool.state === "unknown") {
     return (
@@ -426,6 +423,19 @@ export function PoolLines({
   }
   const picks = poolPicks(pool);
   if (picks.length === 0) return null;
+  if (body !== undefined) {
+    return (
+      <>
+        <div className="pl-sub-head">
+          <span className="ins-st-rolled">
+            <RolledMark />
+          </span>
+          {poolTitle(stated, kind.tail(picks.length))}
+        </div>
+        {body(picks)}
+      </>
+    );
+  }
   return (
     <>
       <div className="pl-sub-head">{poolTitle(stated, kind.tail(picks.length))}</div>
@@ -433,7 +443,7 @@ export function PoolLines({
         <RolledMark />
         {picks.map((pick, i) => (
           <span key={pick.key} className="ins-pool-pick">
-            <span title={title?.(pick.key)}>{shown(pick.key)}</span>
+            <span>{named(pick.key)}</span>
             {pick.chance !== null && (
               <span className="muted" title={kind.chanceTitle}>
                 {percent(pick.chance)}

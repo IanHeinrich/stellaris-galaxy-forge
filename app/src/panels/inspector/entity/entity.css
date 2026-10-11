@@ -680,3 +680,57 @@
 .dp-more {
   white-space: nowrap;
 }
+
+/* A scenario body's deposit roll: one bar per resource, split by amount, lightest for the least. */
+.pl-pool-bars {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto;
+  gap: 3px 8px;
+  align-items: center;
+  font-size: var(--text-note);
+}
+
+.pl-pool-row {
+  display: contents;
+}
+
+.pl-pool-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pl-pool-track {
+  display: flex;
+  height: 14px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-pool-bar {
+  display: flex;
+  gap: 2px;
+  min-width: 3px;
+  height: 100%;
+}
+
+.pl-pool-seg {
+  flex-basis: 0;
+  min-width: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pl-pool-chance {
+  text-align: right;
+  white-space: nowrap;
+}

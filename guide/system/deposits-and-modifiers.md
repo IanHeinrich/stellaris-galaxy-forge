@@ -75,14 +75,22 @@ a rolled feature.
 ## What a scenario planet can roll <Badge type="info" text="Scenario" />
 
 In a scenario, the Deposits and Modifiers sections list what the
-initializer states. Under them, a line such as "Can also roll · 3
-deposits" lists the deposits or planet features the game can roll for
-the planet, likeliest first. When the initializer states none, the line
-reads "Can roll · 9 deposits".
+initializer states. Under them, a heading such as "Can also roll · 3
+deposits" starts what the game can roll for the planet. When the
+initializer states none, it reads "Can roll · 9 deposits".
 
-A percentage is how often one roll gives that deposit. For planet
-features, it is for the first feature the game rolls. Some names have
-no percentage, because it depends on the planet's class or size.
+The deposits show as one bar per resource, likeliest first. A bar's
+length is how likely one roll is to give that resource, and its
+percentage is at the right. The bar is split by amount, from the
+smallest at the left to the largest at the right. A lighter shade is a
+smaller amount. Wide enough parts show their amount, such as "+2", and
+hovering over a part shows its amount and chance. A deposit that yields
+nothing, such as a blocker, has a plain bar of its own.
+
+Planet features are listed by name, likeliest first. A percentage there
+is how likely the first feature the game rolls is to be that one. Some
+names have no percentage, because it depends on the planet's class or
+size.
 
 Where the initializer leaves nothing to roll, there is no list. Where
 the class the game picks decides the roll, the section says so.
