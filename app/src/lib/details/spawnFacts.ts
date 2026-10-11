@@ -209,8 +209,6 @@ export function ringWords(ring: SpawnRing): string {
       return "Decided by the class it rolls";
   }
 }
-/** What the Model row says where the initializer names none. */
-export const MODEL_ROLLED = "One of its class's models";
 /** What the Name row says where the initializer names none. */
 export const NAME_UNKNOWN = "Named by the game when it starts";
 
@@ -284,7 +282,7 @@ export function bodyNoun(summary: Pick<PlanetSummary, "moon" | "star_class">): s
 export interface DepositLines {
   /** Under the rows: what the initializer clears and what a set deposit replaces. */
   notes: string[];
-  /** Under the Blockers head; null where the initializer says nothing of blockers. */
+  /** Under the Blockers head; null where the initializer clears none. */
   blockers: string | null;
 }
 
@@ -301,20 +299,16 @@ export interface DepositNames {
 
 /**
  * The lines the initializer's deposit statements add to its Deposits section, on a body that lists
- * `listed` deposits and is called `noun`. A `set_deposit` whose replacement the install doesn't say
+ * `listed` deposits. A `set_deposit` whose replacement the install doesn't say
  * is listed with the rest and adds no line.
  */
 export function depositLines(
   steps: readonly DepositStep[],
-  noBlockers: boolean,
   listed: number,
-  noun: string,
   names: DepositNames,
 ): DepositLines {
   const notes: string[] = [];
-  let blockers: string | null = noBlockers
-    ? `None. The initializer stops blockers on this ${noun}.`
-    : null;
+  let blockers: string | null = null;
   for (const step of steps) {
     switch (step.kind) {
       case "clear":
@@ -396,10 +390,6 @@ export function poolTitle(stated: number, tail: string): string {
   return `${stated > 0 ? "Can also roll" : "Can roll"} · ${tail}`;
 }
 
-/** What a pool's chance says on hover. */
-export const DEPOSIT_CHANCE_TITLE = "How often a deposit the game rolls here is this one";
-export const FEATURE_CHANCE_TITLE = "How often this is the planet feature the game gives it";
-
 /** What the Deposits and Modifiers sections say where the class the body rolls decides the pool. */
 export const DEPOSITS_UNKNOWN = "Decided by the class it rolls";
 export const DEPOSITS_UNKNOWN_WHY = "The game rolls deposits for the class it picks.";
@@ -409,21 +399,17 @@ export const FEATURES_UNKNOWN_WHY = "The game rolls planet features for the clas
 export interface PoolKind {
   /** The line's tail after "Can roll ·", given how many it lists. */
   tail: (count: number) => string;
-  /** What a chance says on hover. */
-  chanceTitle: string;
   /** Why an unknown pool can't be told. */
   unknownWhy: string;
 }
 
 export const DEPOSIT_POOL: PoolKind = {
   tail: (count) => counted(count, "deposit"),
-  chanceTitle: DEPOSIT_CHANCE_TITLE,
   unknownWhy: DEPOSITS_UNKNOWN_WHY,
 };
 
 export const FEATURE_POOL: PoolKind = {
   tail: (count) => counted(count, "planet feature"),
-  chanceTitle: FEATURE_CHANCE_TITLE,
   unknownWhy: FEATURES_UNKNOWN_WHY,
 };
 
@@ -466,7 +452,7 @@ export function statedModifierKeys(features: StatedFeatures): string[] {
 
 /**
  * What the Modifiers section says of what the initializer stops or clears, on a body that lists
- * `listed` modifiers; null for neither.
+ * `listed` modifiers; null for neither, and where the Stopped row says it.
  */
 export function modifierLine(
   features: StatedFeatures,
@@ -474,9 +460,7 @@ export function modifierLine(
   listed: number,
 ): string | null {
   if (features.none) {
-    return listed > 0
-      ? `The initializer stops rolled planet features on this ${noun}.`
-      : `None. The initializer stops planet features on this ${noun}.`;
+    return listed > 0 ? `The initializer stops rolled planet features on this ${noun}.` : null;
   }
   if (features.cleared) return "The initializer clears the planet features the game rolls.";
   return null;
@@ -487,17 +471,120 @@ export function placedAnomaly(noun: string): string {
   return `Placed by the initializer. It is found when the ${noun} is surveyed.`;
 }
 
-/** What the Anomaly section says where the initializer places none: prevented, or left to a survey. */
+/**
+ * What the Anomaly section says where the initializer places none: that one can appear when it is
+ * surveyed; null where it places one, and where the Stopped row says it prevents them.
+ */
 export function anomalyLine(anomalies: StatedAnomalies, noun: string): string | null {
-  if (anomalies.categories.length > 0) return null;
-  switch (anomalies.prevented) {
-    case "body":
-      return `None. The initializer stops anomalies on this ${noun}.`;
-    case "system":
-      return "None. The initializer stops anomalies in this system.";
-    case null:
-      return `Can appear when the ${noun} is surveyed.`;
+  if (anomalies.categories.length > 0 || anomalies.prevented !== null) return null;
+  return `Can appear when the ${noun} is surveyed.`;
+}
+
+/** Something the initializer stops on a body: its tag in the Stopped row, and what the card says. */
+export interface StoppedFact {
+  tag: string;
+  line: string;
+}
+
+/**
+ * What the initializer stops on a body that lists `modifiers` modifiers, each a tag of the Stopped
+ * row in place of a section that would only say so.
+ */
+export function stoppedFacts(spawn: BodySpawn, modifiers: number, noun: string): StoppedFact[] {
+  const facts: StoppedFact[] = [];
+  if (spawn.no_blockers) {
+    facts.push({ tag: "Blockers", line: `The initializer stops blockers on this ${noun}.` });
   }
+  if (spawn.features.none && modifiers === 0) {
+    facts.push({
+      tag: "Planet features",
+      line: `The initializer stops planet features on this ${noun}.`,
+    });
+  }
+  const anomalies = spawn.anomalies;
+  if (anomalies.categories.length === 0 && anomalies.prevented !== null) {
+    facts.push({
+      tag: "Anomaly",
+      line:
+        anomalies.prevented === "body"
+          ? `The initializer stops anomalies on this ${noun}.`
+          : "The initializer stops anomalies in this system.",
+    });
+  }
+  return facts;
+}
+
+/** Whether a body's deposits are only what its class decides: it states none and rolls by class. */
+export function depositsWithClass(spawn: BodySpawn, listed: number): boolean {
+  return spawn.rolled_deposits?.state === "unknown" && listed === 0 && spawn.deposits.length === 0;
+}
+
+/** Whether a body's planet features are only what its class decides. */
+export function featuresWithClass(spawn: BodySpawn, listed: number): boolean {
+  const { features } = spawn;
+  return (
+    spawn.rolled_features?.state === "unknown" &&
+    listed === 0 &&
+    !features.none &&
+    !features.cleared
+  );
+}
+
+/**
+ * What only the class a body rolls decides of it, as the With its class row lists it in place of
+ * its own rows and sections: its ring, model, deposits and planet features.
+ */
+export function withClassParts(
+  spawn: BodySpawn,
+  { star, deposits, modifiers }: { star: boolean; deposits: number; modifiers: number },
+): string[] {
+  const parts: string[] = [];
+  if (!star && spawn.ring?.state === "unknown") parts.push("ring");
+  if (!star && spawn.entity === null) parts.push("model");
+  if (depositsWithClass(spawn, deposits)) parts.push("deposits");
+  if (featuresWithClass(spawn, modifiers)) parts.push("planet features");
+  return parts;
+}
+
+/** `Ring, model and deposits`. */
+export function withClassWords(parts: readonly string[]): string {
+  const said =
+    parts.length <= 1
+      ? (parts[0] ?? "")
+      : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  return said.charAt(0).toUpperCase() + said.slice(1);
+}
+
+/** What the With its class row says in its card. */
+export function withClassHint(noun: string): string {
+  return `The game picks these to suit the ${noun}'s class when it builds the system.`;
+}
+
+/** What the Stopped row's card heads its lines with. */
+export const STOPPED_LABEL = "Stopped";
+/** The With its class row's label. */
+export const WITH_CLASS_LABEL = "With its class";
+
+/** The keys whose `@variable` the Size row's card names, and those the Orbit step row's card names. */
+const SIZE_KEYS = new Set(["size", "size.min", "size.max"]);
+const ORBIT_STEP_KEYS = new Set(["change_orbit", "orbit_distance"]);
+
+/**
+ * Whether a value an `@variable` sets is named in the card of the row that shows it: the Size row,
+ * or the Orbit step row where the body has one.
+ */
+export function shownWithItsRow(key: string, orbitStep: boolean): boolean {
+  return SIZE_KEYS.has(key) || (orbitStep && ORBIT_STEP_KEYS.has(key));
+}
+
+/** Whether an `@variable` sets part of a body's size. */
+export function setsSize(key: string): boolean {
+  return SIZE_KEYS.has(key);
+}
+
+/** Whether an `@variable` sets how far out a body is stepped. */
+export function setsOrbitStep(key: string): boolean {
+  return ORBIT_STEP_KEYS.has(key);
 }
 
 /** Statements as the file writes them, one after another. */
@@ -629,6 +716,8 @@ export interface ValueSource {
 
 const VALUE_LABELS: Record<string, string> = {
   size: "Size",
+  "size.min": "The smallest size",
+  "size.max": "The largest size",
   orbit_distance: "Orbit distance",
   orbit_angle: "Orbit angle",
   change_orbit: "Orbit change",

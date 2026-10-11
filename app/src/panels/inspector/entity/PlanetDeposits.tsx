@@ -10,10 +10,10 @@ import {
 } from "../../../lib/details/planetPage";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import {
-  bodyNoun,
   categoryWords,
   depositCategories,
   depositLines,
+  depositsWithClass,
   DEPOSIT_POOL,
 } from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
@@ -289,12 +289,13 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const stated =
     spawn === undefined
       ? { notes: [], blockers: null }
-      : depositLines(spawn.deposits, spawn.no_blockers, deposits.count, bodyNoun(read.summary), {
+      : depositLines(spawn.deposits, deposits.count, {
           deposit: (key) => views.get(key)?.name ?? key,
           category,
         });
   const pool = spawn?.rolled_deposits;
-  const rolls = pool !== undefined && pool.state !== "fixed";
+  const folded = spawn !== undefined && depositsWithClass(spawn, deposits.count);
+  const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
   const says = stated.notes.length > 0 || stated.blockers !== null || rolls;
   if (deposits.count === 0 && !editable && !says) return null;
   const removal = (group: HeldDeposit): Removal | null => {

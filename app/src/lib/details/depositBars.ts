@@ -17,8 +17,8 @@ export interface BarSegment {
   amount: number;
   /** `+2`. */
   label: string;
-  /** The chance one roll gives this amount. */
-  chance: number;
+  /** The chance one roll gives this amount; null where the install can't tell it. */
+  chance: number | null;
   /** Its share of its row's bar, 0 to 1. */
   share: number;
   /** Its amount shows inside it: it takes enough of the track. */
@@ -35,22 +35,38 @@ export interface BarRow {
   name: string;
   /** The resource whose icon leads the row; null for a deposit that yields nothing. */
   icon: ResourceAmountView | null;
-  /** The combined chance; null where the install can't tell it. */
+  /** The combined chance; null where the install can't tell it for any of its amounts. */
   chance: number | null;
-  /** Its bar's length as a share of the track, the likeliest row filling it. */
+  /** Its bar's length as a share of the track, the likeliest row filling it; 0 with no bar. */
   width: number;
   /** Lowest amount first; one plain segment for a deposit that yields nothing. */
   segments: BarSegment[];
+  /** `+1 to +3`: the amounts it can give, shown in place of a bar where the chance is unknown. */
+  amounts: string | null;
   /** `Energy Credits · 44%`: what its card heads with. */
   heading: string;
-  /** A deposit that yields nothing, or whose chance the install can't tell: no amounts to list. */
+  /** A deposit that yields nothing: no amounts to list. */
   plain: boolean;
 }
 
 /** What a deposit row's card says under its amounts. */
 export const DEPOSIT_CARD_NOTE = "Chance one deposit the game rolls here is this one.";
 
+/** What the list says under it where some rows show their amounts in place of a bar. */
+export const DEPOSIT_ODDS_UNKNOWN = "The odds depend on which class the planet rolls.";
+
 const signed = (n: number) => (n > 0 ? `+${formatAmount(n)}` : formatAmount(n));
+
+/** `+1 to +3` for amounts one apart, else `+1, +2, +5`. */
+export function amountsWords(amounts: readonly number[]): string {
+  const sorted = [...amounts].sort((a, b) => a - b);
+  if (sorted.length === 0) return "";
+  const stepped = sorted.every((a, i) => i === 0 || a - sorted[i - 1] === 1);
+  if (stepped && sorted.length > 1) {
+    return `${signed(sorted[0])} to ${signed(sorted[sorted.length - 1])}`;
+  }
+  return sorted.map(signed).join(", ");
+}
 
 /**
  * A deposit's own name with the `£icon£` tokens of its localisation taken out; null where nothing
@@ -67,7 +83,7 @@ function plainName(key: string, view: DepositTypeView | undefined): string {
 }
 
 interface Amount {
-  chance: number;
+  chance: number | null;
   deposits: string[];
 }
 
@@ -80,10 +96,13 @@ interface Gathered {
   amounts: Map<number, Amount>;
 }
 
+const add = (a: number | null, b: number | null) => (a === null || b === null ? null : a + b);
+
 /**
  * The bar rows of a deposit pool, likeliest first: each resource's deposits gathered into one row
- * with a segment per amount, and each deposit that yields nothing, or whose chance the install
- * can't tell, in a row of its own.
+ * with a segment per amount, and each deposit that yields nothing in a row of its own. A row with
+ * any amount whose chance the install can't tell has no bar, only its amounts, and follows the
+ * rows that have one.
  */
 export function depositBars(
   picks: readonly PoolPick[],
@@ -93,15 +112,12 @@ export function depositBars(
   for (const pick of picks) {
     const view = views.get(pick.key);
     const yields = view?.yields ?? [];
-    if (yields.length === 0 || pick.chance === null) {
+    if (yields.length === 0) {
       rows.set(`deposit:${pick.key}`, {
         key: pick.key,
-        name:
-          yields.length > 0
-            ? yields.map((y) => `${signed(y.amount)} ${y.name}`).join(", ")
-            : plainName(pick.key, view),
-        icon: yields[0] ?? null,
-        resource: yields[0]?.resource ?? null,
+        name: plainName(pick.key, view),
+        icon: null,
+        resource: null,
         chance: pick.chance,
         amounts: new Map(),
       });
@@ -117,9 +133,9 @@ export function depositBars(
         chance: 0,
         amounts: new Map<number, Amount>(),
       };
-      row.chance = (row.chance ?? 0) + pick.chance;
+      row.chance = add(row.chance, pick.chance);
       const amount = row.amounts.get(y.amount) ?? { chance: 0, deposits: [] };
-      amount.chance += pick.chance;
+      amount.chance = add(amount.chance, pick.chance);
       const own = ownName(view);
       if (own !== null && !amount.deposits.includes(own)) amount.deposits.push(own);
       row.amounts.set(y.amount, amount);
@@ -138,26 +154,25 @@ function barRow(row: Gathered, most: number): BarRow {
   const width = row.chance === null || most <= 0 ? 0 : row.chance / most;
   const shown = row.chance === null ? row.name : `${row.name} · ${percent(row.chance)}`;
   if (row.amounts.size === 0) {
-    const fill = NEUTRAL_RAMP[1];
     const segment: BarSegment = {
       amount: 0,
       label: "",
-      chance: row.chance ?? 0,
+      chance: row.chance,
       share: 1,
       labelled: false,
-      fill,
+      fill: NEUTRAL_RAMP[1],
       text: textOn(1),
       deposits: [],
     };
     const segments = row.chance === null ? [] : [segment];
-    return { ...rowBase(row), width, segments, heading: shown, plain: true };
+    return { ...rowBase(row), width, segments, amounts: null, heading: shown, plain: true };
   }
   const ramp = resourceRamp(row.resource);
   const total = row.chance ?? 0;
   const amounts = [...row.amounts.entries()].sort((a, b) => a[0] - b[0]);
   const segments = amounts.map(([amount, { chance, deposits }], i): BarSegment => {
     const shade = shadeIndex(i, amounts.length);
-    const share = total > 0 ? chance / total : 0;
+    const share = total > 0 && chance !== null ? chance / total : 0;
     return {
       amount,
       label: signed(amount),
@@ -169,7 +184,8 @@ function barRow(row: Gathered, most: number): BarRow {
       deposits,
     };
   });
-  return { ...rowBase(row), width, segments, heading: shown, plain: false };
+  const words = row.chance === null ? amountsWords(amounts.map(([amount]) => amount)) : null;
+  return { ...rowBase(row), width, segments, amounts: words, heading: shown, plain: false };
 }
 
 function rowBase(row: Gathered): Pick<BarRow, "key" | "name" | "icon" | "chance"> {

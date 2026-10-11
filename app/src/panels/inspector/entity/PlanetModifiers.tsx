@@ -1,7 +1,12 @@
 import { useId, useState } from "react";
 import type { CardItem } from "./PickerCard";
 import type { ModifierRow } from "../../../lib/details/planetPage";
-import { bodyNoun, FEATURE_POOL, modifierLine } from "../../../lib/details/spawnFacts";
+import {
+  bodyNoun,
+  FEATURE_POOL,
+  featuresWithClass,
+  modifierLine,
+} from "../../../lib/details/spawnFacts";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
@@ -126,7 +131,8 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
       ? null
       : modifierLine(spawn.features, bodyNoun(read.summary), modifiers.length);
   const pool = spawn?.rolled_features;
-  const rolls = pool !== undefined && pool.state !== "fixed";
+  const folded = spawn !== undefined && featuresWithClass(spawn, modifiers.length);
+  const rolls = pool !== undefined && pool.state !== "fixed" && !folded;
   if (modifiers.length === 0 && !editable && line === null && !rolls) return null;
   return (
     <Section id="planet.modifiers" title="Modifiers" count={modifiers.length}>

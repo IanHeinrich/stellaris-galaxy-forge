@@ -1,31 +1,61 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import type { OddsRow } from "../../../lib/details/oddsBars";
 import { percent } from "../../../lib/details/spawnFacts";
 import "./entity.css";
 
 /**
  * A bar in its track, `width` of it long: one plain fill in `color`, or the segments given as
- * `children`. `thin` for an odds list.
+ * `children`.
  */
 export function BarTrack({
   width,
   color,
-  thin = false,
   children,
 }: {
   width: number;
   color?: string;
-  thin?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <span className={thin ? "pl-pool-track thin" : "pl-pool-track"}>
-      {(children !== undefined || width > 0) && (
-        <span className="pl-pool-bar" style={{ width: `${(width * 100).toFixed(1)}%` }}>
-          {children ?? <span className="pl-pool-seg" style={{ flexGrow: 1, background: color }} />}
-        </span>
-      )}
+    <span className="pl-pool-track">
+      <span className="pl-pool-bar" style={{ width: `${(width * 100).toFixed(1)}%` }}>
+        {children ?? <span className="pl-pool-seg" style={{ flexGrow: 1, background: color }} />}
+      </span>
     </span>
+  );
+}
+
+/** Every list of what a roll can give, one row each. `stars` keeps a star list's art at its size. */
+export function PoolList({ stars = false, children }: { stars?: boolean; children: ReactNode }) {
+  return <div className={stars ? "pl-pool-list stars" : "pl-pool-list"}>{children}</div>;
+}
+
+/**
+ * One row of a pool list: its icon, its name, its bar or what shows in the bar's place, and its
+ * share. `children` go after them, such as a card; the rest are the row's own attributes.
+ */
+export function PoolRow({
+  icon,
+  name,
+  bar,
+  chance,
+  children,
+  ...attributes
+}: {
+  icon?: ReactNode;
+  name?: ReactNode;
+  bar?: ReactNode;
+  chance: number | null;
+  children?: ReactNode;
+} & Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">) {
+  return (
+    <div className="pl-pool-row" {...attributes}>
+      <span className="pl-pool-icon">{icon}</span>
+      <span className="pl-pool-name">{name}</span>
+      <span className="pl-pool-cell">{bar}</span>
+      <span className="muted pl-pool-chance">{chance === null ? "" : percent(chance)}</span>
+      {children}
+    </div>
   );
 }
 
@@ -33,23 +63,22 @@ export function BarTrack({
 export interface ShownOdds {
   row: OddsRow;
   name: string;
-  icon: ReactNode;
+  icon?: ReactNode;
 }
 
-/** A draw's odds, likeliest first: each row's icon, name, a thin bar and its share. */
-export function OddsList({ rows }: { rows: readonly ShownOdds[] }) {
+/** A draw's odds, likeliest first: each row's icon, name, a bar where its share is known, and its share. */
+export function OddsList({ rows, stars = false }: { rows: readonly ShownOdds[]; stars?: boolean }) {
   return (
-    <div className="pl-odds">
+    <PoolList stars={stars}>
       {rows.map(({ row, name, icon }) => (
-        <div key={row.key} className="pl-odds-row">
-          <span className="pl-odds-icon">{icon}</span>
-          <span className="pl-odds-name">{name}</span>
-          <BarTrack width={row.width} color={row.color} thin />
-          <span className="muted pl-pool-chance">
-            {row.share === null ? "" : percent(row.share)}
-          </span>
-        </div>
+        <PoolRow
+          key={row.key}
+          icon={icon}
+          name={name}
+          bar={row.share === null ? null : <BarTrack width={row.width} color={row.color} />}
+          chance={row.share}
+        />
       ))}
-    </div>
+    </PoolList>
   );
 }

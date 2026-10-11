@@ -6,18 +6,21 @@ vi.mock("../../../api/events");
 // The row icons come from the map's texture cache, which no test renderer can fill.
 vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
 import { depositBars } from "../../../lib/details/depositBars";
-import { oddsRows } from "../../../lib/details/oddsBars";
+import { oddsRows, readableTint, starListName } from "../../../lib/details/oddsBars";
 import { NEUTRAL_RAMP } from "../../../lib/details/resourceColors";
 import { starGlyph } from "../../../lib/visual/starGlyphs";
-import { FEATURE_CHANCE_TITLE } from "../../../lib/details/spawnFacts";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { drawnBy } from "../../../test/drawn";
+import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
+import { poolRows } from "../../../test/poolRows";
 import { rolledBody, systemRoll } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
@@ -98,42 +101,11 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
   });
 }
 
-/** A segment of a deposit roll's bar, as it renders. */
-interface ShownSegment {
-  grow: number;
-  fill: string;
-  text: string;
-  label: string;
-}
-
-/** The rows of a deposit roll's bars, in order, each with its parts as they render. */
-function barRows(html: string) {
-  return [
-    ...html.matchAll(
-      /<div id="[^"]*" class="pl-pool-row" role="group" aria-label="([^"]*)"[^>]*>(.*?)<\/span><\/div>/g,
-    ),
-  ].map(([, title, inner]) => {
-    const width = /class="pl-pool-bar" style="width:([^"]*)"/.exec(inner)?.[1];
-    const segments: ShownSegment[] = [
-      ...inner.matchAll(
-        /class="pl-pool-seg" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
-      ),
-    ].map(([, grow, fill, text, label]) => ({
-      grow: Number(grow),
-      fill,
-      text,
-      label,
-    }));
-    const chance = /class="muted pl-pool-chance"[^>]*>([^<]*)$/.exec(inner)?.[1];
-    return { title, html: inner, width, segments, chance };
-  });
-}
-
-/** One entry of a roll line, as it shows: its name, then its chance muted, then a dot when more follow. */
-function pick(name: string, chance: string, title: string, more: boolean, hover?: string): string {
-  const dot = more ? '<span aria-hidden="true">·</span>' : "";
-  const named = hover === undefined ? "<span>" : `<span title="${hover}">`;
-  return `<span class="ins-pool-pick">${named}${name}</span><span class="muted" title="${title}">${chance}</span>${dot}</span>`;
+/** The rows of the Deposits section, without the Class row's or the Modifiers section's. */
+function depositRows(html: string) {
+  const start = html.indexOf('class="ins-sec-title">Deposits');
+  const end = html.indexOf('class="ins-sec-title">Modifiers');
+  return poolRows(html.slice(start, end === -1 ? undefined : end));
 }
 
 describe("what a scenario body can roll", () => {
@@ -161,19 +133,19 @@ describe("what a scenario body can roll", () => {
 
     const cls = row(page(100, "Planet"), "Class");
     expect(cls).toContain("Rolled from the classes that fit its orbit");
-    const odds = [
-      ...cls.matchAll(
-        /<span class="pl-odds-name">([^<]*)<\/span><span class="pl-pool-track thin"><span class="pl-pool-bar" style="width:([^"]*)"><span class="pl-pool-seg" style="flex-grow:1;background:([^"]*)"><\/span><\/span><\/span><span class="muted pl-pool-chance">([^<]*)</g,
-      ),
-    ].map(([, named, width, , share]) => [named.toLowerCase(), width, share]);
+    const odds = poolRows(cls).map((r) => [r.name.toLowerCase(), r.width, r.chance]);
     expect(odds).toEqual([
       [expect.stringContaining("barren"), "100.0%", "75%"],
       [expect.stringContaining("toxic"), "33.3%", "25%"],
     ]);
     expect(cls).not.toContain("depends on");
-    const list = row(page(101, "Listed"), "Class");
+    const list = row(
+      drawnBy(() => page(101, "Listed")),
+      "Class",
+    );
     expect(list).toContain("One of 2, from rl_cold");
-    expect(list).toContain(
+    expect(list).not.toContain("The game may roll");
+    expect(hintOf("Class")).toBe(
       "The game may roll any class in this list, even one that doesn&#x27;t fit the orbit.",
     );
   });
@@ -187,15 +159,23 @@ describe("what a scenario body can roll", () => {
     await open("scenario");
     await land(details({ planets: [ranged, fixedOrbit], spawn: listedStar }));
 
-    const wide = row(page(100, "Planet"), "Class");
-    expect(wide).toMatch(/barren\S* · \S*toxic/i);
-    expect(wide).not.toContain("%");
-    expect(wide).toContain(
+    const wide = row(
+      drawnBy(() => page(100, "Planet")),
+      "Class",
+    );
+    expect(hintOf("Class")).toBe(
       "Which of these it can be depends on where it lands and on the star the system rolls.",
     );
-    expect(row(page(101, "Planet"), "Class")).toContain(
-      "Which of these it can be depends on the star the system rolls.",
-    );
+    const listed = poolRows(wide);
+    expect(listed.map((r) => r.name.toLowerCase())).toEqual([
+      expect.stringContaining("barren"),
+      expect.stringContaining("toxic"),
+    ]);
+    expect(listed.every((r) => r.cell === "" && r.chance === "")).toBe(true);
+    expect(listed.every((r) => r.icon.includes('class="pi'))).toBe(true);
+    expect(wide).not.toContain("Which of these");
+    drawnBy(() => page(101, "Planet"));
+    expect(hintOf("Class")).toBe("Which of these it can be depends on the star the system rolls.");
   });
 
   it("marks a body the game never places on its page and its row, and the moons around it", async () => {
@@ -257,10 +237,13 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 2 deposits");
-    expect(barRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
+    expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
     expect(html).toContain("Can roll · 2 planet features");
-    expect(html).toContain(pick("Mineral Poor", "50%", FEATURE_CHANCE_TITLE, true));
-    expect(html).toContain('<span class="ins-pool-pick"><span>Carbon World</span></span>');
+    const features = poolRows(html.slice(html.indexOf("planet features")));
+    expect(features.map((r) => [r.name, r.width, r.chance])).toEqual([
+      ["Mineral Poor", "100.0%", "50%"],
+      ["Carbon World", undefined, ""],
+    ]);
   });
 
   it("lists what a planet can also roll after the deposits and features it states, by their game data names", async () => {
@@ -293,7 +276,7 @@ describe("what a scenario body can roll", () => {
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
     expect(html).toContain("Can also roll · 1 deposit");
-    expect(barRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
+    expect(depositRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
   });
@@ -338,7 +321,7 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 6 deposits");
-    const rows = barRows(html);
+    const rows = depositRows(html);
     expect(rows.map((r) => r.title)).toEqual([
       "Minerals · 40%",
       "Mystery · 30%",
@@ -348,10 +331,10 @@ describe("what a scenario body can roll", () => {
     const [minerals, mystery, energyRow, kelp] = rows;
     expect(minerals.width).toBe("100.0%");
     expect(energyRow.width).toBe("67.5%");
-    expect(minerals.html).toContain(
-      '<span class="pl-pool-key" role="img" aria-label="Minerals"><span class="gi">M</span></span>',
+    expect(minerals.icon).toBe(
+      '<span role="img" aria-label="Minerals"><span class="gi">M</span></span>',
     );
-    expect(minerals.html).not.toContain(">Minerals<");
+    expect(minerals.name).toBe("");
     expect(minerals.chance).toBe("40%");
     expect(minerals.html).not.toContain("title=");
     expect(energyRow.segments.map((g) => g.grow.toFixed(3))).toEqual(["0.481", "0.481", "0.037"]);
@@ -361,8 +344,7 @@ describe("what a scenario body can roll", () => {
 
     expect(mystery.segments.map((g) => g.fill)).toEqual(["#aab0ba"]);
     expect(kelp.html).not.toContain('class="gi"');
-    expect(kelp.html).toContain('<span class="pl-pool-key pl-pool-name">Toxic Kelp</span>');
-    expect(html).toContain("--pool-key:72px");
+    expect(kelp.name).toBe("Toxic Kelp");
     expect(kelp.segments).toHaveLength(1);
     expect(kelp.segments[0].label).toBe("");
     expect(kelp.chance).toBe("&lt;1%");
@@ -428,6 +410,49 @@ describe("what a scenario body can roll", () => {
     expect(card).toContain("Chance one deposit the game rolls here is this one.");
   });
 
+  it("shows each resource's amounts in place of a bar where the class it rolls decides the odds", async () => {
+    const yielding = (key: string, resource: string, amount: number, label: string) =>
+      [key, depositTypeView(key, { yields: [resourceAmount(resource, amount, label)] })] as const;
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        yielding("d_minerals_1", "minerals", 1, "Minerals"),
+        yielding("d_minerals_2", "minerals", 2, "Minerals"),
+        yielding("d_minerals_3", "minerals", 3, "Minerals"),
+        yielding("d_energy_1", "energy", 1, "Energy"),
+        yielding("d_energy_2", "energy", 2, "Energy"),
+        yielding("d_energy_5", "energy", 5, "Energy"),
+        yielding("d_gases_1", "exotic_gases", 1, "Exotic Gases"),
+      ]),
+    });
+    const gottara = drawn(100, {
+      rolled_deposits: {
+        state: "rolled",
+        entries: [
+          "d_minerals_1",
+          "d_minerals_2",
+          "d_minerals_3",
+          "d_energy_1",
+          "d_energy_2",
+          "d_energy_5",
+          "d_gases_1",
+        ].map((key) => ({ key, chance: null })),
+      },
+    });
+    await open("scenario");
+    await land(details({ planets: [gottara], spawn: systemSpawn() }));
+
+    const html = page(100, "Planet");
+    expect(html).toContain("Can roll · 7 deposits");
+    expect(depositRows(html).map((r) => [r.title, r.cell, r.chance, r.width])).toEqual([
+      ["Minerals", '<span class="muted pl-pool-amounts">+1 to +3</span>', "", undefined],
+      ["Energy", '<span class="muted pl-pool-amounts">+1, +2, +5</span>', "", undefined],
+      ["Exotic Gases", '<span class="muted pl-pool-amounts">+1</span>', "", undefined],
+    ]);
+    expect(html).toContain(
+      '<span class="ins-st-unknown">The odds depend on which class the planet rolls.</span>',
+    );
+  });
+
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
     const fixed = drawn(100, {
       rolled_deposits: { state: "fixed" },
@@ -444,9 +469,9 @@ describe("what a scenario body can roll", () => {
     expect(plain).not.toContain("Can roll");
     expect(plain).not.toContain("Deposits");
     const html = page(101, "Planet");
-    expect(html).toContain('<span class="ins-st-unknown">Decided by the class it rolls</span>');
-    expect(html).toContain("The game rolls deposits for the class it picks.");
-    expect(html).toContain("The game rolls planet features for the class it picks.");
+    expect(row(html, "With its class")).toContain("Model, deposits and planet features");
+    expect(html).not.toContain('class="ins-sec-title">Deposits');
+    expect(html).not.toContain('class="ins-sec-title">Modifiers');
   });
 
   it("gives a rolled ring its chance", async () => {
@@ -487,10 +512,10 @@ describe("what a scenario body can roll", () => {
     nameSystem("Yunak");
     await land(details({ planets: [second, moon], spawn: systemSpawn() }));
 
-    const html = page(100, "Yunak II");
+    const html = drawnBy(() => page(100, "Yunak II"));
     expect(html).toContain('<span class="name">Yunak II</span>');
     expect(row(html, "Name")).toContain(rolled("Yunak II"));
-    expect(row(html, "Name")).toContain(
+    expect(hintOf("Name")).toBe(
       "The game numbers planets in order, so this one is Yunak II or Yunak III, depending on how many before it are placed.",
     );
     expect(page(101, "Yunak IIa")).toContain('<span class="name">Yunak IIa</span>');
@@ -505,9 +530,9 @@ describe("what a scenario body can roll", () => {
     nameSystem("");
     await land(details({ planets: [first], spawn: systemSpawn() }));
 
-    const html = page(100, "Planet");
+    const html = drawnBy(() => page(100, "Planet"));
     expect(row(html, "Name")).toContain("Named after the system");
-    expect(html).toContain("The game picks the system&#x27;s name when it starts.");
+    expect(hintOf("Name")).toBe("The game picks the system&#x27;s name when it starts.");
   });
 
   it("says a moon is named after its planet when the planet's name can't be told", async () => {
@@ -532,9 +557,9 @@ describe("what a scenario body can roll", () => {
     nameSystem("Yunak");
     await land(details({ planets: [asteroid, moon], spawn: systemSpawn() }));
 
-    const html = page(101, "Moon");
+    const html = drawnBy(() => page(101, "Moon"));
     expect(row(html, "Name")).toContain("Named after the planet it orbits");
-    expect(html).toContain("That planet&#x27;s name isn&#x27;t known until the game starts.");
+    expect(hintOf("Name")).toBe("That planet&#x27;s name isn&#x27;t known until the game starts.");
     expect(html).not.toContain("Named after the system");
   });
 
@@ -557,6 +582,14 @@ describe("what a scenario body can roll", () => {
 });
 
 describe("odds bars", () => {
+  it("drop a star class name's leading English Class, and leave other names as they are", () => {
+    expect(starListName("Class G Star")).toBe("G Star");
+    expect(starListName("class M Red Giant")).toBe("M Red Giant");
+    expect(starListName("Black Hole")).toBe("Black Hole");
+    expect(starListName("Classic Star")).toBe("Classic Star");
+    expect(starListName("Étoile de classe G")).toBe("Étoile de classe G");
+  });
+
   it("scale each row to the likeliest, and fall back to a neutral tone for a colour too dark or unknown", () => {
     const rows = oddsRows(
       [
@@ -564,7 +597,7 @@ describe("odds bars", () => {
         { key: "sc_black_hole", share: 0.3 },
         { key: "sc_weird", share: 0.1 },
       ],
-      (key) => starGlyph(key).tint,
+      (key) => readableTint(starGlyph(key).tint),
     );
     expect(rows.map((r) => [r.key, r.width.toFixed(3), r.color])).toEqual([
       ["sc_g", "1.000", "#ffe066"],

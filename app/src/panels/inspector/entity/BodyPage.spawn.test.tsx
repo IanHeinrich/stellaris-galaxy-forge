@@ -14,6 +14,8 @@ import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { bodyLayout } from "../../../test/builders";
+import { hintOf } from "../../../test/hints";
+import { poolRows } from "../../../test/poolRows";
 import { details, land, open, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { PlanetView } from "./PlanetView";
 
@@ -69,7 +71,8 @@ describe("a scenario body's page", () => {
     expect(row(html, "Class")).toContain("Rolled from the classes that fit its orbit");
     expect(row(html, "Size")).toContain("Rolled from its class&#x27;s sizes");
     expect(row(html, "Ring")).toContain(">Rolled by the game</span>");
-    expect(row(html, "Model")).toContain("One of its class&#x27;s models");
+    expect(html).not.toContain('<span class="k">Model</span>');
+    expect(row(html, "With its class")).toContain(">Model</span>");
     expect(html).toContain("Can appear when the planet is surveyed.");
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("Deposits");
@@ -147,7 +150,7 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [earth], spawn: systemSpawn() }));
 
-    const html = page(100, "Earth");
+    const html = drawnBy(() => page(100, "Earth"));
     const head = html.slice(0, html.indexOf("</div>"));
     expect(head).toContain(">start planet</span>");
     expect(head).not.toContain("may not spawn");
@@ -160,16 +163,22 @@ describe("a scenario body's page", () => {
     expect(html).toContain(
       "No other deposits. The initializer clears the rolled ones before adding these.",
     );
-    expect(html).toContain("None. The initializer stops blockers on this planet.");
+    expect(html).not.toContain("None. The initializer stops");
+    const stopped = row(html, "Stopped");
+    expect(stopped).toContain("⊘</span>Blockers</span>");
+    expect(stopped).toContain("⊘</span>Anomaly</span>");
+    expect(stopped).not.toContain("Planet features");
+    expect(hintOf("Stopped")).toContain("The initializer stops blockers on this planet.");
+    expect(hintOf("Stopped")).toContain("The initializer stops anomalies on this planet.");
     expect(html).toContain("Modifiers · 1");
     expect(html).toContain("Yuht Homeworld");
     expect(html).toContain("permanent");
     expect(html).toContain("The initializer stops rolled planet features on this planet.");
     expect(html).not.toContain("None. The initializer stops planet features");
-    expect(html).toContain("None. The initializer stops anomalies on this planet.");
     expect(html).toContain("Flags · 1");
     expect(html).toContain("planet_earth");
-    expect(row(html, "Start planet")).toContain(
+    expect(row(html, "Start planet")).toContain("Yes");
+    expect(hintOf("Start planet")).toBe(
       "The empire that spawns here starts on this planet, unless it brings its own starting system.",
     );
     expect(html).toContain(
@@ -199,11 +208,12 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [ideal], spawn: systemSpawn() }));
 
-    const html = page(100, "Alpha Centauri III");
+    const html = drawnBy(() => page(100, "Alpha Centauri III"));
     expect(row(html, "Class")).toContain(
       '<span class="ins-st-unknown">Decided when the game starts</span>',
     );
-    expect(row(html, "Class")).toContain("On a scenario map there is no empire nearby");
+    expect(row(html, "Class")).not.toContain("On a scenario map");
+    expect(hintOf("Class")).toContain("On a scenario map there is no empire nearby");
     expect(html).toContain("ALPHA_CENTAURI_CAT");
     expect(html).toContain("Placed by the initializer. It is found when the planet is surveyed.");
     expect(html).not.toContain("None. The initializer stops anomalies");
@@ -234,7 +244,10 @@ describe("a scenario body's page", () => {
 
     const html = page(99, "Star");
     expect(row(html, "Class")).toContain("One of 2, from rl_pair");
-    expect(row(html, "Class")).toContain("sc_g 75% · sc_k 25%");
+    expect(poolRows(row(html, "Class")).map((r) => [r.name, r.chance])).toEqual([
+      ["sc_g", "75%"],
+      ["sc_k", "25%"],
+    ]);
     expect(html).not.toContain('<span class="k">Ring</span>');
     expect(html).not.toContain('<span class="k">Model</span>');
     expect(html).toContain("Can appear when the star is surveyed.");
@@ -325,6 +338,11 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [barren], spawn: systemSpawn({ prevent_anomalies: true }) }));
 
-    expect(page(100, "Barren")).toContain("None. The initializer stops anomalies in this system.");
+    const html = drawnBy(() => page(100, "Barren"));
+    expect(row(html, "Stopped")).toContain("⊘</span>Anomaly</span>");
+    expect(hintOf("Stopped")).toBe(
+      '<span class="ins-set-by">The initializer stops anomalies in this system.</span>',
+    );
+    expect(html).not.toContain(">Anomaly</span></button>");
   });
 });

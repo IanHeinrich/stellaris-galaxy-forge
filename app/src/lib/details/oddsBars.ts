@@ -29,13 +29,24 @@ export function readableTint(tint: number): string {
   return lightness < DARKEST ? NEUTRAL_RAMP[1] : toCss(tint);
 }
 
-/** `odds`, likeliest first as given, each with its bar's length and the colour `tint` gives its key. */
-export function oddsRows(odds: readonly StarOdds[], tint: (key: string) => number): OddsRow[] {
+/** `odds`, likeliest first as given, each with its bar's length and the colour `color` gives its key. */
+export function oddsRows(odds: readonly StarOdds[], color: (key: string) => string): OddsRow[] {
   const most = Math.max(0, ...odds.map((o) => o.share ?? 0));
   return odds.map((o) => ({
     key: o.key,
     share: o.share,
     width: o.share === null || most <= 0 ? 0 : o.share / most,
-    color: readableTint(tint(o.key)),
+    color: color(o.key),
   }));
+}
+
+/** A neutral bar colour, for a draw whose things have none of their own. */
+export const NEUTRAL_BAR = NEUTRAL_RAMP[1];
+
+/**
+ * `G Star` for `Class G Star`: a star class's name in a list headed "Star class", its leading
+ * English "Class " dropped. Any other name, and any other language, is left as it is.
+ */
+export function starListName(name: string): string {
+  return name.replace(/^class (?=\S)/i, "");
 }

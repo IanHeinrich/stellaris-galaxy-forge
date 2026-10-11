@@ -681,12 +681,12 @@
   white-space: nowrap;
 }
 
-/* A scenario body's deposit roll: one bar per resource, split by amount, lightest for the least.
-   The first column is an icon's width, or a short name's where a row has no icon. */
-.pl-pool-bars {
+/* Every list of what a roll can give: an icon column, a name column, the bar, and the share at the
+   right. A deposit row leaves its name column empty and has a card on hover. */
+.pl-pool-list {
   display: grid;
-  grid-template-columns: var(--pool-key, 18px) minmax(60px, 1fr) auto;
-  gap: 1px 8px;
+  grid-template-columns: 22px minmax(0, max-content) minmax(40px, 1fr) 34px;
+  gap: 2px 8px;
   align-items: center;
   font-size: var(--text-note);
 }
@@ -696,13 +696,14 @@
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
   align-items: center;
-  padding: 1px 2px;
+  min-height: 22px;
+  padding: 0 2px;
   border-radius: 3px;
   outline: none;
 }
 
-.pl-pool-row:hover,
-.pl-pool-row:focus-visible {
+.pl-pool-row[tabindex]:hover,
+.pl-pool-row[tabindex]:focus-visible {
   background: var(--bg-elevated);
 }
 
@@ -710,14 +711,26 @@
   grid-column: 1 / -1;
 }
 
-.pl-pool-key {
+.pl-pool-icon {
   display: inline-flex;
   align-items: center;
-  min-width: 0;
+  justify-content: center;
+}
+
+/* A star list's art keeps its own size; other icons take a deposit icon's. */
+.pl-pool-list:not(.stars) .pl-pool-icon > .pi {
+  width: 11px;
+  height: 11px;
 }
 
 .pl-pool-name {
-  display: block;
+  max-width: 10em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pl-pool-amounts {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -726,17 +739,13 @@
 .pl-pool-track {
   display: flex;
   height: 14px;
-  border-radius: 3px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.06);
   transition: background 80ms;
 }
 
-.pl-pool-row:hover .pl-pool-track {
+.pl-pool-row[tabindex]:hover .pl-pool-track {
   background: rgba(255, 255, 255, 0.1);
-}
-
-.pl-pool-track.thin {
-  height: 6px;
 }
 
 .pl-pool-bar {
@@ -760,36 +769,6 @@
 
 .pl-pool-chance {
   text-align: right;
-  white-space: nowrap;
-}
-
-/* A draw's odds: icon, name, a thin bar in the drawn thing's colour, and its share. */
-.pl-odds {
-  display: grid;
-  grid-template-columns: 18px max-content minmax(40px, 1fr) auto;
-  gap: 3px 8px;
-  align-items: center;
-  font-size: var(--text-note);
-}
-
-.pl-odds-row {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
-  align-items: center;
-}
-
-.pl-odds-icon {
-  display: inline-flex;
-  align-items: center;
-}
-
-.pl-odds-icon > .pi {
-  width: 16px;
-  height: 16px;
-}
-
-.pl-odds-name {
   white-space: nowrap;
 }
 

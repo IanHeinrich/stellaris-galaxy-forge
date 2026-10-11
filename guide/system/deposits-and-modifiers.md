@@ -90,10 +90,14 @@ Hover over a row to see the resource's name, each amount with its
 chance, and the deposits that give it. A deposit that yields nothing, such as a blocker,
 has a plain bar of its own, with its name in place of an icon.
 
-Planet features are listed by name, likeliest first. A percentage there
-is how likely the first feature the game rolls is to be that one. Some
-names have no percentage, because it depends on the planet's class or
-size.
+Where the class the planet rolls decides the odds, a resource's row
+shows the amounts it can give, such as "+1 to +3", in place of a bar,
+and a line under the list says so.
+
+Planet features are listed the same way, likeliest first, each with a
+bar and its percentage. A percentage there is how likely the first
+feature the game rolls is to be that one. Some features have no bar or
+percentage, because it depends on the planet's class or size.
 
 Where the initializer leaves nothing to roll, there is no list. Where
 the class the game picks decides the roll, the section says so.

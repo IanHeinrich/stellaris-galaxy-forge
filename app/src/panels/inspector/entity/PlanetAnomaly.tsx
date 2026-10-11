@@ -92,6 +92,7 @@ function PlacedAnomalyRow({ category, noun }: { category: string; noun: string }
 /** What a scenario body's initializer says of its anomalies: the ones it places, or whether one can appear. */
 function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies; noun: string }) {
   const line = anomalyLine(anomalies, noun);
+  if (anomalies.categories.length === 0 && line === null) return null;
   return (
     <Section id="planet.anomaly" title="Anomaly">
       {anomalies.categories.map((category, i) => (

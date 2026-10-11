@@ -14,6 +14,7 @@ import { bindStores } from "../../../store/bindStores";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { RolledMark } from "../states";
 import { mockedIpc } from "../../../test/ipc";
+import { poolRows } from "../../../test/poolRows";
 import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore } from "../../../store/inspectorStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -160,11 +161,9 @@ describe("a rolled scenario system", () => {
     expect(g).toBeGreaterThan(-1);
     expect(g).toBeLessThan(k);
     expect(k).toBeLessThan(b);
-    const bars = [
-      ...html.matchAll(
-        /<span class="pl-pool-bar" style="width:([^"]*)"><span class="pl-pool-seg" style="flex-grow:1;background:([^"]*)"><\/span><\/span><\/span><span class="muted pl-pool-chance">([^<]*)</g,
-      ),
-    ].map(([, width, color, share]) => [width, color, share]);
+    const rows = poolRows(html);
+    expect(rows.every((r) => /^<span class="pi ghost"/.test(r.icon))).toBe(true);
+    const bars = rows.map((r) => [r.width, r.segments[0]?.fill, r.chance]);
     expect(bars).toEqual([
       ["100.0%", "#ffe066", "50%"],
       ["66.7%", "#ffa64d", "33%"],

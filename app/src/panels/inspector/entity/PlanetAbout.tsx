@@ -4,6 +4,7 @@ import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName, stepText, turnText } from "../../../lib/details/labels";
 import { rangeText } from "./bodyFields";
 import { ANY_ANGLE, systemLayout } from "../../../lib/details/orbits";
+import { setsOrbitStep, valueSources } from "../../../lib/details/spawnFacts";
 import { counted } from "../../../lib/text";
 import { openSystem } from "../../../store/commands";
 import { useSystemRoll } from "../../../store/detailsStore";
@@ -16,7 +17,7 @@ import { openBody } from "./openBody";
 import { AnomalyRow } from "./PlanetAnomaly";
 import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
-import { Rolled } from "../states";
+import { HintedRow, Rolled, SetByLines } from "../states";
 import { useSystemBodyNames } from "./useBodyName";
 
 /** What the body orbits, opening its page, and its radius where no row of its own gives it. */
@@ -98,9 +99,21 @@ function Steps({
   const anchorId = placed.find((p) => p.id === body.id)?.turn?.anchor ?? null;
   const anchor = details.planets.find((p) => p.id === anchorId);
   const anchorRadius = placed.find((p) => p.id === anchorId)?.ring?.radius ?? 0;
+  const stepSources = valueSources(
+    {
+      inline_scripts: [],
+      variables: (body.spawn?.variables ?? []).filter((v) => setsOrbitStep(v.key)),
+    },
+    body.moon,
+  );
   return (
     <>
-      <PropertyRow label="Orbit step">{stepText(step)}</PropertyRow>
+      <HintedRow
+        label="Orbit step"
+        hint={stepSources.length === 0 ? null : <SetByLines sources={stepSources} />}
+      >
+        {stepText(step)}
+      </HintedRow>
       <PropertyRow label="Angle step">
         {turnText(body.layout?.angle_step ?? ANY_ANGLE)}
         {anchor && anchorRadius > 0 && (

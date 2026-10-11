@@ -116,6 +116,7 @@ function Head({
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
       {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
+      {body?.spawn?.home_planet && <Chip>home planet</Chip>}
       {neverSpawns(body?.spawn) && (
         <span className="ins-block-count ins-never">{NEVER_PLACED}</span>
       )}

@@ -115,6 +115,7 @@ function placeCard(box: HTMLElement, row: HTMLElement, height: number): CardPlac
 function useCardPlace(
   rowId: string,
   item: CardItem,
+  besideSelector: string | undefined,
 ): [RefObject<HTMLDivElement | null>, CardPlace | null] {
   const card = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<CardPlace | null>(null);
@@ -131,11 +132,12 @@ function useCardPlace(
   const under = place === "under";
   useLayoutEffect(() => {
     const el = card.current;
-    const box = el?.parentElement ?? null;
+    const beside = besideSelector === undefined ? null : (el?.closest(besideSelector) ?? null);
+    const box = beside instanceof HTMLElement ? beside : (el?.parentElement ?? null);
     const row = document.getElementById(rowId);
     if (el === null || box === null || row === null) return;
     setPlace(placeCard(box, row, el.offsetHeight));
-  }, [rowId, item, moved, under]);
+  }, [rowId, item, moved, under, besideSelector]);
   return [card, place];
 }
 
@@ -149,6 +151,7 @@ export function PickerCard({
   item,
   rowId,
   lead,
+  beside,
   children,
 }: {
   id: string;
@@ -156,9 +159,11 @@ export function PickerCard({
   rowId: string;
   /** What goes before its name, such as an icon. */
   lead?: ReactNode;
+  /** The nearest element it stands beside, where that isn't the one that holds it. */
+  beside?: string;
   children?: ReactNode;
 }) {
-  const [card, place] = useCardPlace(rowId, item);
+  const [card, place] = useCardPlace(rowId, item, beside);
   const under = place === "under";
   return (
     <div

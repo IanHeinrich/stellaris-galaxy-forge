@@ -449,6 +449,34 @@ button.link.ins-drill:hover {
   transform: translateY(1px);
 }
 
+/* A value with more to say in a card on hover: underlined, so the reader knows to look. */
+.ins-hinted {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--fg-muted);
+  text-underline-offset: 3px;
+  cursor: help;
+  outline: none;
+}
+
+.ins-hinted:focus-visible {
+  text-decoration-style: solid;
+}
+
+.ins-set-by {
+  display: block;
+}
+
+.ins-ban {
+  margin-right: 3px;
+  color: var(--fg-muted);
+}
+
+.ins-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .ins-why {
   grid-column: 1 / -1;
   color: var(--fg-muted);
@@ -467,20 +495,6 @@ button.link.ins-drill:hover {
 .ins-block-count.ins-st-rolled {
   border-color: rgba(127, 179, 255, 0.35);
   background: rgba(127, 179, 255, 0.08);
-}
-
-/* What a scenario body's roll can give it, under the rows its initializer states. */
-.ins-pool {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 5px;
-  font-size: var(--text-note);
-}
-
-.ins-pool-pick {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
 }
 
 /* A body the game never places: its mark in the count's place, and on its page's head. */

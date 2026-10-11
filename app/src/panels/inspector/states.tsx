@@ -1,5 +1,7 @@
-import type { ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ROLLED_TITLE, type ValueSource } from "../../lib/details/spawnFacts";
+import { Chip } from "../parts";
+import { PickerCard } from "./entity/PickerCard";
 import { PropertyRow } from "./parts";
 
 /**
@@ -39,6 +41,102 @@ export function Unknown({ children }: { children: ReactNode }) {
 /** The reason under a row, across both its columns. */
 export function Why({ children }: { children: ReactNode }) {
   return <span className="ins-why">{children}</span>;
+}
+
+/**
+ * A value with more to say than fits its row: underlined, with what it says in a card beside the
+ * Inspector on hover or focus. `label` heads the card.
+ */
+export function Hinted({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint: ReactNode;
+  children: ReactNode;
+}) {
+  const id = useId();
+  const cardId = `${id}-card`;
+  const [shown, setShown] = useState(false);
+  const item = useMemo(() => ({ label, effects: [] }), [label]);
+  return (
+    <span
+      id={id}
+      className="ins-hinted"
+      tabIndex={0}
+      aria-describedby={shown ? cardId : undefined}
+      onMouseEnter={() => setShown(true)}
+      onMouseLeave={() => setShown(false)}
+      onFocus={() => setShown(true)}
+      onBlur={() => setShown(false)}
+    >
+      {children}
+      {shown && (
+        <PickerCard id={cardId} rowId={id} item={item} beside=".ins-kv">
+          <span className="dp-card-text">{hint}</span>
+        </PickerCard>
+      )}
+    </span>
+  );
+}
+
+/** A row whose value has a card on hover where it has more to say. */
+export function HintedRow({
+  label,
+  hint,
+  mono,
+  children,
+}: {
+  label: string;
+  hint: ReactNode;
+  mono?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <PropertyRow label={label} mono={mono}>
+      {hint === null || hint === undefined || hint === false ? (
+        children
+      ) : (
+        <Hinted label={label} hint={hint}>
+          {children}
+        </Hinted>
+      )}
+    </PropertyRow>
+  );
+}
+
+/** Something the initializer stops, as a tag with a ban mark. */
+export function StoppedTag({ children }: { children: ReactNode }) {
+  return (
+    <Chip>
+      <span className="ins-ban" aria-hidden="true">
+        ⊘
+      </span>
+      {children}
+    </Chip>
+  );
+}
+
+/** What sets a value, as a line in its card: `Set by the variable @base_size`. */
+export function SetByLine({ source, lead }: { source: ValueSource; lead?: string }) {
+  return (
+    <span className="ins-set-by">
+      {lead === undefined ? "Set by" : `${lead} is set by`} the {source.via}{" "}
+      <span className="mono">{source.name}</span>
+    </span>
+  );
+}
+
+/** What sets a row's value, in its card: a line per `@variable`. */
+export function SetByLines({ sources }: { sources: readonly ValueSource[] }) {
+  return (
+    <>
+      {sources.map((source) => (
+        <SetByLine key={`${source.label}-${source.name}`} source={source} lead={source.label} />
+      ))}
+    </>
+  );
 }
 
 /** A value an inline script or an `@variable` gives, as a row: what it is, then what sets it. */

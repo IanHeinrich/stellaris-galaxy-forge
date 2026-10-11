@@ -1,5 +1,5 @@
 import type { SpawnStar } from "../../../../../generated/SpawnStar";
-import { oddsRows } from "../../../../../lib/details/oddsBars";
+import { oddsRows, readableTint, starListName } from "../../../../../lib/details/oddsBars";
 import { STAR_LIST_HINT, starListSource, starOdds } from "../../../../../lib/details/spawnFacts";
 import { starGlyph } from "../../../../../lib/visual/starGlyphs";
 import { useGameDataStore } from "../../../../../store/gameDataStore";
@@ -17,26 +17,34 @@ function StarArt({ starClass }: { starClass: string }) {
   return <Icon className="pi ghost" keys={texture ? [texture] : []} glyph="★" />;
 }
 
-/** The star classes an `rl_` list draws the system's star from, likeliest first, with the odds the game's files give. */
-export function StarListSection({ star }: { star: RolledStar }) {
+/** The star classes an `rl_` list draws a star from, likeliest first, each with its bar and odds. */
+export function StarOddsList({ star }: { star: RolledStar }) {
   const odds = starOdds(star.members);
   const named = useNamed(odds.map((o) => o.key));
-  const rows = oddsRows(odds, (key) => starGlyph(key).tint);
+  const rows = oddsRows(odds, (key) => readableTint(starGlyph(key).tint));
+  return (
+    <OddsList
+      stars
+      rows={rows.map((row) => ({
+        row,
+        name: starListName(named(row.key)),
+        icon: <StarArt starClass={row.key} />,
+      }))}
+    />
+  );
+}
+
+/** The star classes an `rl_` list draws the system's star from, likeliest first, with the odds the game's files give. */
+export function StarListSection({ star }: { star: RolledStar }) {
   return (
     <Section
       id="system.starList"
       title="Star class"
-      count={odds.length}
+      count={star.members.length}
       summary={<Rolled>rolled</Rolled>}
     >
       <div className="muted ins-hint">{STAR_LIST_HINT}</div>
-      <OddsList
-        rows={rows.map((row) => ({
-          row,
-          name: named(row.key),
-          icon: <StarArt starClass={row.key} />,
-        }))}
-      />
+      <StarOddsList star={star} />
       <div className="muted ins-hint">{starListSource(star.list)}</div>
     </Section>
   );
