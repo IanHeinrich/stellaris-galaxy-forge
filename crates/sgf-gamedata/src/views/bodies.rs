@@ -225,7 +225,7 @@ impl GameData {
         if not_a_sphere || class.fixed_entity_scale {
             return None;
         }
-        let asset_scale = planet_disc::asset_scale(self.surface_maps(), class.entity.as_deref()?)?;
+        let asset_scale = planet_disc::asset_scale(self.models(), class.entity.as_deref()?)?;
         Some(DISC_PER_ENTITY_SCALE * class.entity_scale? * asset_scale)
     }
 

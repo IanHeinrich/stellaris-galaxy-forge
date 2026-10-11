@@ -265,6 +265,35 @@ fn a_duplicate_asset_key_reads_the_last_one() {
     assert_eq!(disc.dimensions(), (128, 128));
 }
 
+/// Two `.asset` files define the same entity: the first names a map that does not exist, so a
+/// disc only bakes if the later file's entity replaces it.
+#[test]
+fn a_later_asset_files_entity_replaces_an_earlier_one_of_its_name() {
+    let entity = |map: &str| {
+        format!(
+            "entity = {{\n\tname = \"redone_planet_01_entity\"\n\tmeshsettings = {{\n\t\tname = \"planet_geosphereShape\"\n\t\ttexture_diffuse = \"{map}\"\n\t}}\n}}\n"
+        )
+        .into_bytes()
+    };
+    let (_dir, gd) = common::hand_written_bytes(&[
+        (
+            "common/planet_classes/00_redone.txt",
+            b"pc_redone = {\n\tentity = \"redone_planet\"\n}\n".to_vec(),
+        ),
+        ("gfx/models/planets/a_redone.asset", entity("missing.dds")),
+        (
+            "gfx/models/planets/b_redone.asset",
+            entity("redone_diffuse.dds"),
+        ),
+        (
+            "gfx/models/planets/redone_diffuse.dds",
+            fs::read(common::fixture("planet_disc_diffuse.dds")).expect("the fixture map"),
+        ),
+    ]);
+    let disc = common::bake_disc(&gd, "planet_disc:pc_redone");
+    assert_eq!(disc.dimensions(), (128, 128));
+}
+
 /// Entities with no map or mesh of their own, only `attach` lines, shaped as More Arcologies
 /// writes its city worlds: the first attached entity with a surface gives the disc, a wrapper
 /// of a wrapper is followed down, `planetloc` comes before a moon attached ahead of it, a

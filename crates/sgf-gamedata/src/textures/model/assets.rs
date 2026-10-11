@@ -1,7 +1,7 @@
 //! What the `.asset` and `.gfx` files of `gfx/models` say about models: each entity's mesh,
-//! scale, locators, attachments and mesh settings, each `pdxmesh`'s file, and every texture
-//! by file name. An entity is resolved into the meshes it draws, each with the chain of
-//! attachments that places it, without reading any `.mesh` file.
+//! scale, locators, attachments, mesh settings and planet surface, each `pdxmesh`'s file, and
+//! every texture by file name. An entity is resolved into the meshes it draws, each with the
+//! chain of attachments that places it, without reading any `.mesh` file.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -14,6 +14,7 @@ use super::mesh::MeshFile;
 use super::space::Affine;
 use crate::install::layers::Layout;
 use crate::install::script::last_scalar;
+use crate::textures::planet_disc::{self, EntitySurface};
 
 /// The culture the game falls back to for a model with none of the culture asked for.
 pub(super) const FALLBACK_CULTURE: &str = "mammalian_01";
@@ -34,16 +35,22 @@ pub(crate) struct Assets {
 }
 
 #[derive(Debug, Default, Clone)]
-struct Entity {
+pub(in crate::textures) struct Entity {
     /// The folder of its `.asset` file, relative to a layer root.
     dir: String,
     pdxmesh: Option<String>,
-    clone: Option<String>,
-    scale: Option<f32>,
+    pub(in crate::textures) clone: Option<String>,
+    /// Its `scale` as written, a file variable replaced by its value.
+    pub(in crate::textures) scale: Option<String>,
     locators: Vec<(String, Affine)>,
     /// Each `attach`: the locator and the entity attached there.
     attach: Vec<(String, String)>,
     settings: Vec<MeshSettings>,
+    /// Whether it names a mesh, mesh settings, an attachment, a particle or a state of its own.
+    pub(in crate::textures) draws: bool,
+    /// What it has for a planet surface. One that draws only other things keeps the surface
+    /// of the entity of its name it replaces.
+    pub(in crate::textures) surface: Option<EntitySurface>,
 }
 
 #[derive(Debug, Clone)]
@@ -160,14 +167,21 @@ impl Assets {
                     Some((locator.to_owned(), entity.to_owned()))
                 })
                 .collect();
+            let (draws, surface) = planet_disc::entity_surface(node, dir, src);
+            let surface =
+                surface.or_else(|| self.entities.get(name).filter(|_| draws)?.surface.clone());
             let entity = Entity {
                 dir: dir.to_owned(),
                 pdxmesh: last_scalar(node, "pdxmesh", src).map(str::to_owned),
                 clone: last_scalar(node, "clone", src).map(str::to_owned),
-                scale: vars.number(node, "scale", src),
+                scale: last_scalar(node, "scale", src)
+                    .and_then(|s| vars.resolve(s))
+                    .map(str::to_owned),
                 locators,
                 attach,
                 settings: settings(node, &vars, src),
+                draws,
+                surface,
             };
             self.entities.insert(name.to_owned(), entity);
         }
@@ -195,16 +209,28 @@ impl Assets {
         }
     }
 
-    /// The first of `<culture>_<entity>`, `mammalian_01_<entity>` and `<entity>` an `.asset`
-    /// file defines.
-    pub(super) fn entity_name(&self, culture: &str, entity: &str) -> Option<String> {
-        [
-            format!("{culture}_{entity}"),
-            format!("{FALLBACK_CULTURE}_{entity}"),
-            entity.to_owned(),
-        ]
-        .into_iter()
-        .find(|name| self.entities.contains_key(name))
+    /// The first of `<culture>_<entity>` for each of `cultures` in turn, then
+    /// `mammalian_01_<entity>` and `<entity>`, that an `.asset` file defines.
+    pub(super) fn entity_name(&self, cultures: &[String], entity: &str) -> Option<String> {
+        let fallback =
+            (!cultures.iter().any(|c| c == FALLBACK_CULTURE)).then_some(FALLBACK_CULTURE);
+        cultures
+            .iter()
+            .map(String::as_str)
+            .chain(fallback)
+            .map(|culture| format!("{culture}_{entity}"))
+            .chain([entity.to_owned()])
+            .find(|name| self.entities.contains_key(name))
+    }
+
+    /// `name` as the last `.asset` file to define it writes it.
+    pub(in crate::textures) fn defined(&self, name: &str) -> Option<&Entity> {
+        self.entities.get(name)
+    }
+
+    /// The `.mesh` file of model `mesh`, relative to a layer root.
+    pub(in crate::textures) fn mesh_file(&self, mesh: &str) -> Option<&str> {
+        self.meshes.get(mesh).map(|def| def.file.as_str())
     }
 
     /// Every mesh file `name` draws, itself and through what it attaches, with the steps that
@@ -225,7 +251,8 @@ impl Assets {
             return;
         };
         let mut own = steps.to_vec();
-        own.push(Step::Fixed(Affine::scale(entity.scale.unwrap_or(1.0))));
+        let scale = entity.scale.as_deref().and_then(number).unwrap_or(1.0);
+        own.push(Step::Fixed(Affine::scale(scale)));
         let drawn = entity.pdxmesh.as_ref().and_then(|m| self.meshes.get(m));
         let in_mesh = |def: &MeshDef| Step::Fixed(Affine::scale(def.scale));
         path.push(name.to_owned());
@@ -274,13 +301,13 @@ impl Assets {
             return Some(own.clone());
         };
         Some(Entity {
-            dir: own.dir.clone(),
-            pdxmesh: own.pdxmesh.clone().or(source.pdxmesh.clone()),
+            pdxmesh: own.pdxmesh.clone().or(source.pdxmesh),
             clone: None,
-            scale: own.scale.or(source.scale),
+            scale: own.scale.clone().or(source.scale),
             locators: or_inherited(&own.locators, &source.locators),
             attach: or_inherited(&own.attach, &source.attach),
             settings: or_inherited(&own.settings, &source.settings),
+            ..own.clone()
         })
     }
 
@@ -328,11 +355,11 @@ fn model_files(layout: &Layout) -> Vec<(String, PathBuf)> {
             .into_iter()
             .flatten()
         {
-            let wanted = entry.file_type().is_file()
-                && entry
-                    .path()
-                    .extension()
-                    .is_some_and(|e| KINDS.iter().any(|k| e.eq_ignore_ascii_case(k)));
+            let wanted = entry
+                .path()
+                .extension()
+                .is_some_and(|e| KINDS.iter().any(|k| e.eq_ignore_ascii_case(k)))
+                && (entry.file_type().is_file() || entry.path().is_file());
             if !wanted {
                 continue;
             }
@@ -408,12 +435,16 @@ impl<'a> Vars<'a> {
         )
     }
 
+    /// `text`, or the value of the variable `@<name>` it names.
+    fn resolve<'t>(&'t self, text: &'t str) -> Option<&'t str> {
+        match text.strip_prefix('@') {
+            Some(name) => self.0.get(name).copied(),
+            None => Some(text),
+        }
+    }
+
     fn value(&self, text: &str) -> Option<f32> {
-        let text = match text.strip_prefix('@') {
-            Some(name) => self.0.get(name)?,
-            None => text,
-        };
-        text.trim_end_matches('f').parse().ok()
+        number(self.resolve(text)?)
     }
 
     fn number(&self, node: &Node, key: &str, src: &[u8]) -> Option<f32> {
@@ -433,4 +464,8 @@ impl<'a> Vars<'a> {
             _ => None,
         }
     }
+}
+
+fn number(text: &str) -> Option<f32> {
+    text.trim_end_matches('f').parse().ok()
 }

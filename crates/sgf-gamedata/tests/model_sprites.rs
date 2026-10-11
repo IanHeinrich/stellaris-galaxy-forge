@@ -31,10 +31,23 @@ entity = {
 \tattach = { \"root\" = \"mammalian_01_broken_entity\" }
 }
 entity = {
+\tname = \"fallen_empire_01_box_entity\"
+\tpdxmesh = \"box_mesh\"
+\tscale = 2
+}
+entity = {
 \tname = \"mammalian_01_glow_entity\"
 \tpdxmesh = \"box_mesh\"
 \tmeshsettings = { name = \"boxShape\" index = 0 shader = \"PdxMeshAlphaAdditive\" }
 }
+";
+
+/// Two cultures that fall back in a chain to `mammalian_01`, and two that fall back to each
+/// other.
+const CULTURES: &str = "fallen_empire_01 = { fallback = mammalian_01 }
+fallen_empire_02 = { fallback = fallen_empire_01 }
+loop_a = { fallback = loop_b }
+loop_b = { fallback = loop_a }
 ";
 
 const MESHES: &str = "objectTypes = {
@@ -106,6 +119,10 @@ fn boxes() -> (TempDir, GameData) {
         ("gfx/models/test/box.mesh", box_mesh()),
         ("gfx/models/test/broken.mesh", b"@@b@[[[".to_vec()),
         ("common/planet_classes/00_none.txt", Vec::new()),
+        (
+            "common/graphical_culture/00_cultures.txt",
+            CULTURES.as_bytes().to_vec(),
+        ),
     ])
 }
 
@@ -185,6 +202,37 @@ fn a_model_that_cannot_be_drawn_is_a_miss_not_a_panic() {
 
     let plain = gd.texture(&textures, "planet_ring");
     assert!(plain.model.is_none());
+}
+
+#[test]
+fn a_culture_without_a_model_of_its_own_draws_its_fallbacks() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let long = |culture: &str| {
+        let key = format!("model:{culture}:box_entity");
+        let size = gd
+            .model_bounds(&textures, &key)
+            .unwrap_or_else(|e| panic!("{key}: {e}"))
+            .size();
+        size[1]
+    };
+    assert!(close(long("mammalian_01"), 4.0, 1e-4));
+    assert!(close(long("fallen_empire_01"), 8.0, 1e-4));
+    assert!(
+        close(long("fallen_empire_02"), 8.0, 1e-4),
+        "fallen_empire_02 falls back to fallen_empire_01's box"
+    );
+    assert!(
+        close(long("loop_a"), 4.0, 1e-4),
+        "a chain that loops ends at mammalian_01"
+    );
+
+    let width = |culture: &str| {
+        let view = gd.texture(&textures, &format!("model:{culture}:box_entity"));
+        view.model.expect("the box bakes").width
+    };
+    let (fallen, avian) = (width("fallen_empire_02"), width("avian_01"));
+    assert!(close(fallen, 2.0 * avian, 0.02));
 }
 
 /// Each model and its size along save x, save y and height in save units.

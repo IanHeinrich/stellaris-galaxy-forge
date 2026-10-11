@@ -36,6 +36,7 @@ mod star_disc;
 
 pub use key::TextureKey;
 pub use lookups::{Lookups, StarBody};
+pub(crate) use model::Assets;
 pub use model::{ModelBounds, ModelPlacement};
 pub use star_disc::StarAtmosphere;
 
@@ -98,7 +99,10 @@ pub enum TextureError {
     NoDisc(String),
     #[error("planet model `{0}` has no surface map to draw as a disc")]
     NoModelDisc(String),
-    #[error("no `.asset` file defines the model `{0}` for that culture or `mammalian_01`")]
+    #[error(
+        "no `.asset` file defines the model `{0}` for that culture, the cultures it falls back \
+         to or `mammalian_01`"
+    )]
     NoModel(String),
     #[error("the model `{0}` has nothing to draw")]
     EmptyModel(String),
@@ -184,6 +188,15 @@ impl Textures {
 
     fn models(&self, layout: &Layout) -> Arc<model::Assets> {
         memo(&self.models, layout, model::Assets::read)
+    }
+
+    /// Holds `models`, the index a [`crate::GameData`] read for `layout`, as the one a
+    /// `model:` key of that layout reads.
+    pub(crate) fn share_models(&self, layout: &Layout, models: &Arc<model::Assets>) {
+        let mut held = self.models.lock().unwrap_or_else(PoisonError::into_inner);
+        if !matches!(&*held, Some((_, shared)) if Arc::ptr_eq(shared, models)) {
+            *held = Some((layout.clone(), Arc::clone(models)));
+        }
     }
 
     pub fn cache_dir(&self) -> &Path {
@@ -341,7 +354,7 @@ impl Job {
             TextureKey::Model { culture, entity } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
                 textures.models(layout),
-                culture,
+                &(lookups.cultures)(culture),
                 entity,
             )?)),
             TextureKey::PlanetDisc { class } => {

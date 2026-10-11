@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use super::{StarAtmosphere, TextureError, TextureView, Textures, planet_disc};
+use super::{Assets, StarAtmosphere, TextureError, TextureView, Textures, planet_disc};
 use crate::GameData;
 use crate::registries::gfx::Sprites;
 
@@ -34,6 +34,9 @@ pub(crate) type ModelLookup<'a> = &'a dyn Fn(&str) -> Option<String>;
 /// The star planet classes by key.
 pub(crate) type StarLookup<'a> = &'a dyn Fn(&str) -> Option<StarBody>;
 
+/// A graphical culture, then the cultures its models fall back to, in order.
+pub(crate) type CultureLookup<'a> = &'a dyn Fn(&str) -> Vec<String>;
+
 /// How a key's names are looked up in the install: an install's own, or [`Lookups::none`]'s
 /// stand-ins for a caller that only cares about one of them.
 pub struct Lookups<'a> {
@@ -43,11 +46,12 @@ pub struct Lookups<'a> {
     pub planet_pieces: PiecesLookup<'a>,
     pub model_surface: ModelLookup<'a>,
     pub star_body: StarLookup<'a>,
+    pub cultures: CultureLookup<'a>,
 }
 
 impl<'a> Lookups<'a> {
     /// No flag colour, planet surface or pieces, model surface or star body: every one of those
-    /// keys fails, and only `sprites` resolves.
+    /// keys fails, and only `sprites` resolves. A culture falls back to none.
     pub fn none(sprites: &'a Sprites) -> Self {
         fn no_colour(_: &str) -> Option<[u8; 3]> {
             None
@@ -58,6 +62,9 @@ impl<'a> Lookups<'a> {
         fn no_star(_: &str) -> Option<StarBody> {
             None
         }
+        fn no_fallback(culture: &str) -> Vec<String> {
+            vec![culture.to_owned()]
+        }
         Self {
             sprites,
             colour: &no_colour,
@@ -65,6 +72,7 @@ impl<'a> Lookups<'a> {
             planet_pieces: &no_surface,
             model_surface: &no_surface,
             star_body: &no_star,
+            cultures: &no_fallback,
         }
     }
 }
@@ -72,10 +80,12 @@ impl<'a> Lookups<'a> {
 impl GameData {
     /// `key` decoded through this install's sprites, flag colours and planet classes.
     pub fn texture(&self, textures: &Textures, key: &str) -> TextureView {
+        textures.share_models(&self.layout, &self.models);
         self.with_lookups(|lookups| textures.load(&self.layout, lookups, key))
     }
 
     pub fn texture_png(&self, textures: &Textures, key: &str) -> Result<Vec<u8>, TextureError> {
+        textures.share_models(&self.layout, &self.models);
         self.with_lookups(|lookups| textures.png(&self.layout, lookups, key))
     }
 
@@ -86,6 +96,7 @@ impl GameData {
         let pieces = |class: &str| self.planet_pieces(class);
         let model = |entity: &str| self.entity_surface(entity);
         let star = |class: &str| self.star_disc_inputs(class);
+        let cultures = |culture: &str| self.graphical_cultures.chain(culture);
         use_lookups(&Lookups {
             sprites: &self.sprites,
             colour: &colour,
@@ -93,6 +104,7 @@ impl GameData {
             planet_pieces: &pieces,
             model_surface: &model,
             star_body: &star,
+            cultures: &cultures,
         })
     }
 
@@ -132,7 +144,7 @@ impl GameData {
 
     fn planet_pieces(&self, class: &str) -> Option<String> {
         let entity = self.planet_entity(class)?;
-        match planet_disc::surface(&self.layout, self.surface_maps(), entity) {
+        match planet_disc::surface(&self.layout, &self.models, entity) {
             planet_disc::Surface::Pieces(rel) => Some(rel),
             _ => None,
         }
@@ -147,9 +159,8 @@ impl GameData {
             .as_deref()
     }
 
-    pub(crate) fn surface_maps(&self) -> &planet_disc::SurfaceMaps {
-        self.surface_maps
-            .get_or_init(|| planet_disc::surface_maps(&self.layout))
+    pub(crate) fn models(&self) -> &Assets {
+        &self.models
     }
 
     /// How many models the install numbers for a planet of `class`; 0 when it names none.
@@ -157,11 +168,11 @@ impl GameData {
         self.planet_classes
             .get(class)
             .and_then(|c| c.entity.as_deref())
-            .map_or(0, |entity| self.surface_maps().model_count(entity))
+            .map_or(0, |entity| planet_disc::model_count(&self.models, entity))
     }
 
     fn entity_surface(&self, entity: &str) -> Option<String> {
-        planet_disc::diffuse(&self.layout, self.surface_maps(), entity)
+        planet_disc::diffuse(&self.layout, &self.models, entity)
     }
 
     /// Whether a planet of `class` is drawn from its icon alone: neither a star nor an
@@ -193,9 +204,9 @@ impl GameData {
             .iter()
             .filter(|c| !c.star && !c.asteroid)
             .filter(|c| {
-                c.entity.as_deref().is_some_and(|e| {
-                    wanted(&planet_disc::surface(&self.layout, self.surface_maps(), e))
-                })
+                c.entity
+                    .as_deref()
+                    .is_some_and(|e| wanted(&planet_disc::surface(&self.layout, &self.models, e)))
             })
             .map(|c| c.key.clone())
             .collect()
