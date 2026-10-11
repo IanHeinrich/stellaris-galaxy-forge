@@ -31,6 +31,7 @@ mod layering;
 mod localisation;
 mod look_only_classes;
 mod megastructures;
+mod model_sprites;
 mod naming;
 mod picks;
 mod planet_disc_shapes;

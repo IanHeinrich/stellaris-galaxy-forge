@@ -59,6 +59,12 @@ pub enum TextureKey {
     StarDisc {
         class: String,
     },
+    /// A megastructure's or starbase's model in a graphical culture, by its entity name
+    /// without the culture's prefix.
+    Model {
+        culture: String,
+        entity: String,
+    },
 }
 
 impl TextureKey {
@@ -158,6 +164,13 @@ impl FromStr for TextureKey {
             "star_disc" => Self::StarDisc {
                 class: component(rest).ok_or_else(bad)?,
             },
+            "model" => {
+                let (culture, entity) = rest.split_once(':').ok_or_else(bad)?;
+                Self::Model {
+                    culture: component(culture).ok_or_else(bad)?,
+                    entity: component(entity).ok_or_else(bad)?,
+                }
+            }
             _ => return Err(bad()),
         };
         Ok(key)
@@ -194,6 +207,7 @@ impl fmt::Display for TextureKey {
             Self::PlanetModel { entity } => write!(f, "planet_model:{entity}"),
             Self::PlanetRing => f.write_str("planet_ring"),
             Self::StarDisc { class } => write!(f, "star_disc:{class}"),
+            Self::Model { culture, entity } => write!(f, "model:{culture}:{entity}"),
         }
     }
 }
