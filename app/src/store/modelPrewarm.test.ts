@@ -52,7 +52,7 @@ const KEYS = [
   "model:avian_01:ring_world_ruined_entity:yaw180",
   "model:humanoid_01:starbase_starport_section_entity",
   "model:avian_01:avian_01_habitat_phase_03_entity",
-  "model:mammalian_01:ringworld_tech_entity_01_entity:yaw270",
+  "model:none:ringworld_tech_entity_01_entity:yaw270",
 ];
 
 function gameData(version: number): void {

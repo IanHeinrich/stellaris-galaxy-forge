@@ -25,6 +25,7 @@ import { until } from "../../../test/wait";
 import { systemContext, type SceneStructure, type SystemContext } from "../context";
 import { sources } from "../contextFixture";
 import { EARTH, LUNA, MARS, SUN, SYSTEM, viewport, WORMHOLE } from "../fixture";
+import { drawnDisc } from "../geometry";
 import { pickTarget } from "../picking";
 import type { SystemSources } from "../sources";
 import { answerFetch, decodeByKey, resetTextures } from "./bodiesFixture";
@@ -220,7 +221,7 @@ describe("how large a megastructure or a starbase is drawn", () => {
     await answerFetch();
     await until(() => expect(model.visible).toBe(true));
     const { scale } = only(ctx);
-    const texture = textureFor("model:mammalian_01:arc_furnace_entity");
+    const texture = textureFor("model:none:arc_furnace_entity");
     expect(model.texture).toBe(texture);
     expect(model.anchor.x).toBe(0.25);
     expect(model.anchor.y).toBe(0.5);
@@ -231,12 +232,12 @@ describe("how large a megastructure or a starbase is drawn", () => {
 });
 
 describe("which model a megastructure or a starbase is drawn from", () => {
-  it("asks for its type's model in the row's culture, else in the fallback culture", () => {
+  it("asks for its type's model in the row's culture, else for the bare model of an unowned row", () => {
     const own = megastructureSummary({ id: 1, kind: "think_tank_3", culture: "avian_01" });
     const none = megastructureSummary({ id: 2, kind: "hyper_relay" });
     expect(system([own, none]).structures.map((s) => s.modelKey)).toEqual([
       "model:avian_01:thinktank_phase_03_entity",
-      "model:mammalian_01:hyper_relay_entity",
+      "model:none:hyper_relay_entity",
     ]);
   });
 
@@ -255,18 +256,18 @@ describe("which model a megastructure or a starbase is drawn from", () => {
     expect(
       system(rows, [], { megastructureTypes: types }).structures.map((s) => s.modelKey),
     ).toEqual([
-      "model:mammalian_01:ring_world_ruined_entity:yaw180",
-      "model:mammalian_01:ring_world_ruined_entity",
-      "model:mammalian_01:ring_world_ruined_entity:yaw270",
-      "model:mammalian_01:dyson_swarm_1_entity",
-      "model:mammalian_01:ring_world_ruined_entity",
+      "model:none:ring_world_ruined_entity:yaw180",
+      "model:none:ring_world_ruined_entity",
+      "model:none:ring_world_ruined_entity:yaw270",
+      "model:none:dyson_swarm_1_entity",
+      "model:none:ring_world_ruined_entity",
     ]);
   });
 
   it("draws a stage with no model of its own as its construction model, at its construction scale", () => {
     const site = megastructureSummary({ kind: "orbital_arc_furnace_0" });
     expect(only(system([site]))).toMatchObject({
-      modelKey: "model:mammalian_01:arc_furnace_construction_entity",
+      modelKey: "model:none:arc_furnace_construction_entity",
       scale: 1.02,
     });
   });
@@ -297,9 +298,9 @@ describe("which model a megastructure or a starbase is drawn from", () => {
     await answerFetch();
     expect(getTextures).toHaveBeenCalledTimes(1);
     expect(getTextures.mock.calls[0][0]).toEqual([
-      "model:mammalian_01:hyper_relay_entity",
+      "model:none:hyper_relay_entity",
       MEGASTRUCTURE_ICON_KEY,
-      "model:mammalian_01:starbase_starport_section_entity",
+      "model:none:starbase_starport_section_entity",
       "sprite:GFX_starbase_ship_size_small#2",
     ]);
     layer.destroy();
@@ -366,7 +367,7 @@ describe("clicking a megastructure", () => {
 });
 
 describe("clicking a structure's model drawn over a body", () => {
-  it("picks the structure on its landed sprite, the body on a plate over it, and a bare body elsewhere", async () => {
+  it("picks the structure on its landed sprite, the body on its own disc or a plate over it, and a bare body elsewhere", async () => {
     decodeByKey();
     textureFetch.model = () => PLACEMENT;
     const furnace = megastructureSummary({ id: 9, kind: "orbital_arc_furnace_1", planet: MARS.id });
@@ -386,7 +387,9 @@ describe("clicking a structure's model drawn over a body", () => {
         () => (plate === null ? null : { kind: "body", id: plate }),
         null,
       );
-    expect(at(mars)).toEqual({ kind: "megastructure", id: 9 });
+    expect(at(mars)).toEqual({ kind: "body", id: MARS.id });
+    const past = drawnDisc(mars.disc, cam.scale) * 1.1;
+    expect(at({ x: mars.x, y: mars.y + past })).toEqual({ kind: "megastructure", id: 9 });
     expect(at(mars, MARS.id)).toEqual({ kind: "body", id: MARS.id });
     expect(at(earth)).toEqual({ kind: "body", id: EARTH.id });
 

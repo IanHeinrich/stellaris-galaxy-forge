@@ -33,6 +33,11 @@ entity = {
 \tattach = { \"root\" = \"mammalian_01_broken_entity\" }
 }
 entity = {
+\tname = \"box_entity\"
+\tpdxmesh = \"box_mesh\"
+\tscale = 3
+}
+entity = {
 \tname = \"fallen_empire_01_box_entity\"
 \tpdxmesh = \"box_mesh\"
 \tscale = 2
@@ -334,6 +339,14 @@ fn a_culture_without_a_model_of_its_own_draws_its_fallbacks() {
     assert!(
         close(long("loop_a"), 4.0, 1e-4),
         "a chain that loops ends at mammalian_01"
+    );
+    assert!(
+        close(long("none"), 12.0, 1e-4),
+        "what no empire owns draws the bare entity"
+    );
+    assert!(
+        close(long("avian_01"), 4.0, 1e-4),
+        "a culture with no box of its own draws mammalian_01's before the bare one"
     );
 
     let width = |culture: &str| {

@@ -40,19 +40,19 @@ const CLASSES = [HABITAT, SEGMENT, BROKEN];
 const PLACEMENT = { width: 8, height: 4, anchor_x: 0.5, anchor_y: 0.5 };
 
 describe("a habitat or a ring world segment drawn from its model", () => {
-  it("takes its model from its class, in its owner's culture, turned to the star for a segment only", () => {
+  it("takes a habitat's model in its owner's culture, and a segment's bare and turned to the star", () => {
     const owned = { ...saveBody(2, HABITAT.key, [60, 0], 60, 5, SUN), culture: "avian_01" };
     const named = {
       ...saveBody(3, HABITAT.key, [0, 60], 60, 5, SUN),
       entity_name: "reptilian_01_habitat_phase_03_entity",
     };
-    const segment = saveBody(4, SEGMENT.key, [0, 45], 45, 10, SUN);
+    const segment = { ...saveBody(4, SEGMENT.key, [0, 45], 45, 10, SUN), culture: "avian_01" };
     const broken = saveBody(5, BROKEN.key, [-60, 0], 60, 10, SUN);
     const ctx = classedContext([owned, named, segment, broken], CLASSES);
     const model = (id: number) => ctx.bodyById.get(id)!.look.model;
     expect(model(owned.id)).toBe("model:avian_01:orbital_habitat_01_entity");
-    expect(model(named.id)).toBe("model:mammalian_01:reptilian_01_habitat_phase_03_entity");
-    expect(model(segment.id)).toBe("model:mammalian_01:ringworld_tech_entity_01_entity:yaw270");
+    expect(model(named.id)).toBe("model:none:reptilian_01_habitat_phase_03_entity");
+    expect(model(segment.id)).toBe("model:none:ringworld_tech_entity_01_entity:yaw270");
     expect(model(broken.id)).toBeNull();
   });
 
@@ -73,7 +73,7 @@ describe("a habitat or a ring world segment drawn from its model", () => {
 
     await answerFetch();
     await until(() => expect(model.visible).toBe(true));
-    const texture = textureFor("model:mammalian_01:orbital_habitat_01_entity");
+    const texture = textureFor("model:none:orbital_habitat_01_entity");
     expect(model.texture).toBe(texture);
     expect(model.scale.x * texture.width).toBeCloseTo(PLACEMENT.width);
     expect(model.scale.y * texture.height).toBeCloseTo(PLACEMENT.height);

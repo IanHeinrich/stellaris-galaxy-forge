@@ -5,8 +5,8 @@ import type { ModelUse } from "../../generated/ModelUse";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 
-/** The culture every graphical culture's fallback chain ends at. */
-export const DEFAULT_CULTURE = "mammalian_01";
+/** The culture the baker reads as owned by no empire: the game draws such a model's bare entity. */
+export const NO_CULTURE = "none";
 
 /** The station section a level with no model of its own draws: nothing to show. */
 const EMPTY_SECTION_ENTITY = "empty_section_entity";
@@ -18,11 +18,11 @@ const EMPTY_SECTION_ENTITY = "empty_section_entity";
 export const PLANET_SCALED_DISC = 0.4488;
 
 /**
- * The texture key the baker draws `entity` under, in `culture` or its fallbacks, turned `yaw`
- * whole degrees about its up axis.
+ * The texture key the baker draws `entity` under, in `culture` or its fallbacks, or bare for no
+ * culture, turned `yaw` whole degrees about its up axis.
  */
 export function modelKey(culture: string | null, entity: string, yaw = 0): string {
-  const base = `model:${culture ?? DEFAULT_CULTURE}:${entity}`;
+  const base = `model:${culture ?? NO_CULTURE}:${entity}`;
   return yaw === 0 ? base : `${base}:yaw${yaw}`;
 }
 
@@ -52,7 +52,8 @@ export function megastructureYaw(
 /**
  * The model a planet of `view`'s class is drawn from in place of its disc: the save's own model
  * for it, else its class's; null for a class drawn as a disc. A ring world segment turns to face
- * the star from `at`, where the save puts it; a habitat is not turned.
+ * the star from `at`, where the save puts it, and is drawn bare as the game draws a shattered
+ * ring's colony; a habitat is not turned and takes its owner's culture.
  */
 export function bodyModelKey(
   view: PlanetClassView | undefined,
@@ -61,8 +62,8 @@ export function bodyModelKey(
 ): string | null {
   const entity = view?.body_model ? (planet.entity_name ?? view.body_model) : null;
   if (!entity) return null;
-  const yaw = view?.ringworld === true && at !== null ? facingYaw(at[0], at[1]) : 0;
-  return modelKey(planet.culture ?? null, entity, yaw);
+  if (view?.ringworld !== true) return modelKey(planet.culture ?? null, entity);
+  return modelKey(null, entity, at === null ? 0 : facingYaw(at[0], at[1]));
 }
 
 /** The game data each of a save's model keys is chosen by. */

@@ -18,6 +18,8 @@ use crate::textures::planet_disc::{self, EntitySurface};
 
 /// The culture the game falls back to for a model with none of the culture asked for.
 pub(super) const FALLBACK_CULTURE: &str = "mammalian_01";
+/// The culture a model key names for what no empire owns: the game draws its bare entity.
+pub(super) const NO_CULTURE: &str = "none";
 /// How many `attach` and `clone` steps are followed from the entity asked for.
 const DEPTH: usize = 6;
 /// The locator every assembly attaches its parts at, the model's origin when no file
@@ -210,8 +212,12 @@ impl Assets {
     }
 
     /// The first of `<culture>_<entity>` for each of `cultures` in turn, then
-    /// `mammalian_01_<entity>` and `<entity>`, that an `.asset` file defines.
+    /// `mammalian_01_<entity>` and `<entity>`, that an `.asset` file defines. For
+    /// [`NO_CULTURE`], `<entity>` comes first.
     pub(super) fn entity_name(&self, cultures: &[String], entity: &str) -> Option<String> {
+        if cultures.iter().any(|c| c == NO_CULTURE) && self.entities.contains_key(entity) {
+            return Some(entity.to_owned());
+        }
         let fallback =
             (!cultures.iter().any(|c| c == FALLBACK_CULTURE)).then_some(FALLBACK_CULTURE);
         cultures

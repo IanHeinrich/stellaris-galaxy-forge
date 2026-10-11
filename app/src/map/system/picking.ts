@@ -119,10 +119,7 @@ function onModel(s: SceneStructure, at: Pt): boolean {
 }
 
 /** The megastructure or starbase whose landed model sprite covers the world point `at`; the nearest point wins. */
-export function structureOnModel(
-  structures: readonly SceneStructure[],
-  at: Pt,
-): SceneTarget | null {
+function structureOnModel(structures: readonly SceneStructure[], at: Pt): SceneStructure | null {
   let best: SceneStructure | null = null;
   let bestDistance = Infinity;
   for (const s of structures) {
@@ -132,7 +129,15 @@ export function structureOnModel(
       bestDistance = distance;
     }
   }
-  return best === null ? null : { kind: best.kind, id: best.id };
+  return best;
+}
+
+/** Whether the world point `at` is on the drawn disc of `body`, the floor left out. */
+function onDisc(bodies: readonly SceneBody[], body: number | null, cam: Camera, at: Pt): boolean {
+  const found = body === null ? undefined : bodies.find((b) => b.placement.id === body);
+  if (found === undefined || found.planet === null) return false;
+  const { x, y, disc } = found.placement;
+  return Math.hypot(x - at.x, y - at.y) <= drawnDisc(disc, cam.scale, found.look);
 }
 
 /**
@@ -200,8 +205,9 @@ export function pickHandle(
 /**
  * What the world point `at` is over. A wormhole, one of the `shown` band's handles or a hyperlane
  * arrow comes first where a structure's model covers the point, then the plate `plateAt` finds
- * there, then the model, which is drawn over the bodies. Elsewhere: a body's disc, the plate
- * `plateAt` finds, a wormhole, a handle, an arrow, or a megastructure or starbase near its point.
+ * there, then the disc of the body the structure stands on, then the model, which is drawn over
+ * the bodies. Elsewhere: a body's disc, the plate `plateAt` finds, a wormhole, a handle, an
+ * arrow, or a megastructure or starbase near its point.
  */
 export function pickTarget(
   ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits" | "structures">,
@@ -218,8 +224,13 @@ export function pickTarget(
     const exit = pickExit(ctx.exits, cam, at);
     return exit === null ? null : { kind: "exit", id: exit };
   };
-  const onModel = structureOnModel(ctx.structures, at);
-  if (onModel !== null) return others() ?? plateAt() ?? onModel;
+  const covering = structureOnModel(ctx.structures, at);
+  if (covering !== null) {
+    const under = onDisc(ctx.bodies, covering.on, cam, at) ? covering.on : null;
+    const own: SceneTarget =
+      under === null ? { kind: covering.kind, id: covering.id } : { kind: "body", id: under };
+    return others() ?? plateAt() ?? own;
+  }
   // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
   const body = pickBody(ctx.bodies, cam, at);
   if (body !== null) return { kind: "body", id: body };

@@ -2,7 +2,7 @@
 //! meshes read from their `.mesh` files, turned by the yaw about its up axis and drawn from
 //! above at a slight tilt, at the size the game draws it.
 //! The entity is looked up as `<culture>_<entity>`, then `mammalian_01_<entity>`, then
-//! `<entity>`. Skipped: skinned animation (the bind pose is drawn), particles, specular and
+//! `<entity>`; for the culture `none`, what no empire owns, `<entity>` first. Skipped: skinned animation (the bind pose is drawn), particles, specular and
 //! environment light, bloom, atmospheres, and additive and scrolling extras such as the Dyson
 //! Sphere's rays. A planet the model holds, as the Arc Furnace's, hides what is behind it but
 //! is left clear, so the editor's own planet shows through.
