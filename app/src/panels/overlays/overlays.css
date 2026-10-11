@@ -343,10 +343,11 @@
 }
 
 /* A fixed height, so the dialog keeps its size as the selection and the filter change the tiles. */
-.megastructure-add-dialog {
+.open-dialog.megastructure-add-dialog {
   width: min(1040px, 100%);
   height: min(86vh, 800px);
   max-height: min(86vh, 800px);
+  container-type: inline-size;
 }
 
 .megastructure-add-dialog > form {
@@ -372,6 +373,17 @@
   gap: 12px;
   min-height: 0;
   margin: 6px 0 10px;
+}
+
+@container (max-width: 860px) {
+  .megastructure-add-browse {
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 220px;
+  }
+
+  .megastructure-add-preview {
+    grid-column: 1 / -1;
+  }
 }
 
 .megastructure-add-list-column {
