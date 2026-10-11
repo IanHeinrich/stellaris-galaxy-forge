@@ -46,6 +46,7 @@ impl Row<'_> {
             megastructure_flag: self.flag,
             star_only: self.star_only,
             construction: None,
+            left_out: 0,
         }
     }
 }
@@ -559,6 +560,7 @@ fn with_construction(row: Row<'_>, construction: MegastructureConstruction) -> O
             megastructure_flag,
             star_only,
             construction: Some(construction),
+            left_out: 0,
         },
         other => other,
     }

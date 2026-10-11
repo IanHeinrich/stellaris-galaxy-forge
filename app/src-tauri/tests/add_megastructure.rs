@@ -12,7 +12,7 @@ use common::{SAMPLE_45, invoke, open, webview, with_game_data};
 fn nexus() -> serde_json::Value {
     json!({
         "system": 169, "kind": "think_tank_3",
-        "place": { "place": "body", "body": 6 }, "owner": 0
+        "place": { "place": "body", "body": 6 }
     })
 }
 
@@ -51,7 +51,7 @@ fn a_megastructure_is_added_and_undone() {
         "add_megastructure",
         json!({
             "system": 0, "kind": "hyper_relay",
-            "place": { "place": "free", "x": 0.0, "y": -260.0 }, "owner": null
+            "place": { "place": "free", "x": 0.0, "y": -260.0 }
         }),
     )
     .expect("a relay");
@@ -92,7 +92,7 @@ fn a_star_only_type_is_refused_off_a_star() {
     let sphere = |body: u32| {
         json!({
             "system": 1, "kind": "dyson_sphere_5",
-            "place": { "place": "body", "body": body }, "owner": null
+            "place": { "place": "body", "body": body }
         })
     };
     let refused =
@@ -114,7 +114,7 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
         invoke::<AddedMegastructure>(
             &w,
             "add_megastructure",
-            json!({ "system": 1, "kind": kind, "place": place, "owner": null }),
+            json!({ "system": 1, "kind": kind, "place": place }),
         )
         .expect_err(kind)
     };
@@ -132,11 +132,13 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
     );
 }
 
-/// An Arc Furnace round Sol's molten planet 1 takes the mining bonus and a deposit to the
+/// An Arc Furnace round Alari's molten planet 1 takes the mining bonus and a deposit to the
 /// 11 bodies its event picks: not the star, the colonised capital, or barren cold 8 and
-/// barren 11, whose engineering deposits a research station works. It raises its owner's
-/// counter. A Dyson Swarm round Xu Nur's star gives the star its last stage's
-/// modifier only. Deleted, the furnace takes all of it back.
+/// barren 11, whose engineering deposits a research station works. It raises the counter
+/// of country 0, which owns the system. One effect of an event its owner fires is left out
+/// and named, and the edit says so. A Dyson Swarm round the star of Xu Nur, which no one
+/// owns, gives the star its last stage's modifier and raises no counter. Deleted, the
+/// furnace takes all of it back.
 #[test]
 fn a_megastructure_is_added_with_what_its_construction_adds() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
@@ -147,32 +149,32 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         "add_megastructure",
         json!({
             "system": 169, "kind": "orbital_arc_furnace_4",
-            "place": { "place": "body", "body": 1 }, "owner": 0
+            "place": { "place": "body", "body": 1 }
         }),
     )
     .expect("the Arc Furnace");
     assert_eq!(
         furnace.edit.entry.description,
-        "Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 11 modifiers, 11 deposits and 1 counter"
+        "Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 11 modifiers, 11 deposits and 1 counter, leaving out 1 effect of its construction"
+    );
+    assert_eq!(
+        furnace.skipped,
+        ["focus.535: change_variable with a value that is not a number"]
     );
     let swarm: AddedMegastructure = invoke(
         &w,
         "add_megastructure",
         json!({
             "system": 1, "kind": "dyson_swarm_3",
-            "place": { "place": "body", "body": 584 }, "owner": 0
+            "place": { "place": "body", "body": 584 }
         }),
     )
     .expect("the Dyson Swarm");
-    assert!(
-        swarm
-            .edit
-            .entry
-            .description
-            .ends_with(", with 1 modifier and 1 counter"),
-        "{}",
-        swarm.edit.entry.description
+    assert_eq!(
+        swarm.edit.entry.description,
+        "Added megastructure #17 (dyson_swarm_3) in Xu Nur #1, with 1 modifier"
     );
+    assert!(swarm.skipped.is_empty(), "{:?}", swarm.skipped);
     let deleted: EditResult = invoke(
         &w,
         "delete_megastructure",

@@ -1,7 +1,7 @@
 //! Adding a megastructure of any type the install and its mods define to a system of the
 //! open save, placed as its type says.
 
-use sgf_core::ops::{MegastructurePlace, NewBypass, Op};
+use sgf_core::ops::{MegastructureConstruction, MegastructurePlace, NewBypass, Op};
 use sgf_core::views::{ErrorKind, SgfError};
 use sgf_gamedata::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 use tauri::{AppHandle, Runtime};
@@ -12,19 +12,20 @@ use crate::views::AddedMegastructure;
 const ONLY_A_SAVE_ADDS: &str = "only a save takes an added megastructure";
 
 /// Add a finished megastructure of type `kind` to system `system` of the open save as one
-/// `AddMegastructure`, at `place`, owned by `owner` when given. A gateway or relay gets its
-/// bypass, open when the type opens it, a type whose build marks its planet marks it, and
-/// an Orbital Ring ruin flags its planet as the game does. The timed modifiers, deposits and
-/// owner counters its build chain adds in that system are written with it. A type built only
-/// around a star is refused on any other body. A type the install does not define, or one
-/// the editor does not add, is refused with the reason.
+/// `AddMegastructure`, at `place`, owned by the system's owner, as the game makes it on load.
+/// A gateway or relay gets its bypass, open when the type opens it, a type whose build marks
+/// its planet marks it, and an Orbital Ring ruin flags its planet as the game does. The timed
+/// modifiers, deposits and owner counters its build chain adds in that system are written
+/// with it, and the answer lists each effect the chain may add that was left out because the
+/// editor could not tell whether it applies. A type built only around a star is refused on
+/// any other body. A type the install does not define, or one the editor does not add, is
+/// refused with the reason.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
     kind: String,
     place: MegastructurePlace,
-    owner: Option<u32>,
 ) -> Result<AddedMegastructure, SgfError> {
     let gd = game_data(&app, "add a megastructure")?;
     let def = gd.megastructures.get(&kind).ok_or_else(|| {
@@ -33,19 +34,29 @@ pub async fn add_megastructure<R: Runtime>(
             format!("the install and its mods define no megastructure {kind}"),
         )
     })?;
-    let mut op = add_op(def, system, place, owner)?;
-    let chain = def.construction.clone();
+    check_place(def, place)?;
+    let def = def.clone();
     let host = match place {
         MegastructurePlace::Body { body } => Some(body),
         MegastructurePlace::Free { .. } => None,
     };
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+        let owner = session
+            .graph()
+            .systems
+            .get(&system)
+            .and_then(|node| node.owner);
         let site = session.construction_site(system)?;
-        let built = chain.replay(&gd, &site, host, owner.is_some());
-        if let Op::AddMegastructure { construction, .. } = &mut op {
-            *construction = (!built.construction.is_empty()).then_some(built.construction);
-        }
+        let built = def.construction.replay(&gd, &site, host, owner.is_some());
+        let op = add_op(
+            &def,
+            system,
+            place,
+            owner,
+            built.construction,
+            &built.skipped,
+        );
         let result = session.apply(op)?;
         let Op::RemoveMegastructure { megastructure, .. } = result.inverse else {
             return Err(SgfError::new(
@@ -56,18 +67,14 @@ pub async fn add_megastructure<R: Runtime>(
         Ok(AddedMegastructure {
             edit: session.edit_result(result),
             megastructure,
+            skipped: built.skipped,
         })
     })
     .await
 }
 
-/// The op that adds a row of type `def` at `place`.
-fn add_op(
-    def: &MegastructureDef,
-    system: u32,
-    place: MegastructurePlace,
-    owner: Option<u32>,
-) -> Result<Op, SgfError> {
+/// Refuse a type the editor does not add, or one whose placement `place` does not match.
+fn check_place(def: &MegastructureDef, place: MegastructurePlace) -> Result<(), SgfError> {
     let refuse = |reason: String| {
         SgfError::new(
             ErrorKind::Op,
@@ -75,20 +82,32 @@ fn add_op(
         )
     };
     match (&def.placement, place) {
-        (Placement::Unsupported { why }, _) => return Err(refuse(unsupported(why))),
+        (Placement::Unsupported { why }, _) => Err(refuse(unsupported(why))),
         (Placement::Body { .. }, MegastructurePlace::Free { .. }) => {
-            return Err(refuse("it stands on or around a planet or star".to_owned()));
+            Err(refuse("it stands on or around a planet or star".to_owned()))
         }
         (Placement::Free { .. }, MegastructurePlace::Body { .. }) => {
-            return Err(refuse("it stands at a point of its own".to_owned()));
+            Err(refuse("it stands at a point of its own".to_owned()))
         }
-        _ => {}
+        _ => Ok(()),
     }
+}
+
+/// The op that adds a row of type `def` at `place`, with what its construction adds and how
+/// many of its effects were left out.
+fn add_op(
+    def: &MegastructureDef,
+    system: u32,
+    place: MegastructurePlace,
+    owner: Option<u32>,
+    construction: MegastructureConstruction,
+    skipped: &[String],
+) -> Op {
     let bypass = def.bypass_type.as_ref().map(|kind| NewBypass {
         kind: kind.clone(),
         active: kind == "relay_bypass" || def.activates_gateway,
     });
-    Ok(Op::AddMegastructure {
+    Op::AddMegastructure {
         system,
         kind: def.key.clone(),
         at: place,
@@ -97,8 +116,9 @@ fn add_op(
         ruined_orbital_ring: def.ruined_orbital_ring,
         megastructure_flag: def.sets_has_megastructure,
         star_only: matches!(def.placement, Placement::Body { star_only: true }),
-        construction: None,
-    })
+        construction: (!construction.is_empty()).then_some(construction),
+        left_out: u32::try_from(skipped.len()).unwrap_or(u32::MAX),
+    }
 }
 
 fn unsupported(why: &Unsupported) -> String {

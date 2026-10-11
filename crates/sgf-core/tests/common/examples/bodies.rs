@@ -212,6 +212,7 @@ pub(super) fn examples() -> Vec<Example> {
             megastructure_flag: false,
             star_only: false,
             construction: None,
+            left_out: 0,
         }),
         Example::added_megastructure(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,

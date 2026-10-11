@@ -53,6 +53,7 @@ pub(crate) struct NewRow<'a> {
     pub megastructure_flag: bool,
     pub star_only: bool,
     pub construction: Option<&'a MegastructureConstruction>,
+    pub left_out: u32,
 }
 
 pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result<Planned, OpError> {
@@ -184,10 +185,16 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         .into_iter()
         .collect();
     with.extend(new.construction.map(counts).filter(|c| !c.is_empty()));
-    let with = match with.as_slice() {
+    let mut with = match with.as_slice() {
         [] => String::new(),
         parts => format!(", with {}", parts.join(" and ")),
     };
+    if new.left_out > 0 {
+        with.push_str(&format!(
+            ", leaving out {} of its construction",
+            plural(new.left_out as usize, "effect")
+        ));
+    }
     Ok(Planned {
         description: format!(
             "Added megastructure #{id} ({}) in {}{with}",
@@ -268,6 +275,7 @@ pub(crate) fn plan_remove(
         megastructure_flag,
         star_only,
         construction: (!taken.is_empty()).then(|| taken.clone()),
+        left_out: 0,
     };
     let with = match counts(&taken) {
         counted if counted.is_empty() => String::new(),

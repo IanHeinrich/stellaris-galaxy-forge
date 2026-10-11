@@ -23,12 +23,15 @@ pub struct AddedBody {
     pub planet: u32,
 }
 
-/// What adding a megastructure answers with: the edit, and the id the new row took.
+/// What adding a megastructure answers with: the edit, the id the new row took, and each
+/// effect of its construction left out because the editor could not tell whether it
+/// applies, as the type's script says it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AddedMegastructure {
     pub edit: EditResult,
     pub megastructure: u32,
+    pub skipped: Vec<String>,
 }
 
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,

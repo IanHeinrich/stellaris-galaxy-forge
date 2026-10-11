@@ -787,7 +787,8 @@ pub enum Op {
     /// A new `megastructures` row of type `kind` in save system `system`, written finished:
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
-    /// owner lists it in `owned_megastructures`. A row on a [`MegastructurePlace::Body`]
+    /// owner lists it in `owned_megastructures`; on load the game gives every row to the
+    /// owner of its system, whatever the row names. A row on a [`MegastructurePlace::Body`]
     /// stands at the body's point and names it, and the body gets `megastructure=<id>`, with
     /// the planet flags `has_megastructure` and `ruined_orbital_ring_planet` when asked. The
     /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
@@ -834,6 +835,11 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
+        /// How many effects of the type's construction the caller could not tell apply and
+        /// left out of `construction`; the description says so.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        #[ts(optional, as = "Option<u32>")]
+        left_out: u32,
     },
     /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
     /// taken out again: it gives its slot back as an added body does, and it is unlinked as
@@ -1554,4 +1560,8 @@ pub struct LaneLength {
     pub a: u32,
     pub b: u32,
     pub length: f64,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
