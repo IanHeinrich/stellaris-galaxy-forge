@@ -126,6 +126,14 @@ describe("where a megastructure or a starbase is drawn", () => {
     expect(only(system([nexus]))).toMatchObject({ x: 90, y: -20 });
   });
 
+  it("puts a row drawn on its body under the body's plate, and one drawn off it under its own", () => {
+    const nexus = megastructureSummary({ id: 7, kind: "think_tank_3", planet: EARTH.id });
+    const furnace = megastructureSummary({ id: 9, kind: "orbital_arc_furnace_1", planet: MARS.id });
+    const [off, on] = system([nexus, furnace]).structures;
+    expect(off).toMatchObject({ id: 7, on: null });
+    expect(on).toMatchObject({ id: 9, on: MARS.id });
+  });
+
   it("carries a tied row with its body while a drag moves the body", () => {
     const furnace = megastructureSummary({ kind: "orbital_arc_furnace_1", planet: MARS.id });
     const base = system([furnace]);

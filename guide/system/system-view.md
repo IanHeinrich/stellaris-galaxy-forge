@@ -139,20 +139,20 @@ its star, and an Arc Furnace rings its planet. A megastructure built on
 a planet or moon stays with it when you move the planet. Ring world
 sections turn to face their star, so the pieces of a ring world join up.
 
-Habitats and ring world segments are planets, and they show as their
+Habitats and ring world sections are planets, and they show as their
 models from the game too. You select, move and name them as you do any
 other planet.
 
 Each megastructure and starbase shows its name on a plate under it
-while Names is on. One built on a star or a planet has its plate under
-that body's plate. With System details on, a megastructure that
+while Names is on. One drawn over a star or a planet, such as a Dyson
+Sphere or an Arc Furnace, has its plate under that body's plate. With System details on, a megastructure that
 produces resources, such as a Dyson Sphere or a Science Nexus, shows
 what it produces each month under its name. This is the base output,
 before your empire's modifiers, so the game can show a different figure.
 
 Hover over a megastructure or starbase to see its name. Click its model
 to open its page in the Inspector. To select a planet or star under a
-megastructure, click the body's name plate.
+megastructure, click the body itself or its name plate.
 
 The models are read from your Stellaris install. Galaxy Forge prepares
 them in the background after a save opens. A system you open straight

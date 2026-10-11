@@ -249,7 +249,10 @@ export interface SceneStructure {
   readonly name: string;
   /** Its starbase level as the Station section names it; null for a megastructure. */
   readonly level: string | null;
-  /** The body it stands on, under whose plate its own goes; null where it stands alone. */
+  /**
+   * The body it stands on, under whose plate its own goes; null where it stands alone or is drawn
+   * off its body.
+   */
   readonly on: number | null;
   /** What it produces each month, per resource, as the Details layer shows it under its plate. */
   readonly resources: readonly ResourceRow[];
@@ -740,7 +743,8 @@ function megastructure(
     iconKeys: [MEGASTRUCTURE_ICON_KEY],
     name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
     level: null,
-    on: body?.placement.id ?? null,
+    // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
+    on: offset[0] === 0 && offset[1] === 0 ? (body?.placement.id ?? null) : null,
     resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
   };
 }
