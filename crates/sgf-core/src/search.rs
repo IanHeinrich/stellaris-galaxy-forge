@@ -1,17 +1,21 @@
-//! Find the save's named things for the search palette: systems, countries, planets,
-//! fleets and nebulae, by id or name, and systems by what they hold.
+//! Find the save's named things for the search palette: star types, systems, countries,
+//! planets, fleets and nebulae, by id or name, and systems by what they hold.
 //!
 //! Names are compared the way the UI displays them: case-insensitive, without the
 //! `NAME_` / `STAR_NAME_` / `SPEC_` prefix, underscores read as spaces. A localised
 //! name, when the resolver knows one, is matched as well; a name built from a template
 //! matches on any key in it. A system's flags and planet classes match on their localised
-//! names too. Hits come back grouped by kind, systems first, at most `limit` of each.
+//! names too. Hits come back grouped by kind, star types first, at most `limit` of each.
+
+mod star_types;
 
 use std::collections::{BTreeSet, HashMap};
 
 use crate::as_u32;
 use crate::format::save::details::{DetailsProjection, RawSystemDetails};
-use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula, SystemNode, display_name};
+use crate::projections::galaxy::{
+    BypassLink, GalaxyGraph, Nebula, StarClasses, SystemNode, display_name,
+};
 use crate::projections::name::NameTemplate;
 use crate::views::{SearchHit, SearchKind, SearchResult};
 
@@ -53,10 +57,15 @@ const MIN_CONTENT_NEEDLE: usize = 3;
 /// not match is matched on what it holds (initializer, flags, special kinds, bypasses,
 /// planet classes), exact, prefix or word start only, below every name match; a flag or
 /// planet class matches on its key or its resolved name. Planets, fleets and planet
-/// classes are only searched when `details` is built.
+/// classes are only searched when `details` is built. A save's star types match by letter,
+/// colour word, key or localised name, however short the query; see [`star_types`]. A star
+/// type counts every system with a star of that type, `stars` saying which bodies are stars.
+/// It lists its systems on its own hit and adds none to the located ones, so a query of one
+/// letter rings no stars.
 pub fn search(
     g: &GalaxyGraph,
     details: Option<&DetailsProjection>,
+    stars: &StarClasses,
     query: &str,
     limit: usize,
     resolve: NameResolver<'_>,
@@ -74,6 +83,7 @@ pub fn search(
         resolve,
         special,
     };
+    let star_types = star_types::matching(g, stars, &needle, resolve);
     let systems = systems(g, query, &needle, &content, resolve);
     let held_in = |of: fn(&RawSystemDetails) -> Vec<Named<'_>>| {
         details.map_or_else(Vec::new, |d| in_details(g, d, of, &needle, resolve))
@@ -108,11 +118,17 @@ pub fn search(
         .chain(fleets.iter().map(|&(_, system, _)| system))
         .collect();
 
-    let mut hits: Vec<SearchHit> = systems
-        .into_iter()
+    let mut hits: Vec<SearchHit> = star_types
+        .iter()
         .take(limit)
-        .map(|m| system_hit(g, &g.systems[&m.id], m.matched))
+        .map(|(_, id, t)| t.hit(*id))
         .collect();
+    hits.extend(
+        systems
+            .into_iter()
+            .take(limit)
+            .map(|m| system_hit(g, &g.systems[&m.id], m.matched)),
+    );
     hits.extend(countries(g, details, &needle, limit, resolve));
     let held = |kind: SearchKind, (_, system, named): &(Rank, u32, Named<'_>)| SearchHit {
         system_id: Some(*system),

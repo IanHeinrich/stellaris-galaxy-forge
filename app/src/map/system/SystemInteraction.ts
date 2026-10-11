@@ -178,6 +178,7 @@ export class SystemInteraction {
           this.hover(null, 0, 0);
           this.scene.revealHandles(null);
         },
+        remeasure: (input) => this.remeasure(input),
       },
     );
   }
@@ -195,6 +196,11 @@ export class SystemInteraction {
     this.hover(null, 0, 0);
     this.scene.revealHandles(null);
     this.canvas.style.cursor = "";
+  }
+
+  /** Keeps a drag under the pointer when the camera moved without it. */
+  follow(): void {
+    this.pointer.follow();
   }
 
   /** Drops a drag in progress, as Esc does. */
@@ -246,9 +252,14 @@ export class SystemInteraction {
     const shift = key === "Shift" ? held : last.shift;
     const ctrl = CTRL_KEYS.has(key) ? held : last.ctrl;
     if (shift === last.shift && ctrl === last.ctrl) return;
-    const w = this.cam.screenToWorld(last.sx, last.sy, this.at);
-    this.lastMove = { ...last, shift, ctrl, wx: w.x, wy: w.y, scale: this.cam.scale };
-    this.pointer.handle(this.lastMove);
+    this.pointer.handle(this.remeasure({ ...last, shift, ctrl }));
+  }
+
+  /** `input` at the same screen point under the camera as it stands now, kept as the last move. */
+  private remeasure(input: SystemInput): SystemInput {
+    const w = this.cam.screenToWorld(input.sx, input.sy, this.at);
+    this.lastMove = { ...input, wx: w.x, wy: w.y, scale: this.cam.scale };
+    return this.lastMove;
   }
 
   private preview(step: DragStep | null): void {

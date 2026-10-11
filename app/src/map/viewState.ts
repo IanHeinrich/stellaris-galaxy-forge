@@ -49,6 +49,8 @@ export interface MapView {
   syncLayers(): void;
   fit(): void;
   fitSelection(): void;
+  /** Frames the systems `ids` as `fitSelection` frames the selection. */
+  frameSystems(ids: readonly number[]): void;
   focusOn(id: number): void;
   panTo(x: number, y: number): void;
   /** Leans the map `degrees` away from the viewer, or lays it flat at 0. */
@@ -112,10 +114,13 @@ const BINDINGS: Array<Binding<MapView, Applied>> = [
   ),
   follows(
     useEditorStore,
-    [(s) => s.searchRings],
-    (s, view) => view.highlights.setSearched(new Set(s.searchRings)),
+    [(s) => s.searchRings, (s) => s.heldRings],
+    (s, view) => view.highlights.setSearched(new Set([...s.searchRings, ...s.heldRings])),
     "bind",
   ),
+  follows(useEditorStore, [(s) => s.framed], (s, view) => {
+    if (s.framed) view.frameSystems(s.framed.ids);
+  }),
   follows(useEditorStore, [(s) => s.focus], (s, view) => {
     if (s.focus) view.focusOn(s.focus.id);
   }),

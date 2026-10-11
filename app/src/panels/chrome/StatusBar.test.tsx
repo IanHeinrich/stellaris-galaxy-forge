@@ -165,6 +165,21 @@ describe("the gesture hint", () => {
   });
 });
 
+describe("the held rings", () => {
+  it("names what search ringed beside the selection, and the × clears the rings", () => {
+    useEditorStore.setState({ selection: [0, 1] });
+    useEditorStore.getState().ringSystems([0, 2, 3], "Class G Star");
+
+    const html = bar();
+    expect(html).toContain("Class G Star · 3 ringed");
+    expect(html).toContain("2 systems selected");
+
+    button("Clear the rings")!.props.onClick();
+    expect(useEditorStore.getState().heldRings).toEqual([]);
+    expect(bar()).not.toContain("ringed");
+  });
+});
+
 describe("the auto-reload notice", () => {
   it("says nothing while the watcher is running", () => {
     useGameDataStore.setState({ autoReloadPaused: false, watching: 3 });

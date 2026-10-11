@@ -98,12 +98,13 @@ export function editPipeline(
   function followRenumbering(pairs: Renumbering): void {
     // Before the selection moves, so the scene following the selection sees the new id as its own.
     useSceneStore.getState().renumber(pairs);
-    const { selection, selectedLane, searchRings, recentHits } = get();
+    const { selection, selectedLane, searchRings, heldRings, recentHits } = get();
     set({
       selection: renumberedIds(pairs, selection),
       hover: null,
       selectedLane: selectedLane && renumberedLane(pairs, selectedLane),
       searchRings: renumberedIds(pairs, searchRings),
+      heldRings: renumberedIds(pairs, heldRings),
       recentHits: renumberedHits(pairs, recentHits),
     });
     for (const tracked of trackers)

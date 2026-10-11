@@ -1,7 +1,7 @@
 ---
 title: Search
-description: Find systems, empires, planets, fleets and nebulae by name or by what is in them, and pin searches you use often.
-aliases: [find, find system, find planet, lookup, filter, pin search, pinned searches, gaia, ctrl k]
+description: Find systems, empires, planets, fleets and nebulae by name or by what is in them, find every star of a type, and pin searches you use often.
+aliases: [find, find system, find planet, lookup, filter, pin search, pinned searches, gaia, ctrl k, star type, pulsar, black hole]
 ---
 # Search <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -20,6 +20,20 @@ precursor, such as "Vultaum". In a scenario it finds systems and nebulae.
 or <kbd>Shift</kbd>+click, adds its system to the selection and keeps
 the search open. <kbd>Esc</kbd> closes it.
 
+In a save, search also finds star types. Type a type's name, such as
+`pulsar` or `black hole`, its letter, such as `g` or `class g`, or a
+colour, such as `yellow` or `red`. The Star types group lists each
+matching type with the number of systems that have it. Every star in a
+system counts, so a binary with a pulsar is listed under Pulsar and
+under Binary Stars. Press <kbd>Enter</kbd> on a star type to ring all
+its systems and fit the map to them. Press
+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add all its systems to the
+selection instead.
+
+The rings stay until your next search. To clear them sooner, press
+<kbd>Esc</kbd> on the galaxy map, or click × beside them in the status
+bar.
+
 ## Search one kind of thing
 
 Start the search with a prefix to find only one kind:
@@ -31,10 +45,11 @@ Start the search with a prefix to find only one kind:
 | `p:` | Planets |
 | `f:` | Fleets |
 | `n:` | Nebulae |
+| `t:` | Star types |
 
 For example, `e:vex` searches empires for "vex". <kbd>Tab</kbd> moves
 what you typed to the next kind, from everything to systems, empires,
-planets, fleets, nebulae and back to everything.
+planets, fleets, nebulae, star types and back to everything.
 
 ## Pin a search
 

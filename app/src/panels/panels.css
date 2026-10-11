@@ -625,6 +625,12 @@ button.link.help-link {
   line-height: 1;
 }
 
+/* Game star art sits on opaque black, which the map draws additively; so do these. */
+.star-class-icon {
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
+}
+
 /* Script text as the file writes it, in the colours modders know, on the app's own background. */
 .snippet {
   margin: 6px 0 8px;

@@ -197,12 +197,14 @@ describe("following a delete that renumbers", () => {
     const [, seven] = withAddedSystems();
     useEditorStore.setState({
       searchRings: [7, 3, 6],
+      heldRings: [6, 7],
       recentHits: [hit("system", 7, 7), hit("planet", 60, 6), hit("system", 3, 3)],
     });
 
     await removeSix(seven);
 
     expect(editor().searchRings).toEqual([6, 3]);
+    expect(editor().heldRings).toEqual([6]);
     expect(editor().recentHits.map((h) => [h.kind, h.id, h.system_id])).toEqual([
       ["system", 6, 6],
       ["system", 3, 3],

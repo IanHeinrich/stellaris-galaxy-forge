@@ -1,5 +1,6 @@
 import type { Application } from "pixi.js";
 import { isEditableTarget } from "../lib/keys";
+import { nudgeHasTarget } from "../store/commands";
 import { useEditorStore } from "../store/editorStore";
 import { useSceneStore, type SceneState } from "../store/sceneStore";
 import { GalaxyScene } from "./GalaxyScene";
@@ -8,6 +9,8 @@ import { SystemScene } from "./system/SystemScene";
 
 const ZOOM_PER_100PX = 1.1;
 const KEY_PAN_PX_PER_S = 700;
+/** How many times faster the keys pan with Shift held. */
+const FAST_KEY_PAN = 3;
 
 const PAN_KEYS: Record<string, [dx: number, dy: number]> = {
   KeyW: [0, 1],
@@ -20,6 +23,8 @@ const PAN_KEYS: Record<string, [dx: number, dy: number]> = {
   ArrowRight: [-1, 0],
 };
 
+const ARROW_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
 /**
  * Hosts the scenes of one Pixi application: it puts the shown scene's root on the stage, and pans
  * and zooms that scene's camera from the wheel and the held keys. Nothing here is React state.
@@ -30,6 +35,8 @@ export class MapController {
   private scene: Scene;
   private readonly transform = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   private readonly heldKeys = new Set<string>();
+  /** Whether Shift is held, which makes the keys pan faster. */
+  private fast = false;
   private readonly cleanups: Array<() => void> = [];
   private appliedRev = -1;
 
@@ -110,7 +117,8 @@ export class MapController {
           dy += v[1];
         }
       }
-      const step = (KEY_PAN_PX_PER_S * dtMs) / 1000;
+      const speed = this.fast ? KEY_PAN_PX_PER_S * FAST_KEY_PAN : KEY_PAN_PX_PER_S;
+      const step = (speed * dtMs) / 1000;
       cam.panBy(dx * step, dy * step);
     }
     cam.update(dtMs);
@@ -139,13 +147,25 @@ export class MapController {
 
   private bindKeyboard(): void {
     const down = (e: KeyboardEvent) => {
+      this.fast = e.shiftKey;
       if (!(e.code in PAN_KEYS) || isEditableTarget(e.target)) return;
-      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Shift+Arrow nudges whatever it would move, which App's own listener does.
+      if (e.shiftKey && ARROW_KEYS.has(e.code) && nudgeHasTarget()) {
+        this.heldKeys.delete(e.code);
+        return;
+      }
       e.preventDefault();
       this.heldKeys.add(e.code);
     };
-    const up = (e: KeyboardEvent) => this.heldKeys.delete(e.code);
-    const blur = () => this.heldKeys.clear();
+    const up = (e: KeyboardEvent) => {
+      this.fast = e.shiftKey;
+      this.heldKeys.delete(e.code);
+    };
+    const blur = () => {
+      this.heldKeys.clear();
+      this.fast = false;
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);

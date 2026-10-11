@@ -208,6 +208,11 @@ h3 {
   color: var(--accent);
 }
 
+.status-bar .held-rings button.link {
+  color: inherit;
+  padding: 0 4px;
+}
+
 .badge {
   padding: 0 6px;
   font-size: var(--text-note);

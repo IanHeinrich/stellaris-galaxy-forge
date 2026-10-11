@@ -346,6 +346,7 @@ export class SystemScene implements Scene, SceneView, InteractionScene {
   }
 
   tick(): void {
+    this.interaction.follow();
     if (this.stepPending) this.apply();
     const { width, height } = this.cam;
     if (this.fitPending) {

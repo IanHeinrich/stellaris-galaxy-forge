@@ -337,6 +337,23 @@ describe("a body dragged in the system scene", () => {
     expect(earthAngle(shown)).toBe(0);
   });
 
+  it("pans while the middle button is held during the drag, and sends the drag on release", async () => {
+    detailsLand(SYSTEM);
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
+    const shown = entered(canvas);
+    zoomedOnEarth(shown);
+    const to = dragEarthTo(shown, fire, 10);
+    const before = camera(shown);
+    fire("pointermove", to.x, to.y, { button: 1, buttons: 5 });
+    fire("pointermove", to.x + 30, to.y, { buttons: 5 });
+    expect(camera(shown).x).not.toBe(before.x);
+    fire("pointermove", to.x + 30, to.y, { button: 1, buttons: 1 });
+    fire("pointerup", to.x + 30, to.y);
+    await Promise.resolve();
+    expect(applyGeometry).toHaveBeenCalledWith(expect.objectContaining({ radius: 90, angle: 10 }));
+  });
+
   it("drops the preview when the edit is refused", async () => {
     vi.mocked(applyGeometry).mockResolvedValueOnce(false);
     detailsLand(SYSTEM);
