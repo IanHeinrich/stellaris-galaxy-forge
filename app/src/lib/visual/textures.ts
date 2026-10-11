@@ -108,10 +108,20 @@ function flushQueue(): void {
     void fetchBatch(keys.slice(i, i + BATCH), generation);
 }
 
+/**
+ * Fetches `keys` in one call. A call that fails as a whole is asked again key by key, so one key
+ * the call cannot answer does not take every other key in the batch with it.
+ */
 async function fetchBatch(keys: string[], gen: number): Promise<void> {
-  const views = await getTextures(keys).catch((e: unknown): TextureView[] =>
-    keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: String(e) })),
+  const views = await getTextures(keys).catch((e: unknown): TextureView[] | null =>
+    keys.length > 1
+      ? null
+      : keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: String(e) })),
   );
+  if (views === null) {
+    await Promise.all(keys.map((key) => fetchBatch([key], gen)));
+    return;
+  }
   const textures = await Promise.all(views.map(toTexture));
   if (gen !== generation) {
     for (const texture of textures) texture?.destroy(true);
