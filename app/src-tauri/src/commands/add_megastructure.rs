@@ -36,7 +36,7 @@ pub async fn add_megastructure<R: Runtime>(
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
         let result = session.apply(op)?;
-        let Op::RemoveMegastructure { megastructure } = result.inverse else {
+        let Op::RemoveMegastructure { megastructure, .. } = result.inverse else {
             return Err(SgfError::new(
                 ErrorKind::Op,
                 "the add named no new megastructure",
@@ -86,6 +86,7 @@ fn add_op(
         ruined_orbital_ring: def.ruined_orbital_ring,
         megastructure_flag: def.sets_has_megastructure,
         star_only: matches!(def.placement, Placement::Body { star_only: true }),
+        construction: None,
     })
 }
 

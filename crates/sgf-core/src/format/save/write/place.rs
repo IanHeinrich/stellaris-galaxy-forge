@@ -157,6 +157,17 @@ pub(crate) mod country {
         before: &[keys::SITUATIONS],
         last: true,
     };
+    /// After the country's `flags`, before the counters and lists the game writes next.
+    pub(crate) const VARIABLES: Place = Place {
+        key: keys::VARIABLES,
+        after: &[keys::FLAGS, keys::TIMED_MODIFIER],
+        before: &[
+            keys::NEXT_TRANSPORT_FLEET_NUMBER,
+            keys::TRADE_CONVERSIONS,
+            keys::SENSOR_RANGE_FLEETS,
+        ],
+        last: false,
+    };
     pub(crate) const OWNED_MEGASTRUCTURES: Place = Place {
         key: keys::OWNED_MEGASTRUCTURES,
         after: &[keys::OWNED_LEADERS],

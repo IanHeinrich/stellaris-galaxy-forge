@@ -32,10 +32,12 @@ pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths};
 pub use error::{OpError, ParseAt, StarEdit};
 pub use op::{
-    BodyName, ClassChange, DetailsReach, EmpireFlag, LaneLength, LanePair, MapColorPair,
-    MegastructureDismantle, MegastructurePlace, NebulaCloud, NebulaFootprint, NewBody, NewBypass,
+    BodyName, ClassChange, ConstructionDeposit, ConstructionModifier, DetailsReach, EmpireFlag,
+    LaneLength, LanePair, MapColorPair, MegastructureConstruction, MegastructureDismantle,
+    MegastructurePlace, ModifierHost, NebulaCloud, NebulaFootprint, NewBody, NewBypass,
     NewModifier, NewMoon, NewName, NewSystem, Op, OpReach, PairPoints, Parent, PlanetClassRule,
     PlanetLook, SavedEntity, SavedTable, StarBody, SystemHeight, SystemMove, VariableDrop,
+    VariableRaise,
 };
 pub(crate) use plan::{Emitted, Plan, Planned, slots};
 

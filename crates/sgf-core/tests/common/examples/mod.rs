@@ -162,6 +162,7 @@ pub fn sol_nexus() -> Op {
         ruined_orbital_ring: false,
         megastructure_flag: true,
         star_only: false,
+        construction: None,
     }
 }
 

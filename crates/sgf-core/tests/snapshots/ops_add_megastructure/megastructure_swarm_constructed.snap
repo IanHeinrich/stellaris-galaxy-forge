@@ -1,0 +1,92 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (dyson_swarm_3) in Alari system #169, with 1 modifier and 1 counter
+inverse: RemoveMegastructure { megastructure: 16, construction: Some(MegastructureConstruction { modifiers: [ConstructionModifier { on: Body { body: 0 }, modifier: "dyson_swarm_3_mod", days: -1 }], deposits: [], variables: [VariableRaise { variable: "dyson_swarm_counter", by: 1 }] }) }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,10 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -80024,11 +80028,25 @@
+ 			}
+ 			shipclass_orbital_station=362
+ 			orbital_defence=0
++			megastructure=16
+ 			bombardment_damage=0
++			timed_modifier=
++			{
++				items=
++				{
++					
++					{
++						modifier="dyson_swarm_3_mod"
++						days=-1
++					}
++ 
++				}
++			}
+ 			flags=
+ 			{
+ 				starting_mining_target=62808000
+ 				starting_deposit=62808000
++				has_megastructure=62818752
+ 			}
+ 			entity=0
+ 			surveyed_by=0
+@@ -576096,6 +576114,10 @@
+ 			}
+ 			mindwarden_enclave_country=62808000
+ 		}
++		variables=
++		{
++			dyson_swarm_counter=1
++		}
+ 		trade_conversions=
+ 		{
+ 			energy=0.5
+@@ -576204,7 +576226,7 @@
+ 		}
+ 		owned_megastructures=
+ 		{
+-			2 
++			2 16 
+ 		}
+ 		ship_design_collection=
+ 		{
+@@ -1400882,6 +1400904,25 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="dyson_swarm_3"
++		coordinate=
++		{
++			x=0
++			y=0
++			origin=169
++		}
++		owner=16
++		graphical_culture="mindwarden_01"
++		planet=0
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

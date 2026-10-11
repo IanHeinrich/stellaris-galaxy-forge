@@ -211,9 +211,11 @@ pub(super) fn examples() -> Vec<Example> {
             ruined_orbital_ring: false,
             megastructure_flag: false,
             star_only: false,
+            construction: None,
         }),
         Example::added_megastructure(Op::RemoveMegastructure {
             megastructure: ADDED_MEGASTRUCTURE,
+            construction: None,
         }),
         Example::save(Op::SetSystemHeights {
             heights: vec![SystemHeight {

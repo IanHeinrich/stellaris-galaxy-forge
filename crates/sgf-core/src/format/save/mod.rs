@@ -304,6 +304,7 @@ impl Format for Save {
                 ruined_orbital_ring,
                 megastructure_flag,
                 star_only,
+                construction,
             } => add_megastructure::plan_add(
                 plan,
                 s,
@@ -316,11 +317,13 @@ impl Format for Save {
                     ruined_orbital_ring: *ruined_orbital_ring,
                     megastructure_flag: *megastructure_flag,
                     star_only: *star_only,
+                    construction: construction.as_ref(),
                 },
             ),
-            Op::RemoveMegastructure { megastructure } => {
-                add_megastructure::plan_remove(plan, s, *megastructure)
-            }
+            Op::RemoveMegastructure {
+                megastructure,
+                construction,
+            } => add_megastructure::plan_remove(plan, s, *megastructure, construction.as_ref()),
             Op::Batch { .. } => Err(OpError::NestedBatch),
             _ => Err(OpError::Unsupported {
                 op: op.name(),

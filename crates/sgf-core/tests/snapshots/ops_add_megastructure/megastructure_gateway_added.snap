@@ -3,7 +3,7 @@ source: crates/sgf-core/tests/common/mod.rs
 expression: value
 ---
 Added megastructure #16 (gateway_final) in Xu Nur #1, with bypass #23
-inverse: RemoveMegastructure { megastructure: 16 }
+inverse: RemoveMegastructure { megastructure: 16, construction: None }
 
 --- gamestate
 +++ gamestate

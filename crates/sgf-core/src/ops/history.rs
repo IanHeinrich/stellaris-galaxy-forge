@@ -67,6 +67,11 @@ impl History {
         Ok(self.undo.last())
     }
 
+    /// The applied ops waiting to be undone, oldest first.
+    pub(crate) fn applied(&self) -> std::slice::Iter<'_, Applied> {
+        self.undo.iter()
+    }
+
     /// Applied ops waiting to be undone.
     pub fn undo_len(&self) -> usize {
         self.undo.len()

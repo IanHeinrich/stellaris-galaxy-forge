@@ -141,6 +141,11 @@ impl Session {
         self.history.entries()
     }
 
+    /// The applied ops waiting to be undone, oldest first.
+    pub(crate) fn applied(&self) -> std::slice::Iter<'_, crate::ops::Applied> {
+        self.history.applied()
+    }
+
     pub fn system(&self, id: u32) -> Option<&SystemNode> {
         self.graph.systems.get(&id)
     }

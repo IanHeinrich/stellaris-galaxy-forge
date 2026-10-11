@@ -21,6 +21,7 @@ use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
 use crate::format::save::write::add_system::{day_one, write_slot};
 use crate::format::save::write::bodies::frame;
+use crate::format::save::write::construction;
 use crate::format::save::write::id_list::append;
 use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, drop_bypass, unlink};
 use crate::format::save::write::place::{self, insert_key};
@@ -29,12 +30,13 @@ use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
-    Edit, Emitted, MegastructurePlace, NewBypass, Op, OpError, ParseAt, Plan, Planned, SavedTable,
-    Subject,
+    Edit, Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, Op, OpError, ParseAt,
+    Plan, Planned, SavedTable, Subject,
 };
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
+use crate::{plural, plural_of};
 
 /// The bypass types a row the editor adds may stand for.
 const GATEWAY: &str = "gateway";
@@ -50,6 +52,7 @@ pub(crate) struct NewRow<'a> {
     pub ruined_orbital_ring: bool,
     pub megastructure_flag: bool,
     pub star_only: bool,
+    pub construction: Option<&'a MegastructureConstruction>,
 }
 
 pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result<Planned, OpError> {
@@ -118,6 +121,9 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             )));
         }
     }
+    if let Some(built) = new.construction {
+        construction::check(s, new.kind, system, new.owner, built)?;
+    }
     let culture = match new.owner {
         Some(owner) => Some(culture_of(plan.edit_country(&s.doc, owner)?)?),
         None => None,
@@ -159,6 +165,10 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             &[id],
         )?;
     }
+    if let Some(built) = new.construction {
+        construction::write_modifiers(plan, s, new.kind, system, built)?;
+        construction::write_rest(plan, s, system, new.owner, built)?;
+    }
     if let Some(body) = body {
         let mut flags = Vec::new();
         if new.megastructure_flag {
@@ -169,9 +179,14 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
         }
         tie(plan.edit_planet(&s.doc, body, system)?, id, &flags)?;
     }
-    let with = match bypass_id {
-        Some(bypass) => format!(", with bypass #{bypass}"),
-        None => String::new(),
+    let mut with: Vec<String> = bypass_id
+        .map(|bypass| format!("bypass #{bypass}"))
+        .into_iter()
+        .collect();
+    with.extend(new.construction.map(counts).filter(|c| !c.is_empty()));
+    let with = match with.as_slice() {
+        [] => String::new(),
+        parts => format!(", with {}", parts.join(" and ")),
     };
     Ok(Planned {
         description: format!(
@@ -179,11 +194,19 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             new.kind,
             named(&s.graph, system)
         ),
-        inverse: Op::RemoveMegastructure { megastructure: id },
+        inverse: Op::RemoveMegastructure {
+            megastructure: id,
+            construction: new.construction.cloned(),
+        },
     })
 }
 
-pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
+pub(crate) fn plan_remove(
+    plan: &mut Plan,
+    s: &Session,
+    id: u32,
+    built: Option<&MegastructureConstruction>,
+) -> Result<Planned, OpError> {
     let tied = megastructure_links::read(&s.doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,
         id,
@@ -223,6 +246,11 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         }
     };
 
+    let built = built.cloned().or_else(|| construction::of_session(s, id));
+    let taken = match &built {
+        Some(built) => construction::take_back(plan, s, system, tied.owner, built)?,
+        None => MegastructureConstruction::default(),
+    };
     let mut table = SlotTable::megastructures(&s.doc)?;
     table.free(plan, &s.doc, Subject::Record(tied.anchor), id, tied.anchor)?;
     table.settle(plan, &s.doc)?;
@@ -239,15 +267,39 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Plann
         ruined_orbital_ring,
         megastructure_flag,
         star_only,
+        construction: (!taken.is_empty()).then(|| taken.clone()),
+    };
+    let with = match counts(&taken) {
+        counted if counted.is_empty() => String::new(),
+        counted => format!(", with {counted}"),
     };
     Ok(Planned {
         description: format!(
-            "Removed megastructure #{id} ({}) from {}",
+            "Removed megastructure #{id} ({}) from {}{with}",
             tied.kind,
             named(&s.graph, system)
         ),
         inverse,
     })
+}
+
+/// "12 modifiers, 12 deposits and a counter", or nothing for an empty construction.
+fn counts(built: &MegastructureConstruction) -> String {
+    let mut parts = Vec::new();
+    if !built.modifiers.is_empty() {
+        parts.push(plural(built.modifiers.len(), "modifier"));
+    }
+    if !built.deposits.is_empty() {
+        parts.push(plural(built.deposits.len(), "deposit"));
+    }
+    if !built.variables.is_empty() {
+        parts.push(plural_of(built.variables.len(), "counter", "counters"));
+    }
+    match parts.split_last() {
+        None => String::new(),
+        Some((last, [])) => last.clone(),
+        Some((last, rest)) => format!("{} and {last}", rest.join(", ")),
+    }
 }
 
 /// Whether the planet `node` holds has the planet flag `flag`.

@@ -6,6 +6,7 @@ import type { LGateOutcome } from "./LGateOutcome";
 import type { LaneLength } from "./LaneLength";
 import type { LanePair } from "./LanePair";
 import type { MapColorPair } from "./MapColorPair";
+import type { MegastructureConstruction } from "./MegastructureConstruction";
 import type { MegastructureDismantle } from "./MegastructureDismantle";
 import type { MegastructurePlace } from "./MegastructurePlace";
 import type { NebulaFootprint } from "./NebulaFootprint";
@@ -53,4 +54,10 @@ megastructure_flag?: boolean,
 /**
  * The type is built only around a star: a body that is not one is refused.
  */
-star_only?: boolean, } | { "type": "RemoveMegastructure", megastructure: number, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };
+star_only?: boolean, construction?: MegastructureConstruction, } | { "type": "RemoveMegastructure", megastructure: number, 
+/**
+ * What the add's construction wrote; filled only by the inverse of
+ * [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
+ * row this session is taken back.
+ */
+construction?: MegastructureConstruction, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };
