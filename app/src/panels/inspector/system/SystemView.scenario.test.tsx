@@ -12,6 +12,7 @@ import {
   entityView,
   name,
   scalar,
+  SCENARIO_RESULT,
 } from "../../../store/fixture";
 
 vi.mock("../../../api/ipc");
@@ -46,6 +47,10 @@ import { drawnBy, drawnButton, drawnField } from "../../../test/drawn";
 import { TextField } from "../../EditField";
 import { SystemView } from "./SystemView";
 import { mockedIpc } from "../../../test/ipc";
+import { SAVE_TO_OPEN_AT_LINE } from "../../../lib/editorCopy";
+import { useScriptEditorStore } from "../../../store/scriptEditorStore";
+
+const VS_CODE = { kind: "found", id: "vscode" } as const;
 
 bindStores();
 
@@ -57,6 +62,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   resetStores();
+  useScriptEditorStore.setState({ ...useScriptEditorStore.getInitialState() });
 });
 
 describe("a scenario system's overview", () => {
@@ -270,7 +276,7 @@ describe("a system's contents", () => {
 });
 
 /** The entity a Data or Source tab is waiting on, as an answered read lands it. */
-function landEntity(): void {
+function landEntity(line?: number): void {
   const addr = { kind: "system", id: SYSTEM } as const;
   const view = entityView("system", {
     addr,
@@ -278,7 +284,7 @@ function landEntity(): void {
   });
   useEntityStore.setState({
     views: new Map([[viewKey(addr, []), view]]),
-    sources: new Map([[addrKey(addr), entitySource("system", { addr, text: "id=1" })]]),
+    sources: new Map([[addrKey(addr), entitySource("system", { addr, text: "id=1", line })]]),
   });
 }
 
@@ -293,6 +299,41 @@ describe("a scenario system's source", () => {
       '<span class="snippet-key">id</span>=<span class="snippet-number">1</span>',
     );
     expect(source).not.toContain("no text of their own");
+  });
+
+  it("opens the scenario file at the system's line", async () => {
+    await open("scenario");
+    landEntity(42);
+    useScriptEditorStore.setState({ choice: { pick: VS_CODE, name: "VS Code", remember: true } });
+    mockedIpc.openInEditor.mockResolvedValue({ fell_back: false, steam_replaces: false });
+    useInspectorStore.setState({ tab: "source" });
+
+    const html = drawnBy(overview);
+    expect(html).toContain('<span class="snippet-where">line 42</span>');
+    expect(html).toContain(`title="${SCENARIO_RESULT.path}">Open in VS Code</button>`);
+    drawnButton(SCENARIO_RESULT.path).onClick();
+    await vi.waitFor(() =>
+      expect(mockedIpc.openInEditor).toHaveBeenCalledWith(SCENARIO_RESULT.path, 42, VS_CODE),
+    );
+  });
+
+  it("says why the Open button opens the top of the file while the scenario has unsaved edits", async () => {
+    await open("scenario");
+    landEntity(42);
+    useFileSessionStore.setState({ dirty: true });
+    useInspectorStore.setState({ tab: "source" });
+
+    expect(overview()).toContain(`title="${SAVE_TO_OPEN_AT_LINE}">Open file</button>`);
+  });
+
+  it("has no bar on a save's system, whose text has no line", async () => {
+    await open("save");
+    landEntity();
+    useInspectorStore.setState({ tab: "source" });
+
+    const html = overview();
+    expect(html).toContain('<span class="snippet-key">id</span>');
+    expect(html).not.toContain("snippet-bar");
   });
 
   it("waits for the entity rather than showing text of its own", async () => {

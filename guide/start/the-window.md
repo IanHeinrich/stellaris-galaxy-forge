@@ -94,6 +94,11 @@ guide in your browser. "Check for updates…" looks for a new release, and
 "Releases page" opens the downloads on GitHub. See
 [Install and update](install-and-update.md#update-the-app).
 
+Under "Script files", the Help menu shows which editor opens script
+files. "Change editor…" picks another one, and "Forget editor" makes
+Galaxy Forge ask again next time. See
+[Open a script in your editor](../scenario/initializers.md#open-a-script-in-your-editor).
+
 ## See the top bar change with the file
 
 The top bar shows the layers and tools that fit what is open. In a

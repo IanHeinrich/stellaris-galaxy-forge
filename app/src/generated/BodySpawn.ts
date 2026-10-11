@@ -3,6 +3,7 @@ import type { CountRange } from "./CountRange";
 import type { DepositStep } from "./DepositStep";
 import type { OrbitFit } from "./OrbitFit";
 import type { RawStatement } from "./RawStatement";
+import type { SourceLine } from "./SourceLine";
 import type { SpawnClass } from "./SpawnClass";
 import type { SpawnName } from "./SpawnName";
 import type { SpawnPool } from "./SpawnPool";
@@ -113,4 +114,9 @@ rolled_features?: SpawnPool,
 /**
  * The name the game gives it. `None` for a body the game never spawns.
  */
-naming?: SpawnName, };
+naming?: SpawnName, 
+/**
+ * Where its `planet` or `moon` block is written: the inline script's file when it was read
+ * from one.
+ */
+at?: SourceLine, };

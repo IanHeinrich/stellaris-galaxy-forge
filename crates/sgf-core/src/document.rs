@@ -226,6 +226,20 @@ impl Document {
         }
     }
 
+    /// The line, from 1, a scenario's `anchor` starts on in the text the document now holds;
+    /// `None` for a save.
+    pub(crate) fn scenario_line(&self, anchor: Anchor) -> Option<u32> {
+        let scenario = self.scenario()?;
+        let newlines = |bytes: &[u8]| memchr::memchr_iter(b'\n', bytes).count();
+        let (mut added, mut removed) = (0, 0);
+        for (slot, bytes) in self.overlay.slots().take_while(|(slot, _)| *slot < anchor) {
+            added += newlines(bytes);
+            removed += newlines(&self.original[slot.start()..slot.end()]);
+        }
+        let opened = scenario.line_at(anchor.start()) as usize;
+        Some(crate::as_u32(opened + added - removed))
+    }
+
     /// A save's `nebula` statements in emission order, one per top-level section the
     /// document now holds; empty for a scenario, which lists its own
     /// ([`ScenarioIndex::nebulae`]).

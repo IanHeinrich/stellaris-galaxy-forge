@@ -1,6 +1,7 @@
 //! Tauri shell: the commands in [`commands`] are the whole IPC surface.
 
 pub mod commands;
+pub mod editors;
 pub mod state;
 pub mod views;
 pub mod watch;
@@ -17,6 +18,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .manage(watch::WatchState::default())
         .manage(watch::document::DocumentWatchState::default())
         .manage(state::UpdateState::default())
+        .manage(editors::PickedProgramFile::default())
+        .manage(editors::PendingProgram::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::save_dirs,
@@ -79,6 +82,10 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_scenario_owners,
             commands::get_scenario_bypasses,
             commands::open_script,
+            commands::editor_choices,
+            commands::open_in_editor,
+            commands::choose_editor_program,
+            commands::answer_editor_chooser,
             commands::open_url,
             commands::paint_mod,
             commands::workshop_links,
@@ -95,6 +102,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_colony_types,
             commands::get_bypasses,
             commands::get_initializers,
+            commands::get_initializer_definition,
             commands::get_galaxy_shapes,
             commands::get_precursors,
             commands::get_map_colors,

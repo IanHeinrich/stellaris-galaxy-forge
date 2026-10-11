@@ -204,6 +204,11 @@ pub struct EntitySource {
     pub changed: Vec<[usize; 2]>,
     /// `text` is the first mebibyte only.
     pub truncated: bool,
+    /// The line, from 1, a scenario's statement starts on in the document as it now reads;
+    /// `None` in a save, whose `gamestate` is zipped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub line: Option<u32>,
 }
 
 /// A save body's own Overview: a planet, moon, star or asteroid and its resources, as the

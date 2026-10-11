@@ -402,3 +402,41 @@
   font-size: var(--text-note);
   white-space: normal;
 }
+
+/* The editor chooser: a radio a row, and the program the user picked under Other…. */
+.editor-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-chooser-list,
+.editor-chooser-other {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-chooser-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-chooser-other label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-chooser-program {
+  display: flex;
+  gap: 6px;
+}
+
+.editor-chooser-program > span {
+  flex: 1;
+  min-width: 0;
+  align-self: center;
+  overflow-wrap: anywhere;
+}

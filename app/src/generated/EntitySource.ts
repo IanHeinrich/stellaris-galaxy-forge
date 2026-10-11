@@ -13,4 +13,9 @@ changed: Array<[number, number]>,
 /**
  * `text` is the first mebibyte only.
  */
-truncated: boolean, };
+truncated: boolean, 
+/**
+ * The line, from 1, a scenario's statement starts on in the document as it now reads;
+ * `None` in a save, whose `gamestate` is zipped.
+ */
+line?: number, };

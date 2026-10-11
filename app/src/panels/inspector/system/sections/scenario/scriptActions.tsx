@@ -1,41 +1,39 @@
+import type { MouseEvent } from "react";
+import type { ScriptRef } from "../../../../../generated/ScriptRef";
 import { fileName } from "../../../../../lib/paths";
-import { openGameFile } from "../../../../openGameFile";
+import { useFileSessionStore } from "../../../../../store/fileSessionStore";
+import { OpenButton } from "../../../../OpenButton";
+import { showInFolder } from "../../../../openGameFile";
+
+/** Inside a `<summary>` a click would open the row, so a click on the buttons goes no further. */
+function keepRowShut(e: MouseEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+}
 
 /**
- * The two ways out to a game-data file; a row whose script is not a file of its own has neither.
- * The default is cancelled as well as the bubbling: inside a `<summary>` a click would open the row.
+ * The ways out to the line a script is written on: the Open button, and Show in Explorer for a
+ * game-data file. A line of the scenario itself opens in the open document.
  */
-export function ScriptActions({ file }: { file: string | null }) {
+export function ScriptActions({ location }: { location: ScriptRef }) {
+  const document = useFileSessionStore((s) => s.path);
+  const file = location.file ?? document;
   if (file === null) return null;
-  const shown = fileName(file) || file;
+  const own = location.file;
   return (
-    <span className="ins-script-actions">
-      <button
-        type="button"
-        className="link"
-        title="Open in editor"
-        aria-label={`Open ${shown} in editor`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openGameFile(file, false);
-        }}
-      >
-        ↗
-      </button>
-      <button
-        type="button"
-        className="link"
-        title="Show in Explorer"
-        aria-label={`Show ${shown} in Explorer`}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openGameFile(file, true);
-        }}
-      >
-        ▤
-      </button>
+    <span className="ins-script-actions" onClick={keepRowShut}>
+      <OpenButton className="ins-script-open" target={{ file, line: location.line }} />
+      {own !== null && (
+        <button
+          type="button"
+          className="link"
+          title="Show in Explorer"
+          aria-label={`Show ${fileName(own) || own} in Explorer`}
+          onClick={() => showInFolder(own)}
+        >
+          ▤
+        </button>
+      )}
     </span>
   );
 }

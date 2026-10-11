@@ -14,7 +14,7 @@ use crate::Diagnostic;
 use crate::initializers::Initializers;
 use crate::install::layers::{Layout, VANILLA};
 use crate::install::scenarios::SCENARIO_DIR;
-use crate::install::script::{self, Def, Variables};
+use crate::install::script::{self, Def, Variables, line_of};
 use crate::scripts::chain::{self, Chain};
 use crate::scripts::claims::{self, Claims};
 use crate::scripts::scan::{self, Dir, Scan};
@@ -616,12 +616,6 @@ fn script_ref(layout: &Layout, file: &Path, line: u32) -> ScriptRef {
         line,
         layer: layer.to_owned(),
     }
-}
-
-fn line_of(src: &[u8], offset: usize) -> u32 {
-    let upto = offset.min(src.len());
-    let lines = src[..upto].iter().filter(|&&b| b == b'\n').count();
-    u32::try_from(lines + 1).unwrap_or(u32::MAX)
 }
 
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {

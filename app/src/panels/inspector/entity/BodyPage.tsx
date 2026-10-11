@@ -20,7 +20,7 @@ import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
-import type { Entry } from "../../../store/inspectorStore";
+import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { canEnterSystem, useBodyShown, useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
@@ -34,6 +34,7 @@ import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
 import { EntityView } from "./EntityView";
+import { InitializerSource } from "./InitializerSource";
 import { OrbitBlock } from "./OrbitBlock";
 import { PlanetAbout } from "./PlanetAbout";
 import { bodySize, rangeText } from "./bodyFields";
@@ -380,7 +381,10 @@ function useListed(system: number, id: number): Listed {
   }, [details, failed, id]);
 }
 
-/** A body's page, read through the source of the open document's kind. */
+/**
+ * A body's page, read through the source of the open document's kind. Its Source tab, where the
+ * generic entity view has none, is its system's initializer with the body's block marked.
+ */
 export function BodyPage({
   entry,
   kind,
@@ -392,6 +396,7 @@ export function BodyPage({
   system: number;
   id: number;
 }) {
+  const tab = useInspectorStore((s) => s.tab);
   const listed = useListed(system, id);
   const source = BODY_SOURCES[kind];
   const answer = source.useRead(system, id, listed);
@@ -401,6 +406,15 @@ export function BodyPage({
       <>
         <Head name={entry.label} body={null} id={source.entityTabs ? id : null} />
         <Empty>{answer.waiting}</Empty>
+      </>
+    );
+  }
+  if (tab === "source") {
+    const { summary } = answer.read;
+    return (
+      <>
+        <Head name={entry.label} body={summary} id={null} />
+        <InitializerSource system={system} spawn={summary.spawn} />
       </>
     );
   }

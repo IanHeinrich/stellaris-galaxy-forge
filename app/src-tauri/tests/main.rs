@@ -9,6 +9,7 @@ mod constants;
 mod copy_planet;
 mod document_watch;
 mod edit;
+mod editors;
 mod entity;
 mod gamedata;
 mod handlers;

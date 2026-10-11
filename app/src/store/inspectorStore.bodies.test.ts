@@ -222,11 +222,11 @@ describe("a save body's page", () => {
 });
 
 describe("a scenario body's page", () => {
-  it("is keyed by its system and id, reads no entity and offers the Overview alone", async () => {
+  it("is keyed by its system and id, reads no entity and offers the Overview and Source", async () => {
     await openFixtureScenario();
     expect(refKey(TARKIN.ref)).toBe("body:1:100");
     expect(entityAddr(TARKIN.ref)).toBeNull();
-    expect(tabsFor(TARKIN.ref)).toEqual(["overview"]);
+    expect(tabsFor(TARKIN.ref)).toEqual(["overview", "source"]);
   });
 
   it("follows its system through a renumber, and goes with it", () => {

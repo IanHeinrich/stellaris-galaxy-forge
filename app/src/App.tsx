@@ -31,6 +31,7 @@ import { MapTooltip } from "./panels/overlays/MapTooltip";
 import { FeZoneFitDialog } from "./panels/overlays/FeZoneFitDialog";
 import { SaveIssuesDialog } from "./panels/overlays/SaveIssuesDialog";
 import { ChangedOnDiskDialog } from "./panels/overlays/ChangedOnDiskDialog";
+import { EditorChooser } from "./panels/overlays/EditorChooser";
 import { UpdateBadge } from "./panels/chrome/UpdateBadge";
 import { UpdateDialog } from "./panels/overlays/UpdateDialog";
 import { OpenSave } from "./panels/file/OpenSave";
@@ -237,6 +238,7 @@ function App() {
           {updateDialog && <UpdateDialog />}
           <ExportDialog />
           <InitializerBrowser />
+          <EditorChooser />
         </div>
         {status === "ready" && <Dock />}
       </div>

@@ -31,6 +31,11 @@
   font-size: 14px;
 }
 
+.ins-script-actions .link.ins-script-open {
+  font-size: var(--text-note);
+  white-space: nowrap;
+}
+
 .ins-prow:hover .ins-script-actions button,
 .ins-script-site:hover .ins-script-actions button,
 .ins-script-actions button:focus-visible {

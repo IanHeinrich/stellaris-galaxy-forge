@@ -98,8 +98,10 @@ bar in the star's colour and its odds.
 
 The Initializer section starts with the initializer's name and the
 Change… button, or Choose… on a system that has no initializer. Under it are the kind of system it makes and the file
-it comes from. Click Open file to open that file in your editor, or
-Show in folder to find it. Galaxy Forge doesn't change the file.
+it comes from. Click Open file to open that file in your editor at the
+initializer's line, or Show in folder to find it. Once you've picked an
+editor, the button names it, such as "Open in VS Code". Galaxy Forge
+doesn't change the file.
 
 The rows below say which empire or creature the initializer creates,
 how many of these systems a galaxy can have, and which values come from
@@ -120,8 +122,19 @@ writes it, in the colours of the CWTools extension for VS Code. Click
 
 The Source tab shows the system's own text, laid out one line per key
 as in a game file. Your file keeps its own layout. Text an edit changed
-is highlighted, with a bar at the left of its line. Nothing on a scenario system's page can
-be edited yet.
+is highlighted, with a bar at the left of its line.
+
+Under the system's text, the Source tab shows its initializer as the
+file writes it, with the file's name above it. Each `inline_script` line
+ends with the script's name. Click the name to open that script in your
+editor.
+
+A planet's or moon's page has a Source tab too. It shows the same
+initializer with a bar beside the block that places the body. For a
+body that comes from an inline script, the bar marks the
+`inline_script` line.
+
+Nothing on a scenario system's page can be edited yet.
 
 ## Show orbit radii
 

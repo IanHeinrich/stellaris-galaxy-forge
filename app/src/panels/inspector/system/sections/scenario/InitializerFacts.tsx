@@ -16,11 +16,10 @@ import {
   usageOddsText,
   usageWeight,
   usageWords,
-  valueSources,
 } from "../../../../../lib/details/spawnFacts";
 import { ScriptSnippet, type SnippetSource } from "../../../../ScriptSnippet";
 import { Group, Properties, PropertyRow } from "../../../parts";
-import { HintedRow, SetByRow, Why } from "../../../states";
+import { HintedRow, SetByRows, Why } from "../../../states";
 import { OtherLinesGroup, ScriptGroup } from "../../../ScriptGroup";
 
 /** `usage_odds` as written: a number, a value Galaxy Forge can't read, or where conditions change it. */
@@ -114,9 +113,7 @@ export function StatedRows({ spawn }: { spawn: SystemSpawn }) {
           {spawn.namelist}
         </PropertyRow>
       )}
-      {valueSources(spawn).map((source) => (
-        <SetByRow key={`${source.label}-${source.name}`} source={source} />
-      ))}
+      <SetByRows uses={spawn} />
     </>
   );
 }
