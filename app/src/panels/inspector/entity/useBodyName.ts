@@ -2,12 +2,7 @@ import { useMemo } from "react";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName } from "../../../lib/details/labels";
-import {
-  givenNamesFrom,
-  listedName,
-  nameFormats,
-  type GivenName,
-} from "../../../lib/details/spawnNames";
+import { givenNamesFrom, nameFormats, type GivenName } from "../../../lib/details/spawnNames";
 import { findPlanet } from "../../../lib/details/starBody";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -66,12 +61,10 @@ export function shownBodyName(
   return given.get(planet.id)?.text ?? bodyName(planet, names);
 }
 
-/** A body's name as a list or link shows it, whether its numeral is rolled, and its page's name. */
+/** A body's name as a list or link shows it: the lowest it can have, and whether its numeral is rolled. */
 export interface ListedBodyName {
   text: string;
   rolled: boolean;
-  /** The name its page heads and its breadcrumb shows: the lowest it can have. */
-  page: string;
 }
 
 /**
@@ -90,9 +83,9 @@ export function useSystemBodyNames(system: number): (id: number) => ListedBodyNa
     const own = given.get(id);
     if (own === undefined) {
       const text = bodyName(planet, names);
-      return { text, rolled: false, page: text };
+      return { text, rolled: false };
     }
-    return { text: listedName(own), rolled: own.rolled, page: own.text };
+    return { text: own.text, rolled: own.rolled };
   };
 }
 

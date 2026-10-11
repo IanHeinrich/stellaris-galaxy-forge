@@ -1,7 +1,6 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
-import { listedName } from "../../lib/details/spawnNames";
 import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
@@ -212,7 +211,7 @@ function bodyReadout(
   const placed = layout.bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
   const given = givenNamesNow(details.id, details.planets).get(id);
-  const name = given === undefined ? bodyName(planet, names) : listedName(given);
+  const name = given === undefined ? bodyName(planet, names) : given.text;
   if (placed.ring === null) return name;
   const orbit = Math.round(placed.ring.radius);
   return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;

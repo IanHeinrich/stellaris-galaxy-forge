@@ -25,7 +25,6 @@ import {
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
-import { listedName } from "../../lib/details/spawnNames";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
@@ -472,10 +471,10 @@ function readoutOf(
   return { hub: discs.get(pointKey(ring.cx, ring.cy)) ?? 0, text: boundsText(radius) };
 }
 
-/** A body's name in the scene: the name the game gives it, its span where its numeral is rolled. */
+/** A body's name in the scene: the name the game gives it, at its lowest numeral. */
 function bodyLabel(src: SystemSources, planet: PlanetSummary): string {
   const given = src.givenNames.get(planet.id);
-  return given === undefined ? src.templateName(planet) : listedName(given);
+  return given === undefined ? src.templateName(planet) : given.text;
 }
 
 function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {

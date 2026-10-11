@@ -8,7 +8,8 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
-import { DEPOSIT_CHANCE_TITLE, FEATURE_CHANCE_TITLE } from "../../../lib/details/spawnFacts";
+import { depositBars } from "../../../lib/details/depositBars";
+import { FEATURE_CHANCE_TITLE } from "../../../lib/details/spawnFacts";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -22,6 +23,7 @@ import { bodyLayout, name } from "../../../test/builders";
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { Rolled, RolledMark } from "../states";
+import { BarLineView } from "./DepositPoolBars";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -95,7 +97,7 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
 
 /** A segment of a deposit roll's bar, as it renders. */
 interface ShownSegment {
-  title: string;
+  lit: boolean;
   grow: number;
   fill: string;
   text: string;
@@ -104,24 +106,26 @@ interface ShownSegment {
 
 /** The rows of a deposit roll's bars, in order, each with its parts as they render. */
 function barRows(html: string) {
-  return [...html.matchAll(/<div class="pl-pool-row" title="([^"]*)">(.*?)<\/span><\/div>/g)].map(
-    ([, title, inner]) => {
-      const width = /class="pl-pool-bar" style="width:([^"]*)"/.exec(inner)?.[1];
-      const segments: ShownSegment[] = [
-        ...inner.matchAll(
-          /class="pl-pool-seg" title="([^"]*)" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
-        ),
-      ].map(([, segTitle, grow, fill, text, label]) => ({
-        title: segTitle,
-        grow: Number(grow),
-        fill,
-        text,
-        label,
-      }));
-      const chance = /class="muted pl-pool-chance"[^>]*>([^<]*)$/.exec(inner)?.[1];
-      return { title, html: inner, width, segments, chance };
-    },
-  );
+  return [
+    ...html.matchAll(
+      /<div id="[^"]*" class="pl-pool-row" role="group" aria-label="([^"]*)"[^>]*>(.*?)<\/span><\/div>/g,
+    ),
+  ].map(([, title, inner]) => {
+    const width = /class="pl-pool-bar" style="width:([^"]*)"/.exec(inner)?.[1];
+    const segments: ShownSegment[] = [
+      ...inner.matchAll(
+        /class="pl-pool-seg( lit)?" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
+      ),
+    ].map(([, lit, grow, fill, text, label]) => ({
+      lit: lit !== undefined,
+      grow: Number(grow),
+      fill,
+      text,
+      label,
+    }));
+    const chance = /class="muted pl-pool-chance"[^>]*>([^<]*)$/.exec(inner)?.[1];
+    return { title, html: inner, width, segments, chance };
+  });
 }
 
 /** One entry of a roll line, as it shows: its name, then its chance muted, then a dot when more follow. */
@@ -327,23 +331,20 @@ describe("what a scenario body can roll", () => {
     expect(html).toContain("Can roll · 6 deposits");
     const rows = barRows(html);
     expect(rows.map((r) => r.title)).toEqual([
-      "Minerals · 40%: +2 40%",
-      "Mystery · 30%: +1 30%",
-      "Energy · 27%: +2 13%, +3 13%, +5 1%",
+      "Minerals · 40%",
+      "Mystery · 30%",
+      "Energy · 27%",
       "Toxic Kelp · &lt;1%",
     ]);
     const [minerals, mystery, energyRow, kelp] = rows;
     expect(minerals.width).toBe("100.0%");
     expect(energyRow.width).toBe("67.5%");
-    expect(minerals.html).toContain('<span class="gi">M</span>Minerals</span>');
+    expect(minerals.html).toContain(
+      '<span class="pl-pool-key" role="img" aria-label="Minerals"><span class="gi">M</span></span>',
+    );
+    expect(minerals.html).not.toContain(">Minerals<");
     expect(minerals.chance).toBe("40%");
-    expect(minerals.html).toContain(`title="${DEPOSIT_CHANCE_TITLE}">40%`);
-
-    expect(energyRow.segments.map((g) => g.title)).toEqual([
-      "+2 Energy · 13%",
-      "+3 Energy · 13%",
-      "+5 Energy · 1%",
-    ]);
+    expect(minerals.html).not.toContain("title=");
     expect(energyRow.segments.map((g) => g.grow.toFixed(3))).toEqual(["0.481", "0.481", "0.037"]);
     expect(energyRow.segments.map((g) => g.fill)).toEqual(["#ffe08a", "#d99100", "#8a5a00"]);
     expect(energyRow.segments.map((g) => g.text)).toEqual(["#1b1f27", "#f4f6fa", "#f4f6fa"]);
@@ -351,10 +352,82 @@ describe("what a scenario body can roll", () => {
 
     expect(mystery.segments.map((g) => g.fill)).toEqual(["#aab0ba"]);
     expect(kelp.html).not.toContain('class="gi"');
+    expect(kelp.html).toContain('<span class="pl-pool-key pl-pool-name">Toxic Kelp</span>');
+    expect(html).toContain("--pool-key:72px");
     expect(kelp.segments).toHaveLength(1);
     expect(kelp.segments[0].label).toBe("");
     expect(kelp.chance).toBe("&lt;1%");
     expect(html).not.toContain("£");
+  });
+
+  it("shows a resource's amounts on hover, each with its share and the deposits behind it, and lights the hovered one", () => {
+    const energy = (key: string, amount: number, depositName: string) =>
+      [
+        key,
+        depositTypeView(key, {
+          name: depositName,
+          yields: [resourceAmount("energy", amount, "Energy Credits")],
+        }),
+      ] as const;
+    const views = new Map([
+      energy("d_energy_2", 2, "£energy£ +2"),
+      energy("d_energy_3", 3, "Energy Deposit"),
+      energy("d_rich_energy_3", 3, "Rich Energy Field"),
+    ]);
+    const [row] = depositBars(
+      [
+        { key: "d_energy_3", chance: 0.1 },
+        { key: "d_energy_2", chance: 0.26 },
+        { key: "d_rich_energy_3", chance: 0.08 },
+      ],
+      views,
+    );
+    const shown = (amount: number | null) =>
+      renderToStaticMarkup(
+        <BarLineView row={row} hover={{ shown: true, amount }} onHover={() => undefined} />,
+      );
+
+    const html = shown(3);
+    const card = html.slice(html.indexOf('class="dp-card'));
+    expect(card).toContain(
+      '<span class="dp-card-name"><span class="gi">E</span>Energy Credits · 44%</span>',
+    );
+    const lines = card.split(/<span class="pl-pool-line(?= lit"|")/).slice(1);
+    expect(lines).toHaveLength(2);
+    expect(lines.map((line) => line.startsWith(" lit"))).toEqual([false, true]);
+    expect(lines[0]).toContain('<span class="pl-pool-amount">+2</span>');
+    expect(lines[0]).toContain('<span class="pl-pool-line-chance">26%</span>');
+    expect(lines[0]).not.toContain("pl-pool-deposits");
+    expect(lines[1]).toContain('<span class="pl-pool-amount">+3</span>');
+    expect(lines[1]).toContain('<span class="pl-pool-line-chance">18%</span>');
+    expect(card).toContain(
+      '<span class="muted pl-pool-deposits">Energy Deposit, Rich Energy Field</span>',
+    );
+    expect(card).toContain(
+      '<span class="dp-card-note muted">Chance one deposit the game rolls here is this one.</span>',
+    );
+    expect(html.match(/class="pl-pool-seg lit"/g)).toHaveLength(1);
+    expect(html).toContain('class="pl-pool-seg lit" style="flex-grow:0.409');
+
+    const unhovered = renderToStaticMarkup(
+      <BarLineView row={row} hover={{ shown: false, amount: null }} onHover={() => undefined} />,
+    );
+    expect(unhovered).not.toContain("dp-card");
+    expect(unhovered).not.toContain(" lit");
+  });
+
+  it("shows a deposit that yields nothing on hover by its name and chance", () => {
+    const [row] = depositBars(
+      [{ key: "d_toxic_kelp", chance: 0.004 }],
+      new Map([["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp" })]]),
+    );
+    const html = renderToStaticMarkup(
+      <BarLineView row={row} hover={{ shown: true, amount: null }} onHover={() => undefined} />,
+    );
+    const card = html.slice(html.indexOf('class="dp-card'));
+    expect(card).toContain('<span class="dp-card-name">Toxic Kelp · &lt;1%</span>');
+    expect(card).not.toContain("pl-pool-line");
+    expect(card).toContain("Chance one deposit the game rolls here is this one.");
   });
 
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
@@ -423,7 +496,7 @@ describe("what a scenario body can roll", () => {
       "The game numbers planets in order, so this one is Yunak II or Yunak III, depending on how many before it are placed.",
     );
     expect(page(101, "Yunak IIa")).toContain('<span class="name">Yunak IIa</span>');
-    expect(overview()).toContain(`<span class="l1">${rolled("Yunak II or III")}</span>`);
+    expect(overview()).toContain(`<span class="l1">${rolled("Yunak II")}</span>`);
   });
 
   it("says a body is named after a system that has no name yet", async () => {
@@ -590,7 +663,7 @@ describe("a scenario body's name in lists and links", () => {
     }
   });
 
-  it("shows a ranged numeral as its span in the rolled look on a row and in the Orbits link, two names joined by or", async () => {
+  it("shows a body whose numeral can vary by its first name in the rolled look, on a row and in the Orbits link", async () => {
     const riadore = drawn(100, {
       naming: {
         state: "template",
@@ -605,13 +678,9 @@ describe("a scenario body's name in lists and links", () => {
     nameSystem("Riadore");
     await land(details({ planets: [riadore, moon, third], spawn: systemSpawn() }));
 
-    expect(page(100, "Riadore I")).toContain(
-      `<span class="l1">${rolled("Riadore Ia or IIa")}</span>`,
-    );
-    expect(row(page(101, "Riadore Ia"), "Orbits")).toContain(rolled("Riadore I or II"));
-    expect(page(100, "Riadore I")).toContain(
-      `<span class="l1">${rolled("Riadore Ib to IIc")}</span>`,
-    );
+    expect(page(100, "Riadore I")).toContain(`<span class="l1">${rolled("Riadore Ia")}</span>`);
+    expect(row(page(101, "Riadore Ia"), "Orbits")).toContain(rolled("Riadore I"));
+    expect(page(100, "Riadore I")).toContain(`<span class="l1">${rolled("Riadore Ib")}</span>`);
   });
 
   it("names the body an angle turns from by its given name", async () => {

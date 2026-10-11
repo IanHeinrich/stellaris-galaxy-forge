@@ -1,6 +1,5 @@
 import { beltLabel, bodyName } from "../../lib/details/labels";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
-import { listedName } from "../../lib/details/spawnNames";
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
@@ -59,7 +58,7 @@ function tipFor(
       if (queued.size > 0) requestTextures(queued);
       const given = ctx.givenNames.get(planet.id);
       return {
-        title: given === undefined ? bodyName(planet, ctx.names) : listedName(given),
+        title: given === undefined ? bodyName(planet, ctx.names) : given.text,
         lines,
       };
     }

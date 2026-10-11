@@ -79,7 +79,7 @@ export function BodyMenu({
       <MenuItem
         disabled={name === undefined}
         run={() => {
-          if (listed !== undefined) openFromMap(bodyEntry(target.system, target.id, listed.page));
+          if (listed !== undefined) openFromMap(bodyEntry(target.system, target.id, listed.text));
         }}
       >
         Inspect

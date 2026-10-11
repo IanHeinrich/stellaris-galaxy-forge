@@ -25,8 +25,8 @@ export interface BarSegment {
   labelled: boolean;
   fill: string;
   text: string;
-  /** `+3 Energy Credits · 13%`. */
-  title: string;
+  /** The deposits that give this amount, by the names that say more than the amount. */
+  deposits: string[];
 }
 
 /** One row: a resource and the amounts of it the roll can give, or a deposit that yields nothing. */
@@ -41,15 +41,34 @@ export interface BarRow {
   width: number;
   /** Lowest amount first; one plain segment for a deposit that yields nothing. */
   segments: BarSegment[];
-  title: string;
+  /** `Energy Credits · 44%`: what its card heads with. */
+  heading: string;
+  /** A deposit that yields nothing, or whose chance the install can't tell: no amounts to list. */
+  plain: boolean;
 }
+
+/** What a deposit row's card says under its amounts. */
+export const DEPOSIT_CARD_NOTE = "Chance one deposit the game rolls here is this one.";
 
 const signed = (n: number) => (n > 0 ? `+${formatAmount(n)}` : formatAmount(n));
 
-/** A deposit's name with the `£icon£` tokens of its localisation taken out. */
-function plainName(key: string, view: DepositTypeView | undefined): string {
+/**
+ * A deposit's own name with the `£icon£` tokens of its localisation taken out; null where nothing
+ * but the amount is left.
+ */
+function ownName(view: DepositTypeView | undefined): string | null {
   const named = view?.name.replace(/£[^£]*£/g, "").trim() ?? "";
-  return /[a-z]/i.test(named) ? named : keyWords(key.replace(/^d_/, ""));
+  return /[a-z]/i.test(named) ? named : null;
+}
+
+/** A deposit's name: its own, else its key in words. */
+function plainName(key: string, view: DepositTypeView | undefined): string {
+  return ownName(view) ?? keyWords(key.replace(/^d_/, ""));
+}
+
+interface Amount {
+  chance: number;
+  deposits: string[];
 }
 
 interface Gathered {
@@ -58,7 +77,7 @@ interface Gathered {
   icon: ResourceAmountView | null;
   resource: string | null;
   chance: number | null;
-  amounts: Map<number, number>;
+  amounts: Map<number, Amount>;
 }
 
 /**
@@ -96,10 +115,14 @@ export function depositBars(
         icon: y,
         resource: y.resource,
         chance: 0,
-        amounts: new Map<number, number>(),
+        amounts: new Map<number, Amount>(),
       };
       row.chance = (row.chance ?? 0) + pick.chance;
-      row.amounts.set(y.amount, (row.amounts.get(y.amount) ?? 0) + pick.chance);
+      const amount = row.amounts.get(y.amount) ?? { chance: 0, deposits: [] };
+      amount.chance += pick.chance;
+      const own = ownName(view);
+      if (own !== null && !amount.deposits.includes(own)) amount.deposits.push(own);
+      row.amounts.set(y.amount, amount);
       rows.set(key, row);
     }
   }
@@ -124,14 +147,15 @@ function barRow(row: Gathered, most: number): BarRow {
       labelled: false,
       fill,
       text: textOn(1),
-      title: shown,
+      deposits: [],
     };
-    return { ...rowBase(row), width, segments: row.chance === null ? [] : [segment], title: shown };
+    const segments = row.chance === null ? [] : [segment];
+    return { ...rowBase(row), width, segments, heading: shown, plain: true };
   }
   const ramp = resourceRamp(row.resource);
   const total = row.chance ?? 0;
   const amounts = [...row.amounts.entries()].sort((a, b) => a[0] - b[0]);
-  const segments = amounts.map(([amount, chance], i): BarSegment => {
+  const segments = amounts.map(([amount, { chance, deposits }], i): BarSegment => {
     const shade = shadeIndex(i, amounts.length);
     const share = total > 0 ? chance / total : 0;
     return {
@@ -142,11 +166,10 @@ function barRow(row: Gathered, most: number): BarRow {
       labelled: width * share >= LABEL_MIN_SHARE,
       fill: ramp[shade],
       text: textOn(shade),
-      title: `${signed(amount)} ${row.name} · ${percent(chance)}`,
+      deposits,
     };
   });
-  const each = segments.map((s) => `${s.label} ${percent(s.chance)}`).join(", ");
-  return { ...rowBase(row), width, segments, title: `${shown}: ${each}` };
+  return { ...rowBase(row), width, segments, heading: shown, plain: false };
 }
 
 function rowBase(row: Gathered): Pick<BarRow, "key" | "name" | "icon" | "chance"> {

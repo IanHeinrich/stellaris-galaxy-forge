@@ -681,24 +681,43 @@
   white-space: nowrap;
 }
 
-/* A scenario body's deposit roll: one bar per resource, split by amount, lightest for the least. */
+/* A scenario body's deposit roll: one bar per resource, split by amount, lightest for the least.
+   The first column is an icon's width, or a short name's where a row has no icon. */
 .pl-pool-bars {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) auto;
-  gap: 3px 8px;
+  grid-template-columns: var(--pool-key, 18px) minmax(60px, 1fr) auto;
+  gap: 1px 8px;
   align-items: center;
   font-size: var(--text-note);
 }
 
 .pl-pool-row {
-  display: contents;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  padding: 1px 2px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.pl-pool-row:hover,
+.pl-pool-row:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.pl-pool-row > .dp-card.under {
+  grid-column: 1 / -1;
+}
+
+.pl-pool-key {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .pl-pool-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
+  display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -709,6 +728,11 @@
   height: 14px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.06);
+  transition: background 80ms;
+}
+
+.pl-pool-row:hover .pl-pool-track {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .pl-pool-bar {
@@ -728,9 +752,66 @@
   line-height: 14px;
   text-align: center;
   white-space: nowrap;
+  transition: filter 80ms;
+}
+
+/* The segment under the pointer lifts and the rest of its bar dims; nothing changes size. */
+.pl-pool-bar:hover .pl-pool-seg {
+  filter: brightness(0.7);
+}
+
+.pl-pool-bar .pl-pool-seg:hover {
+  filter: brightness(1.15);
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
 }
 
 .pl-pool-chance {
   text-align: right;
   white-space: nowrap;
+}
+
+/* A deposit row's card: one line per amount, the hovered one lit. */
+.dp-card .pl-pool-line {
+  display: grid;
+  grid-template-columns: 10px 28px 1fr auto;
+  gap: 2px 6px;
+  align-items: center;
+  margin-top: 4px;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.dp-card .pl-pool-line.lit {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pl-pool-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.pl-pool-amount {
+  font-weight: 600;
+}
+
+.pl-pool-mini {
+  display: flex;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-pool-mini > span {
+  border-radius: 2px;
+}
+
+.pl-pool-line-chance {
+  text-align: right;
+}
+
+.pl-pool-deposits {
+  grid-column: 2 / -1;
 }

@@ -305,8 +305,8 @@ describe("a scenario body in the system scene", () => {
     const at = zoomedOnEarth(shown);
     fire("pointermove", at.x, at.y);
 
-    expect(useMapChromeStore.getState().tooltip?.title).toBe(`S${SYSTEM} I or II`);
-    expect(shown.context().bodyById.get(2)?.name).toBe(`S${SYSTEM} I or II`);
+    expect(useMapChromeStore.getState().tooltip?.title).toBe(`S${SYSTEM} I`);
+    expect(shown.context().bodyById.get(2)?.name).toBe(`S${SYSTEM} I`);
     fire("pointerdown", at.x, at.y);
     fire("pointerup", at.x, at.y);
     const { stack } = useInspectorStore.getState();

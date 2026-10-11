@@ -2,7 +2,7 @@ import { Fragment, useState, type MouseEvent, type ReactNode } from "react";
 import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
-import { listedName, nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
+import { nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
 import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
@@ -168,7 +168,7 @@ export function PlanetRow({
     span !== undefined
       ? span
       : given !== undefined
-        ? listedName(given)
+        ? given.text
         : !described
           ? name
           : random

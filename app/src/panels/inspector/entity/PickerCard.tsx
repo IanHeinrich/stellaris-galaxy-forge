@@ -46,10 +46,13 @@ export function EffectSummary({ effects }: { effects: readonly string[] }) {
  * What the card says of a row: its name, its category, every effect, its note, then its
  * description where it has a place for one.
  */
-function PickerCardBody({ item }: { item: CardItem }) {
+function PickerCardBody({ item, lead }: { item: CardItem; lead?: ReactNode }) {
   return (
     <>
-      <span className="dp-card-name">{item.label}</span>
+      <span className="dp-card-name">
+        {lead}
+        {item.label}
+      </span>
       {item.category !== undefined && (
         <span className="dp-card-category muted">{item.category}</span>
       )}
@@ -145,11 +148,14 @@ export function PickerCard({
   id,
   item,
   rowId,
+  lead,
   children,
 }: {
   id: string;
   item: CardItem;
   rowId: string;
+  /** What goes before its name, such as an icon. */
+  lead?: ReactNode;
   children?: ReactNode;
 }) {
   const [card, place] = useCardPlace(rowId, item);
@@ -170,7 +176,7 @@ export function PickerCard({
             }
       }
     >
-      <PickerCardBody item={item} />
+      <PickerCardBody item={item} lead={lead} />
       {children}
     </div>
   );
