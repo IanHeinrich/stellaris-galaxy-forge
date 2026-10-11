@@ -1,0 +1,65 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (think_tank_3) in Alari system #169
+inverse: RemoveMegastructure { megastructure: 16 }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,10 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -80238,6 +80242,7 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructure=16
+ 			bombardment_damage=0
+ 			entity=0
+ 		}
+@@ -417930,6 +417935,10 @@
+ 		{
+ 			587202589 385875995 452984858 452984857 452984856 154 
+ 		}
++		owned_megastructures=
++		{
++			16 
++		}
+ 		owned_armies=
+ 		{
+ 			40 41 42 43 44 
+@@ -1400882,6 +1400891,25 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="think_tank_3"
++		coordinate=
++		{
++			x=67.8916
++			y=-122.4804
++			origin=169
++		}
++		owner=0
++		graphical_culture="mammalian_01"
++		planet=6
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

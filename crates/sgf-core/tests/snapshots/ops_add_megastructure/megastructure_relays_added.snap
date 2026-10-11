@@ -1,0 +1,139 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #17 (hyper_relay) in Wollaeus #148, with bypass #24
+inverse: RemoveMegastructure { megastructure: 17 }
+
+--- gamestate
++++ gamestate
+@@ -28853,6 +28853,10 @@
+ 		{
+ 			318 
+ 		}
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -28878,6 +28882,10 @@
+ 			}
+  
+ 		}
++		bypasses=
++		{
++			23 
++		}
+ 		arm=1
+ 		flags=
+ 		{
+@@ -39532,6 +39540,10 @@
+ 		{
+ 			338 
+ 		}
++		megastructures=
++		{
++			17 
++		}
+ 		star_class="sc_f"
+ 		hyperlane=
+ 		{
+@@ -39552,6 +39564,10 @@
+ 			}
+  
+ 		}
++		bypasses=
++		{
++			24 
++		}
+ 		arm=1
+ 		flags=
+ 		{
+@@ -1400882,6 +1400898,42 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="hyper_relay"
++		coordinate=
++		{
++			x=0
++			y=-260
++			origin=0
++		}
++		planet=4294967295
++		bypass=23
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
++	17=
++	{
++		type="hyper_relay"
++		coordinate=
++		{
++			x=0
++			y=-260
++			origin=148
++		}
++		planet=4294967295
++		bypass=24
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {
+@@ -1401326,6 +1401378,42 @@
+ 		lock_remaining_days=-1
+ 		is_manual_lock=no
+ 	}
++	23=
++	{
++		type="relay_bypass"
++		active=yes
++		connections=
++		{
++			24 
++		}
++		active_connections=
++		{
++			24 
++		}
++		owner=
++		{
++			type=6
++			id=16
++		}
++	}
++	24=
++	{
++		type="relay_bypass"
++		active=yes
++		connections=
++		{
++			23 
++		}
++		active_connections=
++		{
++			23 
++		}
++		owner=
++		{
++			type=6
++			id=17
++		}
++	}
+ }
+ natural_wormholes=
+ {

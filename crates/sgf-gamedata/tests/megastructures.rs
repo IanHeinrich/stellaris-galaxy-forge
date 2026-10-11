@@ -3,7 +3,7 @@
 
 use crate::common;
 
-use sgf_gamedata::registries::megastructures::BuildType;
+use sgf_gamedata::registries::megastructures::{BuildType, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
 
@@ -198,4 +198,86 @@ fn the_installs_megastructure_types_and_station_models() {
         station("starbase_level_citadel"),
         Some("starbase_citadel_section_entity")
     );
+}
+
+#[test]
+fn a_fixture_type_is_placed_by_its_build_type() {
+    let gd = common::cached_fixture();
+    let placement = |key: &str| gd.megastructures.get(key).expect(key).placement.clone();
+    assert_eq!(
+        placement("fixture_tank"),
+        Placement::Body { star_only: false }
+    );
+    assert_eq!(
+        placement("fixture_ring"),
+        Placement::Free {
+            outside_gravity_well: false
+        }
+    );
+    assert_eq!(
+        placement("fixture_relay"),
+        Placement::Free {
+            outside_gravity_well: true
+        }
+    );
+}
+
+#[test]
+fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let mega = |key: &str| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+    };
+    let star = Placement::Body { star_only: true };
+    let any = Placement::Body { star_only: false };
+    let outside = Placement::Free {
+        outside_gravity_well: true,
+    };
+    let inside = Placement::Free {
+        outside_gravity_well: false,
+    };
+    let starbase = Placement::Unsupported {
+        why: Unsupported::BecomesStarbase,
+    };
+    let ring_world = Placement::Unsupported {
+        why: Unsupported::RingWorld,
+    };
+    let bypass = |kind: &str| Placement::Unsupported {
+        why: Unsupported::Bypass {
+            bypass: kind.to_owned(),
+        },
+    };
+    let pins = [
+        ("dyson_sphere_0", &star),
+        ("dyson_sphere_5", &star),
+        ("dyson_swarm_1", &star),
+        ("matter_decompressor_4", &star),
+        ("mega_shipyard_3", &star),
+        ("quantum_catapult_0", &star),
+        ("think_tank_3", &any),
+        ("strategic_coordination_center_3", &any),
+        ("orbital_arc_furnace_3", &any),
+        ("orbital_ring_ruined", &any),
+        ("hyper_relay", &outside),
+        ("gateway_0", &outside),
+        ("gateway_ruined", &outside),
+        ("shroud_seal", &inside),
+        ("deep_space_citadel_0", &starbase),
+        ("waystation_megastructure", &starbase),
+        ("ring_world_1", &ring_world),
+    ];
+    for (key, placement) in pins {
+        assert_eq!(&mega(key).placement, placement, "{key}");
+    }
+    assert_eq!(mega("lgate_base").placement, bypass("lgate"));
+    for key in ["gateway_final", "gateway_restored", "gateway_derelict"] {
+        assert!(mega(key).activates_gateway, "{key}");
+    }
+    assert!(!mega("gateway_ruined").activates_gateway);
+    assert!(mega("orbital_ring_ruined").ruined_orbital_ring);
+    assert!(!mega("orbital_ring").ruined_orbital_ring);
 }

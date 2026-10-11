@@ -1,0 +1,57 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Added megastructure #16 (orbital_ring_ruined) in Alari system #169
+inverse: RemoveMegastructure { megastructure: 16 }
+
+--- gamestate
++++ gamestate
+@@ -41025,6 +41025,10 @@
+ 		planet=12
+ 		planet=13
+ 		planet=14
++		megastructures=
++		{
++			16 
++		}
+ 		star_class="sc_g"
+ 		hyperlane=
+ 		{
+@@ -80176,7 +80180,12 @@
+ 			planet_orbitals=
+ 			{
+ 			}
++			megastructure=16
+ 			bombardment_damage=0
++			flags=
++			{
++				ruined_orbital_ring_planet=62808000
++			}
+ 			entity=2
+ 		}
+ 		5=
+@@ -1400882,6 +1400891,23 @@
+ 	}
+ 	14=none
+ 	16777231=none
++	16=
++	{
++		type="orbital_ring_ruined"
++		coordinate=
++		{
++			x=33.5825
++			y=88.93615
++			origin=169
++		}
++		planet=4
++		orbitals=
++		{
++		}
++		build_queue=4294967295
++		dismantle_progress=0
++		dismantle_finish_date="0.01.01"
++	}
+ }
+ bypasses=
+ {

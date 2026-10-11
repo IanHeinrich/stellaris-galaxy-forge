@@ -1,11 +1,11 @@
 //! The examples of the ops on stars, bodies, empires, belts and wormholes, and the batch.
 use sgf_core::ops::{
-    ClassChange, EmpireFlag, MapColorPair, NebulaFootprint, NewName, Op, Parent, PlanetClassRule,
-    SavedEntity, SavedTable, StarBody, SystemHeight,
+    ClassChange, EmpireFlag, MapColorPair, MegastructurePlace, NebulaFootprint, NewBypass, NewName,
+    Op, Parent, PlanetClassRule, SavedEntity, SavedTable, StarBody, SystemHeight,
 };
 use sgf_core::projections::galaxy::LGateOutcome;
 
-use super::{ADDED_BODY, Example, meissa_v};
+use super::{ADDED_BODY, ADDED_MEGASTRUCTURE, Example, meissa_v};
 
 pub(super) fn examples() -> Vec<Example> {
     vec![
@@ -195,6 +195,20 @@ pub(super) fn examples() -> Vec<Example> {
             difficulty: 1,
         }),
         Example::save(Op::RemoveDigSite { site: 0 }),
+        Example::save_4_5(Op::AddMegastructure {
+            system: 1,
+            kind: "gateway_final".to_owned(),
+            at: MegastructurePlace::Free { x: 0.0, y: -260.0 },
+            owner: None,
+            bypass: Some(NewBypass {
+                kind: "gateway".to_owned(),
+                active: true,
+            }),
+            ruined_orbital_ring: false,
+        }),
+        Example::added_megastructure(Op::RemoveMegastructure {
+            megastructure: ADDED_MEGASTRUCTURE,
+        }),
         Example::save(Op::SetSystemHeights {
             heights: vec![SystemHeight {
                 system: 0,
