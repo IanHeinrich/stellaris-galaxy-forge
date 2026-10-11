@@ -88,7 +88,7 @@ fn a_mod_overrides_a_megastructure_type_and_a_section_template_by_key() {
         (
             "common/megastructures/zz_tank.txt",
             "fixture_tank = {\n\tentity = \"mod_tank_entity\"\n\
-             \tentity_offset = { x = 5 y = 6 }\n}\n",
+             \tentity_offset = { x = 5 y = 6 }\n}\nmod_tower = {\n\tentity = \"tower_entity\"\n}\n",
         ),
         (
             "common/section_templates/zz_hut.txt",
@@ -99,6 +99,12 @@ fn a_mod_overrides_a_megastructure_type_and_a_section_template_by_key() {
     let tank = gd.megastructures.get("fixture_tank").expect("fixture_tank");
     assert_eq!(tank.entity.as_deref(), Some("mod_tank_entity"));
     assert_eq!(tank.entity_offset, (5.0, 6.0));
+    assert!(
+        tank.source.is_some() && tank.base_game,
+        "the mod changed a base game type"
+    );
+    let tower = gd.megastructures.get("mod_tower").expect("mod_tower");
+    assert!(tower.source.is_some() && !tower.base_game);
     assert!(gd.megastructures.get("fixture_relay").is_some());
     let hut = gd
         .starbase_levels
@@ -273,6 +279,8 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("gateway_final", &outside),
         ("gateway_restored", &outside),
         ("gateway_derelict", &outside),
+        ("hyper_relay_ruined", &outside),
+        ("hyper_relay_restored", &outside),
         ("shroud_seal", &inside),
         ("deep_space_citadel_0", &starbase),
         ("waystation_megastructure", &starbase),
@@ -344,6 +352,16 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         "its family becomes a starbase"
     );
     assert!(mega("orbital_ring_ruined").ruined_orbital_ring);
+    assert_eq!(
+        mega("dyson_sphere_ruined").variant_of.as_deref(),
+        Some("dyson_sphere_0")
+    );
+    assert_eq!(
+        mega("gateway_restored").variant_of.as_deref(),
+        Some("gateway_0")
+    );
+    assert_eq!(mega("dyson_sphere_5").variant_of, None);
+    assert!(gd.megastructures.iter().all(|def| def.base_game));
     assert!(!mega("orbital_ring").ruined_orbital_ring);
 }
 
