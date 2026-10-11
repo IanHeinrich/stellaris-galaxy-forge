@@ -139,7 +139,7 @@ its star, and an Arc Furnace rings its planet. A megastructure built on
 a planet or moon stays with it when you move the planet. Ring world
 sections turn to face their star, so the pieces of a ring world join up.
 
-Habitats and ring world sections are planets, and they show as their
+Habitats and ring world segments are planets, and they show as their
 models from the game too. You select, move and name them as you do any
 other planet.
 
