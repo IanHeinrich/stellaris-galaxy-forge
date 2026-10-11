@@ -78,7 +78,7 @@ function SiteRow({ site }: { site: ScriptSite }) {
     <div className="ins-script-site" title={site.location.display}>
       <span className="mono ins-script-line">:{site.location.line}</span>
       <span className="mono ins-script-path">{via ?? site.location.display}</span>
-      <ScriptActions file={site.location.file} />
+      <ScriptActions location={site.location} />
     </div>
   );
 }
@@ -118,7 +118,7 @@ function RowHead({ row }: { row: ScriptRow }) {
           )}
         </span>
       </span>
-      <ScriptActions file={first.location.file} />
+      <ScriptActions location={first.location} />
     </>
   );
 }

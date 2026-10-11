@@ -18,9 +18,10 @@ use sgf_gamedata::registries::megastructures::MegastructureDef;
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
-    CountryTypeView, DepositView, FlagParts, GalaxyShapeView, GameDataSummary, InitializerView,
-    MapColor, PaintModView, PlanetClassView, PrecursorView, ResourceIcon, ShipSizeView,
-    StarClassView, StarbaseLevelView, TerraformCandidateView, WorkshopLinks,
+    CountryTypeView, DepositView, FlagParts, GalaxyShapeView, GameDataSummary,
+    InitializerDefinition, InitializerView, MapColor, PaintModView, PlanetClassView, PrecursorView,
+    ResourceIcon, ShipSizeView, StarClassView, StarbaseLevelView, TerraformCandidateView,
+    WorkshopLinks,
 };
 use sgf_gamedata::{GameData, LoadOptions, Phase};
 use tauri::{AppHandle, Manager, Runtime, State};
@@ -144,6 +145,15 @@ pub async fn editor_choices<R: Runtime>(
     .map_err(io_error)
 }
 
+/// What the Other… file dialog lists. Linux has no extension a program takes, so it lists every
+/// file.
+#[cfg(windows)]
+const PROGRAM_EXTENSIONS: &[&str] = &["exe"];
+#[cfg(target_os = "macos")]
+const PROGRAM_EXTENSIONS: &[&str] = &["app"];
+#[cfg(not(any(windows, target_os = "macos")))]
+const PROGRAM_EXTENSIONS: &[&str] = &[];
+
 /// Ask for the program Other… opens files with in the system's file dialog, and keep it in the
 /// app's config folder. Answers with its name; `None` when the dialog was cancelled.
 #[tauri::command]
@@ -153,12 +163,11 @@ pub async fn choose_editor_program<R: Runtime>(
     let store = picked_program_file(&app)
         .ok_or_else(|| SgfError::new(ErrorKind::Io, "The app has no settings folder"))?;
     tauri::async_runtime::spawn_blocking(move || {
-        let Some(picked) = app
-            .dialog()
-            .file()
-            .set_title("Choose the editor")
-            .blocking_pick_file()
-        else {
+        let mut dialog = app.dialog().file().set_title("Choose the editor");
+        if !PROGRAM_EXTENSIONS.is_empty() {
+            dialog = dialog.add_filter("Programs", PROGRAM_EXTENSIONS);
+        }
+        let Some(picked) = dialog.blocking_pick_file() else {
             return Ok(None);
         };
         let program = picked.into_path().map_err(io_error)?;
@@ -454,6 +463,23 @@ pub fn get_initializers(game_data: State<'_, GameDataState>) -> Vec<InitializerV
             .iter()
             .map(|i| InitializerView::new(i, &gd))
             .collect()
+    })
+}
+
+/// Initializer `name`'s definition as the file that won it writes it, with its file and line.
+#[tauri::command(async)]
+pub fn get_initializer_definition(
+    game_data: State<'_, GameDataState>,
+    name: String,
+) -> Result<InitializerDefinition, SgfError> {
+    let gd = game_data
+        .loaded()
+        .ok_or_else(|| SgfError::no_game_data("show an initializer's definition"))?;
+    InitializerDefinition::read(&gd, &name).ok_or_else(|| {
+        SgfError::new(
+            ErrorKind::NotFound,
+            format!("The game data has no initializer called {name}"),
+        )
     })
 }
 

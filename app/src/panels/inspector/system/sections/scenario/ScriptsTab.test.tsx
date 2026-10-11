@@ -8,8 +8,11 @@ vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }))
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
 vi.mock("react/jsx-dev-runtime", () => import("../../../../../test/drawn"));
 
+import { drawnButton, drawnBy } from "../../../../../test/drawn";
+import { mockedIpc } from "../../../../../test/ipc";
 import { bindStores } from "../../../../../store/bindStores";
 import { useInspectorStore } from "../../../../../store/inspectorStore";
+import { useScriptEditorStore } from "../../../../../store/scriptEditorStore";
 import { useScriptsStore } from "../../../../../store/scriptsStore";
 import {
   details,
@@ -34,6 +37,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   resetStores();
+  useScriptEditorStore.setState({ ...useScriptEditorStore.getInitialState() });
 });
 
 /** The heads the Scripts section groups its rows under, in the order it writes them. */
@@ -96,12 +100,37 @@ describe("a scenario system's scripts", () => {
     expect(html).toContain(SCRIPTS_LIMITS_HTML);
     expect(html).not.toContain("showing the first");
 
-    expect(html).toContain('aria-label="Open zz_fixture_events.txt in editor"');
+    expect(html).toContain(
+      '<button type="button" class="link ins-script-open" title="C:/mods/one/events/zz_fixture_events.txt">Open file</button>',
+    );
     expect(html).toContain('aria-label="Show zz_fixture_events.txt in Explorer"');
-    // The scenario's own effect is a line of the document, not a game-data file to open.
+    // The scenario's own effect is a line of the open document, which has no folder to show.
     expect(html).toContain("my_galaxy.txt:41");
-    expect(html).not.toContain("my_galaxy.txt in editor");
+    expect(html).toContain('title="C:/mods/map/setup_scenarios/my_galaxy.txt">Open file</button>');
     expect(html).not.toContain("my_galaxy.txt in Explorer");
+  });
+
+  it("opens each script in the remembered editor at the line it names the system on", async () => {
+    await open("scenario");
+    useScriptsStore.setState({ scripts: new Map([[SYSTEM, SYSTEM_SCRIPTS]]) });
+    const pick = { kind: "found", id: "vscode" } as const;
+    useScriptEditorStore.setState({ choice: { pick, name: "VS Code", remember: true } });
+    mockedIpc.openInEditor.mockResolvedValue({ fell_back: false, steam_replaces: false });
+
+    const html = drawnBy(overview);
+    expect(html).toContain(">Open in VS Code</button>");
+    drawnButton("C:/mods/one/events/zz_fixture_events.txt").onClick();
+    expect(mockedIpc.openInEditor).toHaveBeenCalledWith(
+      "C:/mods/one/events/zz_fixture_events.txt",
+      7,
+      pick,
+    );
+    drawnButton("C:/mods/map/setup_scenarios/my_galaxy.txt").onClick();
+    expect(mockedIpc.openInEditor).toHaveBeenCalledWith(
+      "C:/mods/map/setup_scenarios/my_galaxy.txt",
+      41,
+      pick,
+    );
   });
 
   it("makes a script that names the system on several lines one row that opens onto them", async () => {
@@ -118,7 +147,9 @@ describe("a scenario system's scripts", () => {
     expect(html).toContain("called by the chain");
     expect(html).toContain("calls create_fixture_empire");
     expect(html).toContain("has_star_flag = fixture_core");
-    expect(html.match(/aria-label="Open zz_countries.txt in editor"/g)).toHaveLength(4);
+    expect(
+      html.match(/title="C:\/mods\/one\/common\/scripted_effects\/zz_countries.txt">Open file</g),
+    ).toHaveLength(4);
   });
 
   it("says so when the backend stopped at its row limit", async () => {

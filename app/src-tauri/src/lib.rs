@@ -99,6 +99,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_colony_types,
             commands::get_bypasses,
             commands::get_initializers,
+            commands::get_initializer_definition,
             commands::get_galaxy_shapes,
             commands::get_precursors,
             commands::get_map_colors,

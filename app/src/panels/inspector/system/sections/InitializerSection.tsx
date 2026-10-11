@@ -1,17 +1,20 @@
+import { useEffect } from "react";
 import type { CountryRef } from "../../../../generated/CountryRef";
 import type { SystemNode } from "../../../../generated/SystemNode";
 import type { SystemSpawn } from "../../../../generated/SystemSpawn";
 import { hasStatedRows } from "../../../../lib/details/spawnFacts";
 import { displayName } from "../../../../lib/names";
-import { fileName } from "../../../../lib/paths";
+import { fileName, normalise } from "../../../../lib/paths";
 import { kindLabel } from "../../../../lib/special";
 import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
+import { useScriptsStore } from "../../../../store/scriptsStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { useNamed } from "../../../useNamed";
 import { TextField } from "../../../EditField";
-import { openGameFile } from "../../../openGameFile";
+import { OpenButton } from "../../../OpenButton";
+import { showInFolder } from "../../../openGameFile";
 import { Properties, PropertyRow, Section } from "../../parts";
 import { Hinted } from "../../states";
 import { kindHover } from "./kindHover";
@@ -71,8 +74,28 @@ function CountriesRow({ label, countries }: { label: string; countries: readonly
   );
 }
 
+/**
+ * The line of `file` that defines the system's initializer, as the Scripts tab lists it; null
+ * until the scripts are read, or where they name another file.
+ */
+function useDefinitionLine(system: SystemNode, file: string | null): number | null {
+  const request = useScriptsStore((s) => s.request);
+  const scripts = useScriptsStore((s) => s.scripts.get(system.id));
+  const version = useScriptsStore((s) => s.version);
+
+  useEffect(() => {
+    if (file !== null) request(system.id);
+  }, [file, system.id, request, version]);
+
+  const own = scripts?.rows.find((r) => r.kind === "initializer" && r.name === system.initializer);
+  const at = own?.sites[0]?.location;
+  if (file === null || at?.file == null || normalise(at.file) !== normalise(file)) return null;
+  return at.line;
+}
+
 /** What kind of system the initializer makes, its file, and the two ways out to that file. */
 function SubLine({ system, file }: { system: SystemNode; file: string | null }) {
+  const line = useDefinitionLine(system, file);
   const special = useGameDataStore((s) => s.special.get(system.id));
   const scripted = useCanEdit("scripts");
   const kinds = scripted ? (special?.kinds ?? []) : [];
@@ -96,10 +119,8 @@ function SubLine({ system, file }: { system: SystemNode; file: string | null }) 
       </span>
       {file !== null && (
         <span className="ins-init-links">
-          <button type="button" className="link" onClick={() => openGameFile(file, false)}>
-            Open file
-          </button>
-          <button type="button" className="link" onClick={() => openGameFile(file, true)}>
+          <OpenButton target={{ file, line }} />
+          <button type="button" className="link" onClick={() => showInFolder(file)}>
             Show in folder
           </button>
         </span>

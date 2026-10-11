@@ -689,6 +689,7 @@ button.link.help-link {
 }
 
 .snippet-line.changed,
+.snippet-line.marked,
 .snippet-legend-mark {
   border-left-color: var(--accent);
 }

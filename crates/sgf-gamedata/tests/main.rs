@@ -26,6 +26,7 @@ mod generate_effects;
 mod generate_pinned;
 mod generate_star_class;
 mod initializer_corpus;
+mod initializer_definition;
 mod initializers;
 mod inline_script_reload;
 mod install;

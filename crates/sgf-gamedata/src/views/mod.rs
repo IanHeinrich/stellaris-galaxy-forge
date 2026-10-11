@@ -14,7 +14,7 @@ pub use bodies::{
 };
 pub use countries::{CountryTypeView, FlagParts, MapColor, ShipSizeView, StarbaseLevelView};
 pub use galaxy::{GalaxyShapeView, GalaxySizeView, PrecursorView};
-pub use initializers::{InitPlanetView, InitializerView};
+pub use initializers::{InitPlanetView, InitializerDefinition, InitializerView, InlineScriptCall};
 pub use playset::{ModView, PaintModView, WorkshopLinks};
 pub use roll::{PlaceholderBody, RolledBody, SystemRoll};
 pub use summary::{BeltKindView, DiagnosticView, GameDataChanged, GameDataSummary, WatchView};

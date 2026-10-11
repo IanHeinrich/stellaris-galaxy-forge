@@ -10,13 +10,24 @@ import {
   SCRIPT_TITLE,
 } from "../../lib/details/spawnFacts";
 import { counted } from "../../lib/text";
-import { ScriptSnippet } from "../ScriptSnippet";
+import { ScriptSnippet, type SnippetSource } from "../ScriptSnippet";
 import { Group } from "./parts";
+
+/** Where a snippet of `statements` starts: the first one's file and line, else the top of `file`. */
+function snippetSource(
+  statements: readonly RawStatement[],
+  file: string | null,
+): SnippetSource | undefined {
+  const at = statements[0]?.at;
+  if (at !== undefined) return at;
+  return file === null ? undefined : { file };
+}
 
 /**
  * The lines an initializer runs at game start, on a system's page or a body's: their count, what
  * they are in the title's card, a warning where they look for a neighbouring system, and the text.
- * `file` is the initializer's file, which the snippet names.
+ * `file` is the initializer's file, which the snippet opens where the statements don't say where
+ * they are written.
  */
 export function ScriptGroup({
   id,
@@ -37,7 +48,7 @@ export function ScriptGroup({
       tail={counted(lineCount(statements), "line")}
     >
       {looksForNeighbours(text) && <div className="ins-warn">{NEIGHBOUR_LOOKUP_WARNING}</div>}
-      <ScriptSnippet text={text} source={file === null ? undefined : { file }} />
+      <ScriptSnippet text={text} source={snippetSource(statements, file)} />
     </Group>
   );
 }
@@ -55,7 +66,7 @@ export function OtherLinesGroup({
   if (statements.length === 0) return null;
   return (
     <Group id={id} title={OTHER_KEYS_TITLE} hint={OTHER_KEYS_HINT} tail={`${statements.length}`}>
-      <ScriptSnippet text={rawText(statements)} source={file === null ? undefined : { file }} />
+      <ScriptSnippet text={rawText(statements)} source={snippetSource(statements, file)} />
     </Group>
   );
 }
