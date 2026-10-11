@@ -120,15 +120,37 @@ its radius.
 
 ![The system view of Amory with Orbit radii on, each orbit labelled with its radius](../images/system/orbit-radii.png)
 
+## Megastructures and starbases <Badge type="tip" text="Save" />
+
+In a save, each megastructure and starbase in a system shows as its
+model from the game, at the size it has in game. A Dyson Sphere covers
+its star, and an Arc Furnace covers its planet. A megastructure built on
+a planet or moon stays with it when you move the planet.
+
+Hover over a megastructure or starbase to see its name. Click it to
+open its page in the Inspector. A click on a planet under a
+megastructure still selects the planet.
+
+The models are read from your Stellaris install. The first time you
+open a system, they can take a moment to show. A megastructure from a
+mod you don't have installed shows the game's megastructure icon
+instead.
+
+Press <kbd>7</kbd> in a system view to hide them, or turn off
+Megastructures and starbases in the Layers menu.
+
 ## Names and layers in a system
 
 Each body's name sits on a plate under it. A colonised planet's plate
 has a bar in its owner's colour. Names, System details, Nebulae and,
-in a save, Bypasses still work while a system is open, with their own
-settings, so you can have them on in the galaxy and off in a system.
+in a save, Bypasses and Megastructures and starbases still work while
+a system is open, with their own settings, so you can have them on in
+the galaxy and off in a system.
 With System details on, each body's resources show under its name. A
 colony's name shows its owner's flag. A body's name also shows icons
-for its megastructures, dig site, anomaly and pre-FTL civilisation.
+for its dig site, anomaly and pre-FTL civilisation. While
+Megastructures and starbases is off, it shows an icon for its
+megastructures too.
 Hover over an icon or a resource to see what it is. A system inside a
 nebula shows faint clouds behind it while Nebulae is on. The other
 layer buttons and the tool strip are for the galaxy, so they are hidden

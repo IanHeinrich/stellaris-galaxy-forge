@@ -34,15 +34,16 @@ import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { RadiiLayer } from "./layers/RadiiLayer";
 import { RolledLayer } from "./layers/RolledLayer";
+import { StructuresLayer } from "./layers/StructuresLayer";
 import { WormholesLayer } from "./layers/WormholesLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
 import { SystemInteraction, type InteractionScene } from "./SystemInteraction";
 
 /**
- * One system's bodies, orbits, belts, wormholes and hyperlane exits, drawn about its centre with a
- * camera of its own. The host retargets it to the system the scene store shows; nothing here is
- * React state.
+ * One system's bodies, orbits, belts, megastructures, starbases, wormholes and hyperlane exits,
+ * drawn about its centre with a camera of its own. The host retargets it to the system the scene
+ * store shows; nothing here is React state.
  */
 export class SystemScene implements Scene, SceneView, InteractionScene {
   readonly cam = new Camera();
@@ -90,6 +91,7 @@ export class SystemScene implements Scene, SceneView, InteractionScene {
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
+      new StructuresLayer(),
       new WormholesLayer(textures),
       new LocksLayer(),
       this.handles,

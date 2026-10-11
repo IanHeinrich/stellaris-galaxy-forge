@@ -67,6 +67,7 @@ export function sceneRecorder(frame?: SystemContext): Recorder<SystemIntent> {
     contextMenu: true,
     openBody: true,
     openWormhole: true,
+    openStructure: true,
     showSystem: true,
     frame: true,
     preview: true,

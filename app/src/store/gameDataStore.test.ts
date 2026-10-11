@@ -61,6 +61,7 @@ describe("load", () => {
     expect(state.bypasses.get("gateway")?.icon_frame).toBe(25);
     expect(state.bypasses.get("relay_bypass")?.icon_frame).toBeNull();
     expect(state.starbaseLevels.get("starbase_outpost")?.icon_frame).toBe(1);
+    expect(state.megastructureTypes.get("think_tank_3")?.entity_offset).toEqual([0, -20]);
     expect(state.shipSizes.get("corvette")?.icon).toBe("ship_size_military_1");
     expect(useDetailsStore.getState().resourceIcons.get("energy")).toBe("GFX_resource_energy");
     expect(state.countryTypes.get("amoeba")?.is_space_critter).toBe(true);
@@ -359,6 +360,7 @@ describe("unload", () => {
     expect(state.names.size).toBe(0);
     expect(state.starClasses.size).toBe(0);
     expect(state.deposits.size).toBe(0);
+    expect(state.megastructureTypes.size).toBe(0);
     expect(mockedIpc.getSpecialSystems).toHaveBeenCalledTimes(1);
     expect(state.specialWithGameData).toBe(false);
     expect(state.special.size).toBe(1);

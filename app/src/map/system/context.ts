@@ -1,11 +1,21 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
+import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
+import type { StarbaseSummary } from "../../generated/StarbaseSummary";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
-import { bypassIconKey, PLANET_ICON_KEYS } from "../../lib/details/icons";
-import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
+import { bypassIconKey, MEGASTRUCTURE_ICON_KEY, PLANET_ICON_KEYS } from "../../lib/details/icons";
+import {
+  boundsText,
+  isColony,
+  megastructureLabel,
+  starbaseKeys,
+  starbaseLabel,
+  wormholeLabel,
+  wormholePlateName,
+} from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
@@ -25,6 +35,13 @@ import {
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
+import {
+  megastructureLook,
+  modelKey,
+  planetScale,
+  starbaseLook,
+  type StructureLook,
+} from "../../lib/details/structures";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import { clusterOffsets } from "../../lib/visual/starCluster";
@@ -198,6 +215,31 @@ export interface SceneWormhole {
   readonly iconKey: string | null;
 }
 
+/** What a structure the scene draws is: a megastructure row or a starbase, by its own id. */
+export type StructureKind = "megastructure" | "starbase";
+
+/**
+ * A save's megastructure or starbase, drawn from the game's model at its point: on the body it is
+ * tied to, where that body is drawn now, else where the save puts it.
+ */
+export interface SceneStructure {
+  readonly kind: StructureKind;
+  readonly id: number;
+  /** Where the model's origin stands, its type's offset included, in save units. */
+  readonly x: number;
+  readonly y: number;
+  /** The model's texture key; null where only the map icon is drawn. */
+  readonly modelKey: string | null;
+  /** How many times its placement's size the model is drawn: more than 1 on a planet it grows with. */
+  readonly scale: number;
+  /** The map icon drawn in place of a model the game data does not know or that cannot be baked. */
+  readonly iconKeys: readonly string[];
+  /** What its tooltip calls it. */
+  readonly name: string;
+  /** Its starbase level as the Station section names it; null for a megastructure. */
+  readonly level: string | null;
+}
+
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
 export interface ScenePreview {
   readonly override: LayoutOverride;
@@ -226,6 +268,8 @@ export interface SystemContext extends SystemSources {
   readonly handles: readonly SceneHandle[];
   /** Its wormholes and shroud tunnels, while the Bypasses switch is on. */
   readonly wormholes: readonly SceneWormhole[];
+  /** Its megastructures and starbases, while their switch is on. */
+  readonly structures: readonly SceneStructure[];
   /**
    * The radius the camera fits on entering the system: the layout's, out to the wormholes drawn,
    * which often stand near the outer radius. Only the layout's changing refits a view in place.
@@ -471,6 +515,8 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   const planets = new Map(details.planets.map((p) => [p.id, p]));
   const system = systemStar(src);
   const discs = discsByPoint(layout.bodies);
+  // The structures layer draws the megastructures in place of their name icons.
+  const marked = src.sceneLayers.megastructures ? { ...details, megastructures: NOTHING } : details;
   return layout.bodies.flatMap((placement) => {
     const planet = planets.get(placement.id);
     if (!planet) return [];
@@ -486,7 +532,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
         chance: chanceOf(placement, planet, drawn),
         resources: rowsOf(planet, src.resourceIcons),
-        marks: bodyMarks(planet, src.countries, details, src.names),
+        marks: bodyMarks(planet, src.countries, marked, src.names),
         readout: readoutOf(placement, discs),
         ...artOf(
           {
@@ -544,6 +590,7 @@ const lastExits = lastOf<readonly Exit[]>();
 const lastRolled = lastOf<readonly RolledPlanet[]>();
 const lastHandles = lastOf<readonly SceneHandle[]>();
 const lastWormholes = lastOf<readonly SceneWormhole[]>();
+const lastStructures = lastOf<readonly SceneStructure[]>();
 
 /** How many handles stand on a circle, evenly spaced clockwise on screen from its top. */
 const HANDLES_PER_CIRCLE = 6;
@@ -598,6 +645,101 @@ function sceneWormholes(
   });
 }
 
+/** How far apart two points may be and still be the one point the save writes twice. */
+const SAME_POINT = 1e-3;
+
+/** The body of `bodies` whose save point is `at`: the planet an orbital ring starbase rings. */
+function bodyAtPoint(
+  bodies: readonly SceneBody[],
+  [x, y]: readonly [number, number],
+): SceneBody | undefined {
+  return bodies.find((b) => {
+    const at = b.planet?.layout?.at;
+    return at != null && Math.abs(at[0] - x) <= SAME_POINT && Math.abs(at[1] - y) <= SAME_POINT;
+  });
+}
+
+/** Where a structure drawn as `look` stands: about `body` where it has one, else at `at`. */
+function placeStructure(
+  look: Exclude<StructureLook, { kind: "none" }>,
+  body: SceneBody | undefined,
+  at: readonly [number, number] | null,
+  offset: readonly [number, number],
+  grows: boolean,
+): Pick<SceneStructure, "x" | "y" | "scale"> | null {
+  const point = body ? [body.placement.x, body.placement.y] : at;
+  if (point == null) return null;
+  const scale = look.kind === "model" ? look.scale : 1;
+  return {
+    x: point[0] + offset[0],
+    y: point[1] + offset[1],
+    scale: grows && body ? scale * planetScale(body.placement.disc) : scale,
+  };
+}
+
+function megastructure(
+  src: SystemSources,
+  bodyById: ReadonlyMap<number, SceneBody>,
+  row: MegastructureSummary,
+): SceneStructure | null {
+  const type = src.megastructureTypes.get(row.kind);
+  const look = megastructureLook(type);
+  if (look.kind === "none") return null;
+  const body = row.planet === null ? undefined : bodyById.get(row.planet);
+  const offset = type?.entity_offset ?? [0, 0];
+  const placed = placeStructure(look, body, row.at, offset, type?.scales_with_planet === true);
+  if (placed === null) return null;
+  return {
+    kind: "megastructure",
+    id: row.id,
+    ...placed,
+    modelKey: look.kind === "model" ? modelKey(row.culture, look.entity) : null,
+    iconKeys: [MEGASTRUCTURE_ICON_KEY],
+    name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
+    level: null,
+  };
+}
+
+function starbase(
+  src: SystemSources,
+  bodies: readonly SceneBody[],
+  station: StarbaseSummary,
+): SceneStructure | null {
+  const level = src.starbaseLevels.get(station.level);
+  const look = starbaseLook(level);
+  if (look.kind === "none" || station.at === null) return null;
+  const grows = level?.scales_with_planet === true;
+  const body = grows ? bodyAtPoint(bodies, station.at) : undefined;
+  const placed = placeStructure(look, body, station.at, [0, 0], grows);
+  if (placed === null) return null;
+  const owner = station.owner === null ? undefined : src.countries.get(station.owner);
+  const label = starbaseLabel(station.level);
+  return {
+    kind: "starbase",
+    id: station.id,
+    ...placed,
+    modelKey: look.kind === "model" ? modelKey(station.culture, look.entity) : null,
+    iconKeys: starbaseKeys(station.level, src.starbaseLevels, owner),
+    name: src.templateName(station) || label,
+    level: label,
+  };
+}
+
+/** Each megastructure and starbase of the system while their switch is on; a scenario lists none. */
+function sceneStructures(
+  src: SystemSources,
+  bodies: readonly SceneBody[],
+  bodyById: ReadonlyMap<number, SceneBody>,
+): SceneStructure[] {
+  const { details } = src;
+  if (!src.sceneLayers.megastructures || details === null) return NOTHING;
+  const stations = details.starbase ? [details.starbase, ...details.other_starbases] : [];
+  return [
+    ...details.megastructures.map((row) => megastructure(src, bodyById, row)),
+    ...stations.map((station) => starbase(src, bodies, station)),
+  ].filter((s): s is SceneStructure => s !== null);
+}
+
 /**
  * Where everything of the system `src` names is drawn, with `preview`'s override and marks in
  * place of the source's own where one is shown. What may be edited is read from the source alone.
@@ -623,9 +765,11 @@ export function systemContext(
       src.ownership,
       src.countries,
       src.resourceIcons,
+      src.sceneLayers.megastructures,
     ],
     () => sceneBodies(src, layout),
   );
+  const bodyById = lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b])));
   const wormholes = lastWormholes(
     [
       src.details,
@@ -643,7 +787,7 @@ export function systemContext(
     ...src,
     layout,
     bodies,
-    bodyById: lastById([bodies], () => new Map(bodies.map((b) => [b.placement.id, b]))),
+    bodyById,
     belts: lastBelts([layout.belts, src.beltKinds], () =>
       layout.belts.map((belt) => sceneBelt(belt, src.beltKinds)),
     ),
@@ -659,6 +803,18 @@ export function systemContext(
       sceneHandles(layout, editing),
     ),
     wormholes,
+    structures: lastStructures(
+      [
+        bodies,
+        src.details,
+        src.sceneLayers.megastructures,
+        src.megastructureTypes,
+        src.starbaseLevels,
+        src.names,
+        src.countries,
+      ],
+      () => sceneStructures(src, bodies, bodyById),
+    ),
     viewRadius: Math.max(
       layout.fitRadius,
       ...wormholes.map((w) => Math.hypot(w.x, w.y) + WORMHOLE_RADIUS + FIT_MARGIN),

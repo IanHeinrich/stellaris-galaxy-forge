@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BypassLink } from "../../generated/BypassLink";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 import type { WormholeSummary } from "../../generated/WormholeSummary";
+import { starbaseLevelView } from "../../test/builders";
 import { COUNTRY, details, fleet, planet } from "./fixture";
 import { type BypassKinds, bypassIconKey } from "./icons";
 import {
@@ -25,25 +26,13 @@ import {
 } from "./labels";
 
 describe("starbaseKeys / starbaseLabel", () => {
-  const levels = new Map<string, StarbaseLevelView>([
+  const levels = new Map<string, StarbaseLevelView>(
     [
-      "starbase_level_citadel",
-      { key: "starbase_level_citadel", icon_frame: 5, empire_shield: false, station_entity: null },
-    ],
-    [
-      "starbase_level_outpost",
-      {
-        key: "starbase_level_outpost",
-        icon_frame: null,
-        empire_shield: false,
-        station_entity: null,
-      },
-    ],
-    [
-      "starbase_level_hut",
-      { key: "starbase_level_hut", icon_frame: null, empire_shield: true, station_entity: null },
-    ],
-  ]);
+      starbaseLevelView("starbase_level_citadel", { icon_frame: 5 }),
+      starbaseLevelView("starbase_level_outpost"),
+      starbaseLevelView("starbase_level_hut", { empire_shield: true }),
+    ].map((level) => [level.key, level]),
+  );
 
   it("names the level glyph", () => {
     expect(starbaseKeys("starbase_level_citadel", levels)).toEqual([

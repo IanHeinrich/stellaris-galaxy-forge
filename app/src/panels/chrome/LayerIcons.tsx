@@ -56,6 +56,14 @@ function glyphOf(id: LayerId): ReactNode {
           <circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none" />
         </LayerGlyph>
       );
+    case "megastructures":
+      return (
+        <LayerGlyph>
+          <circle cx="8" cy="8" r="2.2" fill="currentColor" stroke="none" />
+          <path d="M2.6 8a5.4 2.4 0 1 0 10.8 0a5.4 2.4 0 1 0-10.8 0" />
+          <path d="M8 1.8v2.6M8 11.6v2.6" />
+        </LayerGlyph>
+      );
     case "colonies":
       return (
         <LayerGlyph>

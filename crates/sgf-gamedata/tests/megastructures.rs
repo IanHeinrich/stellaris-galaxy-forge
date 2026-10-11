@@ -59,6 +59,11 @@ fn a_starbase_level_names_the_model_of_its_sizes_first_section_slot() {
         .get("starbase_level_roamer")
         .expect("starbase_level_roamer");
     assert_eq!(roamer.station_entity, None, "its size has no section slots");
+    assert!(
+        StarbaseLevelView::from(roamer).scales_with_planet,
+        "its size's"
+    );
+    assert!(!hut.scales_with_planet);
 }
 
 #[test]

@@ -83,6 +83,7 @@ The Issues, Changes and added-system shots show those edits.
 | --- | --- | --- | --- |
 | `system/system-view.png` | `system/system-view.md` | The system view with the dock | Open Xraneax #322 with nothing selected inside it. Full window. |
 | `system/orbit-radii.png` | `system/system-view.md` | Orbit radii in a system view | On the 4.4 save, open Amory and press 2. |
+| `system/megastructures.png` | `system/system-view.md` | A system with a megastructure, drawn from its game model | On a late-game 4.5 save, open a system with a megastructure, such as one with a Dyson Sphere or a Science Nexus. Crop to the system. |
 | `system/system-view-planet-selected.png` | `system/arrange-planets.md` | A selected planet with its radius line | In Xraneax, click Baloryz. |
 | `system/planet-menu.png` | `system/arrange-planets.md` | The right-click menu on a planet | In Xraneax, select Baloryz, TF-B-63 and JQQ-1-6498, then right-click Baloryz. |
 | `system/planet-page.png` | `system/planet-pages.md` | A planet's page | Click Baloryz and crop the dock. |

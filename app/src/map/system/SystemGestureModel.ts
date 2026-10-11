@@ -5,6 +5,7 @@ import type { InputKind } from "../interaction/MapIntent";
 import { doubles, pastThreshold, type Tap } from "../interaction/press";
 import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
+import type { StructureKind } from "./context";
 import { HandleDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";
 
@@ -47,6 +48,8 @@ export interface SystemIntent {
   openBody(system: number, id: number): void;
   /** Opens wormhole `id`'s page, straight above the system's. */
   openWormhole(system: number, id: number): void;
+  /** Opens the page of the megastructure or starbase `id`, straight above the system's. */
+  openStructure(system: number, kind: StructureKind, id: number): void;
   /** Takes the inspector back to the system's page. */
   showSystem(): void;
   /** The scene as a drag starts from it, with no preview. */
@@ -99,6 +102,8 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
     case "handle":
       return HandleDrag.start(frame, target.ref, from);
     case "exit":
+    case "megastructure":
+    case "starbase":
       return null;
   }
 }
@@ -205,11 +210,14 @@ export class SystemGestureModel {
     return true;
   }
 
-  /** Opens the page of the body or wormhole pressed, if it is one. */
+  /** Opens the page of the body, wormhole, megastructure or starbase pressed, if it is one. */
   private open({ system, target }: Press, intent: SystemIntent): void {
     if (system === null || target === null) return;
     if (target.kind === "body") intent.openBody(system, target.id);
     else if (target.kind === "wormhole") intent.openWormhole(system, target.id);
+    else if (target.kind === "megastructure" || target.kind === "starbase") {
+      intent.openStructure(system, target.kind, target.id);
+    }
   }
 
   /** A pointer up comes once the last button is released, so it ends whatever gesture is going. */
@@ -252,7 +260,7 @@ export class SystemGestureModel {
       }
       intent.selectLane(exit);
       this.lastExit = { exit, sx: press.sx, sy: press.sy, time: press.time };
-    } else if (target?.kind === "body" || target?.kind === "wormhole") {
+    } else if (target !== null && target.kind !== "handle") {
       this.open(press, intent);
     } else {
       intent.selectLane(null);

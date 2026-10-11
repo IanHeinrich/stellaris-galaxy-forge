@@ -4,4 +4,8 @@ export type StarbaseLevelView = { key: string, icon_frame: number | null, empire
 /**
  * The station's model, without the graphical culture prefix the game puts before it.
  */
-station_entity: string | null, };
+station_entity: string | null, 
+/**
+ * The station grows with the planet it rings, as an orbital ring does.
+ */
+scales_with_planet: boolean, };

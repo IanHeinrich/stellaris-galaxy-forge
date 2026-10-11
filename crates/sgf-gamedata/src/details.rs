@@ -127,6 +127,7 @@ impl GameData {
             resources,
             planets,
             starbase,
+            other_starbases: Vec::new(),
             fleets: FleetPresence::default(),
             fleets_present: Vec::new(),
             megastructures,

@@ -1,15 +1,32 @@
+import { modelSize } from "../../lib/details/structures";
+import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
 import type { Pt } from "../../lib/geometry/pt";
+import { getModelPlacement, getTexture } from "../../lib/visual/textures";
 import type { Camera } from "../Camera";
 import { PICK_RADIUS_PX } from "../picking/zones";
 import { sameHandle, type HandleRef } from "./bodyDrag";
-import type { Exit, SceneBody, SceneHandle, SceneWormhole, SystemContext } from "./context";
+import type {
+  Exit,
+  SceneBody,
+  SceneHandle,
+  SceneStructure,
+  SceneWormhole,
+  StructureKind,
+  SystemContext,
+} from "./context";
 import { drawnDisc, drawnWormhole, exitCentre } from "./geometry";
 
 const centre: Pt = { x: 0, y: 0 };
 
-/** What the pointer can rest on in the scene: a body, a wormhole, a hyperlane arrow or a handle. */
+/** What a target with an id names: a body, a wormhole, a hyperlane arrow or a structure. */
+export type IdKind = "body" | "wormhole" | "exit" | StructureKind;
+
+/**
+ * What the pointer can rest on in the scene: a body, a wormhole, a hyperlane arrow, a
+ * megastructure, a starbase or a handle.
+ */
 export type SceneTarget =
-  | { readonly kind: "body" | "wormhole" | "exit"; readonly id: number }
+  | { readonly kind: IdKind; readonly id: number }
   | { readonly kind: "handle"; readonly ref: HandleRef };
 
 export function sameTarget(a: SceneTarget | null, b: SceneTarget | null): boolean {
@@ -18,11 +35,8 @@ export function sameTarget(a: SceneTarget | null, b: SceneTarget | null): boolea
   return b.kind !== "handle" && a.kind === b.kind && a.id === b.id;
 }
 
-/** The body, wormhole or arrow `target` names, as `kind`; null for anything else. */
-export function idOf(
-  target: SceneTarget | null,
-  kind: "body" | "wormhole" | "exit",
-): number | null {
+/** The body, wormhole, arrow or structure `target` names, as `kind`; null for anything else. */
+export function idOf(target: SceneTarget | null, kind: IdKind): number | null {
   return target !== null && target.kind !== "handle" && target.kind === kind ? target.id : null;
 }
 
@@ -87,6 +101,44 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
   return best;
 }
 
+/** Whether the world point `at` falls on `s`'s landed model sprite, in save units. */
+function onModel(s: SceneStructure, at: Pt): boolean {
+  if (s.modelKey === null || !getTexture(s.modelKey)) return false;
+  const placement = getModelPlacement(s.modelKey);
+  if (placement === undefined) return false;
+  const { width, height } = modelSize(placement, s.scale);
+  const right = (at.x - s.x) * SAVE_X_SIGN;
+  const down = (at.y - s.y) * SAVE_Y_SIGN;
+  const { anchor_x: ax, anchor_y: ay } = placement;
+  return (
+    right >= -ax * width &&
+    right <= (1 - ax) * width &&
+    down >= -ay * height &&
+    down <= (1 - ay) * height
+  );
+}
+
+/**
+ * The megastructure or starbase whose model sprite covers the world point `at`, or whose point is
+ * within the pick radius of it; the nearest point wins.
+ */
+export function pickStructure(
+  structures: readonly SceneStructure[],
+  cam: Camera,
+  at: Pt,
+): SceneTarget | null {
+  let best: SceneStructure | null = null;
+  let bestPx = Infinity;
+  for (const s of structures) {
+    const px = Math.hypot(s.x - at.x, s.y - at.y) * cam.scale;
+    if ((px <= PICK_RADIUS_PX || onModel(s, at)) && px < bestPx) {
+      best = s;
+      bestPx = px;
+    }
+  }
+  return best === null ? null : { kind: best.kind, id: best.id };
+}
+
 /**
  * The belt whose drawn band the world point `at` is over, or the inner radius it is near, within the
  * pick radius on screen: the one whose handles show. Only what has handles counts, and inside two
@@ -130,10 +182,10 @@ export function pickHandle(
 
 /**
  * What the world point `at` is over: a body's disc, else the body whose plate `plateAt` finds there,
- * a wormhole, one of the `shown` band's handles, or a hyperlane arrow.
+ * a wormhole, one of the `shown` band's handles, a hyperlane arrow, or a megastructure or starbase.
  */
 export function pickTarget(
-  ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits">,
+  ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits" | "structures">,
   cam: Camera,
   at: Pt,
   plateAt: () => number | null,
@@ -147,7 +199,8 @@ export function pickTarget(
   const handle = pickHandle(ctx.handles, cam, at, shown);
   if (handle !== null) return { kind: "handle", ref: handle };
   const exit = pickExit(ctx.exits, cam, at);
-  return exit === null ? null : { kind: "exit", id: exit };
+  if (exit !== null) return { kind: "exit", id: exit };
+  return pickStructure(ctx.structures, cam, at);
 }
 
 /** A shown name plate: its top-left in world units and its size in screen pixels. */

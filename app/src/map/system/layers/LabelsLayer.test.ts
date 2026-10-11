@@ -316,7 +316,7 @@ describe("the system scene's labels layer", () => {
     layer.destroy();
   });
 
-  it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip", async () => {
+  it("shows a body's megastructure, dig site, anomaly and pre-FTL icons in the galaxy's order, each with its tooltip, with the structures layer off", async () => {
     const textureFor = decodeAll();
     const natives = { ...EARTH, colonised: true, owner: 10, pre_ftl: true };
     const holding = { ...natives, anomaly: "AIANOM_RESEARCHDEPO_CAT" };
@@ -338,7 +338,12 @@ describe("the system scene's labels layer", () => {
           { id: 61, kind: "site_zroni_ruins", planet: MARS.id },
         ],
       }),
-      sceneLayers: { ...NO_SOURCES.sceneLayers, labels: true, details: true },
+      sceneLayers: {
+        ...NO_SOURCES.sceneLayers,
+        labels: true,
+        details: true,
+        megastructures: false,
+      },
       names: new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]),
     });
     const layer = new LabelsLayer();

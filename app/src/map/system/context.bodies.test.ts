@@ -71,7 +71,7 @@ describe("the bodies of a system", () => {
     ]);
   });
 
-  it("marks a body with the megastructures and dig sites on it and its anomaly by the game's name", () => {
+  it("marks a body with the megastructures and dig sites on it and its anomaly by the game's name, with the structures layer off", () => {
     const at = (id: number) =>
       bodyLayout({ orbit: fixed(40 * id), at: [40 * id, 0], size: fixed(16) });
     const holding = planetSummary({
@@ -93,6 +93,7 @@ describe("the bodies of a system", () => {
         sites: [{ id: 60, kind: "site_zroni_ruins", planet: 3 }],
       }),
       names: new Map([["AIANOM_RESEARCHDEPO_CAT", "Research Depot"]]),
+      sceneLayers: { ...sources.sceneLayers, megastructures: false },
     });
     expect(
       ctx.bodies.map(({ marks }) => [

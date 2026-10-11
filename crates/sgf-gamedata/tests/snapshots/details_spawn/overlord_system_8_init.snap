@@ -1,6 +1,5 @@
 ---
 source: crates/sgf-gamedata/tests/details_spawn.rs
-assertion_line: 599
 expression: out
 ---
 {
@@ -33,6 +32,7 @@ expression: out
       "planet": null
     }
   ],
+  "other_starbases": [],
   "planets": null,
   "resources": [],
   "sites": [],

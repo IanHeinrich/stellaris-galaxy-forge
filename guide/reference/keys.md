@@ -75,6 +75,7 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | <kbd>Esc</kbd> | Back to the galaxy once there is nothing else to clear. See [What Esc does](#what-esc-does) |
 | <kbd>Shift</kbd>+arrow | Move the open body 1° along its orbit or 1 unit out or in, or 10° or 10 units with <kbd>Ctrl</kbd> |
 | <kbd>2</kbd> | Orbit radii |
+| <kbd>7</kbd> | Megastructures and starbases, in a save |
 
 ## What Esc does
 

@@ -15,6 +15,9 @@ pub struct ShipSizeDef {
     /// The `section_slots` names in file order: the first holds the hull's own section, as
     /// `core` does on a starbase.
     pub section_slots: Vec<String>,
+    /// `scales_with_planet = yes`: the hull grows with the planet it is built round, as an
+    /// orbital ring's does.
+    pub scales_with_planet: bool,
 }
 
 impl FromDef for ShipSizeDef {
@@ -41,6 +44,7 @@ impl FromDef for ShipSizeDef {
                         .collect()
                 })
                 .unwrap_or_default(),
+            scales_with_planet: def.flag("scales_with_planet"),
         }
     }
 }

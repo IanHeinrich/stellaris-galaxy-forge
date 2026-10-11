@@ -3,7 +3,13 @@ import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/det
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
-import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
+import {
+  bodyEntry,
+  megastructureEntry,
+  starbaseEntry,
+  useInspectorStore,
+  wormholeEntry,
+} from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { noteScenePointer, planetsCanMove } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
@@ -15,7 +21,7 @@ import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
 import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
-import type { SystemContext } from "./context";
+import type { StructureKind, SystemContext } from "./context";
 import { handleOwnerAt, idOf, pickTarget, sameTarget, type SceneTarget } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
@@ -83,6 +89,13 @@ function tipFor(
       if (!lane) return null;
       return { title: lane.name, lines: [{ label: "Lane length", value: String(lane.length) }] };
     }
+    case "megastructure":
+    case "starbase": {
+      const shown = ctx.structures.find((s) => s.kind === target.kind && s.id === target.id);
+      if (!shown) return null;
+      const lines = shown.level === null ? [] : [{ label: "Level", value: shown.level }];
+      return { title: shown.name, lines };
+    }
   }
 }
 
@@ -99,6 +112,8 @@ function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
     case "handle":
       return true;
     case "exit":
+    case "megastructure":
+    case "starbase":
       return false;
   }
 }
@@ -151,6 +166,7 @@ export class SystemInteraction {
       },
       openBody: (system, id) => this.openBody(system, id),
       openWormhole: (system, id) => this.openWormhole(system, id),
+      openStructure: (system, kind, id) => this.openStructure(system, kind, id),
       showSystem: () => {
         useSceneStore.getState().clearBodies();
         useInspectorStore.getState().popTo(0);
@@ -303,6 +319,18 @@ export class SystemInteraction {
     if (!hole) return;
     useSceneStore.getState().clearBodies();
     useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
+  }
+
+  /** A click on a megastructure or starbase selects it alone and opens its page. */
+  private openStructure(system: number, kind: StructureKind, id: number): void {
+    const shown = this.scene.context().structures.find((s) => s.kind === kind && s.id === id);
+    if (!shown) return;
+    useSceneStore.getState().clearBodies();
+    const entry =
+      kind === "megastructure"
+        ? megastructureEntry(id, shown.name)
+        : starbaseEntry(system, id, shown.name);
+    useInspectorStore.getState().openFromMap(entry);
   }
 
   private selectAlone(system: number, id: number): void {

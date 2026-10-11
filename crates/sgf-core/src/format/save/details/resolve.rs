@@ -79,6 +79,9 @@ pub struct SystemDetails {
     pub resources: Vec<ResourceAmount>,
     pub planets: Vec<PlanetSummary>,
     pub starbase: Option<StarbaseSummary>,
+    /// The starbases the system lists after `starbase`, in file order: deep-space citadels
+    /// and orbital rings. Empty in a scenario.
+    pub other_starbases: Vec<StarbaseSummary>,
     pub fleets: FleetPresence,
     /// In file order.
     pub fleets_present: Vec<FleetSummary>,
@@ -810,7 +813,7 @@ pub(super) fn resolve(
             spawn: None,
         });
     }
-    let starbase = raw.starbases.first().map(|s| StarbaseSummary {
+    let mut starbases = raw.starbases.iter().map(|s| StarbaseSummary {
         id: s.id,
         level: s.level.clone(),
         kind: s.kind.clone(),
@@ -825,11 +828,14 @@ pub(super) fn resolve(
         at: s.at,
         culture: s.culture.clone(),
     });
+    let starbase = starbases.next();
+    let other_starbases = starbases.collect();
     SystemDetails {
         id,
         resources,
         planets,
         starbase,
+        other_starbases,
         fleets: FleetPresence::of(&raw.fleets),
         fleets_present: raw
             .fleets
