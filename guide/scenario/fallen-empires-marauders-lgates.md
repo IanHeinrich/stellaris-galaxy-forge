@@ -1,7 +1,7 @@
 ---
 title: Fallen empires, marauders and L-Gates
-description: Place fallen empire zones and marauder clans on a scenario, and keep threats away from starting positions.
-aliases: [fallen empire, fe zone, marauder, marauders, raiders, l-gate, lgate, leviathan, threats]
+description: Place fallen empire zones and marauder clans on a scenario, see where fallen empires hold territory, and keep threats away from starting positions.
+aliases: [fallen empire, fe zone, fallen empire territory, fallen empire borders, marauder, marauders, raiders, l-gate, lgate, leviathan, threats]
 ---
 # Fallen empires, marauders and L-Gates <Badge type="info" text="Scenario" />
 
@@ -19,6 +19,24 @@ onto it to choose what the fallen empire connects to.
 A system's page has Add zone in its Fallen empire zone section too.
 
 ![A scenario system's page, with its Spawn point, Fallen empire zone and Initializer sections](../images/scenario/scenario-system-inspector.png)
+
+## See a fallen empire's territory
+
+A system whose initializer is a fallen empire's home, such as
+`fallen_machine`, becomes that fallen empire's territory. So do the
+systems that initializer gives outposts to, as long as each is within
+the distance the initializer allows for it. Turn on the Empires layer
+to see the borders, and open the Empires tab to find the fallen empire
+under Fallen empires. Select one of its systems and the Inspector names
+the fallen empire as the owner.
+
+The game names a fallen empire at random when a new game starts, so
+Galaxy Forge names it by its kind, such as "Materialist Fallen Empire".
+It takes a colour from the same palette as other territories with no
+colours of their own. When two fallen empires of the same kind are on
+the map, a system either could hold goes to the nearer home system.
+Moving a system doesn't change which one holds it until you next change
+an initializer. This needs game data from your Stellaris install.
 
 ## Add a marauder clan
 

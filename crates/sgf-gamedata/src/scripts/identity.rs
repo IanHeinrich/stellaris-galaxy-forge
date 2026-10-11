@@ -1,11 +1,11 @@
-//! Who an `event_target:` token actually is: the five routes from a bare
+//! Who an `event_target:` token actually is: the six routes from a bare
 //! token to a name, a type and a flag, first match winning.
 
 use sgf_core::projections::galaxy::{FlagRef, display_name};
 
 use crate::GameData;
 use crate::scripts::chain::Chain;
-use crate::scripts::index::{CreatedCountry, Prescripted};
+use crate::scripts::index::{CreatedCountry, FallenEmpire, Prescripted};
 use crate::scripts::view::{OwnerIdentity, ScriptRef};
 
 /// The type an unidentified owner is given: vanilla's own type for a country
@@ -14,6 +14,10 @@ use crate::scripts::view::{OwnerIdentity, ScriptRef};
 const UNRESOLVED_TYPE: &str = "global_event";
 
 const CUSTOM_EMPIRE_LABEL: &str = "Custom empire spawn";
+
+/// The localisation key of the words "Fallen Empire", and the words when it is missing.
+const FALLEN_EMPIRE_KEY: &str = "COUNTRY_FALLEN_EMPIRE";
+const FALLEN_EMPIRE_LABEL: &str = "Fallen Empire";
 const CUSTOM_EMPIRE_USAGES: [&str; 2] = ["custom_empire", "empire_init"];
 
 /// Whether an initializer's `usage` is one a country starts in, so the empire
@@ -65,6 +69,9 @@ pub fn resolve(
     if let Some(prescripted) = capital_initializer.and_then(|key| gd.scripts.prescripted(key)) {
         return from_prescripted(prescripted);
     }
+    if let Some(fallen) = capital_initializer.and_then(|key| gd.scripts.fallen_empire(key)) {
+        return from_fallen(gd, fallen);
+    }
     if is_empire_spawn(
         capital_initializer
             .and_then(|key| gd.initializers.get(key))
@@ -112,5 +119,40 @@ fn from_prescripted(prescripted: &Prescripted) -> Identity {
         icon: prescripted.icon.clone(),
         background: prescripted.background.clone(),
         defined_at: Some(prescripted.location.clone()),
+    }
+}
+
+fn from_fallen(gd: &GameData, fallen: &FallenEmpire) -> Identity {
+    Identity {
+        kind: OwnerIdentity::FallenEmpire,
+        name_key: fallen_name(gd, fallen),
+        country_type: fallen.country_type.clone(),
+        colors: fallen.colors.clone(),
+        icon: fallen.icon.clone(),
+        background: fallen.background.clone(),
+        defined_at: Some(fallen.location.clone()),
+    }
+}
+
+/// The game names a fallen empire at random when the galaxy is made, so the
+/// entry's own localised name stands in, else its ethic: "Materialist Fallen Empire".
+fn fallen_name(gd: &GameData, fallen: &FallenEmpire) -> String {
+    if let Some(name) = &fallen.name_key {
+        return name.clone();
+    }
+    if gd.loc.name(&fallen.key).is_some() {
+        return fallen.key.clone();
+    }
+    let empire = gd
+        .loc
+        .name(FALLEN_EMPIRE_KEY)
+        .unwrap_or_else(|| FALLEN_EMPIRE_LABEL.to_owned());
+    match fallen
+        .ethic
+        .as_deref()
+        .and_then(|ethic| gd.loc.name(&ethic.replace("_fanatic_", "_")))
+    {
+        Some(ethic) => format!("{ethic} {empire}"),
+        None => empire,
     }
 }

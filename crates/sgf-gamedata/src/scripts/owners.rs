@@ -4,8 +4,10 @@
 //! player's first frame.
 //!
 //! Generation wins: a system its chain already gave away is never claimed.
+//! A fallen empire's home and the systems its chain spawns are given away at
+//! generation too, to the country the game creates there.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use sgf_core::projections::galaxy::CountryNode;
 use sgf_core::projections::name::NameTemplate;
@@ -79,10 +81,14 @@ pub fn scenario_owners(gd: &GameData, systems: &[ScenarioSystem<'_>]) -> Scenari
     let mut groups: BTreeMap<String, Group> = BTreeMap::new();
     let mut unresolved = Vec::new();
 
-    for system in systems {
-        if !generation_owner(&facts, system, &mut groups, &mut unresolved) {
-            claim(gd, &facts, system.id, &mut groups, &mut unresolved);
-        }
+    let free: Vec<&ScenarioSystem<'_>> = systems
+        .iter()
+        .filter(|system| !generation_owner(&facts, system, &mut groups, &mut unresolved))
+        .collect();
+    let fallen = fallen_empires(gd, &facts, &free, &mut groups);
+    unresolved.retain(|u| !(fallen.contains(&u.system) && names_root(&u.wrote)));
+    for system in free.iter().filter(|s| !fallen.contains(&s.id)) {
+        claim(gd, &facts, system.id, &mut groups, &mut unresolved);
     }
 
     let territories = territories(gd, &facts, &groups);
@@ -177,6 +183,133 @@ fn generation_owner(
         group.origin = Some(origin.clone());
     }
     true
+}
+
+/// How many spawns deep a fallen empire's chain is followed, as far as
+/// [`Chain::spawned`] follows one.
+const SPAWN_DEPTH: usize = 4;
+
+/// How much farther than its spawns' distances allow a member may stand.
+const REACH_SLACK: f64 = 1.25;
+
+/// Give each fallen empire its home system, under a token of its own, and the
+/// systems its chain spawns that plant a starbase or set an owner there: the
+/// game creates the country in the home system, and `root` in its chain is
+/// that country. A member stands within the distances the spawns write, and a
+/// system two homes spawn goes to the nearer. Returns every system given away.
+fn fallen_empires(
+    gd: &GameData,
+    facts: &ScenarioFacts,
+    free: &[&ScenarioSystem<'_>],
+    groups: &mut BTreeMap<String, Group>,
+) -> HashSet<u32> {
+    let capitals: Vec<(&ScenarioSystem<'_>, &str)> = free
+        .iter()
+        .filter_map(|system| {
+            let key = system.initializer?;
+            gd.scripts.fallen_empire(key)?;
+            Some((*system, key))
+        })
+        .collect();
+    let mut reaches: HashMap<&str, HashMap<&str, f64>> = HashMap::new();
+    let mut taken = HashSet::new();
+    for (capital, key) in &capitals {
+        let group = groups.entry(fallen_token(key, capital.id)).or_default();
+        group.members.push(generation_member(capital.id));
+        group.capital = Some(capital.id);
+        group.capital_initializer = Some((*key).to_owned());
+        taken.insert(capital.id);
+        reaches.entry(key).or_insert_with(|| spawn_reaches(gd, key));
+    }
+    for system in free {
+        if taken.contains(&system.id) {
+            continue;
+        }
+        let Some(key) = system.initializer else {
+            continue;
+        };
+        if !facts.chain(key).is_some_and(builds_for_root) {
+            continue;
+        }
+        let nearest = capitals
+            .iter()
+            .filter(|(capital, home)| {
+                reaches[home]
+                    .get(key)
+                    .is_some_and(|reach| within(system, capital, reach * REACH_SLACK))
+            })
+            .min_by(|(a, _), (b, _)| {
+                let far = |c| distance(system, c).unwrap_or(f64::INFINITY);
+                far(a).total_cmp(&far(b)).then(a.id.cmp(&b.id))
+            });
+        if let Some((capital, home)) = nearest {
+            let group = groups.entry(fallen_token(home, capital.id)).or_default();
+            group.members.push(generation_member(system.id));
+            taken.insert(system.id);
+        }
+    }
+    taken
+}
+
+/// Every initializer `home` spawns within [`SPAWN_DEPTH`] spawns, with the
+/// farthest it may land from the home system: the least sum of the spawns'
+/// distances on the way, infinite where a spawn on it writes none.
+fn spawn_reaches<'g>(gd: &'g GameData, home: &str) -> HashMap<&'g str, f64> {
+    let mut best: HashMap<&str, f64> = HashMap::new();
+    let mut frontier: Vec<(&str, f64)> = vec![(home, 0.0)];
+    for _ in 0..SPAWN_DEPTH {
+        let mut next = Vec::new();
+        for (from, so_far) in frontier {
+            let Some(init) = gd.initializers.get(from) else {
+                continue;
+            };
+            for (child, step) in &init.spawn_reach {
+                let total = so_far + step.unwrap_or(f64::INFINITY);
+                if child != home && best.get(child.as_str()).is_none_or(|known| total < *known) {
+                    best.insert(child, total);
+                    next.push((child.as_str(), total));
+                }
+            }
+        }
+        frontier = next;
+    }
+    best
+}
+
+/// A fallen empire's territory key: its home's initializer and system, so two
+/// fallen empires of one kind stay two.
+fn fallen_token(initializer: &str, capital: u32) -> String {
+    format!("root:{initializer}:{capital}")
+}
+
+fn generation_member(system: u32) -> Member {
+    Member {
+        system,
+        tier: OwnerTier::Generation,
+        claimed_by: None,
+        assumed: false,
+    }
+}
+
+/// The chain builds something in the system for whoever spawned it: a
+/// starbase of no one else's, or an owner set through `root`.
+fn builds_for_root(chain: &Chain) -> bool {
+    chain.root_starbase || chain.unresolved.iter().any(|wrote| names_root(wrote))
+}
+
+fn names_root(wrote: &str) -> bool {
+    wrote.eq_ignore_ascii_case("set_owner = root")
+}
+
+/// How far apart two systems stand; `None` when either has no place.
+fn distance(a: &ScenarioSystem<'_>, b: &ScenarioSystem<'_>) -> Option<f64> {
+    let ((ax, ay), (bx, by)) = (a.at?, b.at?);
+    Some((ax - bx).hypot(ay - by))
+}
+
+/// Whether `a` stands within `reach` of `b`; a system with no place is taken at its word.
+fn within(a: &ScenarioSystem<'_>, b: &ScenarioSystem<'_>, reach: f64) -> bool {
+    distance(a, b).is_none_or(|d| d <= reach)
 }
 
 /// The first day-one claim whose guard holds for this system takes it.

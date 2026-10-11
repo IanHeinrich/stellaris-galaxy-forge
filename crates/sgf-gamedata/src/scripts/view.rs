@@ -17,13 +17,16 @@ pub const ROW_LIMIT: usize = 200;
 pub const SITE_LIMIT: usize = 50;
 
 /// One system of a scenario document, as the ownership pass reads it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScenarioSystem<'a> {
     pub id: u32,
     /// The `initializer = ` the system statement names.
     pub initializer: Option<&'a str>,
     /// The system statement's own `effect = { … }` text.
     pub effect: Option<&'a str>,
+    /// Where the system stands, for the fallen empire nearest it; `None` where the caller
+    /// has no map.
+    pub at: Option<(f64, f64)>,
 }
 
 /// Where a script says what it says: the winning file, its line and the
@@ -52,6 +55,8 @@ pub enum OwnerIdentity {
     CountryFlag,
     /// A `prescripted_countries` entry whose `initializer` is the capital's.
     Prescripted,
+    /// A `common/fallen_empires` entry whose `initializer` is the capital's.
+    FallenEmpire,
     /// The capital initializer spawns whatever empire the player designed.
     CustomEmpireSpawn,
     /// Nothing in loaded game data names the token.

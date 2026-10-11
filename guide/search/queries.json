@@ -57,6 +57,8 @@
   {"q": "delete system", "expect": "edit/add-systems#delete-systems"},
   {"q": "spawn point", "expect": "scenario/spawn-points"},
   {"q": "fallen empire", "expect": "scenario/fallen-empires-marauders-lgates#add-a-fallen-empire-zone"},
+  {"q": "fallen empire territory", "expect": "scenario/fallen-empires-marauders-lgates#see-a-fallen-empire-s-territory"},
+  {"q": "fallen empire borders scenario", "expect": "scenario/fallen-empires-marauders-lgates#see-a-fallen-empire-s-territory"},
   {"q": "marauder", "expect": "scenario/fallen-empires-marauders-lgates#add-a-marauder-clan"},
   {"q": "l-gate", "expect": "edit/empires#change-the-l-gate-outcome"},
   {"q": "deposit", "expect": "system/deposits-and-modifiers#add-or-remove-a-deposit"},

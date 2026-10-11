@@ -298,6 +298,10 @@ pub struct Initializer {
     pub countries: Vec<SpawnedCountry>,
     /// Initializers this one places nearby (`neighbor_system` / `spawn_system`).
     pub spawns: Vec<String>,
+    /// Each of `spawns` with the farthest it may land from this system: the `max` of a
+    /// `neighbor_system`'s `distance`, or a `spawn_system`'s `max_distance`. `None` where
+    /// only hyperlane jumps, or nothing, bound it.
+    pub spawn_reach: Vec<(String, Option<f64>)>,
     pub asteroid_belts: Vec<InitAsteroidBelt>,
     /// In file order, each carrying the `change_orbit` written before it.
     pub planets: Vec<InitPlanet>,
@@ -391,6 +395,7 @@ impl Initializer {
             init_effect: node.find("init_effect", src).is_some(),
             countries: countries(node, src),
             spawns: spawns(node, src),
+            spawn_reach: spawn_reach(def),
             asteroid_belts: asteroid_belts(def),
             planets,
             megastructures: written.megastructures,
@@ -805,6 +810,24 @@ fn spawns(node: &Node, src: &[u8]) -> Vec<String> {
         .into_iter()
         .filter_map(|block| block.find("initializer", src)?.scalar_str(src))
         .map(str::to_owned)
+        .collect()
+}
+
+fn spawn_reach(def: &Def) -> Vec<(String, Option<f64>)> {
+    let src = &def.src;
+    let mut blocks = Vec::new();
+    script::find_deep(&def.node, "neighbor_system", src, &mut blocks);
+    script::find_deep(&def.node, "spawn_system", src, &mut blocks);
+    blocks
+        .into_iter()
+        .filter_map(|block| {
+            let initializer = block.find("initializer", src)?.scalar_str(src)?;
+            let reach = def
+                .range_in(block, "distance")
+                .map(|r| r.max)
+                .or_else(|| def.number_of(block.find("max_distance", src)?.scalar_str(src)?));
+            Some((initializer.to_owned(), reach))
+        })
         .collect()
 }
 

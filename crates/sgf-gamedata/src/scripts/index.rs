@@ -65,6 +65,22 @@ pub struct Prescripted {
     pub location: ScriptRef,
 }
 
+/// A `common/fallen_empires` entry, keyed by the initializer its home system starts from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FallenEmpire {
+    /// `fallen_machine_empire`.
+    pub key: String,
+    /// The `create_country` name, unless it is `random`.
+    pub name_key: Option<String>,
+    pub country_type: String,
+    /// The first ethic of the country's `ethos`, `ethic_fanatic_materialist`.
+    pub ethic: Option<String>,
+    pub colors: Vec<String>,
+    pub icon: Option<FlagRef>,
+    pub background: Option<FlagRef>,
+    pub location: ScriptRef,
+}
+
 /// Where a depth-0 `event = { … }` block is written.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventLoc {
@@ -169,6 +185,7 @@ pub struct ScriptIndex {
     by_country_flag: HashMap<String, CreatedCountry>,
     by_saved_target: HashMap<String, CreatedCountry>,
     prescripted: HashMap<String, Prescripted>,
+    fallen_empires: HashMap<String, FallenEmpire>,
     events: HashMap<String, EventLoc>,
     claims: Claims,
     class_uses: ClassUses,
@@ -191,6 +208,7 @@ pub(crate) const EFFECTS_DIR: &str = "common/scripted_effects";
 pub(crate) const EVENTS_DIR: &str = "events";
 pub(crate) const ON_ACTIONS_DIR: &str = "common/on_actions";
 pub(crate) const PRESCRIPTED_DIR: &str = "prescripted_countries";
+pub(crate) const FALLEN_EMPIRES_DIR: &str = "common/fallen_empires";
 
 /// The other directories whose scripts give a planet a class or a class's look, or name a
 /// class a species lives on, read for nothing else.
@@ -239,6 +257,7 @@ impl ScriptIndex {
             index.ingest(layout, rel, dir, kind, report, diagnostics);
         }
         index.read_prescripted(layout, globals, diagnostics);
+        index.read_fallen_empires(layout, globals, diagnostics);
         index.read_class_uses(layout, diagnostics);
         let claims = claims::build(&index, layout);
         index.claims = claims;
@@ -336,6 +355,10 @@ impl ScriptIndex {
 
     pub fn prescripted(&self, initializer: &str) -> Option<&Prescripted> {
         self.prescripted.get(initializer)
+    }
+
+    pub fn fallen_empire(&self, initializer: &str) -> Option<&FallenEmpire> {
+        self.fallen_empires.get(initializer)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -510,6 +533,47 @@ impl ScriptIndex {
                 initializer.to_owned(),
                 Prescripted {
                     name_key: name_key.to_owned(),
+                    colors: flag.map(|f| colors(f, src)).unwrap_or_default(),
+                    icon: flag.and_then(|f| flag_ref(f, "icon", src)),
+                    background: flag.and_then(|f| flag_ref(f, "background", src)),
+                    location,
+                },
+            );
+        }
+    }
+
+    fn read_fallen_empires(
+        &mut self,
+        layout: &Layout,
+        globals: &Arc<Variables>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) {
+        let defs = script::parse_dir(layout, FALLEN_EMPIRES_DIR, globals, diagnostics);
+        for def in in_file_order(&layout.files_in(FALLEN_EMPIRES_DIR), &defs) {
+            let src = &def.src;
+            let Some(initializer) = def.scalar("initializer") else {
+                continue;
+            };
+            let mut blocks = Vec::new();
+            created_countries(&def.node, src, &mut blocks);
+            let country = blocks.first().map(|(block, _)| *block);
+            let flag = country.and_then(|c| c.find("flag", src));
+            let location = script_ref(&self.layout, &def.file, line_of(src, def.node.span().start));
+            self.fallen_empires.insert(
+                initializer.to_owned(),
+                FallenEmpire {
+                    key: def.node.key_str(src).unwrap_or_default().to_owned(),
+                    name_key: country
+                        .and_then(|c| c.find("name", src)?.scalar_str(src))
+                        .filter(|name| *name != "random")
+                        .map(str::to_owned),
+                    country_type: country
+                        .and_then(|c| c.find("type", src)?.scalar_str(src))
+                        .unwrap_or("fallen_empire")
+                        .to_owned(),
+                    ethic: country
+                        .and_then(|c| c.find("ethos", src)?.find("ethic", src)?.scalar_str(src))
+                        .map(str::to_owned),
                     colors: flag.map(|f| colors(f, src)).unwrap_or_default(),
                     icon: flag.and_then(|f| flag_ref(f, "icon", src)),
                     background: flag.and_then(|f| flag_ref(f, "background", src)),
