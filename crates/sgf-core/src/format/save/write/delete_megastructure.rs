@@ -47,6 +47,12 @@ pub(crate) fn plan_delete(
         megastructure: id,
         reason,
     };
+    if tied.kind.starts_with("ring_world") {
+        return Err(refuse(
+            "a ring world is deleted whole, with its segments, and that isn't supported yet"
+                .to_owned(),
+        ));
+    }
     let system = tied
         .system
         .ok_or_else(|| refuse("it stands in no system".to_owned()))?;

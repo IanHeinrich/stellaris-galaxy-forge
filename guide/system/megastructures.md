@@ -95,4 +95,5 @@ deleted:
 
 - an L-Gate, or a megastructure with any other link than a relay's or a
   gateway's
+- a ring world, which can't be deleted yet
 - a save from before Stellaris 4.0

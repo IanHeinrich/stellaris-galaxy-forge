@@ -708,7 +708,8 @@ pub enum Op {
     /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and
     /// leaves its body's `deposits`, and each owner variable it lowers, unless that would
     /// take the variable below 0. A row upgrading goes with its `upgrade` block. A row
-    /// standing in no system, a bypass of any other kind, any colony [`Op::RemoveColony`]
+    /// standing in no system, a ring world's quadrant, which goes whole with its segments, a
+    /// bypass of any other kind, any colony [`Op::RemoveColony`]
     /// refuses for a reason other than the structure, and a modifier, deposit type or
     /// variable that is not an identifier are refused. The inverse is the
     /// [`Op::RestoreEntities`] that writes back every entity it rewrote. A row

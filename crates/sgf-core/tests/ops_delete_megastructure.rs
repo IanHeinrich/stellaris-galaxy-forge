@@ -178,6 +178,29 @@ fn what_is_refused() {
 }
 
 #[test]
+fn a_ring_world_quadrant_is_refused() {
+    let mut session = edited_4_5(|text| {
+        let ruined = "
+	4=
+	{
+		type=\"orbital_ring_ruined\"";
+        assert!(text.contains(ruined));
+        *text = text.replacen(
+            ruined,
+            &ruined.replace("orbital_ring_ruined", "ring_world_ruined"),
+            1,
+        );
+    });
+    assert_refusals(
+        &mut session,
+        [(
+            delete(4),
+            "megastructure 4 cannot be deleted: a ring world is deleted whole, with its segments, and that isn't supported yet",
+        )],
+    );
+}
+
+#[test]
 fn the_inverse_of_the_inverse_deletes_again() {
     let mut session = open_4_5();
     let result = session.apply(delete(6)).expect("delete");
