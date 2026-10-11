@@ -1,18 +1,18 @@
 //! `common/solar_system_initializers`: what a system was generated from.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use sgf_core::cst::{self, Node};
-use sgf_core::format::save::details::{CountRange, InlineScriptUse};
+use sgf_core::format::save::details::{CountRange, InlineScriptUse, SourceLine};
 use sgf_core::span::Span;
 use ts_rs::TS;
 
 use crate::body_effects::{self, BodyEffect, HOME_EFFECTS, Unwritten};
 use crate::install::layers::{Layout, VANILLA};
-use crate::install::script::{self, Def, ParsedDir, Range, Variables, whole};
+use crate::install::script::{self, Def, ParsedDir, Range, Variables, line_of, whole};
 use crate::registries::planet_classes::PlanetClassDef;
 use crate::registries::registry::{FromDef, Registry};
 use crate::scripts::init_bypasses::bypasses;
@@ -342,20 +342,21 @@ impl FromDef for Initializer {
     const DIR: &'static str = "common/solar_system_initializers";
 
     fn read(name: String, def: &Def) -> Self {
-        Self::read_spliced(name, def, &[])
+        Self::read_spliced(name, def, &Origin::of(def))
     }
 }
 
 impl Initializer {
-    /// The initializer `def` defines, `splices` the inline scripts its text was read with in
-    /// place of their calls.
-    fn read_spliced(name: String, def: &Def, splices: &[InlineScript]) -> Self {
+    /// The initializer `def` defines, `origin` where its text was written, with the inline
+    /// scripts its text was read with in place of their calls.
+    fn read_spliced(name: String, def: &Def, origin: &Origin) -> Self {
         let src = &def.src;
         let node = &def.node;
-        let planets = bodies(node, &["planet"], def, splices);
-        let mut stated = stated::system(node, def);
-        stated.inline_scripts = splices.iter().map(InlineScript::use_of).collect();
-        stated.from_script = splices
+        let planets = bodies(node, &["planet"], def, origin);
+        let mut stated = stated::system(node, def, origin);
+        stated.inline_scripts = origin.splices.iter().map(InlineScript::use_of).collect();
+        stated.from_script = origin
+            .splices
             .iter()
             .find(|splice| splice.gives_everything(&planets))
             .map(|splice| splice.script.clone());
@@ -592,7 +593,7 @@ fn icon(country: &Node, src: &[u8]) -> Option<FlagIcon> {
     })
 }
 
-fn bodies(parent: &Node, keys: &[&str], def: &Def, splices: &[InlineScript]) -> Vec<InitPlanet> {
+fn bodies(parent: &Node, keys: &[&str], def: &Def, origin: &Origin) -> Vec<InitPlanet> {
     let mut out = Vec::new();
     let mut change_orbit = Range::fixed(0.0);
     for child in parent.children() {
@@ -606,7 +607,7 @@ fn bodies(parent: &Node, keys: &[&str], def: &Def, splices: &[InlineScript]) -> 
                 }
             }
             Some(found) if keys.contains(&found) => {
-                out.push(body(child, change_orbit, def, splices));
+                out.push(body(child, change_orbit, def, origin));
                 change_orbit = Range::fixed(0.0);
             }
             _ => {}
@@ -615,7 +616,7 @@ fn bodies(parent: &Node, keys: &[&str], def: &Def, splices: &[InlineScript]) -> 
     out
 }
 
-fn body(node: &Node, change_orbit: Range, def: &Def, splices: &[InlineScript]) -> InitPlanet {
+fn body(node: &Node, change_orbit: Range, def: &Def, origin: &Origin) -> InitPlanet {
     let src = &def.src;
     let home_planet = scalar(node, "home_planet", src) == Some("yes")
         || scalar(node, "starting_planet", src) == Some("yes");
@@ -650,8 +651,8 @@ fn body(node: &Node, change_orbit: Range, def: &Def, splices: &[InlineScript]) -
         blockers: scalar(node, "deposit_blockers", src) != Some("none"),
         effects,
         unwritten,
-        moons: bodies(node, &["moon", "planet"], def, splices),
-        stated: stated::body(node, def, InlineScript::holding(splices, node)),
+        moons: bodies(node, &["moon", "planet"], def, origin),
+        stated: stated::body(node, def, origin),
     }
 }
 
@@ -826,13 +827,20 @@ pub(crate) struct InlineScript {
     keys: Vec<String>,
     /// Where its text lies in the spliced definition's text.
     span: Span,
+    /// Where the call it replaced lies in the definition's file.
+    call: Span,
 }
 
 impl InlineScript {
     fn use_of(&self) -> InlineScriptUse {
+        let first = self.root.children().first();
         InlineScriptUse {
             script: self.script.clone(),
             keys: self.keys.clone(),
+            at: Some(source_line(
+                &self.file,
+                first.map_or(1, |node| line_of(&self.src, node.span().start)),
+            )),
         }
     }
 
@@ -855,12 +863,69 @@ impl InlineScript {
     }
 }
 
+/// Where the text of a definition was written, so a span of it maps back to a file and line:
+/// the definition's file, or an inline script's for text read in place of a call.
+pub(crate) struct Origin<'d> {
+    file: &'d Path,
+    /// The file's bytes.
+    src: &'d [u8],
+    /// Where the definition's text begins in `src`.
+    start: usize,
+    /// The inline scripts read in place of their calls, in the order of the text.
+    pub(crate) splices: &'d [InlineScript],
+}
+
+impl<'d> Origin<'d> {
+    /// `def` as written, its spans pointing into its file.
+    pub(crate) fn of(def: &'d Def) -> Self {
+        Self {
+            file: &def.file,
+            src: &def.src,
+            start: 0,
+            splices: &[],
+        }
+    }
+
+    /// The file and line byte `offset` of the definition's text was written on.
+    pub(crate) fn at(&self, offset: usize) -> SourceLine {
+        let mut in_file = self.start + offset;
+        for splice in self.splices {
+            if offset < splice.span.start {
+                break;
+            }
+            if offset < splice.span.end {
+                return source_line(
+                    &splice.file,
+                    line_of(&splice.src, offset - splice.span.start),
+                );
+            }
+            in_file = splice.call.end + (offset - splice.span.end);
+        }
+        source_line(self.file, line_of(self.src, in_file))
+    }
+
+    /// The script that `node` was read from, when one was.
+    pub(crate) fn script_of(&self, node: &Node) -> Option<String> {
+        InlineScript::holding(self.splices, node)
+    }
+}
+
+pub(crate) fn source_line(file: &Path, line: u32) -> SourceLine {
+    SourceLine {
+        file: file.display().to_string(),
+        line,
+    }
+}
+
 /// The initializer `def` defines, each `inline_script` its own block calls read in place of
 /// the call, as the game reads it, and the definition it was read from when that differs
 /// from `def`. A script the install does not have, or whose text does not parse once its
 /// parameters are put in, is left as the call.
 fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Option<Spliced>) {
-    let as_written = || (Initializer::read_spliced(name.to_owned(), def, &[]), None);
+    let as_written = || {
+        let init = Initializer::read_spliced(name.to_owned(), def, &Origin::of(def));
+        (init, None)
+    };
     let src = &def.src;
     let whole = def.node.span();
     let mut text: Vec<u8> = Vec::new();
@@ -875,6 +940,7 @@ fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Op
         let start = text.len();
         text.extend_from_slice(&script.src);
         script.span = Span::new(start, text.len());
+        script.call = call_span;
         scripts.push(script);
         from = call_span.end;
     }
@@ -895,7 +961,13 @@ fn read_with_scripts(name: &str, def: &Def, layout: &Layout) -> (Initializer, Op
         vars: Arc::clone(&def.vars),
         globals: Arc::clone(&def.globals),
     };
-    let init = Initializer::read_spliced(name.to_owned(), &spliced, &scripts);
+    let origin = Origin {
+        file: &def.file,
+        src,
+        start: whole.start,
+        splices: &scripts,
+    };
+    let init = Initializer::read_spliced(name.to_owned(), &spliced, &origin);
     (
         init,
         Some(Spliced {
@@ -941,6 +1013,7 @@ fn inline_script(call: &Node, src: &[u8], layout: &Layout) -> Option<InlineScrip
         root,
         keys,
         span: Span::new(0, 0),
+        call: Span::new(0, 0),
     })
 }
 

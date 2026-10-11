@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use sgf_core::projections::name::NameTemplate;
-use sgf_core::views::{ErrorKind, ProgressPhase, SgfError};
+use sgf_core::views::{DocumentKind, ErrorKind, ProgressPhase, SgfError};
 use sgf_gamedata::anomaly_choices::AnomalyChoice;
 use sgf_gamedata::choices::AskedBody;
 use sgf_gamedata::deposit_choices::DepositChoice;
@@ -29,7 +29,8 @@ use super::{
     DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress,
     refit_open_session,
 };
-use crate::state::{GameDataState, TextureState};
+use crate::editors::{self, Editor, EditorChoices, EditorPick, OpenedFile};
+use crate::state::{AppState, GameDataState, TextureState, relock};
 use crate::watch;
 
 /// Read the install (discovered through Steam unless `install_path` is given) and the
@@ -99,30 +100,102 @@ fn summary<R: Runtime>(app: &AppHandle<R>, gd: &GameData) -> GameDataSummary {
     }
 }
 
-/// Open a game-data file in the editor the shell prefers, or show it in its folder. Only a
-/// file under the loaded install, user directory or a loaded mod is opened: the path comes from
-/// the script index, and the check keeps a stray path in a view from reaching the shell.
+/// Open a game-data file or the open scenario's own file with the system default, or show it
+/// in its folder. The check in [`openable`] keeps a stray path in a view from reaching the
+/// shell.
 #[tauri::command]
-pub fn open_script(
-    game_data: State<'_, GameDataState>,
+pub fn open_script<R: Runtime>(
+    app: AppHandle<R>,
     path: String,
     reveal: bool,
 ) -> Result<(), SgfError> {
-    let Some(gd) = game_data.loaded() else {
-        return Err(SgfError::no_game_data("open a script"));
-    };
-    let file = Path::new(&path);
-    if !gd.layout.contains(file) {
-        return Err(SgfError::new(
-            ErrorKind::NotFound,
-            format!("{path} is not a file of the loaded game data"),
-        ));
-    }
+    let file = openable(&app, &path)?;
     let result = match reveal {
-        true => tauri_plugin_opener::reveal_item_in_dir(file),
-        false => tauri_plugin_opener::open_path(file, None::<&str>),
+        true => tauri_plugin_opener::reveal_item_in_dir(&file),
+        false => tauri_plugin_opener::open_path(&file, None::<&str>),
     };
     result.map_err(io_error)
+}
+
+/// The editors found on this machine, looked for once a run off the UI thread, and whether
+/// Steam replaces the file at `path` when the game or its mod updates.
+#[tauri::command]
+pub async fn editor_choices<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<EditorChoices, SgfError> {
+    let install = app
+        .state::<GameDataState>()
+        .loaded()
+        .map(|gd| gd.layout.install.clone());
+    let editors = found_editors().await;
+    Ok(EditorChoices {
+        editors: editors.iter().map(|editor| editor.view.clone()).collect(),
+        steam_replaces: editors::steam_replaces(Path::new(&path), install.as_deref()),
+    })
+}
+
+/// Open a file [`open_script`] would open in `editor`, at `line` or at its top without one.
+/// An editor that cannot be started leaves the file to the system default, and the answer
+/// says so.
+#[tauri::command]
+pub async fn open_in_editor<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+    line: Option<u32>,
+    editor: EditorPick,
+) -> Result<OpenedFile, SgfError> {
+    let file = openable(&app, &path)?;
+    let found = found_editors().await;
+    let started = editors::launch_for(&editor, found, &file, line)
+        .is_some_and(|launch| editors::start(&launch).is_ok());
+    if !started {
+        tauri_plugin_opener::open_path(&file, None::<&str>).map_err(io_error)?;
+    }
+    Ok(OpenedFile {
+        fell_back: !started && editor != EditorPick::SystemDefault,
+    })
+}
+
+async fn found_editors() -> &'static [Editor] {
+    tauri::async_runtime::spawn_blocking(editors::found)
+        .await
+        .unwrap_or(&[])
+}
+
+/// `path`, when it is a file the app opens for the user: one of the loaded game data's, or the
+/// open scenario's own. A save is never one: its gamestate is zipped.
+fn openable<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<PathBuf, SgfError> {
+    let file = PathBuf::from(path);
+    if is_open_scenario(app, &file) {
+        return Ok(file);
+    }
+    let Some(gd) = app.state::<GameDataState>().loaded() else {
+        return Err(SgfError::no_game_data("open a script"));
+    };
+    if !gd.layout.contains(&file) {
+        return Err(SgfError::new(
+            ErrorKind::NotFound,
+            format!("{path} is not a file of the loaded game data or the open scenario"),
+        ));
+    }
+    Ok(file)
+}
+
+fn is_open_scenario<R: Runtime>(app: &AppHandle<R>, file: &Path) -> bool {
+    let state = app.state::<AppState>();
+    let session = relock(&state.0);
+    session.as_ref().is_some_and(|session| {
+        session.kind() == DocumentKind::Scenario
+            && session.path().is_some_and(|open| same_file(open, file))
+    })
+}
+
+fn same_file(a: &Path, b: &Path) -> bool {
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
 }
 
 /// Open one of the app's own links in the user's browser. Only the releases page, the guide and

@@ -1,6 +1,7 @@
 //! Tauri shell: the commands in [`commands`] are the whole IPC surface.
 
 pub mod commands;
+pub mod editors;
 pub mod state;
 pub mod views;
 pub mod watch;
@@ -78,6 +79,8 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_scenario_owners,
             commands::get_scenario_bypasses,
             commands::open_script,
+            commands::editor_choices,
+            commands::open_in_editor,
             commands::open_url,
             commands::paint_mod,
             commands::workshop_links,

@@ -29,7 +29,8 @@ pub use resolve::{
     AddedModifier, AmbientObject, AnomalyPrevention, BodyLayout, BodySpawn, Bounds, ClassPool,
     ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
     FleetPresence, HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, OrbitFit,
-    PlanetSummary, PoolClass, PoolEntry, RawStatement, ResourceAmount, SpawnClass, SpawnName,
+    PlanetSummary, PoolClass, PoolEntry, RawStatement, ResourceAmount, SourceLine, SpawnClass,
+    SpawnName,
     SpawnPool, SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
     SystemDetails, SystemSpawn, UnknownClass, UsageOdds, VariableUse,
 };

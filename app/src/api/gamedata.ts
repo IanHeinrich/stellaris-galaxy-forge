@@ -12,6 +12,8 @@ import type { DepositChoice } from "../generated/DepositChoice";
 import type { DepositTypeView } from "../generated/DepositTypeView";
 import type { DepositView } from "../generated/DepositView";
 import type { DigSiteChoice } from "../generated/DigSiteChoice";
+import type { EditorChoices } from "../generated/EditorChoices";
+import type { EditorPick } from "../generated/EditorPick";
 import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
@@ -22,6 +24,7 @@ import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
+import type { OpenedFile } from "../generated/OpenedFile";
 import type { PaintModView } from "../generated/PaintModView";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
@@ -65,9 +68,26 @@ export function paintMod(): Promise<PaintModView | null> {
   return invoke<PaintModView | null>("paint_mod");
 }
 
-/** Open a game-data file in the shell's editor, or show it in its folder; refused outside the loaded roots. */
+/** Open a game-data file or the open scenario with the system default, or show it in its folder; refused for any other file. */
 export function openScript(path: string, reveal: boolean): Promise<void> {
   return invoke<void>("open_script", { path, reveal });
+}
+
+/** The editors on this machine, found once a run, and whether Steam replaces `path` when it updates. */
+export function editorChoices(path: string): Promise<EditorChoices> {
+  return invoke<EditorChoices>("editor_choices", { path });
+}
+
+/**
+ * Open a file `openScript` would open in `editor`, at `line` or at its top when null; an editor
+ * that cannot be started leaves it to the system default, and the answer says so.
+ */
+export function openInEditor(
+  path: string,
+  line: number | null,
+  editor: EditorPick,
+): Promise<OpenedFile> {
+  return invoke<OpenedFile>("open_in_editor", { path, line, editor });
 }
 
 /** The Steam Workshop pages the app links to, which `openUrl` opens. */

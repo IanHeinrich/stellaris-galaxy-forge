@@ -8,10 +8,11 @@
 
 use sgf_core::cst::Node;
 use sgf_core::format::save::details::{
-    AddedModifier, InlineScriptUse, RawStatement, UsageOdds, VariableUse,
+    AddedModifier, InlineScriptUse, RawStatement, SourceLine, UsageOdds, VariableUse,
 };
 use sgf_core::span::Span;
 
+use crate::initializers::{Origin, source_line};
 use crate::install::script::{self, Def, Range};
 use crate::scripts::scope::{is_guard, keeps_scope};
 
@@ -140,6 +141,8 @@ pub struct StatedBody {
     pub other_keys: Vec<RawStatement>,
     pub script: Vec<RawStatement>,
     pub from_script: Option<String>,
+    /// Where the block is written.
+    pub at: Option<SourceLine>,
     pub variables: Vec<VariableUse>,
 }
 
@@ -175,12 +178,13 @@ pub struct StatedSystem {
     pub variables: Vec<VariableUse>,
 }
 
-/// What the `planet` or `moon` block `node` states, `from_script` the inline script it
-/// was read from.
-pub(crate) fn body(node: &Node, def: &Def, from_script: Option<String>) -> StatedBody {
+/// What the `planet` or `moon` block `node` states, `origin` where the text of its definition
+/// was written.
+pub(crate) fn body(node: &Node, def: &Def, origin: &Origin) -> StatedBody {
     let src = &def.src;
     let mut out = StatedBody {
-        from_script,
+        from_script: origin.script_of(node),
+        at: Some(origin.at(node.span().start)),
         variables: variables(node, def, &["moon", "planet", "init_effect"]),
         ..StatedBody::default()
     };
@@ -191,13 +195,13 @@ pub(crate) fn body(node: &Node, def: &Def, from_script: Option<String>) -> State
         let scalar = child.scalar_str(src);
         if BODY_KEYS.contains(&key) && !readable(child, key, def) {
             out.unread_ring |= key == "has_ring";
-            out.other_keys.push(raw(child, key, src, &[]));
+            out.other_keys.push(raw(child, key, src, origin, &[]));
             continue;
         }
         match key {
             "satellite_naming_policy" => {
                 out.satellite_naming = scalar.map(str::to_owned);
-                out.other_keys.push(raw(child, key, src, &[]));
+                out.other_keys.push(raw(child, key, src, origin, &[]));
             }
             "flags" => out.flags.extend(items(child, src)),
             "deposit_blockers" => out.no_blockers = scalar == Some("none"),
@@ -207,15 +211,15 @@ pub(crate) fn body(node: &Node, def: &Def, from_script: Option<String>) -> State
             "entity" => out.entity = scalar.map(str::to_owned),
             "starting_planet" => out.starting_planet = scalar == Some("yes"),
             "home_planet" => out.home_planet = scalar == Some("yes"),
-            "init_effect" => body_effects(child, def, &mut out),
+            "init_effect" => body_effects(child, def, origin, &mut out),
             _ if BODY_KEYS.contains(&key) => {}
-            _ => out.other_keys.push(raw(child, key, src, &[])),
+            _ => out.other_keys.push(raw(child, key, src, origin, &[])),
         }
     }
     out
 }
 
-fn body_effects(block: &Node, def: &Def, out: &mut StatedBody) {
+fn body_effects(block: &Node, def: &Def, origin: &Origin, out: &mut StatedBody) {
     let src = &def.src;
     for child in block.children() {
         let Some(key) = child.key_str(src) else {
@@ -227,7 +231,7 @@ fn body_effects(block: &Node, def: &Def, out: &mut StatedBody) {
                 out.ambient_objects
                     .extend(ambient_objects(child, src, true));
             }
-            out.script.push(raw(child, key, src, &BODY_EFFECTS));
+            out.script.push(raw(child, key, src, origin, &BODY_EFFECTS));
         }
     }
 }
@@ -362,8 +366,8 @@ fn body_effect(child: &Node, key: &str, def: &Def, out: &mut StatedBody) -> bool
 }
 
 /// What an initializer's own block `node` states, the keys an inline script supplied
-/// already read in place.
-pub(crate) fn system(node: &Node, def: &Def) -> StatedSystem {
+/// already read in place, `origin` where its text was written.
+pub(crate) fn system(node: &Node, def: &Def, origin: &Origin) -> StatedSystem {
     let src = &def.src;
     let mut out = StatedSystem {
         variables: variables(
@@ -381,7 +385,7 @@ pub(crate) fn system(node: &Node, def: &Def) -> StatedSystem {
         let scalar = child.scalar_str(src);
         let number = || scalar.and_then(|s| def.number_of(s));
         if SYSTEM_KEYS.contains(&key) && !readable(child, key, def) {
-            out.other_keys.push(raw(child, key, src, &[]));
+            out.other_keys.push(raw(child, key, src, origin, &[]));
             continue;
         }
         match key {
@@ -394,9 +398,9 @@ pub(crate) fn system(node: &Node, def: &Def) -> StatedSystem {
             "scaled_spawn_chance" => out.scaled_spawn_chance = number(),
             "usage_odds" => out.usage_odds = Some(usage_odds(child, def)),
             "neighbor_system" => out.neighbors.extend(neighbor(child, def)),
-            "init_effect" => system_effects(child, src, starbase, &mut out),
+            "init_effect" => system_effects(child, src, origin, starbase, &mut out),
             _ if SYSTEM_KEYS.contains(&key) => {}
-            _ => out.other_keys.push(raw(child, key, src, &[])),
+            _ => out.other_keys.push(raw(child, key, src, origin, &[])),
         }
     }
     out
@@ -405,7 +409,13 @@ pub(crate) fn system(node: &Node, def: &Def) -> StatedSystem {
 /// Reads the system's `init_effect` `block` into `out`. A statement counts as modelled only
 /// in the shape its reader takes: `starbase` is the `create_starbase` the system's starbase
 /// is read from, the first at any depth, when it states a `size`.
-fn system_effects(block: &Node, src: &[u8], starbase: Option<Span>, out: &mut StatedSystem) {
+fn system_effects(
+    block: &Node,
+    src: &[u8],
+    origin: &Origin,
+    starbase: Option<Span>,
+    out: &mut StatedSystem,
+) {
     out.ambient_objects
         .extend(ambient_objects(block, src, false));
     for child in block.children() {
@@ -432,7 +442,8 @@ fn system_effects(block: &Node, src: &[u8], starbase: Option<Span>, out: &mut St
             _ => false,
         };
         if !modelled {
-            out.script.push(raw(child, key, src, &SYSTEM_EFFECTS));
+            out.script
+                .push(raw(child, key, src, origin, &SYSTEM_EFFECTS));
         }
     }
 }
@@ -527,7 +538,7 @@ fn within(node: &Node, src: &[u8], keys: &[&str]) -> u32 {
 }
 
 /// `node`, keyed `key`, as written, with the statements keyed one of `modelled` inside it.
-fn raw(node: &Node, key: &str, src: &[u8], modelled: &[&str]) -> RawStatement {
+fn raw(node: &Node, key: &str, src: &[u8], origin: &Origin, modelled: &[&str]) -> RawStatement {
     let inside = match keeps_scope(key) {
         true => within(node, src, modelled),
         false => 0,
@@ -536,6 +547,7 @@ fn raw(node: &Node, key: &str, src: &[u8], modelled: &[&str]) -> RawStatement {
         key: key.to_owned(),
         text: text(node, src),
         modelled: inside,
+        at: Some(origin.at(node.span().start)),
     }
 }
 
@@ -562,6 +574,9 @@ fn variables(node: &Node, def: &Def, skip: &[&str]) -> Vec<VariableUse> {
             out.push(VariableUse {
                 key,
                 variable: variable.to_owned(),
+                at: def
+                    .variable_at(&variable[1..])
+                    .map(|(file, line)| source_line(file, line)),
             });
         }
     };

@@ -19,11 +19,27 @@ pub struct Def {
     pub src: Arc<[u8]>,
     pub file: PathBuf,
     /// The defining file's top-level `@name = value` scalars, `@` stripped.
-    pub vars: Arc<BTreeMap<String, String>>,
+    pub vars: Arc<BTreeMap<String, Variable>>,
     pub globals: Arc<Variables>,
 }
 
+/// An `@name = value` scalar's value and the line it is written on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Variable {
+    pub value: String,
+    pub line: u32,
+}
+
 impl Def {
+    /// The file and line `@name` is defined on, `@` stripped from the name: the defining
+    /// file's own first, then `common/scripted_variables`.
+    pub fn variable_at(&self, name: &str) -> Option<(&Path, u32)> {
+        match self.vars.get(name) {
+            Some(own) => Some((&self.file, own.line)),
+            None => self.globals.defined_at(name),
+        }
+    }
+
     /// The unquoted scalar value of the first direct child named `key`.
     pub fn scalar(&self, key: &str) -> Option<&str> {
         self.node.find(key, &self.src)?.scalar_str(&self.src)
@@ -45,7 +61,7 @@ impl Def {
             Some(name) => self
                 .vars
                 .get(name)
-                .map(String::as_str)
+                .map(|own| own.value.as_str())
                 .or_else(|| self.globals.get(name))?,
             None => text,
         };
@@ -172,7 +188,7 @@ impl Keeps {
 
 /// `common/scripted_variables`: the `@name = value` scalars every script file can use.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct Variables(BTreeMap<String, String>);
+pub struct Variables(BTreeMap<String, (PathBuf, Variable)>);
 
 impl Variables {
     pub(crate) fn load(layout: &Layout, diagnostics: &mut Vec<Diagnostic>) -> Self {
@@ -183,7 +199,7 @@ impl Variables {
                 continue;
             };
             for (name, value) in root.children().iter().filter_map(|n| variable(n, &src)) {
-                let (name, value) = (name.to_owned(), value.to_owned());
+                let (name, value) = (name.to_owned(), (file.clone(), value));
                 match keeps {
                     Keeps::First => {
                         vars.entry(name).or_insert(value);
@@ -199,7 +215,14 @@ impl Variables {
 
     /// `name`'s value, `@` stripped from the name.
     pub fn get(&self, name: &str) -> Option<&str> {
-        self.0.get(name).map(String::as_str)
+        self.0.get(name).map(|(_, var)| var.value.as_str())
+    }
+
+    /// The file and line `name` is defined on, `@` stripped from the name.
+    pub fn defined_at(&self, name: &str) -> Option<(&Path, u32)> {
+        self.0
+            .get(name)
+            .map(|(file, var)| (file.as_path(), var.line))
     }
 
     pub fn len(&self) -> usize {
@@ -315,18 +338,29 @@ impl ParsedDir {
     }
 }
 
-fn file_vars(children: &[Node], src: &[u8]) -> BTreeMap<String, String> {
+fn file_vars(children: &[Node], src: &[u8]) -> BTreeMap<String, Variable> {
     children
         .iter()
         .filter_map(|node| variable(node, src))
-        .map(|(name, value)| (name.to_owned(), value.to_owned()))
+        .map(|(name, var)| (name.to_owned(), var))
         .collect()
 }
 
 /// An `@name = value` scalar as its name, `@` stripped, and value.
-fn variable<'a>(node: &Node, src: &'a [u8]) -> Option<(&'a str, &'a str)> {
+fn variable<'a>(node: &Node, src: &'a [u8]) -> Option<(&'a str, Variable)> {
     let name = node.key_str(src)?.strip_prefix('@')?;
-    Some((name, node.scalar_str(src)?))
+    let var = Variable {
+        value: node.scalar_str(src)?.to_owned(),
+        line: line_of(src, node.span().start),
+    };
+    Some((name, var))
+}
+
+/// The line, from 1, that byte `offset` of `src` is on.
+pub(crate) fn line_of(src: &[u8], offset: usize) -> u32 {
+    let upto = offset.min(src.len());
+    let lines = src[..upto].iter().filter(|&&b| b == b'\n').count();
+    u32::try_from(lines + 1).unwrap_or(u32::MAX)
 }
 
 /// Parse one script file directly, for a caller whose layering is not the

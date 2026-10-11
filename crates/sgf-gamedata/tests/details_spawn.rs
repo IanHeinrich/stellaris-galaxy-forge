@@ -7,7 +7,7 @@ use crate::common;
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, BodyRole, Bounds, ClassPool, CountRange, DepositReplacement,
     DepositStep, ListMember, PlanetSummary, SpawnClass, SpawnPool, SpawnRing, SpawnStar,
-    SystemDetails, UnknownClass, UsageOdds, VariableUse,
+    SystemDetails, UnknownClass, UsageOdds,
 };
 
 use sgf_gamedata::details::ClassRollsError;
@@ -321,13 +321,12 @@ fn a_scenario_bodys_spawn_says_what_its_block_states() {
     assert_eq!(spawn.anomalies.prevented, Some(AnomalyPrevention::Body));
     assert_eq!(spawn.name.as_deref(), Some("FX_NAME"));
     assert_eq!(spawn.flags, ["fx_planet", "fx_flag"]);
-    assert_eq!(
-        spawn.variables,
-        [VariableUse {
-            key: "size".to_owned(),
-            variable: "@fx_size".to_owned(),
-        }]
-    );
+    let variables: Vec<(&str, &str)> = spawn
+        .variables
+        .iter()
+        .map(|v| (v.key.as_str(), v.variable.as_str()))
+        .collect();
+    assert_eq!(variables, [("size", "@fx_size")]);
     let other: Vec<&str> = spawn.other_keys.iter().map(|s| s.key.as_str()).collect();
     assert_eq!(other, ["satellite_naming_policy"]);
     let script: Vec<(&str, u32)> = spawn
@@ -584,8 +583,10 @@ fn an_inline_scripts_block_is_read_by_every_reader_of_the_initializer() {
 }
 
 /// `details` as the snapshot `key` under `snapshots/details_spawn`, as the app receives it:
-/// the system's fields, then each body as one line.
+/// the system's fields, then each body as one line. The positions are left out: they name this
+/// machine's files, and `details_at` reads them back.
 fn pinned(key: &str, details: &SystemDetails) {
+    let details = &without_positions(details);
     let mut system = serde_json::to_value(details).expect("details serialise");
     system["planets"] = serde_json::Value::Null;
     let mut out = serde_json::to_string_pretty(&system).expect("the system serialises");
@@ -596,6 +597,26 @@ fn pinned(key: &str, details: &SystemDetails) {
     insta::with_settings!({snapshot_path => "snapshots/details_spawn", prepend_module_to_snapshot => false}, {
         insta::assert_snapshot!(key, out);
     });
+}
+
+fn without_positions(details: &SystemDetails) -> SystemDetails {
+    let mut details = details.clone();
+    let spawns = details.planets.iter_mut().filter_map(|p| p.spawn.as_mut());
+    for body in spawns {
+        body.at = None;
+        for statement in body.other_keys.iter_mut().chain(&mut body.script) {
+            statement.at = None;
+        }
+        body.variables.iter_mut().for_each(|v| v.at = None);
+    }
+    if let Some(spawn) = details.spawn.as_mut() {
+        for statement in spawn.other_keys.iter_mut().chain(&mut spawn.script) {
+            statement.at = None;
+        }
+        spawn.variables.iter_mut().for_each(|v| v.at = None);
+        spawn.inline_scripts.iter_mut().for_each(|s| s.at = None);
+    }
+    details
 }
 
 /// One vanilla initializer per shape the reader handles: Sol; a trinary with planets around

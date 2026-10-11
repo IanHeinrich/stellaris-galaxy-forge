@@ -9,6 +9,7 @@ mod deposit_choices;
 mod deposit_roll;
 mod deposit_roll_install;
 mod details;
+mod details_at;
 mod details_colonies;
 mod details_layout;
 mod details_spawn;

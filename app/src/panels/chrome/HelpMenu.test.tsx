@@ -7,6 +7,7 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import * as ipc from "../../api/ipc";
 import { useFileSessionStore } from "../../store/fileSessionStore";
+import { useScriptEditorStore } from "../../store/scriptEditorStore";
 import { buttons, menuItem } from "../../test/elements";
 import { until } from "../../test/wait";
 import { HelpMenuItems } from "./HelpMenu";
@@ -44,5 +45,32 @@ describe("the Help menu", () => {
     item("User guide").props.onClick();
 
     await until(() => expect(useFileSessionStore.getState().error).toBe("no browser"));
+  });
+});
+
+describe("the Help menu's script editor setting", () => {
+  beforeEach(() => {
+    useScriptEditorStore.setState({ ...useScriptEditorStore.getInitialState() });
+  });
+
+  it("says the app asks until an editor is remembered, and has nothing to forget", () => {
+    const markup = renderToStaticMarkup(<HelpMenuItems dismiss={dismiss} />);
+    expect(markup).toContain("Asks which editor to use");
+    expect(item("Forget editor").props.disabled).toBe(true);
+  });
+
+  it("names the remembered editor, forgets it, and opens the chooser to change it", async () => {
+    vi.mocked(ipc.editorChoices).mockResolvedValueOnce({ editors: [], steam_replaces: false });
+    useScriptEditorStore.setState({
+      choice: { pick: { kind: "found", id: "vscode" }, name: "VS Code", remember: true },
+    });
+    expect(renderToStaticMarkup(<HelpMenuItems dismiss={dismiss} />)).toContain("Open in VS Code");
+
+    item("Forget editor").props.onClick();
+    expect(useScriptEditorStore.getState().choice).toBeNull();
+
+    item("Change editor…").props.onClick();
+    expect(dismiss).toHaveBeenCalledTimes(2);
+    await until(() => expect(useScriptEditorStore.getState().chooser).toEqual({ target: null }));
   });
 });

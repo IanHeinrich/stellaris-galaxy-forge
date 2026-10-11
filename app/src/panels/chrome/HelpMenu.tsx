@@ -1,5 +1,7 @@
+import { editorSettingNote } from "../../lib/editorCopy";
 import { WARN_NOT_FOR_PAINT } from "../../lib/paintCopy";
 import { usePaintModStore } from "../../store/paintModStore";
+import { useScriptEditorStore } from "../../store/scriptEditorStore";
 import { useUpdateStore } from "../../store/updateStore";
 import { openGuide } from "../helpLinks";
 import "./chrome.css";
@@ -7,7 +9,8 @@ import { EyeRow, Menu, MenuItem } from "./Menu";
 
 /**
  * The app's own corner: the guide, what is running, whether it looks for something newer, and
- * where; and whether it asks before opening a scenario that isn't for Paint a Galaxy.
+ * where; whether it asks before opening a scenario that isn't for Paint a Galaxy; and the editor
+ * script files open in.
  */
 export function HelpMenu() {
   return <Menu label="Help">{(dismiss) => <HelpMenuItems dismiss={dismiss} />}</Menu>;
@@ -23,6 +26,9 @@ export function HelpMenuItems({ dismiss }: { dismiss: () => void }) {
   const openReleases = useUpdateStore((s) => s.openReleases);
   const warnNotForPaint = usePaintModStore((s) => s.warnNotForPaint);
   const setWarnNotForPaint = usePaintModStore((s) => s.setWarnNotForPaint);
+  const editor = useScriptEditorStore((s) => s.choice);
+  const changeEditor = useScriptEditorStore((s) => s.change);
+  const forgetEditor = useScriptEditorStore((s) => s.forget);
   const busy = status === "checking" || status === "installing";
 
   return (
@@ -45,6 +51,16 @@ export function HelpMenuItems({ dismiss }: { dismiss: () => void }) {
       <EyeRow pressed={warnNotForPaint} onClick={() => setWarnNotForPaint(!warnNotForPaint)}>
         <span>{WARN_NOT_FOR_PAINT}</span>
       </EyeRow>
+      <div className="menu-rule" />
+      <div className="menu-section">Script files</div>
+      <div className="menu-note">{editorSettingNote(editor)}</div>
+      <MenuItem label="Change editor…" dismiss={dismiss} onClick={changeEditor} />
+      <MenuItem
+        label="Forget editor"
+        disabled={editor === null}
+        dismiss={dismiss}
+        onClick={forgetEditor}
+      />
     </>
   );
 }
