@@ -362,7 +362,7 @@ describe("what a scenario body can roll", () => {
       "The game numbers planets in order, so this one is Yunak II or Yunak III, depending on how many before it are placed.",
     );
     expect(page(101, "Yunak IIa")).toContain('<span class="name">Yunak IIa</span>');
-    expect(overview()).toContain(`<span class="l1">${rolled("Yunak II to III")}</span>`);
+    expect(overview()).toContain(`<span class="l1">${rolled("Yunak II or III")}</span>`);
   });
 
   it("says a body is named after a system that has no name yet", async () => {
@@ -529,7 +529,7 @@ describe("a scenario body's name in lists and links", () => {
     }
   });
 
-  it("shows a ranged numeral as its span in the rolled look on a row and in the Orbits link", async () => {
+  it("shows a ranged numeral as its span in the rolled look on a row and in the Orbits link, two names joined by or", async () => {
     const riadore = drawn(100, {
       naming: {
         state: "template",
@@ -538,15 +538,19 @@ describe("a scenario body's name in lists and links", () => {
         numerals: ["I", "II"],
       },
     });
-    const moon = moonCopy(101, 1, ["a", "b"]);
+    const moon = moonCopy(101, 1, ["a"]);
+    const third = moonCopy(102, 2, ["b", "c"]);
     await open("scenario");
     nameSystem("Riadore");
-    await land(details({ planets: [riadore, moon], spawn: systemSpawn() }));
+    await land(details({ planets: [riadore, moon, third], spawn: systemSpawn() }));
 
     expect(page(100, "Riadore I")).toContain(
-      `<span class="l1">${rolled("Riadore Ia to IIb")}</span>`,
+      `<span class="l1">${rolled("Riadore Ia or IIa")}</span>`,
     );
-    expect(row(page(101, "Riadore Ia"), "Orbits")).toContain(rolled("Riadore I to II"));
+    expect(row(page(101, "Riadore Ia"), "Orbits")).toContain(rolled("Riadore I or II"));
+    expect(page(100, "Riadore I")).toContain(
+      `<span class="l1">${rolled("Riadore Ib to IIc")}</span>`,
+    );
   });
 
   it("names the body an angle turns from by its given name", async () => {

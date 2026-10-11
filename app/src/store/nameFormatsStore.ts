@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import * as ipc from "../api/ipc";
+import type { NameTemplate } from "../generated/NameTemplate";
+import type { PlanetSummary } from "../generated/PlanetSummary";
+import { givenNamesFrom, nameFormats, type GivenName } from "../lib/details/spawnNames";
+import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 
 /**
@@ -59,3 +63,43 @@ export const useNameFormatsStore = create<NameFormatsState>((_set, get) => ({
     }, 0);
   },
 }));
+
+/** The last answer of `givenNamesNow` and what it was made from, so an unchanged system gives the same map. */
+let lastGiven: {
+  planets: readonly PlanetSummary[] | undefined;
+  systemName: NameTemplate | undefined;
+  names: ReadonlyMap<string, string>;
+  formats: ReadonlyMap<string, string>;
+  given: ReadonlyMap<number, GivenName>;
+} | null = null;
+
+/**
+ * The given names of system `system`'s bodies from the stores as they stand, for code outside a
+ * render; asks for the name formats not read yet.
+ */
+export function givenNamesNow(
+  system: number | null,
+  planets: readonly PlanetSummary[] | undefined,
+): ReadonlyMap<number, GivenName> {
+  const { formats, request } = useNameFormatsStore.getState();
+  if (planets !== undefined) {
+    const wanted = nameFormats(planets).filter((key) => !formats.has(key));
+    if (wanted.length > 0) request(wanted);
+  }
+  const systemName =
+    system === null ? undefined : useGalaxyStore.getState().systems.get(system)?.name;
+  const names = useGameDataStore.getState().names;
+  const last = lastGiven;
+  if (
+    last !== null &&
+    last.planets === planets &&
+    last.systemName === systemName &&
+    last.names === names &&
+    last.formats === formats
+  ) {
+    return last.given;
+  }
+  const given = givenNamesFrom(planets, systemName, names, formats);
+  lastGiven = { planets, systemName, names, formats, given };
+  return given;
+}

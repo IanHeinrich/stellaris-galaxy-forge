@@ -1,16 +1,14 @@
 import { useMemo } from "react";
-import type { NameTemplate } from "../../../generated/NameTemplate";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName } from "../../../lib/details/labels";
 import {
-  givenNames,
+  givenNamesFrom,
   listedName,
   nameFormats,
   type GivenName,
 } from "../../../lib/details/spawnNames";
 import { findPlanet } from "../../../lib/details/starBody";
-import { displayNameIn, nodeNameIn, templateName } from "../../../lib/names";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
@@ -31,29 +29,6 @@ export function useBodyLookup(): (id: number) => { name: string; moon: boolean }
 export function useBodyName(id: number): string {
   return useBodyLookup()(id).name;
 }
-
-/** The names the game gives a scenario system's bodies, by id, made from `systemName` as it stands. */
-function givenNamesOf(
-  planets: readonly PlanetSummary[] | undefined,
-  systemName: NameTemplate | undefined,
-  names: ReadonlyMap<string, string>,
-  formats: ReadonlyMap<string, string>,
-): ReadonlyMap<number, GivenName> {
-  if (planets === undefined || !planets.some((p) => p.spawn?.naming !== undefined)) {
-    return NO_NAMES;
-  }
-  const system =
-    systemName === undefined || systemName.key === "" ? "" : nodeNameIn(names, systemName);
-  return givenNames(planets, system, {
-    format: (key) => formats.get(key),
-    stated: (planet, name) =>
-      name === planet.name_key && templateName(planet) !== ""
-        ? templateName(planet)
-        : displayNameIn(names, name),
-  });
-}
-
-const NO_NAMES: ReadonlyMap<number, GivenName> = new Map();
 
 /** The name formats as the install writes them, asking for those `planets` use and are not read. */
 function useFormats(planets: readonly PlanetSummary[] | undefined): ReadonlyMap<string, string> {
@@ -77,7 +52,7 @@ export function useGivenNames(
   const planets = details?.planets;
   const formats = useFormats(planets);
   return useMemo(
-    () => givenNamesOf(planets, systemName, names, formats),
+    () => givenNamesFrom(planets, systemName, names, formats),
     [planets, systemName, names, formats],
   );
 }
@@ -91,10 +66,12 @@ export function shownBodyName(
   return given.get(planet.id)?.text ?? bodyName(planet, names);
 }
 
-/** A body's name as a list or link shows it, and whether its numeral is rolled. */
+/** A body's name as a list or link shows it, whether its numeral is rolled, and its page's name. */
 export interface ListedBodyName {
   text: string;
   rolled: boolean;
+  /** The name its page heads and its breadcrumb shows: the lowest it can have. */
+  page: string;
 }
 
 /**
@@ -106,13 +83,16 @@ export function useSystemBodyNames(system: number): (id: number) => ListedBodyNa
   const details = useDetailsStore((s) => s.details.get(system));
   const systemName = useGalaxyStore((s) => s.systems.get(system)?.name);
   const formats = useFormats(details?.planets);
-  const given = givenNamesOf(details?.planets, systemName, names, formats);
+  const given = givenNamesFrom(details?.planets, systemName, names, formats);
   return (id) => {
     const planet = details?.planets.find((p) => p.id === id);
     if (planet === undefined) return undefined;
     const own = given.get(id);
-    if (own === undefined) return { text: bodyName(planet, names), rolled: false };
-    return { text: listedName(own), rolled: own.rolled };
+    if (own === undefined) {
+      const text = bodyName(planet, names);
+      return { text, rolled: false, page: text };
+    }
+    return { text: listedName(own), rolled: own.rolled, page: own.text };
   };
 }
 

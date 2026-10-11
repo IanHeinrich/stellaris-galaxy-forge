@@ -75,6 +75,8 @@ An unnamed body shows the name the game gives it, made from the
 system's name, such as "Yunak II" or "Yunak IIa". The game numbers
 planets in order. Where some bodies before it may not be placed, the
 name is rolled, and the line under it lists every name it can have.
+Lists and the system view show such a name as "Yunak II or III" when it
+can have two names, or "Yunak II to IV" when it can have more.
 Asteroids get names the game draws at random.
 
 A rolled class lists the classes that fit the body's orbit, likeliest

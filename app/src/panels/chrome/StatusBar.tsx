@@ -1,6 +1,7 @@
 import type { ExportResult } from "../../generated/ExportResult";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import { bodyName } from "../../lib/details/labels";
+import { listedName } from "../../lib/details/spawnNames";
 import { DRAG_HINTS, inspectedBody } from "../../lib/details/orbitIntent";
 import { systemLayout, type SystemLayout } from "../../lib/details/orbits";
 import { shortcutLabel } from "../../lib/keys";
@@ -19,6 +20,7 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useFreshIssues } from "../../store/issuesStore";
 import { useLayoutStore } from "../../store/layoutStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
+import { givenNamesNow } from "../../store/nameFormatsStore";
 import { useSceneStore, useSceneSystem } from "../../store/sceneStore";
 import { useSystemGeometry } from "../../store/systemGeometry";
 import { HelpLink } from "../HelpLink";
@@ -209,7 +211,8 @@ function bodyReadout(
   const planet = details.planets.find((p) => p.id === id);
   const placed = layout.bodies.find((b) => b.id === id);
   if (!planet || !placed) return null;
-  const name = bodyName(planet, names);
+  const given = givenNamesNow(details.id, details.planets).get(id);
+  const name = given === undefined ? bodyName(planet, names) : listedName(given);
   if (placed.ring === null) return name;
   const orbit = Math.round(placed.ring.radius);
   return `${name} · orbit ${orbit} · angle ${Math.round(placed.angle) % 360}°`;

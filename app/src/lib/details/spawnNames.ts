@@ -3,7 +3,9 @@
  * or one made from a localisation template and the name of the system or the body it orbits.
  */
 import type { PlanetSummary } from "../../generated/PlanetSummary";
+import type { NameTemplate } from "../../generated/NameTemplate";
 import type { SpawnName } from "../../generated/SpawnName";
+import { displayNameIn, nodeNameIn, templateName } from "../names";
 
 /** A body's name as the game will give it. */
 export interface GivenName {
@@ -128,6 +130,32 @@ export function givenNames(
   return out;
 }
 
+const NO_NAMES: ReadonlyMap<number, GivenName> = new Map();
+
+/**
+ * The given names of a system's bodies, made from `systemName` as it stands and the name formats
+ * as the install writes them; empty where no body has one.
+ */
+export function givenNamesFrom(
+  planets: readonly PlanetSummary[] | undefined,
+  systemName: NameTemplate | undefined,
+  names: ReadonlyMap<string, string>,
+  formats: ReadonlyMap<string, string>,
+): ReadonlyMap<number, GivenName> {
+  if (planets === undefined || !planets.some((p) => p.spawn?.naming !== undefined)) {
+    return NO_NAMES;
+  }
+  const system =
+    systemName === undefined || systemName.key === "" ? "" : nodeNameIn(names, systemName);
+  return givenNames(planets, system, {
+    format: (key) => formats.get(key),
+    stated: (planet, name) =>
+      name === planet.name_key && templateName(planet) !== ""
+        ? templateName(planet)
+        : displayNameIn(names, name),
+  });
+}
+
 /** The localisation templates the bodies' given names are made from, for their text to be read. */
 export function nameFormats(planets: readonly PlanetSummary[]): string[] {
   const formats = new Set<string>();
@@ -140,19 +168,21 @@ export function nameFormats(planets: readonly PlanetSummary[]): string[] {
 
 /**
  * `Yunak II to IV`: the names from the lowest of `first`'s to the highest of `last`'s, the second
- * without the words it shares with the first at its start.
+ * without the words it shares with the first at its start. One body that can have only two names
+ * reads `Riadore Ia or IIa`, since it has one or the other and nothing between.
  */
 export function nameSpan(first: GivenName, last: GivenName = first): string {
   const low = first.all[0];
   const high = last.all[last.all.length - 1];
   if (low === high) return low;
+  const joiner = first === last && first.all.length === 2 ? "or" : "to";
   const lows = low.split(" ");
   const highs = high.split(" ");
   let shared = 0;
   while (shared < highs.length - 1 && shared < lows.length - 1 && lows[shared] === highs[shared]) {
     shared++;
   }
-  return `${low} to ${highs.slice(shared).join(" ")}`;
+  return `${low} ${joiner} ${highs.slice(shared).join(" ")}`;
 }
 
 /** A body's name in a list: its span where its numeral is rolled, else its name. */

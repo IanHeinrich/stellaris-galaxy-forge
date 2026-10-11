@@ -25,6 +25,7 @@ import {
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
 import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
+import { listedName } from "../../lib/details/spawnNames";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
@@ -471,6 +472,12 @@ function readoutOf(
   return { hub: discs.get(pointKey(ring.cx, ring.cy)) ?? 0, text: boundsText(radius) };
 }
 
+/** A body's name in the scene: the name the game gives it, its span where its numeral is rolled. */
+function bodyLabel(src: SystemSources, planet: PlanetSummary): string {
+  const given = src.givenNames.get(planet.id);
+  return given === undefined ? src.templateName(planet) : listedName(given);
+}
+
 function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   const details = src.details;
   if (details === null || (src.rolledLayout && details.planets.length === 0)) {
@@ -488,7 +495,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
       {
         placement,
         planet,
-        name: src.templateName(planet),
+        name: bodyLabel(src, planet),
         moon: placement.moon,
         colony: colonyColor(planet, src.ownership),
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),
