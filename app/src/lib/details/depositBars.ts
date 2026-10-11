@@ -7,10 +7,11 @@ import type { ResourceAmountView } from "../../generated/ResourceAmountView";
 import { counted, keyWords } from "../text";
 import { formatAmount } from "./resources";
 import { NEUTRAL_RAMP, resourceRamp, shadeIndex, textOn } from "./resourceColors";
-import { percent, type PoolPick } from "./spawnFacts";
+import { barLengths } from "./oddsBars";
+import { likeliestFirst, percent, type PoolPick } from "./spawnFacts";
 
 /** The narrowest share of the bar's track a segment shows its amount in. */
-export const LABEL_MIN_SHARE = 0.12;
+const LABEL_MIN_SHARE = 0.12;
 
 /** One amount of a resource the roll can give. */
 export interface BarSegment {
@@ -61,7 +62,7 @@ export function depositOddsUnknown(noun: string): string {
 const signed = (n: number) => (n > 0 ? `+${formatAmount(n)}` : formatAmount(n));
 
 /** `+1 to +3` for amounts one apart, else `+1, +2, +5`. */
-export function amountsWords(amounts: readonly number[]): string {
+function amountsWords(amounts: readonly number[]): string {
   const sorted = [...amounts].sort((a, b) => a - b);
   if (sorted.length === 0) return "";
   const stepped = sorted.every((a, i) => i === 0 || a - sorted[i - 1] === 1);
@@ -145,16 +146,12 @@ export function depositBars(
       rows.set(key, row);
     }
   }
-  const gathered = [...rows.values()];
-  const most = Math.max(0, ...gathered.map((r) => r.chance ?? 0));
-  return gathered
-    .map((row, index) => ({ row, index }))
-    .sort((a, b) => (b.row.chance ?? -1) - (a.row.chance ?? -1) || a.index - b.index)
-    .map(({ row }) => barRow(row, most));
+  const gathered = likeliestFirst([...rows.values()], (row) => row.chance);
+  const widths = barLengths(gathered.map((row) => row.chance));
+  return gathered.map((row, i) => barRow(row, widths[i]));
 }
 
-function barRow(row: Gathered, most: number): BarRow {
-  const width = row.chance === null || most <= 0 ? 0 : row.chance / most;
+function barRow(row: Gathered, width: number): BarRow {
   const shown = row.chance === null ? row.name : `${row.name} · ${percent(row.chance)}`;
   if (row.amounts.size === 0) {
     const segment: BarSegment = {

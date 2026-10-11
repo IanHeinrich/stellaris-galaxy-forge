@@ -20,7 +20,7 @@ import {
 } from "../../../../../lib/details/spawnFacts";
 import { ScriptSnippet, type SnippetSource } from "../../../../ScriptSnippet";
 import { Group, Properties, PropertyRow } from "../../../parts";
-import { HintedRow, SetByRow } from "../../../states";
+import { HintedRow, SetByRow, Why } from "../../../states";
 import { OtherLinesGroup, ScriptGroup } from "../../../ScriptGroup";
 
 /** `usage_odds` as written: a number, a value Galaxy Forge can't read, or where conditions change it. */
@@ -78,11 +78,11 @@ function RandomSettings({ spawn, source }: { spawn: SystemSpawn; source?: Snippe
               <HintedRow label="Neighbours" hint={NEIGHBOURS_WHY}>
                 {spawn.neighbors.length}
               </HintedRow>
-              <span className="ins-why mono">
+              <Why mono>
                 {spawn.neighbors.map((n, i) => (
                   <div key={`${n.initializer}-${i}`}>{neighbourText(n)}</div>
                 ))}
-              </span>
+              </Why>
             </>
           )}
         </Properties>

@@ -12,7 +12,7 @@ import type { MapTooltipText } from "../../store/mapChromeStore";
 import { templateKeys, templateName, type Names } from "../names";
 import { canonicalResource } from "../resources";
 import { wholeTurn } from "./orbits";
-import { keyWords, titleCase } from "../text";
+import { capitalised, keyWords, titleCase } from "../text";
 import {
   ANOMALY_ICON_KEY,
   ARCHAEOLOGY_ICON_KEYS,
@@ -180,8 +180,7 @@ export function bodyName(
 ): string {
   const named = templateName(planet);
   if (named !== "") return named;
-  const text = bodyClassName(planet.class, names, planet.moon);
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return capitalised(bodyClassName(planet.class, names, planet.moon));
 }
 
 /** A plain outpost earns no icon: the border already says the system is held. */
@@ -306,9 +305,9 @@ export function megastructureIcon(megastructures: readonly MegastructureSummary[
   );
 }
 
-/** One icon for all the archaeology sites here; null without any. */
+/** One icon for all the archaeological sites here; null without any. */
 export function siteIcon(kinds: readonly string[]): Icon | null {
-  return collapsedIcon(kinds.map(siteLabel), "archaeology site", ARCHAEOLOGY_ICON_KEYS, "⚱");
+  return collapsedIcon(kinds.map(siteLabel), "archaeological site", ARCHAEOLOGY_ICON_KEYS, "⚱");
 }
 
 function collapsedIcon(labels: string[], noun: string, keys: string[], glyph: string): Icon | null {

@@ -328,6 +328,11 @@ export interface InspectorState {
   tab: InspectorTab;
   /** Sections the user has opened or closed by hand, by key; the rest use their own default. */
   sections: Record<string, boolean>;
+  /**
+   * Groups the user has opened or closed by hand, by group and page, for this session; the rest
+   * use their own default.
+   */
+  groups: Record<string, boolean>;
   /** Follows the map selection: a different entity restarts the stack, the same one leaves it alone. */
   setRoot(entry: Entry): void;
   /**
@@ -382,6 +387,7 @@ export interface InspectorState {
   /** Closes section `key`, as a click on its header would. */
   closeSection(key: string): void;
   toggleSection(key: string, fallback: boolean): void;
+  toggleGroup(key: string, fallback: boolean): void;
   /** Drops the user's choice for each of `keys`, so those sections take their default again. */
   resetSections(keys: readonly string[]): void;
   collapsed(key: string, fallback: boolean): boolean;
@@ -420,6 +426,7 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
   stack: [GALAXY_ENTRY],
   tab: "overview",
   sections: SECTIONS.read(),
+  groups: {},
 
   setRoot(entry) {
     const { stack, tab } = get();
@@ -566,6 +573,11 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
     const sections = { ...get().sections, [key]: !get().collapsed(key, fallback) };
     set({ sections });
     SECTIONS.save(sections);
+  },
+
+  toggleGroup(key, fallback) {
+    const groups = get().groups;
+    set({ groups: { ...groups, [key]: !(groups[key] ?? fallback) } });
   },
 
   resetSections(keys) {

@@ -39,6 +39,15 @@ describe("the script an initializer runs at game start", () => {
     expect(html).not.toContain("neighbouring system");
   });
 
+  it("gives no warning where a neighbour scope's name is only a value", () => {
+    const html = group([
+      statement("set_star_flag", "set_star_flag = every_neighbor_system"),
+      statement("random_list", 'random_list = { 10 = { log = "random_neighbor_system" } }'),
+    ]);
+    expect(html).toContain(">Script at game start</span>");
+    expect(html).not.toContain("ins-warn");
+  });
+
   it("shows nothing for an initializer that runs no script", () => {
     expect(group([])).toBe("");
   });

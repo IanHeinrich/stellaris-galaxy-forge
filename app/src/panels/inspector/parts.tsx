@@ -3,7 +3,7 @@ import type { Capabilities } from "../../generated/Capabilities";
 import { documentCapabilities, supports } from "../../lib/capabilities";
 import { useEditorStore } from "../../store/editorStore";
 import { useFileSessionStore } from "../../store/fileSessionStore";
-import { useInspectorStore } from "../../store/inspectorStore";
+import { refKey, useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import {
   SECTION_SOURCES,
@@ -25,6 +25,16 @@ export function Swatch({ owner }: { owner: number | null }) {
   return <span className="swatch" style={{ background: css }} />;
 }
 
+/** A section's or a group's title, with its card on hover where it has a `hint`. */
+function HeadTitle({ title, hint }: { title: string; hint?: ReactNode }) {
+  if (hint === undefined) return <>{title}</>;
+  return (
+    <Hinted label={title} hint={hint} focusable={false}>
+      {title}
+    </Hinted>
+  );
+}
+
 /**
  * A collapsible section; `count`, `summary`, `aside` and `action` stay visible when it is closed.
  * A section follows the source that fills it, so a group with nothing left drawing folds its
@@ -33,6 +43,7 @@ export function Swatch({ owner }: { owner: number | null }) {
 export function Section({
   id,
   title,
+  hint,
   count,
   summary,
   aside,
@@ -42,6 +53,8 @@ export function Section({
 }: {
   id: string;
   title: string;
+  /** What the title says in its card on hover. */
+  hint?: ReactNode;
   count?: number;
   summary?: ReactNode;
   /** A line of its own at the header's right, in sentence case, cut short where it runs out of room. */
@@ -69,7 +82,7 @@ export function Section({
     >
       <Twisty open={!collapsed} />
       <span className="ins-sec-title">
-        {title}
+        <HeadTitle title={title} hint={hint} />
         {count !== undefined && ` · ${count}`}
         {summary && <> · {summary}</>}
       </span>
@@ -98,7 +111,8 @@ export function Section({
 
 /**
  * A group inside a section, under a rule: a heading with its caret and, at the right, a short
- * `tail` such as a count. It starts open, and its open state is remembered as a section's is.
+ * `tail` such as a count. It starts open, or `folded`, on every page, and opening or closing it is
+ * remembered for that page alone.
  */
 export function Group({
   id,
@@ -117,25 +131,20 @@ export function Group({
   folded?: boolean;
   children: ReactNode;
 }) {
-  const collapsed = useInspectorStore((s) => s.sections[id] ?? folded);
-  const toggleSection = useInspectorStore((s) => s.toggleSection);
+  const key = useInspectorStore((s) => `${id}@${refKey(s.stack[s.stack.length - 1].ref)}`);
+  const collapsed = useInspectorStore((s) => s.groups[key] ?? folded);
+  const toggleGroup = useInspectorStore((s) => s.toggleGroup);
   return (
     <div className="ins-group">
       <button
         type="button"
         className="ins-group-head"
         aria-expanded={!collapsed}
-        onClick={() => toggleSection(id, folded)}
+        onClick={() => toggleGroup(key, folded)}
       >
         <Twisty open={!collapsed} />
         <span className="ins-group-title">
-          {hint === undefined ? (
-            title
-          ) : (
-            <Hinted label={title} hint={hint} focusable={false}>
-              {title}
-            </Hinted>
-          )}
+          <HeadTitle title={title} hint={hint} />
         </span>
         {tail !== undefined && <span className="ins-group-tail">{tail}</span>}
       </button>

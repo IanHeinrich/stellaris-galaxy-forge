@@ -55,12 +55,8 @@ export function FeZoneSection({ system }: { system: SystemNode }) {
   const paint = usePaintLayer();
   if (!paint) return null;
   return (
-    <Section id="system.feZone" title="Fallen empire zone">
-      <div className="muted ins-hint">
-        <Hinted label="Fallen empire zone" hint={FE_ZONE_CARD}>
-          {FE_ZONE_LINE}
-        </Hinted>
-      </div>
+    <Section id="system.feZone" title="Fallen empire zone" hint={FE_ZONE_CARD}>
+      <div className="muted ins-hint">{FE_ZONE_LINE}</div>
       {system.fe_zone === null ? (
         <NoZone system={system} />
       ) : (

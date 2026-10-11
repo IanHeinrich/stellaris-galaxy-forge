@@ -7,6 +7,7 @@ import {
   type BarRow,
   type DepositKinds,
 } from "../../../lib/details/depositBars";
+import { cssShare } from "../../../lib/details/oddsBars";
 import {
   BLOCKERS_LABEL,
   OTHER_DEPOSITS_LABEL,
@@ -38,7 +39,7 @@ function DepositBarCardLines({ row }: { row: BarRow }) {
               {segment.chance !== null && (
                 <span
                   style={{
-                    width: `${(segment.share * 100).toFixed(1)}%`,
+                    width: cssShare(segment.share),
                     background: segment.fill,
                   }}
                 />

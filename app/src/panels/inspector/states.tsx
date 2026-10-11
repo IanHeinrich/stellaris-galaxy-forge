@@ -1,5 +1,10 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
-import { ROLLED_TITLE, SHARED_VALUE_HINT, type ValueSource } from "../../lib/details/spawnFacts";
+import {
+  NEVER_PLACED,
+  ROLLED_TITLE,
+  SHARED_VALUE_HINT,
+  type ValueSource,
+} from "../../lib/details/spawnFacts";
 import { Chip } from "../parts";
 import { PickerCard } from "./entity/PickerCard";
 import { PropertyRow } from "./parts";
@@ -23,10 +28,13 @@ export function RolledMark() {
   );
 }
 
-/** A value the game rolls when a game starts: a range, or what it is drawn from. */
-export function Rolled({ children }: { children: ReactNode }) {
+/**
+ * A value the game rolls when a game starts: a range, or what it is drawn from. Without
+ * `children` it is the die alone, before a line that says what is rolled.
+ */
+export function Rolled({ className, children }: { className?: string; children?: ReactNode }) {
   return (
-    <span className="ins-st-rolled">
+    <span className={className === undefined ? "ins-st-rolled" : `${className} ins-st-rolled`}>
       <RolledMark />
       {children}
     </span>
@@ -38,9 +46,20 @@ export function Unknown({ children }: { children: ReactNode }) {
   return <span className="ins-st-unknown">{children}</span>;
 }
 
-/** The reason under a row, across both its columns. */
-export function Why({ children }: { children: ReactNode }) {
-  return <span className="ins-why">{children}</span>;
+/** What goes under a row, across both its columns. */
+export function Why({ mono, children }: { mono?: boolean; children: ReactNode }) {
+  return <div className={mono ? "ins-why mono" : "ins-why"}>{children}</div>;
+}
+
+/** The mark a body the game never places shows, on its list row and its page's head; `hint` says why. */
+export function NeverPlaced({ hint }: { hint?: string }) {
+  const mark = <span className="ins-block-count ins-never">{NEVER_PLACED}</span>;
+  if (hint === undefined) return mark;
+  return (
+    <Hinted label={NEVER_PLACED} hint={hint} focusable={false}>
+      {mark}
+    </Hinted>
+  );
 }
 
 /**
@@ -138,7 +157,7 @@ function SourceName({ source }: { source: ValueSource }) {
 }
 
 /** What sets a value, as a line in its card: `The smallest size: from @base_size`. */
-export function SetByLine({ source, lead }: { source: ValueSource; lead?: string }) {
+function SetByLine({ source, lead }: { source: ValueSource; lead?: string }) {
   return (
     <span className="ins-set-by">
       {lead === undefined ? "From" : `${lead}: from`} <SourceName source={source} />

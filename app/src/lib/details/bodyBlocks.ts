@@ -2,7 +2,6 @@
  * The rows of a scenario system's Planets list: one per initializer block, so the copies a block
  * places a random number of times are one row with their count.
  */
-import type { ClassPool } from "../../generated/ClassPool";
 import type { CountRange } from "../../generated/CountRange";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { counted } from "../text";
@@ -106,23 +105,4 @@ export function blockCountTitle(count: CountRange, moon: boolean, asteroid: bool
 /** The moons each planet of a block has, on its row. */
 export function moonsEach(moons: number): string {
   return `each with up to ${counted(moons, "moon")}`;
-}
-
-const DRAWS: Record<string, string> = {
-  random: "any class",
-  random_colonizable: "habitable class",
-  random_non_colonizable: "uninhabitable class",
-  random_asteroid: "asteroid class",
-};
-
-/** What a rolled block's row says of its class, in a few words. */
-export function drawWords(pool: ClassPool): string {
-  switch (pool.kind) {
-    case "random":
-      return DRAWS[pool.draw] ?? "any class";
-    case "planet_list":
-      return `one of ${pool.members.length} classes`;
-    case "star_list":
-      return "a star class";
-  }
 }

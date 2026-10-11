@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import type { OddsRow } from "../../../lib/details/oddsBars";
+import { cssShare, type OddsRow } from "../../../lib/details/oddsBars";
 import { percent } from "../../../lib/details/spawnFacts";
 import "./entity.css";
 
@@ -18,16 +18,16 @@ export function BarTrack({
 }) {
   return (
     <span className="pl-pool-track">
-      <span className="pl-pool-bar" style={{ width: `${(width * 100).toFixed(1)}%` }}>
+      <span className="pl-pool-bar" style={{ width: cssShare(width) }}>
         {children ?? <span className="pl-pool-seg" style={{ flexGrow: 1, background: color }} />}
       </span>
     </span>
   );
 }
 
-/** Every list of what a roll can give, one row each. `stars` keeps a star list's art at its size. */
-export function PoolList({ stars = false, children }: { stars?: boolean; children: ReactNode }) {
-  return <div className={stars ? "pl-pool-list stars" : "pl-pool-list"}>{children}</div>;
+/** Every list of what a roll can give, one row each. */
+export function PoolList({ children }: { children: ReactNode }) {
+  return <div className="pl-pool-list">{children}</div>;
 }
 
 /**
@@ -67,9 +67,9 @@ export interface ShownOdds {
 }
 
 /** A draw's odds, likeliest first: each row's icon, name, a bar where its share is known, and its share. */
-export function OddsList({ rows, stars = false }: { rows: readonly ShownOdds[]; stars?: boolean }) {
+export function OddsList({ rows }: { rows: readonly ShownOdds[] }) {
   return (
-    <PoolList stars={stars}>
+    <PoolList>
       {rows.map(({ row, name, icon }) => (
         <PoolRow
           key={row.key}

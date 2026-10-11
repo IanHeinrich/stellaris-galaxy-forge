@@ -4,7 +4,6 @@
  * features and anomalies are, and the facts only a random galaxy uses.
  */
 import type { BodySpawn } from "../../generated/BodySpawn";
-import type { Bounds } from "../../generated/Bounds";
 import type { ClassPool } from "../../generated/ClassPool";
 import type { CountRange } from "../../generated/CountRange";
 import type { DepositStep } from "../../generated/DepositStep";
@@ -29,15 +28,10 @@ import type { ModifierRow } from "./planetPage";
 /** What the die mark beside a rolled value says on hover, wherever it shows. */
 export const ROLLED_TITLE = "Rolled when a new game starts";
 
-/** `2 to 10`, or `14` for a count the initializer fixes. */
-export function rangeWords(range: CountRange | Bounds): string {
-  return boundsText(range);
-}
-
 /** `2 to 10 planets`, `1 planet`, `0 to 1 moon`: a count with its noun, singular when it can be no more than one. */
 export function countWords(range: CountRange, noun: string, plural = `${noun}s`): string {
   if (range.min === range.max) return counted(range.min, noun, plural);
-  return `${rangeWords(range)} ${range.max === 1 ? noun : plural}`;
+  return `${boundsText(range)} ${range.max === 1 ? noun : plural}`;
 }
 
 /** Whether a count may come out to more than one value. */
@@ -107,17 +101,22 @@ export interface StarOdds {
   share: number | null;
 }
 
+/** `items` likeliest first by `chance`, the order given kept among equals and unknown chances last. */
+export function likeliestFirst<T>(items: readonly T[], chance: (item: T) => number | null): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => (chance(b.item) ?? -1) - (chance(a.item) ?? -1) || a.index - b.index)
+    .map(({ item }) => item);
+}
+
 /** A star list's members, likeliest first, each with its share of the draw. */
 export function starOdds(members: readonly ListMember[]): StarOdds[] {
   const known = members.every((m) => m.weight !== null);
   const total = members.reduce((sum, m) => sum + (m.weight ?? 0), 0);
-  return members
-    .map((m, index) => ({ m, index }))
-    .sort((a, b) => (b.m.weight ?? 0) - (a.m.weight ?? 0) || a.index - b.index)
-    .map(({ m }) => ({
-      key: m.key,
-      share: known && total > 0 ? (m.weight ?? 0) / total : null,
-    }));
+  return likeliestFirst(members, (m) => m.weight ?? 0).map((m) => ({
+    key: m.key,
+    share: known && total > 0 ? (m.weight ?? 0) / total : null,
+  }));
 }
 
 /** The classes a random draw can give at a body's orbit, likeliest first, each with its share where every weight is known. */
@@ -164,23 +163,38 @@ export function starClassesWords(count: number): string {
 export const RANDOM_STAR = "Random star";
 export const UNKNOWN_STAR = "Unknown star";
 
-/** What each of the engine's random rolls picks among. */
-const RANDOM_ROLLS: Record<string, string> = {
-  random_colonizable: "Rolled from the habitable classes that fit its orbit",
-  random_non_colonizable: "Rolled from the uninhabitable classes that fit its orbit",
-  random_asteroid: "Rolled from the asteroid classes",
+/** What each of the engine's random rolls picks among, in a few words and as its card says it. */
+const RANDOM_DRAWS: Record<string, { words: string; hint: string }> = {
+  random: { words: "random class", hint: "Rolled from the classes that fit its orbit." },
+  random_colonizable: {
+    words: "habitable class",
+    hint: "Rolled from the habitable classes that fit its orbit.",
+  },
+  random_non_colonizable: {
+    words: "uninhabitable class",
+    hint: "Rolled from the uninhabitable classes that fit its orbit.",
+  },
+  random_asteroid: { words: "asteroid class", hint: "Rolled from the asteroid classes." },
 };
 
-/** A rolled class's words on its page: what it is rolled from. */
-export function rolledClassText(pool: ClassPool): string {
+/** What a list row says of a body whose class the game picks with no draw it can name. */
+export const RANDOM_CLASS = RANDOM_DRAWS.random.words;
+
+/** What a rolled class is drawn from, in a few words: `habitable class`, `one of 5 classes`. */
+export function classDraw(pool: ClassPool): string {
   switch (pool.kind) {
     case "random":
-      return RANDOM_ROLLS[pool.draw] ?? "Rolled from the classes that fit its orbit";
+      return (RANDOM_DRAWS[pool.draw] ?? RANDOM_DRAWS.random).words;
     case "planet_list":
-      return `One of ${counted(pool.members.length, "class", "classes")}`;
+      return `one of ${counted(pool.members.length, "class", "classes")}`;
     case "star_list":
-      return "A rolled star class";
+      return "random star class";
   }
+}
+
+/** What a random draw's card says it rolls from. */
+export function randomDrawHint(draw: string): string {
+  return (RANDOM_DRAWS[draw] ?? RANDOM_DRAWS.random).hint;
 }
 
 /** What an unknown value says, on a page and on a list row. */
@@ -204,8 +218,8 @@ export function unknownClassWhy(reason: UnknownClass, written: string): string {
 /** What a row says of a ring the initializer leaves to the class's chance. */
 export const RING_ROLLED = "Rolled";
 
-/** What a value the class a body gets decides says, and its card. */
-export const CLASS_SUITED = "Rolled to suit its class";
+/** What a value the class a body gets decides says beside its die, and its card. */
+export const CLASS_SUITED = "Suits its class";
 export function classSuitedHint(noun: string): string {
   return `The game rolls these to suit the class the ${noun} gets.`;
 }
@@ -241,7 +255,7 @@ export interface CopyFacts {
 /** `The game places 2 to 4 planets like this one.`, on a block's row and a copy's page alike. */
 export function placedWords(count: CountRange, noun: string, moon: boolean): string {
   const around = moon ? " around each planet" : "";
-  return `The game places ${rangeWords(count)} ${noun}s like this one${around}.`;
+  return `The game places ${boundsText(count)} ${noun}s like this one${around}.`;
 }
 
 /**
@@ -260,7 +274,7 @@ export function copyFacts(spawn: BodySpawn, noun: string): CopyFacts | null {
   }
   const placed = placedWords(count, noun, noun === "moon");
   const nth = `This is the ${ordinal(copy)}`;
-  const short = `${ordinal(copy)} of ${rangeWords(count)} ${noun}s like this one`;
+  const short = `${ordinal(copy)} of ${boundsText(count)} ${noun}s like this one`;
   if (isRanged(count) && copy > count.min) {
     return {
       line: `${short} · ${notEvery}`,
@@ -302,7 +316,7 @@ export function neverLine(noun: string, parentNever: boolean): string {
 }
 
 /** What a body's page adds where its orbit can leave it out of some games. */
-export function orbitMayLeaveOut(noun: string): string {
+function orbitMayLeaveOut(noun: string): string {
   return `Some games have this ${noun} and some don't. At some of the orbits it can land at, none of the classes it can roll fit.`;
 }
 
@@ -408,10 +422,10 @@ export interface PoolPick {
 
 /** A pool's entries, likeliest first, the install's order kept among equals and unknown chances last. */
 export function poolPicks(pool: Extract<SpawnPool, { state: "rolled" }>): PoolPick[] {
-  return pool.entries
-    .map((entry, index) => ({ entry, index }))
-    .sort((a, b) => (b.entry.chance ?? -1) - (a.entry.chance ?? -1) || a.index - b.index)
-    .map(({ entry }) => ({ key: entry.key, chance: entry.chance }));
+  return likeliestFirst(pool.entries, (entry) => entry.chance).map((entry) => ({
+    key: entry.key,
+    chance: entry.chance,
+  }));
 }
 
 /** The keys a pool can give, for their names to be read. */
@@ -526,7 +540,7 @@ export function stoppedFacts(spawn: BodySpawn, modifiers: number, noun: string):
  * Whether the class a body rolls decides what a pool gives it: the install can't tell what the
  * pool holds, or the chance of anything in it.
  */
-export function suitsClass(pool: SpawnPool | undefined): boolean {
+function suitsClass(pool: SpawnPool | undefined): boolean {
   if (pool === undefined || pool.state === "fixed") return false;
   return pool.state === "unknown" || pool.entries.every((entry) => entry.chance === null);
 }
@@ -569,10 +583,7 @@ export function mergedByName(
       known.chance =
         known.chance === null || pick.chance === null ? null : known.chance + pick.chance;
   }
-  return [...merged.values()]
-    .map((pick, index) => ({ pick, index }))
-    .sort((a, b) => (b.pick.chance ?? -1) - (a.pick.chance ?? -1) || a.index - b.index)
-    .map(({ pick }) => pick);
+  return likeliestFirst([...merged.values()], (pick) => pick.chance);
 }
 
 /** What the Stopped row's card heads its lines with. */
@@ -619,7 +630,7 @@ export const NEIGHBOUR_LOOKUP_WARNING =
   "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring system find none.";
 
 /** A key of a scope that looks for a system one hyperlane away. */
-export const NEIGHBOUR_LOOKUP = /^(every|random|any|count)_neighbor_system$/;
+const NEIGHBOUR_LOOKUP = /^(every|random|any|count)_neighbor_system$/;
 
 /** The heading over the initializer's lines Galaxy Forge keeps as written, and its card. */
 export const OTHER_KEYS_TITLE = "Other initializer lines";
@@ -691,9 +702,9 @@ export function neighbourText(neighbor: NeighborSystem): string {
   const reach: string[] = [];
   if (neighbor.hyperlane_jumps !== null) {
     const jumps = neighbor.hyperlane_jumps;
-    reach.push(`${rangeWords(jumps)} ${Math.round(jumps.max) === 1 ? "jump" : "jumps"}`);
+    reach.push(`${boundsText(jumps)} ${Math.round(jumps.max) === 1 ? "jump" : "jumps"}`);
   }
-  if (neighbor.distance !== null) reach.push(`distance ${rangeWords(neighbor.distance)}`);
+  if (neighbor.distance !== null) reach.push(`distance ${boundsText(neighbor.distance)}`);
   return [neighbor.initializer, ...reach].join(" · ");
 }
 
@@ -796,9 +807,7 @@ export function sharedScriptHint(script: string): string {
 /** What a value the game files define once says in its card. */
 export const SHARED_VALUE_HINT = "A value the game files define once and reuse.";
 
-/** Whether script text looks for a system one hyperlane away, by its keys as the snippet reads them. */
+/** Whether script text looks for a system one hyperlane away: a key that opens such a scope. */
 export function looksForNeighbours(text: string): boolean {
-  return scriptTokens(text).some(
-    (t) => t.kind !== "string" && t.kind !== "comment" && NEIGHBOUR_LOOKUP.test(t.text),
-  );
+  return scriptTokens(text).some((t) => t.kind === "key" && NEIGHBOUR_LOOKUP.test(t.text));
 }

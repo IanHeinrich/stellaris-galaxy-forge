@@ -8,14 +8,15 @@ import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
 import { templateName } from "../../../../lib/names";
+import { capitalised } from "../../../../lib/text";
 import {
   blockCountTitle,
   blockNoun,
   bodyBlocks,
-  drawWords,
   moonsEach,
 } from "../../../../lib/details/bodyBlocks";
 import {
+  classDraw,
   countWords,
   CLASS_DECIDED_ROW,
   HOME_PLANET_TITLE,
@@ -25,11 +26,10 @@ import {
   isAsteroidClass,
   isRanged,
   moonsAndAsteroids,
-  NEVER_PLACED,
   neverLine,
   neverSpawns,
   PLANETS_FROM_SCRIPT,
-  rangeWords,
+  RANDOM_CLASS,
   type PlanetCounts,
 } from "../../../../lib/details/spawnFacts";
 import { useDetailsStore } from "../../../../store/detailsStore";
@@ -40,7 +40,7 @@ import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
-import { Hinted, Rolled, RolledMark, Unknown } from "../../states";
+import { Hinted, NeverPlaced, Rolled, Unknown } from "../../states";
 import { useGivenNames } from "../../entity/useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
@@ -80,7 +80,7 @@ function openRowMenu(e: MouseEvent, system: number, id: number): void {
   });
 }
 
-/** The count at the right of a block's row, rolled where the game draws it, with its sentence on hover. */
+/** The count at the right of a block's row, rolled where the game draws it, with its sentence in its card. */
 function BlockCount({
   count,
   moon,
@@ -90,15 +90,14 @@ function BlockCount({
   moon: boolean;
   asteroid: boolean;
 }) {
-  const ranged = isRanged(count);
   return (
-    <span
-      className={ranged ? "ins-block-count ins-st-rolled" : "ins-block-count"}
-      title={blockCountTitle(count, moon, asteroid)}
-    >
-      {ranged && <RolledMark />}
-      {ranged ? rangeWords(count) : `×${count.max}`}
-    </span>
+    <Hinted label="Copies" hint={blockCountTitle(count, moon, asteroid)} focusable={false}>
+      {isRanged(count) ? (
+        <Rolled className="ins-block-count">{boundsText(count)}</Rolled>
+      ) : (
+        <span className="ins-block-count">×{count.max}</span>
+      )}
+    </Hinted>
   );
 }
 
@@ -172,12 +171,12 @@ export function PlanetRow({
     span !== undefined
       ? span
       : given !== undefined
-        ? given.text
+        ? nameSpan(given, given)
         : !described
           ? name
           : random
             ? `Random ${noun}`
-            : noun.charAt(0).toUpperCase() + noun.slice(1);
+            : capitalised(noun);
   const shownName: ReactNode =
     given?.rolled === true || (span !== undefined && count !== null && isRanged(count)) ? (
       <Rolled>{title}</Rolled>
@@ -190,11 +189,11 @@ export function PlanetRow({
     );
   const classShown: ReactNode =
     named === "" && !described ? null : spawn?.class.state === "rolled" ? (
-      <Rolled>{drawWords(spawn.class.pool)}</Rolled>
+      <Rolled>{classDraw(spawn.class.pool)}</Rolled>
     ) : state === "unknown" ? (
       <Unknown>{CLASS_DECIDED_ROW}</Unknown>
     ) : described && unrolled ? (
-      "any class"
+      RANDOM_CLASS
     ) : (
       classText
     );
@@ -202,12 +201,7 @@ export function PlanetRow({
   const parentNever =
     never && details.planets.some((p) => p.id === planet.parent && neverSpawns(p.spawn));
   const countMark = never ? (
-    <span
-      className="ins-block-count ins-never"
-      title={neverLine(noun.replace(/s$/, ""), parentNever)}
-    >
-      {NEVER_PLACED}
-    </span>
+    <NeverPlaced hint={neverLine(noun.replace(/s$/, ""), parentNever)} />
   ) : count === null ? null : (
     <BlockCount count={count} moon={planet.moon} asteroid={asteroid} />
   );
@@ -318,7 +312,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
     fixed !== null ? undefined : counts.planets === null ? (
       <Unknown>from a script</Unknown>
     ) : (
-      <Rolled>{rangeWords(counts.planets)}</Rolled>
+      <Rolled>{boundsText(counts.planets)}</Rolled>
     );
   const total = [
     planetsText(counts),

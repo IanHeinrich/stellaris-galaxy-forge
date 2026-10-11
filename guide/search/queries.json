@@ -54,7 +54,8 @@
   {"q": "l-gate", "expect": "edit/empires#change-the-l-gate-outcome"},
   {"q": "deposit", "expect": "system/deposits-and-modifiers#add-or-remove-a-deposit"},
   {"q": "anomaly", "expect": "system/deposits-and-modifiers#add-or-remove-an-anomaly"},
-  {"q": "dig site", "expect": "system/deposits-and-modifiers#add-or-remove-a-dig-site"},
+  {"q": "dig site", "expect": "system/deposits-and-modifiers#add-or-remove-an-archaeological-site"},
+  {"q": "archaeological site", "expect": "system/deposits-and-modifiers#add-or-remove-an-archaeological-site"},
   {"q": "asteroid belt", "expect": "system/belts"},
   {"q": "colony", "expect": "system/colonies"},
   {"q": "delete planet", "expect": "system/colonies#delete-a-planet-or-moon"},
@@ -124,7 +125,7 @@
   {"q": "scenario belt radius", "expect": "system/belts#belts-in-a-scenario"},
   {"q": "what does the dial next to angle step mean", "expect": "system/system-view#see-how-a-scenario-system-rolls"},
   {"q": "why is my planet's model rolled", "expect": "system/planet-pages#a-scenario-body-s-page"},
-  {"q": "rolled to suit its class", "expect": "system/planet-pages#a-scenario-body-s-page"},
+  {"q": "what does suits its class mean on a scenario planet", "expect": "system/planet-pages#a-scenario-body-s-page"},
   {"q": "initializer script at game start", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
   {"q": "what it can roll", "expect": "system/deposits-and-modifiers#what-a-scenario-planet-can-roll"},
   {"q": "dotted underline", "expect": "system/system-view#rolled-values-and-how-many-planets-spawn"}

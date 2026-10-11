@@ -20,6 +20,7 @@ import { useCountryName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useOpenEntity } from "../entity/useEntity";
+import { ASSUMED_CLAIM_TITLE } from "../../../lib/ownership";
 import { useOwnership } from "../../../store/ownership";
 import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
@@ -38,10 +39,6 @@ import { shortcutLabel } from "../../../lib/keys";
 /** Why the owner line's day-one chip means what it means, shown on hover. */
 const DAY_ONE_OWNER_TITLE =
   "An event gives this system to the empire on the first day of the game.";
-
-/** Why the owner line's assumed marker means what it means, shown on hover. */
-const ASSUMED_OWNER_TITLE =
-  "Galaxy Forge can't check this claim's conditions, so it assumes the claim holds.";
 
 function PositionBlock({ system }: { system: SystemNode }) {
   const applyOp = useApplySymmetricOp();
@@ -214,7 +211,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
             </Chip>
           )}
           {scenarioOwner?.assumed && (
-            <Chip warn title={ASSUMED_OWNER_TITLE}>
+            <Chip warn title={ASSUMED_CLAIM_TITLE}>
               assumed
             </Chip>
           )}

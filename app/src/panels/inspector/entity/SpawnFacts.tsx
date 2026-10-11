@@ -11,6 +11,7 @@ import {
   CAN_ROLL_TITLE,
   CLASS_DECIDED,
   CLASS_SUITED,
+  classDraw,
   classFitHint,
   classListSource,
   classOdds,
@@ -29,9 +30,9 @@ import {
   poolPicks,
   poolTitle,
   type PoolPick,
+  randomDrawHint,
   RING_ROLLED,
   ringWords,
-  rolledClassText,
   setsSize,
   sharedScriptHint,
   shownWithItsRow,
@@ -52,6 +53,7 @@ import {
 } from "../../../lib/details/spawnNames";
 import { depositKinds, depositKindsTail } from "../../../lib/details/depositBars";
 import { templateName } from "../../../lib/names";
+import { capitalised } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -61,11 +63,11 @@ import {
   Hinted,
   HintedRow,
   Rolled,
-  RolledMark,
   SetByLines,
   SetByRow,
   StoppedTag,
   Unknown,
+  Why,
 } from "../states";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { StarOddsList } from "../system/sections/scenario/StarList";
@@ -86,42 +88,46 @@ const MOST_CLASS_ROWS = 4;
 
 /**
  * Planet classes a draw can give, as an odds list: each class's icon and name, a bar and its share
- * where known. More than a few classes with no odds known show as a strip of icons, each named in
- * its card.
+ * where known, classes that show under one name as one. More than a few classes with no odds known
+ * show as a strip of icons, each named in its card.
  */
 function ClassList({ odds, moon }: { odds: readonly StarOdds[]; moon: boolean }) {
   const names = useGameDataStore((s) => s.names);
   const planetClasses = useGameDataStore((s) => s.planetClasses);
-  if (odds.length > MOST_CLASS_ROWS && odds.every((o) => o.share === null)) {
+  const merged = mergedByName(
+    odds.map((o) => ({ key: o.key, chance: o.share })),
+    (key) => bodyClassName(key, names, moon),
+  );
+  if (merged.length > MOST_CLASS_ROWS && merged.every((o) => o.chance === null)) {
     return (
-      <div className="ins-why">
+      <Why>
         <span className="pl-class-strip">
-          {odds.map(({ key }) => {
-            const name = bodyClassName(key, names, moon);
-            return (
-              <Hinted key={key} label={name} hint={<span className="mono">{key}</span>}>
-                <span role="img" aria-label={name}>
-                  <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} />
-                </span>
-              </Hinted>
-            );
-          })}
+          {merged.map(({ key, name }) => (
+            <Hinted key={key} label={name} hint={<span className="mono">{key}</span>}>
+              <span role="img" aria-label={name}>
+                <PlanetIcon planetClass={key} sprite={planetClasses.get(key)?.icon_sprite} />
+              </span>
+            </Hinted>
+          ))}
         </span>
-      </div>
+      </Why>
     );
   }
   return (
-    <div className="ins-why">
+    <Why>
       <OddsList
-        rows={oddsRows(odds, (key) => readableTint(planetTint(key))).map((row) => ({
+        rows={oddsRows(
+          merged.map((o) => ({ key: o.key, share: o.chance })),
+          (key) => readableTint(planetTint(key)),
+        ).map((row, i) => ({
           row,
-          name: bodyClassName(row.key, names, moon),
+          name: merged[i].name,
           icon: (
             <PlanetIcon planetClass={row.key} sprite={planetClasses.get(row.key)?.icon_sprite} />
           ),
         }))}
       />
-    </div>
+    </Why>
   );
 }
 
@@ -164,20 +170,27 @@ function ClassRow({ spawn, read }: { spawn: BodySpawn; read: BodyRead }) {
             <span className="ins-set-by">{classListSource(pool.list)}</span>
             <span className="ins-set-by">{LIST_ORBIT_HINT}</span>
           </>
-        ) : pool.kind === "random" && pool.at_orbit !== undefined && !exact ? (
-          classFitHint(orbitRanged, starRolled)
+        ) : pool.kind === "random" ? (
+          <>
+            <span className="ins-set-by">{randomDrawHint(pool.draw)}</span>
+            {pool.at_orbit !== undefined && !exact && (
+              <span className="ins-set-by">{classFitHint(orbitRanged, starRolled)}</span>
+            )}
+          </>
         ) : null;
       return (
         <>
           <HintedRow label="Class" hint={hint}>
             <Rolled>
-              {listed === null ? rolledClassText(pool) : starClassesWords(listed.members.length)}
+              {listed === null
+                ? capitalised(classDraw(pool))
+                : starClassesWords(listed.members.length)}
             </Rolled>
           </HintedRow>
           {listed !== null && (
-            <div className="ins-why">
+            <Why>
               <StarOddsList star={listed} />
-            </div>
+            </Why>
           )}
           {pool.kind === "random" && pool.at_orbit !== undefined && pool.at_orbit.length > 0 && (
             <ClassList
@@ -545,9 +558,7 @@ export function PoolLines({
   return (
     <>
       <div className="pl-sub-head">
-        <span className="ins-st-rolled">
-          <RolledMark />
-        </span>
+        <Rolled />
         {poolTitle(stated, tail(picks))}
       </div>
       {body(picks)}

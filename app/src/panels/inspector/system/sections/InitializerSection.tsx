@@ -19,9 +19,9 @@ import { InitializerSpawn } from "./scenario/Initializer";
 import { StatedGroups, StatedRows } from "./scenario/InitializerFacts";
 import { useInitializerFile } from "./scenario/useInitializerFile";
 
-export const SEAT_INITIALIZER_HINT = "An empire that spawns here brings its own starting system.";
+const SEAT_INITIALIZER_HINT = "An empire that spawns here brings its own starting system.";
 
-export const SEAT_INITIALIZER_CARD =
+const SEAT_INITIALIZER_CARD =
   "The empire's system replaces this one. What this initializer spawns around it, like Sol's " +
   "neighbours, still appears. If no empire lands here, the initializer is used as written.";
 

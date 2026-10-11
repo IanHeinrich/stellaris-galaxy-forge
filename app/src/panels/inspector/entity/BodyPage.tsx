@@ -9,7 +9,6 @@ import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
 import {
   HOME_PLANET_TITLE,
-  NEVER_PLACED,
   RING_ROLLED,
   neverSpawns,
   START_PLANET_TITLE,
@@ -30,7 +29,7 @@ import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditF
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
-import { Rolled } from "../states";
+import { NeverPlaced, Rolled } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
@@ -124,9 +123,7 @@ function Head({
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
       {body?.spawn?.starting_planet && <Chip title={START_PLANET_TITLE}>start planet</Chip>}
       {body?.spawn?.home_planet && <Chip title={HOME_PLANET_TITLE}>home planet</Chip>}
-      {neverSpawns(body?.spawn) && (
-        <span className="ins-block-count ins-never">{NEVER_PLACED}</span>
-      )}
+      {neverSpawns(body?.spawn) && <NeverPlaced />}
       {action}
     </div>
   );

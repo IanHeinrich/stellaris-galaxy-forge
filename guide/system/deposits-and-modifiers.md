@@ -1,7 +1,7 @@
 ---
 title: Deposits and modifiers
-description: Add and remove a planet's deposits, blockers, modifiers, anomaly and dig site.
-aliases: [deposit, resources, can also roll, random deposits, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeology, add_modifier, minerals, energy]
+description: Add and remove a planet's deposits, blockers, modifiers, anomaly and archaeological site.
+aliases: [deposit, resources, can also roll, random deposits, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeological site, archaeology, add_modifier, minerals, energy]
 ---
 # Deposits and modifiers <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -35,7 +35,7 @@ Both lists stay open until you click Done or press <kbd>Esc</kbd>. A
 mining or research station over a removed deposit stays in game and
 still costs about 1 energy a month.
 
-The bottom of the deposit, blocker, modifier and dig site lists shows
+The bottom of the deposit, blocker, modifier and archaeological site lists shows
 the game's description of the row you hover over. Without the pointer
 on a row, it describes the row the arrow keys are on.
 
@@ -94,7 +94,7 @@ has a plain bar of its own, with its name in place of an icon.
 
 Where the class the planet rolls decides the odds, there are no bars.
 When the initializer states no deposits, the Deposits row at the top of
-the page reads "Rolled to suit its class". Click What it can roll under
+the page reads "Suits its class", with a die. Click What it can roll under
 it to open the list. Each resource has a row with the amounts it can
 give, such as "+1 to +3". The blockers are counted on one line, such as
 "Blockers: 5 kinds", and deposits that give no resource on an Other
@@ -111,7 +111,7 @@ section.
 
 Where the initializer leaves nothing to roll, there is no list. Where
 the class the game picks decides the roll and Galaxy Forge can't list
-it, the row or the section reads "Rolled to suit its class".
+it, the row or the section reads "Suits its class".
 
 ## Make a planet a terraforming candidate
 
@@ -143,13 +143,13 @@ In an older save, a planet with an anomaly waiting on it shows an
 Anomaly row in About: the anomaly's name, and which empires have found
 it.
 
-## Add or remove a dig site
+## Add or remove an archaeological site
 
-In a Stellaris 4.x save, the Dig site section shows a planet's
+In a Stellaris 4.x save, the Archaeological site section shows a planet's
 archaeological site: its stage, its clues, whether a fleet is
 excavating it, and the game's description of it. Remove it with the ✕.
 A science ship excavating a removed site stops on the game's first day
-and waits in orbit. A planet without a site has Add dig site. Search by
+and waits in orbit. A planet without a site has Add archaeological site. Search by
 name, or pick Found by surveys or Event only. A planet holds one site,
 so the list closes after an add. Sites that run a script when the game
 creates them, such as Ruined Station and The Library, aren't listed,

@@ -71,11 +71,12 @@ describe("a scenario body's page", () => {
     expect(row(html, "Name")).toContain(">Random</span>");
     expect(row(html, "Name")).not.toContain("ins-st-unknown");
     expect(hintOf("Name")).toBe("The game picks a name for it at random when a new game starts.");
-    expect(row(html, "Class")).toContain("Rolled from the classes that fit its orbit");
-    expect(row(html, "Size")).toContain(">Rolled to suit its class</span>");
+    expect(row(html, "Class")).toContain(">Random class</span>");
+    expect(hintOf("Class")).toContain("Rolled from the classes that fit its orbit.");
+    expect(row(html, "Size")).toContain(">Suits its class</span>");
     expect(hintOf("Size")).toContain("The game rolls these to suit the class the planet gets.");
     expect(row(html, "Ring")).toContain(">Rolled</span>");
-    expect(row(html, "Model")).toContain(">Rolled to suit its class</span>");
+    expect(row(html, "Model")).toContain(">Suits its class</span>");
     expect(hintOf("Model")).toBe("The game rolls these to suit the class the planet gets.");
     expect(html).not.toContain("With its class");
     expect(html).not.toContain("Anomaly");
@@ -234,7 +235,7 @@ describe("a scenario body's page", () => {
     expect(row(html, "Class")).toContain("Continental World");
     expect(row(html, "Class")).not.toContain("<div");
     expect(html).not.toContain("ins-why");
-    expect(row(html, "Model")).toContain(">Rolled to suit its class</span>");
+    expect(row(html, "Model")).toContain(">Suits its class</span>");
     expect(hintOf("Model")).toBe("The game rolls these to suit the class the planet gets.");
     const stopped = row(html, "Stopped");
     expect(stopped).toContain("⊘</span>Blockers</span>");
@@ -322,12 +323,13 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
-    const html = page(100, "World");
+    const html = drawnBy(() => page(100, "World"));
     expect(html).toContain("The initializer clears the rare resources deposits the game rolls.");
     expect(html).not.toContain("deposit_cat_");
     expect(html).toContain("d_zro_1");
     expect(html).not.toContain("replaces");
-    expect(row(html, "Class")).toContain("Rolled from the habitable classes that fit its orbit");
+    expect(row(html, "Class")).toContain(">Habitable class</span>");
+    expect(hintOf("Class")).toContain("Rolled from the habitable classes that fit its orbit.");
   });
 
   it("shows script as written, its nesting moved left, and a long one cut behind a control that shows the rest", async () => {

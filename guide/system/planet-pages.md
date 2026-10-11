@@ -76,7 +76,7 @@ for the body, and Other initializer lines. Nothing on the page can be
 edited yet.
 
 Where only the class the body gets decides its model, ring, deposits or
-planet features, that row reads "Rolled to suit its class". Under the
+planet features, that row reads "Suits its class". Under the
 Deposits and Planet features rows, click What it can roll to see what
 the class could give. It starts closed.
 
@@ -114,6 +114,6 @@ some of those cases, and then the game leaves the body out.
 Use the breadcrumb above the page to go back. Click "‹" to go back one
 step, a name in it to go to that page, or "Galaxy" for the Galaxy page.
 
-Deposits, modifiers, anomalies and dig sites are on
+Deposits, modifiers, anomalies and archaeological sites are on
 [Deposits and modifiers](deposits-and-modifiers.md). A planet's colony
 is on [Colonies and deleting planets](colonies.md).

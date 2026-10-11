@@ -28,15 +28,17 @@ function wedgePath(min: number, max: number): string {
 /**
  * How far round a body turns from the one before it, drawn as the system view would: the body
  * before it on the rim at 0, then the step as a wedge for a range, a line for one angle, or the
- * whole disc for any. Nothing for a step that isn't known. The row's text says the same, so the
- * dial is hidden from screen readers.
+ * whole disc for any, which turns from nothing, so it has no mark for the body before it. Nothing
+ * for a step that isn't known. The row's text says the same, so the dial is hidden from screen
+ * readers.
  */
 export function AngleDial({ step }: { step: Bounds | null }) {
   if (step === null) return null;
   const reference = rim(0);
+  const any = wholeTurn(step);
   return (
     <svg className="ins-dial" viewBox="-14 -14 28 28" aria-hidden="true">
-      {wholeTurn(step) ? (
+      {any ? (
         <circle className="ins-dial-any" r={R} />
       ) : step.min === step.max ? (
         <>
@@ -54,7 +56,7 @@ export function AngleDial({ step }: { step: Bounds | null }) {
       )}
       <circle className="ins-dial-rim" r={R} />
       <circle className="ins-dial-centre" r="1.2" />
-      <circle className="ins-dial-ref" cx={f(reference.x)} cy={f(reference.y)} r="2" />
+      {!any && <circle className="ins-dial-ref" cx={f(reference.x)} cy={f(reference.y)} r="2" />}
     </svg>
   );
 }

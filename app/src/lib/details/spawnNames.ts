@@ -21,7 +21,7 @@ export interface GivenName {
 }
 
 /** A template's English text, for while the install's localisation has not been read. */
-export function defaultFormat(format: string): string {
+function defaultFormat(format: string): string {
   if (format === "PLANET_NAME_FORMAT") return "$PARENT$ $NUMERAL$";
   if (format === "SUBPLANET_NAME_FORMAT") return "$PARENT$$NUMERAL$";
   const star = /^STAR_NAME_(\d+)_OF_(\d+)$/.exec(format);
@@ -184,7 +184,7 @@ export function nameSpan(first: GivenName, last: GivenName): string {
 }
 
 /** `Kanthe II, Kanthe III or Kanthe IV`: every name a rolled numeral can give. */
-export function eitherName(all: readonly string[]): string {
+function eitherName(all: readonly string[]): string {
   if (all.length <= 1) return all[0] ?? "";
   return `${all.slice(0, -1).join(", ")} or ${all[all.length - 1]}`;
 }

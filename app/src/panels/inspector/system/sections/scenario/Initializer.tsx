@@ -11,6 +11,7 @@ import { useGameDataStore } from "../../../../../store/gameDataStore";
 import { useNamed } from "../../../../useNamed";
 import { Chip, FILTER_MIN, FilterField, Icon } from "../../../../parts";
 import { INLINE_RESOURCES } from "../../../rows";
+import { Rolled } from "../../../states";
 import { PlanetIcon, Pills, PlanetSize } from "../bodies";
 
 function BodyRow({ row }: { row: InitializerRow }) {
@@ -32,7 +33,7 @@ function BodyRow({ row }: { row: InitializerRow }) {
           {row.moon && <span>moon</span>}
           {row.size !== null && <PlanetSize size={row.size} />}
           {row.ring === true && <span>ring</span>}
-          {row.ring === null && <span title="Rolled by the game">ring rolled</span>}
+          {row.ring === null && <Rolled>ring</Rolled>}
           {wide && <span>{row.resources.length} resources</span>}
         </span>
         {wide && (

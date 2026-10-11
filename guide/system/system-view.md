@@ -139,7 +139,7 @@ in a save, Bypasses still work while a system is open, with their own
 settings, so you can have them on in the galaxy and off in a system.
 With System details on, each body's resources show under its name. A
 colony's name shows its owner's flag. A body's name also shows icons
-for its megastructures, dig site, anomaly and pre-FTL civilisation.
+for its megastructures, archaeological site, anomaly and pre-FTL civilisation.
 Hover over an icon or a resource to see what it is. A system inside a
 nebula shows faint clouds behind it while Nebulae is on. The other
 layer buttons and the tool strip are for the galaxy, so they are hidden

@@ -42,11 +42,13 @@ describe("the angle dial", () => {
     expect(html).not.toContain("ins-dial-wedge");
   });
 
-  it("shades the whole disc for a step that lets the body stand at any angle", () => {
+  it("shades the whole disc for a step that lets the body stand at any angle, with no reference mark", () => {
     const html = renderToStaticMarkup(<AngleDial step={{ min: 0, max: 360 }} />);
     expect(html).toContain(`<circle class="ins-dial-any" r="${R}"></circle>`);
+    expect(html).toContain(`<circle class="ins-dial-rim" r="${R}"></circle>`);
     expect(html).not.toContain("ins-dial-wedge");
     expect(html).not.toContain("ins-dial-line");
+    expect(html).not.toContain("ins-dial-ref");
   });
 
   it("draws nothing for a step it can't tell", () => {

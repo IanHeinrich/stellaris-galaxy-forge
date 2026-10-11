@@ -8,7 +8,8 @@ import { useSystemGeometry } from "../../../../store/systemGeometry";
 import { EditRow, PickerField, TextField } from "../../../EditField";
 import { useGeometryEdit } from "../../useGeometryEdit";
 import type { Bounds } from "../../../../generated/Bounds";
-import { innerOffsetHint, rangeWords } from "../../../../lib/details/spawnFacts";
+import { boundsText } from "../../../../lib/details/labels";
+import { innerOffsetHint } from "../../../../lib/details/spawnFacts";
 import { LockedRow, Section } from "../../parts";
 import { Hinted, Rolled, Unknown } from "../../states";
 
@@ -21,12 +22,17 @@ function kindName(kind: string, kinds: readonly Named[]): string {
 
 type Send = (intent: GeometryIntent) => void;
 
+/** `40.5`, or `40 to 60` for a radius the game rolls. */
+function radiusText(bounds: Bounds): string {
+  return bounds.min === bounds.max ? `${rounded(bounds.min)}` : boundsText(bounds);
+}
+
 /** A radius the game may draw: a range in the rolled look, or the one number. */
 function RadiusText({ bounds }: { bounds: Bounds }) {
   return bounds.min === bounds.max ? (
-    <>{rounded(bounds.min)}</>
+    <>{radiusText(bounds)}</>
   ) : (
-    <Rolled>{rangeWords(bounds)}</Rolled>
+    <Rolled>{radiusText(bounds)}</Rolled>
   );
 }
 
@@ -45,7 +51,7 @@ function SpawnInnerRadius({ bounds, offset }: { bounds: Bounds; offset: number |
   return (
     <EditRow label="Inner radius">
       <Hinted label="Inner radius" hint={innerOffsetHint(offset)}>
-        <Unknown>{bounds.min === bounds.max ? rounded(bounds.min) : rangeWords(bounds)}</Unknown>
+        <Unknown>{radiusText(bounds)}</Unknown>
       </Hinted>
     </EditRow>
   );

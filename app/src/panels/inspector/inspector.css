@@ -208,7 +208,7 @@ button.chip.jump:hover {
 
 .ins-kv {
   display: grid;
-  grid-template-columns: 84px 1fr;
+  grid-template-columns: 104px 1fr;
   gap: 2px 8px;
   align-items: baseline;
 }
@@ -276,6 +276,14 @@ button.chip.jump:hover {
 
 .gi:last-child {
   margin-inline-end: 0;
+}
+
+/* A size or a pop count: its icon, then the number, a gap between them wherever it shows. */
+.sz,
+.pops {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .gi img {
@@ -510,6 +518,7 @@ button.link.ins-drill:hover {
 
 /* The count of a row that stands for several copies of a body, at the row's right. */
 .ins-block-count {
+  display: inline-block;
   padding: 0 5px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -518,6 +527,7 @@ button.link.ins-drill:hover {
 }
 
 .ins-block-count.ins-st-rolled {
+  display: inline-flex;
   border-color: rgba(127, 179, 255, 0.35);
   background: rgba(127, 179, 255, 0.08);
 }
@@ -639,10 +649,11 @@ button.ins-group-head .tri {
   vertical-align: middle;
 }
 
+/* The rim is a hairline that shows on the dark dock; the shaded step is the accent's tint. */
 .ins-dial-rim {
   fill: none;
-  stroke: var(--border);
-  stroke-width: 1;
+  stroke: var(--fg-muted);
+  stroke-width: 0.8;
 }
 
 .ins-dial-centre {
@@ -654,13 +665,13 @@ button.ins-group-head .tri {
 }
 
 .ins-dial-wedge {
-  fill: var(--accent-bg-strong);
-  stroke: var(--accent-dim);
+  fill: rgba(var(--accent-rgb), 0.38);
+  stroke: var(--accent);
   stroke-width: 0.6;
 }
 
 .ins-dial-any {
-  fill: var(--accent-bg-soft);
+  fill: rgba(var(--accent-rgb), 0.38);
 }
 
 .ins-dial-line {

@@ -24,7 +24,6 @@ export function StarOddsList({ star }: { star: RolledStar }) {
   const rows = oddsRows(odds, (key) => readableTint(starGlyph(key).tint));
   return (
     <OddsList
-      stars
       rows={rows.map((row) => ({
         row,
         name: starListName(named(row.key)),

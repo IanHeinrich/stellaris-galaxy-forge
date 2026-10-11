@@ -29,13 +29,24 @@ export function readableTint(tint: number): string {
   return lightness < DARKEST ? NEUTRAL_RAMP[1] : toCss(tint);
 }
 
+/** A share of 0 to 1 as a CSS width. */
+export function cssShare(share: number): string {
+  return `${(share * 100).toFixed(1)}%`;
+}
+
+/** Each share's bar length as a share of the track, the likeliest filling it; 0 where unknown. */
+export function barLengths(shares: readonly (number | null)[]): number[] {
+  const most = Math.max(0, ...shares.map((share) => share ?? 0));
+  return shares.map((share) => (share === null || most <= 0 ? 0 : share / most));
+}
+
 /** `odds`, likeliest first as given, each with its bar's length and the colour `color` gives its key. */
 export function oddsRows(odds: readonly StarOdds[], color: (key: string) => string): OddsRow[] {
-  const most = Math.max(0, ...odds.map((o) => o.share ?? 0));
-  return odds.map((o) => ({
+  const widths = barLengths(odds.map((o) => o.share));
+  return odds.map((o, i) => ({
     key: o.key,
     share: o.share,
-    width: o.share === null || most <= 0 ? 0 : o.share / most,
+    width: widths[i],
     color: color(o.key),
   }));
 }

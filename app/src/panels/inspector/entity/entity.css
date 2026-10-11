@@ -722,12 +722,6 @@
   height: 16px;
 }
 
-/* A star list's art keeps its own size; other icons take a deposit icon's. */
-.pl-pool-list:not(.stars) .pl-pool-icon > .pi {
-  width: 11px;
-  height: 11px;
-}
-
 .pl-pool-name {
   max-width: 10em;
   overflow: hidden;
@@ -835,11 +829,6 @@
 .pl-class-strip > .ins-hinted:hover,
 .pl-class-strip > .ins-hinted:focus-visible {
   background: var(--bg-elevated);
-}
-
-.pl-class-strip .pi {
-  width: 16px;
-  height: 16px;
 }
 
 /* Blockers and other deposits a roll can give, counted on one line each, and features as names. */
