@@ -1,5 +1,6 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import {
+  DEPENDS_ON_CLASS,
   NEVER_PLACED,
   ROLLED_TITLE,
   SHARED_VALUE_HINT,
@@ -44,6 +45,15 @@ export function Rolled({ className, children }: { className?: string; children?:
 /** A value decided when a game starts in a way Galaxy Forge can't show. */
 export function Unknown({ children }: { children: ReactNode }) {
   return <span className="ins-st-unknown">{children}</span>;
+}
+
+/** The line over a list of what a roll can give, where the class the body gets decides the odds. */
+export function DependsOnClass() {
+  return (
+    <div className="muted ins-hint">
+      <Unknown>{DEPENDS_ON_CLASS}</Unknown>
+    </div>
+  );
 }
 
 /** What goes under a row, across both its columns. */

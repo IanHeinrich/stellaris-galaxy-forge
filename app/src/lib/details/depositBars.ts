@@ -54,11 +54,6 @@ export interface BarRow {
 export const DEPOSIT_CARD_NOTE =
   "How likely a deposit rolled here is to give this resource, at each amount.";
 
-/** What the list says under it where some rows show their amounts in place of a bar. */
-export function depositOddsUnknown(noun: string): string {
-  return `The odds depend on the class the ${noun} gets.`;
-}
-
 const signed = (n: number) => (n > 0 ? `+${formatAmount(n)}` : formatAmount(n));
 
 /** `+1 to +3` for amounts one apart, else `+1, +2, +5`. */

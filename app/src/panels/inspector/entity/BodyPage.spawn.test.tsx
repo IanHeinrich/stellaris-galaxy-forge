@@ -385,6 +385,61 @@ describe("a scenario body's page", () => {
     expect(html).not.toContain("ins-prow moon");
   });
 
+  it("has no Deposits or Planet features row, or folded group, for a body whose pools are empty", async () => {
+    const empty = { state: "rolled" as const, entries: [] };
+    const star = planet(99, "", {
+      class: "pc_k_star",
+      star_class: "sc_k",
+      role: "primary",
+      spawn: bodySpawn({
+        class: { state: "fixed", class: "pc_k_star" },
+        rolled_deposits: empty,
+        rolled_features: empty,
+      }),
+    });
+    const world = planet(100, "", {
+      class: "random",
+      drawn: true,
+      spawn: bodySpawn({ class: ROLLED, rolled_deposits: empty, rolled_features: empty }),
+    });
+    await open("scenario");
+    await land(details({ planets: [star, world], spawn: systemSpawn() }));
+
+    for (const [id, label] of [
+      [99, "Star"],
+      [100, "Planet"],
+    ] as const) {
+      const html = page(id, label);
+      expect(html).not.toContain('<span class="k">Deposits</span>');
+      expect(html).not.toContain('<span class="k">Planet features</span>');
+      expect(html).not.toContain("What it can roll");
+      expect(html).not.toContain("Depends on the class it gets.");
+    }
+  });
+
+  it("calls an asteroid an asteroid in its stopped, deposit, feature and anomaly lines", async () => {
+    const rock = planet(100, "Rock", {
+      class: "pc_asteroid",
+      spawn: bodySpawn({
+        class: { state: "fixed", class: "pc_asteroid" },
+        no_blockers: true,
+        deposits: [{ kind: "clear", category: null }],
+        features: { modifier: null, none: true, cleared: false, added: [] },
+        anomalies: { categories: [], prevented: "body" },
+      }),
+    });
+    await open("scenario");
+    await land(details({ planets: [rock], spawn: systemSpawn() }));
+
+    const html = drawnBy(() => page(100, "Rock"));
+    const hints = hintOf("Stopped");
+    expect(hints).toContain("No anomaly can appear on this asteroid.");
+    expect(hints).toContain("The game rolls no blockers for this asteroid.");
+    expect(hints.replace("planet features", "")).not.toContain("planet");
+    const body = html.slice(html.indexOf("ins-sec"));
+    expect(body.replace(/planet features|class="[^"]*"/gi, "")).not.toMatch(/planet/i);
+  });
+
   it("names an anomaly prevented across the system", async () => {
     const barren = planet(100, "Barren", {
       class: "pc_barren",

@@ -95,23 +95,28 @@ has a plain bar of its own, with its name in place of an icon.
 Where the class the planet rolls decides the odds, there are no bars.
 When the initializer states no deposits, the Deposits row at the top of
 the page reads "Suits its class", with a die. Click What it can roll under
-it to open the list. Each resource has a row with the amounts it can
-give, such as "+1 to +3". The blockers are counted on one line, such as
-"Blockers: 5 kinds", and deposits that give no resource on an Other
-line. Hover over the count to see their names. When the initializer
-states deposits too, the same list is in the Deposits section, under
-"Can also roll".
+it to open the list. It starts with "Depends on the class it gets."
+Each resource is a chip with a dashed border, its icon and the amounts
+it can give, such as "+1 to +3". Hover over a chip to see each amount
+and the deposits that give it. The blockers are counted on one line,
+such as "Blockers: 5 kinds", and deposits that give no resource on an
+Other line. Hover over the count to see their names. When the
+initializer states deposits too, the same list is in the Deposits
+section, under "Can also roll".
 
 Planet features are listed the same way, likeliest first, each with a
 bar and its percentage. A percentage there is how likely the first
 feature the game rolls is to be that one. Features with the same name
-are listed once. Where none of the odds are known, the features show
-as one line of names, under the Planet features row or in the Modifiers
-section.
+are listed once. Where none of the odds are known, the list starts with
+"Depends on the class it gets." and the features show as one line of
+names, under the Planet features row or in the Modifiers section. A
+line of more than eight names ends with "+3 more", for example. Hover
+over it to see all of them.
 
-Where the initializer leaves nothing to roll, there is no list. Where
-the class the game picks decides the roll and Galaxy Forge can't list
-it, the row or the section reads "Suits its class".
+Where the initializer leaves nothing to roll, there is no list, and no
+Deposits or Planet features row. A star with no planet features is one
+example. Where the class the game picks decides the roll and Galaxy
+Forge can't list it, the row or the section reads "Suits its class".
 
 ## Make a planet a terraforming candidate
 

@@ -8,6 +8,7 @@ import {
   mergedByName,
   modifierLine,
 } from "../../../lib/details/spawnFacts";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { Icon } from "../../parts";
 import { Section } from "../parts";
 import { MODIFIER_PICKER } from "./ModifierPicker";
@@ -128,10 +129,9 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
   const { modifiers } = read.rows;
   const { target } = read;
   const spawn = read.summary.spawn;
-  const line =
-    spawn === undefined
-      ? null
-      : modifierLine(spawn.features, bodyNoun(read.summary), modifiers.length);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const noun = bodyNoun(read.summary, planetClasses);
+  const line = spawn === undefined ? null : modifierLine(spawn.features, noun, modifiers.length);
   const named = useFeatureNamer();
   const pool = spawn?.rolled_features;
   const folded = spawn !== undefined && featuresWithClass(spawn, modifiers.length);
@@ -150,7 +150,7 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
       <PoolLines
         pool={pool}
         stated={modifiers.length}
-        noun={bodyNoun(read.summary)}
+        noun={noun}
         tail={(picks) => featuresTail(mergedByName(picks, named).length)}
         body={(picks) => <FeaturePool picks={picks} />}
       />

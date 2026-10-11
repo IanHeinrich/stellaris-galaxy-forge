@@ -283,7 +283,8 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const [confirming, setConfirming] = useState<string | null>(null);
   useNamed(editable ? deposits.nameKeys : []);
   const spawn = read.summary.spawn;
-  const noun = bodyNoun(read.summary);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const noun = bodyNoun(read.summary, planetClasses);
   const category = useNamed(
     spawn === undefined ? [] : depositCategories(spawn.deposits),
     categoryWords,
@@ -351,7 +352,7 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
         stated={features.length + blockers.length}
         noun={noun}
         tail={(picks) => depositPoolTail(picks, views)}
-        body={(picks) => <DepositPoolBars picks={picks} noun={noun} />}
+        body={(picks) => <DepositPoolBars picks={picks} />}
       />
       {editable && (
         <PlanetPicker

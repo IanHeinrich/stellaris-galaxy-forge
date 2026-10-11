@@ -22,7 +22,7 @@ import { drawnBy } from "../../../test/drawn";
 import { openGroups } from "../../../test/groups";
 import { hintOf } from "../../../test/hints";
 import { mockedIpc } from "../../../test/ipc";
-import { poolRows } from "../../../test/poolRows";
+import { poolChips, poolRows } from "../../../test/poolRows";
 import { rolledBody, systemRoll } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
 import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
@@ -31,7 +31,7 @@ import { bodyLayout, name } from "../../../test/builders";
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
 import { Rolled, RolledMark } from "../states";
-import { BarLineView } from "./DepositPoolBars";
+import { BarLineView, DepositChipView } from "./DepositPoolBars";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -443,6 +443,50 @@ describe("what a scenario body can roll", () => {
     expect(unhovered).not.toContain("dp-card");
   });
 
+  it("shows an unknown-odds resource's amounts on hover with no bars, and says the class decides", () => {
+    const view = (key: string, name: string, amount: number) =>
+      [
+        key,
+        depositTypeView(key, {
+          name,
+          yields: [resourceAmount("energy", amount, "Energy Credits")],
+        }),
+      ] as const;
+    const views = new Map([
+      view("d_energy_2", "£energy£ +2", 2),
+      view("d_energy_3", "Energy Deposit", 3),
+    ]);
+    const [row] = depositBars(
+      [
+        { key: "d_energy_2", chance: null },
+        { key: "d_energy_3", chance: null },
+      ],
+      views,
+    );
+    const html = renderToStaticMarkup(<DepositChipView row={row} shown onShow={() => undefined} />);
+    const card = html.slice(html.indexOf('class="dp-card'));
+    expect(card).toContain(
+      '<span class="dp-card-name"><span class="gi">E</span>Energy Credits</span>',
+    );
+    const lines = card.split('<span class="pl-pool-line">').slice(1);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('<span class="pl-pool-amount">+2</span>');
+    expect(lines[1]).toContain('<span class="pl-pool-amount">+3</span>');
+    expect(lines[1]).toContain('<span class="muted pl-pool-deposits">Energy Deposit</span>');
+    expect(card).not.toContain("pl-pool-mini");
+    expect(card).not.toContain("pl-pool-line-chance");
+    expect(card).not.toContain("How likely");
+    expect(card).toContain('<span class="dp-card-note muted">Depends on the class it gets.</span>');
+
+    const asRow = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
+    expect(asRow).toContain("Depends on the class it gets.");
+    expect(asRow).not.toContain("pl-pool-mini");
+    const unhovered = renderToStaticMarkup(
+      <DepositChipView row={row} shown={false} onShow={() => undefined} />,
+    );
+    expect(unhovered).not.toContain("dp-card");
+  });
+
   it("shows a deposit that yields nothing on hover by its name and chance", () => {
     const [row] = depositBars(
       [{ key: "d_toxic_kelp", chance: 0.004 }],
@@ -503,11 +547,20 @@ describe("what a scenario body can roll", () => {
 
     openGroups("planet.deposits.roll");
     const opened = row(page(100, "Planet"), "Deposits");
-    expect(poolRows(opened).map((r) => [r.title, r.cell, r.chance, r.width])).toEqual([
-      ["Minerals", '<span class="muted pl-pool-amounts">+1 to +3</span>', "", undefined],
-      ["Energy", '<span class="muted pl-pool-amounts">+1, +2, +5</span>', "", undefined],
-      ["Exotic Gases", '<span class="muted pl-pool-amounts">+1</span>', "", undefined],
+    console.log("DBG", opened);
+    expect(poolRows(opened)).toEqual([]);
+    expect(poolChips(opened).map((c) => [c.title, c.amounts])).toEqual([
+      ["Minerals", "+1 to +3"],
+      ["Energy", "+1, +2, +5"],
+      ["Exotic Gases", "+1"],
     ]);
+    expect(poolChips(opened)[0].icon).toBe(
+      '<span class="pl-pool-icon" role="img" aria-label="Minerals"><span class="gi">M</span></span>',
+    );
+    expect(opened.match(/Depends on the class it gets\./g)).toHaveLength(1);
+    expect(opened.indexOf("Depends on the class it gets.")).toBeLessThan(
+      opened.indexOf("pl-pool-chip"),
+    );
     expect(opened).not.toContain("The odds depend on");
   });
 
@@ -610,9 +663,10 @@ describe("what a scenario body can roll", () => {
     openGroups("planet.deposits.roll", "planet.features.roll");
     const opened = drawnBy(() => page(100, "Planet"));
     const rolledDeposits = row(opened, "Deposits");
-    expect(poolRows(rolledDeposits).map((r) => [r.title, r.cell])).toEqual([
-      ["Minerals", '<span class="muted pl-pool-amounts">+2, +5</span>'],
-      ["Energy", '<span class="muted pl-pool-amounts">+3</span>'],
+    expect(poolRows(rolledDeposits)).toEqual([]);
+    expect(poolChips(rolledDeposits).map((c) => [c.title, c.amounts])).toEqual([
+      ["Minerals", "+2, +5"],
+      ["Energy", "+3"],
     ]);
     expect(rolledDeposits).toMatch(
       /<div class="pl-pool-kinds">Blockers: <span id="[^"]*" class="ins-hinted" tabindex="0">2 kinds<\/span><\/div>/,
@@ -621,9 +675,15 @@ describe("what a scenario body can roll", () => {
     expect(rolledDeposits).toMatch(/<div class="pl-pool-kinds">Other: <span[^>]*>1 kind<\/span>/);
     expect(hintOf("Other")).toBe("Crystal Forest");
     expect(rolledDeposits).not.toContain("Active Volcano");
-    expect(row(opened, "Planet features")).toContain(
+    const openedFeatures = row(opened, "Planet features");
+    expect(openedFeatures).toContain(
       '<div class="pl-pool-names">Obsidian Lakes, Asteroid Belt, High Quality Minerals</div>',
     );
+    expect(openedFeatures.match(/Depends on the class it gets\./g)).toHaveLength(1);
+    expect(openedFeatures.indexOf("Depends on")).toBeLessThan(
+      openedFeatures.indexOf("pl-pool-names"),
+    );
+    expect(openedFeatures).not.toContain("more</span>");
   });
 
   it("lists a few classes without odds a row each, and adds up the chances of features that share a name", async () => {
@@ -674,6 +734,59 @@ describe("what a scenario body can roll", () => {
       ["Asteroid Belt", "50%"],
       ["Mineral Poor", "40%"],
     ]);
+  });
+
+  describe("with no odds known", () => {
+    const keys = Array.from({ length: 11 }, (_, i) => `pm_feature_${i}`);
+
+    /** The Planet features row of a planet that can roll `count` features, its roll list open. */
+    async function featuresRow(count: number): Promise<string> {
+      usePlanetDataStore.setState({
+        modifiers: new Map(
+          keys.map((key, i) => [
+            key,
+            {
+              key,
+              name: `Feature ${i}`,
+              static_modifier: null,
+              icon: null,
+              icon_frame: null,
+              effects: [],
+            },
+          ]),
+        ),
+      });
+      const world = drawn(100, {
+        rolled_features: {
+          state: "rolled",
+          entries: keys.slice(0, count).map((key) => ({ key, chance: null })),
+        },
+      });
+      await open("scenario");
+      await land(details({ planets: [world], spawn: systemSpawn() }));
+      openGroups("planet.features.roll");
+      return row(
+        drawnBy(() => page(100, "Planet")),
+        "Planet features",
+      );
+    }
+
+    it("lists at most eight feature names, and the rest as a count with the whole list on hover", async () => {
+      const features = await featuresRow(11);
+      expect(features).toContain('<span class="ins-group-tail">11 planet features</span>');
+      expect(features.match(/Depends on the class it gets\./g)).toHaveLength(1);
+      expect(features).toMatch(
+        /<div class="pl-pool-names">Feature 0, Feature 1, Feature 2, Feature 3, Feature 4, Feature 5, Feature 6, Feature 7, <span id="[^"]*" class="ins-hinted" tabindex="0">\+3 more<\/span><\/div>/,
+      );
+      expect(features).not.toContain("Feature 8,");
+      expect(hintOf("All planet features")).toBe(keys.map((_, i) => `Feature ${i}`).join(", "));
+    });
+
+    it("lists eight feature names whole", async () => {
+      const features = await featuresRow(8);
+      expect(features).not.toContain("more</span>");
+      expect(features).toContain("Feature 6, Feature 7</div>");
+    });
   });
 
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
@@ -780,7 +893,7 @@ describe("what a scenario body can roll", () => {
 
   it("says a moon is named after its planet when the planet's name can't be told", async () => {
     const asteroid = planet(100, "", {
-      class: "pc_asteroid",
+      class: "pc_barren",
       spawn: bodySpawn({ naming: { state: "unknown" } }),
     });
     const moon = planet(101, "", {

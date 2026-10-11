@@ -20,7 +20,6 @@ import {
   depositsWithClass,
   featuresTail,
   featuresWithClass,
-  isAsteroidClass,
   LIST_ORBIT_HINT,
   mergedByName,
   NAME_RANDOM,
@@ -60,6 +59,7 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { Group, Properties, PropertyRow, Section } from "../parts";
 import { OtherLinesGroup, ScriptGroup } from "../ScriptGroup";
 import {
+  DependsOnClass,
   Hinted,
   HintedRow,
   Rolled,
@@ -213,6 +213,7 @@ function ClassRow({ spawn, read }: { spawn: BodySpawn; read: BodyRead }) {
 /** The Name row: the name the game gives the body, with how it numbers it in its card. */
 function NameRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun: string }) {
   const names = useGameDataStore((s) => s.names);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
   const { summary } = read;
   const given = useGivenNames(read.details).get(summary.id);
   const stated = spawn.name ?? (templateName(summary) === "" ? null : bodyName(summary, names));
@@ -227,7 +228,7 @@ function NameRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
   if (naming?.state === "template" && stated === null) {
     const parent =
       naming.parent === null ? undefined : read.details.planets.find((p) => p.id === naming.parent);
-    const parentNoun = parent === undefined ? "planet" : bodyNoun(parent);
+    const parentNoun = parent === undefined ? "planet" : bodyNoun(parent, planetClasses);
     return naming.parent === null ? (
       <HintedRow label="Name" hint={SYSTEM_UNNAMED_WHY}>
         <Unknown>{NAMED_AFTER_SYSTEM}</Unknown>
@@ -306,11 +307,17 @@ function picksOf(pool: SpawnPool | undefined): PoolPick[] {
   return pool?.state === "rolled" ? poolPicks(pool) : [];
 }
 
+/** Whether a pool holds nothing the roll can give, so a body has no row for it. */
+function emptyPool(pool: SpawnPool | undefined): boolean {
+  return pool?.state === "rolled" && pool.entries.length === 0;
+}
+
 /** The Deposits row of deposits rolled to suit the class, and what they can be folded under it. */
 function ClassSuitedDeposits({ spawn, noun }: { spawn: BodySpawn; noun: string }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const picks = picksOf(spawn.rolled_deposits);
   const kinds = depositKinds(picks, views);
+  if (emptyPool(spawn.rolled_deposits)) return null;
   return (
     <>
       <ClassSuitedRow label="Deposits" noun={noun} />
@@ -332,6 +339,7 @@ function ClassSuitedDeposits({ spawn, noun }: { spawn: BodySpawn; noun: string }
 function ClassSuitedFeatures({ spawn, noun }: { spawn: BodySpawn; noun: string }) {
   const named = useFeatureNamer();
   const picks = picksOf(spawn.rolled_features);
+  if (emptyPool(spawn.rolled_features)) return null;
   return (
     <>
       <ClassSuitedRow label="Planet features" noun={noun} />
@@ -388,7 +396,7 @@ export function SpawnProperties({
 }) {
   const planetClasses = useGameDataStore((s) => s.planetClasses);
   const { summary } = read;
-  const noun = isAsteroidClass(summary.class, planetClasses) ? "asteroid" : bodyNoun(summary);
+  const noun = bodyNoun(summary, planetClasses);
   const placed = !neverSpawns(spawn);
   const stopped = stoppedFacts(spawn, read.rows.modifiers.length, noun);
   return (
@@ -434,7 +442,7 @@ export function SpawnHeadNotes({ read }: { read: BodyRead }) {
   const { summary } = read;
   const spawn = summary.spawn;
   if (spawn === undefined) return null;
-  const noun = isAsteroidClass(summary.class, planetClasses) ? "asteroid" : bodyNoun(summary);
+  const noun = bodyNoun(summary, planetClasses);
   const parent = read.details.planets.find((p) => p.id === summary.parent);
   const copy = neverSpawns(spawn) ? null : copyFacts(spawn, noun);
   return (
@@ -506,15 +514,37 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
   );
 }
 
+/** The most feature names listed where none of their odds are known; the rest show as a count. */
+const MOST_FEATURE_NAMES = 8;
+
 /**
  * Planet features the roll can give, each name once and likeliest first: a bar for each whose
- * chance is known, or the names in one line where none is.
+ * chance is known, or where none is, a line saying the class decides and the names in one line.
+ * More than a few names are cut to a count that has the whole list in its card.
  */
 export function FeaturePool({ picks }: { picks: readonly PoolPick[] }) {
   const named = useFeatureNamer();
   const merged = mergedByName(picks, named);
   if (merged.every((pick) => pick.chance === null)) {
-    return <div className="pl-pool-names">{merged.map((pick) => pick.name).join(", ")}</div>;
+    const names = merged.map((pick) => pick.name);
+    const cut = names.length - MOST_FEATURE_NAMES;
+    return (
+      <>
+        <DependsOnClass />
+        <div className="pl-pool-names">
+          {cut > 0 ? (
+            <>
+              {names.slice(0, MOST_FEATURE_NAMES).join(", ")},{" "}
+              <Hinted label="All planet features" hint={names.join(", ")}>
+                +{cut} more
+              </Hinted>
+            </>
+          ) : (
+            names.join(", ")
+          )}
+        </div>
+      </>
+    );
   }
   const rows = oddsRows(
     merged.map((p) => ({ key: p.key, share: p.chance })),

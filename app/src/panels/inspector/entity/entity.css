@@ -838,3 +838,15 @@
   font-size: var(--text-note);
   color: var(--fg-muted);
 }
+
+/* A resource whose odds are unknown: a dashed chip, its card under it where the window has no room. */
+.chip.pl-pool-chip {
+  flex-wrap: wrap;
+  border-style: dashed;
+  background: none;
+  font-size: var(--text-note);
+}
+
+.pl-pool-chip > .dp-card.under {
+  flex-basis: 100%;
+}

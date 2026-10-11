@@ -47,3 +47,21 @@ export function poolRows(html: string): ShownPoolRow[] {
     chance,
   }));
 }
+
+/** One dashed chip of a resource whose odds are unknown, as it renders. */
+export interface ShownChip {
+  /** Its `aria-label`. */
+  title: string;
+  /** Its icon, or its name where it has none. */
+  icon: string;
+  /** The amounts it shows. */
+  amounts: string;
+}
+
+const CHIP =
+  /<span id="[^"]*" class="chip pl-pool-chip" role="group" aria-label="([^"]*)" tabindex="0">(.*?)<span class="muted pl-pool-amounts">([^<]*)<\/span>/g;
+
+/** Every dashed chip in `html`, in order. */
+export function poolChips(html: string): ShownChip[] {
+  return [...html.matchAll(CHIP)].map(([, title, icon, amounts]) => ({ title, icon, amounts }));
+}

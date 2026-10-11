@@ -320,8 +320,12 @@ function orbitMayLeaveOut(noun: string): string {
   return `Some games have this ${noun} and some don't. At some of the orbits it can land at, none of the classes it can roll fit.`;
 }
 
-/** What a body's page calls it in a sentence. */
-export function bodyNoun(summary: Pick<PlanetSummary, "moon" | "star_class">): string {
+/** What a body's page calls it in a sentence: asteroid, star, moon or planet. */
+export function bodyNoun(
+  summary: Pick<PlanetSummary, "class" | "moon" | "star_class">,
+  planetClasses: ReadonlyMap<string, PlanetClassView>,
+): string {
+  if (isAsteroidClass(summary.class, planetClasses)) return "asteroid";
   if (summary.star_class !== undefined) return "star";
   return summary.moon ? "moon" : "planet";
 }
@@ -558,6 +562,9 @@ export function featuresWithClass(spawn: BodySpawn, listed: number): boolean {
   const { features } = spawn;
   return suitsClass(spawn.rolled_features) && listed === 0 && !features.none && !features.cleared;
 }
+
+/** What a list says where the class a body gets decides the odds, which Galaxy Forge can't tell. */
+export const DEPENDS_ON_CLASS = "Depends on the class it gets.";
 
 /** The heading over what a row rolled to suit its class can give, folded until opened. */
 export const CAN_ROLL_TITLE = "What it can roll";
