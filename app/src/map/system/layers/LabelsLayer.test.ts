@@ -18,7 +18,14 @@ import type { Camera } from "../../Camera";
 import { DISC_PX } from "../../layers/details/cell";
 import { NAME_STYLE } from "../../layers/nameWidth";
 import { clearTextures, setTextureDecoder } from "../../../lib/visual/textures";
-import { countryNode, saveBody } from "../../../test/builders";
+import {
+  countryNode,
+  megastructureSummary,
+  megastructureTypeView,
+  saveBody,
+  starbaseLevelView,
+  starbaseSummary,
+} from "../../../test/builders";
 import { textureFetch } from "../../../test/textures";
 import { systemContext } from "../context";
 import { body, scenario, scenarioSun } from "../contextFixture";
@@ -509,6 +516,91 @@ describe("the system scene's labels layer at wormholes", () => {
       [1, 2],
       [1, 2],
     ]);
+    layer.destroy();
+  });
+});
+
+describe("the system scene's labels layer at megastructures and starbases", () => {
+  const NEXUS = megastructureTypeView("think_tank_3", {
+    entity: "thinktank_phase_03_entity",
+    produces: [["physics_research", 300]],
+  });
+  const RELAY = megastructureTypeView("hyper_relay");
+  const PORT = starbaseLevelView("starbase_level_starport", {
+    station_entity: "starbase_starport_section_entity",
+  });
+
+  const structured = (layers: { labels: boolean; details: boolean }) => {
+    const base = context({
+      planets: [SUN, EARTH],
+      wormholes: [],
+      megastructures: [
+        megastructureSummary({ id: 1, kind: NEXUS.key, planet: EARTH.id, at: [90, 0] }),
+        megastructureSummary({ id: 2, kind: RELAY.key, at: [-120, 60] }),
+      ],
+      starbase: starbaseSummary({ level: PORT.key, name_key: "Sol Station", at: [30, -40] }),
+    });
+    return systemContext({
+      ...base,
+      megastructureTypes: new Map([NEXUS, RELAY].map((t) => [t.key, t])),
+      starbaseLevels: new Map([[PORT.key, PORT]]),
+      names: new Map([
+        [NEXUS.key, "Science Nexus"],
+        [RELAY.key, "Hyper Relay"],
+      ]),
+      sceneLayers: { ...base.sceneLayers, labels: layers.labels, details: layers.details },
+    });
+  };
+
+  const shownHolders = (layer: LabelsLayer) =>
+    layer.container.children.filter((h) => h.visible) as Container[];
+  const texts = (holder: Container) =>
+    holder.children.flatMap((c) => (c instanceof BitmapText && c.label === "name" ? [c] : []));
+  const holderNaming = (layer: LabelsLayer, name: string) =>
+    shownHolders(layer).find((h) => texts(h).some((t) => t.text === name));
+
+  it("names a megastructure under its body's plate, what it produces under its name, and a lone one or a starbase under its own point", () => {
+    const layer = new LabelsLayer();
+    const ctx = structured({ labels: true, details: true });
+    layer.rebuild(ctx);
+    const cam = viewport(layer, 2);
+
+    const earth = holderNaming(layer, "Science Nexus");
+    expect(earth).toBeDefined();
+    const names = texts(earth!);
+    expect(names).toHaveLength(2);
+    const nexus = names.find((t) => t.text === "Science Nexus")!;
+    const own = names.find((t) => t !== nexus)!;
+    expect(nexus.y).toBeGreaterThan(own.y);
+    expect(resourceAmounts(earth!)).toEqual(["300"]);
+    expect(layer.plates().map((p) => p.id)).toEqual([SUN.id, EARTH.id]);
+
+    for (const [name, at] of [
+      ["Hyper Relay", [-120, 60]],
+      ["Sol Station", [30, -40]],
+    ] as const) {
+      const holder = holderNaming(layer, name);
+      expect(holder, name).toBeDefined();
+      const point = cam.worldToScreen(at[0], at[1]);
+      const top = cam.worldToScreen(holder!.position.x, holder!.position.y);
+      expect(top.y).toBeGreaterThan(point.y);
+    }
+    layer.destroy();
+  });
+
+  it("leaves the structures' names to the Labels switch and what they produce to Details", () => {
+    const layer = new LabelsLayer();
+    viewport(layer, 2);
+    layer.rebuild(structured({ labels: false, details: true }));
+    expect(shownHolders(layer).flatMap(texts)).toEqual([]);
+    expect(shownHolders(layer).flatMap(resourceAmounts)).toContain("300");
+    layer.rebuild(structured({ labels: true, details: false }));
+    expect(shownHolders(layer).flatMap(resourceAmounts)).toEqual([]);
+    expect(
+      shownHolders(layer)
+        .flatMap(texts)
+        .map((t) => t.text),
+    ).toEqual(expect.arrayContaining(["Science Nexus", "Hyper Relay", "Sol Station"]));
     layer.destroy();
   });
 });

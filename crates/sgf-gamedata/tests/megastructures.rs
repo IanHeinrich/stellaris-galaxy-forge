@@ -172,7 +172,10 @@ fn the_installs_megastructure_types_and_station_models() {
     );
     let produces = |key: &str| mega(key).produces.clone();
     assert_eq!(produces("dyson_sphere_5"), [("energy".to_owned(), 4000.0)]);
-    assert_eq!(produces("matter_decompressor_4"), [("minerals".to_owned(), 2000.0)]);
+    assert_eq!(
+        produces("matter_decompressor_4"),
+        [("minerals".to_owned(), 2000.0)]
+    );
     let nexus_output: Vec<f64> = produces("think_tank_3").iter().map(|(_, n)| *n).collect();
     assert_eq!(nexus_output, [300.0; 3], "the file's @variables");
     assert!(produces("ring_world_ruined").is_empty());

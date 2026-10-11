@@ -240,6 +240,29 @@ describe("which model a megastructure or a starbase is drawn from", () => {
     ]);
   });
 
+  it("turns a type to face the star from where the save puts the row, and leaves one that says not, or on the star, unturned", () => {
+    const ruin = megastructureTypeView("ring_world_ruined");
+    const swarm = megastructureTypeView("dyson_swarm_1", { rotate_to_center: false });
+    const types = new Map([...TYPES, [ruin.key, ruin], [swarm.key, swarm]]);
+    const rows = [
+      megastructureSummary({ id: 1, kind: ruin.key, at: [-45.2, 0] }),
+      megastructureSummary({ id: 2, kind: ruin.key, at: [45.2, 0] }),
+      megastructureSummary({ id: 3, kind: ruin.key, at: [0, 30] }),
+      megastructureSummary({ id: 4, kind: swarm.key, at: [-45.2, 0] }),
+      megastructureSummary({ id: 5, kind: ruin.key, at: [0, 0] }),
+    ];
+    // Model −Z, −save x at no turn, points from (45.2, 0) to the star: (−45.2, 0) turns half round.
+    expect(
+      system(rows, [], { megastructureTypes: types }).structures.map((s) => s.modelKey),
+    ).toEqual([
+      "model:mammalian_01:ring_world_ruined_entity:yaw180",
+      "model:mammalian_01:ring_world_ruined_entity",
+      "model:mammalian_01:ring_world_ruined_entity:yaw270",
+      "model:mammalian_01:dyson_swarm_1_entity",
+      "model:mammalian_01:ring_world_ruined_entity",
+    ]);
+  });
+
   it("draws a stage with no model of its own as its construction model, at its construction scale", () => {
     const site = megastructureSummary({ kind: "orbital_arc_furnace_0" });
     expect(only(system([site]))).toMatchObject({
@@ -338,6 +361,28 @@ describe("clicking a megastructure", () => {
     // Inside the sprite's rectangle, outside its ellipse and the pick radius about its point.
     const corner = { x: -168 + SAVE_X_SIGN * 6.5, y: 60 + SAVE_Y_SIGN * 2.7 };
     expect(pickTarget(ctx, cam, corner, () => null, null)).toBeNull();
+    layer.destroy();
+  });
+});
+
+describe("clicking a structure's model drawn over a body", () => {
+  it("picks the structure on its landed sprite, the body on a plate over it, and a bare body elsewhere", async () => {
+    decodeByKey();
+    textureFetch.model = () => PLACEMENT;
+    const furnace = megastructureSummary({ id: 9, kind: "orbital_arc_furnace_1", planet: MARS.id });
+    const ctx = system([furnace]);
+    const layer = new StructuresLayer();
+    layer.rebuild(ctx);
+    const cam = viewport(layer, 2);
+    await answerFetch();
+    await until(() => expect(part(holder(layer, "megastructure:9"), "model").visible).toBe(true));
+    const mars = ctx.bodyById.get(MARS.id)!.placement;
+    const earth = ctx.bodyById.get(EARTH.id)!.placement;
+    const at = (p: { x: number; y: number }, plate: number | null = null) =>
+      pickTarget(ctx, cam, { x: p.x, y: p.y }, () => plate, null);
+    expect(at(mars)).toEqual({ kind: "megastructure", id: 9 });
+    expect(at(mars, MARS.id)).toEqual({ kind: "body", id: MARS.id });
+    expect(at(earth)).toEqual({ kind: "body", id: EARTH.id });
     layer.destroy();
   });
 });

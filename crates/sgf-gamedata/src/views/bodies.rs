@@ -180,7 +180,10 @@ pub struct TerraformCandidateView {
 const DISC_PER_ENTITY_SCALE: f64 = 0.0163;
 
 fn body_model(class: &PlanetClassDef) -> Option<String> {
-    let entity = class.entity.as_deref().filter(|_| class.habitat || class.ringworld)?;
+    let entity = class
+        .entity
+        .as_deref()
+        .filter(|_| class.habitat || class.ringworld)?;
     Some(format!("{entity}_01_entity"))
 }
 

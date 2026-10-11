@@ -118,6 +118,23 @@ function onModel(s: SceneStructure, at: Pt): boolean {
   return across * across + along * along <= 1;
 }
 
+/** The megastructure or starbase whose landed model sprite covers the world point `at`; the nearest point wins. */
+export function structureOnModel(
+  structures: readonly SceneStructure[],
+  at: Pt,
+): SceneTarget | null {
+  let best: SceneStructure | null = null;
+  let bestDistance = Infinity;
+  for (const s of structures) {
+    const distance = Math.hypot(s.x - at.x, s.y - at.y);
+    if (onModel(s, at) && distance < bestDistance) {
+      best = s;
+      bestDistance = distance;
+    }
+  }
+  return best === null ? null : { kind: best.kind, id: best.id };
+}
+
 /**
  * The megastructure or starbase whose model covers the world point `at`, or whose point is within
  * the pick radius of it; the nearest point wins.
@@ -181,8 +198,9 @@ export function pickHandle(
 }
 
 /**
- * What the world point `at` is over: a body's disc, else the body whose plate `plateAt` finds there,
- * a wormhole, one of the `shown` band's handles, a hyperlane arrow, or a megastructure or starbase.
+ * What the world point `at` is over: a plate over a structure's model, then the model, drawn over
+ * the bodies; else a body's disc, the body whose plate `plateAt` finds there, a wormhole, one of the
+ * `shown` band's handles, a hyperlane arrow, or a megastructure or starbase near its point.
  */
 export function pickTarget(
   ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits" | "structures">,
@@ -191,6 +209,11 @@ export function pickTarget(
   plateAt: () => number | null,
   shown: HandleRef | null,
 ): SceneTarget | null {
+  const onModel = structureOnModel(ctx.structures, at);
+  if (onModel !== null) {
+    const plate = plateAt();
+    return plate === null ? onModel : { kind: "body", id: plate };
+  }
   // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
   const body = pickBody(ctx.bodies, cam, at) ?? plateAt();
   if (body !== null) return { kind: "body", id: body };

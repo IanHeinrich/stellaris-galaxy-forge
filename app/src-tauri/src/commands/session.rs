@@ -4,8 +4,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use sgf_core::document;
-use sgf_core::format::save::details::ModelUse;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
+use sgf_core::format::save::details::ModelUse;
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};

@@ -556,7 +556,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
     const bodyModel =
       placement.star || drawn
         ? null
-        : bodyModelKey(src.planetClasses.get(planet.class), planet, [placement.x, placement.y]);
+        : bodyModelKey(src.planetClasses.get(planet.class), planet, planet.layout?.at ?? null);
     return [
       {
         placement,
@@ -711,8 +711,8 @@ function megastructure(
   const offset = type?.entity_offset ?? [0, 0];
   const placed = placeStructure(look, body, row.at, offset, type?.scales_with_planet === true);
   if (placed === null) return null;
-  const point: [number, number] | null = body ? [body.placement.x, body.placement.y] : row.at;
-  const yaw = megastructureYaw(type, point);
+  // Turned from where the save puts it, so a drag does not bake it again at every step.
+  const yaw = megastructureYaw(type, row.at);
   return {
     kind: "megastructure",
     id: row.id,

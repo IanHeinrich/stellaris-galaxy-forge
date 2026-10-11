@@ -135,17 +135,28 @@ its radius.
 
 In a save, each megastructure and starbase in a system shows as its
 model from the game, at the size it has in game. A Dyson Sphere covers
-its star, and an Arc Furnace covers its planet. A megastructure built on
-a planet or moon stays with it when you move the planet.
+its star, and an Arc Furnace rings its planet. A megastructure built on
+a planet or moon stays with it when you move the planet. Ring world
+sections turn to face their star, so the pieces of a ring world join up.
 
-Hover over a megastructure or starbase to see its name. Click it to
-open its page in the Inspector. A click on a planet under a
-megastructure still selects the planet.
+Habitats and ring world segments are planets, and they show as their
+models from the game too. You select, move and name them as you do any
+other planet.
 
-The models are read from your Stellaris install. The first time you
-open a system, they can take a moment to show. A megastructure from a
-mod you don't have installed shows the game's megastructure icon
-instead.
+Each megastructure and starbase shows its name on a plate under it
+while Names is on. One built on a star or a planet has its plate under
+that body's plate. With System details on, a megastructure that
+produces resources, such as a Dyson Sphere or a Science Nexus, shows
+what it produces each month under its name.
+
+Hover over a megastructure or starbase to see its name. Click its model
+to open its page in the Inspector. To select a planet or star under a
+megastructure, click the body's name plate.
+
+The models are read from your Stellaris install. Galaxy Forge prepares
+them in the background after a save opens. A system you open straight
+away can take a moment to show them. A megastructure from a mod you
+don't have installed shows the game's megastructure icon instead.
 
 Press <kbd>7</kbd> in a system view to hide them, or turn off
 Megastructures and starbases in the Layers menu.

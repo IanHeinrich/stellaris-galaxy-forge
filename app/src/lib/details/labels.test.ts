@@ -246,7 +246,7 @@ describe("detailNameKeys", () => {
     variables: [{ name: variable, value: { key: value, literal: false, variables: [] } }],
   });
 
-  it("collects planet, fleet and station template keys, anomaly categories and canonical resource ids", () => {
+  it("collects planet, fleet and station template keys, megastructure types, anomaly categories and canonical resource ids", () => {
     const d = details({
       planets: [
         planet({
@@ -271,6 +271,9 @@ describe("detailNameKeys", () => {
         culture: null,
         shipyard: false,
       },
+      megastructures: [
+        { id: 3, kind: "think_tank_3", owner: null, planet: null, at: null, culture: null },
+      ],
       resources: [
         { resource: "engineering", amount: 5 },
         { resource: "energy", amount: 1 },
@@ -285,6 +288,7 @@ describe("detailNameKeys", () => {
       "STARBASE_NAME_FORMAT",
       "PLANET",
       "NAME_Rijjin",
+      "think_tank_3",
       "engineering_research",
       "energy",
     ]);

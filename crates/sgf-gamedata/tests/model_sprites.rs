@@ -494,11 +494,19 @@ fn a_yaw_in_the_key_turns_the_model_about_its_up_axis() {
     };
     let straight = size("model:mammalian_01:box_entity");
     let turned = size("model:mammalian_01:box_entity:yaw90");
-    assert!(close(straight[0], 1.0, 1e-4) && close(straight[1], 4.0, 1e-4), "{straight:?}");
-    assert!(close(turned[0], 4.0, 1e-4) && close(turned[1], 1.0, 1e-4), "{turned:?}");
+    assert!(
+        close(straight[0], 1.0, 1e-4) && close(straight[1], 4.0, 1e-4),
+        "{straight:?}"
+    );
+    assert!(
+        close(turned[0], 4.0, 1e-4) && close(turned[1], 1.0, 1e-4),
+        "{turned:?}"
+    );
     assert_eq!(size("model:mammalian_01:box_entity:yaw450"), turned);
 
-    let bounds = gd.model_bounds("model:mammalian_01:pair_entity:yaw90").expect("the pair");
+    let bounds = gd
+        .model_bounds("model:mammalian_01:pair_entity:yaw90")
+        .expect("the pair");
     assert!(
         close(bounds.min[1], -3.5, 1e-4) && close(bounds.max[1], 0.5, 1e-4),
         "a quarter turn takes model Z, +save x, to model X, −save y: {bounds:?}"
@@ -507,7 +515,10 @@ fn a_yaw_in_the_key_turns_the_model_about_its_up_axis() {
     let view = gd.texture(&textures, "model:mammalian_01:box_entity:yaw90");
     let placement = view.model.expect("the turned box bakes");
     assert!(close(placement.width, 4.08, 0.02), "{placement:?}");
-    for bad in ["model:mammalian_01:box_entity:spin90", "model:mammalian_01:box_entity:yaw"] {
+    for bad in [
+        "model:mammalian_01:box_entity:spin90",
+        "model:mammalian_01:box_entity:yaw",
+    ] {
         assert!(gd.model_bounds(bad).is_err(), "{bad}");
     }
 }
@@ -518,7 +529,10 @@ fn a_ring_world_quadrant_turns_its_side_pieces_to_face_its_star() {
         return;
     };
     let key = "model:mammalian_01:ringworld_3x_seams_entity";
-    let size = gd.model_bounds(key).unwrap_or_else(|e| panic!("{key}: {e}")).size();
+    let size = gd
+        .model_bounds(key)
+        .unwrap_or_else(|e| panic!("{key}: {e}"))
+        .size();
     // Three pieces of a ring 90 units across, the side ones a 30° turn either way round it,
     // so the quadrant bows towards the star.
     assert!(close(size[0], 13.8, 0.03), "{size:?}");

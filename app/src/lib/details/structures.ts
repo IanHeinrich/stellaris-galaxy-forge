@@ -52,7 +52,7 @@ export function megastructureYaw(
 /**
  * The model a planet of `view`'s class is drawn from in place of its disc: the save's own model
  * for it, else its class's; null for a class drawn as a disc. A ring world segment turns to face
- * the star from `at`; a habitat is not turned.
+ * the star from `at`, where the save puts it; a habitat is not turned.
  */
 export function bodyModelKey(
   view: PlanetClassView | undefined,
@@ -73,7 +73,7 @@ export interface ModelSources {
 }
 
 /** The key `use` is drawn from, chosen as the system view chooses it; null for none. */
-function useKey(use: ModelUse, src: ModelSources): string | null {
+function keyOfUse(use: ModelUse, src: ModelSources): string | null {
   switch (use.kind) {
     case "megastructure": {
       const type = src.megastructureTypes.get(use.key);
@@ -98,7 +98,7 @@ function useKey(use: ModelUse, src: ModelSources): string | null {
 export function modelKeysOf(uses: readonly ModelUse[], src: ModelSources): string[] {
   const keys = new Set<string>();
   for (const use of uses) {
-    const key = useKey(use, src);
+    const key = keyOfUse(use, src);
     if (key !== null) keys.add(key);
   }
   return [...keys];

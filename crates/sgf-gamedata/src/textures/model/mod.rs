@@ -395,7 +395,9 @@ fn is_planet(positions: &[Vec3]) -> bool {
         near = near.min(r);
         far = far.max(r);
     }
-    near > 0.0 && far <= near * SPHERE_SPREAD && distance(centre, [0.0; 3]) <= near * PLANET_OFF_CENTRE
+    near > 0.0
+        && far <= near * SPHERE_SPREAD
+        && distance(centre, [0.0; 3]) <= near * PLANET_OFF_CENTRE
 }
 
 fn normalize_or_zero(v: Vec3) -> Vec3 {
@@ -509,4 +511,3 @@ impl GameData {
         .bounds()
     }
 }
-
