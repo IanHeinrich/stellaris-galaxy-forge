@@ -4,6 +4,7 @@
  */
 import type { Texture } from "pixi.js";
 import { getTextures } from "../../api/gamedata";
+import type { ModelPlacement } from "../../generated/ModelPlacement";
 import type { TextureView } from "../../generated/TextureView";
 
 export type TextureDecoder = (view: TextureView) => Promise<Texture>;
@@ -13,6 +14,8 @@ const BATCH = 100;
 const cache = new Map<string, Texture | null>();
 /** PNG data URLs of landed textures, for DOM elements such as tooltips. */
 const urls = new Map<string, string>();
+/** Where each landed `model:` sprite goes: its size in save units and its origin. */
+const placements = new Map<string, ModelPlacement>();
 const inflight = new Set<string>();
 const listeners = new Set<(keys: string[]) => void>();
 let queue: string[] = [];
@@ -28,6 +31,11 @@ export function getTexture(key: string): Texture | null | undefined {
 /** The landed texture as a PNG data URL, for an `<img>`; undefined until it lands. */
 export function getTextureUrl(key: string): string | undefined {
   return urls.get(key);
+}
+
+/** Where a landed `model:` sprite goes; undefined until it lands, and for any other key. */
+export function getModelPlacement(key: string): ModelPlacement | undefined {
+  return placements.get(key);
 }
 
 /**
@@ -74,6 +82,7 @@ export function clearTextures(): void {
   const dropped = [...cache.entries()];
   cache.clear();
   urls.clear();
+  placements.clear();
   const keys = dropped.map(([key]) => key);
   for (const listener of listeners) listener(keys);
   setTimeout(() => {
@@ -108,6 +117,7 @@ async function fetchBatch(keys: string[], gen: number): Promise<void> {
     cache.set(view.key, textures[i]);
     if (textures[i] && view.png_base64)
       urls.set(view.key, `data:image/png;base64,${view.png_base64}`);
+    if (textures[i] && view.model) placements.set(view.key, view.model);
     settled.push(view.key);
   });
   for (const key of keys) inflight.delete(key);

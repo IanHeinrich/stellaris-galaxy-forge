@@ -5,8 +5,8 @@
 //! `star_class:<icon>`, `deposit:<icon>`, `icon:<path under gfx/interface/icons>`,
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
-//! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>` and
-//! `planet_ring`.
+//! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>`,
+//! `model:<culture>:<entity>` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -28,6 +28,7 @@ mod dds;
 mod flag;
 mod key;
 mod lookups;
+mod model;
 pub(crate) mod planet_disc;
 mod shatter;
 mod sphere;
@@ -35,6 +36,7 @@ mod star_disc;
 
 pub use key::TextureKey;
 pub use lookups::{Lookups, StarBody};
+pub use model::{ModelBounds, ModelPlacement};
 pub use star_disc::StarAtmosphere;
 
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
@@ -70,7 +72,8 @@ impl TextureKey {
             | Self::PlanetDisc { .. }
             | Self::ShatteredDisc { .. }
             | Self::PlanetModel { .. }
-            | Self::StarDisc { .. } => Err(TextureError::BadKey(self.to_string())),
+            | Self::StarDisc { .. }
+            | Self::Model { .. } => Err(TextureError::BadKey(self.to_string())),
         }
     }
 }
@@ -95,13 +98,17 @@ pub enum TextureError {
     NoDisc(String),
     #[error("planet model `{0}` has no surface map to draw as a disc")]
     NoModelDisc(String),
+    #[error("no `.asset` file defines the model `{0}` for that culture or `mammalian_01`")]
+    NoModel(String),
+    #[error("the model `{0}` has nothing to draw")]
+    EmptyModel(String),
     #[error("{}: {reason}", path.display())]
     Decode { path: PathBuf, reason: String },
     #[error("png encoding failed: {0}")]
     Encode(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TextureView {
     pub key: String,
@@ -109,6 +116,10 @@ pub struct TextureView {
     pub height: u32,
     pub png_base64: Option<String>,
     pub error: Option<String>,
+    /// For a `model:` key, the sprite's size in save units and where the model's origin is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub model: Option<ModelPlacement>,
 }
 
 impl TextureView {
@@ -120,6 +131,7 @@ impl TextureView {
             height: 0,
             png_base64: None,
             error: Some(error.into()),
+            model: None,
         }
     }
 }
@@ -129,6 +141,8 @@ pub struct Textures {
     cache_dir: PathBuf,
     /// The graphics settings of the last layout a `star_disc:` key was asked of, read once.
     worlds: Memo<star_disc::Worlds>,
+    /// The models of the last layout a `model:` key was asked of, read once.
+    models: Memo<model::Assets>,
 }
 
 type Memo<T> = Mutex<Option<(Layout, Arc<T>)>>;
@@ -160,11 +174,16 @@ impl Textures {
         Self {
             cache_dir,
             worlds: Mutex::default(),
+            models: Mutex::default(),
         }
     }
 
     fn worlds(&self, layout: &Layout) -> Arc<star_disc::Worlds> {
         memo(&self.worlds, layout, star_disc::worlds)
+    }
+
+    fn models(&self, layout: &Layout) -> Arc<model::Assets> {
+        memo(&self.models, layout, model::Assets::read)
     }
 
     pub fn cache_dir(&self) -> &Path {
@@ -181,6 +200,7 @@ impl Textures {
                     height,
                     png_base64: Some(BASE64_STANDARD.encode(&png)),
                     error: None,
+                    model: model::placement(&png),
                 }
             }
             Err(e) => TextureView::failed(key, e.to_string()),
@@ -202,7 +222,7 @@ impl Textures {
             renew(&cache_file);
             return Ok(png);
         }
-        let png = encode_png(&job.render()?)?;
+        let png = job.encode()?;
         write_atomically(&cache_file, &png);
         Ok(png)
     }
@@ -221,6 +241,10 @@ impl Input {
         let path = layout
             .resolve_file(rel)
             .ok_or_else(|| TextureError::NotFound(rel.to_owned()))?;
+        Self::at(path)
+    }
+
+    fn at(path: PathBuf) -> Result<Self, TextureError> {
         let meta = fs::metadata(&path).map_err(|e| decode_error(&path, e))?;
         let mtime_nanos = meta
             .modified()
@@ -295,6 +319,7 @@ enum Job {
         lava: star_disc::Lava,
         atmosphere: Option<StarAtmosphere>,
     },
+    Model(model::ModelJob),
 }
 
 pub(crate) const ICONS: &str = "gfx/interface/icons";
@@ -313,6 +338,12 @@ impl Job {
         } = *lookups;
         match key {
             TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
+            TextureKey::Model { culture, entity } => Ok(Self::Model(model::ModelJob::plan(
+                layout,
+                textures.models(layout),
+                culture,
+                entity,
+            )?)),
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());
                 let rel = (lookups.planet_surface)(class).ok_or_else(no_disc)?;
@@ -415,8 +446,16 @@ impl Job {
         format!("{:016x}.png", hasher.finish())
     }
 
+    fn encode(&self) -> Result<Vec<u8>, TextureError> {
+        match self {
+            Self::Model(model) => model.encode(),
+            _ => encode_png(&self.render()?),
+        }
+    }
+
     fn render(&self) -> Result<RgbaImage, TextureError> {
         match self {
+            Self::Model(model) => model.render(),
             Self::Whole(input) => input.decode(),
             Self::White(input) => {
                 let mut image = input.decode()?;
@@ -621,6 +660,7 @@ mod tests {
                 },
                 atmosphere: None,
             },
+            Job::Model(model::ModelJob::empty()),
         ];
         for job in jobs {
             let a = job.cache_name_at_bake(&key, 1);
