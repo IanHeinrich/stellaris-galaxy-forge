@@ -1,0 +1,13 @@
+ship_section_template = {
+	key = "HUT_ANCHORAGE"
+	ship_size = starbase_hut
+	fits_on_slot = "1"
+	entity = "fixture_anchorage_section_entity"
+}
+
+ship_section_template = {
+	key = "HUT_CORE"
+	ship_size = starbase_hut
+	fits_on_slot = "core"
+	entity = "fixture_hut_section_entity"
+}

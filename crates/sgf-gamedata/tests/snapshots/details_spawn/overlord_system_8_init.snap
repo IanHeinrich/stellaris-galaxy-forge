@@ -25,6 +25,8 @@ expression: out
   "inner_radius": null,
   "megastructures": [
     {
+      "at": null,
+      "culture": null,
       "id": 1342177280,
       "kind": "gateway_derelict",
       "owner": null,
@@ -119,10 +121,12 @@ expression: out
     "variables": []
   },
   "starbase": {
+    "at": null,
     "buildings": [
       "hydroponics_bay",
       "naval_logistics_office"
     ],
+    "culture": null,
     "hull": 0.0,
     "id": 1879048193,
     "kind": "",

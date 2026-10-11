@@ -68,6 +68,7 @@ fn list_commands() -> Vec<(&'static str, Value)> {
         ("get_planet_classes", json!({})),
         ("get_terraform_candidates", json!({})),
         ("get_starbase_levels", json!({})),
+        ("get_megastructure_types", json!({})),
         ("get_ship_sizes", json!({})),
         ("get_country_types", json!({})),
         ("get_resource_icons", json!({})),

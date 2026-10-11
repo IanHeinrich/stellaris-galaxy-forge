@@ -14,6 +14,7 @@ use sgf_gamedata::modifier_choices::ModifierChoice;
 use sgf_gamedata::planet_models::PlanetModelChoice;
 use sgf_gamedata::planet_views::{ColonyTypeView, DepositTypeView, ModifierView};
 use sgf_gamedata::registries::bypasses::BypassDef;
+use sgf_gamedata::registries::megastructures::MegastructureDef;
 use sgf_gamedata::scripts::LGateModTouch;
 use sgf_gamedata::textures::TextureView;
 use sgf_gamedata::views::{
@@ -377,6 +378,14 @@ pub fn get_starbase_levels(game_data: State<'_, GameDataState>) -> Vec<StarbaseL
             .map(StarbaseLevelView::from)
             .collect()
     })
+}
+
+/// Every megastructure type, with its models and placement.
+#[tauri::command(async)]
+pub fn get_megastructure_types(game_data: State<'_, GameDataState>) -> Vec<MegastructureDef> {
+    game_data
+        .loaded()
+        .map_or_else(Vec::new, |gd| gd.megastructures.iter().cloned().collect())
 }
 
 #[tauri::command(async)]

@@ -1,0 +1,18 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+system 4 #0 lgate_base at (21.2148, 21.2142) culture -
+system 7 #1 strategic_coordination_center_ruined at (0, 0) culture -
+system 14 #2 shroud_seal at (-60.2718, 0) culture mindwarden_01
+system 25 #3 dyson_sphere_ruined at (0, 0) culture -
+system 38 #4 orbital_ring_ruined at (47.58375, 115.66625) culture -
+system 48 #5 lgate_base at (21.2148, 21.2142) culture -
+system 116 #6 gateway_ruined at (301.69487, 84.54792) culture -
+system 142 #7 gateway_ruined at (14.71333, -228.90947) culture -
+system 145 #8 gateway_ruined at (228.14421, -76.60111) culture -
+system 158 #9 gateway_ruined at (68.54687, 183.32104) culture -
+system 203 #10 ring_world_ruined at (-45.20385, 0) culture -
+system 203 #11 ring_world_ruined at (45.20385, -0.00045) culture -
+system 332 #12 lgate_base at (21.2148, 21.2142) culture -
+system 505 #13 lgate_base at (21.2148, 21.2142) culture -

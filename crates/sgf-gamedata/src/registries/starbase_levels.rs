@@ -1,7 +1,8 @@
-//! `common/starbase_levels` joined with `common/ship_sizes`: a starbase's
-//! level names the ship size that draws it, and the ship size names the
-//! map icon frame (outpost..citadel = 1..5; swarm and the other special
-//! sizes use `-1`, meaning none).
+//! `common/starbase_levels` joined with `common/ship_sizes` and
+//! `common/section_templates`: a starbase's level names the ship size that
+//! draws it, and the ship size names the map icon frame (outpost..citadel =
+//! 1..5; swarm and the other special sizes use `-1`, meaning none) and the
+//! slot whose section template names the station's model.
 
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use crate::Diagnostic;
 use crate::install::layers::Layout;
 use crate::install::script::{self, Variables};
 use crate::registries::registry::Registry;
+use crate::registries::section_templates::SectionTemplates;
 use crate::registries::ship_sizes::ShipSizes;
 
 pub(crate) const DIR: &str = "common/starbase_levels";
@@ -22,11 +24,15 @@ pub struct StarbaseLevelDef {
     pub icon_frame: Option<u32>,
     /// `display_empire_shield = yes`: the map shows the owner's flag for this station.
     pub empire_shield: bool,
+    /// The station's model, without its culture prefix: the `entity` of the section template
+    /// that fits the first of its ship size's `section_slots`.
+    pub station_entity: Option<String>,
 }
 
 pub(crate) fn load(
     layout: &Layout,
     sizes: &ShipSizes,
+    templates: &SectionTemplates,
     globals: &Arc<Variables>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> StarbaseLevels {
@@ -34,10 +40,12 @@ pub(crate) fn load(
         .into_iter()
         .map(|(key, def)| {
             let ship_size = def.scalar("ship_size").map(str::to_owned);
-            let icon_frame = ship_size
-                .as_deref()
-                .and_then(|s| sizes.get(s))
-                .and_then(|size| size.icon_frame);
+            let size = ship_size.as_deref().and_then(|s| sizes.get(s));
+            let icon_frame = size.and_then(|size| size.icon_frame);
+            let station_entity = size.and_then(|size| {
+                let slot = size.section_slots.first()?;
+                templates.fitting(&size.key, slot)?.entity.clone()
+            });
             (
                 key.clone(),
                 StarbaseLevelDef {
@@ -45,6 +53,7 @@ pub(crate) fn load(
                     ship_size,
                     icon_frame,
                     empire_shield: def.flag("display_empire_shield"),
+                    station_entity,
                 },
             )
         })

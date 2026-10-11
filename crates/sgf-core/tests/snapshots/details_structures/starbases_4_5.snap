@@ -1,0 +1,50 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+system 8 #35 starbase_level_marauder at (21.6, -21.6) culture pirate_01
+system 21 #46 starbase_level_marauder at (18.3, -18.3) culture pirate_01
+system 23 #49 starbase_level_caravaneer at (18.3, -18.3) culture caravaneer_01
+system 40 #4 starbase_level_starport at (23.25, -23.25) culture molluscoid_01
+system 69 #59 starbase_level_outpost at (19.62, -19.62) culture molluscoid_01
+system 86 #8 starbase_level_starport at (20.28, -20.28) culture molluscoid_01
+system 140 #64 starbase_level_waystation_1 at (-55.12225, -191.73363) culture lithoid_01
+system 159 #48 starbase_level_marauder at (21.27, -21.27) culture pirate_01
+system 164 #3 starbase_level_starport at (21.27, -21.27) culture reptilian_01
+system 169 #0 starbase_level_starport at (19.29, -19.29) culture mammalian_01
+system 174 #28 starbase_level_citadel at (21.27, -21.27) culture fallen_empire_04
+system 177 #29 starbase_level_citadel at (20.94, -20.94) culture fallen_empire_04
+system 207 #60 starbase_level_outpost at (18.96, -18.96) culture fallen_empire_04
+system 216 #53 starbase_level_waystation_1 at (115, -199.249) culture biogenesis_01
+system 230 #9 starbase_level_starport at (20.94, -20.94) culture avian_01
+system 242 #36 starbase_level_marauder at (19.62, -19.62) culture pirate_01
+system 269 #61 starbase_level_outpost at (21.27, -21.27) culture fallen_empire_04
+system 271 #17 starbase_level_citadel at (20.94, -20.94) culture fallen_empire_01
+system 281 #30 starbase_level_citadel at (20.28, -20.28) culture fallen_empire_04
+system 298 #23 starbase_level_outpost at (19.95, -19.95) culture fallen_empire_04
+system 298 #22 starbase_level_deep_space_citadel_3 at (72.7723, -81.1142) culture fallen_empire_04
+system 316 #20 starbase_level_outpost at (20.94, -20.94) culture fallen_empire_04
+system 336 #58 starbase_level_starport at (21.93, -21.93) culture molluscoid_01
+system 349 #31 starbase_level_citadel at (18.96, -18.96) culture fallen_empire_04
+system 354 #25 starbase_level_outpost at (20.61, -20.61) culture fallen_empire_04
+system 354 #24 starbase_level_deep_space_citadel_3 at (-22.325, 40.9548) culture fallen_empire_04
+system 378 #13 starbase_level_outpost at (20.61, -20.61) culture fallen_empire_01
+system 400 #12 starbase_level_citadel at (19.95, -19.95) culture fallen_empire_01
+system 400 #10 starbase_level_deep_space_citadel_3 at (-22.8584, -75.6757) culture fallen_empire_01
+system 400 #11 starbase_level_deep_space_citadel_3 at (113.134, -52.823) culture fallen_empire_01
+system 401 #27 starbase_level_outpost at (19.95, -19.95) culture fallen_empire_04
+system 401 #26 starbase_level_deep_space_citadel_3 at (-41.7482, 44.4767) culture fallen_empire_04
+system 409 #19 starbase_level_citadel at (20.94, -20.94) culture fallen_empire_04
+system 438 #37 starbase_level_marauder at (20.61, -20.61) culture pirate_01
+system 449 #16 starbase_level_citadel at (21.6, -21.6) culture fallen_empire_01
+system 463 #1 starbase_level_starport at (-2.52325, -22.59) culture humanoid_01
+system 465 #54 starbase_level_waystation_1 at (130, -225.238) culture biogenesis_01
+system 513 #15 starbase_level_citadel at (20.28, -20.28) culture fallen_empire_01
+system 525 #21 starbase_level_outpost at (21.27, -21.27) culture fallen_empire_04
+system 535 #57 starbase_level_outpost at (21.27, -21.27) culture molluscoid_01
+system 564 #6 starbase_level_starport at (-3.18325, -21.93) culture biogenesis_02
+system 571 #18 starbase_level_citadel at (18.63, -18.63) culture fallen_empire_01
+system 573 #47 starbase_level_marauder at (18.3, -18.3) culture pirate_01
+system 576 #14 starbase_level_outpost at (19.29, -19.29) culture fallen_empire_01
+system 586 #5 starbase_level_starport at (22.92, -22.92) culture arthropoid_01
+system 592 #63 starbase_level_starport at (20.28, -20.28) culture mammalian_01

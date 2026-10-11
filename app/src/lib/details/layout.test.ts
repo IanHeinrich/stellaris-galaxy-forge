@@ -94,6 +94,8 @@ describe("bodyMarks", () => {
       kind,
       owner: null,
       planet: on,
+      at: null,
+      culture: null,
     });
     const d = details({
       megastructures: [
