@@ -111,6 +111,9 @@ pub struct RawStarbase {
     /// `movement_manager.coordinate`, reached as `station` → ship → `fleet`. `None` when
     /// that fleet is gone or stands in another system.
     pub at: Option<(f64, f64)>,
+    /// The planet the station fleet orbits: its `movement_manager.orbit.orbitable.planet`.
+    /// An orbital ring's is the planet it rings.
+    pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`.
     pub culture: Option<String>,
 }
@@ -653,6 +656,7 @@ pub(super) fn present(
                 hull: hull.hitpoints,
                 max_hull: hull.max_hitpoints,
                 at,
+                planet: fleet.and_then(|fleet| fleets::orbited_planet(doc, fleet)),
                 culture: ship
                     .as_ref()
                     .and_then(|s| read::scalar(s, keys::GRAPHICAL_CULTURE, src))

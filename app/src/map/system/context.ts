@@ -645,20 +645,6 @@ function sceneWormholes(
   });
 }
 
-/** How far apart two points may be and still be the one point the save writes twice. */
-const SAME_POINT = 1e-3;
-
-/** The body of `bodies` whose save point is `at`: the planet an orbital ring starbase rings. */
-function bodyAtPoint(
-  bodies: readonly SceneBody[],
-  [x, y]: readonly [number, number],
-): SceneBody | undefined {
-  return bodies.find((b) => {
-    const at = b.planet?.layout?.at;
-    return at != null && Math.abs(at[0] - x) <= SAME_POINT && Math.abs(at[1] - y) <= SAME_POINT;
-  });
-}
-
 /** Where a structure drawn as `look` stands: about `body` where it has one, else at `at`. */
 function placeStructure(
   look: Exclude<StructureLook, { kind: "none" }>,
@@ -702,14 +688,15 @@ function megastructure(
 
 function starbase(
   src: SystemSources,
-  bodies: readonly SceneBody[],
+  bodyById: ReadonlyMap<number, SceneBody>,
   station: StarbaseSummary,
 ): SceneStructure | null {
   const level = src.starbaseLevels.get(station.level);
   const look = starbaseLook(level);
   if (look.kind === "none" || station.at === null) return null;
   const grows = level?.scales_with_planet === true;
-  const body = grows ? bodyAtPoint(bodies, station.at) : undefined;
+  // An orbital ring stands on the planet it rings; any other station keeps its own point.
+  const body = grows && station.planet !== null ? bodyById.get(station.planet) : undefined;
   const placed = placeStructure(look, body, station.at, [0, 0], grows);
   if (placed === null) return null;
   const owner = station.owner === null ? undefined : src.countries.get(station.owner);
@@ -728,7 +715,6 @@ function starbase(
 /** Each megastructure and starbase of the system while their switch is on; a scenario lists none. */
 function sceneStructures(
   src: SystemSources,
-  bodies: readonly SceneBody[],
   bodyById: ReadonlyMap<number, SceneBody>,
 ): SceneStructure[] {
   const { details } = src;
@@ -736,7 +722,7 @@ function sceneStructures(
   const stations = details.starbase ? [details.starbase, ...details.other_starbases] : [];
   return [
     ...details.megastructures.map((row) => megastructure(src, bodyById, row)),
-    ...stations.map((station) => starbase(src, bodies, station)),
+    ...stations.map((station) => starbase(src, bodyById, station)),
   ].filter((s): s is SceneStructure => s !== null);
 }
 
@@ -813,7 +799,7 @@ export function systemContext(
         src.names,
         src.countries,
       ],
-      () => sceneStructures(src, bodies, bodyById),
+      () => sceneStructures(src, bodyById),
     ),
     viewRadius: Math.max(
       layout.fitRadius,

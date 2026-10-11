@@ -730,6 +730,9 @@ pub struct StarbaseSummary {
     pub max_hull: f64,
     /// Where the station stands, relative to the system's centre; `None` in a scenario.
     pub at: Option<(f64, f64)>,
+    /// The planet the station orbits, as its fleet names it; an orbital ring's is the planet
+    /// it rings. `None` in a scenario.
+    pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`; `None` in a scenario.
     pub culture: Option<String>,
 }
@@ -826,6 +829,7 @@ pub(super) fn resolve(
         hull: s.hull,
         max_hull: s.max_hull,
         at: s.at,
+        planet: s.planet,
         culture: s.culture.clone(),
     });
     let starbase = starbases.next();

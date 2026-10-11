@@ -422,6 +422,7 @@ export function starbaseSummary(over: Partial<StarbaseSummary> = {}): StarbaseSu
     hull: 0,
     max_hull: 0,
     at: [0, 0],
+    planet: null,
     culture: null,
     ...over,
   };

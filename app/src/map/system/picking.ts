@@ -101,7 +101,10 @@ export function pickExit(exits: readonly Exit[], cam: Camera, at: Pt): number | 
   return best;
 }
 
-/** Whether the world point `at` falls on `s`'s landed model sprite, in save units. */
+/**
+ * Whether the world point `at` falls in the ellipse inscribed in `s`'s landed model sprite, so
+ * the empty corners round a round model leave what is under them pickable.
+ */
 function onModel(s: SceneStructure, at: Pt): boolean {
   if (s.modelKey === null || !getTexture(s.modelKey)) return false;
   const placement = getModelPlacement(s.modelKey);
@@ -110,17 +113,14 @@ function onModel(s: SceneStructure, at: Pt): boolean {
   const right = (at.x - s.x) * SAVE_X_SIGN;
   const down = (at.y - s.y) * SAVE_Y_SIGN;
   const { anchor_x: ax, anchor_y: ay } = placement;
-  return (
-    right >= -ax * width &&
-    right <= (1 - ax) * width &&
-    down >= -ay * height &&
-    down <= (1 - ay) * height
-  );
+  const across = (right - (0.5 - ax) * width) / (width / 2);
+  const along = (down - (0.5 - ay) * height) / (height / 2);
+  return across * across + along * along <= 1;
 }
 
 /**
- * The megastructure or starbase whose model sprite covers the world point `at`, or whose point is
- * within the pick radius of it; the nearest point wins.
+ * The megastructure or starbase whose model covers the world point `at`, or whose point is within
+ * the pick radius of it; the nearest point wins.
  */
 export function pickStructure(
   structures: readonly SceneStructure[],

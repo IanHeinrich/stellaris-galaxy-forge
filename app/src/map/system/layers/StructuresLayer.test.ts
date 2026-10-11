@@ -47,6 +47,7 @@ const FURNACE_SITE = megastructureTypeView("orbital_arc_furnace_0", {
   construction_scale: 1.02,
 });
 const RING = megastructureTypeView("orbital_ring", { entity: null, scales_with_planet: true });
+const ART = megastructureTypeView("art_installation_1", { entity_offset: [-27, -27] });
 
 const STARPORT = starbaseLevelView("starbase_level_starport", {
   icon_frame: 2,
@@ -62,7 +63,7 @@ const MARAUDER = starbaseLevelView("starbase_level_marauder", {
 });
 
 const TYPES = new Map<string, MegastructureTypeView>(
-  [NEXUS, RELAY, FURNACE, FURNACE_SITE, RING].map((t) => [t.key, t]),
+  [NEXUS, RELAY, FURNACE, FURNACE_SITE, RING, ART].map((t) => [t.key, t]),
 );
 const LEVELS = new Map<string, StarbaseLevelView>(
   [STARPORT, ORBITAL_RING, MARAUDER].map((l) => [l.key, l]),
@@ -137,22 +138,34 @@ describe("where a megastructure or a starbase is drawn", () => {
     expect([mars.x, mars.y]).not.toEqual([0, 130]);
   });
 
-  it("draws a free row at its own point, and a row whose body is missing at its point plus the offset", () => {
+  it("draws a free row at its own point plus its type's offset, and a row whose body is missing the same way", () => {
     const relay = megastructureSummary({ id: 1, kind: "hyper_relay", at: [-168, 0] });
+    const art = megastructureSummary({ id: 3, kind: "art_installation_1", at: [60, 60] });
     const lost = megastructureSummary({ id: 2, kind: "think_tank_3", planet: 99, at: [30, 30] });
-    expect(system([relay, lost]).structures.map((s) => [s.x, s.y])).toEqual([
+    expect(system([relay, art, lost]).structures.map((s) => [s.x, s.y])).toEqual([
       [-168, 0],
+      [33, 33],
       [30, 10],
     ]);
   });
 
-  it("draws a starbase at its station's point, and an orbital ring starbase on the planet it rings", () => {
-    const port = starbaseSummary({ id: 3, level: STARPORT.key, at: [21.6, -21.6] });
-    const ring = starbaseSummary({ id: 4, level: ORBITAL_RING.key, at: [90, 0] });
-    const ctx = system([], [port, ring]);
-    expect(ctx.structures.map((s) => [s.kind, s.id, s.x, s.y])).toEqual([
-      ["starbase", 3, 21.6, -21.6],
-      ["starbase", 4, 90, 0],
+  it("draws a starbase at its station's point, even where its fleet orbits a body", () => {
+    const port = starbaseSummary({ id: 3, level: STARPORT.key, at: [21.6, -21.6], planet: SUN.id });
+    expect(only(system([], [port]))).toMatchObject({ kind: "starbase", id: 3, x: 21.6, y: -21.6 });
+  });
+
+  it("draws an orbital ring starbase on the planet its fleet orbits, wherever that planet is drawn now", () => {
+    // The station still stands where the planet was before an edit moved the planet.
+    const ring = starbaseSummary({
+      id: 4,
+      level: ORBITAL_RING.key,
+      at: [40, 40],
+      planet: EARTH.id,
+    });
+    const lost = starbaseSummary({ id: 5, level: ORBITAL_RING.key, at: [40, 40], planet: 99 });
+    expect(system([], [ring, lost]).structures.map((s) => [s.id, s.x, s.y])).toEqual([
+      [4, 90, 0],
+      [5, 40, 40],
     ]);
   });
 
@@ -182,7 +195,7 @@ describe("how large a megastructure or a starbase is drawn", () => {
   });
 
   it("grows an orbital ring starbase with its planet, and a Dyson Swarm on its star not at all", () => {
-    const ring = starbaseSummary({ level: ORBITAL_RING.key, at: [90, 0] });
+    const ring = starbaseSummary({ level: ORBITAL_RING.key, at: [90, 0], planet: EARTH.id });
     const ctx = system([], [ring]);
     expect(only(ctx).scale).toBeCloseTo(
       ctx.bodyById.get(EARTH.id)!.placement.disc / PLANET_SCALED_DISC,
@@ -307,7 +320,7 @@ describe("clicking a megastructure", () => {
     expect(pick(-168, 60)).toEqual({ kind: "megastructure", id: 8 });
   });
 
-  it("picks a structure anywhere on its landed model", async () => {
+  it("picks a structure in the ellipse inside its landed model, and what lies under the model's empty corners", async () => {
     decodeByKey();
     textureFetch.model = () => PLACEMENT;
     const ctx = system([relay]);
@@ -322,6 +335,31 @@ describe("clicking a megastructure", () => {
       kind: "megastructure",
       id: 8,
     });
+    // Inside the sprite's rectangle, outside its ellipse and the pick radius about its point.
+    const corner = { x: -168 + SAVE_X_SIGN * 6.5, y: 60 + SAVE_Y_SIGN * 2.7 };
+    expect(pickTarget(ctx, cam, corner, () => null, null)).toBeNull();
+    layer.destroy();
+  });
+});
+
+describe("a drag that moves a body a structure stands on", () => {
+  it("moves the structure's sprite and keeps it, rebuilding nothing", () => {
+    const furnace = megastructureSummary({ id: 9, kind: "orbital_arc_furnace_1", planet: MARS.id });
+    const base = system([furnace]);
+    const layer = new StructuresLayer();
+    layer.rebuild(base);
+    const before = holder(layer, "megastructure:9");
+    const sprite = part(before, "model");
+    const override = SAVE_GEOMETRY.preview(
+      { kind: "move", system: SYSTEM, body: MARS.id, radius: 200, angle: 0 },
+      base,
+    );
+    const moved = systemContext(base, { override, marks: null });
+    layer.rebuild(moved);
+    const after = holder(layer, "megastructure:9");
+    expect(after).toBe(before);
+    expect(part(after, "model")).toBe(sprite);
+    expect([after.x, after.y]).toEqual([only(moved).x, only(moved).y]);
     layer.destroy();
   });
 });

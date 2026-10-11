@@ -15,7 +15,7 @@ import type { SystemLayer } from "./SystemLayer";
 export const STRUCTURE_ICON_PX = 22;
 
 interface Drawn {
-  readonly structure: SceneStructure;
+  structure: SceneStructure;
   readonly holder: Container;
   readonly model: Sprite;
   readonly icon: Sprite;
@@ -29,6 +29,21 @@ function firstLanded(keys: readonly string[]): Texture | null {
     if (texture === undefined) return null;
   }
   return null;
+}
+
+/** Whether `a` and `b` draw the same models and icons for the same structures, in order. */
+function sameLooks(a: readonly SceneStructure[], b: readonly SceneStructure[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (s, i) =>
+        s.kind === b[i].kind &&
+        s.id === b[i].id &&
+        s.modelKey === b[i].modelKey &&
+        s.iconKeys.length === b[i].iconKeys.length &&
+        s.iconKeys.every((key, k) => key === b[i].iconKeys[k]),
+    )
+  );
 }
 
 /**
@@ -58,7 +73,12 @@ export class StructuresLayer implements SystemLayer {
 
   rebuild(ctx: SystemContext): void {
     if (ctx.structures === this.structures) return;
+    const before = this.structures;
     this.structures = ctx.structures;
+    if (sameLooks(before, ctx.structures)) {
+      this.move();
+      return;
+    }
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
     this.drawn = ctx.structures.map((structure) => {
       const holder = new Container();
@@ -79,6 +99,18 @@ export class StructuresLayer implements SystemLayer {
       ),
     );
     this.dress();
+  }
+
+  /** Stands each holder at its structure's new point, and resizes the models when a size changed. */
+  private move(): void {
+    let resized = false;
+    this.drawn.forEach((drawn, i) => {
+      const structure = this.structures[i];
+      resized ||= structure.scale !== drawn.structure.scale;
+      drawn.structure = structure;
+      drawn.holder.position.set(structure.x, structure.y);
+    });
+    if (resized) this.dress();
   }
 
   onViewport(cam: Camera): void {

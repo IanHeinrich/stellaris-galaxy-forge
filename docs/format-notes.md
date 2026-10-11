@@ -683,6 +683,15 @@ for planets or deposits.
   a = 11.7 + 0.33 × the star's `planet_size` in 509 of 558 systems. The others are
   in systems with no star body at the centre. Deep-space citadels stand
   wherever they were built.
+- An orbital ring is a starbase of level `starbase_level_orbital_ring_tier_<n>` and
+  type `sorbital_ring`, listed after the system's main starbase. Its entry
+  names no planet. In a 4.5.2 autosave its station fleet stands exactly on
+  its planet's coordinate, and two links tie the two: the fleet's
+  `movement_manager.orbit.orbitable.planet` names the planet, and the
+  planet's `orbital_defence` names the station fleet. Every starbase's
+  fleet has the same `orbitable` link, a waystation's excepted. A main
+  starbase's names a body of its system although the station stands off it
+  at (a, −a). The planet's `planet_orbitals` does not list the ring.
 - The station ship's `graphical_culture` is the starbase's culture.
   Every station ship in both 4.x samples names one.
 

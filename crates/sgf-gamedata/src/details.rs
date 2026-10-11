@@ -119,6 +119,7 @@ impl GameData {
             buildings: s.buildings.clone(),
             shipyard: s.modules.iter().any(|m| m == "shipyard"),
             at: None,
+            planet: None,
             culture: None,
         });
         let resources = system_resources(planets.iter().filter(|p| certain(p)));

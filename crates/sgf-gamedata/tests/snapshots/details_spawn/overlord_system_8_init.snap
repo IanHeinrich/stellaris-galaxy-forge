@@ -145,6 +145,7 @@ expression: out
     },
     "name_key": "",
     "owner": null,
+    "planet": null,
     "shipyard": true
   },
   "with_game_data": true,

@@ -77,6 +77,7 @@ describe("a save system's overview", () => {
           hull: 0,
           max_hull: 0,
           at: null,
+          planet: null,
           culture: null,
           shipyard: false,
         },
@@ -367,6 +368,7 @@ function starbase(level: string, kind: string): StarbaseSummary {
     hull: 0,
     max_hull: 0,
     at: null,
+    planet: null,
     culture: null,
     shipyard: false,
   };

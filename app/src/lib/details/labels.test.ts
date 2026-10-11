@@ -267,6 +267,7 @@ describe("detailNameKeys", () => {
         hull: 0,
         max_hull: 0,
         at: null,
+        planet: null,
         culture: null,
         shipyard: false,
       },
