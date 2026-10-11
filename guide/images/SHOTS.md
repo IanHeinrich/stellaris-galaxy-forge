@@ -16,6 +16,11 @@ pages don't need editing.
 - The Paint a Galaxy mod was installed but not enabled in the playset,
   which is why several dialogs show the orange "installed but not
   enabled" line. Keep that state if you retake those dialogs.
+- A change not yet released is shot from `npm run tauri dev` with the
+  same window, and with the game data the developer has installed.
+  `system/planet-page.png` and `scenario/scenario-system-inspector.png`
+  were taken that way, on Stellaris 4.5.2 game data.
+- The dock is 340 pixels wide. Drag its left edge to set it.
 - Saved as PNG at 1x, cropped to the part of the window the page talks
   about.
 - Numbered marks are not drawn into the images. A page wraps the image in
@@ -103,7 +108,7 @@ The Issues, Changes and added-system shots show those edits.
 | `scenario/plain-scenario-warning.png` | `reference/troubleshooting.md` | The warning on opening a plain scenario | Open the plain scenario with "Don't warn me again" never ticked. |
 | `scenario/spawn-point-section.png` | `scenario/spawn-points.md` | A seat's Spawn point section | In the Paint a Galaxy scenario, select a seat and crop the section. |
 | `scenario/seat-choices.png` | `scenario/spawn-points.md` | The Seat list open | As above, open Seat. Sol shows "in use". |
-| `scenario/scenario-system-inspector.png` | `scenario/fallen-empires-marauders-lgates.md` | A scenario system's page | Select Mar-Adetta #122, which isn't a seat. |
+| `scenario/scenario-system-inspector.png` | `scenario/fallen-empires-marauders-lgates.md` | A scenario system's page | Select Mar-Adetta #122, which isn't a seat, and fold its Star class, Planets and Belts sections. |
 | `scenario/initializer-browser.png` | `scenario/initializers.md` | The initializer browser | Select Mar-Adetta and press Shift+I. basic_init_02 is its current one. |
 | `scenario/prepare-section.png` | `scenario/prepare.md` | Prepare for a new game | File → Prepare for a new game… with Keep everything. Crop the dock. |
 

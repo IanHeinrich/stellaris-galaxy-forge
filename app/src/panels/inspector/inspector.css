@@ -159,18 +159,28 @@ button.chip.jump:hover {
   color: var(--fg);
 }
 
-/* A section header with an action beside it: the header keeps its row, the action sits at the right. */
+.ins-sec-title {
+  white-space: nowrap;
+}
+
+/* A section header with an action beside it: the action sits at the right, or under the header
+   when the dock is too narrow for both. */
 .ins-sec-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
   margin: 10px 0 4px;
 }
 
 .ins-sec-row .ins-sec {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
+  width: auto;
   margin: 0;
+}
+
+.ins-sec-row > :last-child {
+  margin-left: auto;
 }
 
 /* A section header that opens a tab of its own: no chevron, so its title takes the tri's room. */
