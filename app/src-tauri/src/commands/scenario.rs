@@ -2,9 +2,9 @@
 
 use std::sync::{Arc, MutexGuard};
 
-use sgf_core::format::save::details::SystemDetails;
+use sgf_core::format::save::details::{ClassRolls, SystemDetails};
 use sgf_core::session::{Session, SessionError};
-use sgf_core::views::{DocumentKind, SgfError};
+use sgf_core::views::{DocumentKind, ErrorKind, SgfError};
 use sgf_gamedata::GameData;
 use sgf_gamedata::scripts::{
     ScenarioBypasses, ScenarioOwners, ScenarioSystem, SystemScripts, bypasses::add_flagged_pairs,
@@ -13,7 +13,7 @@ use sgf_gamedata::special::{self, SpecialSystems};
 use sgf_gamedata::views::SystemRoll;
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::{with_scenario, with_session};
+use super::{game_data, with_scenario, with_session};
 use crate::state::GameDataState;
 
 #[tauri::command]
@@ -149,6 +149,36 @@ fn details_for(
                 .collect())
         }
     }
+}
+
+/// What `body` of scenario system `system` rolls once the game gives it `class`, worked out
+/// as for a body whose block names that class. Refused on a save, without game data, and when
+/// the body cannot be `class`.
+#[tauri::command]
+pub async fn get_class_rolls<R: Runtime>(
+    app: AppHandle<R>,
+    system: u32,
+    body: u32,
+    class: String,
+) -> Result<ClassRolls, SgfError> {
+    let gd = game_data(&app, "show what a body rolls")?;
+    with_session(app, move |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        if session.kind() != DocumentKind::Scenario {
+            return Err(SgfError::new(
+                ErrorKind::Op,
+                "only a scenario's bodies are rolled",
+            ));
+        }
+        let initializer = session
+            .system(system)
+            .ok_or_else(|| SgfError::not_found(format!("system {system}")))?
+            .initializer
+            .clone();
+        drop(guard);
+        Ok(gd.class_rolls(&initializer, body, &class)?)
+    })
+    .await
 }
 
 /// Roll `roll` of scenario system `id`: where each body its details list lands, or, when the

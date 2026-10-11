@@ -6,10 +6,11 @@ use crate::common;
 
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, ClassPool, CountRange, DepositReplacement, DepositStep,
-    ListMember, PlanetSummary, SpawnClass, SpawnRing, SpawnStar, SystemDetails, UnknownClass,
-    UsageOdds, VariableUse,
+    ListMember, PlanetSummary, SpawnClass, SpawnPool, SpawnRing, SpawnStar, SystemDetails,
+    UnknownClass, UsageOdds, VariableUse,
 };
 
+use sgf_gamedata::details::ClassRollsError;
 use sgf_gamedata::layouts::{self, Eligibility, Unsupported};
 use sgf_gamedata::scripts::chain;
 use sgf_gamedata::views::InitializerView;
@@ -742,4 +743,92 @@ fn a_value_the_reader_cannot_read_is_kept_as_written() {
     assert_eq!(details.belts[0].inner_radius, 45.0, "the range's midpoint");
     let other: Vec<&str> = spawn.other_keys.iter().map(|s| s.text.as_str()).collect();
     assert_eq!(other, ["asteroid_belt = { type = fx_belt radius = far }"]);
+}
+
+/// The keys of a rolled pool; empty for a pool that rolls nothing.
+fn pool_keys(pool: &SpawnPool) -> Vec<&str> {
+    match pool {
+        SpawnPool::Rolled { entries } => entries.iter().map(|e| e.key.as_str()).collect(),
+        SpawnPool::Fixed | SpawnPool::Unknown => Vec::new(),
+    }
+}
+
+/// What a drawn body rolls as each class it can be drawn is part of what it rolls as any of
+/// them, and what a body whose block names its class rolls as that class is what its spawn
+/// says it rolls.
+#[test]
+fn a_body_rolls_as_one_class_a_part_of_its_pool() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    let details = gd
+        .initializer_details(1, "ai_system_04", None)
+        .expect("ai_system_04's details");
+    let mut drawn = 0;
+    for planet in &details.planets {
+        let spawn = planet.spawn.as_ref().expect("a body's spawn");
+        let SpawnClass::Rolled {
+            pool:
+                ClassPool::Random {
+                    at_orbit: Some(classes),
+                    ..
+                },
+        } = &spawn.class
+        else {
+            continue;
+        };
+        if classes.len() < 2 {
+            continue;
+        }
+        drawn += 1;
+        let deposits = pool_keys(spawn.rolled_deposits.as_ref().expect("rolled deposits"));
+        let features = pool_keys(spawn.rolled_features.as_ref().expect("rolled features"));
+        for class in classes {
+            let rolls = gd
+                .class_rolls("ai_system_04", planet.id, &class.class)
+                .unwrap_or_else(|e| panic!("body {} as {}: {e}", planet.id, class.class));
+            assert_eq!(rolls.class, class.class);
+            assert!(
+                matches!(rolls.deposits, SpawnPool::Rolled { .. }),
+                "{} rolls deposits",
+                class.class
+            );
+            for key in pool_keys(&rolls.deposits) {
+                assert!(deposits.contains(&key), "{key} as {}", class.class);
+            }
+            for key in pool_keys(&rolls.features) {
+                assert!(features.contains(&key), "{key} as {}", class.class);
+            }
+        }
+    }
+    assert!(
+        drawn > 0,
+        "ai_system_04 has bodies drawn from several classes"
+    );
+
+    let toxic = details
+        .planets
+        .iter()
+        .find(|p| matches!(&p.spawn.as_ref().expect("a spawn").class, SpawnClass::Fixed { class } if class == "pc_toxic"))
+        .expect("ai_system_04's toxic world");
+    let spawn = toxic.spawn.as_ref().expect("a spawn");
+    let rolls = gd
+        .class_rolls("ai_system_04", toxic.id, "pc_toxic")
+        .expect("a toxic world rolls as one");
+    assert_eq!(Some(&rolls.deposits), spawn.rolled_deposits.as_ref());
+    assert_eq!(Some(&rolls.features), spawn.rolled_features.as_ref());
+    assert_eq!(Some(rolls.ring), spawn.ring);
+    assert_eq!(rolls.size, toxic.layout.as_ref().and_then(|l| l.size));
+
+    assert_eq!(
+        gd.class_rolls("ai_system_04", toxic.id, "pc_arid"),
+        Err(ClassRollsError::NotRolled {
+            body: toxic.id,
+            class: "pc_arid".to_owned()
+        })
+    );
+    assert_eq!(
+        gd.class_rolls("ai_system_04", 7, "pc_toxic"),
+        Err(ClassRollsError::NoBody(7))
+    );
 }

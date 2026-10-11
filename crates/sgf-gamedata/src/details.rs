@@ -8,13 +8,14 @@ use std::convert::Infallible;
 
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, ArchaeologySite, BodyLayout, BodyRole, BodySpawn, Bounds,
-    ClassPool, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
-    FleetPresence, ListMember, MegastructureSummary, NeighborSystem, OrbitFit, PlanetSummary,
-    ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
-    SystemDetails, SystemSpawn, UnknownClass,
+    ClassPool, ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep,
+    DetailsResolver, FleetPresence, ListMember, MegastructureSummary, NeighborSystem, OrbitFit,
+    PlanetSummary, ResourceAmount, SpawnClass, SpawnStar, StarbaseSummary, StatedAnomalies,
+    StatedFeatures, SystemDetails, SystemSpawn, UnknownClass,
 };
 use sgf_core::projections::galaxy::StarClasses;
 use sgf_core::projections::name::NameTemplate;
+use sgf_core::views::{ErrorKind, SgfError};
 
 use crate::GameData;
 use crate::generate::{belt, generate};
@@ -46,6 +47,29 @@ struct Bodies {
     planets: Vec<PlanetSummary>,
     sites: Vec<ArchaeologySite>,
     ambient_objects: Vec<AmbientObject>,
+}
+
+/// Why what a body rolls as one class could not be worked out.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ClassRollsError {
+    #[error("initializer {0} does not exist")]
+    NoInitializer(String),
+    #[error("body {0} does not exist")]
+    NoBody(u32),
+    #[error("what body {0} can be cannot be told before the game starts")]
+    Unknown(u32),
+    #[error("body {body} cannot be {class}")]
+    NotRolled { body: u32, class: String },
+}
+
+impl From<ClassRollsError> for SgfError {
+    fn from(e: ClassRollsError) -> Self {
+        match e {
+            ClassRollsError::NoInitializer(key) => Self::not_found(format!("initializer {key}")),
+            ClassRollsError::NoBody(body) => Self::not_found(format!("body {body}")),
+            e => Self::new(ErrorKind::Op, e.to_string()),
+        }
+    }
 }
 
 /// The classes an empire at the root of the initializer tree decides.
@@ -574,7 +598,38 @@ impl GameData {
             .collect()
     }
 
+    /// What body `body` of the initializer `key` rolls once the game gives it `class`, worked
+    /// out as for a body whose block names that class. Refused when the install does not
+    /// define the initializer, the initializer places no body `body`, what the body can be
+    /// cannot be told, or `class` is not one of those.
+    pub fn class_rolls(
+        &self,
+        key: &str,
+        body: u32,
+        class: &str,
+    ) -> Result<ClassRolls, ClassRollsError> {
+        let init = self
+            .initializers
+            .get(key)
+            .ok_or_else(|| ClassRollsError::NoInitializer(key.to_owned()))?;
+        let (walked, bodies) = self.unrolled(init);
+        let index = bodies
+            .planets
+            .iter()
+            .position(|p| p.id == body)
+            .ok_or(ClassRollsError::NoBody(body))?;
+        Rolls::new(self, init).class_rolls(&walked, &bodies.planets, index, class)
+    }
+
     fn bodies(&self, init: &Initializer) -> Bodies {
+        let (walked, mut out) = self.unrolled(init);
+        Rolls::new(self, init).fill(&walked, &mut out.planets);
+        out
+    }
+
+    /// The bodies `init` places, each with what its block states, before what the game can
+    /// roll for them is filled in; and the bodies they were expanded from, in the same order.
+    fn unrolled<'i>(&self, init: &'i Initializer) -> (Vec<Body<'i>>, Bodies) {
         let mut out = Bodies::default();
         let system = star_class_of(Some(init));
         let expanded: Vec<Body<'_>> = initializers::expand(&init.planets).collect();
@@ -623,8 +678,7 @@ impl GameData {
                 });
             }
         }
-        Rolls::new(self, init).fill(&walked, &mut out.planets);
-        out
+        (walked, out)
     }
 
     /// `class` is the body's planet class, a star's resolved by [`Self::star_body_classes`];

@@ -107,6 +107,7 @@ export const getLgateOutcomeMods = command("getLgateOutcomeMods");
 export const getTextures = command("getTextures");
 export const getSystemDetails = command("getSystemDetails");
 export const getSystemRoll = command("getSystemRoll");
+export const getClassRolls = command("getClassRolls");
 export const checkForUpdate = command("checkForUpdate");
 export const installUpdate = command("installUpdate");
 export const appVersion = command("appVersion");

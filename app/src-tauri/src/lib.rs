@@ -114,6 +114,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_map_font,
             commands::get_system_details,
             commands::get_system_roll,
+            commands::get_class_rolls,
             commands::check_for_update,
             commands::install_update,
         ])

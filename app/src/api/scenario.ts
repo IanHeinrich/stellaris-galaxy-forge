@@ -3,6 +3,7 @@
  * Command and argument names match `app/src-tauri/src/commands/scenario.rs`.
  */
 import { invoke } from "@tauri-apps/api/core";
+import type { ClassRolls } from "../generated/ClassRolls";
 import type { ScenarioBypasses } from "../generated/ScenarioBypasses";
 import type { ScenarioOwners } from "../generated/ScenarioOwners";
 import type { SpecialSystems } from "../generated/SpecialSystems";
@@ -21,6 +22,19 @@ export function getSystemDetails(ids: number[]): Promise<SystemDetails[]> {
  */
 export function getSystemRoll(id: number, roll: number, within: number): Promise<SystemRoll> {
   return invoke<SystemRoll>("get_system_roll", { id, roll, within });
+}
+
+/**
+ * What `body` of scenario system `system` rolls once the game gives it `class`, as for a body
+ * whose block names that class. Rejects on a save, without game data, and when the body cannot be
+ * `class`.
+ */
+export function getClassRolls(
+  system: number,
+  body: number,
+  className: string,
+): Promise<ClassRolls> {
+  return invoke<ClassRolls>("get_class_rolls", { system, body, class: className });
 }
 
 /** The open save's special systems, classified with game data when it is loaded. Rejects when no save is open. */
