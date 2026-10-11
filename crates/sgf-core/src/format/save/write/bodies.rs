@@ -4,12 +4,14 @@
 use crate::cst::Node;
 use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
+use crate::entity::views::EntityKind;
+use crate::format::save::added::{Table, rows};
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
 use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
-use crate::format::save::{entity_at, planet_entity, planet_system};
+use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
 use crate::ops::rules::named;
@@ -19,7 +21,6 @@ use crate::projections::geometry::{
     Body, centre, descendants, drawn_radius, moved_reach, normalised, system_reach,
 };
 use crate::projections::read;
-use crate::scan::Value;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
 pub(crate) struct Stored {
@@ -280,19 +281,15 @@ fn write_points(
 }
 
 /// The `megastructures` rows of system `system` tied to a body of `bodies` by their `planet`,
-/// each with the body.
+/// each with the body, the ones an op added included.
 fn tied_megastructures(s: &Session, system: u32, bodies: &[u32]) -> Vec<(Anchor, u32)> {
-    s.doc
-        .index()
-        .entities(keys::MEGASTRUCTURES)
-        .iter()
-        .filter(|e| matches!(e.value, Value::Block { .. }))
-        .filter_map(|e| {
-            let anchor = Anchor::Original(e.stmt);
-            let (node, src) = entity_at(&s.doc, anchor).ok()??;
-            let body = read::scalar_u32(&node, keys::PLANET, src)?;
-            (bodies.contains(&body) && read::origin(&node, src) == Some(system))
-                .then_some((anchor, body))
+    rows(&s.doc, Table::Entity(EntityKind::Megastructure))
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|row| {
+            let body = read::scalar_u32(&row.node, keys::PLANET, row.src)?;
+            (bodies.contains(&body) && read::origin(&row.node, row.src) == Some(system))
+                .then_some((row.anchor, body))
         })
         .collect()
 }

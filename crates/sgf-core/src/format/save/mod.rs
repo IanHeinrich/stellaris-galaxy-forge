@@ -21,10 +21,11 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_body, add_system, anomaly, belts, bodies, bulk, deposits, dig_site, empire_name, flag,
-    lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class, planet_entity,
-    planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
-    rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
+    add_body, add_megastructure, add_system, anomaly, belts, bodies, bulk, deposits, dig_site,
+    empire_name, flag, lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class,
+    planet_entity, planet_modifier, planet_ring, planet_size, remove_planet, remove_system,
+    rename_planet, rename_system, replace_system, restore, star_class, system_height, wormhole,
+    wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
@@ -290,6 +291,28 @@ impl Format for Save {
                 belts::plan_inner_radius(plan, s, *system, *radius)
             }
             Op::SetSystemHeights { heights } => system_height::plan_set(plan, s, heights),
+            Op::AddMegastructure {
+                system,
+                kind,
+                at,
+                owner,
+                bypass,
+                ruined_orbital_ring,
+            } => add_megastructure::plan_add(
+                plan,
+                s,
+                &add_megastructure::NewRow {
+                    system: *system,
+                    kind,
+                    at: *at,
+                    owner: *owner,
+                    bypass: bypass.as_ref(),
+                    ruined_orbital_ring: *ruined_orbital_ring,
+                },
+            ),
+            Op::RemoveMegastructure { megastructure } => {
+                add_megastructure::plan_remove(plan, s, *megastructure)
+            }
             Op::Batch { .. } => Err(OpError::NestedBatch),
             _ => Err(OpError::Unsupported {
                 op: op.name(),
@@ -364,6 +387,7 @@ impl Format for Save {
             modifiers: whole_entries,
             anomalies: whole_entries,
             dig_sites: whole_entries,
+            add_megastructures: whole_entries,
             ..Capabilities::default()
         }
     }

@@ -220,7 +220,7 @@ pub(crate) fn belts(spec: &SystemSpec) -> Vec<(&str, f64)> {
 }
 
 /// The save's day one as its global `game_started` flag dates it.
-fn day_one(doc: &Document) -> Result<String, OpError> {
+pub(crate) fn day_one(doc: &Document) -> Result<String, OpError> {
     let missing = OpError::MissingKey(GAME_STARTED);
     let section = doc.index().section(keys::FLAGS).ok_or(missing)?;
     entity_at(doc, Anchor::Original(section.stmt))

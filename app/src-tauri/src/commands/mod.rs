@@ -2,6 +2,7 @@
 //! file per module here. The event names are written to `app/src/generated/shell.ts`.
 
 pub mod add_body;
+pub mod add_megastructure;
 pub mod add_system;
 pub mod entity;
 pub mod gamedata;
@@ -15,6 +16,7 @@ pub mod session;
 pub mod update;
 
 pub use add_body::*;
+pub use add_megastructure::*;
 pub use add_system::*;
 pub use entity::*;
 pub use gamedata::*;

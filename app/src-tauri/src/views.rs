@@ -23,6 +23,14 @@ pub struct AddedBody {
     pub planet: u32,
 }
 
+/// What adding a megastructure answers with: the edit, and the id the new row took.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddedMegastructure {
+    pub edit: EditResult,
+    pub megastructure: u32,
+}
+
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,
 /// the systems standing in each row, how many systems the choices change, and what the options
 /// and a pair taken out do beside them.

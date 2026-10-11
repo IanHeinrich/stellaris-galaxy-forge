@@ -38,6 +38,18 @@ pub(crate) mod system {
         before: &[],
         last: false,
     };
+    pub(crate) const MEGASTRUCTURES: Place = Place {
+        key: keys::MEGASTRUCTURES,
+        after: &[],
+        before: &[keys::STAR_CLASS],
+        last: false,
+    };
+    pub(crate) const BYPASSES: Place = Place {
+        key: keys::BYPASSES,
+        after: &[keys::NATURAL_WORMHOLES, keys::HYPERLANE, keys::STAR_CLASS],
+        before: &[keys::ARM, keys::FLAGS, keys::INITIALIZER],
+        last: false,
+    };
     /// The game writes hyperlane, then asteroid_belts, then discovery, arm, flags and
     /// initializer.
     pub(crate) const ASTEROID_BELTS: Place = Place {
@@ -89,6 +101,20 @@ pub(crate) mod planet {
         before: &[keys::BOMBARDMENT_DAMAGE],
         last: true,
     };
+    /// After `planet_orbitals` and the `orbital_defence` a star's starbase writes, which
+    /// every planet follows with `bombardment_damage`.
+    pub(crate) const MEGASTRUCTURE: Place = Place {
+        key: keys::MEGASTRUCTURE,
+        after: &[],
+        before: &[keys::BOMBARDMENT_DAMAGE],
+        last: true,
+    };
+    pub(crate) const FLAGS: Place = Place {
+        key: keys::FLAGS,
+        after: &[keys::TIMED_MODIFIER, keys::BOMBARDMENT_DAMAGE],
+        before: &[keys::PLANET_MODIFIER, keys::ENTITY],
+        last: true,
+    };
     pub(crate) const PLANET_MODIFIER: Place = Place {
         key: keys::PLANET_MODIFIER,
         after: &[],
@@ -125,6 +151,30 @@ pub(crate) mod country {
         after: &[],
         before: &[keys::SITUATIONS],
         last: true,
+    };
+    pub(crate) const OWNED_MEGASTRUCTURES: Place = Place {
+        key: keys::OWNED_MEGASTRUCTURES,
+        after: &[keys::OWNED_LEADERS],
+        before: &[keys::SHIP_DESIGN_COLLECTION, keys::TRADITION_CATEGORIES],
+        last: false,
+    };
+}
+
+/// The keys of a `bypasses` row.
+pub(crate) mod bypass {
+    use super::{Place, keys};
+
+    pub(crate) const CONNECTIONS: Place = Place {
+        key: keys::CONNECTIONS,
+        after: &[keys::LINKED_TO, keys::ACTIVE],
+        before: &[keys::OWNER],
+        last: false,
+    };
+    pub(crate) const ACTIVE_CONNECTIONS: Place = Place {
+        key: keys::ACTIVE_CONNECTIONS,
+        after: &[keys::CONNECTIONS],
+        before: &[keys::OWNER],
+        last: false,
     };
 }
 

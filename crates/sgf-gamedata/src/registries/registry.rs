@@ -47,6 +47,10 @@ impl<T> Registry<T> {
         self.0.values()
     }
 
+    pub(crate) fn get_mut(&mut self, key: &str) -> Option<&mut T> {
+        self.0.get_mut(key)
+    }
+
     pub(crate) fn insert(&mut self, key: String, value: T) {
         self.0.insert(key, value);
     }

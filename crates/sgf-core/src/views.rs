@@ -149,6 +149,8 @@ pub struct Capabilities {
     pub anomalies: bool,
     /// A planet's dig site can be added and removed.
     pub dig_sites: bool,
+    /// A megastructure can be added to a system, and one added taken out again.
+    pub add_megastructures: bool,
     /// Any system can be renamed from its header.
     pub rename_systems: bool,
     /// The document has a header of its own: the galaxy's name, sizes and core radius.

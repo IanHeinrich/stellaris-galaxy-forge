@@ -1,9 +1,12 @@
 //! `common/megastructures`: the model each megastructure type is drawn with, where that
 //! model stands against the row's coordinate and whether it turns to face the star, how the
-//! type is placed when built, what it produces, and the types it links to.
+//! type is placed when built, what it produces, the types it links to, and where the editor
+//! can add one.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+use sgf_core::cst::Node;
 
 use crate::install::script::{self, Def};
 use crate::registries::registry::{FromDef, Registry};
@@ -37,7 +40,46 @@ pub struct MegastructureDef {
     pub rotate_to_center: bool,
     /// What `resources = { produces = { … } }` gives each month, per resource, in file order.
     pub produces: Vec<(String, f64)>,
+    /// `is_ruined_orbital_ring = yes`: the planet it stands on carries the ruin flag.
+    pub ruined_orbital_ring: bool,
+    /// The type names a `starbase` level, so building it makes a starbase.
+    pub spawns_starbase: bool,
+    /// `on_build_complete` runs `activate_gateway`.
+    pub activates_gateway: bool,
+    /// `placement_rules.planet_possible` asks for `is_star = yes` outside a `NOT`.
+    pub planet_possible_star: bool,
+    /// Where the editor adds a row of this type, read once every type is loaded.
+    pub placement: Placement,
 }
+
+/// Where the editor adds a row of a type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "place", rename_all = "snake_case")]
+#[ts(export, rename = "MegastructurePlacement")]
+pub enum Placement {
+    /// Tied to a body, a star only when `star_only`.
+    Body { star_only: bool },
+    /// At a point of the system's own: past its inner radius when `outside_gravity_well`.
+    Free { outside_gravity_well: bool },
+    /// Not added by the editor.
+    Unsupported { why: Unsupported },
+}
+
+/// Why the editor does not add a type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export, rename = "MegastructureUnsupported")]
+pub enum Unsupported {
+    /// It stands for a bypass other than a gateway or a relay.
+    Bypass { bypass: String },
+    /// A ring world quadrant, which the game writes as several rows and planets.
+    RingWorld,
+    /// Building it makes a starbase.
+    BecomesStarbase,
+}
+
+/// The bypass types a row the editor adds may stand for.
+pub const ADDED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
 
 /// Where a type is placed when it is built: `build_type`, or `outside_gravity_well` for the
 /// older `build_outside_gravity_well = yes`. `around_planet` when neither is written.
@@ -84,8 +126,107 @@ impl FromDef for MegastructureDef {
             upgrade_from: script::list_items(&def.node, "upgrade_from", &def.src),
             rotate_to_center: def.scalar("rotate_to_center") != Some("no"),
             produces: produces(def),
+            ruined_orbital_ring: def.flag("is_ruined_orbital_ring"),
+            spawns_starbase: def.node.find("starbase", &def.src).is_some(),
+            activates_gateway: activates_gateway(def),
+            planet_possible_star: planet_possible_star(def),
+            placement: Placement::Body { star_only: false },
         }
     }
+}
+
+/// `types` with each type's [`Placement`] resolved; the first rule that matches wins.
+pub(crate) fn placed(mut types: MegastructureTypes) -> MegastructureTypes {
+    let placements: Vec<(String, Placement)> = types
+        .iter()
+        .map(|def| (def.key.clone(), placement(&types, def)))
+        .collect();
+    for (key, placement) in placements {
+        if let Some(def) = types.get_mut(&key) {
+            def.placement = placement;
+        }
+    }
+    types
+}
+
+fn placement(types: &MegastructureTypes, def: &MegastructureDef) -> Placement {
+    if let Some(bypass) = def
+        .bypass_type
+        .as_ref()
+        .filter(|kind| !ADDED_BYPASSES.contains(&kind.as_str()))
+    {
+        let why = Unsupported::Bypass {
+            bypass: bypass.clone(),
+        };
+        return Placement::Unsupported { why };
+    }
+    if def.key.starts_with("ring_world") {
+        return Placement::Unsupported {
+            why: Unsupported::RingWorld,
+        };
+    }
+    if def.spawns_starbase {
+        return Placement::Unsupported {
+            why: Unsupported::BecomesStarbase,
+        };
+    }
+    match def.build_type {
+        BuildType::OutsideGravityWell => Placement::Free {
+            outside_gravity_well: true,
+        },
+        BuildType::InsideGravityWell => Placement::Free {
+            outside_gravity_well: false,
+        },
+        BuildType::AroundPlanet => Placement::Body {
+            star_only: first_stage(types, def).planet_possible_star,
+        },
+    }
+}
+
+/// The stage `def`'s chain starts from, following the first of each `upgrade_from`.
+fn first_stage<'t>(
+    types: &'t MegastructureTypes,
+    def: &'t MegastructureDef,
+) -> &'t MegastructureDef {
+    let mut stage = def;
+    let mut seen = vec![def.key.as_str()];
+    while let Some(earlier) = stage.upgrade_from.first().and_then(|key| types.get(key)) {
+        if seen.contains(&earlier.key.as_str()) {
+            break;
+        }
+        seen.push(&earlier.key);
+        stage = earlier;
+    }
+    stage
+}
+
+fn activates_gateway(def: &Def) -> bool {
+    let mut found = Vec::new();
+    if let Some(block) = def.node.find("on_build_complete", &def.src) {
+        script::find_deep(block, "activate_gateway", &def.src, &mut found);
+    }
+    !found.is_empty()
+}
+
+fn planet_possible_star(def: &Def) -> bool {
+    def.node
+        .find("placement_rules", &def.src)
+        .and_then(|rules| rules.find("planet_possible", &def.src))
+        .is_some_and(|block| asks_star(block, &def.src))
+}
+
+/// Whether `block` holds `is_star = yes` outside a `NOT`.
+fn asks_star(block: &Node, src: &[u8]) -> bool {
+    block
+        .children()
+        .iter()
+        .any(|child| match child.key_str(src) {
+            Some("is_star") => child.scalar_str(src) == Some("yes"),
+            Some(key) if key.eq_ignore_ascii_case("not") || key.eq_ignore_ascii_case("nor") => {
+                false
+            }
+            _ => asks_star(child, src),
+        })
 }
 
 fn produces(def: &Def) -> Vec<(String, f64)> {

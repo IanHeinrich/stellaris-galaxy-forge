@@ -6,7 +6,8 @@
 //! id as a tombstone, `<id>=none`. A new entity takes the lowest dead slot one generation
 //! on, written in place of its tombstone, and once none is left the slot past the highest
 //! at generation 0, at the end of the table. Construction queues need no allocator: the
-//! game builds them on load.
+//! game builds them on load. A megastructure only ever takes the slot past the highest: a
+//! dead slot's old id may be named in the save's record of destroyed structures.
 //!
 //! Every rule reads the table as it stands now, so a second add takes nothing the first
 //! one took, and a tombstone a removal wrote, into an appended slot or one the file held,
@@ -247,6 +248,17 @@ impl SlotTable {
         let section = doc.index().section(keys::DEPOSIT).ok_or_else(missing)?;
         let entities = doc.index().entities(keys::DEPOSIT);
         Self::read(doc, EntityKind::Deposit, section.value, entities).ok_or_else(missing)
+    }
+
+    /// The top-level `megastructures` table, which the game does not keep sorted.
+    pub fn megastructures(doc: &Document) -> Result<Self, OpError> {
+        let missing = || OpError::MissingKey(keys::MEGASTRUCTURES);
+        let section = doc
+            .index()
+            .section(keys::MEGASTRUCTURES)
+            .ok_or_else(missing)?;
+        let entities = doc.index().entities(keys::MEGASTRUCTURES);
+        Self::read(doc, EntityKind::Megastructure, section.value, entities).ok_or_else(missing)
     }
 
     /// The top-level `ambient_object` table.

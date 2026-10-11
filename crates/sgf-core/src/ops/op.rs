@@ -753,6 +753,46 @@ pub enum Op {
     RemoveDigSite {
         site: u32,
     },
+    /// A new `megastructures` row of type `kind` in save system `system`, written finished:
+    /// at the slot past the highest the table has used, at generation 0, with no
+    /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
+    /// owner lists it in `owned_megastructures`. A row on a [`MegastructurePlace::Body`]
+    /// stands at the body's point and names it, and the body gets `megastructure=<id>`;
+    /// with `ruined_orbital_ring` it also gets the planet flag `ruined_orbital_ring_planet`
+    /// dated day one. The system lists the row in `megastructures`. With `bypass`, a
+    /// `bypasses` row owned by the new row is written past the highest, connected both ways
+    /// to the relays of the systems a lane joins to `system` or to every other gateway, and
+    /// the system lists it in `bypasses`; the game fills in its lock fields on load. The
+    /// game's build effects do not run. An unknown country, a body outside the system, a
+    /// body that has a megastructure, a ruin flag on a free point, a bypass other than a
+    /// gateway or a relay, a second bypass of that kind in the system, a type that is not an
+    /// identifier, a point that is not finite and a save before Stellaris 4.0 are refused.
+    /// The inverse is [`Op::RemoveMegastructure`]. Save documents only.
+    AddMegastructure {
+        system: u32,
+        kind: String,
+        at: MegastructurePlace,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        owner: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        bypass: Option<NewBypass>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[ts(optional, as = "Option<bool>")]
+        ruined_orbital_ring: bool,
+    },
+    /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
+    /// taken out again: it gives its slot back as an added body does, and its id leaves the
+    /// system's `megastructures`, the owner's `owned_megastructures` and the body's
+    /// `megastructure`, each list going with its last id. The body loses the ruin flag, and
+    /// the `flags` block goes with it when nothing else is left. The row's bypass is
+    /// erased, and its id leaves the system's `bypasses` and every other bypass's
+    /// `connections` and `active_connections`. A row the file held is refused. The inverse
+    /// adds it back as it stood. Stellaris 4.x save documents only.
+    RemoveMegastructure {
+        megastructure: u32,
+    },
     /// Each save system's `coordinate.visual_height`, how far above or below the galactic
     /// plane the map draws its star; `None` takes the key out. A system without one, as
     /// 3.x saves write them, gets it last in its `coordinate` block. A height that would be
@@ -860,7 +900,11 @@ impl Op {
                 .inverse_only(),
             Self::AddWormholePair { .. }
             | Self::RemoveWormholePair { .. }
-            | Self::MoveBodyToSystem { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            | Self::MoveBodyToSystem { .. }
+            | Self::AddMegastructure { .. }
+            | Self::RemoveMegastructure { .. } => {
+                OpReach::of(SAVE).details(Rebuild).whole_entries()
+            }
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
             // to set, and it has neither a scenario header nor a generator to prevent a lane
             // from. It adds and names a system through the save ops, which write the bodies a
@@ -1224,6 +1268,26 @@ impl NewName {
 pub struct PairPoints {
     pub a: (f64, f64),
     pub b: (f64, f64),
+}
+
+/// Where [`Op::AddMegastructure`] puts its row.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(tag = "place", rename_all = "snake_case")]
+pub enum MegastructurePlace {
+    /// On or around a body of the system, at the body's point.
+    Body { body: u32 },
+    /// The row's own point about the star, as the row stores it.
+    Free { x: f64, y: f64 },
+}
+
+/// The `bypasses` row [`Op::AddMegastructure`] writes for its row: its `common/bypass`
+/// type, `gateway` or `relay_bypass`, and whether it is open.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewBypass {
+    pub kind: String,
+    pub active: bool,
 }
 
 /// The map border and fill in [`Op::SetEmpireMapColors`], each a colour name from

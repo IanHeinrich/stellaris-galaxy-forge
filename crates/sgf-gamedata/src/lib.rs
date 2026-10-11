@@ -56,7 +56,8 @@ use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
 use registries::{
-    colors, flags, gfx, planet_lists, registry, section_templates, star_names, starbase_levels,
+    colors, flags, gfx, megastructures, planet_lists, registry, section_templates, star_names,
+    starbase_levels,
 };
 use sgf_core::ops::SystemRadii;
 
@@ -359,7 +360,8 @@ impl GameData {
             &vars,
             &mut diagnostics,
         );
-        let megastructures = registry::load(&layout, &vars, &mut diagnostics);
+        let megastructures =
+            megastructures::placed(registry::load(&layout, &vars, &mut diagnostics));
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);

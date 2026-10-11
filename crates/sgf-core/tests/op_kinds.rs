@@ -354,6 +354,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             modifiers: false,
             anomalies: false,
             dig_sites: false,
+            add_megastructures: false,
             ..four
         }
     );
