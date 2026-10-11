@@ -283,6 +283,51 @@ YAML**.
   in slots `"1"` to `"6"`. The editor takes the template latest in load
   order when several fit, as a mod's override would win. Which one the
   game takes hasn't been checked in game.
+- Which faces of a mesh the game draws and how it blends them is set by
+  its shader's `Effect` in `gfx/FX/pdxmesh.shader`. A mod that ships its
+  own `pdxmesh.shader` replaces the game's. Back faces are culled unless
+  the effect names `RasterizerStateNoCulling`, as `PdxMeshPlanetRings`
+  and `PdxMeshExtraDimensionalShip` do, and Gigastructures'
+  `OmniMeshED`, `OmniMeshEDSphere` and
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`. The line in
+  `PdxMeshTerraConstruction` is commented out, so it culls. No `.asset`
+  or `.gfx` key makes a mesh double-sided.
+- A mesh's triangles are wound counter-clockwise about its vertex
+  normals, so that is the front face. Of 1215 megastructure and starbase
+  meshes in 4.5 and Gigastructures 3.40, 13 have more than one triangle
+  in twenty wound the other way. The editor reverses the test for a part
+  placed with a negative scale. I haven't checked whether the game does.
+- `AlphaBlend_00`, `AlphaBlendNoDepth`, `PdxMeshTerraAlphaBlend`,
+  `PdxMeshShipDiffuseEmissiveAlpha`, `PdxMeshPlanetRings` and the clouds
+  shaders blend at the diffuse map's alpha. So does Gigastructures'
+  `PdxMeshAlphaBlendPlanetNoEmissiveMult`, whose blend state also tests
+  alpha. `PdxMeshAlphaBlend` does not blend, whatever its name says: it
+  defines `ALPHA_TEST`, draws only where the diffuse alpha is 1 and is
+  opaque there. Gigastructures' `OmniMeshMegaAlpha` adds its colour onto
+  what is behind it.
+- `PdxMeshExtraDimensionalShip` blends too, and Gigastructures'
+  `OmniMeshED` and `OmniMeshEDSphere` add. Their pixel shaders build the
+  colour in ways the editor doesn't draw yet, so it draws them opaque
+  with both faces, as before. `PixelPdxMeshExtraDimensionalShip` reads no
+  specular map. It adds the diffuse map twice, unlit, on the faces towards
+  the camera, and only a faint rim on the others. `PixelOmniMeshED`
+  builds its colour from a rim light and the specular red, both in the
+  owner's colour.
+- The ship pixel shader tints what the specular map's red marks in the
+  owner's colour, and the see-through shaders that run it do too:
+  `AlphaBlend_00`, `AlphaBlendNoDepth` and
+  `PdxMeshShipDiffuseEmissiveAlpha`. `PixelPdxMeshStandard` does that
+  only with `ADD_COLOR`, which none of the see-through shaders that run it
+  define. The glass of Gigastructures' Yggdrasil Orchid is
+  `AlphaBlendNoDepth` over a neutral grey diffuse whose specular red is
+  255, so it shows in its owner's colour at 92% alpha. Its `.asset` and
+  `.gfx` set no tint.
+- Gigastructures' Macroengineering Testing Station (stages 3 and 4)
+  attaches the game's shattered planet mesh as a hologram. The mesh's
+  inner sphere is an opaque orange `PdxMeshAlphaBlend` with its faces
+  outwards. The idle animation `hologram_explode.anim` keeps that sphere
+  at scale 0 and the whole hologram at 0.06. The editor draws the bind
+  pose, so the sphere shows as an orange ball over the station.
 - Waystations draw the starport, starhold and starfortress sections.
   Marauder, caravaneer, swarm, AI and voidworm nest levels draw
   `empty_section_entity`. In 4.5 no template fits `starbase_fe_outpost`,
@@ -810,6 +855,47 @@ spawns: 0, 64, 672 and 774. The materialist empire holds `fallen_1`
 `fallen_2` (521) and six spawned systems, and also three plain systems
 (63, 641 and 721) that no initializer gives it. The holy worlds
 (`fallen_holy_01` to `04`) build nothing for it and are unowned.
+
+A scenario system's megastructures and starbase are placed from its
+initializer too. A `spawn_megastructure` with `orbit_angle` and
+`orbit_distance` stands at that distance and at the written angle plus
+180°, the same start the bodies' walk uses. The L-Gate written at 225°
+stands at 45° in the 4.4 sample, and the fallen machine empire's ring
+quadrant written at −90° stands at 90°. A ranged distance or angle is
+placed at its midpoint. Every ring quadrant written at 45 stands at
+45.20385 in the saves, in four systems. I can't explain the extra 0.2, and
+the editor places it at 45. A spawn with no position stands at the
+centre.
+
+`planet = star` ties a structure to the system's star, and `planet =
+event_target:X` to the body whose block saves `X`, the last copy when the
+block spawns several. A tied row stands on its body in the save.
+`coords_from` puts it at a body's point without tying it. A spawn written
+in a body's block, through `solar_system = { … }`, is spawned once per
+copy of that block, and `planet = prev` there names the body. A target
+the initializer doesn't save, such as one an event saves, leaves the
+structure with no point.
+
+`random_pos = yes` leaves the point to the game. Five vanilla spawns use
+it: a ruined gateway, a ruined Ness gateway, two derelict gateways and a
+ruined Hyper Relay. The ruined gateways in the 4.4 sample stand at 1.18 to 1.30 × the system's
+`inner_radius`, at any angle. The editor shows a stand-in at 1.24 ×
+`inner_radius`, and a relay at 1.05 ×, where every built relay stands.
+
+The main starbase stands at (a, −a), with a = 11.7 + 0.33 × the star's
+size. 509 of the 558 starbases in the saves checked fit this. A fallen
+empire's citadel comes from `create_fe_citadel = yes`, a scripted effect
+with no parameters whose body is one `create_starbase`. The editor reads
+the spawns and starbases of such an effect when an initializer's own
+effects call it, one level deep. Effects that take parameters are not
+read.
+
+A spawn or starbase with an `owner = event_target:X` belongs to the
+territory that token makes. One with no owner belongs to the territory
+the system joins. Fallen empire ring quadrants name no owner, and the
+saves show them owned by the fallen empire. A fallen empire's systems
+join its territory (see Fallen empires in a scenario), so their
+quadrants and citadels take the fallen empire as owner.
 
 ## References (for edge cases, never for bundling)
 

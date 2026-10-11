@@ -1,6 +1,7 @@
 //! A model drawn on the CPU as the system view's camera sees it: a depth buffer, the diffuse
 //! map, the normal map with its emissive channel, the empire-colour mask and one fixed light,
-//! supersampled and cropped to the model.
+//! supersampled and cropped to the model. Faces wound away from the camera are culled, and
+//! see-through surfaces are blended over the rest, farthest first.
 
 use image::{Rgba, RgbaImage};
 
@@ -18,6 +19,28 @@ const SS: usize = 3;
 const MARGIN: f32 = 0.01;
 /// A stand-in empire colour for what the ship shader recolours.
 const EMPIRE: [f32; 3] = [0.25, 0.55, 1.0];
+/// The least diffuse alpha an alpha-tested surface is drawn at: the game clips below 1, and
+/// this leaves room for the rounding of bilinear sampling.
+const WHOLE_ALPHA: f32 = 1.0 - 0.5 / 255.0;
+
+/// How a surface's colour meets what is already drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Blend {
+    Opaque,
+    /// Drawn opaque where its diffuse alpha is whole, and not at all elsewhere.
+    AlphaTested,
+    /// Blended at its diffuse alpha over the opaque surfaces, writing no depth.
+    Alpha,
+    /// Added at its diffuse alpha onto what is behind it, as [`Blend::Alpha`] otherwise.
+    Added,
+}
+
+impl Blend {
+    /// Drawn after the opaque surfaces, farthest first.
+    fn see_through(self) -> bool {
+        matches!(self, Self::Alpha | Self::Added)
+    }
+}
 
 /// A texture as floats, for bilinear sampling with wrapping.
 pub(super) struct Map {
@@ -74,6 +97,13 @@ pub(super) struct Surface<'a> {
     pub(super) specular: Option<&'a Map>,
     /// Drawn into the depth buffer only, leaving the sprite clear where it is in front.
     pub(super) depth_only: bool,
+    pub(super) blend: Blend,
+    /// Both faces of each triangle are drawn, not only those wound towards its normals.
+    pub(super) double_sided: bool,
+    /// Its part's transform reverses the winding of its triangles.
+    pub(super) mirrored: bool,
+    /// The specular map's red marks what takes the empire colour.
+    pub(super) empire_mask: bool,
 }
 
 struct Camera {
@@ -133,27 +163,44 @@ pub(super) fn render(surfaces: &[Surface<'_>]) -> Option<(RgbaImage, ModelPlacem
         depth: vec![f32::MAX; w * h],
         colour: vec![[0.0; 4]; w * h],
     };
-    for surface in surfaces {
-        let projected: Vec<Vec3> = surface
-            .positions
-            .iter()
-            .map(|p| {
-                let s = camera.screen(*p);
-                [
-                    (s[0] - lo[0]) * scale,
-                    (hi[1] - s[1]) * scale,
-                    dot(*p, camera.forward),
-                ]
-            })
-            .collect();
+    let projected: Vec<Vec<Vec3>> = surfaces
+        .iter()
+        .map(|surface| {
+            surface
+                .positions
+                .iter()
+                .map(|p| {
+                    let s = camera.screen(*p);
+                    [
+                        (s[0] - lo[0]) * scale,
+                        (hi[1] - s[1]) * scale,
+                        dot(*p, camera.forward),
+                    ]
+                })
+                .collect()
+        })
+        .collect();
+    let mut see_through = Vec::new();
+    for (s, surface) in surfaces.iter().enumerate() {
         for triangle in surface.triangles {
-            let [a, b, c] = triangle.map(|i| i as usize);
-            if let (Some(&pa), Some(&pb), Some(&pc)) =
-                (projected.get(a), projected.get(b), projected.get(c))
-            {
-                frame.fill(&camera, surface, [a, b, c], [pa, pb, pc]);
+            let ids = triangle.map(|i| i as usize);
+            let Some(points) = corners(&projected[s], ids) else {
+                continue;
+            };
+            if !surface.double_sided && faces_away(&camera, surface, ids, surface.mirrored) {
+                continue;
+            }
+            if surface.blend.see_through() {
+                let depth = points.iter().map(|p| p[2]).sum::<f32>();
+                see_through.push((depth, s, ids, points));
+            } else {
+                frame.fill(&camera, surface, ids, points);
             }
         }
+    }
+    see_through.sort_by(|a, b| b.0.total_cmp(&a.0));
+    for (_, s, ids, points) in see_through {
+        frame.fill(&camera, &surfaces[s], ids, points);
     }
     let placement = ModelPlacement {
         width: f64::from(w as f32 / scale / WORLD_PER_SAVE),
@@ -162,6 +209,25 @@ pub(super) fn render(surfaces: &[Surface<'_>]) -> Option<(RgbaImage, ModelPlacem
         anchor_y: f64::from(hi[1] * scale / h as f32),
     };
     Some((frame.downsample(), placement))
+}
+
+/// The projected corners of triangle `ids`, when it has all three.
+fn corners(projected: &[Vec3], [a, b, c]: [usize; 3]) -> Option<[Vec3; 3]> {
+    Some([*projected.get(a)?, *projected.get(b)?, *projected.get(c)?])
+}
+
+/// Whether triangle `ids` is wound away from the camera. A mesh's triangles are wound
+/// counter-clockwise about their vertex normals, so that is the face the game draws; a
+/// `mirrored` part winds them clockwise.
+fn faces_away(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], mirrored: bool) -> bool {
+    let [a, b, c] = ids.map(|i| surface.positions[i]);
+    let edge = |p: Vec3| std::array::from_fn(|k| p[k] - a[k]);
+    let towards = dot(cross(edge(b), edge(c)), camera.forward);
+    if mirrored {
+        towards <= 0.0
+    } else {
+        towards >= 0.0
+    }
 }
 
 struct Frame {
@@ -201,12 +267,27 @@ impl Frame {
                 if z >= self.depth[i] {
                     continue;
                 }
+                if surface.depth_only {
+                    self.depth[i] = z;
+                    self.colour[i] = [0.0; 4];
+                    continue;
+                }
+                let [r, g, b, alpha] = shade(camera, surface, ids, [w0, w1, w2]);
+                match surface.blend {
+                    Blend::Opaque => {}
+                    Blend::AlphaTested if alpha >= WHOLE_ALPHA => {}
+                    Blend::AlphaTested => continue,
+                    Blend::Alpha => {
+                        self.colour[i] = over([r, g, b], alpha, self.colour[i]);
+                        continue;
+                    }
+                    Blend::Added => {
+                        self.colour[i] = added([r, g, b], alpha, self.colour[i]);
+                        continue;
+                    }
+                }
                 self.depth[i] = z;
-                self.colour[i] = if surface.depth_only {
-                    [0.0; 4]
-                } else {
-                    shade(camera, surface, ids, [w0, w1, w2])
-                };
+                self.colour[i] = [r, g, b, 1.0];
             }
         }
     }
@@ -237,8 +318,33 @@ impl Frame {
     }
 }
 
-/// The colour of a surface at barycentric `weights` of triangle `ids`: two-sided, its normal
-/// bent by the normal map, its emissive parts and empire mask in the stand-in empire colour.
+/// `colour` at `alpha` laid over `below`, each a colour and its coverage.
+fn over(colour: Vec3, alpha: f32, below: [f32; 4]) -> [f32; 4] {
+    let alpha = alpha.clamp(0.0, 1.0);
+    let kept = below[3] * (1.0 - alpha);
+    let total = alpha + kept;
+    if total <= 0.0 {
+        return [0.0; 4];
+    }
+    let [r, g, b] = std::array::from_fn(|k| (colour[k] * alpha + below[k] * kept) / total);
+    [r, g, b, total]
+}
+
+/// `colour` at `alpha` added onto `below`. Over nothing, the light added is its own coverage.
+fn added(colour: Vec3, alpha: f32, below: [f32; 4]) -> [f32; 4] {
+    let light: Vec3 = colour.map(|c| (c * alpha.clamp(0.0, 1.0)).max(0.0));
+    let sum: Vec3 = std::array::from_fn(|k| below[k] * below[3] + light[k]);
+    let total = sum.iter().fold(below[3], |a, &c| a.max(c)).min(1.0);
+    if total <= 0.0 {
+        return [0.0; 4];
+    }
+    let [r, g, b] = sum.map(|c| (c / total).min(1.0));
+    [r, g, b, total]
+}
+
+/// The colour of a surface at barycentric `weights` of triangle `ids` and its diffuse alpha:
+/// its normal turned to the camera and bent by the normal map, its emissive parts and its
+/// empire mask, when it reads one, in the stand-in empire colour.
 fn shade(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], weights: [f32; 3]) -> [f32; 4] {
     let mix3 = |src: &[Vec3]| -> Option<Vec3> {
         let [a, b, c] = ids.map(|i| src.get(i));
@@ -277,7 +383,10 @@ fn shade(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], weights: [f32;
     let peak = base[0].max(base[1]).max(base[2]);
     let diffuse: Vec3 =
         std::array::from_fn(|k| base[k] * (1.0 - emissive) + peak * EMPIRE[k] * emissive);
-    let mask = surface.specular.map_or(0.0, |m| m.sample(uv)[0]);
+    let mask = match surface.specular {
+        Some(map) if surface.empire_mask => map.sample(uv)[0],
+        _ => 0.0,
+    };
     let albedo: Vec3 =
         std::array::from_fn(|k| diffuse[k] * (1.0 - mask) + diffuse[k] * EMPIRE[k] * mask);
     let lit = 0.3 + 0.9 * dot(n, camera.light).max(0.0);
@@ -285,6 +394,6 @@ fn shade(camera: &Camera, surface: &Surface<'_>, ids: [usize; 3], weights: [f32;
         albedo[0] * lit * (1.0 - emissive) + diffuse[0] * emissive,
         albedo[1] * lit * (1.0 - emissive) + diffuse[1] * emissive,
         albedo[2] * lit * (1.0 - emissive) + diffuse[2] * emissive,
-        1.0,
+        base[3],
     ]
 }

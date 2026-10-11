@@ -14,27 +14,13 @@ use sgf_core::cst::{self, Node};
 use crate::initializers::Initializers;
 use crate::scripts::index::ScriptIndex;
 use crate::scripts::scope::{
-    SAVES_TARGET, country_flag, is_call, is_country_scope, is_guard, keeps_scope,
+    SAVES_TARGET, country_flag, describes_system, is_call, is_country_scope, is_guard,
 };
 use crate::scripts::view::ScriptRef;
 
 /// How far `neighbor_system` / `spawn_system` chains are followed.
 const SPAWN_DEPTH: usize = 4;
 const SPAWN_LIMIT: usize = 64;
-
-/// Bodies that still describe this system, the branches every script walk
-/// keeps aside. Anything else (a country, a fleet, an ambient object,
-/// another system) is a scope of its own, and a target saved there names
-/// that, not the system the walk started in.
-const SYSTEM_BODIES: [&str; 7] = [
-    "planet",
-    "moon",
-    "star",
-    "solar_system",
-    "random_system_planet",
-    "every_system_planet",
-    "any_system_planet",
-];
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Chain {
@@ -143,14 +129,10 @@ struct Scope<'a> {
 impl Scope<'_> {
     fn descend(self, key: &str) -> Self {
         Self {
-            in_system: self.in_system && keeps_system_scope(key),
+            in_system: self.in_system && describes_system(key),
             ..self
         }
     }
-}
-
-fn keeps_system_scope(key: &str) -> bool {
-    SYSTEM_BODIES.contains(&key) || keeps_scope(key)
 }
 
 struct Walk<'a> {

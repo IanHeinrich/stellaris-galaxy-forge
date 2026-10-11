@@ -170,6 +170,13 @@ impl Affine {
         }
     }
 
+    /// Whether it turns space inside out, as a negative scale does, which reverses the winding
+    /// of each triangle it places.
+    pub(super) fn mirrors(&self) -> bool {
+        let [a, b, c] = self.columns;
+        dot(a, cross(b, c)) < 0.0
+    }
+
     /// Its bits, for a cache name: two transforms that differ bake differently.
     pub(super) fn bits(&self) -> [u32; 12] {
         let mut bits = [0; 12];
