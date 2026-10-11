@@ -162,8 +162,13 @@ describe("a megastructure", () => {
       { ref: { kind: "megastructure", id: MEGASTRUCTURE.id }, label: "Ring World" },
       "source",
     );
-    expect(html).toContain('<mark class="ins-changed" title="changed by an edit">');
-    expect(html).toContain("coordinate={ x=1 y=2 }");
+    expect(html).toContain(
+      '<span class="snippet-line changed" title="changed by an edit">	<span class="snippet-key snippet-changed">coordinate</span>',
+    );
+    expect(html).toContain(
+      '<span class="snippet-line"><span class="snippet-key">megastructure</span>',
+    );
+    expect(html).toContain("Marked lines were changed by an edit.");
     expect(html).toContain("Showing the first mebibyte");
   });
 });

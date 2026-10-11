@@ -23,6 +23,14 @@
   --init: #9d8cf2;
   --init-dim: #4b4189;
   --init-bg: rgba(157, 140, 242, 0.13);
+  /* Script colours, as CWTools shows them under VS Code's default dark theme. */
+  --script-key: #9cdcfe;
+  --script-keyword: #569cd6;
+  --script-number: #b5cea8;
+  --script-string: #ce9178;
+  --script-comment: #6a9955;
+  --script-text: #d4d4d4;
+  --link: #7fb3ff;
   /* Issue severities, matching the rings the map draws (`map/layers/IssuesLayer.ts`). */
   --sev-info: #60a5fa;
   --sev-warning: #f59e0b;

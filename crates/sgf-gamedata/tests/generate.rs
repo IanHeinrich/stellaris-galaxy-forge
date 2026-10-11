@@ -34,9 +34,17 @@ fn a_hand_written_install_gives_its_ranges_lists_and_class_fields() {
             max: 270.0
         })
     );
-    assert_eq!(planet.change_orbit, 40.0, "both statements before it");
-    assert_eq!(init.planets[0].change_orbit, 0.0);
-    assert_eq!(planet.moons[0].change_orbit, 10.0, "an @variable");
+    assert_eq!(
+        planet.change_orbit,
+        Range::fixed(40.0),
+        "both statements before it"
+    );
+    assert_eq!(init.planets[0].change_orbit, Range::fixed(0.0));
+    assert_eq!(
+        planet.moons[0].change_orbit,
+        Range::fixed(10.0),
+        "an @variable"
+    );
     assert_eq!(planet.moons[0].count, Range { min: 0.0, max: 1.0 });
     let conditional = gd.initializers.get("fx_conditional").unwrap();
     assert_eq!(conditional.usage_odds, None, "a block of conditions");
@@ -311,9 +319,14 @@ fn belt_layouts_are_drawn_with_their_asteroids_on_the_belts() {
     for (seed, spec) in specs(gd).iter().enumerate() {
         *drawn.entry(spec.initializer.clone()).or_default() += 1;
         let init = gd.initializers.get(&spec.initializer).unwrap();
-        let radii: Vec<Option<f64>> = init.asteroid_belts.iter().map(|b| b.radius).collect();
-        let written: Vec<Option<f64>> = spec.belts.iter().map(|b| Some(b.inner_radius)).collect();
-        assert_eq!(written, radii, "seed {seed}: the layout's belts in order");
+        let radii: Vec<Option<Range>> = init.asteroid_belts.iter().map(|b| b.radius).collect();
+        assert_eq!(spec.belts.len(), radii.len(), "seed {seed}");
+        for (belt, radius) in spec.belts.iter().zip(&radii) {
+            assert!(
+                radius.is_some_and(|r| r.contains(belt.inner_radius)),
+                "seed {seed}: the layout's belts in order, each within its radius"
+            );
+        }
         let asteroids: Vec<&BodySpec> = spec.planets.iter().filter(|p| p.asteroid).collect();
         assert_eq!(asteroids.is_empty(), spec.belts.is_empty(), "seed {seed}");
         for belt in &spec.belts {

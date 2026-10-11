@@ -3,13 +3,10 @@
 //! deposit's `deposit` entry. `indent` is the entry's own indentation, copied from the
 //! table it joins; every entry ends with the newline that separates it from what follows.
 
-use super::{Lines, coord, hyperlane_block, lane_entry, quoted};
+use super::{DEFAULT_SYSTEM_HEIGHT, Lines, coord, hyperlane_block, lane_entry, quoted};
 use crate::keys;
 use crate::projections::name::NameTemplate;
 
-/// What a spawned system's coordinate carries besides its position; a new entry copies
-/// the value from a spawned system the game accepted rather than inventing one.
-pub(crate) const SPAWNED_SYSTEM_HEIGHT: f64 = 4.31213;
 /// `carrier_binary_flags` of a star body and of any other body.
 pub(crate) const STAR_CARRIER_FLAGS: u32 = 3;
 const BODY_CARRIER_FLAGS: u32 = 1;
@@ -92,7 +89,7 @@ pub fn system_entry(indent: &[u8], s: &SystemEntry<'_>) -> Vec<u8> {
     w.pair(2, keys::X, &coord(s.x));
     w.pair(2, keys::Y, &coord(s.y));
     w.pair(2, keys::ORIGIN, &crate::NULL_ID.to_string());
-    w.pair(2, keys::VISUAL_HEIGHT, &coord(SPAWNED_SYSTEM_HEIGHT));
+    w.pair(2, keys::VISUAL_HEIGHT, &coord(DEFAULT_SYSTEM_HEIGHT));
     w.close(1);
     w.open(1, keys::NAME);
     w.pair(2, keys::KEY, &quoted(s.name));

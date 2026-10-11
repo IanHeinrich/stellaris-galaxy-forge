@@ -28,6 +28,7 @@ import {
   type ModifierRow,
 } from "../../../lib/details/planetPage";
 import type { Names } from "../../../lib/names";
+import { statedModifierKeys, statedModifierRows } from "../../../lib/details/spawnFacts";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import {
   bodyPickerTarget,
@@ -273,10 +274,14 @@ function summaryDeposits(summary: PlanetSummary) {
   );
 }
 
-/** A body read from its summary alone: its rows list, and nothing can be removed. */
+/**
+ * A body read from its summary alone: its rows list, with the modifiers a scenario's initializer
+ * states, and nothing can be removed.
+ */
 function summaryRows(
   summary: PlanetSummary,
   views: ReadonlyMap<string, DepositTypeView>,
+  modifiers: ReadonlyMap<string, ModifierView>,
 ): BodyRows {
   const { features, blockers } = depositGroups(summaryDeposits(summary), views);
   const held = (group: DepositGroup): HeldDeposit => ({ ...group, removal: null });
@@ -287,7 +292,10 @@ function summaryRows(
       features: features.map(held),
       blockers: blockers.map(held),
     },
-    modifiers: [],
+    modifiers: (summary.spawn === undefined
+      ? []
+      : statedModifierRows(summary.spawn.features, modifiers)
+    ).map((row) => ({ row, ref: row })),
     anomaly: summaryHeld(summary).anomaly,
     digSite: null,
   };
@@ -296,9 +304,12 @@ function summaryRows(
 function summaryDataKeys(summary: PlanetSummary): PlanetDataKeys {
   return {
     deposits: summary.deposit_keys.map((d) => d.key),
-    modifiers: [],
+    modifiers: summary.spawn === undefined ? [] : statedModifierKeys(summary.spawn.features),
     colonyTypes: [],
-    anomalies: summary.anomaly === undefined ? [] : [summary.anomaly],
+    anomalies: [
+      ...(summary.anomaly === undefined ? [] : [summary.anomaly]),
+      ...(summary.spawn?.anomalies.categories ?? []),
+    ],
     digSites: [],
   };
 }
@@ -315,6 +326,7 @@ function summaryHeld(summary: PlanetSummary) {
 
 function useScenarioRead(system: number, id: number, listed: Listed): BodyAnswer {
   const views = usePlanetDataStore((s) => s.depositTypes);
+  const modifiers = usePlanetDataStore((s) => s.modifiers);
   const summary = "waiting" in listed ? undefined : listed.summary;
   const target = useMemo(() => {
     if (summary === undefined) return null;
@@ -322,8 +334,8 @@ function useScenarioRead(system: number, id: number, listed: Listed): BodyAnswer
     return bodyPickerTarget("scenario", system, summary, summaryHeld(summary), edits);
   }, [system, summary, id]);
   const rows = useMemo(
-    () => (summary === undefined ? null : summaryRows(summary, views)),
-    [summary, views],
+    () => (summary === undefined ? null : summaryRows(summary, views, modifiers)),
+    [summary, views, modifiers],
   );
   const dataKeys = useMemo(
     () => (summary === undefined ? null : summaryDataKeys(summary)),

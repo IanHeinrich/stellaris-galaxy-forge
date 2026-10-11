@@ -13,11 +13,17 @@ use sgf_gamedata::install::layers::VANILLA;
 use sgf_gamedata::install::mods::{enabled_mods, installed_mods};
 use sgf_gamedata::{Diagnostic, GameData, LoadOptions, load};
 
+mod key_coverage;
+
+use key_coverage::{Context, Coverage};
+
 const INITIALIZERS: &str = "common/solar_system_initializers";
 const SCRIPTED_VARIABLES: &str = "common/scripted_variables";
 const WORKSHOP_CONTENT: &str = "steamapps/workshop/content/281990";
 const ROLLS: u32 = 3;
 const WITHIN: f64 = 400.0;
+/// Dropped statements the output lists one by one.
+const SHOWN: usize = 30;
 
 struct Source {
     name: String,
@@ -199,8 +205,14 @@ fn file_name(file: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// Resolves every initializer `layer` supplies, and returns what it counted and what failed.
-fn resolve_layer(gd: &GameData, layer: &str, failures: &mut Vec<String>) -> (Tally, usize) {
+/// Resolves every initializer `layer` supplies, checks that its details keep every statement of
+/// the block, and returns what it counted and what failed.
+fn resolve_layer(
+    gd: &GameData,
+    layer: &str,
+    failures: &mut Vec<String>,
+    coverage: &mut Coverage,
+) -> (Tally, usize) {
     let files = gd
         .layout
         .files_in(INITIALIZERS)
@@ -229,6 +241,14 @@ fn resolve_layer(gd: &GameData, layer: &str, failures: &mut Vec<String>) -> (Tal
                 tally.resolved += 1;
                 if !details.planets.is_empty() {
                     tally.with_bodies += 1;
+                }
+                if let Some(def) = gd.initializers.spliced(&init.name) {
+                    let context = Context {
+                        source: layer,
+                        initializer: &init.name,
+                        file: &file_name(&init.source),
+                    };
+                    key_coverage::check(def, &details, &context, coverage);
                 }
             }
             Ok(None) => failures.push(format!(
@@ -276,6 +296,7 @@ fn every_installed_mods_initializers_resolve() {
     sources.extend(installed_sources(&user_dir).into_iter().map(Some));
 
     let mut failures = Vec::new();
+    let mut coverages: Vec<(String, Coverage)> = Vec::new();
     println!(
         "{:<44} {:<12} {:<9} {:>5} {:>7} {:>8} {:>7} {:>6} {:>8}",
         "source",
@@ -308,7 +329,9 @@ fn every_installed_mods_initializers_resolve() {
             }
         };
         let loaded = started.elapsed().as_secs_f64();
-        let (tally, files) = resolve_layer(&gd, layer, &mut failures);
+        let mut coverage = Coverage::default();
+        let (tally, files) = resolve_layer(&gd, layer, &mut failures, &mut coverage);
+        coverages.push((name.to_owned(), coverage));
         println!(
             "{name:<44} {id:<12} {enabled:<9} {files:>5} {:>7} {:>8} {:>7} {loaded:>6.1} {:>8.1}",
             tally.initializers,
@@ -318,9 +341,26 @@ fn every_installed_mods_initializers_resolve() {
         );
     }
 
+    println!();
+    println!("statements the details keep, raw keys by count");
+    let mut total = Coverage::default();
+    for (name, coverage) in coverages {
+        coverage.print_raw_keys(&name);
+        total.merge(coverage);
+    }
+    total.print_raw_keys("all sources");
+
+    failures.append(&mut total.problems);
+    println!();
+    total.print_dropped(SHOWN);
     println!("{} failures", failures.len());
     for failure in &failures {
         println!("{failure}");
     }
-    assert!(failures.is_empty(), "{} failures", failures.len());
+    assert!(
+        failures.is_empty() && total.dropped.is_empty(),
+        "{} failures, {} dropped statements",
+        failures.len(),
+        total.dropped.len()
+    );
 }

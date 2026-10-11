@@ -6,8 +6,8 @@ use crate::common;
 
 use sgf_core::format::save::details::{
     AmbientObject, AnomalyPrevention, ClassPool, CountRange, DepositReplacement, DepositStep,
-    ListMember, PlanetSummary, SpawnClass, SpawnStar, SystemDetails, UnknownClass, UsageOdds,
-    VariableUse,
+    ListMember, PlanetSummary, SpawnClass, SpawnRing, SpawnStar, SystemDetails, UnknownClass,
+    UsageOdds, VariableUse,
 };
 
 use sgf_gamedata::layouts::{self, Eligibility, Unsupported};
@@ -256,8 +256,10 @@ fn a_scenario_bodys_spawn_says_what_its_block_states() {
                         weight: None,
                     })
                     .to_vec(),
+                at_orbit: None,
             }
-        }
+        },
+        "whether the game holds a list to the orbit is unknown"
     );
     assert_eq!(
         class_of(&details.planets[5]),
@@ -270,9 +272,11 @@ fn a_scenario_bodys_spawn_says_what_its_block_states() {
         class_of(&details.planets[6]),
         &SpawnClass::Rolled {
             pool: ClassPool::Random {
-                draw: "random_asteroid".to_owned()
+                draw: "random_asteroid".to_owned(),
+                at_orbit: Some(Vec::new()),
             }
-        }
+        },
+        "the install's one asteroid class has no spawn_odds"
     );
     assert_eq!(
         class_of(&details.planets[7]),
@@ -598,6 +602,8 @@ fn pinned(key: &str, details: &SystemDetails) {
 /// `@variable`; a void worm system, read through its inline script; ambient objects beside a
 /// megastructure; an empire start with `ideal_planet_class`; and moons of moons. No vanilla
 /// initializer digs a site from the system's own effects, so the fixture above covers that.
+/// Then a system-level `change_orbit` written as a range, a belt whose `radius` is a range
+/// beside a drawn class near the star that no class fits, and a `count` with only a `min`.
 #[test]
 fn the_real_installs_scenario_details_are_pinned() {
     let Some(gd) = INSTALL.as_ref() else {
@@ -611,10 +617,129 @@ fn the_real_installs_scenario_details_are_pinned() {
         "dyson_sphere_init_01",
         "random_empire_init_05",
         "fallen_hive_control_3",
+        "legendary_leader_1st_site",
+        "overlord_system_8_init",
+        "astral_scar_system",
     ] {
         let details = gd
             .initializer_details(1, key, None)
             .unwrap_or_else(|| panic!("{key}'s details"));
         pinned(key, &details);
     }
+}
+
+/// What the game can roll for each body of `details`, one line a body, as the snapshot `key`
+/// under `snapshots/details_spawn`.
+fn rolls(key: &str, details: &SystemDetails) {
+    let spawn = details.spawn.as_ref().expect("a scenario system's spawn");
+    let mut out = format!(
+        "inner_radius {}\nbelt_radii {}\nresources {}\n",
+        serde_json::to_string(&spawn.inner_radius).expect("serialises"),
+        serde_json::to_string(&spawn.belt_radii).expect("serialises"),
+        serde_json::to_string(&details.resources).expect("serialises"),
+    );
+    for planet in &details.planets {
+        let spawn = planet.spawn.as_ref().expect("a body's spawn");
+        let line = serde_json::json!({
+            "class": planet.class,
+            "always": spawn.always,
+            "pool": spawn.class,
+            "orbit_fit": spawn.orbit_fit,
+            "ring": spawn.ring,
+            "deposits": spawn.deposits,
+            "rolled_deposits": spawn.rolled_deposits,
+            "rolled_features": spawn.rolled_features,
+            "naming": spawn.naming,
+        });
+        out.push_str(&line.to_string());
+        out.push('\n');
+    }
+    insta::with_settings!({snapshot_path => "snapshots/details_spawn", prepend_module_to_snapshot => false}, {
+        insta::assert_snapshot!(format!("rolls_{key}"), out);
+    });
+}
+
+/// What the game rolls beside what an initializer states, on vanilla initializers that show
+/// each roll: a drawn class near the star that no class fits, and a ranged belt; deposits
+/// both stated and rolled; a fixed class that rolls a ring; an unnamed system's bodies, with
+/// numerals that depend on ranged counts; a planet list drawn at its orbit.
+#[test]
+fn the_real_installs_rolls_are_pinned() {
+    let Some(gd) = INSTALL.as_ref() else {
+        return;
+    };
+    for key in [
+        "overlord_system_8_init",
+        "high_energy_system",
+        "ai_system_04",
+        "basic_init_01",
+        "guardians_init_fortress",
+    ] {
+        let details = gd
+            .initializer_details(1, key, None)
+            .unwrap_or_else(|| panic!("{key}'s details"));
+        rolls(key, &details);
+    }
+}
+
+/// Values the reader cannot read in their shape are kept as written, and `orbit_angle =
+/// random` is any angle.
+#[test]
+fn a_value_the_reader_cannot_read_is_kept_as_written() {
+    let (_dir, gd) = common::hand_written(&[
+        ("common/star_classes/00_stars.txt", STARS),
+        ("common/planet_classes/00_planets.txt", PLANETS),
+        (
+            "common/solar_system_initializers/00_fx.txt",
+            "fx_odd = {
+	class = sc_sun
+	planet = { class = star orbit_distance = 0 }
+	planet = { class = pc_rock orbit_distance = 30 orbit_angle = random has_ring = No }
+	planet = { class = pc_rock orbit_distance = 30 count = { min = 2 } size = big }
+	asteroid_belt = { type = fx_belt radius = { min = 35 max = 55 } }
+	asteroid_belt = { type = fx_belt radius = far }
+}
+",
+        ),
+    ]);
+    let details = gd.initializer_details(1, "fx_odd", None).expect("fx_odd");
+    let keys = |i: usize| -> Vec<String> {
+        details.planets[i]
+            .spawn
+            .as_ref()
+            .expect("a spawn")
+            .other_keys
+            .iter()
+            .map(|s| s.text.clone())
+            .collect()
+    };
+    assert_eq!(
+        details.planets[1].spawn.as_ref().and_then(|s| s.ring),
+        Some(SpawnRing::Unknown),
+        "a has_ring the reader cannot read"
+    );
+    assert_eq!(
+        keys(1),
+        ["has_ring = No"],
+        "the game's own files write only yes or no"
+    );
+    assert_eq!(
+        details.planets[1]
+            .layout
+            .as_ref()
+            .and_then(|l| l.angle_step),
+        Some(common::range(0.0, 360.0))
+    );
+    assert_eq!(keys(2), ["size = big"]);
+    assert_eq!(
+        details.planets.len(),
+        4,
+        "a count with only a min spawns that many"
+    );
+    let spawn = details.spawn.as_ref().expect("a spawn");
+    assert_eq!(spawn.belt_radii, Some(vec![common::range(35.0, 55.0)]));
+    assert_eq!(details.belts.len(), 1);
+    assert_eq!(details.belts[0].inner_radius, 45.0, "the range's midpoint");
+    let other: Vec<&str> = spawn.other_keys.iter().map(|s| s.text.as_str()).collect();
+    assert_eq!(other, ["asteroid_belt = { type = fx_belt radius = far }"]);
 }

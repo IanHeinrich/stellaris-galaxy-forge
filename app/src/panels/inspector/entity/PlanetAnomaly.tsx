@@ -1,4 +1,6 @@
 import type { HeldAnomaly, PickerTarget } from "../../../lib/details/picker";
+import type { StatedAnomalies } from "../../../generated/StatedAnomalies";
+import { anomalyLine, bodyNoun, placedAnomaly } from "../../../lib/details/spawnFacts";
 import { templateName } from "../../../lib/names";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -68,11 +70,47 @@ function AnomalyRowView({ anomaly, target }: { anomaly: HeldAnomaly; target: Pic
   );
 }
 
+/** An anomaly a scenario body's initializer places, by its category's name, with no remove button. */
+function PlacedAnomalyRow({ category, noun }: { category: string; noun: string }) {
+  const named = useNamed([category]);
+  const description = usePlanetDataStore((s) => s.anomalies.get(category)?.description ?? null);
+  return (
+    <PickedRow
+      art={<Icon keys={[]} glyph="?" />}
+      name={named(category)}
+      lines={[
+        { className: "l2", text: placedAnomaly(noun) },
+        ...(description === null
+          ? []
+          : [{ className: "pl-anomaly-desc" as const, text: description }]),
+      ]}
+      remove={null}
+    />
+  );
+}
+
+/** What a scenario body's initializer says of its anomalies: the ones it places, or whether one can appear. */
+function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies; noun: string }) {
+  const line = anomalyLine(anomalies, noun);
+  return (
+    <Section id="planet.anomaly" title="Anomaly">
+      {anomalies.categories.map((category, i) => (
+        <PlacedAnomalyRow key={`${category}-${i}`} category={category} noun={noun} />
+      ))}
+      {line !== null && <div className="muted ins-hint">{line}</div>}
+    </Section>
+  );
+}
+
 /**
  * The body's anomaly, with its remove button, or the picker that adds one; where the page offers
- * anomalies.
+ * anomalies. A scenario body shows what its initializer says instead.
  */
 export function PlanetAnomaly({ read, offers }: PlanetSectionProps) {
+  const spawn = read.summary.spawn;
+  if (spawn !== undefined && !offers.anomaly) {
+    return <StatedAnomalySection anomalies={spawn.anomalies} noun={bodyNoun(read.summary)} />;
+  }
   if (!offers.anomaly) return null;
   const { anomaly } = read.rows;
   return (

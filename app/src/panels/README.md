@@ -5,7 +5,9 @@ top bar, its menus, the dock frame, the status bar and the map's tool rail),
 `file/` (the launch and open screens), `initializers/` (the initializer
 browser), `inspector/` (the right-hand pane), `overlays/` (dialogs, the context
 menu, the map tooltip) and `search/` (the palette). A file more than one
-folder uses sits at the root of `panels/`.
+folder uses sits at the root of `panels/`. `ScriptSnippet` there shows every
+piece of script text the app shows: the Initializer sections' groups and the
+Inspector's Source tab.
 
 ## Stylesheets
 
@@ -52,7 +54,7 @@ in a save and in a scenario. A `BodySource` for each kind of document
 (`bodySources.ts`) reads the body and the rows the page lists, and gives
 the page the adapter that edits it. The page then lists its sections in
 order, in the `SECTIONS` table: deposits, modifiers, anomaly, dig site,
-colony, About, moons and delete. Each section takes the same
+colony, About, moons, flags, initializer and delete. Each section takes the same
 `PlanetSectionProps`, and leaves itself out where it has nothing to show.
 `planetOffers` says which edits the page offers. The deposit, modifier, anomaly
 and dig site pickers are each a `PickerKind` (its store, its words and its

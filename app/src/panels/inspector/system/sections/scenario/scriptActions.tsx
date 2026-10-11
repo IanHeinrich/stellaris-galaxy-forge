@@ -1,11 +1,5 @@
-import * as ipc from "../../../../../api/ipc";
 import { fileName } from "../../../../../lib/paths";
-import { useFileSessionStore } from "../../../../../store/fileSessionStore";
-
-/** A file the install no longer holds, or that the shell refuses, says so where every other failure does. */
-function report(action: Promise<unknown>): void {
-  void action.catch((e) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
-}
+import { openGameFile } from "../../../../openGameFile";
 
 /**
  * The two ways out to a game-data file; a row whose script is not a file of its own has neither.
@@ -24,7 +18,7 @@ export function ScriptActions({ file }: { file: string | null }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          report(ipc.openScript(file, false));
+          openGameFile(file, false);
         }}
       >
         ↗
@@ -37,7 +31,7 @@ export function ScriptActions({ file }: { file: string | null }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          report(ipc.openScript(file, true));
+          openGameFile(file, true);
         }}
       >
         ▤

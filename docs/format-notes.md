@@ -159,14 +159,16 @@ for planets or deposits.
 - A system's height above the galactic plane is `visual_height`, the
   last key of its `coordinate`. Galaxy generation writes `3.65056` on
   every system, and systems spawned later by script have `4.31213` (one
-  in the 4.5 sample has `5.11847`). 3.x saves leave the key out of most
-  systems: the 3.4 sample has none. The game draws the value. A star
-  set to 150 or 1000 rises above the plane, its lanes run to it in 3D,
-  its name and icons move with it, and a line drops from it to a small
-  hexagon on the plane. Negative values sink the star. Edited values
-  survive an in-game save and a month of play unchanged (4.5.1). An
-  exact `visual_height=0` does not: the game replaced it on load with
-  `-4.57298`, so 0 reads as unset and an edit writes `0.00001` instead.
+  in the 4.5 sample has `5.11847`). The editor writes `3.65056` on a
+  system it adds, so it sits with the generated ones. 3.x saves leave
+  the key out of most systems: the 3.4 sample has none. The game draws
+  the value. A star set to 150 or 1000 rises above the plane, its lanes
+  run to it in 3D, its name and icons move with it, and a line drops
+  from it to a small hexagon on the plane. Negative values sink the
+  star. Edited values survive an in-game save and a month of play
+  unchanged (4.5.1). An exact `visual_height=0` does not: the game
+  replaced it on load with `-4.57298`, so 0 reads as unset and an edit
+  writes `0.00001` instead.
 - The galaxy map draws `visual_height` at half scale: a star with 100
   stands 50 units above the plane, in the units of `x` and `y`. The
   plane hexagons sit at height 0. The camera starts 33° from straight

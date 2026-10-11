@@ -13,6 +13,7 @@ import {
   planetSummary,
   systemDetails,
 } from "../../test/builders";
+import { bodySpawn } from "../../test/spawn";
 import { systemRoll } from "../../test/rolls";
 import { systemContext } from "./context";
 import { body, save, scenario, scenarioSun, sources, sun } from "./contextFixture";
@@ -40,6 +41,23 @@ describe("what a scenario leaves to chance", () => {
     const [, drawnClass, known] = scenario(planets, rollOf(planets)).bodies;
     expect([drawnClass.ring, drawnClass.chance.ring]).toEqual([false, false]);
     expect([known.ring, known.chance.ring]).toEqual([true, true]);
+  });
+});
+
+describe("what a scenario may not place", () => {
+  it("marks a body the core says may not spawn, and leaves a save's bodies and the rest unmarked", () => {
+    const planets = [
+      scenarioSun,
+      body(
+        2,
+        "pc_barren",
+        { orbit: fixed(60) },
+        { spawn: bodySpawn({ always: false, copy: 3, count: { min: 2, max: 4 } }) },
+      ),
+      body(3, "pc_barren", { orbit: fixed(90) }, { spawn: bodySpawn() }),
+    ];
+    const ctx = scenario(planets, rollOf(planets));
+    expect(ctx.bodies.map((b) => b.chance.mayNotSpawn)).toEqual([false, true, false]);
   });
 });
 

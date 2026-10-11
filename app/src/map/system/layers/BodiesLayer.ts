@@ -11,6 +11,7 @@ import {
   type SceneBody,
   type SystemContext,
 } from "../context";
+import { dashedCircle } from "../../layers/dashes";
 import { bodyTier, drawnDisc } from "../geometry";
 import { RING_TILT, ringStrip, sizeRing, type RingParts } from "./ring";
 import { flareParts, STAR_ART, type FlareShape } from "./starLight";
@@ -35,6 +36,15 @@ const LARGE_ICON_PX = 48;
 const CHANCE_RING_ALPHA = 0.4;
 /** A body cut and waiting for a paste, and each moon that goes with it. */
 const CUT_ALPHA = 0.3;
+/**
+ * The dashed halo round a body the game may not place: its gap past the disc and its width in
+ * screen pixels, its dashes, colour and alpha.
+ */
+const HALO_GAP_PX = 6;
+const HALO_WIDTH_PX = 1;
+const HALO_DASHES = 16;
+const HALO_COLOUR = 0xc7cfdc;
+const HALO_ALPHA = 0.7;
 /**
  * The atmosphere haze: its reach past the limb in disc radii per unit of the class's
  * `atmosphere_width`, never under two pixels, its alpha at the limb per unit of
@@ -101,6 +111,7 @@ interface Drawn {
   shade: Sprite | null;
   rim: Graphics | null;
   glyph: BitmapText | null;
+  halo: Graphics | null;
   /** Whether the disc was last dressed as large on screen. */
   large: boolean;
 }
@@ -118,7 +129,8 @@ function drawnAlike(a: SceneBody, b: SceneBody): boolean {
     a.ring === b.ring &&
     a.moon === b.moon &&
     a.chance.ring === b.chance.ring &&
-    a.chance.planetClass === b.chance.planetClass
+    a.chance.planetClass === b.chance.planetClass &&
+    a.chance.mayNotSpawn === b.chance.mayNotSpawn
   );
 }
 
@@ -135,7 +147,8 @@ function sized(sprite: Sprite, diameter: number): void {
  * behind the disc. A random class shows a question mark in place of the icon, and a ring left to
  * chance is faded. A class with no surface to bake shows its icon unshaded, never wider than
  * `FLAT_BODY_MAX_PX`, in a faint glow of its tint. A shattered class shows its baked shards alone,
- * with no shading over them. A body cut to move elsewhere is dimmed, and so are its moons.
+ * with no shading over them. A body the game may not place has a dashed halo. A body cut to move
+ * elsewhere is dimmed, and so are its moons.
  */
 export class BodiesLayer implements SystemLayer {
   readonly container = new Container();
@@ -302,6 +315,7 @@ export class BodiesLayer implements SystemLayer {
       glyph = new BitmapText({ text: "?", style: GLYPH_STYLE, anchor: 0.5 });
       holder.addChild(glyph);
     }
+    const halo = chance.mayNotSpawn ? graphics("halo") : null;
     this.container.addChild(holder);
     const drawn = {
       body,
@@ -316,6 +330,7 @@ export class BodiesLayer implements SystemLayer {
       shade,
       rim,
       glyph,
+      halo,
       large: false,
     };
     drawn.large = this.isLarge(drawn);
@@ -390,7 +405,7 @@ export class BodiesLayer implements SystemLayer {
         drawn.large = large;
         this.dress(drawn);
       }
-      const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph } = drawn;
+      const { body, glow, flares, glaze, ring, disc, lit, art, shade, rim, glyph, halo } = drawn;
       const d = 2 * drawnDisc(body.placement.disc, this.scale, body.look);
       const artWidth = d * artScale(body);
       if (glow) sized(glow, d * (body.look.flat ? FLAT_GLOW_SCALE : GLOW_SCALE));
@@ -415,7 +430,14 @@ export class BodiesLayer implements SystemLayer {
       if (rim && body.atmosphere) this.drawRim(rim, body.atmosphere, d / 2);
       if (ring) sizeRing(ring, d / 2);
       if (glyph) glyph.scale.set((d * GLYPH_SCALE) / GLYPH_FONT_PX);
+      if (halo) this.drawHalo(halo, d / 2);
     }
+  }
+
+  private drawHalo(halo: Graphics, radius: number): void {
+    halo.clear();
+    dashedCircle(halo, 0, 0, radius + HALO_GAP_PX / this.scale, HALO_DASHES);
+    halo.stroke({ color: HALO_COLOUR, width: HALO_WIDTH_PX / this.scale, alpha: HALO_ALPHA });
   }
 
   /**

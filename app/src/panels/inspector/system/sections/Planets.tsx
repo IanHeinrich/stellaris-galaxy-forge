@@ -1,4 +1,5 @@
-import { useState, type MouseEvent } from "react";
+import { Fragment, useState, type MouseEvent, type ReactNode } from "react";
+import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
 import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
@@ -6,6 +7,23 @@ import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
 import { bodyEditHint } from "../../../../lib/details/planetEdits";
 import { templateName } from "../../../../lib/names";
+import {
+  blockCountTitle,
+  blockNoun,
+  bodyBlocks,
+  drawWords,
+  moonsEach,
+} from "../../../../lib/details/bodyBlocks";
+import {
+  countWords,
+  everyBodyFrom,
+  isAsteroidClass,
+  isRanged,
+  moonsAndAsteroids,
+  PLANETS_FROM_SCRIPT,
+  rangeWords,
+  type PlanetCounts,
+} from "../../../../lib/details/spawnFacts";
 import { useDetailsStore } from "../../../../store/detailsStore";
 import { useCanEdit, useFileSessionStore } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
@@ -14,6 +32,8 @@ import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
+import { Rolled, Unknown } from "../../states";
+import { usePlanetCounter } from "../usePlanetCounter";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
 import {
   depositTitle,
@@ -51,15 +71,60 @@ function openRowMenu(e: MouseEvent, system: number, id: number): void {
   });
 }
 
+/** The count at the right of a block's row, rolled where the game draws it, with its sentence on hover. */
+function BlockCount({
+  count,
+  moon,
+  asteroid,
+}: {
+  count: CountRange;
+  moon: boolean;
+  asteroid: boolean;
+}) {
+  const ranged = isRanged(count);
+  return (
+    <span
+      className={ranged ? "ins-block-count ins-st-rolled" : "ins-block-count"}
+      title={blockCountTitle(count, moon, asteroid)}
+    >
+      {ranged ? rangeWords(count) : `×${count.max}`}
+    </span>
+  );
+}
+
+/** The parts of a row's second line, with a dot between each where `dotted`. */
+function SecondLine({ parts, dotted }: { parts: ReactNode[]; dotted: boolean }) {
+  const shown = parts.filter((part) => part !== null && part !== false);
+  return (
+    <>
+      {shown.map((part, i) => (
+        <Fragment key={i}>
+          {dotted && i > 0 && <span aria-hidden="true">·</span>}
+          {part}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
 export function PlanetRow({
   planet,
   details,
   editHint,
+  count = null,
+  moons = 0,
+  flat = false,
 }: {
   planet: PlanetSummary;
   details: SystemDetails;
   /** Why the row carries the Edit chip, or `null` when its page edits nothing. */
   editHint: string | null;
+  /** How many its block places, where the row stands for a block placed other than once. */
+  count?: CountRange | null;
+  /** On a block of planets, the most moons each of them has. */
+  moons?: number;
+  /** A moon listed on its planet's page: not indented and not labelled a moon. */
+  flat?: boolean;
 }) {
   const icons = useDetailsStore((s) => s.resourceIcons);
   const classes = useGameDataStore((s) => s.planetClasses);
@@ -74,9 +139,47 @@ export function PlanetRow({
   const named = templateName(planet);
   const name = bodyName(planet, names);
   const size = planet.layout?.size ? boundsText(planet.layout.size) : planet.size;
+  const spawn = planet.spawn;
+  const state = spawn?.class.state;
+  const asteroid = isAsteroidClass(planet.class, classes);
+  const plural = count !== null && count.max > 1;
+  const noun = plural
+    ? blockNoun(planet.moon, asteroid)
+    : asteroid
+      ? "asteroid"
+      : planet.moon
+        ? "moon"
+        : "planet";
+  const random = unrolled || (state !== undefined && state !== "fixed");
+  const described = named === "" && (plural || random);
+  const title = !described
+    ? name
+    : random
+      ? `Random ${noun}`
+      : noun.charAt(0).toUpperCase() + noun.slice(1);
+  const shownName: ReactNode =
+    named !== "" || state === undefined || state === "fixed" ? (
+      title
+    ) : state === "rolled" ? (
+      <Rolled>{title}</Rolled>
+    ) : (
+      <Unknown>{title}</Unknown>
+    );
+  const classShown: ReactNode =
+    named === "" && !described ? null : spawn?.class.state === "rolled" ? (
+      <Rolled>{named === "" ? drawWords(spawn.class.pool) : "rolled class"}</Rolled>
+    ) : state === "unknown" ? (
+      <Unknown>class picked at game start</Unknown>
+    ) : described && unrolled ? (
+      "any class"
+    ) : (
+      classText
+    );
+  const countMark =
+    count === null ? null : <BlockCount count={count} moon={planet.moon} asteroid={asteroid} />;
   return (
     <DrillRow
-      className={`ins-prow${planet.moon ? " moon" : ""}${wide ? " wide" : ""}`}
+      className={`ins-prow${planet.moon && !flat ? " moon" : ""}${wide ? " wide" : ""}`}
       title={editHint ?? undefined}
       onOpen={() => open(bodyEntry(details.id, planet.id, name))}
       onContextMenu={enterable ? (e) => openRowMenu(e, details.id, planet.id) : undefined}
@@ -85,9 +188,10 @@ export function PlanetRow({
       <span>
         <span className="l1">
           {planet.colonised && <Swatch owner={planet.owner} />}
-          {name}
+          {shownName}
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
+          {spawn?.starting_planet && <Chip>start planet</Chip>}
           {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit
@@ -95,14 +199,28 @@ export function PlanetRow({
           )}
         </span>
         <span className="l2">
-          {named !== "" && classText}
-          {planet.moon && !unrolled && <span>moon</span>}
-          <SizeAndPops size={size} pops={planet.pops} />
-          {planet.orbit !== null && <span>orbit {Math.round(planet.orbit)}</span>}
-          {!planet.colonised && habitable(planet) && (
-            <span className="ok">habitable, unclaimed</span>
-          )}
-          {wide && <span>{rows.length} resources</span>}
+          <SecondLine
+            dotted={spawn !== undefined || described}
+            parts={[
+              classShown,
+              planet.moon && !flat && !unrolled && count === null && <span>moon</span>,
+              size !== null && <PlanetSize size={size} />,
+              planet.pops > 0 && (
+                <span className="pops">
+                  <Icon className="gi" keys={[POP_ICON_KEY]} glyph="⚇" />
+                  {formatPops(planet.pops)}
+                </span>
+              ),
+              moons > 0 && <span>{moonsEach(moons)}</span>,
+              planet.orbit !== null && count === null && (
+                <span>orbit {Math.round(planet.orbit)}</span>
+              ),
+              !planet.colonised && habitable(planet) && (
+                <span className="ok">habitable, unclaimed</span>
+              ),
+              wide && <span>{rows.length} resources</span>,
+            ]}
+          />
         </span>
         {wide && (
           <span className="l3" title={depositTitle(planet.deposit_keys)}>
@@ -110,13 +228,19 @@ export function PlanetRow({
           </span>
         )}
       </span>
-      {!wide && (
+      {(!wide || countMark !== null) && (
         <span className="rs" title={depositTitle(planet.deposit_keys)}>
-          <Pills rows={rows} />
+          {countMark}
+          {!wide && <Pills rows={rows} />}
         </span>
       )}
     </DrillRow>
   );
+}
+
+/** `14 planets`, `2 to 10 planets`, or what a script's count says. */
+function planetsText(counts: PlanetCounts): string {
+  return counts.planets === null ? PLANETS_FROM_SCRIPT : countWords(counts.planets, "planet");
 }
 
 /** The whole system, heading the totals: a star with one orbit, on the disc the bodies use. */
@@ -142,11 +266,22 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const [all, setAll] = useState(false);
   const isStar = (p: PlanetSummary) => isStarBody(p.class, classes, starClasses);
   const planets = orderedPlanets(details.planets, isStar);
+  const blocks = bodyBlocks(planets);
   const totals = planetTotals(details.planets);
-  const shown = all ? planets : planets.slice(0, LIST_LIMIT);
-  const summary = [
+  const counts = usePlanetCounter()(details);
+  const fixed = counts.planets !== null && !isRanged(counts.planets) ? counts.planets.min : null;
+  const shown = all ? blocks : blocks.slice(0, LIST_LIMIT);
+  const summary: ReactNode =
+    fixed !== null ? undefined : counts.planets === null ? (
+      <Unknown>from a script</Unknown>
+    ) : (
+      <Rolled>{rangeWords(counts.planets)}</Rolled>
+    );
+  const total = [
+    planetsText(counts),
+    ...moonsAndAsteroids(counts),
     `${totals.colonies} colonies`,
-    totals.pops > 0 ? `${formatPops(totals.pops)} pops` : null,
+    totals.preFtl > 0 ? `${totals.preFtl} pre-FTL` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -160,7 +295,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
     <Section
       id="system.planets"
       title="Planets"
-      count={totals.planets}
+      count={fixed ?? undefined}
       summary={summary}
       action={openView}
     >
@@ -173,8 +308,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             <span>
               <span className="l1">System total</span>
               <span className="l2">
-                {totals.planets} planets · {totals.colonies} colonies
-                {totals.preFtl > 0 && ` · ${totals.preFtl} pre-FTL`}
+                {total}
                 <SizeAndPops size={null} pops={totals.pops} />
               </span>
               <span className="l3">
@@ -182,16 +316,21 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
               </span>
             </span>
           </div>
-          {shown.map((p) => (
+          {shown.map(({ body, count, moons }) => (
             <PlanetRow
-              key={p.id}
-              planet={p}
+              key={body.id}
+              planet={body}
               details={details}
-              editHint={bodyEditHint(p.class, bodies, classes, starClasses)}
+              editHint={bodyEditHint(body.class, bodies, classes, starClasses)}
+              count={count}
+              moons={moons}
             />
           ))}
-          {!all && planets.length > LIST_LIMIT && (
-            <MoreButton count={planets.length - LIST_LIMIT} onClick={() => setAll(true)} />
+          {!all && blocks.length > LIST_LIMIT && (
+            <MoreButton count={blocks.length - LIST_LIMIT} onClick={() => setAll(true)} />
+          )}
+          {details.spawn?.from_script != null && (
+            <div className="muted ins-hint">{everyBodyFrom(details.spawn.from_script)}</div>
           )}
         </>
       )}

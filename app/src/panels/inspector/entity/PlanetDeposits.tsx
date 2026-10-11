@@ -9,6 +9,12 @@ import {
   type DistrictTotal,
 } from "../../../lib/details/planetPage";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
+import {
+  bodyNoun,
+  categoryWords,
+  depositCategories,
+  depositLines,
+} from "../../../lib/details/spawnFacts";
 import { capabilityFor } from "../../../lib/entities";
 import { templateName } from "../../../lib/names";
 import { counted, thousands } from "../../../lib/text";
@@ -270,16 +276,31 @@ export function DepositRow({
 /**
  * A body's deposits: the district caps they add up to, one row per type, and the blockers apart.
  * Where the page offers deposits, each row can lose one of its deposits and a picker adds one,
- * both through the target's adapter.
+ * both through the target's adapter. A scenario body's initializer adds what it clears and
+ * replaces, and whether it stops blockers.
  */
 export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const editable = offers.deposits;
   const { deposits } = read.rows;
   const { target } = read;
   const ready = useGameDataStore((s) => s.status === "ready");
+  const views = usePlanetDataStore((s) => s.depositTypes);
   const [confirming, setConfirming] = useState<string | null>(null);
   useNamed(editable ? deposits.nameKeys : []);
-  if (deposits.count === 0 && !editable) return null;
+  const spawn = read.summary.spawn;
+  const category = useNamed(
+    spawn === undefined ? [] : depositCategories(spawn.deposits),
+    categoryWords,
+  );
+  const stated =
+    spawn === undefined
+      ? { notes: [], blockers: null }
+      : depositLines(spawn.deposits, spawn.no_blockers, deposits.count, bodyNoun(read.summary), {
+          deposit: (key) => views.get(key)?.name ?? key,
+          category,
+        });
+  const says = stated.notes.length > 0 || stated.blockers !== null;
+  if (deposits.count === 0 && !editable && !says) return null;
   const removal = (group: HeldDeposit): Removal | null => {
     const held = editable ? group.removal : null;
     if (held === null) return null;
@@ -321,6 +342,11 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           </div>
         ))}
       {features.map(row)}
+      {stated.notes.map((note) => (
+        <div key={note} className="muted ins-hint">
+          {note}
+        </div>
+      ))}
       {editable && (
         <PlanetPicker
           kind={DEPOSIT_PICKERS.deposits}
@@ -328,13 +354,14 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           extra={deposits.addWarnings}
         />
       )}
-      {(blockers.length > 0 || editable) && (
+      {(blockers.length > 0 || editable || stated.blockers !== null) && (
         <>
           <div className="pl-sub-head">
             <Icon className="gi" keys={[BLOCKER_ICON]} glyph="" />
             Blockers · {blocked}
           </div>
           {blockers.map(row)}
+          {stated.blockers !== null && <div className="muted ins-hint">{stated.blockers}</div>}
         </>
       )}
       {editable && (

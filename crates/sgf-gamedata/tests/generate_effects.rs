@@ -5,6 +5,7 @@ use crate::common;
 
 use std::collections::BTreeMap;
 
+use sgf_core::format::save::details::OrbitFit;
 use sgf_core::ops::SystemSpec;
 use sgf_gamedata::GameData;
 use sgf_gamedata::body_effects::{BodyEffect, Dropping};
@@ -271,8 +272,10 @@ const UNBANDED: [(&str, &str); 4] = [
     ("localisation/english/fx_l_english.yml", "l_english:\n"),
 ];
 
+/// The game's `example.txt` says a draw that no class fits is treated as `class = none`: no
+/// planet. Add-system drops it, and the scenario details say it never spawns.
 #[test]
-fn a_random_planet_at_an_orbit_no_class_spawns_at_is_drawn_from_every_orbit() {
+fn a_random_planet_at_an_orbit_no_class_spawns_at_is_not_spawned() {
     let (_dir, gd) = common::hand_written(&UNBANDED);
     let spec = generate_layout_for(
         &gd,
@@ -284,8 +287,19 @@ fn a_random_planet_at_an_orbit_no_class_spawns_at_is_drawn_from_every_orbit() {
         ABUNDANCE,
     )
     .expect("fx_unbanded");
-    let classes: Vec<&str> = spec.planets.iter().map(|p| p.class.as_str()).collect();
-    assert_eq!(classes, ["pc_fx_far"]);
+    assert!(spec.planets.is_empty(), "{:?}", spec.planets);
+
+    let details = gd
+        .initializer_details(1, "fx_unbanded", None)
+        .expect("fx_unbanded");
+    let planet = details.planets[1].spawn.as_ref().expect("a spawn");
+    assert_eq!(planet.orbit_fit, Some(OrbitFit::Never));
+    assert_eq!(planet.naming, None, "a body that never spawns is not named");
+    assert_eq!(
+        details.spawn.as_ref().and_then(|s| s.inner_radius),
+        Some(common::fixed(150.0)),
+        "the smallest inner radius, the planet that never spawns aside"
+    );
 }
 
 /// A layout whose one planet is given a gem when the save has neither of two DLC.

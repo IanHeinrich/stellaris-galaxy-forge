@@ -18,7 +18,8 @@ export function PlanetMoons({ read }: PlanetSectionProps) {
       {moons.map((moon) => (
         <PlanetRow
           key={moon.id}
-          planet={{ ...moon, moon: false }}
+          planet={moon}
+          flat
           details={details}
           editHint={bodyEditHint(moon.class, bodies, planetClasses, starClasses)}
         />

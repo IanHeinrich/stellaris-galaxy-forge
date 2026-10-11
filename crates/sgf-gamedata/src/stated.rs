@@ -131,6 +131,10 @@ pub struct StatedBody {
     pub flags: Vec<String>,
     pub starting_planet: bool,
     pub home_planet: bool,
+    /// A `has_ring` written in a shape the reader does not take, kept in `other_keys`.
+    pub unread_ring: bool,
+    /// `satellite_naming_policy`: how the bodies around it are numbered.
+    pub satellite_naming: Option<String>,
     /// The `type` of each `create_ambient_object` that runs on the body.
     pub ambient_objects: Vec<String>,
     pub other_keys: Vec<RawStatement>,
@@ -185,7 +189,16 @@ pub(crate) fn body(node: &Node, def: &Def, from_script: Option<String>) -> State
             continue;
         };
         let scalar = child.scalar_str(src);
+        if BODY_KEYS.contains(&key) && !readable(child, key, def) {
+            out.unread_ring |= key == "has_ring";
+            out.other_keys.push(raw(child, key, src, &[]));
+            continue;
+        }
         match key {
+            "satellite_naming_policy" => {
+                out.satellite_naming = scalar.map(str::to_owned);
+                out.other_keys.push(raw(child, key, src, &[]));
+            }
             "flags" => out.flags.extend(items(child, src)),
             "deposit_blockers" => out.no_blockers = scalar == Some("none"),
             "modifiers" => out.no_modifiers = scalar == Some("none"),
@@ -216,6 +229,40 @@ fn body_effects(block: &Node, def: &Def, out: &mut StatedBody) {
             }
             out.script.push(raw(child, key, src, &BODY_EFFECTS));
         }
+    }
+}
+
+/// Whether the statement `child`, keyed `key` the reader models, is written in a shape the
+/// reader takes. One that is not is kept as written rather than read as its default.
+fn readable(child: &Node, key: &str, def: &Def) -> bool {
+    let src = &def.src;
+    let scalar = child.scalar_str(src);
+    let is_block = child.scalar_span().is_none();
+    match key {
+        "name" | "class" | "entity" | "modifier" | "anomaly" | "usage" | "namelist" => {
+            scalar.is_some()
+        }
+        "size" | "orbit_distance" | "count" | "change_orbit" => {
+            def.initializer_range_of(child).is_some()
+        }
+        "orbit_angle" => scalar == Some("random") || def.initializer_range_of(child).is_some(),
+        "has_ring" | "home_planet" | "starting_planet" | "prevent_anomalies"
+        | "primitive_system" => matches!(scalar, Some("yes" | "no")),
+        "deposit_blockers" | "modifiers" => scalar == Some("none"),
+        "max_instances" => scalar.is_some_and(|s| s.parse::<u32>().is_ok()),
+        "spawn_chance" | "scaled_spawn_chance" | "inner_radius_offset" | "outer_radius_offset" => {
+            scalar.is_some_and(|s| def.number_of(s).is_some())
+        }
+        "asteroid_belt" => {
+            child
+                .find("type", src)
+                .and_then(|t| t.scalar_str(src))
+                .is_some()
+                && def.initializer_range_in(child, "radius").is_some()
+        }
+        "neighbor_system" => neighbor(child, def).is_some(),
+        "flags" | "init_effect" | "planet" | "moon" => is_block,
+        _ => true,
     }
 }
 
@@ -333,6 +380,10 @@ pub(crate) fn system(node: &Node, def: &Def) -> StatedSystem {
         };
         let scalar = child.scalar_str(src);
         let number = || scalar.and_then(|s| def.number_of(s));
+        if SYSTEM_KEYS.contains(&key) && !readable(child, key, def) {
+            out.other_keys.push(raw(child, key, src, &[]));
+            continue;
+        }
         match key {
             "namelist" => out.namelist = scalar.map(str::to_owned),
             "prevent_anomalies" => out.prevent_anomalies = scalar == Some("yes"),

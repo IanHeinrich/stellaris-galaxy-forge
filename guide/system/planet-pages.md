@@ -1,7 +1,7 @@
 ---
 title: Planet pages
 description: Open a planet, moon, star or asteroid page and change its name, size, look, class and ring.
-aliases: [planet page, edit planet, rename planet, planet size, planet class, change planet type, planet model, look, skin, ring, moon, asteroid, tomb world, post-apocalyptic, previously terraformed]
+aliases: [planet page, scenario planet page, start planet, edit planet, rename planet, planet size, planet class, change planet type, planet model, look, skin, ring, moon, asteroid, tomb world, post-apocalyptic, previously terraformed]
 ---
 # Planet pages <Badge type="tip" text="Save" />
 
@@ -58,6 +58,18 @@ habitats, ring worlds, arks and other special worlds keep their class.
 In a Stellaris 4.x save, a planet has a Ring checkbox to give it a
 ring or take its ring away. A moon only has the checkbox while it has
 a ring, so you can take it off.
+
+## A scenario body's page <Badge type="info" text="Scenario" />
+
+In a scenario, a body's page shows what its initializer says about it.
+It has the Name, Class, Size, Ring and Model rows, each set by the
+initializer, rolled by the game or decided when the game starts. A line
+under the name says when some games don't have the body, and how many
+bodies like it the game places. The page also lists the deposits,
+modifiers, anomaly and flags the initializer states. A start planet has
+a "start planet" mark and a Start planet row. The Initializer section
+shows the lines the initializer runs for the body, and its other keys.
+Nothing on the page can be edited yet.
 
 ## Go back
 

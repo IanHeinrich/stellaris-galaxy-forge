@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use crate::as_u32;
 use crate::cst::Node;
 use crate::document::Document;
-use crate::emit::system::SPAWNED_SYSTEM_HEIGHT;
+use crate::emit::DEFAULT_SYSTEM_HEIGHT;
 use crate::entity::views::EntityKind;
 use crate::format::save::alloc::{self, SlotTable};
 use crate::format::save::galaxy::bypasses::natural_wormholes;
@@ -529,7 +529,7 @@ fn restoring(
                 to: rest,
             });
         }
-        if system.height != Some(SPAWNED_SYSTEM_HEIGHT) {
+        if system.height != Some(DEFAULT_SYSTEM_HEIGHT) {
             heights.push(SystemHeight {
                 system: again,
                 height: system.height,

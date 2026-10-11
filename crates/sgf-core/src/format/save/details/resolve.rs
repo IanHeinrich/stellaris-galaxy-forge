@@ -153,6 +153,19 @@ pub struct SystemSpawn {
     pub inline_scripts: Vec<InlineScriptUse>,
     /// Each value of the block written as an `@variable`.
     pub variables: Vec<VariableUse>,
+    /// The `inner_radius` the game derives from the bodies it places, at fewest and most:
+    /// the fewest from the bodies certain to spawn at their nearest, the most from every body
+    /// that can spawn at its furthest. `min == max` when every body is fixed. The radius
+    /// offsets are not applied. `None` when an `inline_script` the install has no text for
+    /// places bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub inner_radius: Option<Bounds>,
+    /// The `radius` of each of the details' `belts`, in order, as written: a range when the
+    /// game draws it, which the details' belt shows at its midpoint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub belt_radii: Option<Vec<Bounds>>,
 }
 
 /// A system's star class: fixed, drawn from a star list, or not one the install defines.
@@ -309,6 +322,104 @@ pub struct BodySpawn {
     pub from_script: Option<String>,
     /// Each value of the block written as an `@variable`.
     pub variables: Vec<VariableUse>,
+    /// Whether a class the game can draw for it fits the orbit it lands at, and so whether it
+    /// spawns. `None` when neither its class nor that of a body it orbits is drawn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub orbit_fit: Option<OrbitFit>,
+    /// Whether it has a ring: fixed by `has_ring`, or rolled on its class's `chance_of_ring`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ring: Option<SpawnRing>,
+    /// The deposits its own roll can give it, beside those its `init_effect` states.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rolled_deposits: Option<SpawnPool>,
+    /// The planet features (`pm_*`) its own roll can give it, beside those its block states.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rolled_features: Option<SpawnPool>,
+    /// The name the game gives it. `None` for a body the game never spawns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub naming: Option<SpawnName>,
+}
+
+/// Whether the game can draw a body a class at the orbits it can land at. A draw that no class
+/// fits gives no body, and no body around it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum OrbitFit {
+    /// A class fits at every orbit it can land at, around every star the system can draw.
+    Always,
+    /// At some orbits, or around some stars, no class fits: the game may not spawn it.
+    Sometimes,
+    /// No class fits at any orbit it can land at: the game never spawns it.
+    Never,
+    /// The system's star class is not one the install defines, so what fits cannot be told.
+    Unknown,
+}
+
+/// A body's ring.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum SpawnRing {
+    /// `has_ring`, or a body that never has one: a star, a moon, or a class with no
+    /// `chance_of_ring`.
+    Fixed { ring: bool },
+    /// Rolled when the body spawns. `chance`, 0 to 1, is its class's `chance_of_ring`, or for a
+    /// drawn class the chance over the classes the draw gives; `None` when that varies with the
+    /// orbit it lands at or the star the system draws.
+    Rolled { chance: Option<f64> },
+    /// Its class cannot be told before the game starts.
+    Unknown,
+}
+
+/// What a body's own roll can give it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum SpawnPool {
+    /// It rolls none: its block blocks the roll, or its `init_effect` clears what it rolls.
+    Fixed,
+    /// Each thing the roll can draw, in the install's order.
+    Rolled { entries: Vec<PoolEntry> },
+    /// Its class cannot be told before the game starts, so nor can what it rolls.
+    Unknown,
+}
+
+/// One thing a body's roll can draw.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PoolEntry {
+    pub key: String,
+    /// The chance, 0 to 1, that one draw gives it. For a deposit, among the draws that give
+    /// one, whatever the galaxy's Resource Abundance; for a planet feature, the body's first
+    /// draw. `None` when it varies with the class, size or surroundings the game draws.
+    pub chance: Option<f64>,
+}
+
+/// The name the game gives a body.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case", tag = "state")]
+pub enum SpawnName {
+    /// The block's `name`, or the name an unconditional `set_name` gives it, which wins.
+    Fixed { name: String },
+    /// Named after its system or the body it orbits, as a save writes the name: the
+    /// localisation key `format` (`STAR_NAME_1_OF_2`, `PLANET_NAME_FORMAT`,
+    /// `SUBPLANET_NAME_FORMAT`) with `$NAME$` or `$PARENT$` the name of `parent`, or of the
+    /// system when `parent` is `None`, and `$NUMERAL$` one of `numerals`: one when it is
+    /// certain, several when bodies before it may not spawn, none for a star.
+    Template {
+        format: String,
+        parent: Option<u32>,
+        numerals: Vec<String>,
+    },
+    /// Drawn when the game generates the galaxy: an asteroid's, from the asteroid name lists.
+    Unknown,
 }
 
 /// How the game decides a body's class.
@@ -335,14 +446,38 @@ pub enum SpawnClass {
 pub enum ClassPool {
     /// `random`, `random_colonizable`, `random_non_colonizable` or `random_asteroid`: the
     /// engine's draw among the classes that fit the body's orbit.
-    Random { draw: String },
+    Random {
+        draw: String,
+        /// The classes the draw can give at some orbit the body can land at, around some star
+        /// the system can draw; `None` when the system's star class is not one the install
+        /// defines.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        at_orbit: Option<Vec<PoolClass>>,
+    },
     /// A planet `rl_` list.
     PlanetList {
         list: String,
         members: Vec<ListMember>,
+        /// Always `None`: whether the game holds a list's draw to the body's orbit, as it does
+        /// a random draw, is unknown, so `members` lists every class the draw can give.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        at_orbit: Option<Vec<PoolClass>>,
     },
     /// A star whose system's class is drawn from the star list `list`.
     StarList { list: String },
+}
+
+/// A class a drawn body can be given.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct PoolClass {
+    pub class: String,
+    /// Its weight in the draw: its `spawn_odds` times the star class's factor for it. `None`
+    /// for a planet list's member, the list being drawn evenly (assumed), and when the factor
+    /// varies with the star the system draws.
+    pub weight: Option<f64>,
 }
 
 /// Why a body's class cannot be told before the game starts.
@@ -402,7 +537,8 @@ pub enum DepositReplacement {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct StatedFeatures {
-    /// `modifier = pm_…`: the feature the block gives in place of a roll.
+    /// `modifier = pm_…`: the feature the block gives. That it is given beside the body's own
+    /// roll, not in place of it, is assumed.
     pub modifier: Option<String>,
     /// `modifiers = none`: the body rolls no features.
     pub none: bool,

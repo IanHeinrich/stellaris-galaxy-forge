@@ -5,11 +5,19 @@ import { useGameDataStore } from "../../../../store/gameDataStore";
 import { FilterField, FILTER_MIN } from "../../../parts";
 import { Empty, Section } from "../../parts";
 
-/** The system's flags, led by what galaxy generation hid here; open whenever it hid something. */
-export function FlagsSection({ system }: { system: SystemNode }) {
+/**
+ * The system's flags, led by what galaxy generation hid here; open whenever it hid something.
+ * `flags` lists others in place of the system's own.
+ */
+export function FlagsSection({
+  system,
+  flags = system.flags,
+}: {
+  system: SystemNode;
+  flags?: readonly string[];
+}) {
   const [query, setQuery] = useState("");
   const kinds = useGameDataStore((s) => s.special.get(system.id)?.kinds);
-  const { flags } = system;
   const needle = query.trim().toLowerCase();
   const shown = needle === "" ? flags : flags.filter((f) => f.toLowerCase().includes(needle));
   const hidden = hiddenContentLines(kinds ?? []);
