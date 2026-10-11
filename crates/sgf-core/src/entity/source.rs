@@ -18,6 +18,7 @@ pub(crate) fn source(
     original: &[u8],
     current: &[u8],
     dirty: bool,
+    line: Option<u32>,
 ) -> EntitySource {
     let truncated = current.len() > CAP;
     let shown = &current[..current.len().min(CAP)];
@@ -36,6 +37,7 @@ pub(crate) fn source(
         text: String::from_utf8_lossy(shown).into_owned(),
         changed,
         truncated,
+        line,
     }
 }
 

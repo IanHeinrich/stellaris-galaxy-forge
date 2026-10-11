@@ -414,7 +414,7 @@ export function BodyPage({
     return (
       <>
         <Head name={entry.label} body={summary} id={null} />
-        <InitializerSource system={system} block={summary.spawn?.at} />
+        <InitializerSource system={system} spawn={summary.spawn} />
       </>
     );
   }

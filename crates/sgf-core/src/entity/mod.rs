@@ -154,7 +154,8 @@ pub fn get_entity_source(doc: &Document, addr: EntityAddr) -> Result<EntitySourc
         Some(stmt) => (stmt.slice(doc.original()), is_dirty(doc, stmt)),
         None => (&[][..], true),
     };
-    Ok(source::source(addr, original, current, dirty))
+    let line = doc.scenario_line(located.anchor);
+    Ok(source::source(addr, original, current, dirty, line))
 }
 
 /// The labels, controls and references the Data tab draws a kind's keys with.

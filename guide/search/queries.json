@@ -131,6 +131,8 @@
   {"q": "why is my planet's model rolled", "expect": "system/planet-pages#a-scenario-body-s-page"},
   {"q": "what does suits its class mean on a scenario planet", "expect": "system/planet-pages#a-scenario-body-s-page"},
   {"q": "initializer script at game start", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
+  {"q": "see the whole initializer of a system", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
+  {"q": "which block in the initializer places this planet", "expect": "system/system-view#a-scenario-system-s-initializer-section"},
   {"q": "what it can roll", "expect": "system/deposits-and-modifiers#what-a-scenario-planet-can-roll"},
   {"q": "dotted underline", "expect": "system/system-view#rolled-values-and-how-many-planets-spawn"},
   {"q": "see deposits for one planet class", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},

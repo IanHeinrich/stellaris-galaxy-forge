@@ -136,7 +136,7 @@ export function ScriptSnippet({
   const isMarked = (n: number) => mark !== undefined && n >= mark.first && n <= mark.last;
 
   useEffect(() => {
-    firstMarked.current?.scrollIntoView({ block: "center" });
+    firstMarked.current?.scrollIntoView({ block: "nearest" });
   }, [mark?.first, mark?.last]);
 
   return (

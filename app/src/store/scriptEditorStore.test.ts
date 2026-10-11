@@ -21,6 +21,7 @@ const mocked = {
   editorChoices: vi.mocked(ipc.editorChoices),
   openInEditor: vi.mocked(ipc.openInEditor),
   chooseEditorProgram: vi.mocked(ipc.chooseEditorProgram),
+  answerEditorChooser: vi.mocked(ipc.answerEditorChooser),
 };
 
 const FILE = "C:/Steam/steamapps/common/Stellaris/common/solar_system_initializers/sol.txt";
@@ -47,6 +48,7 @@ beforeEach(() => {
   useScriptEditorStore.setState({ ...useScriptEditorStore.getInitialState() });
   mocked.editorChoices.mockResolvedValue(FOUND);
   mocked.openInEditor.mockResolvedValue({ fell_back: false, steam_replaces: false });
+  mocked.answerEditorChooser.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -186,8 +188,30 @@ describe("the editor setting", () => {
     expect(state().choices?.other).toBe("ed.exe");
 
     await state().choose({ kind: "other", args: "{file}" }, "ed.exe", true);
+    expect(mocked.answerEditorChooser).toHaveBeenCalledWith({ kind: "other", args: "{file}" });
     expect(mocked.openInEditor).not.toHaveBeenCalled();
     expect(label()).toBe("Open in ed.exe");
+  });
+
+  it("tells the shell a cancel, so it drops the program Browse… found", async () => {
+    await state().change();
+    mocked.chooseEditorProgram.mockResolvedValueOnce("ed.exe");
+    await state().pickProgram();
+
+    state().cancel();
+    expect(state().chooser).toBeNull();
+    expect(mocked.answerEditorChooser).toHaveBeenCalledWith(null);
+    expect(state().choice).toBeNull();
+  });
+
+  it("keeps nothing when the shell can't keep the program", async () => {
+    await state().change();
+    mocked.answerEditorChooser.mockRejectedValueOnce({ kind: "io", message: "disk full" });
+
+    await state().choose({ kind: "other", args: "{file}" }, "ed.exe", true);
+    expect(state().choice).toBeNull();
+    expect(stored.get(PREF_KEYS.scriptEditor)).toBeUndefined();
+    expect(useFileSessionStore.getState().error).toContain("disk full");
   });
 });
 

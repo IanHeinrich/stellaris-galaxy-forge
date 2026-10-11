@@ -49,10 +49,10 @@ const DEFINITION: InitializerDefinition = {
   inline_scripts: [{ line: 7, script: "planets/gas_giant", file: { file: GAS_GIANT, line: 1 } }],
 };
 
-function landDefinition(): void {
+function landDefinition(definition: InitializerDefinition = DEFINITION): void {
   useInitializerDefinitions.setState({
     version: useGameDataStore.getState().version,
-    reads: new Map([["basic_init_01", { definition: DEFINITION }]]),
+    reads: new Map([["basic_init_01", { definition }]]),
   });
 }
 
@@ -107,14 +107,14 @@ describe("the Initializer section's Open button", () => {
 });
 
 describe("a system's Source tab", () => {
-  it("shows the initializer's definition under the system's text, whole, with its file and line", async () => {
+  it("shows the initializer's definition under the system's text, whole, with its file", async () => {
     await open("scenario");
     landDefinition();
     useInspectorStore.setState({ tab: "source" });
 
     const html = drawnBy(overview);
     expect(html).toContain(
-      `<div class="ins-init-head"><span class="mono ins-init-name">basic_init_01</span><span class="muted" title="${FILE}">basic_init.txt, line 120</span></div>`,
+      `<div class="ins-init-head"><span class="mono ins-init-name">basic_init_01</span><span class="muted" title="${FILE}">basic_init.txt</span></div>`,
     );
     expect(html).toContain('<span class="snippet-where">line 120</span>');
     expect(html).toContain('<span class="snippet-key">inline_script</span>');
@@ -186,7 +186,7 @@ describe("a body's Source tab", () => {
     expect(markedLines(html)).toEqual([8, 9, 10, 11]);
   });
 
-  it("marks nothing for a body an inline script places", async () => {
+  it("marks the inline_script line of a body that script places", async () => {
     await open("scenario");
     landDefinition();
     const scripted = planet(101, "", {
@@ -196,7 +196,28 @@ describe("a body's Source tab", () => {
 
     const html = drawnBy(() => render(101, "source"));
     expect(html).toContain('<span class="mono ins-init-name">basic_init_01</span>');
-    expect(markedLines(html)).toEqual([]);
+    expect(markedLines(html)).toEqual([7]);
+  });
+
+  it("counts a block's braces from its key when a brace closes the one before it on its line", async () => {
+    await open("scenario");
+    landDefinition({
+      ...DEFINITION,
+      text: [
+        "basic_init_01 = {",
+        "\tplanet = { class = pc_gas_giant",
+        "\t} planet = {",
+        "\t\tclass = pc_barren",
+        "\t}",
+        "\tplanet = { class = pc_frozen }",
+        "}",
+      ].join("\n"),
+      inline_scripts: [],
+    });
+    const second = planet(101, "", { spawn: bodySpawn({ at: { file: FILE, line: 122 } }) });
+    await land(details({ planets: [second] }));
+
+    expect(markedLines(drawnBy(() => render(101, "source")))).toEqual([3, 4, 5]);
   });
 
   it("shows a save body's own text with its system's initializer below, unmarked", async () => {

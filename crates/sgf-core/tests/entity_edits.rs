@@ -267,3 +267,47 @@ fn only_a_scenarios_systems_are_addressable() {
     let err = get_entity(session.doc(), addr(EntityKind::System, 999_999), &[]).unwrap_err();
     assert!(matches!(err, EntityError::NotFound(_)), "{err}");
 }
+
+/// The line, from 1, `text` starts on in the document as it now reads.
+fn line_of(doc: &sgf_core::document::Document, text: &str) -> u32 {
+    let now = doc.pieces().collect::<Vec<_>>().concat();
+    let at = now
+        .windows(text.len())
+        .position(|w| w == text.as_bytes())
+        .expect("the text is in the document");
+    let newlines = now[..at].iter().filter(|b| **b == b'\n').count();
+    u32::try_from(newlines).expect("a line number") + 1
+}
+
+#[test]
+fn a_scenario_systems_source_names_its_line_and_a_saves_does_not() {
+    let mut session = GRAMMAR.open();
+    let source = get_entity_source(session.doc(), addr(EntityKind::System, 3018)).expect("read");
+    assert_eq!(source.line, Some(line_of(session.doc(), &source.text)));
+
+    for (id, name) in [(4242, "Fresh"), (4243, "Later")] {
+        session
+            .apply(Op::AddSystem {
+                system: Some(id),
+                x: 5.0,
+                y: -5.0,
+                name: Some(name.to_owned()),
+                initializer: None,
+                spawn_weight: None,
+                spawn_script: None,
+            })
+            .expect("add a system");
+    }
+    for id in [3018, 4242, 4243] {
+        let source = get_entity_source(session.doc(), addr(EntityKind::System, id)).expect("read");
+        assert_eq!(
+            source.line,
+            Some(line_of(session.doc(), &source.text)),
+            "{id}"
+        );
+    }
+
+    let save = common::open();
+    let source = get_entity_source(save.doc(), addr(EntityKind::System, 0)).expect("read");
+    assert_eq!(source.line, None);
+}

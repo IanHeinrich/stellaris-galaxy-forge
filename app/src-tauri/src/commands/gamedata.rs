@@ -31,7 +31,9 @@ use super::{
     DEFINITIONS_AT, DISCOVER_AT, DONE, LOCALISATION_AT, io_error, load_error, progress,
     refit_open_session, with_session,
 };
-use crate::editors::{self, EditorChoices, EditorPick, OpenedFile, PickedProgramFile};
+use crate::editors::{
+    self, EditorChoices, EditorPick, OpenedFile, PendingProgram, PickedProgramFile,
+};
 use crate::state::{GameDataState, TextureState};
 use crate::watch;
 
@@ -154,14 +156,13 @@ const PROGRAM_EXTENSIONS: &[&str] = &["app"];
 #[cfg(not(any(windows, target_os = "macos")))]
 const PROGRAM_EXTENSIONS: &[&str] = &[];
 
-/// Ask for the program Other… opens files with in the system's file dialog, and keep it in the
-/// app's config folder. Answers with its name; `None` when the dialog was cancelled.
+/// Ask for the program Other… opens files with in the system's file dialog, and hold it until
+/// the chooser answers ([`answer_editor_chooser`]). Answers with its name; `None` when the
+/// dialog was cancelled.
 #[tauri::command]
 pub async fn choose_editor_program<R: Runtime>(
     app: AppHandle<R>,
 ) -> Result<Option<String>, SgfError> {
-    let store = picked_program_file(&app)
-        .ok_or_else(|| SgfError::new(ErrorKind::Io, "The app has no settings folder"))?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut dialog = app.dialog().file().set_title("Choose the editor");
         if !PROGRAM_EXTENSIONS.is_empty() {
@@ -171,15 +172,38 @@ pub async fn choose_editor_program<R: Runtime>(
             return Ok(None);
         };
         let program = picked.into_path().map_err(io_error)?;
-        editors::keep_program(&store, &program).map_err(io_error)?;
-        Ok(Some(editors::program_name(&program)))
+        let name = editors::program_name(&program);
+        app.state::<PendingProgram>().set(program);
+        Ok(Some(name))
     })
     .await
     .map_err(io_error)?
 }
 
+/// The editor chooser's answer: `editor` picked, or `None` when it was cancelled. Other… keeps
+/// the program [`choose_editor_program`] holds in the app's config folder; any other answer
+/// drops it.
+#[tauri::command]
+pub async fn answer_editor_chooser<R: Runtime>(
+    app: AppHandle<R>,
+    editor: Option<EditorPick>,
+) -> Result<(), SgfError> {
+    let Some(program) = app.state::<PendingProgram>().take() else {
+        return Ok(());
+    };
+    if !matches!(editor, Some(EditorPick::Other { .. })) {
+        return Ok(());
+    }
+    let store = picked_program_file(&app)
+        .ok_or_else(|| SgfError::new(ErrorKind::Io, "The app has no settings folder"))?;
+    tauri::async_runtime::spawn_blocking(move || editors::keep_program(&store, &program))
+        .await
+        .map_err(io_error)?
+        .map_err(io_error)
+}
+
 /// Open a file [`open_script`] would open in `editor`, at `line` or at its top without one.
-/// Other… opens it with the program [`choose_editor_program`] kept, and is refused before one
+/// Other… opens it with the program [`answer_editor_chooser`] kept, and is refused before one
 /// is. An editor that cannot be started leaves the file to the system default, and the answer
 /// says so.
 #[tauri::command]

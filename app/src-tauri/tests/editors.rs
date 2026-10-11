@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
-use sgf_app_lib::editors::{self, EditorPick, PickedProgramFile, Places, Platform};
+use sgf_app_lib::editors::{self, EditorPick, PendingProgram, PickedProgramFile, Places, Platform};
 use sgf_app_lib::state::GameDataState;
 use sgf_core::views::{ErrorKind, SgfError};
 use tauri::test::MockRuntime;
@@ -216,7 +216,7 @@ fn the_picked_program_takes_its_arguments_with_the_file_and_line_put_in() {
 }
 
 /// A Mac app picked for Other… is a folder, which `open -a` starts with the arguments after
-/// `--args`.
+/// `--args`, or with the file alone as a document when that is all it takes.
 #[test]
 fn a_picked_mac_app_is_started_through_open() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -232,6 +232,17 @@ fn a_picked_mac_app_is_started_through_open() {
     expected.push(app.clone().into_os_string());
     expected.extend(args(&["--args", "/mods/my mod/common/x.txt:7"]));
     assert_eq!(launch.args, expected);
+
+    for pattern in ["{file}", ""] {
+        let pick = EditorPick::Other {
+            args: pattern.to_owned(),
+        };
+        let launch = editors::launch_for(&pick, &[], Some(&app), file, Some(7)).expect("a launch");
+        let mut expected = args(&["-a"]);
+        expected.push(app.clone().into_os_string());
+        expected.extend(args(&["/mods/my mod/common/x.txt"]));
+        assert_eq!(launch.args, expected, "{pattern:?}");
+    }
 }
 
 #[test]
@@ -336,4 +347,51 @@ fn other_is_refused_until_a_program_is_picked() {
     .expect_err("no program picked");
     assert_eq!(refused.kind, ErrorKind::NotFound);
     assert_eq!(refused.message, "Choose a program for Other… first");
+}
+
+/// The program Browse… finds is kept only when the chooser's answer is Other…; a cancel or
+/// another pick drops it, so the remembered choice and the kept program never disagree.
+#[test]
+fn a_browsed_program_is_kept_only_when_the_chooser_answers_other() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let store = dir.path().join("editor.json");
+    let w = webview();
+    w.app_handle()
+        .state::<PickedProgramFile>()
+        .point_at(store.clone());
+    let browse = |name: &str| {
+        w.app_handle()
+            .state::<PendingProgram>()
+            .set(dir.path().join(name));
+    };
+    let answer = |editor: Value| {
+        invoke::<Value>(&w, "answer_editor_chooser", json!({ "editor": editor }))
+            .expect("answered");
+    };
+    let other = json!({ "kind": "other", "args": "{file}" });
+
+    browse("first.exe");
+    answer(Value::Null);
+    browse("second.exe");
+    answer(json!({ "kind": "system_default" }));
+    answer(other.clone());
+    assert_eq!(editors::picked_program(&store), None);
+
+    browse("third.exe");
+    answer(other.clone());
+    assert_eq!(
+        editors::picked_program(&store),
+        Some(dir.path().join("third.exe"))
+    );
+
+    browse("fourth.exe");
+    answer(Value::Null);
+    answer(other);
+    assert_eq!(
+        editors::picked_program(&store),
+        Some(dir.path().join("third.exe")),
+        "a cancelled browse leaves the kept program"
+    );
+    let choices = invoke::<Value>(&w, "editor_choices", json!({ "path": "" })).expect("choices");
+    assert_eq!(choices["other"], "third.exe");
 }

@@ -80,16 +80,24 @@ export function editorChoices(path: string): Promise<EditorChoices> {
 }
 
 /**
- * Ask for the program Other… opens files with in the system's file dialog, which the shell keeps;
- * its name, or null when the dialog was cancelled.
+ * Ask for the program Other… opens files with in the system's file dialog, which the shell holds
+ * until the chooser answers; its name, or null when the dialog was cancelled.
  */
 export function chooseEditorProgram(): Promise<string | null> {
   return invoke<string | null>("choose_editor_program");
 }
 
 /**
+ * Tell the shell the editor chooser's answer: `editor` picked, or null when it was cancelled.
+ * Other… keeps the program `chooseEditorProgram` found; any other answer drops it.
+ */
+export function answerEditorChooser(editor: EditorPick | null): Promise<void> {
+  return invoke<void>("answer_editor_chooser", { editor });
+}
+
+/**
  * Open a file `openScript` would open in `editor`, at `line` or at its top when null. Other… needs a
- * program from `chooseEditorProgram` first. An editor that cannot be started leaves the file to
+ * program from `chooseEditorProgram`, kept by `answerEditorChooser`, first. An editor that cannot be started leaves the file to
  * the system default, and the answer says so.
  */
 export function openInEditor(

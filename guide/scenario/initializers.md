@@ -59,8 +59,9 @@ system's initializer on the map.
 Galaxy Forge shows script text but doesn't change it. To edit a script,
 open its file in your own editor at the line you're reading. The Open
 file button sits in the Initializer section, beside each script on the
-Scripts tab, on the Source tab of a scenario system, on a body's page and
-in the header of each script snippet.
+Scripts tab, on the Source tab, on a body's page and in the header of
+each script snippet. Where a value comes from a variable or an inline
+script, click its name to open the file where it's set.
 
 The first time you click it, Galaxy Forge asks which editor to use. It
 lists the editors it finds on your computer: VS Code, VSCodium,

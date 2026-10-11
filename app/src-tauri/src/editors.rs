@@ -534,7 +534,9 @@ pub fn launch_for(
 
 /// The program the user picked and its arguments: `args` split at spaces, a part in double
 /// quotes kept whole, `{file}` and `{line}` put in, the line 1 without one. The file goes last
-/// when `args` does not place it. A Mac app bundle is a folder, so `open -a` starts it.
+/// when `args` does not place it. A Mac app bundle is a folder, so `open -a` starts it: with the
+/// file alone, as a document a running copy opens too, and otherwise after `--args`, which only a
+/// new copy reads.
 fn other(program: &Path, args: &str, file: &Path, line: Option<u32>) -> Launch {
     let line = line.unwrap_or(1).to_string();
     let parts = split_args(args);
@@ -546,7 +548,10 @@ fn other(program: &Path, args: &str, file: &Path, line: Option<u32>) -> Launch {
         out.push(file.as_os_str().to_owned());
     }
     if is_app_bundle(program) {
-        let mut args: Vec<OsString> = vec!["-a".into(), program.into(), "--args".into()];
+        let mut args: Vec<OsString> = vec!["-a".into(), program.into()];
+        if out.len() != 1 || out[0] != *file.as_os_str() {
+            args.push("--args".into());
+        }
         args.append(&mut out);
         return Launch {
             program: PathBuf::from("open"),
@@ -666,6 +671,21 @@ impl PickedProgramFile {
 
     pub fn get(&self) -> Option<PathBuf> {
         self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+}
+
+/// The program Browse… found while the chooser is open, kept only once the chooser's answer is
+/// Other….
+#[derive(Default)]
+pub struct PendingProgram(Mutex<Option<PathBuf>>);
+
+impl PendingProgram {
+    pub fn set(&self, program: PathBuf) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(program);
+    }
+
+    pub fn take(&self) -> Option<PathBuf> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).take()
     }
 }
 

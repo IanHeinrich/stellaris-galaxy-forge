@@ -33,10 +33,11 @@ export interface ScriptEditorState {
 
   /** Opens `target` in the remembered editor, or shows the chooser first. */
   openInEditor(target: OpenTarget): Promise<void>;
-  /** The chooser's answer: keeps `pick` and opens the chooser's file with it. */
+  /** The chooser's answer: keeps `pick`, with the program Browse… found for Other…, and opens the chooser's file with it. */
   choose(pick: EditorPick, name: string | null, remember: boolean): Promise<void>;
-  /** Has the shell ask for the program Other… opens files with, and names it in the chooser. */
+  /** Has the shell ask for the program Other… opens files with, and names it in the chooser; the shell keeps it once Other… is chosen. */
   pickProgram(): Promise<void>;
+  /** Closes the chooser; the shell drops a program Browse… found. */
   cancel(): void;
   /** Shows the chooser to change the editor, without opening a file. */
   change(): Promise<void>;
@@ -73,8 +74,7 @@ function isEditorChoice(value: unknown): value is EditorChoice | null {
 const CHOICE = prefField<EditorChoice | null>(PREF_KEYS.scriptEditor, null, isEditorChoice);
 
 /** Whether `file` is the open scenario with unsaved edits, so its lines on disk are not the app's. */
-function unsaved(file: string): boolean {
-  const { path, dirty } = useFileSessionStore.getState();
+function unsaved({ path, dirty }: { path: string | null; dirty: boolean }, file: string): boolean {
   return dirty && path !== null && normalise(path) === normalise(file);
 }
 
@@ -112,7 +112,8 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
     choices: null,
 
     async openInEditor({ file, line }) {
-      const target = { file, line: unsaved(file) ? null : (line ?? null) };
+      const atTop = unsaved(useFileSessionStore.getState(), file);
+      const target = { file, line: atTop ? null : (line ?? null) };
       const choice = get().choice;
       if (choice?.remember) {
         await launch(target.file, target.line, choice);
@@ -124,6 +125,12 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
     async choose(pick, name, remember) {
       const target = get().chooser?.target ?? null;
       const choice = { pick, name, remember };
+      try {
+        await ipc.answerEditorChooser(pick);
+      } catch (e) {
+        useFileSessionStore.getState().setError(ipc.errorMessage(e));
+        return;
+      }
       CHOICE.save(choice);
       set({ choice, chooser: null, choices: null });
       if (target !== null) await launch(target.file, target.line ?? null, choice);
@@ -143,6 +150,9 @@ export const useScriptEditorStore = create<ScriptEditorState>((set, get) => {
 
     cancel() {
       set({ chooser: null, choices: null });
+      ipc
+        .answerEditorChooser(null)
+        .catch((e: unknown) => useFileSessionStore.getState().setError(ipc.errorMessage(e)));
     },
 
     change() {
@@ -168,9 +178,7 @@ export function useOpenLabel(): string {
 
 /** An Open button's tooltip for `file`: why it opens at the top, while it does. */
 export function useOpenTitle(file: string): string | undefined {
-  const opensAtTop = useFileSessionStore(
-    (s) => s.dirty && s.path !== null && normalise(s.path) === normalise(file),
-  );
+  const opensAtTop = useFileSessionStore((s) => unsaved(s, file));
   return opensAtTop ? SAVE_TO_OPEN_AT_LINE : undefined;
 }
 
