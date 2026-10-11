@@ -16,9 +16,9 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added megastructure";
 /// A gateway or relay gets its bypass, open when the type opens it, a type whose build marks
 /// its planet marks it, and an Orbital Ring ruin flags its planet as the game does. The timed
 /// modifiers, deposits and owner counters its build chain adds in that system are written
-/// with it, and the answer lists each effect the chain may add that was left out because the
-/// editor could not tell whether it applies. A type built only around a star is refused on
-/// any other body. A type the install does not define, or one the editor does not add, is
+/// with it. The answer lists the chain's effects that were left out: those the editor could
+/// not tell apply, and those that apply but that it does not write. A type built only around
+/// a star is refused on any other body. A type the install does not define, or one the editor does not add, is
 /// refused with the reason.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
@@ -49,14 +49,8 @@ pub async fn add_megastructure<R: Runtime>(
             .and_then(|node| node.owner);
         let site = session.construction_site(system)?;
         let built = def.construction.replay(&gd, &site, host, owner.is_some());
-        let op = add_op(
-            &def,
-            system,
-            place,
-            owner,
-            built.construction,
-            &built.skipped,
-        );
+        let left_out = built.unsure.len() + built.unwritten.len();
+        let op = add_op(&def, system, place, owner, built.construction, left_out);
         let result = session.apply(op)?;
         let Op::RemoveMegastructure { megastructure, .. } = result.inverse else {
             return Err(SgfError::new(
@@ -67,7 +61,8 @@ pub async fn add_megastructure<R: Runtime>(
         Ok(AddedMegastructure {
             edit: session.edit_result(result),
             megastructure,
-            skipped: built.skipped,
+            unsure: built.unsure,
+            unwritten: built.unwritten,
         })
     })
     .await
@@ -101,7 +96,7 @@ fn add_op(
     place: MegastructurePlace,
     owner: Option<u32>,
     construction: MegastructureConstruction,
-    skipped: &[String],
+    left_out: usize,
 ) -> Op {
     let bypass = def.bypass_type.as_ref().map(|kind| NewBypass {
         kind: kind.clone(),
@@ -117,7 +112,7 @@ fn add_op(
         megastructure_flag: def.sets_has_megastructure,
         star_only: matches!(def.placement, Placement::Body { star_only: true }),
         construction: (!construction.is_empty()).then_some(construction),
-        left_out: u32::try_from(skipped.len()).unwrap_or(u32::MAX),
+        left_out: u32::try_from(left_out).unwrap_or(u32::MAX),
     }
 }
 

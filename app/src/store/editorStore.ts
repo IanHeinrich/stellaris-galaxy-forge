@@ -223,7 +223,7 @@ export interface EditorState {
     system: number,
     kind: string,
     at: MegastructurePlace,
-  ): Promise<{ megastructure: number; skipped: string[] } | null>;
+  ): Promise<{ megastructure: number; unsure: string[]; unwritten: string[] } | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any

@@ -158,7 +158,7 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         "Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 11 modifiers, 11 deposits and 1 counter, leaving out 1 effect of its construction"
     );
     assert_eq!(
-        furnace.skipped,
+        furnace.unsure,
         ["focus.535: change_variable with a value that is not a number"]
     );
     let swarm: AddedMegastructure = invoke(
@@ -174,7 +174,8 @@ fn a_megastructure_is_added_with_what_its_construction_adds() {
         swarm.edit.entry.description,
         "Added megastructure #17 (dyson_swarm_3) in Xu Nur #1, with 1 modifier"
     );
-    assert!(swarm.skipped.is_empty(), "{:?}", swarm.skipped);
+    assert!(furnace.unwritten.is_empty(), "{:?}", furnace.unwritten);
+    assert!(swarm.unsure.is_empty(), "{:?}", swarm.unsure);
     let deleted: EditResult = invoke(
         &w,
         "delete_megastructure",

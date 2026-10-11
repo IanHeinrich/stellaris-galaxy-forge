@@ -135,11 +135,11 @@ export function addSystemActions(
     },
 
     async addMegastructure(system, kind, at) {
-      let added: { megastructure: number; skipped: string[] } | null = null;
+      let added: { megastructure: number; unsure: string[]; unwritten: string[] } | null = null;
       const result = await runEdit(async () => {
-        const answer = await ipc.addMegastructure(system, kind, at);
-        added = { megastructure: answer.megastructure, skipped: answer.skipped };
-        return answer.edit;
+        const { edit, ...answer } = await ipc.addMegastructure(system, kind, at);
+        added = answer;
+        return edit;
       });
       return result === null ? null : added;
     },

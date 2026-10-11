@@ -23,12 +23,14 @@ its modifier. The app reads these from your game files and mods.
 
 The game's other build effects don't run, so a Dyson Sphere doesn't
 freeze the system's planets. A planet whose class or model the
-megastructure would change stays as it is. A megastructure with no owner
-doesn't get the effects its owner's events add, so an Arc Furnace in a
-system no one owns adds no mining bonus.
+megastructure would change stays as it is. In a system no one owns, the
+megastructure has no owner, so effects from the owner's events don't
+apply. An Arc Furnace there adds no mining bonus.
 
-If the app can't tell whether some of a construction's effects apply, it
-leaves them out, and the status bar says how many after the add.
+The app leaves out a construction's effects when it can't tell whether
+they apply, and ones it doesn't write yet, such as a modifier the
+construction removes. After the add, the status bar says how many it
+left out.
 
 1. Open the system in the [system view](system-view.md).
 2. Right-click where the megastructure goes:

@@ -301,13 +301,32 @@ export const NO_OWNER_NOTE = "A megastructure goes to the empire that owns its s
 export const NO_MODEL = "No model yet";
 export const NO_MODEL_NOTE = "Galaxy Forge can't draw this type's model yet.";
 
-/** The notice after an add that left out effects of its construction the editor could not judge. */
-export function leftOutNotice(name: string, count: number): string {
-  const which =
-    count === 1
-      ? "1 of its construction's effects applies, so it left it out"
-      : `${count} of its construction's effects apply, so it left them out`;
-  return `Added the ${name}. Galaxy Forge couldn't tell whether ${which}.`;
+/**
+ * The notice after an add that left out effects of its construction: `unsure` the editor could not
+ * tell apply, `unwritten` that apply but that it does not write. Null when it left out none.
+ */
+export function leftOutNotice(name: string, unsure: number, unwritten: number): string | null {
+  if (unsure === 0 && unwritten === 0) return null;
+  const parts = [`Added the ${name}.`];
+  if (unsure === 1) {
+    parts.push(
+      "Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
+    );
+  } else if (unsure > 1) {
+    parts.push(
+      `Galaxy Forge couldn't tell whether ${unsure} of its construction's effects apply, so it left them out.`,
+    );
+  }
+  if (unwritten === 1) {
+    parts.push(
+      "Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
+    );
+  } else if (unwritten > 1) {
+    parts.push(
+      `Galaxy Forge doesn't write ${unwritten} of its construction's effects yet, so it left them out.`,
+    );
+  }
+  return parts.join(" ");
 }
 
 /** Whether a type stands just outside the system's inner radius, as relays and gateways do. */

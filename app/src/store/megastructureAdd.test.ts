@@ -41,7 +41,8 @@ beforeEach(async () => {
   mockedIpc.addMegastructure.mockResolvedValue({
     edit: editResult({ details_stale: [SYSTEM] }),
     megastructure: 16,
-    skipped: [],
+    unsure: [],
+    unwritten: [],
   });
   useMegastructureAddStore.setState({ last: null });
 });
@@ -89,18 +90,22 @@ describe("adding a megastructure from the system view", () => {
     mockedIpc.addMegastructure.mockResolvedValue({
       edit: editResult({ details_stale: [SYSTEM] }),
       megastructure: 16,
-      skipped: ["focus.535: change_variable with a value that is not a number", "a.1: event b.2"],
+      unsure: ["focus.535: change_variable with a value that is not a number", "a.1: event b.2"],
+      unwritten: ["removes modifier old_mod from planet 3"],
     });
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
     await adds().add("think_tank_3");
 
-    expect(useFileSessionStore.getState().notice).toBe(leftOutNotice("Science Nexus", 2));
-    expect(leftOutNotice("Science Nexus", 2)).toBe(
-      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 of its construction's effects apply, so it left them out.",
+    expect(useFileSessionStore.getState().notice).toBe(
+      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 of its construction's effects apply, so it left them out. Galaxy Forge doesn't write 1 of its construction's effects yet, so it left it out.",
     );
-    expect(leftOutNotice("Arc Furnace", 1)).toBe(
+    expect(leftOutNotice("Arc Furnace", 1, 0)).toBe(
       "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
     );
+    expect(leftOutNotice("Arc Furnace", 0, 3)).toBe(
+      "Added the Arc Furnace. Galaxy Forge doesn't write 3 of its construction's effects yet, so it left them out.",
+    );
+    expect(leftOutNotice("Arc Furnace", 0, 0)).toBeNull();
   });
 
   it("opens no page when the core refuses the add", async () => {

@@ -673,12 +673,63 @@ country_event = {
             }],
         }
     );
-    assert_eq!(built.skipped.len(), 1, "{:?}", built.skipped);
+    assert_eq!(built.unsure.len(), 1, "{:?}", built.unsure);
     assert!(
-        built.skipped[0].contains("random_system_planet"),
+        built.unsure[0].contains("random_system_planet"),
         "{:?}",
-        built.skipped
+        built.unsure
     );
+    assert!(built.unwritten.is_empty(), "{:?}", built.unwritten);
+}
+
+/// A modifier and a deposit the construction takes off its planet apply but are not
+/// written, apart from what the editor cannot tell. An effect the walk cannot follow both
+/// in the owner's scope and outside it is listed once, and still listed with no owner.
+#[test]
+fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        "mod_drain = {
+	on_build_complete = {
+		fromfrom.planet = {
+			remove_modifier = mod_old
+			remove_deposit = d_old
+		}
+		fire_on_action = { on_action = on_mod_drain }
+		from = { fire_on_action = { on_action = on_mod_drain } }
+	}
+}
+",
+    )]);
+    let drain = &gd
+        .megastructures
+        .get("mod_drain")
+        .expect("mod_drain")
+        .construction;
+    let site = ConstructionSite {
+        system: 1,
+        bodies: vec![SiteBody {
+            modifiers: vec!["mod_old".to_owned()],
+            ..body(11, "pc_molten", &["d_old"])
+        }],
+        ..ConstructionSite::default()
+    };
+    for owned in [true, false] {
+        let built = drain.replay(&gd, &site, Some(11), owned);
+        assert!(built.construction.is_empty(), "{:?}", built.construction);
+        assert_eq!(
+            built.unsure,
+            ["mod_drain: fire_on_action"],
+            "owned: {owned}"
+        );
+        assert_eq!(
+            built.unwritten,
+            [
+                "removes modifier mod_old from planet 11",
+                "removes deposit d_old from planet 11"
+            ]
+        );
+    }
 }
 
 /// A mod's ruin takes the placement of the type a scripted effect spawns it in place of,

@@ -514,13 +514,15 @@ impl Walk<'_> {
         });
     }
 
+    /// List `what` as unfollowed once, owned only when every path to it is.
     fn unfollowed(&self, what: &str, out: &mut Construction) {
-        let line = Unfollowed {
-            what: format!("{}: {what}", self.origin),
-            owned: self.owned,
-        };
-        if !out.unfollowed.contains(&line) {
-            out.unfollowed.push(line);
+        let what = format!("{}: {what}", self.origin);
+        match out.unfollowed.iter_mut().find(|line| line.what == what) {
+            Some(line) => line.owned &= self.owned,
+            None => out.unfollowed.push(Unfollowed {
+                what,
+                owned: self.owned,
+            }),
         }
     }
 
@@ -581,7 +583,11 @@ fn leaf_keys(condition: &Condition, out: &mut Vec<String>) {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Built {
     pub construction: MegastructureConstruction,
-    pub skipped: Vec<String>,
+    /// Each effect the replay could not tell applies, or where.
+    pub unsure: Vec<String>,
+    /// Each effect that applies but that the editor does not write: a modifier or deposit
+    /// the construction removes, a deposit on the system, an owner variable lowered.
+    pub unwritten: Vec<String>,
 }
 
 /// One body as a step's condition judges it, as the replay has left it so far.
@@ -646,7 +652,8 @@ impl Construction {
         host: Option<u32>,
         has_owner: bool,
     ) -> Built {
-        let mut skipped: Vec<String> = self
+        let mut unwritten: Vec<String> = Vec::new();
+        let mut unsure: Vec<String> = self
             .unfollowed
             .iter()
             .filter(|unfollowed| has_owner || !unfollowed.owned)
@@ -687,7 +694,7 @@ impl Construction {
                         step.effect,
                         Effect::AddDeposit(_) | Effect::RemoveDeposit(_)
                     ) {
-                        note(&mut skipped, format!("{:?} on the system", step.effect));
+                        note(&mut unwritten, format!("{:?} on the system", step.effect));
                     }
                 }
                 Target::Host(guard) | Target::Planets(guard) => {
@@ -709,7 +716,7 @@ impl Construction {
                                 let mut keys = std::collections::BTreeSet::new();
                                 guard.unknown_keys(&*body, &mut keys);
                                 note(
-                                    &mut skipped,
+                                    &mut unsure,
                                     format!(
                                         "{:?} on planet {}: cannot judge {}",
                                         step.effect,
@@ -731,7 +738,7 @@ impl Construction {
             ModifierHost::System,
             &days,
             &mut built,
-            &mut skipped,
+            &mut unwritten,
         );
         for body in &bodies {
             let host = ModifierHost::Body { body: body.site.id };
@@ -741,7 +748,7 @@ impl Construction {
                 host,
                 &days,
                 &mut built,
-                &mut skipped,
+                &mut unwritten,
             );
             let (gained, lost) = multiset_diff(&body.site.deposits, &body.deposits);
             for kind in gained {
@@ -752,7 +759,7 @@ impl Construction {
             }
             for kind in lost {
                 note(
-                    &mut skipped,
+                    &mut unwritten,
                     format!("removes deposit {kind} from planet {}", body.site.id),
                 );
             }
@@ -765,21 +772,22 @@ impl Construction {
                 });
             } else if by != 0.0 {
                 note(
-                    &mut skipped,
+                    &mut unwritten,
                     format!("changes owner variable {variable} by {by}"),
                 );
             }
         }
         Built {
             construction: built,
-            skipped,
+            unsure,
+            unwritten,
         }
     }
 }
 
-fn note(skipped: &mut Vec<String>, line: String) {
-    if !skipped.contains(&line) {
-        skipped.push(line);
+fn note(lines: &mut Vec<String>, line: String) {
+    if !lines.contains(&line) {
+        lines.push(line);
     }
 }
 
@@ -826,7 +834,7 @@ fn added_modifiers(
     host: ModifierHost,
     days: &BTreeMap<(ModifierHost, String), i32>,
     built: &mut MegastructureConstruction,
-    skipped: &mut Vec<String>,
+    unwritten: &mut Vec<String>,
 ) {
     for modifier in after.iter().filter(|m| !before.contains(m)) {
         built.modifiers.push(ConstructionModifier {
@@ -840,7 +848,7 @@ fn added_modifiers(
             ModifierHost::System => "the system".to_owned(),
             ModifierHost::Body { body } => format!("planet {body}"),
         };
-        note(skipped, format!("removes modifier {modifier} from {on}"));
+        note(unwritten, format!("removes modifier {modifier} from {on}"));
     }
 }
 

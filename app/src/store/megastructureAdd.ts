@@ -68,9 +68,8 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     set({ last: kind });
     const name = data.names.get(kind) ?? megastructureLabel(kind);
     useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructure, name));
-    if (added.skipped.length > 0) {
-      useFileSessionStore.getState().setNotice(leftOutNotice(name, added.skipped.length));
-    }
+    const notice = leftOutNotice(name, added.unsure.length, added.unwritten.length);
+    if (notice !== null) useFileSessionStore.getState().setNotice(notice);
     return true;
   },
 }));
