@@ -686,6 +686,26 @@ for planets or deposits.
 - A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
   agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
   Shroud tunnel have `owner={ type=7 … }`.
+- A row with `save_on_death=1` is logged in `dead_mega_structure` when
+  it goes, and a row without it is not. In a 4.5.2 late-game save all 378
+  live rows of the types the timeline names have it, and all 97 logged
+  ids are of those types. The log is a `map` line `<id>=<n>`, in numeric
+  order of the ids, and an entry `<n>={ type="<type>" solar_system=<system> }`
+  last in `objects`, numbered one past the highest there. The 4.4 sample's
+  table is empty, `dead_mega_structure={ }`, and a first log writes both
+  blocks.
+- When the editor deletes a row, its gateway or relay bypass row is
+  emptied, leaving only its indentation, and its id leaves the system's
+  `bypasses` and the other bypasses' `connections` and
+  `active_connections`. A tombstone in `bypasses` shows a broken bypass
+  on the map.
+- A built structure sets the planet flag `has_megastructure` on its body,
+  and an Arc Furnace also `has_arc_furnace` and swaps the planet's model
+  to `entity_name="invisible_turret_entity"`. The furnace's
+  `on_dismantle_complete` takes both flags off and gives the planet its
+  model back. A ruined orbital ring's planet has the flag
+  `ruined_orbital_ring_planet`. A body the structure made, such as a
+  cosmogenesis world, has the planet flag `megastructure`.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the
