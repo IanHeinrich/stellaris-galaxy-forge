@@ -82,7 +82,8 @@ Asteroids get names the game draws at random.
 
 A rolled class lists the classes that fit the body's orbit, likeliest
 first. Where the orbit is a single distance and the system's star is
-fixed, each class shows its odds. A class picked from a named list of
+fixed, each class has a bar and its odds, and the likeliest class's bar
+is the longest. A class picked from a named list of
 classes lists every class in the list. The game may roll any of them,
 even one that doesn't fit the orbit. A rolled ring shows its chance.
 

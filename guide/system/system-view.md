@@ -82,7 +82,8 @@ it means. Click the row to open the first of them. A planet that may not
 spawn, because some games don't have it, shows "0 to 1". The system view still
 shows every planet the game can place, with a dashed ring on the ones
 not every game has. A star drawn from a star list has a Star class
-section that lists the list's star classes with their odds.
+section that lists the list's star classes, likeliest first. Each has a
+bar in the star's colour and its odds.
 
 ## A scenario system's Initializer section <Badge type="info" text="Scenario" />
 

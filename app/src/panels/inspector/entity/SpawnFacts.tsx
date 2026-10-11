@@ -54,7 +54,10 @@ import { ScriptSnippet } from "../../ScriptSnippet";
 import { useNamed } from "../../useNamed";
 import { Group, Properties, PropertyRow, Section } from "../parts";
 import { Rolled, RolledMark, SetByRow, Unknown, Why } from "../states";
-import { PlanetSize } from "../system/sections/bodies";
+import { planetTint } from "../../../lib/details/icons";
+import { oddsRows } from "../../../lib/details/oddsBars";
+import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
+import { OddsList } from "./OddsBar";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
@@ -94,18 +97,28 @@ function ClassOddsLine({
   starRolled: boolean;
 }) {
   const names = useGameDataStore((s) => s.names);
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
   const exact = !orbitRanged && !starRolled;
+  const odds = classOdds(classes);
+  if (exact && odds.every((o) => o.share !== null)) {
+    return (
+      <div className="ins-why">
+        <OddsList
+          rows={oddsRows(odds, planetTint).map((row) => ({
+            row,
+            name: bodyClassName(row.key, names, moon),
+            icon: (
+              <PlanetIcon planetClass={row.key} sprite={planetClasses.get(row.key)?.icon_sprite} />
+            ),
+          }))}
+        />
+      </div>
+    );
+  }
   return (
     <>
       <Why>
-        <Rolled>
-          {classOdds(classes)
-            .map((o) => {
-              const named = bodyClassName(o.key, names, moon);
-              return o.share === null || !exact ? named : `${named} ${percent(o.share)}`;
-            })
-            .join(" · ")}
-        </Rolled>
+        <Rolled>{odds.map((o) => bodyClassName(o.key, names, moon)).join(" · ")}</Rolled>
       </Why>
       {!exact && <Why>{classFitHint(orbitRanged, starRolled)}</Why>}
     </>

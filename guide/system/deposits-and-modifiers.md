@@ -87,8 +87,7 @@ right. A lighter shade is a smaller amount, and wide enough parts show
 their amount, such as "+2".
 
 Hover over a row to see the resource's name, each amount with its
-chance, and the deposits that give it. Hover over a part of the bar to
-highlight its amount. A deposit that yields nothing, such as a blocker,
+chance, and the deposits that give it. A deposit that yields nothing, such as a blocker,
 has a plain bar of its own, with its name in place of an icon.
 
 Planet features are listed by name, likeliest first. A percentage there

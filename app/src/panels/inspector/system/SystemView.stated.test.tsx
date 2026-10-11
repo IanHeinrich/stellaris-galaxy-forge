@@ -160,9 +160,16 @@ describe("a rolled scenario system", () => {
     expect(g).toBeGreaterThan(-1);
     expect(g).toBeLessThan(k);
     expect(k).toBeLessThan(b);
-    expect(html).toContain('<span class="rs">50%</span>');
-    expect(html).toContain('<span class="rs">33%</span>');
-    expect(html).toContain('<span class="rs">17%</span>');
+    const bars = [
+      ...html.matchAll(
+        /<span class="pl-pool-bar" style="width:([^"]*)"><span class="pl-pool-seg" style="flex-grow:1;background:([^"]*)"><\/span><\/span><\/span><span class="muted pl-pool-chance">([^<]*)</g,
+      ),
+    ].map(([, width, color, share]) => [width, color, share]);
+    expect(bars).toEqual([
+      ["100.0%", "#ffe066", "50%"],
+      ["66.7%", "#ffa64d", "33%"],
+      ["33.3%", "#9fc4ff", "17%"],
+    ]);
     expect(html).toContain("from the star list rl_standard_stars");
   });
 

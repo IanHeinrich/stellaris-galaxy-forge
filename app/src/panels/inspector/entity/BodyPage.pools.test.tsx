@@ -9,6 +9,9 @@ vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
 import { depositBars } from "../../../lib/details/depositBars";
+import { oddsRows } from "../../../lib/details/oddsBars";
+import { NEUTRAL_RAMP } from "../../../lib/details/resourceColors";
+import { starGlyph } from "../../../lib/visual/starGlyphs";
 import { FEATURE_CHANCE_TITLE } from "../../../lib/details/spawnFacts";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
@@ -97,7 +100,6 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
 
 /** A segment of a deposit roll's bar, as it renders. */
 interface ShownSegment {
-  lit: boolean;
   grow: number;
   fill: string;
   text: string;
@@ -114,10 +116,9 @@ function barRows(html: string) {
     const width = /class="pl-pool-bar" style="width:([^"]*)"/.exec(inner)?.[1];
     const segments: ShownSegment[] = [
       ...inner.matchAll(
-        /class="pl-pool-seg( lit)?" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
+        /class="pl-pool-seg" style="flex-grow:([^;]*);background:([^;]*);color:([^"]*)">([^<]*)<\/span>/g,
       ),
-    ].map(([, lit, grow, fill, text, label]) => ({
-      lit: lit !== undefined,
+    ].map(([, grow, fill, text, label]) => ({
       grow: Number(grow),
       fill,
       text,
@@ -160,7 +161,15 @@ describe("what a scenario body can roll", () => {
 
     const cls = row(page(100, "Planet"), "Class");
     expect(cls).toContain("Rolled from the classes that fit its orbit");
-    expect(cls).toMatch(/barren\S* 75% · \S*toxic\S* 25%/i);
+    const odds = [
+      ...cls.matchAll(
+        /<span class="pl-odds-name">([^<]*)<\/span><span class="pl-pool-track thin"><span class="pl-pool-bar" style="width:([^"]*)"><span class="pl-pool-seg" style="flex-grow:1;background:([^"]*)"><\/span><\/span><\/span><span class="muted pl-pool-chance">([^<]*)</g,
+      ),
+    ].map(([, named, width, , share]) => [named.toLowerCase(), width, share]);
+    expect(odds).toEqual([
+      [expect.stringContaining("barren"), "100.0%", "75%"],
+      [expect.stringContaining("toxic"), "33.3%", "25%"],
+    ]);
     expect(cls).not.toContain("depends on");
     const list = row(page(101, "Listed"), "Class");
     expect(list).toContain("One of 2, from rl_cold");
@@ -360,7 +369,7 @@ describe("what a scenario body can roll", () => {
     expect(html).not.toContain("£");
   });
 
-  it("shows a resource's amounts on hover, each with its share and the deposits behind it, and lights the hovered one", () => {
+  it("shows a resource's amounts on hover, each with its share and the deposits behind it", () => {
     const energy = (key: string, amount: number, depositName: string) =>
       [
         key,
@@ -382,19 +391,13 @@ describe("what a scenario body can roll", () => {
       ],
       views,
     );
-    const shown = (amount: number | null) =>
-      renderToStaticMarkup(
-        <BarLineView row={row} hover={{ shown: true, amount }} onHover={() => undefined} />,
-      );
-
-    const html = shown(3);
+    const html = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain(
       '<span class="dp-card-name"><span class="gi">E</span>Energy Credits · 44%</span>',
     );
-    const lines = card.split(/<span class="pl-pool-line(?= lit"|")/).slice(1);
+    const lines = card.split('<span class="pl-pool-line">').slice(1);
     expect(lines).toHaveLength(2);
-    expect(lines.map((line) => line.startsWith(" lit"))).toEqual([false, true]);
     expect(lines[0]).toContain('<span class="pl-pool-amount">+2</span>');
     expect(lines[0]).toContain('<span class="pl-pool-line-chance">26%</span>');
     expect(lines[0]).not.toContain("pl-pool-deposits");
@@ -406,14 +409,11 @@ describe("what a scenario body can roll", () => {
     expect(card).toContain(
       '<span class="dp-card-note muted">Chance one deposit the game rolls here is this one.</span>',
     );
-    expect(html.match(/class="pl-pool-seg lit"/g)).toHaveLength(1);
-    expect(html).toContain('class="pl-pool-seg lit" style="flex-grow:0.409');
 
     const unhovered = renderToStaticMarkup(
-      <BarLineView row={row} hover={{ shown: false, amount: null }} onHover={() => undefined} />,
+      <BarLineView row={row} shown={false} onShow={() => undefined} />,
     );
     expect(unhovered).not.toContain("dp-card");
-    expect(unhovered).not.toContain(" lit");
   });
 
   it("shows a deposit that yields nothing on hover by its name and chance", () => {
@@ -421,9 +421,7 @@ describe("what a scenario body can roll", () => {
       [{ key: "d_toxic_kelp", chance: 0.004 }],
       new Map([["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp" })]]),
     );
-    const html = renderToStaticMarkup(
-      <BarLineView row={row} hover={{ shown: true, amount: null }} onHover={() => undefined} />,
-    );
+    const html = renderToStaticMarkup(<BarLineView row={row} shown onShow={() => undefined} />);
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain('<span class="dp-card-name">Toxic Kelp · &lt;1%</span>');
     expect(card).not.toContain("pl-pool-line");
@@ -555,6 +553,24 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [star], spawn: systemSpawn() }));
 
     expect(page(99, "Star")).toContain('<span class="name">Yunak $&amp; Co Prime</span>');
+  });
+});
+
+describe("odds bars", () => {
+  it("scale each row to the likeliest, and fall back to a neutral tone for a colour too dark or unknown", () => {
+    const rows = oddsRows(
+      [
+        { key: "sc_g", share: 0.6 },
+        { key: "sc_black_hole", share: 0.3 },
+        { key: "sc_weird", share: 0.1 },
+      ],
+      (key) => starGlyph(key).tint,
+    );
+    expect(rows.map((r) => [r.key, r.width.toFixed(3), r.color])).toEqual([
+      ["sc_g", "1.000", "#ffe066"],
+      ["sc_black_hole", "0.500", NEUTRAL_RAMP[1]],
+      ["sc_weird", "0.167", "#9aa3ad"],
+    ]);
   });
 });
 

@@ -2,32 +2,22 @@ import { useId, useState, type CSSProperties } from "react";
 import { DEPOSIT_CARD_NOTE, depositBars, type BarRow } from "../../../lib/details/depositBars";
 import { percent, type PoolPick } from "../../../lib/details/spawnFacts";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
+import { BarTrack } from "./OddsBar";
 import { PickerCard } from "./PickerCard";
 import { ResourceIcon } from "./ResourceIcon";
-
-/** What of a row the pointer or the focus is on: the row, and the amount of the segment under it. */
-export interface BarHover {
-  shown: boolean;
-  amount: number | null;
-}
-
-const NOT_HOVERED: BarHover = { shown: false, amount: null };
 
 /** Whether a row shows its resource's icon; one with none shows its name instead. */
 function hasIcon(row: BarRow): boolean {
   return row.icon !== null && row.icon.icon !== null;
 }
 
-/** A row's card: one line per amount with its shade, share and deposits, the hovered one lit. */
-export function DepositBarCardLines({ row, amount }: { row: BarRow; amount: number | null }) {
+/** A row's card: one line per amount with its shade, share and deposits. */
+function DepositBarCardLines({ row }: { row: BarRow }) {
   return (
     <>
       {!row.plain &&
         row.segments.map((segment) => (
-          <span
-            key={segment.amount}
-            className={segment.amount === amount ? "pl-pool-line lit" : "pl-pool-line"}
-          >
+          <span key={segment.amount} className="pl-pool-line">
             <span className="pl-pool-swatch" style={{ background: segment.fill }} />
             <span className="pl-pool-amount">{segment.label}</span>
             <span className="pl-pool-mini">
@@ -47,30 +37,30 @@ export function DepositBarCardLines({ row, amount }: { row: BarRow; amount: numb
 }
 
 /**
- * One resource's row as it shows for `hover`: its icon, or its name where it has none, its bar
- * split by amount, its combined chance, and its card while hovered.
+ * One resource's row: its icon, or its name where it has none, its bar
+ * split by amount, its combined chance, and its card while `shown`.
  */
 export function BarLineView({
   row,
-  hover,
-  onHover,
+  shown,
+  onShow,
 }: {
   row: BarRow;
-  hover: BarHover;
-  onHover: (hover: BarHover) => void;
+  shown: boolean;
+  onShow: (shown: boolean) => void;
 }) {
   const id = useId();
   const cardId = `${id}-card`;
   const icon = hasIcon(row) ? row.icon : null;
-  const show = () => onHover({ shown: true, amount: hover.amount });
-  const hide = () => onHover(NOT_HOVERED);
+  const show = () => onShow(true);
+  const hide = () => onShow(false);
   return (
     <div
       id={id}
       className="pl-pool-row"
       role="group"
       aria-label={row.heading}
-      aria-describedby={hover.shown ? cardId : undefined}
+      aria-describedby={shown ? cardId : undefined}
       tabIndex={0}
       onMouseEnter={show}
       onMouseLeave={hide}
@@ -84,32 +74,28 @@ export function BarLineView({
       ) : (
         <span className="pl-pool-key pl-pool-name">{row.name}</span>
       )}
-      <span className="pl-pool-track">
-        {row.segments.length > 0 && (
-          <span className="pl-pool-bar" style={{ width: `${(row.width * 100).toFixed(1)}%` }}>
-            {row.segments.map((segment) => (
+      <BarTrack width={row.width}>
+        {row.segments.length === 0
+          ? undefined
+          : row.segments.map((segment) => (
               <span
                 key={segment.amount}
-                className={segment.amount === hover.amount ? "pl-pool-seg lit" : "pl-pool-seg"}
+                className="pl-pool-seg"
                 style={{ flexGrow: segment.share, background: segment.fill, color: segment.text }}
-                onMouseEnter={() => onHover({ shown: true, amount: segment.amount })}
-                onMouseLeave={() => onHover({ shown: true, amount: null })}
               >
                 {segment.labelled ? segment.label : null}
               </span>
             ))}
-          </span>
-        )}
-      </span>
+      </BarTrack>
       <span className="muted pl-pool-chance">{row.chance === null ? "" : percent(row.chance)}</span>
-      {hover.shown && (
+      {shown && (
         <PickerCard
           id={cardId}
           rowId={id}
           item={{ label: row.heading, effects: [] }}
           lead={icon !== null && <ResourceIcon amount={icon} />}
         >
-          <DepositBarCardLines row={row} amount={row.plain ? null : hover.amount} />
+          <DepositBarCardLines row={row} />
         </PickerCard>
       )}
     </div>
@@ -117,8 +103,8 @@ export function BarLineView({
 }
 
 function BarLine({ row }: { row: BarRow }) {
-  const [hover, setHover] = useState<BarHover>(NOT_HOVERED);
-  return <BarLineView row={row} hover={hover} onHover={setHover} />;
+  const [shown, setShown] = useState(false);
+  return <BarLineView row={row} shown={shown} onShow={setShown} />;
 }
 
 /** The width the rows' first column takes: an icon's, or a short name's where a row has no icon. */

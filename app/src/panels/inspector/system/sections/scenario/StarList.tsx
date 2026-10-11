@@ -1,11 +1,9 @@
 import type { SpawnStar } from "../../../../../generated/SpawnStar";
-import {
-  percent,
-  STAR_LIST_HINT,
-  starListSource,
-  starOdds,
-} from "../../../../../lib/details/spawnFacts";
+import { oddsRows } from "../../../../../lib/details/oddsBars";
+import { STAR_LIST_HINT, starListSource, starOdds } from "../../../../../lib/details/spawnFacts";
+import { starGlyph } from "../../../../../lib/visual/starGlyphs";
 import { useGameDataStore } from "../../../../../store/gameDataStore";
+import { OddsList } from "../../../entity/OddsBar";
 import { useNamed } from "../../../../useNamed";
 import { Icon } from "../../../../parts";
 import { Section } from "../../../parts";
@@ -13,24 +11,17 @@ import { Rolled } from "../../../states";
 
 type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
-/** One star class of the list, with its art and its share of the draw. */
-function StarOddsRow({ starClass, share }: { starClass: string; share: number | null }) {
-  const named = useNamed([starClass]);
+/** A star class's art, a star glyph while it has none. */
+function StarArt({ starClass }: { starClass: string }) {
   const texture = useGameDataStore((s) => s.starClasses.get(starClass)?.texture_key);
-  return (
-    <div className="ins-prow static">
-      <Icon className="pi ghost" keys={texture ? [texture] : []} glyph="★" />
-      <span>
-        <span className="l1">{named(starClass)}</span>
-      </span>
-      <span className="rs">{share === null ? "" : percent(share)}</span>
-    </div>
-  );
+  return <Icon className="pi ghost" keys={texture ? [texture] : []} glyph="★" />;
 }
 
 /** The star classes an `rl_` list draws the system's star from, likeliest first, with the odds the game's files give. */
 export function StarListSection({ star }: { star: RolledStar }) {
   const odds = starOdds(star.members);
+  const named = useNamed(odds.map((o) => o.key));
+  const rows = oddsRows(odds, (key) => starGlyph(key).tint);
   return (
     <Section
       id="system.starList"
@@ -39,9 +30,13 @@ export function StarListSection({ star }: { star: RolledStar }) {
       summary={<Rolled>rolled</Rolled>}
     >
       <div className="muted ins-hint">{STAR_LIST_HINT}</div>
-      {odds.map((o) => (
-        <StarOddsRow key={o.key} starClass={o.key} share={o.share} />
-      ))}
+      <OddsList
+        rows={rows.map((row) => ({
+          row,
+          name: named(row.key),
+          icon: <StarArt starClass={row.key} />,
+        }))}
+      />
       <div className="muted ins-hint">{starListSource(star.list)}</div>
     </Section>
   );
