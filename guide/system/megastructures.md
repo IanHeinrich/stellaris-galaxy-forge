@@ -26,9 +26,13 @@ one undo puts it all back.
   Deleting one of those removes the colony on that planet first, and
   the confirmation lists what goes with it. The planet stays, and you
   can then delete it as any other planet.
-- What the megastructure did to its system stays as the game left it.
-  Planets a Dyson Sphere froze stay frozen, and the system and its
-  owner keep their modifiers.
+- The modifiers and deposits its construction added go with it, as
+  when it is dismantled in the game. An Arc Furnace's mining bonus
+  leaves the planets of its system, and a Dyson Swarm's modifier leaves
+  its star. The app reads which from your game files, so load the game
+  data first. Without it, those modifiers and deposits stay.
+- Anything else the megastructure did to its system stays as the game
+  left it. Planets a Dyson Sphere froze stay frozen.
 
 The menu item and the button say why when a megastructure can't be
 deleted:

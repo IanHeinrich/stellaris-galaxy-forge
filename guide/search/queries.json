@@ -155,5 +155,6 @@
   {"q": "delete hyper relay", "expect": "system/megastructures#delete-a-megastructure"},
   {"q": "delete ruined orbital ring", "expect": "system/megastructures#delete-a-megastructure"},
   {"q": "delete gateway", "expect": "system/megastructures#delete-a-megastructure"},
-  {"q": "cosmogenesis world colony", "expect": "system/megastructures#delete-a-megastructure"}
+  {"q": "cosmogenesis world colony", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "arc furnace mining bonus", "expect": "system/megastructures#delete-a-megastructure"}
 ]
