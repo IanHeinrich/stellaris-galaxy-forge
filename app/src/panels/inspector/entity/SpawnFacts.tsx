@@ -5,8 +5,9 @@ import {
   bodyNoun,
   bodyScriptHint,
   CLASS_DECIDED,
-  comesFrom,
+  bodyFrom,
   copyLine,
+  isAsteroidClass,
   lineCount,
   MODEL_ROLLED,
   NAME_UNKNOWN,
@@ -20,6 +21,7 @@ import {
   START_PLANET_HINT,
   starOdds,
   unknownClassWhy,
+  valueSources,
 } from "../../../lib/details/spawnFacts";
 import { templateName } from "../../../lib/names";
 import { counted } from "../../../lib/text";
@@ -28,7 +30,7 @@ import { useGameDataStore } from "../../../store/gameDataStore";
 import { ScriptSnippet } from "../../ScriptSnippet";
 import { useNamed } from "../../useNamed";
 import { Group, Properties, PropertyRow, Section } from "../parts";
-import { ComesFrom, Rolled, Unknown, Why } from "../states";
+import { Rolled, SetByRow, Unknown, Why } from "../states";
 import { PlanetSize } from "../system/sections/bodies";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
@@ -166,13 +168,18 @@ export function SpawnProperties({
  * it comes from.
  */
 export function SpawnHeadNotes({ read }: { read: BodyRead }) {
-  const spawn = read.summary.spawn;
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
+  const { summary } = read;
+  const spawn = summary.spawn;
   if (spawn === undefined) return null;
-  const copy = copyLine(spawn, read.summary.moon);
+  const noun = isAsteroidClass(summary.class, planetClasses) ? "asteroid" : bodyNoun(summary);
+  const copy = copyLine(spawn, noun);
   return (
     <>
       {copy !== null && <div className="muted ins-hint">{copy}</div>}
-      {spawn.from_script !== null && <ComesFrom>comes from {spawn.from_script}</ComesFrom>}
+      {spawn.from_script !== null && (
+        <div className="muted ins-hint">{bodyFrom(noun, spawn.from_script)}</div>
+      )}
     </>
   );
 }
@@ -194,27 +201,23 @@ export function BodyFlags({ read }: PlanetSectionProps) {
 
 /**
  * What a scenario body's initializer says that a save has no field for: whether an empire starts
- * on it, the keys and script Galaxy Forge keeps as written, and where values come from.
+ * on it, the values an `@variable` sets, and the keys and script Galaxy Forge keeps as written.
  */
 export function BodyInitializer({ read }: PlanetSectionProps) {
   const system = useGalaxyStore((s) => s.systems.get(read.details.id));
   const file = useInitializerFile(system?.initializer ?? "");
   const spawn = read.summary.spawn;
   if (spawn === undefined) return null;
-  const from = comesFrom({ inline_scripts: [], variables: spawn.variables });
-  const shown =
-    spawn.starting_planet ||
-    spawn.home_planet ||
-    spawn.other_keys.length > 0 ||
-    spawn.script.length > 0 ||
-    from.length > 0;
+  const from = valueSources({ inline_scripts: [], variables: spawn.variables }, read.summary.moon);
+  const rows = spawn.starting_planet || spawn.home_planet || from.length > 0;
+  const shown = rows || spawn.other_keys.length > 0 || spawn.script.length > 0;
   if (!shown) return null;
   const noun = bodyNoun(read.summary);
   const source = file === null ? undefined : { file };
   return (
     <Section id="planet.initializer" title="Initializer">
       <div className="ins-init">
-        {(spawn.starting_planet || spawn.home_planet) && (
+        {rows && (
           <Properties>
             {spawn.starting_planet && (
               <>
@@ -223,6 +226,9 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
               </>
             )}
             {spawn.home_planet && <PropertyRow label="Home planet">Yes</PropertyRow>}
+            {from.map((source) => (
+              <SetByRow key={`${source.label}-${source.name}`} source={source} />
+            ))}
           </Properties>
         )}
         {spawn.script.length > 0 && (
@@ -245,9 +251,6 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
             <ScriptSnippet text={rawText(spawn.other_keys)} source={source} />
           </Group>
         )}
-        {from.map((line) => (
-          <ComesFrom key={line}>{line}</ComesFrom>
-        ))}
       </div>
     </Section>
   );

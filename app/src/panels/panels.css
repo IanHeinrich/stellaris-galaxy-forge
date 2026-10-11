@@ -637,18 +637,15 @@ button.link.help-link {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 4px 2px 8px;
+  padding: 1px 4px 1px 8px;
   border-bottom: 1px solid var(--border);
   color: var(--fg-muted);
   font-size: var(--text-hint);
 }
 
-.snippet-file {
+.snippet-where {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .snippet-bar button.link {
@@ -688,7 +685,10 @@ button.link.help-link {
 .snippet-line.changed,
 .snippet-legend-mark {
   border-left-color: var(--accent);
-  background: var(--accent-bg);
+}
+
+.snippet-changed {
+  background: var(--accent-bg-strong);
 }
 
 .snippet-key,

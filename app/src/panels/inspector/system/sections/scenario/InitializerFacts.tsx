@@ -1,7 +1,6 @@
 import type { SystemSpawn } from "../../../../../generated/SystemSpawn";
 import type { UsageOdds } from "../../../../../generated/UsageOdds";
 import {
-  comesFrom,
   hasRandomOnly,
   lineCount,
   NEIGHBOURS_WHY,
@@ -18,17 +17,20 @@ import {
   SCRIPT_TITLE,
   SYSTEM_SCRIPT_HINT,
   usageOddsText,
+  usageWeight,
+  usageWords,
+  valueSources,
 } from "../../../../../lib/details/spawnFacts";
 import { counted } from "../../../../../lib/text";
 import { ScriptSnippet, type SnippetSource } from "../../../../ScriptSnippet";
 import { Group, Properties, PropertyRow } from "../../../parts";
-import { ComesFrom, Why } from "../../../states";
+import { SetByRow, Why } from "../../../states";
 
 /** `usage_odds` as written: a number, a value Galaxy Forge can't read, or where conditions change it. */
 function HowOftenRow({ odds }: { odds: UsageOdds }) {
   switch (odds.kind) {
     case "number":
-      return <PropertyRow label="How often">{odds.value}</PropertyRow>;
+      return <PropertyRow label="How often">{usageWeight(odds.value)}</PropertyRow>;
     case "unknown":
       return (
         <PropertyRow label="How often" mono>
@@ -51,8 +53,8 @@ function RandomSettings({ spawn, source }: { spawn: SystemSpawn; source?: Snippe
       {(spawn.usage !== null || odds !== null) && (
         <Properties>
           {spawn.usage !== null && (
-            <PropertyRow label="Used as" mono>
-              {spawn.usage}
+            <PropertyRow label="Used as">
+              <span title={spawn.usage}>{usageWords(spawn.usage)}</span>
             </PropertyRow>
           )}
           {odds !== null && <HowOftenRow odds={odds} />}
@@ -86,8 +88,8 @@ function RandomSettings({ spawn, source }: { spawn: SystemSpawn; source?: Snippe
 
 /**
  * The Initializer section's rows a scenario system's initializer states and a save has no field
- * for: how many a galaxy may hold, whether it is pre-FTL and its name list. They go inside the
- * section's one `Properties` grid.
+ * for: how many a galaxy may hold, whether it is pre-FTL, its name list, and the values an inline
+ * script or an `@variable` sets. They go inside the section's one `Properties` grid.
  */
 export function StatedRows({ spawn }: { spawn: SystemSpawn }) {
   return (
@@ -109,17 +111,19 @@ export function StatedRows({ spawn }: { spawn: SystemSpawn }) {
           {spawn.namelist}
         </PropertyRow>
       )}
+      {valueSources(spawn).map((source) => (
+        <SetByRow key={`${source.label}-${source.name}`} source={source} />
+      ))}
     </>
   );
 }
 
 /**
  * The groups under the Initializer section's rows: the script the initializer runs, what only a
- * random galaxy reads, and the keys Galaxy Forge keeps as written; then where values come from.
+ * random galaxy reads, and the keys Galaxy Forge keeps as written.
  * `file` is the initializer's file, which each snippet names.
  */
 export function StatedGroups({ spawn, file }: { spawn: SystemSpawn; file: string | null }) {
-  const from = comesFrom(spawn);
   const source = file === null ? undefined : { file };
   return (
     <>
@@ -152,9 +156,6 @@ export function StatedGroups({ spawn, file }: { spawn: SystemSpawn; file: string
           <ScriptSnippet text={rawText(spawn.other_keys)} source={source} />
         </Group>
       )}
-      {from.map((line) => (
-        <ComesFrom key={line}>{line}</ComesFrom>
-      ))}
     </>
   );
 }

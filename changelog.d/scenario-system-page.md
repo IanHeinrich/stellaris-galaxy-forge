@@ -15,4 +15,5 @@
   only. Moons and asteroids are counted in the System total row.
 - The Initializer section has Open file and Show in folder buttons, and
   groups the script, the random galaxy settings and the other keys.
-- The Source tab marks the lines an edit changed with a bar at the left.
+- The Source tab lays a statement out one key per line, as in a game
+  file, and highlights the text an edit changed.

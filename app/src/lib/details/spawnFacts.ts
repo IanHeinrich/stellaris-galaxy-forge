@@ -20,7 +20,7 @@ import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemSpawn } from "../../generated/SystemSpawn";
 import type { UnknownClass } from "../../generated/UnknownClass";
 import { dedent } from "../scriptText";
-import { counted } from "../text";
+import { counted, keyWords } from "../text";
 import type { ModifierRow } from "./planetPage";
 
 /** What a rolled value says on hover, wherever it shows. */
@@ -129,7 +129,7 @@ export const STAR_LIST_HINT = "The game rolls one of these when a game starts, a
 
 /** Where a star list comes from, under its rows. */
 export function starListSource(list: string): string {
-  return `from the star list ${list}`;
+  return `These star classes come from the star list ${list}.`;
 }
 
 /** What the system's head says of its star when the initializer names no class it can show. */
@@ -187,34 +187,21 @@ export function ordinal(n: number): string {
 }
 
 /**
- * What a body's page says of its place among the bodies its block places: how many the
- * initializer places like it, which one it is and when the game places it, and whether it orbits
- * a planet not every game has. `null` for a body placed once that every game has.
+ * What a body's page says of its place among the bodies its block places: how many the game
+ * places like it, which one it is and when it is there, and whether some games lack it. `noun` is
+ * `planet`, `moon` or `asteroid`. `null` for a body placed once that every game has.
  */
-export function copyLine(spawn: BodySpawn, moon: boolean): string | null {
+export function copyLine(spawn: BodySpawn, noun: string): string | null {
   const { count, copy, always } = spawn;
-  const sentences: string[] = [];
-  const several = count.max > 1 || isRanged(count);
-  if (several) {
-    const around = moon ? " around its planet" : "";
-    sentences.push(
-      `The initializer places ${rangeWords(count)} ${moon ? "moons" : "planets"} like this one${around}.`,
-    );
+  const some = `Some games have this ${noun} and some don't.`;
+  if (count.max <= 1) return always ? null : some;
+  const around = noun === "moon" ? " around its planet" : "";
+  const placed = `The game places ${rangeWords(count)} ${noun}s like this one${around}.`;
+  const nth = `This is the ${ordinal(copy)}`;
+  if (isRanged(count) && copy > count.min) {
+    return `${placed} ${nth}, so it is only there when the game places ${copy} or more.`;
   }
-  const optional = isRanged(count) && copy > count.min;
-  if (optional) {
-    sentences.push(
-      `This is the ${ordinal(copy)}, so the game places it only when it rolls ${copy} or more.`,
-    );
-  } else if (several) {
-    sentences.push(
-      always
-        ? `This is the ${ordinal(copy)}, so every game has it.`
-        : `This is the ${ordinal(copy)}.`,
-    );
-  }
-  if (!always && !optional) sentences.push("It orbits a planet that not every game has.");
-  return sentences.length === 0 ? null : sentences.join(" ");
+  return always ? `${placed} ${nth}, so every game has it.` : `${placed} ${nth}. ${some}`;
 }
 
 /** What a body's page calls it in a sentence. */
@@ -403,13 +390,12 @@ export const SCRIPT_TITLE = "Script it runs";
 
 /** What the system's Script it runs group says over its lines. */
 export const SYSTEM_SCRIPT_HINT =
-  "The game runs these lines once, when it builds the system. Galaxy Forge shows them as written. " +
-  "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring " +
-  "system find none.";
+  "The game runs these lines once, when it builds the system. On a scenario map they run " +
+  "before hyperlanes exist, so lines that look for a neighbouring system find none.";
 
 /** What a body's Script it runs group says over its lines. */
 export function bodyScriptHint(noun: string): string {
-  return `The game runs these lines once, when it builds the ${noun}. Galaxy Forge shows them as written.`;
+  return `The game runs these lines once, when it builds the ${noun}.`;
 }
 
 /** The heading over the initializer's keys Galaxy Forge keeps as written, and what it says of them. */
@@ -436,13 +422,33 @@ export const RANDOM_SETTINGS_TITLE = "Random galaxy settings";
 export const RANDOM_SETTINGS_TAIL = "no effect here";
 export const RANDOM_SETTINGS_HINT =
   "A random galaxy uses these to decide how often to add this system. " +
-  "This map places it by name, so they don't apply.";
+  "This map already places it, so they don't apply.";
+
+/** The How often row of a `usage_odds` written as a number. */
+export function usageWeight(weight: number): string {
+  return `Weight ${weight}, against other systems of its kind`;
+}
 
 /** The How often row of `usage_odds` written as conditions, from the number they start at. */
 export function usageOddsText(base: number | null): string {
   return base === null
     ? "Set by the conditions below."
     : `Starts at ${base}. The conditions below change it.`;
+}
+
+/** The `usage` keys the game's own initializers use, in the words the Used as row shows. */
+const USAGES: Record<string, string> = {
+  misc_system_init: "a special system away from empires",
+  empire_init: "an empire's home system",
+  fallen_empire_init: "a fallen empire's home system",
+  nomad_init: "a nomad empire's home system",
+  custom_empire: "a home system to pick in the empire creator",
+  origin: "an origin's home system",
+};
+
+/** What the Used as row shows for a `usage` key: its words, or the key where it has none. */
+export function usageWords(usage: string): string {
+  return USAGES[usage] ?? usage;
 }
 
 /** What the Neighbours row says under its list. */
@@ -472,27 +478,82 @@ export function perGalaxyHint(max: number): string {
     : "Systems on this map count towards that.";
 }
 
-/** Whether the initializer states how many a galaxy holds, that it is pre-FTL, or its name list. */
+/**
+ * Whether the initializer states how many a galaxy holds, that it is pre-FTL or its name list, or
+ * takes a value from an inline script or an `@variable`.
+ */
 export function hasStatedRows(spawn: SystemSpawn): boolean {
-  return spawn.max_instances !== null || spawn.primitive_system || spawn.namelist !== null;
+  return (
+    spawn.max_instances !== null ||
+    spawn.primitive_system ||
+    spawn.namelist !== null ||
+    spawn.inline_scripts.length > 0 ||
+    spawn.variables.length > 0
+  );
 }
 
 /** The Pre-FTL row's hint. */
 export const PRIMITIVE_HINT = "The game builds it whatever the galaxy's Pre-FTL setting says.";
 
-/** "Comes from" lines: the keys an inline script gave, and the values an `@variable` gave. */
-export function comesFrom(spawn: Pick<SystemSpawn, "inline_scripts" | "variables">): string[] {
+/** A value an inline script or an `@variable` gives: its row's label, and what sets it. */
+export interface ValueSource {
+  label: string;
+  via: "inline script" | "variable";
+  name: string;
+}
+
+const VALUE_LABELS: Record<string, string> = {
+  size: "Size",
+  orbit_distance: "Orbit distance",
+  orbit_angle: "Orbit angle",
+  change_orbit: "Orbit change",
+  class: "Class",
+  planet: "Planets",
+  moon: "Moons",
+  count: "Count",
+  entity: "Model",
+  has_ring: "Ring",
+  spawn_chance: "Spawn chance",
+  scaled_spawn_chance: "Scaled chance",
+  usage_odds: "How often",
+  max_instances: "Per galaxy",
+  neighbor_system: "Neighbours",
+  init_effect: "Script it runs",
+};
+
+/** A key's label in a Set by row; on a moon `change_orbit` is its distance from its planet. */
+function valueLabel(key: string, moon: boolean): string {
+  if (key === "change_orbit" && moon) return "Moon distance";
+  return VALUE_LABELS[key] ?? keyWords(key);
+}
+
+/** The values an inline script or an `@variable` gives, each with what sets it. */
+export function valueSources(
+  spawn: Pick<SystemSpawn, "inline_scripts" | "variables">,
+  moon = false,
+): ValueSource[] {
   return [
-    ...spawn.inline_scripts.map((use) =>
-      use.keys.length === 0
-        ? `comes from ${use.script}`
-        : `${use.keys.join(", ")} come from ${use.script}`,
+    ...spawn.inline_scripts.flatMap((use) =>
+      (use.keys.length === 0 ? ["other_values"] : use.keys).map((key): ValueSource => ({
+        label: key === "other_values" ? "Other values" : valueLabel(key, moon),
+        via: "inline script",
+        name: use.script,
+      })),
     ),
-    ...spawn.variables.map((use) => `${use.key} from ${use.variable}`),
+    ...spawn.variables.map((use): ValueSource => ({
+      label: valueLabel(use.key, moon),
+      via: "variable",
+      name: use.variable,
+    })),
   ];
 }
 
 /** The line under a list every body of which an inline script gives. */
 export function everyBodyFrom(script: string): string {
-  return `every body comes from ${script}`;
+  return `Every body here comes from the inline script ${script}.`;
+}
+
+/** The line under a body's head that its block comes from an inline script. */
+export function bodyFrom(noun: string, script: string): string {
+  return `This ${noun} comes from the inline script ${script}.`;
 }

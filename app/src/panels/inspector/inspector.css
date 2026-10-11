@@ -447,16 +447,6 @@ button.link.ins-drill:hover {
   font-size: var(--text-note);
 }
 
-.ins-from {
-  padding: 2px;
-  color: var(--fg-muted);
-  font-size: var(--text-note);
-}
-
-.ins-from::before {
-  content: "↳ ";
-}
-
 /* The count of a row that stands for several copies of a body, at the row's right. */
 .ins-block-count {
   padding: 0 5px;

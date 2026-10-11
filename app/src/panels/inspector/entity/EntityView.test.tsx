@@ -163,7 +163,7 @@ describe("a megastructure", () => {
       "source",
     );
     expect(html).toContain(
-      '<span class="snippet-line changed" title="changed by an edit">	<span class="snippet-key">coordinate</span>',
+      '<span class="snippet-line changed" title="changed by an edit">	<span class="snippet-key snippet-changed">coordinate</span>',
     );
     expect(html).toContain(
       '<span class="snippet-line"><span class="snippet-key">megastructure</span>',

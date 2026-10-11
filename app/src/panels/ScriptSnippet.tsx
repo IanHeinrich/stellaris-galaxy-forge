@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import * as ipc from "../api/ipc";
-import { fileName } from "../lib/paths";
-import { lineText, scriptLines, type ScriptLine } from "../lib/scriptText";
+import { layoutLines, lineText, scriptLines, type ScriptLine } from "../lib/scriptText";
 import { useFileSessionStore } from "../store/fileSessionStore";
 import { openGameFile } from "./openGameFile";
 import { Twisty } from "./Twisty";
@@ -19,6 +18,7 @@ export interface SnippetSource {
   line?: number;
 }
 
+/** Copy and Open file at the right, and the line the snippet starts on where that is known. */
 function SourceBar({ source, text }: { source: SnippetSource; text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () =>
@@ -31,19 +31,23 @@ function SourceBar({ source, text }: { source: SnippetSource; text: string }) {
     );
   return (
     <div className="snippet-bar">
-      <span className="snippet-file" title={source.file}>
-        {fileName(source.file) || source.file}
-        {source.line !== undefined && ` · line ${source.line}`}
-      </span>
+      <span className="snippet-where">{source.line !== undefined && `line ${source.line}`}</span>
       <button type="button" className="link" onClick={copy}>
         {copied ? "Copied" : "Copy"}
       </button>
-      <button type="button" className="link" onClick={() => openGameFile(source.file, false)}>
+      <button
+        type="button"
+        className="link"
+        title={source.file}
+        onClick={() => openGameFile(source.file, false)}
+      >
         Open file
       </button>
     </div>
   );
 }
+
+const PLAIN = new Set(["space", "value", "operator", "brace"]);
 
 function Line({ line }: { line: ScriptLine }) {
   return (
@@ -51,18 +55,19 @@ function Line({ line }: { line: ScriptLine }) {
       className={line.changed ? "snippet-line changed" : "snippet-line"}
       title={line.changed ? CHANGED_TITLE : undefined}
     >
-      {line.tokens.map((token, i) =>
-        token.kind === "space" ||
-        token.kind === "value" ||
-        token.kind === "operator" ||
-        token.kind === "brace" ? (
+      {line.tokens.map((token, i) => {
+        const classes = [
+          ...(PLAIN.has(token.kind) ? [] : [`snippet-${token.kind}`]),
+          ...(token.changed ? ["snippet-changed"] : []),
+        ];
+        return classes.length === 0 ? (
           token.text
         ) : (
-          <span key={i} className={`snippet-${token.kind}`}>
+          <span key={i} className={classes.join(" ")}>
             {token.text}
           </span>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }
@@ -70,24 +75,27 @@ function Line({ line }: { line: ScriptLine }) {
 /**
  * Script text as the file writes it, read-only: its own case, quotes and comments, moved left by
  * the indent its lines share and coloured as modders see it in their editor. A long one shows its
- * first lines and a control for the rest. With a `source`, a bar names the file and offers Copy and
- * Open file. `changed` marks the lines an edit changed, by offsets into `text`. `wrap` wraps long
- * lines; otherwise they scroll inside the frame.
+ * first lines and a control for the rest. With a `source`, a bar offers Copy and Open file.
+ * With `layout`, the text is laid out one statement per line as a game file is, never folded, and
+ * its long lines wrap; `changed` then marks the text an edit changed, by offsets into `text`.
  */
 export function ScriptSnippet({
   text,
   source,
   changed,
-  wrap = false,
+  layout = false,
 }: {
   text: string;
   source?: SnippetSource;
   changed?: readonly (readonly [number, number])[];
-  wrap?: boolean;
+  layout?: boolean;
 }) {
   const [all, setAll] = useState(false);
-  const lines = useMemo(() => scriptLines(text, changed), [text, changed]);
-  const long = lines.length > FOLD_LINES;
+  const lines = useMemo(
+    () => (layout ? layoutLines(text, changed) : scriptLines(text)),
+    [text, changed, layout],
+  );
+  const long = !layout && lines.length > FOLD_LINES;
   const shown = long && !all ? lines.slice(0, FOLD_LINES) : lines;
   const marked = lines.some((line) => line.changed);
   return (
@@ -96,7 +104,7 @@ export function ScriptSnippet({
         {source !== undefined && (
           <SourceBar source={source} text={lines.map(lineText).join("\n")} />
         )}
-        <pre className={wrap ? "snippet-text wrap" : "snippet-text"}>
+        <pre className={layout ? "snippet-text wrap" : "snippet-text"}>
           {shown.map((line, i) => (
             <Line key={i} line={line} />
           ))}

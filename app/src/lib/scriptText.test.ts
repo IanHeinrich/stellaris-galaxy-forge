@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { dedent, lineText, scriptLines, scriptTokens, type ScriptToken } from "./scriptText";
+import {
+  dedent,
+  layoutLines,
+  lineText,
+  scriptLines,
+  scriptTokens,
+  type ScriptToken,
+} from "./scriptText";
 
 /** The tokens that take a colour, as `kind:text`. */
 const coloured = (text: string) =>
@@ -61,6 +68,15 @@ describe("scriptTokens", () => {
       "operator:=",
       "number:1",
       "brace:}",
+    ]);
+  });
+
+  it("ends a word at a quote, as the core lexer does", () => {
+    expect(coloured('name=abc"d e"')).toEqual([
+      "keyword:name",
+      "operator:=",
+      "value:abc",
+      'string:"d e"',
     ]);
   });
 
@@ -171,14 +187,42 @@ describe("scriptLines", () => {
     expect(lines.map(lineText)).toEqual(["a = {", '\tdesc = "one', '\ttwo"', "}"]);
     expect(lines[2].tokens).toEqual([{ kind: "string", text: '\ttwo"' }]);
   });
+});
 
-  it("marks the lines a changed range covers, by offsets into the text as given", () => {
-    const text = "a = {\n\tb = 1\n\tc = 2\n}";
-    const lines = scriptLines(text, [[text.indexOf("\tc"), text.indexOf("}")]]);
-    expect(lines.map((l) => l.changed)).toEqual([false, false, true, false]);
+describe("layoutLines", () => {
+  it("lays a one-line statement out one key per line, its blocks a tab further in", () => {
+    const text =
+      'system = { id = "106" name = "Xu-an" position = { x = -267.49 y = -89.32 } flags = { a b } }';
+    expect(layoutLines(text).map(lineText)).toEqual([
+      "system = {",
+      '\tid = "106"',
+      '\tname = "Xu-an"',
+      "\tposition = {",
+      "\t\tx = -267.49",
+      "\t\ty = -89.32",
+      "\t}",
+      "\tflags = { a b }",
+      "}",
+    ]);
   });
 
-  it("marks nothing for an empty range", () => {
-    expect(scriptLines("a = 1\nb = 2", [[6, 6]]).some((l) => l.changed)).toBe(false);
+  it("keeps a game file's own layout, its spacing and a comment after a statement", () => {
+    const text = "a={\n\tb=1 # one\n\t# alone\n\tc={ 1 2 }\n}";
+    expect(layoutLines(text).map(lineText)).toEqual([
+      "a={",
+      "\tb=1 # one",
+      "\t# alone",
+      "\tc={ 1 2 }",
+      "}",
+    ]);
+  });
+
+  it("marks the tokens a changed range covers, and the lines they land on", () => {
+    const text = "system = { id = 1 position = { x = 2 y = 3 } }";
+    const at = text.indexOf("x = 2");
+    const lines = layoutLines(text, [[at, at + 5]]);
+    expect(lines.map((l) => l.changed)).toEqual([false, false, false, true, false, false, false]);
+    expect(lines[3].tokens.filter((t) => t.changed).map((t) => t.text)).toEqual(["x", "=", "2"]);
+    expect(layoutLines(text, [[6, 6]]).some((l) => l.changed)).toBe(false);
   });
 });

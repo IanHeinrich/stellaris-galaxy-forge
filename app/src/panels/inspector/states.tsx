@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ROLLED_TITLE } from "../../lib/details/spawnFacts";
+import { ROLLED_TITLE, type ValueSource } from "../../lib/details/spawnFacts";
+import { PropertyRow } from "./parts";
 
 /**
  * The three states a scenario value is in, one look each wherever it shows: fixed is plain text,
@@ -25,7 +26,11 @@ export function Why({ children }: { children: ReactNode }) {
   return <span className="ins-why">{children}</span>;
 }
 
-/** Where a value comes from when it isn't the block itself: an inline script or an `@variable`. */
-export function ComesFrom({ children }: { children: ReactNode }) {
-  return <div className="ins-from">{children}</div>;
+/** A value an inline script or an `@variable` gives, as a row: what it is, then what sets it. */
+export function SetByRow({ source }: { source: ValueSource }) {
+  return (
+    <PropertyRow label={source.label}>
+      Set by the {source.via} <span className="mono">{source.name}</span>
+    </PropertyRow>
+  );
 }

@@ -63,7 +63,7 @@ describe("a scenario body's page", () => {
     const head = html.slice(0, html.indexOf("</div>"));
     expect(head).not.toContain("may not spawn");
     expect(html).toContain(
-      "The initializer places 2 to 10 planets like this one. This is the 7th, so the game places it only when it rolls 7 or more.",
+      "The game places 2 to 10 planets like this one. This is the 7th, so it is only there when the game places 7 or more.",
     );
     expect(row(html, "Name")).toContain("Named by the game when it starts");
     expect(row(html, "Class")).toContain("Rolled from the classes that fit its orbit");
@@ -92,10 +92,8 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [moon, optional], spawn: systemSpawn() }));
 
-    expect(page(107, "Random moon")).toContain("It orbits a planet that not every game has.");
-    expect(page(108, "Random moon")).toContain(
-      "The initializer places 0 to 1 moons like this one around its planet. This is the 1st, so the game places it only when it rolls 1 or more.",
-    );
+    expect(page(107, "Random moon")).toContain("Some games have this moon and some don&#x27;t.");
+    expect(page(108, "Random moon")).toContain("Some games have this moon and some don&#x27;t.");
   });
 
   it("shows a fixed body's stated name, model, deposits, features, flags and start, read-only", async () => {
@@ -177,13 +175,13 @@ describe("a scenario body's page", () => {
     expect(html).toContain(
       '<span class="ins-group-title">Script it runs</span><span class="ins-group-tail">1 line</span>',
     );
-    expect(html).toContain(
-      "The game runs these lines once, when it builds the planet. Galaxy Forge shows them as written.",
-    );
+    expect(html).toContain("The game runs these lines once, when it builds the planet.");
     expect(html).toContain(
       '<span class="snippet-key">save_global_event_target_as</span> = sol_system_earth',
     );
-    expect(html).toContain("orbit_distance from @base_moon_distance");
+    expect(html).toContain(
+      '<span class="k">Orbit distance</span><span>Set by the variable <span class="mono">@base_moon_distance</span></span>',
+    );
     expect(html).not.toContain("edit-field");
     expect(html).not.toContain("pl-dep-remove");
     expect(html).not.toContain("+ Add");
@@ -300,6 +298,23 @@ describe("a scenario body's page", () => {
       "the show all control",
     ) as { onClick(): void; "aria-expanded": boolean };
     expect(more["aria-expanded"]).toBe(false);
+  });
+
+  it("lists a random moon on its planet's page as a moon", async () => {
+    const world = planet(100, "World", { class: "pc_barren", spawn: bodySpawn() });
+    const moon = planet(101, "", {
+      class: "random",
+      moon: true,
+      parent: 100,
+      spawn: bodySpawn({ class: ROLLED }),
+    });
+    await open("scenario");
+    await land(details({ planets: [world, moon], spawn: systemSpawn() }));
+
+    const html = page(100, "World");
+    expect(html).toContain(">Random moon</span>");
+    expect(html).not.toContain("Random planet");
+    expect(html).not.toContain("ins-prow moon");
   });
 
   it("names an anomaly prevented across the system", async () => {

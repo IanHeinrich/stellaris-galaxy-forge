@@ -48,32 +48,36 @@ describe("ScriptSnippet", () => {
     expect(html).not.toContain("Show all");
   });
 
-  it("names its source in a bar with Copy and Open file, which opens the file", () => {
+  it("gives a snippet with a source a bar of Copy and Open file, and its line where known", () => {
+    const file = "C:/Stellaris/common/solar_system_initializers/basic.txt";
     const html = drawnBy(() =>
-      renderToStaticMarkup(
-        <ScriptSnippet
-          text="size = 5"
-          source={{ file: "C:/Stellaris/common/solar_system_initializers/basic.txt", line: 12 }}
-        />,
-      ),
+      renderToStaticMarkup(<ScriptSnippet text="size = 5" source={{ file, line: 12 }} />),
     );
-    expect(html).toContain(
-      '<span class="snippet-file" title="C:/Stellaris/common/solar_system_initializers/basic.txt">basic.txt · line 12</span>',
-    );
+    expect(html).toContain('<div class="snippet-bar"><span class="snippet-where">line 12</span>');
+    expect(html).not.toContain("basic.txt<");
     expect(html).toContain(">Copy</button>");
     drawnButton("Open file").onClick();
-    expect(mockedIpc.openScript).toHaveBeenCalledWith(
-      "C:/Stellaris/common/solar_system_initializers/basic.txt",
-      false,
+    expect(mockedIpc.openScript).toHaveBeenCalledWith(file, false);
+    expect(renderToStaticMarkup(<ScriptSnippet text="size = 5" source={{ file }} />)).toContain(
+      '<span class="snippet-where"></span>',
     );
   });
 
-  it("marks changed lines and says what the mark means; wraps when asked", () => {
+  it("lays text out unfolded and wrapped, and tints the changed tokens under a legend", () => {
+    const text = Array.from({ length: 14 }, (_, i) => `flag_${i} = yes`).join(" ");
+    const at = text.indexOf("flag_13");
     const html = renderToStaticMarkup(
-      <ScriptSnippet text={"a = 1\nb = 2"} changed={[[6, 11]]} wrap />,
+      <ScriptSnippet text={text} changed={[[at, at + 7]]} layout />,
     );
     expect(html).toContain('<pre class="snippet-text wrap">');
-    expect(html).toContain('<span class="snippet-line changed" title="changed by an edit">');
+    expect(lines(html)).toHaveLength(14);
+    expect(html).not.toContain("Show all");
+    expect(html).toContain(
+      '<span class="snippet-line changed" title="changed by an edit"><span class="snippet-key snippet-changed">flag_13</span>',
+    );
     expect(html).toContain("Marked lines were changed by an edit.");
+    expect(renderToStaticMarkup(<ScriptSnippet text={text} layout />)).not.toContain(
+      "Marked lines",
+    );
   });
 });

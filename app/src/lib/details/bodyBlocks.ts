@@ -6,12 +6,12 @@ import type { ClassPool } from "../../generated/ClassPool";
 import type { CountRange } from "../../generated/CountRange";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { counted } from "../text";
-import { rangeWords } from "./spawnFacts";
+import { isRanged, rangeWords } from "./spawnFacts";
 
 /** A row of the Planets list: a body, or the first of the copies its block places. */
 export interface BodyBlock {
   body: PlanetSummary;
-  /** How many its block places, where that can be more than one; `null` for a body placed once. */
+  /** How many its block places, where that can be other than one; `null` for a body placed once. */
   count: CountRange | null;
   /** On a block of planets, the most moons each of them has. */
   moons: number;
@@ -23,7 +23,8 @@ const sameCount = (a: CountRange | null, b: CountRange) =>
 /**
  * The list's rows from its bodies in list order, each moon after its planet. Every copy a block
  * places is a body of its own, and they read as one row: the first copy, with the block's count.
- * The moons of a block of planets are counted on its row, not listed.
+ * The moons of a block of planets are counted on its row, not listed. A body the game places
+ * once or not at all is a block too, so its row shows "0 to 1".
  */
 export function bodyBlocks(bodies: readonly PlanetSummary[]): BodyBlock[] {
   const rows: BodyBlock[] = [];
@@ -32,7 +33,7 @@ export function bodyBlocks(bodies: readonly PlanetSummary[]): BodyBlock[] {
   let firstCopy = false;
   for (const body of bodies) {
     const spawn = body.spawn;
-    if (body.moon && planet !== null && planet.count !== null) {
+    if (body.moon && planet !== null && planet.count !== null && planet.count.max > 1) {
       if (firstCopy) planet.moons += 1;
       continue;
     }
@@ -47,7 +48,8 @@ export function bodyBlocks(bodies: readonly PlanetSummary[]): BodyBlock[] {
     if (block !== undefined) {
       lastCopy.set(block, spawn?.copy ?? 1);
     } else {
-      const count = spawn !== undefined && spawn.count.max > 1 ? spawn.count : null;
+      const several = spawn !== undefined && (isRanged(spawn.count) || spawn.count.max > 1);
+      const count = several ? spawn.count : null;
       block = { body, count, moons: 0 };
       rows.push(block);
       lastCopy.set(block, spawn?.copy ?? 1);
@@ -67,8 +69,10 @@ export function blockNoun(moon: boolean, asteroid: boolean): string {
 }
 
 /** What a block's count says on hover. */
-export function blockCountTitle(count: CountRange, noun: string): string {
-  return noun === "moons"
+export function blockCountTitle(count: CountRange, moon: boolean, asteroid: boolean): string {
+  const noun = blockNoun(moon, asteroid);
+  if (count.max <= 1) return `Some games have this ${noun.slice(0, -1)} and some don't.`;
+  return moon
     ? `The game places ${rangeWords(count)} of these moons around the planet when it builds the system.`
     : `The game places ${rangeWords(count)} of these ${noun} when it builds the system.`;
 }

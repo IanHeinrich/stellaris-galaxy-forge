@@ -46,14 +46,17 @@ function InitializerField({ system }: { system: SystemNode }) {
   );
 }
 
-/** The countries the initializer creates, each with its type's name where the game data has one. */
-function CreatesRow({ countries }: { countries: readonly CountryRef[] }) {
+/**
+ * The countries the initializer creates, or on a save the countries in the system, each with its
+ * type's name where the game data has one.
+ */
+function CountriesRow({ label, countries }: { label: string; countries: readonly CountryRef[] }) {
   const typeName = useNamed(
     countries.map((c) => c.country_type),
     () => "",
   );
   return (
-    <PropertyRow label="Creates">
+    <PropertyRow label={label}>
       {countries.map((c, i) => (
         <span key={`${c.name_key}-${i}`} className="ins-init-country">
           {c.name ?? displayName(c.name_key)}
@@ -155,7 +158,9 @@ export function InitializerSection({
         {seat && <div className="muted ins-hint">{SEAT_INITIALIZER_HINT}</div>}
         {rows && (
           <Properties>
-            {countries.length > 0 && <CreatesRow countries={countries} />}
+            {countries.length > 0 && (
+              <CountriesRow label={scripted ? "Creates" : "Countries here"} countries={countries} />
+            )}
             {stated !== undefined && <StatedRows spawn={stated} />}
           </Properties>
         )}

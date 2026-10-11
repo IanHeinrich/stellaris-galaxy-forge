@@ -9,7 +9,7 @@ import { useGameDataStore } from "../../../../../store/gameDataStore";
 import { useNamed } from "../../../../useNamed";
 import { Icon } from "../../../../parts";
 import { Section } from "../../../parts";
-import { ComesFrom, Rolled } from "../../../states";
+import { Rolled } from "../../../states";
 
 type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
@@ -42,7 +42,7 @@ export function StarListSection({ star }: { star: RolledStar }) {
       {odds.map((o) => (
         <StarOddsRow key={o.key} starClass={o.key} share={o.share} />
       ))}
-      <ComesFrom>{starListSource(star.list)}</ComesFrom>
+      <div className="muted ins-hint">{starListSource(star.list)}</div>
     </Section>
   );
 }

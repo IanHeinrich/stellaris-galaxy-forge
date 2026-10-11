@@ -14,6 +14,7 @@ import { details, land, open, overview, planet, resetStores, SYSTEM } from "../i
 import { mockedIpc } from "../../../test/ipc";
 import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore } from "../../../store/inspectorStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 
 bindStores();
 
@@ -173,12 +174,14 @@ describe("a rolled scenario system", () => {
       '<button type="button" class="ins-group-head" aria-expanded="true"><span class="tri">▾</span><span class="ins-group-title">Random galaxy settings</span><span class="ins-group-tail">no effect here</span></button>',
     );
     expect(html).toContain(
-      "A random galaxy uses these to decide how often to add this system. This map places it by name, so they don&#x27;t apply.",
+      "A random galaxy uses these to decide how often to add this system. This map already places it, so they don&#x27;t apply.",
     );
     expect(html).toContain(
-      '<span class="k">Used as</span><span class="mono">misc_system_init</span>',
+      '<span class="k">Used as</span><span><span title="misc_system_init">a special system away from empires</span></span>',
     );
-    expect(html).toContain('<span class="k">How often</span><span>20</span>');
+    expect(html).toContain(
+      '<span class="k">How often</span><span>Weight 20, against other systems of its kind</span>',
+    );
     expect(html).toContain(
       '<span class="mono ins-init-name">basic_init_01</span><button type="button">Change…</button>',
     );
@@ -303,7 +306,7 @@ describe("a scenario system whose bodies come from a script", () => {
     expect(html).toContain("planets from a script · 0 colonies");
     expect(html).toContain('Planets · <span class="ins-st-unknown">from a script</span>');
     expect(html).toContain(
-      '<div class="ins-from">every body comes from grand_archive/voidworms_system_planet_initializer</div>',
+      '<div class="muted ins-hint">Every body here comes from the inline script grand_archive/voidworms_system_planet_initializer.</div>',
     );
     expect(html).toContain(
       '<span class="k">How often</span><span>Starts at 1. The conditions below change it.</span>',
@@ -325,9 +328,104 @@ describe("a scenario system whose bodies come from a script", () => {
       "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring system find none.",
     );
     expect(html).toContain(
-      "class, planet come from grand_archive/voidworms_system_planet_initializer",
+      '<span class="k">Class</span><span>Set by the inline script <span class="mono">grand_archive/voidworms_system_planet_initializer</span></span>',
     );
-    expect(html).toContain("spawn_chance from @voidworm_chance");
+    expect(html).toContain('<span class="k">Planets</span><span>Set by the inline script');
+    expect(html).toContain(
+      '<span class="k">Spawn chance</span><span>Set by the variable <span class="mono">@voidworm_chance</span></span>',
+    );
+  });
+});
+
+describe("a scenario system's Initializer section", () => {
+  it("offers Choose… on a system with no initializer", async () => {
+    mockedIpc.getSystem.mockImplementation(async (id) => {
+      const detail = detailOf(id);
+      return { ...detail, system: { ...detail.system, initializer: "" } };
+    });
+    await open("scenario");
+    await land(details({ planets: [STAR], spawn: systemSpawn() }));
+
+    const html = overview();
+    expect(html).toContain(
+      '<span class="mono ins-init-name">Random (no initializer)</span><button type="button">Choose…</button>',
+    );
+  });
+
+  it("names the country it creates and its type, as the game data names them", async () => {
+    useGameDataStore.setState({
+      names: new Map([["guardian_dragon", "Leviathan"]]),
+      special: new Map([
+        [
+          SYSTEM,
+          {
+            id: SYSTEM,
+            primary: "leviathan",
+            kinds: ["leviathan"],
+            initializer: "basic_init_01",
+            initializer_known: true,
+            source_file: null,
+            flags: [],
+            countries: [
+              {
+                id: null,
+                name_key: "Voidwyrm",
+                name: "Voidwyrm",
+                country_type: "guardian_dragon",
+                icon: null,
+                generated_name: false,
+              },
+            ],
+            label: "Voidwyrm",
+            label_is_generated_name: false,
+          },
+        ],
+      ]),
+    });
+    await open("scenario");
+    await land(details({ planets: [STAR], spawn: systemSpawn() }));
+
+    expect(overview()).toContain(
+      '<span class="k">Creates</span><span><span class="ins-init-country">Voidwyrm<span class="muted"> · Leviathan</span></span></span>',
+    );
+  });
+});
+
+describe("a scenario system's single rows", () => {
+  const rolled = { state: "rolled" as const, pool: { kind: "random" as const, draw: "random" } };
+
+  it("names a rolled planet placed once as a random planet, its class on the line under it", async () => {
+    const once = planet(100, "", { class: "random", size: 5, spawn: bodySpawn({ class: rolled }) });
+    await open("scenario");
+    await land(details({ planets: [STAR, once], spawn: systemSpawn() }));
+
+    const html = overview();
+    expect(html).toContain(`${ROLLED_MARK}Random planet</span>`);
+    expect(html).toContain(
+      `<span class="l2">${ROLLED_MARK}any class</span><span aria-hidden="true">·</span><span class="sz">`,
+    );
+    expect(html).not.toContain("Random planet, any class");
+  });
+
+  it("shows 0 to 1 on a planet some games lack, and keeps listing its moons", async () => {
+    const maybe = planet(100, "", {
+      class: "random",
+      spawn: bodySpawn({ count: { min: 0, max: 1 }, class: rolled }),
+    });
+    const moon = planet(101, "", {
+      class: "random",
+      moon: true,
+      parent: 100,
+      spawn: bodySpawn({ always: false, class: rolled }),
+    });
+    await open("scenario");
+    await land(details({ planets: [STAR, maybe, moon], spawn: systemSpawn() }));
+
+    const html = overview();
+    expect(html).toContain(
+      '<span class="ins-block-count ins-st-rolled" title="Some games have this planet and some don&#x27;t.">0 to 1</span>',
+    );
+    expect(html).toContain(`${ROLLED_MARK}Random moon</span>`);
   });
 });
 

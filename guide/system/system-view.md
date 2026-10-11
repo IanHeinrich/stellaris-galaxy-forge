@@ -58,7 +58,7 @@ rolled by the game's rules for its star. The game rolls its own planets
 at the start, so they won't match the placeholders. You can't select
 the placeholders.
 
-## Rolled values and planets that may not spawn <Badge type="info" text="Scenario" />
+## Rolled values and how many planets spawn <Badge type="info" text="Scenario" />
 
 The system's page in the Inspector shows what the initializer places,
 in the same sections a save's page has. The line under the name counts
@@ -78,7 +78,8 @@ Values show in one of three ways:
 Some initializers place a planet a random number of times. The Planets
 list shows those planets as one row, such as "Random planets", with the
 count at the right, such as "1 to 4". Hover over the count to see what
-it means. Click the row to open the first of them. The system view still
+it means. Click the row to open the first of them. A planet that may not
+spawn, because some games don't have it, shows "0 to 1". The system view still
 shows every planet the game can place, with a dashed ring on the ones
 not every game has. A star drawn from a star list has a Star class
 section that lists the list's star classes with their odds.
@@ -86,27 +87,29 @@ section that lists the list's star classes with their odds.
 ## A scenario system's Initializer section <Badge type="info" text="Scenario" />
 
 The Initializer section starts with the initializer's name and the
-Change… button. Under it are the kind of system it makes and the file
+Change… button, or Choose… on a system that has no initializer. Under it are the kind of system it makes and the file
 it comes from. Click Open file to open that file in your editor, or
 Show in folder to find it. Galaxy Forge doesn't change the file.
 
-The rows below say which empire or creature the initializer creates and
-how many of these systems a galaxy can have. Three groups follow:
+The rows below say which empire or creature the initializer creates,
+how many of these systems a galaxy can have, and which values come from
+a variable or an inline script. Three groups follow:
 
 - Script it runs lists the lines the game runs when it builds the
   system. On a scenario map they run before hyperlanes exist.
 - Random galaxy settings are the keys a random galaxy uses to decide how
-  often to add the system. Your map places it by name, so they have no
+  often to add the system. Your map already places it, so they have no
   effect.
 - Other keys lists the initializer's keys that Galaxy Forge keeps but
   doesn't show elsewhere.
 
 Click a group's heading to close it. Script text shows as the file
-writes it, in the colours of the CWTools extension for VS Code. A long
-piece shows its first 12 lines. Click "Show all" to see the rest.
+writes it, in the colours of the CWTools extension for VS Code. Click
+"Show all" under a long piece to see the rest.
 
-The Source tab shows the system's own text in your file. Lines an edit
-changed have a bar at the left. Nothing on a scenario system's page can
+The Source tab shows the system's own text, laid out one line per key
+as in a game file. Your file keeps its own layout. Text an edit changed
+is highlighted, with a bar at the left of its line. Nothing on a scenario system's page can
 be edited yet.
 
 ## Show orbit radii

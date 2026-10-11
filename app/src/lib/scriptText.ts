@@ -23,9 +23,11 @@ export type ScriptTokenKind =
 export interface ScriptToken {
   kind: ScriptTokenKind;
   text: string;
+  /** Whether an edit changed it, where the caller asked. */
+  changed?: boolean;
 }
 
-/** One line of a snippet, and whether an edit changed it. */
+/** One line of a snippet, and whether an edit changed a token on it. */
 export interface ScriptLine {
   tokens: ScriptToken[];
   changed: boolean;
@@ -67,7 +69,7 @@ const NUMBER = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
 const isSpace = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r";
 
 /** What ends an unquoted word, as the lexer's script mode has it. */
-const endsWord = (c: string) => isSpace(c) || '{}="<>!?#'.includes(c);
+const endsWord = (c: string) => isSpace(c) || c === '"' || "{}=<>!?#".includes(c);
 
 const isScope = (word: string) => word.split(".").every((part) => SCOPE.test(part));
 
@@ -157,29 +159,11 @@ export function dedent(text: string): string {
   return lines.map((line, i) => line.slice(cut[i])).join("\n");
 }
 
-/**
- * `text` moved left and coloured, one entry per line. A line is changed when one of `changed`, a
- * list of `[start, end)` offsets into `text`, covers any of it or its line feed.
- */
-export function scriptLines(
-  text: string,
-  changed: readonly (readonly [number, number])[] = [],
-): ScriptLine[] {
-  const offset = text.startsWith(BOM) ? 1 : 0;
+/** `text` moved left and coloured, one entry per line. */
+export function scriptLines(text: string): ScriptLine[] {
   const raw = rawLines(text);
   const cut = cuts(raw);
-  const starts: number[] = [];
-  let at = offset;
-  for (const line of text.slice(offset).split("\n")) {
-    starts.push(at);
-    at += line.length + 1;
-  }
-  const lines: ScriptLine[] = raw.map((_, i) => ({
-    tokens: [],
-    changed: changed.some(
-      ([start, end]) => end > start && start < (starts[i + 1] ?? at) && end > starts[i],
-    ),
-  }));
+  const lines: ScriptLine[] = raw.map(() => ({ tokens: [], changed: false }));
   let line = 0;
   for (const token of scriptTokens(raw.map((l, i) => l.slice(cut[i])).join("\n"))) {
     token.text.split("\n").forEach((piece, i) => {
@@ -187,6 +171,110 @@ export function scriptLines(
       if (piece !== "") lines[line].tokens.push({ kind: token.kind, text: piece });
     });
   }
+  return lines;
+}
+
+/** A token that isn't whitespace, where it starts in the text, and the whitespace before it. */
+interface Placed extends ScriptToken {
+  start: number;
+  gap: string;
+}
+
+function placed(text: string): Placed[] {
+  const out: Placed[] = [];
+  let at = text.startsWith(BOM) ? 1 : 0;
+  let gap = "";
+  for (const token of scriptTokens(text)) {
+    if (token.kind === "space") gap += token.text;
+    else {
+      out.push({ ...token, start: at, gap });
+      gap = "";
+    }
+    at += token.text.length;
+  }
+  return out;
+}
+
+const isBrace = (t: ScriptToken, brace: "{" | "}") => t.kind === "brace" && t.text === brace;
+
+/**
+ * `text` laid out as a game file lays it out, coloured, whatever its own line breaks: one statement
+ * per line, each block's statements a tab further in. A block of plain values, such as `{ 1 2 3 }`,
+ * stays on one line, and so does a comment after a statement. Spaces within a line are kept as
+ * written. A token is changed when one of `changed`, `[start, end)` offsets into `text`, covers any
+ * of it, and a line is changed when a token on it is.
+ */
+export function layoutLines(
+  text: string,
+  changed: readonly (readonly [number, number])[] = [],
+): ScriptLine[] {
+  const tokens = placed(text);
+  const isKey = (i: number) => {
+    const next = tokens[i + 1];
+    const word = tokens[i].kind !== "operator" && tokens[i].kind !== "brace";
+    return word && next !== undefined && (next.kind === "operator" || isBrace(next, "{"));
+  };
+  const inline = new Set<number>();
+  const stack: { at: number; plain: boolean }[] = [];
+  tokens.forEach((t, i) => {
+    const top = stack[stack.length - 1];
+    if (isBrace(t, "{")) {
+      if (top !== undefined) top.plain = false;
+      stack.push({ at: i, plain: true });
+    } else if (isBrace(t, "}")) {
+      const open = stack.pop();
+      if (open?.plain) inline.add(open.at);
+    } else if (top !== undefined && (isKey(i) || t.kind === "comment")) {
+      top.plain = false;
+    }
+  });
+
+  const lines: ScriptLine[] = [];
+  let line: ScriptLine | null = null;
+  let depth = 0;
+  const opens: boolean[] = [];
+  let breakNext = false;
+  const covered = (t: Placed) =>
+    changed.some(([s, e]) => e > s && s < t.start + t.text.length && e > t.start);
+  const startLine = (indent: number) => {
+    line = { tokens: [], changed: false };
+    lines.push(line);
+    if (indent > 0) line.tokens.push({ kind: "space", text: "\t".repeat(indent) });
+    return line;
+  };
+  tokens.forEach((t, i) => {
+    const inInline = opens.length > 0 && opens[opens.length - 1];
+    let fresh: boolean;
+    if (isBrace(t, "}")) {
+      const wasInline = opens.pop() ?? false;
+      if (!wasInline) depth = Math.max(0, depth - 1);
+      fresh = !wasInline;
+    } else {
+      const prev = tokens[i - 1];
+      fresh =
+        breakNext ||
+        (!inInline &&
+          (isKey(i) ||
+            (isBrace(t, "{") && prev !== undefined && isBrace(prev, "}")) ||
+            (t.kind === "comment" && t.gap.includes("\n"))));
+    }
+    let current: ScriptLine = line ?? startLine(depth);
+    if (fresh && current.tokens.some((p) => p.kind !== "space")) current = startLine(depth);
+    else if (current.tokens.some((p) => p.kind !== "space") && t.gap !== "") {
+      current.tokens.push({ kind: "space", text: t.gap.includes("\n") ? " " : t.gap });
+    }
+    const mark = covered(t);
+    t.text.split("\n").forEach((piece, n) => {
+      if (n > 0) current = startLine(0);
+      if (piece !== "") current.tokens.push({ kind: t.kind, text: piece, changed: mark });
+      if (mark) current.changed = true;
+    });
+    breakNext = t.kind === "comment" || (isBrace(t, "{") && !inline.has(i));
+    if (isBrace(t, "{")) {
+      opens.push(inline.has(i));
+      if (!inline.has(i)) depth++;
+    }
+  });
   return lines;
 }
 

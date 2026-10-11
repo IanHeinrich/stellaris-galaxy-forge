@@ -131,7 +131,7 @@ describe("a save system's overview", () => {
     expect(html).toContain('aria-label="Filter 21 flags"');
   });
 
-  it("heads its Initializer section with the key, and lists the countries it creates", async () => {
+  it("heads its Initializer section with the key, and lists the countries in the system", async () => {
     useGameDataStore.setState({
       special: new Map([
         [
@@ -169,7 +169,7 @@ describe("a save system's overview", () => {
       '<div class="ins-init"><div class="ins-init-head"><span class="mono ins-init-name">',
     );
     expect(html).toContain(
-      '<span class="k">Creates</span><span><span class="ins-init-country">Voidwyrm</span></span>',
+      '<span class="k">Countries here</span><span><span class="ins-init-country">Voidwyrm</span></span>',
     );
     expect(html).not.toContain("Change…");
     expect(html).not.toContain("ins-group");

@@ -82,7 +82,8 @@ the game's own vocabulary and the humanisers that turn its keys into English.
   initializer block, with the block's count and the moons each copy has.
 - `lib/scriptText.ts`: script text as a snippet shows it: moved left by the
   indent its lines share, cut into the tokens it is coloured by under the
-  core lexer's rules, and split into lines with the ones an edit changed
+  core lexer's rules, and split into lines. `layoutLines` lays a statement
+  out one key per line for the Source tab, with the text an edit changed
   marked.
 - `lib/spatialGrid.ts`: the uniform grid behind nearest-system and range
   queries: hit-testing maths, so it lives here and not in `map/`.
