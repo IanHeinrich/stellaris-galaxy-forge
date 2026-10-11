@@ -706,6 +706,36 @@ for planets or deposits.
   model back. A ruined orbital ring's planet has the flag
   `ruined_orbital_ring_planet`. A body the structure made, such as a
   cosmogenesis world, has the planet flag `megastructure`.
+- The table is not sorted by id. In a 4.5.2 late-game save 32 of 375
+  rows stand out of numeric order, and 47 are past generation 0. A test
+  row added at the slot past the highest, with `owner=0`, no culture and
+  no `save_on_death`, was kept unchanged through a month in game. The
+  editor adds a row only there, never in a dead slot, because the old id
+  of a dead slot may be logged in `dead_mega_structure`.
+- Key order, where present: `save_on_death`, `type`, `coordinate`,
+  `owner`, `graphical_culture`, `planet`, `bypass`, `orbitals`,
+  `build_queue`, `dismantle_progress`, `dismantle_finish_date`. A 4.5.0
+  day-one ruin has no `owner` and no `graphical_culture`.
+- Where the lists go: a system's `megastructures` right before
+  `star_class`, after any `ambient_object`. A system's `bypasses` after
+  `hyperlane`, or after `natural_wormholes` when it has one, and before
+  `asteroid_belts`. A country's `owned_megastructures` right after
+  `owned_leaders`, written only when it lists a row (the 4.5 sample:
+  country 16 only). A planet's `megastructure=<id>` right before
+  `bombardment_damage`, after `planet_orbitals` and any
+  `orbital_defence`. A planet's `flags` after `bombardment_damage` and
+  any `timed_modifier`, before `planet_modifier` and `entity`.
+- `ruined_orbital_ring_planet` is dated the save's day one,
+  `62808000` in both 4.x samples, the same as the global flag
+  `game_started`.
+- A relay's bypass row `connections` lists the relay bypasses of the
+  systems its hyperlanes lead to, in numeric order, and
+  `active_connections` lists the same ids; a relay with none has neither
+  block. A gateway's lists every other gateway bypass. Ruined gateways
+  have `active=no` and no `active_connections`. A gateway type whose
+  `on_build_complete` runs `activate_gateway` is active once built.
+  The game fills in `lock_country`, `lock_remaining_days` and
+  `is_manual_lock` on load, as it does for wormholes.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

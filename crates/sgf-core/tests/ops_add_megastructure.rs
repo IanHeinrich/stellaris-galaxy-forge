@@ -306,3 +306,25 @@ fn what_an_add_and_a_removal_refuse() {
     let error = old.apply(nexus()).expect_err("a 3.4 save");
     assert!(error.to_string().contains("3.4"), "{error}");
 }
+
+#[test]
+fn deleting_an_added_row_removes_it() {
+    for op in [
+        nexus(),
+        ruin(SOL, 2),
+        free(1, "gateway_final", "gateway", true),
+    ] {
+        let mut session = open_4_5();
+        session.apply(op.clone()).expect("the add");
+        let deleted = session
+            .apply(Op::DeleteMegastructure { megastructure: 16 })
+            .expect("the delete");
+        assert_eq!(current(&session), session.doc().original(), "{op:?}");
+        assert_eq!(deleted.inverse, op);
+    }
+    let mut session = open_4_5();
+    assert_refusals(
+        &mut session,
+        [(remove(99), "Megastructure 99 does not exist")],
+    );
+}

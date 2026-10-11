@@ -10,22 +10,23 @@
 use std::collections::BTreeMap;
 
 use crate::NULL_ID;
-use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::megastructure::{BypassRow, MegastructureRow, bypass_row, megastructure_row};
 use crate::emit::{Lines, inline};
-use crate::entity::facts::megastructure::{self, MegastructureFacts};
+use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::alloc::{SlotTable, TableEnd, next_id};
 use crate::format::save::write::add_system::{day_one, write_slot};
-use crate::format::save::write::id_list::{Emptied, append, unlist};
+use crate::format::save::write::id_list::append;
+use crate::format::save::write::megastructure_links::{self, MEGASTRUCTURES, drop_bypass, unlink};
 use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text, named};
 use crate::ops::{
-    Edit, Emitted, MegastructurePlace, NewBypass, Op, OpError, Plan, Planned, Subject,
+    Edit, Emitted, MegastructurePlace, NewBypass, Op, OpError, ParseAt, Plan, Planned, SavedTable,
+    Subject,
 };
 use crate::overlay::Anchor;
 use crate::projections::read;
@@ -83,7 +84,7 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
                 )));
             }
             let at = read::coordinate(&node, src)
-                .map_err(|reason| OpError::parse(crate::ops::ParseAt::Body(body), 0, reason))?;
+                .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
             (at, Some(body))
         }
     };
@@ -165,72 +166,69 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
 }
 
 pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
-    let Some(slot) = s.doc.added().get(EntityKind::Megastructure, id) else {
-        return Err(OpError::MegastructureNotAdded(id));
-    };
-    let found = row(&s.doc, Table::Entity(EntityKind::Megastructure), id)?
-        .ok_or(OpError::MegastructureNotAdded(id))?;
-    let facts = megastructure::read(&found.node, found.src);
-    let system = facts.origin.ok_or_else(|| {
-        OpError::parse(crate::ops::ParseAt::Record, 0, "missing coordinate.origin")
+    let tied = megastructure_links::read(&s.doc, id)?.ok_or(OpError::UnknownEntity {
+        table: SavedTable::Megastructure,
+        id,
     })?;
-    let bypass = match facts.bypass {
-        Some(bypass) => row(&s.doc, Table::Bypass, bypass)?.map(|row| {
-            let kind = read::text(&row.node, keys::TYPE, row.src);
-            let active = read::scalar(&row.node, keys::ACTIVE, row.src) == Some("yes");
-            (bypass, row.anchor, NewBypass { kind, active })
+    if s.doc.added().get(EntityKind::Megastructure, id).is_none() {
+        return Err(OpError::MegastructureNotAdded(id));
+    }
+    let system = tied
+        .system
+        .ok_or_else(|| OpError::parse(ParseAt::Record, 0, "missing coordinate.origin"))?;
+    let bypass = match tied.bypass {
+        Some(bypass) => row(&s.doc, Table::Bypass, bypass)?.map(|row| NewBypass {
+            kind: read::text(&row.node, keys::TYPE, row.src),
+            active: read::scalar(&row.node, keys::ACTIVE, row.src) == Some("yes"),
         }),
         None => None,
     };
-    let ruined_orbital_ring = match facts.planet {
-        Some(body) => untie(plan, s, body, system, id)?,
+    let ruined_orbital_ring = match tied.planet {
+        Some(body) => ruin_flagged(s, body)?,
         None => false,
+    };
+    let at = match tied.planet {
+        Some(body) => MegastructurePlace::Body { body },
+        None => {
+            let found =
+                row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
+            let (x, y) = read::coordinate(&found.node, found.src)
+                .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
+            MegastructurePlace::Free { x, y }
+        }
     };
 
     let mut table = SlotTable::megastructures(&s.doc)?;
-    table.free(plan, &s.doc, Subject::Record(slot), id, slot)?;
+    table.free(plan, &s.doc, Subject::Record(tied.anchor), id, tied.anchor)?;
     table.settle(plan, &s.doc)?;
-    let edit = plan.edit(&s.doc, system)?;
-    unlist(edit, keys::MEGASTRUCTURES, &[id], Emptied::Drop)?;
-    if let Some((bypass, anchor, _)) = &bypass {
-        unlist(edit, keys::BYPASSES, &[*bypass], Emptied::Drop)?;
-        disconnect(plan, s, *bypass, *anchor)?;
-    }
-    if let Some(owner) = facts.owner {
-        unlist(
-            plan.edit_country(&s.doc, owner)?,
-            keys::OWNED_MEGASTRUCTURES,
-            &[id],
-            Emptied::Drop,
-        )?;
+    unlink(plan, s, &tied, None)?;
+    if let Some(bypass) = tied.bypass {
+        drop_bypass(plan, s, system, bypass, None)?;
     }
     let inverse = Op::AddMegastructure {
         system,
-        kind: facts.kind.clone(),
-        at: place_of(&facts)?,
-        owner: facts.owner,
-        bypass: bypass.map(|(_, _, bypass)| bypass),
+        kind: tied.kind.clone(),
+        at,
+        owner: tied.owner,
+        bypass,
         ruined_orbital_ring,
     };
     Ok(Planned {
         description: format!(
             "Removed megastructure #{id} ({}) from {}",
-            facts.kind,
+            tied.kind,
             named(&s.graph, system)
         ),
         inverse,
     })
 }
 
-/// Where a row stands, as the add that writes it back takes it.
-fn place_of(facts: &MegastructureFacts) -> Result<MegastructurePlace, OpError> {
-    if let Some(body) = facts.planet {
-        return Ok(MegastructurePlace::Body { body });
-    }
-    let (x, y) = facts
-        .at
-        .ok_or_else(|| OpError::parse(crate::ops::ParseAt::Record, 0, "missing coordinate"))?;
-    Ok(MegastructurePlace::Free { x, y })
+/// Whether body `body` has the ruined orbital ring flag.
+fn ruin_flagged(s: &Session, body: u32) -> Result<bool, OpError> {
+    let (node, src) = planet_entity(&s.doc, body)?;
+    Ok(node
+        .find(keys::FLAGS, src)
+        .is_some_and(|flags| flags.find(keys::RUINED_ORBITAL_RING_PLANET, src).is_some()))
 }
 
 /// The `graphical_culture` the country `edit` holds names, when it names one.
@@ -306,28 +304,6 @@ fn connect(
     Ok(())
 }
 
-/// Erase the inserted bypass at `anchor` and take its id out of every other bypass's lists.
-fn disconnect(plan: &mut Plan, s: &Session, bypass: u32, anchor: Anchor) -> Result<(), OpError> {
-    plan.erase(&s.doc, Subject::Record(anchor), anchor)?;
-    for other in rows(&s.doc, Table::Bypass)? {
-        if other.id == bypass {
-            continue;
-        }
-        let lists = [keys::CONNECTIONS, keys::ACTIVE_CONNECTIONS];
-        let names = lists
-            .iter()
-            .any(|key| read::ids(&other.node, key, other.src).contains(&bypass));
-        if !names {
-            continue;
-        }
-        let edit = plan.edit_record(&s.doc, other.anchor)?;
-        for key in lists {
-            unlist(edit, key, &[bypass], Emptied::Drop)?;
-        }
-    }
-    Ok(())
-}
-
 /// Tie the body `edit` holds to row `id`, with the ruin flag dated `ruin` when given.
 fn tie(edit: &mut Edit, id: u32, ruin: Option<&str>) -> Result<(), OpError> {
     insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
@@ -361,32 +337,6 @@ fn tie(edit: &mut Edit, id: u32, ruin: Option<&str>) -> Result<(), OpError> {
         }
     }
     Ok(())
-}
-
-/// Take row `id` off body `body` of `system`: its `megastructure` key and the ruin flag,
-/// the `flags` block going with its last flag. Returns whether the ruin flag stood.
-fn untie(plan: &mut Plan, s: &Session, body: u32, system: u32, id: u32) -> Result<bool, OpError> {
-    let edit = plan.edit_planet(&s.doc, body, system)?;
-    let entity = edit.entity()?.clone();
-    let tied = entity
-        .find_all(keys::MEGASTRUCTURE, &edit.buf)
-        .find(|node| node.scalar_str(&edit.buf).and_then(|t| t.parse().ok()) == Some(id))
-        .map(Node::span);
-    if let Some(span) = tied {
-        edit.bytes().remove_statement(span);
-    }
-    let Some(flags) = entity.find(keys::FLAGS, &edit.buf) else {
-        return Ok(false);
-    };
-    let Some(flag) = flags.find(keys::RUINED_ORBITAL_RING_PLANET, &edit.buf) else {
-        return Ok(false);
-    };
-    let span = match flags.children().len() {
-        1 => flags.span(),
-        _ => flag.span(),
-    };
-    edit.bytes().remove_statement(span);
-    Ok(true)
 }
 
 /// One live `bypasses` row, and the system its megastructure stands in.

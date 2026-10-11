@@ -7,7 +7,9 @@
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row};
+use crate::format::save::write::add_megastructure;
 use crate::format::save::write::megastructure_links::{self, Tied, drop_bypass, unlink};
 use crate::format::save::write::remove_planet::check_segment;
 use crate::format::save::write::restore::{Saved, tombstoned};
@@ -25,6 +27,9 @@ const DROPPED_BYPASSES: [&str; 2] = ["gateway", "relay_bypass"];
 
 pub(crate) fn plan_delete(plan: &mut Plan, s: &Session, id: u32) -> Result<Planned, OpError> {
     let doc = &s.doc;
+    if doc.added().get(EntityKind::Megastructure, id).is_some() {
+        return add_megastructure::plan_remove(plan, s, id);
+    }
     let tied = megastructure_links::read(doc, id)?.ok_or(OpError::UnknownEntity {
         table: SavedTable::Megastructure,
         id,
