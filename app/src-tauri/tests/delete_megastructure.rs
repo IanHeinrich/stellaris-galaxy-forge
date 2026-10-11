@@ -4,7 +4,7 @@ use serde_json::json;
 use sgf_core::ops::Op;
 use sgf_core::views::EditResult;
 
-use crate::common::{SAMPLE_45, invoke, opened};
+use crate::common::{SAMPLE_45, invoke, opened, with_game_data};
 
 /// Row 6 is the ruined gateway of system 116; row 0 is an L-Gate, whose bypass has not been
 /// tried in game.
@@ -14,7 +14,10 @@ fn a_delete_is_checked_and_applied() {
     let check = |op: Op| -> Option<String> {
         invoke(&w, "check_op", json!({ "op": op })).expect("dry run")
     };
-    let delete = |megastructure| Op::DeleteMegastructure { megastructure };
+    let delete = |megastructure| Op::DeleteMegastructure {
+        megastructure,
+        dismantle: None,
+    };
     assert_eq!(check(delete(6)), None);
     assert!(
         check(delete(0)).is_some_and(|r| !r.is_empty()),
@@ -29,4 +32,28 @@ fn a_delete_is_checked_and_applied() {
         check(delete(6)).is_some(),
         "the row is gone, so a second delete is refused"
     );
+}
+
+/// The Shroud Seal, row 2 of system 14, leaves its modifier on the system. With the install's
+/// game data the command takes it back with the row; without, the row goes alone.
+#[test]
+fn the_command_takes_back_what_the_install_says() {
+    let w = opened(SAMPLE_45);
+    let alone: EditResult = invoke(&w, "delete_megastructure", json!({ "megastructure": 2 }))
+        .expect("delete without game data");
+    assert_eq!(
+        alone.entry.description,
+        "Deleted megastructure #2 (shroud_seal) in Mareenius #14"
+    );
+
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let taken: EditResult = invoke(&w, "delete_megastructure", json!({ "megastructure": 2 }))
+        .expect("delete with game data");
+    assert_eq!(
+        taken.entry.description,
+        "Deleted megastructure #2 (shroud_seal) in Mareenius #14, and took back 1 modifier"
+    );
+    assert_eq!(taken.details_stale, [14]);
 }
