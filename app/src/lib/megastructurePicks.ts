@@ -16,14 +16,8 @@ export const MEGASTRUCTURES_NEED_GAME_DATA = "Load game data to add a megastruct
 export const BODY_HAS_MEGASTRUCTURE = "It already has a megastructure.";
 export const NO_MEGASTRUCTURE_FITS = "No megastructure the game data defines can go here.";
 
-/**
- * What the dialog says before Add: the structure is written finished, and the game's build
- * effects don't run.
- */
-export const WRITTEN_FINISHED =
-  "The megastructure is added finished. The game's build effects don't run, so a Dyson Sphere " +
-  "doesn't freeze the system's planets. A planet whose class or model the megastructure would " +
-  "change stays as it is.";
+/** What the dialog says before Add. */
+export const WRITTEN_FINISHED = "The megastructure is added finished.";
 
 /** Where in the system view the Add megastructure menu was opened: on a body, or in empty space. */
 export type MegastructureSpot =
@@ -37,6 +31,8 @@ export interface MegastructurePick {
   label: string;
   /** The localised name of the first stage of its upgrade family. */
   family: string;
+  /** The key of the first stage of its upgrade family. */
+  familyKey: string;
   /** What its key says of it, such as `stage 3` or `ruined`; null for a finished one. */
   state: string | null;
 }
@@ -111,6 +107,7 @@ export function megastructurePicks(
         key: type.key,
         label: nameOf(type.key),
         family: nameOf(first),
+        familyKey: first,
         state: state === "complete" ? null : state,
         // Two families of one name, as a ruin's beside its working chain, each stay whole.
         first: order.get(first)!,
@@ -122,7 +119,76 @@ export function megastructurePicks(
     (a, b) =>
       a.family.localeCompare(b.family) || a.first - b.first || a.stage - b.stage || a.at - b.at,
   );
-  return picks.map(({ key, label, family, state }) => ({ key, label, family, state }));
+  return picks.map(({ key, label, family, familyKey, state }) => ({
+    key,
+    label,
+    family,
+    familyKey,
+    state,
+  }));
+}
+
+/** One upgrade family as the dialog's dropdown lists it, and its stages as tiles. */
+export interface MegastructureFamily {
+  /** The key of its first stage. */
+  key: string;
+  label: string;
+  /** The mod its first stage comes from; none for the base game's. */
+  section?: string;
+  /** How many stages it offers here, when more than one. */
+  note?: string;
+  picks: MegastructurePick[];
+}
+
+/**
+ * `picks` gathered into their families, in the order `megastructurePicks` gives: the base
+ * game's first, then each mod's under its name, mods in the order of their names. `sourceOf`
+ * names the mod a type comes from, null for the base game.
+ */
+export function megastructureFamilies(
+  picks: readonly MegastructurePick[],
+  sourceOf: (key: string) => string | null,
+): MegastructureFamily[] {
+  const families: MegastructureFamily[] = [];
+  for (const pick of picks) {
+    const last = families[families.length - 1];
+    if (last?.key === pick.familyKey) last.picks.push(pick);
+    else {
+      const section = sourceOf(pick.familyKey) ?? undefined;
+      families.push({ key: pick.familyKey, label: pick.family, section, picks: [pick] });
+    }
+  }
+  for (const family of families) {
+    if (family.picks.length > 1) family.note = `${family.picks.length} stages`;
+  }
+  const modded = (family: MegastructureFamily) => (family.section === undefined ? 0 : 1);
+  return families.sort(
+    (a, b) => modded(a) - modded(b) || (a.section ?? "").localeCompare(b.section ?? ""),
+  );
+}
+
+/**
+ * The stage a family opens on: its last, the finished structure, as the game's build menu
+ * offers the whole chain under it.
+ */
+export function familyPick(family: MegastructureFamily): MegastructurePick {
+  return family.picks[family.picks.length - 1];
+}
+
+/**
+ * The types of every family whose name, family name or key holds `query`, ignoring case, in
+ * the families' order; every type for a blank query.
+ */
+export function matchingPicks(
+  families: readonly MegastructureFamily[],
+  query: string,
+): MegastructurePick[] {
+  const needle = query.trim().toLowerCase();
+  const all = families.flatMap((family) => family.picks);
+  if (needle === "") return all;
+  return all.filter((pick) =>
+    [pick.label, pick.family, pick.key].some((text) => text.toLowerCase().includes(needle)),
+  );
 }
 
 const RUIN = /_(ruined|permanently_ruined|destroyed|derelict)$/;

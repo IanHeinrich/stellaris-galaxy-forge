@@ -3,6 +3,9 @@ import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import { megastructureTypeView } from "../test/builders";
 import {
   defaultOwner,
+  familyPick,
+  matchingPicks,
+  megastructureFamilies,
   megastructurePicks,
   megastructurePlace,
   RELAY_RADIUS_FACTOR,
@@ -55,36 +58,42 @@ describe("the types the Add megastructure dialog offers", () => {
         key: "dyson_sphere_ruined",
         label: "Dyson Sphere (ruined)",
         family: "Dyson Sphere (ruined)",
+        familyKey: "dyson_sphere_ruined",
         state: "ruined",
       },
       {
         key: "dyson_sphere_0",
         label: "Dyson Sphere Site",
         family: "Dyson Sphere Site",
+        familyKey: "dyson_sphere_0",
         state: "under construction",
       },
       {
         key: "dyson_sphere_1",
         label: "Dyson Sphere (stage 1)",
         family: "Dyson Sphere Site",
+        familyKey: "dyson_sphere_0",
         state: "stage 1",
       },
       {
         key: "think_tank_0",
         label: "Science Nexus Site",
         family: "Science Nexus Site",
+        familyKey: "think_tank_0",
         state: "under construction",
       },
       {
         key: "think_tank_1",
         label: "Think Tank (stage 1)",
         family: "Science Nexus Site",
+        familyKey: "think_tank_0",
         state: "stage 1",
       },
       {
         key: "think_tank_2",
         label: "Science Nexus",
         family: "Science Nexus Site",
+        familyKey: "think_tank_0",
         state: "stage 2",
       },
     ]);
@@ -101,6 +110,56 @@ describe("the types the Add megastructure dialog offers", () => {
     const offered = [planet, star, space].flatMap((spot) => picks(spot).map((p) => p.key));
     expect(offered).not.toContain("lgate_base");
     expect(offered).not.toContain("ring_world_1");
+  });
+});
+
+describe("the families the dialog's dropdown lists", () => {
+  const families = (sourceOf: (key: string) => string | null = () => null) =>
+    megastructureFamilies(picks(star), sourceOf);
+
+  it("gathers each family's stages in chain order and opens a family on its last stage", () => {
+    const listed = families();
+    expect(listed.map((f) => [f.key, f.label, f.note, f.picks.map((p) => p.key)])).toEqual([
+      ["dyson_sphere_ruined", "Dyson Sphere (ruined)", undefined, ["dyson_sphere_ruined"]],
+      ["dyson_sphere_0", "Dyson Sphere Site", "2 stages", ["dyson_sphere_0", "dyson_sphere_1"]],
+      [
+        "think_tank_0",
+        "Science Nexus Site",
+        "3 stages",
+        ["think_tank_0", "think_tank_1", "think_tank_2"],
+      ],
+    ]);
+    expect(listed.map((f) => familyPick(f).key)).toEqual([
+      "dyson_sphere_ruined",
+      "dyson_sphere_1",
+      "think_tank_2",
+    ]);
+  });
+
+  it("lists the base game's families first, then each mod's under its name, mods by name", () => {
+    const mods = new Map([
+      ["think_tank_0", "Zeta Structures"],
+      ["dyson_sphere_ruined", "Gigastructural Engineering"],
+    ]);
+    const listed = families((key) => mods.get(key) ?? null);
+    expect(listed.map((f) => [f.key, f.section])).toEqual([
+      ["dyson_sphere_0", undefined],
+      ["dyson_sphere_ruined", "Gigastructural Engineering"],
+      ["think_tank_0", "Zeta Structures"],
+    ]);
+  });
+
+  it("filters every family's types by name, family name or key, ignoring case", () => {
+    const listed = families();
+    expect(matchingPicks(listed, "nexus").map((p) => p.key)).toEqual([
+      "think_tank_0",
+      "think_tank_1",
+      "think_tank_2",
+    ]);
+    expect(matchingPicks(listed, " RUINED ").map((p) => p.key)).toEqual(["dyson_sphere_ruined"]);
+    expect(matchingPicks(listed, "sphere_1").map((p) => p.key)).toEqual(["dyson_sphere_1"]);
+    expect(matchingPicks(listed, "")).toHaveLength(6);
+    expect(matchingPicks(listed, "gateway")).toEqual([]);
   });
 });
 
