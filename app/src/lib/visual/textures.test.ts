@@ -95,9 +95,11 @@ describe("requestTextures", () => {
 
   it("a rejected call settles its keys as null", async () => {
     getTextures.mockRejectedValueOnce({ kind: "no_session", message: "no game data" });
-    requestTextures(["star_class:g"]);
+    requestTextures(["star_class:g", "star_class:k"]);
     await vi.advanceTimersByTimeAsync(0);
+    expect(getTextures).toHaveBeenCalledTimes(1);
     expect(getTexture("star_class:g")).toBeNull();
+    expect(getTexture("star_class:k")).toBeNull();
   });
 });
 
