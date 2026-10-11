@@ -138,7 +138,7 @@ export function rolledNameWhy(given: GivenName, noun: string): string {
 
 /** What the Name row says of a body named after a system that has no name yet. */
 export const NAMED_AFTER_SYSTEM = "Named after the system";
-export const SYSTEM_UNNAMED_WHY = "Stellaris picks the system's name when the game starts.";
+export const SYSTEM_UNNAMED_WHY = "The game picks the system's name when it starts.";
 
 /** What the Name row says of a body named after a body whose name can't be told yet. */
 export function namedAfterParent(parentNoun: string): string {

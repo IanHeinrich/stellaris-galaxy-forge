@@ -12,6 +12,8 @@ import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
+import { depositTypeView } from "../../../store/fixtures/planet";
+import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { bodyLayout, name } from "../../../test/builders";
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
@@ -107,7 +109,9 @@ describe("what a scenario body can roll", () => {
     expect(cls).not.toContain("depends on");
     const list = row(page(101, "Listed"), "Class");
     expect(list).toContain("One of 2, from rl_cold");
-    expect(list).toContain("The game may roll any of these, whether or not it fits the orbit.");
+    expect(list).toContain(
+      "The game may roll any class in this list, even one that doesn&#x27;t fit the orbit.",
+    );
   });
 
   it("lists the classes without odds where the orbit is a range or the star is rolled", async () => {
@@ -150,7 +154,7 @@ describe("what a scenario body can roll", () => {
     expect(page(101, "Moon")).toContain(
       "The game never places this moon, because it never places the body it orbits.",
     );
-    expect(overview()).toContain(">never placed</span>");
+    expect(overview().match(/>never placed<\/span>/g)).toHaveLength(2);
   });
 
   it("says some games lack a body whose orbit no class fits around some stars", async () => {
@@ -162,7 +166,7 @@ describe("what a scenario body can roll", () => {
     expect(page(100, "Planet")).toContain(
       "Some games have this planet and some don&#x27;t. At some of the orbits it can land at, none of the classes it can roll fit.",
     );
-    expect(overview()).toContain('class="ins-block-count ins-st-rolled"');
+    expect(overview()).toMatch(/class="ins-block-count ins-st-rolled"[^>]*>0 to 1<\/span>/);
   });
 
   it("lists the deposits and features it can also roll, likeliest first with their chances", async () => {
@@ -186,10 +190,45 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 2");
+    expect(html).toContain("Can roll · 2 deposits");
     expect(html).toMatch(/Minerals 1 75% ·<\/span><span[^>]*>Energy 1 25%/);
-    expect(html).toContain("Can roll · planet features");
+    expect(html).toContain("Can roll · 2 planet features");
     expect(html).toMatch(/Mineral Poor 50% ·<\/span><span>Carbon World</);
+  });
+
+  it("lists what a planet can also roll after the deposits and features it states, by their game data names", async () => {
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        ["d_engineering_10", depositTypeView("d_engineering_10", { name: "Engineering Site" })],
+        ["d_minerals_1", depositTypeView("d_minerals_1", { name: "Mineral Field" })],
+      ]),
+    });
+    const world = drawn(100, {
+      features: { modifier: "pm_tidal_locked", none: false, cleared: false, added: [] },
+      rolled_deposits: { state: "rolled", entries: [{ key: "d_minerals_1", chance: 1 }] },
+      rolled_features: {
+        state: "rolled",
+        entries: [
+          { key: "pm_carbon_world", chance: null },
+          { key: "pm_mineral_poor", chance: null },
+          { key: "pm_chthonian", chance: null },
+        ],
+      },
+    });
+    await open("scenario");
+    await land(
+      details({
+        planets: [{ ...world, deposit_keys: [{ key: "d_engineering_10", count: 1 }] }],
+        spawn: systemSpawn(),
+      }),
+    );
+
+    const html = page(100, "Planet");
+    expect(html).toContain("Engineering Site");
+    expect(html).toContain("Can also roll · 1 deposit");
+    expect(html).toContain("Mineral Field 100%");
+    expect(html).not.toContain("Minerals 1");
+    expect(html).toContain("Can also roll · 3 planet features");
   });
 
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
@@ -262,7 +301,9 @@ describe("what a scenario body can roll", () => {
       "The game numbers planets in order, so this one is Yunak II or Yunak III, depending on how many before it are placed.",
     );
     expect(page(101, "Yunak IIa")).toContain('<span class="name">Yunak IIa</span>');
-    expect(overview()).toContain("Yunak II</span>");
+    expect(overview()).toContain(
+      '<span class="l1"><span class="ins-st-rolled" title="Rolled when the game starts">Yunak II</span>',
+    );
   });
 
   it("says a body is named after a system that has no name yet", async () => {
@@ -275,7 +316,7 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(row(html, "Name")).toContain("Named after the system");
-    expect(html).toContain("Stellaris picks the system&#x27;s name when the game starts.");
+    expect(html).toContain("The game picks the system&#x27;s name when it starts.");
   });
 
   it("says a moon is named after its planet when the planet's name can't be told", async () => {
@@ -337,7 +378,7 @@ describe("a scenario system's radii", () => {
     const html = overview();
     expect(html).toContain('<span class="ins-st-unknown">150 to 380</span>');
     expect(html).toContain(
-      "The initializer also sets an offset of 40 for the inner radius. This range doesn&#x27;t count it in, because no game file says how the game uses it.",
+      "The initializer also sets an offset of 40. This range leaves it out, because Galaxy Forge can&#x27;t tell how the game applies it.",
     );
   });
 
@@ -394,7 +435,9 @@ describe("a block of copies in the Planets list", () => {
     expect(html).toContain('class="ins-block-count ins-st-rolled"');
     expect(html).toContain(">1 to 3</span>");
     expect(html).not.toContain("×3");
-    expect(html).toContain("Yunak I to III</span>");
+    expect(html).toContain(
+      '<span class="l1"><span class="ins-st-rolled" title="Rolled when the game starts">Yunak I to III</span>',
+    );
     expect(html).toContain(">any class</span>");
   });
 

@@ -1,8 +1,10 @@
 ### Added
 
-- A scenario planet's page shows what the game can roll for it.
-  - The classes that fit its orbit, and its chance of a ring.
-  - The deposits and planet features it can also roll.
-  - The name the game gives an unnamed body, such as "Yunak II".
-  - Bodies the game never places show "never placed".
-- A scenario system's inner radius and belt radii show as ranges.
+- A scenario planet's page shows the classes, deposits and planet
+  features the game can roll for it, and its chance of a ring.
+- Unnamed planets and moons show the name the game gives them, such as
+  "Yunak II".
+- Planets the game never places show "never placed" and look faint in
+  the system view.
+- A scenario system's inner radius and belt radii show as ranges where
+  the game rolls them.

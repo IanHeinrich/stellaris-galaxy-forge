@@ -138,7 +138,8 @@ export function classFitHint(orbitRanged: boolean, starRolled: boolean): string 
 }
 
 /** What the Class row says under a planet list's members: the list may not be held to the orbit. */
-export const LIST_ORBIT_HINT = "The game may roll any of these, whether or not it fits the orbit.";
+export const LIST_ORBIT_HINT =
+  "The game may roll any class in this list, even one that doesn't fit the orbit.";
 
 /** `24%`: a share of a draw as the star list shows it. */
 export function percent(share: number): string {
@@ -251,7 +252,7 @@ export function maySpawn(spawn: BodySpawn | undefined): boolean {
 
 /** What the Inner radius row says where the initializer also writes an offset the range leaves out. */
 export function innerOffsetHint(offset: number): string {
-  return `The initializer also sets an offset of ${offset} for the inner radius. This range doesn't count it in, because no game file says how the game uses it.`;
+  return `The initializer also sets an offset of ${offset}. This range leaves it out, because Galaxy Forge can't tell how the game applies it.`;
 }
 
 /** The mark a row and a page head show on a body the game never places. */
@@ -396,8 +397,7 @@ export function poolTitle(stated: number, tail: string): string {
 
 /** What a pool's chance says on hover. */
 export const DEPOSIT_CHANCE_TITLE = "How often a deposit the game rolls here is this one";
-export const FEATURE_CHANCE_TITLE =
-  "The chance the first planet feature the game rolls here is this one";
+export const FEATURE_CHANCE_TITLE = "How often this is the planet feature the game gives it";
 
 /** What the Deposits and Modifiers sections say where the class the body rolls decides the pool. */
 export const DEPOSITS_UNKNOWN = "Decided by the class it rolls";
@@ -415,13 +415,13 @@ export interface PoolKind {
 }
 
 export const DEPOSIT_POOL: PoolKind = {
-  tail: (count) => `${count}`,
+  tail: (count) => counted(count, "deposit"),
   chanceTitle: DEPOSIT_CHANCE_TITLE,
   unknownWhy: DEPOSITS_UNKNOWN_WHY,
 };
 
 export const FEATURE_POOL: PoolKind = {
-  tail: () => "planet features",
+  tail: (count) => counted(count, "planet feature"),
   chanceTitle: FEATURE_CHANCE_TITLE,
   unknownWhy: FEATURES_UNKNOWN_WHY,
 };

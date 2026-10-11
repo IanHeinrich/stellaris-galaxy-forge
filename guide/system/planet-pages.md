@@ -6,8 +6,8 @@ aliases: [planet page, scenario planet page, never placed, planet name, ring cha
 # Planet pages <Badge type="tip" text="Save" />
 
 Click a body in a system's Planets list, or a moon in a body's own Moons
-list, to open its page in the Inspector. [Search](../map/search.md) finds
-a planet by name too.
+list, to open its page in the Inspector. In a save,
+[search](../map/search.md) finds a planet by name too.
 
 A star's page opens with its type and size to edit, as
 [Stars](../edit/stars.md) describes. Moons are listed below a planet and
@@ -78,16 +78,20 @@ name is rolled, and the line under it lists every name it can have.
 Asteroids get names the game draws at random.
 
 A rolled class lists the classes that fit the body's orbit, likeliest
-first. Where the orbit is one value and the system's star is fixed, each
-class shows its odds. A class from a planet list lists the list's
-classes. The game may roll any of them, whether or not it fits the
-orbit. A rolled ring shows its chance.
+first. Where the orbit is a single distance and the system's star is
+fixed, each class shows its odds. A class picked from a named list of
+classes lists every class in the list. The game may roll any of them,
+even one that doesn't fit the orbit. A rolled ring shows its chance.
 
 Some bodies are never placed, because none of the classes they can roll
 fit their orbit. They show "never placed" on their row and their page,
-and look faint in the system view. A row of several planets counts only
-the ones the game can place. A body whose orbit only some classes
-fit around some stars is in some games and not in others.
+and look faint in the system view. A moon of a planet that is never
+placed is never placed either. A row of several planets counts only the
+ones the game can place.
+
+Some bodies are only placed in some games. Where a body can land at
+several distances, or the system's star is rolled, no class may fit in
+some of those cases, and then the game leaves the body out.
 
 ## Go back
 

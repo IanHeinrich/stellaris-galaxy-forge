@@ -1,7 +1,7 @@
 ---
 title: Deposits and modifiers
 description: Add and remove a planet's deposits, blockers, modifiers, anomaly and dig site.
-aliases: [deposit, resources, can also roll, deposit pool, planet feature pool, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeology, add_modifier, minerals, energy]
+aliases: [deposit, resources, can also roll, random deposits, blocker, modifier, planet feature, terraforming candidate, terraform, anomaly, dig site, archaeology, add_modifier, minerals, energy]
 ---
 # Deposits and modifiers <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -75,12 +75,17 @@ a rolled feature.
 ## What a scenario planet can roll <Badge type="info" text="Scenario" />
 
 In a scenario, the Deposits and Modifiers sections list what the
-initializer states. Under them, "Can also roll" lists the deposits or
-planet features the game can roll for the planet, likeliest first. A
-percentage is how often one roll gives it. "Can roll" heads the list
-when the initializer states none. Where the initializer stops the roll,
-there is no list. Where the class the game picks decides the roll, the
-section says so.
+initializer states. Under them, a line such as "Can also roll · 3
+deposits" lists the deposits or planet features the game can roll for
+the planet, likeliest first. When the initializer states none, the line
+reads "Can roll · 9 deposits".
+
+A percentage is how often one roll gives that deposit. For planet
+features, it is for the first feature the game rolls. Some names have
+no percentage, because it depends on the planet's class or size.
+
+Where the initializer leaves nothing to roll, there is no list. Where
+the class the game picks decides the roll, the section says so.
 
 ## Make a planet a terraforming candidate
 

@@ -34,4 +34,7 @@ at that distance from the star.
 In a scenario, the Belts section shows the system's inner radius and
 each belt's radius. Where the game rolls them, they show as ranges, such
 as "150 to 380". The inner radius depends on how many bodies the game
-places and how far out it places them. They can't be edited yet.
+places and how far out it places them. Some initializers also set an
+offset for the inner radius. Galaxy Forge can't tell how the game
+applies it, so the range leaves it out and a line under it gives the
+offset. The radii can't be edited yet.
