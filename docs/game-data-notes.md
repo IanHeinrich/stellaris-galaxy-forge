@@ -371,6 +371,70 @@ YAML**.
   that way. The base game's Cosmogenesis World spawns its planet too, and
   the editor adds it as a row as before.
 
+## Megastructure layouts
+
+`construction::layout` replays a type's build chain from the install to
+find what finishing it leaves in its system. It runs each stage's
+`on_build_start` and `on_build_complete`, through the scripted effects
+they call, and judges each `if` against the flags set so far.
+
+- It reads `spawn_megastructure` (`type`, `orbit_angle`,
+  `orbit_distance`, `name`, `owner`, `graphical_culture`,
+  `coords_from`) and `spawn_planet` (`class`, `location`,
+  `orbit_location`, `orbit_angle`, `orbit_angle_offset`,
+  `orbit_distance`, `orbit_distance_offset`, `size`). In a planet's
+  `init_effect` it reads `set_name`, `set_planet_entity`,
+  `set_planet_flag`, `set_carrier_flag` and
+  `trigger_megastructure_icon`.
+- It also reads `remove_megastructure`, `set_star_flag`,
+  `remove_star_flag`, planet flags set on the host through
+  `fromfrom.planet` or a saved event target, and `flag@scope` flags,
+  which write the id of what the scope names after the flag.
+- `every_system_planet` with `limit = { is_star = no }` and
+  `remove_planet = yes` clears the system. `set_asteroid_belt = {
+  radius = 0 }` removes every belt.
+- Without `orbit_location`, a planet's angle and distance offsets add
+  to its location's, round the system's centre. That puts a ring
+  world's segments 30° either side of their quadrant row. With
+  `orbit_location = yes` the planet orbits its location and the offsets
+  count from game angle 0, so a habitat stands at game angle 135 from
+  its host whatever the host's own angle.
+- `planet = star` on `spawn_megastructure` links nothing. Every quadrant
+  row in the saves has `planet=4294967295`, so a quadrant's
+  `fromfrom.planet` is nothing and its `has_megastructure` flag goes
+  nowhere. Any other `planet` is listed as not laid out. The star's
+  `has_megastructure`, which the saves show from the site on, is set by
+  no script the walk reads.
+- A number written as something the walk cannot read, such as a range,
+  a script value, an undefined `@variable` or an unfilled parameter,
+  skips its spawn and is listed. A missing one counts as 0.
+- `has_star_flag` is judged only for a flag that a script the walk
+  reaches sets or removes. Any other flag may already be in the save, so
+  a branch behind it runs neither way and is listed.
+- Each row a stage spawns is a section, and each section is taken to its
+  own stage: left as spawned (a frame quadrant), built through every
+  stage that upgrades it (finished), ruined, ruined then restored, or
+  damaged.
+- Nothing in construction spawns a ruin. The game places
+  `ring_world_ruined` from initializers. The walk puts a `_ruined` type
+  with no `upgrade_from` where a row of its working type stands, the
+  working type's key starting with the ruin's minus `_ruined`. Restoring
+  builds `ring_world_restored` over the ruin, which spawns the segments
+  mirrored.
+- Damaged runs `set_ruined_megastructure` on the row. For a ring world
+  it spawns `pc_ringworld_tech_damaged`, `_seam_damaged` and
+  `_habitable_damaged` at +30°, 0 and −30° with no name, model or flag,
+  and removes the row.
+- The habitable sections are named from the system flags
+  `ring_section_1` to `_3`, so the order the sections finish names them
+  A to D. The fourth takes the flags off again.
+- Effects in the owner's scope are not part of a layout. Anything else
+  the walk does not lay out is listed: an event, an effect on a scope it
+  does not track, a spawn key it does not read, or a branch behind a
+  condition it cannot judge. The cosmogenesis world comes out as its
+  planet, with its colony (`set_owner`, `create_pop_group`) and
+  `plane_offset` listed.
+
 ## Where mods are registered
 
 These files all sit in the user data dir. That is
