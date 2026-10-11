@@ -11,6 +11,9 @@ use crate::projections::read;
 use crate::scan::Value;
 use crate::session::Session;
 
+/// The `movement_manager.state` of a fleet that stands still.
+const IDLE: &str = "move_idle";
+
 /// Whether fleet `fleet` is a fleet of the save standing in system `from`: its
 /// `movement_manager.coordinate` names `from`. A station fleet that is gone, or stands
 /// elsewhere, stays out of both systems' `fleet_presence`.
@@ -31,6 +34,35 @@ pub(crate) fn position(doc: &Document, fleet: u32) -> Option<(u32, Option<(f64, 
     ))
 }
 
+/// The fleets of system `system`'s `fleet_presence` parked in orbit of a body of `bodies`,
+/// each with the body: its `movement_manager` stands in the system, is `move_idle`, and
+/// names the body in `orbit.orbitable.planet`. A fleet on its way, to the body or from
+/// it, is left out.
+pub(crate) fn parked(s: &Session, system: u32, bodies: &[u32]) -> Result<Vec<(u32, u32)>, OpError> {
+    let mut parked = Vec::new();
+    for fleet in present_fleets(s, system)? {
+        let Some(anchor) = record(&s.doc, keys::FLEET, fleet) else {
+            continue;
+        };
+        let Ok(Some((node, src))) = entity_at(&s.doc, anchor) else {
+            continue;
+        };
+        let Some(movement) = node.find(keys::MOVEMENT_MANAGER, src) else {
+            continue;
+        };
+        let body = movement
+            .find(keys::ORBIT, src)
+            .and_then(|orbit| orbit.find(keys::ORBITABLE, src))
+            .and_then(|orbitable| read::scalar_u32(orbitable, keys::PLANET, src));
+        let idle = read::scalar(movement, keys::STATE, src) == Some(IDLE);
+        let here = read::origin(movement, src) == Some(system);
+        if let Some(body) = body.filter(|b| idle && here && bodies.contains(b)) {
+            parked.push((fleet, body));
+        }
+    }
+    Ok(parked)
+}
+
 /// The fleets system `id`'s `fleet_presence` lists.
 pub(crate) fn present_fleets(s: &Session, id: u32) -> Result<Vec<u32>, OpError> {
     let anchor = system_statement(&s.doc, id).ok_or(OpError::UnknownSystem(id))?;
@@ -42,7 +74,7 @@ pub(crate) fn present_fleets(s: &Session, id: u32) -> Result<Vec<u32>, OpError> 
 /// fleet's `movement_manager.coordinate` and each ship's `coordinate` and
 /// `target_coordinate` shift, and the fleet's `combat.coordinate`, which stands at the
 /// system's centre, only takes the new `origin`. A coordinate with any other origin, the
-/// null one included, is left as it stands.
+/// null one included, is left as it stands, and so is every `origin` when `from` is `to`.
 pub(crate) fn move_fleet(
     plan: &mut Plan,
     s: &Session,
@@ -109,6 +141,9 @@ fn shift(
     if let (Some(step), (Some(x), Some(y))) = (step, point) {
         edit.set_scalar(&axis(keys::X), coord(x + step.0))?;
         edit.set_scalar(&axis(keys::Y), coord(y + step.1))?;
+    }
+    if from == to {
+        return Ok(());
     }
     edit.set_scalar(&axis(keys::ORIGIN), to.to_string())
 }

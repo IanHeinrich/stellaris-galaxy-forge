@@ -6,17 +6,20 @@ use crate::emit::coord;
 use crate::emit::system::MOON_FLAG;
 use crate::format::save::read_spec::{bodies as listed, written_angle};
 use crate::format::save::write::belts;
+use crate::format::save::write::fleets::{move_fleet, parked};
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::planet_entry::{list_moon, set_flag, set_moon_of, unlist_moon};
-use crate::format::save::{planet_entity, planet_system};
+use crate::format::save::{entity_at, planet_entity, planet_system};
 use crate::keys;
 use crate::ops::rules::bodies::{check_parent, check_placement, movable, placed};
 use crate::ops::rules::named;
 use crate::ops::{Edit, Op, OpError, Parent, ParseAt, Plan, Planned};
+use crate::overlay::Anchor;
 use crate::projections::geometry::{
     Body, centre, descendants, drawn_radius, moved_reach, normalised, system_reach,
 };
 use crate::projections::read;
+use crate::scan::Value;
 use crate::session::Session;
 /// A body of the system as its entry stands, with the text a move would rewrite.
 pub(crate) struct Stored {
@@ -229,6 +232,8 @@ fn find(bodies: &[Body], id: u32) -> &Body {
 }
 
 /// Write the point of every body `after` moves, and the orbit of body `id`, the one moved.
+/// The fleets parked in orbit of a moved body and the `megastructures` rows tied to it move
+/// by its step.
 fn write_points(
     plan: &mut Plan,
     s: &Session,
@@ -237,6 +242,7 @@ fn write_points(
     after: &[Body],
     id: u32,
 ) -> Result<(), OpError> {
+    let mut moved = Vec::new();
     for (old, new) in stored.iter().zip(after) {
         if old.body == *new {
             continue;
@@ -246,8 +252,49 @@ fn write_points(
             edit.set_scalar(&[keys::ORBIT], coord(new.orbit))?;
         }
         splice_coordinate(edit, new.at.0, new.at.1)?;
+        moved.push((old.body.at, *new));
+    }
+    let ids: Vec<u32> = moved.iter().map(|(_, new)| new.id).collect();
+    let moved_to = |body| {
+        moved
+            .iter()
+            .find(|(_, new)| new.id == body)
+            .expect("a moved body")
+    };
+    let step_of = |body| {
+        let (was, new) = moved_to(body);
+        (new.at.0 - was.0, new.at.1 - was.1)
+    };
+    for (fleet, body) in parked(s, system, &ids)? {
+        move_fleet(plan, s, fleet, [system, system], Some(step_of(body)))?;
+    }
+    for (row, body) in tied_megastructures(s, system, &ids) {
+        let edit = plan.edit_record(&s.doc, row)?;
+        let Ok((x, y)) = read::coordinate(edit.entity()?, &edit.buf) else {
+            continue;
+        };
+        let step = step_of(body);
+        splice_coordinate(edit, x + step.0, y + step.1)?;
     }
     Ok(())
+}
+
+/// The `megastructures` rows of system `system` tied to a body of `bodies` by their `planet`,
+/// each with the body.
+fn tied_megastructures(s: &Session, system: u32, bodies: &[u32]) -> Vec<(Anchor, u32)> {
+    s.doc
+        .index()
+        .entities(keys::MEGASTRUCTURES)
+        .iter()
+        .filter(|e| matches!(e.value, Value::Block { .. }))
+        .filter_map(|e| {
+            let anchor = Anchor::Original(e.stmt);
+            let (node, src) = entity_at(&s.doc, anchor).ok()??;
+            let body = read::scalar_u32(&node, keys::PLANET, src)?;
+            (bodies.contains(&body) && read::origin(&node, src) == Some(system))
+                .then_some((anchor, body))
+        })
+        .collect()
 }
 
 /// The body's orbit and angle about the point it orbits, as the description names them

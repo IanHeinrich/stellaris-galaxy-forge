@@ -22,6 +22,8 @@
   {"q": "tomb world", "expect": "system/planet-pages#change-a-planet-s-class"},
   {"q": "star class", "expect": "edit/stars"},
   {"q": "add planet", "expect": "system/arrange-planets#add-planets-and-moons"},
+  {"q": "move orbital ring", "expect": "system/arrange-planets#move-planets-and-moons"},
+  {"q": "mining station moves with planet", "expect": "system/arrange-planets#move-planets-and-moons"},
   {"q": "move planet to another system", "expect": "system/copy-and-move-planets#move-planets-to-another-system"},
   {"q": "copy planet", "expect": "system/copy-and-move-planets#copy-planets"},
   {"q": "edit several planets", "expect": "system/edit-several-planets"},

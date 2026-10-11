@@ -462,11 +462,15 @@ pub enum Op {
     /// A save body put at `radius` and `angle` about its parent's point: the system centre
     /// for a planet, its `moon_of` body for a moon. Angles are degrees, written normalised
     /// to [0, 360). Its `orbit` becomes the radius, and every moon under it moves by the
-    /// same step with its own `orbit` kept. `system` must be the body's own. A body at the
-    /// system's centre is refused. When the body now reaches further than the system did, or
-    /// outside its `inner_radius`, that radius grows to the body's reach plus its margin, and
-    /// the inverse is a [`Op::Batch`] that also puts it back. Stellaris 4.x save documents
-    /// only.
+    /// same step with its own `orbit` kept. Each fleet parked in orbit of a body that moves,
+    /// one in the system's `fleet_presence` whose `movement_manager` is `move_idle` and
+    /// names the body, moves by the body's step with its ships: stations, an Orbital Ring's
+    /// station fleet and fleets parked there alike. So does each `megastructures` row tied
+    /// to a body that moves. A fleet on its way stays where it is. `system` must be the
+    /// body's own. A body at the system's centre is refused. When the body now reaches
+    /// further than the system did, or outside its `inner_radius`, that radius grows to the
+    /// body's reach plus its margin, and the inverse is a [`Op::Batch`] that also puts it
+    /// back. Stellaris 4.x save documents only.
     MoveBody {
         system: u32,
         body: u32,

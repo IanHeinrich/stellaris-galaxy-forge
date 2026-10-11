@@ -46,6 +46,7 @@ mod ops_anomaly;
 mod ops_belts;
 mod ops_black_hole_names;
 mod ops_bodies;
+mod ops_bodies_orbitals;
 mod ops_body_parents;
 mod ops_copy_planet;
 mod ops_deposit_slots;

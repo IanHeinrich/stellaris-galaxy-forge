@@ -627,10 +627,7 @@ pub(super) fn present(
             let owner = fleet
                 .and_then(|fleet| countries.fleet_owner.get(&fleet).copied())
                 .or(system_owner);
-            let at = fleet
-                .and_then(|fleet| fleets::position(doc, fleet))
-                .filter(|&(origin, _)| origin == id)
-                .and_then(|(_, at)| at);
+            let at = fleet.and_then(|fleet| standing(doc, fleet, id));
             let hull = ship
                 .as_ref()
                 .and_then(|s| facts::starbase::hull(s, src))
@@ -689,6 +686,67 @@ pub(super) fn refresh_geometry(
         if let Ok((x, y)) = read::coordinate(&row.node, row.src) {
             wormhole.x = x;
             wormhole.y = y;
+        }
+    }
+    Ok(())
+}
+
+/// Where fleet `fleet` stands in system `system`: `None` when it is gone or stands elsewhere.
+fn standing(doc: &Document, fleet: u32, system: u32) -> Option<(f64, f64)> {
+    fleets::position(doc, fleet)
+        .filter(|&(origin, _)| origin == system)
+        .and_then(|(_, at)| at)
+}
+
+/// Read again where each of system `id`'s starbases stands, from the bytes now standing for
+/// its station fleet.
+pub(super) fn refresh_starbases(
+    doc: &Document,
+    id: u32,
+    details: &mut RawSystemDetails,
+) -> Result<(), ProjectionError> {
+    let src = doc.original();
+    let index = doc.index();
+    let Some(inner) = doc.inner_index(keys::STARBASE_MGR)? else {
+        return Ok(());
+    };
+    for starbase in &mut details.starbases {
+        let Some(entity) = inner.entity(keys::STARBASES, u64::from(starbase.id)) else {
+            continue;
+        };
+        let Some(node) = read::entity_node(entity, src, keys::STARBASE_MGR)? else {
+            continue;
+        };
+        let ship = read::scalar_u32(&node, keys::STATION, src)
+            .and_then(|ship| index.entity(keys::SHIPS, u64::from(ship)))
+            .map(|entity| read::entity_node(entity, src, keys::SHIPS))
+            .transpose()?
+            .flatten();
+        let fleet = ship.and_then(|s| read::scalar_u32(&s, keys::FLEET, src));
+        starbase.at = fleet.and_then(|fleet| standing(doc, fleet, id));
+    }
+    Ok(())
+}
+
+/// Read again the point of each of the system's megastructures tied to a body of `bodies`,
+/// from the bytes now standing for its row.
+pub(super) fn refresh_megastructures(
+    doc: &Document,
+    bodies: &[u32],
+    details: &mut RawSystemDetails,
+) -> Result<(), ProjectionError> {
+    let tied = details
+        .megastructures
+        .iter_mut()
+        .filter(|m| m.planet.is_some_and(|p| bodies.contains(&p)));
+    for mega in tied {
+        let id = u64::from(mega.id);
+        let Some(entity) = doc.index().entity(keys::MEGASTRUCTURES, id) else {
+            continue;
+        };
+        let anchor = Anchor::Original(entity.stmt);
+        if let Some((node, src)) = current_entity(doc, keys::MEGASTRUCTURES, id, anchor)? {
+            mega.at = read::coordinate(&node, src).ok();
         }
     }
     Ok(())

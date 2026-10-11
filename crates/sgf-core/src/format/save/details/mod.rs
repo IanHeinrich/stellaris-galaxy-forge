@@ -88,16 +88,19 @@ impl DetailsProjection {
     }
 
     /// Read again each of `planets`, as (planet, system), from the bytes now standing for it,
-    /// then the overlap findings of every system touched. What other tables say of a planet,
-    /// its capital, pre-FTL owner, deposits and pops, stays as the build read it.
+    /// the point of each megastructure tied to one and of each starbase of their systems, then
+    /// the overlap findings of every system touched. What other tables say of a planet, its
+    /// capital, pre-FTL owner, deposits and pops, stays as the build read it.
     pub fn refresh_planets(
         &mut self,
         doc: &Document,
         planets: impl IntoIterator<Item = (u32, u32)>,
     ) -> Result<(), ProjectionError> {
         let mut touched = HashSet::new();
+        let mut read = Vec::new();
         for (id, system) in planets {
             touched.insert(system);
+            read.push(id);
             let Some(details) = self.by_system.get_mut(&system) else {
                 continue;
             };
@@ -116,6 +119,10 @@ impl DetailsProjection {
             }
         }
         for system in touched {
+            if let Some(details) = self.by_system.get_mut(&system) {
+                extract::refresh_megastructures(doc, &read, details)?;
+                extract::refresh_starbases(doc, system, details)?;
+            }
             self.refresh_overlaps(system);
         }
         Ok(())

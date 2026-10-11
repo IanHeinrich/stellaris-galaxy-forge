@@ -226,6 +226,24 @@ for planets or deposits.
   planet shows as mined while its station stays in the old system. A
   station moved with its planet into another empire's system passes to
   that empire in game (4.5.1).
+- Any fleet parked at a body names it in
+  `movement_manager.orbit.orbitable.planet` and has `state=move_idle`.
+  Its `movement_manager.coordinate` stands at a fixed offset from the
+  body's point, and its ships' `coordinate` and `target_coordinate`
+  stand round it. In a 4.5.2 save, all 3,075 such fleets were
+  in their system's `fleet_presence`. Mining and research stations stand
+  at (a, a) or (−a, −a) from their body, and a system's starbase at
+  (a, −a), whether it orbits the star or a planet (5 starbases orbit a
+  planet in the 4.5 sample). An Orbital Ring is a starbase whose station
+  fleet stands exactly on its planet's point, with `visual_height=-150`
+  added to the coordinate. The planet names that fleet in
+  `orbital_defence`.
+  `combat.coordinate` is where the fleet last fought, at 0,0 for one
+  that never has. A fleet on its way has another `state` (`move_system`,
+  `move_wind_up`, `move_galaxy`) and stands wherever it has got to. The
+  game does not re-anchor a parked fleet on load: after a body moves in
+  its system, its stations and Orbital Ring stay at the old point
+  (4.5.2), so the editor moves them with it.
 - Planets, deposits and construction queues are slot tables. An id is
   `slot | generation<<24`, and the table is sorted by slot. A dead slot
   keeps its old id as `<id>=none`. When the game reuses a dead slot, it
@@ -658,9 +676,13 @@ for planets or deposits.
   the body plus the type's `entity_offset`. It adds the offset where it
   draws the model. The 4.5 sample's `orbital_ring_ruined` (row 4) is
   written at planet 936's (47.58375, 115.66625), as are 29 of 29 tied
-  rows in a 4.5.1 save. Moving the body in the editor does not rewrite
-  the row, so after a move the two differ. A Dyson Swarm row stands at (0, 0) with
-  `planet=<star>`, and the star gets `megastructure=<id>`.
+  rows in a 4.5.1 save. The game keeps whatever x and y a row is given,
+  so when the editor moves a body in its system, it moves the body's
+  rows by the same step. A
+  Dyson Swarm row stands at (0, 0) with `planet=<star>`, and the star
+  gets `megastructure=<id>`. The planet's `megastructure=` can name an
+  id the table no longer holds (a 4.5.2 save), so the tie is read from
+  the row's `planet`.
 - A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
   agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
   Shroud tunnel have `owner={ type=7 … }`.
