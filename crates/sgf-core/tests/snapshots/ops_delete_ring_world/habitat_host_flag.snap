@@ -1,0 +1,89 @@
+---
+source: crates/sgf-core/tests/common/mod.rs
+expression: value
+---
+Deleted planet #6268
+inverse: RestoreEntities { description: "Restored planet #6268", entities: [SavedEntity { table: System, id: 596, text: "596=\n\t{\n\t\tcoordinate=\n\t\t{\n\t\t\tx=336.20662\n\t\t\ty=-346.01992\n\t\t\torigin=4294967295\n\t\t\tvisual_height=4.31213\n\t\t}\n\t\tname=\n\t\t{\n\t\t\tkey=\"NAME_Ithomes_Gate\"\n\t\t}\n\t\tplanet=6266\n\t\tplanet=6267\n\t\tplanet=6268\n\t\tplanet=6269\n\t\tplanet=6270\n\t\tplanet=6271\n\t\tplanet=6272\n\t\tplanet=6273\n\t\tstar_class=\"sc_black_hole\"\n\t\thyperlane=\n\t\t{\n\t\t\t\n\t\t\t{\n\t\t\t\tto=595\n\t\t\t\tlength=20.04241\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=597\n\t\t\t\tlength=26.46266\n\t\t\t}\n \n\t\t\t{\n\t\t\t\tto=598\n\t\t\t\tlength=32.92164\n\t\t\t}\n \n\t\t}\n\t\tnatural_wormholes=\n\t\t{\n\t\t\t14 \n\t\t}\n\t\tbypasses=\n\t\t{\n\t\t\t22 \n\t\t}\n\t\tflags=\n\t\t{\n\t\t\thas_habitat=62808000\n\t\t\tchosen_system=62808000\n\t\t\tcrisis_spawn_exclude=62808000\n\t\t\tithomes_gate=62808000\n\t\t\tantique_threat_system=62808000\n\t\t\tresearch_habitat_spawned=62808000\n\t\t\tmining_habitat_spawned=62808000\n\t\t\tenergy_habitat_spawned=62808000\n\t\t}\n\t\tinitializer=\"the_chosen_gate_initializer\"\n\t\tinner_radius=416.86\n\t\touter_radius=516.86\n\t\tstarbases=\n\t\t{\n\t\t\t4294967295 \n\t\t}\n\t\tsector=4294967295\n\t\tindex=0\n\t\tstorm=4294967295\n\t}" }, SavedEntity { table: Planet, id: 6267, text: "6267=\n\t\t{\n\t\t\tplanet_class=\"pc_gas_giant\"\n\t\t\tplanet_size=30\n\t\t\tcarrier_binary_flags=1\n\t\t\tbuild_queue=6314\n\t\t\tname=\n\t\t\t{\n\t\t\t\tkey=\"PLANET_NAME_FORMAT\"\n\t\t\t\tvariables=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"PARENT\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"NAME_Ithomes_Gate\"\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t\t{\n\t\t\t\t\t\tkey=\"NUMERAL\"\n\t\t\t\t\t\tvalue=\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tkey=\"I\"\n\t\t\t\t\t\t\tliteral=yes\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}\n\t\t\tbinary_flags=72\n\t\t\tcoordinate=\n\t\t\t{\n\t\t\t\tx=11.82097\n\t\t\t\ty=243.77822\n\t\t\t\torigin=596\n\t\t\t}\n\t\t\torbit=243.18\n\t\t\tlast_bombardment=\t\t\t\"0.01.01\"\n\t\t\tmoons=\n\t\t\t{\n\t\t\t\t6268 \n\t\t\t}\n\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n\t\t\tbombardment_damage=0\n\t\t\tflags=\n\t\t\t{\n\t\t\t\thabitat6268=62808000\n\t\t\t\thas_megastructure=62808000\n\t\t\t}\n\t\t\tentity=4\n\t\t}" }, SavedEntity { table: Planet, id: 6268, text: "6268=\n\t\t{\n\t\t\tplanet_class=\"pc_habitat\"\n\t\t\tplanet_size=10\n\t\t\tcarrier_binary_flags=1\n\t\t\tbuild_queue=6493\n\t\t\tname=\n\t\t\t{\n\t\t\t\tkey=\"paradisiacal_habitat_science\"\n\t\t\t}\n\t\t\tbinary_flags=65\n\t\t\tcoordinate=\n\t\t\t{\n\t\t\t\tx=4.82169\n\t\t\t\ty=236.77745\n\t\t\t\torigin=596\n\t\t\t}\n\t\t\torbit=9.899\n\t\t\tlast_bombardment=\t\t\t\"0.01.01\"\n\t\t\tmoon_of=6267\n\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n\t\t\tbombardment_damage=0\n\t\t\ttimed_modifier=\n\t\t\t{\n\t\t\t\titems=\n\t\t\t\t{\n\t\t\t\t\t\n\t\t\t\t\t{\n\t\t\t\t\t\tmodifier=\"paradisiacal_habitat_science\"\n\t\t\t\t\t\tdays=-1\n\t\t\t\t\t}\n \n\t\t\t\t}\n\t\t\t}\n\t\t\tflags=\n\t\t\t{\n\t\t\t\tmegastructure=62808000\n\t\t\t\thabitat=62808000\n\t\t\t\thabitat_level_10=62808000\n\t\t\t}\n\t\t\tentity=0\n\t\t\tentity_name=\"mammalian_01_habitat_phase_03_entity\"\n\t\t\tdeposits=\n\t\t\t{\n\t\t\t\t3951 \n\t\t\t}\n\t\t}" }] }
+
+--- gamestate
++++ gamestate
+@@ -71105,7 +71105,6 @@
+ 		}
+ 		planet=6266
+ 		planet=6267
+-		planet=6268
+ 		planet=6269
+ 		planet=6270
+ 		planet=6271
+@@ -407597,70 +407596,17 @@
+ 			}
+ 			orbit=243.18
+ 			last_bombardment=			"0.01.01"
+-			moons=
+-			{
+-				6268 
+-			}
+ 			planet_orbitals=
+ 			{
+ 			}
+ 			bombardment_damage=0
+ 			flags=
+ 			{
+-				habitat6268=62808000
+ 				has_megastructure=62808000
+ 			}
+ 			entity=4
+ 		}
+-		6268=
+-		{
+-			planet_class="pc_habitat"
+-			planet_size=10
+-			carrier_binary_flags=1
+-			build_queue=6493
+-			name=
+-			{
+-				key="paradisiacal_habitat_science"
+-			}
+-			binary_flags=65
+-			coordinate=
+-			{
+-				x=4.82169
+-				y=236.77745
+-				origin=596
+-			}
+-			orbit=9.899
+-			last_bombardment=			"0.01.01"
+-			moon_of=6267
+-			planet_orbitals=
+-			{
+-			}
+-			bombardment_damage=0
+-			timed_modifier=
+-			{
+-				items=
+-				{
+-					
+-					{
+-						modifier="paradisiacal_habitat_science"
+-						days=-1
+-					}
+- 
+-				}
+-			}
+-			flags=
+-			{
+-				megastructure=62808000
+-				habitat=62808000
+-				habitat_level_10=62808000
+-			}
+-			entity=0
+-			entity_name="mammalian_01_habitat_phase_03_entity"
+-			deposits=
+-			{
+-				3951 
+-			}
+-		}
++		6268=none
+ 		6269=
+ 		{
+ 			planet_class="pc_gas_giant"

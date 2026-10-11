@@ -5,6 +5,8 @@ import {
   REMOVE_COLONY,
   removeColonyOp,
 } from "../../../lib/details/planetRemoval";
+import { DELETE_RING_WORLD, deleteRingWorldOp } from "../../../lib/details/ringWorldRemoval";
+import { deleteRingWorld } from "../../../store/ringWorldRemoval";
 import { useOpCheck } from "../../useOpCheck";
 
 /** One destructive action of a page, disabled with its reason while the core refuses it. */
@@ -71,6 +73,18 @@ export function DeletePlanetAction({
       refusal={refusal}
       label={deleteLabel(moon)}
       run={() => edits.remove(name, moon)}
+    />
+  );
+}
+
+/** Deletes the ring world of system `system` whole, or says why the core refuses. */
+export function DeleteRingWorldAction({ system }: { system: number }) {
+  const refusal = useOpCheck(deleteRingWorldOp(system), system);
+  return (
+    <RemovalAction
+      refusal={refusal}
+      label={DELETE_RING_WORLD}
+      run={() => deleteRingWorld(system)}
     />
   );
 }

@@ -18,6 +18,12 @@ export const SPAWN_BUFFER = 10;
 /** The id a save writes where an entity names none. */
 export const NULL_ID = 4294967295;
 
+/** What the planet class of a ring world segment starts with. */
+export const RING_WORLD_SEGMENT_PREFIXES = ["pc_ringworld", "pc_shattered_ring"] as const;
+
+/** What the type of a ring world's megastructure row starts with. */
+export const RING_WORLD_ROW_PREFIX = "ring_world";
+
 /** The first major version whose saves take an added system. */
 export const ADDED_SYSTEMS_FROM_MAJOR = 4;
 

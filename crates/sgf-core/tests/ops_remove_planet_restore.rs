@@ -89,7 +89,7 @@ fn what_is_refused() {
             "ring world",
             open_4_5,
             delete(2445),
-            "planet 2445 cannot be deleted: it is a ring world segment, which has not been tried in game",
+            "planet 2445 cannot be deleted: it is a ring world segment: delete the ring world",
         ),
         (
             "no colony",

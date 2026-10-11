@@ -3,6 +3,7 @@ import type { Bounds } from "../../../generated/Bounds";
 import type { DocumentKind } from "../../../generated/DocumentKind";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import { bodyClassName, bodyName, shownBodyName } from "../../../lib/details/labels";
+import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { isStarBody } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
@@ -45,7 +46,7 @@ import { PlanetDeposits } from "./PlanetDeposits";
 import { PlanetClassField } from "./PlanetClassField";
 import { PlanetModifiers } from "./PlanetModifiers";
 import { PlanetMoons } from "./PlanetMoons";
-import { DeletePlanetAction } from "./PlanetRemoval";
+import { DeletePlanetAction, DeleteRingWorldAction } from "./PlanetRemoval";
 import { PlanetModelField } from "./PlanetModelField";
 import type { PlanetSectionProps } from "./planetSection";
 import { PlanetSystemField } from "./PlanetSystemField";
@@ -230,10 +231,11 @@ function ringText(ring: boolean | null): ReactNode {
   return ring ? "Yes" : "No";
 }
 
-/** The page's Delete, where the page offers removal. */
+/** The page's Delete, where the page offers removal: a ring world segment's deletes its ring. */
 function DeleteSection({ read, offers }: PlanetSectionProps) {
   const names = useGameDataStore((s) => s.names);
   if (!offers.pageRemoval) return null;
+  if (isRingSegment(read.summary.class)) return <DeleteRingWorldAction system={read.details.id} />;
   return (
     <DeletePlanetAction
       body={read.summary.id}

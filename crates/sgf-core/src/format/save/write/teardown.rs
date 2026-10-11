@@ -75,25 +75,17 @@ pub(crate) struct Stationed {
 }
 
 impl Stationed {
-    /// Tombstone the fleet and its ships, and take them out of the system's `fleet_presence`
-    /// and the controller's `owned_fleets` and `controlled_planets`.
+    /// Tombstone the fleet and its ships, and take them out of the controller's
+    /// `owned_fleets` and `controlled_planets`. The system's `fleet_presence` is the
+    /// caller's, which takes every station of a deletion out of it at once.
     pub(crate) fn write(
         &self,
         plan: &mut Plan,
         s: &Session,
         saved: &mut Saved,
-        system: u32,
     ) -> Result<(), OpError> {
         let doc = &s.doc;
         tombstone_all(plan, doc, saved, &self.dead)?;
-        let anchor = system_statement(doc, system).ok_or(OpError::UnknownSystem(system))?;
-        saved.keep(doc, SavedTable::System, system, anchor)?;
-        unlist(
-            plan.edit(doc, system)?,
-            keys::FLEET_PRESENCE,
-            &[self.fleet],
-            Emptied::Drop,
-        )?;
         if let Some(country) = self.controller {
             let edit = country_edit(plan, doc, saved, country)?;
             unlist_fleet(edit, self.fleet)?;
@@ -256,13 +248,6 @@ impl Teardown {
         keep_planet: bool,
     ) -> Result<(), OpError> {
         let doc = &s.doc;
-        tombstone_all(plan, doc, saved, &self.dead)?;
-        for &(id, anchor) in &self.orphaned {
-            saved.keep(doc, SavedTable::ConstructionQueue, id, anchor)?;
-            plan.edit_record(doc, anchor)?
-                .set_scalar(&[keys::OWNER], NULL_ID.to_string())?;
-        }
-
         let anchor =
             system_statement(doc, self.system).ok_or(OpError::UnknownSystem(self.system))?;
         saved.keep(doc, SavedTable::System, self.system, anchor)?;
@@ -271,6 +256,25 @@ impl Teardown {
         if let Some((starbase, fleet)) = self.ring {
             unlist(edit, keys::STARBASES, &[starbase], Emptied::Null)?;
             unlist(edit, keys::FLEET_PRESENCE, &[fleet], Emptied::Drop)?;
+        }
+        self.write_unlisted(plan, s, saved, keep_planet)
+    }
+
+    /// [`Self::write`] but for the system's `colonies`, `starbases` and `fleet_presence`,
+    /// which a caller tearing down several colonies of one system takes them out of at once.
+    pub(crate) fn write_unlisted(
+        &self,
+        plan: &mut Plan,
+        s: &Session,
+        saved: &mut Saved,
+        keep_planet: bool,
+    ) -> Result<(), OpError> {
+        let doc = &s.doc;
+        tombstone_all(plan, doc, saved, &self.dead)?;
+        for &(id, anchor) in &self.orphaned {
+            saved.keep(doc, SavedTable::ConstructionQueue, id, anchor)?;
+            plan.edit_record(doc, anchor)?
+                .set_scalar(&[keys::OWNER], NULL_ID.to_string())?;
         }
 
         for &country in &self.countries {

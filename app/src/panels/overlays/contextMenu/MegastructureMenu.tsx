@@ -4,6 +4,7 @@ import {
   deleteMegastructureOp,
   megastructureName,
 } from "../../../lib/details/megastructureRemoval";
+import { isRingRow } from "../../../lib/details/ringWorldRemoval";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -15,8 +16,12 @@ import { useSceneStore } from "../../../store/sceneStore";
 import { useOpCheck } from "../../useOpCheck";
 import { MenuFrame, type Frame } from "./MenuFrame";
 import { MenuItem } from "./MenuItem";
+import { RingWorldItem } from "./RingWorldItem";
 
-/** The menu on a megastructure in the system view: its page, its deletion, and the way out. */
+/**
+ * The menu on a megastructure in the system view: its page, its deletion or its ring world's, and
+ * the way out.
+ */
 export function MegastructureMenu({
   target,
   frame,
@@ -42,9 +47,14 @@ export function MegastructureMenu({
       <MenuItem disabled={name === undefined} run={inspect}>
         Inspect
       </MenuItem>
-      {removable && name !== undefined && (
-        <DeleteItem system={target.system} id={target.id} name={name} />
-      )}
+      {removable &&
+        name !== undefined &&
+        row !== undefined &&
+        (isRingRow(row.kind) ? (
+          <RingWorldItem system={target.system} />
+        ) : (
+          <DeleteItem system={target.system} id={target.id} name={name} />
+        ))}
       <MenuItem className="context-menu-separated" run={backToGalaxy}>
         Back to galaxy
       </MenuItem>

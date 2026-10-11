@@ -377,6 +377,17 @@ export interface InspectorState {
   /** Closes every page on `megastructure` or one of `colonies`, with everything opened from it. */
   dropMegastructure(megastructure: number, colonies: readonly number[]): void;
   /**
+   * Closes every page on one of a ring world's `planets`, `megastructures` or `colonies`, with
+   * everything opened from it. A stack rooted on one of them restarts on `system`, its system's
+   * page.
+   */
+  dropRingWorld(
+    system: Entry,
+    planets: readonly number[],
+    megastructures: readonly number[],
+    colonies: readonly number[],
+  ): void;
+  /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
    */
@@ -556,6 +567,19 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
         (ref.kind === "colony" && colonies.includes(ref.id)),
     );
     if (next !== null) set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+  },
+
+  dropRingWorld(system, planets, megastructures, colonies) {
+    const { stack, tab } = get();
+    const at = stack.findIndex(
+      ({ ref }) =>
+        (ref.kind === "body" && planets.includes(ref.id)) ||
+        (ref.kind === "megastructure" && megastructures.includes(ref.id)) ||
+        (ref.kind === "colony" && colonies.includes(ref.id)),
+    );
+    if (at < 0) return;
+    const next = at === 0 ? [system] : stack.slice(0, at);
+    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
   dropMegastructure(megastructure, colonies) {

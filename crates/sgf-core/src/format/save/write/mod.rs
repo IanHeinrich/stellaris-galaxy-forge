@@ -16,6 +16,7 @@ pub(crate) mod bodies;
 pub(crate) mod bulk;
 pub(crate) mod copy_bodies;
 pub(crate) mod delete_megastructure;
+pub(crate) mod delete_ring_world;
 pub(crate) mod deposits;
 pub(crate) mod dig_site;
 pub(crate) mod dismantle;
