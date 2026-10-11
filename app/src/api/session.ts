@@ -10,6 +10,7 @@ import type { ExportReport } from "../generated/ExportReport";
 import type { ExportResult } from "../generated/ExportResult";
 import type { GalaxyView } from "../generated/GalaxyView";
 import type { Issue } from "../generated/Issue";
+import type { ModelUse } from "../generated/ModelUse";
 import type { Op } from "../generated/Op";
 import type { OpenResult } from "../generated/OpenResult";
 import type { SaveResult } from "../generated/SaveResult";
@@ -58,6 +59,11 @@ export function getGalaxy(): Promise<GalaxyView> {
 /** Build the details projection so search also finds planets and fleets. */
 export function warmDetails(): Promise<Issue[]> {
   return invoke<Issue[]>("warm_details");
+}
+
+/** Every megastructure, starbase and planet of the open save, with what picks its model. */
+export function getModelUses(): Promise<ModelUse[]> {
+  return invoke<ModelUse[]>("get_model_uses");
 }
 
 /** Why `op` would be refused, or null when it would apply; the session is left as it was. */

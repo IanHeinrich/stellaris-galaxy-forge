@@ -167,11 +167,18 @@ describe("the split layer bar", () => {
     expect(html.indexOf('aria-label="Leviathans"')).toBeGreaterThan(nebulae);
   });
 
-  it("shows only Names, System details, Nebulae, Bypasses and Orbit radii while a system is shown, none greyed", async () => {
+  it("shows only Names, System details, Nebulae, Bypasses, Orbit radii, and Megastructures and starbases while a save's system is shown, none greyed", async () => {
     resetStores();
     armSession();
     await openWith(OPEN_RESULT);
-    const scene = ["Bypasses", "Names", "Nebulae", "Orbit radii", "System details"];
+    const scene = [
+      "Bypasses",
+      "Megastructures and starbases",
+      "Names",
+      "Nebulae",
+      "Orbit radii",
+      "System details",
+    ];
     expect(bar()).not.toContain("disabled");
     expect(buttonLabels(bar())).toEqual(expect.arrayContaining(["Hyperlanes", "Leviathans"]));
     expect(buttonLabels(bar())).not.toContain("Orbit radii");
@@ -188,6 +195,7 @@ describe("the split layer bar", () => {
     expect(useMapChromeStore.getState().sceneLayers.bypasses).toBe(!sceneLayers.bypasses);
     expect(menuBody()).not.toContain("disabled");
     expect(menuBody()).toContain("<span>Orbit radii</span><kbd>2</kbd>");
+    expect(menuBody()).toContain("<span>Megastructures and starbases</span><kbd>7</kbd>");
 
     useMapChromeStore.getState().toggleSceneLayer("details");
     expect(useMapChromeStore.getState().layers.details).toBe(true);

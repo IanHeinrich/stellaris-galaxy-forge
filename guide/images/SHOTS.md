@@ -18,8 +18,9 @@ pages don't need editing.
   enabled" line. Keep that state if you retake those dialogs.
 - A change not yet released is shot from `npm run tauri dev` with the
   same window, and with the game data the developer has installed.
-  `system/planet-page.png` and `scenario/scenario-system-inspector.png`
-  were taken that way, on Stellaris 4.5.2 game data.
+  `system/planet-page.png`, `scenario/scenario-system-inspector.png`,
+  `system/system-view.png` and `system/megastructures.png` were taken
+  that way, on Stellaris 4.5.2 game data.
 - The dock is 340 pixels wide. Drag its left edge to set it.
 - Saved as PNG at 1x, cropped to the part of the window the page talks
   about.
@@ -86,8 +87,9 @@ The Issues, Changes and added-system shots show those edits.
 
 | File | Page | Shows | How to take it |
 | --- | --- | --- | --- |
-| `system/system-view.png` | `system/system-view.md` | The system view with the dock | Open Xraneax #322 with nothing selected inside it. Full window. |
+| `system/system-view.png` | `system/system-view.md` | The system view with the dock | On the unedited save, open Xraneax #322 with nothing selected inside it and the Hyperlanes section open. Full window. |
 | `system/orbit-radii.png` | `system/system-view.md` | Orbit radii in a system view | On the 4.4 save, open Amory and press 2. |
+| `system/megastructures.png` | `system/system-view.md` | A system with a megastructure, drawn from its game model | On a late-game 4.5 save, open a system with a finished Dyson Sphere with System details on, zoom in two steps past the whole system and crop to the star and its inner planets. Taken on Caehines #238 of a 4.5.2 autosave from 2333. |
 | `system/system-view-planet-selected.png` | `system/arrange-planets.md` | A selected planet with its radius line | In Xraneax, click Baloryz. |
 | `system/planet-menu.png` | `system/arrange-planets.md` | The right-click menu on a planet | In Xraneax, select Baloryz, TF-B-63 and JQQ-1-6498, then right-click Baloryz. |
 | `system/planet-page.png` | `system/planet-pages.md` | A planet's page | Click Baloryz and crop the dock. |

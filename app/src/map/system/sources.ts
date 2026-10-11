@@ -1,8 +1,10 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { CountryNode } from "../../generated/CountryNode";
 import type { DocumentKind } from "../../generated/DocumentKind";
+import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
 import type { NameTemplate } from "../../generated/NameTemplate";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
+import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 import type { StarClassView } from "../../generated/StarClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemNode } from "../../generated/SystemNode";
@@ -74,6 +76,10 @@ export interface SystemSources extends SceneSubject {
   readonly beltKinds: ReadonlyMap<string, BeltKindView>;
   /** Each bypass kind the game data defines, for the glyph a wormhole's plate shows. */
   readonly bypassKinds: BypassKinds;
+  /** Each megastructure type the game data defines, for the model its rows draw. */
+  readonly megastructureTypes: ReadonlyMap<string, MegastructureTypeView>;
+  /** Each starbase level the game data defines, for the model its station draws. */
+  readonly starbaseLevels: ReadonlyMap<string, StarbaseLevelView>;
   /**
    * The system's bodies are rolled from its initializer, so a system listing none draws its star
    * class's stars.
@@ -83,7 +89,10 @@ export interface SystemSources extends SceneSubject {
   /** The names the game gives a scenario system's bodies, by id; empty for a save's. */
   readonly givenNames: ReadonlyMap<number, GivenName>;
   readonly resourceIcons: ReadonlyMap<string, string>;
-  /** Which of the scene's switches are on: names, resources, clouds, wormholes and orbit radii. */
+  /**
+   * Which of the scene's switches are on: names, resources, clouds, wormholes, orbit radii, and
+   * megastructures and starbases.
+   */
   readonly sceneLayers: Readonly<Record<SceneLayerId, boolean>>;
   /** Who owns what, for the colour a colonised body's plate shows. */
   readonly ownership: Ownership;
@@ -111,6 +120,8 @@ export const NO_SOURCES: SystemSources = Object.freeze({
   starClasses: new Map<string, StarClassView>(),
   beltKinds: new Map<string, BeltKindView>(),
   bypassKinds: new Map(),
+  megastructureTypes: new Map<string, MegastructureTypeView>(),
+  starbaseLevels: new Map<string, StarbaseLevelView>(),
   rolledLayout: false,
   gameDataReady: false,
   givenNames: new Map<number, GivenName>(),
@@ -121,6 +132,7 @@ export const NO_SOURCES: SystemSources = Object.freeze({
     nebulae: false,
     bypasses: true,
     orbitRadii: false,
+    megastructures: true,
   }),
   roll: null,
   ownership: NO_OWNERSHIP,
@@ -147,6 +159,8 @@ export const sameSources = sameFields<SystemSources>({
   starClasses: true,
   beltKinds: true,
   bypassKinds: true,
+  megastructureTypes: true,
+  starbaseLevels: true,
   rolledLayout: true,
   gameDataReady: true,
   resourceIcons: true,
@@ -243,6 +257,8 @@ export const SOURCE_FOLLOWS: readonly SourceFollow[] = [
       (s) => s.starClasses,
       (s) => s.summary,
       (s) => s.bypasses,
+      (s) => s.megastructureTypes,
+      (s) => s.starbaseLevels,
     ],
     refresh,
   ),
@@ -283,6 +299,8 @@ export function readSystemSources(id: number | null, subject: SubjectProvider): 
     starClasses: data.starClasses,
     beltKinds: beltKindsBy(data.summary?.belt_kinds ?? NO_BELT_KINDS),
     bypassKinds: data.bypasses,
+    megastructureTypes: data.megastructureTypes,
+    starbaseLevels: data.starbaseLevels,
     rolledLayout: capabilities.rolled_layout,
     gameDataReady: ready,
     resourceIcons: details.resourceIcons,

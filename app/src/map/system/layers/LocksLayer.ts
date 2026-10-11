@@ -3,7 +3,7 @@ import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import type { Camera } from "../../Camera";
 import { markerScale } from "../../layers/MapLayer";
 import { EMPTY_SYSTEM_CONTEXT, type SystemContext } from "../context";
-import { drawnDisc } from "../geometry";
+import { drawnDisc, onBodyModels } from "../geometry";
 import type { SystemLayer } from "./SystemLayer";
 
 const LOCK_COLOR = 0xc8d0dc;
@@ -20,10 +20,19 @@ export class LocksLayer implements SystemLayer {
   readonly locks = new Graphics();
   private ctx: SystemContext = EMPTY_SYSTEM_CONTEXT;
   private drawnScale = -1;
+  private cam: Camera | null = null;
+  private readonly unsubModels: () => void;
 
   constructor() {
     this.locks.label = "locks";
     this.container.addChild(this.locks);
+    this.unsubModels = onBodyModels(
+      () => this.ctx.bodies,
+      () => {
+        this.drawnScale = -1;
+        if (this.cam) this.onViewport(this.cam);
+      },
+    );
   }
 
   rebuild(ctx: SystemContext): void {
@@ -33,6 +42,7 @@ export class LocksLayer implements SystemLayer {
   }
 
   onViewport(cam: Camera): void {
+    this.cam = cam;
     if (cam.scale === this.drawnScale) return;
     this.drawnScale = cam.scale;
     const g = this.locks.clear();
@@ -65,6 +75,7 @@ export class LocksLayer implements SystemLayer {
   }
 
   destroy(): void {
+    this.unsubModels();
     this.container.destroy({ children: true });
   }
 }

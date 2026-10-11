@@ -6,7 +6,7 @@
 //! `flag:<category>/<file>`, `sprite:<GFX_name>[#<frame>]`,
 //! `empire_flag:<bg>:<category>/<file>:<c0>,<c1>,<c2>,<c3>` (an empty emblem draws the background alone), `planet_disc:<class>`,
 //! `planet_disc_shattered:<class>:<seed>`, `planet_model:<entity>`, `star_disc:<class>`,
-//! `model:<culture>:<entity>` and `planet_ring`.
+//! `model:<culture>:<entity>[:yaw<degrees>]` and `planet_ring`.
 
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -43,7 +43,7 @@ pub use star_disc::StarAtmosphere;
 /// Part of every rendered job's cache name, so a change to how any texture is baked (a sphere
 /// disc, a composed flag, a cropped frame) is baked afresh rather than served stale from a
 /// user's disk cache.
-const BAKE: u32 = 3;
+const BAKE: u32 = 4;
 
 /// A cached PNG nobody has asked for in this long is deleted at start-up.
 const CACHE_MAX_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
@@ -367,11 +367,16 @@ impl Job {
         } = *lookups;
         match key {
             TextureKey::StarDisc { class } => Self::plan_star(class, layout, lookups, textures),
-            TextureKey::Model { culture, entity } => Ok(Self::Model(model::ModelJob::plan(
+            TextureKey::Model {
+                culture,
+                entity,
+                yaw,
+            } => Ok(Self::Model(model::ModelJob::plan(
                 layout,
                 models.map_or_else(|| textures.models(layout), Arc::clone),
                 &(lookups.cultures)(culture),
                 entity,
+                *yaw,
             )?)),
             TextureKey::PlanetDisc { class } => {
                 let no_disc = || TextureError::NoDisc(class.clone());

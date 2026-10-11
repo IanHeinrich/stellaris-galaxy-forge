@@ -27,6 +27,8 @@ pub struct StarbaseLevelDef {
     /// The station's model, without its culture prefix: the `entity` of the section template
     /// that fits the first of its ship size's `section_slots`.
     pub station_entity: Option<String>,
+    /// Its ship size's `scales_with_planet`: the station grows with the planet it rings.
+    pub scales_with_planet: bool,
 }
 
 pub(crate) fn load(
@@ -54,6 +56,7 @@ pub(crate) fn load(
                     icon_frame,
                     empire_shield: def.flag("display_empire_shield"),
                     station_entity,
+                    scales_with_planet: size.is_some_and(|size| size.scales_with_planet),
                 },
             )
         })

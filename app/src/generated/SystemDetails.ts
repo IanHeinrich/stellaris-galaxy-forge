@@ -10,7 +10,12 @@ import type { StarbaseSummary } from "./StarbaseSummary";
 import type { SystemSpawn } from "./SystemSpawn";
 import type { WormholeSummary } from "./WormholeSummary";
 
-export type SystemDetails = { id: number, resources: Array<ResourceAmount>, planets: Array<PlanetSummary>, starbase: StarbaseSummary | null, fleets: FleetPresence, 
+export type SystemDetails = { id: number, resources: Array<ResourceAmount>, planets: Array<PlanetSummary>, starbase: StarbaseSummary | null, 
+/**
+ * The starbases the system lists after `starbase`, in file order: deep-space citadels
+ * and orbital rings. Empty in a scenario.
+ */
+other_starbases: Array<StarbaseSummary>, fleets: FleetPresence, 
 /**
  * In file order.
  */

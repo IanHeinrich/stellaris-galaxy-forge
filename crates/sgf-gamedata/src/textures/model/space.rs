@@ -85,18 +85,22 @@ impl Affine {
         }
     }
 
-    /// Rotations about X, then Y, then Z, in degrees, then `scale`, then `position`.
+    /// An `.asset` locator's `rotation = { yaw pitch roll }` in degrees, about model Y, X and Z:
+    /// `scale`, then the roll, the pitch and the yaw, then `position`. A ring world's pieces
+    /// turn by their yaw alone to face its star.
     pub(super) fn from_euler(degrees: Vec3, scale: f32, position: Vec3) -> Self {
-        let [x, y, z] = degrees.map(f32::to_radians);
-        let rx = Self::rotation(1, 2, x);
-        let ry = Self::rotation(2, 0, y);
-        let rz = Self::rotation(0, 1, z);
-        let mut placed = rx
-            .then_after(ry)
-            .then_after(rz)
+        let [yaw, pitch, roll] = degrees.map(f32::to_radians);
+        let mut placed = Self::yaw(yaw)
+            .then_before(Self::rotation(1, 2, pitch))
+            .then_before(Self::rotation(0, 1, roll))
             .then_before(Self::scale(scale));
         placed.translation = position;
         placed
+    }
+
+    /// A turn by `radians` about model Y, Z towards X: a model's heading on the ground.
+    pub(super) fn yaw(radians: f32) -> Self {
+        Self::rotation(2, 0, radians)
     }
 
     /// A rotation by `angle` that turns axis `a` towards axis `b`.
@@ -144,11 +148,6 @@ impl Affine {
             columns: inner.columns.map(|c| self.apply_vector(c)),
             translation: self.apply(inner.translation),
         }
-    }
-
-    /// `outer` applied to what `self` gives: `self` first, then `outer`.
-    fn then_after(&self, outer: Self) -> Self {
-        outer.then_before(*self)
     }
 
     /// The inverse of an invertible map; the identity for a singular one.

@@ -84,6 +84,8 @@ pub struct RawPlanet {
     pub anomaly: Option<String>,
     /// `entity_name`: the model the planet is drawn as, in place of its class's.
     pub entity_name: Option<String>,
+    /// Its owner's `graphical_culture`.
+    pub culture: Option<String>,
     /// `shipclass_orbital_station`: the mining or research station's fleet.
     pub station: Option<u32>,
 }
@@ -111,6 +113,9 @@ pub struct RawStarbase {
     /// `movement_manager.coordinate`, reached as `station` → ship → `fleet`. `None` when
     /// that fleet is gone or stands in another system.
     pub at: Option<(f64, f64)>,
+    /// The planet the station fleet orbits: its `movement_manager.orbit.orbitable.planet`.
+    /// An orbital ring's is the planet it rings.
+    pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`.
     pub culture: Option<String>,
 }
@@ -360,6 +365,9 @@ pub(super) fn planets(
         raw.pre_ftl = planet
             .owner
             .is_some_and(|o| countries.primitives.contains(&o));
+        raw.culture = planet
+            .owner
+            .and_then(|o| countries.cultures.get(&o).cloned());
         for kind in planet.deposits.iter().filter_map(|d| deposit_kind.get(d)) {
             match raw.deposits.iter_mut().find(|(k, _)| k == kind) {
                 Some((_, count)) => *count += 1,
@@ -422,6 +430,7 @@ fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], role: Body
         permanent_modifiers: permanent_modifiers(node, src),
         anomaly: planet.anomaly.clone(),
         entity_name: planet.entity_name.clone(),
+        culture: None,
         station: planet.station,
     }
 }
@@ -650,6 +659,7 @@ pub(super) fn present(
                 hull: hull.hitpoints,
                 max_hull: hull.max_hitpoints,
                 at,
+                planet: fleet.and_then(|fleet| fleets::orbited_planet(doc, fleet)),
                 culture: ship
                     .as_ref()
                     .and_then(|s| read::scalar(s, keys::GRAPHICAL_CULTURE, src))

@@ -3,7 +3,13 @@ import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/det
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
 import { requestTextures } from "../../lib/visual/textures";
-import { bodyEntry, useInspectorStore, wormholeEntry } from "../../store/inspectorStore";
+import {
+  bodyEntry,
+  megastructureEntry,
+  starbaseEntry,
+  useInspectorStore,
+  wormholeEntry,
+} from "../../store/inspectorStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { noteScenePointer, planetsCanMove } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
@@ -15,8 +21,8 @@ import type { Tip } from "../layers/details/Hover";
 import { planetLines } from "../layers/details/planets";
 import { OwnedTooltip } from "../ownedTooltip";
 import { sameHandle, type DragStep, type HandleRef } from "./bodyDrag";
-import type { SystemContext } from "./context";
-import { handleOwnerAt, idOf, pickTarget, sameTarget, type SceneTarget } from "./picking";
+import type { StructureKind, SystemContext } from "./context";
+import { handleOwnerAt, pickTarget, sameTarget, type SceneTarget } from "./picking";
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
@@ -27,10 +33,10 @@ export interface InteractionScene {
   context(): SystemContext;
   /** What the scene shows without a preview, which a drag starts from. */
   frame(): SystemContext;
-  /** The body whose shown name plate covers the screen point, or null. */
-  plateAt(sx: number, sy: number): number | null;
-  /** The tooltip of the mark or resource icon under the screen point on `body`'s name plate, or null. */
-  markTipAt(body: number, sx: number, sy: number): Tip | null;
+  /** The body or structure whose shown name plate covers the screen point, or null. */
+  plateAt(sx: number, sy: number): SceneTarget | null;
+  /** The tooltip of the mark or resource icon under the screen point on `target`'s plate, or null. */
+  markTipAt(target: SceneTarget, sx: number, sy: number): Tip | null;
   hover(target: SceneTarget | null): void;
   /** Shows the handles of one band, the one the pointer is over or the one dragged, or none. */
   revealHandles(owner: HandleRef | null): void;
@@ -83,6 +89,13 @@ function tipFor(
       if (!lane) return null;
       return { title: lane.name, lines: [{ label: "Lane length", value: String(lane.length) }] };
     }
+    case "megastructure":
+    case "starbase": {
+      const shown = ctx.structures.find((s) => s.kind === target.kind && s.id === target.id);
+      if (!shown) return null;
+      const lines = shown.level === null ? [] : [{ label: "Level", value: shown.level }];
+      return { title: shown.name, lines };
+    }
   }
 }
 
@@ -99,6 +112,8 @@ function movable(ctx: SystemContext, target: SceneTarget | null): boolean {
     case "handle":
       return true;
     case "exit":
+    case "megastructure":
+    case "starbase":
       return false;
   }
 }
@@ -151,6 +166,7 @@ export class SystemInteraction {
       },
       openBody: (system, id) => this.openBody(system, id),
       openWormhole: (system, id) => this.openWormhole(system, id),
+      openStructure: (system, kind, id) => this.openStructure(system, kind, id),
       showSystem: () => {
         useSceneStore.getState().clearBodies();
         useInspectorStore.getState().popTo(0);
@@ -305,6 +321,18 @@ export class SystemInteraction {
     useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
   }
 
+  /** A click on a megastructure or starbase selects it alone and opens its page. */
+  private openStructure(system: number, kind: StructureKind, id: number): void {
+    const shown = this.scene.context().structures.find((s) => s.kind === kind && s.id === id);
+    if (!shown) return;
+    useSceneStore.getState().clearBodies();
+    const entry =
+      kind === "megastructure"
+        ? megastructureEntry(id, shown.name)
+        : starbaseEntry(system, id, shown.name);
+    useInspectorStore.getState().openFromMap(entry);
+  }
+
   private selectAlone(system: number, id: number): void {
     useSceneStore.getState().selectBody(system, id);
     this.showBody(system, id);
@@ -332,8 +360,7 @@ export class SystemInteraction {
     }
     const own = moved || ctx !== last.ctx ? tipFor(ctx, target) : last.tip;
     this.hovered = { target, ctx, tip: own, sx, sy };
-    const body = idOf(target, "body");
-    const tip = (body === null ? null : this.scene.markTipAt(body, sx, sy)) ?? own;
+    const tip = (target === null ? null : this.scene.markTipAt(target, sx, sy)) ?? own;
     if (tip) this.tip.show({ ...tip, x: sx, y: sy });
     else this.tip.hide();
   }

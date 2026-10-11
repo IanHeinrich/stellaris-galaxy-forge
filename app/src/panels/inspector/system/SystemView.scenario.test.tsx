@@ -84,6 +84,7 @@ describe("a scenario system's overview", () => {
           hull: 0,
           max_hull: 0,
           at: null,
+          planet: null,
           culture: null,
           shipyard: true,
         },

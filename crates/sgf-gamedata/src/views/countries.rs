@@ -55,6 +55,8 @@ pub struct StarbaseLevelView {
     pub empire_shield: bool,
     /// The station's model, without the graphical culture prefix the game puts before it.
     pub station_entity: Option<String>,
+    /// The station grows with the planet it rings, as an orbital ring does.
+    pub scales_with_planet: bool,
 }
 
 impl From<&StarbaseLevelDef> for StarbaseLevelView {
@@ -64,6 +66,7 @@ impl From<&StarbaseLevelDef> for StarbaseLevelView {
             icon_frame: s.icon_frame,
             empire_shield: s.empire_shield,
             station_entity: s.station_entity.clone(),
+            scales_with_planet: s.scales_with_planet,
         }
     }
 }

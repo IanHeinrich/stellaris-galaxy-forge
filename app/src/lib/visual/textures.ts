@@ -28,6 +28,11 @@ export function getTexture(key: string): Texture | null | undefined {
   return cache.get(key);
 }
 
+/** Whether `key` was asked for and has neither landed nor been dropped by `clearTextures`. */
+export function textureLoading(key: string): boolean {
+  return inflight.has(key);
+}
+
 /** The landed texture as a PNG data URL, for an `<img>`; undefined until it lands. */
 export function getTextureUrl(key: string): string | undefined {
   return urls.get(key);

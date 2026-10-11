@@ -144,15 +144,51 @@ its radius.
 
 ![The system view of Amory with Orbit radii on, each orbit labelled with its radius](../images/system/orbit-radii.png)
 
+## Megastructures and starbases <Badge type="tip" text="Save" />
+
+In a save, each megastructure and starbase in a system shows as its
+model from the game, at the size it has in game. A Dyson Sphere covers
+its star, and an Arc Furnace rings its planet. A megastructure built on
+a planet or moon stays with it when you move the planet. Ring world
+sections turn to face their star, so the pieces of a ring world join up.
+
+![A system with a Dyson Sphere drawn from the game's model](../images/system/megastructures.png)
+
+Habitats and ring world segments are planets, and they show as their
+models from the game too. You select, move and name them as you do any
+other planet.
+
+Each megastructure and starbase shows its name on a plate under it
+while Names is on. One drawn over a star or a planet, such as a Dyson
+Sphere or an Arc Furnace, has its plate under that body's plate. With System details on, a megastructure that
+produces resources, such as a Dyson Sphere or a Science Nexus, shows
+what it produces each month under its name. This is the base output,
+before your empire's modifiers, so the game can show a different figure.
+
+Hover over a megastructure or starbase to see its name. Click its model
+to open its page in the Inspector. To select a planet or star under a
+megastructure, click the body itself or its name plate.
+
+The models are read from your Stellaris install. Galaxy Forge prepares
+them in the background after a save opens. A system you open straight
+away can take a moment to show them. A megastructure from a mod you
+don't have installed shows the game's megastructure icon instead.
+
+Press <kbd>7</kbd> in a system view to hide them, or turn off
+Megastructures and starbases in the Layers menu.
+
 ## Names and layers in a system
 
 Each body's name sits on a plate under it. A colonised planet's plate
 has a bar in its owner's colour. Names, System details, Nebulae and,
-in a save, Bypasses still work while a system is open, with their own
-settings, so you can have them on in the galaxy and off in a system.
+in a save, Bypasses and Megastructures and starbases still work while
+a system is open, with their own settings, so you can have them on in
+the galaxy and off in a system.
 With System details on, each body's resources show under its name. A
 colony's name shows its owner's flag. A body's name also shows icons
-for its megastructures, archaeological site, anomaly and pre-FTL civilisation.
+for its archaeological site, anomaly and pre-FTL civilisation. While
+Megastructures and starbases is off, it shows an icon for its
+megastructures too.
 Hover over an icon or a resource to see what it is. A system inside a
 nebula shows faint clouds behind it while Nebulae is on. The other
 layer buttons and the tool strip are for the galaxy, so they are hidden

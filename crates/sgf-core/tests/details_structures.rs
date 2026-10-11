@@ -77,13 +77,17 @@ fn a_megastructure_stands_at_its_row_coordinate_in_its_own_culture_or_its_owners
 fn a_starbase_stands_where_its_station_fleet_does_in_its_station_ships_culture() {
     let session = common::warmed();
     let details = session.details().expect("build details");
-    let sol = details
+    let resolved = details
         .resolve(217, &HeuristicResolver, false)
-        .expect("Sol resolved")
-        .starbase
-        .expect("Sol's starbase");
+        .expect("Sol resolved");
+    let sol = resolved.starbase.expect("Sol's starbase");
     assert_eq!(sol.at, Some((21.6, -21.6)));
     assert_eq!(sol.culture.as_deref(), Some("humanoid_01"));
+    let orbited = sol.planet.expect("the planet its station fleet orbits");
+    assert!(
+        resolved.planets.iter().any(|p| p.id == orbited),
+        "a body of Sol"
+    );
 
     let starbases: Vec<_> = systems(&session)
         .into_iter()
@@ -102,10 +106,11 @@ fn a_starbase_stands_where_its_station_fleet_does_in_its_station_ships_culture()
         for s in &details.raw(id).expect("system in projection").starbases {
             writeln!(
                 report,
-                "system {id} #{} {} at {} culture {}",
+                "system {id} #{} {} at {} orbiting {} culture {}",
                 s.id,
                 s.level,
                 point(s.at),
+                s.planet.map_or_else(|| "-".to_owned(), |p| format!("#{p}")),
                 s.culture.as_deref().unwrap_or("-"),
             )
             .unwrap();

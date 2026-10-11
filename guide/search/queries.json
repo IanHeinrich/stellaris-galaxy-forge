@@ -139,5 +139,14 @@
   {"q": "dotted underline", "expect": "system/system-view#rolled-values-and-how-many-planets-spawn"},
   {"q": "see deposits for one planet class", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
   {"q": "what if it rolls gas giant", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
-  {"q": "class picker", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"}
+  {"q": "class picker", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
+  {"q": "megastructure", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "dyson sphere", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "starbase model", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "hide starbases", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "megastructure name", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "dyson sphere energy output", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "habitat model", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "ring world segments", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "select planet under megastructure", "expect": "system/system-view#megastructures-and-starbases"}
 ]

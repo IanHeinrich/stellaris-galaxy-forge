@@ -214,6 +214,7 @@ function pageListing(page: PlanetPage, system: number) {
     resources: [],
     planets: [summary, ...page.moons.map((moon) => pageBody(moon, page.id))],
     starbase: null,
+    other_starbases: [],
     fleets: { fleet_count: 0, military_count: 0, ship_count: 0, military_power: 0 },
     fleets_present: [],
     megastructures: [],

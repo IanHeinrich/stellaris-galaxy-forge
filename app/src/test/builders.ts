@@ -12,6 +12,8 @@ import type { GameDataSummary } from "../generated/GameDataSummary";
 import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { Issue } from "../generated/Issue";
+import type { MegastructureSummary } from "../generated/MegastructureSummary";
+import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
@@ -20,6 +22,8 @@ import type { PlanetPage } from "../generated/PlanetPage";
 import type { PlanetSummary } from "../generated/PlanetSummary";
 import type { SaveMeta } from "../generated/SaveMeta";
 import type { ScenarioSummary } from "../generated/ScenarioSummary";
+import type { StarbaseLevelView } from "../generated/StarbaseLevelView";
+import type { StarbaseSummary } from "../generated/StarbaseSummary";
 import type { StarClassView } from "../generated/StarClassView";
 import type { SystemDetails } from "../generated/SystemDetails";
 import type { SystemNode } from "../generated/SystemNode";
@@ -184,6 +188,7 @@ export function systemDetails(over: Partial<SystemDetails> = {}): SystemDetails 
     resources: [],
     planets: [],
     starbase: null,
+    other_starbases: [],
     fleets: { fleet_count: 0, military_count: 0, ship_count: 0, military_power: 0 },
     fleets_present: [],
     megastructures: [],
@@ -371,6 +376,71 @@ export function fleetSummary(over: Partial<FleetSummary> = {}): FleetSummary {
     disabled_ships: 0,
     ship_sizes: [],
     works: [],
+    ...over,
+  };
+}
+
+/** The one `MegastructureSummary` builder: an ownerless row of `kind` at the centre. */
+export function megastructureSummary(
+  over: Partial<MegastructureSummary> & { kind: string },
+): MegastructureSummary {
+  return { id: 1, owner: null, planet: null, at: [0, 0], culture: null, ...over };
+}
+
+/** The one `MegastructureTypeView` builder: a type that draws `entity` where its row stands. */
+export function megastructureTypeView(
+  key: string,
+  over: Partial<MegastructureTypeView> = {},
+): MegastructureTypeView {
+  return {
+    key,
+    entity: `${key}_entity`,
+    construction_entity: null,
+    entity_offset: [0, 0],
+    place_entity_on_planet_plane: false,
+    scales_with_planet: false,
+    construction_scale: 1,
+    build_type: "around_planet",
+    bypass_type: null,
+    upgrade_from: [],
+    rotate_to_center: true,
+    produces: [],
+    ...over,
+  };
+}
+
+/** The one `StarbaseSummary` builder: an ownerless outpost at the centre. */
+export function starbaseSummary(over: Partial<StarbaseSummary> = {}): StarbaseSummary {
+  return {
+    id: 1,
+    level: "starbase_level_outpost",
+    kind: "starbase_outpost",
+    name: name("NAME_Starbase"),
+    name_key: "NAME_Starbase",
+    owner: null,
+    modules: [],
+    buildings: [],
+    shipyard: false,
+    hull: 0,
+    max_hull: 0,
+    at: [0, 0],
+    planet: null,
+    culture: null,
+    ...over,
+  };
+}
+
+/** The one `StarbaseLevelView` builder: a level with no glyph that draws `station_entity`. */
+export function starbaseLevelView(
+  key: string,
+  over: Partial<StarbaseLevelView> = {},
+): StarbaseLevelView {
+  return {
+    key,
+    icon_frame: null,
+    empire_shield: false,
+    station_entity: null,
+    scales_with_planet: false,
     ...over,
   };
 }

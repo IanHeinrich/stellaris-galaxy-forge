@@ -22,14 +22,17 @@ import {
 import type { FlagContext } from "../../layers/details/ownerFlag";
 import type { Row } from "../../layers/details/Row";
 import { NAME_STYLE } from "../../layers/nameWidth";
+import { getModelPlacement, getTexture } from "../../../lib/visual/textures";
 import {
   EMPTY_SYSTEM_CONTEXT,
   type SceneBody,
+  type SceneStructure,
   type SceneWormhole,
   type SystemContext,
 } from "../context";
 import { bodyTier, drawnDisc, drawnWormhole } from "../geometry";
-import { idOf, pickPlate, type PlatePick } from "../picking";
+import { STRUCTURE_ICON_PX } from "./StructuresLayer";
+import { idOf, pickPlate, pickStructurePlate, type PlatePick } from "../picking";
 import { LabelRow } from "./labelRow";
 import { placeLabels, plateScaleAt, type LabelItem } from "./labelSlots";
 import { NAME_FRAME, NameMarks } from "./nameMarks";
@@ -86,12 +89,56 @@ const WORMHOLE_GLYPH_OVERHANG_PX = 2;
 const PLAIN_RESOURCE_STYLES: ResourceStyles = { abbrev: ABBREV_STYLE, amount: AMOUNT_STYLE };
 
 /**
- * A body's plate with its name, its resource row, or both, in unscaled pixels from the box's
- * top-left.
+ * A megastructure's or a starbase's name on a plate and what it produces under it, either of
+ * them alone, laid out once the width of the label it goes in is known.
+ */
+interface StructureBlock {
+  structure: SceneStructure;
+  plate: Plate | null;
+  /** What it produces; null where it produces nothing, or none is shown. */
+  resources: LabelRow | null;
+  w: number;
+  h: number;
+  /** How far down its label the block stands, in unscaled pixels; set by `layout`. */
+  top: number;
+  /** Stands the block with its top at `top`, centred in a label `width` wide. */
+  layout(width: number, top: number): void;
+}
+
+/** A structure's shown plate and rows: its top-left in world units and its size in screen pixels. */
+export interface StructurePlatePick {
+  target: { kind: SceneStructure["kind"]; id: number };
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Screen pixels per unscaled pixel of the label it is drawn in. */
+  scale: number;
+  /** How far down that label it stands, in unscaled pixels. */
+  top: number;
+  block: StructureBlock;
+}
+
+/** What a structure's resource tooltip adds: the type's figure is not the empire's. */
+export const BASE_OUTPUT_LINE = "Base output, before empire modifiers";
+
+/** A structure that stands on no body: its block alone, slotted with the bodies' plates. */
+interface StructureLabel {
+  block: StructureBlock;
+  holder: Container;
+}
+
+/**
+ * A body's plate with its name, its resource row, or both, then the blocks of the structures that
+ * stand on it, in unscaled pixels from the box's top-left.
  */
 interface Label {
   body: SceneBody;
   holder: Container;
+  /** The blocks of the megastructures and the starbase that stand on it, under its own rows. */
+  blocks: StructureBlock[];
+  /** How far down the label its own plate and rows reach, the blocks under them left out. */
+  ownH: number;
   plate: Plate | null;
   /** The marks about its plate; null for a body with none, or none shown. */
   marks: NameMarks | null;
@@ -126,6 +173,47 @@ interface WormholeLabel {
  */
 function wormholeSlot(index: number): number {
   return -1 - index;
+}
+
+/** The model keys of `ctx`'s structures and bodies. */
+export function sceneModels(ctx: Pick<SystemContext, "structures" | "bodies">): Set<string> {
+  const keys = new Set<string>();
+  for (const s of ctx.structures) if (s.modelKey !== null) keys.add(s.modelKey);
+  for (const b of ctx.bodies) if (b.look.model !== null) keys.add(b.look.model);
+  return keys;
+}
+
+/** Where a lone structure's label takes part in the slotting: below every wormhole's. */
+const STRUCTURE_SLOTS = -1_000_000;
+
+function structureSlot(index: number): number {
+  return STRUCTURE_SLOTS - index;
+}
+
+/** Whether `a` and `b` show the same structure plates and rows, wherever each stands. */
+function platedAlike(a: readonly SceneStructure[], b: readonly SceneStructure[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (s, i) =>
+        s.kind === b[i].kind &&
+        s.id === b[i].id &&
+        s.name === b[i].name &&
+        s.on === b[i].on &&
+        s.resources === b[i].resources,
+    )
+  );
+}
+
+/**
+ * How far below its point a structure's sprite reaches on screen, or its icon's half where the
+ * model has not landed: its plate goes under that.
+ */
+function structureReach(s: SceneStructure, cam: Camera): number {
+  const key = s.modelKey;
+  const placement = key !== null && getTexture(key) ? getModelPlacement(key) : undefined;
+  if (!placement) return STRUCTURE_ICON_PX / 2;
+  return (1 - placement.anchor_y) * placement.height * s.scale * cam.scale;
 }
 
 function styleOf(body: SceneBody): TextStyle {
@@ -241,9 +329,71 @@ function makeWormholeLabel(hole: SceneWormhole): WormholeLabel {
 }
 
 /**
+ * A structure's name on a body's snug plate when `named`, and under it what it produces when
+ * `details`; null when it shows neither.
+ */
+function structureBlock(
+  structure: SceneStructure,
+  named: boolean,
+  details: boolean,
+  names: Names,
+  holder: Container,
+): StructureBlock | null {
+  const rows = details ? structure.resources : [];
+  if ((!named || structure.name === "") && rows.length === 0) return null;
+  const own =
+    named && structure.name !== "" ? nameplate(structure.name, PLANET_STYLE, false, null) : null;
+  if (own) holder.addChild(own.plate.g, own.name);
+  let resources: LabelRow | null = null;
+  let reach: ResourceReach = { half: 0, height: 0 };
+  if (rows.length > 0) {
+    resources = new LabelRow("resources");
+    reach = drawResources(resources.row, names, NO_TEXTURES, rows, PLAIN_RESOURCE_STYLES);
+    holder.addChild(resources.root);
+  }
+  const plateH = own ? own.plate.h : 0;
+  const rowY = own ? plateH + RESOURCE_GAP_PX : 0;
+  return {
+    structure,
+    plate: own?.plate ?? null,
+    resources,
+    w: Math.max(own ? own.plate.w : 0, 2 * reach.half),
+    h: resources ? rowY + reach.height : plateH,
+    top: 0,
+    layout(width, top) {
+      this.top = top;
+      if (own) {
+        own.plate.x = (width - own.plate.w) / 2;
+        own.plate.g.position.set(0, top);
+        own.name.position.set(width / 2, top + own.nameY);
+      }
+      resources?.root.position.set(width / 2, top + rowY);
+    },
+  };
+}
+
+/** A lone structure's label: its block in a holder of its own; null when it shows nothing. */
+function makeStructureLabel(
+  structure: SceneStructure,
+  named: boolean,
+  details: boolean,
+  names: Names,
+): StructureLabel | null {
+  const holder = new Container();
+  const block = structureBlock(structure, named, details, names, holder);
+  if (!block) {
+    holder.destroy({ children: true });
+    return null;
+  }
+  block.layout(block.w, 0);
+  return { block, holder };
+}
+
+/**
  * One body's label: its name on a plate when `named`, with `marks` about the plate, and under it
- * the resources in `rows`, each icon over its amount. A named body with marks is drawn at its
- * kind's share of the galaxy's system name row, and a plain one smaller.
+ * the resources in `rows`, each icon over its amount, then the plates of the structures in
+ * `standing` that stand on it. A named body with marks is drawn at its kind's share of the
+ * galaxy's system name row, and a plain one smaller.
  */
 function makeLabel(
   body: SceneBody,
@@ -251,8 +401,9 @@ function makeLabel(
   rows: readonly ResourceRow[],
   marks: BodyMarks,
   names: Names,
+  standing: readonly StructureBlock[] = [],
+  holder: Container = new Container(),
 ): Label {
-  const holder = new Container();
   const big = named && marked(marks);
   const nameplate = named ? nameplateOf(body, big) : null;
   const nameMarks = big && nameplate ? new NameMarks(marks, nameplate.plate.w) : null;
@@ -275,7 +426,7 @@ function makeLabel(
   const plate = nameplate?.plate ?? null;
   const side = nameMarks?.side ?? 0;
   const top = nameMarks?.above ?? 0;
-  const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * reach.half);
+  const w = Math.max(plate ? plate.w + 2 * side : 0, 2 * reach.half, ...standing.map((b) => b.w));
   let bottom = 0;
   if (nameplate && plate) {
     plate.x = (w - plate.w) / 2;
@@ -287,9 +438,27 @@ function makeLabel(
   }
   const rowY = plate ? bottom + RESOURCE_GAP_PX : 0;
   resources?.root.position.set(w / 2, rowY);
-  const h = Math.max(bottom + (nameMarks?.below ?? 0), resources ? rowY + reach.height : 0);
+  let h = Math.max(bottom + (nameMarks?.below ?? 0), resources ? rowY + reach.height : 0);
+  const ownH = h;
+  for (const block of standing) {
+    const blockTop = h > 0 ? h + RESOURCE_GAP_PX : 0;
+    block.layout(w, blockTop);
+    h = blockTop + block.h;
+  }
   const scale = big ? markedScale(body) : 1;
-  return { body, holder, plate, marks: nameMarks, resources, resourceStyles, scale, w, h };
+  return {
+    body,
+    holder,
+    blocks: [...standing],
+    ownH,
+    plate,
+    marks: nameMarks,
+    resources,
+    resourceStyles,
+    scale,
+    w,
+    h,
+  };
 }
 
 /**
@@ -317,7 +486,12 @@ export class LabelsLayer implements SystemLayer {
   private moonsOf = new Map<number, Label[]>();
   private wormholes: readonly SceneWormhole[] = EMPTY_SYSTEM_CONTEXT.wormholes;
   private wormholeLabels: WormholeLabel[] = [];
+  private structures: readonly SceneStructure[] = EMPTY_SYSTEM_CONTEXT.structures;
+  /** The model keys of the scene's structures and bodies, whose landing moves plates. */
+  private models: ReadonlySet<string> = new Set();
+  private structureLabels: StructureLabel[] = [];
   private shown: PlatePick[] = [];
+  private shownStructures: StructurePlatePick[] = [];
   private ref: SceneHighlight = NO_HIGHLIGHT;
   /** Whether the hovered body's plate is placed first; see `setHighlighted`. */
   private hoverPinned = false;
@@ -326,12 +500,43 @@ export class LabelsLayer implements SystemLayer {
   private readonly unsubTextures: () => void;
 
   constructor() {
-    this.unsubTextures = onTextures(() => this.redress());
+    this.unsubTextures = onTextures((keys) => {
+      this.redress();
+      // A model that lands moves the plates under it.
+      if (!keys.some((key) => this.models.has(key))) return;
+      this.drawnRev = -1;
+      this.place();
+    });
   }
 
   /** The plates shown now, for picking. */
   plates(): readonly PlatePick[] {
     return this.shown;
+  }
+
+  /** The structure plates shown now, for picking. */
+  structurePlates(): readonly StructurePlatePick[] {
+    return this.shownStructures;
+  }
+
+  /**
+   * The tooltip of the resource under the screen point on the shown plate of `target`, a
+   * megastructure, saying the figure is the type's base output; null for none.
+   */
+  structureTipAt(target: { kind: string; id: number }, sx: number, sy: number): Tip | null {
+    const cam = this.cam;
+    if (!cam) return null;
+    const pick = this.shownStructures.find(
+      (p) => p.target.kind === target.kind && p.target.id === target.id,
+    );
+    if (!pick?.block.resources || pickStructurePlate([pick], cam, { x: sx, y: sy }) === null) {
+      return null;
+    }
+    const top = cam.worldToScreen(pick.x, pick.y);
+    const x = (sx - top.x) / pick.scale;
+    const y = pick.top + (sy - top.y) / pick.scale;
+    const tip = pick.block.resources.tipAt(x, y);
+    return tip ? { ...tip, lines: [...tip.lines, BASE_OUTPUT_LINE] } : null;
   }
 
   /**
@@ -353,12 +558,17 @@ export class LabelsLayer implements SystemLayer {
 
   rebuild(ctx: SystemContext): void {
     const switched =
-      ctx.sceneLayers.details !== this.detailsShown || ctx.sceneLayers.labels !== this.labelsShown;
+      ctx.sceneLayers.details !== this.detailsShown ||
+      ctx.sceneLayers.labels !== this.labelsShown ||
+      !platedAlike(ctx.structures, this.structures);
+    this.structures = ctx.structures;
+    this.models = sceneModels(ctx);
     if (!switched) {
       const holesMoved = ctx.wormholes !== this.wormholes;
       if (holesMoved) this.labelWormholes(ctx);
+      const structuresMoved = this.restandStructures(ctx.structures);
       if (ctx.bodies === this.bodies) {
-        if (holesMoved) {
+        if (holesMoved || structuresMoved) {
           this.drawnRev = -1;
           this.place();
         }
@@ -373,19 +583,36 @@ export class LabelsLayer implements SystemLayer {
     this.fitRadius = ctx.layout.fitRadius;
     for (const child of this.container.removeChildren()) child.destroy({ children: true });
     this.wormholeLabels = [];
+    const { labels: namesShown, details } = ctx.sceneLayers;
+    const bodyIds = new Set(ctx.bodies.map((b) => b.placement.id));
+    const standsOn = (s: SceneStructure) => (s.on !== null && bodyIds.has(s.on) ? s.on : null);
     this.labels = ctx.bodies
       .flatMap((body) => {
-        const named = ctx.sceneLayers.labels && body.name !== "";
-        const rows = ctx.sceneLayers.details ? body.resources : [];
-        if (!named && rows.length === 0) return [];
-        const marks = ctx.sceneLayers.details ? body.marks : NO_MARKS;
-        const label = makeLabel(body, named, rows, marks, ctx.names);
+        const named = namesShown && body.name !== "";
+        const rows = details ? body.resources : [];
+        const holder = new Container();
+        const standing = ctx.structures
+          .filter((s) => standsOn(s) === body.placement.id)
+          .flatMap((s) => structureBlock(s, namesShown, details, ctx.names, holder) ?? []);
+        if (!named && rows.length === 0 && standing.length === 0) {
+          holder.destroy({ children: true });
+          return [];
+        }
+        const marks = details ? body.marks : NO_MARKS;
+        const label = makeLabel(body, named, rows, marks, ctx.names, standing, holder);
         this.container.addChild(label.holder);
         return [label];
       })
       .sort(rank);
+    this.structureLabels = ctx.structures.flatMap((s) => {
+      if (standsOn(s) !== null) return [];
+      const label = makeStructureLabel(s, namesShown, details, ctx.names);
+      if (label) this.container.addChild(label.holder);
+      return label ? [label] : [];
+    });
     this.group();
     for (const label of this.labels) this.mark(label);
+    this.markStructures();
     this.labelWormholes(ctx);
     this.shown = [];
     this.redress();
@@ -417,6 +644,19 @@ export class LabelsLayer implements SystemLayer {
       return label;
     });
     this.redress();
+  }
+
+  /** Points each lone structure's label at its structure in `structures`; whether any moved. */
+  private restandStructures(structures: readonly SceneStructure[]): boolean {
+    const byKey = new Map(structures.map((s) => [`${s.kind}:${s.id}`, s]));
+    let moved = false;
+    for (const { block } of this.structureLabels) {
+      const now = byKey.get(`${block.structure.kind}:${block.structure.id}`);
+      if (!now || now === block.structure) continue;
+      block.structure = now;
+      moved = true;
+    }
+    return moved;
   }
 
   /**
@@ -473,11 +713,13 @@ export class LabelsLayer implements SystemLayer {
   private redress(): void {
     const wanted = new Set<string>();
     const tex = queuedTextures(wanted);
-    for (const { body, marks, resources, resourceStyles } of this.labels) {
+    for (const { body, blocks, marks, resources, resourceStyles } of this.labels) {
       marks?.dress(tex, body.marks, this.tips);
+      for (const block of blocks) this.dressBlock(block, tex);
       if (!resources) continue;
       drawResources(resources.row, this.tips.names, tex, body.resources, resourceStyles);
     }
+    for (const { block } of this.structureLabels) this.dressBlock(block, tex);
     for (const { hole, glyph, glyphPx } of this.wormholeLabels) {
       if (!glyph || hole.iconKey === null) continue;
       const texture = tex.texture(hole.iconKey);
@@ -487,6 +729,29 @@ export class LabelsLayer implements SystemLayer {
       glyph.scale.set(glyphPx / Math.max(texture.width, texture.height, 1));
     }
     if (wanted.size > 0) requestTextures(wanted);
+  }
+
+  private dressBlock({ structure, resources }: StructureBlock, tex: Textures): void {
+    if (!resources) return;
+    drawResources(resources.row, this.tips.names, tex, structure.resources, PLAIN_RESOURCE_STYLES);
+  }
+
+  /** Each structure plate drawn hovered while the pointer is on its structure. */
+  private markStructures(): void {
+    const hover = this.ref.hover;
+    const blocks = [
+      ...this.labels.flatMap((l) => l.blocks),
+      ...this.structureLabels.map((l) => l.block),
+    ];
+    for (const { structure, plate } of blocks) {
+      if (!plate) continue;
+      const hovered =
+        hover !== null &&
+        hover.kind === structure.kind &&
+        "id" in hover &&
+        hover.id === structure.id;
+      drawPlate(plate, hovered ? "hovered" : "rest");
+    }
   }
 
   setHighlighted(ref: SceneHighlight): void {
@@ -500,6 +765,7 @@ export class LabelsLayer implements SystemLayer {
       this.hoverPinned = hovered !== null && !this.shown.some((plate) => plate.id === hovered);
     }
     this.ref = ref;
+    if (ref.hover !== was.hover) this.markStructures();
     const holeSelected = ref.selectedWormhole !== was.selectedWormhole;
     if (idOf(ref.hover, "wormhole") !== idOf(was.hover, "wormhole") || holeSelected) {
       for (const label of this.wormholeLabels) this.markWormhole(label);
@@ -569,6 +835,12 @@ export class LabelsLayer implements SystemLayer {
       const r = drawnWormhole(cam.scale) * cam.scale;
       return { id: wormholeSlot(i), x: at.x, y: at.y, r, w: l.w * k, h: l.h * k };
     });
+    const lone = this.structureLabels.map((l, i): LabelItem => {
+      const { structure } = l.block;
+      const at = cam.worldToScreen(structure.x, structure.y);
+      const r = structureReach(structure, cam);
+      return { id: structureSlot(i), x: at.x, y: at.y, r, w: l.block.w * k, h: l.block.h * k };
+    });
     const chosen = this.wormholeLabels.findIndex((l) => l.hole.id === this.ref.selectedWormhole);
     const selectedHole = (item: LabelItem) => chosen >= 0 && item.id === wormholeSlot(chosen);
     const items = [
@@ -576,13 +848,50 @@ export class LabelsLayer implements SystemLayer {
       ...order.filter(groupPinned).map(withMoons),
       ...holes.filter((item) => !selectedHole(item)),
       ...order.filter((l) => !groupPinned(l)).map(withMoons),
+      ...lone,
     ];
-    const boxes = placeLabels(items).map((box) => {
+    const placed = placeLabels(items);
+    const boxes = placed.map((box) => {
       const at = cam.screenToWorld(box.x, box.y);
       return { id: box.id, x: at.x, y: at.y, w: box.w, h: box.h };
     });
-    this.shown = boxes.filter((box) => box.id >= 0);
+    const labelOf = new Map(this.labels.map((l) => [l.body.placement.id, l]));
+    const picks: StructurePlatePick[] = [];
+    const pickOf = (block: StructureBlock, x: number, y: number, w: number, scale: number) => {
+      const at = cam.screenToWorld(x, y + block.top * scale);
+      const { kind, id } = block.structure;
+      const top = block.top;
+      picks.push({
+        target: { kind, id },
+        x: at.x,
+        y: at.y,
+        w,
+        h: block.h * scale,
+        scale,
+        top,
+        block,
+      });
+    };
+    this.shown = placed.flatMap((box, i) => {
+      const label = box.id >= 0 ? labelOf.get(box.id) : undefined;
+      if (!label) return [];
+      const scale = k * label.scale;
+      for (const block of label.blocks) pickOf(block, box.x, box.y, box.w, scale);
+      return [{ ...boxes[i], h: label.ownH * scale }];
+    });
+    this.structureLabels.forEach((l, i) => {
+      const box = placed.find((b) => b.id === structureSlot(i));
+      if (box) pickOf(l.block, box.x, box.y, box.w, k);
+    });
+    this.shownStructures = picks;
     const size = cam.childScale(k);
+    this.structureLabels.forEach(({ holder }, i) => {
+      const box = boxes.find((b) => b.id === structureSlot(i));
+      holder.visible = box !== undefined;
+      if (!box) return;
+      holder.position.set(box.x, box.y);
+      holder.scale.set(size.x, size.y);
+    });
     this.wormholeLabels.forEach(({ holder }, i) => {
       const box = boxes.find((b) => b.id === wormholeSlot(i));
       holder.visible = box !== undefined;

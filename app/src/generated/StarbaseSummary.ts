@@ -24,6 +24,11 @@ hull: number, max_hull: number,
  */
 at: [number, number] | null, 
 /**
+ * The planet the station orbits, as its fleet names it; an orbital ring's is the planet
+ * it rings. `None` in a scenario.
+ */
+planet: number | null, 
+/**
  * The `station` ship's `graphical_culture`; `None` in a scenario.
  */
 culture: string | null, };

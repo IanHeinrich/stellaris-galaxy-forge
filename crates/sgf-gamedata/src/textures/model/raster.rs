@@ -7,8 +7,9 @@ use image::{Rgba, RgbaImage};
 use super::ModelPlacement;
 use super::space::{GROUND_RIGHT, GROUND_UP, Vec3, WORLD_PER_SAVE, cross, dot, normalize};
 
-/// The system view camera's tilt from straight down, in degrees.
-const TILT_DEGREES: f32 = 41.4;
+/// The editor's camera tilt from straight down, in degrees: its map is seen from above, with
+/// a little tilt for depth.
+const TILT_DEGREES: f32 = 15.0;
 /// The sprite's longer side, in pixels.
 const LONG_SIDE: f32 = 256.0;
 /// Samples per pixel along each axis.
@@ -71,6 +72,8 @@ pub(super) struct Surface<'a> {
     pub(super) diffuse: Option<&'a Map>,
     pub(super) normal_map: Option<&'a Map>,
     pub(super) specular: Option<&'a Map>,
+    /// Drawn into the depth buffer only, leaving the sprite clear where it is in front.
+    pub(super) depth_only: bool,
 }
 
 struct Camera {
@@ -199,7 +202,11 @@ impl Frame {
                     continue;
                 }
                 self.depth[i] = z;
-                self.colour[i] = shade(camera, surface, ids, [w0, w1, w2]);
+                self.colour[i] = if surface.depth_only {
+                    [0.0; 4]
+                } else {
+                    shade(camera, surface, ids, [w0, w1, w2])
+                };
             }
         }
     }

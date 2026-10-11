@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use sgf_core::document;
 use sgf_core::export::{self, ExportReport, ScenarioProfile};
+use sgf_core::format::save::details::ModelUse;
 use sgf_core::library;
 use sgf_core::ops::Op;
 use sgf_core::session::{Session, SessionError};
@@ -279,6 +280,21 @@ pub async fn warm_details<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Issue>, S
     with_session(app, |mut guard| {
         let session = guard.as_mut().ok_or_else(SgfError::no_session)?;
         Ok(session.warm_details().map_err(SessionError::from)?)
+    })
+    .await
+}
+
+/// Every megastructure row, starbase and planet of the open save, with what picks the model
+/// each is drawn from, so the app can bake those models before a system is opened; none for
+/// a scenario.
+#[tauri::command]
+pub async fn get_model_uses<R: Runtime>(app: AppHandle<R>) -> Result<Vec<ModelUse>, SgfError> {
+    with_session(app, |guard| {
+        let session = guard.as_ref().ok_or_else(SgfError::no_session)?;
+        if session.kind() != DocumentKind::Save {
+            return Ok(Vec::new());
+        }
+        Ok(session.details().map_err(SessionError::from)?.models())
     })
     .await
 }

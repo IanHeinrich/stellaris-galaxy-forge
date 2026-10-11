@@ -79,6 +79,9 @@ pub struct SystemDetails {
     pub resources: Vec<ResourceAmount>,
     pub planets: Vec<PlanetSummary>,
     pub starbase: Option<StarbaseSummary>,
+    /// The starbases the system lists after `starbase`, in file order: deep-space citadels
+    /// and orbital rings. Empty in a scenario.
+    pub other_starbases: Vec<StarbaseSummary>,
     pub fleets: FleetPresence,
     /// In file order.
     pub fleets_present: Vec<FleetSummary>,
@@ -689,6 +692,11 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub entity_name: Option<String>,
+    /// Its owner's graphical culture, which a habitat or a ring world segment is drawn in.
+    /// `None` for a planet with no owner or an owner with none, and for a scenario's bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub culture: Option<String>,
     /// What only a scenario body's initializer says of it. `None` in a save.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -767,6 +775,9 @@ pub struct StarbaseSummary {
     pub max_hull: f64,
     /// Where the station stands, relative to the system's centre; `None` in a scenario.
     pub at: Option<(f64, f64)>,
+    /// The planet the station orbits, as its fleet names it; an orbital ring's is the planet
+    /// it rings. `None` in a scenario.
+    pub planet: Option<u32>,
     /// The `station` ship's `graphical_culture`; `None` in a scenario.
     pub culture: Option<String>,
 }
@@ -847,10 +858,11 @@ pub(super) fn resolve(
             permanent_modifiers: Some(p.permanent_modifiers.clone()),
             anomaly: p.anomaly.clone(),
             entity_name: p.entity_name.clone(),
+            culture: p.culture.clone(),
             spawn: None,
         });
     }
-    let starbase = raw.starbases.first().map(|s| StarbaseSummary {
+    let mut starbases = raw.starbases.iter().map(|s| StarbaseSummary {
         id: s.id,
         level: s.level.clone(),
         kind: s.kind.clone(),
@@ -863,13 +875,17 @@ pub(super) fn resolve(
         hull: s.hull,
         max_hull: s.max_hull,
         at: s.at,
+        planet: s.planet,
         culture: s.culture.clone(),
     });
+    let starbase = starbases.next();
+    let other_starbases = starbases.collect();
     SystemDetails {
         id,
         resources,
         planets,
         starbase,
+        other_starbases,
         fleets: FleetPresence::of(&raw.fleets),
         fleets_present: raw
             .fleets

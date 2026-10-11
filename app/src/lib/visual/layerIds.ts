@@ -21,6 +21,7 @@ export const LAYER_IDS = [
   "lCluster",
   "details",
   "orbitRadii",
+  "megastructures",
   "colonies",
   "claims",
   "day_one_bypasses",
@@ -52,6 +53,7 @@ const SCENE_LAYERS = [
   { id: "nebulae", on: true },
   { id: "bypasses", on: true, needs: "bypasses" },
   { id: "orbitRadii", on: false, sceneOnly: true },
+  { id: "megastructures", on: true, sceneOnly: true, needs: "details" },
 ] as const satisfies readonly {
   id: LayerId;
   on: boolean;
@@ -86,7 +88,10 @@ export function isGalaxyLayer(id: LayerId): id is GalaxyLayerId {
   return !SCENE_ONLY_IDS.includes(id);
 }
 
-/** What the system scene starts with: names, resources, clouds and wormholes drawn, radii not. */
+/**
+ * What the system scene starts with: names, resources, clouds, wormholes, megastructures and
+ * starbases drawn, radii not.
+ */
 export const DEFAULT_SCENE_LAYERS = Object.fromEntries(
   SCENE_LAYERS.map((layer) => [layer.id, layer.on]),
 ) as Record<SceneLayerId, boolean>;
@@ -104,6 +109,7 @@ export const PRIMARY_LAYERS: readonly LayerId[] = [
   "bypasses",
   "nebulae",
   "orbitRadii",
+  "megastructures",
 ];
 
 /** The point-of-interest kinds with their own icon toggle in the top bar. */
@@ -133,6 +139,7 @@ export const LAYER_GROUPS: ReadonlyArray<{ label: string; layers: readonly Layer
       "labels",
       "details",
       "orbitRadii",
+      "megastructures",
       "colonies",
       "heights",
     ],
@@ -182,6 +189,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   labels: "Names",
   details: "System details",
   orbitRadii: "Orbit radii",
+  megastructures: "Megastructures and starbases",
   colonies: "Colonies",
   claims: "Day-one claims",
   day_one_bypasses: "Day-one bypasses",
@@ -193,7 +201,10 @@ export const LAYER_LABELS: Record<LayerId, string> = {
  * The layers without a number key of their own, each on the key of a layer that is not shown
  * where it is.
  */
-export const BORROWED_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = { orbitRadii: "systems" };
+export const BORROWED_KEYS: Readonly<Partial<Record<LayerId, LayerId>>> = {
+  orbitRadii: "systems",
+  megastructures: "special",
+};
 
 /** What is on when the app starts: what a scenario opens with. */
 export const DEFAULT_LAYERS: GalaxyLayers = DOCUMENT_KINDS.scenario.layers;

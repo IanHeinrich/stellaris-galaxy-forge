@@ -11,7 +11,7 @@ import { useFileSessionStore } from "./fileSessionStore";
 import { gameDataSummary, OPEN_RESULT } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { resetStores } from "./storeFixture";
-import { planetClassView } from "../test/builders";
+import { megastructureTypeView, planetClassView } from "../test/builders";
 import { mockedIpc } from "../test/ipc";
 
 export const SUMMARY: GameDataSummary = gameDataSummary();
@@ -161,7 +161,19 @@ function armGameDataCommands(): void {
     { key: "relay_bypass", icon_frame: null },
   ]);
   mockedIpc.getStarbaseLevels.mockResolvedValue([
-    { key: "starbase_outpost", icon_frame: 1, empire_shield: false, station_entity: null },
+    {
+      key: "starbase_outpost",
+      icon_frame: 1,
+      empire_shield: false,
+      station_entity: null,
+      scales_with_planet: false,
+    },
+  ]);
+  mockedIpc.getMegastructureTypes.mockResolvedValue([
+    megastructureTypeView("think_tank_3", {
+      entity: "thinktank_phase_03_entity",
+      entity_offset: [0, -20],
+    }),
   ]);
   mockedIpc.getShipSizes.mockResolvedValue([{ key: "corvette", icon: "ship_size_military_1" }]);
   mockedIpc.getResourceIcons.mockResolvedValue([

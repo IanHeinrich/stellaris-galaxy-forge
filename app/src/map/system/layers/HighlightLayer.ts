@@ -16,6 +16,7 @@ import {
   drawnDisc,
   drawnWormhole,
   exitTriangle,
+  onBodyModels,
   ringDashes,
   SELECTED_GAP_PX,
   SELECTED_WIDTH_PX,
@@ -347,6 +348,10 @@ export class HighlightLayer implements SystemLayer {
   private cut: ReadonlySet<number> = new Set();
   private cam: Camera | null = null;
   private drawnRev = -1;
+  private readonly unsubModels = onBodyModels(
+    () => this.ctx.bodies,
+    () => this.redraw(null),
+  );
 
   constructor() {
     this.dragMarks.label = "drag";
@@ -544,6 +549,7 @@ export class HighlightLayer implements SystemLayer {
   }
 
   destroy(): void {
+    this.unsubModels();
     this.container.destroy({ children: true });
   }
 }

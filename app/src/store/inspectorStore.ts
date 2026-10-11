@@ -417,6 +417,16 @@ const SECTIONS = prefField<Record<string, boolean>>(
   isBooleanRecord,
 );
 
+/** The page megastructure `id` opens. */
+export function megastructureEntry(id: number, label: string): Entry {
+  return { ref: { kind: "megastructure", id }, label };
+}
+
+/** The page starbase `id` of `system` opens. */
+export function starbaseEntry(system: number, id: number, label: string): Entry {
+  return { ref: { kind: "starbase", system, id }, label };
+}
+
 /** The page a wormhole in system `system` opens, named as its plate is. */
 export function wormholeEntry(system: number, id: number, label: string): Entry {
   return { ref: { kind: "wormhole", system, id }, label };
