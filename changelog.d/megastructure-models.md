@@ -6,5 +6,5 @@
     name under the body's name.
   - With System details on, a megastructure shows its base output each month, before
     empire modifiers.
-  - Habitats and ring world segments show as their models too. Ring world sections
-    face their star, so they join into a ring.
+  - Habitats and ring world sections show as their models too. The sections face
+    their star, so they join into a ring.
