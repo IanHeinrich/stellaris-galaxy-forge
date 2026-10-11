@@ -16,9 +16,14 @@ define to a system in a Stellaris 4.x save. You need the game data
 loaded. The ones you can't add yet are listed at the end of this
 section.
 
-The megastructure is added finished. The game's build effects don't
-run, so a Dyson Sphere doesn't freeze the system's planets. A planet
-whose class or model the megastructure would change stays as it is.
+The megastructure is added finished, with the modifiers, deposits and
+counters its construction adds. An Arc Furnace gives the planets of its
+system its mining bonus and deposit, and a Dyson Swarm gives its star
+its modifier. The app reads these from your game files and mods.
+
+The game's other build effects don't run, so a Dyson Sphere doesn't
+freeze the system's planets. A planet whose class or model the
+megastructure would change stays as it is.
 
 1. Open the system in the [system view](system-view.md).
 2. Right-click where the megastructure goes:
@@ -30,7 +35,8 @@ whose class or model the megastructure would change stays as it is.
 3. Pick the type and the owner, and click Add.
 
 The new megastructure's page opens in the Inspector. Press
-<kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it out again.
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it out again, with everything its
+construction added.
 
 The Type list groups each megastructure's stages under its first stage,
 so the stages of a Dyson Sphere sit together. Type in the box at the top

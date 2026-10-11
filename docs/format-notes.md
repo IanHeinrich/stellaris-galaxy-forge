@@ -760,6 +760,17 @@ for planets or deposits.
   four furnace modifiers and deposits whatever the stage. Types without
   `on_dismantle_complete`, such as the Dyson Sphere and the Science
   Nexus, add no such modifier.
+- A country's `variables` lists one `name=value` line per variable,
+  sorted by name in all 301 blocks of a 4.5.2 late-game save. The block
+  stands after `flags` and before `next_transport_fleet_number` or
+  `trade_conversions`; country 16 of the 4.5 sample has none. The Arc
+  Furnace raises `arc_furnace_counter` in its first stage's
+  `on_build_start`, not when it is finished. Its stage modifiers and
+  deposits come from the events its stages fire, each removing the
+  last stage's, so a finished stage 4 leaves only
+  `orbital_arc_furnace_4_mod` and `d_arc_furnace_4`. In that save they
+  stand on 12 of Soyun's 14 bodies: all but the star and a barren world
+  whose `d_society_3` a research station works.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

@@ -5,5 +5,6 @@
   dialog.
   - Ring worlds, L-Gates, the later Quantum Catapult stages, Deep Space Citadels and
     waystations can't be added yet.
-  - The megastructure is added finished. The game's build effects don't run, so a Dyson
-    Sphere doesn't freeze the system's planets.
+  - The megastructure is added finished, with the modifiers, deposits and counters its
+    construction adds. An Arc Furnace's mining bonus shows on its system's planets. Other
+    build effects don't run, so a Dyson Sphere doesn't freeze the system's planets.
