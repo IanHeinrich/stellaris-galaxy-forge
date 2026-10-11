@@ -288,6 +288,44 @@ YAML**.
   `empty_section_entity`. In 4.5 no template fits `starbase_fe_outpost`,
   `starbase_hatchery` or `military_arkship_champions_forge`.
 
+## Megastructures defined through inline scripts
+
+- Gigastructural Engineering defines most of its star-class types as
+  `inline_script = { script = … class = a entity = … }`, and those
+  scripts call further scripts (`dyson_sphere_1` calls
+  `dyson_sphere_template`). The registry reads each call in place, four
+  scripts deep, with `$NAME$` and `$NAME|default$` put in and `[[NAME]`
+  blocks settled. The initializer reader shares the code, one level deep.
+- A parameter's quotes are taken off before it is put in. Vanilla relies
+  on this: `PREREQUISITE = "tech_thrusters_2 tech_thrusters_bio_integration"`
+  goes into `prerequisites = { $PREREQUISITE$ }` as two techs, and
+  `TRIGGER = "… = no"` goes in as script. A script that needs one token
+  writes the quotes itself (`name = "$KEY$_a"`).
+- With Giga 3.40 (for 4.5), 878 types come from the mod. Read as written,
+  410 of them name no model. Read through their scripts, 223 do. 151 of
+  those have no localised name either: compatibility dummies such as
+  `uf_hyperlane_a` and `wg_fm_gateway_01`.
+- `potential = { always = no }` marks a type the game makes only from
+  script, such as the Groik Nexus (`think_tank_4`).
+- Giga's star-class rows come about two ways. Dyson Sphere and Matrioshka
+  Brain stages are built over the base game's site (`dyson_sphere_0_a_star`
+  has `upgrade_from = { dyson_sphere_0 }`). The Star Lifter site's
+  `on_build_complete` spawns the star class's type and removes itself
+  (`spawn_megastructure` beside `remove_megastructure = fromfrom`).
+- A Dyson Sphere stage can also be built over a finished Dyson Swarm
+  (`dyson_sphere_2` lists `dyson_swarm_3_basic` second in
+  `upgrade_from`). Only the first `upgrade_from` is the chain a stage
+  belongs to.
+- The editor doesn't add two kinds of type yet. One changes the class or
+  size of its planet in its `on_build_complete`, under `fromfrom.planet`
+  or through a scripted effect called there: strip mines, the S.U.C.C.,
+  Kaiser and Attack Moons, the Maginot World, the Stellar Ring Habitat.
+  The other builds more rows or planets whatever happens: Alderson disks,
+  Giga's larger ring worlds, Birch and Square worlds. A model change
+  alone doesn't count, since the base game's Arc Furnace hides its planet
+  that way. The base game's Cosmogenesis World spawns its planet too, and
+  the editor adds it as a row as before.
+
 ## Where mods are registered
 
 These files all sit in the user data dir. That is

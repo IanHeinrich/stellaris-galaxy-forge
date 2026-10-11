@@ -2,6 +2,7 @@
 //! file list every registry reads through.
 
 pub mod discovery;
+pub(crate) mod inline_script;
 pub mod layers;
 pub mod mods;
 pub mod scenarios;

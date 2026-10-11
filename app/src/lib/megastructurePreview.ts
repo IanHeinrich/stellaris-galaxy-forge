@@ -8,7 +8,11 @@ import type { SystemDetails } from "../generated/SystemDetails";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { producedRows, type ResourceRow } from "./details/resources";
 import { megastructureLook, modelKey } from "./details/structures";
-import type { MegastructureChain, MegastructureStage } from "./megastructurePicks";
+import type {
+  MegastructureChain,
+  MegastructureEntry,
+  MegastructureStage,
+} from "./megastructurePicks";
 
 /**
  * The textures a tile of `type` shows, the first that lands: its model in `culture`, bare for
@@ -50,10 +54,14 @@ export function hasModel(type: MegastructureTypeView | undefined): boolean {
 /**
  * The localisation keys a stage's description is read from, the first with any text: the
  * stage's own `_DESC`, then the `_MEGASTRUCTURE_DETAILS` the build menu shows for it or for
- * the first stage of its chain.
+ * the first stage of the megastructure's main build chain.
  */
-export function megastructureDescriptionKeys(key: string, chain: MegastructureChain): string[] {
-  return [`${key}_DESC`, `${key}_MEGASTRUCTURE_DETAILS`, `${chain.first}_MEGASTRUCTURE_DETAILS`];
+export function megastructureDescriptionKeys(key: string, entry: MegastructureEntry): string[] {
+  return [
+    `${key}_DESC`,
+    `${key}_MEGASTRUCTURE_DETAILS`,
+    `${entry.chains[0].first}_MEGASTRUCTURE_DETAILS`,
+  ];
 }
 
 /**
@@ -87,10 +95,14 @@ export interface MegastructurePreview {
   refused: string | null;
 }
 
-/** The preview of `stage`, one of `chain`'s, from its type and the names fetched so far. */
+/**
+ * The preview of `stage`, one of `chain`'s, a row of `entry`, from its type and the names
+ * fetched so far.
+ */
 export function megastructurePreview(
   stage: MegastructureStage,
   chain: MegastructureChain,
+  entry: MegastructureEntry,
   type: MegastructureTypeView | undefined,
   names: ReadonlyMap<string, string>,
   icons: ReadonlyMap<string, string> = new Map(),
@@ -98,7 +110,7 @@ export function megastructurePreview(
   const at = chain.stages.findIndex((s) => s.key === stage.key);
   const count = chain.working;
   const description =
-    megastructureDescriptionKeys(stage.key, chain)
+    megastructureDescriptionKeys(stage.key, entry)
       .map((key) => descriptionText(names.get(key)))
       .find((text) => text !== null) ?? null;
   return {

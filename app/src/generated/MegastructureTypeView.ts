@@ -65,6 +65,15 @@ sets_has_megastructure: boolean,
  */
 planet_possible_star: boolean, 
 /**
+ * `potential = { always = no }`: the game makes it only from script, never as a build.
+ */
+script_only: boolean, 
+/**
+ * The types its `on_build_complete` turns the finished row into, such as one per star
+ * class, in file order.
+ */
+turns_into: Array<string>, 
+/**
  * Where the editor adds a row of this type, read once every type is loaded.
  */
 placement: MegastructurePlacement, 

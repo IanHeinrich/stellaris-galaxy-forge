@@ -413,6 +413,8 @@ export function megastructureTypeView(
     activates_gateway: false,
     sets_has_megastructure: false,
     planet_possible_star: false,
+    script_only: false,
+    turns_into: [],
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,
