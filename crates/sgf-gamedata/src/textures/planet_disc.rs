@@ -63,6 +63,8 @@ pub(crate) struct SurfaceMaps {
     clones: BTreeMap<String, String>,
     /// Every entity name the `.asset` files define.
     named: BTreeSet<String>,
+    /// Entity name → its `scale`, for an entity that writes one.
+    scales: BTreeMap<String, f64>,
 }
 
 /// What an entity's model has for a surface.
@@ -117,6 +119,15 @@ impl SurfaceMaps {
             _ => false,
         }
     }
+}
+
+/// The `scale` of the model of `entity`: 1 when the first name the game tries for it that the
+/// `.asset` files define writes none, `None` when they define none of those names.
+pub(crate) fn asset_scale(maps: &SurfaceMaps, entity: &str) -> Option<f64> {
+    let name = model_names(entity)
+        .into_iter()
+        .find(|name| maps.named.contains(name))?;
+    Some(maps.scales.get(&name).copied().unwrap_or(1.0))
 }
 
 /// The names the game tries for a class's model `entity`, in order.
@@ -342,6 +353,7 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
         let Ok(root) = cst::parse_script(&src, 0) else {
             continue;
         };
+        let variables = file_variables(&root, &src);
         for entity in root
             .children()
             .iter()
@@ -352,6 +364,10 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
             };
             let attached = attached(entity, &src);
             maps.named.insert(name.to_owned());
+            match last_scalar(entity, "scale", &src).and_then(|s| number(s, &variables)) {
+                Some(scale) => maps.scales.insert(name.to_owned(), scale),
+                None => maps.scales.remove(name),
+            };
             maps.hidden.remove(name);
             maps.clones.remove(name);
             if !DRAWS.iter().any(|key| entity.find(key, &src).is_some()) {
@@ -413,6 +429,26 @@ pub(crate) fn surface_maps(layout: &Layout) -> SurfaceMaps {
         }
     }
     maps
+}
+
+/// The `@name = value` lines at the top of a `.asset` file, by name without the `@`.
+fn file_variables<'a>(root: &Node, src: &'a [u8]) -> BTreeMap<&'a str, &'a str> {
+    root.children()
+        .iter()
+        .filter_map(|node| {
+            let name = node.key_str(src)?.strip_prefix('@')?;
+            Some((name, node.scalar_str(src)?))
+        })
+        .collect()
+}
+
+/// `text` as a number, or the number of the file variable `@<name>` it names.
+fn number(text: &str, variables: &BTreeMap<&str, &str>) -> Option<f64> {
+    let text = match text.strip_prefix('@') {
+        Some(name) => variables.get(name)?,
+        None => text,
+    };
+    text.parse().ok()
 }
 
 /// The entities `entity` attaches, each `attach = { "<locator>" = "<entity>" }`, those at

@@ -27,6 +27,11 @@ pub struct PlanetClassDef {
     pub icon_large: Option<String>,
     /// The model name in `gfx/models/planets/*.asset`, without its `_01_entity` suffix.
     pub entity: Option<String>,
+    /// `entity_scale`, which with its `planet_size` and its model's `scale` sets how large the
+    /// game draws it.
+    pub entity_scale: Option<f64>,
+    /// `fixed_entity_scale = yes`, as a ring world segment or a habitat has.
+    pub fixed_entity_scale: bool,
     /// `atmosphere_color`, `atmosphere_intensity` and `atmosphere_width`, written together or
     /// not at all.
     pub atmosphere: Option<Atmosphere>,
@@ -180,6 +185,8 @@ impl FromDef for PlanetClassDef {
             icon: def.scalar("icon").map(str::to_owned),
             icon_large: def.scalar("icon_large").map(str::to_owned),
             entity: def.scalar("entity").map(str::to_owned),
+            entity_scale: def.number("entity_scale"),
+            fixed_entity_scale: def.flag("fixed_entity_scale"),
             atmosphere,
             colonizable: def.flag("colonizable"),
             star: def.flag("star"),
