@@ -1,0 +1,10 @@
+create_fixture_citadel = {
+	create_starbase = {
+		size = "starbase_fixture"
+		module = "shipyard"
+	}
+}
+
+create_fixture_platform = {
+	spawn_megastructure = { type = $KIND|fixture_tank$ }
+}

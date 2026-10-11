@@ -33,8 +33,9 @@ pub use resolve::{
     ClassRolls, CountRange, DepositCount, DepositReplacement, DepositStep, DetailsResolver,
     FleetPresence, HeuristicResolver, InlineScriptUse, ListMember, NeighborSystem, OrbitFit,
     PlanetSummary, PoolClass, PoolEntry, RawStatement, ResourceAmount, SourceLine, SpawnClass,
-    SpawnName, SpawnPool, SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
-    SystemDetails, SystemSpawn, UnknownClass, UsageOdds, VariableUse,
+    SpawnName, SpawnPlace, SpawnPool, SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies,
+    StatedFeatures, StructureSpawn, SystemDetails, SystemSpawn, UnknownClass, UsageOdds,
+    VariableUse,
 };
 
 /// What one row of a save is drawn from: a megastructure's type, a starbase's level or a

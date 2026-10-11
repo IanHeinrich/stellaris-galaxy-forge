@@ -16,7 +16,7 @@ pub use countries::{CountryTypeView, FlagParts, MapColor, ShipSizeView, Starbase
 pub use galaxy::{GalaxyShapeView, GalaxySizeView, PrecursorView};
 pub use initializers::{InitPlanetView, InitializerDefinition, InitializerView, InlineScriptCall};
 pub use playset::{ModView, PaintModView, WorkshopLinks};
-pub use roll::{PlaceholderBody, RolledBody, SystemRoll};
+pub use roll::{PlaceholderBody, RolledBody, RolledStructure, SystemRoll};
 pub use summary::{BeltKindView, DiagnosticView, GameDataChanged, GameDataSummary, WatchView};
 
 fn hex(rgb: [u8; 3]) -> String {

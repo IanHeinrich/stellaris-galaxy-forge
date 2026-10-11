@@ -616,6 +616,12 @@ fn without_positions(details: &SystemDetails) -> SystemDetails {
         spawn.variables.iter_mut().for_each(|v| v.at = None);
         spawn.inline_scripts.iter_mut().for_each(|s| s.at = None);
     }
+    let structures = details
+        .megastructures
+        .iter_mut()
+        .filter_map(|m| m.spawn.as_mut());
+    let starbase = details.starbase.iter_mut().filter_map(|s| s.spawn.as_mut());
+    structures.chain(starbase).for_each(|s| s.at = None);
     details
 }
 
