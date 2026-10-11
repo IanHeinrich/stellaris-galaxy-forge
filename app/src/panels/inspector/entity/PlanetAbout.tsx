@@ -17,6 +17,7 @@ import { openBody } from "./openBody";
 import { AnomalyRow } from "./PlanetAnomaly";
 import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
+import { AngleDial } from "../AngleDial";
 import { HintedRow, Rolled, SetByLines } from "../states";
 import { useSystemBodyNames } from "./useBodyName";
 
@@ -73,7 +74,7 @@ function Anchor({
       }}
     >
       {listed?.rolled ? <Rolled>{name}</Rolled> : name}
-      {` at ${Math.round(radius)}`}
+      {` (orbit ${Math.round(radius)})`}
     </DrillLink>
   );
 }
@@ -99,6 +100,8 @@ function Steps({
   const anchorId = placed.find((p) => p.id === body.id)?.turn?.anchor ?? null;
   const anchor = details.planets.find((p) => p.id === anchorId);
   const anchorRadius = placed.find((p) => p.id === anchorId)?.ring?.radius ?? 0;
+  const angle = body.layout?.angle_step ?? ANY_ANGLE;
+  const angleVariable = (body.spawn?.variables ?? []).some((v) => v.key === "orbit_angle");
   const stepSources = valueSources(
     {
       inline_scripts: [],
@@ -115,7 +118,8 @@ function Steps({
         {stepText(step)}
       </HintedRow>
       <PropertyRow label="Angle step">
-        {turnText(body.layout?.angle_step ?? ANY_ANGLE)}
+        <AngleDial step={angleVariable ? null : angle} />
+        {turnText(angle)}
         {anchor && anchorRadius > 0 && (
           <>
             {" from "}

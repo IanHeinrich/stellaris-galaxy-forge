@@ -247,14 +247,21 @@ button.chip.jump:hover {
   opacity: 0.7;
 }
 
+/* The inline game icon beside a value: as tall as the text, a small gap before the text after it. */
 .gi {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  width: 11px;
-  height: 11px;
-  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  margin-inline-end: 3px;
+  font-size: 12px;
   color: var(--fg-muted);
+}
+
+.gi:last-child {
+  margin-inline-end: 0;
 }
 
 .gi img {
@@ -406,8 +413,8 @@ button.link.ins-drill:hover {
   display: inline-flex;
   flex: none;
   align-self: center;
-  width: 10px;
-  height: 10px;
+  width: 13px;
+  height: 13px;
   cursor: help;
 }
 
@@ -434,19 +441,23 @@ button.link.ins-drill:hover {
   color: #9aa6ba;
 }
 
+/* The unknown look's mark: a dashed ring around a centred "?", lined up with the die. */
 .ins-st-unknown::before {
   content: "?";
+  display: inline-flex;
   flex: none;
-  width: 11px;
-  height: 11px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 13px;
+  height: 13px;
   border: 1px dashed currentColor;
   border-radius: 50%;
-  font-size: 8.5px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 600;
-  line-height: 10px;
-  text-align: center;
-  transform: translateY(1px);
+  line-height: 1;
 }
 
 /* A value with more to say in a card on hover: underlined, so the reader knows to look. */
@@ -603,4 +614,46 @@ button.ins-group-head .tri {
 
 .ins-group-body > .ins-hint:first-child {
   padding-top: 0;
+}
+
+/* How far round a body turns from the one before it, before the Angle step row's text. */
+.ins-dial {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-inline-end: 6px;
+  vertical-align: middle;
+}
+
+.ins-dial-rim {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.ins-dial-centre {
+  fill: var(--fg-muted);
+}
+
+.ins-dial-ref {
+  fill: var(--fg-muted);
+}
+
+.ins-dial-wedge {
+  fill: var(--accent-bg-strong);
+  stroke: var(--accent-dim);
+  stroke-width: 0.6;
+}
+
+.ins-dial-any {
+  fill: var(--accent-bg-soft);
+}
+
+.ins-dial-line {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+
+.ins-dial-at {
+  fill: var(--accent);
 }

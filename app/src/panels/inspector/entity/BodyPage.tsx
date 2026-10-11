@@ -7,7 +7,13 @@ import { isStarBody } from "../../../lib/details/starBody";
 import type { PlanetEditAdapter } from "../../../lib/details/picker";
 import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { hasRingCheckbox } from "../../../lib/details/ring";
-import { NEVER_PLACED, neverSpawns } from "../../../lib/details/spawnFacts";
+import {
+  HOME_PLANET_TITLE,
+  NEVER_PLACED,
+  RING_ROLLED,
+  neverSpawns,
+  START_PLANET_TITLE,
+} from "../../../lib/details/spawnFacts";
 import { COLONY_SIZE } from "../../../lib/details/planetEdits";
 import { documentCapabilities } from "../../../lib/capabilities";
 import { bodyOrbit } from "../../../lib/details/orbitIntent";
@@ -24,6 +30,7 @@ import { EditBlock, EditKey, EditRow, TextField, ToggleField } from "../../EditF
 import { useNamed } from "../../useNamed";
 import { Empty, Properties, PropertyRow } from "../parts";
 import { StarRowIcon } from "../../StarIcon";
+import { Rolled } from "../states";
 import { READING_STARS } from "../system/StarClassLine";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
 import { BODY_SOURCES, type BodyRead, type Listed } from "./bodySources";
@@ -115,8 +122,8 @@ function Head({
       {body?.colonised && <Chip>colonised</Chip>}
       {body?.capital && <Chip>capital</Chip>}
       {body?.pre_ftl && <Chip>pre-FTL</Chip>}
-      {body?.spawn?.starting_planet && <Chip>start planet</Chip>}
-      {body?.spawn?.home_planet && <Chip>home planet</Chip>}
+      {body?.spawn?.starting_planet && <Chip title={START_PLANET_TITLE}>start planet</Chip>}
+      {body?.spawn?.home_planet && <Chip title={HOME_PLANET_TITLE}>home planet</Chip>}
       {neverSpawns(body?.spawn) && (
         <span className="ins-block-count ins-never">{NEVER_PLACED}</span>
       )}
@@ -205,8 +212,8 @@ function PlanetBlock({
 }
 
 /** A body's `ring`: stated, or left to its class's chance. */
-function ringText(ring: boolean | null): string {
-  if (ring === null) return "Rolled by the game";
+function ringText(ring: boolean | null): ReactNode {
+  if (ring === null) return <Rolled>{RING_ROLLED}</Rolled>;
   return ring ? "Yes" : "No";
 }
 

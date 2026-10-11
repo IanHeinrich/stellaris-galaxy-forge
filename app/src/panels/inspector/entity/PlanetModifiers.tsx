@@ -144,7 +144,12 @@ export function PlanetModifiers({ read, offers }: PlanetSectionProps) {
           onRemove={editable ? () => void target.edits.removeModifier(ref) : null}
         />
       ))}
-      <PoolLines pool={pool} stated={modifiers.length} kind={FEATURE_POOL} />
+      <PoolLines
+        pool={pool}
+        stated={modifiers.length}
+        kind={FEATURE_POOL}
+        noun={bodyNoun(read.summary)}
+      />
       {editable && <PlanetPicker kind={MODIFIER_PICKER} target={target} />}
     </Section>
   );

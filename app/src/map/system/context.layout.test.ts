@@ -96,10 +96,10 @@ describe("orbit radius readouts", () => {
     const ctx = scenario(planets, rollOf(planets, { 5: 180 }));
     expect(ctx.bodies.map((b) => b.readout?.text ?? null)).toEqual([
       null,
-      "65–80",
+      "65 to 80",
       "10",
       "18",
-      "85–105",
+      "85 to 105",
     ]);
     const [star, planet, moon] = ctx.bodies;
     expect(planet.readout?.hub).toBe(star.placement.disc);

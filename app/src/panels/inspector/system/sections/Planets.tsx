@@ -17,7 +17,11 @@ import {
 } from "../../../../lib/details/bodyBlocks";
 import {
   countWords,
-  everyBodyFrom,
+  CLASS_DECIDED_ROW,
+  HOME_PLANET_TITLE,
+  START_PLANET_TITLE,
+  EVERY_BODY_FROM,
+  sharedScriptHint,
   isAsteroidClass,
   isRanged,
   moonsAndAsteroids,
@@ -36,7 +40,7 @@ import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
-import { Rolled, RolledMark, Unknown } from "../../states";
+import { Hinted, Rolled, RolledMark, Unknown } from "../../states";
 import { useGivenNames } from "../../entity/useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
@@ -186,11 +190,9 @@ export function PlanetRow({
     );
   const classShown: ReactNode =
     named === "" && !described ? null : spawn?.class.state === "rolled" ? (
-      <Rolled>
-        {named === "" || span !== undefined ? drawWords(spawn.class.pool) : "rolled class"}
-      </Rolled>
+      <Rolled>{drawWords(spawn.class.pool)}</Rolled>
     ) : state === "unknown" ? (
-      <Unknown>class picked at game start</Unknown>
+      <Unknown>{CLASS_DECIDED_ROW}</Unknown>
     ) : described && unrolled ? (
       "any class"
     ) : (
@@ -223,7 +225,8 @@ export function PlanetRow({
           {shownName}
           {planet.capital && <Chip>capital</Chip>}
           {planet.pre_ftl && <Chip>pre-FTL</Chip>}
-          {spawn?.starting_planet && <Chip>start planet</Chip>}
+          {spawn?.starting_planet && <Chip title={START_PLANET_TITLE}>start planet</Chip>}
+          {spawn?.home_planet && <Chip title={HOME_PLANET_TITLE}>home planet</Chip>}
           {editHint !== null && (
             <span className="ins-edit-chip">
               <span aria-hidden="true">✎</span> Edit
@@ -328,7 +331,7 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
   const openView =
     enterable && !inView ? (
       <button type="button" className="link" onClick={() => enterSystem(details.id)}>
-        Open system view
+        Show in system view
       </button>
     ) : undefined;
   return (
@@ -372,7 +375,11 @@ export function PlanetSection({ details }: { details: SystemDetails }) {
             <MoreButton count={blocks.length - LIST_LIMIT} onClick={() => setAll(true)} />
           )}
           {details.spawn?.from_script != null && (
-            <div className="muted ins-hint">{everyBodyFrom(details.spawn.from_script)}</div>
+            <div className="muted ins-hint">
+              <Hinted label="Shared script" hint={sharedScriptHint(details.spawn.from_script)}>
+                {EVERY_BODY_FROM}
+              </Hinted>
+            </div>
           )}
         </>
       )}

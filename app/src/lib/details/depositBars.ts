@@ -50,10 +50,13 @@ export interface BarRow {
 }
 
 /** What a deposit row's card says under its amounts. */
-export const DEPOSIT_CARD_NOTE = "Chance one deposit the game rolls here is this one.";
+export const DEPOSIT_CARD_NOTE =
+  "How likely a deposit rolled here is to give this resource, at each amount.";
 
 /** What the list says under it where some rows show their amounts in place of a bar. */
-export const DEPOSIT_ODDS_UNKNOWN = "The odds depend on which class the planet rolls.";
+export function depositOddsUnknown(noun: string): string {
+  return `The odds depend on the class the ${noun} gets.`;
+}
 
 const signed = (n: number) => (n > 0 ? `+${formatAmount(n)}` : formatAmount(n));
 

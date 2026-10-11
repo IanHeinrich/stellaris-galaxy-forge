@@ -162,8 +162,8 @@
   position: absolute;
   bottom: 2px;
   left: 2px;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .pl-bmark img {
@@ -715,6 +715,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.pl-pool-icon .gi {
+  width: 16px;
+  height: 16px;
 }
 
 /* A star list's art keeps its own size; other icons take a deposit icon's. */

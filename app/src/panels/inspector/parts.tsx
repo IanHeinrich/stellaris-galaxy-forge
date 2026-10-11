@@ -16,6 +16,7 @@ import { LockGlyph } from "../Glyph";
 import { Twisty } from "../Twisty";
 import { SourceChip } from "../parts";
 import { useOwnerCss } from "./ownerCss";
+import { Hinted } from "./states";
 
 /** The one colour that stands for a country, as the legend and the map labels use it. */
 export function Swatch({ owner }: { owner: number | null }) {
@@ -103,14 +104,20 @@ export function Group({
   id,
   title,
   tail,
+  hint,
+  folded = false,
   children,
 }: {
   id: string;
   title: string;
   tail?: string;
+  /** What the title says in its card on hover. */
+  hint?: ReactNode;
+  /** It starts folded until the user opens it. */
+  folded?: boolean;
   children: ReactNode;
 }) {
-  const collapsed = useInspectorStore((s) => s.sections[id] ?? false);
+  const collapsed = useInspectorStore((s) => s.sections[id] ?? folded);
   const toggleSection = useInspectorStore((s) => s.toggleSection);
   return (
     <div className="ins-group">
@@ -118,10 +125,18 @@ export function Group({
         type="button"
         className="ins-group-head"
         aria-expanded={!collapsed}
-        onClick={() => toggleSection(id, false)}
+        onClick={() => toggleSection(id, folded)}
       >
         <Twisty open={!collapsed} />
-        <span className="ins-group-title">{title}</span>
+        <span className="ins-group-title">
+          {hint === undefined ? (
+            title
+          ) : (
+            <Hinted label={title} hint={hint} focusable={false}>
+              {title}
+            </Hinted>
+          )}
+        </span>
         {tail !== undefined && <span className="ins-group-tail">{tail}</span>}
       </button>
       {!collapsed && <div className="ins-group-body">{children}</div>}

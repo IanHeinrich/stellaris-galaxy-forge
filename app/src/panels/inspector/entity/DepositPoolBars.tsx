@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import {
   DEPOSIT_CARD_NOTE,
-  DEPOSIT_ODDS_UNKNOWN,
+  depositOddsUnknown,
   depositBars,
   type BarRow,
 } from "../../../lib/details/depositBars";
@@ -131,7 +131,7 @@ function BarLine({ row }: { row: BarRow }) {
  * The deposits a scenario body can roll, one bar per resource, likeliest first, and a line saying
  * so where some rows show their amounts because the odds can't be told.
  */
-export function DepositPoolBars({ picks }: { picks: readonly PoolPick[] }) {
+export function DepositPoolBars({ picks, noun }: { picks: readonly PoolPick[]; noun: string }) {
   const views = usePlanetDataStore((s) => s.depositTypes);
   const rows = depositBars(picks, views);
   return (
@@ -143,7 +143,7 @@ export function DepositPoolBars({ picks }: { picks: readonly PoolPick[] }) {
       </PoolList>
       {rows.some((row) => row.amounts !== null) && (
         <div className="muted ins-hint">
-          <Unknown>{DEPOSIT_ODDS_UNKNOWN}</Unknown>
+          <Unknown>{depositOddsUnknown(noun)}</Unknown>
         </div>
       )}
     </>

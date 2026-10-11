@@ -17,13 +17,13 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { RawStatement } from "../../generated/RawStatement";
 import type { SpawnPool } from "../../generated/SpawnPool";
 import type { SpawnRing } from "../../generated/SpawnRing";
-import type { StatedAnomalies } from "../../generated/StatedAnomalies";
 import type { StatedFeatures } from "../../generated/StatedFeatures";
 import type { SystemDetails } from "../../generated/SystemDetails";
 import type { SystemSpawn } from "../../generated/SystemSpawn";
 import type { UnknownClass } from "../../generated/UnknownClass";
-import { dedent } from "../scriptText";
+import { dedent, scriptTokens } from "../scriptText";
 import { counted, keyWords } from "../text";
+import { boundsText } from "./labels";
 import type { ModifierRow } from "./planetPage";
 
 /** What the die mark beside a rolled value says on hover, wherever it shows. */
@@ -31,9 +31,7 @@ export const ROLLED_TITLE = "Rolled when a new game starts";
 
 /** `2 to 10`, or `14` for a count the initializer fixes. */
 export function rangeWords(range: CountRange | Bounds): string {
-  const min = Math.round(range.min);
-  const max = Math.round(range.max);
-  return min === max ? `${min}` : `${min} to ${max}`;
+  return boundsText(range);
 }
 
 /** `2 to 10 planets`, `1 planet`, `0 to 1 moon`: a count with its noun, singular when it can be no more than one. */
@@ -130,11 +128,11 @@ export function classOdds(classes: readonly PoolClass[]): StarOdds[] {
 /** What the Class row says under classes listed without odds: which fit depends on the roll. */
 export function classFitHint(orbitRanged: boolean, starRolled: boolean): string {
   if (orbitRanged && starRolled) {
-    return "Which of these it can be depends on where it lands and on the star the system rolls.";
+    return "Which of these it can be depends on its orbit and on the system's star.";
   }
   return orbitRanged
-    ? "Which of these it can be depends on where it lands."
-    : "Which of these it can be depends on the star the system rolls.";
+    ? "Which of these it can be depends on its orbit."
+    : "Which of these it can be depends on the system's star.";
 }
 
 /** What the Class row says under a planet list's members: the list may not be held to the orbit. */
@@ -147,46 +145,54 @@ export function percent(share: number): string {
   return whole === 0 && share > 0 ? "<1%" : `${whole}%`;
 }
 
-/** The hint over a rolled star's list. */
-export const STAR_LIST_HINT = "The game rolls one of these when a game starts, as often as shown.";
-
-/** Where a star list comes from, under its rows. */
+/** Where a star list comes from, in its card. */
 export function starListSource(list: string): string {
-  return `These star classes come from the star list ${list}.`;
+  return `From the game's star list ${list}.`;
+}
+
+/** Where a planet class list comes from, in its card. */
+export function classListSource(list: string): string {
+  return `From the game's class list ${list}.`;
+}
+
+/** `One of 6 star classes`, the value of a star's class rolled from a list. */
+export function starClassesWords(count: number): string {
+  return `One of ${counted(count, "star class", "star classes")}`;
 }
 
 /** What the system's head says of its star when the initializer names no class it can show. */
 export const RANDOM_STAR = "Random star";
 export const UNKNOWN_STAR = "Unknown star";
 
-/** What each of the engine's random draws picks among. */
-const RANDOM_DRAWS: Record<string, string> = {
+/** What each of the engine's random rolls picks among. */
+const RANDOM_ROLLS: Record<string, string> = {
   random_colonizable: "Rolled from the habitable classes that fit its orbit",
   random_non_colonizable: "Rolled from the uninhabitable classes that fit its orbit",
   random_asteroid: "Rolled from the asteroid classes",
 };
 
-/** A rolled class's words: what it is drawn from. */
+/** A rolled class's words on its page: what it is rolled from. */
 export function rolledClassText(pool: ClassPool): string {
   switch (pool.kind) {
     case "random":
-      return RANDOM_DRAWS[pool.draw] ?? "Rolled from the classes that fit its orbit";
+      return RANDOM_ROLLS[pool.draw] ?? "Rolled from the classes that fit its orbit";
     case "planet_list":
-      return `One of ${pool.members.length}, from ${pool.list}`;
+      return `One of ${counted(pool.members.length, "class", "classes")}`;
     case "star_list":
-      return `One of the stars in ${pool.list}`;
+      return "A rolled star class";
   }
 }
 
-/** What an unknown class says, and why it can't be told. */
-export const CLASS_DECIDED = "Decided when the game starts";
+/** What an unknown value says, on a page and on a list row. */
+export const CLASS_DECIDED = "Decided at game start";
+export const CLASS_DECIDED_ROW = "class decided at game start";
 
 export function unknownClassWhy(reason: UnknownClass, written: string): string {
   switch (reason) {
     case "ideal":
       return (
         "The initializer asks for the class that suits the empire nearby. On a scenario map " +
-        "there is no empire nearby when the system is built, so the class is usually random."
+        "no empire is nearby yet when a new game starts, so the class is usually random."
       );
     case "script":
       return "The initializer changes the class only when a condition holds, and Galaxy Forge can't tell whether it will.";
@@ -196,7 +202,13 @@ export function unknownClassWhy(reason: UnknownClass, written: string): string {
 }
 
 /** What a row says of a ring the initializer leaves to the class's chance. */
-export const RING_ROLLED = "Rolled by the game";
+export const RING_ROLLED = "Rolled";
+
+/** What a value the class a body gets decides says, and its card. */
+export const CLASS_SUITED = "Rolled to suit its class";
+export function classSuitedHint(noun: string): string {
+  return `The game rolls these to suit the class the ${noun} gets.`;
+}
 
 /** The Ring row's words: stated, a chance, or left to a class the game decides. */
 export function ringWords(ring: SpawnRing): string {
@@ -206,11 +218,12 @@ export function ringWords(ring: SpawnRing): string {
     case "rolled":
       return ring.chance === null ? RING_ROLLED : `${percent(ring.chance)} chance`;
     case "unknown":
-      return "Decided by the class it rolls";
+      return CLASS_SUITED;
   }
 }
-/** What the Name row says where the initializer names none. */
-export const NAME_UNKNOWN = "Named by the game when it starts";
+/** What the Name row says where the game picks a name at random, and its card. */
+export const NAME_RANDOM = "Random";
+export const NAME_RANDOM_WHY = "The game picks a name for it at random when a new game starts.";
 
 /** `1st`, `2nd`, `3rd`, `11th`: a copy's place among its block's. */
 export function ordinal(n: number): string {
@@ -219,24 +232,45 @@ export function ordinal(n: number): string {
   return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 }
 
+/** The line a body's page shows of its place among its block's copies, and its card's sentence. */
+export interface CopyFacts {
+  line: string;
+  hint: string;
+}
+
+/** `The game places 2 to 4 planets like this one.`, on a block's row and a copy's page alike. */
+export function placedWords(count: CountRange, noun: string, moon: boolean): string {
+  const around = moon ? " around each planet" : "";
+  return `The game places ${rangeWords(count)} ${noun}s like this one${around}.`;
+}
+
 /**
- * What a body's page says of its place among the bodies its block places: how many the game
- * places like it, which one it is and when it is there, and whether some games lack it. `noun` is
- * `planet`, `moon` or `asteroid`. `null` for a body placed once that every game has.
+ * What a body's page says of its place among the bodies its block places: a short line, such as
+ * `3rd of 2 to 4 planets like this one · not in every game`, and the full sentence for its card.
+ * `noun` is `planet`, `moon` or `asteroid`. `null` for a body placed once that every game has.
  */
-export function copyLine(spawn: BodySpawn, noun: string): string | null {
+export function copyFacts(spawn: BodySpawn, noun: string): CopyFacts | null {
   const { count, copy, always } = spawn;
   const some = `Some games have this ${noun} and some don't.`;
   const orbit = spawn.orbit_fit === "sometimes" ? orbitMayLeaveOut(noun) : null;
-  if (count.max <= 1) return always ? orbit : some;
-  const around = noun === "moon" ? " around its planet" : "";
-  const placed = `The game places ${rangeWords(count)} ${noun}s like this one${around}.`;
-  const nth = `This is the ${ordinal(copy)}`;
-  if (isRanged(count) && copy > count.min) {
-    return `${placed} ${nth}, so it is only there when the game places ${copy} or more.`;
+  const notEvery = "not in every game";
+  if (count.max <= 1) {
+    if (always && orbit === null) return null;
+    return { line: "Not in every game", hint: orbit ?? some };
   }
-  if (orbit !== null) return `${placed} ${nth}. ${orbit}`;
-  return always ? `${placed} ${nth}, so every game has it.` : `${placed} ${nth}. ${some}`;
+  const placed = placedWords(count, noun, noun === "moon");
+  const nth = `This is the ${ordinal(copy)}`;
+  const short = `${ordinal(copy)} of ${rangeWords(count)} ${noun}s like this one`;
+  if (isRanged(count) && copy > count.min) {
+    return {
+      line: `${short} · ${notEvery}`,
+      hint: `${placed} ${nth}, so it is only there when the game places ${copy} or more.`,
+    };
+  }
+  if (orbit !== null) return { line: `${short} · ${notEvery}`, hint: `${placed} ${nth}. ${orbit}` };
+  return always
+    ? { line: short, hint: `${placed} ${nth}, so every game has it.` }
+    : { line: `${short} · ${notEvery}`, hint: `${placed} ${nth}. ${some}` };
 }
 
 /** Whether the game never places the body: no class it can roll fits any orbit it can land at. */
@@ -251,7 +285,7 @@ export function maySpawn(spawn: BodySpawn | undefined): boolean {
 
 /** What the Inner radius row says where the initializer also writes an offset the range leaves out. */
 export function innerOffsetHint(offset: number): string {
-  return `The initializer also sets an offset of ${offset}. This range leaves it out, because Galaxy Forge can't tell how the game applies it.`;
+  return `The initializer adds ${offset} to this in a way Galaxy Forge can't work out, so the range leaves it out.`;
 }
 
 /** The mark a row and a page head show on a body the game never places. */
@@ -314,14 +348,14 @@ export function depositLines(
       case "clear":
         if (step.category !== null) {
           notes.push(
-            `The initializer clears the rolled ${names.category(step.category)} deposits.`,
+            `The initializer clears the ${names.category(step.category)} deposits the game rolls.`,
           );
         } else if (listed > 0) {
           notes.push(
-            "No other deposits. The initializer clears the rolled ones before adding these.",
+            "Only these. The initializer clears the deposits the game rolls, then adds these.",
           );
         } else {
-          notes.push("None. The initializer clears the rolled deposits.");
+          notes.push("None. The initializer clears the deposits the game rolls.");
         }
         break;
       case "set": {
@@ -330,7 +364,7 @@ export function depositLines(
         break;
       }
       case "clear_blockers":
-        blockers ??= "The initializer clears the rolled blockers.";
+        blockers ??= "The initializer clears the blockers the game rolls.";
         break;
       case "add":
       case "add_blocker":
@@ -390,27 +424,19 @@ export function poolTitle(stated: number, tail: string): string {
   return `${stated > 0 ? "Can also roll" : "Can roll"} · ${tail}`;
 }
 
-/** What the Deposits and Modifiers sections say where the class the body rolls decides the pool. */
-export const DEPOSITS_UNKNOWN = "Decided by the class it rolls";
-export const DEPOSITS_UNKNOWN_WHY = "The game rolls deposits for the class it picks.";
-export const FEATURES_UNKNOWN_WHY = "The game rolls planet features for the class it picks.";
-
 /** What a pool lists: deposits or planet features. */
 export interface PoolKind {
-  /** The line's tail after "Can roll ·", given how many it lists. */
+  /** The line's tail after "Can roll ·", given how many rows it shows. */
   tail: (count: number) => string;
-  /** Why an unknown pool can't be told. */
-  unknownWhy: string;
 }
 
+/** Deposits show one row per resource, so their line counts resources. */
 export const DEPOSIT_POOL: PoolKind = {
-  tail: (count) => counted(count, "deposit"),
-  unknownWhy: DEPOSITS_UNKNOWN_WHY,
+  tail: (count) => counted(count, "resource"),
 };
 
 export const FEATURE_POOL: PoolKind = {
   tail: (count) => counted(count, "planet feature"),
-  unknownWhy: FEATURES_UNKNOWN_WHY,
 };
 
 /** The planet features and modifiers an initializer states, as the Modifiers section lists them. */
@@ -437,6 +463,7 @@ export function statedModifierRows(
       feature: false,
       days: added.days,
       view: views.get(added.modifier),
+      stated: true,
     });
   }
   return rows;
@@ -460,7 +487,7 @@ export function modifierLine(
   listed: number,
 ): string | null {
   if (features.none) {
-    return listed > 0 ? `The initializer stops rolled planet features on this ${noun}.` : null;
+    return listed > 0 ? `The game rolls no other planet features for this ${noun}.` : null;
   }
   if (features.cleared) return "The initializer clears the planet features the game rolls.";
   return null;
@@ -469,15 +496,6 @@ export function modifierLine(
 /** What the Anomaly section says under any anomaly the initializer places. */
 export function placedAnomaly(noun: string): string {
   return `Placed by the initializer. It is found when the ${noun} is surveyed.`;
-}
-
-/**
- * What the Anomaly section says where the initializer places none: that one can appear when it is
- * surveyed; null where it places one, and where the Stopped row says it prevents them.
- */
-export function anomalyLine(anomalies: StatedAnomalies, noun: string): string | null {
-  if (anomalies.categories.length > 0 || anomalies.prevented !== null) return null;
-  return `Can appear when the ${noun} is surveyed.`;
 }
 
 /** Something the initializer stops on a body: its tag in the Stopped row, and what the card says. */
@@ -493,12 +511,12 @@ export interface StoppedFact {
 export function stoppedFacts(spawn: BodySpawn, modifiers: number, noun: string): StoppedFact[] {
   const facts: StoppedFact[] = [];
   if (spawn.no_blockers) {
-    facts.push({ tag: "Blockers", line: `The initializer stops blockers on this ${noun}.` });
+    facts.push({ tag: "Blockers", line: `The game rolls no blockers for this ${noun}.` });
   }
   if (spawn.features.none && modifiers === 0) {
     facts.push({
       tag: "Planet features",
-      line: `The initializer stops planet features on this ${noun}.`,
+      line: `The game rolls no planet features for this ${noun}.`,
     });
   }
   const anomalies = spawn.anomalies;
@@ -507,8 +525,8 @@ export function stoppedFacts(spawn: BodySpawn, modifiers: number, noun: string):
       tag: "Anomaly",
       line:
         anomalies.prevented === "body"
-          ? `The initializer stops anomalies on this ${noun}.`
-          : "The initializer stops anomalies in this system.",
+          ? `No anomaly can appear on this ${noun}.`
+          : "No anomaly can appear anywhere in this system.",
     });
   }
   return facts;
@@ -557,7 +575,7 @@ export function withClassWords(parts: readonly string[]): string {
 
 /** What the With its class row says in its card. */
 export function withClassHint(noun: string): string {
-  return `The game picks these to suit the ${noun}'s class when it builds the system.`;
+  return classSuitedHint(noun);
 }
 
 /** What the Stopped row's card heads its lines with. */
@@ -597,26 +615,25 @@ export function lineCount(statements: readonly RawStatement[]): number {
   return rawText(statements).split("\n").length;
 }
 
-/** The heading over the lines an initializer runs, which Galaxy Forge shows but doesn't read. */
-export const SCRIPT_TITLE = "Script it runs";
+/** The heading over the lines an initializer runs, which Galaxy Forge shows but doesn't read, and its card. */
+export const SCRIPT_TITLE = "Script at game start";
+export const SCRIPT_HINT = "The game runs these lines once, when a new game starts.";
 
-/** What the system's Script it runs group says over its lines. */
-export const SYSTEM_SCRIPT_HINT =
-  "The game runs these lines once, when it builds the system. On a scenario map they run " +
-  "before hyperlanes exist, so lines that look for a neighbouring system find none.";
+/** What a script's section warns of where it looks for a neighbouring system. */
+export const NEIGHBOUR_LOOKUP_WARNING =
+  "On a scenario map they run before hyperlanes exist, so lines that look for a neighbouring system find none.";
 
-/** What a body's Script it runs group says over its lines. */
-export function bodyScriptHint(noun: string): string {
-  return `The game runs these lines once, when it builds the ${noun}.`;
-}
+/** A key of a scope that looks for a system one hyperlane away. */
+export const NEIGHBOUR_LOOKUP = /^(every|random|any|count)_neighbor_system$/;
 
-/** The heading over the initializer's keys Galaxy Forge keeps as written, and what it says of them. */
-export const OTHER_KEYS_TITLE = "Other keys";
-export const OTHER_KEYS_HINT = "Keys Galaxy Forge keeps but doesn't show elsewhere.";
+/** The heading over the initializer's lines Galaxy Forge keeps as written, and its card. */
+export const OTHER_KEYS_TITLE = "Other initializer lines";
+export const OTHER_KEYS_HINT =
+  "Galaxy Forge keeps these lines as written and doesn't show them anywhere else.";
 
-/** What the start planet's Initializer row says under it. */
-export const START_PLANET_HINT =
-  "The empire that spawns here starts on this planet, unless it brings its own starting system.";
+/** The titles the start planet and home planet chips show. */
+export const START_PLANET_TITLE = "An empire that spawns here can start on this planet.";
+export const HOME_PLANET_TITLE = "The home planet of the empire placed in this system.";
 
 /** Whether the initializer says anything only a random galaxy uses. */
 export function hasRandomOnly(spawn: SystemSpawn): boolean {
@@ -636,16 +653,23 @@ export const RANDOM_SETTINGS_HINT =
   "A random galaxy uses these to decide how often to add this system. " +
   "This map already places it, so they don't apply.";
 
+/** What the Spawn chance and Scaled chance rows say in their cards, as the game's example initializer explains them. */
+export const SPAWN_CHANCE_HINT =
+  "The chance in 100 that a random galaxy uses this system once it has picked it.";
+export const SCALED_CHANCE_HINT =
+  "A spawn chance that grows with the galaxy: this number times the galaxy's systems, over 100. It wins over Spawn chance.";
+
 /** The How often row of a `usage_odds` written as a number. */
 export function usageWeight(weight: number): string {
   return `Weight ${weight}, against other systems of its kind`;
 }
 
-/** The How often row of `usage_odds` written as conditions, from the number they start at. */
+/** The How often row of `usage_odds` written as conditions: the number they start at, and its card. */
 export function usageOddsText(base: number | null): string {
-  return base === null
-    ? "Set by the conditions below."
-    : `Starts at ${base}. The conditions below change it.`;
+  return base === null ? "Set by conditions" : `Starts at ${base}`;
+}
+export function usageOddsHint(base: number | null): string {
+  return base === null ? "The conditions below set it." : "The conditions below change it.";
 }
 
 /** The `usage` keys the game's own initializers use, in the words the Used as row shows. */
@@ -705,7 +729,8 @@ export function hasStatedRows(spawn: SystemSpawn): boolean {
 }
 
 /** The Pre-FTL row's hint. */
-export const PRIMITIVE_HINT = "The game builds it whatever the galaxy's Pre-FTL setting says.";
+export const PRIMITIVE_HINT =
+  "A random galaxy adds this system more or less often with its Pre-FTL Civilizations setting. This map already places it.";
 
 /** A value an inline script or an `@variable` gives: its row's label, and what sets it. */
 export interface ValueSource {
@@ -718,9 +743,9 @@ const VALUE_LABELS: Record<string, string> = {
   size: "Size",
   "size.min": "The smallest size",
   "size.max": "The largest size",
-  orbit_distance: "Orbit distance",
+  orbit_distance: "Orbit step",
   orbit_angle: "Orbit angle",
-  change_orbit: "Orbit change",
+  change_orbit: "Extra step",
   class: "Class",
   planet: "Planets",
   moon: "Moons",
@@ -732,7 +757,7 @@ const VALUE_LABELS: Record<string, string> = {
   usage_odds: "How often",
   max_instances: "Per galaxy",
   neighbor_system: "Neighbours",
-  init_effect: "Script it runs",
+  init_effect: SCRIPT_TITLE,
 };
 
 /** A key's label in a Set by row; on a moon `change_orbit` is its distance from its planet. */
@@ -762,12 +787,23 @@ export function valueSources(
   ];
 }
 
-/** The line under a list every body of which an inline script gives. */
-export function everyBodyFrom(script: string): string {
-  return `Every body here comes from the inline script ${script}.`;
+/** The line under a list every body of which a shared script gives, and the line under a body's head. */
+export const EVERY_BODY_FROM = "Every body here comes from a shared script.";
+export function bodyFrom(noun: string): string {
+  return `This ${noun} comes from a shared script.`;
 }
 
-/** The line under a body's head that its block comes from an inline script. */
-export function bodyFrom(noun: string, script: string): string {
-  return `This ${noun} comes from the inline script ${script}.`;
+/** What a shared script's card names. */
+export function sharedScriptHint(script: string): string {
+  return `From the shared script ${script}.`;
+}
+
+/** What a value the game files define once says in its card. */
+export const SHARED_VALUE_HINT = "A value the game files define once and reuse.";
+
+/** Whether script text looks for a system one hyperlane away, by its keys as the snippet reads them. */
+export function looksForNeighbours(text: string): boolean {
+  return scriptTokens(text).some(
+    (t) => t.kind !== "string" && t.kind !== "comment" && NEIGHBOUR_LOOKUP.test(t.text),
+  );
 }

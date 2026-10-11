@@ -143,10 +143,10 @@ describe("what a scenario body can roll", () => {
       drawnBy(() => page(101, "Listed")),
       "Class",
     );
-    expect(list).toContain("One of 2, from rl_cold");
-    expect(list).not.toContain("The game may roll");
+    expect(list).toContain("One of 2 classes");
+    expect(list).not.toContain("rl_cold");
     expect(hintOf("Class")).toBe(
-      "The game may roll any class in this list, even one that doesn&#x27;t fit the orbit.",
+      '<span class="ins-set-by">From the game&#x27;s class list rl_cold.</span><span class="ins-set-by">The game may roll any class in this list, even one that doesn&#x27;t fit the orbit.</span>',
     );
   });
 
@@ -164,7 +164,7 @@ describe("what a scenario body can roll", () => {
       "Class",
     );
     expect(hintOf("Class")).toBe(
-      "Which of these it can be depends on where it lands and on the star the system rolls.",
+      "Which of these it can be depends on its orbit and on the system&#x27;s star.",
     );
     const listed = poolRows(wide);
     expect(listed.map((r) => r.name.toLowerCase())).toEqual([
@@ -175,7 +175,7 @@ describe("what a scenario body can roll", () => {
     expect(listed.every((r) => r.icon.includes('class="pi'))).toBe(true);
     expect(wide).not.toContain("Which of these");
     drawnBy(() => page(101, "Planet"));
-    expect(hintOf("Class")).toBe("Which of these it can be depends on the star the system rolls.");
+    expect(hintOf("Class")).toBe("Which of these it can be depends on the system&#x27;s star.");
   });
 
   it("marks a body the game never places on its page and its row, and the moons around it", async () => {
@@ -207,7 +207,8 @@ describe("what a scenario body can roll", () => {
       details({ planets: [drawn(100, { orbit_fit: "sometimes" })], spawn: systemSpawn() }),
     );
 
-    expect(page(100, "Planet")).toContain(
+    expect(drawnBy(() => page(100, "Planet"))).toContain(">Not in every game</span>");
+    expect(hintOf("Copies")).toBe(
       "Some games have this planet and some don&#x27;t. At some of the orbits it can land at, none of the classes it can roll fit.",
     );
     expect(overview()).toContain(
@@ -236,7 +237,7 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 2 deposits");
+    expect(html).toContain("Can roll · 2 resources");
     expect(depositRows(html).map((r) => r.title)).toEqual(["Minerals 1 · 75%", "Energy 1 · 25%"]);
     expect(html).toContain("Can roll · 2 planet features");
     const features = poolRows(html.slice(html.indexOf("planet features")));
@@ -275,7 +276,7 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
-    expect(html).toContain("Can also roll · 1 deposit");
+    expect(html).toContain("Can also roll · 1 resource");
     expect(depositRows(html).map((r) => r.title)).toEqual(["Mineral Field · 100%"]);
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
@@ -320,7 +321,7 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [world], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 6 deposits");
+    expect(html).toContain("Can roll · 4 resources");
     const rows = depositRows(html);
     expect(rows.map((r) => r.title)).toEqual([
       "Minerals · 40%",
@@ -389,7 +390,7 @@ describe("what a scenario body can roll", () => {
       '<span class="muted pl-pool-deposits">Energy Deposit, Rich Energy Field</span>',
     );
     expect(card).toContain(
-      '<span class="dp-card-note muted">Chance one deposit the game rolls here is this one.</span>',
+      '<span class="dp-card-note muted">How likely a deposit rolled here is to give this resource, at each amount.</span>',
     );
 
     const unhovered = renderToStaticMarkup(
@@ -407,7 +408,9 @@ describe("what a scenario body can roll", () => {
     const card = html.slice(html.indexOf('class="dp-card'));
     expect(card).toContain('<span class="dp-card-name">Toxic Kelp · &lt;1%</span>');
     expect(card).not.toContain("pl-pool-line");
-    expect(card).toContain("Chance one deposit the game rolls here is this one.");
+    expect(card).toContain(
+      "How likely a deposit rolled here is to give this resource, at each amount.",
+    );
   });
 
   it("shows each resource's amounts in place of a bar where the class it rolls decides the odds", async () => {
@@ -442,14 +445,14 @@ describe("what a scenario body can roll", () => {
     await land(details({ planets: [gottara], spawn: systemSpawn() }));
 
     const html = page(100, "Planet");
-    expect(html).toContain("Can roll · 7 deposits");
+    expect(html).toContain("Can roll · 3 resources");
     expect(depositRows(html).map((r) => [r.title, r.cell, r.chance, r.width])).toEqual([
       ["Minerals", '<span class="muted pl-pool-amounts">+1 to +3</span>', "", undefined],
       ["Energy", '<span class="muted pl-pool-amounts">+1, +2, +5</span>', "", undefined],
       ["Exotic Gases", '<span class="muted pl-pool-amounts">+1</span>', "", undefined],
     ]);
     expect(html).toContain(
-      '<span class="ins-st-unknown">The odds depend on which class the planet rolls.</span>',
+      '<span class="ins-st-unknown">The odds depend on the class the planet gets.</span>',
     );
   });
 
@@ -532,7 +535,7 @@ describe("what a scenario body can roll", () => {
 
     const html = drawnBy(() => page(100, "Planet"));
     expect(row(html, "Name")).toContain("Named after the system");
-    expect(hintOf("Name")).toBe("The game picks the system&#x27;s name when it starts.");
+    expect(hintOf("Name")).toBe("The game picks the system&#x27;s name when a new game starts.");
   });
 
   it("says a moon is named after its planet when the planet's name can't be told", async () => {
@@ -559,7 +562,9 @@ describe("what a scenario body can roll", () => {
 
     const html = drawnBy(() => page(101, "Moon"));
     expect(row(html, "Name")).toContain("Named after the planet it orbits");
-    expect(hintOf("Name")).toBe("That planet&#x27;s name isn&#x27;t known until the game starts.");
+    expect(hintOf("Name")).toBe(
+      "That planet&#x27;s name isn&#x27;t known until a new game starts.",
+    );
     expect(html).not.toContain("Named after the system");
   });
 
@@ -630,10 +635,11 @@ describe("a scenario system's radii", () => {
       }),
     );
 
-    const html = overview();
+    const html = drawnBy(() => overview());
     expect(html).toContain('<span class="ins-st-unknown">150 to 380</span>');
-    expect(html).toContain(
-      "The initializer also sets an offset of 40. This range leaves it out, because Galaxy Forge can&#x27;t tell how the game applies it.",
+    expect(html).not.toContain("adds 40");
+    expect(hintOf("Inner radius")).toBe(
+      "The initializer adds 40 to this in a way Galaxy Forge can&#x27;t work out, so the range leaves it out.",
     );
   });
 
@@ -770,7 +776,7 @@ describe("a scenario body's name in lists and links", () => {
 
     const angle = row(page(101, "Riadore II"), "Angle step");
     expect(angle).toContain("Riadore I");
-    expect(angle).toContain(" at 55");
+    expect(angle).toContain(" (orbit 55)");
     expect(angle).not.toContain("Gas Giant");
   });
 });

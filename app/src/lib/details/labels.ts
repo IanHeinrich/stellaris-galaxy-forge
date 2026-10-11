@@ -80,7 +80,7 @@ export function isColony(p: Pick<PlanetSummary, "colonised" | "pre_ftl">): boole
 export function boundsText(bounds: Bounds): string {
   const min = Math.round(bounds.min);
   const max = Math.round(bounds.max);
-  return min === max ? `${min}` : `${min}–${max}`;
+  return min === max ? `${min}` : `${min} to ${max}`;
 }
 
 /** A step out as a label reads it, with a plus where it steps outwards. */

@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
-import { ROLLED_TITLE, type ValueSource } from "../../lib/details/spawnFacts";
+import { ROLLED_TITLE, SHARED_VALUE_HINT, type ValueSource } from "../../lib/details/spawnFacts";
 import { Chip } from "../parts";
 import { PickerCard } from "./entity/PickerCard";
 import { PropertyRow } from "./parts";
@@ -50,10 +50,13 @@ export function Why({ children }: { children: ReactNode }) {
 export function Hinted({
   label,
   hint,
+  focusable = true,
   children,
 }: {
   label: string;
   hint: ReactNode;
+  /** Takes the focus to show its card; false inside a control that takes it already. */
+  focusable?: boolean;
   children: ReactNode;
 }) {
   const id = useId();
@@ -64,16 +67,21 @@ export function Hinted({
     <span
       id={id}
       className="ins-hinted"
-      tabIndex={0}
+      tabIndex={focusable ? 0 : undefined}
       aria-describedby={shown ? cardId : undefined}
       onMouseEnter={() => setShown(true)}
       onMouseLeave={() => setShown(false)}
-      onFocus={() => setShown(true)}
-      onBlur={() => setShown(false)}
+      onFocus={focusable ? () => setShown(true) : undefined}
+      onBlur={focusable ? () => setShown(false) : undefined}
     >
       {children}
       {shown && (
-        <PickerCard id={cardId} rowId={id} item={item} beside=".ins-kv">
+        <PickerCard
+          id={cardId}
+          rowId={id}
+          item={item}
+          beside=".ins-kv, .ins-group, .ins-sec, .ins-body"
+        >
           <span className="dp-card-text">{hint}</span>
         </PickerCard>
       )}
@@ -118,23 +126,35 @@ export function StoppedTag({ children }: { children: ReactNode }) {
   );
 }
 
-/** What sets a value, as a line in its card: `Set by the variable @base_size`. */
+/** `@base_size`, or `the shared script grand_archive/x`: where a value the game files define once comes from. */
+function SourceName({ source }: { source: ValueSource }) {
+  return source.via === "variable" ? (
+    <span className="mono">{source.name}</span>
+  ) : (
+    <>
+      the shared script <span className="mono">{source.name}</span>
+    </>
+  );
+}
+
+/** What sets a value, as a line in its card: `The smallest size: from @base_size`. */
 export function SetByLine({ source, lead }: { source: ValueSource; lead?: string }) {
   return (
     <span className="ins-set-by">
-      {lead === undefined ? "Set by" : `${lead} is set by`} the {source.via}{" "}
-      <span className="mono">{source.name}</span>
+      {lead === undefined ? "From" : `${lead}: from`} <SourceName source={source} />
     </span>
   );
 }
 
 /** What sets a row's value, in its card: a line per `@variable`. */
 export function SetByLines({ sources }: { sources: readonly ValueSource[] }) {
+  if (sources.length === 0) return null;
   return (
     <>
       {sources.map((source) => (
         <SetByLine key={`${source.label}-${source.name}`} source={source} lead={source.label} />
       ))}
+      <span className="ins-set-by muted">{SHARED_VALUE_HINT}</span>
     </>
   );
 }
@@ -142,8 +162,8 @@ export function SetByLines({ sources }: { sources: readonly ValueSource[] }) {
 /** A value an inline script or an `@variable` gives, as a row: what it is, then what sets it. */
 export function SetByRow({ source }: { source: ValueSource }) {
   return (
-    <PropertyRow label={source.label}>
-      Set by the {source.via} <span className="mono">{source.name}</span>
-    </PropertyRow>
+    <HintedRow label={source.label} hint={SHARED_VALUE_HINT}>
+      From <SourceName source={source} />
+    </HintedRow>
   );
 }

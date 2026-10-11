@@ -1,6 +1,6 @@
 import type { HeldAnomaly, PickerTarget } from "../../../lib/details/picker";
 import type { StatedAnomalies } from "../../../generated/StatedAnomalies";
-import { anomalyLine, bodyNoun, placedAnomaly } from "../../../lib/details/spawnFacts";
+import { bodyNoun, placedAnomaly } from "../../../lib/details/spawnFacts";
 import { templateName } from "../../../lib/names";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
@@ -91,14 +91,12 @@ function PlacedAnomalyRow({ category, noun }: { category: string; noun: string }
 
 /** What a scenario body's initializer says of its anomalies: the ones it places, or whether one can appear. */
 function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies; noun: string }) {
-  const line = anomalyLine(anomalies, noun);
-  if (anomalies.categories.length === 0 && line === null) return null;
+  if (anomalies.categories.length === 0) return null;
   return (
     <Section id="planet.anomaly" title="Anomaly">
       {anomalies.categories.map((category, i) => (
         <PlacedAnomalyRow key={`${category}-${i}`} category={category} noun={noun} />
       ))}
-      {line !== null && <div className="muted ins-hint">{line}</div>}
     </Section>
   );
 }

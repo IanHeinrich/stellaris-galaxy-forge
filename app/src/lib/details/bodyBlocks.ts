@@ -6,7 +6,7 @@ import type { ClassPool } from "../../generated/ClassPool";
 import type { CountRange } from "../../generated/CountRange";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { counted } from "../text";
-import { isRanged, rangeWords } from "./spawnFacts";
+import { isRanged, placedWords } from "./spawnFacts";
 
 /** A row of the Planets list: a body, or the first of the copies its block places. */
 export interface BodyBlock {
@@ -98,11 +98,9 @@ export function blockNoun(moon: boolean, asteroid: boolean): string {
 
 /** What a block's count says on hover. */
 export function blockCountTitle(count: CountRange, moon: boolean, asteroid: boolean): string {
-  const noun = blockNoun(moon, asteroid);
-  if (count.max <= 1) return `Some games have this ${noun.slice(0, -1)} and some don't.`;
-  return moon
-    ? `The game places ${rangeWords(count)} of these moons around the planet when it builds the system.`
-    : `The game places ${rangeWords(count)} of these ${noun} when it builds the system.`;
+  const noun = blockNoun(moon, asteroid).slice(0, -1);
+  if (count.max <= 1) return `Some games have this ${noun} and some don't.`;
+  return placedWords(count, noun, moon);
 }
 
 /** The moons each planet of a block has, on its row. */

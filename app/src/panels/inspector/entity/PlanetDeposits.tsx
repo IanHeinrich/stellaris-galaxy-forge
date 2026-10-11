@@ -10,6 +10,7 @@ import {
 } from "../../../lib/details/planetPage";
 import { STATION_STAYS } from "../../../lib/details/planetEdits";
 import {
+  bodyNoun,
   categoryWords,
   depositCategories,
   depositLines,
@@ -29,6 +30,7 @@ import { ConfirmLine } from "./ConfirmLine";
 import { DEPOSIT_PICKERS } from "./DepositPicker";
 import { PlanetPicker } from "./PlanetPicker";
 import type { PlanetSectionProps } from "./planetSection";
+import { depositBars } from "../../../lib/details/depositBars";
 import { DepositPoolBars } from "./DepositPoolBars";
 import { ResourceIcon } from "./ResourceIcon";
 import { PoolLines } from "./SpawnFacts";
@@ -282,6 +284,7 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
   const [confirming, setConfirming] = useState<string | null>(null);
   useNamed(editable ? deposits.nameKeys : []);
   const spawn = read.summary.spawn;
+  const noun = bodyNoun(read.summary);
   const category = useNamed(
     spawn === undefined ? [] : depositCategories(spawn.deposits),
     categoryWords,
@@ -348,7 +351,9 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
         pool={pool}
         stated={features.length + blockers.length}
         kind={DEPOSIT_POOL}
-        body={(picks) => <DepositPoolBars picks={picks} />}
+        noun={noun}
+        rows={(picks) => depositBars(picks, views).length}
+        body={(picks) => <DepositPoolBars picks={picks} noun={noun} />}
       />
       {editable && (
         <PlanetPicker

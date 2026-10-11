@@ -43,7 +43,7 @@ describe("the Planets section", () => {
     });
     await land(details({ planets: [ranged] }));
 
-    expect(rowLine(overview(), "Tarkin")).toContain("10–25");
+    expect(rowLine(overview(), "Tarkin")).toContain("10 to 25");
   });
 
   it("shows a save body's one size", async () => {

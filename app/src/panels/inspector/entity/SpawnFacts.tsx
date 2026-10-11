@@ -1,48 +1,49 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { BodySpawn } from "../../../generated/BodySpawn";
 import type { SpawnPool } from "../../../generated/SpawnPool";
+import { planetTint } from "../../../lib/details/icons";
 import { bodyClassName, bodyName } from "../../../lib/details/labels";
+import { NEUTRAL_BAR, oddsRows, readableTint } from "../../../lib/details/oddsBars";
+import { modelLabel } from "../../../lib/details/planetModel";
 import {
-  bodyNoun,
-  bodyScriptHint,
-  CLASS_DECIDED,
-  classFitHint,
-  DEPOSITS_UNKNOWN,
   bodyFrom,
+  bodyNoun,
+  CLASS_DECIDED,
+  CLASS_SUITED,
+  classFitHint,
+  classListSource,
   classOdds,
+  classSuitedHint,
+  copyFacts,
+  isAsteroidClass,
   LIST_ORBIT_HINT,
+  NAME_RANDOM,
+  NAME_RANDOM_WHY,
   neverLine,
   neverSpawns,
-  ringWords,
-  copyLine,
-  isAsteroidClass,
-  lineCount,
-  NAME_UNKNOWN,
-  OTHER_KEYS_HINT,
-  OTHER_KEYS_TITLE,
   poolPicks,
   poolTitle,
   type PoolKind,
   type PoolPick,
-  type StarOdds,
-  rawText,
   RING_ROLLED,
+  ringWords,
   rolledClassText,
-  SCRIPT_TITLE,
   setsSize,
+  sharedScriptHint,
   shownWithItsRow,
+  starClassesWords,
+  starListSource,
+  type StarOdds,
   STOPPED_LABEL,
   stoppedFacts,
+  unknownClassWhy,
+  valueSources,
   WITH_CLASS_LABEL,
   withClassHint,
   withClassParts,
   withClassWords,
-  START_PLANET_HINT,
-  unknownClassWhy,
-  valueSources,
 } from "../../../lib/details/spawnFacts";
 import {
-  NAME_DRAWN_WHY,
   NAMED_AFTER_SYSTEM,
   namedAfterParent,
   parentUnnamedWhy,
@@ -50,13 +51,14 @@ import {
   SYSTEM_UNNAMED_WHY,
 } from "../../../lib/details/spawnNames";
 import { templateName } from "../../../lib/names";
-import { counted, keyWords } from "../../../lib/text";
+import { keyWords } from "../../../lib/text";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
-import { ScriptSnippet } from "../../ScriptSnippet";
-import { Group, Properties, PropertyRow, Section } from "../parts";
+import { Properties, PropertyRow, Section } from "../parts";
+import { OtherLinesGroup, ScriptGroup } from "../ScriptGroup";
 import {
+  Hinted,
   HintedRow,
   Rolled,
   RolledMark,
@@ -65,19 +67,17 @@ import {
   StoppedTag,
   Unknown,
 } from "../states";
-import { StarOddsList } from "../system/sections/scenario/StarList";
-import { planetTint } from "../../../lib/details/icons";
-import { NEUTRAL_BAR, oddsRows, readableTint } from "../../../lib/details/oddsBars";
 import { PlanetIcon, PlanetSize } from "../system/sections/bodies";
-import { OddsList } from "./OddsBar";
+import { StarOddsList } from "../system/sections/scenario/StarList";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
 import type { BodyRead } from "./bodySources";
+import { OddsList } from "./OddsBar";
 import type { PlanetSectionProps } from "./planetSection";
 import { useGivenNames } from "./useBodyName";
 
 /** What the initializer's effect does to a value the block states. */
-const CHANGED_BY_EFFECT = "The initializer changes it when the system is built.";
+const CHANGED_BY_EFFECT = "The initializer changes it when a new game starts.";
 
 /** Planet classes a draw can give, as an odds list: each class's icon and name, a bar and its share where known. */
 function ClassList({ odds, moon }: { odds: readonly StarOdds[]; moon: boolean }) {
@@ -130,18 +130,21 @@ function ClassRow({ spawn, read }: { spawn: BodySpawn; read: BodyRead }) {
       const starRolled = star?.state !== "fixed";
       const exact = !orbitRanged && !starRolled;
       const hint =
-        pool.kind === "planet_list"
-          ? LIST_ORBIT_HINT
-          : pool.kind === "random" && pool.at_orbit !== undefined && !exact
-            ? classFitHint(orbitRanged, starRolled)
-            : null;
+        listed !== null ? (
+          starListSource(listed.list)
+        ) : pool.kind === "planet_list" ? (
+          <>
+            <span className="ins-set-by">{classListSource(pool.list)}</span>
+            <span className="ins-set-by">{LIST_ORBIT_HINT}</span>
+          </>
+        ) : pool.kind === "random" && pool.at_orbit !== undefined && !exact ? (
+          classFitHint(orbitRanged, starRolled)
+        ) : null;
       return (
         <>
           <HintedRow label="Class" hint={hint}>
             <Rolled>
-              {listed === null
-                ? rolledClassText(pool)
-                : `One of ${listed.members.length}, from ${listed.list}`}
+              {listed === null ? rolledClassText(pool) : starClassesWords(listed.members.length)}
             </Rolled>
           </HintedRow>
           {listed !== null && (
@@ -196,17 +199,26 @@ function NameRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun
     );
   }
   return (
-    <HintedRow
-      label="Name"
-      hint={stated === null && naming?.state === "unknown" ? NAME_DRAWN_WHY : null}
-    >
-      {stated ?? <Unknown>{NAME_UNKNOWN}</Unknown>}
+    <HintedRow label="Name" hint={stated === null ? NAME_RANDOM_WHY : null}>
+      {stated ?? <Rolled>{NAME_RANDOM}</Rolled>}
+    </HintedRow>
+  );
+}
+
+/** The Model row of a model the initializer names: its name as the save's Model field shows it, its key in the card. */
+function ModelRow({ entity }: { entity: string }) {
+  const ready = useGameDataStore((s) => s.status === "ready");
+  const models = useGameDataStore((s) => s.planetModels);
+  useEffect(() => void useGameDataStore.getState().loadPlanetModels(), [ready]);
+  return (
+    <HintedRow label="Model" hint={<span className="mono">{entity}</span>}>
+      {modelLabel(models ?? [], entity)}
     </HintedRow>
   );
 }
 
 /** The Size row, with what sets it or changes it in its card. */
-function SizeRow({ read, spawn }: { read: BodyRead; spawn: BodySpawn }) {
+function SizeRow({ read, spawn, noun }: { read: BodyRead; spawn: BodySpawn; noun: string }) {
   const { summary } = read;
   const size = bodySize(summary);
   const sources = valueSources(
@@ -214,10 +226,12 @@ function SizeRow({ read, spawn }: { read: BodyRead; spawn: BodySpawn }) {
     summary.moon,
   );
   const changed = spawn.changed_size !== null;
+  const suited = !changed && size === null;
   const hint =
-    sources.length === 0 && !changed ? null : (
+    sources.length === 0 && !changed && !suited ? null : (
       <>
         {changed && <span className="ins-set-by">{CHANGED_BY_EFFECT}</span>}
+        {suited && <span className="ins-set-by">{classSuitedHint(noun)}</span>}
         <SetByLines sources={sources} />
       </>
     );
@@ -226,7 +240,7 @@ function SizeRow({ read, spawn }: { read: BodyRead; spawn: BodySpawn }) {
       {spawn.changed_size !== null ? (
         <PlanetSize size={spawn.changed_size} />
       ) : size === null ? (
-        <Rolled>Rolled from its class's sizes</Rolled>
+        <Rolled>{CLASS_SUITED}</Rolled>
       ) : size.min === size.max ? (
         <PlanetSize size={rangeText(size)} />
       ) : (
@@ -263,7 +277,7 @@ export function SpawnProperties({
     <Properties>
       <NameRow read={read} spawn={spawn} noun={noun} />
       <ClassRow spawn={spawn} read={read} />
-      <SizeRow read={read} spawn={spawn} />
+      <SizeRow read={read} spawn={spawn} noun={noun} />
       {ringShown && (
         <PropertyRow label="Ring">
           {spawn.ring === undefined ? (
@@ -281,11 +295,7 @@ export function SpawnProperties({
           )}
         </PropertyRow>
       )}
-      {!star && spawn.entity !== null && (
-        <PropertyRow label="Model" mono>
-          {spawn.entity}
-        </PropertyRow>
-      )}
+      {!star && spawn.entity !== null && <ModelRow entity={spawn.entity} />}
       {withClass.length > 0 && (
         <HintedRow label={WITH_CLASS_LABEL} hint={withClassHint(noun)}>
           <Rolled>{withClassWords(withClass)}</Rolled>
@@ -322,14 +332,25 @@ export function SpawnHeadNotes({ read }: { read: BodyRead }) {
   if (spawn === undefined) return null;
   const noun = isAsteroidClass(summary.class, planetClasses) ? "asteroid" : bodyNoun(summary);
   const parent = read.details.planets.find((p) => p.id === summary.parent);
-  const copy = neverSpawns(spawn)
-    ? neverLine(noun, neverSpawns(parent?.spawn))
-    : copyLine(spawn, noun);
+  const copy = neverSpawns(spawn) ? null : copyFacts(spawn, noun);
   return (
     <>
-      {copy !== null && <div className="muted ins-hint">{copy}</div>}
+      {neverSpawns(spawn) && (
+        <div className="muted ins-hint">{neverLine(noun, neverSpawns(parent?.spawn))}</div>
+      )}
+      {copy !== null && (
+        <div className="muted ins-hint">
+          <Hinted label="Copies" hint={copy.hint}>
+            {copy.line}
+          </Hinted>
+        </div>
+      )}
       {spawn.from_script !== null && (
-        <div className="muted ins-hint">{bodyFrom(noun, spawn.from_script)}</div>
+        <div className="muted ins-hint">
+          <Hinted label="Shared script" hint={sharedScriptHint(spawn.from_script)}>
+            {bodyFrom(noun)}
+          </Hinted>
+        </div>
       )}
     </>
   );
@@ -362,52 +383,25 @@ export function BodyInitializer({ read }: PlanetSectionProps) {
   const orbitStep = read.summary.layout?.orbit_step != null;
   const variables = spawn.variables.filter((v) => !shownWithItsRow(v.key, orbitStep));
   const from = valueSources({ inline_scripts: [], variables }, read.summary.moon);
-  const rows = spawn.starting_planet || from.length > 0;
-  const shown = rows || spawn.other_keys.length > 0 || spawn.script.length > 0;
+  const shown = from.length > 0 || spawn.other_keys.length > 0 || spawn.script.length > 0;
   if (!shown) return null;
-  const noun = bodyNoun(read.summary);
-  const source = file === null ? undefined : { file };
   return (
     <Section id="planet.initializer" title="Initializer">
       <div className="ins-init">
-        {rows && (
+        {from.length > 0 && (
           <Properties>
-            {spawn.starting_planet && (
-              <HintedRow label="Start planet" hint={START_PLANET_HINT}>
-                Yes
-              </HintedRow>
-            )}
             {from.map((source) => (
               <SetByRow key={`${source.label}-${source.name}`} source={source} />
             ))}
           </Properties>
         )}
-        {spawn.script.length > 0 && (
-          <Group
-            id="planet.initializer.script"
-            title={SCRIPT_TITLE}
-            tail={counted(lineCount(spawn.script), "line")}
-          >
-            <div className="muted ins-hint">{bodyScriptHint(noun)}</div>
-            <ScriptSnippet text={rawText(spawn.script)} source={source} />
-          </Group>
-        )}
-        {spawn.other_keys.length > 0 && (
-          <Group
-            id="planet.initializer.other"
-            title={OTHER_KEYS_TITLE}
-            tail={`${spawn.other_keys.length}`}
-          >
-            <div className="muted ins-hint">{OTHER_KEYS_HINT}</div>
-            <ScriptSnippet text={rawText(spawn.other_keys)} source={source} />
-          </Group>
-        )}
+        <ScriptGroup id="planet.initializer.script" statements={spawn.script} file={file} />
+        <OtherLinesGroup id="planet.initializer.other" statements={spawn.other_keys} file={file} />
       </div>
     </Section>
   );
 }
 
-/** A deposit's or a planet feature's name, as its game data gives it. */
 /** A planet feature's name, as its game data gives it. */
 function useFeatureNamer(): (key: string) => string {
   const modifiers = usePlanetDataStore((s) => s.modifiers);
@@ -433,22 +427,27 @@ export function PoolLines({
   pool,
   stated,
   kind,
+  noun,
+  rows,
   body,
 }: {
   pool: SpawnPool | undefined;
   stated: number;
   kind: PoolKind;
+  /** What the page calls the body, for the cards. */
+  noun: string;
+  /** How many rows the picks show as; one each by default. */
+  rows?: (picks: PoolPick[]) => number;
   body?: (picks: PoolPick[]) => ReactNode;
 }) {
   if (pool === undefined || pool.state === "fixed") return null;
   if (pool.state === "unknown") {
     return (
-      <>
-        <div className="pl-sub-head">
-          <Unknown>{DEPOSITS_UNKNOWN}</Unknown>
-        </div>
-        <div className="muted ins-hint">{kind.unknownWhy}</div>
-      </>
+      <div className="pl-sub-head">
+        <Hinted label={CLASS_SUITED} hint={classSuitedHint(noun)}>
+          <Rolled>{CLASS_SUITED}</Rolled>
+        </Hinted>
+      </div>
     );
   }
   const picks = poolPicks(pool);
@@ -459,7 +458,7 @@ export function PoolLines({
         <span className="ins-st-rolled">
           <RolledMark />
         </span>
-        {poolTitle(stated, kind.tail(picks.length))}
+        {poolTitle(stated, kind.tail(rows === undefined ? picks.length : rows(picks)))}
       </div>
       {body === undefined ? <FeatureOdds picks={picks} /> : body(picks)}
     </>

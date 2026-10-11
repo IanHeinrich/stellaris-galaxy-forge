@@ -1,13 +1,13 @@
 import type { SpawnStar } from "../../../../../generated/SpawnStar";
 import { oddsRows, readableTint, starListName } from "../../../../../lib/details/oddsBars";
-import { STAR_LIST_HINT, starListSource, starOdds } from "../../../../../lib/details/spawnFacts";
+import { starListSource, starOdds } from "../../../../../lib/details/spawnFacts";
 import { starGlyph } from "../../../../../lib/visual/starGlyphs";
 import { useGameDataStore } from "../../../../../store/gameDataStore";
 import { OddsList } from "../../../entity/OddsBar";
 import { useNamed } from "../../../../useNamed";
 import { Icon } from "../../../../parts";
 import { Section } from "../../../parts";
-import { Rolled } from "../../../states";
+import { Hinted, Rolled } from "../../../states";
 
 type RolledStar = Extract<SpawnStar, { state: "rolled" }>;
 
@@ -41,11 +41,13 @@ export function StarListSection({ star }: { star: RolledStar }) {
       id="system.starList"
       title="Star class"
       count={star.members.length}
-      summary={<Rolled>rolled</Rolled>}
+      summary={
+        <Hinted label="Star class" hint={starListSource(star.list)} focusable={false}>
+          <Rolled>rolled</Rolled>
+        </Hinted>
+      }
     >
-      <div className="muted ins-hint">{STAR_LIST_HINT}</div>
       <StarOddsList star={star} />
-      <div className="muted ins-hint">{starListSource(star.list)}</div>
     </Section>
   );
 }

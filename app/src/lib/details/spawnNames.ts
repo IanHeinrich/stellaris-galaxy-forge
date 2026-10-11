@@ -196,14 +196,12 @@ export function rolledNameWhy(given: GivenName, noun: string): string {
 
 /** What the Name row says of a body named after a system that has no name yet. */
 export const NAMED_AFTER_SYSTEM = "Named after the system";
-export const SYSTEM_UNNAMED_WHY = "The game picks the system's name when it starts.";
+export const SYSTEM_UNNAMED_WHY = "The game picks the system's name when a new game starts.";
 
 /** What the Name row says of a body named after a body whose name can't be told yet. */
 export function namedAfterParent(parentNoun: string): string {
   return `Named after the ${parentNoun} it orbits`;
 }
 export function parentUnnamedWhy(parentNoun: string): string {
-  return `That ${parentNoun}'s name isn't known until the game starts.`;
+  return `That ${parentNoun}'s name isn't known until a new game starts.`;
 }
-/** What the Name row says under a name the game draws at random. */
-export const NAME_DRAWN_WHY = "The game draws asteroid names at random.";

@@ -10,7 +10,7 @@ import { useGeometryEdit } from "../../useGeometryEdit";
 import type { Bounds } from "../../../../generated/Bounds";
 import { innerOffsetHint, rangeWords } from "../../../../lib/details/spawnFacts";
 import { LockedRow, Section } from "../../parts";
-import { Rolled, Unknown } from "../../states";
+import { Hinted, Rolled, Unknown } from "../../states";
 
 const KINDS_NEED_GAME_DATA = "Load the game data to change a belt's kind";
 const NO_KINDS: readonly Named[] = [];
@@ -43,12 +43,11 @@ function SpawnInnerRadius({ bounds, offset }: { bounds: Bounds; offset: number |
     );
   }
   return (
-    <>
-      <EditRow label="Inner radius">
+    <EditRow label="Inner radius">
+      <Hinted label="Inner radius" hint={innerOffsetHint(offset)}>
         <Unknown>{bounds.min === bounds.max ? rounded(bounds.min) : rangeWords(bounds)}</Unknown>
-      </EditRow>
-      <div className="muted ins-hint">{innerOffsetHint(offset)}</div>
-    </>
+      </Hinted>
+    </EditRow>
   );
 }
 

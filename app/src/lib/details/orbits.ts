@@ -450,3 +450,12 @@ export function exitBearing(from: Point, to: Point): Bearing {
   const dy = len === 0 ? 0 : (to.y - from.y) / len;
   return { dx, dy, angle: saveAngle(0, 0, dx, dy), rotation: screenRotation(dx, dy) };
 }
+
+/**
+ * Which way a save angle points on screen, as a unit vector with y down: the scene's own mapping,
+ * `polar`'s point flipped by the signs the camera draws the save with.
+ */
+export function screenDirection(angle: number): Point {
+  const { x, y } = polar(0, 0, 1, angle);
+  return { x: SAVE_X_SIGN * x, y: SAVE_Y_SIGN * y };
+}
