@@ -18,7 +18,7 @@ import {
   megastructureThumbKeys,
   type MegastructurePreview,
 } from "../../lib/megastructurePreview";
-import { gridStep } from "../gridKeys";
+import { groupedGridStep } from "../gridKeys";
 import { ENTER } from "../keys";
 import { FilterField } from "../parts";
 import { useTextureUrl } from "../useTextureUrl";
@@ -199,7 +199,8 @@ function Tile({
 
 /**
  * The stages of the selected megastructure as tiles, one row per upgrade chain with a label that
- * tells the rows apart. A tile selects its stage; arrows move the selection and Enter adds it.
+ * tells the rows apart. A tile selects its stage; arrows move the selection, Up and Down to the
+ * same column of the row above or below, and Enter adds it.
  */
 export function MegastructureStages({
   entry,
@@ -232,9 +233,10 @@ export function MegastructureStages({
     if (e.key === ENTER) {
       if (active >= 0 && stages[active].refused === null) onConfirm();
     } else {
-      const to = grid.current && gridStep(active, e.key, stages.length, columnsOf(grid.current));
-      if (to === null || to === "above") return;
-      onSelect(stages[to].key);
+      const rows = entry.chains.map((chain) => ({ items: chain.stages }));
+      const to = grid.current && groupedGridStep(rows, current, e.key, columnsOf(grid.current));
+      if (to === null) return;
+      onSelect(to);
     }
     e.preventDefault();
     e.stopPropagation();
