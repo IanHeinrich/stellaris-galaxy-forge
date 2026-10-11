@@ -147,7 +147,8 @@ Each megastructure and starbase shows its name on a plate under it
 while Names is on. One built on a star or a planet has its plate under
 that body's plate. With System details on, a megastructure that
 produces resources, such as a Dyson Sphere or a Science Nexus, shows
-what it produces each month under its name.
+what it produces each month under its name. This is the base output,
+before your empire's modifiers, so the game can show a different figure.
 
 Hover over a megastructure or starbase to see its name. Click its model
 to open its page in the Inspector. To select a planet or star under a

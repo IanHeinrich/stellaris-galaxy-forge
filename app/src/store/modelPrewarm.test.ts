@@ -10,7 +10,12 @@ import { mockedIpc } from "../test/ipc";
 import { getTextures, resetTextureFetch, textureFetch } from "../test/textures";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
-import { followModelPrewarm, PREWARM_DELAY_MS, resetModelPrewarm } from "./modelPrewarm";
+import {
+  followModelPrewarm,
+  PREWARM_BATCH,
+  PREWARM_DELAY_MS,
+  resetModelPrewarm,
+} from "./modelPrewarm";
 import { resetStores } from "./storeFixture";
 
 const RUIN = megastructureTypeView("ring_world_ruined");
@@ -29,6 +34,7 @@ const USES: ModelUse[] = [
   { kind: "megastructure", key: RUIN.key, culture: "avian_01", entity: null, at: [-45.2, 0] },
   { kind: "megastructure", key: RUIN.key, culture: "avian_01", entity: null, at: [-45.2, 0] },
   { kind: "megastructure", key: "giga_unknown", culture: null, entity: null, at: [3, 4] },
+  { kind: "megastructure", key: RUIN.key, culture: "lithoid_01", entity: null, at: null },
   { kind: "starbase", key: PORT.key, culture: "humanoid_01", entity: null, at: [10, 0] },
   {
     kind: "planet",
@@ -120,5 +126,37 @@ describe("baking a save's models before a system is opened", () => {
     useFileSessionStore.setState({ status: "empty", path: null, kind: null });
     await vi.advanceTimersByTimeAsync(5000);
     expect(mockedIpc.getModelUses).not.toHaveBeenCalled();
+  });
+
+  it("waits for the game data's registries, which land after it reports ready", async () => {
+    useGameDataStore.setState({ status: "ready", version: 1, planetClasses: new Map() });
+    open("a.sav");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(mockedIpc.getModelUses).not.toHaveBeenCalled();
+
+    gameData(1);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(asked()).toEqual(KEYS);
+  });
+
+  it("goes on to the next batch when the cache is cleared under the one in flight", async () => {
+    const stations: ModelUse[] = Array.from({ length: PREWARM_BATCH + 2 }, (_, i) => ({
+      kind: "starbase",
+      key: PORT.key,
+      culture: `culture_${i}`,
+      entity: null,
+      at: null,
+    }));
+    mockedIpc.getModelUses.mockResolvedValue(stations);
+    textureFetch.mode = "never";
+    gameData(1);
+    open("a.sav");
+    await vi.advanceTimersByTimeAsync(PREWARM_DELAY_MS + 10);
+    expect(getTextures).toHaveBeenCalledTimes(1);
+
+    clearTextures();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(getTextures).toHaveBeenCalledTimes(2);
+    expect(getTextures.mock.calls[1][0]).toHaveLength(2);
   });
 });

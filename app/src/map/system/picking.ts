@@ -198,32 +198,32 @@ export function pickHandle(
 }
 
 /**
- * What the world point `at` is over: a plate over a structure's model, then the model, drawn over
- * the bodies; else a body's disc, the body whose plate `plateAt` finds there, a wormhole, one of the
- * `shown` band's handles, a hyperlane arrow, or a megastructure or starbase near its point.
+ * What the world point `at` is over. A wormhole, one of the `shown` band's handles or a hyperlane
+ * arrow comes first where a structure's model covers the point, then the plate `plateAt` finds
+ * there, then the model, which is drawn over the bodies. Elsewhere: a body's disc, the plate
+ * `plateAt` finds, a wormhole, a handle, an arrow, or a megastructure or starbase near its point.
  */
 export function pickTarget(
   ctx: Pick<SystemContext, "bodies" | "wormholes" | "handles" | "exits" | "structures">,
   cam: Camera,
   at: Pt,
-  plateAt: () => number | null,
+  plateAt: () => SceneTarget | null,
   shown: HandleRef | null,
 ): SceneTarget | null {
+  const others = (): SceneTarget | null => {
+    const wormhole = pickWormhole(ctx.wormholes, cam, at);
+    if (wormhole !== null) return { kind: "wormhole", id: wormhole };
+    const handle = pickHandle(ctx.handles, cam, at, shown);
+    if (handle !== null) return { kind: "handle", ref: handle };
+    const exit = pickExit(ctx.exits, cam, at);
+    return exit === null ? null : { kind: "exit", id: exit };
+  };
   const onModel = structureOnModel(ctx.structures, at);
-  if (onModel !== null) {
-    const plate = plateAt();
-    return plate === null ? onModel : { kind: "body", id: plate };
-  }
+  if (onModel !== null) return others() ?? plateAt() ?? onModel;
   // A disc wins over a plate drawn across it, so a body under another's plate stays pickable.
-  const body = pickBody(ctx.bodies, cam, at) ?? plateAt();
+  const body = pickBody(ctx.bodies, cam, at);
   if (body !== null) return { kind: "body", id: body };
-  const wormhole = pickWormhole(ctx.wormholes, cam, at);
-  if (wormhole !== null) return { kind: "wormhole", id: wormhole };
-  const handle = pickHandle(ctx.handles, cam, at, shown);
-  if (handle !== null) return { kind: "handle", ref: handle };
-  const exit = pickExit(ctx.exits, cam, at);
-  if (exit !== null) return { kind: "exit", id: exit };
-  return pickStructure(ctx.structures, cam, at);
+  return plateAt() ?? others() ?? pickStructure(ctx.structures, cam, at);
 }
 
 /** A shown name plate: its top-left in world units and its size in screen pixels. */
@@ -233,6 +233,21 @@ export interface PlatePick {
   y: number;
   w: number;
   h: number;
+}
+
+/** The structure whose shown plate or rows cover the screen point `s`. */
+export function pickStructurePlate(
+  plates: readonly Omit<PlatePick, "id">[] & readonly { target: SceneTarget }[],
+  cam: Camera,
+  s: Pt,
+): SceneTarget | null {
+  const top: Pt = { x: 0, y: 0 };
+  for (const plate of plates) {
+    cam.worldToScreen(plate.x, plate.y, top);
+    const inX = s.x >= top.x && s.x < top.x + plate.w;
+    if (inX && s.y >= top.y && s.y < top.y + plate.h) return plate.target;
+  }
+  return null;
 }
 
 /** The body whose name plate, resource row included, covers the screen point `s`. */

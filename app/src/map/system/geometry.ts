@@ -2,7 +2,7 @@ import type { Bounds } from "../../generated/Bounds";
 import { WORMHOLE_RADIUS } from "../../lib/details/discs";
 import type { BodyPlacement, Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
-import { getModelPlacement, getTexture } from "../../lib/visual/textures";
+import { getModelPlacement, getTexture, onTextures } from "../../lib/visual/textures";
 import { markerScale } from "../layers/MapLayer";
 import type { Exit, SceneBody } from "./context";
 import type { BodyLook } from "./look";
@@ -87,6 +87,20 @@ export function bodyTier(body: SceneBody): number {
 export function modelRadius(key: string): number | null {
   const placement = getTexture(key) ? getModelPlacement(key) : undefined;
   return placement ? Math.max(placement.width, placement.height) / 2 : null;
+}
+
+/**
+ * Calls `then` whenever the model of one of the bodies `bodies` gives lands or is dropped, which
+ * changes how far that body reaches; returns the unsubscribe.
+ */
+export function onBodyModels(
+  bodies: () => readonly Pick<SceneBody, "look">[],
+  then: () => void,
+): () => void {
+  return onTextures((keys) => {
+    const settled = new Set(keys);
+    if (bodies().some((b) => b.look.model !== null && settled.has(b.look.model))) then();
+  });
 }
 
 /**

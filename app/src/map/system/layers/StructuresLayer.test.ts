@@ -24,7 +24,7 @@ import { textureFetch } from "../../../test/textures";
 import { until } from "../../../test/wait";
 import { systemContext, type SceneStructure, type SystemContext } from "../context";
 import { sources } from "../contextFixture";
-import { EARTH, LUNA, MARS, SUN, SYSTEM, viewport } from "../fixture";
+import { EARTH, LUNA, MARS, SUN, SYSTEM, viewport, WORMHOLE } from "../fixture";
 import { pickTarget } from "../picking";
 import type { SystemSources } from "../sources";
 import { answerFetch, decodeByKey, resetTextures } from "./bodiesFixture";
@@ -379,10 +379,32 @@ describe("clicking a structure's model drawn over a body", () => {
     const mars = ctx.bodyById.get(MARS.id)!.placement;
     const earth = ctx.bodyById.get(EARTH.id)!.placement;
     const at = (p: { x: number; y: number }, plate: number | null = null) =>
-      pickTarget(ctx, cam, { x: p.x, y: p.y }, () => plate, null);
+      pickTarget(
+        ctx,
+        cam,
+        { x: p.x, y: p.y },
+        () => (plate === null ? null : { kind: "body", id: plate }),
+        null,
+      );
     expect(at(mars)).toEqual({ kind: "megastructure", id: 9 });
     expect(at(mars, MARS.id)).toEqual({ kind: "body", id: MARS.id });
     expect(at(earth)).toEqual({ kind: "body", id: EARTH.id });
+
+    const hole = { ...WORMHOLE, x: mars.x + 0.5, y: mars.y };
+    const withHole = systemContext({
+      ...SAVE_SOURCES,
+      details: systemDetails({
+        id: SYSTEM,
+        planets: BODIES,
+        megastructures: [furnace],
+        wormholes: [hole],
+      }),
+      sceneLayers: { ...SAVE_SOURCES.sceneLayers, bypasses: true },
+    });
+    expect(pickTarget(withHole, cam, hole, () => null, null)).toEqual({
+      kind: "wormhole",
+      id: hole.id,
+    });
     layer.destroy();
   });
 });

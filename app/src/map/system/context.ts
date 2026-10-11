@@ -1,6 +1,7 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
+import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
@@ -366,6 +367,24 @@ function rowsOf(planet: PlanetSummary, icons: SystemSources["resourceIcons"]) {
   return rows;
 }
 
+/** Each type's production rows as last worked out, so a structure redrawn keeps its rows. */
+const keptProduced = new WeakMap<
+  MegastructureTypeView,
+  { icons: SystemSources["resourceIcons"]; rows: readonly ResourceRow[] }
+>();
+
+function producedOf(
+  type: MegastructureTypeView,
+  icons: SystemSources["resourceIcons"],
+): readonly ResourceRow[] {
+  if (type.produces.length === 0) return NOTHING;
+  const kept = keptProduced.get(type);
+  if (kept?.icons === icons) return kept.rows;
+  const rows = producedRows(type.produces, icons);
+  keptProduced.set(type, { icons, rows });
+  return rows;
+}
+
 function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
   const {
     atmosphere_color: hex,
@@ -722,7 +741,7 @@ function megastructure(
     name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
     level: null,
     on: body?.placement.id ?? null,
-    resources: type ? producedRows(type.produces, src.resourceIcons) : NOTHING,
+    resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
   };
 }
 

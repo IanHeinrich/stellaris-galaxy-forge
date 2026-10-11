@@ -8,12 +8,16 @@ import { until } from "../../../test/wait";
 import { SUN, blankSceneTextures, viewport } from "../drawFixture";
 import { drawnDisc } from "../geometry";
 import { pickBody } from "../picking";
+import { systemContext } from "../context";
 import { BodiesLayer } from "./BodiesLayer";
+import { LocksLayer } from "./LocksLayer";
 import {
   answerFetch,
   classedContext,
   decodeByKey,
+  hazy,
   holderAt,
+  part,
   resetTextures,
   sprite,
 } from "./bodiesFixture";
@@ -80,5 +84,50 @@ describe("a habitat or a ring world segment drawn from its model", () => {
     expect(after).not.toBeCloseTo(before);
     expect(pickBody(ctx.bodies, cam, { x: 60 + 0.9 * after, y: 0 })).toBe(habitat.id);
     layer.destroy();
+  });
+
+  it("hides its shading, haze and ring while the model shows", async () => {
+    decodeByKey();
+    textureFetch.model = (key) => (key.startsWith("model:") ? PLACEMENT : undefined);
+    const round = { ...hazy("pc_round_habitat"), body_model: "orbital_habitat_01_entity" };
+    const habitat = { ...saveBody(2, round.key, [60, 0], 60, 5, SUN), ring: true };
+    const layer = new BodiesLayer(blankSceneTextures());
+    layer.rebuild(classedContext([habitat], [round]));
+    viewport(layer, 4);
+    const holder = holderAt(layer, 60, 0);
+    const extras = ["shade", "rim", "ringBack", "ringFront"];
+    for (const label of extras) expect(part(holder, label)?.visible, label).toBe(true);
+
+    await answerFetch();
+    await until(() => expect(sprite(holder, "model").visible).toBe(true));
+    for (const label of [...extras, "ringBackStrip", "ringFrontStrip"]) {
+      expect(part(holder, label)?.visible, label).toBe(false);
+    }
+    layer.destroy();
+  });
+
+  it("moves a locked habitat's padlock out to the model's edge once the model lands", async () => {
+    decodeByKey();
+    textureFetch.model = (key) => (key.startsWith("model:") ? PLACEMENT : undefined);
+    const habitat = saveBody(2, HABITAT.key, [60, 0], 60, 5, SUN);
+    const base = classedContext([habitat], CLASSES);
+    const ctx = systemContext({ ...base, lockedBodies: new Set([habitat.id]) });
+    const bodies = new BodiesLayer(blankSceneTextures());
+    const locks = new LocksLayer();
+    bodies.rebuild(ctx);
+    locks.rebuild(ctx);
+    viewport(bodies, 4);
+    viewport(locks, 4);
+    const reach = () => {
+      const { minX, maxX } = locks.locks.getLocalBounds();
+      return Math.max(Math.abs(minX - 60), Math.abs(maxX - 60));
+    };
+    const before = reach();
+
+    await answerFetch();
+    await until(() => expect(sprite(holderAt(bodies, 60, 0), "model").visible).toBe(true));
+    expect(reach()).toBeGreaterThan(before);
+    bodies.destroy();
+    locks.destroy();
   });
 });

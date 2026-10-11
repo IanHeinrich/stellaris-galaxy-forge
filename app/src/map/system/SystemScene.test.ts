@@ -19,7 +19,7 @@ import { byId, name, placedNode, saveBody, systemDetails } from "../../test/buil
 import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
 import { bodySpawn } from "../../test/spawn";
 import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./drawFixture";
-import { pickBody } from "./picking";
+import { idOf, pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
 
 stubTextMeasurement();
@@ -236,7 +236,7 @@ describe("the system scene's name plates", () => {
       return pickBody(shown.context().bodies, shown.cam, world) === null;
     };
     const dy = Array.from({ length: 120 }, (_, i) => i + 1).find(
-      (d) => offBody(d) && shown.plateAt(earth.x, earth.y + d) === EARTH.id,
+      (d) => offBody(d) && idOf(shown.plateAt(earth.x, earth.y + d), "body") === EARTH.id,
     );
     if (dy === undefined) throw new Error("no plate under the planet, clear of its disc");
 

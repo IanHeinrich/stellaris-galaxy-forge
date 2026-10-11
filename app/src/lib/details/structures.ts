@@ -76,6 +76,8 @@ export interface ModelSources {
 function keyOfUse(use: ModelUse, src: ModelSources): string | null {
   switch (use.kind) {
     case "megastructure": {
+      // A row with no point is not drawn: the save puts a row on a body at the body's point.
+      if (use.at === null) return null;
       const type = src.megastructureTypes.get(use.key);
       const look = megastructureLook(type);
       if (look.kind !== "model") return null;

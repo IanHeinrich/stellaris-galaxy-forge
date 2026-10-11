@@ -396,7 +396,8 @@ export class BodiesLayer implements SystemLayer {
 
   /**
    * Shows a habitat's or a ring world segment's model at its own size once it lands, with nothing
-   * else of the body drawn; false, with the model hidden, while it bakes or where it cannot.
+   * else of the body drawn; false, with the model hidden and the rest shown, while it bakes or
+   * where it cannot. Runs after the ring is dressed, which shows the ring's parts again.
    */
   private dressModel(drawn: Drawn): boolean {
     const { body, model } = drawn;
@@ -407,8 +408,15 @@ export class BodiesLayer implements SystemLayer {
     const placement = getModelPlacement(key);
     const shown = Boolean(texture && placement);
     model.visible = shown;
-    if (drawn.glow) drawn.glow.visible = !shown;
+    // Each of these is sized to the disc, which now reaches as far as the model.
+    for (const part of [drawn.glow, drawn.shade, drawn.rim]) {
+      if (part) part.visible = !shown;
+    }
     if (!texture || !placement) return false;
+    if (drawn.ring) {
+      const { back, front, backStrip, frontStrip } = drawn.ring;
+      for (const half of [back, front, backStrip, frontStrip]) half.visible = false;
+    }
     model.texture = texture;
     model.anchor.set(placement.anchor_x, placement.anchor_y);
     model.scale.set(
