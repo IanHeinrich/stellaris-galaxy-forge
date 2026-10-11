@@ -104,7 +104,7 @@ function flushQueue(): void {
 }
 
 async function fetchBatch(keys: string[], gen: number): Promise<void> {
-  const views = await getTextures(keys).catch((e: unknown) =>
+  const views = await getTextures(keys).catch((e: unknown): TextureView[] =>
     keys.map((key) => ({ key, width: 0, height: 0, png_base64: null, error: String(e) })),
   );
   const textures = await Promise.all(views.map(toTexture));
