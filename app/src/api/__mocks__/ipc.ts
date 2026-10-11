@@ -94,6 +94,7 @@ export const getPlanetModels = command("getPlanetModels");
 export const getColonyTypes = command("getColonyTypes");
 export const getBypasses = command("getBypasses");
 export const getInitializers = command("getInitializers");
+export const getInitializerDefinition = command("getInitializerDefinition");
 export const getGalaxyShapes = command("getGalaxyShapes");
 export const getPrecursors = command("getPrecursors");
 export const getMapFont = command("getMapFont");

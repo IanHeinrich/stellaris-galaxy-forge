@@ -132,7 +132,7 @@ export function Source({ detail }: { detail: SystemDetail }) {
   return (
     <>
       <Header detail={detail} />
-      <SourceTab addr={{ kind: "system", id: detail.system.id }} />
+      <SourceTab addr={{ kind: "system", id: detail.system.id }} system={detail.system.id} />
     </>
   );
 }

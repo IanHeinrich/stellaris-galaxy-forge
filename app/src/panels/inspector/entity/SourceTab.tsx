@@ -2,13 +2,24 @@ import type { EntityAddr } from "../../../generated/EntityAddr";
 import { kindWords } from "../../../lib/entities";
 import { ScriptSnippet } from "../../ScriptSnippet";
 import { Empty } from "../parts";
+import { InitializerSource } from "./InitializerSource";
 import { useEntitySource } from "./useEntity";
+
+/** The entity's own text, then, where `system` is given, that system's initializer. */
+export function SourceTab({ addr, system }: { addr: EntityAddr; system?: number }) {
+  return (
+    <>
+      <OwnText addr={addr} />
+      {system !== undefined && <InitializerSource system={system} />}
+    </>
+  );
+}
 
 /**
  * The entity's current bytes, read-only, laid out one statement per line for reading, with the
  * text an op changed marked. A scenario writes a whole system as one line; the file keeps it so.
  */
-export function SourceTab({ addr }: { addr: EntityAddr }) {
+function OwnText({ addr }: { addr: EntityAddr }) {
   const { value: source, error } = useEntitySource(addr);
   if (error !== undefined) {
     return (

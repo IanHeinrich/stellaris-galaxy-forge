@@ -17,6 +17,7 @@ import type { EditorPick } from "../generated/EditorPick";
 import type { FlagParts } from "../generated/FlagParts";
 import type { GalaxyShapeView } from "../generated/GalaxyShapeView";
 import type { GameDataSummary } from "../generated/GameDataSummary";
+import type { InitializerDefinition } from "../generated/InitializerDefinition";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
@@ -199,6 +200,11 @@ export function getBypasses(): Promise<BypassView[]> {
 /** Every solar system initializer of the loaded game data; empty without it. */
 export function getInitializers(): Promise<InitializerView[]> {
   return invoke<InitializerView[]>("get_initializers");
+}
+
+/** Initializer `name`'s definition as the file that won it writes it, with its file and line; refused without game data and for a name it lacks. */
+export function getInitializerDefinition(name: string): Promise<InitializerDefinition> {
+  return invoke<InitializerDefinition>("get_initializer_definition", { name });
 }
 
 /** Every galaxy shape a scenario can list itself under, in the loaded game data's order; empty without it. */

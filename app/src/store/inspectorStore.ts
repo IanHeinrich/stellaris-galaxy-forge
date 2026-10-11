@@ -313,7 +313,7 @@ export function tabsFor(
     case "wormhole":
       return ["overview", "data", "source"];
     case "body":
-      return entityAddr(ref) === null ? ["overview"] : entityTabs(hasContents);
+      return entityAddr(ref) === null ? ["overview", "source"] : entityTabs(hasContents);
     case "entity":
       return entityTabs(hasContents);
   }

@@ -534,7 +534,7 @@ pub fn launch_for(
 
 /// The program the user picked and its arguments: `args` split at spaces, a part in double
 /// quotes kept whole, `{file}` and `{line}` put in, the line 1 without one. The file goes last
-/// when `args` does not place it.
+/// when `args` does not place it. A Mac app bundle is a folder, so `open -a` starts it.
 fn other(program: &Path, args: &str, file: &Path, line: Option<u32>) -> Launch {
     let line = line.unwrap_or(1).to_string();
     let parts = split_args(args);
@@ -545,11 +545,27 @@ fn other(program: &Path, args: &str, file: &Path, line: Option<u32>) -> Launch {
     if !parts.iter().any(|part| part.contains("{file}")) {
         out.push(file.as_os_str().to_owned());
     }
+    if is_app_bundle(program) {
+        let mut args: Vec<OsString> = vec!["-a".into(), program.into(), "--args".into()];
+        args.append(&mut out);
+        return Launch {
+            program: PathBuf::from("open"),
+            args,
+            no_console: false,
+        };
+    }
     Launch {
         program: program.to_path_buf(),
         args: out,
         no_console: false,
     }
+}
+
+fn is_app_bundle(program: &Path) -> bool {
+    program
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("app"))
+        && program.is_dir()
 }
 
 fn split_args(args: &str) -> Vec<String> {

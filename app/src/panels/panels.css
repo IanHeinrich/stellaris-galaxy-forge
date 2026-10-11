@@ -694,6 +694,15 @@ button.link.help-link {
   border-left-color: var(--accent);
 }
 
+/* The button at the end of an `inline_script` line that opens the script's file. */
+button.link.snippet-link {
+  margin-left: 12px;
+  padding: 0 4px;
+  font-family: var(--font-ui);
+  font-size: var(--text-hint);
+  user-select: none;
+}
+
 .snippet-changed {
   background: var(--accent-bg-strong);
 }

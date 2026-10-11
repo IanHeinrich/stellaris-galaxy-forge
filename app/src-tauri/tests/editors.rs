@@ -215,6 +215,25 @@ fn the_picked_program_takes_its_arguments_with_the_file_and_line_put_in() {
     );
 }
 
+/// A Mac app picked for Other… is a folder, which `open -a` starts with the arguments after
+/// `--args`.
+#[test]
+fn a_picked_mac_app_is_started_through_open() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let app = dir.path().join("Zed.app");
+    fs::create_dir_all(app.join("Contents/MacOS")).expect("the bundle");
+    let pick = EditorPick::Other {
+        args: "{file}:{line}".to_owned(),
+    };
+    let file = Path::new("/mods/my mod/common/x.txt");
+    let launch = editors::launch_for(&pick, &[], Some(&app), file, Some(7)).expect("a launch");
+    assert_eq!(launch.program, Path::new("open"));
+    let mut expected = args(&["-a"]);
+    expected.push(app.clone().into_os_string());
+    expected.extend(args(&["--args", "/mods/my mod/common/x.txt:7"]));
+    assert_eq!(launch.args, expected);
+}
+
 #[test]
 fn the_picked_program_is_kept_in_a_file_and_named_for_its_file() {
     let dir = tempfile::tempdir().expect("temp dir");

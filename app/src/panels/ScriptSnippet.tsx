@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type Ref } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import * as ipc from "../api/ipc";
 import { layoutLines, lineText, scriptLines, type ScriptLine } from "../lib/scriptText";
 import { useFileSessionStore } from "../store/fileSessionStore";
+import type { OpenTarget } from "../store/scriptEditorStore";
 import { OpenButton } from "./OpenButton";
 import { Twisty } from "./Twisty";
 import "./panels.css";
@@ -22,6 +23,13 @@ export interface SnippetSource {
 export interface SnippetMark {
   first: number;
   last: number;
+}
+
+/** A button at the end of a snippet's line that opens `target`, named `name`. */
+export interface LineLink {
+  line: number;
+  target: OpenTarget;
+  name: string;
 }
 
 /** Copy and the Open button at the right, and the line the snippet starts on where that is known. */
@@ -52,10 +60,12 @@ function Line({
   line,
   marked,
   lineRef,
+  tail,
 }: {
   line: ScriptLine;
   marked: boolean;
   lineRef?: Ref<HTMLSpanElement>;
+  tail?: ReactNode;
 }) {
   const classes = [
     "snippet-line",
@@ -81,6 +91,7 @@ function Line({
           </span>
         );
       })}
+      {tail}
     </span>
   );
 }
@@ -92,7 +103,8 @@ function Line({
  * With `layout`, the text is laid out one statement per line as a game file is, never folded, and
  * its long lines wrap; `changed` then marks the text an edit changed, by offsets into `text`.
  * `mark` draws the line bar beside some of its lines, shows them however long the text is and
- * scrolls the first into view.
+ * scrolls the first into view. `folded={false}` shows a long text whole. Each of `lineLinks` puts
+ * a button that opens its target at the end of its line.
  */
 export function ScriptSnippet({
   text,
@@ -100,12 +112,16 @@ export function ScriptSnippet({
   changed,
   layout = false,
   mark,
+  folded = true,
+  lineLinks = [],
 }: {
   text: string;
   source?: SnippetSource;
   changed?: readonly (readonly [number, number])[];
   layout?: boolean;
   mark?: SnippetMark;
+  folded?: boolean;
+  lineLinks?: readonly LineLink[];
 }) {
   const [all, setAll] = useState(false);
   const firstMarked = useRef<HTMLSpanElement>(null);
@@ -114,7 +130,7 @@ export function ScriptSnippet({
     [text, changed, layout],
   );
   const markedPast = mark !== undefined && mark.last > FOLD_LINES;
-  const long = !layout && !markedPast && lines.length > FOLD_LINES;
+  const long = folded && !layout && !markedPast && lines.length > FOLD_LINES;
   const shown = long && !all ? lines.slice(0, FOLD_LINES) : lines;
   const edited = lines.some((line) => line.changed);
   const isMarked = (n: number) => mark !== undefined && n >= mark.first && n <= mark.last;
@@ -136,6 +152,13 @@ export function ScriptSnippet({
               line={line}
               marked={isMarked(i + 1)}
               lineRef={mark?.first === i + 1 ? firstMarked : undefined}
+              tail={lineLinks
+                .filter((link) => link.line === i + 1)
+                .map((link) => (
+                  <OpenButton key={link.name} className="snippet-link" target={link.target}>
+                    {link.name}
+                  </OpenButton>
+                ))}
             />
           ))}
         </pre>

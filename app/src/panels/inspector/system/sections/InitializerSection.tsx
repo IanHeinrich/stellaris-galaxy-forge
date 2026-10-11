@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { CountryRef } from "../../../../generated/CountryRef";
 import type { SystemNode } from "../../../../generated/SystemNode";
 import type { SystemSpawn } from "../../../../generated/SystemSpawn";
@@ -8,7 +7,6 @@ import { fileName, normalise } from "../../../../lib/paths";
 import { kindLabel } from "../../../../lib/special";
 import { useCanEdit } from "../../../../store/fileSessionStore";
 import { useGameDataStore } from "../../../../store/gameDataStore";
-import { useScriptsStore } from "../../../../store/scriptsStore";
 import { browseInitializers, INITIALIZERS_NEED_GAME_DATA } from "../../../initializers/entry";
 import { useApplySymmetricOp } from "../../../useApplyOp";
 import { useNamed } from "../../../useNamed";
@@ -17,6 +15,7 @@ import { OpenButton } from "../../../OpenButton";
 import { showInFolder } from "../../../openGameFile";
 import { Properties, PropertyRow, Section } from "../../parts";
 import { Hinted } from "../../states";
+import { useInitializerDefinition } from "../../../../store/initializerDefinitionStore";
 import { kindHover } from "./kindHover";
 import { InitializerSpawn } from "./scenario/Initializer";
 import { StatedGroups, StatedRows } from "./scenario/InitializerFacts";
@@ -75,21 +74,12 @@ function CountriesRow({ label, countries }: { label: string; countries: readonly
 }
 
 /**
- * The line of `file` that defines the system's initializer, as the Scripts tab lists it; null
- * until the scripts are read, or where they name another file.
+ * The line of `file` that defines the system's initializer; null until the definition is read,
+ * or where it is in another file.
  */
 function useDefinitionLine(system: SystemNode, file: string | null): number | null {
-  const request = useScriptsStore((s) => s.request);
-  const scripts = useScriptsStore((s) => s.scripts.get(system.id));
-  const version = useScriptsStore((s) => s.version);
-
-  useEffect(() => {
-    if (file !== null) request(system.id);
-  }, [file, system.id, request, version]);
-
-  const own = scripts?.rows.find((r) => r.kind === "initializer" && r.name === system.initializer);
-  const at = own?.sites[0]?.location;
-  if (file === null || at?.file == null || normalise(at.file) !== normalise(file)) return null;
+  const at = useInitializerDefinition(system.initializer)?.value?.at;
+  if (file === null || at === undefined || normalise(at.file) !== normalise(file)) return null;
   return at.line;
 }
 
