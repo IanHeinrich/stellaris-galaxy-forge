@@ -737,6 +737,7 @@ impl GameData {
             permanent_modifiers: None,
             anomaly: None,
             entity_name: None,
+            culture: None,
             spawn: None,
             class,
         }

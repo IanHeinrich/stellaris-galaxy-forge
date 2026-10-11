@@ -38,6 +38,7 @@ pub fn configure<R: Runtime>(builder: Builder<R>) -> Builder<R> {
             commands::get_galaxy,
             commands::search,
             commands::warm_details,
+            commands::get_model_uses,
             commands::apply_op,
             commands::add_random_system,
             commands::add_special_system,

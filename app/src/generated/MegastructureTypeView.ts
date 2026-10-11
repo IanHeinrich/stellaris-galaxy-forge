@@ -31,4 +31,13 @@ bypass_type: string | null,
 /**
  * The types this one is built over, in file order.
  */
-upgrade_from: Array<string>, };
+upgrade_from: Array<string>, 
+/**
+ * `rotate_to_center`: the model turns to face the system's centre. Yes unless the type
+ * says no.
+ */
+rotate_to_center: boolean, 
+/**
+ * What `resources = { produces = { … } }` gives each month, per resource, in file order.
+ */
+produces: Array<[string, number]>, };

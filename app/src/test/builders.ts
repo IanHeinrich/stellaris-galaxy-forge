@@ -403,6 +403,8 @@ export function megastructureTypeView(
     build_type: "around_planet",
     bypass_type: null,
     upgrade_from: [],
+    rotate_to_center: true,
+    produces: [],
     ...over,
   };
 }

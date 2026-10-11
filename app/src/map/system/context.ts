@@ -34,11 +34,13 @@ import {
   type RolledPlanet,
   type SystemLayout,
 } from "../../lib/details/orbits";
-import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
+import { planetResourceRows, producedRows, type ResourceRow } from "../../lib/details/resources";
 import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import {
+  bodyModelKey,
   megastructureLook,
+  megastructureYaw,
   modelKey,
   planetScale,
   starbaseLook,
@@ -242,10 +244,14 @@ export interface SceneStructure {
   readonly scale: number;
   /** The map icon drawn in place of a model the game data does not know or that cannot be baked. */
   readonly iconKeys: readonly string[];
-  /** What its tooltip calls it. */
+  /** What its tooltip and its name plate call it. */
   readonly name: string;
   /** Its starbase level as the Station section names it; null for a megastructure. */
   readonly level: string | null;
+  /** The body it stands on, under whose plate its own goes; null where it stands alone. */
+  readonly on: number | null;
+  /** What it produces each month, per resource, as the Details layer shows it under its plate. */
+  readonly resources: readonly ResourceRow[];
 }
 
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
@@ -297,6 +303,8 @@ interface DrawnClass {
   drawn: boolean;
   /** The model a save names for a planet, drawn in place of its class's; null for none. */
   model: string | null;
+  /** The texture key of the model drawn in place of its disc; null for a body drawn as a disc. */
+  bodyModel: string | null;
   /** The planet's id, which a shattered class breaks by; null for a star. */
   id: number | null;
 }
@@ -325,6 +333,7 @@ function artOf(drawn: DrawnClass, src: SystemSources, planet: PlanetSummary | nu
     kept.drawn.starClass === drawn.starClass &&
     kept.drawn.drawn === drawn.drawn &&
     kept.drawn.model === drawn.model &&
+    kept.drawn.bodyModel === drawn.bodyModel &&
     kept.drawn.id === drawn.id &&
     kept.planetClasses === src.planetClasses &&
     kept.starClasses === src.starClasses
@@ -370,7 +379,7 @@ function atmosphereOf(view: PlanetClassView | undefined): Atmosphere | null {
 
 /** A star's art is its star class's; a planet's is its class's icons and haze, none for a draw. */
 function freshArt(
-  { planetClass, starClass, drawn, model, id }: DrawnClass,
+  { planetClass, starClass, drawn, model, bodyModel, id }: DrawnClass,
   src: SystemSources,
 ): BodyArt {
   if (starClass !== null) {
@@ -397,6 +406,7 @@ function freshArt(
     asteroid: view?.asteroid === true,
     model,
     shatterSeed: seed,
+    bodyModel,
   });
   const sprite = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const small = view?.hidden_model === true ? [...sprite, ...PLANET_ICON_KEYS] : sprite;
@@ -468,7 +478,14 @@ function galaxyStars(src: SystemSources): SceneBody[] {
       marks: NO_MARKS,
       readout: null,
       ...artOf(
-        { planetClass: star.class, starClass, drawn: false, model: null, id: null },
+        {
+          planetClass: star.class,
+          starClass,
+          drawn: false,
+          model: null,
+          bodyModel: null,
+          id: null,
+        },
         src,
         null,
       ),
@@ -536,6 +553,10 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
     if (!planet) return [];
     const drawn = !placement.star && planet.drawn === true;
     const starClass = placement.star ? (planet.star_class ?? system) : null;
+    const bodyModel =
+      placement.star || drawn
+        ? null
+        : bodyModelKey(src.planetClasses.get(planet.class), planet, [placement.x, placement.y]);
     return [
       {
         placement,
@@ -554,6 +575,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
             starClass,
             drawn,
             model: planet.entity_name ?? null,
+            bodyModel,
             id: planet.id,
           },
           src,
@@ -689,14 +711,18 @@ function megastructure(
   const offset = type?.entity_offset ?? [0, 0];
   const placed = placeStructure(look, body, row.at, offset, type?.scales_with_planet === true);
   if (placed === null) return null;
+  const point: [number, number] | null = body ? [body.placement.x, body.placement.y] : row.at;
+  const yaw = megastructureYaw(type, point);
   return {
     kind: "megastructure",
     id: row.id,
     ...placed,
-    modelKey: look.kind === "model" ? modelKey(row.culture, look.entity) : null,
+    modelKey: look.kind === "model" ? modelKey(row.culture, look.entity, yaw) : null,
     iconKeys: [MEGASTRUCTURE_ICON_KEY],
     name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
     level: null,
+    on: body?.placement.id ?? null,
+    resources: type ? producedRows(type.produces, src.resourceIcons) : NOTHING,
   };
 }
 
@@ -723,6 +749,8 @@ function starbase(
     iconKeys: starbaseKeys(station.level, src.starbaseLevels, owner),
     name: src.templateName(station) || label,
     level: label,
+    on: body?.placement.id ?? null,
+    resources: NOTHING,
   };
 }
 
@@ -812,6 +840,8 @@ export function systemContext(
         src.starbaseLevels,
         src.names,
         src.countries,
+        src.resourceIcons,
+        src.gameDataReady,
       ],
       () => sceneStructures(src, bodyById),
     ),

@@ -29,6 +29,7 @@ export const getGalaxy = command("getGalaxy");
 export const getSystem = command("getSystem");
 export const search = command("search");
 export const warmDetails = command("warmDetails");
+export const getModelUses = command("getModelUses");
 export const applyOp = command("applyOp");
 export const addRandomSystem = command("addRandomSystem");
 export const addBody = command("addBody");

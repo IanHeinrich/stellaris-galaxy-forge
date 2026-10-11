@@ -84,6 +84,8 @@ pub struct RawPlanet {
     pub anomaly: Option<String>,
     /// `entity_name`: the model the planet is drawn as, in place of its class's.
     pub entity_name: Option<String>,
+    /// Its owner's `graphical_culture`.
+    pub culture: Option<String>,
     /// `shipclass_orbital_station`: the mining or research station's fleet.
     pub station: Option<u32>,
 }
@@ -363,6 +365,9 @@ pub(super) fn planets(
         raw.pre_ftl = planet
             .owner
             .is_some_and(|o| countries.primitives.contains(&o));
+        raw.culture = planet
+            .owner
+            .and_then(|o| countries.cultures.get(&o).cloned());
         for kind in planet.deposits.iter().filter_map(|d| deposit_kind.get(d)) {
             match raw.deposits.iter_mut().find(|(k, _)| k == kind) {
                 Some((_, count)) => *count += 1,
@@ -425,6 +430,7 @@ fn raw_planet(id: u32, planet: &PlanetFacts, node: &Node, src: &[u8], role: Body
         permanent_modifiers: permanent_modifiers(node, src),
         anomaly: planet.anomaly.clone(),
         entity_name: planet.entity_name.clone(),
+        culture: None,
         station: planet.station,
     }
 }

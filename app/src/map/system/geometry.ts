@@ -2,6 +2,7 @@ import type { Bounds } from "../../generated/Bounds";
 import { WORMHOLE_RADIUS } from "../../lib/details/discs";
 import type { BodyPlacement, Ring } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
+import { getModelPlacement, getTexture } from "../../lib/visual/textures";
 import { markerScale } from "../layers/MapLayer";
 import type { Exit, SceneBody } from "./context";
 import type { BodyLook } from "./look";
@@ -82,12 +83,26 @@ export function bodyTier(body: SceneBody): number {
   return body.placement.star ? 0 : body.moon ? 2 : 1;
 }
 
+/** Half the longer side of the landed model sprite `key`, in save units; null until it lands. */
+export function modelRadius(key: string): number | null {
+  const placement = getTexture(key) ? getModelPlacement(key) : undefined;
+  return placement ? Math.max(placement.width, placement.height) / 2 : null;
+}
+
 /**
  * A body's drawn disc radius in world units at `scale`: its own, or the screen-pixel floor, and
- * for a body of a flat `look` no more than half `FLAT_BODY_MAX_PX` on screen.
+ * for a body of a flat `look` no more than half `FLAT_BODY_MAX_PX` on screen. A body drawn from
+ * its model reaches half the model sprite's longer side once it lands.
  */
-export function drawnDisc(disc: number, scale: number, look?: Pick<BodyLook, "flat">): number {
-  const r = Math.max(disc, (BODY_FLOOR_PX * markerScale(scale)) / scale);
+export function drawnDisc(
+  disc: number,
+  scale: number,
+  look?: Pick<BodyLook, "flat"> & Partial<Pick<BodyLook, "model">>,
+): number {
+  const floor = (BODY_FLOOR_PX * markerScale(scale)) / scale;
+  const model = look?.model ? modelRadius(look.model) : null;
+  if (model !== null) return Math.max(model, floor);
+  const r = Math.max(disc, floor);
   return look?.flat ? Math.min(r, FLAT_BODY_MAX_PX / 2 / scale) : r;
 }
 

@@ -5,7 +5,9 @@
 use crate::common;
 
 use base64::prelude::*;
+use image::RgbaImage;
 use sgf_gamedata::GameData;
+use sgf_gamedata::textures::{ModelPlacement, Textures};
 use tempfile::TempDir;
 
 /// A box assembly: the box at the root and again at a locator 30 world units along model Z.
@@ -40,6 +42,19 @@ entity = {
 \tpdxmesh = \"box_mesh\"
 \tmeshsettings = { name = \"boxShape\" index = 0 shader = \"PdxMeshAlphaAdditive\" }
 }
+entity = {
+\tname = \"mammalian_01_furnace_entity\"
+\tpdxmesh = \"furnace_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_ball_entity\"
+\tpdxmesh = \"ball_mesh\"
+}
+entity = {
+\tname = \"mammalian_01_moon_entity\"
+\tlocator = { name = \"side\" position = { 0 0 30 } }
+\tattach = { side = \"mammalian_01_ball_entity\" }
+}
 ";
 
 /// Two cultures that fall back in a chain to `mammalian_01`, and two that fall back to each
@@ -53,14 +68,23 @@ loop_b = { fallback = loop_a }
 const MESHES: &str = "objectTypes = {
 \tpdxmesh = { name = \"box_mesh\" file = \"gfx/models/test/box.mesh\" }
 \tpdxmesh = { name = \"broken_mesh\" file = \"gfx/models/test/broken.mesh\" }
+\tpdxmesh = { name = \"furnace_mesh\" file = \"gfx/models/test/furnace.mesh\" }
+\tpdxmesh = { name = \"ball_mesh\" file = \"gfx/models/test/ball.mesh\" }
 }
 ";
 
-/// A box 40 world units along model X, 6 along Y and 10 along Z, centred on the origin.
-fn box_mesh() -> Vec<u8> {
-    let (x, y, z) = (20.0f32, 3.0f32, 5.0f32);
-    let corners: Vec<f32> = (0..8)
-        .flat_map(|i| {
+/// One mesh of a shape the test writes: its vertices, triangles, shader and diffuse map.
+struct MeshData {
+    positions: Vec<[f32; 3]>,
+    triangles: Vec<[i32; 3]>,
+    shader: &'static str,
+    diffuse: Option<&'static str>,
+}
+
+/// A box `2x` world units along model X, `2y` along Y and `2z` along Z, centred on the origin.
+fn cuboid(x: f32, y: f32, z: f32) -> MeshData {
+    let positions = (0..8)
+        .map(|i| {
             let pick = |bit: u32, v: f32| if i & bit == 0 { -v } else { v };
             [pick(1, x), pick(2, y), pick(4, z)]
         })
@@ -73,13 +97,55 @@ fn box_mesh() -> Vec<u8> {
         [0, 2, 6, 4],
         [1, 5, 7, 3],
     ];
-    let tri: Vec<i32> = faces
-        .iter()
-        .flat_map(|[a, b, c, d]| [*a, *b, *c, *a, *c, *d])
-        .collect();
-    let normals: Vec<f32> = (0..8).flat_map(|_| [0.0, 1.0, 0.0]).collect();
-    let uvs: Vec<f32> = (0..8).flat_map(|_| [0.5, 0.5]).collect();
+    MeshData {
+        positions,
+        triangles: faces
+            .iter()
+            .flat_map(|[a, b, c, d]| [[*a, *b, *c], [*a, *c, *d]])
+            .collect(),
+        shader: "PdxMeshStandard",
+        diffuse: None,
+    }
+}
 
+/// A sphere of `radius` world units about the origin.
+fn sphere(radius: f32, shader: &'static str, diffuse: Option<&'static str>) -> MeshData {
+    const RINGS: i32 = 12;
+    const SEGMENTS: i32 = 24;
+    let mut positions = Vec::new();
+    for ring in 0..=RINGS {
+        let (sin_t, cos_t) = (std::f32::consts::PI * ring as f32 / RINGS as f32).sin_cos();
+        for segment in 0..SEGMENTS {
+            let (sin_p, cos_p) =
+                (std::f32::consts::TAU * segment as f32 / SEGMENTS as f32).sin_cos();
+            positions.push([
+                radius * sin_t * cos_p,
+                radius * cos_t,
+                radius * sin_t * sin_p,
+            ]);
+        }
+    }
+    let at = |ring: i32, segment: i32| ring * SEGMENTS + segment.rem_euclid(SEGMENTS);
+    let triangles = (0..RINGS)
+        .flat_map(|ring| {
+            (0..SEGMENTS).flat_map(move |s| {
+                [
+                    [at(ring, s), at(ring + 1, s), at(ring + 1, s + 1)],
+                    [at(ring, s), at(ring + 1, s + 1), at(ring, s + 1)],
+                ]
+            })
+        })
+        .collect();
+    MeshData {
+        positions,
+        triangles,
+        shader,
+        diffuse,
+    }
+}
+
+/// A binary `.mesh` file of `shapes`, each a name and its meshes.
+fn mesh_file(shapes: &[(&str, Vec<MeshData>)]) -> Vec<u8> {
     let mut mesh = b"@@b@".to_vec();
     let object = |mesh: &mut Vec<u8>, depth: usize, name: &str| {
         mesh.extend(std::iter::repeat_n(b'[', depth));
@@ -97,19 +163,56 @@ fn box_mesh() -> Vec<u8> {
         header(mesh, name, b'f', values.len());
         mesh.extend(values.iter().flat_map(|v| v.to_le_bytes()));
     };
+    let text = |mesh: &mut Vec<u8>, name: &str, value: &str| {
+        header(mesh, name, b's', 1);
+        mesh.extend((value.len() as u32 + 1).to_le_bytes());
+        mesh.extend(value.as_bytes());
+        mesh.push(0);
+    };
     object(&mut mesh, 1, "object");
-    object(&mut mesh, 2, "boxShape");
-    object(&mut mesh, 3, "mesh");
-    floats(&mut mesh, "p", &corners);
-    floats(&mut mesh, "n", &normals);
-    floats(&mut mesh, "u0", &uvs);
-    header(&mut mesh, "tri", b'i', tri.len());
-    mesh.extend(tri.iter().flat_map(|v| v.to_le_bytes()));
-    object(&mut mesh, 4, "material");
-    header(&mut mesh, "shader", b's', 1);
-    mesh.extend(16u32.to_le_bytes());
-    mesh.extend(b"PdxMeshStandard\0");
+    for (name, meshes) in shapes {
+        object(&mut mesh, 2, name);
+        for data in meshes {
+            let count = data.positions.len();
+            object(&mut mesh, 3, "mesh");
+            floats(&mut mesh, "p", data.positions.as_flattened());
+            floats(&mut mesh, "n", &[0.0, 1.0, 0.0].repeat(count));
+            floats(&mut mesh, "u0", &[0.5, 0.5].repeat(count));
+            let tri = data.triangles.as_flattened();
+            header(&mut mesh, "tri", b'i', tri.len());
+            mesh.extend(tri.iter().flat_map(|v| v.to_le_bytes()));
+            object(&mut mesh, 4, "material");
+            text(&mut mesh, "shader", data.shader);
+            if let Some(diffuse) = data.diffuse {
+                text(&mut mesh, "diff", diffuse);
+            }
+        }
+    }
     mesh
+}
+
+/// A box 40 world units along model X, 6 along Y and 10 along Z, centred on the origin.
+fn box_mesh() -> Vec<u8> {
+    mesh_file(&[("boxShape", vec![cuboid(20.0, 3.0, 5.0)])])
+}
+
+/// A planet's texture, kept where the game keeps them.
+const LAVA: &str = "gfx/models/planets/lava_diffuse.dds";
+
+/// A ball 16 world units across, textured as a planet.
+fn ball() -> MeshData {
+    sphere(8.0, "PdxMeshShipDiffuseEmissive", Some("lava_diffuse.dds"))
+}
+
+/// A bar 40 world units along model X through a planet at the origin, in an atmosphere.
+fn furnace_mesh() -> Vec<u8> {
+    mesh_file(&[
+        ("furnaceShape", vec![cuboid(20.0, 1.0, 1.0), ball()]),
+        (
+            "atmosphereShape",
+            vec![sphere(15.0, "PdxMeshAtmosphere", None)],
+        ),
+    ])
 }
 
 fn boxes() -> (TempDir, GameData) {
@@ -117,6 +220,12 @@ fn boxes() -> (TempDir, GameData) {
         ("gfx/models/test/box.asset", ENTITIES.as_bytes().to_vec()),
         ("gfx/models/test/box.gfx", MESHES.as_bytes().to_vec()),
         ("gfx/models/test/box.mesh", box_mesh()),
+        ("gfx/models/test/furnace.mesh", furnace_mesh()),
+        (
+            "gfx/models/test/ball.mesh",
+            mesh_file(&[("ballShape", vec![ball()])]),
+        ),
+        (LAVA, b"not a texture".to_vec()),
         ("gfx/models/test/broken.mesh", b"@@b@[[[".to_vec()),
         ("common/planet_classes/00_none.txt", Vec::new()),
         (
@@ -148,9 +257,9 @@ fn a_box_assembly_bakes_at_its_size_with_model_x_along_save_y() {
     let placement = view.model.expect("a model sprite holds its placement");
     // Screen-right is −save x, so the origin sits towards the right of a box assembly that
     // reaches 3.5 units along +save x and 0.5 along −save x. Height is the 4 units of save y
-    // foreshortened by the 41.4° tilt, plus the box's 0.6 height seen at that tilt.
+    // foreshortened by the 15° tilt, plus the box's 0.6 height seen at that tilt.
     assert!(close(placement.width, 4.08, 0.02), "{placement:?}");
-    assert!(close(placement.height, 3.47, 0.02), "{placement:?}");
+    assert!(close(placement.height, 4.10, 0.02), "{placement:?}");
     assert!((placement.anchor_x - 0.868).abs() < 0.01, "{placement:?}");
     assert!((placement.anchor_y - 0.5).abs() < 0.01, "{placement:?}");
     assert!(view.width.max(view.height) >= 250);
@@ -235,6 +344,70 @@ fn a_culture_without_a_model_of_its_own_draws_its_fallbacks() {
     assert!(close(fallen, 2.0 * avian, 0.02));
 }
 
+/// A model sprite and its placement.
+fn sprite(gd: &GameData, textures: &Textures, key: &str) -> (RgbaImage, ModelPlacement) {
+    let view = gd.texture(textures, key);
+    assert_eq!(view.error, None, "{key}");
+    let placement = view.model.expect("a model sprite holds its placement");
+    let png = gd.texture_png(textures, key).expect("a PNG");
+    let image = image::load_from_memory(&png)
+        .expect("it decodes")
+        .to_rgba8();
+    (image, placement)
+}
+
+/// The alpha of the pixel the model's origin falls on.
+fn alpha_at_origin(image: &RgbaImage, placement: &ModelPlacement) -> u8 {
+    let x = (placement.anchor_x * f64::from(image.width())) as u32;
+    let y = (placement.anchor_y * f64::from(image.height())) as u32;
+    image.get_pixel(x, y).0[3]
+}
+
+/// The share of the pixels within `radius` save units of the model's origin that are clear.
+fn clear_share_within(image: &RgbaImage, placement: &ModelPlacement, radius: f64) -> f64 {
+    let per_unit = f64::from(image.width()) / placement.width;
+    let origin_x = placement.anchor_x * f64::from(image.width());
+    let origin_y = placement.anchor_y * f64::from(image.height());
+    let (mut inside, mut clear) = (0u32, 0u32);
+    for (x, y, pixel) in image.enumerate_pixels() {
+        let dx = f64::from(x) + 0.5 - origin_x;
+        let dy = f64::from(y) + 0.5 - origin_y;
+        if dx.hypot(dy) < radius * per_unit {
+            inside += 1;
+            clear += u32::from(pixel.0[3] == 0);
+        }
+    }
+    f64::from(clear) / f64::from(inside.max(1))
+}
+
+#[test]
+fn a_planet_a_model_is_built_round_is_left_clear_and_its_atmosphere_is_not_drawn() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+
+    let (furnace, placement) = sprite(&gd, &textures, "model:mammalian_01:furnace_entity");
+    assert_eq!(
+        alpha_at_origin(&furnace, &placement),
+        0,
+        "the planet hides the bar behind it and is left clear"
+    );
+    assert!(
+        furnace.pixels().any(|p| p.0[3] == 255),
+        "the bar beyond the planet is drawn"
+    );
+    // The planet is 1.6 units across and the atmosphere 3.
+    assert!(placement.width < 2.0, "{placement:?}");
+
+    let (alone, _) = sprite(&gd, &textures, "model:mammalian_01:ball_entity");
+    assert!(alone.pixels().all(|p| p.0[3] == 0));
+
+    let (moon, _) = sprite(&gd, &textures, "model:mammalian_01:moon_entity");
+    assert!(
+        moon.pixels().any(|p| p.0[3] == 255),
+        "a ball away from the model's origin is drawn"
+    );
+}
+
 /// Each model and its size along save x, save y and height in save units.
 const INSTALL_MODELS: [(&str, [f64; 3]); 3] = [
     ("thinktank_phase_03_entity", [13.5, 36.1, 10.7]),
@@ -261,8 +434,8 @@ fn the_installs_megastructures_and_starport_have_their_game_sizes() {
 
     let nexus = gd.texture(&textures, "model:mammalian_01:thinktank_phase_03_entity");
     let placement = nexus.model.expect("the Nexus bakes");
-    assert!(close(placement.width, 14.07, 0.02), "{placement:?}");
-    assert!(close(placement.height, 30.01, 0.02), "{placement:?}");
+    assert!(close(placement.width, 14.27, 0.02), "{placement:?}");
+    assert!(close(placement.height, 36.52, 0.02), "{placement:?}");
     assert!((placement.anchor_x - 0.5).abs() < 0.01, "{placement:?}");
     assert!((placement.anchor_y - 0.5).abs() < 0.01, "{placement:?}");
     let png = BASE64_STANDARD
@@ -292,6 +465,15 @@ fn the_installs_megastructures_and_starport_have_their_game_sizes() {
         "the normal and specular maps were found and decoded"
     );
 
+    let key = "model:mammalian_01:arc_crucible_stage_4_entity";
+    let (furnace, placement) = sprite(gd, &textures, key);
+    // Its hub stands over the planet's pole, so the planet shows between the spokes.
+    let clear = clear_share_within(&furnace, &placement, 0.4);
+    assert!(
+        clear > 0.5,
+        "the Arc Furnace leaves its planet clear: {clear}"
+    );
+
     let missing = gd.texture(&textures, "model:mammalian_01:no_such_megastructure_entity");
     assert!(missing.png_base64.is_none());
     assert!(
@@ -299,4 +481,45 @@ fn the_installs_megastructures_and_starport_have_their_game_sizes() {
             .error
             .is_some_and(|e| e.contains("no_such_megastructure_entity"))
     );
+}
+
+#[test]
+fn a_yaw_in_the_key_turns_the_model_about_its_up_axis() {
+    let (_dir, gd) = boxes();
+    let (_cache, textures) = common::temp_textures();
+    let size = |key: &str| {
+        gd.model_bounds(key)
+            .unwrap_or_else(|e| panic!("{key}: {e}"))
+            .size()
+    };
+    let straight = size("model:mammalian_01:box_entity");
+    let turned = size("model:mammalian_01:box_entity:yaw90");
+    assert!(close(straight[0], 1.0, 1e-4) && close(straight[1], 4.0, 1e-4), "{straight:?}");
+    assert!(close(turned[0], 4.0, 1e-4) && close(turned[1], 1.0, 1e-4), "{turned:?}");
+    assert_eq!(size("model:mammalian_01:box_entity:yaw450"), turned);
+
+    let bounds = gd.model_bounds("model:mammalian_01:pair_entity:yaw90").expect("the pair");
+    assert!(
+        close(bounds.min[1], -3.5, 1e-4) && close(bounds.max[1], 0.5, 1e-4),
+        "a quarter turn takes model Z, +save x, to model X, −save y: {bounds:?}"
+    );
+
+    let view = gd.texture(&textures, "model:mammalian_01:box_entity:yaw90");
+    let placement = view.model.expect("the turned box bakes");
+    assert!(close(placement.width, 4.08, 0.02), "{placement:?}");
+    for bad in ["model:mammalian_01:box_entity:spin90", "model:mammalian_01:box_entity:yaw"] {
+        assert!(gd.model_bounds(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
+fn a_ring_world_quadrant_turns_its_side_pieces_to_face_its_star() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let key = "model:mammalian_01:ringworld_3x_seams_entity";
+    let size = gd.model_bounds(key).unwrap_or_else(|e| panic!("{key}: {e}")).size();
+    // Three pieces of a ring 90 units across, the side ones a 30° turn either way round it,
+    // so the quadrant bows towards the star.
+    assert!(close(size[0], 13.8, 0.03), "{size:?}");
 }

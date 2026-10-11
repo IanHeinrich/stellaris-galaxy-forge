@@ -1,14 +1,17 @@
-//! `model:<culture>:<entity>`: a megastructure's or starbase's model, its meshes read from
-//! their `.mesh` files and drawn at the system view's tilt, at the size the game draws it.
+//! `model:<culture>:<entity>[:yaw<degrees>]`: a megastructure's or starbase's model, its
+//! meshes read from their `.mesh` files, turned by the yaw about its up axis and drawn from
+//! above at a slight tilt, at the size the game draws it.
 //! The entity is looked up as `<culture>_<entity>`, then `mammalian_01_<entity>`, then
 //! `<entity>`. Skipped: skinned animation (the bind pose is drawn), particles, specular and
-//! environment light, bloom, and additive and scrolling extras such as the Dyson Sphere's rays.
+//! environment light, bloom, atmospheres, and additive and scrolling extras such as the Dyson
+//! Sphere's rays. A planet the model holds, as the Arc Furnace's, hides what is behind it but
+//! is left clear, so the editor's own planet shows through.
 
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use image::RgbaImage;
@@ -29,9 +32,16 @@ mod space;
 
 pub(crate) use assets::Assets;
 
-/// Shaders whose meshes are not drawn: collision volumes, glows added over the model, and
-/// effects drawn by scrolling their texture, such as the Hyper Relay's portal.
-const SKIPPED_SHADERS: [&str; 3] = ["Collision", "Additive", "AnimateUV"];
+/// Shaders whose meshes are not drawn: collision volumes, glows added over the model, effects
+/// drawn by scrolling their texture, such as the Hyper Relay's portal, and planet atmospheres.
+const SKIPPED_SHADERS: [&str; 4] = ["Collision", "Additive", "AnimateUV", "Atmosphere"];
+/// Where planet textures are: a sphere about the model's origin drawn with one is the planet
+/// the model is built round.
+const PLANET_TEXTURES: &str = "gfx/models/planets/";
+/// How far a sphere's farthest vertex may be from its centre, against its nearest.
+const SPHERE_SPREAD: f32 = 1.3;
+/// How far a planet's centre may be from the model's origin, as a share of its radius.
+const PLANET_OFF_CENTRE: f32 = 0.15;
 /// The width a texture is decoded at, or the nearest mip level to it.
 const TEXTURE_WIDTH: u32 = 512;
 
@@ -63,6 +73,8 @@ impl ModelBounds {
 /// its cache name covers.
 pub(super) struct ModelJob {
     entity: String,
+    /// The turn about model Y, in whole degrees.
+    yaw: u16,
     layout: Layout,
     assets: Arc<Assets>,
     parts: Vec<Part>,
@@ -91,6 +103,8 @@ struct Look {
     diffuse: Option<PathBuf>,
     normal: Option<PathBuf>,
     specular: Option<PathBuf>,
+    /// Drawn with a texture from [`PLANET_TEXTURES`].
+    planet_textured: bool,
 }
 
 impl Hash for ModelJob {
@@ -99,6 +113,7 @@ impl Hash for ModelJob {
             layer.root.hash(state);
         }
         self.parts.hash(state);
+        self.yaw.hash(state);
     }
 }
 
@@ -117,6 +132,7 @@ impl ModelJob {
         assets: Arc<Assets>,
         cultures: &[String],
         entity: &str,
+        yaw: u16,
     ) -> Result<Self, TextureError> {
         let missing = || TextureError::NoModel(entity.to_owned());
         let name = assets.entity_name(cultures, entity).ok_or_else(missing)?;
@@ -147,6 +163,7 @@ impl ModelJob {
             .collect();
         Ok(Self {
             entity: entity.to_owned(),
+            yaw,
             layout: layout.clone(),
             assets,
             parts,
@@ -178,7 +195,7 @@ impl ModelJob {
                     continue;
                 }
             };
-            let mut transform = Affine::IDENTITY;
+            let mut transform = Affine::yaw(f32::from(self.yaw).to_radians());
             for step in &part.placed.steps {
                 let at = match step {
                     Step::Fixed(at) => *at,
@@ -232,16 +249,37 @@ impl ModelJob {
                 if skipped || mesh.triangles.is_empty() {
                     continue;
                 }
+                let diffuse = texture(pick(settings.map(|ms| &ms.diffuse), &material.diffuse));
+                let normal = texture(pick(settings.map(|ms| &ms.normal), &material.normal));
+                let specular = texture(pick(settings.map(|ms| &ms.specular), &material.specular));
+                let own = [&material.diffuse, &material.normal, &material.specular]
+                    .map(|name| texture(Some(name.clone())));
+                let planet_textured = [&diffuse, &normal, &specular]
+                    .into_iter()
+                    .chain(&own)
+                    .flatten()
+                    .any(|path| self.is_planet_texture(path));
                 looks.push(Look {
                     shape: s,
                     mesh: m,
-                    diffuse: texture(pick(settings.map(|ms| &ms.diffuse), &material.diffuse)),
-                    normal: texture(pick(settings.map(|ms| &ms.normal), &material.normal)),
-                    specular: texture(pick(settings.map(|ms| &ms.specular), &material.specular)),
+                    diffuse,
+                    normal,
+                    specular,
+                    planet_textured,
                 });
             }
         }
         looks
+    }
+
+    /// Whether `path` is under [`PLANET_TEXTURES`] in one of the layers.
+    fn is_planet_texture(&self, path: &Path) -> bool {
+        self.layout.layers.iter().any(|layer| {
+            path.strip_prefix(&layer.root).is_ok_and(|rel| {
+                let rel = rel.to_string_lossy().replace('\\', "/");
+                rel.to_ascii_lowercase().starts_with(PLANET_TEXTURES)
+            })
+        })
     }
 
     fn bounds(&self) -> Result<ModelBounds, TextureError> {
@@ -276,12 +314,13 @@ impl ModelJob {
                 part.looks.iter().map(move |look| {
                     let mesh = &part.mesh.shapes[look.shape].meshes[look.mesh];
                     let along = |v: &Vec3| normalize_or_zero(part.transform.apply_vector(*v));
+                    let positions: Vec<Vec3> = mesh
+                        .positions
+                        .iter()
+                        .map(|p| part.transform.apply(*p))
+                        .collect();
                     raster::Surface {
-                        positions: mesh
-                            .positions
-                            .iter()
-                            .map(|p| part.transform.apply(*p))
-                            .collect(),
+                        depth_only: look.planet_textured && is_planet(&positions),
                         normals: mesh.normals.iter().map(along).collect(),
                         tangents: mesh
                             .tangents
@@ -296,6 +335,7 @@ impl ModelJob {
                         diffuse: map(&look.diffuse),
                         normal_map: map(&look.normal),
                         specular: map(&look.specular),
+                        positions,
                     }
                 })
             })
@@ -318,6 +358,7 @@ impl ModelJob {
     pub(super) fn empty() -> Self {
         Self {
             entity: String::new(),
+            yaw: 0,
             layout: Layout::default(),
             assets: Arc::default(),
             parts: Vec::new(),
@@ -335,6 +376,26 @@ fn read_mesh(layout: &Layout, file: &str) -> Result<Arc<MeshFile>, String> {
         .ok_or_else(|| "not in any layer".to_owned())?;
     let bytes = fs::read(&path).map_err(|e| e.to_string())?;
     mesh::read(&bytes).map(Arc::new)
+}
+
+/// Whether `positions` make a sphere about the model's origin.
+fn is_planet(positions: &[Vec3]) -> bool {
+    if positions.is_empty() {
+        return false;
+    }
+    let count = positions.len() as f32;
+    let centre: Vec3 = std::array::from_fn(|k| positions.iter().map(|p| p[k]).sum::<f32>() / count);
+    let distance = |a: Vec3, b: Vec3| {
+        let d: Vec3 = std::array::from_fn(|k| a[k] - b[k]);
+        space::dot(d, d).sqrt()
+    };
+    let (mut near, mut far) = (f32::MAX, 0.0f32);
+    for p in positions {
+        let r = distance(*p, centre);
+        near = near.min(r);
+        far = far.max(r);
+    }
+    near > 0.0 && far <= near * SPHERE_SPREAD && distance(centre, [0.0; 3]) <= near * PLANET_OFF_CENTRE
 }
 
 fn normalize_or_zero(v: Vec3) -> Vec3 {
@@ -430,7 +491,12 @@ impl GameData {
     /// The extent of the model a `model:` texture key names, in save units; it reads the
     /// model's `.mesh` files but bakes nothing.
     pub fn model_bounds(&self, key: &str) -> Result<ModelBounds, TextureError> {
-        let super::TextureKey::Model { culture, entity } = key.parse()? else {
+        let super::TextureKey::Model {
+            culture,
+            entity,
+            yaw,
+        } = key.parse()?
+        else {
             return Err(TextureError::BadKey(key.to_owned()));
         };
         ModelJob::plan(
@@ -438,7 +504,9 @@ impl GameData {
             Arc::clone(&self.models),
             &self.graphical_cultures.chain(&culture),
             &entity,
+            yaw,
         )?
         .bounds()
     }
 }
+

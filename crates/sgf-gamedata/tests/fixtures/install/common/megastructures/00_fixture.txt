@@ -1,4 +1,5 @@
 @offset_y = -20
+@tank_output = 300
 
 fixture_tank = {
 	entity = "fixture_tank_entity"
@@ -9,6 +10,16 @@ fixture_tank = {
 	upgrade_from = {
 		fixture_tank_0
 	}
+	resources = {
+		category = megastructures
+		produces = {
+			physics_research = @tank_output
+			society_research = 150
+		}
+		upkeep = {
+			energy = 20
+		}
+	}
 }
 
 fixture_ring = {
@@ -17,6 +28,7 @@ fixture_ring = {
 	place_entity_on_planet_plane = yes
 	scales_with_planet = yes
 	build_type = inside_gravity_well
+	rotate_to_center = no
 }
 
 fixture_relay = {

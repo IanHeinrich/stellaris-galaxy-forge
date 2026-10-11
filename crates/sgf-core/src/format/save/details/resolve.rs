@@ -666,6 +666,11 @@ pub struct PlanetSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub entity_name: Option<String>,
+    /// Its owner's graphical culture, which a habitat or a ring world segment is drawn in.
+    /// `None` for a planet with no owner or an owner with none, and for a scenario's bodies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub culture: Option<String>,
     /// What only a scenario body's initializer says of it. `None` in a save.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -827,6 +832,7 @@ pub(super) fn resolve(
             permanent_modifiers: Some(p.permanent_modifiers.clone()),
             anomaly: p.anomaly.clone(),
             entity_name: p.entity_name.clone(),
+            culture: p.culture.clone(),
             spawn: None,
         });
     }

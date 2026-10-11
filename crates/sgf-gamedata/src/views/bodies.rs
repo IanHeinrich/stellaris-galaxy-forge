@@ -155,6 +155,12 @@ pub struct PlanetClassView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub disc_scale: Option<f64>,
+    /// The model a body of this class is drawn from in place of a disc, `<entity>_01_entity`
+    /// without a culture prefix: a habitat's and a ring world segment's. `None` for any other
+    /// class, and for one that names no entity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub body_model: Option<String>,
 }
 
 /// A modifier that makes a planet a terraforming candidate, from the install's
@@ -172,6 +178,11 @@ pub struct TerraformCandidateView {
 /// Save units of disc radius per `planet_size` point for each unit of `entity_scale` times the
 /// model's `scale`, fitted to planets and stars measured in game.
 const DISC_PER_ENTITY_SCALE: f64 = 0.0163;
+
+fn body_model(class: &PlanetClassDef) -> Option<String> {
+    let entity = class.entity.as_deref().filter(|_| class.habitat || class.ringworld)?;
+    Some(format!("{entity}_01_entity"))
+}
 
 /// `true` as `Some(true)`, the shape of a flag this view sends only when it matters.
 fn marker(flag: bool) -> Option<bool> {
@@ -207,6 +218,7 @@ impl GameData {
                 change: pc.change(),
                 models: self.class_models(&pc.key),
                 disc_scale: self.disc_scale(pc),
+                body_model: body_model(pc),
             })
             .collect()
     }

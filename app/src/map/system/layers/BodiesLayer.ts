@@ -2,7 +2,12 @@ import { BitmapText, Container, Graphics, Mesh, Sprite, TextStyle, Texture } fro
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import { mixColor } from "../../../lib/visual/color";
 import { MAP_FONT } from "../../../lib/visual/style";
-import { getTexture, onTextures, requestTextures } from "../../../lib/visual/textures";
+import {
+  getModelPlacement,
+  getTexture,
+  onTextures,
+  requestTextures,
+} from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { STAR_ART_BLEND } from "../../layers/StarClusters";
 import {
@@ -114,6 +119,8 @@ interface Drawn {
   rim: Graphics | null;
   glyph: BitmapText | null;
   halo: Graphics | null;
+  /** The sprite of the model a habitat or a ring world segment is drawn from; null for any other body. */
+  model: Sprite | null;
   /** Whether the disc was last dressed as large on screen. */
   large: boolean;
 }
@@ -266,6 +273,11 @@ export class BodiesLayer implements SystemLayer {
     const backStrip = ringed ? ringStripHalf("ringBackStrip", true) : null;
     const disc = sprite("disc", this.textures.disc);
     disc.tint = hole ? 0x000000 : tint;
+    let model: Sprite | null = null;
+    if (look.model !== null) {
+      model = sprite("model", Texture.EMPTY);
+      model.visible = false;
+    }
     let lit: Sprite | null = null;
     if (look.surfaceKeys.length > 0) {
       lit = sprite("lit", Texture.EMPTY);
@@ -335,6 +347,7 @@ export class BodiesLayer implements SystemLayer {
       rim,
       glyph,
       halo,
+      model,
       large: false,
     };
     drawn.large = this.isLarge(drawn);
@@ -357,6 +370,7 @@ export class BodiesLayer implements SystemLayer {
   private dress(drawn: Drawn): void {
     const { body, art, disc, lit } = drawn;
     if (drawn.ring) this.dressRing(drawn.ring);
+    if (this.dressModel(drawn)) return;
     const surface = landed(body.look.surfaceKeys, true);
     if (lit) {
       lit.texture = surface ?? Texture.EMPTY;
@@ -378,6 +392,33 @@ export class BodiesLayer implements SystemLayer {
     // The tinted disc only holds the place until the surface or the icon lands; an icon's own
     // outline and margin would show it as a band. A star's art is not its surface.
     disc.visible = surface === null && (star || texture === null);
+  }
+
+  /**
+   * Shows a habitat's or a ring world segment's model at its own size once it lands, with nothing
+   * else of the body drawn; false, with the model hidden, while it bakes or where it cannot.
+   */
+  private dressModel(drawn: Drawn): boolean {
+    const { body, model } = drawn;
+    const key = body.look.model;
+    if (!model || key === null) return false;
+    const texture = getTexture(key);
+    if (texture === undefined) requestTextures([key]);
+    const placement = getModelPlacement(key);
+    const shown = Boolean(texture && placement);
+    model.visible = shown;
+    if (drawn.glow) drawn.glow.visible = !shown;
+    if (!texture || !placement) return false;
+    model.texture = texture;
+    model.anchor.set(placement.anchor_x, placement.anchor_y);
+    model.scale.set(
+      placement.width / Math.max(texture.width, 1),
+      placement.height / Math.max(texture.height, 1),
+    );
+    for (const part of [drawn.disc, drawn.art, drawn.lit, drawn.glaze]) {
+      if (part) part.visible = false;
+    }
+    return true;
   }
 
   private dressRing(ring: RingParts): void {

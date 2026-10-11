@@ -1,6 +1,8 @@
 /** Which model a megastructure or a starbase is drawn from, in which culture, and at what size. */
 import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
 import type { ModelPlacement } from "../../generated/ModelPlacement";
+import type { ModelUse } from "../../generated/ModelUse";
+import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { StarbaseLevelView } from "../../generated/StarbaseLevelView";
 
 /** The culture every graphical culture's fallback chain ends at. */
@@ -15,9 +17,91 @@ const EMPTY_SECTION_ENTITY = "empty_section_entity";
  */
 export const PLANET_SCALED_DISC = 0.4488;
 
-/** The texture key the baker draws `entity` under, in `culture` or its fallbacks. */
-export function modelKey(culture: string | null, entity: string): string {
-  return `model:${culture ?? DEFAULT_CULTURE}:${entity}`;
+/**
+ * The texture key the baker draws `entity` under, in `culture` or its fallbacks, turned `yaw`
+ * whole degrees about its up axis.
+ */
+export function modelKey(culture: string | null, entity: string, yaw = 0): string {
+  const base = `model:${culture ?? DEFAULT_CULTURE}:${entity}`;
+  return yaw === 0 ? base : `${base}:yaw${yaw}`;
+}
+
+/** Closer to the centre than this, in save units, a model stands on the star and is not turned. */
+const ON_CENTRE = 1e-6;
+
+/**
+ * The turn, in whole degrees from 0 to 359, that points a model standing at save point (x, y)
+ * with its −Z towards the system's centre. Model Z is +save x and model X is −save y, and the
+ * turn takes Z towards X; a model on the centre is not turned.
+ */
+export function facingYaw(x: number, y: number): number {
+  if (Math.hypot(x, y) < ON_CENTRE) return 0;
+  const degrees = Math.round((Math.atan2(-y, x) * 180) / Math.PI);
+  return ((degrees % 360) + 360) % 360;
+}
+
+/** The turn a row of `type` standing at `at` is drawn with: it faces the star unless its type says not. */
+export function megastructureYaw(
+  type: MegastructureTypeView | undefined,
+  at: readonly [number, number] | null,
+): number {
+  if (at === null || type?.rotate_to_center === false) return 0;
+  return facingYaw(at[0], at[1]);
+}
+
+/**
+ * The model a planet of `view`'s class is drawn from in place of its disc: the save's own model
+ * for it, else its class's; null for a class drawn as a disc. A ring world segment turns to face
+ * the star from `at`; a habitat is not turned.
+ */
+export function bodyModelKey(
+  view: PlanetClassView | undefined,
+  planet: { entity_name?: string; culture?: string },
+  at: readonly [number, number] | null,
+): string | null {
+  const entity = view?.body_model ? (planet.entity_name ?? view.body_model) : null;
+  if (!entity) return null;
+  const yaw = view?.ringworld === true && at !== null ? facingYaw(at[0], at[1]) : 0;
+  return modelKey(planet.culture ?? null, entity, yaw);
+}
+
+/** The game data each of a save's model keys is chosen by. */
+export interface ModelSources {
+  readonly megastructureTypes: ReadonlyMap<string, MegastructureTypeView>;
+  readonly starbaseLevels: ReadonlyMap<string, StarbaseLevelView>;
+  readonly planetClasses: ReadonlyMap<string, PlanetClassView>;
+}
+
+/** The key `use` is drawn from, chosen as the system view chooses it; null for none. */
+function useKey(use: ModelUse, src: ModelSources): string | null {
+  switch (use.kind) {
+    case "megastructure": {
+      const type = src.megastructureTypes.get(use.key);
+      const look = megastructureLook(type);
+      if (look.kind !== "model") return null;
+      return modelKey(use.culture, look.entity, megastructureYaw(type, use.at));
+    }
+    case "starbase": {
+      const look = starbaseLook(src.starbaseLevels.get(use.key));
+      return look.kind === "model" ? modelKey(use.culture, look.entity) : null;
+    }
+    case "planet":
+      return bodyModelKey(
+        src.planetClasses.get(use.key),
+        { entity_name: use.entity ?? undefined, culture: use.culture ?? undefined },
+        use.at,
+      );
+  }
+}
+
+/** Every model key `uses` draw, each once, in the order first used. */
+export function modelKeysOf(uses: readonly ModelUse[], src: ModelSources): string[] {
+  const keys = new Set<string>();
+  for (const use of uses) {
+    const key = useKey(use, src);
+    if (key !== null) keys.add(key);
+  }
+  return [...keys];
 }
 
 /** What a megastructure row or a starbase draws: a model, a map icon, or nothing. */

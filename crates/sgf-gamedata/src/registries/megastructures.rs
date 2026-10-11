@@ -1,6 +1,6 @@
 //! `common/megastructures`: the model each megastructure type is drawn with, where that
-//! model stands against the row's coordinate, how the type is placed when built, and the
-//! types it links to.
+//! model stands against the row's coordinate and whether it turns to face the star, how the
+//! type is placed when built, what it produces, and the types it links to.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -32,6 +32,11 @@ pub struct MegastructureDef {
     pub bypass_type: Option<String>,
     /// The types this one is built over, in file order.
     pub upgrade_from: Vec<String>,
+    /// `rotate_to_center`: the model turns to face the system's centre. Yes unless the type
+    /// says no.
+    pub rotate_to_center: bool,
+    /// What `resources = { produces = { … } }` gives each month, per resource, in file order.
+    pub produces: Vec<(String, f64)>,
 }
 
 /// Where a type is placed when it is built: `build_type`, or `outside_gravity_well` for the
@@ -77,8 +82,17 @@ impl FromDef for MegastructureDef {
             build_type: BuildType::of(def),
             bypass_type: model("bypass_type"),
             upgrade_from: script::list_items(&def.node, "upgrade_from", &def.src),
+            rotate_to_center: def.scalar("rotate_to_center") != Some("no"),
+            produces: produces(def),
         }
     }
+}
+
+fn produces(def: &Def) -> Vec<(String, f64)> {
+    def.node
+        .find("resources", &def.src)
+        .and_then(|resources| resources.find("produces", &def.src))
+        .map_or_else(Vec::new, |block| def.numbers(block))
 }
 
 fn offset(def: &Def) -> (f64, f64) {
