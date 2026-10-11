@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { detailOf } from "../../../store/fixture";
 
@@ -11,6 +12,7 @@ vi.mock("react/jsx-dev-runtime", () => import("../../../test/drawn"));
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { bindStores } from "../../../store/bindStores";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import { RolledMark } from "../states";
 import { mockedIpc } from "../../../test/ipc";
 import { drawnBy, lastDrawn } from "../../../test/drawn";
 import { useInspectorStore } from "../../../store/inspectorStore";
@@ -39,7 +41,8 @@ function sections(html: string): string[] {
   ].map((m) => m[1].replace(/<[^>]*>/g, ""));
 }
 
-const ROLLED_MARK = '<span class="ins-st-rolled" title="Rolled when the game starts">';
+const DIE = renderToStaticMarkup(<RolledMark />);
+const ROLLED_MARK = `<span class="ins-st-rolled">${DIE}`;
 
 /** The head's line under the name: the star, the planets and the nebula. */
 function headLine(html: string): string {
@@ -82,9 +85,7 @@ describe("a rolled scenario system", () => {
 
     const html = overview();
     const head = headLine(html);
-    expect(head).toContain(
-      '<span class="ins-st-rolled" title="Rolled when the game starts">Random star</span>',
-    );
+    expect(head).toContain(`${ROLLED_MARK}Random star</span>`);
     expect(head).toContain(">2 to 10 planets</span>");
     expect(html).toContain(`Planets · ${ROLLED_MARK}2 to 10</span></span>`);
     expect(html).toContain("2 to 10 planets · 0 to 10 moons · 0 colonies");
@@ -133,7 +134,7 @@ describe("a rolled scenario system", () => {
     expect(html).toContain(`${ROLLED_MARK}any class</span>`);
     expect(html).toContain("<span>each with up to 1 moon</span>");
     expect(html).toContain(
-      '<span class="ins-block-count ins-st-rolled" title="The game places 1 to 4 of these planets when it builds the system.">1 to 4</span>',
+      `<span class="ins-block-count ins-st-rolled" title="The game places 1 to 4 of these planets when it builds the system.">${DIE}1 to 4</span>`,
     );
     expect(html).not.toContain("Random moon");
     expect(html).toContain("1 to 4 planets · 0 to 4 moons · 0 colonies");
@@ -423,7 +424,7 @@ describe("a scenario system's single rows", () => {
 
     const html = overview();
     expect(html).toContain(
-      '<span class="ins-block-count ins-st-rolled" title="Some games have this planet and some don&#x27;t.">0 to 1</span>',
+      `<span class="ins-block-count ins-st-rolled" title="Some games have this planet and some don&#x27;t.">${DIE}0 to 1</span>`,
     );
     expect(html).toContain(`${ROLLED_MARK}Random moon</span>`);
   });

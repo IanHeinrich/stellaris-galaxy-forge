@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BodySpawn } from "../../../generated/BodySpawn";
 import type { PoolClass } from "../../../generated/PoolClass";
 import type { SpawnPool } from "../../../generated/SpawnPool";
@@ -28,7 +29,6 @@ import {
   type PoolKind,
   rawText,
   RING_ROLLED,
-  ROLLED_TITLE,
   rolledClassText,
   SCRIPT_TITLE,
   START_PLANET_HINT,
@@ -52,7 +52,7 @@ import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { ScriptSnippet } from "../../ScriptSnippet";
 import { useNamed } from "../../useNamed";
 import { Group, Properties, PropertyRow, Section } from "../parts";
-import { Rolled, SetByRow, Unknown, Why } from "../states";
+import { Rolled, RolledMark, SetByRow, Unknown, Why } from "../states";
 import { PlanetSize } from "../system/sections/bodies";
 import { useInitializerFile } from "../system/sections/scenario/useInitializerFile";
 import { bodySize, rangeText } from "./bodyFields";
@@ -400,12 +400,19 @@ export function PoolLines({
   pool,
   stated,
   kind,
+  label,
+  title,
 }: {
   pool: SpawnPool | undefined;
   stated: number;
   kind: PoolKind;
+  /** How an entry reads, where its section shows it as its own rows do; its name where this gives null. */
+  label?: (key: string) => ReactNode;
+  /** What an entry says on hover; nothing by default. */
+  title?: (key: string) => string | undefined;
 }) {
   const named = usePoolNamer();
+  const shown = (key: string) => label?.(key) ?? named(key);
   if (pool === undefined || pool.state === "fixed") return null;
   if (pool.state === "unknown") {
     return (
@@ -422,12 +429,17 @@ export function PoolLines({
   return (
     <>
       <div className="pl-sub-head">{poolTitle(stated, kind.tail(picks.length))}</div>
-      <div className="ins-pool ins-st-rolled" title={ROLLED_TITLE}>
+      <div className="ins-pool ins-st-rolled">
+        <RolledMark />
         {picks.map((pick, i) => (
-          <span key={pick.key} title={pick.chance === null ? undefined : kind.chanceTitle}>
-            {named(pick.key)}
-            {pick.chance !== null && ` ${percent(pick.chance)}`}
-            {i < picks.length - 1 && " ·"}
+          <span key={pick.key} className="ins-pool-pick">
+            <span title={title?.(pick.key)}>{shown(pick.key)}</span>
+            {pick.chance !== null && (
+              <span className="muted" title={kind.chanceTitle}>
+                {percent(pick.chance)}
+              </span>
+            )}
+            {i < picks.length - 1 && <span aria-hidden="true">·</span>}
           </span>
         ))}
       </div>

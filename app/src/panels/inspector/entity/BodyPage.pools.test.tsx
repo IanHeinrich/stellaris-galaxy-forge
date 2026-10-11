@@ -8,15 +8,20 @@ vi.mock("../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../test/zustandSnapshot"));
 
 import type { BodySpawn } from "../../../generated/BodySpawn";
+import { DEPOSIT_CHANCE_TITLE, FEATURE_CHANCE_TITLE } from "../../../lib/details/spawnFacts";
 import { bindStores } from "../../../store/bindStores";
 import { useGalaxyStore } from "../../../store/galaxyStore";
+import { useDetailsStore } from "../../../store/detailsStore";
 import { useInspectorStore, type Entry } from "../../../store/inspectorStore";
+import { mockedIpc } from "../../../test/ipc";
+import { rolledBody, systemRoll } from "../../../test/rolls";
 import { useNameFormatsStore } from "../../../store/nameFormatsStore";
-import { depositTypeView } from "../../../store/fixtures/planet";
+import { depositTypeView, resourceAmount } from "../../../store/fixtures/planet";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { bodyLayout, name } from "../../../test/builders";
 import { bodySpawn, systemSpawn } from "../../../test/spawn";
 import { details, land, open, overview, planet, resetStores, SYSTEM } from "../inspectorFixture";
+import { Rolled, RolledMark } from "../states";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -45,6 +50,14 @@ function row(html: string, label: string): string {
   const rest = html.slice(start + label.length + 22);
   const next = rest.indexOf('<span class="k">');
   return next === -1 ? rest : rest.slice(0, next);
+}
+
+/** The die that marks a rolled value, as it renders. */
+const DIE = renderToStaticMarkup(<RolledMark />);
+
+/** A value in the rolled look, as it renders. */
+function rolled(text: string): string {
+  return `<span class="ins-st-rolled">${DIE}${text}</span>`;
 }
 
 /** Names system `SYSTEM` as the map does. */
@@ -78,6 +91,13 @@ function drawn(id: number, over: Partial<BodySpawn> = {}) {
       ...over,
     }),
   });
+}
+
+/** One entry of a roll line, as it shows: its name, then its chance muted, then a dot when more follow. */
+function pick(name: string, chance: string, title: string, more: boolean, hover?: string): string {
+  const dot = more ? '<span aria-hidden="true">·</span>' : "";
+  const named = hover === undefined ? "<span>" : `<span title="${hover}">`;
+  return `<span class="ins-pool-pick">${named}${name}</span><span class="muted" title="${title}">${chance}</span>${dot}</span>`;
 }
 
 describe("what a scenario body can roll", () => {
@@ -166,7 +186,9 @@ describe("what a scenario body can roll", () => {
     expect(page(100, "Planet")).toContain(
       "Some games have this planet and some don&#x27;t. At some of the orbits it can land at, none of the classes it can roll fit.",
     );
-    expect(overview()).toMatch(/class="ins-block-count ins-st-rolled"[^>]*>0 to 1<\/span>/);
+    expect(overview()).toContain(
+      `<span class="ins-block-count ins-st-rolled" title="Some games have this planet and some don&#x27;t.">${DIE}0 to 1</span>`,
+    );
   });
 
   it("lists the deposits and features it can also roll, likeliest first with their chances", async () => {
@@ -191,9 +213,12 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Planet");
     expect(html).toContain("Can roll · 2 deposits");
-    expect(html).toMatch(/Minerals 1 75% ·<\/span><span[^>]*>Energy 1 25%/);
+    expect(html).toContain(
+      `${pick("Minerals 1", "75%", DEPOSIT_CHANCE_TITLE, true)}${pick("Energy 1", "25%", DEPOSIT_CHANCE_TITLE, false)}`,
+    );
     expect(html).toContain("Can roll · 2 planet features");
-    expect(html).toMatch(/Mineral Poor 50% ·<\/span><span>Carbon World</);
+    expect(html).toContain(pick("Mineral Poor", "50%", FEATURE_CHANCE_TITLE, true));
+    expect(html).toContain('<span class="ins-pool-pick"><span>Carbon World</span></span>');
   });
 
   it("lists what a planet can also roll after the deposits and features it states, by their game data names", async () => {
@@ -226,9 +251,49 @@ describe("what a scenario body can roll", () => {
     const html = page(100, "Planet");
     expect(html).toContain("Engineering Site");
     expect(html).toContain("Can also roll · 1 deposit");
-    expect(html).toContain("Mineral Field 100%");
+    expect(html).toContain(
+      pick("Mineral Field", "100%", DEPOSIT_CHANCE_TITLE, false, "Mineral Field"),
+    );
     expect(html).not.toContain("Minerals 1");
     expect(html).toContain("Can also roll · 3 planet features");
+  });
+
+  it("shows a deposit named only by its icon and amount by what it yields, with its name on hover and a tiny chance as <1%", async () => {
+    usePlanetDataStore.setState({
+      depositTypes: new Map([
+        [
+          "d_orbital_energy",
+          depositTypeView("d_orbital_energy", {
+            name: "£energy£ +2",
+            yields: [resourceAmount("energy", 2, "Energy")],
+          }),
+        ],
+        ["d_toxic_kelp", depositTypeView("d_toxic_kelp", { name: "Toxic Kelp", blocker: true })],
+      ]),
+    });
+    const world = drawn(100, {
+      rolled_deposits: {
+        state: "rolled",
+        entries: [
+          { key: "d_orbital_energy", chance: 0.26 },
+          { key: "d_toxic_kelp", chance: 0.004 },
+        ],
+      },
+    });
+    await open("scenario");
+    await land(details({ planets: [world], spawn: systemSpawn() }));
+
+    const html = page(100, "Planet");
+    const line = html.slice(html.indexOf("ins-pool "));
+    expect(line).toContain(
+      '<span class="ins-pool-pick"><span title="+2 Energy"><span class="pl-yield">',
+    );
+    expect(line).toContain("+2</span>Energy</span>");
+    expect(line).toContain(`<span class="muted" title="${DEPOSIT_CHANCE_TITLE}">26%</span>`);
+    expect(line).toContain('<span title="Toxic Kelp">Toxic Kelp</span>');
+    expect(line).toContain("&lt;1%");
+    expect(line).not.toContain(">0%");
+    expect(html).not.toContain("£");
   });
 
   it("shows nothing more for a pool the initializer stops, and why for one the class decides", async () => {
@@ -261,9 +326,7 @@ describe("what a scenario body can roll", () => {
       }),
     );
 
-    expect(row(page(100, "Planet"), "Ring")).toContain(
-      '<span class="ins-st-rolled" title="Rolled when the game starts">12% chance</span>',
-    );
+    expect(row(page(100, "Planet"), "Ring")).toContain(rolled("12% chance"));
   });
 
   it("names a body after the system, its numeral rolled where bodies before it may not spawn", async () => {
@@ -294,16 +357,12 @@ describe("what a scenario body can roll", () => {
 
     const html = page(100, "Yunak II");
     expect(html).toContain('<span class="name">Yunak II</span>');
-    expect(row(html, "Name")).toContain(
-      '<span class="ins-st-rolled" title="Rolled when the game starts">Yunak II</span>',
-    );
+    expect(row(html, "Name")).toContain(rolled("Yunak II"));
     expect(row(html, "Name")).toContain(
       "The game numbers planets in order, so this one is Yunak II or Yunak III, depending on how many before it are placed.",
     );
     expect(page(101, "Yunak IIa")).toContain('<span class="name">Yunak IIa</span>');
-    expect(overview()).toContain(
-      '<span class="l1"><span class="ins-st-rolled" title="Rolled when the game starts">Yunak II</span>',
-    );
+    expect(overview()).toContain(`<span class="l1">${rolled("Yunak II to III")}</span>`);
   });
 
   it("says a body is named after a system that has no name yet", async () => {
@@ -365,6 +424,19 @@ describe("what a scenario body can roll", () => {
   });
 });
 
+describe("the rolled look", () => {
+  it("leads a rolled value with a die that says on hover what it means", () => {
+    const die = renderToStaticMarkup(<RolledMark />);
+    expect(die).toContain(
+      '<span class="ins-die" role="img" aria-label="Rolled when a new game starts" title="Rolled when a new game starts"><svg viewBox="0 0 10 10" aria-hidden="true"><rect',
+    );
+    expect(die.match(/<circle /g)).toHaveLength(3);
+    expect(renderToStaticMarkup(<Rolled>2 to 10</Rolled>)).toBe(
+      `<span class="ins-st-rolled">${die}2 to 10</span>`,
+    );
+  });
+});
+
 describe("a scenario system's radii", () => {
   it("shows an inner radius with an offset it leaves out as unknown, and says why", async () => {
     await open("scenario");
@@ -397,8 +469,8 @@ describe("a scenario system's radii", () => {
 
     const html = overview();
     expect(html).toContain("Inner radius");
-    expect(html).toContain('title="Rolled when the game starts">150 to 380</span>');
-    expect(html).toContain('title="Rolled when the game starts">120 to 140</span>');
+    expect(html).toContain(rolled("150 to 380"));
+    expect(html).toContain(rolled("120 to 140"));
   });
 });
 
@@ -414,6 +486,111 @@ function copyOf(id: number, copy: number, fit: BodySpawn["orbit_fit"], numerals:
         : { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals },
   });
 }
+
+/** A moon of planet 100, the given copy of a block of one to four, named with `numerals`. */
+function moonCopy(id: number, copy: number, numerals: string[]) {
+  return planet(id, "", {
+    class: "random",
+    moon: true,
+    parent: 100,
+    spawn: bodySpawn({
+      always: copy === 1,
+      copy,
+      count: { min: 1, max: 4 },
+      naming: { state: "template", format: "SUBPLANET_NAME_FORMAT", parent: 100, numerals },
+    }),
+  });
+}
+
+describe("a scenario body's name in lists and links", () => {
+  it("numbers the copies of a moon block in order, since each is there only when the one before it is", async () => {
+    const riadore = drawn(100, {
+      naming: { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals: ["I"] },
+    });
+    await open("scenario");
+    nameSystem("Riadore");
+    await land(
+      details({
+        planets: [
+          riadore,
+          moonCopy(101, 1, ["a"]),
+          moonCopy(102, 2, ["b"]),
+          moonCopy(103, 3, ["b", "c"]),
+          moonCopy(104, 4, ["b", "c", "d"]),
+        ],
+        spawn: systemSpawn(),
+      }),
+    );
+
+    const html = page(100, "Riadore I");
+    const moons = html.slice(html.indexOf("Moons"));
+    for (const name of ["Riadore Ia", "Riadore Ib", "Riadore Ic", "Riadore Id"]) {
+      expect(moons.split(`<span class="l1">${name}</span>`)).toHaveLength(2);
+    }
+  });
+
+  it("shows a ranged numeral as its span in the rolled look on a row and in the Orbits link", async () => {
+    const riadore = drawn(100, {
+      naming: {
+        state: "template",
+        format: "PLANET_NAME_FORMAT",
+        parent: null,
+        numerals: ["I", "II"],
+      },
+    });
+    const moon = moonCopy(101, 1, ["a", "b"]);
+    await open("scenario");
+    nameSystem("Riadore");
+    await land(details({ planets: [riadore, moon], spawn: systemSpawn() }));
+
+    expect(page(100, "Riadore I")).toContain(
+      `<span class="l1">${rolled("Riadore Ia to IIb")}</span>`,
+    );
+    expect(row(page(101, "Riadore Ia"), "Orbits")).toContain(rolled("Riadore I to II"));
+  });
+
+  it("names the body an angle turns from by its given name", async () => {
+    const first = planet(100, "", {
+      class: "pc_gas_giant",
+      layout: bodyLayout({ orbit: { min: 55, max: 55 }, angle_step: { min: 70, max: 70 } }),
+      spawn: bodySpawn({
+        class: { state: "fixed", class: "pc_gas_giant" },
+        naming: { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals: ["I"] },
+      }),
+    });
+    const second = planet(101, "", {
+      class: "pc_barren",
+      layout: bodyLayout({
+        orbit: { min: 175, max: 175 },
+        orbit_step: { min: 120, max: 120 },
+        angle_step: { min: 90, max: 270 },
+        turns_from: 100,
+      }),
+      spawn: bodySpawn({
+        naming: { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals: ["II"] },
+      }),
+    });
+    mockedIpc.getSystemRoll.mockResolvedValue(
+      systemRoll({
+        system: SYSTEM,
+        bodies: [
+          rolledBody({ id: 100, orbit: 55, angle: 10 }),
+          rolledBody({ id: 101, orbit: 175, angle: 200, from: 10 }),
+        ],
+      }),
+    );
+    await open("scenario");
+    nameSystem("Riadore");
+    await land(details({ planets: [first, second], spawn: systemSpawn() }));
+    useDetailsStore.getState().requestRoll(SYSTEM, 0);
+    await vi.advanceTimersByTimeAsync(0);
+
+    const angle = row(page(101, "Riadore II"), "Angle step");
+    expect(angle).toContain("Riadore I");
+    expect(angle).toContain(" at 55");
+    expect(angle).not.toContain("Gas Giant");
+  });
+});
 
 describe("a block of copies in the Planets list", () => {
   it("is one row whose count runs from the copies that always fit to those that can, titled with their names", async () => {
@@ -435,9 +612,7 @@ describe("a block of copies in the Planets list", () => {
     expect(html).toContain('class="ins-block-count ins-st-rolled"');
     expect(html).toContain(">1 to 3</span>");
     expect(html).not.toContain("×3");
-    expect(html).toContain(
-      '<span class="l1"><span class="ins-st-rolled" title="Rolled when the game starts">Yunak I to III</span>',
-    );
+    expect(html).toContain(`<span class="l1">${rolled("Yunak I to III")}`);
     expect(html).toContain(">any class</span>");
   });
 

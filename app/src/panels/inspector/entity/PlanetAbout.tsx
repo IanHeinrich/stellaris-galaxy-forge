@@ -16,7 +16,8 @@ import { openBody } from "./openBody";
 import { AnomalyRow } from "./PlanetAnomaly";
 import { CountryRow } from "./PlanetColony";
 import type { PlanetSectionProps } from "./planetSection";
-import { useSystemBodyNamer } from "./useBodyName";
+import { Rolled } from "../states";
+import { useSystemBodyNames } from "./useBodyName";
 
 /** What the body orbits, opening its page, and its radius where no row of its own gives it. */
 function Orbits({
@@ -28,14 +29,15 @@ function Orbits({
   parent: number;
   radius: Bounds | null;
 }) {
-  const name = useSystemBodyNamer(system)(parent) ?? `#${parent}`;
+  const listed = useSystemBodyNames(system)(parent);
+  const name = listed?.text ?? `#${parent}`;
   return (
     <PropertyRow label="Orbits">
       <DrillLink
         title="Open the page of the body it orbits"
         onOpen={() => openBody(system, parent, name)}
       >
-        {name}
+        {listed?.rolled ? <Rolled>{name}</Rolled> : name}
       </DrillLink>
       {radius !== null && <span className="muted"> radius {rangeText(radius)}</span>}
     </PropertyRow>
@@ -58,7 +60,8 @@ function Anchor({
   const names = useGameDataStore((s) => s.names);
   const open = useInspectorStore((s) => s.open);
   const setLinkedBody = useSceneStore((s) => s.setLinkedBody);
-  const name = bodyName(anchor, names);
+  const listed = useSystemBodyNames(details.id)(anchor.id);
+  const name = listed?.text ?? bodyName(anchor, names);
   return (
     <DrillLink
       title="Open the page of the body its angle turns from"
@@ -68,7 +71,8 @@ function Anchor({
         open({ ref: { kind: "body", system: details.id, id: anchor.id }, label: name });
       }}
     >
-      {`${name} at ${Math.round(radius)}`}
+      {listed?.rolled ? <Rolled>{name}</Rolled> : name}
+      {` at ${Math.round(radius)}`}
     </DrillLink>
   );
 }

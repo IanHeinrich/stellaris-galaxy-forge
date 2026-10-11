@@ -26,8 +26,8 @@ import { dedent } from "../scriptText";
 import { counted, keyWords } from "../text";
 import type { ModifierRow } from "./planetPage";
 
-/** What a rolled value says on hover, wherever it shows. */
-export const ROLLED_TITLE = "Rolled when the game starts";
+/** What the die mark beside a rolled value says on hover, wherever it shows. */
+export const ROLLED_TITLE = "Rolled when a new game starts";
 
 /** `2 to 10`, or `14` for a count the initializer fixes. */
 export function rangeWords(range: CountRange | Bounds): string {
@@ -141,9 +141,10 @@ export function classFitHint(orbitRanged: boolean, starRolled: boolean): string 
 export const LIST_ORBIT_HINT =
   "The game may roll any class in this list, even one that doesn't fit the orbit.";
 
-/** `24%`: a share of a draw as the star list shows it. */
+/** `24%`: a share of a draw as the star list shows it; `<1%` for one too small to round up. */
 export function percent(share: number): string {
-  return `${Math.round(share * 100)}%`;
+  const whole = Math.round(share * 100);
+  return whole === 0 && share > 0 ? "<1%" : `${whole}%`;
 }
 
 /** The hint over a rolled star's list. */

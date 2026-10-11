@@ -326,6 +326,18 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
     };
   };
   const { features, blockers } = deposits;
+  const poolLabel = (key: string): ReactNode => {
+    const view = views.get(key);
+    if (view === undefined) return null;
+    return view.yields.length > 0 ? <Yields yields={view.yields} /> : view.name;
+  };
+  const poolTitle = (key: string): string | undefined => {
+    const view = views.get(key);
+    if (view === undefined) return undefined;
+    const named = view.name.replace(/£[^£]*£/g, "").trim();
+    if (/[a-z]/i.test(named)) return named;
+    return view.yields.map((y) => `${signed(y.amount)} ${y.name}`).join(", ") || undefined;
+  };
   const totals = ready ? districtTotals([...features, ...blockers]) : [];
   const blocked = blockers.reduce((n, g) => n + g.count, 0);
   const row = (g: HeldDeposit) => (
@@ -351,7 +363,13 @@ export function PlanetDeposits({ read, offers }: PlanetSectionProps) {
           {note}
         </div>
       ))}
-      <PoolLines pool={pool} stated={features.length + blockers.length} kind={DEPOSIT_POOL} />
+      <PoolLines
+        pool={pool}
+        stated={features.length + blockers.length}
+        kind={DEPOSIT_POOL}
+        label={poolLabel}
+        title={poolTitle}
+      />
       {editable && (
         <PlanetPicker
           kind={DEPOSIT_PICKERS.deposits}

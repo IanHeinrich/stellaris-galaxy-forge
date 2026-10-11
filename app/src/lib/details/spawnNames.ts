@@ -7,14 +7,15 @@ import type { SpawnName } from "../../generated/SpawnName";
 
 /** A body's name as the game will give it. */
 export interface GivenName {
-  /** Its name at the lowest numeral: when only the bodies certain to spawn before it do. */
+  /**
+   * Its name at the lowest numeral it can have: when only the bodies certain to spawn before it,
+   * and the copies of its block before it, do.
+   */
   text: string;
   /** Every name it can have, lowest numeral first. */
   all: string[];
   /** Its numeral, or its parent's, depends on bodies that may not spawn: `all` holds several. */
   rolled: boolean;
-  /** How its numerals read beside its parent's name, for a span of several bodies' names. */
-  numbered?: { format: string; parent: string; numerals: string[] };
 }
 
 /** A template's English text, for while the install's localisation has not been read. */
@@ -64,7 +65,7 @@ export function givenNames(
     const naming: SpawnName | undefined = planet.spawn?.naming;
     if (naming === undefined || naming.state === "unknown" || visiting.has(planet.id)) return null;
     visiting.add(planet.id);
-    const given = naming.state === "fixed" ? fixed(planet, naming.name) : template(naming);
+    const given = naming.state === "fixed" ? fixed(planet, naming.name) : template(planet, naming);
     visiting.delete(planet.id);
     if (given !== null) out.set(planet.id, given);
     return given;
@@ -73,7 +74,42 @@ export function givenNames(
     const text = read.stated(planet, name);
     return { text, all: [text], rolled: false };
   };
-  const template = (naming: Extract<SpawnName, { state: "template" }>): GivenName | null => {
+  const lowest = new Map<number, string>();
+  /** The copy of the same block just before `planet`, which spawns whenever `planet` does. */
+  const previousCopy = (planet: PlanetSummary): PlanetSummary | undefined => {
+    const spawn = planet.spawn;
+    if (spawn === undefined || spawn.copy <= 1) return undefined;
+    const at = planets.indexOf(planet);
+    for (let i = at - 1; i >= 0; i--) {
+      const other = planets[i].spawn;
+      if (
+        planets[i].parent === planet.parent &&
+        other !== undefined &&
+        other.copy === spawn.copy - 1 &&
+        other.count.min === spawn.count.min &&
+        other.count.max === spawn.count.max
+      ) {
+        return planets[i];
+      }
+    }
+    return undefined;
+  };
+  /**
+   * The numerals a copy can take: past the lowest of the copy before it, since a block's copies
+   * spawn in order and that one is there whenever this one is.
+   */
+  const ownNumerals = (planet: PlanetSummary, numerals: readonly string[]): string[] => {
+    const before = previousCopy(planet);
+    if (before === undefined || nameOf(before) === null) return [...numerals];
+    const floor = lowest.get(before.id);
+    const at = floor === undefined ? -1 : numerals.indexOf(floor);
+    const past = numerals.slice(at + 1);
+    return past.length === 0 ? [...numerals] : past;
+  };
+  const template = (
+    planet: PlanetSummary,
+    naming: Extract<SpawnName, { state: "template" }>,
+  ): GivenName | null => {
     let parent: GivenName | null;
     if (naming.parent === null) {
       parent = systemName === "" ? null : { text: systemName, all: [systemName], rolled: false };
@@ -83,10 +119,10 @@ export function givenNames(
     }
     if (parent === null) return null;
     const format = read.format(naming.format) ?? defaultFormat(naming.format);
-    const numerals = naming.numerals.length === 0 ? [""] : naming.numerals;
+    const numerals = naming.numerals.length === 0 ? [""] : ownNumerals(planet, naming.numerals);
+    lowest.set(planet.id, numerals[0]);
     const all = parent.all.flatMap((p) => numerals.map((numeral) => fill(format, p, numeral)));
-    const numbered = parent.rolled ? undefined : { format, parent: parent.text, numerals };
-    return { text: all[0], all, rolled: all.length > 1, numbered };
+    return { text: all[0], all, rolled: all.length > 1 };
   };
   for (const planet of planets) nameOf(planet);
   return out;
@@ -103,26 +139,25 @@ export function nameFormats(planets: readonly PlanetSummary[]): string[] {
 }
 
 /**
- * `Yunak II to IV`: the names from the lowest of `first`'s to the highest of `last`'s, the numerals
- * spanned where both are numbered beside the same name with a space before the numeral, else the
- * whole names.
+ * `Yunak II to IV`: the names from the lowest of `first`'s to the highest of `last`'s, the second
+ * without the words it shares with the first at its start.
  */
-export function nameSpan(first: GivenName, last: GivenName): string {
+export function nameSpan(first: GivenName, last: GivenName = first): string {
   const low = first.all[0];
   const high = last.all[last.all.length - 1];
   if (low === high) return low;
-  const a = first.numbered;
-  const b = last.numbered;
-  if (
-    a !== undefined &&
-    b !== undefined &&
-    a.format === b.format &&
-    a.parent === b.parent &&
-    /\s\$NUMERAL\$/.test(a.format)
-  ) {
-    return fill(a.format, a.parent, `${a.numerals[0]} to ${b.numerals[b.numerals.length - 1]}`);
+  const lows = low.split(" ");
+  const highs = high.split(" ");
+  let shared = 0;
+  while (shared < highs.length - 1 && shared < lows.length - 1 && lows[shared] === highs[shared]) {
+    shared++;
   }
-  return `${low} to ${high}`;
+  return `${low} to ${highs.slice(shared).join(" ")}`;
+}
+
+/** A body's name in a list: its span where its numeral is rolled, else its name. */
+export function listedName(given: GivenName): string {
+  return given.rolled ? nameSpan(given) : given.text;
 }
 
 /** `Kanthe II, Kanthe III or Kanthe IV`: every name a rolled numeral can give. */

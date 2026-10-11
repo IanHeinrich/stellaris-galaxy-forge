@@ -3,7 +3,12 @@ import type { NameTemplate } from "../../../generated/NameTemplate";
 import type { PlanetSummary } from "../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../generated/SystemDetails";
 import { bodyName } from "../../../lib/details/labels";
-import { givenNames, nameFormats, type GivenName } from "../../../lib/details/spawnNames";
+import {
+  givenNames,
+  listedName,
+  nameFormats,
+  type GivenName,
+} from "../../../lib/details/spawnNames";
 import { findPlanet } from "../../../lib/details/starBody";
 import { displayNameIn, nodeNameIn, templateName } from "../../../lib/names";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -86,11 +91,17 @@ export function shownBodyName(
   return given.get(planet.id)?.text ?? bodyName(planet, names);
 }
 
+/** A body's name as a list or link shows it, and whether its numeral is rolled. */
+export interface ListedBodyName {
+  text: string;
+  rolled: boolean;
+}
+
 /**
- * The names of system `system`'s bodies only, undefined for one it doesn't list: a scenario's body
- * ids repeat from one system to the next.
+ * The names of system `system`'s bodies as lists and links show them, undefined for one it doesn't
+ * list: a scenario's body ids repeat from one system to the next.
  */
-export function useSystemBodyNamer(system: number): (id: number) => string | undefined {
+export function useSystemBodyNames(system: number): (id: number) => ListedBodyName | undefined {
   const names = useGameDataStore((s) => s.names);
   const details = useDetailsStore((s) => s.details.get(system));
   const systemName = useGalaxyStore((s) => s.systems.get(system)?.name);
@@ -98,6 +109,18 @@ export function useSystemBodyNamer(system: number): (id: number) => string | und
   const given = givenNamesOf(details?.planets, systemName, names, formats);
   return (id) => {
     const planet = details?.planets.find((p) => p.id === id);
-    return planet === undefined ? undefined : shownBodyName(planet, given, names);
+    if (planet === undefined) return undefined;
+    const own = given.get(id);
+    if (own === undefined) return { text: bodyName(planet, names), rolled: false };
+    return { text: listedName(own), rolled: own.rolled };
   };
+}
+
+/**
+ * The names of system `system`'s bodies only, undefined for one it doesn't list: a scenario's body
+ * ids repeat from one system to the next.
+ */
+export function useSystemBodyNamer(system: number): (id: number) => string | undefined {
+  const named = useSystemBodyNames(system);
+  return (id) => named(id)?.text;
 }

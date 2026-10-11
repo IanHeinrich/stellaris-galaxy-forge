@@ -7,10 +7,25 @@ import { PropertyRow } from "./parts";
  * rolled is drawn with a die mark, and unknown with a question mark.
  */
 
+/** The die that marks a rolled value, which says on hover what it means. */
+export function RolledMark() {
+  return (
+    <span className="ins-die" role="img" aria-label={ROLLED_TITLE} title={ROLLED_TITLE}>
+      <svg viewBox="0 0 10 10" aria-hidden="true">
+        <rect x="0.75" y="0.75" width="8.5" height="8.5" rx="2" />
+        <circle cx="3.1" cy="3.1" r="0.95" />
+        <circle cx="5" cy="5" r="0.95" />
+        <circle cx="6.9" cy="6.9" r="0.95" />
+      </svg>
+    </span>
+  );
+}
+
 /** A value the game rolls when a game starts: a range, or what it is drawn from. */
 export function Rolled({ children }: { children: ReactNode }) {
   return (
-    <span className="ins-st-rolled" title={ROLLED_TITLE}>
+    <span className="ins-st-rolled">
+      <RolledMark />
       {children}
     </span>
   );

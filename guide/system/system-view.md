@@ -69,8 +69,8 @@ the System total row at the top of the Planets section. A count the game rolls s
 Values show in one of three ways:
 
 - A value the initializer sets shows as plain text, as in a save.
-- A value the game rolls when the game starts shows in blue with a small
-  square mark. Hover over it to see "Rolled when the game starts".
+- A value the game rolls when a new game starts shows in blue after a
+  small die. Hover over the die to see "Rolled when a new game starts".
 - A value the game decides in a way Galaxy Forge can't show is in grey
   italics with a question mark. Where Galaxy Forge knows why, the reason
   is under it.

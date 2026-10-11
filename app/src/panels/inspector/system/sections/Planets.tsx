@@ -2,7 +2,7 @@ import { Fragment, useState, type MouseEvent, type ReactNode } from "react";
 import type { CountRange } from "../../../../generated/CountRange";
 import type { PlanetSummary } from "../../../../generated/PlanetSummary";
 import type { SystemDetails } from "../../../../generated/SystemDetails";
-import { nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
+import { listedName, nameSpan, type GivenName } from "../../../../lib/details/spawnNames";
 import { bodyClassName, bodyName, boundsText } from "../../../../lib/details/labels";
 import { resourceRows } from "../../../../lib/details/resources";
 import { isStarBody } from "../../../../lib/details/starBody";
@@ -36,7 +36,7 @@ import { useMapChromeStore } from "../../../../store/mapChromeStore";
 import { canEnterSystem, useSceneStore, useSceneSystem } from "../../../../store/sceneStore";
 import { Chip, Icon } from "../../../parts";
 import { DrillRow, Empty, MoreButton, Section, Swatch } from "../../parts";
-import { Rolled, Unknown } from "../../states";
+import { Rolled, RolledMark, Unknown } from "../../states";
 import { useGivenNames } from "../../entity/useBodyName";
 import { usePlanetCounter } from "../usePlanetCounter";
 import { PlanetIcon, Pills, PlanetSize } from "./bodies";
@@ -92,6 +92,7 @@ function BlockCount({
       className={ranged ? "ins-block-count ins-st-rolled" : "ins-block-count"}
       title={blockCountTitle(count, moon, asteroid)}
     >
+      {ranged && <RolledMark />}
       {ranged ? rangeWords(count) : `×${count.max}`}
     </span>
   );
@@ -166,11 +167,13 @@ export function PlanetRow({
   const title =
     span !== undefined
       ? span
-      : !described
-        ? name
-        : random
-          ? `Random ${noun}`
-          : noun.charAt(0).toUpperCase() + noun.slice(1);
+      : given !== undefined
+        ? listedName(given)
+        : !described
+          ? name
+          : random
+            ? `Random ${noun}`
+            : noun.charAt(0).toUpperCase() + noun.slice(1);
   const shownName: ReactNode =
     given?.rolled === true || (span !== undefined && count !== null && isRanged(count)) ? (
       <Rolled>{title}</Rolled>
