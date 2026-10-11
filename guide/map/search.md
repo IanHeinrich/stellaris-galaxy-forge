@@ -23,11 +23,16 @@ the search open. <kbd>Esc</kbd> closes it.
 In a save, search also finds star types. Type a type's name, such as
 `pulsar` or `black hole`, its letter, such as `g` or `class g`, or a
 colour, such as `yellow` or `red`. The Star types group lists each
-matching type with the number of systems that have it. Press
-<kbd>Enter</kbd> on a star type to ring all its systems and fit the map
-to them. The rings stay until your next search. Press
+matching type with the number of systems that have it. Every star in a
+system counts, so a binary with a pulsar is listed under Pulsar and
+under Binary Stars. Press <kbd>Enter</kbd> on a star type to ring all
+its systems and fit the map to them. Press
 <kbd>Shift</kbd>+<kbd>Enter</kbd> to add all its systems to the
 selection instead.
+
+The rings stay until your next search. To clear them sooner, press
+<kbd>Esc</kbd> on the galaxy map, or click × beside them in the status
+bar.
 
 ## Search one kind of thing
 

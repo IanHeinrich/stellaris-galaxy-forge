@@ -13,7 +13,9 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::as_u32;
 use crate::format::save::details::{DetailsProjection, RawSystemDetails};
-use crate::projections::galaxy::{BypassLink, GalaxyGraph, Nebula, SystemNode, display_name};
+use crate::projections::galaxy::{
+    BypassLink, GalaxyGraph, Nebula, StarClasses, SystemNode, display_name,
+};
 use crate::projections::name::NameTemplate;
 use crate::views::{SearchHit, SearchKind, SearchResult};
 
@@ -57,11 +59,13 @@ const MIN_CONTENT_NEEDLE: usize = 3;
 /// planet class matches on its key or its resolved name. Planets, fleets and planet
 /// classes are only searched when `details` is built. A save's star types match by letter,
 /// colour word, key or localised name, however short the query; see [`star_types`]. A star
-/// type lists its systems on its own hit and adds none to the located ones, so a query of
-/// one letter rings no stars.
+/// type counts every system with a star of that type, `stars` saying which bodies are stars.
+/// It lists its systems on its own hit and adds none to the located ones, so a query of one
+/// letter rings no stars.
 pub fn search(
     g: &GalaxyGraph,
     details: Option<&DetailsProjection>,
+    stars: &StarClasses,
     query: &str,
     limit: usize,
     resolve: NameResolver<'_>,
@@ -79,7 +83,7 @@ pub fn search(
         resolve,
         special,
     };
-    let star_types = star_types::matching(g, &needle, resolve);
+    let star_types = star_types::matching(g, stars, &needle, resolve);
     let systems = systems(g, query, &needle, &content, resolve);
     let held_in = |of: fn(&RawSystemDetails) -> Vec<Named<'_>>| {
         details.map_or_else(Vec::new, |d| in_details(g, d, of, &needle, resolve))

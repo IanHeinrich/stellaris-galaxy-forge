@@ -269,6 +269,8 @@ function escape(inInput: boolean): void {
     layout.hideOpenDialog();
   } else if (chrome.contextMenu) {
     chrome.closeContextMenu();
+  } else if (sceneSystem() === null && useEditorStore.getState().clearHeldRings()) {
+    return;
   } else if (useToolStore.getState().tool !== "select") {
     useToolStore.getState().setTool("select");
   } else if (usePlanetMoveStore.getState().clearClipboard()) {

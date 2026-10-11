@@ -1,11 +1,11 @@
-//! Star types: each star class a save's systems have, found by its letter, a colour word,
-//! its key or its localised name.
+//! Star types: each star class a save's systems or their stars have, found by its letter, a
+//! colour word, its key or its localised name.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{NameResolver, Rank, rank};
 use crate::as_u32;
-use crate::projections::galaxy::GalaxyGraph;
+use crate::projections::galaxy::{GalaxyGraph, StarClasses, SystemNode};
 use crate::projections::name::NameTemplate;
 use crate::views::{DocumentKind, SearchHit, SearchKind};
 
@@ -26,7 +26,7 @@ const FILLER: [&str; 2] = ["class", "star"];
 pub(super) struct StarType {
     /// Ascending; the first stands for the type.
     classes: Vec<String>,
-    /// Ascending.
+    /// Ascending, each once.
     pub systems: Vec<u32>,
     name: Option<String>,
 }
@@ -36,13 +36,14 @@ pub(super) struct StarType {
 /// initializer fixes one, so a count would leave out every star the game draws at random.
 pub(super) fn matching(
     g: &GalaxyGraph,
+    stars: &StarClasses,
     needle: &str,
     resolve: NameResolver<'_>,
 ) -> Vec<(Rank, u32, StarType)> {
     if g.kind != DocumentKind::Save {
         return Vec::new();
     }
-    let mut ranked: Vec<(Rank, u32, StarType)> = star_types(g, resolve)
+    let mut ranked: Vec<(Rank, u32, StarType)> = star_types(g, stars, resolve)
         .into_iter()
         .enumerate()
         .filter_map(|(i, t)| t.rank(needle).map(|r| (r, as_u32(i), t)))
@@ -52,18 +53,20 @@ pub(super) fn matching(
 }
 
 /// The galaxy's star types by their first key. Classes the resolver names alike are one type.
-fn star_types(g: &GalaxyGraph, resolve: NameResolver<'_>) -> Vec<StarType> {
-    let mut by_class: BTreeMap<&str, Vec<u32>> = BTreeMap::new();
-    for s in g.systems.values().filter(|s| !s.star_class.is_empty()) {
-        by_class.entry(&s.star_class).or_default().push(s.id);
+fn star_types(g: &GalaxyGraph, stars: &StarClasses, resolve: NameResolver<'_>) -> Vec<StarType> {
+    let mut by_class: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
+    for s in g.systems.values() {
+        for class in classes_of(s, stars) {
+            by_class.entry(class).or_default().insert(s.id);
+        }
     }
     let mut types: Vec<StarType> = Vec::new();
     let mut by_name: BTreeMap<String, usize> = BTreeMap::new();
     for (class, systems) in by_class {
-        let name = resolve(class).filter(|n| !n.trim().is_empty());
+        let name = resolve(&class).filter(|n| !n.trim().is_empty());
         let alike = name.as_ref().and_then(|n| by_name.get(n).copied());
         if let Some(i) = alike {
-            types[i].classes.push(class.to_owned());
+            types[i].classes.push(class);
             types[i].systems.extend(systems);
             continue;
         }
@@ -71,15 +74,41 @@ fn star_types(g: &GalaxyGraph, resolve: NameResolver<'_>) -> Vec<StarType> {
             by_name.insert(name.clone(), types.len());
         }
         types.push(StarType {
-            classes: vec![class.to_owned()],
-            systems,
+            classes: vec![class],
+            systems: systems.into_iter().collect(),
             name,
         });
     }
     for t in &mut types {
         t.systems.sort_unstable();
+        t.systems.dedup();
     }
     types
+}
+
+/// The star classes system `s` counts under: its own, and the class of each of its stars, so a
+/// G and K binary counts under Binary Stars, G and K. The class is all there is to go on when
+/// the save lists no bodies.
+fn classes_of<'a>(s: &'a SystemNode, stars: &'a StarClasses) -> impl Iterator<Item = String> + 'a {
+    let own = (!s.star_class.is_empty()).then(|| s.star_class.clone());
+    let of_stars = s
+        .bodies
+        .iter()
+        .flatten()
+        .filter(|body| stars.is_star_body(&body.class))
+        .map(|body| class_of_star(&body.class));
+    own.into_iter().chain(of_stars)
+}
+
+/// The class of a one-star system whose star is of planet class `body`, as the base game pairs
+/// them: `sc_g` for `pc_g_star`, `sc_m_giant` for `pc_m_giant_star`, and `sc_pulsar`,
+/// `sc_black_hole` and `sc_neutron_star` for the classes of the same name.
+fn class_of_star(body: &str) -> String {
+    let key = body.strip_prefix("pc_").unwrap_or(body);
+    let lettered = key
+        .strip_suffix("_star")
+        .filter(|rest| rest.split('_').next().is_some_and(|w| w.len() == 1));
+    format!("sc_{}", lettered.unwrap_or(key))
 }
 
 impl StarType {

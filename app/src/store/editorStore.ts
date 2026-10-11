@@ -98,8 +98,10 @@ export interface EditorState {
   recentHits: SearchHit[];
   /** Every system the search palette's current query locates; the map rings them. */
   searchRings: number[];
-  /** The systems of the star type last taken from the palette, ringed until the next search. */
+  /** The systems of the star type last taken from the palette, ringed until the next search or a clear. */
   heldRings: number[];
+  /** The palette's name for the held rings: `Class G Star`. */
+  heldLabel: string;
   /** Set by ringSystems; the map frames the systems whenever the nonce changes. */
   framed: Framed | null;
   /** Bumped by requestFit; the map re-fits the galaxy whenever it changes. */
@@ -139,8 +141,10 @@ export interface EditorState {
   runSearch(text: string, limit: number): Promise<SearchResult | null>;
   /** Drops the rings and whatever search is still on its way. */
   clearSearch(): void;
-  /** Rings `ids` past the palette's close, until the next search comes back, and frames them. */
-  ringSystems(ids: number[]): void;
+  /** Rings `ids`, named `label`, past the palette's close, until the next search comes back, and frames them. */
+  ringSystems(ids: number[], label: string): void;
+  /** Drops the held rings; false when there were none. */
+  clearHeldRings(): boolean;
   setHover(id: number | null): void;
   requestFit(): void;
   /** Frames the selected systems, or the whole galaxy when nothing is selected. */
@@ -353,6 +357,7 @@ const INITIAL = {
   recentHits: [] as SearchHit[],
   searchRings: [] as number[],
   heldRings: [] as number[],
+  heldLabel: "",
   framed: null as Framed | null,
   history: { undo: [], redo: [] } as HistoryView,
   feZoneFitPrompt: null as { candidates: number; automatic: number } | null,

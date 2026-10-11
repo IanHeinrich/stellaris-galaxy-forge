@@ -80,18 +80,18 @@ describe("search rings", () => {
 
 describe("a star type taken from the palette", () => {
   it("keeps its systems ringed after the palette clears, and frames them", () => {
-    editor().ringSystems([0, 2]);
+    editor().ringSystems([0, 2], "Class G Star");
     editor().clearSearch();
 
     expect(editor().heldRings).toEqual([0, 2]);
     expect(editor().framed).toEqual({ ids: [0, 2], nonce: 1 });
 
-    editor().ringSystems([1]);
+    editor().ringSystems([1], "Pulsar");
     expect(editor().framed).toEqual({ ids: [1], nonce: 2 });
   });
 
   it("lets go of its rings when the next search comes back", async () => {
-    editor().ringSystems([0, 2]);
+    editor().ringSystems([0, 2], "Class G Star");
     search.mockResolvedValueOnce(result([1]));
 
     await editor().runSearch("gaia", 20);
@@ -105,7 +105,7 @@ describe("a star type taken from the palette", () => {
     search.mockReturnValueOnce(new Promise<SearchResult>((resolve) => (answer = resolve)));
     const pending = editor().runSearch("g", 20);
 
-    editor().ringSystems([0, 2]);
+    editor().ringSystems([0, 2], "Class G Star");
     answer(result([1]));
 
     expect(await pending).toBeNull();
@@ -113,8 +113,18 @@ describe("a star type taken from the palette", () => {
     expect(editor().searchRings).toEqual([]);
   });
 
+  it("names its rings, and the clear drops them", () => {
+    editor().ringSystems([0, 2], "Class G Star");
+    expect(editor().heldLabel).toBe("Class G Star");
+
+    expect(editor().clearHeldRings()).toBe(true);
+    expect(editor().heldRings).toEqual([]);
+    expect(editor().heldLabel).toBe("");
+    expect(editor().clearHeldRings()).toBe(false);
+  });
+
   it("drops its rings when the document closes", async () => {
-    editor().ringSystems([0, 2]);
+    editor().ringSystems([0, 2], "Class G Star");
 
     await useFileSessionStore.getState().close();
 

@@ -25,7 +25,7 @@ for clicks and drags too. <kbd>Option</kbd> is <kbd>Alt</kbd>.
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Undo |
 | <kbd>Ctrl</kbd>+<kbd>Y</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | Redo |
 | <kbd>Ctrl</kbd>+<kbd>A</kbd> | Select every system |
-| <kbd>Esc</kbd> | Clear the selection, or step back. See [What Esc does](#what-esc-does) |
+| <kbd>Esc</kbd> | Clear a star type's rings or the selection, or step back. See [What Esc does](#what-esc-does) |
 | <kbd>Del</kbd> | Delete or cut what is selected |
 | <kbd>Backspace</kbd> | Back one Inspector page, or out of the system view. With nowhere to go back to, the same as <kbd>Del</kbd> |
 | <kbd>Shift</kbd>+arrow | Nudge the selection by 1, or 10° or 10 units with <kbd>Ctrl</kbd>. With nothing selected, pan faster |
@@ -84,9 +84,10 @@ Each press of <kbd>Esc</kbd> does the first of these that applies:
 2. Closes the initializer browser.
 3. In a text field, drops what you typed.
 4. Closes the Open screen or a right-click menu.
-5. Switches back to the Select tool.
-6. Forgets the planets you cut or copied.
-7. Clears a selection of several planets in the system view.
-8. Goes back one Inspector page.
-9. Leaves the system view.
-10. Clears the selection.
+5. On the galaxy map, clears the rings of a star type you picked in search.
+6. Switches back to the Select tool.
+7. Forgets the planets you cut or copied.
+8. Clears a selection of several planets in the system view.
+9. Goes back one Inspector page.
+10. Leaves the system view.
+11. Clears the selection.

@@ -33,6 +33,7 @@ impl Session {
         search::search(
             &self.graph,
             self.built_details().as_deref(),
+            &self.stars,
             query,
             limit,
             resolve,

@@ -164,6 +164,29 @@ function Selected() {
   );
 }
 
+/** On the galaxy map, the systems a star type taken from search left ringed, with a × that clears them. */
+function HeldRings() {
+  const shown = useSceneSystem();
+  const count = useEditorStore((s) => s.heldRings.length);
+  const label = useEditorStore((s) => s.heldLabel);
+  const clear = useEditorStore((s) => s.clearHeldRings);
+  if (shown !== null || count === 0) return null;
+  return (
+    <span className="accent held-rings">
+      {label} · {count} ringed
+      <button
+        type="button"
+        className="link"
+        aria-label="Clear the rings"
+        title={`Clear the rings (${shortcutLabel("clearSelection")})`}
+        onClick={() => clear()}
+      >
+        ×
+      </button>
+    </span>
+  );
+}
+
 /** `Sol III · orbit 45 · angle 212°` for body `id` where `layout` draws it, or null when it does not place it. */
 function bodyReadout(
   details: SystemDetails,
@@ -289,6 +312,7 @@ export function StatusBar() {
       {error && <span className="warn">{error}</span>}
       {!error && notice && <span className="muted">{notice}</span>}
       <span className="spacer" />
+      <HeldRings />
       <Selected />
       <Hint />
       <span className="spacer" />

@@ -3,7 +3,10 @@ import * as ipc from "../api/ipc";
 import type { SearchResult } from "../generated/SearchResult";
 import type { EditorState } from "./editorStore";
 
-type SearchActions = Pick<EditorState, "runSearch" | "clearSearch" | "ringSystems">;
+type SearchActions = Pick<
+  EditorState,
+  "runSearch" | "clearSearch" | "ringSystems" | "clearHeldRings"
+>;
 
 export function searchActions(
   set: StoreApi<EditorState>["setState"],
@@ -25,7 +28,7 @@ export function searchActions(
         throw e;
       }
       if (seq !== latest) return null;
-      set({ searchRings: result.systems, heldRings: [] });
+      set({ searchRings: result.systems, heldRings: [], heldLabel: "" });
       return result;
     },
 
@@ -34,10 +37,20 @@ export function searchActions(
       unring();
     },
 
-    ringSystems(ids) {
+    ringSystems(ids, label) {
       latest++;
       unring();
-      set({ heldRings: ids, framed: { ids, nonce: (get().framed?.nonce ?? 0) + 1 } });
+      set({
+        heldRings: ids,
+        heldLabel: label,
+        framed: { ids, nonce: (get().framed?.nonce ?? 0) + 1 },
+      });
+    },
+
+    clearHeldRings() {
+      if (get().heldRings.length === 0) return false;
+      set({ heldRings: [], heldLabel: "" });
+      return true;
     },
   };
 }

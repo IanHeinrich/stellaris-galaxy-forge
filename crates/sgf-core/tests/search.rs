@@ -423,6 +423,27 @@ fn of_class(s: &Session, class: &str) -> Vec<u32> {
     ids
 }
 
+/// Every system holding a star body of planet class `body`, ascending.
+fn with_star(s: &Session, body: &str) -> Vec<u32> {
+    let mut ids: Vec<u32> = s
+        .graph()
+        .systems
+        .values()
+        .filter(|system| system.bodies.iter().flatten().any(|b| b.class == body))
+        .map(|system| system.id)
+        .collect();
+    ids.sort_unstable();
+    ids
+}
+
+/// The systems of the first star type hit for `query`.
+fn systems_of_type(s: &Session, query: &str) -> Vec<u32> {
+    of_kind(&find(s, query, 50, &star_loc), SearchKind::StarType)[0]
+        .systems
+        .clone()
+        .expect("a star type lists its systems")
+}
+
 #[test]
 fn a_letter_class_is_found_by_its_letter_in_any_common_form() {
     let s = open();
@@ -448,8 +469,9 @@ fn a_letter_class_is_found_by_its_letter_in_any_common_form() {
     ] {
         assert_eq!(star_types(&s, letter, &star_loc), [class], "{letter}");
     }
-    // The 4.4 sample has no brown dwarf; the 4.5 sample has one.
-    assert!(star_types(&s, "t", &star_loc).is_empty());
+    // The 4.4 sample's brown dwarfs are all in binary and trinary systems.
+    assert!(of_class(&s, "sc_t").is_empty());
+    assert_eq!(star_types(&s, "t", &star_loc), ["sc_t"]);
     assert_eq!(star_types(&open_4_5(), "t", &star_loc), ["sc_t"]);
 
     // One letter that is no class, or only starts a longer key or name, finds no star type.
@@ -459,13 +481,13 @@ fn a_letter_class_is_found_by_its_letter_in_any_common_form() {
 }
 
 #[test]
-fn a_star_type_hit_counts_and_locates_every_system_of_its_class() {
+fn a_star_type_hit_counts_and_locates_every_system_with_its_star() {
     let s = open();
     let result = s.search("g", 5, &no_loc, &no_special);
     let yellow = s.search("yellow", 5, &no_loc, &no_special);
     let hits = of_kind(&result.hits, SearchKind::StarType);
     let g = &hits[0];
-    let systems = of_class(&s, "sc_g");
+    let systems = with_star(&s, "pc_g_star");
     assert!(systems.len() > 5, "more than the limit");
     assert_eq!(g.name.key, "sc_g", "the UI localises the class");
     assert_eq!(
@@ -521,11 +543,32 @@ fn a_star_type_is_found_by_a_colour_word() {
             "a colour's first letters"
         );
     }
-    assert!(
-        star_types(&s, "brown", &no_loc).is_empty(),
-        "no brown dwarf"
-    );
+    assert_eq!(star_types(&s, "brown", &no_loc), ["sc_t"]);
     assert_eq!(star_types(&open_4_5(), "brown", &no_loc), ["sc_t"]);
+}
+
+#[test]
+fn a_star_type_counts_every_star_in_a_system() {
+    let s = open();
+    let pulsars = systems_of_type(&s, "pulsar");
+    assert_eq!(pulsars, with_star(&s, "pc_pulsar"));
+    assert!(
+        pulsars.len() > of_class(&s, "sc_pulsar").len(),
+        "binaries with a pulsar count"
+    );
+
+    // An X-ray binary is a class A star around a pulsar.
+    let binary = of_class(&s, "sc_binary_1")[0];
+    for query in ["binary", "a", "pulsar"] {
+        assert!(systems_of_type(&s, query).contains(&binary), "{query}");
+    }
+    assert!(!systems_of_type(&s, "g").contains(&binary));
+
+    // Two class B stars count their system once.
+    let twin = of_class(&s, "sc_binary_5")[0];
+    let b = systems_of_type(&s, "b");
+    assert_eq!(b.iter().filter(|&&id| id == twin).count(), 1);
+    assert_eq!(b, with_star(&s, "pc_b_star"));
 }
 
 #[test]

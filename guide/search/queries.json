@@ -69,6 +69,7 @@
   {"q": "find pulsars", "expect": "map/search#find-a-system-empire-or-planet"},
   {"q": "find star type", "expect": "map/search#find-a-system-empire-or-planet"},
   {"q": "select all black holes", "expect": "map/search#find-a-system-empire-or-planet"},
+  {"q": "clear search rings", "expect": "map/search#find-a-system-empire-or-planet"},
   {"q": "layers", "expect": "map/layers"},
   {"q": "precursor", "expect": "map/layers#see-where-precursors-can-turn-up"},
   {"q": "give systems to empire", "expect": "reference/faq#can-i-give-systems-to-an-empire"},

@@ -116,7 +116,7 @@ function starTypeRow(hit: SearchHit, group: string, look: Lookups): Row {
     activate: (add) => {
       const editor = useEditorStore.getState();
       if (add) void editor.setSelection(systems, "add");
-      else editor.ringSystems(systems);
+      else editor.ringSystems(systems, templateName(hit));
     },
   };
 }

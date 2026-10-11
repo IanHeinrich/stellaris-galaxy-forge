@@ -74,6 +74,31 @@ describe("clearSelection", () => {
     await until(() => expect(useEditorStore.getState().selection).toEqual([]));
   });
 
+  it("clears the rings a star type left on the map before the selection", async () => {
+    useEditorStore.setState({ selection: [1] });
+    useEditorStore.getState().ringSystems([0, 2], "Class G Star");
+
+    expect(esc()).toBe(false);
+    expect(useEditorStore.getState().heldRings).toEqual([]);
+    expect(useEditorStore.getState().selection).toEqual([1]);
+
+    esc();
+    await until(() => expect(useEditorStore.getState().selection).toEqual([]));
+  });
+
+  it("leaves the rings to the galaxy while a system is shown", () => {
+    useGalaxyStore.getState().load(OPEN_RESULT.galaxy);
+    useSceneStore.getState().enterSystem(1);
+    useEditorStore.getState().ringSystems([0, 2], "Class G Star");
+
+    esc();
+    expect(useSceneStore.getState().scene).toEqual({ kind: "galaxy" });
+    expect(useEditorStore.getState().heldRings).toEqual([0, 2]);
+
+    esc();
+    expect(useEditorStore.getState().heldRings).toEqual([]);
+  });
+
   it("leaves everything but the browser standing while a field has the caret", () => {
     useLayoutStore.setState({ openDialog: true });
     useInitializerBrowserStore.setState({ open: true });
