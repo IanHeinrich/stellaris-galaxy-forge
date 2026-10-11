@@ -1,3 +1,4 @@
+import { followModelPrewarm } from "./modelPrewarm";
 import { detailNameKeys } from "../lib/details/labels";
 import { SOURCES, groupState, sectionIdsOf, splitsBySource } from "../lib/visual/layerGroups";
 import { documentCapabilities } from "../lib/capabilities";
@@ -65,6 +66,7 @@ export function bindStores(): void {
   followHeightPreview();
   followPrepare();
   followExportProfile();
+  followModelPrewarm();
 }
 
 // The export dialog shows what the profile ticked in it writes, so a change of profile while it is

@@ -41,6 +41,17 @@ export function planetResourceRows(
   return summed(planet.deposits, icons);
 }
 
+/** What a megastructure type `produces` each month, per resource, in the same order. */
+export function producedRows(
+  produces: readonly (readonly [string, number])[],
+  icons: ReadonlyMap<string, string> = new Map(),
+): ResourceRow[] {
+  return summed(
+    produces.map(([resource, amount]) => ({ resource, amount })),
+    icons,
+  );
+}
+
 /** Width of one resource cell for `count` resources: the game's row stays dense, to slight overlap. */
 export function resourceStride(count: number): number {
   const t = Math.min(1, Math.max(0, (count - 3) / 5));

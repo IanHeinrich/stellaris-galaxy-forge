@@ -22,7 +22,7 @@ import {
 import { documentSubject, readSystemSources, sameSources } from "./sources";
 import { EXIT_REACH_PX } from "./geometry";
 import { moveMarks } from "./moveMarks";
-import { pickPlate, type SceneTarget } from "./picking";
+import { pickPlate, pickStructurePlate, type SceneTarget } from "./picking";
 import { BeltsLayer } from "./layers/BeltsLayer";
 import { BodiesLayer } from "./layers/BodiesLayer";
 import { ExitsLayer } from "./layers/ExitsLayer";
@@ -34,15 +34,16 @@ import { NebulaLayer } from "./layers/NebulaLayer";
 import { OrbitsLayer } from "./layers/OrbitsLayer";
 import { RadiiLayer } from "./layers/RadiiLayer";
 import { RolledLayer } from "./layers/RolledLayer";
+import { StructuresLayer } from "./layers/StructuresLayer";
 import { WormholesLayer } from "./layers/WormholesLayer";
 import { NO_HIGHLIGHT, type SceneHighlight, type SystemLayer } from "./layers/SystemLayer";
 import { bakeSceneTextures, releaseSceneTextures, type SceneTextures } from "./layers/textures";
 import { SystemInteraction, type InteractionScene } from "./SystemInteraction";
 
 /**
- * One system's bodies, orbits, belts, wormholes and hyperlane exits, drawn about its centre with a
- * camera of its own. The host retargets it to the system the scene store shows; nothing here is
- * React state.
+ * One system's bodies, orbits, belts, megastructures, starbases, wormholes and hyperlane exits,
+ * drawn about its centre with a camera of its own. The host retargets it to the system the scene
+ * store shows; nothing here is React state.
  */
 export class SystemScene implements Scene, SceneView, InteractionScene {
   readonly cam = new Camera();
@@ -90,6 +91,7 @@ export class SystemScene implements Scene, SceneView, InteractionScene {
       new ExitsLayer(),
       new RadiiLayer(),
       new BodiesLayer(textures),
+      new StructuresLayer(),
       new WormholesLayer(textures),
       new LocksLayer(),
       this.handles,
@@ -189,12 +191,17 @@ export class SystemScene implements Scene, SceneView, InteractionScene {
     this.stepPending = true;
   }
 
-  plateAt(sx: number, sy: number): number | null {
-    return pickPlate(this.labels.plates(), this.cam, { x: sx, y: sy });
+  plateAt(sx: number, sy: number): SceneTarget | null {
+    const at = { x: sx, y: sy };
+    const structure = pickStructurePlate(this.labels.structurePlates(), this.cam, at);
+    if (structure !== null) return structure;
+    const body = pickPlate(this.labels.plates(), this.cam, at);
+    return body === null ? null : { kind: "body", id: body };
   }
 
-  markTipAt(body: number, sx: number, sy: number): Tip | null {
-    return this.labels.tipAt(body, sx, sy);
+  markTipAt(target: SceneTarget, sx: number, sy: number): Tip | null {
+    if (target.kind === "body") return this.labels.tipAt(target.id, sx, sy);
+    return target.kind === "megastructure" ? this.labels.structureTipAt(target, sx, sy) : null;
   }
 
   /** Does nothing while the scene is hidden: showing it reads the stores again. */

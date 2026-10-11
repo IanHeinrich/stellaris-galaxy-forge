@@ -10,6 +10,7 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
+import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
@@ -78,6 +79,8 @@ export interface GameDataState {
   /** Bypass kind → its map icon frame, for the badge a bypass wears. */
   bypasses: Map<string, BypassView>;
   starbaseLevels: Map<string, StarbaseLevelView>;
+  /** Megastructure type key → its models, offset and how it is sized. */
+  megastructureTypes: Map<string, MegastructureTypeView>;
   /** Ship size key → its `common/ship_sizes` icon, for the badge a fleet wears. */
   shipSizes: Map<string, ShipSizeView>;
   countryTypes: Map<string, CountryTypeView>;
@@ -163,6 +166,7 @@ const UNLOADED = {
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
+  megastructureTypes: new Map<string, MegastructureTypeView>(),
   shipSizes: new Map<string, ShipSizeView>(),
   countryTypes: new Map<string, CountryTypeView>(),
   lgateMods: [] as LGateModTouch[],
@@ -491,6 +495,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     deposits,
     bypasses,
     starbaseLevels,
+    megastructureTypes,
     shipSizes,
     countryTypes,
     lgateMods,
@@ -505,6 +510,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     ipc.getDeposits(),
     ipc.getBypasses(),
     ipc.getStarbaseLevels(),
+    ipc.getMegastructureTypes(),
     ipc.getShipSizes(),
     ipc.getCountryTypes(),
     ipc.getLgateOutcomeMods(),
@@ -521,6 +527,7 @@ async function loadRegistries(alive?: () => boolean): Promise<void> {
     deposits: new Map(deposits.map((d) => [d.key, d])),
     bypasses: new Map(bypasses.map((b) => [b.key, b])),
     starbaseLevels: new Map(starbaseLevels.map((l) => [l.key, l])),
+    megastructureTypes: new Map(megastructureTypes.map((t) => [t.key, t])),
     shipSizes: new Map(shipSizes.map((s) => [s.key, s])),
     countryTypes: new Map(countryTypes.map((t) => [t.name, t])),
     lgateMods,

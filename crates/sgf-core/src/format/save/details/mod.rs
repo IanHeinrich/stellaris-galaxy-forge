@@ -15,6 +15,9 @@ mod resolve;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::document::Document;
 use crate::projections::galaxy::{GalaxyGraph, ProjectionError, StarClasses};
 use crate::projections::read;
@@ -33,6 +36,30 @@ pub use resolve::{
     SpawnName, SpawnPool, SpawnRing, SpawnStar, StarbaseSummary, StatedAnomalies, StatedFeatures,
     SystemDetails, SystemSpawn, UnknownClass, UsageOdds, VariableUse,
 };
+
+/// What one row of a save is drawn from: a megastructure's type, a starbase's level or a
+/// planet's class, with its culture and where it stands, as the system view reads them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ModelUse {
+    pub kind: ModelUseKind,
+    /// The megastructure's `type`, the starbase's level or the planet's class.
+    pub key: String,
+    pub culture: Option<String>,
+    /// A planet's `entity_name`; `None` for anything else.
+    pub entity: Option<String>,
+    /// `coordinate` x/y, relative to its system's centre.
+    pub at: Option<(f64, f64)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum ModelUseKind {
+    Megastructure,
+    Starbase,
+    Planet,
+}
 
 #[derive(Debug, Clone)]
 pub struct DetailsProjection {
@@ -111,6 +138,7 @@ impl DetailsProjection {
                     pre_ftl: planet.pre_ftl,
                     deposits: std::mem::take(&mut planet.deposits),
                     pops: planet.pops,
+                    culture: planet.culture.take(),
                     ..fresh
                 };
             }
@@ -162,6 +190,38 @@ impl DetailsProjection {
     ) -> Option<SystemDetails> {
         let raw = self.by_system.get(&id)?;
         Some(resolve::resolve(id, raw, resolver, with_game_data))
+    }
+
+    /// Every megastructure row, starbase and planet of every system, with what picks the
+    /// model each is drawn from, in system order.
+    pub fn models(&self) -> Vec<ModelUse> {
+        let mut systems: Vec<(&u32, &RawSystemDetails)> = self.by_system.iter().collect();
+        systems.sort_by_key(|(id, _)| **id);
+        let mut uses = Vec::new();
+        for (_, raw) in systems {
+            uses.extend(raw.megastructures.iter().map(|m| ModelUse {
+                kind: ModelUseKind::Megastructure,
+                key: m.kind.clone(),
+                culture: m.culture.clone(),
+                entity: None,
+                at: m.at,
+            }));
+            uses.extend(raw.starbases.iter().map(|s| ModelUse {
+                kind: ModelUseKind::Starbase,
+                key: s.level.clone(),
+                culture: s.culture.clone(),
+                entity: None,
+                at: s.at,
+            }));
+            uses.extend(raw.planets.iter().map(|p| ModelUse {
+                kind: ModelUseKind::Planet,
+                key: p.class.clone(),
+                culture: p.culture.clone(),
+                entity: p.entity_name.clone(),
+                at: p.at,
+            }));
+        }
+        uses
     }
 
     pub fn raw(&self, id: u32) -> Option<&RawSystemDetails> {

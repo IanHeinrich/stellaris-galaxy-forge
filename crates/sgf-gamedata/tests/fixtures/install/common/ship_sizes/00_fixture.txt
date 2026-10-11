@@ -9,6 +9,7 @@ starbase_hut = {
 
 starbase_roamer = {
 	icon_frame = -1
+	scales_with_planet = yes
 }
 
 science = {

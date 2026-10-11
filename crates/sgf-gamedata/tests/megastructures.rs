@@ -22,6 +22,15 @@ fn a_megastructure_type_names_its_models_offset_and_placement() {
     assert_eq!(tank.build_type, BuildType::AroundPlanet, "the default");
     assert_eq!(tank.upgrade_from, ["fixture_tank_0"]);
     assert_eq!(tank.bypass_type, None);
+    assert!(tank.rotate_to_center, "the default");
+    assert_eq!(
+        tank.produces,
+        [
+            ("physics_research".to_owned(), 300.0),
+            ("society_research".to_owned(), 150.0)
+        ],
+        "the file's @variable, and no upkeep"
+    );
 
     let ring = gd.megastructures.get("fixture_ring").expect("fixture_ring");
     assert_eq!(ring.entity, None, "an empty entity is none");
@@ -29,6 +38,8 @@ fn a_megastructure_type_names_its_models_offset_and_placement() {
     assert_eq!(ring.entity_offset, (0.0, 0.0));
     assert_eq!(ring.construction_scale, 1.0);
     assert_eq!(ring.build_type, BuildType::InsideGravityWell);
+    assert!(!ring.rotate_to_center);
+    assert!(ring.produces.is_empty());
 
     let relay = gd
         .megastructures
@@ -59,6 +70,11 @@ fn a_starbase_level_names_the_model_of_its_sizes_first_section_slot() {
         .get("starbase_level_roamer")
         .expect("starbase_level_roamer");
     assert_eq!(roamer.station_entity, None, "its size has no section slots");
+    assert!(
+        StarbaseLevelView::from(roamer).scales_with_planet,
+        "its size's"
+    );
+    assert!(!hut.scales_with_planet);
 }
 
 #[test]
@@ -154,6 +170,18 @@ fn the_installs_megastructure_types_and_station_models() {
         mega("dyson_sphere_5").entity.as_deref(),
         Some("dyson_sphere_phase_05_entity")
     );
+    let produces = |key: &str| mega(key).produces.clone();
+    assert_eq!(produces("dyson_sphere_5"), [("energy".to_owned(), 4000.0)]);
+    assert_eq!(
+        produces("matter_decompressor_4"),
+        [("minerals".to_owned(), 2000.0)]
+    );
+    let nexus_output: Vec<f64> = produces("think_tank_3").iter().map(|(_, n)| *n).collect();
+    assert_eq!(nexus_output, [300.0; 3], "the file's @variables");
+    assert!(produces("ring_world_ruined").is_empty());
+    assert!(produces("dyson_sphere_1").is_empty());
+    assert!(mega("ring_world_ruined").rotate_to_center);
+    assert!(!mega("dyson_swarm_1").rotate_to_center);
 
     let station = |level: &str| {
         gd.starbase_levels

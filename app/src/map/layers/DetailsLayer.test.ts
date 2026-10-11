@@ -31,6 +31,7 @@ function details(s: SystemNode): SystemDetails {
     resources: [],
     planets: [],
     starbase: null,
+    other_starbases: [],
     fleets: { fleet_count: 0, military_count: 0, ship_count: 0, military_power: 0 },
     fleets_present: [],
     megastructures: [],

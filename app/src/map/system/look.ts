@@ -58,6 +58,12 @@ export interface BodyLook {
   readonly gloss: boolean;
   /** The colour its icon is glazed over itself in, or null. */
   readonly glaze: number | null;
+  /**
+   * The texture key of the game model drawn in place of its disc, at the model's own size: a
+   * habitat's or a ring world segment's. Its disc and icon show while the model bakes or where it
+   * cannot. Null for any other body.
+   */
+  readonly model: string | null;
 }
 
 function classTint(planetClass: string, starClass: string | null): number {
@@ -85,6 +91,8 @@ export interface LookOf {
   readonly model?: string | null;
   /** What breaks a shattered class apart: the planet's id. */
   readonly shatterSeed?: number | null;
+  /** The texture key of the model drawn in place of its disc. */
+  readonly bodyModel?: string | null;
 }
 
 /**
@@ -103,6 +111,7 @@ export function bodyLook({
   asteroid = false,
   model = null,
   shatterSeed = null,
+  bodyModel = null,
 }: LookOf): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
@@ -128,5 +137,6 @@ export function bodyLook({
     luminous,
     gloss: !/gas_giant/.test(planetClass),
     glaze: ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null,
+    model: starClass === null && !drawn ? bodyModel : null,
   };
 }

@@ -1,6 +1,5 @@
 ---
 source: crates/sgf-gamedata/tests/details_spawn.rs
-assertion_line: 599
 expression: out
 ---
 {
@@ -15,6 +14,7 @@ expression: out
   "id": 1,
   "inner_radius": null,
   "megastructures": [],
+  "other_starbases": [],
   "planets": null,
   "resources": [],
   "sites": [],
@@ -107,6 +107,7 @@ expression: out
     },
     "name_key": "",
     "owner": null,
+    "planet": null,
     "shipyard": false
   },
   "with_game_data": true,

@@ -60,10 +60,12 @@ pub enum TextureKey {
         class: String,
     },
     /// A megastructure's or starbase's model in a graphical culture, by its entity name
-    /// without the culture's prefix.
+    /// without the culture's prefix, turned `yaw` whole degrees about its up axis
+    /// (`model:<culture>:<entity>:yaw<degrees>`, the turn left out when it is 0).
     Model {
         culture: String,
         entity: String,
+        yaw: u16,
     },
 }
 
@@ -165,10 +167,15 @@ impl FromStr for TextureKey {
                 class: component(rest).ok_or_else(bad)?,
             },
             "model" => {
-                let (culture, entity) = rest.split_once(':').ok_or_else(bad)?;
+                let (culture, rest) = rest.split_once(':').ok_or_else(bad)?;
+                let (entity, yaw) = match rest.split_once(':') {
+                    Some((entity, turn)) => (entity, yaw_degrees(turn).ok_or_else(bad)?),
+                    None => (rest, 0),
+                };
                 Self::Model {
                     culture: component(culture).ok_or_else(bad)?,
                     entity: component(entity).ok_or_else(bad)?,
+                    yaw,
                 }
             }
             _ => return Err(bad()),
@@ -207,9 +214,24 @@ impl fmt::Display for TextureKey {
             Self::PlanetModel { entity } => write!(f, "planet_model:{entity}"),
             Self::PlanetRing => f.write_str("planet_ring"),
             Self::StarDisc { class } => write!(f, "star_disc:{class}"),
-            Self::Model { culture, entity } => write!(f, "model:{culture}:{entity}"),
+            Self::Model {
+                culture,
+                entity,
+                yaw: 0,
+            } => write!(f, "model:{culture}:{entity}"),
+            Self::Model {
+                culture,
+                entity,
+                yaw,
+            } => write!(f, "model:{culture}:{entity}:yaw{yaw}"),
         }
     }
+}
+
+/// `yaw<degrees>`, whole degrees, as a turn from 0 up to 360.
+fn yaw_degrees(s: &str) -> Option<u16> {
+    let degrees: i32 = s.strip_prefix("yaw")?.parse().ok()?;
+    u16::try_from(degrees.rem_euclid(360)).ok()
 }
 
 /// One path segment: non-empty, no separators, no `..`.

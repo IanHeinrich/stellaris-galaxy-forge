@@ -31,6 +31,18 @@ pub(crate) fn position(doc: &Document, fleet: u32) -> Option<(u32, Option<(f64, 
     ))
 }
 
+/// The planet fleet `fleet` orbits, from the bytes now standing for it: its
+/// `movement_manager.orbit.orbitable.planet`. `None` for a fleet that orbits no planet.
+pub(crate) fn orbited_planet(doc: &Document, fleet: u32) -> Option<u32> {
+    let anchor = record(doc, keys::FLEET, fleet)?;
+    let (node, src) = entity_at(doc, anchor).ok()??;
+    let orbitable = node
+        .find(keys::MOVEMENT_MANAGER, src)?
+        .find(keys::ORBIT, src)?
+        .find(keys::ORBITABLE, src)?;
+    read::scalar_u32(orbitable, keys::PLANET, src).filter(|&id| id != crate::NULL_ID)
+}
+
 /// The fleets system `id`'s `fleet_presence` lists.
 pub(crate) fn present_fleets(s: &Session, id: u32) -> Result<Vec<u32>, OpError> {
     let anchor = system_statement(&s.doc, id).ok_or(OpError::UnknownSystem(id))?;

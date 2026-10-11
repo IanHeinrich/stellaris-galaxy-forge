@@ -449,6 +449,8 @@ export function detailNameKeys(d: SystemDetails): string[] {
   }
   for (const f of d.fleets_present) keys.push(...templateKeys(f.name));
   if (d.starbase) keys.push(...templateKeys(d.starbase.name));
+  for (const s of d.other_starbases) keys.push(...templateKeys(s.name));
+  for (const m of d.megastructures) keys.push(m.kind);
   for (const r of d.resources) keys.push(canonicalResource(r.resource));
   return keys;
 }

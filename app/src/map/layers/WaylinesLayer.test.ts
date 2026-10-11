@@ -51,6 +51,7 @@ function starbase(id: number, level: string): StarbaseSummary {
     hull: 0,
     max_hull: 0,
     at: null,
+    planet: null,
     culture: null,
   };
 }

@@ -1,8 +1,10 @@
 //! Session lifecycle IPC commands end to end, through the mock runtime, on the real sample save.
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use serde_json::json;
 use sgf_core::export::ExportReport;
+use sgf_core::format::save::details::{ModelUse, ModelUseKind};
 use sgf_core::validate::IssueCode;
 use sgf_core::views::{
     DocumentKind, EditResult, ErrorKind, ExportResult, OpenResult, SaveResult, SearchResult,
@@ -380,4 +382,43 @@ fn a_save_opened_as_a_scenario_shows_the_issues_of_the_scenario_it_opened() {
         );
         assert_eq!(dropped.len(), dropped_kinds, "{sample} as {profile}");
     }
+}
+
+#[test]
+fn the_model_uses_list_each_starbase_and_planet_with_its_owners_culture_and_point() {
+    let w = opened(SAMPLE_45);
+    let uses: Vec<ModelUse> = invoke(&w, "get_model_uses", json!({})).expect("model uses");
+    let of = |kind: ModelUseKind| uses.iter().filter(move |u| u.kind == kind);
+
+    let starbases: Vec<&ModelUse> = of(ModelUseKind::Starbase).collect();
+    assert!(!starbases.is_empty());
+    for s in &starbases {
+        assert!(s.key.starts_with("starbase_level_"), "{s:?}");
+        assert!(s.at.is_some() && s.entity.is_none(), "{s:?}");
+    }
+    assert!(starbases.iter().any(|s| s.culture.is_some()));
+
+    let planets: Vec<&ModelUse> = of(ModelUseKind::Planet).collect();
+    assert!(planets.iter().all(|p| p.at.is_some()));
+    let owned = planets.iter().filter(|p| p.culture.is_some()).count();
+    assert!(
+        owned > 0 && owned < planets.len(),
+        "{owned} of {}",
+        planets.len()
+    );
+    let stations: BTreeSet<&str> = starbases
+        .iter()
+        .filter_map(|s| s.culture.as_deref())
+        .collect();
+    assert!(
+        planets
+            .iter()
+            .filter_map(|p| p.culture.as_deref())
+            .any(|c| stations.contains(c)),
+        "an empire's planets are drawn in the culture its stations are"
+    );
+
+    let scenario = opened(SCENARIO);
+    let none: Vec<ModelUse> = invoke(&scenario, "get_model_uses", json!({})).expect("model uses");
+    assert!(none.is_empty());
 }

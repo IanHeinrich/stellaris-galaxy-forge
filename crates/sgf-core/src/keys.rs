@@ -161,6 +161,7 @@ save_keys! {
     NUM_WORMHOLE_PAIRS = "num_wormhole_pairs",
     OFFSET = "offset",
     ORBIT = "orbit",
+    ORBITABLE = "orbitable",
     ORBITALS = "orbitals",
     ORBITAL_DEFENCE = "orbital_defence",
     ORIGIN = "origin",

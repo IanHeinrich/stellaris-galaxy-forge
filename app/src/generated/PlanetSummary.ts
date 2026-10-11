@@ -74,6 +74,11 @@ anomaly?: string,
  */
 entity_name?: string, 
 /**
+ * Its owner's graphical culture, which a habitat or a ring world segment is drawn in.
+ * `None` for a planet with no owner or an owner with none, and for a scenario's bodies.
+ */
+culture?: string, 
+/**
  * What only a scenario body's initializer says of it. `None` in a save.
  */
 spawn?: BodySpawn, };

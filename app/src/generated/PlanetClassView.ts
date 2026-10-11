@@ -67,4 +67,10 @@ models: number,
  * Save units of disc radius per `planet_size` point, as the game draws it; `None` for a
  * class the game's size rule is not known to fit, which the app sizes by its own rule.
  */
-disc_scale?: number, };
+disc_scale?: number, 
+/**
+ * The model a body of this class is drawn from in place of a disc, `<entity>_01_entity`
+ * without a culture prefix: a habitat's and a ring world segment's. `None` for any other
+ * class, and for one that names no entity.
+ */
+body_model?: string, };
