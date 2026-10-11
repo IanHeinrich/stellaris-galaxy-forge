@@ -96,6 +96,16 @@ fn in_system(s: &Session, system: u32, body: u32) -> Result<(), OpError> {
     Ok(())
 }
 
+/// Whether body `body` still stands in `system`: false once the save no longer holds it or
+/// it stands elsewhere. A body the save cannot read is an error.
+fn still_in(s: &Session, system: u32, body: u32) -> Result<bool, OpError> {
+    match in_system(s, system, body) {
+        Ok(()) => Ok(true),
+        Err(OpError::UnknownPlanet(_) | OpError::NotABody { .. }) => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
 /// The modifiers of `construction`, by the entity they go on, each in the order listed.
 fn by_host(
     construction: &MegastructureConstruction,
@@ -295,7 +305,7 @@ pub(crate) fn take_back(
     let mut kept = MegastructureConstruction::default();
     for (host, items) in by_host(construction) {
         if let ModifierHost::Body { body } = host
-            && in_system(s, system, body).is_err()
+            && !still_in(s, system, body)?
         {
             continue;
         }
@@ -335,6 +345,9 @@ pub(crate) fn take_back(
         }
         table.settle(plan, &s.doc)?;
         for (body, ids) in unlisted {
+            if !still_in(s, system, body)? {
+                continue;
+            }
             let edit = plan.edit_planet(&s.doc, body, system)?;
             if let Some(block) = edit.entity()?.find(keys::DEPOSITS, &edit.buf).cloned() {
                 unlist_in(edit, &block, &ids, Emptied::Drop);
@@ -352,7 +365,8 @@ pub(crate) fn take_back(
 }
 
 /// For each of `deposits`, an added deposit of its type on its body, latest first taken,
-/// with its id and slot; one no longer there is left out.
+/// with its id and slot; one no longer there is left out. A body deleted since leaves its
+/// deposits behind, so they are found by the holder they name.
 fn added_deposits<'c>(
     s: &Session,
     system: u32,
@@ -362,11 +376,12 @@ fn added_deposits<'c>(
     let mut taken: Vec<u32> = Vec::new();
     let mut found = Vec::new();
     for deposit in deposits {
-        if in_system(s, system, deposit.body).is_err() {
-            continue;
-        }
-        let (node, src) = planet_entity(&s.doc, deposit.body)?;
-        let ids = read::ids(&node, keys::DEPOSITS, src);
+        let ids = if still_in(s, system, deposit.body)? {
+            let (node, src) = planet_entity(&s.doc, deposit.body)?;
+            read::ids(&node, keys::DEPOSITS, src)
+        } else {
+            held_by(s, deposit.body)?
+        };
         let mut pick = None;
         for id in ids.into_iter().rev() {
             if taken.contains(&id) || s.doc.added().get(table, id).is_none() {
@@ -386,6 +401,27 @@ fn added_deposits<'c>(
         }
     }
     Ok(found)
+}
+
+/// The ids of the added deposits whose holder is planet `body`, lowest first.
+fn held_by(s: &Session, body: u32) -> Result<Vec<u32>, OpError> {
+    let table = Table::Entity(EntityKind::Deposit);
+    let mut ids: Vec<u32> = s.doc.added().entries(table).map(|(id, _)| id).collect();
+    ids.sort_unstable();
+    let mut held = Vec::new();
+    for id in ids {
+        let Some(entry) = row(&s.doc, table, id)? else {
+            continue;
+        };
+        let holder = entry
+            .node
+            .find(keys::DEPOSIT_HOLDER, entry.src)
+            .and_then(|holder| read::scalar_u32(holder, keys::ID, entry.src));
+        if holder == Some(body) {
+            held.push(id);
+        }
+    }
+    Ok(held)
 }
 
 /// Lower each of `raises` on country `owner` as far as it was raised, a line going at 0 and
@@ -459,7 +495,8 @@ fn lower(
 }
 
 /// The construction the add that wrote row `megastructure` this session gave it: what the
-/// latest undoable edit naming the row's removal as its inverse carries.
+/// latest undoable edit, or earlier member of the batch being applied, naming the row's
+/// removal as its inverse carries.
 pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<MegastructureConstruction> {
     fn find(op: &Op, megastructure: u32) -> Option<Option<&MegastructureConstruction>> {
         match op {
@@ -471,9 +508,9 @@ pub(crate) fn of_session(s: &Session, megastructure: u32) -> Option<Megastructur
             _ => None,
         }
     }
-    s.applied()
+    s.applied_inverses()
         .rev()
-        .find_map(|applied| find(&applied.inverse, megastructure))
+        .find_map(|inverse| find(inverse, megastructure))
         .flatten()
         .cloned()
 }

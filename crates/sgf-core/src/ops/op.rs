@@ -848,16 +848,17 @@ pub enum Op {
     /// and unless another row names the body, the body loses the flags a structure leaves.
     /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
     /// bypass's lists. What the add's construction wrote goes too, as much of it as is still
-    /// there: each modifier item, each deposit, which gives its slot back as
-    /// [`Op::RemoveDeposit`] gives back an added one, and each variable lowered, its line
-    /// going at 0 and the owner's `variables` with its last line when the file held neither.
+    /// there: each modifier item, each deposit, a body's deleted since included, which gives
+    /// its slot back as [`Op::RemoveDeposit`] gives back an added one, and each variable
+    /// lowered, its line going at 0 and the owner's `variables` with its last line when the
+    /// file held neither.
     /// A row the file held is refused. The inverse adds it back as it stood, with what was
     /// taken back as its construction. Stellaris 4.x save documents only.
     RemoveMegastructure {
         megastructure: u32,
         /// What the add's construction wrote; filled only by the inverse of
         /// [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
-        /// row this session is taken back.
+        /// row this session, earlier in the same batch included, is taken back.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
