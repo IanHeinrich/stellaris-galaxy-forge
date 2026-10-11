@@ -141,6 +141,8 @@ pub struct Capabilities {
     pub add_bodies: bool,
     /// A planet or moon can be deleted, and a colony removed from it.
     pub remove_bodies: bool,
+    /// A megastructure can be deleted.
+    pub remove_megastructures: bool,
     /// A planet's class and model can be changed.
     pub planet_classes: bool,
     /// A planet's timed modifiers and features can be added and removed.

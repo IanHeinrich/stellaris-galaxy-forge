@@ -16,6 +16,7 @@ macro_rules! save_keys {
 
 save_keys! {
     ACTIVE = "active",
+    ACTIVE_CONNECTIONS = "active_connections",
     ADJECTIVE = "adjective",
     AMBIENT_OBJECT = "ambient_object",
     ANOMALIES = "anomalies",
@@ -50,6 +51,7 @@ save_keys! {
     COLONY = "colony",
     COLORS = "colors",
     COMBAT = "combat",
+    CONNECTIONS = "connections",
     CONSTRUCTION = "construction",
     CONSTRUCTION_TYPE = "construction_type",
     CONTROLLED_COLONIES = "controlled_colonies",
@@ -75,6 +77,7 @@ save_keys! {
     DATA = "data",
     DAYS = "days",
     DAYS_LEFT = "days_left",
+    DEAD_MEGA_STRUCTURE = "dead_mega_structure",
     DEPOSIT = "deposit",
     DEPOSITS = "deposits",
     DEPOSIT_HOLDER = "deposit_holder",
@@ -111,6 +114,8 @@ save_keys! {
     GROWTH_STAGE = "growth_stage",
     GROWTH_STAGES = "growth_stages",
     HABITABILITY = "habitability",
+    /// A planet flag: a megastructure stands on or around the planet. The 4.4 sample has none.
+    HAS_MEGASTRUCTURE = "has_megastructure",
     HITPOINTS = "hitpoints",
     HIT_POINTS = "hit_points",
     HYPERLANE = "hyperlane",
@@ -134,6 +139,8 @@ save_keys! {
     LINKED_TO = "linked_to",
     LITERAL = "literal",
     LOCATION = "location",
+    /// `dead_mega_structure.map`; the 4.4 sample's table is empty.
+    MAP = "map",
     MAX_HITPOINTS = "max_hitpoints",
     MEGASTRUCTURE = "megastructure",
     MEGASTRUCTURES = "megastructures",
@@ -159,6 +166,7 @@ save_keys! {
     NUM_POPS = "num_pops",
     NUM_SAPIENT_POPS = "num_sapient_pops",
     NUM_WORMHOLE_PAIRS = "num_wormhole_pairs",
+    OBJECTS = "objects",
     OFFSET = "offset",
     ORBIT = "orbit",
     ORBITABLE = "orbitable",
@@ -168,6 +176,7 @@ save_keys! {
     OUTER_RADIUS = "outer_radius",
     OWNED_ARMIES = "owned_armies",
     OWNED_FLEETS = "owned_fleets",
+    OWNED_MEGASTRUCTURES = "owned_megastructures",
     OWNED_PLANETS = "owned_planets",
     OWNER = "owner",
     PLANET = "planet",
@@ -190,6 +199,7 @@ save_keys! {
     REQUIRED_DLCS = "required_dlcs",
     RESOURCE_ABUNDANCE = "resource_abundance",
     RESOURCES = "resources",
+    RUINED_ORBITAL_RING_PLANET = "ruined_orbital_ring_planet",
     SAVE_ON_DEATH = "save_on_death",
     SCALE = "scale",
     SCALING = "scaling",
@@ -207,6 +217,8 @@ save_keys! {
     SHIP_SIZE = "ship_size",
     SITES = "sites",
     SITUATIONS = "situations",
+    /// `dead_mega_structure.objects.<n>.solar_system`; the 4.4 sample's table is empty.
+    SOLAR_SYSTEM = "solar_system",
     SPECIES_DB = "species_db",
     SPECIES_INFORMATION = "species_information",
     STARBASES = "starbases",
@@ -225,6 +237,7 @@ save_keys! {
     TIMED_MODIFIER = "timed_modifier",
     TO = "to",
     TYPE = "type",
+    UPGRADE = "upgrade",
     USE_MAP_COLOR = "use_map_color",
     VALUE = "value",
     VARIABLES = "variables",
@@ -252,11 +265,25 @@ pub(crate) const OPTIONAL: &[&str] = &[
     ARM,
     // Written while a blocker is being cleared; the 4.5 sample clears none.
     BUILDABLE_CLEAR_DEPOSIT_BLOCKER,
+    // Written on a planet a megastructure was built on, which the 4.4 sample has none of.
+    HAS_MEGASTRUCTURE,
+    // Written once a megastructure with `save_on_death` is destroyed; the 4.4 sample's
+    // dead table is empty.
+    MAP,
+    SOLAR_SYSTEM,
 ];
 
 /// Written on a planet while it terraforms, which no sample save's planet does, so the
 /// save-key test cannot look for it.
 pub(crate) const TERRAFORM_PROCESS: &str = "terraform_process";
+
+/// A planet flag an Arc Furnace sets on the planet it is built around, which no sample save
+/// has.
+pub(crate) const HAS_ARC_FURNACE: &str = "has_arc_furnace";
+
+/// A construction ship's order to build or upgrade a megastructure, which no sample save's
+/// fleet has.
+pub(crate) const BUILD_MEGASTRUCTURE_FLEET_ORDER: &str = "build_megastructure_fleet_order";
 
 /// The keys only the `meta` member writes, which the save-key test does not look for.
 pub(crate) mod meta {

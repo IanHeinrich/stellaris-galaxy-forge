@@ -14,7 +14,7 @@ use crate::emit::system::RING_FLAG;
 use crate::entity::facts;
 use crate::entity::facts::planet::{BodyRole, PlanetFacts};
 use crate::entity::views::EntityKind;
-use crate::format::save::added::row;
+use crate::format::save::added::{Table, row, rows};
 use crate::format::save::galaxy::bodies::planet_ids;
 use crate::format::save::galaxy::bypasses::{NATURAL, natural_wormholes};
 use crate::format::save::galaxy::starbases::fleet_owners;
@@ -470,21 +470,16 @@ fn current_entity<'d>(
     })
 }
 
-/// Every entity of the top-level `megastructures`, filed under its `coordinate.origin`.
+/// Every row the top-level `megastructures` now holds, the ones an op added included,
+/// filed under its `coordinate.origin`.
 pub(super) fn megastructures(
-    index: &Index,
-    src: &[u8],
+    doc: &Document,
     countries: &Countries,
     by_system: &mut HashMap<u32, RawSystemDetails>,
 ) -> Result<(), ProjectionError> {
-    for entity in index.entities(keys::MEGASTRUCTURES) {
-        let Some(node) = read::entity_node(entity, src, keys::MEGASTRUCTURES)? else {
-            continue;
-        };
-        let Ok(id) = u32::try_from(entity.id) else {
-            continue;
-        };
-        let mega = facts::megastructure::read(&node, src);
+    for row in rows(doc, Table::Entity(EntityKind::Megastructure))? {
+        let id = row.id;
+        let mega = facts::megastructure::read(&row.node, row.src);
         let Some(details) = mega.origin.and_then(|o| by_system.get_mut(&o)) else {
             continue;
         };
