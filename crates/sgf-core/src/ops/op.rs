@@ -703,11 +703,11 @@ pub enum Op {
     /// `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves them. When
     /// the body has the planet flag `megastructure`, which a body the structure made has, its
     /// colony goes first as [`Op::RemoveColony`] takes it, and the body stays. The system's
-    /// and owner's flags and modifiers stay. A row standing in no system, a bypass of any
-    /// other kind, a row a construction ship's `build_megastructure_fleet_order` upgrades and
-    /// any colony [`Op::RemoveColony`] refuses for a reason other than the structure are
-    /// refused. The inverse is the [`Op::RestoreEntities`] that writes back every entity it
-    /// rewrote. A row [`Op::AddMegastructure`] added since the file was opened goes as
+    /// and owner's flags and modifiers stay. A row upgrading goes with its `upgrade` block. A
+    /// row standing in no system, a bypass of any other kind and any colony
+    /// [`Op::RemoveColony`] refuses for a reason other than the structure are refused. The
+    /// inverse is the [`Op::RestoreEntities`] that writes back every entity it rewrote. A row
+    /// [`Op::AddMegastructure`] added since the file was opened goes as
     /// [`Op::RemoveMegastructure`] takes it. Stellaris 4.x save documents only.
     DeleteMegastructure {
         megastructure: u32,

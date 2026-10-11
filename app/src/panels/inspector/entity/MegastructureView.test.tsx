@@ -57,7 +57,7 @@ describe("a megastructure's page", () => {
   });
 
   it("shows why the core refuses, and disables the action", async () => {
-    const refusal = "a fleet is building on megastructure 6";
+    const refusal = "megastructure 6 cannot be deleted: it stands in no system";
     mockedIpc.checkOp.mockResolvedValue(refusal);
     render("overview");
     await vi.advanceTimersByTimeAsync(0);

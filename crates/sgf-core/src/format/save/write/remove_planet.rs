@@ -240,8 +240,9 @@ fn then(first: Op, description: String, rest: impl Iterator<Item = Op>) -> Op {
 }
 
 /// What refuses both a colony's removal and a planet's deletion: a ring world segment, and a
-/// megastructure on or around the body. A habitat is a planet class with no megastructure
-/// entry of its own, so it passes.
+/// megastructure on or around the body, which is a live row naming it. The body's own
+/// `megastructure` key can name a row the save no longer holds, and then refuses nothing. A
+/// habitat is a planet class with no megastructure entry of its own, so it passes.
 pub(crate) fn check_planet(
     s: &Session,
     planet: u32,
@@ -250,7 +251,7 @@ pub(crate) fn check_planet(
     refuse: impl Fn(String) -> OpError,
 ) -> Result<(), OpError> {
     check_segment(node, src, &refuse)?;
-    if some_id(node, keys::MEGASTRUCTURE, src).is_some() || megastructure_at(&s.doc, planet)? {
+    if megastructure_at(&s.doc, planet)? {
         return Err(refuse(
             "a megastructure stands on or around it: delete the megastructure first".to_owned(),
         ));

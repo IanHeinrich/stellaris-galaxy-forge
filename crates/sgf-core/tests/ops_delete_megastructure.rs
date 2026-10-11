@@ -10,7 +10,8 @@ use sgf_core::session::Session;
 use crate::common;
 use common::diff::{round_trip, snapshot_step};
 use common::{
-    SAMPLE, SAMPLE_4_5, assert_refusals, entity_text, open_3_4, open_4_5, open_edited_sample, text,
+    SAMPLE, SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5,
+    open_edited_sample, text,
 };
 
 fn delete(megastructure: u32) -> Op {
@@ -164,21 +165,6 @@ fn what_is_refused() {
             (delete(999), "Megastructure 999 does not exist"),
         ],
     );
-    let mut upgrading = edited_4_5(|text| {
-        insert_after(
-            text,
-            "\nfleet=\n{\n",
-            "\t0=\n\t{\n",
-            "\t\tcurrent_order=\n\t\t{\n\t\t\tbuild_megastructure_fleet_order=\n\t\t\t{\n\t\t\t\tupgrade=6\n\t\t\t}\n\t\t}\n",
-        );
-    });
-    assert_refusals(
-        &mut upgrading,
-        [(
-            delete(6),
-            "megastructure 6 cannot be deleted: a construction ship is upgrading it",
-        )],
-    );
     assert_refusals(
         &mut open_3_4(),
         [(
@@ -186,4 +172,155 @@ fn what_is_refused() {
             "this edit needs a save from Stellaris 4.0 or later, not Cepheus v3.4.5",
         )],
     );
+}
+
+#[test]
+fn the_inverse_of_the_inverse_deletes_again() {
+    let mut session = open_4_5();
+    let result = session.apply(delete(6)).expect("delete");
+    let edited = current(&session);
+    let restored = session.apply_inverse(result.inverse).expect("restore");
+    session
+        .apply_inverse(restored.inverse)
+        .expect("delete again");
+    assert_eq!(current(&session), edited);
+}
+
+/// A row of `megastructures` tied to nothing, `kind` in `system`, written after the last.
+fn row(text: &mut String, id: u32, kind: &str, system: u32, tie: &str) {
+    insert_after(
+        text,
+        "\nmegastructures=\n{\n",
+        "\t16777231=none\n",
+        &format!(
+            "\t{id}=\n\t{{\n\t\ttype=\"{kind}\"\n\t\tcoordinate=\n\t\t{{\n\t\t\tx=10\n\t\t\ty=20\n\t\t\torigin={system}\n\t\t}}\n{tie}\t\torbitals=\n\t\t{{\n\t\t}}\n\t\tbuild_queue=4294967295\n\t\tdismantle_progress=0\n\t\tdismantle_finish_date=\"0.01.01\"\n\t}}\n"
+        ),
+    );
+}
+
+/// The 4.5 sample with Arc Furnace row 16 around planet 517, which keeps its other flags;
+/// with `another`, row 17 names the planet too.
+fn furnace(another: bool) -> Session {
+    edited_4_5(|text| {
+        let planet = "\n\t\t517=\n\t\t{\n";
+        insert_after(
+            text,
+            planet,
+            "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+            "\t\t\tmegastructure=16\n",
+        );
+        insert_after(
+            text,
+            planet,
+            "\t\t\tflags=\n\t\t\t{\n",
+            "\t\t\t\thas_megastructure=62808000\n\t\t\t\thas_arc_furnace=62808000\n",
+        );
+        insert_after(
+            text,
+            planet,
+            "\t\t\tentity=2\n",
+            "\t\t\tentity_name=\"invisible_turret_entity\"\n",
+        );
+        row(text, 16, "orbital_arc_furnace_4", 174, "\t\tplanet=517\n");
+        if another {
+            row(text, 17, "orbital_ring_tier_1", 174, "\t\tplanet=517\n");
+        }
+    })
+}
+
+#[test]
+fn an_arc_furnace_gives_its_planet_back() {
+    let mut session = furnace(false);
+    snapshot_step(&mut session, "orbital_arc_furnace", delete(16));
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(planet.contains("fallen_empire_world=62808000"), "{planet}");
+}
+
+#[test]
+fn a_planet_another_row_names_keeps_its_flags_and_model() {
+    let mut session = furnace(true);
+    session.apply(delete(16)).expect("delete");
+    let planet = entity_text(&session, EntityKind::Planet, 517);
+    assert!(!planet.contains("megastructure=16"), "{planet}");
+    for kept in [
+        "has_megastructure=62808000",
+        "has_arc_furnace=62808000",
+        "entity_name=\"invisible_turret_entity\"",
+    ] {
+        assert!(planet.contains(kept), "{kept}: {planet}");
+    }
+}
+
+/// The 4.5 sample with Hyper Relays 16, 17 and 18 in systems 0, 148 and 358, their relay
+/// bypasses 23, 24 and 25 linked in a chain through 24.
+fn relays() -> Session {
+    edited_4_5(|text| {
+        let relays = [
+            (16, 0, 23, "24 "),
+            (17, 148, 24, "23 25 "),
+            (18, 358, 25, "24 "),
+        ];
+        for (id, system, bypass, linked) in relays {
+            row(
+                text,
+                id,
+                "hyper_relay",
+                system,
+                &format!("\t\tbypass={bypass}\n"),
+            );
+            insert_after(
+                text,
+                "\ngalactic_object=\n{\n",
+                &format!("\n\t{system}=\n\t{{\n"),
+                &format!(
+                    "\t\tmegastructures=\n\t\t{{\n\t\t\t{id} \n\t\t}}\n\t\tbypasses=\n\t\t{{\n\t\t\t{bypass} \n\t\t}}\n"
+                ),
+            );
+            let end = text
+                .find("\nnatural_wormholes=\n")
+                .expect("the bypasses' end");
+            text.insert_str(
+                end - 1,
+                &format!(
+                    "\t{bypass}=\n\t{{\n\t\ttype=\"relay_bypass\"\n\t\tactive=yes\n\t\tconnections=\n\t\t{{\n\t\t\t{linked}\n\t\t}}\n\t\tactive_connections=\n\t\t{{\n\t\t\t{linked}\n\t\t}}\n\t\towner=\n\t\t{{\n\t\t\ttype=6\n\t\t\tid={id}\n\t\t}}\n\t}}\n"
+                ),
+            );
+        }
+    })
+}
+
+#[test]
+fn a_hyper_relay_leaves_the_relay_network() {
+    let mut session = relays();
+    snapshot_step(&mut session, "hyper_relay", delete(16));
+}
+
+#[test]
+fn a_megastructure_key_naming_no_row_refuses_nothing() {
+    let session = edited_4_5(|text| {
+        for (planet, row) in [(99, 14), (517, 999)] {
+            insert_after(
+                text,
+                &format!("\n\t\t{planet}=\n\t\t{{\n"),
+                "\t\t\tplanet_orbitals=\n\t\t\t{\n\t\t\t}\n",
+                &format!("\t\t\tmegastructure={row}\n"),
+            );
+        }
+    });
+    assert_eq!(session.check_op(&Op::DeleteBody { body: 99 }), None);
+    assert_eq!(session.check_op(&Op::RemoveColony { body: 517 }), None);
+}
+
+#[test]
+fn a_row_mid_upgrade_goes_with_its_upgrade() {
+    let mut session = edited_4_5(|text| {
+        insert_after(
+            text,
+            "\nmegastructures=\n{\n",
+            "\n\t2=\n\t{\n",
+            "\t\tupgrade=\n\t\t{\n\t\t\tupgrade_to=\"shroud_seal_2\"\n\t\t\tprogress=461\n\t\t\thalted=0\n\t\t\tindefinitely_halted=no\n\t\t}\n",
+        );
+    });
+    session.apply(delete(2)).expect("delete");
+    assert!(!text(&session).contains("upgrade_to=\"shroud_seal_2\""));
 }
