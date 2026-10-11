@@ -15,6 +15,7 @@ pub mod flags;
 pub mod galaxy_shapes;
 pub mod galaxy_sizes;
 pub mod gfx;
+pub mod graphical_cultures;
 pub mod megastructures;
 pub mod planet_classes;
 pub mod planet_lists;
