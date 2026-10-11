@@ -754,14 +754,53 @@ fn a_furnace_removed_after_a_body_takes_back_the_deleted_bodys_deposit() {
         removed.entry.description
     );
     session.undo().expect("undo the removal");
+    let after_delete = current(&session);
     session.undo().expect("undo the delete");
     assert_eq!(current(&session), after_add);
     session.redo().expect("redo the delete");
     session.redo().expect("redo the removal");
+    session
+        .apply_inverse(removed.inverse.clone())
+        .expect("the removal's inverse adds the deleted body's deposit back");
+    let back = entity_text(&session, EntityKind::Planet, 12);
+    assert_eq!(
+        back.trim(),
+        "12=none",
+        "the deleted body is not listed again"
+    );
+    session.undo().expect("undo the inverse");
     session.undo().expect("undo the removal");
+    assert_eq!(current(&session), after_delete);
     session.undo().expect("undo the delete");
     session.undo().expect("undo the add");
     assert_eq!(current(&session), session.doc().original());
+}
+
+/// Planet 12's `coordinate` has no `origin`, so the removal cannot tell where it stands.
+/// It stops there instead of leaving the planet's modifier behind.
+#[test]
+fn a_removal_stops_on_a_planet_it_cannot_read() {
+    let mut session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
+        let from = "x=-165.3322\n\t\t\t\ty=-59.0354\n\t\t\t\torigin=169\n";
+        assert!(gamestate.contains(from));
+        *gamestate = gamestate.replacen(from, "x=-165.3322\n\t\t\t\ty=-59.0354\n", 1);
+    });
+    session
+        .apply(body_row(SOL, "think_tank_3", 6).op())
+        .expect("the nexus");
+    let refused = session
+        .apply_inverse(Op::RemoveMegastructure {
+            megastructure: 16,
+            construction: Some(MegastructureConstruction {
+                modifiers: vec![modifier(
+                    ModifierHost::Body { body: 12 },
+                    "orbital_arc_furnace_4_mod",
+                )],
+                ..MegastructureConstruction::default()
+            }),
+        })
+        .expect_err("planet 12 cannot be read");
+    assert!(refused.to_string().contains("origin"), "{refused}");
 }
 
 /// A furnace added and deleted in one batch: the delete finds what the add earlier in the
@@ -781,7 +820,12 @@ fn a_furnace_added_and_deleted_in_one_batch_leaves_nothing() {
             ],
         })
         .expect("the batch");
+    let after = current(&session);
+    assert_eq!(after, session.doc().original());
+    session.undo().expect("undo the batch");
     assert_eq!(current(&session), session.doc().original());
+    session.redo().expect("redo the batch");
+    assert_eq!(current(&session), after);
 }
 
 /// The furnace's add undone and redone through the history still knows what it wrote, so

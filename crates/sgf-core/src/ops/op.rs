@@ -798,7 +798,9 @@ pub enum Op {
     /// type's construction adds is written as the game leaves it: each modifier as an item
     /// of its body's or the system's `timed_modifier`, which the entity gains when it has
     /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
-    /// written in its place among the owner's `variables` when the owner has none of it.
+    /// written in its place among the owner's `variables` when the owner has none of it. A
+    /// deposit on a body the file held and a deletion has left as `<id>=none` is written
+    /// naming it, with no planet to list it, as the deletion left it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a flag or `star_only` on a free point, a bypass

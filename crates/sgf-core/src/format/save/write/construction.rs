@@ -21,7 +21,7 @@ use crate::format::save::write::id_list::{Emptied, append_in, statement, unlist_
 use crate::format::save::write::place::{self, Place, insert_key};
 use crate::format::save::write::restore::live;
 use crate::format::save::write::timed_modifiers::{End, ItemEdit, set_items};
-use crate::format::save::{entity_in, planet_entity, planet_system};
+use crate::format::save::{entity_in, planet_entity, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::{Form, check_text};
 use crate::ops::{
@@ -68,7 +68,9 @@ pub(crate) fn check(
     }
     for deposit in &construction.deposits {
         check_text("a deposit type", &deposit.kind, Form::Bare)?;
-        in_system(s, system, deposit.body)?;
+        if !deleted(s, deposit.body)? {
+            in_system(s, system, deposit.body)?;
+        }
     }
     for raise in &construction.variables {
         check_text("a variable", &raise.variable, Form::Bare)?;
@@ -94,6 +96,15 @@ fn in_system(s: &Session, system: u32, body: u32) -> Result<(), OpError> {
         return Err(OpError::NotABody { body, system });
     }
     Ok(())
+}
+
+/// Whether body `body` is one the file held that a deletion has since left as `<id>=none`.
+fn deleted(s: &Session, body: u32) -> Result<bool, OpError> {
+    match planet_entity(&s.doc, body) {
+        Ok(_) => Ok(false),
+        Err(OpError::UnknownPlanet(_)) => Ok(planet_statement(&s.doc, body)?.is_some()),
+        Err(e) => Err(e),
+    }
 }
 
 /// Whether body `body` still stands in `system`: false once the save no longer holds it or
@@ -216,7 +227,9 @@ pub(crate) fn write_rest(
             listed.entry(deposit.body).or_default().push(id);
         }
         for (body, ids) in listed {
-            list(plan.edit_planet(&s.doc, body, system)?, &ids)?;
+            if !deleted(s, body)? {
+                list(plan.edit_planet(&s.doc, body, system)?, &ids)?;
+            }
         }
     }
     if let Some(owner) = owner
