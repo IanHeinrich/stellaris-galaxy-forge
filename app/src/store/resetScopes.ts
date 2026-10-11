@@ -1,52 +1,19 @@
-import { useAnomalyPickerStore } from "./anomalyPickerStore";
-import { useDepositPickerStore } from "./depositPickerStore";
 import { setRollWithin } from "./detailsStore";
-import { useDigSitePickerStore } from "./digSitePickerStore";
-import { forgetReclassify } from "./editorEdits";
-import { useEntityStore } from "./entityStore";
 import { systemRadiiOf, useGameDataStore } from "./gameDataStore";
 import { useGeneratorStore } from "./generatorStore";
-import { useHeightPreviewStore } from "./heightPreviewStore";
-import { forgetPlanetOpens, useInspectorStore } from "./inspectorStore";
-import { useModifierPickerStore } from "./modifierPickerStore";
-import { useOpCheckStore } from "./opCheckStore";
+import { useInspectorStore } from "./inspectorStore";
 import { usePlanetDataStore } from "./planetDataStore";
-import { usePlanetMoveStore } from "./planetMoveStore";
 import { usePrepareStore } from "./prepareStore";
-import { useSceneStore } from "./sceneStore";
+import { FILE_SCOPED, PICKERS } from "./resetScopes.file";
 import { useToolStore } from "./toolStore";
 
-/** The planet page's pickers: what each read and where each is open. */
-const PICKERS: readonly (() => void)[] = [
-  () => useAnomalyPickerStore.getState().reset(),
-  () => useDepositPickerStore.getState().reset(),
-  () => useDigSitePickerStore.getState().reset(),
-  () => useModifierPickerStore.getState().reset(),
-];
-
 /**
- * What was read from the open document's bytes, store or module counter alike. Reading its file
- * again in place runs each, and leaves the view as it was.
- */
-export const FILE_SCOPED: readonly (() => void)[] = [
-  () => useHeightPreviewStore.getState().clear(),
-  () => useSceneStore.getState().clearBodies(),
-  () => usePlanetMoveStore.getState().reset(),
-  () => useEntityStore.getState().clear(),
-  () => useGeneratorStore.getState().clearPicks(),
-  () => useOpCheckStore.getState().reset(),
-  () => usePrepareStore.getState().reset(),
-  forgetReclassify,
-  forgetPlanetOpens,
-  ...PICKERS,
-];
-
-/**
- * What belongs to the open document: what was read from its file, and the map's tilt.
- * `bindStores` runs each whenever another document starts opening or none is left.
+ * What belongs to the open document: what was read from its file, Prepare's choices and the map's
+ * tilt. `bindStores` runs each whenever another document starts opening or none is left.
  */
 export const DOCUMENT_SCOPED: readonly (() => void)[] = [
   ...FILE_SCOPED,
+  () => usePrepareStore.getState().reset(),
   () => useToolStore.getState().setTilt(0),
 ];
 

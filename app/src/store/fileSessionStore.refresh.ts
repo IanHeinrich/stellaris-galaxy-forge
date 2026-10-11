@@ -11,6 +11,7 @@ import type { SessionApi } from "./fileSessionStore.saveGate";
 import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { issuesDocument, useIssuesStore } from "./issuesStore";
+import { FILE_SCOPED } from "./resetScopes.file";
 import { useSceneStore } from "./sceneStore";
 
 /** The open document's file changed on disk, as the watcher or the focus check found it. */
@@ -53,9 +54,7 @@ export function refreshActions(session: SessionApi): RefreshActions {
     reading = true;
     try {
       const result = await ipc.reloadDocument(discard);
-      // Imported here, not above: the scopes reach `prepareStore`, which reads this store as it is made.
-      const { FILE_SCOPED } = await import("./resetScopes");
-      keepView(session, result, FILE_SCOPED);
+      keepView(session, result);
       if (!discard) set({ notice: `Reloaded ${fileName(result.path)} after it changed on disk.` });
     } catch (e) {
       if (!discard && isSgfError(e) && e.kind === "op") ask();
@@ -119,13 +118,10 @@ export function followDiskChanges(note: (changed: DocumentChanged) => void): voi
 /**
  * Takes `result` as the open document without the open's fresh start: the camera, the tilt and
  * the system view stay and the selection keeps the systems the file still holds, while the undo
- * history, the issues and `fileScoped`, what was read from the old bytes, are dropped.
+ * history, the issues and what was read from the old bytes are dropped. Prepare's choices stay
+ * and its preview follows the cleared history.
  */
-function keepView(
-  { setState }: SessionApi,
-  result: OpenResult,
-  fileScoped: readonly (() => void)[],
-): void {
+function keepView({ setState }: SessionApi, result: OpenResult): void {
   const ids = new Set(result.galaxy.systems.map((s) => s.id));
   const editor = useEditorStore.getState();
   const selection = editor.selection.filter((id) => ids.has(id));
@@ -147,7 +143,7 @@ function keepView(
     errorKind: null,
     diskChange: null,
   });
-  for (const reset of fileScoped) reset();
+  for (const reset of FILE_SCOPED) reset();
   const scene = useSceneStore.getState();
   if (scene.scene.kind === "system" && !ids.has(scene.scene.id)) scene.exitScene();
   editor.resetSession();
