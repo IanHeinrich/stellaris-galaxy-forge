@@ -88,7 +88,7 @@ fn a_mod_overrides_a_megastructure_type_and_a_section_template_by_key() {
         (
             "common/megastructures/zz_tank.txt",
             "fixture_tank = {\n\tentity = \"mod_tank_entity\"\n\
-             \tentity_offset = { x = 5 y = 6 }\n}\n",
+             \tentity_offset = { x = 5 y = 6 }\n}\nmod_tower = {\n\tentity = \"tower_entity\"\n}\n",
         ),
         (
             "common/section_templates/zz_hut.txt",
@@ -99,6 +99,12 @@ fn a_mod_overrides_a_megastructure_type_and_a_section_template_by_key() {
     let tank = gd.megastructures.get("fixture_tank").expect("fixture_tank");
     assert_eq!(tank.entity.as_deref(), Some("mod_tank_entity"));
     assert_eq!(tank.entity_offset, (5.0, 6.0));
+    assert!(
+        tank.source.is_some() && tank.base_game,
+        "the mod changed a base game type"
+    );
+    let tower = gd.megastructures.get("mod_tower").expect("mod_tower");
+    assert!(tower.source.is_some() && !tower.base_game);
     assert!(gd.megastructures.get("fixture_relay").is_some());
     let hut = gd
         .starbase_levels
@@ -273,6 +279,8 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         ("gateway_final", &outside),
         ("gateway_restored", &outside),
         ("gateway_derelict", &outside),
+        ("hyper_relay_ruined", &outside),
+        ("hyper_relay_restored", &outside),
         ("shroud_seal", &inside),
         ("deep_space_citadel_0", &starbase),
         ("waystation_megastructure", &starbase),
@@ -344,6 +352,16 @@ fn the_installs_megastructure_types_are_placed_as_the_game_builds_them() {
         "its family becomes a starbase"
     );
     assert!(mega("orbital_ring_ruined").ruined_orbital_ring);
+    assert_eq!(
+        mega("dyson_sphere_ruined").variant_of.as_deref(),
+        Some("dyson_sphere_0")
+    );
+    assert_eq!(
+        mega("gateway_restored").variant_of.as_deref(),
+        Some("gateway_0")
+    );
+    assert_eq!(mega("dyson_sphere_5").variant_of, None);
+    assert!(gd.megastructures.iter().all(|def| def.base_game));
     assert!(!mega("orbital_ring").ruined_orbital_ring);
 }
 
@@ -470,7 +488,8 @@ fn soyun() -> ConstructionSite {
 /// An Arc Furnace's stages replayed from the first: only the last stage's modifier and
 /// deposit stay, on the planets its event picks. A Dyson Swarm leaves its last stage's
 /// modifier on its star, the Shroud Seal its modifier on the system, and a Dyson Sphere, a
-/// Science Nexus and a Hyper Relay nothing.
+/// Science Nexus and a Hyper Relay nothing. With no owner the furnace adds nothing: its
+/// events fire from its owner's scope.
 #[test]
 fn the_installs_construction_is_replayed_on_a_system() {
     let Some(gd) = common::INSTALL.as_ref() else {
@@ -547,11 +566,16 @@ fn the_installs_construction_is_replayed_on_a_system() {
         .expect("orbital_arc_furnace_4")
         .construction
         .replay(gd, &site, Some(6141), false);
-    assert!(unowned.construction.variables.is_empty());
+    assert!(
+        unowned.construction.is_empty(),
+        "{:?}",
+        unowned.construction
+    );
 }
 
 /// A mod's construction is read the same way: a scripted effect's parameters filled in,
-/// an event it fires followed, and a limit the editor cannot judge left out and said so.
+/// an event it fires followed, a planet's owner judged from the save, and an effect the
+/// editor cannot place left out and said so.
 #[test]
 fn a_construction_follows_effects_and_events_and_says_what_it_cannot() {
     let (_dir, gd) = common::hand_written(&[
@@ -613,6 +637,10 @@ country_event = {
                 ..body(10, "pc_g_star", &[])
             },
             body(11, "pc_molten", &[]),
+            SiteBody {
+                colony: true,
+                ..body(12, "pc_continental", &[])
+            },
         ],
         ..ConstructionSite::default()
     };
@@ -625,27 +653,83 @@ country_event = {
                 modifier: "mod_forge_3_mod".to_owned(),
                 days: 360,
             }],
-            deposits: vec![ConstructionDeposit {
-                body: 11,
-                kind: "d_mod_forge".to_owned(),
-            }],
+            deposits: vec![
+                ConstructionDeposit {
+                    body: 11,
+                    kind: "d_mod_forge".to_owned(),
+                },
+                ConstructionDeposit {
+                    body: 12,
+                    kind: "d_mod_forge".to_owned(),
+                },
+                ConstructionDeposit {
+                    body: 12,
+                    kind: "d_mod_owned".to_owned(),
+                },
+            ],
             variables: vec![VariableRaise {
                 variable: "mod_forges".to_owned(),
                 by: 2,
             }],
         }
     );
-    assert_eq!(built.skipped.len(), 3, "{:?}", built.skipped);
+    assert_eq!(built.unsure.len(), 1, "{:?}", built.unsure);
     assert!(
-        built.skipped[0].contains("random_system_planet"),
+        built.unsure[0].contains("random_system_planet"),
         "{:?}",
-        built.skipped
+        built.unsure
     );
-    assert!(
-        built.skipped[1].contains("planet 10: cannot judge has_owner"),
-        "{:?}",
-        built.skipped
-    );
+    assert!(built.unwritten.is_empty(), "{:?}", built.unwritten);
+}
+
+/// A modifier and a deposit the construction takes off its planet apply but are not
+/// written, apart from what the editor cannot tell. An effect the walk cannot follow both
+/// in the owner's scope and outside it is listed once, and still listed with no owner.
+#[test]
+fn a_construction_says_what_it_does_not_write_apart_from_what_it_cannot_tell() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        "mod_drain = {
+	on_build_complete = {
+		fromfrom.planet = {
+			remove_modifier = mod_old
+			remove_deposit = d_old
+		}
+		fire_on_action = { on_action = on_mod_drain }
+		from = { fire_on_action = { on_action = on_mod_drain } }
+	}
+}
+",
+    )]);
+    let drain = &gd
+        .megastructures
+        .get("mod_drain")
+        .expect("mod_drain")
+        .construction;
+    let site = ConstructionSite {
+        system: 1,
+        bodies: vec![SiteBody {
+            modifiers: vec!["mod_old".to_owned()],
+            ..body(11, "pc_molten", &["d_old"])
+        }],
+        ..ConstructionSite::default()
+    };
+    for owned in [true, false] {
+        let built = drain.replay(&gd, &site, Some(11), owned);
+        assert!(built.construction.is_empty(), "{:?}", built.construction);
+        assert_eq!(
+            built.unsure,
+            ["mod_drain: fire_on_action"],
+            "owned: {owned}"
+        );
+        assert_eq!(
+            built.unwritten,
+            [
+                "removes modifier mod_old from planet 11",
+                "removes deposit d_old from planet 11"
+            ]
+        );
+    }
 }
 
 /// A mod's ruin takes the placement of the type a scripted effect spawns it in place of,

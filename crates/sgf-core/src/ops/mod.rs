@@ -149,9 +149,14 @@ fn apply_batch(
     };
     let mut members: Vec<Applied> = Vec::with_capacity(ops.len());
     for member in ops {
-        match apply_one(session, member) {
+        let applied = apply_one(session, member);
+        if let Ok(applied) = &applied {
+            session.batch.push(applied.inverse.clone());
+        }
+        match applied {
             Ok(applied) => members.push(applied),
             Err(e) => {
+                session.batch.clear();
                 let before: Vec<_> = members.iter().flat_map(|m| m.before.clone()).collect();
                 let touched: Vec<_> = members.iter().flat_map(|m| m.touched.clone()).collect();
                 let meta = members.iter().fold(None, |meta, member| {
@@ -162,6 +167,7 @@ fn apply_batch(
             }
         }
     }
+    session.batch.clear();
     let mut inverses = Vec::with_capacity(members.len());
     let mut before = Vec::new();
     let mut after = Vec::new();

@@ -3,7 +3,7 @@
 //! type is placed when built, what it produces, the types it links to, and where the editor
 //! can add one.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use sgf_core::ops::MegastructureDismantle;
@@ -65,6 +65,11 @@ pub struct MegastructureDef {
     pub dismantle: MegastructureDismantle,
     /// The mod whose file won for this type; `None` for the base game.
     pub source: Option<String>,
+    /// The base game defines this type, whether or not a mod's file won.
+    pub base_game: bool,
+    /// For a ruined, restored, destroyed or derelict variant, the working type it belongs
+    /// to, as the files or their keys link them.
+    pub variant_of: Option<String>,
     /// What its build chain adds to its system and owner, replayed against a save system
     /// when a row of it is added.
     #[serde(skip)]
@@ -195,6 +200,8 @@ impl FromDef for MegastructureDef {
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
             source: None,
+            base_game: true,
+            variant_of: None,
             construction: Construction::default(),
             family: None,
         }
@@ -204,13 +211,20 @@ impl FromDef for MegastructureDef {
 /// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A
 /// variant placed around a body takes the placement of the first stage of the working type
 /// it belongs to, as [`families`] links them, when that stage too stands around a body.
+/// Every stage and variant of a gateway or a relay stands where its bypass does.
 pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> MegastructureTypes {
     let families = families(&types, scripts);
+    let bypassed = bypass_groups(&types, &families);
     let resolved: Vec<(String, Placement, bool, Option<Family>)> = types
         .iter()
         .map(|def| {
             let flags = stages(&types, def).any(|stage| stage.sets_has_megastructure);
-            let own = placement(&types, def);
+            let own = match placement(&types, def) {
+                Placement::Body { .. } if bypassed.contains(&def.key) => Placement::Free {
+                    outside_gravity_well: true,
+                },
+                own => own,
+            };
             let taken = match own {
                 Placement::Body { .. } => families.get(&def.key).and_then(|family| {
                     let working = types.get(&family.working)?;
@@ -226,13 +240,57 @@ pub(crate) fn placed(mut types: MegastructureTypes, scripts: &ScriptIndex) -> Me
         })
         .collect();
     for (key, placement, flags, family) in resolved {
+        let variant_of = families.get(&key).map(|family| family.working.clone());
         if let Some(def) = types.get_mut(&key) {
             def.placement = placement;
             def.sets_has_megastructure = flags;
             def.family = family;
+            def.variant_of = variant_of;
         }
     }
     types
+}
+
+/// Every type joined by `upgrade_from` or by [`families`] to a type that stands for a
+/// gateway or a relay.
+fn bypass_groups(
+    types: &MegastructureTypes,
+    families: &BTreeMap<String, Family>,
+) -> BTreeSet<String> {
+    let mut links: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut join = |a: &'_ str, b: &'_ str| {
+        if let (Some(a), Some(b)) = (types.get(a), types.get(b)) {
+            links.entry(&a.key).or_default().push(&b.key);
+            links.entry(&b.key).or_default().push(&a.key);
+        }
+    };
+    for def in types.iter() {
+        for earlier in &def.upgrade_from {
+            join(&def.key, earlier);
+        }
+    }
+    for (variant, family) in families {
+        join(variant, &family.working);
+    }
+    let mut reached: Vec<&str> = types
+        .iter()
+        .filter(|def| {
+            def.bypass_type
+                .as_deref()
+                .is_some_and(|kind| ADDED_BYPASSES.contains(&kind))
+        })
+        .map(|def| def.key.as_str())
+        .collect();
+    let mut next = 0;
+    while let Some(&key) = reached.get(next) {
+        next += 1;
+        for &linked in links.get(key).into_iter().flatten() {
+            if !reached.contains(&linked) {
+                reached.push(linked);
+            }
+        }
+    }
+    reached.into_iter().map(str::to_owned).collect()
 }
 
 /// Each variant's working type: one the files link it to, through any chain of
@@ -489,6 +547,7 @@ pub(crate) fn load(
     scripts: &ScriptIndex,
     layout: &Layout,
 ) -> MegastructureTypes {
+    let vanilla = vanilla_keys(layout);
     defs.iter()
         .map(|(key, def)| {
             let mut kind = MegastructureDef::read(key.clone(), def);
@@ -496,11 +555,28 @@ pub(crate) fn load(
                 .layer_of(&def.file)
                 .map(|(layer, _)| layer.name.clone())
                 .filter(|name| name != VANILLA);
+            kind.base_game = kind.source.is_none() || vanilla.contains(key);
             kind.dismantle = dismantle::read(def, scripts);
             kind.construction = construction::read(defs, key, scripts);
             (key.clone(), kind)
         })
         .collect()
+}
+
+/// The types the game's own files define, those a mod's file replaced included.
+fn vanilla_keys(layout: &Layout) -> BTreeSet<String> {
+    let mut keys = BTreeSet::new();
+    for file in layout.vanilla_files_in(MegastructureDef::DIR) {
+        let Some((root, src)) = script::parse_file(&file, &mut Vec::new()) else {
+            continue;
+        };
+        for node in root.children() {
+            if let Some(key) = node.key_str(&src).filter(|key| !key.starts_with('@')) {
+                keys.insert(key.to_owned());
+            }
+        }
+    }
+    keys
 }
 
 fn produces(def: &Def) -> Vec<(String, f64)> {

@@ -80,11 +80,26 @@ describe("requestTextures", () => {
     expect(getTextures).toHaveBeenCalledTimes(1);
   });
 
+  it("asks again key by key when a call of several fails as a whole", async () => {
+    getTextures.mockRejectedValueOnce({ kind: "io", message: "the call failed" });
+    requestTextures(["model:none:a_entity", "model:none:b_entity"]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getTextures.mock.calls.map(([keys]) => keys)).toEqual([
+      ["model:none:a_entity", "model:none:b_entity"],
+      ["model:none:a_entity"],
+      ["model:none:b_entity"],
+    ]);
+    expect(getTexture("model:none:a_entity")).not.toBeNull();
+    expect(getTexture("model:none:b_entity")).not.toBeNull();
+  });
+
   it("a rejected call settles its keys as null", async () => {
     getTextures.mockRejectedValueOnce({ kind: "no_session", message: "no game data" });
-    requestTextures(["star_class:g"]);
+    requestTextures(["star_class:g", "star_class:k"]);
     await vi.advanceTimersByTimeAsync(0);
+    expect(getTextures).toHaveBeenCalledTimes(1);
     expect(getTexture("star_class:g")).toBeNull();
+    expect(getTexture("star_class:k")).toBeNull();
   });
 });
 

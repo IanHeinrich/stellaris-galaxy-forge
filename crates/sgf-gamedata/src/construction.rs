@@ -45,19 +45,31 @@ const EVENT_KEYS: [&str; 6] = [
 ];
 /// The blocks an event runs when it fires.
 const EVENT_BLOCKS: [&str; 2] = ["immediate", "after"];
+/// The `exists` a resolved guard asks when it asks that the structure has an owner.
+const OWNER_EXISTS: &str = "from";
 
 /// A type's build chain as the effects it keeps, in the order they run.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Construction {
     pub steps: Vec<Step>,
-    /// Each kept effect the walk could not place, said as the script says it.
-    pub unfollowed: Vec<String>,
+    /// Each kept effect the walk could not place.
+    pub unfollowed: Vec<Unfollowed>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Step {
     pub on: Target,
     pub effect: Effect,
+    /// The step runs only when the structure has an owner.
+    pub owned: bool,
+}
+
+/// A kept effect the walk could not place, said as the script says it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unfollowed {
+    pub what: String,
+    /// It would run only when the structure has an owner.
+    pub owned: bool,
 }
 
 /// Where a step runs.
@@ -152,6 +164,7 @@ pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptInde
                         Scope::Other("fromfromfrom".to_owned()),
                     ],
                     doubt: None,
+                    owned: false,
                     depth: 0,
                     events: 0,
                     origin: stage
@@ -176,6 +189,9 @@ struct Walk<'a> {
     frame: [Scope; 4],
     /// Why the effects here may not run, when a condition the walk cannot judge guards them.
     doubt: Option<String>,
+    /// The effects here run only when the structure has an owner: they stand in the
+    /// owner's scope, or behind a guard asking that it exists.
+    owned: bool,
     depth: usize,
     events: usize,
     /// The stage or event the walk is in, for what it lists as unfollowed.
@@ -275,28 +291,52 @@ impl Walk<'_> {
     }
 
     /// The walk with `condition` guarding what follows: folded into a body scope's
-    /// condition, taken as holding when it only asks that the owner exists, and otherwise a
-    /// doubt.
+    /// condition, marking what follows as owned when it only asks that the owner exists,
+    /// and otherwise a doubt.
     fn guarded(&self, condition: Condition) -> Self {
+        let condition = self.resolved(condition);
         let mut walk = self.clone();
         match &mut walk.scope {
             Scope::Host(guard) | Scope::Planets(guard) => {
                 *guard = Condition::All(vec![guard.clone(), condition]);
             }
-            _ if asks_only_owner(&condition) => {}
-            _ if walk.doubt.is_some() => {}
-            _ => {
-                let mut keys = Vec::new();
-                leaf_keys(&condition, &mut keys);
-                let doubt = format!(
-                    "behind a condition on {}: {}",
-                    self.scope_name(),
-                    keys.join(", ")
-                );
-                walk.doubt = Some(doubt);
-            }
+            _ => match asks_owner(&condition) {
+                Some(owned) => walk.owned |= owned,
+                None if walk.doubt.is_some() => {}
+                None => {
+                    let mut keys = Vec::new();
+                    leaf_keys(&condition, &mut keys);
+                    let doubt = format!(
+                        "behind a condition on {}: {}",
+                        self.scope_name(),
+                        keys.join(", ")
+                    );
+                    walk.doubt = Some(doubt);
+                }
+            },
         }
         walk
+    }
+
+    /// `condition` with each `exists` answered that names a scope of the walk: the system
+    /// and the structure always exist, and one that is the owner becomes `exists = from`,
+    /// which [`asks_owner`] and a body read as the structure having an owner.
+    fn resolved(&self, condition: Condition) -> Condition {
+        match condition {
+            Condition::Exists(scope) => match self.scope_of(&scope.to_ascii_lowercase()) {
+                Some(Scope::Owner) => Condition::Exists(OWNER_EXISTS.to_owned()),
+                Some(Scope::System | Scope::Megastructure) => Condition::Always(true),
+                _ => Condition::Exists(scope),
+            },
+            Condition::Not(inner) => Condition::Not(Box::new(self.resolved(*inner))),
+            Condition::All(items) => {
+                Condition::All(items.into_iter().map(|c| self.resolved(c)).collect())
+            }
+            Condition::Any(items) => {
+                Condition::Any(items.into_iter().map(|c| self.resolved(c)).collect())
+            }
+            other => other,
+        }
     }
 
     fn scope_name(&self) -> String {
@@ -338,6 +378,7 @@ impl Walk<'_> {
     /// The walk inside a block that moves to `scope`, its own `limit` folded in.
     fn entering(&self, scope: Scope, node: &Node, src: &[u8]) -> Self {
         let mut walk = self.clone();
+        walk.owned |= scope == Scope::Owner;
         walk.scope = scope;
         match node.find("limit", src) {
             Some(limit) => walk.guarded(Condition::compile(limit, src)),
@@ -356,15 +397,14 @@ impl Walk<'_> {
             return;
         };
         if self.events >= MAX_EVENTS {
-            out.unfollowed
-                .push(format!("{}: event {id}, fired from an event", self.origin));
+            self.unfollowed(&format!("event {id}, fired from an event"), out);
             return;
         }
         let Some(found) = self.scripts.event(&id) else {
-            out.unfollowed.push(format!(
-                "{}: event {id}, which the install does not define",
-                self.origin
-            ));
+            self.unfollowed(
+                &format!("event {id}, which the install does not define"),
+                out,
+            );
             return;
         };
         let Some(parsed) = self.scripts.parsed(&found.file) else {
@@ -466,13 +506,23 @@ impl Walk<'_> {
             }
             return;
         }
-        out.steps.push(Step { on: target, effect });
+        let owned = self.owned || target == Target::Owner;
+        out.steps.push(Step {
+            on: target,
+            effect,
+            owned,
+        });
     }
 
+    /// List `what` as unfollowed once, owned only when every path to it is.
     fn unfollowed(&self, what: &str, out: &mut Construction) {
-        let line = format!("{}: {what}", self.origin);
-        if !out.unfollowed.contains(&line) {
-            out.unfollowed.push(line);
+        let what = format!("{}: {what}", self.origin);
+        match out.unfollowed.iter_mut().find(|line| line.what == what) {
+            Some(line) => line.owned &= self.owned,
+            None => out.unfollowed.push(Unfollowed {
+                what,
+                owned: self.owned,
+            }),
         }
     }
 
@@ -496,14 +546,19 @@ impl Walk<'_> {
     }
 }
 
-/// Whether a guard asks nothing but that the owner, `from`, exists.
-fn asks_only_owner(condition: &Condition) -> bool {
+/// What a [`Walk::resolved`] guard asks: `Some(true)` that the owner exists and nothing
+/// else, `Some(false)` nothing, `None` something more.
+fn asks_owner(condition: &Condition) -> Option<bool> {
     match condition {
-        Condition::Always(true) => true,
-        Condition::Exists(scope) => scope.eq_ignore_ascii_case("from"),
-        Condition::All(items) => items.iter().all(asks_only_owner),
-        Condition::Not(inner) => matches!(&**inner, Condition::Any(items) if items.is_empty()),
-        _ => false,
+        Condition::Always(true) => Some(false),
+        Condition::Exists(scope) if scope == OWNER_EXISTS => Some(true),
+        Condition::All(items) => items
+            .iter()
+            .try_fold(false, |owned, item| Some(owned | asks_owner(item)?)),
+        Condition::Not(inner) if matches!(&**inner, Condition::Any(items) if items.is_empty()) => {
+            Some(false)
+        }
+        _ => None,
     }
 }
 
@@ -528,7 +583,11 @@ fn leaf_keys(condition: &Condition, out: &mut Vec<String>) {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Built {
     pub construction: MegastructureConstruction,
-    pub skipped: Vec<String>,
+    /// Each effect the replay could not tell applies, or where.
+    pub unsure: Vec<String>,
+    /// Each effect that applies but that the editor does not write: a modifier or deposit
+    /// the construction removes, a deposit on the system, an owner variable lowered.
+    pub unwritten: Vec<String>,
 }
 
 /// One body as a step's condition judges it, as the replay has left it so far.
@@ -539,7 +598,8 @@ struct Body<'a> {
     modifiers: Vec<String>,
     flags: Vec<String>,
     gd: &'a GameData,
-    has_owner: bool,
+    /// The structure has an owner.
+    owned: bool,
 }
 
 impl Subject for Body<'_> {
@@ -560,13 +620,13 @@ impl Subject for Body<'_> {
                     .get(kind)
                     .is_some_and(|d| d.station.as_deref() == Some(station))
             })),
-            Condition::Exists(scope) if scope.eq_ignore_ascii_case("from") => Some(self.has_owner),
+            Condition::Exists(scope) if scope == OWNER_EXISTS => Some(self.owned),
             Condition::Call(name, want) => {
                 let holds = match name.as_str() {
                     "is_astral_scar" => class?.astral_scar,
                     "is_artificial" => class?.artificial,
                     "is_ringworld" => class?.ringworld,
-                    "is_colony" => self.site.colony,
+                    "is_colony" | "has_owner" => self.site.colony,
                     _ => return None,
                 };
                 Some(holds == *want)
@@ -592,7 +652,13 @@ impl Construction {
         host: Option<u32>,
         has_owner: bool,
     ) -> Built {
-        let mut skipped: Vec<String> = self.unfollowed.clone();
+        let mut unwritten: Vec<String> = Vec::new();
+        let mut unsure: Vec<String> = self
+            .unfollowed
+            .iter()
+            .filter(|unfollowed| has_owner || !unfollowed.owned)
+            .map(|unfollowed| unfollowed.what.clone())
+            .collect();
         let mut bodies: Vec<Body<'_>> = site
             .bodies
             .iter()
@@ -603,19 +669,17 @@ impl Construction {
                 modifiers: body.modifiers.clone(),
                 flags: body.flags.clone(),
                 gd,
-                has_owner,
+                owned: has_owner,
             })
             .collect();
         let mut system_modifiers = site.modifiers.clone();
         let mut variables: BTreeMap<String, f64> = BTreeMap::new();
         let mut days: BTreeMap<(ModifierHost, String), i32> = BTreeMap::new();
 
-        for step in &self.steps {
+        for step in self.steps.iter().filter(|step| has_owner || !step.owned) {
             match &step.on {
                 Target::Owner => {
-                    if let (true, Effect::ChangeVariable { variable, by }) =
-                        (has_owner, &step.effect)
-                    {
+                    if let Effect::ChangeVariable { variable, by } = &step.effect {
                         *variables.entry(variable.clone()).or_default() += by;
                     }
                 }
@@ -630,7 +694,7 @@ impl Construction {
                         step.effect,
                         Effect::AddDeposit(_) | Effect::RemoveDeposit(_)
                     ) {
-                        note(&mut skipped, format!("{:?} on the system", step.effect));
+                        note(&mut unwritten, format!("{:?} on the system", step.effect));
                     }
                 }
                 Target::Host(guard) | Target::Planets(guard) => {
@@ -652,7 +716,7 @@ impl Construction {
                                 let mut keys = std::collections::BTreeSet::new();
                                 guard.unknown_keys(&*body, &mut keys);
                                 note(
-                                    &mut skipped,
+                                    &mut unsure,
                                     format!(
                                         "{:?} on planet {}: cannot judge {}",
                                         step.effect,
@@ -674,7 +738,7 @@ impl Construction {
             ModifierHost::System,
             &days,
             &mut built,
-            &mut skipped,
+            &mut unwritten,
         );
         for body in &bodies {
             let host = ModifierHost::Body { body: body.site.id };
@@ -684,7 +748,7 @@ impl Construction {
                 host,
                 &days,
                 &mut built,
-                &mut skipped,
+                &mut unwritten,
             );
             let (gained, lost) = multiset_diff(&body.site.deposits, &body.deposits);
             for kind in gained {
@@ -695,7 +759,7 @@ impl Construction {
             }
             for kind in lost {
                 note(
-                    &mut skipped,
+                    &mut unwritten,
                     format!("removes deposit {kind} from planet {}", body.site.id),
                 );
             }
@@ -708,21 +772,22 @@ impl Construction {
                 });
             } else if by != 0.0 {
                 note(
-                    &mut skipped,
+                    &mut unwritten,
                     format!("changes owner variable {variable} by {by}"),
                 );
             }
         }
         Built {
             construction: built,
-            skipped,
+            unsure,
+            unwritten,
         }
     }
 }
 
-fn note(skipped: &mut Vec<String>, line: String) {
-    if !skipped.contains(&line) {
-        skipped.push(line);
+fn note(lines: &mut Vec<String>, line: String) {
+    if !lines.contains(&line) {
+        lines.push(line);
     }
 }
 
@@ -769,7 +834,7 @@ fn added_modifiers(
     host: ModifierHost,
     days: &BTreeMap<(ModifierHost, String), i32>,
     built: &mut MegastructureConstruction,
-    skipped: &mut Vec<String>,
+    unwritten: &mut Vec<String>,
 ) {
     for modifier in after.iter().filter(|m| !before.contains(m)) {
         built.modifiers.push(ConstructionModifier {
@@ -783,7 +848,7 @@ fn added_modifiers(
             ModifierHost::System => "the system".to_owned(),
             ModifierHost::Body { body } => format!("planet {body}"),
         };
-        note(skipped, format!("removes modifier {modifier} from {on}"));
+        note(unwritten, format!("removes modifier {modifier} from {on}"));
     }
 }
 

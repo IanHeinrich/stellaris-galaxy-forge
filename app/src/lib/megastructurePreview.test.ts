@@ -7,9 +7,10 @@ import {
   systemDetails,
 } from "../test/builders";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
-import { megastructureFamilies, megastructurePicks } from "./megastructurePicks";
+import { megastructureEntries } from "./megastructurePicks";
 import {
   descriptionText,
+  hasModel,
   megastructureDescriptionKeys,
   megastructurePreview,
   megastructureThumbKeys,
@@ -32,8 +33,8 @@ const TYPES = new Map(
 );
 
 const planet = { kind: "body", body: 12, star: false } as const;
-const families = (names: ReadonlyMap<string, string>) =>
-  megastructureFamilies(megastructurePicks(TYPES, names, planet), () => null);
+const chains = (names: ReadonlyMap<string, string>) =>
+  megastructureEntries(TYPES, names, planet).flatMap((entry) => entry.chains);
 
 describe("the picture a megastructure's tile shows", () => {
   it("draws the model in the owner's culture, bare without one, with the map icon behind it", () => {
@@ -52,6 +53,8 @@ describe("the picture a megastructure's tile shows", () => {
     expect(megastructureThumbKeys(TYPES.get("orbital_ring_tier_1"), "mammalian_01")).toEqual([
       MEGASTRUCTURE_ICON_KEY,
     ]);
+    expect(hasModel(TYPES.get("orbital_ring_tier_1"))).toBe(false);
+    expect(hasModel(TYPES.get("mega_shipyard_1"))).toBe(true);
   });
 
   it("finds the owner's culture on a station or megastructure the owner has", () => {
@@ -94,19 +97,21 @@ describe("the preview of the selected type", () => {
         "A massive §YStarbase§! with £alloys£  20 berths.\nBuilt $UNKNOWN_REF$ once.",
       ],
     ]);
-    const [family] = families(names);
-    const pick = family.picks[2];
-    expect(megastructureDescriptionKeys(pick)).toEqual([
+    const [chain] = chains(names);
+    const stage = chain.stages[2];
+    expect(megastructureDescriptionKeys(stage.key, chain)).toEqual([
       "mega_shipyard_restored_DESC",
       "mega_shipyard_restored_MEGASTRUCTURE_DETAILS",
       "mega_shipyard_0_MEGASTRUCTURE_DETAILS",
     ]);
 
-    const preview = megastructurePreview(pick, family, TYPES.get(pick.key), names);
+    const preview = megastructurePreview(stage, chain, TYPES.get(stage.key), names);
     expect(preview).toMatchObject({
       key: "mega_shipyard_restored",
       label: "Mega Shipyard",
-      stage: "Stage 3 of 3",
+      stage: null,
+      model: true,
+      refused: null,
       description: "A massive Starbase with 20 berths.\nBuilt once.",
     });
     expect(preview.produces.map((row) => [row.resource, row.amount])).toEqual([
@@ -120,13 +125,13 @@ describe("the preview of the selected type", () => {
       ["mega_shipyard_1_DESC", "The initial framework."],
       ["mega_shipyard_0_MEGASTRUCTURE_DETAILS", "A massive Starbase."],
     ]);
-    const [family] = families(names);
-    expect(megastructurePreview(family.picks[1], family, undefined, names).description).toBe(
+    const [chain] = chains(names);
+    expect(megastructurePreview(chain.stages[1], chain, undefined, names).description).toBe(
       "The initial framework.",
     );
-    expect(megastructurePreview(family.picks[1], family, undefined, new Map())).toMatchObject({
+    expect(megastructurePreview(chain.stages[1], chain, undefined, new Map())).toMatchObject({
       description: null,
-      stage: "Stage 2 of 3",
+      stage: "Stage 2 of 2",
       produces: [],
     });
     expect(descriptionText("§R§!")).toBeNull();

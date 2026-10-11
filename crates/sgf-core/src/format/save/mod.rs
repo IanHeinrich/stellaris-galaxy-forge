@@ -306,6 +306,7 @@ impl Format for Save {
                 megastructure_flag,
                 star_only,
                 construction,
+                left_out,
             } => add_megastructure::plan_add(
                 plan,
                 s,
@@ -319,6 +320,7 @@ impl Format for Save {
                     megastructure_flag: *megastructure_flag,
                     star_only: *star_only,
                     construction: construction.as_ref(),
+                    left_out: *left_out,
                 },
             ),
             Op::RemoveMegastructure {

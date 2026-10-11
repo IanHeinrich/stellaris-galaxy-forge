@@ -75,4 +75,13 @@ dismantle: MegastructureDismantle,
 /**
  * The mod whose file won for this type; `None` for the base game.
  */
-source: string | null, };
+source: string | null, 
+/**
+ * The base game defines this type, whether or not a mod's file won.
+ */
+base_game: boolean, 
+/**
+ * For a ruined, restored, destroyed or derelict variant, the working type it belongs
+ * to, as the files or their keys link them.
+ */
+variant_of: string | null, };

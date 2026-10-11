@@ -163,6 +163,7 @@ pub fn sol_nexus() -> Op {
         megastructure_flag: true,
         star_only: false,
         construction: None,
+        left_out: 0,
     }
 }
 

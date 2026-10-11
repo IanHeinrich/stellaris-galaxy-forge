@@ -788,7 +788,8 @@ pub enum Op {
     /// A new `megastructures` row of type `kind` in save system `system`, written finished:
     /// at the slot past the highest the table has used, at generation 0, with no
     /// `save_on_death`. With an `owner`, the row names it and its `graphical_culture`, and the
-    /// owner lists it in `owned_megastructures`. A row on a [`MegastructurePlace::Body`]
+    /// owner lists it in `owned_megastructures`; on load the game gives every row to the
+    /// owner of its system, whatever the row names. A row on a [`MegastructurePlace::Body`]
     /// stands at the body's point and names it, and the body gets `megastructure=<id>`, with
     /// the planet flags `has_megastructure` and `ruined_orbital_ring_planet` when asked. The
     /// system lists the row in `megastructures`. With `bypass`, a `bypasses` row owned by the
@@ -798,7 +799,9 @@ pub enum Op {
     /// type's construction adds is written as the game leaves it: each modifier as an item
     /// of its body's or the system's `timed_modifier`, which the entity gains when it has
     /// none, each deposit as [`Op::AddDeposit`] writes one, and each owner variable raised,
-    /// written in its place among the owner's `variables` when the owner has none of it.
+    /// written in its place among the owner's `variables` when the owner has none of it. A
+    /// deposit on a body the file held and a deletion has left as `<id>=none` is written
+    /// naming it, with no planet to list it, as the deletion left it.
     /// The game's other build effects do not run. An unknown country, a body outside the
     /// system, a body that has a megastructure or the `has_megastructure` flag, a body that
     /// is not a star for a `star_only` type, a flag or `star_only` on a free point, a bypass
@@ -835,6 +838,11 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
+        /// How many effects of the type's construction the caller could not tell apply and
+        /// left out of `construction`; the description says so.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        #[ts(optional, as = "Option<u32>")]
+        left_out: u32,
     },
     /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
     /// taken out again: it gives its slot back as an added body does, and it is unlinked as
@@ -843,16 +851,17 @@ pub enum Op {
     /// and unless another row names the body, the body loses the flags a structure leaves.
     /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
     /// bypass's lists. What the add's construction wrote goes too, as much of it as is still
-    /// there: each modifier item, each deposit, which gives its slot back as
-    /// [`Op::RemoveDeposit`] gives back an added one, and each variable lowered, its line
-    /// going at 0 and the owner's `variables` with its last line when the file held neither.
+    /// there: each modifier item, each deposit, a body's deleted since included, which gives
+    /// its slot back as [`Op::RemoveDeposit`] gives back an added one, and each variable
+    /// lowered, its line going at 0 and the owner's `variables` with its last line when the
+    /// file held neither.
     /// A row the file held is refused. The inverse adds it back as it stood, with what was
     /// taken back as its construction. Stellaris 4.x save documents only.
     RemoveMegastructure {
         megastructure: u32,
         /// What the add's construction wrote; filled only by the inverse of
         /// [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
-        /// row this session is taken back.
+        /// row this session, earlier in the same batch included, is taken back.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
@@ -1555,4 +1564,8 @@ pub struct LaneLength {
     pub a: u32,
     pub b: u32,
     pub length: f64,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }

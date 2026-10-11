@@ -46,6 +46,7 @@ impl Row<'_> {
             megastructure_flag: self.flag,
             star_only: self.star_only,
             construction: None,
+            left_out: 0,
         }
     }
 }
@@ -559,6 +560,7 @@ fn with_construction(row: Row<'_>, construction: MegastructureConstruction) -> O
             megastructure_flag,
             star_only,
             construction: Some(construction),
+            left_out: 0,
         },
         other => other,
     }
@@ -720,4 +722,156 @@ fn a_construction_the_add_cannot_write_is_refused() {
             ),
         ],
     );
+}
+
+/// Planet 12 deleted after the furnace is added leaves its added deposit behind, as the
+/// game leaves a deleted body's deposits; the furnace's removal finds it by its holder and
+/// takes it back with the other twelve, and the modifier went with the planet.
+#[test]
+fn a_furnace_removed_after_a_body_takes_back_the_deleted_bodys_deposit() {
+    let mut session = open_4_5();
+    session.apply(furnace()).expect("the furnace");
+    let after_add = current(&session);
+    session
+        .apply(Op::DeleteBody { body: 12 })
+        .expect("planet 12");
+    let removed = session.apply(remove(16)).expect("the removal");
+    let Op::AddMegastructure {
+        construction: Some(taken),
+        ..
+    } = &removed.inverse
+    else {
+        panic!("{:?}", removed.inverse);
+    };
+    assert_eq!(taken.deposits.len(), 13, "{:?}", taken.deposits);
+    assert_eq!(taken.modifiers.len(), 12, "{:?}", taken.modifiers);
+    assert!(
+        removed
+            .entry
+            .description
+            .ends_with(", with 12 modifiers, 13 deposits and 1 counter"),
+        "{}",
+        removed.entry.description
+    );
+    session.undo().expect("undo the removal");
+    let after_delete = current(&session);
+    session.undo().expect("undo the delete");
+    assert_eq!(current(&session), after_add);
+    session.redo().expect("redo the delete");
+    session.redo().expect("redo the removal");
+    session
+        .apply_inverse(removed.inverse.clone())
+        .expect("the removal's inverse adds the deleted body's deposit back");
+    let back = entity_text(&session, EntityKind::Planet, 12);
+    assert_eq!(
+        back.trim(),
+        "12=none",
+        "the deleted body is not listed again"
+    );
+    session.undo().expect("undo the inverse");
+    session.undo().expect("undo the removal");
+    assert_eq!(current(&session), after_delete);
+    session.undo().expect("undo the delete");
+    session.undo().expect("undo the add");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// Planet 12's `coordinate` has no `origin`, so the removal cannot tell where it stands.
+/// It stops there instead of leaving the planet's modifier behind.
+#[test]
+fn a_removal_stops_on_a_planet_it_cannot_read() {
+    let mut session = common::open_edited_sample(common::SAMPLE_4_5, |gamestate, _| {
+        let from = "x=-165.3322\n\t\t\t\ty=-59.0354\n\t\t\t\torigin=169\n";
+        assert!(gamestate.contains(from));
+        *gamestate = gamestate.replacen(from, "x=-165.3322\n\t\t\t\ty=-59.0354\n", 1);
+    });
+    session
+        .apply(body_row(SOL, "think_tank_3", 6).op())
+        .expect("the nexus");
+    let refused = session
+        .apply_inverse(Op::RemoveMegastructure {
+            megastructure: 16,
+            construction: Some(MegastructureConstruction {
+                modifiers: vec![modifier(
+                    ModifierHost::Body { body: 12 },
+                    "orbital_arc_furnace_4_mod",
+                )],
+                ..MegastructureConstruction::default()
+            }),
+        })
+        .expect_err("planet 12 cannot be read");
+    assert!(refused.to_string().contains("origin"), "{refused}");
+}
+
+/// A furnace added and deleted in one batch: the delete finds what the add earlier in the
+/// batch wrote, and takes it all back.
+#[test]
+fn a_furnace_added_and_deleted_in_one_batch_leaves_nothing() {
+    let mut session = open_4_5();
+    session
+        .apply(Op::Batch {
+            description: "Added and deleted a furnace".to_owned(),
+            ops: vec![
+                furnace(),
+                Op::DeleteMegastructure {
+                    megastructure: 16,
+                    dismantle: None,
+                },
+            ],
+        })
+        .expect("the batch");
+    let after = current(&session);
+    assert_eq!(after, session.doc().original());
+    session.undo().expect("undo the batch");
+    assert_eq!(current(&session), session.doc().original());
+    session.redo().expect("redo the batch");
+    assert_eq!(current(&session), after);
+}
+
+/// The furnace's add undone and redone through the history still knows what it wrote, so
+/// deleting the row afterwards takes it all back.
+#[test]
+fn an_added_furnace_redone_is_deleted_with_its_construction() {
+    let mut session = open_4_5();
+    session.apply(furnace()).expect("the furnace");
+    session.undo().expect("undo");
+    session.redo().expect("redo");
+    let deleted = session
+        .apply(Op::DeleteMegastructure {
+            megastructure: 16,
+            dismantle: None,
+        })
+        .expect("the delete");
+    assert_eq!(deleted.inverse, furnace());
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// A deposit added after the furnace takes the id past the furnace's thirteen, so taking
+/// the furnace out frees ids below a live one. Undo and redo put back each state byte for
+/// byte.
+#[test]
+fn a_deposit_added_after_a_furnace_survives_its_removal_and_undo() {
+    let mut session = open_4_5();
+    session.apply(furnace()).expect("the furnace");
+    session
+        .apply(Op::AddDeposit {
+            body: 2,
+            kind: "d_minerals_1".to_owned(),
+        })
+        .expect("the deposit");
+    let with_deposit = current(&session);
+    session.apply(remove(16)).expect("the removal");
+    let removed = current(&session);
+    assert!(
+        entity_text(&session, EntityKind::Planet, 2).contains("deposits"),
+        "the added deposit stays listed"
+    );
+    session.undo().expect("undo the removal");
+    assert_eq!(current(&session), with_deposit);
+    session.redo().expect("redo the removal");
+    assert_eq!(current(&session), removed);
+    session.undo().expect("undo the removal");
+    session.undo().expect("undo the deposit");
+    session.undo().expect("undo the furnace");
+    assert_eq!(current(&session), session.doc().original());
 }

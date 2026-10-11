@@ -23,12 +23,18 @@ pub struct AddedBody {
     pub planet: u32,
 }
 
-/// What adding a megastructure answers with: the edit, and the id the new row took.
+/// What adding a megastructure answers with: the edit, the id the new row took, and the
+/// effects of its construction left out, each as the type's script says it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct AddedMegastructure {
     pub edit: EditResult,
     pub megastructure: u32,
+    /// Each effect the editor could not tell applies, or where.
+    pub unsure: Vec<String>,
+    /// Each effect that applies but that the editor does not write, such as a modifier the
+    /// construction removes.
+    pub unwritten: Vec<String>,
 }
 
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,

@@ -342,10 +342,9 @@
   text-align: right;
 }
 
-/* The type list hangs below its field, past the body's edge, so the body must not clip it. */
-/* A fixed height, so the dialog keeps its size as the family and the filter change the tiles. */
+/* A fixed height, so the dialog keeps its size as the selection and the filter change the tiles. */
 .megastructure-add-dialog {
-  width: min(880px, 100%);
+  width: min(1040px, 100%);
   height: min(86vh, 800px);
   max-height: min(86vh, 800px);
 }
@@ -357,11 +356,9 @@
   min-height: 0;
 }
 
-/* Visible, so the family dropdown's list hangs over the tiles; the tiles scroll on their own. */
 .megastructure-add-body {
   display: flex;
   flex-direction: column;
-  overflow: visible;
 }
 
 .megastructure-add-body > .field {
@@ -371,57 +368,93 @@
 .megastructure-add-browse {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 14px;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  gap: 12px;
   min-height: 0;
   margin: 6px 0 10px;
 }
 
-.megastructure-add-pick {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-}
-
-.megastructure-add-find {
+.megastructure-add-list-column {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-height: 0;
 }
 
-.megastructure-add-find > .filter-input {
+.megastructure-add-list-column > .filter-input {
   margin: 0;
 }
 
-.megastructure-add-find .icon-picker,
-.megastructure-add-find .icon-picker-trigger {
-  align-self: stretch;
-  min-width: 0;
-}
-
+.megastructure-add-list,
 .megastructure-add-grid {
-  display: grid;
   flex: 1;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  grid-auto-rows: max-content;
-  gap: 6px;
   min-height: 0;
   margin: 0;
-  padding: 6px;
   overflow-y: auto;
-  list-style: none;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
 }
 
+.megastructure-add-list {
+  padding: 2px 0;
+  list-style: none;
+}
+
+.megastructure-add-list > [role="option"] {
+  padding: 3px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.megastructure-add-list > [role="option"]:hover {
+  background: var(--bg-panel);
+}
+
+.megastructure-add-list > [role="option"][aria-selected="true"] {
+  background: var(--accent-bg);
+}
+
+.megastructure-add-section {
+  padding: 6px 10px 2px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.megastructure-add-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+}
+
+.megastructure-add-list:focus,
 .megastructure-add-grid:focus {
   outline: none;
 }
 
+.megastructure-add-list:focus-visible,
 .megastructure-add-grid:focus-visible {
   border-color: var(--fg-muted);
+}
+
+.megastructure-add-row-label {
+  margin: 0 0 2px 2px;
+  font-size: 11.5px;
+}
+
+.megastructure-add-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-auto-rows: max-content;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .megastructure-add-tile {
@@ -444,6 +477,19 @@
 .megastructure-add-tile[aria-selected="true"] {
   background: var(--accent-bg);
   border-color: var(--accent);
+}
+
+.megastructure-add-refused {
+  opacity: 0.5;
+}
+
+.megastructure-add-mark {
+  font-size: 10.5px;
+}
+
+.megastructure-add-refusal {
+  margin: 0;
+  color: var(--warn);
 }
 
 .megastructure-add-thumb,

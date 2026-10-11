@@ -29,6 +29,9 @@ const COLONY = {
 /** Whether the planet's flags say a megastructure made it. */
 let madeIt = false;
 
+/** The file's bytes for a row it held; an added row has none. */
+let rowSpan: [number, number] = [1200, 1480];
+
 /** The megastructure row the core reads back: its type, its planet and its bypass. */
 function armRow(kind: string, planet: number | null, bypass: number | null = null): void {
   const nodes = [
@@ -39,7 +42,7 @@ function armRow(kind: string, planet: number | null, bypass: number | null = nul
   const flags = [entityNode("megastructure", scalar("62808000", "int"))];
   mockedIpc.getEntity.mockImplementation(async (addr: EntityAddr) =>
     addr.kind === "megastructure"
-      ? entityView("megastructure", { addr, nodes })
+      ? entityView("megastructure", { addr, nodes, span: rowSpan })
       : entityView("planet", { addr, path: ["flags"], nodes: madeIt ? flags : [] }),
   );
 }
@@ -62,6 +65,7 @@ beforeEach(async () => {
   await openFixtureSave();
   useGameDataStore.setState({ ...useGameDataStore.getInitialState() });
   madeIt = false;
+  rowSpan = [1200, 1480];
   mockedIpc.confirm.mockResolvedValue(true);
   mockedIpc.deleteMegastructure.mockResolvedValue(editResult());
 });
@@ -90,6 +94,13 @@ describe("deleting a megastructure", () => {
 
     expect(mockedIpc.deleteMegastructure).not.toHaveBeenCalled();
     expect(labels()).toEqual(["Ostiuq", "Science Nexus", "Colony #18"]);
+  });
+
+  it("says nothing of what stays for a row added this session, whose add is taken back", async () => {
+    rowSpan = [5000, 5000];
+    armRow("think_tank_3", null);
+    await deleteMegastructure(NEXUS, "Science Nexus", 0);
+    expect(asked()).toBe("Delete Science Nexus in Sol? It is removed from the save.");
   });
 
   it("asks the same for a relay", async () => {

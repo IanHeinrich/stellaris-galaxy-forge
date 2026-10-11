@@ -54,10 +54,15 @@ megastructure_flag?: boolean,
 /**
  * The type is built only around a star: a body that is not one is refused.
  */
-star_only?: boolean, construction?: MegastructureConstruction, } | { "type": "RemoveMegastructure", megastructure: number, 
+star_only?: boolean, construction?: MegastructureConstruction, 
+/**
+ * How many effects of the type's construction the caller could not tell apply and
+ * left out of `construction`; the description says so.
+ */
+left_out?: number, } | { "type": "RemoveMegastructure", megastructure: number, 
 /**
  * What the add's construction wrote; filled only by the inverse of
  * [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
- * row this session is taken back.
+ * row this session, earlier in the same batch included, is taken back.
  */
 construction?: MegastructureConstruction, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };

@@ -712,6 +712,11 @@ for planets or deposits.
   no `save_on_death`, was kept unchanged through a month in game. The
   editor adds a row only there, never in a dead slot, because the old id
   of a dead slot may be logged in `dead_mega_structure`.
+- On load the game gives every row to the owner of its system, and the
+  owners' `owned_megastructures` follow: a row owned by the player in an
+  AI's system becomes the AI's, an unowned row in the player's system
+  becomes the player's, and a player's row in an unowned system loses
+  its owner. Nothing changed a month later. Tested in Stellaris 4.5.2.
 - Key order, where present: `save_on_death`, `type`, `coordinate`,
   `owner`, `graphical_culture`, `planet`, `bypass`, `orbitals`,
   `build_queue`, `dismantle_progress`, `dismantle_finish_date`. A 4.5.0
