@@ -6,7 +6,9 @@ use std::collections::btree_map::Entry;
 
 use crate::cst::Node;
 use crate::document::Document;
+use crate::format::save::added::Table;
 use crate::format::save::alloc::{self, SlotTable};
+use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
 use crate::format::save::{
     entity_at, entity_in, planet_statement, planet_system, system_statement,
 };
@@ -26,7 +28,7 @@ pub(crate) fn plan_restore(
     for entity in entities {
         let SavedEntity { table, id, text } = entity;
         let (table, id) = (*table, *id);
-        if statement_id(text) != Some(id) {
+        if !holds(table, id, text) {
             return Err(OpError::EntityMismatch { table, id });
         }
         let anchor = locate(&s.doc, table, id)?.ok_or(OpError::UnknownEntity { table, id })?;
@@ -52,19 +54,30 @@ pub(crate) fn plan_restore(
     })
 }
 
-/// The id of the one statement `text` holds, when it holds exactly one, keyed by a number:
-/// an entity or a tombstone.
-fn statement_id(text: &str) -> Option<u32> {
+/// Whether `text` is one statement standing for entity `id` of `table`: the entity or its
+/// tombstone, or the dead megastructure table whole.
+fn holds(table: SavedTable, id: u32, text: &str) -> bool {
+    match table {
+        SavedTable::DeadMegastructures => {
+            id == 0 && statement_key(text, false).as_deref() == Some(keys::DEAD_MEGA_STRUCTURE)
+        }
+        _ => statement_key(text, true).and_then(|key| key.parse().ok()) == Some(id),
+    }
+}
+
+/// The key of the one statement `text` holds, when it holds exactly one block, or with
+/// `tombstone` the scalar `none`.
+fn statement_key(text: &str, tombstone: bool) -> Option<String> {
     let bytes = text.as_bytes();
     let root = crate::cst::parse(bytes, 0).ok()?;
     let [node] = root.children() else {
         return None;
     };
-    let dead = node.scalar_str(bytes) == Some("none");
+    let dead = tombstone && node.scalar_str(bytes) == Some("none");
     if node.scalar_span().is_some() && !dead {
         return None;
     }
-    node.key_str(bytes)?.parse().ok()
+    node.key_str(bytes).map(str::to_owned)
 }
 
 /// The system of the planet entity `bytes` hold; `None` for a tombstone.
@@ -123,6 +136,24 @@ fn locate(doc: &Document, table: SavedTable, id: u32) -> Result<Option<Anchor>, 
         }
         SavedTable::ConstructionItem => {
             return Ok(item_index(doc).and_then(|i| entry(&i, keys::ITEMS, id)));
+        }
+        SavedTable::Megastructure => {
+            return Ok(doc
+                .added()
+                .get(MEGASTRUCTURES, id)
+                .or_else(|| entry(doc.index(), keys::MEGASTRUCTURES, id)));
+        }
+        SavedTable::Bypass => {
+            return Ok(doc
+                .added()
+                .get(Table::Bypass, id)
+                .or_else(|| entry(doc.index(), keys::BYPASSES, id)));
+        }
+        SavedTable::DeadMegastructures => {
+            return Ok(doc
+                .index()
+                .section(keys::DEAD_MEGA_STRUCTURE)
+                .map(|section| Anchor::Original(section.stmt)));
         }
         SavedTable::Country => keys::COUNTRY,
         SavedTable::Colony => keys::COLONY,

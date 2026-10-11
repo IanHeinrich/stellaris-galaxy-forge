@@ -50,6 +50,7 @@ mod ops_bodies;
 mod ops_bodies_orbitals;
 mod ops_body_parents;
 mod ops_copy_planet;
+mod ops_delete_megastructure;
 mod ops_deposit_slots;
 mod ops_deposits;
 mod ops_dig_site;

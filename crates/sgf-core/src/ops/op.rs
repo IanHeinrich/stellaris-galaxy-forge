@@ -689,8 +689,31 @@ pub enum Op {
     DeleteBody {
         body: u32,
     },
+    /// A `megastructures` row the file held, as the game leaves one it destroys: the row
+    /// becomes `<id>=none`, and its id leaves its system's `megastructures` and its owner's
+    /// `owned_megastructures`, each list going with its last id. Its body loses the
+    /// `megastructure` key, and unless another row names the body, the planet flags
+    /// `has_megastructure`, `has_arc_furnace` and `ruined_orbital_ring_planet` and an Arc
+    /// Furnace's `entity_name="invisible_turret_entity"`. A row with `save_on_death=1` is
+    /// logged in `dead_mega_structure` as the game logs it: a `map` line from its id to a new
+    /// `objects` entry holding its type and system. A row with a `gateway` or `relay_bypass`
+    /// bypass takes it along: the bypass row is emptied, and its id leaves the system's
+    /// `bypasses` and every other bypass's `connections`, `active_connections` and
+    /// `linked_to`. Each country's `usable_bypasses` and a fleet's `bypass_from` and
+    /// `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves them. When
+    /// the body has the planet flag `megastructure`, which a body the structure made has, its
+    /// colony goes first as [`Op::RemoveColony`] takes it, and the body stays. The system's
+    /// and owner's flags and modifiers stay. A row standing in no system, a bypass of any
+    /// other kind, a row a construction ship's `build_megastructure_fleet_order` upgrades and
+    /// any colony [`Op::RemoveColony`] refuses for a reason other than the structure are
+    /// refused. The inverse is the [`Op::RestoreEntities`] that writes back every entity it
+    /// rewrote. A row [`Op::AddMegastructure`] added since the file was opened goes as
+    /// [`Op::RemoveMegastructure`] takes it. Stellaris 4.x save documents only.
+    DeleteMegastructure {
+        megastructure: u32,
+    },
     /// Save entities written back whole, each over whatever stands for it now: what
-    /// [`Op::RemoveColony`] and [`Op::DeleteBody`] invert to. Each text must be one
+    /// [`Op::RemoveColony`], [`Op::DeleteBody`] and [`Op::DeleteMegastructure`] invert to. Each text must be one
     /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
     /// bytes. The inverse carries the texts displaced. Save documents only.
@@ -783,13 +806,13 @@ pub enum Op {
         ruined_orbital_ring: bool,
     },
     /// A `megastructures` row [`Op::AddMegastructure`] added since the file was opened,
-    /// taken out again: it gives its slot back as an added body does, and its id leaves the
-    /// system's `megastructures`, the owner's `owned_megastructures` and the body's
-    /// `megastructure`, each list going with its last id. The body loses the ruin flag, and
-    /// the `flags` block goes with it when nothing else is left. The row's bypass is
-    /// erased, and its id leaves the system's `bypasses` and every other bypass's
-    /// `connections` and `active_connections`. A row the file held is refused. The inverse
-    /// adds it back as it stood. Stellaris 4.x save documents only.
+    /// taken out again: it gives its slot back as an added body does, and it is unlinked as
+    /// [`Op::DeleteMegastructure`] unlinks a row: its id leaves the system's
+    /// `megastructures`, the owner's `owned_megastructures` and the body's `megastructure`,
+    /// and unless another row names the body, the body loses the flags a structure leaves.
+    /// The row's bypass is erased, and its id leaves the system's `bypasses` and every other
+    /// bypass's lists. A row the file held is refused. The inverse adds it back as it stood.
+    /// Stellaris 4.x save documents only.
     RemoveMegastructure {
         megastructure: u32,
     },
@@ -894,15 +917,18 @@ impl Op {
             | Self::RemoveBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
+            // A megastructure written back stands in its system's details, though no body
+            // of the system is rewritten.
             Self::RestoreEntities { .. } => OpReach::of(SAVE)
-                .details(Bodies)
+                .details(Rebuild)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }
             | Self::RemoveWormholePair { .. }
             | Self::MoveBodyToSystem { .. }
             | Self::AddMegastructure { .. }
-            | Self::RemoveMegastructure { .. } => {
+            | Self::RemoveMegastructure { .. }
+            | Self::DeleteMegastructure { .. } => {
                 OpReach::of(SAVE).details(Rebuild).whole_entries()
             }
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
@@ -1366,6 +1392,11 @@ pub enum SavedTable {
     ConstructionQueue,
     /// `construction.item_mgr.items`.
     ConstructionItem,
+    Megastructure,
+    /// `bypasses`.
+    Bypass,
+    /// The whole top-level `dead_mega_structure` statement, with id 0.
+    DeadMegastructures,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

@@ -100,6 +100,10 @@ add_bodies: boolean,
  */
 remove_bodies: boolean, 
 /**
+ * A megastructure can be deleted.
+ */
+remove_megastructures: boolean, 
+/**
  * A planet's class and model can be changed.
  */
 planet_classes: boolean, 

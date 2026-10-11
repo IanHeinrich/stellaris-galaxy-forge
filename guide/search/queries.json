@@ -141,7 +141,7 @@
   {"q": "see deposits for one planet class", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
   {"q": "what if it rolls gas giant", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
   {"q": "class picker", "expect": "system/deposits-and-modifiers#see-what-one-class-rolls"},
-  {"q": "megastructure", "expect": "system/system-view#megastructures-and-starbases"},
+  {"q": "megastructure", "expect": "system/megastructures#megastructures"},
   {"q": "dyson sphere", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "starbase model", "expect": "system/system-view#megastructures-and-starbases"},
   {"q": "hide starbases", "expect": "system/system-view#megastructures-and-starbases"},
@@ -154,5 +154,11 @@
   {"q": "add dyson sphere", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add hyper relay", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add gateway", "expect": "system/megastructures#add-a-megastructure"},
-  {"q": "megastructure owner", "expect": "system/megastructures#add-a-megastructure"}
+  {"q": "megastructure owner", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "delete megastructure", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "remove dyson sphere", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete hyper relay", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete ruined orbital ring", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "delete gateway", "expect": "system/megastructures#delete-a-megastructure"},
+  {"q": "cosmogenesis world colony", "expect": "system/megastructures#delete-a-megastructure"}
 ]

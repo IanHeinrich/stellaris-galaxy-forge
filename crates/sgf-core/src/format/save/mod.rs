@@ -21,11 +21,11 @@ use crate::document::{self, Document};
 use crate::entity::views::EntityKind;
 use crate::format::Format;
 use crate::format::save::write::{
-    add_body, add_megastructure, add_system, anomaly, belts, bodies, bulk, deposits, dig_site,
-    empire_name, flag, lanes, lgate, map_colors, move_planet, move_system, nebula, planet_class,
-    planet_entity, planet_modifier, planet_ring, planet_size, remove_planet, remove_system,
-    rename_planet, rename_system, replace_system, restore, star_class, system_height, wormhole,
-    wormhole_pair,
+    add_body, add_megastructure, add_system, anomaly, belts, bodies, bulk, delete_megastructure,
+    deposits, dig_site, empire_name, flag, lanes, lgate, map_colors, move_planet, move_system,
+    nebula, planet_class, planet_entity, planet_modifier, planet_ring, planet_size, remove_planet,
+    remove_system, rename_planet, rename_system, replace_system, restore, star_class,
+    system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
@@ -258,6 +258,9 @@ impl Format for Save {
             Op::SetBodyRing { body, ring } => planet_ring::plan_set(plan, s, *body, *ring),
             Op::RemoveColony { body } => remove_planet::plan_remove_colony(plan, s, *body),
             Op::DeleteBody { body } => remove_planet::plan_delete(plan, s, *body),
+            Op::DeleteMegastructure { megastructure } => {
+                delete_megastructure::plan_delete(plan, s, *megastructure)
+            }
             Op::RestoreEntities {
                 description,
                 entities,
@@ -383,6 +386,7 @@ impl Format for Save {
             planet_moves: whole_entries,
             add_bodies: whole_entries,
             remove_bodies: whole_entries,
+            remove_megastructures: whole_entries,
             planet_classes: whole_entries,
             modifiers: whole_entries,
             anomalies: whole_entries,

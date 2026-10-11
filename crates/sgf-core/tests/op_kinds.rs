@@ -350,6 +350,7 @@ fn a_save_before_stellaris_4_refuses_the_ops_that_write_whole_entries() {
             planet_moves: false,
             add_bodies: false,
             remove_bodies: false,
+            remove_megastructures: false,
             planet_classes: false,
             modifiers: false,
             anomalies: false,

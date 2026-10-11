@@ -101,7 +101,7 @@ fn what_is_refused() {
             "megastructure",
             open_4_5,
             delete(936),
-            "planet 936 cannot be deleted: a megastructure stands on or around it, which has not been tried in game",
+            "planet 936 cannot be deleted: a megastructure stands on or around it: delete the megastructure first",
         ),
         (
             "3.x",

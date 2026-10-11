@@ -53,6 +53,8 @@ export type ContextTarget =
   | { kind: "body"; system: number; id: number }
   /** A belt of the system view, right-clicked on one of its handles. */
   | { kind: "belt"; system: number; index: number }
+  /** A megastructure of the system view, right-clicked on its model. */
+  | { kind: "megastructure"; system: number; id: number }
   | { kind: "systemSpace"; system: number; x: number; y: number }
   /** A body's row in an inspector list, on the galaxy or in any system's view. */
   | { kind: "bodyRow"; system: number; id: number };

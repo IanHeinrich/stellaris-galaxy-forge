@@ -169,6 +169,9 @@ Hover over a megastructure or starbase to see its name. Click its model
 to open its page in the Inspector. To select a planet or star under a
 megastructure, click the body itself or its name plate.
 
+Right-click a megastructure to inspect it or delete it. See
+[Delete a megastructure](megastructures.md#delete-a-megastructure).
+
 The models are read from your Stellaris install. Galaxy Forge prepares
 them in the background after a save opens. A system you open straight
 away can take a moment to show them. A megastructure from a mod you

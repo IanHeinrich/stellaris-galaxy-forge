@@ -7,6 +7,7 @@ import { BodyMenu } from "./contextMenu/BodyMenu";
 import { BodyRowMenu } from "./contextMenu/BodyRowMenu";
 import { FeZoneMenu } from "./contextMenu/FeZoneMenu";
 import { LaneMenu } from "./contextMenu/LaneMenu";
+import { MegastructureMenu } from "./contextMenu/MegastructureMenu";
 import type { Frame } from "./contextMenu/MenuFrame";
 import { NebulaMenu } from "./contextMenu/NebulaMenu";
 import { PreventedMenu } from "./contextMenu/PreventedMenu";
@@ -66,6 +67,8 @@ export function ContextMenu() {
       return <BodyMenu target={target} frame={frame} />;
     case "belt":
       return <BeltMenu target={target} frame={frame} />;
+    case "megastructure":
+      return <MegastructureMenu target={target} frame={frame} />;
     case "systemSpace":
       return <SceneSpaceMenu target={target} frame={frame} />;
     case "bodyRow":

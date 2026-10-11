@@ -374,6 +374,8 @@ export interface InspectorState {
   moveBodies(bodies: readonly number[], system: number): void;
   /** Closes every page on one of `planets` or `colonies`, with everything opened from it. */
   dropPlanets(planets: readonly number[], colonies: readonly number[]): void;
+  /** Closes every page on `megastructure` or one of `colonies`, with everything opened from it. */
+  dropMegastructure(megastructure: number, colonies: readonly number[]): void;
   /**
    * The Galaxy crumb: pops a stack that stands on the galaxy back to it, and says so. A stack
    * rooted on a selection says false, and clearing the selection restarts it instead.
@@ -448,6 +450,13 @@ function systemTabsNow(): SystemTabs {
 function tabFor(ref: EntityRef, tab: InspectorTab): InspectorTab {
   const tabs = tabsFor(ref, true, systemTabsNow());
   return tabs.includes(tab) ? tab : tabs[0];
+}
+
+/** `stack` with the first page `gone` names closed, and every page above it; null where none is. */
+function closing(stack: readonly Entry[], gone: (ref: EntityRef) => boolean): Entry[] | null {
+  const at = stack.findIndex(({ ref }) => gone(ref));
+  if (at < 0) return null;
+  return at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
 }
 
 export const useInspectorStore = create<InspectorState>((set, get) => ({
@@ -540,14 +549,24 @@ export const useInspectorStore = create<InspectorState>((set, get) => ({
 
   dropPlanets(planets, colonies) {
     const { stack, tab } = get();
-    const at = stack.findIndex(
-      ({ ref }) =>
+    const next = closing(
+      stack,
+      (ref) =>
         (ref.kind === "body" && planets.includes(ref.id)) ||
         (ref.kind === "colony" && colonies.includes(ref.id)),
     );
-    if (at < 0) return;
-    const next = at === 0 ? [GALAXY_ENTRY] : stack.slice(0, at);
-    set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+    if (next !== null) set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
+  },
+
+  dropMegastructure(megastructure, colonies) {
+    const { stack, tab } = get();
+    const next = closing(
+      stack,
+      (ref) =>
+        (ref.kind === "megastructure" && ref.id === megastructure) ||
+        (ref.kind === "colony" && colonies.includes(ref.id)),
+    );
+    if (next !== null) set({ stack: next, tab: tabFor(next[next.length - 1].ref, tab) });
   },
 
   home() {
