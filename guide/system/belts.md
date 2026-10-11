@@ -3,7 +3,7 @@ title: Asteroid belts and the inner radius
 description: Add, remove and resize a system's asteroid belts, change their kind, and move the inner radius.
 aliases: [asteroid belt, belt, rubble, inner radius, hyperlane exit, system edge]
 ---
-# Asteroid belts and the inner radius <Badge type="tip" text="Save" />
+# Asteroid belts and the inner radius <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
 A system can have asteroid belts. Its
 [inner radius](../reference/glossary.md#inner-radius) is the circle its
@@ -28,3 +28,13 @@ the circle. Drag any of them to change the radius. Right-click a belt's
 handle and select Remove belt to remove it. Its asteroids stay where
 they are. Right-click empty space and select Add belt here to add a belt
 at that distance from the star.
+
+## Belts in a scenario <Badge type="info" text="Scenario" />
+
+In a scenario, the Belts section shows the system's inner radius and
+each belt's radius. Where the game rolls them, they show as ranges, such
+as "150 to 380". The inner radius depends on how many bodies the game
+places and how far out it places them. Some initializers also set an
+offset for the inner radius. Galaxy Forge can't tell how the game
+applies it, so the range shows in grey as unknown. Hover over it to see
+the offset. The radii can't be edited yet.

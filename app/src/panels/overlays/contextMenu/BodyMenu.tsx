@@ -15,7 +15,7 @@ import { bodyEntry, useInspectorStore } from "../../../store/inspectorStore";
 import type { ContextTarget } from "../../../store/mapChromeStore";
 import { useSceneStore } from "../../../store/sceneStore";
 import { useSystemGeometry } from "../../../store/systemGeometry";
-import { useSystemBodyNamer } from "../../inspector/entity/useBodyName";
+import { useSystemBodyNames } from "../../inspector/entity/useBodyName";
 import { useOpCheck } from "../../useOpCheck";
 import { AddBodyItems } from "./AddBodyItems";
 import { MenuFrame, type Frame } from "./MenuFrame";
@@ -42,8 +42,10 @@ export function BodyMenu({
   const locked = useSceneStore((s) => s.lockedBodies.has(target.id));
   const lockBody = useSceneStore((s) => s.lockBody);
   const unlockBody = useSceneStore((s) => s.unlockBody);
-  const nameOf = useSystemBodyNamer(target.system);
-  const name = nameOf(target.id);
+  const named = useSystemBodyNames(target.system);
+  const nameOf = (id: number) => named(id)?.text;
+  const listed = named(target.id);
+  const name = listed?.text;
   const placed = layout.bodies.find((b) => b.id === target.id);
   const lockable = placed !== undefined && editing.bodies.get(target.id)?.move === true;
   const planet = details?.planets.find((p) => p.id === target.id);
@@ -77,7 +79,7 @@ export function BodyMenu({
       <MenuItem
         disabled={name === undefined}
         run={() => {
-          if (name !== undefined) openFromMap(bodyEntry(target.system, target.id, name));
+          if (listed !== undefined) openFromMap(bodyEntry(target.system, target.id, listed.text));
         }}
       >
         Inspect

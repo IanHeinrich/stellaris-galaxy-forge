@@ -1,8 +1,9 @@
 import type { HeldAnomaly, PickerTarget } from "../../../lib/details/picker";
 import type { StatedAnomalies } from "../../../generated/StatedAnomalies";
-import { anomalyLine, bodyNoun, placedAnomaly } from "../../../lib/details/spawnFacts";
+import { bodyNoun, placedAnomaly } from "../../../lib/details/spawnFacts";
 import { templateName } from "../../../lib/names";
 import { useGalaxyStore } from "../../../store/galaxyStore";
+import { useGameDataStore } from "../../../store/gameDataStore";
 import { usePlanetDataStore } from "../../../store/planetDataStore";
 import { useNamed } from "../../useNamed";
 import { Icon } from "../../parts";
@@ -89,15 +90,14 @@ function PlacedAnomalyRow({ category, noun }: { category: string; noun: string }
   );
 }
 
-/** What a scenario body's initializer says of its anomalies: the ones it places, or whether one can appear. */
+/** What a scenario body's initializer says of its anomalies: the ones it places. */
 function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies; noun: string }) {
-  const line = anomalyLine(anomalies, noun);
+  if (anomalies.categories.length === 0) return null;
   return (
     <Section id="planet.anomaly" title="Anomaly">
       {anomalies.categories.map((category, i) => (
         <PlacedAnomalyRow key={`${category}-${i}`} category={category} noun={noun} />
       ))}
-      {line !== null && <div className="muted ins-hint">{line}</div>}
     </Section>
   );
 }
@@ -108,8 +108,14 @@ function StatedAnomalySection({ anomalies, noun }: { anomalies: StatedAnomalies;
  */
 export function PlanetAnomaly({ read, offers }: PlanetSectionProps) {
   const spawn = read.summary.spawn;
+  const planetClasses = useGameDataStore((s) => s.planetClasses);
   if (spawn !== undefined && !offers.anomaly) {
-    return <StatedAnomalySection anomalies={spawn.anomalies} noun={bodyNoun(read.summary)} />;
+    return (
+      <StatedAnomalySection
+        anomalies={spawn.anomalies}
+        noun={bodyNoun(read.summary, planetClasses)}
+      />
+    );
   }
   if (!offers.anomaly) return null;
   const { anomaly } = read.rows;

@@ -121,6 +121,8 @@
 }
 
 .ins-prow .pi,
+.pl-pool-list .pi,
+.pl-class-strip .pi,
 .ins-prow .stn,
 .ins-prow .fleet-icon {
   display: inline-flex;
@@ -132,7 +134,9 @@
   overflow: hidden;
 }
 
-.ins-prow .pi {
+.ins-prow .pi,
+.pl-pool-list .pi,
+.pl-class-strip .pi {
   border-radius: 50%;
   box-shadow:
     inset -4px -4px 8px rgba(0, 0, 0, 0.55),
@@ -186,9 +190,6 @@
 .ins-prow .pops,
 .ins-total .sz,
 .ins-total .pops {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
   color: var(--fg);
 }
 
@@ -221,8 +222,8 @@
 }
 
 .res img {
-  width: 11px;
-  height: 11px;
+  width: 14px;
+  height: 14px;
   object-fit: contain;
 }
 
@@ -361,16 +362,22 @@
   padding: 1px 2px;
 }
 
-.ins-prow .pi.ghost {
+.ins-prow .pi.ghost,
+.pl-pool-list .pi.ghost,
+.pl-class-strip .pi.ghost {
   box-shadow: none;
 }
 
-.ins-prow .pi img {
+.ins-prow .pi img,
+.pl-pool-list .pi img,
+.pl-class-strip .pi img {
   width: 100%;
   height: 100%;
 }
 
-.ins-prow .pi.shattered {
+.ins-prow .pi.shattered,
+.pl-pool-list .pi.shattered,
+.pl-class-strip .pi.shattered {
   border-radius: 0;
   box-shadow: none;
 }
@@ -381,15 +388,6 @@
 
 .ins-init-field {
   width: 100%;
-}
-
-.ins-fe-zone-intro {
-  margin: 0 0 6px;
-  padding-left: 14px;
-}
-
-.ins-fe-zone-intro li + li {
-  margin-top: 3px;
 }
 
 button.ins-reroll {

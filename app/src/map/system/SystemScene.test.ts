@@ -17,6 +17,7 @@ import { useSceneStore } from "../../store/sceneStore";
 import { applyGeometry } from "../../store/systemGeometry";
 import { byId, name, placedNode, saveBody, systemDetails } from "../../test/builders";
 import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
+import { bodySpawn } from "../../test/spawn";
 import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./drawFixture";
 import { pickBody } from "./picking";
 import { SystemScene } from "./SystemScene";
@@ -277,6 +278,42 @@ describe("the system scene's tooltip", () => {
     fire("pointermove", at.x, at.y);
 
     expect(useMapChromeStore.getState().tooltip?.title).toBe("Random planet, any class");
+  });
+});
+
+describe("a scenario body in the system scene", () => {
+  it("shows the name the game gives it in its tooltip, and opens its page under its lowest name", () => {
+    const given = {
+      ...saveBody(2, "random", [90, 0], 90, 16, SUN),
+      name: name(""),
+      name_key: "",
+      drawn: true,
+      spawn: bodySpawn({
+        naming: {
+          state: "template",
+          format: "PLANET_NAME_FORMAT",
+          parent: null,
+          numerals: ["I", "II"],
+        },
+      }),
+    };
+    const details = systemDetails({ id: SYSTEM, inner_radius: 400, planets: [SUN, given] });
+    useDetailsStore.setState({ details: new Map([[SYSTEM, details]]) });
+    const canvas = recordingCanvas();
+    const { fire } = canvas;
+    const shown = entered(canvas);
+    const at = zoomedOnEarth(shown);
+    fire("pointermove", at.x, at.y);
+
+    expect(useMapChromeStore.getState().tooltip?.title).toBe(`S${SYSTEM} I`);
+    expect(shown.context().bodyById.get(2)?.name).toBe(`S${SYSTEM} I`);
+    fire("pointerdown", at.x, at.y);
+    fire("pointerup", at.x, at.y);
+    const { stack } = useInspectorStore.getState();
+    expect(stack[stack.length - 1]).toEqual({
+      ref: { kind: "body", system: SYSTEM, id: 2 },
+      label: `S${SYSTEM} I`,
+    });
   });
 });
 

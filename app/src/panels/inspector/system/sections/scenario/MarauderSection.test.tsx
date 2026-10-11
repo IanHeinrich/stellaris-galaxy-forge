@@ -4,6 +4,7 @@ vi.mock("../../../../../api/ipc");
 vi.mock("../../../../../api/events");
 vi.mock("../../../../useTextureUrl", () => ({ useTextureUrl: () => undefined }));
 vi.mock("zustand", () => import("../../../../../test/zustandSnapshot"));
+vi.mock("react/jsx-dev-runtime", () => import("../../../../../test/drawn"));
 
 import type { MarauderRole } from "../../../../../generated/MarauderRole";
 import { bindStores } from "../../../../../store/bindStores";
@@ -12,8 +13,9 @@ import { useFileSessionStore } from "../../../../../store/fileSessionStore";
 import { useGalaxyStore } from "../../../../../store/galaxyStore";
 import { open, overview, resetStores, sections, SYSTEM } from "../../../inspectorFixture";
 import { ADD_BASES, NO_HOME_BESIDE } from "./MarauderSection";
-import { homeIntro } from "./sectionCopy";
-import { escaped } from "../../../../../test/elements";
+import { CLAN_CARD } from "./sectionCopy";
+import { drawnBy } from "../../../../../test/drawn";
+import { hintOf } from "../../../../../test/hints";
 import { mockedIpc } from "../../../../../test/ipc";
 
 bindStores();
@@ -78,8 +80,10 @@ describe("a scenario system's marauder clan", () => {
 
   it("explains a home, names its two bases with links, and offers the clan select and removal", async () => {
     await openWith({ home: 1 }, { 0: [{ base: 1 }, 2], 2: [{ base: 1 }, 3], 3: [{ base: 2 }] });
-    const html = overview();
-    for (const line of homeIntro(1)) expect(html).toContain(escaped(line));
+    const html = drawnBy(overview);
+    expect(html).toContain("Clan 1&#x27;s home. The clan spawns here at game start.");
+    expect(hintOf("Marauder clan")).toBe(CLAN_CARD);
+    expect(html).not.toContain("two outposts");
     expect(html).toMatch(/Outpost 2: <button[^>]*>Sol<\/button>/);
     expect(html).toMatch(/Outpost 3: <button[^>]*>Barnard<\/button>/);
     expect(html).not.toContain(ADD_BASES);

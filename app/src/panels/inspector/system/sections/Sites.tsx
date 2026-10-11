@@ -15,9 +15,9 @@ export function SiteSection({
 }) {
   const count = sites.length + systemKinds.length;
   return (
-    <Section id="system.sites" title="Archaeology sites" count={count}>
+    <Section id="system.sites" title="Archaeological sites" count={count}>
       {count === 0 ? (
-        <Empty>No archaeology sites in this system.</Empty>
+        <Empty>No archaeological sites in this system.</Empty>
       ) : (
         <>
           {sites.map((site) => (

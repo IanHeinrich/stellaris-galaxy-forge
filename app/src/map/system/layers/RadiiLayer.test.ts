@@ -61,7 +61,7 @@ describe("the system scene's radius labels", () => {
       }),
     );
     viewport(rings, 2);
-    expect(readouts(rings.container)).toEqual(["80–120"]);
+    expect(readouts(rings.container)).toEqual(["80 to 120"]);
     rings.destroy();
   });
 

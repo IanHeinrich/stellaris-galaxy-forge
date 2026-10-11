@@ -213,7 +213,7 @@ describe("megastructureParts / megastructureLabel / megastructureIcon", () => {
 describe("siteIcon", () => {
   it("collapses the sites the same way", () => {
     expect(siteIcon(["site_tiyanki_graveyard"])?.label).toBe("Tiyanki Graveyard");
-    expect(siteIcon(["site_a", "site_b"])?.label).toBe("2 archaeology sites");
+    expect(siteIcon(["site_a", "site_b"])?.label).toBe("2 archaeological sites");
     expect(siteIcon([])).toBeNull();
   });
 });

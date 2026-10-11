@@ -8,8 +8,7 @@ import { spawnScriptsOp, spawnWeightsOp } from "../lib/systemsBatch";
 export const DEFAULT_SPAWN_WEIGHT = 1;
 
 /** Why a system with no initializer cannot be made a spawn point, wherever the control sits. */
-export const NEEDS_INITIALIZER =
-  "A spawn weight is written beside the initializer: choose one first.";
+export const NEEDS_INITIALIZER = "Choose an initializer first. A spawn point needs one.";
 
 /**
  * The systems in `ids` a spawn weight can be written to: only one with an initializer can take

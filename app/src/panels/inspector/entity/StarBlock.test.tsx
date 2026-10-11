@@ -83,7 +83,7 @@ describe("a save star body's page", () => {
     expect(html).toContain("+ Add anomaly…");
     expect(html).toContain('title="Open the system&#x27;s page"');
     expect(html).toContain("editable · plain text is information");
-    expect(html).not.toContain("Dig site");
+    expect(html).not.toContain("Archaeological site");
   });
 
   it("waits, disabled, while an edit has left the system's details stale", async () => {

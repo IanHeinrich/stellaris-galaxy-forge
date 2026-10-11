@@ -30,7 +30,7 @@ beforeEach(() => {
   resetStores();
 });
 
-describe("a planet's dig site", () => {
+describe("a planet's archaeological site", () => {
   const SITE_TYPES = [
     {
       key: "site_lost_moments",
@@ -68,12 +68,12 @@ describe("a planet's dig site", () => {
     usePlanetDataStore.setState({ digSites: new Map(SITE_TYPES.map((t) => [t.key, t])) });
 
     const html = drawnBy(() => render(WORLD));
-    expect(html).toContain("Dig site");
+    expect(html).toContain("Archaeological site");
     expect(html).toContain("Never Forget");
     expect(html).toContain("Stage 2 of 3 · 5 clues · Excavating");
     expect(html).toContain('<span class="l3">Records of a people who chose to remember.</span>');
-    expect(html).not.toContain("+ Add dig site…");
-    expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Dig site"));
+    expect(html).not.toContain("+ Add archaeological site…");
+    expect(html.indexOf("Modifiers · 1")).toBeLessThan(html.indexOf("Archaeological site"));
 
     mockedIpc.applyOp.mockResolvedValue(editResult());
     drawnButton("Remove Never Forget").onClick();
@@ -115,10 +115,10 @@ describe("a planet's dig site", () => {
     expect(html).not.toContain('class="l3"');
   });
 
-  it("offers Add dig site without one, and the open picker filters by how a site is found", async () => {
+  it("offers Add archaeological site without one, and the open picker filters by how a site is found", async () => {
     await open("save");
     await landPage(OLBERS);
-    expect(render(WORLD)).toContain("+ Add dig site…");
+    expect(render(WORLD)).toContain("+ Add archaeological site…");
 
     useDigSitePickerStore.setState({
       target: pickerTarget(OLBERS),
@@ -126,7 +126,7 @@ describe("a planet's dig site", () => {
       chip: "Events",
     });
     const html = drawnBy(() => render(WORLD));
-    expect(html).toContain('aria-label="Search dig sites"');
+    expect(html).toContain('aria-label="Search archaeological sites"');
     expect(html).toContain(`<div class="dp" style="height:${PICKER_HEIGHT}px"`);
     expect(html).toContain("Found by surveys");
     expect(html).toContain('aria-pressed="true">Event only</button>');
@@ -155,7 +155,7 @@ describe("a planet's dig site", () => {
       query: "no such site",
     });
     const none = render(WORLD);
-    expect(none).toContain("No dig site matches");
+    expect(none).toContain("No archaeological site matches");
     expect(none).not.toContain("dp-card");
   });
 });

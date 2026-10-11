@@ -33,7 +33,7 @@ anything, and one undo puts it all back.
   goes: the colony, its pops, buildings, defence armies and any orbital
   ring. Colonies on its moons go too, and the confirmation says so.
 - A mining or research station goes with the planet it works.
-- A dig site on the planet is removed too. A science ship excavating it
+- An archaeological site on the planet is removed too. A science ship excavating it
   stops on the game's first day.
 - An anomaly on the planet goes too, and no empire lists it any more.
 - Deposits and survey records stay in the save. The game tidies them up

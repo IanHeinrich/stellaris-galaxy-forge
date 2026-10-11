@@ -119,6 +119,8 @@ export interface ModifierRow {
   /** Days left, `-1` for permanent, `null` when no timed modifier matches. */
   days: number | null;
   view: ModifierView | undefined;
+  /** An initializer gives it when a new game starts, so `days` is how long it lasts from then. */
+  stated?: boolean;
 }
 
 export function modifierRows(
@@ -149,6 +151,11 @@ export function modifierRows(
 
 export function daysLeft(days: number): string {
   return days < 0 ? "permanent" : `${counted(days, "day")} left`;
+}
+
+/** How long a modifier an initializer gives lasts: `lasts 30 days`, or `permanent`. */
+export function lastsFor(days: number): string {
+  return days < 0 ? "permanent" : `lasts ${counted(days, "day")}`;
 }
 
 /** Every game data key the page shows, for one read per kind. */

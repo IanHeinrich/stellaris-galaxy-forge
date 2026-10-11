@@ -22,6 +22,7 @@ import { bodyLayout, planetClassView, starClassView } from "../../../test/builde
 import { mockedIpc } from "../../../test/ipc";
 import { rolledBody, systemRoll } from "../../../test/rolls";
 import { planetPage } from "../../../test/builders";
+import { bodySpawn } from "../../../test/spawn";
 import { PlanetView } from "./PlanetView";
 
 bindStores();
@@ -111,8 +112,8 @@ describe("a scenario body's page", () => {
     const html = page(100, "Tarkin");
     expect(html).toContain('<span class="name">Tarkin</span>');
     expect(html).toContain('<span class="k">Class</span><span>random</span>');
-    expect(html).toMatch(/<span class="k">Size<\/span><span><span class="sz">.*10–20<\/span>/);
-    expect(html).toContain('<span class="k">Orbit radius</span><span>40–60</span>');
+    expect(html).toMatch(/<span class="k">Size<\/span><span><span class="sz">.*10 to 20<\/span>/);
+    expect(html).toContain('<span class="k">Orbit radius</span><span>40 to 60</span>');
     const head = html.slice(0, html.indexOf("</div>"));
     expect(head).toContain(">colonised</span>");
     expect(head).toContain(">capital</span>");
@@ -152,7 +153,7 @@ describe("a scenario body's page", () => {
     await land(details({ planets: [ice, naboo, hoth] }));
 
     expect(page(103, "Naboo")).toContain('<span class="k">Orbit step</span><span>+30</span>');
-    expect(page(104, "Hoth")).toContain('<span class="k">Orbit step</span><span>+10–20</span>');
+    expect(page(104, "Hoth")).toContain('<span class="k">Orbit step</span><span>+10 to 20</span>');
   });
 
   it("shows each body's turn from the body before it, linked by name and radius, and any angle for a body naming none", async () => {
@@ -195,11 +196,13 @@ describe("a scenario body's page", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(page(102, "Ice Asteroid")).toContain(
-      '<span class="k">Angle step</span><span>+70°</span>',
+      '<line class="ins-dial-line" x1="0" y1="0" x2="-4.10" y2="11.28"></line>',
     );
     const html = drawnBy(() => page(103, "Naboo"));
-    expect(html).toContain('<span class="k">Angle step</span><span>+90–270° from <button');
-    expect(html).toContain("Ice Asteroid at 240 ›</button>");
+    expect(html).toMatch(
+      /<span class="k">Angle step<\/span><span><svg class="ins-dial".*?<\/svg>\+90 to 270° from <button/,
+    );
+    expect(html).toContain("Ice Asteroid (orbit 240) ›</button>");
     const link = lastDrawn((el) => el.type === DrillLink, "the anchor's link") as {
       onHover(on: boolean): void;
       onOpen(): void;
@@ -214,10 +217,8 @@ describe("a scenario body's page", () => {
     expect(useSceneStore.getState().linkedBody).toBeNull();
 
     expect(page(104, "Dagobah")).toContain("any angle from ");
-    expect(page(104, "Dagobah")).toContain("Naboo at 60 ›");
-    expect(page(100, "Tarkin")).toContain(
-      '<span class="k">Angle step</span><span>any angle</span>',
-    );
+    expect(page(104, "Dagobah")).toContain("Naboo (orbit 60) ›");
+    expect(page(100, "Tarkin")).toContain('<circle class="ins-dial-any" r="12"></circle>');
     expect(page(103, "Naboo")).not.toContain('<span class="k">Angle</span>');
   });
 
@@ -238,7 +239,27 @@ describe("a scenario body's page", () => {
     await open("scenario");
     await land(details({ planets: [star, naboo] }));
 
-    expect(page(103, "Naboo")).toContain('<span class="k">Angle step</span><span>+90–270°</span>');
+    expect(page(103, "Naboo")).toContain(
+      '<path class="ins-dial-wedge" d="M0 0 L-0.00 12.00 A12 12 0 0 0 0.00 -12.00 Z"></path>',
+    );
+  });
+
+  it("draws no dial for an angle step a variable sets", async () => {
+    const naboo = planet(103, "Naboo", {
+      class: "pc_continental",
+      layout: layout({
+        orbit: fixed(60),
+        orbit_step: fixed(60),
+        angle_step: { min: 90, max: 270 },
+      }),
+      spawn: bodySpawn({ variables: [{ key: "orbit_angle", variable: "@naboo_angle" }] }),
+    });
+    await open("scenario");
+    await land(details({ planets: [naboo] }));
+
+    const html = page(103, "Naboo");
+    expect(html).toContain('<span class="k">Angle step</span>');
+    expect(html).not.toContain("ins-dial");
   });
 
   it("says the game places a body whose initializer gives no orbit", async () => {
@@ -260,7 +281,7 @@ describe("a scenario body's page", () => {
     expect(page(102, "Ringed")).toContain('<span class="k">Ring</span><span>Yes</span>');
     expect(page(103, "Bare")).toContain('<span class="k">Ring</span><span>No</span>');
     expect(page(104, "Rolled")).toContain(
-      '<span class="k">Ring</span><span>Rolled by the game</span>',
+      '<span class="k">Ring</span><span><span class="ins-st-rolled">',
     );
   });
 

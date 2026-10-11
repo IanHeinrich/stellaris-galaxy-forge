@@ -39,7 +39,7 @@ const TIMING_LABEL: Record<ScriptTiming, string> = {
 
 const TIMING_TITLE: Record<ScriptTiming, string> = {
   generation: "Runs while the galaxy is generated",
-  day_one: "Runs on the first day, from an event on_game_start fires",
+  day_one: "Runs on the first day, from a game-start event",
   later: "Runs once the game is under way",
   unknown: "Nothing in the loaded game data says when this runs",
 };
@@ -51,9 +51,9 @@ const HAS_FLAG: Partial<Record<ReferenceVia, string>> = {
 };
 
 export const SCRIPTS_LIMITS =
-  "Scripts that reference this system by initializer, star flag or event target. It will not " +
-  "find scripts that iterate over classes of systems or address them by name. Conditions " +
-  "(if, limit) are read as if they were true.";
+  "These are the scripts that name this system by its initializer, a star flag or an event " +
+  "target. Scripts that find systems by type or by name aren't listed. Galaxy Forge treats " +
+  "every condition in a script as met.";
 
 /** What the Overview's closed Scripts row says on hover, and where it sends the reader. */
 export const SCRIPTS_TAB_TITLE = "Every script that reaches this system, on the Scripts tab";

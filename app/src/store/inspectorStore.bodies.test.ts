@@ -6,6 +6,7 @@ vi.mock("../api/events");
 
 import {
   bodyEntry,
+  classPickKey,
   entityAddr,
   openPlanet,
   refKey,
@@ -16,7 +17,7 @@ import {
   type Entry,
 } from "./inspectorStore";
 import { editor, openFixtureSave, openFixtureScenario, withAddedSystems } from "./editorFixture";
-import { editResult } from "./fixture";
+import { editResult, OPEN_RESULT } from "./fixture";
 import { listeners, loadGameData, SUMMARY } from "./gameDataFixture";
 import type { PlanetPage } from "../generated/PlanetPage";
 import { planetPage } from "../test/builders";
@@ -160,6 +161,15 @@ describe("a body opened from the system view", () => {
     expect(refs()).toEqual([SOL.ref, EARTH.ref]);
   });
 
+  it("forgets the class picked on a scenario body's page when the game data reloads", async () => {
+    await openFixtureScenario();
+    useInspectorStore.setState({ classPicks: { [classPickKey(1, 100)]: "pc_toxic" } });
+
+    await loadGameData();
+
+    expect(inspector().classPicks).toEqual({});
+  });
+
   it("closes a scenario body's page when a rebuilt registry finds the game data gone", async () => {
     await openFixtureScenario();
     await loadGameData();
@@ -248,5 +258,17 @@ describe("a scenario body's page", () => {
     inspector().openFromMap(TARKIN);
     inspector().dropBodies();
     expect(labels()).toEqual(["Alpha Centauri"]);
+  });
+});
+
+describe("a body page's folded groups", () => {
+  it("open as their defaults again once another document opens", async () => {
+    await openFixtureScenario();
+    inspector().toggleGroup("pools:100", false);
+    expect(inspector().groups).toEqual({ "pools:100": true });
+
+    await useFileSessionStore.getState().openSave(OPEN_RESULT.path);
+    expect(useFileSessionStore.getState().kind).toBe("save");
+    expect(inspector().groups).toEqual({});
   });
 });

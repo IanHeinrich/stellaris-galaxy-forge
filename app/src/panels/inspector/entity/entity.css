@@ -162,8 +162,8 @@
   position: absolute;
   bottom: 2px;
   left: 2px;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .pl-bmark img {
@@ -679,4 +679,220 @@
 
 .dp-more {
   white-space: nowrap;
+}
+
+/* Every list of what a roll can give: an icon column, a name column, the bar, and the share at the
+   right. A deposit row leaves its name column empty and has a card on hover. */
+.pl-pool-list {
+  display: grid;
+  grid-template-columns: 22px minmax(0, max-content) minmax(40px, 1fr) 34px;
+  gap: 2px 8px;
+  align-items: center;
+  font-size: var(--text-note);
+}
+
+.pl-pool-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 2px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.pl-pool-row[tabindex]:hover,
+.pl-pool-row[tabindex]:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.pl-pool-row > .dp-card.under {
+  grid-column: 1 / -1;
+}
+
+.pl-pool-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pl-pool-icon .gi {
+  width: 16px;
+  height: 16px;
+}
+
+.pl-pool-name {
+  max-width: 10em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pl-pool-amounts {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pl-pool-track {
+  display: flex;
+  height: 14px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 80ms;
+}
+
+.pl-pool-row[tabindex]:hover .pl-pool-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pl-pool-bar {
+  display: flex;
+  gap: 2px;
+  min-width: 3px;
+  height: 100%;
+}
+
+.pl-pool-seg {
+  flex-basis: 0;
+  min-width: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pl-pool-chance {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A deposit row's card: one line per amount. */
+.dp-card .pl-pool-line {
+  display: grid;
+  grid-template-columns: 10px 28px 1fr auto;
+  gap: 2px 6px;
+  align-items: center;
+  margin-top: 4px;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.pl-pool-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.pl-pool-amount {
+  font-weight: 600;
+}
+
+.pl-pool-mini {
+  display: flex;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pl-pool-mini > span {
+  border-radius: 2px;
+}
+
+.pl-pool-line-chance {
+  text-align: right;
+}
+
+.pl-pool-deposits {
+  grid-column: 2 / -1;
+}
+
+/* Classes listed without odds, too many for a row each: their icons wrap, each named in its card. */
+.pl-class-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+
+.pl-class-strip > .ins-hinted {
+  display: inline-flex;
+  padding: 1px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+.pl-class-strip > .ins-hinted:hover,
+.pl-class-strip > .ins-hinted:focus-visible {
+  background: var(--bg-elevated);
+}
+
+/*
+ * A class list that picks the class a body's page shows it as: Any first, each a button with a
+ * hairline, the picked one ringed.
+ */
+.pl-class-strip > .ins-hinted-toggle {
+  display: inline-flex;
+}
+
+.pl-class-pick,
+.pl-class-strip .ins-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px;
+  border: none;
+  border-radius: 3px;
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pl-class-pick:hover,
+.pl-class-pick:focus-visible,
+.pl-class-strip .ins-toggle:hover,
+.pl-class-strip .ins-toggle:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.pl-class-any {
+  padding: 1px 6px;
+  color: var(--fg);
+}
+
+.pl-pool-row[role="button"] {
+  cursor: pointer;
+}
+
+.pl-class-pick[aria-pressed="true"],
+.pl-class-strip .ins-toggle[aria-pressed="true"],
+.pl-pool-row[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Blockers and other deposits a roll can give, counted on one line each, and features as names. */
+.pl-pool-kinds,
+.pl-pool-names {
+  margin-top: 4px;
+  font-size: var(--text-note);
+  color: var(--fg-muted);
+}
+
+/* A resource whose odds are unknown: a dashed chip, its card under it where the window has no room. */
+.chip.pl-pool-chip {
+  flex-wrap: wrap;
+  border-style: dashed;
+  background: none;
+  font-size: var(--text-note);
+}
+
+.pl-pool-chip > .dp-card.under {
+  flex-basis: 100%;
 }

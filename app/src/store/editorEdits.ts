@@ -6,6 +6,7 @@ import type { Op } from "../generated/Op";
 import type { SearchHit } from "../generated/SearchHit";
 import type { SystemNode } from "../generated/SystemNode";
 import { renumberedId, renumberedIds, renumberedLane, type Renumbering } from "../lib/renumber";
+import { useClassRollsStore } from "./classRollsStore";
 import { useDetailsStore } from "./detailsStore";
 import type { EditorState } from "./editorStore";
 import { useEntityStore } from "./entityStore";
@@ -79,6 +80,8 @@ export function editPipeline(
       useDetailsStore.getState().invalidate(result.details_stale);
       useOpCheckStore.getState().staled(result.details_stale);
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
+      useClassRollsStore.getState().forget(result.details_stale);
+      useInspectorStore.getState().dropClassPicks(result.details_stale);
     }
     if (stale) void reselect(kept);
     if (selectedLane && !linked(systems(), selectedLane.a, selectedLane.b))
@@ -110,6 +113,8 @@ export function editPipeline(
     for (const tracked of trackers)
       tracked.id = tracked.id === null ? null : renumberedId(pairs, tracked.id);
     useInspectorStore.getState().renumber(pairs);
+    useInspectorStore.getState().dropClassPicks();
+    useClassRollsStore.getState().clear();
     useWatchlistStore.getState().renumber(pairs);
   }
 

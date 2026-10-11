@@ -28,6 +28,7 @@ import {
   systemDetails,
 } from "../../store/fixture";
 import { bodyLayout } from "../../test/builders";
+import { bodySpawn } from "../../test/spawn";
 import { mockedIpc } from "../../test/ipc";
 import { rolledBody, systemRoll } from "../../test/rolls";
 import { openWith } from "../../test/session";
@@ -383,5 +384,39 @@ describe("the system view of a scenario", () => {
     useDetailsStore.getState().requestRoll(0, 1);
     await vi.advanceTimersByTimeAsync(0);
     expect(bar()).toContain("Earth · orbit 53 · angle 31°");
+  });
+
+  it("reads an unnamed body by the name the game gives it", async () => {
+    const unnamed = planetSummary({
+      id: 12,
+      name: name(""),
+      name_key: "",
+      class: "pc_gas_giant",
+      layout: bodyLayout({ orbit: { min: 115, max: 115 }, size: { min: 20, max: 20 } }),
+      spawn: bodySpawn({
+        naming: { state: "template", format: "PLANET_NAME_FORMAT", parent: null, numerals: ["I"] },
+      }),
+    });
+    const systems = new Map(useGalaxyStore.getState().systems);
+    const node = systems.get(0);
+    if (node === undefined) throw new Error("the scenario has no system 0");
+    systems.set(0, { ...node, name: { ...name("Riadore"), literal: true } });
+    useGalaxyStore.setState({ systems });
+    mockedIpc.getSystemDetails.mockResolvedValue([
+      systemDetails({ id: 0, planets: [unnamed], with_game_data: true }),
+    ]);
+    mockedIpc.getSystemRoll.mockResolvedValue(
+      systemRoll({ system: 0, roll: 0, bodies: [rolledBody({ id: 12, orbit: 115, angle: 47 })] }),
+    );
+    useDetailsStore.getState().request([0]);
+    useDetailsStore.getState().requestRoll(0, 0);
+    await vi.advanceTimersByTimeAsync(DETAILS_DEBOUNCE_MS);
+
+    useInspectorStore
+      .getState()
+      .open({ ref: { kind: "body", system: 0, id: 12 }, label: "Riadore I" });
+    const html = bar();
+    expect(html).toContain("Riadore I · orbit 115 · angle 47°");
+    expect(html).not.toContain("Gas Giant");
   });
 });

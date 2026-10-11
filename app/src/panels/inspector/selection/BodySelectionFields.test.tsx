@@ -164,7 +164,7 @@ beforeEach(async () => {
 describe("several selected bodies' size", () => {
   it("shows their range, and a typed size goes to every body with another size, the star too", async () => {
     const html = page();
-    expect(html).toContain('placeholder="6–30 (mixed)"');
+    expect(html).toContain('placeholder="6 to 30 (mixed)"');
     sizeField().onCommit("15");
     await vi.advanceTimersByTimeAsync(0);
     expect(sent()).toEqual({

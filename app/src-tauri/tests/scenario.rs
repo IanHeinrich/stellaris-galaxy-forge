@@ -2,7 +2,9 @@
 //! say about a scenario's systems.
 
 use serde_json::json;
-use sgf_core::format::save::details::SystemDetails;
+use sgf_core::format::save::details::{
+    ClassPool, ClassRolls, SpawnClass, SpawnPool, SystemDetails,
+};
 use sgf_core::views::{EditResult, ErrorKind};
 use sgf_gamedata::scripts::{BypassSource, ScenarioBypasses, ScenarioOwners};
 use sgf_gamedata::special::{SpecialKind, SpecialSystems};
@@ -308,6 +310,69 @@ fn a_systems_example_roll_is_empty_on_a_save_and_shows_placeholders_where_the_ga
     )
     .expect("the same roll again");
     assert_eq!(again, roll);
+}
+
+/// A drawn body's rolls as one class it can be drawn are worked out on request, and a class
+/// it cannot be is refused.
+#[test]
+fn a_drawn_bodys_rolls_as_one_class_come_on_request() {
+    let Some((w, _)) = common::with_game_data(SCENARIO) else {
+        return;
+    };
+    invoke::<EditResult>(
+        &w,
+        "apply_op",
+        json!({ "op": {
+            "type": "SetInitializer",
+            "system": 16,
+            "initializer": "ai_system_04",
+            "spawn_weight": null,
+        } }),
+    )
+    .expect("set the initializer of system 16");
+    let details: Vec<SystemDetails> =
+        invoke(&w, "get_system_details", json!({ "ids": [16] })).expect("details");
+    let (body, class) = details[0]
+        .planets
+        .iter()
+        .find_map(|p| match &p.spawn.as_ref()?.class {
+            SpawnClass::Rolled {
+                pool:
+                    ClassPool::Random {
+                        at_orbit: Some(classes),
+                        ..
+                    },
+            } if classes.len() > 1 => Some((p.id, classes[0].class.clone())),
+            _ => None,
+        })
+        .expect("ai_system_04 has a body drawn from several classes");
+
+    let rolls: ClassRolls = invoke(
+        &w,
+        "get_class_rolls",
+        json!({ "system": 16, "body": body, "class": class }),
+    )
+    .expect("the body's rolls as one class");
+    assert_eq!((rolls.body, rolls.class.as_str()), (body, class.as_str()));
+    assert!(matches!(rolls.deposits, SpawnPool::Rolled { .. }));
+    assert!(matches!(rolls.features, SpawnPool::Rolled { .. }));
+
+    assert_eq!(
+        kind(invoke::<ClassRolls>(
+            &w,
+            "get_class_rolls",
+            json!({ "system": 16, "body": body, "class": "pc_not_a_class" }),
+        )),
+        ErrorKind::Op
+    );
+    assert_eq!(
+        kind(invoke::<ClassRolls>(
+            &w,
+            "get_class_rolls",
+            json!({ "system": 16, "body": 7, "class": class }),
+        )),
+        ErrorKind::NotFound
+    );
 }
 
 fn special_count(result: &SpecialSystems, kind: SpecialKind) -> u32 {

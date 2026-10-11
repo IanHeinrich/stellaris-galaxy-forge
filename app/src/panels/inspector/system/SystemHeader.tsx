@@ -20,6 +20,7 @@ import { useCountryName } from "../../../store/browserRows";
 import { useGalaxyStore } from "../../../store/galaxyStore";
 import { useGameDataStore } from "../../../store/gameDataStore";
 import { useOpenEntity } from "../entity/useEntity";
+import { ASSUMED_CLAIM_TITLE } from "../../../lib/ownership";
 import { useOwnership } from "../../../store/ownership";
 import { EditBlock, EditRow, TextField } from "../../EditField";
 import { useApplyOp, useApplySymmetricOp } from "../../useApplyOp";
@@ -37,10 +38,7 @@ import { shortcutLabel } from "../../../lib/keys";
 
 /** Why the owner line's day-one chip means what it means, shown on hover. */
 const DAY_ONE_OWNER_TITLE =
-  "Claimed on day one, by an event on_game_start fires, not at galaxy generation.";
-
-/** Why the owner line's assumed marker means what it means, shown on hover. */
-const ASSUMED_OWNER_TITLE = "A claim whose conditions this editor cannot judge is marked assumed.";
+  "An event gives this system to the empire on the first day of the game.";
 
 function PositionBlock({ system }: { system: SystemNode }) {
   const applyOp = useApplySymmetricOp();
@@ -213,7 +211,7 @@ export function Header({ detail }: { detail: SystemDetail }) {
             </Chip>
           )}
           {scenarioOwner?.assumed && (
-            <Chip warn title={ASSUMED_OWNER_TITLE}>
+            <Chip warn title={ASSUMED_CLAIM_TITLE}>
               assumed
             </Chip>
           )}
@@ -221,8 +219,8 @@ export function Header({ detail }: { detail: SystemDetail }) {
             source={claimedBy === null ? "initializers" : "scripts"}
             title={
               claimedBy === null
-                ? "The owner is the one the initializer's chain claims this system for at generation."
-                : "The owner is the one an event claims this system for on day one."
+                ? "Its initializer gives this system to this empire when a new game starts."
+                : "An event gives this system to this empire on the first day."
             }
           />
         </div>

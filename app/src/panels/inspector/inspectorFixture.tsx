@@ -95,5 +95,9 @@ export const overview = () => renderToStaticMarkup(<SystemView id={SYSTEM} />);
 
 /** Every section the overview opened with, in order, as their headers name them. */
 export function sections(html: string): string[] {
-  return [...html.matchAll(/class="ins-sec-title(?: muted)?">([^<]*)</g)].map((m) => m[1]);
+  return [
+    ...html.matchAll(
+      /class="ins-sec-title(?: muted)?">(?:<span [^>]*class="ins-hinted"[^>]*>)?([^<]*)</g,
+    ),
+  ].map((m) => m[1]);
 }

@@ -5,7 +5,13 @@ import type { PlanetSummary } from "../../generated/PlanetSummary";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
 import { bypassIconKey, PLANET_ICON_KEYS } from "../../lib/details/icons";
-import { boundsText, isColony, wormholeLabel, wormholePlateName } from "../../lib/details/labels";
+import {
+  boundsText,
+  isColony,
+  shownBodyName,
+  wormholeLabel,
+  wormholePlateName,
+} from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
 import {
   inspectedBody,
@@ -24,6 +30,7 @@ import {
   type SystemLayout,
 } from "../../lib/details/orbits";
 import { planetResourceRows, type ResourceRow } from "../../lib/details/resources";
+import { maySpawn, neverSpawns } from "../../lib/details/spawnFacts";
 import { isStarBody, singleStarClasses, STAR_BODY_CLASS } from "../../lib/details/starBody";
 import type { Ownership } from "../../lib/ownership";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../lib/geometry/geometry";
@@ -94,8 +101,13 @@ export interface Chance {
   readonly planetClass: boolean;
   /** Whether it has a ring is left to its class's chance. */
   readonly ring: boolean;
-  /** The game may not place it: a copy past the low end of its block's count, or a body round one. */
+  /**
+   * The game may not place it: a copy past the low end of its block's count, a body round one, or
+   * a body at some of whose orbits no class it can roll fits.
+   */
   readonly mayNotSpawn: boolean;
+  /** The game never places it: no class it can roll fits any orbit it can land at. */
+  readonly never: boolean;
 }
 
 const NO_CHANCE: Chance = Object.freeze({
@@ -104,6 +116,7 @@ const NO_CHANCE: Chance = Object.freeze({
   planetClass: false,
   ring: false,
   mayNotSpawn: false,
+  never: false,
 });
 
 /**
@@ -435,7 +448,8 @@ function chanceOf(placement: BodyPlacement, planet: PlanetSummary, drawn: boolea
     angle: placement.turn !== null && placement.turn.step.min !== placement.turn.step.max,
     planetClass: drawn,
     ring: !placement.star && !drawn && planet.ring === null,
-    mayNotSpawn: planet.spawn?.always === false,
+    mayNotSpawn: maySpawn(planet.spawn) || neverSpawns(planet.spawn),
+    never: neverSpawns(planet.spawn),
   };
 }
 
@@ -463,6 +477,11 @@ function readoutOf(
   return { hub: discs.get(pointKey(ring.cx, ring.cy)) ?? 0, text: boundsText(radius) };
 }
 
+/** A body's name in the scene: the name the game gives it, at its lowest numeral. */
+function bodyLabel(src: SystemSources, planet: PlanetSummary): string {
+  return shownBodyName(planet, src.givenNames, src.names);
+}
+
 function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
   const details = src.details;
   if (details === null || (src.rolledLayout && details.planets.length === 0)) {
@@ -480,7 +499,7 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
       {
         placement,
         planet,
-        name: src.templateName(planet),
+        name: bodyLabel(src, planet),
         moon: placement.moon,
         colony: colonyColor(planet, src.ownership),
         ring: !placement.star && (planet.ring === true || (planet.ring === null && !drawn)),

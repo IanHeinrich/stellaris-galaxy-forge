@@ -10,6 +10,10 @@ import { MARAUDER_COLORS, ownerColors, type OwnerColors } from "./visual/ownerCo
 
 export type OwnerKind = "country" | "marauder_clan";
 
+/** What an assumed claim's mark says on hover, wherever a territory or an owner shows one. */
+export const ASSUMED_CLAIM_TITLE =
+  "Galaxy Forge can't check this claim's conditions, so it assumes the claim holds.";
+
 /** One owner the map paints a territory for and the Empires list names. */
 export interface OwnerEntry {
   id: number;

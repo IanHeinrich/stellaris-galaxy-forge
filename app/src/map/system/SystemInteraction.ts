@@ -1,4 +1,4 @@
-import { beltLabel, bodyName } from "../../lib/details/labels";
+import { beltLabel, shownBodyName } from "../../lib/details/labels";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import { isEditableTarget } from "../../lib/keys";
@@ -56,7 +56,7 @@ function tipFor(
       const queued = new Set<string>();
       const lines = planetLines(ctx, queuedTextures(queued), [planet]);
       if (queued.size > 0) requestTextures(queued);
-      return { title: bodyName(planet, ctx.names), lines };
+      return { title: shownBodyName(planet, ctx.givenNames, ctx.names), lines };
     }
     case "wormhole": {
       const hole = ctx.wormholes.find((w) => w.id === target.id);
@@ -314,7 +314,8 @@ export class SystemInteraction {
     const ctx = this.scene.context();
     const planet = ctx.bodyById.get(id)?.planet;
     if (!planet) return;
-    useInspectorStore.getState().openFromMap(bodyEntry(system, id, bodyName(planet, ctx.names)));
+    const name = shownBodyName(planet, ctx.givenNames, ctx.names);
+    useInspectorStore.getState().openFromMap(bodyEntry(system, id, name));
   }
 
   private selected(id: number): boolean {

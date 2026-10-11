@@ -38,20 +38,20 @@ function digSiteItem(row: DigSitePickRow): PickerItem {
   };
 }
 
-/** The dig site picker, with the chips for how a site is found and one row per site type. */
+/** The archaeological site picker, with the chips for how a site is found and one row per site type. */
 const DIG_SITE_PICKER: PickerKind<DigSitePickRow, DigSiteChip, DigSiteChoice> = {
   store: useDigSitePickerStore,
   words: {
-    name: "Add a dig site",
-    searchName: "Search dig sites",
+    name: "Add an archaeological site",
+    searchName: "Search archaeological sites",
     placeholder: "Search name",
-    chipsName: "How a dig site is found",
-    reading: "Reading the dig sites…",
-    noneMatch: "No dig site matches",
+    chipsName: "How an archaeological site is found",
+    reading: "Reading the archaeological sites…",
+    noneMatch: "No archaeological site matches",
     opener: {
-      label: "+ Add dig site…",
-      title: "Add an archaeological dig site. A planet holds one.",
-      needsGameData: "Adding a dig site needs the game data",
+      label: "+ Add archaeological site…",
+      title: "Add an archaeological site. A planet holds one.",
+      needsGameData: "Adding an archaeological site needs the game data",
     },
   },
   chips: DIG_SITE_CHIPS,
@@ -93,8 +93,8 @@ function DigSiteRow({
           ? null
           : {
               title: site.excavating
-                ? "Remove this dig site. The ship excavating it stops on the game's first day."
-                : "Remove this dig site",
+                ? "Remove this archaeological site. The ship excavating it stops on the game's first day."
+                : "Remove this archaeological site",
               label: `Remove ${name}`,
               run: onRemove,
             }
@@ -104,7 +104,7 @@ function DigSiteRow({
 }
 
 /**
- * The planet's dig site; where the page offers dig sites, with its remove button, or the picker
+ * The planet's archaeological site; where the page offers them, with its remove button, or the picker
  * when it has none, both through the target's adapter.
  */
 export function PlanetDigSite({ read, offers }: PlanetSectionProps) {
@@ -113,7 +113,7 @@ export function PlanetDigSite({ read, offers }: PlanetSectionProps) {
   const editable = offers.digSite;
   if (held === null && !editable) return null;
   return (
-    <Section id="planet.digSite" title="Dig site">
+    <Section id="planet.digSite" title="Archaeological site">
       {held !== null && (
         <DigSiteRow
           site={held.site}

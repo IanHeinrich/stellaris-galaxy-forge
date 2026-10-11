@@ -473,3 +473,16 @@ fn the_sample_save_names_its_adjective_empires_by_the_real_patterns() {
         );
     }
 }
+
+#[test]
+fn reads_a_name_format_raw_with_its_references_kept() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    assert_eq!(gd.loc.raw("STAR_NAME_1_OF_2"), Some("$NAME$ A"));
+    assert_eq!(
+        gd.loc.raw("SUBPLANET_NAME_FORMAT"),
+        Some("$PARENT$$NUMERAL$")
+    );
+    assert_ne!(gd.loc.get("STAR_NAME_1_OF_2").as_deref(), Some("$NAME$ A"));
+}

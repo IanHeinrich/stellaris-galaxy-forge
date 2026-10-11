@@ -22,6 +22,8 @@ import {
 } from "../../../inspectorFixture";
 import { SCRIPTS_LIMITS, SCRIPTS_TAB_TITLE } from "./ScriptsTab";
 
+const SCRIPTS_LIMITS_HTML = SCRIPTS_LIMITS.replace(/'/g, "&#x27;");
+
 bindStores();
 
 afterEach(() => {
@@ -55,13 +57,13 @@ describe("a scenario system's scripts", () => {
     expect(row).toContain(">scripts<");
     // The rows themselves are the tab's, not the Overview's.
     expect(row).not.toContain("empire_capital_init");
-    expect(row).not.toContain(SCRIPTS_LIMITS);
+    expect(row).not.toContain(SCRIPTS_LIMITS_HTML);
 
     useInspectorStore.getState().setTab("scripts");
     const tab = overview();
     expect(sections(tab)).not.toContain("Scripts · 5");
     expect(tab).toContain("empire_capital_init");
-    expect(tab).toContain(SCRIPTS_LIMITS);
+    expect(tab).toContain(SCRIPTS_LIMITS_HTML);
   });
 
   it("shows the closed row's count as still reading, then unavailable once the read fails", async () => {
@@ -91,7 +93,7 @@ describe("a scenario system's scripts", () => {
     expect(html).toContain("event_target:fixture_empire");
     expect(html).toContain("fired by on_game_start");
     expect(html).toContain("events/zz_fixture_events.txt:7");
-    expect(html).toContain(SCRIPTS_LIMITS);
+    expect(html).toContain(SCRIPTS_LIMITS_HTML);
     expect(html).not.toContain("showing the first");
 
     expect(html).toContain('aria-label="Open zz_fixture_events.txt in editor"');

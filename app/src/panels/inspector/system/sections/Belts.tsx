@@ -7,7 +7,11 @@ import { rounded } from "../../../../lib/details/orbits";
 import { useSystemGeometry } from "../../../../store/systemGeometry";
 import { EditRow, PickerField, TextField } from "../../../EditField";
 import { useGeometryEdit } from "../../useGeometryEdit";
+import type { Bounds } from "../../../../generated/Bounds";
+import { boundsText } from "../../../../lib/details/labels";
+import { innerOffsetHint } from "../../../../lib/details/spawnFacts";
 import { LockedRow, Section } from "../../parts";
+import { Hinted, Rolled, Unknown } from "../../states";
 
 const KINDS_NEED_GAME_DATA = "Load the game data to change a belt's kind";
 const NO_KINDS: readonly Named[] = [];
@@ -17,6 +21,41 @@ function kindName(kind: string, kinds: readonly Named[]): string {
 }
 
 type Send = (intent: GeometryIntent) => void;
+
+/** `40.5`, or `40 to 60` for a radius the game rolls. */
+function radiusText(bounds: Bounds): string {
+  return bounds.min === bounds.max ? `${rounded(bounds.min)}` : boundsText(bounds);
+}
+
+/** A radius the game may draw: a range in the rolled look, or the one number. */
+function RadiusText({ bounds }: { bounds: Bounds }) {
+  return bounds.min === bounds.max ? (
+    <>{radiusText(bounds)}</>
+  ) : (
+    <Rolled>{radiusText(bounds)}</Rolled>
+  );
+}
+
+/**
+ * A scenario's inner radius: as the game derives it from the bodies, and where the initializer
+ * also writes an offset, which no game file says how it applies, the range unknown with why.
+ */
+function SpawnInnerRadius({ bounds, offset }: { bounds: Bounds; offset: number | null }) {
+  if (offset === null) {
+    return (
+      <EditRow label="Inner radius">
+        <RadiusText bounds={bounds} />
+      </EditRow>
+    );
+  }
+  return (
+    <EditRow label="Inner radius">
+      <Hinted label="Inner radius" hint={innerOffsetHint(offset)}>
+        <Unknown>{radiusText(bounds)}</Unknown>
+      </Hinted>
+    </EditRow>
+  );
+}
 
 /** One belt's kind, radius and removal, each its own edit. */
 function BeltRows({
@@ -79,8 +118,8 @@ function BeltRows({
 }
 
 /**
- * A save system's asteroid belts and inner radius: fields for what the system lets change, plain
- * text for the rest.
+ * A system's asteroid belts and inner radius: fields for what the system lets change, plain
+ * text for the rest. A scenario system's radii are ranges where the game draws them.
  */
 export function BeltSection({ details }: { details: SystemDetails }) {
   const system = details.id;
@@ -90,7 +129,9 @@ export function BeltSection({ details }: { details: SystemDetails }) {
   const { send, note } = useGeometryEdit<"inner" | number>(system);
   const belts = layout.belts;
   const inner = details.inner_radius;
-  if (inner === null && belts.length === 0) return null;
+  const spawnInner = details.spawn?.inner_radius;
+  const radii = details.spawn?.belt_radii;
+  if (inner === null && spawnInner === undefined && belts.length === 0) return null;
   const sender =
     (at: "inner" | number): Send =>
     (intent) =>
@@ -113,6 +154,12 @@ export function BeltSection({ details }: { details: SystemDetails }) {
             )}
           </EditRow>
         )}
+        {inner === null && spawnInner !== undefined && (
+          <SpawnInnerRadius
+            bounds={spawnInner}
+            offset={details.spawn?.inner_radius_offset ?? null}
+          />
+        )}
         {note("inner")}
         {belts.map((belt, index) =>
           editing.belts ? (
@@ -129,7 +176,12 @@ export function BeltSection({ details }: { details: SystemDetails }) {
             </Fragment>
           ) : (
             <EditRow key={index} label={kindName(belt.kind, kinds)}>
-              radius {rounded(belt.radius)}
+              radius{" "}
+              {radii?.[index] === undefined ? (
+                rounded(belt.radius)
+              ) : (
+                <RadiusText bounds={radii[index]} />
+              )}
             </EditRow>
           ),
         )}

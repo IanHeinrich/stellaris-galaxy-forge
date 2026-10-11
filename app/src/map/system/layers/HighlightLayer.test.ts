@@ -69,7 +69,7 @@ describe("the system scene's radius line", () => {
     line.rebuild(context({ planets: [SCENARIO_STAR, fixedOn, banded] }));
     viewport(line, 2);
     line.setHighlighted({ ...NO_HIGHLIGHT, selectedBody: banded.id });
-    expect(readouts(line.container)).toEqual(["80–120"]);
+    expect(readouts(line.container)).toEqual(["80 to 120"]);
     line.destroy();
   });
 });
@@ -159,7 +159,7 @@ describe("the system scene's turn wedge", () => {
   };
 
   it("shows two rays, the lit stretch of ring and the turn for a selected scenario body, the whole ring for one naming no angle, and nothing without a selection", () => {
-    expect(wedged("scenario", 2)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90–270°"] });
+    expect(wedged("scenario", 2)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90 to 270°"] });
     expect(wedged("scenario", 4)).toEqual({ rays: [0, 0], arc: 1, labels: ["any angle"] });
     expect(wedged("scenario", 3)).toEqual({ rays: [0, 0], arc: 1, labels: ["any angle"] });
     const none = { rays: [0, 0], arc: 0, labels: [] };
@@ -219,7 +219,7 @@ describe("the system scene's turn wedge", () => {
   it("marks no anchor for the first planet after the star or a planet's first moon, and keeps their wedge", () => {
     for (const id of [2, 5]) {
       expect(measured("scenario", id)).toMatchObject({ anchor: 0, ray: 0, base: 0, step: 0 });
-      expect(wedged("scenario", id)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90–270°"] });
+      expect(wedged("scenario", id)).toEqual({ rays: [1, 1], arc: 1, labels: ["+90 to 270°"] });
     }
   });
 });

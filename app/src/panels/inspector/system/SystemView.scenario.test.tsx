@@ -177,15 +177,15 @@ describe("a scenario system's owner line", () => {
     await useEditorStore.getState().select(0);
 
     const dayOne = renderToStaticMarkup(<SystemView id={0} />);
-    expect(dayOne).toContain('title="The owner is the one an event claims');
+    expect(dayOne).toContain('title="An event gives this system to this empire');
 
     ownerDetail(1, TERRITORY.id);
     await open("scenario");
     useGameDataStore.setState({ scenarioOwners: SCENARIO_OWNERS });
 
     const generation = overview();
-    expect(generation).toContain('title="The owner is the one the initializer');
-    expect(generation).not.toContain("The owner is the one an event claims");
+    expect(generation).toContain('title="Its initializer gives this system to this empire');
+    expect(generation).not.toContain("An event gives this system to this empire");
   });
 
   it("carries neither chip for a system claimed at generation", async () => {
