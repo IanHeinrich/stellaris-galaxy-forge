@@ -168,6 +168,10 @@ pub(super) fn examples() -> Vec<Example> {
         }),
         Example::save(Op::RemoveColony { body: 217 }),
         Example::save(Op::DeleteBody { body: 12 }),
+        Example::save_4_5(Op::DeleteMegastructure {
+            megastructure: 6,
+            dismantle: None,
+        }),
         Example::save_4_5(Op::RestoreEntities {
             description: "Left queue 0 with no owner".to_owned(),
             entities: vec![SavedEntity {

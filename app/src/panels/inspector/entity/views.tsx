@@ -6,6 +6,7 @@ import type { EntityRef, Entry } from "../../../store/inspectorStore";
 import { CountryView } from "./CountryView";
 import { EntityView } from "./EntityView";
 import { LaneEntry, NebulaEntry, SystemEntry } from "./entries";
+import { MegastructureView } from "./MegastructureView";
 import { PlanetView } from "./PlanetView";
 import { WormholeView } from "./WormholeView";
 import { GalaxyView } from "../galaxy/GalaxyView";
@@ -40,7 +41,7 @@ export const INSPECTOR_VIEWS: Record<EntityRef["kind"], InspectorView> = {
   fleet: entity("fleet", "Fleet"),
   ship: entity("ship", "Ship"),
   starbase: entity("starbase", "Starbase"),
-  megastructure: entity("megastructure", "Megastructure"),
+  megastructure: entity("megastructure", "Megastructure", MegastructureView),
   country: entity("country", "Country", CountryView),
   pop_group: entity("pop_group", "Pop group"),
   sector: entity("sector", "Sector"),

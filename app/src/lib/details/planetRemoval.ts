@@ -21,7 +21,7 @@ export function removeColonyOp(planet: number): Op {
 }
 
 /** What goes with the colony on `page`, as one clause: its pops, buildings, armies and ring. */
-function colonyParts(page: PlanetPage): string {
+export function colonyParts(page: PlanetPage): string {
   const colony = page.colony;
   if (colony === null) return "";
   const buildings = colony.buildings.length;

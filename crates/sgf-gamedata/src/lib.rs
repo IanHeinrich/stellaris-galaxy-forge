@@ -14,6 +14,7 @@ pub mod deposit_choices;
 pub mod deposit_roll;
 pub mod details;
 pub mod dig_site_choices;
+pub(crate) mod dismantle;
 pub(crate) mod feature_roll;
 pub mod fonts;
 pub mod generate;
@@ -52,6 +53,7 @@ use install::script::{ParsedDir, Variables};
 use install::{discovery, mods, script};
 use layouts::Eligibility;
 use registries::galaxy_sizes::GalaxySizes;
+use registries::megastructures::{self, MegastructureDef};
 use registries::planet_classes::PlanetClassDef;
 use registries::registry::FromDef;
 use registries::star_classes::StarClass;
@@ -359,7 +361,9 @@ impl GameData {
             &vars,
             &mut diagnostics,
         );
-        let megastructures = registry::load(&layout, &vars, &mut diagnostics);
+        let megastructure_defs =
+            script::parse_dir(&layout, MegastructureDef::DIR, &vars, &mut diagnostics);
+        let megastructures = megastructures::load(&megastructure_defs, &scripts);
         let graphical_cultures = registry::load(&layout, &vars, &mut diagnostics);
         let galaxy_shapes = GalaxyShapes::load(&layout, &mut diagnostics);
         let galaxy_sizes = GalaxySizes::load(&layout, &mut diagnostics);

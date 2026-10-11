@@ -83,9 +83,10 @@ function pointerOf(input: SystemInput): DragPointer {
   return { wx, wy, shift, ctrl, scale };
 }
 
-/** The menu a right-click opens: a body's, a belt's, or the space's at the pointer. */
+/** The menu a right-click opens: a body's, a belt's, a megastructure's, or the space's. */
 function menuTarget(system: number, { target, wx, wy }: SystemInput): ContextTarget {
   if (target?.kind === "body") return { kind: "body", system, id: target.id };
+  if (target?.kind === "megastructure") return { kind: "megastructure", system, id: target.id };
   if (target?.kind === "handle" && target.ref.kind === "belt") {
     return { kind: "belt", system, index: target.ref.index };
   }

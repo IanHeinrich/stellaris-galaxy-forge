@@ -100,7 +100,7 @@ impl DetailsProjection {
             stars: &stars,
         };
         let planet_system = extract::planets(doc, &tables, &mut by_system)?;
-        extract::megastructures(index, src, &countries, &mut by_system)?;
+        extract::megastructures(doc, &countries, &mut by_system)?;
         extract::sites(doc, &planet_system, &mut by_system)?;
         extract::wormholes(doc, graph, &mut by_system)?;
         let overlaps = by_system

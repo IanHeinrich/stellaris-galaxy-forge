@@ -4,13 +4,13 @@ import { opCheckKey, useOpCheckStore } from "../store/opCheckStore";
 /**
  * Why `op`, about a body of `system`, would be refused: a reason, null when it would apply,
  * or undefined until the core has answered. It is asked again once an edit, undo or redo
- * stales that system's details. It asks from the render rather than an effect, so a menu
- * drawn once still asks.
+ * stales that system's details, or with no system after any edit, undo or redo. It asks
+ * from the render rather than an effect, so a menu drawn once still asks.
  */
 export function useOpCheck(op: Op, system: number | null): string | null | undefined {
   const key = opCheckKey(op);
   const generation = useOpCheckStore((s) =>
-    system === null ? 0 : (s.generations.get(system) ?? 0),
+    system === null ? s.edits : (s.generations.get(system) ?? 0),
   );
   const check = useOpCheckStore((s) => s.answers.get(key));
   if (check?.generation === generation) return check.refusal;

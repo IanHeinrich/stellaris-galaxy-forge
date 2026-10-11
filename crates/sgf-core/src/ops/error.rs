@@ -262,6 +262,8 @@ pub enum OpError {
     PlanetKept { body: u32, reason: String },
     #[error("the colony on planet {body} cannot be removed: {reason}")]
     ColonyKept { body: u32, reason: String },
+    #[error("megastructure {megastructure} cannot be deleted: {reason}")]
+    MegastructureKept { megastructure: u32, reason: String },
     #[error("{table:?} {id} does not exist")]
     UnknownEntity { table: SavedTable, id: u32 },
     #[error("the text for {table:?} {id} is not one entity with that id")]
@@ -394,6 +396,7 @@ impl OpError {
             | Self::NoColony { .. }
             | Self::PlanetKept { .. }
             | Self::ColonyKept { .. }
+            | Self::MegastructureKept { .. }
             | Self::EntityMismatch { .. }
             | Self::InverseOnly { .. }
             | Self::Unsupported { .. } => ErrorKind::Op,

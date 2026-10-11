@@ -16,12 +16,14 @@ export interface OpCheckState {
   answers: ReadonlyMap<string, OpCheck>;
   /** By system: how many edits, undos and redos have staled its details. */
   generations: ReadonlyMap<number, number>;
+  /** How many edits, undos and redos there have been: the generation of an op about no system. */
+  edits: number;
   /**
    * Asks the core why `op` would be refused, its system at `generation`, unless that has been
    * asked already. An answer older than the one held, or for the document before, is dropped.
    */
   ask(op: Op, generation: number): void;
-  /** Notes that an edit, undo or redo staled the details of `systems`. */
+  /** Notes an edit, undo or redo, which staled the details of `systems`. */
   staled(systems: readonly number[]): void;
   /** Forgets what was asked and answered, as for a new document. */
   reset(): void;
@@ -40,6 +42,7 @@ let session = 0;
 export const useOpCheckStore = create<OpCheckState>((set, get) => ({
   answers: new Map(),
   generations: new Map(),
+  edits: 0,
 
   ask(op, generation) {
     const key = opCheckKey(op);
@@ -57,15 +60,14 @@ export const useOpCheckStore = create<OpCheckState>((set, get) => ({
   },
 
   staled(systems) {
-    if (systems.length === 0) return;
     const generations = new Map(get().generations);
     for (const system of systems) generations.set(system, (generations.get(system) ?? 0) + 1);
-    set({ generations });
+    set({ generations, edits: get().edits + 1 });
   },
 
   reset() {
     asked = new Set();
     session += 1;
-    set({ answers: new Map(), generations: new Map() });
+    set({ answers: new Map(), generations: new Map(), edits: 0 });
   },
 }));

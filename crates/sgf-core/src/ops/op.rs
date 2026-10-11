@@ -689,8 +689,39 @@ pub enum Op {
     DeleteBody {
         body: u32,
     },
+    /// A `megastructures` row the file held, as the game leaves one it destroys: the row
+    /// becomes `<id>=none`, and its id leaves its system's `megastructures` and its owner's
+    /// `owned_megastructures`, each list going with its last id. Its body loses the
+    /// `megastructure` key, and unless another row names the body, the planet flags
+    /// `has_megastructure`, `has_arc_furnace` and `ruined_orbital_ring_planet` and an Arc
+    /// Furnace's `entity_name="invisible_turret_entity"`. A row with `save_on_death=1` is
+    /// logged in `dead_mega_structure` as the game logs it: a `map` line from its id to a new
+    /// `objects` entry holding its type and system. A row with a `gateway` or `relay_bypass`
+    /// bypass takes it along: the bypass row is emptied, and its id leaves the system's
+    /// `bypasses` and every other bypass's `connections`, `active_connections` and
+    /// `linked_to`. Each country's `usable_bypasses` and a fleet's `bypass_from` and
+    /// `bypass_to` are left for the game, as [`Op::RemoveWormholePair`] leaves them. When
+    /// the body has the planet flag `megastructure`, which a body the structure made has, its
+    /// colony goes first as [`Op::RemoveColony`] takes it, and the body stays. The system's
+    /// and owner's flags stay. With `dismantle`, what the type's dismantle takes back goes
+    /// too: each `timed_modifier` item of the system and its bodies naming one of its
+    /// modifiers, each deposit of its types on those bodies, which becomes a tombstone and
+    /// leaves its body's `deposits`, and each owner variable it lowers, unless that would
+    /// take the variable below 0. A row upgrading goes with its `upgrade` block. A row
+    /// standing in no system, a ring world's quadrant, which goes whole with its segments, a
+    /// bypass of any other kind, any colony [`Op::RemoveColony`]
+    /// refuses for a reason other than the structure, and a modifier, deposit type or
+    /// variable that is not an identifier are refused. The inverse is the
+    /// [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
+    /// documents only.
+    DeleteMegastructure {
+        megastructure: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        dismantle: Option<MegastructureDismantle>,
+    },
     /// Save entities written back whole, each over whatever stands for it now: what
-    /// [`Op::RemoveColony`] and [`Op::DeleteBody`] invert to. Each text must be one
+    /// [`Op::RemoveColony`], [`Op::DeleteBody`] and [`Op::DeleteMegastructure`] invert to. Each text must be one
     /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
     /// bytes. The inverse carries the texts displaced. Save documents only.
@@ -854,13 +885,18 @@ impl Op {
             | Self::RemoveBody { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
+            // A megastructure written back stands in its system's details, though no body
+            // of the system is rewritten.
             Self::RestoreEntities { .. } => OpReach::of(SAVE)
-                .details(Bodies)
+                .details(Rebuild)
                 .whole_entries()
                 .inverse_only(),
             Self::AddWormholePair { .. }
             | Self::RemoveWormholePair { .. }
-            | Self::MoveBodyToSystem { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
+            | Self::MoveBodyToSystem { .. }
+            | Self::DeleteMegastructure { .. } => {
+                OpReach::of(SAVE).details(Rebuild).whole_entries()
+            }
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's
             // to set, and it has neither a scenario header nor a generator to prevent a lane
             // from. It adds and names a system through the save ops, which write the bodies a
@@ -1271,6 +1307,34 @@ pub struct NebulaCloud {
     pub kind: String,
 }
 
+/// What a megastructure type's dismantle takes back, read from the install's
+/// `on_dismantle_complete` and the scripted effects it calls: what [`Op::DeleteMegastructure`]
+/// takes back with a row.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct MegastructureDismantle {
+    /// The modifiers it removes, `orbital_arc_furnace_4_mod`.
+    pub modifiers: Vec<String>,
+    /// The deposit types it removes, `d_arc_furnace_4`.
+    pub deposits: Vec<String>,
+    /// The variables it lowers on the owner, `arc_furnace_counter`.
+    pub variables: Vec<VariableDrop>,
+}
+
+impl MegastructureDismantle {
+    pub fn is_empty(&self) -> bool {
+        self.modifiers.is_empty() && self.deposits.is_empty() && self.variables.is_empty()
+    }
+}
+
+/// One owner variable a dismantle lowers, and by how much.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct VariableDrop {
+    pub variable: String,
+    pub by: u32,
+}
+
 /// One save entity in [`Op::RestoreEntities`]: the table it stands in, its id, and its
 /// whole `<id>={ … }` statement.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -1302,6 +1366,12 @@ pub enum SavedTable {
     ConstructionQueue,
     /// `construction.item_mgr.items`.
     ConstructionItem,
+    Megastructure,
+    /// `bypasses`.
+    Bypass,
+    /// The whole top-level `dead_mega_structure` statement, with id 0.
+    DeadMegastructures,
+    Deposit,
 }
 
 /// One system's destination in [`Op::MoveSystems`].

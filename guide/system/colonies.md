@@ -54,5 +54,6 @@ These can't be deleted or have their colony removed, and the button or
 menu item says why:
 
 - stars and ring world segments
-- a planet with a megastructure on or around it
+- a planet with a megastructure on or around it, until you
+  [delete the megastructure](megastructures.md#delete-a-megastructure)
 - an uncolonised planet a starbase orbits

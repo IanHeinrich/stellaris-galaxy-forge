@@ -76,9 +76,9 @@ export function editPipeline(
       selection !== before ||
       kept.length !== selection.length ||
       (kept.length === 1 && (touched.has(kept[0]) || showsTouched(touched, result.details_stale)));
+    useOpCheckStore.getState().staled(result.details_stale);
     if (result.details_stale.length > 0) {
       useDetailsStore.getState().invalidate(result.details_stale);
-      useOpCheckStore.getState().staled(result.details_stale);
       useInspectorStore.getState().dropBodies(restaled(result.details_stale, pairs));
       useClassRollsStore.getState().forget(result.details_stale);
       useInspectorStore.getState().dropClassPicks(result.details_stale);

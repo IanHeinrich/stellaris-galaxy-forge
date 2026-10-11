@@ -30,6 +30,13 @@ describe("the core's answers about an op", () => {
     expect(mockedIpc.checkOp).toHaveBeenCalledTimes(2);
   });
 
+  it("counts every edit, for an op about no system", () => {
+    store().staled([]);
+    store().staled([140]);
+    expect(store().edits).toBe(2);
+    expect(store().generations.has(141)).toBe(false);
+  });
+
   it("keeps the newer answer when an older one lands after it", async () => {
     let answerOld: (refusal: string | null) => void = () => undefined;
     mockedIpc.checkOp

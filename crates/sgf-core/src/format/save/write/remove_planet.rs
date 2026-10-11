@@ -15,22 +15,21 @@
 //! construction items naming the colony are left for the game. A colonised body is never
 //! deleted with its colony standing: the game crashes on load when a colony's planet is gone.
 
-use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
 use crate::emit::system::MOON_FLAG;
 use crate::entity::views::EntityKind;
+use crate::format::save::added::rows;
 use crate::format::save::dig_sites::{self, DigSite};
 use crate::format::save::write::bodies::frame_bodies;
 use crate::format::save::write::id_list::unlist_planets;
+use crate::format::save::write::megastructure_links::MEGASTRUCTURES;
 use crate::format::save::write::planet_entry::{PlanetEntry, and_its_moons, unlist_moon};
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::write::restore::{Saved, country_edit, tombstoned};
 use crate::format::save::write::teardown::{Stationed, Teardown, fleet_records, some_id};
 use crate::format::save::write::{add_body, anomaly};
-use crate::format::save::{
-    entity_at, entity_in, planet_entity, planet_statement, system_statement,
-};
+use crate::format::save::{entity_at, planet_entity, planet_statement, system_statement};
 use crate::keys;
 use crate::ops::{Op, OpError, Plan, Planned, SavedTable, StarEdit, Subject};
 use crate::overlay::Anchor;
@@ -241,11 +240,27 @@ fn then(first: Op, description: String, rest: impl Iterator<Item = Op>) -> Op {
 }
 
 /// What refuses both a colony's removal and a planet's deletion: a ring world segment, and a
-/// megastructure on or around the body. A habitat is a planet class with no megastructure
-/// entry of its own, so it passes.
+/// megastructure on or around the body, which is a live row naming it. The body's own
+/// `megastructure` key can name a row the save no longer holds, and then refuses nothing. A
+/// habitat is a planet class with no megastructure entry of its own, so it passes.
 pub(crate) fn check_planet(
     s: &Session,
     planet: u32,
+    node: &Node,
+    src: &[u8],
+    refuse: impl Fn(String) -> OpError,
+) -> Result<(), OpError> {
+    check_segment(node, src, &refuse)?;
+    if megastructure_at(&s.doc, planet)? {
+        return Err(refuse(
+            "a megastructure stands on or around it: delete the megastructure first".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// Refuse a ring world segment, whose removal has not been tried in game.
+pub(crate) fn check_segment(
     node: &Node,
     src: &[u8],
     refuse: impl Fn(String) -> OpError,
@@ -256,25 +271,12 @@ pub(crate) fn check_planet(
             "it is a ring world segment, which has not been tried in game".to_owned(),
         ));
     }
-    if some_id(node, keys::MEGASTRUCTURE, src).is_some() || megastructure_at(&s.doc, planet) {
-        return Err(refuse(
-            "a megastructure stands on or around it, which has not been tried in game".to_owned(),
-        ));
-    }
     Ok(())
 }
 
-/// Whether an entry of `megastructures` names `planet`.
-fn megastructure_at(doc: &Document, planet: u32) -> bool {
-    doc.index()
-        .entities(keys::MEGASTRUCTURES)
+/// Whether a live row of `megastructures` names `planet`.
+fn megastructure_at(doc: &Document, planet: u32) -> Result<bool, OpError> {
+    Ok(rows(doc, MEGASTRUCTURES)?
         .iter()
-        .any(|e| parsed_scalar(doc, e.stmt, keys::PLANET) == Some(planet))
-}
-
-/// The scalar `key` of the one entity the original bytes at `stmt` hold.
-fn parsed_scalar(doc: &Document, stmt: Span, key: &str) -> Option<u32> {
-    let bytes = stmt.slice(doc.original());
-    let node = entity_in(bytes).ok()??;
-    read::scalar_u32(&node, key, bytes)
+        .any(|row| read::scalar_u32(&row.node, keys::PLANET, row.src) == Some(planet)))
 }
