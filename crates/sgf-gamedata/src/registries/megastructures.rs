@@ -178,6 +178,13 @@ fn placement(types: &MegastructureTypes, def: &MegastructureDef) -> Placement {
             why: Unsupported::BecomesStarbase,
         };
     }
+    // Some gateway stages leave `build_type` commented out; every gateway and relay stands
+    // outside the gravity well.
+    if def.bypass_type.is_some() {
+        return Placement::Free {
+            outside_gravity_well: true,
+        };
+    }
     match def.build_type {
         BuildType::OutsideGravityWell => Placement::Free {
             outside_gravity_well: true,
