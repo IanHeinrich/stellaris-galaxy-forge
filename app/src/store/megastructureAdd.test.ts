@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api/ipc");
 vi.mock("../api/events");
 
-import { MEGASTRUCTURES_NEED_GAME_DATA, RELAY_RADIUS_FACTOR } from "../lib/megastructurePicks";
+import {
+  leftOutNotice,
+  MEGASTRUCTURES_NEED_GAME_DATA,
+  RELAY_RADIUS_FACTOR,
+} from "../lib/megastructurePicks";
 import { mockedIpc } from "../test/ipc";
 import { inSystem } from "../test/session";
 import { megastructureTypeView, systemDetails } from "../test/builders";
 import { openFixtureSave, sessionError } from "./editorFixture";
+import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
@@ -36,17 +41,19 @@ beforeEach(async () => {
   mockedIpc.addMegastructure.mockResolvedValue({
     edit: editResult({ details_stale: [SYSTEM] }),
     megastructure: 16,
+    skipped: [],
   });
+  useMegastructureAddStore.setState({ last: null });
 });
 
 describe("adding a megastructure from the system view", () => {
   it("stands a relay just outside the inner radius at the angle pressed, and closes the dialog", async () => {
     expect(adds().open(SYSTEM, { kind: "space", x: -60, y: 80 })).toBe(true);
-    expect(await adds().add("hyper_relay", 3)).toBe(true);
+    expect(await adds().add("hyper_relay")).toBe(true);
 
     expect(adds().prompt).toBeNull();
-    const [system, kind, place, owner] = mockedIpc.addMegastructure.mock.calls[0];
-    expect([system, kind, owner]).toEqual([SYSTEM, "hyper_relay", 3]);
+    const [system, kind, place] = mockedIpc.addMegastructure.mock.calls[0];
+    expect([system, kind]).toEqual([SYSTEM, "hyper_relay"]);
     if (place.place !== "free") throw new Error(`placed on body ${place.body}`);
     const radius = RELAY_RADIUS_FACTOR * 150;
     expect(place.x).toBeCloseTo((radius * -60) / 100);
@@ -55,9 +62,9 @@ describe("adding a megastructure from the system view", () => {
 
   it("stands a type built inside the gravity well where pressed, and ties a body's to the body", async () => {
     adds().open(SYSTEM, { kind: "space", x: 30, y: 40 });
-    await adds().add("shroud_seal", null);
+    await adds().add("shroud_seal");
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
-    await adds().add("think_tank_3", null);
+    await adds().add("think_tank_3");
 
     expect(mockedIpc.addMegastructure.mock.calls.map(([, , place]) => place)).toEqual([
       { place: "free", x: 30, y: 40 },
@@ -67,20 +74,41 @@ describe("adding a megastructure from the system view", () => {
 
   it("opens the new megastructure's page, named as the game names it", async () => {
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
-    await adds().add("think_tank_3", 0);
+    await adds().add("think_tank_3");
 
     const { stack } = useInspectorStore.getState();
     expect(stack[stack.length - 1]).toEqual({
       ref: { kind: "megastructure", id: 16 },
       label: "Science Nexus",
     });
+    expect(adds().last).toBe("think_tank_3");
+    expect(useFileSessionStore.getState().notice).toBeNull();
+  });
+
+  it("says in the status bar how many effects of its construction were left out", async () => {
+    mockedIpc.addMegastructure.mockResolvedValue({
+      edit: editResult({ details_stale: [SYSTEM] }),
+      megastructure: 16,
+      skipped: ["focus.535: change_variable with a value that is not a number", "a.1: event b.2"],
+    });
+    adds().open(SYSTEM, { kind: "body", body: 12, star: false });
+    await adds().add("think_tank_3");
+
+    expect(useFileSessionStore.getState().notice).toBe(leftOutNotice("Science Nexus", 2));
+    expect(leftOutNotice("Science Nexus", 2)).toBe(
+      "Added the Science Nexus. Galaxy Forge couldn't tell whether 2 of its construction's effects apply, so it left them out.",
+    );
+    expect(leftOutNotice("Arc Furnace", 1)).toBe(
+      "Added the Arc Furnace. Galaxy Forge couldn't tell whether 1 of its construction's effects applies, so it left it out.",
+    );
   });
 
   it("opens no page when the core refuses the add", async () => {
     mockedIpc.addMegastructure.mockRejectedValue({ kind: "op", message: "a refusal" });
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
 
-    expect(await adds().add("think_tank_3", 0)).toBe(false);
+    expect(await adds().add("think_tank_3")).toBe(false);
+    expect(adds().last).toBeNull();
     const { stack } = useInspectorStore.getState();
     expect(stack.some((entry) => entry.ref.kind === "megastructure")).toBe(false);
   });

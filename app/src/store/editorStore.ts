@@ -216,15 +216,14 @@ export interface EditorState {
   ): Promise<boolean>;
   /**
    * Adds a finished megastructure of type `kind` to system `system` of the open save in one
-   * edit, at `at`, owned by `owner` or by no one. Answers the new row's id, or null when the
-   * core refused it.
+   * edit, at `at`, owned by the system's owner. Answers the new row's id and the construction
+   * effects the core left out, or null when it refused the add.
    */
   addMegastructure(
     system: number,
     kind: string,
     at: MegastructurePlace,
-    owner: number | null,
-  ): Promise<number | null>;
+  ): Promise<{ megastructure: number; skipped: string[] } | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any

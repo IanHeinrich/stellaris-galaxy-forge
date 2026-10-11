@@ -416,6 +416,8 @@ export function megastructureTypeView(
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,
+    base_game: true,
+    variant_of: null,
     ...over,
   };
 }

@@ -1,11 +1,16 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
   NO_MEGASTRUCTURE_FITS,
+  NO_OWNER,
+  NO_OWNER_NOTE,
+  OWNER_NOTE,
   WRITTEN_FINISHED,
-  defaultOwner,
-  familyPick,
-  megastructureFamilies,
-  megastructurePicks,
+  defaultStage,
+  entryDefault,
+  findStage,
+  matchingEntries,
+  megastructureEntries,
+  megastructureRefusal,
   whereText,
 } from "../../lib/megastructurePicks";
 import {
@@ -25,10 +30,12 @@ import {
 import { Dialog } from "../Dialog";
 import { useSystemBodyNames } from "../inspector/entity/useBodyName";
 import { useNamed } from "../useNamed";
-import { MegastructurePreviewPane, MegastructureTiles } from "./MegastructureBrowser";
+import {
+  MegastructureList,
+  MegastructurePreviewPane,
+  MegastructureStages,
+} from "./MegastructureBrowser";
 import "./overlays.css";
-
-const NO_OWNER = "none";
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
 export function AddMegastructureDialog() {
@@ -37,54 +44,49 @@ export function AddMegastructureDialog() {
 }
 
 /**
- * Adds a megastructure where the system view's menu was opened: its type, chosen by upgrade
- * family from tiles of its stages beside a preview of the selected one, and its owner, the
- * system's for a working structure and no one for a ruin.
+ * Adds a megastructure where the system view's menu was opened: a megastructure picked from the
+ * list, one of its stages from the tiles beside it, shown in the preview. It goes to the system's
+ * owner, as the game gives it on load.
  */
 function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const cancel = useMegastructureAddStore((s) => s.cancel);
   const add = useMegastructureAddStore((s) => s.add);
+  const last = useMegastructureAddStore((s) => s.last);
   const { system, spot } = prompt;
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
   const countries = useGalaxyStore((s) => s.countries);
-  const systemOwner = useGalaxyStore((s) => s.systems.get(system)?.owner ?? null);
+  const owner = useGalaxyStore((s) => s.systems.get(system)?.owner ?? null);
   const details = useDetailsStore((s) => s.details);
   const icons = useDetailsStore((s) => s.resourceIcons);
   const [systemName] = useSystemNames([system]);
   const bodyName = useSystemBodyNames(system);
   const typeKeys = useMemo(() => [...types.keys()], [types]);
   useNamed(typeKeys);
-  const families = useMemo(
+  const rows = details.get(system)?.megastructures;
+  const entries = useMemo(
     () =>
-      megastructureFamilies(
-        megastructurePicks(types, names, spot),
-        (key) => types.get(key)?.source ?? null,
+      megastructureEntries(types, names, spot, (type) =>
+        megastructureRefusal(type, spot, rows ?? [], types),
       ),
-    [types, names, spot],
+    [types, names, spot, rows],
   );
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [ownerPicked, setOwnerPicked] = useState<number | null | undefined>(undefined);
-  const family = families.find((f) => f.picks.some((p) => p.key === picked)) ?? families[0] ?? null;
-  const current =
-    family === null ? null : (family.picks.find((p) => p.key === picked) ?? familyPick(family));
-  useNamed(current === null ? [] : megastructureDescriptionKeys(current));
-  const kind = current?.key;
+  const visible = useMemo(() => matchingEntries(entries, query), [entries, query]);
+  const found =
+    findStage(visible, picked ?? defaultStage(entries, spot, last)) ??
+    (visible.length > 0 ? findStage(visible, entryDefault(visible[0])) : null);
+  useNamed(found === null ? [] : megastructureDescriptionKeys(found.stage.key, found.chain));
+  const kind = found?.stage.key;
   const type = kind === undefined ? undefined : types.get(kind);
-  const owner = ownerPicked === undefined ? defaultOwner(kind ?? "", systemOwner) : ownerPicked;
   const culture = ownerCulture(owner, details.values(), countries);
-  const owners = useMemo(
-    () =>
-      [...countries.values()]
-        .map((country) => ({ id: country.id, name: templateName(country) }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [countries],
-  );
+  const ownerCountry = owner === null ? undefined : countries.get(owner);
   const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
+  const addable = found !== null && found.stage.refused === null;
 
   const confirm = () => {
-    if (kind !== undefined) void add(kind, owner);
+    if (addable) void add(found.stage.key);
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -107,45 +109,52 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
             <span>Where</span>
             <output>{where}</output>
           </div>
-          <label className="field">
+          <div className="field">
             <span>Owner</span>
-            <select
-              value={owner === null ? NO_OWNER : String(owner)}
-              onChange={(e) => {
-                const value = e.currentTarget.value;
-                setOwnerPicked(value === NO_OWNER ? null : Number(value));
-              }}
-            >
-              <option value={NO_OWNER}>No owner</option>
-              {owners.map((country) => (
-                <option key={country.id} value={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {current === null || family === null ? (
+            <output>
+              {owner === null
+                ? NO_OWNER
+                : ownerCountry
+                  ? templateName(ownerCountry)
+                  : `Empire #${owner}`}{" "}
+              <span className="muted">{owner === null ? NO_OWNER_NOTE : OWNER_NOTE}</span>
+            </output>
+          </div>
+          {entries.length === 0 ? (
             <div className="field">
               <span>Type</span>
               <output className="muted">{NO_MEGASTRUCTURE_FITS}</output>
             </div>
           ) : (
             <div className="megastructure-add-browse">
-              <MegastructureTiles
-                families={families}
-                types={types}
-                culture={culture}
-                current={current}
+              <MegastructureList
+                entries={visible}
+                current={found?.entry ?? null}
                 query={query}
                 onQuery={setQuery}
-                onSelect={setPicked}
+                onSelect={(entry) => setPicked(entryDefault(entry))}
                 onConfirm={confirm}
               />
-              <MegastructurePreviewPane
-                preview={megastructurePreview(current, family, type, names, icons)}
-                type={type}
-                culture={culture}
-              />
+              {found === null ? (
+                <div className="muted">No megastructure matches.</div>
+              ) : (
+                <MegastructureStages
+                  entry={found.entry}
+                  types={types}
+                  culture={culture}
+                  current={found.stage.key}
+                  onSelect={setPicked}
+                  onConfirm={confirm}
+                />
+              )}
+              {found !== null && (
+                <MegastructurePreviewPane
+                  preview={megastructurePreview(found.stage, found.chain, type, names, icons)}
+                  row={found.chain.label}
+                  type={type}
+                  culture={culture}
+                />
+              )}
             </div>
           )}
           <div className="muted">{WRITTEN_FINISHED}</div>
@@ -155,7 +164,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
             <button type="button" onClick={cancel}>
               Cancel
             </button>
-            <button type="submit" disabled={kind === undefined}>
+            <button type="submit" disabled={!addable}>
               Add
             </button>
           </div>

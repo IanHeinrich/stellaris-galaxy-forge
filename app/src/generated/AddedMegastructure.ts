@@ -2,6 +2,8 @@
 import type { EditResult } from "./EditResult";
 
 /**
- * What adding a megastructure answers with: the edit, and the id the new row took.
+ * What adding a megastructure answers with: the edit, the id the new row took, and each
+ * effect of its construction left out because the editor could not tell whether it
+ * applies, as the type's script says it.
  */
-export type AddedMegastructure = { edit: EditResult, megastructure: number, };
+export type AddedMegastructure = { edit: EditResult, megastructure: number, skipped: Array<string>, };

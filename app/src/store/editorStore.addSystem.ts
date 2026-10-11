@@ -134,14 +134,14 @@ export function addSystemActions(
       });
     },
 
-    async addMegastructure(system, kind, at, owner) {
-      let megastructure: number | null = null;
+    async addMegastructure(system, kind, at) {
+      let added: { megastructure: number; skipped: string[] } | null = null;
       const result = await runEdit(async () => {
-        const added = await ipc.addMegastructure(system, kind, at, owner);
-        megastructure = added.megastructure;
-        return added.edit;
+        const answer = await ipc.addMegastructure(system, kind, at);
+        added = { megastructure: answer.megastructure, skipped: answer.skipped };
+        return answer.edit;
       });
-      return result === null ? null : megastructure;
+      return result === null ? null : added;
     },
 
     rerollSystem(id, starClass) {

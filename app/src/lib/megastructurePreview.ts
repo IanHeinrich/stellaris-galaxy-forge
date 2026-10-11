@@ -8,7 +8,7 @@ import type { SystemDetails } from "../generated/SystemDetails";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { producedRows, type ResourceRow } from "./details/resources";
 import { megastructureLook, modelKey } from "./details/structures";
-import type { MegastructureFamily, MegastructurePick } from "./megastructurePicks";
+import type { MegastructureChain, MegastructureStage } from "./megastructurePicks";
 
 /**
  * The textures a tile of `type` shows, the first that lands: its model in `culture`, bare for
@@ -42,17 +42,18 @@ export function ownerCulture(
   return rows.find((row) => row?.owner === owner && row.culture)?.culture ?? null;
 }
 
+/** Whether the editor has a model to draw a type with. */
+export function hasModel(type: MegastructureTypeView | undefined): boolean {
+  return megastructureLook(type).kind === "model";
+}
+
 /**
- * The localisation keys a type's description is read from, the first with any text: the
+ * The localisation keys a stage's description is read from, the first with any text: the
  * stage's own `_DESC`, then the `_MEGASTRUCTURE_DETAILS` the build menu shows for it or for
- * the first stage of its family.
+ * the first stage of its chain.
  */
-export function megastructureDescriptionKeys(pick: MegastructurePick): string[] {
-  return [
-    `${pick.key}_DESC`,
-    `${pick.key}_MEGASTRUCTURE_DETAILS`,
-    `${pick.familyKey}_MEGASTRUCTURE_DETAILS`,
-  ];
+export function megastructureDescriptionKeys(key: string, chain: MegastructureChain): string[] {
+  return [`${key}_DESC`, `${key}_MEGASTRUCTURE_DETAILS`, `${chain.first}_MEGASTRUCTURE_DETAILS`];
 }
 
 /**
@@ -75,32 +76,38 @@ export function descriptionText(text: string | undefined): string | null {
 export interface MegastructurePreview {
   key: string;
   label: string;
-  /** Where it stands in its family, as "Stage 2 of 6"; null for a family of one. */
+  /** Where it stands in its chain, as "Stage 2 of 6"; null for a variant or a chain of one. */
   stage: string | null;
   description: string | null;
   /** What it produces each month, per resource. */
   produces: ResourceRow[];
+  /** Whether the editor has a model to draw it with. */
+  model: boolean;
+  /** Why the save would refuse it here; null when it fits. */
+  refused: string | null;
 }
 
-/** The preview of `pick`, one of `family`'s stages, from its type and the names fetched so far. */
+/** The preview of `stage`, one of `chain`'s, from its type and the names fetched so far. */
 export function megastructurePreview(
-  pick: MegastructurePick,
-  family: MegastructureFamily,
+  stage: MegastructureStage,
+  chain: MegastructureChain,
   type: MegastructureTypeView | undefined,
   names: ReadonlyMap<string, string>,
   icons: ReadonlyMap<string, string> = new Map(),
 ): MegastructurePreview {
-  const at = family.picks.findIndex((p) => p.key === pick.key);
-  const count = family.picks.length;
+  const at = chain.stages.findIndex((s) => s.key === stage.key);
+  const count = chain.working;
   const description =
-    megastructureDescriptionKeys(pick)
+    megastructureDescriptionKeys(stage.key, chain)
       .map((key) => descriptionText(names.get(key)))
       .find((text) => text !== null) ?? null;
   return {
-    key: pick.key,
-    label: pick.label,
-    stage: count > 1 && at >= 0 ? `Stage ${at + 1} of ${count}` : null,
+    key: stage.key,
+    label: stage.label,
+    stage: count > 1 && at >= 0 && at < count ? `Stage ${at + 1} of ${count}` : null,
     description,
     produces: producedRows(type?.produces ?? [], icons),
+    model: hasModel(type),
+    refused: stage.refused,
   };
 }
