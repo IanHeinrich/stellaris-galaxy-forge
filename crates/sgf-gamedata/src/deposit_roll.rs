@@ -23,10 +23,8 @@ use crate::weight::Weight;
 const HABITABLE_FACTOR: f64 = 2.0;
 /// What a new, unowned body in a new system has none of: flags, an origin, modifiers,
 /// buildings, an owner, a `planet` or `solar_system` scope to ask, free districts.
-const NEVER_ON_A_NEW_BODY: [&str; 9] = [
-    "has_planet_flag",
+const NEVER_ON_A_NEW_BODY: [&str; 7] = [
     "has_origin",
-    "has_modifier",
     "has_building",
     "exists",
     "owner",
@@ -121,6 +119,7 @@ impl Subject for NewBody<'_> {
             Condition::Colonizable(want) => Some(class?.colonizable == *want),
             Condition::Size(cmp, n) => Some(cmp.holds(f64::from(body.size), *n)),
             Condition::HasDeposit(key) => Some(self.deposits.iter().any(|d| d == key)),
+            Condition::HasModifier(_) | Condition::PlanetFlag(_) => Some(false),
             Condition::Unknown(key) if NEVER_ON_A_NEW_BODY.contains(&key.as_str()) => Some(false),
             _ => None,
         }

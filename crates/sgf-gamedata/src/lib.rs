@@ -10,6 +10,7 @@ pub mod anomaly_choices;
 pub mod body_effects;
 pub mod choices;
 pub mod condition;
+pub mod construction;
 pub mod deposit_choices;
 pub mod deposit_roll;
 pub mod details;

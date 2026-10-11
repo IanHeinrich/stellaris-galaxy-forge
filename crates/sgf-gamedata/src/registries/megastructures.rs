@@ -11,6 +11,7 @@ use ts_rs::TS;
 
 use sgf_core::cst::Node;
 
+use crate::construction::{self, Construction};
 use crate::dismantle;
 use crate::scripts::ScriptIndex;
 
@@ -61,6 +62,11 @@ pub struct MegastructureDef {
     pub placement: Placement,
     /// What its `on_dismantle_complete` takes back from its system and owner.
     pub dismantle: MegastructureDismantle,
+    /// What its build chain adds to its system and owner, replayed against a save system
+    /// when a row of it is added.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub construction: Construction,
 }
 
 /// Where the editor adds a row of a type.
@@ -144,6 +150,7 @@ impl FromDef for MegastructureDef {
             planet_possible_star: planet_possible_star(def),
             placement: Placement::Body { star_only: false },
             dismantle: MegastructureDismantle::default(),
+            construction: Construction::default(),
         }
     }
 }
@@ -289,6 +296,7 @@ pub(crate) fn load(defs: &BTreeMap<String, Def>, scripts: &ScriptIndex) -> Megas
         .map(|(key, def)| {
             let mut kind = MegastructureDef::read(key.clone(), def);
             kind.dismantle = dismantle::read(def, scripts);
+            kind.construction = construction::read(defs, key, scripts);
             (key.clone(), kind)
         })
         .collect()

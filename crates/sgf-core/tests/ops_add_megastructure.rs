@@ -471,8 +471,7 @@ fn a_flagged_add_is_read_back_by_its_removal() {
     assert_eq!(current(&session), session.doc().original());
 }
 
-/// The bodies of Sol an Arc Furnace's event picks: neither the star, 0, nor the colonised
-/// continental world, 2.
+/// Sol's bodies but its star, 0, and its colonised continental world, 2.
 const SOL_FURNACE_PLANETS: [u32; 13] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
 fn modifier(on: ModifierHost, modifier: &str) -> ConstructionModifier {

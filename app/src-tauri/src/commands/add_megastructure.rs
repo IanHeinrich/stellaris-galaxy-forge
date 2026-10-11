@@ -14,9 +14,10 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added megastructure";
 /// Add a finished megastructure of type `kind` to system `system` of the open save as one
 /// `AddMegastructure`, at `place`, owned by `owner` when given. A gateway or relay gets its
 /// bypass, open when the type opens it, a type whose build marks its planet marks it, and
-/// an Orbital Ring ruin flags its planet as the game does. A type built only around a star
-/// is refused on any other body. A type the install does not define, or one the editor does not add, is
-/// refused with the reason.
+/// an Orbital Ring ruin flags its planet as the game does. The timed modifiers, deposits and
+/// owner counters its build chain adds in that system are written with it. A type built only
+/// around a star is refused on any other body. A type the install does not define, or one
+/// the editor does not add, is refused with the reason.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
     app: AppHandle<R>,
@@ -32,9 +33,19 @@ pub async fn add_megastructure<R: Runtime>(
             format!("the install and its mods define no megastructure {kind}"),
         )
     })?;
-    let op = add_op(def, system, place, owner)?;
+    let mut op = add_op(def, system, place, owner)?;
+    let chain = def.construction.clone();
+    let host = match place {
+        MegastructurePlace::Body { body } => Some(body),
+        MegastructurePlace::Free { .. } => None,
+    };
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
+        let site = session.construction_site(system)?;
+        let built = chain.replay(&gd, &site, host, owner.is_some());
+        if let Op::AddMegastructure { construction, .. } = &mut op {
+            *construction = (!built.construction.is_empty()).then_some(built.construction);
+        }
         let result = session.apply(op)?;
         let Op::RemoveMegastructure { megastructure, .. } = result.inverse else {
             return Err(SgfError::new(

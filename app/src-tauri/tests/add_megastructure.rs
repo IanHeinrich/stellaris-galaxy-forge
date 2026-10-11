@@ -131,3 +131,64 @@ fn a_type_the_editor_does_not_add_is_refused_with_its_reason() {
         unknown.message
     );
 }
+
+/// An Arc Furnace round Sol's molten planet 1 takes the mining bonus and a deposit to the
+/// 11 bodies its event picks: not the star, the colonised capital, or barren cold 8 and
+/// barren 11, whose engineering deposits a research station works. It raises its owner's
+/// counter. A Dyson Swarm round Xu Nur's star gives the star its last stage's
+/// modifier only. Deleted, the furnace takes all of it back.
+#[test]
+fn a_megastructure_is_added_with_what_its_construction_adds() {
+    let Some((w, _)) = with_game_data(SAMPLE_45) else {
+        return;
+    };
+    let furnace: AddedMegastructure = invoke(
+        &w,
+        "add_megastructure",
+        json!({
+            "system": 169, "kind": "orbital_arc_furnace_4",
+            "place": { "place": "body", "body": 1 }, "owner": 0
+        }),
+    )
+    .expect("the Arc Furnace");
+    assert_eq!(
+        furnace.edit.entry.description,
+        "Added megastructure #16 (orbital_arc_furnace_4) in Alari system #169, with 11 modifiers, 11 deposits and 1 counter"
+    );
+    let swarm: AddedMegastructure = invoke(
+        &w,
+        "add_megastructure",
+        json!({
+            "system": 1, "kind": "dyson_swarm_3",
+            "place": { "place": "body", "body": 584 }, "owner": 0
+        }),
+    )
+    .expect("the Dyson Swarm");
+    assert!(
+        swarm
+            .edit
+            .entry
+            .description
+            .ends_with(", with 1 modifier and 1 counter"),
+        "{}",
+        swarm.edit.entry.description
+    );
+    let deleted: EditResult = invoke(
+        &w,
+        "delete_megastructure",
+        json!({ "megastructure": furnace.megastructure }),
+    )
+    .expect("the delete");
+    assert!(
+        deleted
+            .entry
+            .description
+            .starts_with("Removed megastructure #16 (orbital_arc_furnace_4)")
+            && deleted
+                .entry
+                .description
+                .ends_with(", with 11 modifiers, 11 deposits and 1 counter"),
+        "{}",
+        deleted.entry.description
+    );
+}

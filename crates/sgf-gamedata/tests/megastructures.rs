@@ -3,7 +3,11 @@
 
 use crate::common;
 
-use sgf_core::ops::{MegastructureDismantle, VariableDrop};
+use sgf_core::format::save::site::{ConstructionSite, SiteBody};
+use sgf_core::ops::{
+    ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
+    ModifierHost, VariableDrop, VariableRaise,
+};
 use sgf_gamedata::registries::megastructures::{BuildType, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -405,5 +409,218 @@ fn a_dismantle_follows_the_parameters_it_passes() {
                 by: 2,
             }],
         }
+    );
+}
+
+fn body(id: u32, class: &str, deposits: &[&str]) -> SiteBody {
+    SiteBody {
+        id,
+        class: class.to_owned(),
+        deposits: deposits.iter().map(|d| (*d).to_owned()).collect(),
+        ..SiteBody::default()
+    }
+}
+
+/// A system laid out like Soyun in a late 4.5 game: a star, a barren world whose society
+/// deposit a research station works, the molten world the structure stands at, a gas
+/// giant with a mineral deposit and a colonised continental world.
+fn soyun() -> ConstructionSite {
+    ConstructionSite {
+        system: 582,
+        bodies: vec![
+            SiteBody {
+                star: true,
+                ..body(6138, "pc_m_giant_star", &["d_energy_2"])
+            },
+            body(6139, "pc_barren", &["d_society_3"]),
+            body(6141, "pc_molten", &[]),
+            body(6146, "pc_gas_giant", &["d_minerals_2"]),
+            SiteBody {
+                colony: true,
+                ..body(6152, "pc_continental", &[])
+            },
+        ],
+        ..ConstructionSite::default()
+    }
+}
+
+/// An Arc Furnace's stages replayed from the first: only the last stage's modifier and
+/// deposit stay, on the planets its event picks. A Dyson Swarm leaves its last stage's
+/// modifier on its star, the Shroud Seal its modifier on the system, and a Dyson Sphere, a
+/// Science Nexus and a Hyper Relay nothing.
+#[test]
+fn the_installs_construction_is_replayed_on_a_system() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    let site = soyun();
+    let replay = |key: &str, host: Option<u32>| {
+        gd.megastructures
+            .get(key)
+            .unwrap_or_else(|| panic!("{key}"))
+            .construction
+            .replay(gd, &site, host, true)
+            .construction
+    };
+    let furnace = |stage: u32| MegastructureConstruction {
+        modifiers: [6141, 6146]
+            .into_iter()
+            .map(|body| ConstructionModifier {
+                on: ModifierHost::Body { body },
+                modifier: format!("orbital_arc_furnace_{stage}_mod"),
+                days: -1,
+            })
+            .collect(),
+        deposits: [6141, 6146]
+            .into_iter()
+            .map(|body| ConstructionDeposit {
+                body,
+                kind: format!("d_arc_furnace_{stage}"),
+            })
+            .collect(),
+        variables: vec![VariableRaise {
+            variable: "arc_furnace_counter".to_owned(),
+            by: 1,
+        }],
+    };
+    assert_eq!(replay("orbital_arc_furnace_1", Some(6141)), furnace(1));
+    assert_eq!(replay("orbital_arc_furnace_4", Some(6141)), furnace(4));
+    assert_eq!(
+        replay("dyson_swarm_3", Some(6138)),
+        MegastructureConstruction {
+            modifiers: vec![ConstructionModifier {
+                on: ModifierHost::Body { body: 6138 },
+                modifier: "dyson_swarm_3_mod".to_owned(),
+                days: -1,
+            }],
+            deposits: Vec::new(),
+            variables: vec![VariableRaise {
+                variable: "dyson_swarm_counter".to_owned(),
+                by: 1,
+            }],
+        }
+    );
+    assert_eq!(
+        replay("shroud_seal", None),
+        MegastructureConstruction {
+            modifiers: vec![ConstructionModifier {
+                on: ModifierHost::System,
+                modifier: "shroud_seal_modifier".to_owned(),
+                days: -1,
+            }],
+            ..MegastructureConstruction::default()
+        }
+    );
+    for (key, host) in [
+        ("dyson_sphere_5", Some(6138)),
+        ("think_tank_3", Some(6146)),
+        ("hyper_relay", None),
+    ] {
+        assert!(replay(key, host).is_empty(), "{key}");
+    }
+    let unowned = gd
+        .megastructures
+        .get("orbital_arc_furnace_4")
+        .expect("orbital_arc_furnace_4")
+        .construction
+        .replay(gd, &site, Some(6141), false);
+    assert!(unowned.construction.variables.is_empty());
+}
+
+/// A mod's construction is read the same way: a scripted effect's parameters filled in,
+/// an event it fires followed, and a limit the editor cannot judge left out and said so.
+#[test]
+fn a_construction_follows_effects_and_events_and_says_what_it_cannot() {
+    let (_dir, gd) = common::hand_written(&[
+        (
+            "common/megastructures/mod.txt",
+            "mod_forge = {
+	on_build_start = {
+		from = { change_variable = { which = mod_forges value = 2 } }
+	}
+	on_build_complete = {
+		fromfrom.planet = { mod_mark = { LEVEL = 3 } }
+		from = { country_event = { id = modforge.1 } }
+		random_system_planet = { add_modifier = { modifier = mod_random days = -1 } }
+	}
+}
+",
+        ),
+        (
+            "common/scripted_effects/mod.txt",
+            "mod_mark = {
+	add_modifier = { modifier = mod_forge_$LEVEL$_mod days = 360 }
+}
+",
+        ),
+        (
+            "events/mod.txt",
+            "namespace = modforge
+country_event = {
+	id = modforge.1
+	is_triggered_only = yes
+	immediate = {
+		fromfromfrom = {
+			solar_system = {
+				every_system_planet = {
+					limit = { is_star = no }
+					add_deposit = d_mod_forge
+				}
+				every_system_planet = {
+					limit = { has_owner = yes }
+					add_deposit = d_mod_owned
+				}
+			}
+		}
+	}
+}
+",
+        ),
+    ]);
+    let forge = &gd
+        .megastructures
+        .get("mod_forge")
+        .expect("mod_forge")
+        .construction;
+    let site = ConstructionSite {
+        system: 1,
+        bodies: vec![
+            SiteBody {
+                star: true,
+                ..body(10, "pc_g_star", &[])
+            },
+            body(11, "pc_molten", &[]),
+        ],
+        ..ConstructionSite::default()
+    };
+    let built = forge.replay(&gd, &site, Some(11), true);
+    assert_eq!(
+        built.construction,
+        MegastructureConstruction {
+            modifiers: vec![ConstructionModifier {
+                on: ModifierHost::Body { body: 11 },
+                modifier: "mod_forge_3_mod".to_owned(),
+                days: 360,
+            }],
+            deposits: vec![ConstructionDeposit {
+                body: 11,
+                kind: "d_mod_forge".to_owned(),
+            }],
+            variables: vec![VariableRaise {
+                variable: "mod_forges".to_owned(),
+                by: 2,
+            }],
+        }
+    );
+    assert_eq!(built.skipped.len(), 3, "{:?}", built.skipped);
+    assert!(
+        built.skipped[0].contains("random_system_planet"),
+        "{:?}",
+        built.skipped
+    );
+    assert!(
+        built.skipped[1].contains("planet 10: cannot judge has_owner"),
+        "{:?}",
+        built.skipped
     );
 }
