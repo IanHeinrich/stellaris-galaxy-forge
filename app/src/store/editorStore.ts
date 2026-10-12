@@ -217,13 +217,15 @@ export interface EditorState {
   ): Promise<boolean>;
   /**
    * Adds a finished megastructure of type `kind` to system `system` of the open save in one
-   * edit, at `at`, owned by the system's owner. Answers the new row's id and the construction
-   * effects the core left out, or null when it refused the add.
+   * edit, at `at`, owned by the system's owner. The planet changes class or size as the type's
+   * build changes it, unless `keepPlanet`. Answers the new row's id and the construction effects
+   * the core left out, or null when it refused the add.
    */
   addMegastructure(
     system: number,
     kind: string,
     at: MegastructurePlace,
+    keepPlanet?: boolean,
   ): Promise<{ megastructure: number; unsure: string[]; unwritten: string[] } | null>;
   /**
    * Adds the habitat a megastructure of type `kind` finishes as round body `body` of system

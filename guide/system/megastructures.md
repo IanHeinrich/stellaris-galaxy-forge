@@ -22,10 +22,20 @@ system its mining bonus and deposit, and a Dyson Swarm gives its star
 its modifier. The app reads these from your game files and mods.
 
 The game's other build effects don't run, so a Dyson Sphere doesn't
-freeze the system's planets. A planet whose class or model the
-megastructure would change stays as it is. In a system no one owns, the
+freeze the system's planets. A planet whose model the megastructure
+would change stays as it is. In a system no one owns, the
 megastructure has no owner, so effects from the owner's events don't
 apply. An Arc Furnace there adds no mining bonus.
+
+Some megastructures change the class or size of the planet they're built
+at, such as an Automated Strip Mine or the Orchid Project from
+Gigastructural Engineering. For these, the dialog shows a Planet choice
+under the stages, and they're offered on a planet only:
+
+- Change to, with the new class, is picked when the dialog opens. The
+  planet changes as it does in the game, in the same edit as the
+  megastructure.
+- Keep adds only the megastructure. The planet keeps its class and size.
 
 The app leaves out a construction's effects when it can't tell whether
 they apply, and ones it doesn't write yet, such as a modifier the
@@ -120,8 +130,8 @@ dialog says why.
 Some types are in the list greyed out. Select one to read the reason in
 the preview. Galaxy Forge can't add these yet:
 
-- Megastructures that change their planet's class or size, such as an
-  Automated Strip Mine.
+- Megastructures that change their planet's class or size in a way the
+  app can't work out from your game files, such as only on a condition.
 - Megastructures that are built as a whole with more planets or
   sections, such as an Alderson Disk.
 

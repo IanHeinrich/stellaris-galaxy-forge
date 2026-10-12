@@ -78,6 +78,23 @@ describe("adding a megastructure from the system view", () => {
     ]);
   });
 
+  it("changes the planet as the game does unless the dialog keeps it, and changes it again on the next opening", async () => {
+    const planet = { kind: "body", body: 12, star: false } as const;
+    adds().open(SYSTEM, planet);
+    expect(adds().keepPlanet).toBe(false);
+    await adds().add("think_tank_3");
+    adds().open(SYSTEM, planet);
+    adds().setKeepPlanet(true);
+    await adds().add("think_tank_3");
+    adds().open(SYSTEM, planet);
+    expect(adds().keepPlanet).toBe(false);
+
+    expect(mockedIpc.addMegastructure.mock.calls.map(([, , , keep]) => keep)).toEqual([
+      false,
+      true,
+    ]);
+  });
+
   it("opens the new megastructure's page, named as the game names it", async () => {
     adds().open(SYSTEM, { kind: "body", body: 12, star: false });
     await adds().add("think_tank_3");

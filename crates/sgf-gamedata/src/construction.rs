@@ -5,13 +5,14 @@
 //! A type's build chain is every stage from the first, following the first of each
 //! `upgrade_from`, up to the type itself. Each stage's `on_build_start` and
 //! `on_build_complete` are walked in turn, through the scripted effects they call with their
-//! parameters and the events they fire, one event deep. Four kinds of effect are kept: a
-//! timed modifier added or removed, a deposit added or removed, and an owner variable
-//! changed. They are kept on the scope they run in: the system, the body the structure is
-//! built at, every system planet passing a `limit`, or the owner. Anything else a
-//! construction does, such as a flag, a planet's class or model, an event chain or a country
-//! modifier, is not written, and a kept effect the walk cannot place is listed as
-//! unfollowed rather than guessed.
+//! parameters and the events they fire, one event deep. These effects are kept: a timed
+//! modifier added or removed, a deposit added or removed, an owner variable changed, a
+//! planet flag set or removed, and a planet's class or size changed. They are kept on the
+//! scope they run in: the system, the body the structure is built at, every system planet
+//! passing a `limit`, or the owner. Anything else a construction does, such as a planet's
+//! model, an event chain or a country modifier, is not written, and a kept effect the walk
+//! cannot place is listed as unfollowed rather than guessed. Of the class and size changes,
+//! only those of the structure's own body are written, and only when the caller asks.
 //!
 //! What a finished structure does to the shape of its system, the rows and planets it
 //! spawns and the ones it removes, is read by [`layout`] from each stage's own definition,
@@ -92,6 +93,8 @@ pub struct Unfollowed {
     pub what: String,
     /// It would run only when the structure has an owner.
     pub owned: bool,
+    /// It would change a planet's class or size.
+    pub reshapes: bool,
 }
 
 /// Where a step runs.
@@ -121,6 +124,10 @@ pub enum Effect {
     },
     SetFlag(String),
     RemoveFlag(String),
+    /// `change_pc`: the planet becomes this class.
+    ChangeClass(String),
+    /// `set_planet_size`.
+    SetSize(u32),
 }
 
 impl Effect {
@@ -128,7 +135,25 @@ impl Effect {
     fn written(&self) -> bool {
         !matches!(self, Self::SetFlag(_) | Self::RemoveFlag(_))
     }
+
+    fn reshapes(&self) -> bool {
+        matches!(self, Self::ChangeClass(_) | Self::SetSize(_))
+    }
 }
+
+/// The class and size a type's build chain leaves the planet it is built at.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, rename = "MegastructurePlanetChange")]
+pub struct PlanetChange {
+    /// The class it becomes; `None` when the chain leaves the class alone.
+    pub class: Option<String>,
+    /// The size it becomes; `None` when the chain leaves the size alone.
+    pub size: Option<u32>,
+}
+
+/// The walk cannot tell what a build chain does to the class or size of its planet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnsurePlanetChange;
 
 /// Where a line of [`Construction::summary`] lands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -230,6 +255,35 @@ impl Construction {
             }
         }
         lines.into_iter().map(|(line, _)| line).collect()
+    }
+}
+
+impl Construction {
+    /// The class and size the chain leaves the planet the structure is built at, the last of
+    /// each it sets; `None` when it changes neither. A change the walk could not place, and
+    /// one on the structure's own planet that runs only on a condition or with an owner,
+    /// cannot be told. A change to the system's other planets is not counted.
+    pub fn planet_change(&self) -> Result<Option<PlanetChange>, UnsurePlanetChange> {
+        if self.unfollowed.iter().any(|line| line.reshapes) {
+            return Err(UnsurePlanetChange);
+        }
+        let mut change = PlanetChange {
+            class: None,
+            size: None,
+        };
+        for step in self.steps.iter().filter(|step| step.effect.reshapes()) {
+            match &step.on {
+                Target::Host(guard) if always(guard) && !step.owned => {}
+                Target::Planets(_) => continue,
+                _ => return Err(UnsurePlanetChange),
+            }
+            match &step.effect {
+                Effect::ChangeClass(class) => change.class = Some(class.clone()),
+                Effect::SetSize(size) => change.size = Some(*size),
+                _ => {}
+            }
+        }
+        Ok((change.class.is_some() || change.size.is_some()).then_some(change))
     }
 }
 
@@ -366,6 +420,15 @@ impl Walk<'_> {
                 "remove_deposit" => self.keep_named(value, Effect::RemoveDeposit, &key, out),
                 "set_planet_flag" => self.keep_named(value, Effect::SetFlag, &key, out),
                 "remove_planet_flag" => self.keep_named(value, Effect::RemoveFlag, &key, out),
+                "change_pc" => self.class_change(child, src, value, out),
+                "set_planet_size" => {
+                    match value.and_then(|v| self.names.number_of(&v)).and_then(size) {
+                        Some(size) => self.keep(Effect::SetSize(size), out),
+                        None => {
+                            self.note("set_planet_size with a value that is not a size", true, out)
+                        }
+                    }
+                }
                 "change_variable" | "subtract_variable" => match self.variable(&key, child, src) {
                     Some(effect) => self.keep(effect, out),
                     None => {
@@ -450,14 +513,16 @@ impl Walk<'_> {
         walk
     }
 
-    /// `condition` with each `exists` answered that names a scope of the walk: the system
-    /// and the structure always exist, and one that is the owner becomes `exists = from`,
+    /// `condition` with each `exists` answered that names a scope of the walk: the system,
+    /// the structure and the planet it is built at always exist, and one that is the owner becomes `exists = from`,
     /// which [`asks_owner`] and a body read as the structure having an owner.
     fn resolved(&self, condition: Condition) -> Condition {
         match condition {
             Condition::Exists(scope) => match self.scope_of(&scope.to_ascii_lowercase()) {
                 Some(Scope::Owner) => Condition::Exists(OWNER_EXISTS.to_owned()),
-                Some(Scope::System | Scope::Megastructure) => Condition::Always(true),
+                Some(Scope::System | Scope::Megastructure | Scope::Host(_)) => {
+                    Condition::Always(true)
+                }
                 _ => Condition::Exists(scope),
             },
             Condition::Not(inner) => Condition::Not(Box::new(self.resolved(*inner))),
@@ -610,6 +675,28 @@ impl Walk<'_> {
         Some(Effect::ChangeVariable { variable, by })
     }
 
+    /// `change_pc = class`, or the block form with its `class`. The block form that keeps the
+    /// planet's model with `inherit_entity = yes` is unfollowed.
+    fn class_change(&self, node: &Node, src: &[u8], value: Option<String>, out: &mut Construction) {
+        let field = |name: &str| {
+            node.find(name, src)?
+                .scalar_str(src)
+                .map(|v| self.substitute(v))
+        };
+        let class = match value {
+            Some(class) => Some(class),
+            None if field("inherit_entity").as_deref() == Some("yes") => {
+                self.note("change_pc keeping the planet's model", true, out);
+                return;
+            }
+            None => field("class"),
+        };
+        match class.filter(|c| !c.is_empty() && !c.contains('$')) {
+            Some(class) => self.keep(Effect::ChangeClass(class), out),
+            None => self.note("change_pc with no plain class", true, out),
+        }
+    }
+
     fn keep_named(
         &self,
         value: Option<String>,
@@ -630,18 +717,23 @@ impl Walk<'_> {
             (Scope::Owner | Scope::Megastructure | Scope::Other(_), _)
             | (_, Effect::ChangeVariable { .. }) => {
                 if effect.written() {
-                    self.unfollowed(&format!("{effect:?} on {}", self.scope_name()), out);
+                    let what = format!("{effect:?} on {}", self.scope_name());
+                    self.note(&what, effect.reshapes(), out);
                 }
                 return;
             }
             (Scope::System, Effect::SetFlag(_) | Effect::RemoveFlag(_)) => return,
+            (Scope::System, effect) if effect.reshapes() => {
+                self.note(&format!("{effect:?} on the system"), true, out);
+                return;
+            }
             (Scope::System, _) => Target::System,
             (Scope::Host(guard), _) => Target::Host(guard.clone()),
             (Scope::Planets(guard), _) => Target::Planets(guard.clone()),
         };
         if let Some(doubt) = &self.doubt {
             if effect.written() {
-                self.unfollowed(&format!("{effect:?} {doubt}"), out);
+                self.note(&format!("{effect:?} {doubt}"), effect.reshapes(), out);
             }
             return;
         }
@@ -655,12 +747,22 @@ impl Walk<'_> {
 
     /// List `what` as unfollowed once, owned only when every path to it is.
     fn unfollowed(&self, what: &str, out: &mut Construction) {
+        self.note(what, false, out);
+    }
+
+    /// List `what` as [`Self::unfollowed`] does, marked when it would change a planet's
+    /// class or size.
+    fn note(&self, what: &str, reshapes: bool, out: &mut Construction) {
         let what = format!("{}: {what}", self.origin);
         match out.unfollowed.iter_mut().find(|line| line.what == what) {
-            Some(line) => line.owned &= self.owned,
+            Some(line) => {
+                line.owned &= self.owned;
+                line.reshapes |= reshapes;
+            }
             None => out.unfollowed.push(Unfollowed {
                 what,
                 owned: self.owned,
+                reshapes,
             }),
         }
     }
@@ -690,6 +792,11 @@ impl Walk<'_> {
         }
         out
     }
+}
+
+/// `value` as a planet size: a whole number from 1.
+fn size(value: f64) -> Option<u32> {
+    (value >= 1.0 && value.fract() == 0.0 && value <= f64::from(u32::MAX)).then_some(value as u32)
 }
 
 /// What a [`Walk::resolved`] guard asks: `Some(true)` that the owner exists and nothing
@@ -739,6 +846,8 @@ pub struct Built {
 /// One body as a step's condition judges it, as the replay has left it so far.
 struct Body<'a> {
     site: &'a SiteBody,
+    /// Its class key, and what the install says of that class.
+    class_key: String,
     class: Option<&'a crate::registries::planet_classes::PlanetClassDef>,
     deposits: Vec<String>,
     modifiers: Vec<String>,
@@ -752,7 +861,7 @@ impl Subject for Body<'_> {
     fn leaf(&self, leaf: &Condition) -> Option<bool> {
         let class = self.class;
         match leaf {
-            Condition::PlanetClass(key) => Some(&self.site.class == key),
+            Condition::PlanetClass(key) => Some(&self.class_key == key),
             Condition::Star(want) => Some(self.site.star == *want),
             Condition::Moon(want) => Some(self.site.moon == *want),
             Condition::Asteroid(want) => Some(class?.asteroid == *want),
@@ -790,13 +899,36 @@ impl Construction {
     /// Replay the chain against `site`, the structure built at body `host` (none for one at
     /// a point of its own) and owned when `has_owner`: the timed modifiers, deposits and
     /// owner variables it leaves that the system did not have, and what else it would
-    /// change that is not written.
+    /// change that is not written. The class and size changes of its planet are not made.
     pub fn replay(
         &self,
         gd: &GameData,
         site: &ConstructionSite,
         host: Option<u32>,
         has_owner: bool,
+    ) -> Built {
+        self.replay_as(gd, site, host, has_owner, false)
+    }
+
+    /// Replay the chain as [`Self::replay`] does, with the class changes of the structure's
+    /// own planet made, so that what follows them sees the planet as they leave it.
+    pub fn replay_changing_planet(
+        &self,
+        gd: &GameData,
+        site: &ConstructionSite,
+        host: Option<u32>,
+        has_owner: bool,
+    ) -> Built {
+        self.replay_as(gd, site, host, has_owner, true)
+    }
+
+    fn replay_as(
+        &self,
+        gd: &GameData,
+        site: &ConstructionSite,
+        host: Option<u32>,
+        has_owner: bool,
+        changes_planet: bool,
     ) -> Built {
         let mut unwritten: Vec<String> = Vec::new();
         let mut unsure: Vec<String> = self
@@ -810,6 +942,7 @@ impl Construction {
             .iter()
             .map(|body| Body {
                 site: body,
+                class_key: body.class.clone(),
                 class: gd.planet_classes.get(&body.class),
                 deposits: body.deposits.clone(),
                 modifiers: body.modifiers.clone(),
@@ -856,7 +989,15 @@ impl Construction {
                             continue;
                         }
                         match guard.evaluate(&*body) {
-                            Some(true) => apply(body, &step.effect, &mut days),
+                            Some(true) => {
+                                if let (Target::Host(_), Effect::ChangeClass(class), true) =
+                                    (&step.on, &step.effect, changes_planet)
+                                {
+                                    body.class_key = class.clone();
+                                    body.class = gd.planet_classes.get(class);
+                                }
+                                apply(body, &step.effect, &mut days);
+                            }
                             Some(false) => {}
                             None => {
                                 let mut keys = std::collections::BTreeSet::new();

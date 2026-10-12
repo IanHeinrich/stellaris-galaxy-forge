@@ -301,12 +301,18 @@ fn a_completion_swaps_its_row_by_flag_and_star_class() {
 #[test]
 fn a_stage_that_always_swaps_takes_the_swapped_types_placement() {
     let (_dir, gd) = fixture();
-    let changes_body = Placement::Unsupported {
-        why: Unsupported::ChangesBody,
+    let unknown_class = Placement::Unsupported {
+        why: Unsupported::FixedClass {
+            class: "pc_fx_barren".to_owned(),
+        },
     };
-    assert_eq!(mega(&gd, "fx_gun_1").placement, changes_body);
+    assert_eq!(
+        mega(&gd, "fx_gun_1").placement,
+        unknown_class,
+        "the fixture defines no pc_fx_barren"
+    );
     assert_eq!(mega(&gd, "fx_gun_1_fake").swaps, [swap("fx_gun_1")]);
-    assert_eq!(mega(&gd, "fx_gun_1_fake").placement, changes_body);
+    assert_eq!(mega(&gd, "fx_gun_1_fake").placement, unknown_class);
     assert_eq!(
         mega(&gd, "fx_gun_0").placement,
         Placement::Body { star_only: false }

@@ -1,5 +1,7 @@
 use super::Session;
-use crate::format::save::write::{add_ring_world, copy_bodies, megastructure_links, move_planet};
+use crate::format::save::write::{
+    add_megastructure, add_ring_world, copy_bodies, megastructure_links, move_planet,
+};
 use crate::format::scenario::effect;
 use crate::ops::{NewBody, NewRingWorld, Op, OpError, Plan};
 use crate::search;
@@ -28,6 +30,21 @@ impl Session {
         system: u32,
     ) -> Result<crate::format::save::site::ConstructionSite, OpError> {
         crate::format::save::site::read(self, system)
+    }
+
+    /// What the [`Op::Batch`] that adds megastructure `shown`, as the install names it, at
+    /// save planet `body` and changes the planet as the megastructure's build does, says in
+    /// the undo list: "Added the Yggdrasil Orchid at Gas Giant Beta #6 and made it a Food
+    /// Giant". `class` is the new class as the install names it, and `size` the new size;
+    /// each is `None` when it stays.
+    pub fn megastructure_planet_change_description(
+        &self,
+        shown: &str,
+        body: u32,
+        class: Option<&str>,
+        size: Option<u32>,
+    ) -> Result<String, OpError> {
+        add_megastructure::planet_change_description(self, shown, body, class, size)
     }
 
     /// What clearing save system `system` for a ring world takes, as the game's frame

@@ -1,8 +1,12 @@
 //! Adding a megastructure of any type the install and its mods define to a system of the
 //! open save, placed as its type says.
 
+use sgf_core::entity::get_planet_page;
 use sgf_core::ops::{MegastructureConstruction, MegastructurePlace, NewBypass, Op};
+use sgf_core::session::Session;
 use sgf_core::views::{ErrorKind, SgfError};
+use sgf_gamedata::GameData;
+use sgf_gamedata::construction::PlanetChange;
 use sgf_gamedata::registries::megastructures::{MegastructureDef, Placement, Unsupported};
 use tauri::{AppHandle, Runtime};
 
@@ -17,15 +21,18 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added megastructure";
 /// its planet marks it, and an Orbital Ring ruin flags its planet as the game does. The timed
 /// modifiers, deposits and owner counters its build chain adds in that system are written
 /// with it. The answer lists the chain's effects that were left out: those the editor could
-/// not tell apply, and those that apply but that it does not write. A type built only around
-/// a star is refused on any other body. A type the install does not define, or one the editor does not add, is
-/// refused with the reason.
+/// not tell apply, and those that apply but that it does not write. A type whose chain
+/// changes the class or size of its planet changes the planet too, as the game does, in the
+/// same edit; with `keep_planet` the planet stays as it is. A type built only around a star
+/// is refused on any other body. A type the install does not define, or one the editor does
+/// not add, is refused with the reason.
 #[tauri::command]
 pub async fn add_megastructure<R: Runtime>(
     app: AppHandle<R>,
     system: u32,
     kind: String,
     place: MegastructurePlace,
+    keep_planet: Option<bool>,
 ) -> Result<AddedMegastructure, SgfError> {
     let gd = game_data(&app, "add a megastructure")?;
     let def = gd.megastructures.get(&kind).ok_or_else(|| {
@@ -40,6 +47,10 @@ pub async fn add_megastructure<R: Runtime>(
         MegastructurePlace::Body { body } | MegastructurePlace::Beside { body, .. } => Some(body),
         MegastructurePlace::Free { .. } => None,
     };
+    let change = match (host, &def.planet_change, keep_planet) {
+        (Some(body), Some(change), None | Some(false)) => Some((body, change.clone())),
+        _ => None,
+    };
     with_session(app, move |mut guard| {
         let session = require(guard.as_mut(), is_save, ONLY_A_SAVE_ADDS)?;
         let owner = session
@@ -48,11 +59,24 @@ pub async fn add_megastructure<R: Runtime>(
             .get(&system)
             .and_then(|node| node.owner);
         let site = session.construction_site(system)?;
-        let built = def.construction.replay(&gd, &site, host, owner.is_some());
+        let built = match change {
+            Some(_) => def
+                .construction
+                .replay_changing_planet(&gd, &site, host, owner.is_some()),
+            None => def.construction.replay(&gd, &site, host, owner.is_some()),
+        };
         let left_out = built.unsure.len() + built.unwritten.len();
-        let op = add_op(&def, system, place, owner, built.construction, left_out);
+        let add = add_op(&def, system, place, owner, built.construction, left_out);
+        let op = match change {
+            Some((body, change)) => with_planet_change(session, &gd, &def.key, body, &change, add)?,
+            None => add,
+        };
         let result = session.apply(op)?;
-        let Op::RemoveMegastructure { megastructure, .. } = result.inverse else {
+        let removed = match &result.inverse {
+            Op::Batch { ops, .. } => ops.iter().find_map(added_row),
+            inverse => added_row(inverse),
+        };
+        let Some(megastructure) = removed else {
             return Err(SgfError::new(
                 ErrorKind::Op,
                 "the add named no new megastructure",
@@ -66,6 +90,66 @@ pub async fn add_megastructure<R: Runtime>(
         })
     })
     .await
+}
+
+fn added_row(inverse: &Op) -> Option<u32> {
+    match inverse {
+        Op::RemoveMegastructure { megastructure, .. } => Some(*megastructure),
+        _ => None,
+    }
+}
+
+/// `add` with planet `body` given the class and size `change` names, as one edit. The class
+/// and size go first: the core changes no class of a planet that has a megastructure, and
+/// the planet ends the same either way. A class or size the planet has already is left out,
+/// and so is the batch when nothing else is left.
+fn with_planet_change(
+    session: &Session,
+    gd: &GameData,
+    kind: &str,
+    body: u32,
+    change: &PlanetChange,
+    add: Op,
+) -> Result<Op, SgfError> {
+    let planet = get_planet_page(session.doc(), body)
+        .map_err(|e| SgfError::new(ErrorKind::Op, e.to_string()))?;
+    let rule = |class: &str| {
+        gd.planet_class_rule(class).ok_or_else(|| {
+            SgfError::new(
+                ErrorKind::Op,
+                format!("the install has no planet class {class}"),
+            )
+        })
+    };
+    let mut ops = Vec::new();
+    let class = change
+        .class
+        .as_deref()
+        .filter(|&class| class != planet.class);
+    if let Some(class) = class {
+        ops.push(Op::SetBodyClass {
+            body,
+            from: rule(&planet.class)?,
+            to: rule(class)?,
+            look: None,
+        });
+    }
+    let size = change.size.filter(|&size| planet.size != Some(size));
+    if let Some(size) = size {
+        ops.push(Op::SetBodySize { body, size });
+    }
+    if ops.is_empty() {
+        return Ok(add);
+    }
+    ops.push(add);
+    let class_name = class.map(|class| gd.loc.name_or_readable(class));
+    let description = session.megastructure_planet_change_description(
+        &gd.loc.name_or_readable(kind),
+        body,
+        class_name.as_deref(),
+        size,
+    )?;
+    Ok(Op::Batch { description, ops })
 }
 
 /// Refuse a type the editor does not add, or one whose placement `place` does not match.
@@ -132,7 +216,10 @@ fn unsupported(why: &Unsupported) -> String {
             "building it makes a starbase, which the editor does not write".to_owned()
         }
         Unsupported::ChangesBody => {
-            "it changes the class or size of its planet, which the editor does not write".to_owned()
+            "it changes the class or size of its planet in a way the editor cannot tell".to_owned()
+        }
+        Unsupported::FixedClass { class } => {
+            format!("it makes its planet a {class}, which the editor gives no planet")
         }
         Unsupported::WholeStructure { .. } => {
             "it is built with more planets or sections, which the editor does not write".to_owned()

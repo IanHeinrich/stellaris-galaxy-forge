@@ -136,10 +136,10 @@ export function addSystemActions(
       });
     },
 
-    async addMegastructure(system, kind, at) {
+    async addMegastructure(system, kind, at, keepPlanet = false) {
       let added: { megastructure: number; unsure: string[]; unwritten: string[] } | null = null;
       const result = await runEdit(async () => {
-        const { edit, ...answer } = await ipc.addMegastructure(system, kind, at);
+        const { edit, ...answer } = await ipc.addMegastructure(system, kind, at, keepPlanet);
         added = answer;
         return edit;
       });

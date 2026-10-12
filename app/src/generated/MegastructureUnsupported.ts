@@ -3,4 +3,4 @@
 /**
  * Why the editor does not add a type.
  */
-export type MegastructureUnsupported = { "kind": "bypass", bypass: string, } | { "kind": "ring_world" } | { "kind": "becomes_starbase" } | { "kind": "changes_body" } | { "kind": "whole_structure", star_only: boolean, };
+export type MegastructureUnsupported = { "kind": "bypass", bypass: string, } | { "kind": "ring_world" } | { "kind": "becomes_starbase" } | { "kind": "changes_body" } | { "kind": "fixed_class", class: string, } | { "kind": "whole_structure", star_only: boolean, };

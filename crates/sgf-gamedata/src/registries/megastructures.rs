@@ -6,12 +6,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::MegastructureDismantle;
+use sgf_core::ops::{ClassChange, MegastructureDismantle};
 use ts_rs::TS;
 
 use sgf_core::cst::Node;
 
-use crate::construction::{self, Construction};
+use crate::construction::{self, Construction, PlanetChange, UnsurePlanetChange};
 use crate::dismantle;
 use crate::scripts::ScriptIndex;
 use sgf_core::format::save::ring_world;
@@ -90,6 +90,9 @@ pub struct MegastructureDef {
     pub offer: Offer,
     /// Where the editor adds a row of this type, read once every type is loaded.
     pub placement: Placement,
+    /// The class or size its build chain gives the planet it stands at, which the editor
+    /// can write with the row; `None` for a type that changes neither.
+    pub planet_change: Option<PlanetChange>,
     /// What its `on_dismantle_complete` takes back from its system and owner.
     pub dismantle: MegastructureDismantle,
     /// The mod whose file won for this type; `None` for the base game.
@@ -345,8 +348,12 @@ pub enum Unsupported {
     /// Building it makes a starbase.
     BecomesStarbase,
     /// Building it, or a stage it is built over, changes the class or size of the planet it
-    /// stands at.
+    /// stands at in a way the editor cannot tell: on a condition, or through effects it
+    /// cannot follow.
     ChangesBody,
+    /// Building it makes its planet a class the editor gives no planet, such as an
+    /// artificial one.
+    FixedClass { class: String },
     /// It is part of a structure of several rows or planets that its chain spawns, such as an
     /// Alderson disk. Tied to a star only when `star_only`.
     WholeStructure { star_only: bool },
@@ -417,6 +424,7 @@ impl FromDef for MegastructureDef {
             swaps: Vec::new(),
             offer: Offer::Offered,
             placement: Placement::Body { star_only: false },
+            planet_change: None,
             dismantle: MegastructureDismantle::default(),
             source: None,
             base_game: true,
@@ -449,7 +457,9 @@ fn script_only(def: &Def) -> bool {
         .is_some_and(|always| always.scalar_str(&def.src) == Some("no"))
 }
 
-/// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A
+/// `types` with each type's [`Placement`] resolved; the first rule that matches wins. A type
+/// whose chain changes its planet is placed as any other when the change can be told, with
+/// the change as its [`MegastructureDef::planet_change`]. A
 /// variant placed around a body takes the placement of the first stage of the working type
 /// it belongs to, as [`families`] links them, when that stage too stands around a body.
 /// Every stage and variant of a gateway or a relay stands where its bypass does. A stage
@@ -464,7 +474,7 @@ pub(crate) fn placed(
     let whole = whole_structures(&types);
     let on_stars = star_stages(&types);
     let rings = ring_worlds(&types, &families);
-    let resolved: Vec<(String, Placement, bool, Option<Family>)> = types
+    let resolved: Vec<Resolved> = types
         .iter()
         .map(|def| {
             let flags = stages(&types, def).any(|stage| {
@@ -475,6 +485,7 @@ pub(crate) fn placed(
                         .iter()
                         .any(|effect| flags_body(effect, scripts, 1))
             });
+            let mut change = None;
             let own = match placement(&types, def, &on_stars, &rings) {
                 Placement::Body { .. } if bypassed.contains(&def.key) => Placement::Free {
                     outside_gravity_well: true,
@@ -486,11 +497,13 @@ pub(crate) fn placed(
                         why: Unsupported::WholeStructure { star_only },
                     }
                 }
-                Placement::Body { star_only: false }
-                    if stages(&types, def).any(|stage| changes_body(stage, scripts)) =>
-                {
-                    Placement::Unsupported {
-                        why: Unsupported::ChangesBody,
+                Placement::Body { star_only: false } => {
+                    match planet_change(&types, def, scripts, classes) {
+                        Ok(told) => {
+                            change = told;
+                            Placement::Body { star_only: false }
+                        }
+                        Err(why) => Placement::Unsupported { why },
                     }
                 }
                 own => own,
@@ -504,18 +517,28 @@ pub(crate) fn placed(
                 }),
                 _ => None,
             };
-            match taken {
-                Some((placement, family)) => (def.key.clone(), placement, flags, Some(family)),
-                None => (def.key.clone(), own, flags, None),
+            let (placement, family) = match taken {
+                Some((placement, family)) => (placement, Some(family)),
+                None => (own, None),
+            };
+            Resolved {
+                key: def.key.clone(),
+                placement,
+                change,
+                flags,
+                family,
             }
         })
         .collect();
-    for (key, placement, flags, family) in resolved {
-        let variant_of = families.get(&key).map(|family| family.working.clone());
-        if let Some(def) = types.get_mut(&key) {
-            def.placement = placement;
-            def.sets_has_megastructure = flags;
-            def.family = family;
+    for resolved in resolved {
+        let variant_of = families
+            .get(&resolved.key)
+            .map(|family| family.working.clone());
+        if let Some(def) = types.get_mut(&resolved.key) {
+            def.placement = resolved.placement;
+            def.planet_change = resolved.change;
+            def.sets_has_megastructure = resolved.flags;
+            def.family = resolved.family;
             def.variant_of = variant_of;
         }
     }
@@ -536,19 +559,85 @@ pub(crate) fn placed(
             def.planet_only = true;
         }
     }
-    let swapped: Vec<(String, Placement)> = types
+    let swapped: Vec<(String, Placement, Option<PlanetChange>)> = types
         .iter()
         .filter_map(|def| {
             let swap = def.swaps.iter().find(|swap| swap.always())?;
-            Some((def.key.clone(), types.get(&swap.into)?.placement.clone()))
+            let into = types.get(&swap.into)?;
+            Some((
+                def.key.clone(),
+                into.placement.clone(),
+                into.planet_change.clone(),
+            ))
         })
         .collect();
-    for (key, placement) in swapped {
+    for (key, placement, change) in swapped {
         if let Some(def) = types.get_mut(&key) {
             def.placement = placement;
+            def.planet_change = change;
         }
     }
     types
+}
+
+/// What [`placed`] reads of one type before writing it back.
+struct Resolved {
+    key: String,
+    placement: Placement,
+    change: Option<PlanetChange>,
+    flags: bool,
+    family: Option<Family>,
+}
+
+/// The class or size `def`'s build chain gives the planet it stands at, as its construction
+/// walk keeps it. When a stage of the chain changes the planet, as [`changes_body`] reads
+/// it, a change the walk cannot tell, or none where it should find one, refuses the type, and
+/// so does a class no planet is given. A stage of another chain the type can be built over
+/// does not count: the editor builds the first.
+fn planet_change(
+    types: &MegastructureTypes,
+    def: &MegastructureDef,
+    scripts: &ScriptIndex,
+    classes: &PlanetClasses,
+) -> Result<Option<PlanetChange>, Unsupported> {
+    let flagged = chain(types, def).any(|stage| changes_body(stage, scripts));
+    let change = match def.construction.planet_change() {
+        Ok(Some(change)) => change,
+        Ok(None) | Err(UnsurePlanetChange) if !flagged => return Ok(None),
+        Ok(None) | Err(UnsurePlanetChange) => return Err(Unsupported::ChangesBody),
+    };
+    let fixed = change.class.as_ref().filter(|class| {
+        classes
+            .get(class)
+            .is_none_or(|def| def.change() == ClassChange::Never)
+    });
+    match fixed {
+        Some(_) if !flagged => Ok(None),
+        Some(class) => Err(Unsupported::FixedClass {
+            class: class.clone(),
+        }),
+        None => Ok(Some(change)),
+    }
+}
+
+/// `def` and the stages it is built over, following the first of each `upgrade_from`, as its
+/// construction is read.
+fn chain<'t>(
+    types: &'t MegastructureTypes,
+    def: &'t MegastructureDef,
+) -> impl Iterator<Item = &'t MegastructureDef> {
+    let mut seen = vec![def];
+    while let Some(earlier) = seen
+        .last()
+        .and_then(|stage| stage.upgrade_from.first())
+        .and_then(|key| types.get(key))
+    {
+        if seen.iter().any(|s| s.key == earlier.key) {
+            break;
+        }
+        seen.push(earlier);
+    }
+    seen.into_iter()
 }
 
 /// The first stages built only around a star: those whose `placement_rules` ask for one, and

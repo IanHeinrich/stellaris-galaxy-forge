@@ -26,6 +26,7 @@ import {
   clearingUnread,
   clearingWarning,
 } from "../../lib/ringWorldAdd";
+import { PLANET_KEPT_NOTE, planetChangeAt, planetChangeNote } from "../../lib/planetChangeAdd";
 import {
   megastructureDescriptionKeys,
   megastructurePreview,
@@ -49,6 +50,7 @@ import {
   MegastructurePreviewPane,
   MegastructureStages,
 } from "./MegastructureBrowser";
+import { PlanetChangePicks } from "./PlanetChangePicks";
 import { RingWorldPicks } from "./RingWorldPicks";
 import "./overlays.css";
 
@@ -88,6 +90,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const clearing = useMegastructureAddStore((s) => s.clearing);
   const clearingError = useMegastructureAddStore((s) => s.clearingError);
   const loadClearing = useMegastructureAddStore((s) => s.loadClearing);
+  const keepPlanet = useMegastructureAddStore((s) => s.keepPlanet);
   const { system, spot } = prompt;
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
@@ -128,6 +131,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const ring = found?.stage.ring === true;
+  const planetChange = found?.stage.refused === null ? planetChangeAt(type, spot) : null;
+  const spotClass = spot.kind === "body" ? (spot.class ?? null) : null;
+  const planetText = spot.kind === "body" ? bodyName(spot.body)?.text : undefined;
+  const planetNote =
+    planetChange === null
+      ? ""
+      : ` ${keepPlanet ? PLANET_KEPT_NOTE : planetChangeNote(planetText ?? "The planet", planetChange, names)}`;
   const size = found?.chain.kind === "ring" ? found.entry.size : null;
   const nameOf = (body: number) => bodyName(body)?.text ?? `#${body}`;
   const clearBlocked =
@@ -227,6 +237,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                       clearBlocked={clearBlocked}
                     />
                   )}
+                  {planetChange !== null && (
+                    <PlanetChangePicks
+                      change={planetChange}
+                      planetClass={spotClass}
+                      names={names}
+                    />
+                  )}
                 </div>
               )}
               {found !== null && (
@@ -261,6 +278,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               {type?.habitat && type.habitat_orbital
                 ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
                 : ""}
+              {ring ? "" : planetNote}
             </div>
           )}
         </div>
