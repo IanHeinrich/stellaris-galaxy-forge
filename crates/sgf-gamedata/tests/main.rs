@@ -34,6 +34,7 @@ mod install;
 mod layering;
 mod localisation;
 mod look_only_classes;
+mod megastructure_layouts;
 mod megastructures;
 mod model_sprites;
 mod naming;
