@@ -101,7 +101,7 @@ fn a_fixture_systems_details_are_what_its_initializer_defines() {
         [("fixture_gateway", None)]
     );
     let starbase = details.starbase.expect("create_starbase");
-    assert_eq!(starbase.level, "starbase_fixture");
+    assert_eq!(starbase.level, "starbase_level_fixture");
     assert_eq!(starbase.modules, ["shipyard"]);
     assert_eq!(starbase.buildings, ["fixture_building"]);
     assert!(starbase.shipyard && starbase.owner.is_none());

@@ -481,6 +481,10 @@ fn a_culture_without_a_model_of_its_own_draws_its_fallbacks() {
         "what no empire owns draws the bare entity"
     );
     assert!(
+        gd.model_bounds("model:none:pair_entity").is_ok(),
+        "what no empire owns draws mammalian_01's model where there is no bare entity"
+    );
+    assert!(
         close(long("avian_01"), 4.0, 1e-4),
         "a culture with no box of its own draws mammalian_01's before the bare one"
     );

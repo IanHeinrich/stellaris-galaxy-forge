@@ -158,7 +158,7 @@ fn a_home_system_a_megastructure_and_a_starbase_come_through() {
         .initializer_details(3, "fallen_hive_war_2", None)
         .expect("a fallen empire system");
     let starbase = fallen.starbase.expect("create_starbase");
-    assert_eq!(starbase.level, "starbase_outpost");
+    assert_eq!(starbase.level, "starbase_level_outpost");
     assert!(!starbase.shipyard);
     assert!(starbase.owner.is_none() && starbase.name_key.is_empty());
 }

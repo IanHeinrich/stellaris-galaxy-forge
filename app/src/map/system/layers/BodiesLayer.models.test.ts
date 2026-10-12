@@ -86,6 +86,37 @@ describe("a habitat or a ring world segment drawn from its model", () => {
     layer.destroy();
   });
 
+  it("shows nothing of a ring world segment while its turned model bakes, then the model", async () => {
+    decodeByKey();
+    textureFetch.model = (key) => (key.startsWith("model:") ? PLACEMENT : undefined);
+    const segment = saveBody(4, SEGMENT.key, [0, 45], 45, 10, SUN);
+    const layer = new BodiesLayer(blankSceneTextures());
+    layer.rebuild(classedContext([segment], CLASSES));
+    viewport(layer, 4);
+    const holder = holderAt(layer, 0, 45);
+    const shown = () =>
+      ["model", "disc", "art", "lit", "glow"].filter((label) => part(holder, label)?.visible);
+    expect(shown()).toEqual([]);
+
+    await answerFetch();
+    await until(() => expect(shown()).toEqual(["model"]));
+    layer.destroy();
+  });
+
+  it("keeps a ring world segment's disc where its model cannot be baked", async () => {
+    decodeByKey();
+    textureFetch.mode = "views";
+    textureFetch.fails = (key) => key.startsWith("model:");
+    const segment = saveBody(4, SEGMENT.key, [0, 45], 45, 10, SUN);
+    const layer = new BodiesLayer(blankSceneTextures());
+    layer.rebuild(classedContext([segment], CLASSES));
+    viewport(layer, 4);
+    const holder = holderAt(layer, 0, 45);
+    await until(() => expect(part(holder, "disc")?.visible).toBe(true));
+    expect(part(holder, "model")?.visible).toBe(false);
+    layer.destroy();
+  });
+
   it("hides its shading, haze and ring while the model shows", async () => {
     decodeByKey();
     textureFetch.model = (key) => (key.startsWith("model:") ? PLACEMENT : undefined);

@@ -401,6 +401,7 @@ impl Format for Save {
             planet_moves: whole_entries,
             add_bodies: whole_entries,
             remove_bodies: whole_entries,
+            structures: true,
             remove_megastructures: whole_entries,
             planet_classes: whole_entries,
             modifiers: whole_entries,

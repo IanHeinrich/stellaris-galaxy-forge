@@ -118,11 +118,16 @@ function onModel(s: SceneStructure, at: Pt): boolean {
   return across * across + along * along <= 1;
 }
 
+/** Whether a click can pick `s`: anything but a stand-in for a structure the game places at random. */
+function pickable(s: SceneStructure): boolean {
+  return !s.chance.random;
+}
+
 /** The megastructure or starbase whose landed model sprite covers the world point `at`; the nearest point wins. */
 function structureOnModel(structures: readonly SceneStructure[], at: Pt): SceneStructure | null {
   let best: SceneStructure | null = null;
   let bestDistance = Infinity;
-  for (const s of structures) {
+  for (const s of structures.filter(pickable)) {
     const distance = Math.hypot(s.x - at.x, s.y - at.y);
     if (onModel(s, at) && distance < bestDistance) {
       best = s;
@@ -151,7 +156,7 @@ export function pickStructure(
 ): SceneTarget | null {
   let best: SceneStructure | null = null;
   let bestPx = Infinity;
-  for (const s of structures) {
+  for (const s of structures.filter(pickable)) {
     const px = Math.hypot(s.x - at.x, s.y - at.y) * cam.scale;
     if ((px <= PICK_RADIUS_PX || onModel(s, at)) && px < bestPx) {
       best = s;

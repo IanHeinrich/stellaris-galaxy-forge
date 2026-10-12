@@ -23,7 +23,7 @@ import {
 } from "./layerGroups";
 
 /** Layers only a save can answer for, which a scenario's groups therefore leave out. */
-const SAVE_ONLY: readonly LayerId[] = ["waylines", "precursors", "heights", "megastructures"];
+const SAVE_ONLY: readonly LayerId[] = ["waylines", "precursors", "heights"];
 
 describe("layer groups", () => {
   it("assigns every layer a scenario can draw to exactly one of its three groups", () => {
@@ -36,6 +36,7 @@ describe("layer groups", () => {
     expect(sourceOf("lanes", "scenario")).toBe("scenario");
     expect(sourceOf("initializers", "scenario")).toBe("scenario");
     expect(sourceOf("special", "scenario")).toBe("initializers");
+    expect(sourceOf("megastructures", "scenario")).toBe("initializers");
     expect(sourceOf("colonies", "scenario")).toBe("initializers");
     expect(sourceOf("owners", "scenario")).toBe("initializers");
     expect(sourceOf("claims", "scenario")).toBe("scripts");

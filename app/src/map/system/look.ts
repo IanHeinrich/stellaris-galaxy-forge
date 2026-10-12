@@ -61,9 +61,14 @@ export interface BodyLook {
   /**
    * The texture key of the game model drawn in place of its disc, at the model's own size: a
    * habitat's or a ring world segment's. Its disc and icon show while the model bakes or where it
-   * cannot. Null for any other body.
+   * cannot, unless `waitsForModel`. Null for any other body.
    */
   readonly model: string | null;
+  /**
+   * Nothing of it is drawn while its model bakes: a ring world segment, whose disc would stand
+   * in unturned. Its disc and icon still show where the model cannot be baked.
+   */
+  readonly waitsForModel: boolean;
 }
 
 function classTint(planetClass: string, starClass: string | null): number {
@@ -93,6 +98,8 @@ export interface LookOf {
   readonly shatterSeed?: number | null;
   /** The texture key of the model drawn in place of its disc. */
   readonly bodyModel?: string | null;
+  /** Its model is a ring world segment's, which nothing stands in for while it bakes. */
+  readonly segment?: boolean;
 }
 
 /**
@@ -112,6 +119,7 @@ export function bodyLook({
   model = null,
   shatterSeed = null,
   bodyModel = null,
+  segment = false,
 }: LookOf): BodyLook {
   const blackHole = starClass !== null && starGlyph(starClass).ring;
   const luminous = /astral_scar/.test(planetClass);
@@ -122,6 +130,7 @@ export function bodyLook({
   const seed = starClass === null && baked ? shatterSeed : null;
   const shattered = seed !== null;
   const modelKeys = model !== null && starClass === null ? [`planet_model:${model}`] : [];
+  const shownModel = starClass === null && !drawn ? bodyModel : null;
   const keys =
     seed !== null
       ? [shatteredDiscKey(planetClass, seed)]
@@ -137,6 +146,7 @@ export function bodyLook({
     luminous,
     gloss: !/gas_giant/.test(planetClass),
     glaze: ASTEROID_GLAZES.find(([pattern]) => pattern.test(planetClass))?.[1] ?? null,
-    model: starClass === null && !drawn ? bodyModel : null,
+    model: shownModel,
+    waitsForModel: shownModel !== null && segment,
   };
 }

@@ -8,6 +8,8 @@ vi.mock("../../store/systemGeometry", async (original) => ({
 }));
 
 import { Texture, type Renderer } from "pixi.js";
+import { SCENARIO_CAPABILITIES } from "../../lib/capabilities";
+import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useDetailsStore } from "../../store/detailsStore";
 import { useGalaxyStore } from "../../store/galaxyStore";
 import { useGameDataStore } from "../../store/gameDataStore";
@@ -15,7 +17,14 @@ import { useInspectorStore } from "../../store/inspectorStore";
 import { useMapChromeStore } from "../../store/mapChromeStore";
 import { useSceneStore } from "../../store/sceneStore";
 import { applyGeometry } from "../../store/systemGeometry";
-import { byId, name, placedNode, saveBody, systemDetails } from "../../test/builders";
+import {
+  byId,
+  megastructureSummary,
+  name,
+  placedNode,
+  saveBody,
+  systemDetails,
+} from "../../test/builders";
 import { recordingCanvas, stubWindowKeys } from "../../test/canvas";
 import { bodySpawn } from "../../test/spawn";
 import { EARTH, SUN, SYSTEM, stubTextMeasurement } from "./drawFixture";
@@ -244,6 +253,56 @@ describe("the system scene's name plates", () => {
     fire("pointerup", earth.x, earth.y + dy);
     const { stack } = useInspectorStore.getState();
     expect(stack[stack.length - 1].ref).toEqual({ kind: "body", system: SYSTEM, id: EARTH.id });
+  });
+});
+
+describe("a megastructure clicked in the system scene", () => {
+  afterEach(() => {
+    useFileSessionStore.setState(useFileSessionStore.getInitialState());
+    useInspectorStore.setState(useInspectorStore.getInitialState());
+    useSceneStore.getState().clearBodies();
+  });
+
+  /** Clicks the megastructure standing clear of the bodies at (−90, 0), with Earth selected. */
+  function clickStructure(): void {
+    const ruin = megastructureSummary({ id: 6, kind: "think_tank_ruined", at: [-90, 0] });
+    const details = systemDetails({
+      id: SYSTEM,
+      inner_radius: 400,
+      planets: [SUN, NAMED_EARTH],
+      megastructures: [ruin],
+    });
+    useDetailsStore.setState({ details: new Map([[SYSTEM, details]]) });
+    const canvas = recordingCanvas();
+    const shown = entered(canvas);
+    shown.cam.scale = 4;
+    shown.cam.x = -90;
+    shown.cam.y = 0;
+    shown.cam.rev++;
+    shown.tick();
+    useSceneStore.getState().selectBody(SYSTEM, EARTH.id);
+    const at = shown.cam.worldToScreen(-90, 0);
+    canvas.fire("pointerdown", at.x, at.y);
+    canvas.fire("pointerup", at.x, at.y);
+  }
+
+  const topRef = () => {
+    const { stack } = useInspectorStore.getState();
+    return stack[stack.length - 1]?.ref;
+  };
+
+  it("opens its page in a save, and leaves the bodies unselected", () => {
+    clickStructure();
+    expect(topRef()).toEqual({ kind: "megastructure", id: 6 });
+    expect(useSceneStore.getState().bodySelection).toBeNull();
+  });
+
+  it("opens no page in a scenario, which has none, and still leaves the bodies unselected", () => {
+    useFileSessionStore.setState({ capabilities: SCENARIO_CAPABILITIES });
+    clickStructure();
+    const refs = useInspectorStore.getState().stack.map((entry) => entry.ref.kind);
+    expect(refs).not.toContain("megastructure");
+    expect(useSceneStore.getState().bodySelection).toBeNull();
   });
 });
 

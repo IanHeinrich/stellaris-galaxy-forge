@@ -206,7 +206,7 @@ describe("the split layer bar", () => {
     expect(buttonLabels(bar())).toContain("Hyperlanes");
   });
 
-  it("drops a scenario's masters and Bypasses while a system is shown, key 6 included, and keeps its frames' own reasons", async () => {
+  it("drops a scenario's masters and Bypasses while a system is shown, key 6 included, keeps Megastructures and starbases, and keeps its frames' own reasons", async () => {
     resetStores();
     armSession();
     await openWith(SCENARIO_RESULT);
@@ -216,6 +216,7 @@ describe("the split layer bar", () => {
     useSceneStore.getState().enterSystem(0);
     const html = bar();
     expect(buttonLabels(html).sort()).toEqual([
+      "Megastructures and starbases",
       "Names",
       "Nebulae",
       "Orbit radii",
