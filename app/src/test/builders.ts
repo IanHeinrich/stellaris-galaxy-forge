@@ -428,6 +428,7 @@ export function megastructureTypeView(
     swaps: [],
     offer: { offer: "offered" },
     placement: { place: "body", star_only: false },
+    planet_change: null,
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,
     base_game: true,

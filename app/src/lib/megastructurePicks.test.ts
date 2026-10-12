@@ -10,6 +10,7 @@ import {
 import {
   BODY_HAS_MEGASTRUCTURE,
   CHANGES_BODY,
+  FIXED_CLASS,
   RING_STAGE,
   RING_WORLD_LABEL,
   RING_WORLD_ROWS,
@@ -133,9 +134,10 @@ const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
     }),
     ...chain(["star_lifter_0_o_star", "star_lifter_5_o_star"], { placement: onStar, ...giga }),
     megastructureTypeView("automated_stripmine_1", {
-      placement: { place: "unsupported", why: { kind: "changes_body" } },
+      planet_change: { class: "pc_strip_mined", size: null },
       ...giga,
     }),
+
     megastructureTypeView("alderson_disk_1", {
       placement: { place: "unsupported", why: { kind: "whole_structure", star_only: true } },
       ...giga,
@@ -344,12 +346,34 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     ]);
   });
 
-  it("greys out a type that changes its planet or builds a whole structure, with the reason", () => {
+  it("greys out a type whose planet change it can't follow or builds a whole structure, with the reason", () => {
     const stage = (spot: MegastructureSpot, key: string) =>
       entries(spot)
         .flatMap(entryStages)
         .find((s) => s.key === key);
-    expect(stage(planet, "automated_stripmine_1")?.refused).toBe(CHANGES_BODY);
+    expect(stage(planet, "automated_stripmine_1")?.refused).toBeNull();
+    const unsure = megastructureTypeView("lunar_disco_ball_2", {
+      placement: { place: "unsupported", why: { kind: "changes_body" } },
+    });
+    const fixed = megastructureTypeView("planetary_computer_2", {
+      placement: {
+        place: "unsupported",
+        why: { kind: "fixed_class", class: "pc_giga_planetary_computer" },
+      },
+    });
+    const refusals = megastructureEntries(
+      new Map([unsure, fixed].map((t) => [t.key, t])),
+      NAMES,
+      planet,
+    )
+      .flatMap(entryStages)
+      .map((s) => [s.key, s.refused]);
+    expect(refusals).toEqual(
+      expect.arrayContaining([
+        ["lunar_disco_ball_2", CHANGES_BODY],
+        ["planetary_computer_2", FIXED_CLASS],
+      ]),
+    );
     expect(stage(star, "alderson_disk_1")?.refused).toBe(WHOLE_STRUCTURE);
     expect(stage(planet, "alderson_disk_1")).toBeUndefined();
   });
@@ -436,7 +460,6 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     const giga = listed.filter((entry) => entry.section === GIGA);
     expect(giga.map((entry) => [entry.label, entry.unnamed])).toEqual([
       ["Alderson Disk Frame", false],
-      ["Automated Strip Mine", false],
       ["Dyson Swarm", false],
       ["Star Lifter", false],
       ["Uf Hyperlane A", true],

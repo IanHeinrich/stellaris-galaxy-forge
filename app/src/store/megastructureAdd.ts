@@ -39,6 +39,11 @@ interface MegastructureAddState {
   ringClear: boolean;
   /** The system whose clearing is read, or being read; null before the Ring tile asks. */
   clearingFor: number | null;
+  /**
+   * The add leaves the planet's class and size alone, where the type's build would change them;
+   * off on opening, so the planet changes as the game changes it.
+   */
+  keepPlanet: boolean;
   /** What clearing the system takes, once read. */
   clearing: RingWorldClearing | null;
   /** Why what clearing takes couldn't be read. */
@@ -51,6 +56,7 @@ interface MegastructureAddState {
   /** Sets every quadrant to `stage`. */
   setRingStages(stage: RingStage): void;
   setRingClear(clear: boolean): void;
+  setKeepPlanet(keep: boolean): void;
   /** Reads what clearing the dialog's system takes, once per opening. */
   loadClearing(): Promise<void>;
   /**
@@ -59,7 +65,8 @@ interface MegastructureAddState {
    * on next; it differs from `kind` when the game swaps the stage for another type at the spot. A
    * type built outside the gravity well stands just outside the system's inner radius, in the
    * direction pressed. The new row's page opens, and the status bar says how many effects of its
-   * construction were left out, when any were. A type whose finished stage is a habitat adds
+   * construction were left out, when any were. The planet changes class or size as the type's
+   * build changes it, unless the dialog keeps it. A type whose finished stage is a habitat adds
    * the habitat round the body as a planet instead, and selects it with its page open.
    */
   add(kind: string, stage?: string): Promise<boolean>;
@@ -78,13 +85,20 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   last: null,
   ringStages: ALL_FINISHED,
   ringClear: false,
+  keepPlanet: false,
 
   open(system, spot) {
     if (useGameDataStore.getState().status !== "ready") {
       useFileSessionStore.getState().setError(MEGASTRUCTURES_NEED_GAME_DATA);
       return false;
     }
-    set({ ...CLOSED, prompt: { system, spot }, ringStages: ALL_FINISHED, ringClear: false });
+    set({
+      ...CLOSED,
+      prompt: { system, spot },
+      ringStages: ALL_FINISHED,
+      ringClear: false,
+      keepPlanet: false,
+    });
     return true;
   },
 
@@ -102,6 +116,10 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
 
   setRingClear(clear) {
     set({ ringClear: clear });
+  },
+
+  setKeepPlanet(keep) {
+    set({ keepPlanet: keep });
   },
 
   async loadClearing() {
@@ -131,7 +149,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
   },
 
   async add(kind, stage = kind) {
-    const { prompt } = get();
+    const { prompt, keepPlanet } = get();
     if (prompt === null) return false;
     set(CLOSED);
     const { system, spot } = prompt;
@@ -145,7 +163,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     }
     const inner = useDetailsStore.getState().details.get(system)?.inner_radius ?? 0;
     const at = megastructurePlace(spot, data.megastructureTypes.get(kind), inner);
-    const added = await useEditorStore.getState().addMegastructure(system, kind, at);
+    const added = await useEditorStore.getState().addMegastructure(system, kind, at, keepPlanet);
     if (added === null) return false;
     set({ last: stage });
     const name = data.names.get(kind) ?? megastructureLabel(kind);

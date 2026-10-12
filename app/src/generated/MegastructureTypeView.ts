@@ -3,6 +3,7 @@ import type { BuildType } from "./BuildType";
 import type { MegastructureDismantle } from "./MegastructureDismantle";
 import type { MegastructureOffer } from "./MegastructureOffer";
 import type { MegastructurePlacement } from "./MegastructurePlacement";
+import type { MegastructurePlanetChange } from "./MegastructurePlanetChange";
 import type { MegastructureSwap } from "./MegastructureSwap";
 
 export type MegastructureTypeView = { key: string, 
@@ -96,6 +97,11 @@ offer: MegastructureOffer,
  * Where the editor adds a row of this type, read once every type is loaded.
  */
 placement: MegastructurePlacement, 
+/**
+ * The class or size its build chain gives the planet it stands at, which the editor
+ * can write with the row; `None` for a type that changes neither.
+ */
+planet_change: MegastructurePlanetChange | null, 
 /**
  * What its `on_dismantle_complete` takes back from its system and owner.
  */

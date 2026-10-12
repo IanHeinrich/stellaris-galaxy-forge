@@ -164,6 +164,8 @@
   {"q": "added megastructure modifiers", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add dyson sphere", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add hyper relay", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "megastructure changes planet class", "expect": "system/megastructures#add-a-megastructure"},
+  {"q": "keep planet class strip mine", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "add gateway", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "kilostructure category", "expect": "system/megastructures#add-a-megastructure"},
   {"q": "megastructure owner", "expect": "system/megastructures#add-a-megastructure"},

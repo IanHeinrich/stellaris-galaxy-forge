@@ -8,6 +8,7 @@ use sgf_core::ops::{
     ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
     ModifierHost, VariableDrop, VariableRaise,
 };
+use sgf_gamedata::construction::PlanetChange;
 use sgf_gamedata::registries::megastructures::{BuildType, Linked, Placement, Unsupported};
 use sgf_gamedata::views::StarbaseLevelView;
 use sgf_gamedata::{Diagnostic, RegistryKind};
@@ -1026,8 +1027,43 @@ fn gigas_types_read_through_their_inline_scripts() {
             .iter()
             .any(|key| key == "star_lifter_0_o_star")
     );
+    for (key, class) in [
+        ("automated_stripmine_1", "pc_strip_mined"),
+        ("crystal_megabore_1", "pc_melted_frozen"),
+        ("succ_1", "pc_metallic_hydrogen"),
+        ("planetary_seeder_nexus_3", "pc_food_giant"),
+        ("yggdrasil_orchid_3", "pc_food_giant"),
+        ("yggdrasil_orchid_restored", "pc_food_giant"),
+    ] {
+        assert_eq!(
+            mega(key).placement,
+            Placement::Body { star_only: false },
+            "{key}"
+        );
+        assert_eq!(
+            mega(key).planet_change,
+            Some(PlanetChange {
+                class: Some(class.to_owned()),
+                size: None
+            }),
+            "{key}"
+        );
+    }
+    assert_eq!(
+        mega("yggdrasil_orchid_2").planet_change,
+        None,
+        "the Orchid's planet changes only when the last stage is finished"
+    );
+    assert_eq!(
+        mega("kaiser_moon_1").planet_change,
+        Some(PlanetChange {
+            class: None,
+            size: Some(6)
+        })
+    );
     for key in [
-        "automated_stripmine_1",
+        "asteroid_artillery_1",
+        "lunar_disco_ball_2",
         "maginot_world_2",
         "stellar_ring_habitat_3",
     ] {
@@ -1036,9 +1072,17 @@ fn gigas_types_read_through_their_inline_scripts() {
             Placement::Unsupported {
                 why: Unsupported::ChangesBody
             },
-            "{key}"
+            "{key}: the change runs on a condition or names no plain class or size"
         );
     }
+    assert_eq!(
+        mega("planetary_computer_2").placement,
+        Placement::Unsupported {
+            why: Unsupported::FixedClass {
+                class: "pc_giga_planetary_computer".to_owned()
+            }
+        }
+    );
     for key in [
         "alderson_disk_0",
         "alderson_disk_2_gaia",

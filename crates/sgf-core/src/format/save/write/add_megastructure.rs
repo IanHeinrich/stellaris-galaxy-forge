@@ -30,7 +30,7 @@ use crate::format::save::write::place::{self, insert_key};
 use crate::format::save::write::planet_entry::{is_star, role};
 use crate::format::save::{planet_entity, planet_system};
 use crate::keys;
-use crate::ops::rules::{Form, check_text, named};
+use crate::ops::rules::{Form, check_text, named, named_body};
 use crate::ops::{
     Edit, Emitted, MegastructureConstruction, MegastructurePlace, NewBypass, Op, OpError, ParseAt,
     Plan, Planned, SavedTable, Subject,
@@ -545,5 +545,35 @@ impl Live {
             .values()
             .find(|b| b.system == Some(system) && b.kind == kind)
             .map(|b| b.id)
+    }
+}
+
+/// What an edit that adds megastructure `shown` at planet `body` and gives the planet the
+/// class named `class` and the size `size` says: "Added the Yggdrasil Orchid at Gas Giant
+/// Beta #6 and made it a Food Giant", with "and size 6" after a class and "made it size 6"
+/// for a size alone.
+pub(crate) fn planet_change_description(
+    s: &Session,
+    shown: &str,
+    body: u32,
+    class: Option<&str>,
+    size: Option<u32>,
+) -> Result<String, OpError> {
+    let (node, src) = planet_entity(&s.doc, body)?;
+    let planet = named_body(&read::name(&node, src), body);
+    let made = match (class, size) {
+        (Some(class), Some(size)) => format!("{} and size {size}", with_article(class)),
+        (Some(class), None) => with_article(class),
+        (None, Some(size)) => format!("size {size}"),
+        (None, None) => return Ok(format!("Added the {shown} at {planet}")),
+    };
+    Ok(format!("Added the {shown} at {planet} and made it {made}"))
+}
+
+/// `noun` after "a", or "an" before a vowel.
+fn with_article(noun: &str) -> String {
+    match noun.chars().next() {
+        Some(first) if "AEIOUaeiou".contains(first) => format!("an {noun}"),
+        _ => format!("a {noun}"),
     }
 }

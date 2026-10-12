@@ -81,7 +81,10 @@ export type MegastructureSpot =
   | { readonly kind: "space"; readonly x: number; readonly y: number };
 
 /** What the dialog says of a type it lists but cannot add yet. */
-export const CHANGES_BODY = "Changes the planet's class, which Galaxy Forge can't add yet.";
+export const CHANGES_BODY =
+  "Changes the planet's class or size in a way Galaxy Forge can't work out from the game data.";
+export const FIXED_CLASS =
+  "Makes the planet a class Galaxy Forge doesn't give a planet, such as an artificial one.";
 export const WHOLE_STRUCTURE =
   "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
 
@@ -90,6 +93,7 @@ function greyedOut(type: MegastructureView): string | null {
   const { placement } = type;
   if (placement.place !== "unsupported") return null;
   if (placement.why.kind === "changes_body") return CHANGES_BODY;
+  if (placement.why.kind === "fixed_class") return FIXED_CLASS;
   if (placement.why.kind === "whole_structure") return WHOLE_STRUCTURE;
   return null;
 }
@@ -136,14 +140,19 @@ export function ringWorldRefusal(
   return null;
 }
 
-/** Whether a type goes at `spot`: a free point in empty space, a body on a body. */
+/**
+ * Whether a type goes at `spot`: a free point in empty space, a body on a body. A type whose
+ * build changes its planet goes on a planet, not a star.
+ */
 function fits(type: MegastructureView, spot: MegastructureSpot): boolean {
   const { placement } = type;
   if (spot.kind === "space") return placement.place === "free";
-  if (placement.place === "body") return spot.star ? !type.planet_only : !placement.star_only;
+  if (placement.place === "body") {
+    return spot.star ? !type.planet_only && type.planet_change === null : !placement.star_only;
+  }
   if (placement.place !== "unsupported") return false;
   const { why } = placement;
-  if (why.kind === "changes_body") return true;
+  if (why.kind === "changes_body" || why.kind === "fixed_class") return true;
   if (why.kind === "whole_structure") return !why.star_only || spot.star;
   if (why.kind === "ring_world") return spot.star;
   return false;

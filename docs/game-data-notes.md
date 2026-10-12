@@ -361,15 +361,27 @@ YAML**.
   (`dyson_sphere_2` lists `dyson_swarm_3_basic` second in
   `upgrade_from`). Only the first `upgrade_from` is the chain a stage
   belongs to.
-- The editor doesn't add two kinds of type yet. One changes the class or
-  size of its planet in its `on_build_complete`, under `fromfrom.planet`
-  or through a scripted effect called there: strip mines, the S.U.C.C.,
-  Kaiser and Attack Moons, the Maginot World, the Stellar Ring Habitat.
-  The other builds more rows or planets whatever happens: Alderson disks,
-  Giga's larger ring worlds, Birch and Square worlds. A model change
+- A type that changes the class or size of its planet in its
+  `on_build_complete`, under `fromfrom.planet` or through a scripted
+  effect called there, is added with that change when the construction
+  walk keeps it as a plain `change_pc` or `set_planet_size` on the
+  structure's own planet, outside any condition: strip mines, the
+  S.U.C.C., the Crystal Megabore, the Planetary Seeder Nexus and the
+  Orchid Project. The add is one batch, class first, since the class op
+  refuses a planet that has a megastructure. The walk only reads the
+  first `upgrade_from` of each stage, so a stage the type can also be
+  built over from another chain doesn't count. A change on a condition
+  (the Lunar Speculorefractor, the Asteroid Artillery, the Maginot World),
+  one with `inherit_entity` (the Macroatmospheric Stabilizer), a size
+  that is not a number (the Stellar Ring Habitat), and one to a class no
+  planet is given (the Planetary Computer) stay refused. A model change
   alone doesn't count, since the base game's Arc Furnace hides its planet
-  that way. The base game's Cosmogenesis World spawns its planet too, and
-  the editor adds it as a row as before.
+  that way. Planet flags and `set_planet_entity` in the same stage are
+  not written.
+- The editor doesn't add a type that builds more rows or planets
+  whatever happens: Alderson disks, Giga's larger ring worlds, Birch and
+  Square worlds. The base game's Cosmogenesis World spawns its planet
+  too, and the editor adds it as a row as before.
 
 ## Megastructure layouts
 

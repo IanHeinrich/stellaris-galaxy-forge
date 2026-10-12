@@ -4,8 +4,9 @@
 use sgf_core::entity::views::EntityKind;
 use sgf_core::format::save::details::{HeuristicResolver, MegastructureSummary};
 use sgf_core::ops::{
-    ConstructionDeposit, ConstructionModifier, MegastructureConstruction, MegastructureDismantle,
-    MegastructurePlace, ModifierHost, NewBypass, Op, VariableDrop, VariableRaise,
+    ClassChange, ConstructionDeposit, ConstructionModifier, MegastructureConstruction,
+    MegastructureDismantle, MegastructurePlace, ModifierHost, NewBypass, Op, PlanetClassRule,
+    VariableDrop, VariableRaise,
 };
 use sgf_core::projections::galaxy::BypassLink;
 use sgf_core::session::Session;
@@ -880,4 +881,79 @@ fn a_deposit_added_after_a_furnace_survives_its_removal_and_undo() {
     session.undo().expect("undo the deposit");
     session.undo().expect("undo the furnace");
     assert_eq!(current(&session), session.doc().original());
+}
+
+/// A Yggdrasil Orchid's last stage makes its gas giant a food giant as it finishes. Added
+/// with that change, Sol's gas giant 6 changes class and takes the row in one edit, named as
+/// the session names it, and undo gives the bytes back. The class goes first: the class op refuses a planet that has a
+/// megastructure, which the game's own order, row first, would meet. Added without the
+/// change, only the row is written and the planet stays a gas giant.
+#[test]
+fn a_megastructure_that_changes_its_planet_is_added_with_the_change_in_one_edit() {
+    let rule = |class: &str, models| PlanetClassRule {
+        class: class.to_owned(),
+        change: ClassChange::Uncolonised,
+        models,
+    };
+    let change = Op::SetBodyClass {
+        body: 6,
+        from: rule("pc_gas_giant", 5),
+        to: rule("pc_food_giant", 1),
+        look: None,
+    };
+    let add = on_body(SOL, "yggdrasil_orchid_3", 6);
+    let said = |class: Option<&str>, size: Option<u32>| {
+        open_4_5()
+            .megastructure_planet_change_description("Yggdrasil Orchid", 6, class, size)
+            .expect("planet 6")
+    };
+    let description = said(Some("Food Giant"), None);
+    assert_eq!(
+        description, "Added the Yggdrasil Orchid at planet #6 and made it a Food Giant",
+        "a planet whose name reads as no name is called by its id"
+    );
+    assert_eq!(
+        said(Some("Food Giant"), Some(6)),
+        "Added the Yggdrasil Orchid at planet #6 and made it a Food Giant and size 6"
+    );
+    assert_eq!(
+        said(None, Some(6)),
+        "Added the Yggdrasil Orchid at planet #6 and made it size 6"
+    );
+    assert_eq!(
+        said(Some("Ocean World"), None),
+        "Added the Yggdrasil Orchid at planet #6 and made it an Ocean World"
+    );
+    let batch = |ops: Vec<Op>| Op::Batch {
+        description: description.clone(),
+        ops,
+    };
+    round_trip(open_4_5(), batch(vec![change.clone(), add.clone()]));
+
+    let mut changed = open_4_5();
+    changed
+        .apply(batch(vec![change.clone(), add.clone()]))
+        .expect("the Orchid and its food giant");
+    let planet = entity_text(&changed, EntityKind::Planet, 6);
+    assert!(
+        planet.contains("planet_class=\"pc_food_giant\""),
+        "{planet}"
+    );
+    assert!(planet.contains("megastructure=16"), "{planet}");
+    assert_eq!(changed.history().undo.len(), 1, "one edit");
+    assert_eq!(changed.history().undo[0].description, description);
+
+    let mut kept = open_4_5();
+    kept.apply(add.clone()).expect("the Orchid alone");
+    let planet = entity_text(&kept, EntityKind::Planet, 6);
+    assert!(planet.contains("planet_class=\"pc_gas_giant\""), "{planet}");
+    assert!(planet.contains("megastructure=16"), "{planet}");
+
+    assert_refusals(
+        &mut open_4_5(),
+        [(
+            batch(vec![add, change]),
+            "planet 6 has a megastructure, so it keeps its class",
+        )],
+    );
 }

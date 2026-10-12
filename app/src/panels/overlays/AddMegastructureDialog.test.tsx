@@ -24,6 +24,7 @@ import {
   writtenAsHabitat,
   type MegastructureSpot,
 } from "../../lib/megastructurePicks";
+import { PLANET_CHANGE_LABEL, PLANET_KEPT_NOTE } from "../../lib/planetChangeAdd";
 import {
   CLEAR_PLANETS,
   LEAVE_PLANETS,
@@ -550,5 +551,54 @@ describe("the Add megastructure dialog on a ring world", () => {
       }),
     );
     expect(html()).toContain("The system has 2 stars, and a ring world stands round one.");
+  });
+});
+
+describe("the Add megastructure dialog for a type that changes its planet", () => {
+  const gasGiant: MegastructureSpot = { kind: "body", body: 6, star: false, class: "pc_gas_giant" };
+
+  beforeEach(() => {
+    const orchid = megastructureTypeView("yggdrasil_orchid_3", {
+      planet_change: { class: "pc_food_giant", size: null },
+    });
+    const data = useGameDataStore.getState();
+    useGameDataStore.setState({
+      megastructureTypes: new Map([[orchid.key, orchid]]),
+      names: new Map([
+        ...data.names,
+        ["yggdrasil_orchid_3", "Orchid Project"],
+        ["pc_gas_giant", "Gas Giant"],
+        ["pc_food_giant", "Food Giant"],
+      ]),
+    });
+    openAt(gasGiant);
+  });
+
+  it("offers to change the planet as the game does, picked on opening, or keep its class", () => {
+    const html = dialog();
+    expect(html).toContain(PLANET_CHANGE_LABEL);
+    expect(html).toMatch(
+      /<input type="radio" name="megastructure-planet" checked=""\/><span>Change to Food Giant \(as the game does\)<\/span>/,
+    );
+    expect(html).toMatch(
+      /<input type="radio" name="megastructure-planet"\/><span>Keep Gas Giant<\/span>/,
+    );
+    expect(html).toContain("becomes a Food Giant.");
+  });
+
+  it("says the planet keeps its class once Keep is picked", () => {
+    useMegastructureAddStore.setState({ keepPlanet: true });
+    const html = dialog();
+    expect(html).toMatch(
+      /<input type="radio" name="megastructure-planet" checked=""\/><span>Keep Gas Giant<\/span>/,
+    );
+    expect(html).toContain(PLANET_KEPT_NOTE);
+    expect(html).not.toContain("becomes a Food Giant.");
+  });
+
+  it("shows no planet choice for a type that leaves its planet alone", () => {
+    const nexus = megastructureTypeView("think_tank_3");
+    useGameDataStore.setState({ megastructureTypes: new Map([[nexus.key, nexus]]) });
+    expect(dialog()).not.toContain('name="megastructure-planet"');
   });
 });
