@@ -100,6 +100,11 @@ add_bodies: boolean,
  */
 remove_bodies: boolean, 
 /**
+ * Megastructures and starbases stand where the system view can draw them: the
+ * Megastructures and starbases switch.
+ */
+structures: boolean, 
+/**
  * A megastructure can be deleted.
  */
 remove_megastructures: boolean, 

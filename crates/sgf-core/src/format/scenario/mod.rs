@@ -256,6 +256,7 @@ impl Format for Scenario {
             create_systems: true,
             symmetry: true,
             rolled_layout: true,
+            structures: true,
             rename_systems: true,
             header: true,
             scripted_owners: true,

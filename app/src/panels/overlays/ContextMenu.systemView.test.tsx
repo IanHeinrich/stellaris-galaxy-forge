@@ -273,10 +273,12 @@ describe("a megastructure in the system view", () => {
     expect(html).toContain(`<span class="muted">${refusal}</span>`);
   });
 
-  it("offers no deletion on a scenario", async () => {
+  it("offers neither a page nor a deletion on a scenario", async () => {
     await openWith(SCENARIO_RESULT);
     atTheNexus();
     const html = menu();
+    expect(html).toContain('<div class="context-menu-header">Science Nexus</div>');
+    expect(html).not.toContain("Inspect");
     expect(html).not.toContain("Delete megastructure");
     expect(html).toContain(">Back to galaxy</button>");
   });

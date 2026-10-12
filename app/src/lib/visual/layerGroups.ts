@@ -101,7 +101,7 @@ const SCENARIO_GROUPS: readonly Group[] = [
   {
     source: "initializers",
     label: SOURCE_LABELS.initializers,
-    layers: ["classes", "special", "details", "colonies", "owners", "bypasses"],
+    layers: ["classes", "special", "details", "megastructures", "colonies", "owners", "bypasses"],
     master: true,
     needsGameData: true,
     deadTitle: NO_GAME_DATA_KEYS_TITLE,

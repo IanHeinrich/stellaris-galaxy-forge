@@ -144,6 +144,9 @@ pub struct Capabilities {
     pub add_bodies: bool,
     /// A planet or moon can be deleted, and a colony removed from it.
     pub remove_bodies: bool,
+    /// Megastructures and starbases stand where the system view can draw them: the
+    /// Megastructures and starbases switch.
+    pub structures: bool,
     /// A megastructure can be deleted.
     pub remove_megastructures: bool,
     /// A planet's class and model can be changed.
