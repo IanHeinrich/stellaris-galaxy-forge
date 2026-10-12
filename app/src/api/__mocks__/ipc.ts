@@ -83,6 +83,7 @@ export const answerEditorChooser = command("answerEditorChooser");
 export const openUrl = command("openUrl");
 export const workshopLinks = command("workshopLinks");
 export const getNames = command("getNames");
+export const getGameTexts = command("getGameTexts");
 export const getRawNames = command("getRawNames");
 export const resolveNames = command("resolveNames");
 export const getStarClasses = command("getStarClasses");

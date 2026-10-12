@@ -116,6 +116,7 @@ function armGameDataCommands(): void {
   mockedIpc.getNames.mockImplementation(async (keys) =>
     Object.fromEntries(keys.map((k) => [k, k.replace(/^NAME_/, "")])),
   );
+  mockedIpc.getGameTexts.mockResolvedValue({});
   mockedIpc.resolveNames.mockImplementation(async (names) =>
     names.map((name) => name.variables.map((v) => v.value.key).join(" ") || name.key),
   );

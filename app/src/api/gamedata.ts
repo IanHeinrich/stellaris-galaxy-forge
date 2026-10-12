@@ -21,7 +21,7 @@ import type { InitializerDefinition } from "../generated/InitializerDefinition";
 import type { InitializerView } from "../generated/InitializerView";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { ModifierChoice } from "../generated/ModifierChoice";
 import type { ModifierView } from "../generated/ModifierView";
 import type { NameTemplate } from "../generated/NameTemplate";
@@ -121,6 +121,11 @@ export function openUrl(url: string): Promise<void> {
 /** Localised names for `keys`; only the keys that resolved are present. */
 export function getNames(keys: string[]): Promise<Record<string, string>> {
   return invoke<Record<string, string>>("get_names", { keys });
+}
+
+/** Texts for `keys` with the game's `£icon£` and `§X…§!` markup kept; only the keys that resolved are present. */
+export function getGameTexts(keys: string[]): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("get_game_texts", { keys });
 }
 
 /** Each templated name as the game shows it; without game data, the save's stand-in. */
@@ -264,8 +269,8 @@ export function getStarbaseLevels(): Promise<StarbaseLevelView[]> {
 }
 
 /** Every megastructure type of the loaded game data, with its models; empty without it. */
-export function getMegastructureTypes(): Promise<MegastructureTypeView[]> {
-  return invoke<MegastructureTypeView[]>("get_megastructure_types");
+export function getMegastructureTypes(): Promise<MegastructureView[]> {
+  return invoke<MegastructureView[]>("get_megastructure_types");
 }
 
 /** Every ship size of the loaded game data with its map icon key; empty without it. */

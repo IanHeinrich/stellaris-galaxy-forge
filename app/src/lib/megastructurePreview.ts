@@ -3,7 +3,7 @@
  * culture, and the preview beside the tiles with the game's description and what it produces.
  */
 import type { CountryNode } from "../generated/CountryNode";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { SystemDetails } from "../generated/SystemDetails";
 import { MEGASTRUCTURE_ICON_KEY } from "./details/icons";
 import { producedRows, type ResourceRow } from "./details/resources";
@@ -19,7 +19,7 @@ import type {
  * no culture, else the game's megastructure icon when it has no model or the model fails.
  */
 export function megastructureThumbKeys(
-  type: MegastructureTypeView | undefined,
+  type: MegastructureView | undefined,
   culture: string | null,
 ): string[] {
   const look = megastructureLook(type);
@@ -47,7 +47,7 @@ export function ownerCulture(
 }
 
 /** Whether the editor has a model to draw a type with. */
-export function hasModel(type: MegastructureTypeView | undefined): boolean {
+export function hasModel(type: MegastructureView | undefined): boolean {
   return megastructureLook(type).kind === "model";
 }
 
@@ -103,7 +103,7 @@ export function megastructurePreview(
   stage: MegastructureStage,
   chain: MegastructureChain,
   entry: MegastructureEntry,
-  type: MegastructureTypeView | undefined,
+  type: MegastructureView | undefined,
   names: ReadonlyMap<string, string>,
   icons: ReadonlyMap<string, string> = new Map(),
 ): MegastructurePreview {

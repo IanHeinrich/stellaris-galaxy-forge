@@ -47,6 +47,10 @@ bypasses?: Array<BypassLink> | null,
  */
 lgate?: LGate | null, 
 /**
+ * The global flags as they now read, present only when an op rewrote them.
+ */
+global_flags?: Array<string> | null, 
+/**
  * Countries re-projected by an op; the app replaces its copy of each.
  */
 countries?: Array<CountryNode>, };

@@ -11,7 +11,7 @@ import type { InitializerView } from "../generated/InitializerView";
 import type { KindCount } from "../generated/KindCount";
 import type { LGateModTouch } from "../generated/LGateModTouch";
 import type { MapColor } from "../generated/MapColor";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PlanetClassView } from "../generated/PlanetClassView";
 import type { PlanetModelChoice } from "../generated/PlanetModelChoice";
@@ -84,7 +84,7 @@ export interface GameDataState {
   bypasses: Map<string, BypassView>;
   starbaseLevels: Map<string, StarbaseLevelView>;
   /** Megastructure type key → its models, offset and how it is sized. */
-  megastructureTypes: Map<string, MegastructureTypeView>;
+  megastructureTypes: Map<string, MegastructureView>;
   /** Ship size key → its `common/ship_sizes` icon, for the badge a fleet wears. */
   shipSizes: Map<string, ShipSizeView>;
   countryTypes: Map<string, CountryTypeView>;
@@ -173,7 +173,7 @@ const UNLOADED = {
   deposits: new Map<string, DepositView>(),
   bypasses: new Map<string, BypassView>(),
   starbaseLevels: new Map<string, StarbaseLevelView>(),
-  megastructureTypes: new Map<string, MegastructureTypeView>(),
+  megastructureTypes: new Map<string, MegastructureView>(),
   shipSizes: new Map<string, ShipSizeView>(),
   countryTypes: new Map<string, CountryTypeView>(),
   lgateMods: [] as LGateModTouch[],
@@ -216,7 +216,7 @@ const GALAXY_DATA = { galaxyShapes: null, galaxyShapesPending: false };
 /** How the game's texts are fetched: the backend's `get_game_texts` once the API has it. */
 export type GameTextSource = (keys: string[]) => Promise<Record<string, string>>;
 
-let gameTextSource: GameTextSource = async () => ({});
+let gameTextSource: GameTextSource = (keys) => ipc.getGameTexts(keys);
 
 /** Sets where `fetchTexts` asks for texts. */
 export function setGameTextSource(source: GameTextSource): void {

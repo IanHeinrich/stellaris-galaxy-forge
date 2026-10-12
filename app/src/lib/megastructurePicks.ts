@@ -5,7 +5,7 @@
 import { RELAY_RADIUS_FACTOR } from "../generated/constants";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import { megastructureLabel } from "./details/labels";
 import { orbitText, placementAt } from "./planetMove";
 
@@ -32,7 +32,7 @@ export const WHOLE_STRUCTURE =
 export const RING_WORLD = "Ring worlds are added whole, which Galaxy Forge can't do yet.";
 
 /** Why the dialog lists a type it cannot add, greyed out; null for one it adds or never lists. */
-function greyedOut(type: MegastructureTypeView): string | null {
+function greyedOut(type: MegastructureView): string | null {
   const { placement } = type;
   if (placement.place !== "unsupported") return null;
   if (placement.why.kind === "changes_body") return CHANGES_BODY;
@@ -42,7 +42,7 @@ function greyedOut(type: MegastructureTypeView): string | null {
 }
 
 /** Whether a type goes at `spot`: a free point in empty space, a body on a body. */
-function fits(type: MegastructureTypeView, spot: MegastructureSpot): boolean {
+function fits(type: MegastructureView, spot: MegastructureSpot): boolean {
   const { placement } = type;
   if (spot.kind === "space") return placement.place === "free";
   if (placement.place === "body") return !placement.star_only || spot.star;
@@ -58,7 +58,7 @@ const VARIANT = /_(permanently_ruined|ruined|restored|destroyed|derelict)(_|$)/;
 const VARIANT_WORDS = new Set(["permanently", "ruined", "restored", "destroyed", "derelict"]);
 
 /** Whether a type is a ruined, restored, destroyed or derelict variant of a working one. */
-function isVariant(type: MegastructureTypeView): boolean {
+function isVariant(type: MegastructureView): boolean {
   return type.variant_of !== null || VARIANT.test(type.key);
 }
 
@@ -118,7 +118,7 @@ export interface MegastructureEntry {
 /** How many stages come before `key` in its chain, by the longest way back through `upgrade_from`. */
 function stageOf(
   key: string,
-  types: ReadonlyMap<string, MegastructureTypeView>,
+  types: ReadonlyMap<string, MegastructureView>,
   known: Map<string, number>,
 ): number {
   const found = known.get(key);
@@ -131,7 +131,7 @@ function stageOf(
 }
 
 /** The first of `type`'s `upgrade_from` that `pool` holds: the stage it is built over. */
-function builtOver(type: MegastructureTypeView, pool: ReadonlySet<string>): string | null {
+function builtOver(type: MegastructureView, pool: ReadonlySet<string>): string | null {
   return type.upgrade_from.find((from) => pool.has(from)) ?? null;
 }
 
@@ -140,7 +140,7 @@ function builtOver(type: MegastructureTypeView, pool: ReadonlySet<string>): stri
  * is a variant of, and the types its build turns into. A later `upgrade_from`, such as a Dyson
  * Sphere stage built over a finished Dyson Swarm, joins nothing.
  */
-function linked(types: ReadonlyMap<string, MegastructureTypeView>): MegastructureTypeView[][] {
+function linked(types: ReadonlyMap<string, MegastructureView>): MegastructureView[][] {
   const parent = new Map<string, string>();
   const root = (key: string): string => {
     let at = key;
@@ -159,7 +159,7 @@ function linked(types: ReadonlyMap<string, MegastructureTypeView>): Megastructur
     join(type.key, type.variant_of);
     for (const into of type.turns_into) join(type.key, into);
   }
-  const groups = new Map<string, MegastructureTypeView[]>();
+  const groups = new Map<string, MegastructureView[]>();
   for (const type of types.values()) {
     const group = groups.get(root(type.key));
     if (group) group.push(type);
@@ -209,7 +209,7 @@ interface Row {
 /** Whether a row holds only types the game makes from script and no localisation names. */
 function isInternal(
   row: Row,
-  types: ReadonlyMap<string, MegastructureTypeView>,
+  types: ReadonlyMap<string, MegastructureView>,
   named: (key: string) => boolean,
 ): boolean {
   return row.keys.every((key) => types.get(key)!.script_only && !named(key));
@@ -221,8 +221,8 @@ function isInternal(
  * working chain, then each chain of ruined and restored versions.
  */
 function groupRows(
-  group: readonly MegastructureTypeView[],
-  byStage: (a: MegastructureTypeView, b: MegastructureTypeView) => number,
+  group: readonly MegastructureView[],
+  byStage: (a: MegastructureView, b: MegastructureView) => number,
   order: ReadonlyMap<string, number>,
 ): Row[] {
   const working = group.filter((type) => !isVariant(type)).sort(byStage);
@@ -230,8 +230,8 @@ function groupRows(
   const turnedInto = new Set(group.flatMap((type) => type.turns_into));
   const placed = new Set<string>();
   const chainFrom = (
-    start: MegastructureTypeView,
-    pool: readonly MegastructureTypeView[],
+    start: MegastructureView,
+    pool: readonly MegastructureView[],
     main: boolean,
   ): string[] => {
     const keys = new Set(pool.map((type) => type.key));
@@ -467,17 +467,17 @@ function summaryOf(rows: readonly Row[]): string {
  * out. `refusalOf` says why the save would refuse a type that does fit.
  */
 export function megastructureEntries(
-  types: ReadonlyMap<string, MegastructureTypeView>,
+  types: ReadonlyMap<string, MegastructureView>,
   names: ReadonlyMap<string, string>,
   spot: MegastructureSpot,
-  refusalOf: (type: MegastructureTypeView) => string | null = () => null,
+  refusalOf: (type: MegastructureView) => string | null = () => null,
 ): MegastructureEntry[] {
   const named = (key: string) => clean(names.get(key) ?? "") !== "";
   const nameOf = (key: string) => (named(key) ? clean(names.get(key)!) : megastructureLabel(key));
   const fitting = new Map([...types].filter(([, type]) => fits(type, spot)));
   const known = new Map<string, number>();
   const order = new Map([...types.keys()].map((key, i) => [key, i]));
-  const byStage = (a: MegastructureTypeView, b: MegastructureTypeView) =>
+  const byStage = (a: MegastructureView, b: MegastructureView) =>
     stageOf(a.key, types, known) - stageOf(b.key, types, known) ||
     order.get(a.key)! - order.get(b.key)!;
   const families = new Map<
@@ -650,10 +650,10 @@ const BYPASS_NAMES: Readonly<Record<string, string>> = {
  * gateway or relay in the system, or a body that has a megastructure already. Null when it fits.
  */
 export function megastructureRefusal(
-  type: MegastructureTypeView,
+  type: MegastructureView,
   spot: MegastructureSpot,
   rows: readonly MegastructureSummary[],
-  types: ReadonlyMap<string, MegastructureTypeView>,
+  types: ReadonlyMap<string, MegastructureView>,
 ): string | null {
   const bypass = type.bypass_type;
   if (bypass !== null && bypass in BYPASS_NAMES) {
@@ -705,7 +705,7 @@ export function leftOutNotice(name: string, unsure: number, unwritten: number): 
 }
 
 /** Whether a type stands just outside the system's inner radius, as relays and gateways do. */
-export function outsideGravityWell(type: MegastructureTypeView | undefined): boolean {
+export function outsideGravityWell(type: MegastructureView | undefined): boolean {
   return type?.placement.place === "free" && type.placement.outside_gravity_well;
 }
 
@@ -715,7 +715,7 @@ export function outsideGravityWell(type: MegastructureTypeView | undefined): boo
  */
 export function megastructurePlace(
   spot: MegastructureSpot,
-  type: MegastructureTypeView | undefined,
+  type: MegastructureView | undefined,
   innerRadius: number,
 ): MegastructurePlace {
   if (spot.kind === "body") return { place: "body", body: spot.body };
@@ -728,7 +728,7 @@ export function megastructurePlace(
 /** The dialog's Where line: around the body, or where in the system the row stands. */
 export function whereText(
   spot: MegastructureSpot,
-  type: MegastructureTypeView | undefined,
+  type: MegastructureView | undefined,
   bodyName: string | undefined,
 ): string {
   if (spot.kind === "body") return `Around ${bodyName ?? `#${spot.body}`}`;

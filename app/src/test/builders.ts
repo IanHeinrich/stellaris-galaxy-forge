@@ -13,7 +13,7 @@ import type { HistoryEntry } from "../generated/HistoryEntry";
 import type { InitPlanetView } from "../generated/InitPlanetView";
 import type { Issue } from "../generated/Issue";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import type { InitializerView } from "../generated/InitializerView";
 import type { NameTemplate } from "../generated/NameTemplate";
 import type { PaintModView } from "../generated/PaintModView";
@@ -388,13 +388,13 @@ export function megastructureSummary(
 }
 
 /**
- * The one `MegastructureTypeView` builder: a type that draws `entity` where its row stands, added
+ * The one `MegastructureView` builder: a type that draws `entity` where its row stands, added
  * on any body.
  */
 export function megastructureTypeView(
   key: string,
-  over: Partial<MegastructureTypeView> = {},
-): MegastructureTypeView {
+  over: Partial<MegastructureView> = {},
+): MegastructureView {
   return {
     key,
     entity: `${key}_entity`,
@@ -408,6 +408,9 @@ export function megastructureTypeView(
     upgrade_from: [],
     rotate_to_center: true,
     produces: [],
+    country_modifier: [],
+    country_effects: [],
+    construction_summary: [],
     ruined_orbital_ring: false,
     spawns_starbase: false,
     activates_gateway: false,
@@ -415,6 +418,9 @@ export function megastructureTypeView(
     planet_possible_star: false,
     script_only: false,
     turns_into: [],
+    swaps: [],
+    offer: { offer: "offered" },
+    hidden_by_global_flags: [],
     placement: { place: "body", star_only: false },
     dismantle: { modifiers: [], deposits: [], variables: [] },
     source: null,

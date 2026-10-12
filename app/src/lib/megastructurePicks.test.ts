@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MegastructureTypeView } from "../generated/MegastructureTypeView";
+import type { MegastructureView } from "../generated/MegastructureView";
 import { megastructureSummary, megastructureTypeView } from "../test/builders";
 import {
   BODY_HAS_MEGASTRUCTURE,
@@ -25,15 +25,15 @@ const inside = { place: "free", outside_gravity_well: false } as const;
 const GIGA = "Gigastructural Engineering";
 const giga = { source: GIGA, base_game: false } as const;
 
-const ruin = (key: string, of: string, over: Partial<MegastructureTypeView> = {}) =>
+const ruin = (key: string, of: string, over: Partial<MegastructureView> = {}) =>
   megastructureTypeView(key, { variant_of: of, ...over });
 
 /** Types each built over the one before, the first over `first`. */
 function chain(
   keys: readonly string[],
-  over: Partial<MegastructureTypeView> = {},
+  over: Partial<MegastructureView> = {},
   first: string[] = [],
-): MegastructureTypeView[] {
+): MegastructureView[] {
   return keys.map((key, i) =>
     megastructureTypeView(key, { upgrade_from: i === 0 ? first : [keys[i - 1]], ...over }),
   );
@@ -44,7 +44,7 @@ function chain(
  * Giga's star-class Dyson Spheres are built over the base game's site, its Star Lifter turns
  * into one per star class, and a Dyson Sphere stage is built over a finished Dyson Swarm.
  */
-const TYPES: ReadonlyMap<string, MegastructureTypeView> = new Map(
+const TYPES: ReadonlyMap<string, MegastructureView> = new Map(
   [
     megastructureTypeView("think_tank_1", { upgrade_from: ["think_tank_0"], placement: onAny }),
     megastructureTypeView("think_tank_0", { placement: onAny }),
@@ -178,10 +178,8 @@ const NAMES = new Map([
   ["mod_beacon", "Dyson Sphere"],
 ]);
 
-const entries = (
-  spot: MegastructureSpot,
-  refusalOf?: (t: MegastructureTypeView) => string | null,
-) => megastructureEntries(TYPES, NAMES, spot, refusalOf);
+const entries = (spot: MegastructureSpot, refusalOf?: (t: MegastructureView) => string | null) =>
+  megastructureEntries(TYPES, NAMES, spot, refusalOf);
 const planet: MegastructureSpot = { kind: "body", body: 12, star: false };
 const star: MegastructureSpot = { kind: "body", body: 1, star: true };
 const space: MegastructureSpot = { kind: "space", x: 30, y: 40 };
@@ -391,7 +389,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
 });
 
 describe("the stage the dialog has selected", () => {
-  const relayed = (type: MegastructureTypeView) =>
+  const relayed = (type: MegastructureView) =>
     type.bypass_type === "relay_bypass" ? "The system already has a hyper relay." : null;
 
   it("opens past a stage the save would refuse here, to the first one it takes", () => {

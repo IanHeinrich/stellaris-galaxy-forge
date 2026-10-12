@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import type { MegastructureTypeView } from "../../generated/MegastructureTypeView";
+import type { MegastructureView } from "../../generated/MegastructureView";
 import {
   formatAmount,
   resourceAbbrev,
@@ -167,7 +167,7 @@ function Tile({
   stage: { key: string; label: string; refused: string | null };
   id: string;
   selected: boolean;
-  type: MegastructureTypeView | undefined;
+  type: MegastructureView | undefined;
   culture: string | null;
   onSelect: (key: string) => void;
   onConfirm: () => void;
@@ -211,7 +211,7 @@ export function MegastructureStages({
   onConfirm,
 }: {
   entry: MegastructureEntry;
-  types: ReadonlyMap<string, MegastructureTypeView>;
+  types: ReadonlyMap<string, MegastructureView>;
   /** The culture the models are drawn in: the system owner's, null for none. */
   culture: string | null;
   current: string;
@@ -303,7 +303,7 @@ export function MegastructurePreviewPane({
   preview: MegastructurePreview;
   /** The label of its row, when its megastructure has several. */
   row: string | null;
-  type: MegastructureTypeView | undefined;
+  type: MegastructureView | undefined;
   culture: string | null;
 }) {
   return (
