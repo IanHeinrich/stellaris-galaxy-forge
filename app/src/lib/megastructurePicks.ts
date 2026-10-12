@@ -472,8 +472,8 @@ function stageTitles(rows: readonly Row[], nameOf: (key: string) => string): Map
 }
 
 /**
- * `4 stages · by star class`, `4 stages · 2 variants`. By star class when the main chain's
- * completion swaps by the star's class, or most other rows are a star class's.
+ * `4 stages · by star class`, `4 stages · 2 variants · ruins`. By star class when the main
+ * chain's completion swaps by the star's class, or most other rows are a star class's.
  */
 function summaryOf(rows: readonly Row[], swapsByClass: boolean): string {
   const stages = rows[0].keys.length;
@@ -482,8 +482,9 @@ function summaryOf(rows: readonly Row[], swapsByClass: boolean): string {
   const starClass = variants.filter((row) => /-class/i.test(row.label ?? "")).length;
   const classRows = starClass > 0 && starClass * 2 >= variants.length ? starClass : 0;
   if (swapsByClass || classRows > 0) parts.push("by star class");
-  const others = rows.length - 1 - classRows;
+  const others = variants.length - classRows;
   if (others > 0) parts.push(`${others} ${others === 1 ? "variant" : "variants"}`);
+  if (rows.some((row) => row.kind === "ruins")) parts.push("ruins");
   return parts.join(" · ");
 }
 

@@ -265,7 +265,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
         ],
       ],
     });
-    expect(sphere?.summary).toBe("2 stages · by star class · 2 variants");
+    expect(sphere?.summary).toBe("2 stages · by star class · ruins");
     expect(named(entries(star), "Dyson Sphere", "Zeta Structures")).toBeDefined();
   });
 
@@ -297,7 +297,7 @@ describe("the megastructures the Add megastructure dialog lists", () => {
       ["ruins", "Ruined", ["think_tank_ruined", "think_tank_restored"]],
       ["ruins", "Permanently ruined", ["think_tank_permanently_ruined"]],
     ]);
-    expect(nexus?.summary).toBe("3 stages · 2 variants");
+    expect(nexus?.summary).toBe("3 stages · ruins");
     expect(matchingEntries(entries(planet), "think_tank_4")).toEqual([]);
     expect(matchingEntries(entries(star), "colossus")).toEqual([]);
     expect(titles(nexus)?.slice(1)).toEqual([

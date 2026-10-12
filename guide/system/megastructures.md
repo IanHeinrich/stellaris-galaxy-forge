@@ -51,9 +51,9 @@ The list shows each megastructure once, under Base game or the name of
 the mod that adds it. Its build stages, ruins and variants are inside
 it, so a Dyson Sphere is one entry in the list and not one for each
 stage. Under each name, a line says how many stages it has and what else
-it comes in, such as "4 stages · by star class" or "4 stages · 2
-variants". Type in the box above the list to filter it by megastructure
-or stage name.
+it comes in, such as "4 stages · by star class" or "3 stages · ruins".
+Type in the box above the list to filter it by megastructure or stage
+name.
 
 The tiles show the stages of the megastructure you picked, each with its
 model, in the order they are built. Above a stage's short name, a tile

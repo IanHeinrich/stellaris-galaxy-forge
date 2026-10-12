@@ -252,7 +252,7 @@ describe("the rows of a megastructure that swaps by star class", () => {
     ]);
     expect(keys("Dyson Swarm")).toEqual([["dyson_swarm_1", "dyson_swarm_2", "dyson_swarm_3"]]);
     const summary = (label: string) => listed.find((entry) => entry.label === label)?.summary;
-    expect(summary("Dyson Sphere")).toBe("4 stages · by star class · 1 variant");
+    expect(summary("Dyson Sphere")).toBe("4 stages · by star class · ruins");
     expect(summary("Dyson Swarm")).toBe("3 stages · by star class");
     expect(summary("Matrioshka Brain")).toBe("2 stages · by star class");
     const stages = listed.flatMap(entryStages).map((s) => s.key);
