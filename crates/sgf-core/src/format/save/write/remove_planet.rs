@@ -342,16 +342,16 @@ impl Deletion {
 }
 
 /// The planet flag a habitat has, and what its host's flag for it starts with.
-const HABITAT: &str = "habitat";
+pub(crate) const HABITAT: &str = "habitat";
 
 /// The system flag the game sets when a habitat is built there.
-const HAS_HABITAT: &str = "has_habitat";
+pub(crate) const HAS_HABITAT: &str = "has_habitat";
 
 /// The class of a habitat.
 const PC_HABITAT: &str = "pc_habitat";
 
 /// Whether planet `node` is a habitat: by its class, or the flag the game sets on one.
-fn is_habitat(node: &Node, src: &[u8]) -> bool {
+pub(crate) fn is_habitat(node: &Node, src: &[u8]) -> bool {
     read::text(node, keys::PLANET_CLASS, src) == PC_HABITAT
         || node
             .find(keys::FLAGS, src)

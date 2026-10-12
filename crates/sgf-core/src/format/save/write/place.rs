@@ -55,6 +55,17 @@ pub(crate) mod system {
         before: &[keys::ARM, keys::FLAGS, keys::INITIALIZER],
         last: false,
     };
+    pub(crate) const FLAGS: Place = Place {
+        key: keys::FLAGS,
+        after: &[
+            keys::ARM,
+            keys::DISCOVERY,
+            keys::ASTEROID_BELTS,
+            keys::BYPASSES,
+        ],
+        before: &[keys::INITIALIZER],
+        last: false,
+    };
     /// The game writes hyperlane, then asteroid_belts, then discovery, arm, flags and
     /// initializer.
     pub(crate) const ASTEROID_BELTS: Place = Place {

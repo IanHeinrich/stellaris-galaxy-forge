@@ -14,6 +14,7 @@ use crate::format::save::added::row;
 use crate::format::save::alloc::{Slot, SlotTable};
 use crate::format::save::read_spec::written_angle;
 use crate::format::save::system_spec::BodySpec;
+use crate::format::save::write::add_habitat;
 use crate::format::save::write::add_system::{
     self, MOON_NAME, NUMERAL_VAR, PARENT_VAR, PLANET_NAME, check_body, write_body,
 };
@@ -355,10 +356,20 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
         .parent
         .filter(|&p| stored.iter().any(|b| b.body.id == p));
     let moon_of = parent.filter(|_| own.moon);
-    let inverse = Op::AddBody {
-        system,
-        spec: spec_of(&s.doc, &node, src, moon_of),
-        at: placement(&stored, &own.body, moon_of),
+    let host = match parent {
+        Some(host) if !own.moon && add_habitat::hosted(s, planet, host)? => Some(host),
+        _ => None,
+    };
+    let inverse = match host {
+        Some(host) => Op::AddHabitat {
+            body: host,
+            habitat: add_habitat::read_back(&node, src, &stored, &own.body, host),
+        },
+        None => Op::AddBody {
+            system,
+            spec: spec_of(&s.doc, &node, src, moon_of),
+            at: placement(&stored, &own.body, moon_of),
+        },
     };
     let held = read::ids(&node, keys::DEPOSITS, src);
 
@@ -385,9 +396,13 @@ pub(crate) fn plan_remove(plan: &mut Plan, s: &Session, planet: u32) -> Result<P
     if let Some(parent) = parent {
         unlist_moon(plan.edit_planet(&s.doc, parent, system)?, planet)?;
     }
-    let whose = match moon_of {
-        Some(parent) => format!("moon #{planet} of planet #{parent}"),
-        None => format!("planet #{planet}"),
+    if let Some(host) = host {
+        add_habitat::untie(plan, s, system, &stored, planet, host)?;
+    }
+    let whose = match (moon_of, host) {
+        (Some(parent), _) => format!("moon #{planet} of planet #{parent}"),
+        (None, Some(_)) => format!("habitat #{planet}"),
+        (None, None) => format!("planet #{planet}"),
     };
     Ok(Planned {
         description: format!("Removed {whose} from {}", named(&s.graph, system)),

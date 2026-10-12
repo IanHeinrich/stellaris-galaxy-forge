@@ -5,7 +5,7 @@ use sgf_core::ops::{
 };
 use sgf_core::projections::galaxy::LGateOutcome;
 
-use super::{ADDED_BODY, ADDED_MEGASTRUCTURE, Example, meissa_v};
+use super::{ADDED_BODY, ADDED_MEGASTRUCTURE, Example, meissa_v, sol_habitat};
 
 pub(super) fn examples() -> Vec<Example> {
     vec![
@@ -197,6 +197,7 @@ pub(super) fn examples() -> Vec<Example> {
         }),
         Example::save_4_5(meissa_v()),
         Example::added_body(Op::RemoveBody { body: ADDED_BODY }),
+        Example::save_4_5(sol_habitat()),
         Example::save(Op::AddDigSite {
             body: 749,
             site_type: "site_lost_moments".to_owned(),

@@ -15,6 +15,7 @@ import { useEditorStore } from "./editorStore";
 import { useFileSessionStore } from "./fileSessionStore";
 import { useGameDataStore } from "./gameDataStore";
 import { megastructureEntry, useInspectorStore } from "./inspectorStore";
+import { useSceneStore } from "./sceneStore";
 
 /** Where the dialog adds: a spot of system `system`'s view. */
 export interface MegastructureAddPrompt {
@@ -35,7 +36,8 @@ interface MegastructureAddState {
    * on next; it differs from `kind` when the game swaps the stage for another type at the spot. A
    * type built outside the gravity well stands just outside the system's inner radius, in the
    * direction pressed. The new row's page opens, and the status bar says how many effects of its
-   * construction were left out, when any were.
+   * construction were left out, when any were. A type whose finished stage is a habitat adds
+   * the habitat round the body as a planet instead, and selects it with its page open.
    */
   add(kind: string, stage?: string): Promise<boolean>;
 }
@@ -63,6 +65,13 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     set({ prompt: null });
     const { system, spot } = prompt;
     const data = useGameDataStore.getState();
+    if (data.megastructureTypes.get(kind)?.habitat === true && spot.kind === "body") {
+      const planet = await useEditorStore.getState().addHabitat(system, spot.body, kind);
+      if (planet === null) return false;
+      set({ last: stage });
+      useSceneStore.getState().showBody(system, planet);
+      return true;
+    }
     const inner = useDetailsStore.getState().details.get(system)?.inner_radius ?? 0;
     const at = megastructurePlace(spot, data.megastructureTypes.get(kind), inner);
     const added = await useEditorStore.getState().addMegastructure(system, kind, at);

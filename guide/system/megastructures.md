@@ -1,7 +1,7 @@
 ---
 title: Megastructures
-description: Add or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, or delete a whole ring world.
-aliases: [megastructure, add megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, delete ring world, shattered ring]
+description: Add or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or delete a whole ring world.
+aliases: [megastructure, add megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex]
 ---
 # Megastructures <Badge type="tip" text="Save" />
 
@@ -103,7 +103,8 @@ hyperlanes lead to, and a Gateway links to every other gateway.
 A megastructure goes to the empire that owns its system.
 
 A planet, moon or star holds one megastructure. If it already has one,
-Add megastructure is greyed out. The game also marks a planet when a
+the megastructures in the dialog are greyed out, and only a habitat can
+be added there. The game also marks a planet when a
 megastructure is built there, and some planets keep that mark with no
 megastructure left. Adding one to such a planet is refused, and the
 dialog says why.
@@ -138,6 +139,46 @@ structures:
 - Crisis and event structures, such as the Galactic Crucible, the
   Behemoth egg and the Shroud Seal.
 - Ruins that have no repair.
+
+## Add a habitat
+
+In a Stellaris 4.x save, you add a habitat from the same dialog as a
+megastructure. You need the game data loaded.
+
+1. Open the system in the [system view](system-view.md).
+2. Right-click a planet or star and select Add megastructure.
+3. Pick Habitat Central Complex from the list.
+4. Click Add.
+
+Add puts in the habitat the finished complex makes, not the complex.
+The habitat is a planet that orbits the planet or star you
+right-clicked, where the game puts one. It stands further out round a
+star than round a planet. The new habitat is selected, and its page
+opens in the Inspector. Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it
+out again.
+
+- The habitat has no owner and no colony, as when the game finishes
+  one. Colonise it in the game.
+- It has the habitat skin of the empire that owns the system. In a
+  system no one owns, it has the habitat class's default skin.
+- The restored Habitat Central Complex adds the same habitat. In the
+  game it also builds a major orbital beside it, which Galaxy Forge
+  leaves out.
+- The ruined Habitat Central Complex is added as a ruin, like any other
+  megastructure.
+
+You can add a habitat where the game wouldn't let you build one, such
+as a second habitat in a system, or one round an asteroid or a black
+hole. A moon, or a habitat that orbits a planet, can't have a habitat
+round it, and Habitat Central Complex is greyed out there. A planet or
+star that already has a habitat is refused, and the status bar says
+why.
+
+To delete a habitat, right-click it and select Delete planet, as for
+any other planet. No ruined Habitat Central Complex is left behind. The
+planet or star it orbited loses the mark the game keeps for its
+habitat, and the system loses its own mark once no habitat is left in
+it.
 
 ## Delete a megastructure
 

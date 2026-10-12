@@ -5,7 +5,7 @@ import { planetPageOffers } from "../../../lib/details/planetOffers";
 import { deleteLabel, deleteOp } from "../../../lib/details/planetRemoval";
 import { isRingSegment } from "../../../lib/details/ringWorldRemoval";
 import { documentCapabilities } from "../../../lib/capabilities";
-import { ADD_MEGASTRUCTURE_LABEL, BODY_HAS_MEGASTRUCTURE } from "../../../lib/megastructurePicks";
+import { ADD_MEGASTRUCTURE_LABEL } from "../../../lib/megastructurePicks";
 import { isStarBody } from "../../../lib/details/starBody";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
@@ -58,6 +58,9 @@ export function BodyMenu({
   const capabilities = useFileSessionStore((s) => documentCapabilities(s));
   const star = planet !== undefined && isStarBody(planet.class, planetClasses, starClasses);
   const segment = planet !== undefined && isRingSegment(planet.class);
+  const parentBody = details?.planets.find((p) => p.id === planet?.parent);
+  const orbitsPlanet =
+    parentBody !== undefined && !isStarBody(parentBody.class, planetClasses, starClasses);
   const offers = planetPageOffers(capabilities, {
     star,
     ringable: false,
@@ -104,13 +107,8 @@ export function BodyMenu({
       {offers.addMegastructure && planet !== undefined && (
         <AddMegastructureItem
           system={target.system}
-          spot={{ kind: "body", body: target.id, star, class: planet.class }}
+          spot={{ kind: "body", body: target.id, star, class: planet.class, orbitsPlanet }}
           label={ADD_MEGASTRUCTURE_LABEL}
-          refusal={
-            details?.megastructures.some((m) => m.planet === target.id)
-              ? BODY_HAS_MEGASTRUCTURE
-              : null
-          }
         />
       )}
       {offers.deleteBody &&

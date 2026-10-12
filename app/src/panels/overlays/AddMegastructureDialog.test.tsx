@@ -11,10 +11,12 @@ vi.mock("zustand", () => import("../../test/zustandSnapshot"));
 
 import { MEGASTRUCTURE_ICON_KEY } from "../../lib/details/icons";
 import {
+  HABITAT_OWNER_NOTE,
   NO_MODEL,
   NO_OWNER_NOTE,
   OWNER_NOTE,
   WRITTEN_FINISHED,
+  writtenAsHabitat,
   type MegastructureSpot,
 } from "../../lib/megastructurePicks";
 import { bindStores } from "../../store/bindStores";
@@ -273,5 +275,36 @@ describe("the Add megastructure dialog", () => {
     const html = dialog();
     expect(html).toContain("No megastructure the game data defines can go here.");
     expect(html).toContain('type="submit" disabled=""');
+  });
+});
+
+describe("the Add megastructure dialog on a habitat", () => {
+  const planet: MegastructureSpot = { kind: "body", body: 2, star: false };
+  const footer = () => dialog().replace(/&#x27;/g, "'");
+
+  beforeEach(() => {
+    const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
+    useGameDataStore.setState({
+      megastructureTypes: new Map([[complex.key, complex]]),
+      names: new Map([["habitat_central_complex", "Habitat Central Complex"]]),
+    });
+    useMegastructureAddStore.setState({ last: "habitat_central_complex" });
+    openAt(planet);
+  });
+
+  it("says the habitat has the owner's skin in a system an empire owns", () => {
+    ownSystem(OWNER);
+    const html = footer();
+    expect(html).toContain(writtenAsHabitat(true));
+    expect(html).toContain("It has the habitat skin of the empire that owns the system.");
+    expect(html).toContain(HABITAT_OWNER_NOTE);
+  });
+
+  it("says the habitat has the class's default skin in a system no one owns", () => {
+    ownSystem(null);
+    const html = footer();
+    expect(html).toContain(writtenAsHabitat(false));
+    expect(html).toContain("No one owns the system, so it has the habitat class's default skin.");
+    expect(html).not.toContain("the empire that owns the system");
   });
 });

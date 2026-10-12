@@ -26,7 +26,7 @@ inverse: RemoveMegastructure { megastructure: 16, construction: None }
  			bombardment_damage=0
 +			flags=
 +			{
-+				has_megastructure=62818752
++				has_megastructure=62818656
 +			}
  			entity=0
  		}

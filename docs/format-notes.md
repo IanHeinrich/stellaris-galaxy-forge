@@ -733,10 +733,11 @@ for planets or deposits.
   any `timed_modifier`, before `planet_modifier` and `entity`.
 - `ruined_orbital_ring_planet` is dated the save's day one,
   `62808000` in both 4.x samples, the same as the global flag
-  `game_started`. A flag's date counts hours in years of 365 days:
-  2200.01.01 is 62808000, and each day adds 24. In the 4.5 sample, saved
-  on 2201.03.25, the latest flags are dated 62818560, eight days before
-  the save's own 62818752.
+  `game_started`. A flag's date counts hours in the game's years of
+  twelve 30-day months: 2200.01.01 is 62808000, each day adds 24, and
+  2202.09.19 is 62831472. In the 4.5 sample, saved on 2201.03.25, the
+  latest flags are dated 62818560, four days before the save's own
+  62818656.
 - In a 4.5.2 late-game save every working structure tied to a body has
   the planet flag `has_megastructure` on that body, stars included:
   16 of 16 Dyson Swarms and 10 of 10 Arc Furnaces. Ruins don't. A stage
@@ -809,6 +810,20 @@ for planets or deposits.
   the flag, and the system loses `has_habitat` once no habitat is left.
   The game's World Cracker leaves a `habitat_central_complex_ruined` row
   in its place. The editor leaves none.
+- A finished habitat, as `spawn_habitat_effect` writes it and as the
+  editor adds one: `pc_habitat`, size 6, `carrier_binary_flags=1`, name
+  key `HABITAT_PLANET_NAME` with the variable
+  `prev.solar_system.GetName` holding the system's name,
+  `binary_flags=65` (no moon bit and no bit 2 for its model),
+  `moon_of=<host>`, planet flags `megastructure`, `habitat` and
+  `habitat_level_1`, `entity=0` and
+  `entity_name="<culture>_habitat_phase_03_entity"`. It stands at save
+  angle −45 from its host, 19.798 out round a star and 9.899 round any
+  other body; `orbit` holds that distance. The host lists it in `moons`.
+  No owner and no colony. The install defines no
+  `habitat_phase_03_entity` without a culture, so the editor writes no
+  `entity_name` for a habitat in a system no one owns. The editor writes
+  no `build_queue`, as for any body it adds; the game builds one on load.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

@@ -9,10 +9,12 @@
 use crate::Span;
 use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::{Lines, inline};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::write::id_list::{Emptied, unlist};
+use crate::format::save::write::place::{Place, insert_key};
 use crate::format::save::write::restore::{Saved, live};
 use crate::format::save::{entity_at, planet_statement, planet_system, system_statement};
 use crate::keys;
@@ -231,6 +233,50 @@ pub(crate) fn drop_flags(edit: &mut Edit, gone: impl Fn(&str) -> bool) -> Result
         edit.bytes().remove_statement(span);
     }
     Ok(!spans.is_empty())
+}
+
+/// Give the entity `edit` holds the flags `flags`, each with its date, after its last flag,
+/// writing its `flags` block where `place` says when it has none.
+pub(crate) fn add_flags(
+    edit: &mut Edit,
+    flags: &[(&str, String)],
+    place: &Place,
+) -> Result<(), OpError> {
+    if flags.is_empty() {
+        return Ok(());
+    }
+    let lines: Vec<String> = flags
+        .iter()
+        .map(|(flag, date)| format!("{flag}={date}"))
+        .collect();
+    let block = edit.entity()?.find(keys::FLAGS, &edit.buf).cloned();
+    match block.as_ref().and_then(|block| block.children().last()) {
+        Some(last) => {
+            let end = last.span().end;
+            for line in &lines {
+                edit.bytes().insert_after(end, line);
+            }
+        }
+        None => {
+            let write = |indent: &[u8]| {
+                let mut w = Lines::new(indent);
+                w.open(0, keys::FLAGS);
+                for line in &lines {
+                    w.line(1, line);
+                }
+                w.close(0);
+                inline(indent, &w.into_bytes())
+            };
+            match block {
+                Some(block) => {
+                    let text = write(&edit.indent(block.span().start));
+                    edit.bytes().replace_statement(block.span(), &text);
+                }
+                None => insert_key(edit, &[], place, write)?,
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Take bypass `bypass` of system `system` out: the row is emptied when the file held it

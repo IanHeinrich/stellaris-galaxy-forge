@@ -1,10 +1,13 @@
 //! What finishing a megastructure leaves in its system, replayed from the real install's
 //! build chains: the ring world's rows and segments, stage by stage per quadrant, and the
-//! habitat a Habitat Central Complex becomes.
+//! habitat a Habitat Central Complex becomes and the one the editor adds for it.
 
 use crate::common;
 
+use sgf_core::ops::NewHabitat;
+use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
+use sgf_gamedata::construction::habitat::habitat;
 use sgf_gamedata::construction::layout::{
     Around, IdOf, LaidFlag, LaidPlanet, LaidRow, Orbit, Plan, SectionStage, SystemLayout, lay_out,
 };
@@ -535,4 +538,45 @@ mod_row = { }
             "mod_marked: spawn_planet of pc_mod with both orbit_angle and orbit_angle_offset round its location",
         ]
     );
+}
+
+/// The Habitat Central Complex and its restored version are added as the habitat their
+/// completion leaves, the model in the owner's culture. The ruin stays a row, and the
+/// cosmogenesis world, which ties no habitat flag to its host, is no habitat.
+#[test]
+fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    for key in [
+        "habitat_central_complex",
+        "habitat_central_complex_restored",
+    ] {
+        for (on_star, radius) in [(true, 19.798), (false, 9.899)] {
+            let found = habitat(gd, key, on_star, Some("avian_01")).expect(key);
+            assert_eq!(
+                found,
+                NewHabitat {
+                    class: "pc_habitat".to_owned(),
+                    size: 6,
+                    at: OrbitPlacement {
+                        radius,
+                        angle: 315.0,
+                    },
+                    name: "HABITAT_PLANET_NAME".to_owned(),
+                    system_name: Some("prev.solar_system.GetName".to_owned()),
+                    model: Some("avian_01_habitat_phase_03_entity".to_owned()),
+                    flags: ["megastructure", "habitat", "habitat_level_1"]
+                        .map(str::to_owned)
+                        .to_vec(),
+                },
+                "{key}"
+            );
+        }
+        let unowned = habitat(gd, key, true, None).expect(key);
+        assert_eq!(unowned.model, None, "{key}: the class's own model");
+    }
+    for key in ["habitat_central_complex_ruined", "cosmogenesis_world_0"] {
+        assert_eq!(habitat(gd, key, false, None), None, "{key}");
+    }
 }
