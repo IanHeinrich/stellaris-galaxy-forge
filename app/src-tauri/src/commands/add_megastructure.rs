@@ -106,11 +106,13 @@ fn add_op(
     Op::AddMegastructure {
         system,
         kind: def.key.clone(),
+        name: None,
         at: place,
         owner,
         bypass,
         ruined_orbital_ring: def.ruined_orbital_ring,
         megastructure_flag: def.sets_has_megastructure,
+        orbital_flag: false,
         star_only: matches!(def.placement, Placement::Body { star_only: true }),
         construction: (!construction.is_empty()).then_some(construction),
         left_out: u32::try_from(left_out).unwrap_or(u32::MAX),

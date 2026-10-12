@@ -132,6 +132,9 @@ pub struct LaidRow {
     pub at: Orbit,
     /// The name key, such as `NAME_Ring_Section_A`.
     pub name: Option<String>,
+    /// The variable of the name that the system's name fills in, such as
+    /// `prevprev.GetName`.
+    pub system_name: Option<String>,
     /// The row takes the structure's owner.
     pub owned: bool,
     /// The row takes the structure's graphical culture.
@@ -139,6 +142,8 @@ pub struct LaidRow {
     /// A graphical culture of the row's own in place of the structure's, such as the
     /// `mammalian_01` Gigastructural Engineering gives a ring of any other culture.
     pub culture: Option<String>,
+    /// The row's `planet` is the body the structure stands at.
+    pub on_host: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -238,12 +243,13 @@ pub fn lay_out(gd: &GameData, key: &str, plan: &Plan) -> Option<SystemLayout> {
                 kind: chain[0].key.clone(),
                 at: Orbit::new(Around::Host, 0.0, 0.0),
                 name: None,
+                system_name: None,
                 owned: true,
                 cultured: true,
                 culture: None,
+                on_host: true,
             },
             standing: true,
-            on_host: true,
         }],
         sections: Vec::new(),
         section: None,
@@ -310,8 +316,6 @@ enum Scope {
 struct Row {
     laid: LaidRow,
     standing: bool,
-    /// The row stands at the structure's body, so its `planet` is the host.
-    on_host: bool,
 }
 
 struct State<'g> {
@@ -634,6 +638,10 @@ impl<'d> Walk<'d> {
                     self.every_planet(st, child);
                     Flow::Go
                 }
+                "random_system_planet" if self.picks_ruin_body(st, child) => {
+                    self.within(Scope::Host).block(st, child);
+                    Flow::Go
+                }
                 _ => {
                     self.effect(st, &key, value, child);
                     Flow::Go
@@ -870,11 +878,15 @@ impl<'d> Walk<'d> {
         };
         // `planet = star` links nothing: every row the game spawns with it holds no planet in
         // the save.
-        if let Some(planet) = self.written(node, "planet")
-            && planet != "star"
-        {
-            self.note(st, &format!("{spawn} with planet = {planet}"));
-        }
+        let on_host = match self.written(node, "planet") {
+            Some(planet) if planet == "star" => false,
+            Some(planet) if self.scope_of(st, &planet) == Some(Scope::Host) => true,
+            Some(planet) => {
+                self.note(st, &format!("{spawn} with planet = {planet}"));
+                false
+            }
+            None => false,
+        };
         let owned = self.resolved(st, node, "owner", &spawn) == Some(Scope::Owner);
         let (cultured, culture) = self
             .resolved(st, node, "graphical_culture", &spawn)
@@ -885,12 +897,13 @@ impl<'d> Walk<'d> {
                 kind,
                 at,
                 name: self.field(node, "name"),
+                system_name: None,
                 owned,
                 cultured,
                 culture,
+                on_host,
             },
             standing: true,
-            on_host: false,
         });
         st.sections.push((row, at));
         if let Some(init) = node.find("init_effect", self.src()) {
@@ -1118,9 +1131,49 @@ impl<'d> Walk<'d> {
         };
         match self.this() {
             Scope::Planet(planet) => st.planets[planet].name = Some(name),
-            Scope::Row(row) => st.rows[row].laid.name = Some(name.key),
+            Scope::Row(row) => {
+                let system_name = match &name.variables[..] {
+                    [] => None,
+                    [variable] if self.names_system(st, variable) => Some(variable.clone()),
+                    _ => {
+                        let variables = name.variables.join(", ");
+                        return self.note(st, &format!("set_name on a row with {variables}"));
+                    }
+                };
+                let laid = &mut st.rows[row].laid;
+                laid.name = Some(name.key);
+                laid.system_name = system_name;
+            }
             _ => self.note(st, &format!("set_name on {}", self.scope_name())),
         }
+    }
+
+    /// Whether name variable `variable`, such as `prevprev.GetName`, is the name of the
+    /// system.
+    fn names_system(&self, st: &State<'d>, variable: &str) -> bool {
+        variable
+            .strip_suffix(".GetName")
+            .and_then(|scope| self.scope_of(st, scope))
+            == Some(Scope::System)
+    }
+
+    /// Whether `random_system_planet` block `node` picks the body the structure stands at:
+    /// a stage that restores a ruin picks the ruin's body by the one planet flag its limit
+    /// tests, which the ruin's spawn set there. Mods test it as a carrier flag.
+    fn picks_ruin_body(&self, st: &State<'d>, node: &Node) -> bool {
+        let src = self.src();
+        let restores = st
+            .gd
+            .megastructures
+            .get(&self.origin)
+            .is_some_and(|def| def.upgrade_from.iter().any(|from| from.ends_with(RUINED)));
+        let flagged = node.find("limit", src).is_some_and(|limit| {
+            matches!(
+                limit.children(),
+                [test] if matches!(test.key_str(src), Some("has_planet_flag" | "has_carrier_flag"))
+            )
+        });
+        restores && flagged && self.this() == Scope::System && self.frame[2] == Scope::Row(0)
     }
 
     fn model(&self, st: &mut State<'d>, node: &Node) {
@@ -1211,7 +1264,7 @@ impl<'d> Walk<'d> {
             scope = match (link.as_str(), scope) {
                 ("from", _) if framed => self.frame[1],
                 ("fromfrom", _) if framed => self.frame[2],
-                ("planet", Scope::Row(row)) if st.rows[row].on_host => Scope::Host,
+                ("planet", Scope::Row(row)) if st.rows[row].laid.on_host => Scope::Host,
                 ("planet", Scope::Row(_)) => Scope::Nothing,
                 ("owner", Scope::Row(row)) if st.rows[row].laid.owned => Scope::Owner,
                 ("owner", Scope::Row(_)) => Scope::Nothing,

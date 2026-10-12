@@ -45,6 +45,10 @@ pub struct MegastructureView {
     /// as a planet in place of a row.
     #[serde(default)]
     pub habitat: bool,
+    /// The habitat also comes with a major orbital at its host, which the editor adds where
+    /// the host holds no megastructure.
+    #[serde(default)]
+    pub habitat_orbital: bool,
 }
 
 impl GameData {
@@ -52,16 +56,20 @@ impl GameData {
     pub fn megastructure_views(&self) -> Vec<MegastructureView> {
         self.megastructures
             .iter()
-            .map(|def| MegastructureView {
-                country_effects: modifier_lines(self, &def.country_modifier),
-                construction_summary: def
-                    .construction
-                    .summary()
-                    .into_iter()
-                    .map(|line| self.construction_line(line))
-                    .collect(),
-                habitat: habitat(self, &def.key, true, None).is_some(),
-                def: def.clone(),
+            .map(|def| {
+                let finished = habitat(self, &def.key, true, None);
+                MegastructureView {
+                    country_effects: modifier_lines(self, &def.country_modifier),
+                    construction_summary: def
+                        .construction
+                        .summary()
+                        .into_iter()
+                        .map(|line| self.construction_line(line))
+                        .collect(),
+                    habitat: finished.is_some(),
+                    habitat_orbital: finished.is_some_and(|habitat| habitat.orbital.is_some()),
+                    def: def.clone(),
+                }
             })
             .collect()
     }

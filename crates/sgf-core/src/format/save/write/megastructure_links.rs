@@ -27,11 +27,15 @@ use crate::session::Session;
 /// The `megastructures` table.
 pub(crate) const MEGASTRUCTURES: Table = Table::Entity(EntityKind::Megastructure);
 
+/// The planet flag the game's habitat orbitals set on their body when they are spawned.
+pub(crate) const HAS_ORBITAL: &str = "has_orbital";
+
 /// The planet flags a built or ruined megastructure leaves on its body.
-pub(crate) const BODY_FLAGS: [&str; 3] = [
+pub(crate) const BODY_FLAGS: [&str; 4] = [
     keys::HAS_MEGASTRUCTURE,
     keys::HAS_ARC_FURNACE,
     keys::RUINED_ORBITAL_RING_PLANET,
+    HAS_ORBITAL,
 ];
 
 /// One live `megastructures` row and what it names.

@@ -5,7 +5,7 @@
 
 use crate::common;
 
-use sgf_core::ops::{NewHabitat, RingQuadrant, RingRow};
+use sgf_core::ops::{HabitatOrbital, NewHabitat, RingQuadrant, RingRow};
 use sgf_core::views::OrbitPlacement;
 use sgf_gamedata::GameData;
 use sgf_gamedata::construction::habitat::habitat;
@@ -324,6 +324,50 @@ fn a_habitat_central_complex_becomes_one_habitat_beside_its_host() {
     }
 }
 
+/// A restored Habitat Central Complex picks the ruin's body by its `habitat_build_site`
+/// flag, so its habitat stands round the host as the complex's does, and the major orbital
+/// it spawns there is tied to the host, owned, in the owner's culture and named from the
+/// system. The orbital's own completion flags the host `has_orbital`.
+#[test]
+fn a_restored_complex_leaves_its_habitat_and_a_major_orbital_at_the_host() {
+    let Some(gd) = common::INSTALL.as_ref() else {
+        return;
+    };
+    for on_star in [true, false] {
+        let plan = Plan {
+            on_star,
+            sections: Vec::new(),
+            culture: None,
+        };
+        let restored = lay_out(gd, "habitat_central_complex_restored", &plan)
+            .expect("habitat_central_complex_restored");
+        let complex = lay_out(gd, "habitat_central_complex", &plan).expect("the complex");
+        assert_eq!(restored.row, None);
+        assert_eq!(restored.planets, complex.planets);
+        assert_eq!(restored.host_flags, complex.host_flags);
+        assert_eq!(restored.system_flags, ["has_habitat"]);
+        let [orbital] = &restored.sections[..] else {
+            panic!("{:?}", restored.sections);
+        };
+        let row = orbital.row.as_ref().expect("the orbital stands");
+        assert_eq!(row.kind, "habitat_major_orbital");
+        assert_eq!(orbital.at.around, Around::Host);
+        assert_eq!(orbital.at.distance, 0.0);
+        assert!(row.on_host && row.owned && row.cultured);
+        assert_eq!(row.name.as_deref(), Some("TARGET_ORBITAL_NAME"));
+        assert_eq!(row.system_name.as_deref(), Some("prevprev.GetName"));
+
+        let own = lay_out(gd, "habitat_major_orbital", &plan).expect("the orbital");
+        assert_eq!(
+            own.host_flags,
+            [LaidFlag {
+                flag: "has_orbital".to_owned(),
+                id_of: None,
+            }]
+        );
+    }
+}
+
 /// The cosmogenesis world comes out of the same walk as one planet beside its host. Its
 /// colony is what the walk leaves out.
 #[test]
@@ -448,26 +492,33 @@ mod_row = { }
     }
 }
 
-/// `planet = star` is the game's no-link spawn and passes silently. Any other `planet` is
-/// listed, since the row's link is not laid out.
+/// `planet = star` is the game's no-link spawn and passes silently. A row spawned on the
+/// structure's own body is tied to it. Any other `planet` is listed, since the row's link is
+/// not laid out.
 #[test]
-fn a_row_spawned_on_a_planet_other_than_the_star_is_listed() {
+fn a_row_spawned_on_a_planet_other_than_the_star_or_the_host_is_listed() {
     let (_dir, gd) = common::hand_written(&[(
         "common/megastructures/mod.txt",
         "mod_anchor = {
 	on_build_complete = {
 		spawn_megastructure = { type = mod_row orbit_angle = 0 orbit_distance = 30 planet = star }
 		spawn_megastructure = { type = mod_row orbit_angle = 90 orbit_distance = 30 planet = fromfrom.planet }
+		spawn_megastructure = { type = mod_row orbit_angle = 180 orbit_distance = 30 planet = event_target:elsewhere }
 	}
 }
 mod_row = { }
 ",
     )]);
     let layout = lay_out(&gd, "mod_anchor", &Plan::default()).expect("mod_anchor");
-    assert_eq!(layout.sections.len(), 2);
+    let tied: Vec<bool> = layout
+        .sections
+        .iter()
+        .map(|section| section.row.as_ref().is_some_and(|row| row.on_host))
+        .collect();
+    assert_eq!(tied, [false, true, false]);
     assert_eq!(
         layout.unfollowed,
-        ["mod_anchor: spawn_megastructure of mod_row with planet = fromfrom.planet"]
+        ["mod_anchor: spawn_megastructure of mod_row with planet = event_target:elsewhere"]
     );
 }
 
@@ -546,16 +597,23 @@ mod_row = { }
 }
 
 /// The Habitat Central Complex and its restored version are added as the habitat their
-/// completion leaves, the model in the owner's culture. The ruin stays a row, and the
+/// completion leaves, the model in the owner's culture. The restored version also leaves a
+/// major orbital at the habitat's body, named from the system. The ruin stays a row, and the
 /// cosmogenesis world, which ties no habitat flag to its host, is no habitat.
 #[test]
 fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
     let Some(gd) = common::INSTALL.as_ref() else {
         return;
     };
-    for key in [
-        "habitat_central_complex",
-        "habitat_central_complex_restored",
+    let major = HabitatOrbital {
+        kind: "habitat_major_orbital".to_owned(),
+        owner: None,
+        name: Some("TARGET_ORBITAL_NAME".to_owned()),
+        system_name: Some("prevprev.GetName".to_owned()),
+    };
+    for (key, orbital) in [
+        ("habitat_central_complex", None),
+        ("habitat_central_complex_restored", Some(major)),
     ] {
         for (on_star, radius) in [(true, 19.798), (false, 9.899)] {
             let found = habitat(gd, key, on_star, Some("avian_01")).expect(key);
@@ -574,6 +632,7 @@ fn the_complex_and_its_restored_version_are_added_as_a_habitat() {
                     flags: ["megastructure", "habitat", "habitat_level_1"]
                         .map(str::to_owned)
                         .to_vec(),
+                    orbital: orbital.clone(),
                 },
                 "{key}"
             );
@@ -922,5 +981,80 @@ fn gigas_ring_world_is_added_as_it_builds_one() {
     assert_eq!(
         segments[0].model.as_deref(),
         Some("nowhere_01_tech_entity_01_entity")
+    );
+}
+
+/// A mod's restored complex that picks the ruin's body by a carrier flag and spawns its
+/// habitat without tying it to the host is still added as a habitat: the one its working
+/// type leaves, with the orbital it spawns at the host.
+#[test]
+fn a_mod_restored_complex_falls_back_to_its_working_types_habitat() {
+    let (_dir, gd) = common::hand_written(&[(
+        "common/megastructures/mod.txt",
+        r#"mod_complex = {
+	on_build_complete = {
+		spawn_planet = {
+			class = pc_habitat location = fromfrom.planet orbit_location = yes
+			orbit_angle_offset = 135 orbit_distance_offset = 9.899 size = 6
+			init_effect = {
+				set_name = { key = HABITAT_PLANET_NAME variable_string = "\[prev.solar_system.GetName]" }
+				set_planet_flag = habitat
+				fromfrom.planet = { set_planet_flag = habitat@PREV }
+			}
+		}
+		fromfrom.solar_system = { set_star_flag = has_habitat }
+		remove_megastructure = fromfrom
+	}
+}
+mod_complex_ruined = { }
+mod_complex_restored = {
+	upgrade_from = { mod_complex_ruined }
+	on_build_complete = {
+		solar_system = {
+			random_system_planet = {
+				limit = { has_carrier_flag = mod_build_site }
+				save_event_target_as = target_planet
+			}
+		}
+		spawn_planet = {
+			class = pc_habitat location = event_target:target_planet orbit_location = yes
+			orbit_angle_offset = 135 orbit_distance_offset = 9.899 size = 6
+			init_effect = {
+				set_name = { key = HABITAT_PLANET_NAME variable_string = "\[prev.solar_system.GetName]" }
+				set_planet_flag = habitat
+			}
+		}
+		spawn_megastructure = {
+			type = mod_orbital
+			owner = from
+			graphical_culture = from
+			planet = event_target:target_planet
+			coords_from = event_target:target_planet
+		}
+		fromfrom.solar_system = { set_star_flag = has_habitat }
+		remove_megastructure = fromfrom
+	}
+}
+mod_orbital = {
+	on_build_complete = {
+		fromfrom.planet = { set_carrier_flag = has_orbital }
+	}
+}
+"#,
+    )]);
+    let complex = habitat(&gd, "mod_complex", false, None).expect("mod_complex");
+    assert_eq!(complex.orbital, None);
+    let restored = habitat(&gd, "mod_complex_restored", false, None).expect("the restored type");
+    assert_eq!(
+        restored,
+        NewHabitat {
+            orbital: Some(HabitatOrbital {
+                kind: "mod_orbital".to_owned(),
+                owner: None,
+                name: None,
+                system_name: None,
+            }),
+            ..complex
+        }
     );
 }

@@ -168,11 +168,13 @@ pub fn sol_nexus() -> Op {
     Op::AddMegastructure {
         system: 169,
         kind: "think_tank_3".to_owned(),
+        name: None,
         at: MegastructurePlace::Body { body: 6 },
         owner: Some(0),
         bypass: None,
         ruined_orbital_ring: false,
         megastructure_flag: true,
+        orbital_flag: false,
         star_only: false,
         construction: None,
         left_out: 0,
@@ -197,6 +199,7 @@ pub fn sol_habitat() -> Op {
             flags: ["megastructure", "habitat", "habitat_level_1"]
                 .map(str::to_owned)
                 .to_vec(),
+            orbital: None,
         },
     }
 }

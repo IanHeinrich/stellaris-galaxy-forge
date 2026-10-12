@@ -23,7 +23,7 @@ fn adding_a_habitat_needs_game_data() {
 
 /// Round barren planet 4 of Alari, owned by country 0, the habitat takes dead planet slot 57
 /// one generation on and is drawn in the owner's culture. Round the star it stands twice as
-/// far out. Undo takes the second away again.
+/// far out, and the restored complex adds its orbital too. Undo takes the second away again.
 #[test]
 fn a_habitat_is_added_round_a_planet_and_a_star_and_undone() {
     let Some((w, _)) = with_game_data(SAMPLE_45) else {
@@ -52,6 +52,15 @@ fn a_habitat_is_added_round_a_planet_and_a_star_and_undone() {
         json!({ "system": 169, "body": 0, "kind": "habitat_central_complex_restored" }),
     )
     .expect("round the star");
+    assert!(
+        round_star
+            .edit
+            .entry
+            .description
+            .ends_with(", with orbital #16"),
+        "{}",
+        round_star.edit.entry.description
+    );
     let undone: EditResult = invoke(&w, "undo", json!({})).expect("undo");
     assert_eq!(undone.history.undo.len(), 1);
     assert_ne!(round_star.planet, added.planet);
