@@ -6,6 +6,7 @@ import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { Op } from "../../generated/Op";
+import { isRingRow } from "./ringWorldRemoval";
 
 /** The bypass kinds a moved row may stand for; another has not been tried in game. */
 const MOVED_BYPASSES: ReadonlySet<string> = new Set(["gateway", "relay_bypass"]);
@@ -77,7 +78,7 @@ export function megastructureMove(
   type: MegastructureView | undefined,
   home: HomeBody = { star: false, hidden: false },
 ): MegastructureMove {
-  if (row.kind.startsWith("ring_world")) return fixed("ringWorld");
+  if (isRingRow(row.kind)) return fixed("ringWorld");
   const bypass = type?.bypass_type ?? (row.kind.startsWith("lgate") ? "lgate" : null);
   if (bypass !== null && !MOVED_BYPASSES.has(bypass)) return fixed("bypass");
   const placement = type?.placement;

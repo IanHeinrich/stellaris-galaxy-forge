@@ -1,8 +1,8 @@
 //! One op of every `Op` variant, as the sample save and a scenario each take it: the list
 //! the tests of a property of the whole enum run over.
 use sgf_core::ops::{
-    LanePair, MegastructurePlace, NewBody, NewHabitat, NewRingWorld, Op, RingQuadrant, RingRow,
-    RingSegment, SystemMove,
+    LanePair, MegastructurePlace, NewBody, NewHabitat, NewRingWorld, Op, RingModifier,
+    RingQuadrant, RingRow, RingSegment, RingVariable, SystemMove,
 };
 use sgf_core::projections::galaxy::{PaintSpawnKind, SpawnScript};
 use sgf_core::session::Session;
@@ -230,6 +230,7 @@ fn segment(
         model: model.map(|stem| format!("mammalian_01_{stem}")),
         flags: flags.iter().map(|f| (*f).to_owned()).collect(),
         megastructure_icon: class == "pc_ringworld_habitable",
+        modifiers: Vec::new(),
     }
 }
 
@@ -319,6 +320,97 @@ pub fn finished_ring() -> NewRingWorld {
             .collect(),
         system_flags: vec!["ring_world_built".to_owned()],
         system_variables: Vec::new(),
+        star_flags: vec!["has_megastructure".to_owned()],
+    }
+}
+
+/// The radius Gigastructural Engineering spawns its titanic ring world at.
+pub const TITANIC_RADIUS: f64 = 90.0;
+
+/// A finished quadrant of Gigastructural Engineering's titanic ring world at save angle `at`,
+/// as the install lays it out in the culture `mammalian_01`: the habitable section, named
+/// `habitable`, is of size 20 and has the housing modifier with no end.
+fn titanic_quadrant(at: f64, habitable: &str) -> RingQuadrant {
+    let part = |class: &str, angle: f64, name: &str, model: &str, flags: &[&str]| RingSegment {
+        class: class.to_owned(),
+        size: 10,
+        at: OrbitPlacement {
+            radius: TITANIC_RADIUS,
+            angle: (angle + 360.0) % 360.0,
+        },
+        name: name.to_owned(),
+        model: Some(format!("mammalian_01_titanic_{model}_sector_entity")),
+        flags: flags.iter().map(|f| (*f).to_owned()).collect(),
+        megastructure_icon: false,
+        modifiers: Vec::new(),
+    };
+    let mut habitable = part(
+        "pc_ringworld_habitable",
+        at - 30.0,
+        habitable,
+        "gaia_habitable",
+        &[
+            "forbid_guillis_planet_modifiers",
+            "megastructure",
+            "colony_event",
+            "giga_ringworld_tit",
+        ],
+    );
+    habitable.size = 20;
+    habitable.megastructure_icon = true;
+    habitable.modifiers = vec![RingModifier {
+        modifier: "giga_titanic_housing".to_owned(),
+        days: -1,
+    }];
+    RingQuadrant::Finished {
+        segments: vec![
+            part(
+                "pc_ringworld_tech",
+                at + 30.0,
+                "Ring Section",
+                "tech",
+                &[
+                    "forbid_guillis_planet_modifiers",
+                    "megastructure",
+                    "colony_event",
+                    "giga_ringworld_tit",
+                ],
+            ),
+            part(
+                "pc_ringworld_seam",
+                at,
+                "Ring Section",
+                "seam",
+                &["forbid_guillis_planet_modifiers", "megastructure"],
+            ),
+            habitable,
+        ],
+    }
+}
+
+/// Gigastructural Engineering's titanic ring world with every quadrant finished, beside a
+/// ring whose habitable sections took `ring_01` to `ring_04`: its own are E to H.
+pub fn titanic_ring() -> NewRingWorld {
+    NewRingWorld {
+        quadrants: QUADRANT_ANGLES
+            .iter()
+            .zip(["E", "F", "G", "H"])
+            .map(|(&at, q)| titanic_quadrant(at, &format!("Habitable Section {q}")))
+            .collect(),
+        system_flags: [
+            "giga_has_titanic_ring",
+            "ring_05",
+            "ring_06",
+            "ring_07",
+            "ring_world_built_one",
+            "ring_08",
+        ]
+        .map(str::to_owned)
+        .to_vec(),
+        system_variables: vec![RingVariable {
+            name: "t_ring_segments".to_owned(),
+            value: 0.0,
+        }],
         star_flags: vec!["has_megastructure".to_owned()],
     }
 }

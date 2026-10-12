@@ -7,6 +7,7 @@ import type { MegastructurePlacement } from "./MegastructurePlacement";
 import type { MegastructurePlanetChange } from "./MegastructurePlanetChange";
 import type { MegastructureSwap } from "./MegastructureSwap";
 import type { ModifierLineView } from "./ModifierLineView";
+import type { RingStage } from "./RingStage";
 
 /**
  * A megastructure type with the lines the registry leaves empty because they need the
@@ -33,9 +34,20 @@ habitat: boolean,
 habitat_orbital: boolean, 
 /**
  * For a ring world past its site, why the editor cannot add its chain's ring whole with
- * four finished quadrants; `None` when it can, and for any other type.
+ * every quadrant finished; `None` when it can, and for any other type.
  */
 ring_world_refused: string | null, 
+/**
+ * For a ring world past its site, how far from the star its chain's ring stands: the
+ * radius of its first section with every quadrant finished. `None` for any other type,
+ * and when the editor cannot add that ring.
+ */
+ring_world_radius: number | null, 
+/**
+ * For a ring world past its site, each stage no quadrant of its chain's ring can be
+ * added at, in the order [`RingStage`] lists them; empty for any other type.
+ */
+ring_world_refused_stages: Array<RingStage>, 
 /**
  * The texture key of the picture the game's construction card shows for the type; `None`
  * when it names none or the install has no file for it.

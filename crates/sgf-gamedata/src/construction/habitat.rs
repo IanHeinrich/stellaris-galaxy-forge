@@ -61,6 +61,7 @@ fn plan(on_star: bool, culture: Option<&str>) -> Plan {
         on_star,
         sections: Vec::new(),
         culture: culture.map(str::to_owned),
+        held_flags: Vec::new(),
     }
 }
 

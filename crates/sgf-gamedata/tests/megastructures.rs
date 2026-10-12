@@ -1089,7 +1089,6 @@ fn gigas_types_read_through_their_inline_scripts() {
         "alderson_disk_ruined_left",
         "birch_world_3",
         "r_square_world_ruined",
-        "ringworld_titanic_1",
     ] {
         assert!(
             matches!(

@@ -11,8 +11,10 @@ use crate::ops_bodies::{move_body, set_parent};
 use crate::ops_move_planet::move_planet;
 use crate::ops_remove_planet::footprint;
 use common::diff::{round_trip, snapshot_step};
+use common::examples::titanic_ring;
 use common::{
-    SAMPLE_4_5, assert_refusals, current, entity_text, open, open_3_4, open_4_5, open_edited_sample,
+    SAMPLE_4_5, assert_refusals, current, entity_text, open, open_3_4, open_4_5,
+    open_edited_sample, reopened,
 };
 
 /// Lachium, 4.5: two ruined sections, six segments with colony 25 of pre-FTL country 42 on
@@ -187,6 +189,65 @@ fn the_star_loses_its_megastructure_flag_unless_another_row_names_it() {
     let star = entity_text(&session, EntityKind::Planet, 2444);
     assert!(star.contains("has_megastructure=62808000"), "{star}");
     assert!(system_text(&session, LACHIUM).contains("\t\t\t16 \n"));
+}
+
+/// The 4.5 sample with Gigastructural Engineering's titanic ring added round Lachium's star
+/// beside its ring at 45, whose system has `ring_world_built`, saved and opened again.
+fn two_rings() -> Session {
+    let mut session = open_4_5();
+    let op = session
+        .ring_world_op(LACHIUM, None, titanic_ring(), false)
+        .expect("the titanic ring");
+    session.apply(op).expect("the titanic ring");
+    reopened(&mut session)
+}
+
+/// Deleting one of two rings takes the flags of its own size only: the base game's ring at
+/// 45 takes `ring_world_built`, and the titanic ring at 90 takes `ring_world_built_one` and
+/// `giga_has_titanic_ring`. The star keeps `has_megastructure` while a ring stands.
+#[test]
+fn deleting_one_of_two_rings_keeps_the_others_flags() {
+    let mut session = two_rings();
+    let result = snapshot_step(
+        &mut session,
+        "the_ring_beside_a_titanic_ring",
+        delete_at(LACHIUM, 45.0),
+    );
+    assert!(
+        result
+            .entry
+            .description
+            .starts_with("Deleted the ring world at orbit 45 in Lachium #203"),
+        "{}",
+        result.entry.description
+    );
+    let system = system_text(&session, LACHIUM);
+    assert!(!system.contains("ring_world_built="), "{system}");
+    for flag in ["ring_world_built_one=", "giga_has_titanic_ring="] {
+        assert!(system.contains(flag), "{flag}: {system}");
+    }
+    let star = entity_text(&session, EntityKind::Planet, 2444);
+    assert!(star.contains("has_megastructure="), "{star}");
+
+    session
+        .apply(delete_at(LACHIUM, 90.0))
+        .expect("the titanic ring");
+    let system = system_text(&session, LACHIUM);
+    for flag in ["ring_world_built_one=", "giga_has_titanic_ring="] {
+        assert!(!system.contains(flag), "{flag}: {system}");
+    }
+    let star = entity_text(&session, EntityKind::Planet, 2444);
+    assert!(!star.contains("has_megastructure"), "{star}");
+
+    let mut titanic_first = two_rings();
+    titanic_first
+        .apply(delete_at(LACHIUM, 90.0))
+        .expect("the titanic ring");
+    let system = system_text(&titanic_first, LACHIUM);
+    assert!(system.contains("ring_world_built="), "{system}");
+    assert!(!system.contains("giga_has_titanic_ring="), "{system}");
+    let star = entity_text(&titanic_first, EntityKind::Planet, 2444);
+    assert!(star.contains("has_megastructure="), "{star}");
 }
 
 #[test]

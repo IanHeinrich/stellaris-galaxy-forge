@@ -56,6 +56,22 @@ describe("a habitat or a ring world segment drawn from its model", () => {
     expect(model(broken.id)).toBeNull();
   });
 
+  it("draws a Gigastructural Engineering segment's model as it draws the base game's", () => {
+    const base = {
+      ...saveBody(3, SEGMENT.key, [0, 45], 45, 10, SUN),
+      entity_name: "avian_01_ringworld_tech_entity_01_entity",
+    };
+    const giga = {
+      ...saveBody(4, SEGMENT.key, [0, 90], 90, 10, SUN),
+      entity_name: "avian_01_titanic_tech_sector_entity",
+    };
+    const ctx = classedContext([base, giga], CLASSES);
+    const look = (id: number) => ctx.bodyById.get(id)!.look;
+    expect(look(base.id).model).toBe("model:none:avian_01_ringworld_tech_entity_01_entity:yaw270");
+    expect(look(giga.id).model).toBe("model:none:avian_01_titanic_tech_sector_entity:yaw270");
+    expect({ ...look(giga.id), model: null }).toEqual({ ...look(base.id), model: null });
+  });
+
   it("shows its icon until the model lands, then the model at its own size, which picking and its plate follow", async () => {
     const textureFor = decodeByKey();
     textureFetch.model = (key) => (key.startsWith("model:") ? PLACEMENT : undefined);

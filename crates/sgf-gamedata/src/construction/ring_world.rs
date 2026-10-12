@@ -4,13 +4,13 @@
 //! [`sgf_core::ops::Op::AddRingWorld`].
 
 use serde::{Deserialize, Serialize};
-use sgf_core::ops::{NewRingWorld, RingQuadrant, RingRow, RingSegment, RingVariable};
+use sgf_core::ops::{NewRingWorld, RingModifier, RingQuadrant, RingRow, RingSegment, RingVariable};
 use sgf_core::views::OrbitPlacement;
 use ts_rs::TS;
 
 use super::layout::{self, Around, LaidPlanet, LaidRow, Plan, SectionStage, SystemLayout};
 use crate::GameData;
-use crate::registries::megastructures::MegastructureDef;
+use crate::registries::megastructures::{MegastructureDef, is_ruin};
 
 /// The name the game's initializers give a damaged segment, which
 /// `set_ruined_megastructure` spawns with none of its own.
@@ -47,21 +47,27 @@ impl RingStage {
 
 /// The ring world of type `key`'s chain, any stage of it, its site, its frame, a quadrant or
 /// a ruin, with its quadrants at `stages` in the order they are spawned and its models drawn
-/// in `culture`: what finishing the stage that spawns the quadrants leaves round a star.
+/// in `culture`: what finishing the stage that spawns the quadrants leaves round a star of a
+/// system that holds the flags `held_flags` already, whose habitable sections are named on
+/// from those a ring standing there took.
 /// Refused, with the reason, when no type joined to `key` spawns as many rows round the
 /// system's centre as `stages` holds, or the ring leaves something the op does not write:
 /// its own row, a star flag naming an id, a planet the walk cannot size, name or give the
-/// model its spawn sets, or a stage that leaves neither a row nor planets.
+/// model its spawn sets, a stage that leaves neither a row nor planets, a ruined or restored
+/// quadrant of a chain with no ruined type, and a damaged one the game's ruin leaves as it
+/// is.
 pub fn ring_world(
     gd: &GameData,
     key: &str,
     stages: &[RingStage],
     culture: Option<&str>,
+    held_flags: &[String],
 ) -> Result<NewRingWorld, String> {
     let plan = Plan {
         on_star: true,
         sections: stages.iter().map(|stage| stage.section()).collect(),
         culture: culture.map(str::to_owned),
+        held_flags: held_flags.to_vec(),
     };
     let mut refused = None;
     for def in joined(gd, key)
@@ -83,6 +89,16 @@ pub fn ring_world(
             stages.len()
         )
     }))
+}
+
+/// How many quadrants the ring of `key`'s chain has: the rows the stage that spawns them
+/// spawns. `None` when no type joined to `key` spawns more than one row.
+pub fn quadrants(gd: &GameData, key: &str) -> Option<usize> {
+    joined(gd, key)
+        .into_iter()
+        .map(|def| def.completes.spawns_rows)
+        .filter(|&rows| rows > 1)
+        .max()
 }
 
 /// Every type joined to `key`, itself first: by `upgrade_from` either way, by a type its
@@ -148,9 +164,23 @@ fn of_layout(
             (RingStage::Frame, Some(row)) if segments.is_empty() => RingQuadrant::Frame {
                 row: ring_row(row, culture),
             },
-            (RingStage::Ruined, Some(row)) if segments.is_empty() => RingQuadrant::Ruined {
-                row: ring_row(row, culture),
-            },
+            (RingStage::Ruined, Some(row)) if segments.is_empty() && is_ruin(&row.kind) => {
+                RingQuadrant::Ruined {
+                    row: ring_row(row, culture),
+                }
+            }
+            (RingStage::Ruined | RingStage::Restored, Some(row)) if segments.is_empty() => {
+                return Err(Some(format!(
+                    "its chain has no ruined type to stand in place of its {} row",
+                    row.kind
+                )));
+            }
+            (RingStage::Damaged, Some(row)) if segments.is_empty() => {
+                return Err(Some(format!(
+                    "the game's set_ruined_megastructure leaves its {} row as it is",
+                    row.kind
+                )));
+            }
             (RingStage::Finished | RingStage::Restored | RingStage::Damaged, None)
                 if !segments.is_empty() =>
             {
@@ -259,5 +289,13 @@ fn segment(planet: &LaidPlanet, culture: Option<&str>) -> Result<RingSegment, St
         model,
         flags: planet.flags.iter().map(|flag| flag.flag.clone()).collect(),
         megastructure_icon: planet.megastructure_icon,
+        modifiers: planet
+            .modifiers
+            .iter()
+            .map(|(modifier, days)| RingModifier {
+                modifier: modifier.clone(),
+                days: *days,
+            })
+            .collect(),
     })
 }

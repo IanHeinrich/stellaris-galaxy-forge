@@ -798,7 +798,8 @@ for planets or deposits.
   whose `d_society_3` a research station works.
 - A ring world is its segment planets (`pc_ringworld_*`, the damaged
   classes too, and `pc_shattered_ring_habitable`) and its `ring_world_*`
-  rows. A section row has `planet=4294967295` and stands at radius
+  rows, with Gigastructural Engineering's `ringworld_*` rows of its
+  larger rings. A section row has `planet=4294967295` and stands at radius
   45.20385, and no row or segment names another. Lachium (203) in the
   4.5 sample is mixed: two `ring_world_ruined` rows, six segments with a
   pre-FTL colony on 2447, and the Interloper at orbit 40, which is no
@@ -810,8 +811,15 @@ for planets or deposits.
   ring type has `save_on_death`.
 - When the editor deletes a ring world, each segment goes as a deleted
   planet does, its colony first, and each row as a deleted row does. Its
-  system loses `ring_world_built` and `ring_section_1..3`, and the star
-  `has_megastructure` when no row names it. `ruined_ring_system`,
+  system loses the flags of the ring's size, told by how far the ring
+  stands from the centre: `ring_world_built_one` and
+  `giga_has_titanic_ring` within 5 of 90, `_two` and
+  `giga_has_behemoth_ring` within 5 of 134, `_three` and
+  `giga_has_gargantuan_ring` within 5 of 179, and `ring_world_built`
+  and `ring_section_1..3` for any other ring. The ladder flags `ring_NN`
+  and the section counters stay. The star loses `has_megastructure`
+  when no ring world segment or row is left in the system and no row
+  names it. `ruined_ring_system`,
   `galactic_landmark_system`, the debris ambient objects and the
   owners' `has_ring_world` stay. A deleted body a country controls with
   no station leaves its `controlled_planets`, as Alpha Refuge's
@@ -930,6 +938,44 @@ for planets or deposits.
   The editor writes all of that. It leaves out the Bulk Matter Cache
   planet, the `giga_system_bm*` variables, the country's flags and
   counters, and the queues and survey entries the game adds.
+- Gigastructural Engineering's titanic, behemoth and gargantuan rings,
+  from its scripts unless marked. Each is a site on the star
+  (`ringworld_<size>_0`), a stage that spawns four frame rows
+  (`ringworld_t_3x_segment`, `_b_`, `_g_`) at `orbit_distance` 90, 134
+  and 179, and a stage per row that spawns its three segments, as the
+  base game's ring does. The rows are spawned with
+  `graphical_culture = mammalian_01` and named "Ring Section E" to "H",
+  "I" to "L" and "M" to "P". In a save the titanic ring's rows stand
+  at 90.4077, exactly twice the base game's 45.20385 (Ruinam, 792), and
+  the behemoth's segments at `orbit=134.60702`, 134/45 of the base
+  game's (Davassa, 315), so the editor scales the base game's points to
+  the radius. Tech and seam sections are size 10 and the habitable
+  section 20, 30 or 40 (30 seen at Davassa). Models are
+  `<culture>_<size>_{tech,seam,gaia_habitable}_sector_entity`, with
+  `mammalian_01` for a culture Giga lists none for. The habitable
+  section has `timed_modifier` `giga_<size>_housing` with `days=-1`,
+  written after `bombardment_damage` and before `flags` (Davassa's
+  8412). Segment flags are `forbid_guillis_planet_modifiers`,
+  `megastructure`, `colony_event` (tech and habitable) and
+  `giga_ringworld_tit`, `_beh` or `_gar`; a behemoth's habitable
+  section has `giga_ringworld_tit` too (seen at Davassa). The system
+  gets `giga_has_<size>_ring` from the site, `ring_world_built_one`,
+  `_two` or `_three` when the fourth section finishes, and the variable
+  `t_`, `b_` or `g_ring_segments`. The star gets `has_megastructure`.
+  Each habitable section takes the next free flag of the system's
+  ladder `ring_01` to `ring_32` and is named "Habitable Section" with
+  its letter, so beside a base game ring holding `ring_01` to `ring_04`
+  a titanic ring's sections are E to H. The editor names them from the
+  flags the system holds. Giga's build rules ask for the ring inside it
+  first; the editor adds any size round any single star whose rings it
+  does not overlap, a radius within 5 of a ring's segments or rows.
+  Ruins are `ring_world_<size>_ruined` rows at the frame points (Ruinam
+  holds four titanic ruins at 90.4077 beside four base game ones), and
+  `ring_world_<size>_restored` is built over one. The game's
+  `set_ruined_megastructure` ruins none of the larger rings' rows, so
+  the editor adds no damaged quadrant to them. Davassa's damaged
+  behemoth sections, size 10 with `behemoth_ruined_*_sector_entity`
+  models, come from a fallen empire's setup, not from that effect.
 - Every Hyper Relay stands exactly 1.05 × `inner_radius` from the
   system's centre: 330 of 330 rows across three 4.5 saves of one game,
   and every relay build order too. The angle follows no rule: it is the

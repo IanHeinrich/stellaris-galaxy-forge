@@ -13,7 +13,8 @@ const ONLY_A_SAVE_ADDS: &str = "only a save takes an added ring world";
 
 /// Add the ring world of megastructure type `kind`, any stage of its chain (its site, frame,
 /// a quadrant or a ruin), round the star of system `system`, each quadrant at its stage in
-/// `stages`, in the order the chain spawns them. Rows that take an owner are owned by
+/// `stages`, in the order the chain spawns them; its habitable sections are named on from
+/// the system's flags, after a ring standing there. Rows that take an owner are owned by
 /// `owner`, and its graphical culture picks the culture of the rows and segment models that
 /// take one; with no owner the classes' own models are drawn. With `clear`, every body that
 /// is not a star and every belt go first, in the same edit, as the game's frame clears the
@@ -42,12 +43,14 @@ pub async fn add_ring_world<R: Runtime>(
         let culture = owner
             .and_then(|owner| graph.countries.iter().find(|c| c.id == owner))
             .and_then(|country| country.graphical_culture.clone());
-        let ring = ring_world(&gd, &kind, &stages, culture.as_deref()).map_err(|reason| {
-            SgfError::new(
-                ErrorKind::Op,
-                format!("a ring world of {kind} cannot be added: {reason}"),
-            )
-        })?;
+        let held = session.construction_site(system)?.flags;
+        let ring =
+            ring_world(&gd, &kind, &stages, culture.as_deref(), &held).map_err(|reason| {
+                SgfError::new(
+                    ErrorKind::Op,
+                    format!("a ring world of {kind} cannot be added: {reason}"),
+                )
+            })?;
         let op = session.ring_world_op(system, owner, ring, clear)?;
         let result = session.apply(op)?;
         let written = match &result.inverse {

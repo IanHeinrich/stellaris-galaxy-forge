@@ -17,6 +17,7 @@ import {
   selectedStage,
   whereText,
   writtenAsHabitat,
+  type MegastructureStage,
 } from "../../lib/megastructurePicks";
 import {
   CLEARING_LOADING,
@@ -55,9 +56,17 @@ import "./overlays.css";
 
 const NO_KEYS: readonly string[] = [];
 
-/** The preview with no stage line for a whole ring world, whose picks the grid shows. */
-function ringPreview(preview: MegastructurePreview, ring: boolean): MegastructurePreview {
-  return ring ? { ...preview, stage: null } : preview;
+/**
+ * The preview of a whole ring world named as its Ring tile names its size, with no stage line and
+ * no refusal, as the picks under the tiles show both.
+ */
+function ringPreview(
+  preview: MegastructurePreview,
+  stage: MegastructureStage,
+): MegastructurePreview {
+  return stage.ring === true
+    ? { ...preview, label: stage.label, stage: null, refused: null }
+    : preview;
 }
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
@@ -77,6 +86,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const addRing = useMegastructureAddStore((s) => s.addRing);
   const last = useMegastructureAddStore((s) => s.last);
   const ringClear = useMegastructureAddStore((s) => s.ringClear);
+  const ringSize = useMegastructureAddStore((s) => s.ringSize);
   const clearing = useMegastructureAddStore((s) => s.clearing);
   const clearingError = useMegastructureAddStore((s) => s.clearingError);
   const loadClearing = useMegastructureAddStore((s) => s.loadClearing);
@@ -101,10 +111,10 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
         types,
         names,
         spot,
-        (type) => megastructureRefusal(type, spot, rows ?? [], types, planets ?? []),
-        { globalFlags },
+        (type) => megastructureRefusal(type, spot, rows ?? [], types, planets ?? [], names),
+        { globalFlags, ringSize },
       ),
-    [types, names, spot, rows, planets, globalFlags],
+    [types, names, spot, rows, planets, globalFlags, ringSize],
   );
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -128,6 +138,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
     planetChange === null
       ? ""
       : ` ${keepPlanet ? PLANET_KEPT_NOTE : planetChangeNote(planetText ?? "The planet", planetChange, names)}`;
+  const size = found?.chain.kind === "ring" ? found.entry.size : null;
   const nameOf = (body: number) => bodyName(body)?.text ?? `#${body}`;
   const clearBlocked =
     clearingError !== null
@@ -144,7 +155,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
 
   const confirm = () => {
     if (!addable) return;
-    if (found.stage.ring) void addRing(found.stage.key);
+    if (found.stage.ring) void addRing(found.stage.variant, found.stage.key);
     else void add(found.stage.variant, found.stage.key);
   };
   const submit = (e: FormEvent) => {
@@ -218,8 +229,13 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                     onSelect={setPicked}
                     onConfirm={confirm}
                   />
-                  {ring && found.stage.refused === null && (
-                    <RingWorldPicks clearBlocked={clearBlocked} />
+                  {size !== null && (ring || found.entry.sizes.length > 1) && (
+                    <RingWorldPicks
+                      sizes={found.entry.sizes}
+                      size={size}
+                      ring={ring}
+                      clearBlocked={clearBlocked}
+                    />
                   )}
                   {planetChange !== null && (
                     <PlanetChangePicks
@@ -242,7 +258,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                       icons,
                       text,
                     ),
-                    ring,
+                    found.stage,
                   )}
                   type={type}
                   culture={culture}

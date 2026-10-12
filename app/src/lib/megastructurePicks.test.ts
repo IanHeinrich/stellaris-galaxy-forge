@@ -14,8 +14,9 @@ import {
   RING_STAGE,
   RING_WORLD_LABEL,
   RING_WORLD_SUMMARY,
-  RING_WORLD_THERE,
   ringLayoutRefusal,
+  ringOverlap,
+  ringWorldSizes,
   UNNAMED_TYPES,
   WHOLE_STRUCTURE,
   addLabel,
@@ -445,12 +446,148 @@ describe("the megastructures the Add megastructure dialog lists", () => {
     expect(ringTile(TYPES, refusal([]))?.refused).toBeNull();
     const nexus = megastructureSummary({ kind: "think_tank_3", planet: 12 });
     expect(ringTile(TYPES, refusal([nexus]))?.refused).toBeNull();
-    const site = megastructureSummary({ kind: "ring_world_1", planet: 1 });
-    expect(ringTile(TYPES, refusal([site]))?.refused).toBe(RING_WORLD_THERE);
     const twin = [...planets, planetSummary({ id: 2, role: "star", class: "pc_k_star" })];
     expect(ringTile(TYPES, refusal([], twin))?.refused).toBe(
       "The system has 2 stars, and a ring world stands round one.",
     );
+  });
+
+  describe("with Gigastructural Engineering's larger rings", () => {
+    /** A Giga ring world size as the registry reads it: a site on the star, then its ring. */
+    const gigaRing = (size: string, letter: string, radius: number): MegastructureView[] => {
+      const ring = {
+        ...giga,
+        placement: ringWorld,
+        ring_world_radius: radius,
+        ring_world_refused_stages: ["damaged"],
+      } satisfies Partial<MegastructureView>;
+      return [
+        megastructureTypeView(`ringworld_${size}_0`, {
+          ...giga,
+          placement: onStar,
+          category: "Gigastructure",
+        }),
+        megastructureTypeView(`ringworld_${size}_1`, {
+          ...ring,
+          upgrade_from: [`ringworld_${size}_0`],
+          portrait: `GFX_${size}`,
+        }),
+        megastructureTypeView(`ringworld_${letter}_3x_segment`, { ...ring, script_only: true }),
+        megastructureTypeView(`ringworld_${size}_2`, {
+          ...ring,
+          upgrade_from: [`ringworld_${letter}_3x_segment`],
+        }),
+        ruin(`ring_world_${size}_ruined`, `ringworld_${size}_0`, { ...ring, script_only: true }),
+      ];
+    };
+    const vanilla = (key: string, over: Partial<MegastructureView>) => ({
+      ...TYPES.get(key)!,
+      ...over,
+    });
+    const ring45 = { ring_world_radius: 45 };
+    const RINGS: ReadonlyMap<string, MegastructureView> = new Map(
+      [
+        ...TYPES.values(),
+        vanilla("ring_world_1", { category: "Megastructure" }),
+        vanilla("ring_world_2_intermediate", { ...ring45, portrait: "GFX_ring_world" }),
+        vanilla("ring_world_2", ring45),
+        vanilla("ring_world_ruined", ring45),
+        vanilla("ring_world_restored", ring45),
+        ...gigaRing("titanic", "t", 90),
+        ...gigaRing("behemoth", "b", 134),
+      ].map((t) => [t.key, t]),
+    );
+    const RING_NAMES = new Map([
+      ...NAMES,
+      ["ringworld_titanic_0", "Titanic Ringworld Site"],
+      ["ringworld_titanic_1", "Titanic Ringworld Frame"],
+      ["ringworld_behemoth_0", "Behemoth Ringworld Site"],
+      ["ringworld_behemoth_1", "Behemoth Ringworld Frame"],
+    ]);
+    const starAlone = [planetSummary({ id: 1, role: "primary", class: "pc_g_star" })];
+    const ringEntries = (
+      planets = starAlone,
+      rows: MegastructureSummary[] = [],
+      ringSize: string | null = null,
+    ) =>
+      megastructureEntries(
+        RINGS,
+        RING_NAMES,
+        star,
+        (t) => megastructureRefusal(t, star, rows, RINGS, planets, RING_NAMES),
+        { ringSize },
+      ).filter((entry) => entry.label === RING_WORLD_LABEL);
+
+    it("lists every ring world chain as one Ring World in the base game's section, with the vanilla ring's picture, and a size for each", () => {
+      const [ring, ...others] = ringEntries();
+      expect(others).toEqual([]);
+      expect(entryHeading(ring)).toBe("Base game");
+      expect(shape(ring)?.rows).toEqual([
+        ["ring", null, ["ring_world_1", "ring_world_2_intermediate"]],
+      ]);
+      expect([ring.portrait, ring.category]).toEqual(["GFX_ring_world", "Megastructure"]);
+      expect(ring.sizes.map((s) => [s.label, s.ring, s.stages, s.refused])).toEqual([
+        [
+          "Ring World",
+          "ring_world_2_intermediate",
+          ["finished", "frame", "ruined", "damaged"],
+          null,
+        ],
+        ["Titanic", "ringworld_titanic_1", ["finished", "frame", "ruined"], null],
+        ["Behemoth", "ringworld_behemoth_1", ["finished", "frame", "ruined"], null],
+      ]);
+      expect(ring.size).toBe(ring.sizes[0]);
+      expect(titles(ring)).toEqual([["Ring World Site | Site", "Ring World | Ring"]]);
+      expect(ringWorldSizes(RINGS, RING_NAMES).map((s) => [s.radius, s.name, s.label])).toEqual([
+        [45, "Ring World", "Ring World"],
+        [90, "Titanic Ringworld", "Titanic"],
+        [134, "Behemoth Ringworld", "Behemoth"],
+      ]);
+    });
+
+    it("adds the picked size's site and ring from the Site and Ring tiles, which keep the first size's keys", () => {
+      const [ring] = ringEntries(starAlone, [], "ringworld_titanic_1");
+      const row = ring.chains[0];
+      expect(row.stages.map((s) => [s.key, s.variant, s.label, s.short])).toEqual([
+        ["ring_world_1", "ringworld_titanic_0", "Titanic Ringworld Site", "Site"],
+        ["ring_world_2_intermediate", "ringworld_titanic_1", "Titanic Ringworld", RING_STAGE],
+      ]);
+      expect(ring.size?.label).toBe("Titanic");
+      expect(addLabel(row.stages[1], row)).toBe("Add Titanic Ringworld");
+      expect(ring.portrait).toBe("GFX_ring_world");
+    });
+
+    it("refuses a size whose ring would overlap a ring world there, naming it and its orbit, and leaves room for another size and a site on the star", () => {
+      const segment = planetSummary({ id: 5, class: "pc_ringworld_habitable", orbit: 45.20385 });
+      const ruined = megastructureSummary({ kind: "ring_world_titanic_ruined", at: [90.4077, 0] });
+      const site = megastructureSummary({ kind: "ringworld_behemoth_0", planet: 1, at: [0, 0] });
+      const refusals = (planets: typeof starAlone, rows: MegastructureSummary[]) =>
+        ringEntries(planets, rows)[0].sizes.map((s) => s.refused);
+
+      expect(refusals([...starAlone, segment], [site])).toEqual([
+        "This ring would overlap the Ring World at orbit 45.",
+        null,
+        null,
+      ]);
+      expect(refusals(starAlone, [ruined])).toEqual([
+        null,
+        "This ring would overlap the Titanic Ringworld at orbit 90.",
+        null,
+      ]);
+      const [titanic] = ringEntries(starAlone, [ruined], "ringworld_titanic_1");
+      expect(titanic.chains[0].stages[1].refused).toBe(
+        "This ring would overlap the Titanic Ringworld at orbit 90.",
+      );
+      const odd = planetSummary({ id: 6, class: "pc_ringworld_tech_damaged", orbit: 132 });
+      expect(refusals([...starAlone, odd], [])).toEqual([
+        null,
+        null,
+        "This ring would overlap the Behemoth Ringworld at orbit 132.",
+      ]);
+      expect(ringOverlap("ring world", 100.4)).toBe(
+        "This ring would overlap the ring world at orbit 100.",
+      );
+    });
   });
 
   it("shows a type no localisation names only to a filter on its key, last, under Unnamed types", () => {

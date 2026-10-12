@@ -17,10 +17,18 @@ export const RING_STAGES: readonly { stage: RingStage; label: string }[] = [
   { stage: "damaged", label: "Damaged" },
 ];
 
+/** The stages of the grid a ring is offered at: those not in `refused`. */
+export function offeredStages(refused: readonly RingStage[]): RingStage[] {
+  return RING_STAGES.map(({ stage }) => stage).filter((stage) => !refused.includes(stage));
+}
+
 /** Every quadrant finished, as the dialog opens. */
 export const ALL_FINISHED: readonly RingStage[] = QUADRANTS.map(() => "finished");
 
 export const QUADRANTS_LABEL = "Quadrants";
+export const SIZE_LABEL = "Size";
+/** What the picks say under why a size's ring is refused, when another size's ring fits. */
+export const OTHER_SIZE = "Pick another size.";
 export const SET_ALL = "Set all";
 export const PLANETS_LABEL = "Planets";
 export const LEAVE_PLANETS = "Keep";

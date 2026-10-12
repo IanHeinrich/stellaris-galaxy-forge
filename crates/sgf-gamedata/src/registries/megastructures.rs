@@ -14,6 +14,7 @@ use sgf_core::cst::Node;
 use crate::construction::{self, Construction, PlanetChange, UnsurePlanetChange};
 use crate::dismantle;
 use crate::scripts::ScriptIndex;
+use sgf_core::format::save::ring_world;
 
 use crate::install::inline_script;
 use crate::install::layers::{Layout, VANILLA};
@@ -143,6 +144,8 @@ pub struct Completes {
     pub replaced_by: Vec<String>,
     /// It removes its own row with `remove_megastructure = fromfrom`, anywhere in it.
     pub removes_row: bool,
+    /// The class of each `spawn_planet`, anywhere in it, in file order.
+    pub planet_classes: Vec<String>,
 }
 
 impl Completes {
@@ -164,6 +167,8 @@ impl Completes {
         replacements(block, src, &mut replaced_by);
         let mut removals = Vec::new();
         script::find_deep(block, "remove_megastructure", src, &mut removals);
+        let mut planets = Vec::new();
+        script::find_deep(block, "spawn_planet", src, &mut planets);
         Self {
             converts_body,
             body_effects,
@@ -177,6 +182,11 @@ impl Completes {
             removes_row: removals
                 .iter()
                 .any(|removal| removal.scalar_str(src) == Some("fromfrom")),
+            planet_classes: planets
+                .iter()
+                .filter_map(|planet| planet.find("class", src)?.scalar_str(src))
+                .map(str::to_owned)
+                .collect(),
         }
     }
 
@@ -463,6 +473,7 @@ pub(crate) fn placed(
     let bypassed = bypass_groups(&types, &families);
     let whole = whole_structures(&types);
     let on_stars = star_stages(&types);
+    let rings = ring_worlds(&types, &families);
     let resolved: Vec<Resolved> = types
         .iter()
         .map(|def| {
@@ -475,12 +486,12 @@ pub(crate) fn placed(
                         .any(|effect| flags_body(effect, scripts, 1))
             });
             let mut change = None;
-            let own = match placement(&types, def, &on_stars) {
+            let own = match placement(&types, def, &on_stars, &rings) {
                 Placement::Body { .. } if bypassed.contains(&def.key) => Placement::Free {
                     outside_gravity_well: true,
                 },
                 Placement::Body { star_only }
-                    if whole.contains(&def.key) && !is_ring_world_site(&types, def) =>
+                    if whole.contains(&def.key) && !rings.sites.contains(&def.key) =>
                 {
                     Placement::Unsupported {
                         why: Unsupported::WholeStructure { star_only },
@@ -500,7 +511,8 @@ pub(crate) fn placed(
             let taken = match own {
                 Placement::Body { .. } => families.get(&def.key).and_then(|family| {
                     let working = types.get(&family.working)?;
-                    let placement = placement(&types, first_stage(&types, working), &on_stars);
+                    let placement =
+                        placement(&types, first_stage(&types, working), &on_stars, &rings);
                     matches!(placement, Placement::Body { .. }).then(|| (placement, family.clone()))
                 }),
                 _ => None,
@@ -727,7 +739,7 @@ fn bypass_groups(
 
 /// Each variant's working type: one the files link it to, through any chain of
 /// `upgrade_from` and scripted effect branches, else the first working type, in key order,
-/// whose key is its stem or starts with it.
+/// whose key is its stem or starts with it, read with its underscores and else without them.
 fn families(types: &MegastructureTypes, scripts: &ScriptIndex) -> BTreeMap<String, Family> {
     let mut groups: Vec<Vec<String>> = Vec::new();
     for def in types.iter() {
@@ -777,15 +789,16 @@ fn families(types: &MegastructureTypes, scripts: &ScriptIndex) -> BTreeMap<Strin
                 working: key.to_owned(),
                 linked: Linked::Files,
             }),
-            None => types
-                .iter()
-                .filter(|other| variant_stem(&other.key).is_none())
-                .find(|other| {
-                    other.key == stem
-                        || other
-                            .key
-                            .strip_prefix(stem)
-                            .is_some_and(|rest| rest.starts_with('_'))
+            None => [stem_rest, words_rest]
+                .into_iter()
+                .find_map(|rest| {
+                    types
+                        .iter()
+                        .filter(|other| variant_stem(&other.key).is_none())
+                        .find(|other| {
+                            rest(&other.key, stem)
+                                .is_some_and(|r| r.is_empty() || r.starts_with('_'))
+                        })
                 })
                 .map(|other| Family {
                     working: other.key.clone(),
@@ -797,6 +810,29 @@ fn families(types: &MegastructureTypes, scripts: &ScriptIndex) -> BTreeMap<Strin
         }
     }
     out
+}
+
+/// What follows `stem` in `key`.
+fn stem_rest<'k>(key: &'k str, stem: &str) -> Option<&'k str> {
+    key.strip_prefix(stem)
+}
+
+/// What follows `stem` in `key` when the two are read without their underscores, as
+/// Gigastructural Engineering's `ring_world_titanic_ruined` belongs to `ringworld_titanic_0`.
+fn words_rest<'k>(key: &'k str, stem: &str) -> Option<&'k str> {
+    let mut letters = stem.bytes().filter(|&b| b != b'_').peekable();
+    for (at, byte) in key.bytes().enumerate() {
+        if letters.peek().is_none() {
+            return Some(&key[at..]);
+        }
+        if byte == b'_' {
+            continue;
+        }
+        if letters.next() != Some(byte) {
+            return None;
+        }
+    }
+    letters.peek().is_none().then_some("")
 }
 
 /// Each block of `node` that asks with its `limit` for megastructure types and spawns one
@@ -859,6 +895,7 @@ fn placement(
     types: &MegastructureTypes,
     def: &MegastructureDef,
     on_stars: &BTreeSet<String>,
+    rings: &RingWorlds,
 ) -> Placement {
     if let Some(bypass) = def
         .bypass_type
@@ -870,7 +907,7 @@ fn placement(
         };
         return Placement::Unsupported { why };
     }
-    if def.key.starts_with("ring_world") && !is_ring_world_site(types, def) {
+    if rings.members.contains(&def.key) && !rings.sites.contains(&def.key) {
         return Placement::Unsupported {
             why: Unsupported::RingWorld,
         };
@@ -900,15 +937,76 @@ fn placement(
     }
 }
 
-/// Whether `def` is a ring world's site, the one stage of a ring world the editor adds as a
-/// row: a working type no stage is built over and no stage spawns.
-fn is_ring_world_site(types: &MegastructureTypes, def: &MegastructureDef) -> bool {
-    def.key.starts_with("ring_world")
-        && def.upgrade_from.is_empty()
-        && !is_ruin(&def.key)
-        && !types
-            .iter()
-            .any(|other| other.completes.spawned.contains(&def.key))
+/// The types of the ring worlds, and of those the sites, the one stage of a ring the editor
+/// adds as a row.
+#[derive(Debug, Default)]
+struct RingWorlds {
+    members: BTreeSet<String>,
+    sites: BTreeSet<String>,
+}
+
+/// Every type of a ring world: a chain one of whose stages spawns rows round the system
+/// whatever happens, which a stage built over them turns into ring world segments, the planet
+/// classes a save's ring is made of. From that stage, every stage it is built over or that
+/// is built over it, every type it spawns and every variant of one of them belongs to the
+/// ring. Its site is a working type of it that no stage is built over and none spawns.
+fn ring_worlds(types: &MegastructureTypes, families: &BTreeMap<String, Family>) -> RingWorlds {
+    let builds_segments = |spawned: &String| {
+        types.iter().any(|stage| {
+            stage.upgrade_from.contains(spawned)
+                && stage
+                    .completes
+                    .planet_classes
+                    .iter()
+                    .any(|class| ring_world::is_segment(class))
+        })
+    };
+    let mut members: Vec<&str> = types
+        .iter()
+        .filter(|def| {
+            def.completes.spawns_rows > 1 && def.completes.spawned.iter().any(builds_segments)
+        })
+        .map(|def| def.key.as_str())
+        .collect();
+    let mut next = 0;
+    while let Some(&key) = members.get(next) {
+        next += 1;
+        let Some(def) = types.get(key) else {
+            continue;
+        };
+        let linked = types.iter().filter(|other| {
+            def.upgrade_from.contains(&other.key)
+                || other.upgrade_from.contains(&def.key)
+                || def.completes.spawned.contains(&other.key)
+                || families
+                    .get(&other.key)
+                    .is_some_and(|f| f.working == def.key)
+                || families
+                    .get(&def.key)
+                    .is_some_and(|f| f.working == other.key)
+        });
+        for other in linked {
+            if !members.contains(&other.key.as_str()) {
+                members.push(&other.key);
+            }
+        }
+    }
+    let sites = members
+        .iter()
+        .filter_map(|key| types.get(key))
+        .filter(|def| {
+            def.upgrade_from.is_empty()
+                && variant_stem(&def.key).is_none()
+                && !types
+                    .iter()
+                    .any(|other| other.completes.spawned.contains(&def.key))
+        })
+        .map(|def| def.key.clone())
+        .collect();
+    RingWorlds {
+        members: members.into_iter().map(str::to_owned).collect(),
+        sites,
+    }
 }
 
 /// The stage `def`'s chain starts from, following the first of each `upgrade_from`.

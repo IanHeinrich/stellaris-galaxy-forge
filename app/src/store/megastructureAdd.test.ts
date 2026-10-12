@@ -260,14 +260,31 @@ describe("adding a whole ring world from the system view", () => {
     expect(adds().last).toBe("ring_world_2_intermediate");
   });
 
-  it("opens with every quadrant finished and the planets left, and leaves them when not told", async () => {
+  it("sends the picked size's ring, puts back to finished a quadrant the size offers no stage for, and opens next on the Ring tile", async () => {
+    adds().open(SYSTEM, star);
+    adds().setRingStages("damaged");
+    adds().setRingStage(1, "frame");
+    adds().setRingSize("ringworld_titanic_1", ["finished", "frame", "ruined"]);
+    expect(adds().ringSize).toBe("ringworld_titanic_1");
+    expect(adds().ringStages).toEqual(["finished", "frame", "finished", "finished"]);
+
+    expect(await adds().addRing("ringworld_titanic_1", "ring_world_2_intermediate")).toBe(true);
+    expect(mockedIpc.addRingWorld.mock.calls).toEqual([
+      [SYSTEM, "ringworld_titanic_1", ["finished", "frame", "finished", "finished"], null, false],
+    ]);
+    expect(adds().last).toBe("ring_world_2_intermediate");
+  });
+
+  it("opens with every quadrant finished, the first size and the planets left, and leaves them when not told", async () => {
     adds().open(SYSTEM, star);
     adds().setRingStages("frame");
+    adds().setRingSize("ringworld_titanic_1", ["finished", "frame", "ruined"]);
     adds().setRingClear(true);
     adds().cancel();
     adds().open(SYSTEM, star);
 
     expect(adds().ringStages).toEqual(["finished", "finished", "finished", "finished"]);
+    expect(adds().ringSize).toBeNull();
     expect(adds().ringClear).toBe(false);
     await adds().addRing("ring_world_2_intermediate");
     expect(mockedIpc.addRingWorld.mock.calls[0].slice(2)).toEqual([
