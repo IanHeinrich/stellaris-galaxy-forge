@@ -24,7 +24,6 @@ import {
   clearRefusal,
   clearingUnread,
   clearingWarning,
-  ringSummary,
 } from "../../lib/ringWorldAdd";
 import {
   megastructureDescriptionKeys,
@@ -54,9 +53,9 @@ import "./overlays.css";
 
 const NO_KEYS: readonly string[] = [];
 
-/** The preview with its stage line given over to the ring world's picks, when there are any. */
-function ringPreview(preview: MegastructurePreview, summary: string | null): MegastructurePreview {
-  return summary === null ? preview : { ...preview, stage: summary };
+/** The preview with no stage line for a whole ring world, whose picks the grid shows. */
+function ringPreview(preview: MegastructurePreview, ring: boolean): MegastructurePreview {
+  return ring ? { ...preview, stage: null } : preview;
 }
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
@@ -75,7 +74,6 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const add = useMegastructureAddStore((s) => s.add);
   const addRing = useMegastructureAddStore((s) => s.addRing);
   const last = useMegastructureAddStore((s) => s.last);
-  const ringStages = useMegastructureAddStore((s) => s.ringStages);
   const ringClear = useMegastructureAddStore((s) => s.ringClear);
   const clearing = useMegastructureAddStore((s) => s.clearing);
   const clearingError = useMegastructureAddStore((s) => s.clearingError);
@@ -227,7 +225,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
                       icons,
                       text,
                     ),
-                    ring ? ringSummary(ringStages) : null,
+                    ring,
                   )}
                   type={type}
                   culture={culture}

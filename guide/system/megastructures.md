@@ -255,19 +255,18 @@ You choose whether to clear it in step 6.
    - Ring adds the whole ring world.
 5. For Ring, pick a stage for each quadrant, A to D: Finished, Frame,
    Ruined or Damaged. The buttons after Set all give every quadrant the
-   same stage. The details panel sums up your picks, such as "A and B
-   finished, C ruined, D damaged."
+   same stage.
 6. Under Planets, pick what happens to the system's planets:
-   - Leave them where they are keeps every planet, moon and asteroid
-     belt. The dialog opens with this picked.
-   - Clear the system, as the game does, deletes every planet, moon
-     and asteroid belt first, as the game does when it builds the frame.
+   - Keep leaves every planet, moon and asteroid belt where it is. The
+     dialog opens with this picked.
+   - Clear system deletes every planet, moon and asteroid belt first,
+     as the game does when it builds the frame.
      The stars stay. The line above the Add button says what goes, such
      as "Clearing deletes 6 planets, 2 moons and 1 belt, and the colony
      on Lachium I."
 7. Click Add Ring World.
 
-Clear is off when a starbase orbits one of the planets it would delete,
+Clear system is off when a starbase orbits one of the planets it would delete,
 and the dialog names that planet.
 
 A finished quadrant is three sections, as the game builds them: a tech

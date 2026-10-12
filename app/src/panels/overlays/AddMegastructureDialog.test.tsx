@@ -467,17 +467,12 @@ describe("the Add megastructure dialog on a ring world", () => {
     }
     expect(page).not.toContain("Restored");
     expect(page).toContain(SET_ALL);
-    expect(page).toContain("All 4 quadrants are finished.");
+    expect(page).not.toContain("quadrants are finished");
     expect(page).toContain(LEAVE_PLANETS);
     expect(page).toContain(CLEAR_PLANETS);
     expect(page).toContain(RING_WRITTEN);
     expect(page).toContain(">Add Ring World</button>");
     expect(page).not.toContain("Clearing deletes");
-
-    useMegastructureAddStore.setState({
-      ringStages: ["finished", "finished", "ruined", "damaged"],
-    });
-    expect(html()).toContain("A and B finished, C ruined, D damaged.");
   });
 
   it("warns before Add what clearing deletes, colonies by planet name", () => {

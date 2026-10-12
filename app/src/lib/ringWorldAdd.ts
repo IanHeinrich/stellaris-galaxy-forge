@@ -23,8 +23,8 @@ export const ALL_FINISHED: readonly RingStage[] = QUADRANTS.map(() => "finished"
 export const QUADRANTS_LABEL = "Quadrants";
 export const SET_ALL = "Set all";
 export const PLANETS_LABEL = "Planets";
-export const LEAVE_PLANETS = "Leave them where they are";
-export const CLEAR_PLANETS = "Clear the system, as the game does";
+export const LEAVE_PLANETS = "Keep";
+export const CLEAR_PLANETS = "Clear system";
 /** What the dialog says before Add of a whole ring world. */
 export const RING_WRITTEN = "Finished sections are added with no colony.";
 export const NOTHING_TO_CLEAR = "The system has no planets or belts to clear.";
@@ -33,27 +33,6 @@ export const NOTHING_TO_CLEAR = "The system has no planets or belts to clear.";
 export function listed(items: readonly string[]): string {
   if (items.length < 2) return items.join("");
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
-
-function stageWords(stage: RingStage, count: number): string {
-  if (stage === "frame") return count === 1 ? "a frame" : "frames";
-  return stage;
-}
-
-/** The picks as the preview says them: "A and B finished, C ruined, D damaged." */
-export function ringSummary(stages: readonly RingStage[]): string {
-  const groups = new Map<RingStage, string[]>();
-  stages.forEach((stage, i) => {
-    groups.set(stage, [...(groups.get(stage) ?? []), QUADRANTS[i] ?? `${i + 1}`]);
-  });
-  if (groups.size === 1) {
-    const [stage] = groups.keys();
-    return `All ${stages.length} quadrants are ${stageWords(stage, stages.length)}.`;
-  }
-  const parts = [...groups].map(
-    ([stage, quadrants]) => `${listed(quadrants)} ${stageWords(stage, quadrants.length)}`,
-  );
-  return `${parts.join(", ")}.`;
 }
 
 /**
