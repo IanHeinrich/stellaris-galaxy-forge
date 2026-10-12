@@ -833,11 +833,12 @@ pub enum Op {
     /// each of `ring.system_variables` at its value, and the star each of `ring.star_flags`
     /// it lacks. Rows and segments on the base game's angles stand
     /// where the game's spawn lands, which overshoots the radius a little. Every other body and
-    /// belt stays: [`Op::DeleteBody`] and [`Op::RemoveBelt`] in the same [`Op::Batch`] clear
-    /// the system first, as the game's frame does. The owner's country flags are not written.
+    /// belt stays, and so does every other megastructure, a Dyson Sphere round the star included:
+    /// [`Op::DeleteBody`] and [`Op::RemoveBelt`] in the same [`Op::Batch`] clear the system
+    /// first, as the game's frame does, after [`Op::DeleteMegastructure`] for each row that names
+    /// a body they delete. The owner's country flags are not written.
     /// The inner radius grows when a segment lies past it. A system with no star or more than
-    /// one, one that already has a ring world segment or row, a megastructure row with no
-    /// bypass in the system, an unknown owner, no sections, a section with no planets, a size
+    /// one, one that already has a ring world segment or row, an unknown owner, no sections, a section with no planets, a size
     /// of 0, a placement that is not finite or not past 0, and a class, name, model, flag or
     /// type that cannot be written are refused. The inverse is [`Op::RemoveRingWorld`],
     /// batched with the old inner radius when it grew. Stellaris 4.x save documents only.

@@ -443,6 +443,7 @@ describe("the Add megastructure dialog on a ring world", () => {
     colonies: [2],
     belts: 1,
     starbase_bodies: [],
+    megastructures: [],
     ...over,
   });
 
@@ -511,6 +512,16 @@ describe("the Add megastructure dialog on a ring world", () => {
     );
     expect(page.indexOf("Clearing deletes")).toBeLessThan(page.indexOf(">Add Ring World</button>"));
     expect(page).not.toContain('type="submit" disabled=""');
+  });
+
+  it("names the megastructure on a planet clearing deletes", () => {
+    useMegastructureAddStore.setState({
+      ringClear: true,
+      clearing: clearing({ megastructures: [{ id: 7, body: 3 }] }),
+    });
+    expect(html()).toContain(
+      "Clearing deletes 3 planets, 1 moon and 1 belt, and the colony on Lachium I and the megastructure on Lachium II.",
+    );
   });
 
   it("turns Clear off with the planet a starbase orbits, which the core refuses to clear", () => {

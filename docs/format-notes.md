@@ -904,7 +904,11 @@ for planets or deposits.
   take the freed slots one generation on. No save shows what the game
   does with a starbase whose planet the frame removes. Acahuabene's
   outpost orbits its star throughout. The editor refuses to clear a
-  planet a starbase orbits.
+  planet a starbase orbits. A megastructure row that names a planet the
+  clearing deletes goes first, as a deleted megastructure does. A ring
+  goes in a system that holds other megastructures too, a Dyson sphere
+  round the star included: the game runs such a save, though its build
+  rules do not allow one.
 - A ring world's site (`ring_world_1`) is one row on the star with
   `megastructure=<id>` on the star. Under Gigastructural Engineering the
   site's `giga_set_has_mega_flag` also gives the star `has_megastructure`.

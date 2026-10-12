@@ -2,13 +2,14 @@
 //! its planets left in place, taking it out again, and what is refused.
 
 use sgf_core::entity::views::EntityKind;
-use sgf_core::ops::{NewRingWorld, Op, RingQuadrant, RingVariable};
+use sgf_core::ops::{MegastructurePlace, NewRingWorld, Op, RingQuadrant, RingVariable};
 use sgf_core::session::Session;
+use sgf_core::views::ClearedMegastructure;
 
 use crate::common;
 use common::diff::snapshot_step;
 use common::examples::{
-    CHORS_COMPASS, HABRAQ, chors_ring, finished_quadrant, finished_ring, mixed_ring,
+    CHORS_COMPASS, HABRAQ, chors_ring, finished_quadrant, finished_ring, mixed_ring, sol_nexus,
 };
 use common::{
     SAMPLE_4_5, assert_refusals, current, entity_text, open_3_4, open_4_5, open_edited_sample,
@@ -18,12 +19,15 @@ use common::{
 const LACHIUM: u32 = 203;
 /// Tuzhik, a binary system: stars 618 and 619.
 const TUZHIK: u32 = 5;
-/// A system holding the ruin of a Dyson Sphere, megastructure 3.
-const DYSON_RUIN: u32 = 25;
+/// A one-star system with no megastructure, whose star is 584.
+const STAR_SYSTEM: u32 = 1;
+const STAR: u32 = 584;
 /// Vinh, whose tropical planet 517 is a colony.
 const VINH: u32 = 174;
 /// Plessis, whose starbase orbits the uncolonised shielded world 484.
 const PLESSIS: u32 = 298;
+/// The capital system, where `sol_nexus` builds on gas giant 6.
+const ALARI: u32 = 169;
 
 fn owner(session: &Session, system: u32) -> Option<u32> {
     session.graph().systems.get(&system).and_then(|s| s.owner)
@@ -193,10 +197,6 @@ fn what_an_add_refuses() {
                 "a ring world cannot be added there: Tuzhik #5 has 2 stars, and a ring world stands round one",
             ),
             (
-                add(DYSON_RUIN, finished_ring()),
-                "a ring world cannot be added there: megastructure 3 (dyson_sphere_ruined) stands in Gossok #25",
-            ),
-            (
                 Op::AddRingWorld {
                     system: HABRAQ,
                     owner: Some(99_999),
@@ -257,6 +257,78 @@ fn clearing_a_planet_a_starbase_orbits_is_refused() {
         .ring_world_op(PLESSIS, None, finished_ring(), false)
         .expect("left in place");
     session.apply(op).expect("the ring");
+}
+
+/// A ring world goes round a star that a Dyson Sphere wraps, as it does in a system holding
+/// any other megastructure: the game runs such a save. The star keeps its `megastructure` key
+/// and the sphere's row stands as it was. Undo puts back the bytes.
+#[test]
+fn a_ring_round_a_star_a_dyson_sphere_wraps() {
+    let mut session = open_4_5();
+    let sphere = Op::AddMegastructure {
+        system: STAR_SYSTEM,
+        kind: "dyson_sphere_5".to_owned(),
+        name: None,
+        at: MegastructurePlace::Body { body: STAR },
+        owner: None,
+        bypass: None,
+        ruined_orbital_ring: false,
+        megastructure_flag: true,
+        orbital_flag: false,
+        star_only: true,
+        construction: None,
+        left_out: 0,
+    };
+    session.apply(sphere).expect("the sphere");
+    let with_sphere = current(&session);
+    let row = entity_text(&session, EntityKind::Megastructure, 16);
+    assert!(planet_text(&session, STAR).contains("megastructure=16"));
+    let op = session
+        .ring_world_op(STAR_SYSTEM, None, finished_ring(), false)
+        .expect("the op");
+    session.apply(op).expect("the ring beside the sphere");
+    assert_eq!(entity_text(&session, EntityKind::Megastructure, 16), row);
+    assert!(planet_text(&session, STAR).contains("megastructure=16"));
+    assert!(system_text(&session, STAR_SYSTEM).contains("ring_world_built="));
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), with_sphere);
+    session.undo().expect("undo").expect("the sphere");
+    assert_eq!(current(&session), session.doc().original());
+}
+
+/// Clearing a system deletes the megastructure rows that name a body it deletes, before the
+/// body, since `DeleteBody` refuses a body a row names. Undo puts back the bytes.
+#[test]
+fn clearing_a_planet_a_megastructure_stands_on() {
+    let mut session = open_4_5();
+    session.apply(sol_nexus()).expect("the nexus");
+    let with_nexus = current(&session);
+    let clearing = session.ring_world_clearing(ALARI).expect("the clearing");
+    assert_eq!(
+        clearing.megastructures,
+        [ClearedMegastructure { id: 16, body: 6 }]
+    );
+    let op = session
+        .ring_world_op(ALARI, Some(0), finished_ring(), true)
+        .expect("the batch");
+    let Op::Batch { ops, description } = &op else {
+        panic!("{op:?}");
+    };
+    assert!(
+        description.ends_with(" and megastructure #16"),
+        "{description}"
+    );
+    assert_eq!(
+        ops[0],
+        Op::DeleteMegastructure {
+            megastructure: 16,
+            dismantle: None
+        }
+    );
+    session.apply(op).expect("the cleared ring");
+    assert!(!common::planet_ids(&session, ALARI).contains(&6));
+    session.undo().expect("undo").expect("an op to undo");
+    assert_eq!(current(&session), with_nexus);
 }
 
 fn counted(value: f64) -> NewRingWorld {

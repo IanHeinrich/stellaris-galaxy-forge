@@ -111,27 +111,21 @@ export function ringLayoutRefusal(reason: string): string {
 
 export const RING_WORLD_NO_STAR = "The system has no star for a ring world to stand round.";
 export const RING_WORLD_THERE = "The system already has a ring world or a ring world site.";
-export const RING_WORLD_ROWS =
-  "The system already has a megastructure. A ring world goes only in a system with none, other than a gateway, relay or L-Gate.";
 
 /**
  * Why the save would refuse a whole ring world in a system of `planets` and `rows`, as the core
- * refuses it: a system with other than one star, one that has a ring world or its site already,
- * and one with a megastructure that stands for no bypass. Null when it fits.
+ * refuses it: a system with other than one star, and one that has a ring world or its site
+ * already. Null when it fits.
  */
 export function ringWorldRefusal(
   planets: readonly PlanetSummary[],
   rows: readonly MegastructureSummary[],
-  types: ReadonlyMap<string, MegastructureView>,
 ): string | null {
   const stars = planets.filter((p) => p.role === "primary" || p.role === "star").length;
   if (stars === 0) return RING_WORLD_NO_STAR;
   if (stars > 1) return `The system has ${stars} stars, and a ring world stands round one.`;
   if (planets.some((p) => isRingSegment(p.class)) || rows.some((row) => isRingRow(row.kind))) {
     return RING_WORLD_THERE;
-  }
-  if (rows.some((row) => (types.get(row.kind)?.bypass_type ?? null) === null)) {
-    return RING_WORLD_ROWS;
   }
   return null;
 }
@@ -955,7 +949,7 @@ export function megastructureRefusal(
   types: ReadonlyMap<string, MegastructureView>,
   planets: readonly PlanetSummary[] = [],
 ): string | null {
-  if (isRingWorld(type)) return ringWorldRefusal(planets, rows, types);
+  if (isRingWorld(type)) return ringWorldRefusal(planets, rows);
   if (type.habitat && spot.kind === "body") {
     return spot.orbitsPlanet === true ? HABITAT_ROUND_SATELLITE : null;
   }

@@ -51,11 +51,17 @@ export function clearingWarning(
   ].filter((part) => part !== null);
   if (parts.length === 0) return NOTHING_TO_CLEAR;
   const colonies = clearing.colonies.map(nameOf);
-  const colonyText =
+  const structures = clearing.megastructures.map((row) => nameOf(row.body));
+  const also = [
     colonies.length === 0
-      ? ""
-      : `, and the ${colonies.length === 1 ? "colony" : "colonies"} on ${listed(colonies)}`;
-  return `Clearing deletes ${listed(parts)}${colonyText}.`;
+      ? null
+      : `the ${colonies.length === 1 ? "colony" : "colonies"} on ${listed(colonies)}`,
+    structures.length === 0
+      ? null
+      : `the ${structures.length === 1 ? "megastructure" : "megastructures"} on ${listed(structures)}`,
+  ].filter((part) => part !== null);
+  const alsoText = also.length === 0 ? "" : `, and ${also.join(" and ")}`;
+  return `Clearing deletes ${listed(parts)}${alsoText}.`;
 }
 
 /**
