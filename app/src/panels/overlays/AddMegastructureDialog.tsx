@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import {
+  HABITAT_ORBITAL_OWNER_NOTE,
   HABITAT_OWNER_NOTE,
   NO_MEGASTRUCTURE_FITS,
   NO_OWNER,
@@ -8,6 +9,8 @@ import {
   WRITTEN_FINISHED,
   addLabel,
   entryDefault,
+  habitatOrbitalNote,
+  hostHasMegastructure,
   matchingEntries,
   megastructureEntries,
   megastructureRefusal,
@@ -93,6 +96,7 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const culture = ownerCulture(owner, details.values(), countries);
   const ownerCountry = owner === null ? undefined : countries.get(owner);
   const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
+  const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
   const addable = found !== null && found.stage.refused === null;
 
   const confirm = () => {
@@ -124,7 +128,11 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
             <output>
               {type?.habitat ? (
                 <>
-                  {NO_OWNER} <span className="muted">{HABITAT_OWNER_NOTE}</span>
+                  {NO_OWNER}{" "}
+                  <span className="muted">
+                    {HABITAT_OWNER_NOTE}
+                    {orbitHosted && owner !== null ? ` ${HABITAT_ORBITAL_OWNER_NOTE}` : ""}
+                  </span>
                 </>
               ) : (
                 <>
@@ -184,6 +192,9 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
           )}
           <div className="muted">
             {type?.habitat ? writtenAsHabitat(owner !== null) : WRITTEN_FINISHED}
+            {type?.habitat && type.habitat_orbital
+              ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
+              : ""}
           </div>
         </div>
         <div className="open-dialog-foot">

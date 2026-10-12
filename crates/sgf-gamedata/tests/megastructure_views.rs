@@ -229,11 +229,12 @@ fn the_complex_and_its_restored_version_are_habitats_in_the_view() {
         return;
     };
     let views = gd.megastructure_views();
-    for (key, habitat) in [
-        ("habitat_central_complex", true),
-        ("habitat_central_complex_restored", true),
-        ("habitat_central_complex_ruined", false),
+    for (key, habitat, orbital) in [
+        ("habitat_central_complex", true, false),
+        ("habitat_central_complex_restored", true, true),
+        ("habitat_central_complex_ruined", false, false),
     ] {
         assert_eq!(view(&views, key).habitat, habitat, "{key}");
+        assert_eq!(view(&views, key).habitat_orbital, orbital, "{key} orbital");
     }
 }

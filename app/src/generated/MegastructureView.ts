@@ -24,7 +24,12 @@ construction_summary: Array<ConstructionLineView>,
  * Its finished stage is a habitat beside the body it is built at, which the editor adds
  * as a planet in place of a row.
  */
-habitat: boolean, key: string, 
+habitat: boolean, 
+/**
+ * The habitat also comes with a major orbital at its host, which the editor adds where
+ * the host holds no megastructure.
+ */
+habitat_orbital: boolean, key: string, 
 /**
  * The model, without the graphical culture prefix the game puts before it; `None` when
  * the type names none or `""`.
