@@ -1,13 +1,14 @@
 //! `inline_script` calls read as the game reads them: the script's text from
 //! `common/inline_scripts`, its parameters put in, in place of the call.
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use sgf_core::cst::{self, Node};
 
 use crate::install::layers::Layout;
-use crate::install::script::Def;
+use crate::install::script::{Def, written};
 
 /// How deep [`expand`] follows a script that calls another.
 pub(crate) const MAX_DEPTH: usize = 4;
@@ -24,13 +25,13 @@ pub(crate) struct ScriptText {
 /// with each other scalar of the block a parameter. A quoted value goes in without its quotes,
 /// so a parameter can carry a block of script. `None` when the install has no such script.
 pub(crate) fn read(call: &Node, src: &[u8], layout: &Layout) -> Option<ScriptText> {
-    let (script, params): (&str, Vec<(&str, &str)>) = match call.scalar_str(src) {
+    let args = call.children();
+    let (script, params): (&str, Vec<(&str, Cow<str>)>) = match call.scalar_str(src) {
         Some(script) => (script, Vec::new()),
         None => (
             call.find("script", src)?.scalar_str(src)?,
-            call.children()
-                .iter()
-                .filter_map(|p| Some((p.key_str(src)?, p.scalar_str(src)?)))
+            (0..args.len())
+                .filter_map(|at| Some((args[at].key_str(src)?, written(args, at, src)?)))
                 .filter(|(key, _)| *key != "script")
                 .collect(),
         ),
@@ -129,11 +130,11 @@ fn calls_in<'n>(node: &'n Node, src: &[u8], out: &mut Vec<&'n Node>) {
 /// `text` with its conditional blocks settled, then each `$NAME$` and `$NAME|default$`
 /// replaced by the value `params` gives `NAME`, or its default; a parameter with neither is
 /// left as written.
-pub(crate) fn substitute(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
+pub(crate) fn substitute(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
     put_params(&conditionals(text, params), params)
 }
 
-fn put_params(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
+fn put_params(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
     let mut out = Vec::with_capacity(text.len());
     let mut rest = text;
     while let Some(open) = rest.iter().position(|&b| b == b'$') {
@@ -166,7 +167,7 @@ fn put_params(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
 /// `text` with each `[[NAME] … ]` kept when `params` gives `NAME`, and each `[[!NAME] … ]`
 /// kept when it does not, nested ones settled in turn. A block that is dropped leaves its
 /// line breaks, so the text keeps the lines of its file.
-fn conditionals(text: &[u8], params: &[(&str, &str)]) -> Vec<u8> {
+fn conditionals(text: &[u8], params: &[(&str, Cow<str>)]) -> Vec<u8> {
     let mut out = Vec::with_capacity(text.len());
     let mut at = 0;
     while at < text.len() {

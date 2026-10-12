@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use sgf_core::cst::Node;
 
-use crate::install::script::Def;
+use crate::install::script::{Def, written};
 use crate::registries::scripted_triggers::ScriptedTriggers;
 
 /// How deep scripted triggers may call each other before the answer is unknown.
@@ -291,14 +291,21 @@ impl Compiler<'_> {
     }
 
     fn group(&self, node: &Node, skip: &[&str]) -> Vec<Condition> {
-        node.children()
-            .iter()
-            .filter(|c| c.key_str(self.src).is_some_and(|key| !skip.contains(&key)))
-            .map(|c| self.condition(c))
+        let items = node.children();
+        (0..items.len())
+            .filter(|&at| {
+                items[at]
+                    .key_str(self.src)
+                    .is_some_and(|key| !skip.contains(&key))
+            })
+            .map(|at| self.condition(items, at))
             .collect()
     }
 
-    fn condition(&self, node: &Node) -> Condition {
+    /// The condition `siblings[at]` writes, read with the statements that follow it when
+    /// they are the rest of its inline maths.
+    fn condition(&self, siblings: &[Node], at: usize) -> Condition {
+        let node = &siblings[at];
         let key = node.key_str(self.src).unwrap_or_default();
         let value = node.scalar_str(self.src);
         let yes = match value {
@@ -337,9 +344,9 @@ impl Compiler<'_> {
             "is_moon" => flag(Condition::Moon),
             "is_asteroid" => flag(Condition::Asteroid),
             "is_colonizable" => flag(Condition::Colonizable),
-            "planet_size" => self.size(node).unwrap_or_else(unknown),
+            "planet_size" => self.size(siblings, at).unwrap_or_else(unknown),
             "num_modifiers" => self
-                .comparison(node)
+                .comparison(siblings, at)
                 .map(|(cmp, n)| Condition::Modifiers(cmp, n))
                 .unwrap_or_else(unknown),
             _ => match yes {
@@ -350,18 +357,19 @@ impl Compiler<'_> {
     }
 
     /// `planet_size < 15`: the operator is whatever the file writes between key and value.
-    fn size(&self, node: &Node) -> Option<Condition> {
-        let (cmp, n) = self.comparison(node)?;
+    fn size(&self, siblings: &[Node], at: usize) -> Option<Condition> {
+        let (cmp, n) = self.comparison(siblings, at)?;
         Some(Condition::Size(cmp, n))
     }
 
     /// The operator and number of `key < n`.
-    fn comparison(&self, node: &Node) -> Option<(Comparison, f64)> {
+    fn comparison(&self, siblings: &[Node], at: usize) -> Option<(Comparison, f64)> {
+        let node = &siblings[at];
         let key = node.key?;
         let value = node.scalar_span()?;
         let op = std::str::from_utf8(self.src.get(key.end..value.start)?).ok()?;
         let cmp = Comparison::parse(op.trim())?;
-        let n = (self.number)(node.scalar_str(self.src)?)?;
+        let n = (self.number)(&written(siblings, at, self.src)?)?;
         Some((cmp, n))
     }
 }

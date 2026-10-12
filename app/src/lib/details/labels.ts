@@ -295,6 +295,11 @@ export function megastructureLabel(kind: string): string {
   return PLAIN_MEGASTRUCTURE_STATES.has(state) ? name : `${name} (${state})`;
 }
 
+/** What a megastructure the game places at random is called where it stands in at a typical spot. */
+export function randomlyPlacedLabel(name: string): string {
+  return `${name} · placed at random`;
+}
+
 /**
  * Gateways, L-Gates and hyper relays are megastructures the save also lists as bypasses, where
  * their icon belongs.

@@ -37,6 +37,14 @@ pub struct AddedMegastructure {
     pub unwritten: Vec<String>,
 }
 
+/// What adding a habitat answers with: the edit and the id the new planet took.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct AddedHabitat {
+    pub edit: EditResult,
+    pub planet: u32,
+}
+
 /// What a set of Prepare choices would do to the open scenario: the dialect it is written in,
 /// the systems standing in each row, how many systems the choices change, and what the options
 /// and a pair taken out do beside them.

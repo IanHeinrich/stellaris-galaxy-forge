@@ -858,6 +858,7 @@ export class LabelsLayer implements SystemLayer {
     const labelOf = new Map(this.labels.map((l) => [l.body.placement.id, l]));
     const picks: StructurePlatePick[] = [];
     const pickOf = (block: StructureBlock, x: number, y: number, w: number, scale: number) => {
+      if (block.structure.chance.random) return;
       const at = cam.screenToWorld(x, y + block.top * scale);
       const { kind, id } = block.structure;
       const top = block.top;

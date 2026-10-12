@@ -71,10 +71,8 @@ impl DepositRoll {
                 .node
                 .find("potential", src)
                 .map(|node| Condition::of_def(node, def)),
-            drop_weight: def
-                .node
-                .find("drop_weight", src)
-                .map_or_else(|| Weight::fixed(1.0), |node| Weight::read(node, def, 1.0)),
+            drop_weight: Weight::read(&def.node, "drop_weight", def, 1.0)
+                .unwrap_or_else(|| Weight::fixed(1.0)),
         }
     }
 }

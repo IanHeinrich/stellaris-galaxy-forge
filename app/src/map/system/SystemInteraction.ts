@@ -1,4 +1,6 @@
+import { documentCapabilities, supports } from "../../lib/capabilities";
 import { beltLabel, shownBodyName } from "../../lib/details/labels";
+import { capabilityFor } from "../../lib/entities";
 import { DRAG_HINTS, GEOMETRY_REASONS, type GeometryIntent } from "../../lib/details/orbitIntent";
 import type { Pt } from "../../lib/geometry/pt";
 import type { MegastructureMove } from "../../lib/details/megastructureMoves";
@@ -11,6 +13,7 @@ import {
   useInspectorStore,
   wormholeEntry,
 } from "../../store/inspectorStore";
+import { useFileSessionStore } from "../../store/fileSessionStore";
 import { useMapChromeStore, type MapTooltip } from "../../store/mapChromeStore";
 import { noteScenePointer, planetsCanMove } from "../../store/planetMoveStore";
 import { canEnterSystem, useSceneStore } from "../../store/sceneStore";
@@ -27,6 +30,11 @@ import { handleOwnerAt, pickTarget, sameTarget, type SceneTarget } from "./picki
 import { SystemGestureModel, type SystemInput, type SystemIntent } from "./SystemGestureModel";
 
 const CTRL_KEYS: ReadonlySet<string> = new Set(["Control", "Meta"]);
+
+/** Whether the open document has a page for a structure of `kind`; a scenario's have none. */
+function hasPage(kind: StructureKind): boolean {
+  return supports(documentCapabilities(useFileSessionStore.getState()), capabilityFor(kind));
+}
 
 /** What the scene's pointer controller reads from the scene and asks of it. */
 export interface InteractionScene {
@@ -343,11 +351,12 @@ export class SystemInteraction {
     useInspectorStore.getState().openFromMap(wormholeEntry(system, id, hole.plateName));
   }
 
-  /** A click on a megastructure or starbase selects it alone and opens its page. */
+  /** A click on a megastructure or starbase selects it alone and opens its page, where it has one. */
   private openStructure(system: number, kind: StructureKind, id: number): void {
     const shown = this.scene.context().structures.find((s) => s.kind === kind && s.id === id);
     if (!shown) return;
     useSceneStore.getState().clearBodies();
+    if (!hasPage(kind)) return;
     const entry =
       kind === "megastructure"
         ? megastructureEntry(id, shown.name)

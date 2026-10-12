@@ -17,6 +17,7 @@
 //! spawns and the ones it removes, is read by [`layout`] from each stage's own definition,
 //! kept as [`Construction::script`].
 
+pub mod habitat;
 pub mod layout;
 
 use std::collections::BTreeMap;
@@ -32,7 +33,7 @@ use ts_rs::TS;
 
 use crate::GameData;
 use crate::condition::{Condition, Subject};
-use crate::install::script::Def;
+use crate::install::script::{Def, Names, written, written_key};
 use crate::registries::scripted_triggers::ScriptedTriggers;
 use crate::scripts::ScriptIndex;
 
@@ -281,6 +282,7 @@ pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptInde
             if let Some(block) = stage.node.find(hook, &stage.src) {
                 let walk = Walk {
                     scripts,
+                    names: stage.names(),
                     params: Vec::new(),
                     scope: Scope::System,
                     frame: [
@@ -309,6 +311,8 @@ pub(crate) fn read(defs: &BTreeMap<String, Def>, key: &str, scripts: &ScriptInde
 #[derive(Clone)]
 struct Walk<'a> {
     scripts: &'a ScriptIndex,
+    /// The `@variables` the file the walk stands in can name.
+    names: Names,
     params: Vec<(String, String)>,
     scope: Scope,
     /// `root`, `from`, `fromfrom` and `fromfromfrom` where the walk stands.
@@ -380,6 +384,7 @@ impl Walk<'_> {
                         Some(effect) if self.depth < MAX_DEPTH => {
                             let mut inner = self.clone();
                             inner.params = self.arguments(child, src);
+                            inner.names = effect.names();
                             inner.depth += 1;
                             inner.block(&effect.node, &effect.src, out);
                         }
@@ -549,6 +554,7 @@ impl Walk<'_> {
         walk.events += 1;
         walk.depth = 0;
         walk.params = Vec::new();
+        walk.names = Names::of_file(parsed.root.children(), &parsed.src, self.names.globals());
         walk.origin = id.clone();
         if let Some(trigger) = event.find("trigger", &parsed.src) {
             walk = walk.guarded_event(Condition::compile(trigger, &parsed.src));
@@ -574,8 +580,14 @@ impl Walk<'_> {
                 .map(|v| self.substitute(v))
         };
         let modifier = field("modifier")?;
-        let days = match field("days") {
-            Some(days) => days.parse().ok()?,
+        let days = match node.find("days", src) {
+            Some(_) => {
+                let days = self.number(node, "days", src)?;
+                if days.fract() != 0.0 || days < f64::from(i32::MIN) || days > f64::from(i32::MAX) {
+                    return None;
+                }
+                days as i32
+            }
             None => -1,
         };
         Some(Effect::AddModifier { modifier, days })
@@ -588,7 +600,7 @@ impl Walk<'_> {
                 .map(|v| self.substitute(v))
         };
         let variable = field("which")?;
-        let value: f64 = field("value")?.parse().ok()?;
+        let value = self.number(node, "value", src)?;
         let by = if key == "subtract_variable" {
             -value
         } else {
@@ -653,14 +665,21 @@ impl Walk<'_> {
     }
 
     fn arguments(&self, call: &Node, src: &[u8]) -> Vec<(String, String)> {
-        call.children()
-            .iter()
-            .filter_map(|arg| {
-                let name = arg.key_str(src)?;
-                let value = arg.scalar_str(src)?;
-                Some((name.to_owned(), self.substitute(value)))
+        let args = call.children();
+        (0..args.len())
+            .filter_map(|at| {
+                let name = args[at].key_str(src)?;
+                let value = written(args, at, src)?;
+                Some((name.to_owned(), self.substitute(&value)))
             })
             .collect()
+    }
+
+    /// `node`'s `key` as a number, its `$PARAM$`s put in and its `@variables` read as the file
+    /// the walk stands in has them.
+    fn number(&self, node: &Node, key: &str, src: &[u8]) -> Option<f64> {
+        let text = self.substitute(&written_key(node, key, src)?);
+        self.names.number_of(&text)
     }
 
     fn substitute(&self, text: &str) -> String {

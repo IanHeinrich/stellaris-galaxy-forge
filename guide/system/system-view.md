@@ -1,7 +1,7 @@
 ---
 title: System view
 description: Open one system to see its star, planets, moons and belts laid out as in the game, and get back to the galaxy.
-aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy, may not spawn, star list, rolled value, initializer facts, script text, script at game start, angle dial, source tab]
+aliases: [open system, system map, planets view, orbits, orbit radii, roll again, inside a system, back to galaxy, may not spawn, star list, rolled value, initializer facts, script text, script at game start, angle dial, source tab, scenario megastructures, scenario starbase]
 ---
 # System view <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
@@ -144,10 +144,10 @@ its radius.
 
 ![The system view of Amory with Orbit radii on, each orbit labelled with its radius](../images/system/orbit-radii.png)
 
-## Megastructures and starbases <Badge type="tip" text="Save" />
+## Megastructures and starbases <Badge type="tip" text="Save" /> <Badge type="info" text="Scenario" />
 
-In a save, each megastructure and starbase in a system shows as its
-model from the game, at the size it has in game. A Dyson Sphere covers
+Each megastructure and starbase in a system shows as its model from the
+game, at the size it has in game. A Dyson Sphere covers
 its star, and an Arc Furnace rings its planet. A megastructure built on
 a planet or moon stays with it when you move the planet. Ring world
 sections turn to face their star, so the pieces of a ring world join up.
@@ -156,7 +156,8 @@ sections turn to face their star, so the pieces of a ring world join up.
 
 Habitats and ring world segments are planets, and they show as their
 models from the game too. You select, move and name them as you do any
-other planet.
+other planet. To add a habitat, see
+[Add a habitat](megastructures.md#add-a-habitat).
 
 Each megastructure and starbase shows its name on a plate under it
 while Names is on. One drawn over a star or a planet, such as a Dyson
@@ -183,11 +184,41 @@ Megastructures and starbases in the Layers menu.
 To add a megastructure, right-click a body or empty space. See
 [Add a megastructure](megastructures.md#add-a-megastructure).
 
+### In a scenario <Badge type="info" text="Scenario" />
+
+A scenario system shows the megastructures and the starbase its
+[initializer](../scenario/initializers.md) places, where the game puts
+them when a new game starts. You need the game data loaded.
+
+- A megastructure placed at a planet stands on that planet. Click Roll
+  again and it moves with the planet.
+- A megastructure placed at a distance and angle from the star stands
+  at that point, such as the ruined ring world sections in a fallen
+  empire's home system.
+- The starbase stands beside the star, where the game puts a system's
+  first starbase.
+- A megastructure or starbase the game may not place has a dashed halo.
+  That covers one the initializer places only under a condition, and
+  one on a planet the game may not place.
+- The game places some ruins, such as a ruined gateway or a ruined
+  Hyper Relay, at random when the game starts. Each shows faint at a
+  typical spot, with "placed at random" after its name. A relay stands
+  just outside the inner radius, and a gateway outside the planets. You
+  can't select these.
+
+Models show without an empire's look, because a scenario's empires
+have no graphical culture. A fallen empire's ring world sections belong
+to the fallen empire, as they do in a new game.
+
+You can't open the page of a scenario's megastructure or starbase, and
+you can't edit them. The system's page lists them in its Megastructures
+and Station sections.
+
 ## Names and layers in a system
 
 Each body's name sits on a plate under it. A colonised planet's plate
-has a bar in its owner's colour. Names, System details, Nebulae and,
-in a save, Bypasses and Megastructures and starbases still work while
+has a bar in its owner's colour. Names, System details, Nebulae,
+Megastructures and starbases and, in a save, Bypasses still work while
 a system is open, with their own settings, so you can have them on in
 the galaxy and off in a system.
 With System details on, each body's resources show under its name. A

@@ -134,6 +134,8 @@ pub struct Completes {
     /// The types a block spawns in place of the row, removing it with
     /// `remove_megastructure = fromfrom`, in file order.
     pub replaced_by: Vec<String>,
+    /// It removes its own row with `remove_megastructure = fromfrom`, anywhere in it.
+    pub removes_row: bool,
 }
 
 impl Completes {
@@ -153,6 +155,8 @@ impl Completes {
         script::find_deep(block, "spawn_megastructure", src, &mut rows);
         let mut replaced_by = Vec::new();
         replacements(block, src, &mut replaced_by);
+        let mut removals = Vec::new();
+        script::find_deep(block, "remove_megastructure", src, &mut removals);
         Self {
             converts_body,
             body_effects,
@@ -163,6 +167,9 @@ impl Completes {
                 .filter_map(|row| spawned_type(row, src))
                 .collect(),
             replaced_by,
+            removes_row: removals
+                .iter()
+                .any(|removal| removal.scalar_str(src) == Some("fromfrom")),
         }
     }
 
@@ -998,12 +1005,6 @@ fn offset(def: &Def) -> (f64, f64) {
     let Some(block) = def.node.find("entity_offset", &def.src) else {
         return (0.0, 0.0);
     };
-    let axis = |key: &str| {
-        block
-            .find(key, &def.src)
-            .and_then(|n| n.scalar_str(&def.src))
-            .and_then(|text| def.number_of(text))
-            .unwrap_or(0.0)
-    };
+    let axis = |key: &str| def.number_in(block, key).unwrap_or(0.0);
     (axis("x"), axis("y"))
 }

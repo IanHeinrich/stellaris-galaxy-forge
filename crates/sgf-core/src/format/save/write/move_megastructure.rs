@@ -8,11 +8,9 @@
 use crate::cst::Node;
 use crate::format::save::added::{Table, row, rows};
 use crate::format::save::ring_world;
-use crate::format::save::write::add_megastructure::{
-    add_flags, is_star_body, planet_flag, same_point,
-};
+use crate::format::save::write::add_megastructure::{is_star_body, planet_flag, same_point};
 use crate::format::save::write::megastructure_links::{
-    self, BODY_FLAGS, MEGASTRUCTURES, Tied, unlink_body,
+    self, BODY_FLAGS, MEGASTRUCTURES, Tied, add_flags, unlink_body,
 };
 use crate::format::save::write::move_system::splice_coordinate;
 use crate::format::save::write::place::{self, insert_key};
@@ -227,7 +225,7 @@ fn to_body(
             format!("{}={id}", keys::MEGASTRUCTURE)
         })?;
     }
-    add_flags(edit, &carried)?;
+    add_flags(edit, &carried, &place::planet::FLAGS)?;
     if furnace && target_model.as_deref() != Some(FURNACE_ENTITY) {
         write_entity_name(edit, Some(FURNACE_ENTITY))?;
     }

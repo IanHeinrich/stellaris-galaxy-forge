@@ -1,5 +1,5 @@
 import type { MegastructureSummary } from "../../../generated/MegastructureSummary";
-import { documentCapabilities } from "../../../lib/capabilities";
+import { documentCapabilities, supports } from "../../../lib/capabilities";
 import {
   DELETE_MEGASTRUCTURE,
   deleteMegastructureOp,
@@ -7,6 +7,7 @@ import {
 } from "../../../lib/details/megastructureRemoval";
 import { snapBody, snapLabel } from "../../../lib/details/megastructureMoves";
 import { isRingRow } from "../../../lib/details/ringWorldRemoval";
+import { capabilityFor } from "../../../lib/entities";
 import { backToGalaxy } from "../../../store/commands";
 import { useDetailsStore } from "../../../store/detailsStore";
 import { useFileSessionStore } from "../../../store/fileSessionStore";
@@ -23,8 +24,9 @@ import { MenuItem } from "./MenuItem";
 import { RingWorldItem } from "./RingWorldItem";
 
 /**
- * The menu on a megastructure in the system view: its page, a floating one's way back to its
- * planet's point, its deletion or its ring world's, and the way out.
+ * The menu on a megastructure in the system view: its page where the document has one, a
+ * floating one's way back to its planet's point, its deletion or its ring world's, and the way
+ * out.
  */
 export function MegastructureMenu({
   target,
@@ -39,6 +41,9 @@ export function MegastructureMenu({
   );
   const names = useGameDataStore((s) => s.names);
   const removable = useFileSessionStore((s) => documentCapabilities(s).remove_megastructures);
+  const paged = useFileSessionStore((s) =>
+    supports(documentCapabilities(s), capabilityFor("megastructure")),
+  );
   const name = row === undefined ? undefined : megastructureName(row.kind, names);
   const inspect = () => {
     if (name === undefined) return;
@@ -48,9 +53,11 @@ export function MegastructureMenu({
   return (
     <MenuFrame {...frame} label={name}>
       {name !== undefined && <div className="context-menu-header">{name}</div>}
-      <MenuItem disabled={name === undefined} run={inspect}>
-        Inspect
-      </MenuItem>
+      {paged && (
+        <MenuItem disabled={name === undefined} run={inspect}>
+          Inspect
+        </MenuItem>
+      )}
       {row !== undefined && <SnapItem system={target.system} row={row} />}
       {removable &&
         name !== undefined &&

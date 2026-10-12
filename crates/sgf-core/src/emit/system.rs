@@ -74,6 +74,63 @@ pub struct PlanetEntry<'a> {
     pub deposits: &'a [u32],
 }
 
+/// A habitat's `planets.planet` entry, as the game's `spawn_habitat_effect` writes it: a
+/// name it fixes, a model set by `set_planet_entity`, which has no bit 2, and the body it
+/// orbits in `moon_of` without the moon bit.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HabitatEntry<'a> {
+    pub id: u32,
+    pub class: &'a str,
+    pub size: u32,
+    pub name: &'a NameTemplate,
+    /// Relative to the system's centre.
+    pub x: f64,
+    pub y: f64,
+    pub system: u32,
+    /// Its distance from the body it orbits.
+    pub orbit: f64,
+    pub host: u32,
+    /// Planet flags, each dated `flag_date`.
+    pub flags: &'a [String],
+    pub flag_date: &'a str,
+    pub entity_name: Option<&'a str>,
+}
+
+pub fn habitat_entry(indent: &[u8], h: &HabitatEntry<'_>) -> Vec<u8> {
+    let mut w = Lines::new(indent);
+    w.open(0, &h.id.to_string());
+    w.pair(1, keys::PLANET_CLASS, &quoted(h.class));
+    w.pair(1, keys::PLANET_SIZE, &h.size.to_string());
+    w.pair(
+        1,
+        keys::CARRIER_BINARY_FLAGS,
+        &BODY_CARRIER_FLAGS.to_string(),
+    );
+    w.line(1, &format!("{}=", keys::NAME));
+    w.name(1, h.name);
+    w.pair(
+        1,
+        keys::BINARY_FLAGS,
+        &(FIXED_NAME_FLAG | ANY_FLAG).to_string(),
+    );
+    w.coordinate(1, (h.x, h.y), h.system);
+    w.pair(1, keys::ORBIT, &coord(h.orbit));
+    w.pair(1, keys::LAST_BOMBARDMENT, NEVER_BOMBARDED);
+    w.pair(1, keys::MOON_OF, &h.host.to_string());
+    w.open(1, keys::PLANET_ORBITALS);
+    w.close(1);
+    w.pair(1, keys::BOMBARDMENT_DAMAGE, "0");
+    if !h.flags.is_empty() {
+        w.flags(1, h.flags, h.flag_date);
+    }
+    w.pair(1, keys::ENTITY, "0");
+    if let Some(name) = h.entity_name {
+        w.pair(1, keys::ENTITY_NAME, &quoted(name));
+    }
+    w.close(0);
+    w.into_bytes()
+}
+
 /// A `deposit` entry held by planet `holder`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DepositEntry<'a> {

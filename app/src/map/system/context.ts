@@ -7,6 +7,8 @@ import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { PlanetSummary } from "../../generated/PlanetSummary";
 import type { StarbaseSummary } from "../../generated/StarbaseSummary";
+import type { StructureSpawn } from "../../generated/StructureSpawn";
+import type { SystemRoll } from "../../generated/SystemRoll";
 import { discRadius, WORMHOLE_RADIUS } from "../../lib/details/discs";
 import { geometryOf } from "../../lib/details/geometry";
 import { bypassIconKey, MEGASTRUCTURE_ICON_KEY, PLANET_ICON_KEYS } from "../../lib/details/icons";
@@ -14,6 +16,7 @@ import {
   boundsText,
   isColony,
   megastructureLabel,
+  randomlyPlacedLabel,
   shownBodyName,
   starbaseKeys,
   starbaseLabel,
@@ -236,9 +239,27 @@ export interface SceneWormhole {
 /** What a structure the scene draws is: a megastructure row or a starbase, by its own id. */
 export type StructureKind = "megastructure" | "starbase";
 
+/** What a scenario leaves to chance about a megastructure or a starbase; a save leaves nothing. */
+export interface StructureChance {
+  /** The game may not place it: it is written under a condition, or in a body the game may not place. */
+  readonly mayNotSpawn: boolean;
+  /**
+   * The game places it at random when a new game starts: it stands in at a typical spot, faint,
+   * and is not picked.
+   */
+  readonly random: boolean;
+}
+
+const NO_STRUCTURE_CHANCE: StructureChance = Object.freeze({ mayNotSpawn: false, random: false });
+
+function structureChance(spawn: StructureSpawn | undefined): StructureChance {
+  if (spawn === undefined) return NO_STRUCTURE_CHANCE;
+  return { mayNotSpawn: !spawn.always, random: spawn.place.kind === "random" };
+}
+
 /**
- * A save's megastructure or starbase, drawn from the game's model at its point: on the body it is
- * tied to, where that body is drawn now, else where the save puts it.
+ * A megastructure or starbase, drawn from the game's model at its point: on the body it is tied
+ * to, where that body is drawn now, else where its source puts it.
  */
 export interface SceneStructure {
   readonly kind: StructureKind;
@@ -265,6 +286,8 @@ export interface SceneStructure {
   readonly resources: readonly ResourceRow[];
   /** How a drag moves it, where the source may be edited; null for a starbase or a source that may not. */
   readonly move: MegastructureMove | null;
+  /** What its source leaves to chance, each drawn as a marker. */
+  readonly chance: StructureChance;
 }
 
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
@@ -438,6 +461,7 @@ function freshArt(
     model,
     shatterSeed: seed,
     bodyModel,
+    segment: view?.ringworld === true,
   });
   const sprite = view?.icon_sprite ? [`sprite:${view.icon_sprite}`] : [];
   const small = view?.hidden_model === true ? [...sprite, ...PLANET_ICON_KEYS] : sprite;
@@ -584,10 +608,16 @@ function sceneBodies(src: SystemSources, layout: SystemLayout): SceneBody[] {
     if (!planet) return [];
     const drawn = !placement.star && planet.drawn === true;
     const starClass = placement.star ? (planet.star_class ?? system) : null;
+    // A rolled body has no point of its own, so it turns from where the roll draws it.
+    const turnedFrom = src.rolledLayout ? ([placement.x, placement.y] as const) : null;
     const bodyModel =
       placement.star || drawn
         ? null
-        : bodyModelKey(src.planetClasses.get(planet.class), planet, planet.layout?.at ?? null);
+        : bodyModelKey(
+            src.planetClasses.get(planet.class),
+            planet,
+            planet.layout?.at ?? turnedFrom,
+          );
     return [
       {
         placement,
@@ -737,6 +767,17 @@ function placeStructure(
 /** Within this many save units of its body's point, a floating row stands at its standard spot. */
 const ON_BODY = 1e-3;
 
+/**
+ * Where `row` stands in `roll`: a scenario row at a body stands where the roll lands the body;
+ * any other row where its source puts it.
+ */
+function rolledAt(
+  roll: SystemRoll | null,
+  row: MegastructureSummary,
+): readonly [number, number] | null {
+  return roll?.structures?.find((s) => s.id === row.id)?.at ?? row.at;
+}
+
 function megastructure(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
@@ -756,6 +797,7 @@ function megastructure(
   const floats = row.planet !== null && floatsFree(type, home.star);
   const offset = type?.entity_offset ?? [0, 0];
   const centred = offset[0] === 0 && offset[1] === 0;
+  const sourceAt = rolledAt(src.roll, row);
   let body: SceneBody | undefined;
   let at: readonly [number, number] | null;
   let on: number | null;
@@ -766,32 +808,35 @@ function megastructure(
     [at, on] = [null, centred ? (body?.placement.id ?? null) : null];
   } else if (floats && homeBody) {
     const was = base.bodies.find((b) => b.id === homeBody.placement.id);
-    const point = row.at ?? (was ? ([was.x, was.y] as const) : null);
+    const point = sourceAt ?? (was ? ([was.x, was.y] as const) : null);
     at = drifted(point, homeBody.placement, was);
     body = undefined;
     const standard = point !== null && was !== undefined && atBody(point, was);
     on = centred && standard ? homeBody.placement.id : null;
   } else {
-    [body, at] = [homeBody, row.at];
+    [body, at] = [homeBody, sourceAt];
     on = centred ? (body?.placement.id ?? null) : null;
   }
   const grows = type?.scales_with_planet === true;
   const placed = placeStructure(look, body, at, offset, grows, body ?? homeBody);
   if (placed === null) return null;
-  // Turned from where the save puts it, so a drag does not bake it again at every step.
-  const yaw = megastructureYaw(type, row.at);
+  // Turned from where its source puts it, so a drag does not bake it again at every step.
+  const yaw = megastructureYaw(type, at);
+  const chance = structureChance(row.spawn);
+  const name = src.names.get(row.kind) ?? megastructureLabel(row.kind);
   return {
     kind: "megastructure",
     id: row.id,
     ...placed,
     modelKey: look.kind === "model" ? modelKey(row.culture, look.entity, yaw) : null,
     iconKeys: [MEGASTRUCTURE_ICON_KEY],
-    name: src.names.get(row.kind) ?? megastructureLabel(row.kind),
+    name: chance.random ? randomlyPlacedLabel(name) : name,
     level: null,
     // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
     on,
     resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
     move: movable ? megastructureMove(row, type, home) : null,
+    chance,
   };
 }
 
@@ -836,10 +881,11 @@ function starbase(
     on: body?.placement.id ?? null,
     resources: NOTHING,
     move: null,
+    chance: structureChance(station.spawn),
   };
 }
 
-/** Each megastructure and starbase of the system while their switch is on; a scenario lists none. */
+/** Each megastructure and starbase of the system while their switch is on. */
 function sceneStructures(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
@@ -925,6 +971,7 @@ export function systemContext(
       [
         bodies,
         src.details,
+        src.roll,
         src.sceneLayers.megastructures,
         src.megastructureTypes,
         src.starbaseLevels,

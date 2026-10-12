@@ -53,7 +53,7 @@ const SCENE_LAYERS = [
   { id: "nebulae", on: true },
   { id: "bypasses", on: true, needs: "bypasses" },
   { id: "orbitRadii", on: false, sceneOnly: true },
-  { id: "megastructures", on: true, sceneOnly: true, needs: "details" },
+  { id: "megastructures", on: true, sceneOnly: true, needs: "structures" },
 ] as const satisfies readonly {
   id: LayerId;
   on: boolean;

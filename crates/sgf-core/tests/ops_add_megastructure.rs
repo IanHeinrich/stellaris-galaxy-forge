@@ -460,13 +460,13 @@ fn a_flagged_body_and_a_star_only_type_off_a_star_are_refused() {
     session.apply(sphere(584)).expect("the sphere on the star");
 }
 
-/// The 4.5 sample was saved on 2201.03.25, which a planet flag dates 62818752.
+/// The 4.5 sample was saved on 2201.03.25, which a planet flag dates 62818656.
 #[test]
 fn a_flagged_add_is_read_back_by_its_removal() {
     let mut session = open_4_5();
     session.apply(nexus()).expect("the Nexus");
     let planet = entity_text(&session, EntityKind::Planet, 6);
-    assert!(planet.contains("has_megastructure=62818752"), "{planet}");
+    assert!(planet.contains("has_megastructure=62818656"), "{planet}");
     let removed = session.apply(remove(16)).expect("the removal");
     assert_eq!(removed.inverse, nexus());
     assert_eq!(current(&session), session.doc().original());

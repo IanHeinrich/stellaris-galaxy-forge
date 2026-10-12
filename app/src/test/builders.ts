@@ -412,6 +412,7 @@ export function megastructureTypeView(
     country_modifier: [],
     country_effects: [],
     construction_summary: [],
+    habitat: false,
     ruined_orbital_ring: false,
     spawns_starbase: false,
     activates_gateway: false,

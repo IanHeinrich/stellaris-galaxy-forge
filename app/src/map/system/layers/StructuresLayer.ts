@@ -1,4 +1,4 @@
-import { Container, Sprite, Texture } from "pixi.js";
+import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import { modelSize } from "../../../lib/details/structures";
 import { SAVE_X_SIGN, SAVE_Y_SIGN } from "../../../lib/geometry/geometry";
 import {
@@ -9,16 +9,22 @@ import {
 } from "../../../lib/visual/textures";
 import type { Camera } from "../../Camera";
 import { EMPTY_SYSTEM_CONTEXT, type SceneStructure, type SystemContext } from "../context";
+import { drawHalo } from "./halo";
 import type { SystemLayer } from "./SystemLayer";
 
 /** How wide a structure's map icon is drawn, in screen pixels, whatever the zoom. */
 export const STRUCTURE_ICON_PX = 22;
+
+/** A stand-in for a structure the game places at random shows faint, as placeholder planets do. */
+const STAND_IN_ALPHA = 0.35;
 
 interface Drawn {
   structure: SceneStructure;
   readonly holder: Container;
   readonly model: Sprite;
   readonly icon: Sprite;
+  /** The dashed halo round a structure the game may not place; null for any other. */
+  readonly halo: Graphics | null;
 }
 
 /** The first of `keys` that landed, or null while one before it is still loading or none did. */
@@ -40,6 +46,8 @@ function sameLooks(a: readonly SceneStructure[], b: readonly SceneStructure[]): 
         s.kind === b[i].kind &&
         s.id === b[i].id &&
         s.modelKey === b[i].modelKey &&
+        s.chance.mayNotSpawn === b[i].chance.mayNotSpawn &&
+        s.chance.random === b[i].chance.random &&
         s.iconKeys.length === b[i].iconKeys.length &&
         s.iconKeys.every((key, k) => key === b[i].iconKeys[k]),
     )
@@ -57,7 +65,8 @@ export function showsIcon(structure: SceneStructure): boolean {
 /**
  * Each megastructure and starbase as the sprite baked from its game model, at the size the game
  * draws it, or its map icon where the model is unknown or cannot be baked. Drawn over the bodies,
- * so a Dyson Sphere covers its star and an Arc Furnace its planet.
+ * so a Dyson Sphere covers its star and an Arc Furnace its planet. One the game may not place
+ * has a dashed halo, and a stand-in for one it places at random is faint.
  */
 export class StructuresLayer implements SystemLayer {
   readonly container = new Container();
@@ -90,8 +99,14 @@ export class StructuresLayer implements SystemLayer {
       icon.label = "icon";
       icon.anchor.set(0.5);
       holder.addChild(model, icon);
+      if (structure.chance.random) holder.alpha = STAND_IN_ALPHA;
+      const halo = structure.chance.mayNotSpawn ? new Graphics() : null;
+      if (halo) {
+        halo.label = "halo";
+        holder.addChild(halo);
+      }
       this.container.addChild(holder);
-      return { structure, holder, model, icon };
+      return { structure, holder, model, icon, halo };
     });
     requestTextures(
       ctx.structures.flatMap((s) =>
@@ -141,13 +156,20 @@ export class StructuresLayer implements SystemLayer {
     this.sizeIcons();
   }
 
-  /** Each icon `STRUCTURE_ICON_PX` wide on screen, mirrored against the root's axis flip. */
+  /**
+   * Each icon `STRUCTURE_ICON_PX` wide on screen, mirrored against the root's axis flip, and each
+   * halo round its model or icon.
+   */
   private sizeIcons(): void {
     if (this.scale <= 0) return;
     const side = STRUCTURE_ICON_PX / this.scale;
-    for (const { icon } of this.drawn) {
+    for (const { structure, model, icon, halo } of this.drawn) {
       const k = side / Math.max(icon.texture.width, icon.texture.height, 1);
       icon.scale.set(SAVE_X_SIGN * k, SAVE_Y_SIGN * k);
+      if (halo) {
+        const { x, y, radius } = haloCircle(structure, model.visible, side);
+        drawHalo(halo, radius, this.scale, x, y);
+      }
     }
   }
 
@@ -155,4 +177,23 @@ export class StructuresLayer implements SystemLayer {
     this.unsubTextures();
     this.container.destroy({ children: true });
   }
+}
+
+/**
+ * The circle a structure's halo stands just outside, about its holder: its model sprite's middle
+ * and larger half, else its icon's half about its point.
+ */
+function haloCircle(
+  structure: SceneStructure,
+  modelShown: boolean,
+  iconSide: number,
+): { x: number; y: number; radius: number } {
+  const placement = structure.modelKey === null ? undefined : getModelPlacement(structure.modelKey);
+  if (!modelShown || placement === undefined) return { x: 0, y: 0, radius: iconSide / 2 };
+  const { width, height } = modelSize(placement, structure.scale);
+  return {
+    x: SAVE_X_SIGN * (0.5 - placement.anchor_x) * width,
+    y: SAVE_Y_SIGN * (0.5 - placement.anchor_y) * height,
+    radius: Math.max(width, height) / 2,
+  };
 }

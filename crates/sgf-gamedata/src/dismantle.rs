@@ -6,7 +6,7 @@
 use sgf_core::cst::Node;
 use sgf_core::ops::{MegastructureDismantle, VariableDrop};
 
-use crate::install::script::Def;
+use crate::install::script::{Def, Names, written, written_key};
 use crate::scripts::ScriptIndex;
 
 /// How deep scripted effects calling scripted effects are followed.
@@ -19,8 +19,10 @@ const ON_DISMANTLE: &str = "on_dismantle_complete";
 pub(crate) fn read(def: &Def, scripts: &ScriptIndex) -> MegastructureDismantle {
     let mut out = MegastructureDismantle::default();
     if let Some(block) = def.node.find(ON_DISMANTLE, &def.src) {
+        let names = def.names();
         let walk = Walk {
             scripts,
+            names: &names,
             params: &[],
             owner: false,
             depth: 0,
@@ -34,6 +36,7 @@ pub(crate) fn read(def: &Def, scripts: &ScriptIndex) -> MegastructureDismantle {
 /// the owner, and how many effects deep it is.
 struct Walk<'a> {
     scripts: &'a ScriptIndex,
+    names: &'a Names,
     params: &'a [(String, String)],
     owner: bool,
     depth: usize,
@@ -62,8 +65,10 @@ impl Walk<'_> {
                 _ => match self.scripts.effect(&key) {
                     Some(effect) if self.depth < MAX_DEPTH => {
                         let params = self.arguments(child, src);
+                        let names = effect.names();
                         let inner = Walk {
                             scripts: self.scripts,
+                            names: &names,
                             params: &params,
                             owner: self.owner,
                             depth: self.depth + 1,
@@ -81,6 +86,7 @@ impl Walk<'_> {
     fn owners(&self) -> Walk<'_> {
         Walk {
             scripts: self.scripts,
+            names: self.names,
             params: self.params,
             owner: true,
             depth: self.depth,
@@ -96,7 +102,9 @@ impl Walk<'_> {
                 .map(|v| self.substitute(v))
         };
         let variable = field("which")?;
-        let value: f64 = field("value")?.parse().ok()?;
+        let value = self
+            .names
+            .number_of(&self.substitute(&written_key(node, "value", src)?))?;
         let by = if key == "change_variable" {
             -value
         } else {
@@ -110,12 +118,12 @@ impl Walk<'_> {
 
     /// The parameters a call `name = { PARAM = value }` passes; none for `name = yes`.
     fn arguments(&self, call: &Node, src: &[u8]) -> Vec<(String, String)> {
-        call.children()
-            .iter()
-            .filter_map(|arg| {
-                let name = arg.key_str(src)?;
-                let value = arg.scalar_str(src)?;
-                Some((name.to_owned(), self.substitute(value)))
+        let args = call.children();
+        (0..args.len())
+            .filter_map(|at| {
+                let name = args[at].key_str(src)?;
+                let value = written(args, at, src)?;
+                Some((name.to_owned(), self.substitute(&value)))
             })
             .collect()
     }

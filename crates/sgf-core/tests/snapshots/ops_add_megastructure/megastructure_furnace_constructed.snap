@@ -39,7 +39,7 @@ inverse: RemoveMegastructure { megastructure: 16, construction: Some(Megastructu
  			flags=
  			{
  				starting_deposit=62808000
-+				has_megastructure=62818752
++				has_megastructure=62818656
  			}
  			entity=1
  			deposits=

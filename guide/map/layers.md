@@ -53,7 +53,7 @@ menu when the open file can have it.
 | Names | System names. |
 | System details | The icons, resources, habitable planets and fleets under each system when you zoom in. |
 | Orbit radii | The radius of each orbit, in a [system view](../system/system-view.md) only. |
-| Megastructures and starbases | Each megastructure and starbase as its model from the game, in a [system view](../system/system-view.md#megastructures-and-starbases) of a save only. |
+| Megastructures and starbases | Each megastructure and starbase as its model from the game, in a [system view](../system/system-view.md#megastructures-and-starbases) only. |
 | Colonies | The owner's flag and colour on a colony's name. |
 | Heights | A ring on each star above or below the galaxy plane, in a save. See [System heights](../edit/heights.md). |
 

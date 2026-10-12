@@ -132,8 +132,7 @@ impl FromDef for StarClass {
             .iter()
             .filter_map(|child| {
                 let class = child.key_str(&def.src)?.strip_prefix("pc_")?;
-                let odds = child.find("spawn_odds", &def.src)?.scalar_str(&def.src)?;
-                Some((format!("pc_{class}"), def.number_of(odds)?))
+                Some((format!("pc_{class}"), def.number_in(child, "spawn_odds")?))
             })
             .collect();
         let spawn_odds = def.number("spawn_odds").unwrap_or(0.0);

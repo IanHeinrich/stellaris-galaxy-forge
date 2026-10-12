@@ -4,6 +4,7 @@
  * from `src/generated/` (ts-rs, never hand-edited).
  */
 export * from "./addBody";
+export * from "./addHabitat";
 export * from "./addMegastructure";
 export * from "./megastructure";
 export * from "./addSystem";

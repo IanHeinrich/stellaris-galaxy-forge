@@ -790,9 +790,27 @@ pub enum Op {
     /// do, its `planet=` line goes, and so does its id from its planet's `moons`. An
     /// asteroid's name goes back to the pool it came from. A body the file held, and one
     /// with moons, are refused. The inverse adds it back, read as a spec,
-    /// at the radius and angle it stood at. Stellaris 4.x save documents only.
+    /// at the radius and angle it stood at. An added habitat goes with its host's `habitat<id>`
+    /// flag, and with its system's `has_habitat` flag once no habitat is left in it; its
+    /// inverse is the [`Op::AddHabitat`] that adds it back. Stellaris 4.x save documents only.
     RemoveBody {
         body: u32,
+    },
+    /// A finished habitat round save body `body`, a planet or a star, as the game's
+    /// `spawn_habitat_effect` leaves one: a new planet entry, taking a slot as [`Op::AddBody`]
+    /// does, with no owner and no colony. It orbits `body` at `habitat.at`, names it in
+    /// `moon_of` without the moon bit, and has the planet flags `habitat.flags`, each dated
+    /// the save's date. `body` lists it in `moons` and gets the flag `habitat<id>`, the system
+    /// lists it after its last `planet=` line and gets `has_habitat` when it has none, and the
+    /// inner radius grows when the habitat lies past it. The game builds its construction queue
+    /// when it loads. A body that orbits a planet, as a moon or a habitat does, a body that
+    /// already has a `habitat<id>` flag, a placement that is not finite or not past 0, a size
+    /// of 0, and a class, name, variable, model or flag that cannot be written are refused.
+    /// The inverse is [`Op::RemoveBody`], batched with the old inner radius when it grew.
+    /// Stellaris 4.x save documents only.
+    AddHabitat {
+        body: u32,
+        habitat: NewHabitat,
     },
     /// A new archaeological dig site of type `site_type` on a save planet, a moon or colony
     /// included: an entry last in `archaeological_sites.sites`, its id one past the highest
@@ -1020,6 +1038,7 @@ impl Op {
             | Self::DeleteBody { .. }
             | Self::AddBody { .. }
             | Self::RemoveBody { .. }
+            | Self::AddHabitat { .. }
             | Self::AddDigSite { .. }
             | Self::RemoveDigSite { .. } => OpReach::of(SAVE).details(Bodies).whole_entries(),
             // A megastructure written back stands in its system's details, though no body
@@ -1298,6 +1317,29 @@ pub struct NewBody {
     /// Only a planet of the system's centre has them.
     #[serde(default)]
     pub moons: Vec<NewMoon>,
+}
+
+/// The habitat [`Op::AddHabitat`] writes, as the install's habitat effect makes it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NewHabitat {
+    /// `pc_habitat`.
+    pub class: String,
+    pub size: u32,
+    /// Its distance from the body it orbits, and its save angle about it.
+    pub at: OrbitPlacement,
+    /// The localisation key of its name, `HABITAT_PLANET_NAME`.
+    pub name: String,
+    /// The variable of the name that the system's name fills in,
+    /// `prev.solar_system.GetName`; `None` for a name with none.
+    #[serde(default)]
+    pub system_name: Option<String>,
+    /// The model drawn in place of the class's own, `mammalian_01_habitat_phase_03_entity`.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Its planet flags, in the order they are set: `megastructure`, `habitat`,
+    /// `habitat_level_1`.
+    pub flags: Vec<String>,
 }
 
 /// The name a [`NewBody`] is written with.

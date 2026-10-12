@@ -225,6 +225,12 @@ export interface EditorState {
     at: MegastructurePlace,
   ): Promise<{ megastructure: number; unsure: string[]; unwritten: string[] } | null>;
   /**
+   * Adds the habitat a megastructure of type `kind` finishes as round body `body` of system
+   * `system` in one edit: a planet with no owner. Answers the new planet's id, or null when the
+   * core refused the add.
+   */
+  addHabitat(system: number, body: number, kind: string): Promise<number | null>;
+  /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any
    * other is rolled around the class it has when the edit runs. The id is followed through the

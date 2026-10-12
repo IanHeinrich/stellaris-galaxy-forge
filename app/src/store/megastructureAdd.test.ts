@@ -4,19 +4,23 @@ vi.mock("../api/ipc");
 vi.mock("../api/events");
 
 import {
+  BODY_HAS_MEGASTRUCTURE,
+  HABITAT_ROUND_SATELLITE,
   leftOutNotice,
   MEGASTRUCTURES_NEED_GAME_DATA,
+  megastructureRefusal,
   RELAY_RADIUS_FACTOR,
 } from "../lib/megastructurePicks";
 import { mockedIpc } from "../test/ipc";
 import { inSystem } from "../test/session";
-import { megastructureTypeView, systemDetails } from "../test/builders";
+import { megastructureSummary, megastructureTypeView, systemDetails } from "../test/builders";
 import { openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMegastructureAddStore } from "./megastructureAdd";
+import { useSceneStore } from "./sceneStore";
 
 const SYSTEM = 0;
 const adds = () => useMegastructureAddStore.getState();
@@ -132,5 +136,68 @@ describe("adding a megastructure from the system view", () => {
     expect(adds().open(SYSTEM, { kind: "space", x: 30, y: 40 })).toBe(false);
     expect(adds().prompt).toBeNull();
     expect(sessionError()).toBe(MEGASTRUCTURES_NEED_GAME_DATA);
+  });
+});
+
+describe("adding a habitat from the system view", () => {
+  beforeEach(() => {
+    const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
+    useGameDataStore.setState({
+      megastructureTypes: new Map([[complex.key, complex]]),
+    });
+    mockedIpc.addHabitat.mockResolvedValue({
+      edit: editResult({ details_stale: [SYSTEM] }),
+      planet: 16777273,
+    });
+  });
+
+  it("adds the finished Habitat Central Complex as a habitat round the body, and selects it", async () => {
+    adds().open(SYSTEM, { kind: "body", body: 12, star: false });
+    expect(await adds().add("habitat_central_complex")).toBe(true);
+
+    expect(mockedIpc.addHabitat.mock.calls).toEqual([[SYSTEM, 12, "habitat_central_complex"]]);
+    expect(mockedIpc.addMegastructure).not.toHaveBeenCalled();
+    expect(useSceneStore.getState().bodySelection).toEqual({ system: SYSTEM, ids: [16777273] });
+    expect(adds().last).toBe("habitat_central_complex");
+  });
+
+  it("selects nothing when the core refuses the habitat", async () => {
+    mockedIpc.addHabitat.mockRejectedValue({ kind: "op", message: "a refusal" });
+    adds().open(SYSTEM, { kind: "body", body: 3, star: false });
+
+    expect(await adds().add("habitat_central_complex")).toBe(false);
+    expect(adds().last).toBeNull();
+    expect(useSceneStore.getState().bodySelection).toBeNull();
+  });
+
+  it("is refused round a body that orbits a planet, and nowhere else", () => {
+    const complex = useGameDataStore.getState().megastructureTypes.get("habitat_central_complex")!;
+    const spot = { kind: "body", body: 3, star: false } as const;
+    const types = useGameDataStore.getState().megastructureTypes;
+    expect(megastructureRefusal(complex, { ...spot, orbitsPlanet: true }, [], types)).toBe(
+      HABITAT_ROUND_SATELLITE,
+    );
+    expect(megastructureRefusal(complex, spot, [], types)).toBeNull();
+  });
+});
+
+describe("adding on a body that has a megastructure", () => {
+  it("greys out the row types and keeps the habitat, which it adds", async () => {
+    const complex = megastructureTypeView("habitat_central_complex", { habitat: true });
+    const nexus = megastructureTypeView("think_tank_3");
+    const types = new Map([complex, nexus].map((t) => [t.key, t]));
+    useGameDataStore.setState({ megastructureTypes: types });
+    mockedIpc.addHabitat.mockResolvedValue({
+      edit: editResult({ details_stale: [SYSTEM] }),
+      planet: 16777273,
+    });
+    const rows = [megastructureSummary({ kind: "orbital_ring_ruined", planet: 12 })];
+    const spot = { kind: "body", body: 12, star: false } as const;
+
+    expect(adds().open(SYSTEM, spot)).toBe(true);
+    expect(megastructureRefusal(nexus, spot, rows, types)).toBe(BODY_HAS_MEGASTRUCTURE);
+    expect(megastructureRefusal(complex, spot, rows, types)).toBeNull();
+    expect(await adds().add("habitat_central_complex")).toBe(true);
+    expect(mockedIpc.addHabitat.mock.calls).toEqual([[SYSTEM, 12, "habitat_central_complex"]]);
   });
 });
