@@ -24,18 +24,20 @@ export interface MegastructureAddPrompt {
 
 interface MegastructureAddState {
   prompt: MegastructureAddPrompt | null;
-  /** The type added last, which the dialog opens on next where it goes. */
+  /** The stage added last, which the dialog opens on next where it goes. */
   last: string | null;
   /** Opens the dialog for `spot` of system `system`; without game data, says why not instead. */
   open(system: number, spot: MegastructureSpot): boolean;
   cancel(): void;
   /**
    * Closes the dialog and adds a finished megastructure of type `kind` at its spot in one edit;
-   * it goes to the system's owner. A type built outside the gravity well stands just outside the
-   * system's inner radius, in the direction pressed. The new row's page opens, and the status bar
-   * says how many effects of its construction were left out, when any were.
+   * it goes to the system's owner. `stage` is the stage the player picked, which the dialog opens
+   * on next; it differs from `kind` when the game swaps the stage for another type at the spot. A
+   * type built outside the gravity well stands just outside the system's inner radius, in the
+   * direction pressed. The new row's page opens, and the status bar says how many effects of its
+   * construction were left out, when any were.
    */
-  add(kind: string): Promise<boolean>;
+  add(kind: string, stage?: string): Promise<boolean>;
 }
 
 export const useMegastructureAddStore = create<MegastructureAddState>((set, get) => ({
@@ -55,7 +57,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     if (get().prompt !== null) set({ prompt: null });
   },
 
-  async add(kind) {
+  async add(kind, stage = kind) {
     const { prompt } = get();
     if (prompt === null) return false;
     set({ prompt: null });
@@ -65,7 +67,7 @@ export const useMegastructureAddStore = create<MegastructureAddState>((set, get)
     const at = megastructurePlace(spot, data.megastructureTypes.get(kind), inner);
     const added = await useEditorStore.getState().addMegastructure(system, kind, at);
     if (added === null) return false;
-    set({ last: kind });
+    set({ last: stage });
     const name = data.names.get(kind) ?? megastructureLabel(kind);
     useInspectorStore.getState().openFromMap(megastructureEntry(added.megastructure, name));
     const notice = leftOutNotice(name, added.unsure.length, added.unwritten.length);

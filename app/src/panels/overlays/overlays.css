@@ -414,11 +414,19 @@
 }
 
 .megastructure-add-list > [role="option"] {
+  display: flex;
+  flex-direction: column;
   padding: 3px 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   cursor: pointer;
+}
+
+.megastructure-add-name {
+  overflow-wrap: anywhere;
+}
+
+.megastructure-add-summary {
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .megastructure-add-list > [role="option"]:hover {
@@ -495,7 +503,8 @@
   opacity: 0.5;
 }
 
-.megastructure-add-mark {
+.megastructure-add-mark,
+.megastructure-add-count {
   font-size: 10.5px;
 }
 
@@ -576,6 +585,16 @@
 .megastructure-add-produces img {
   width: 16px;
   height: 16px;
+}
+
+.megastructure-add-lines ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.megastructure-add-lines li {
+  overflow-wrap: anywhere;
 }
 
 .megastructure-add-description {

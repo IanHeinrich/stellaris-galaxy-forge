@@ -7,11 +7,14 @@ import {
   type ResourceRow,
 } from "../../lib/details/resources";
 import {
+  entryHeading,
   entryStages,
   NO_MODEL,
   NO_MODEL_NOTE,
+  stageLine,
   type MegastructureChain,
   type MegastructureEntry,
+  type MegastructureStage,
 } from "../../lib/megastructurePicks";
 import {
   hasModel,
@@ -20,6 +23,7 @@ import {
 } from "../../lib/megastructurePreview";
 import { groupedGridStep } from "../gridKeys";
 import { ENTER } from "../keys";
+import { GameText } from "../GameText";
 import { FilterField } from "../parts";
 import { useTextureUrl } from "../useTextureUrl";
 
@@ -69,8 +73,8 @@ function columnsOf(grid: HTMLElement): number {
 
 /**
  * The megastructure list: a filter over every megastructure and stage name, and the
- * megastructures that match under their section's heading, the base game's first. Up and Down
- * move the selection.
+ * megastructures that match under their section's heading, the base game's first, each with its
+ * name and a summary of its stages. Up and Down move the selection.
  */
 export function MegastructureList({
   entries,
@@ -127,13 +131,13 @@ export function MegastructureList({
         )}
         {entries.flatMap((entry, i) => {
           const heading =
-            i === 0 || entries[i - 1].section !== entry.section ? (
+            i === 0 || entryHeading(entries[i - 1]) !== entryHeading(entry) ? (
               <li
                 key={`section-${entry.key}`}
                 className="megastructure-add-section"
                 role="presentation"
               >
-                {entry.section ?? "Base game"}
+                {entryHeading(entry)}
               </li>
             ) : null;
           const option = (
@@ -145,7 +149,8 @@ export function MegastructureList({
               onClick={() => onSelect(entry)}
               onDoubleClick={onConfirm}
             >
-              {entry.label}
+              <span className="megastructure-add-name">{entry.label}</span>
+              <span className="megastructure-add-summary muted">{entry.summary}</span>
             </li>
           );
           return heading === null ? [option] : [heading, option];
@@ -157,6 +162,7 @@ export function MegastructureList({
 
 function Tile({
   stage,
+  chain,
   id,
   selected,
   type,
@@ -164,7 +170,8 @@ function Tile({
   onSelect,
   onConfirm,
 }: {
-  stage: { key: string; label: string; refused: string | null };
+  stage: MegastructureStage;
+  chain: MegastructureChain;
   id: string;
   selected: boolean;
   type: MegastructureView | undefined;
@@ -173,6 +180,7 @@ function Tile({
   onConfirm: () => void;
 }) {
   const refused = stage.refused !== null;
+  const numbered = stageLine(stage, chain) !== null;
   return (
     <li
       id={id}
@@ -191,15 +199,20 @@ function Tile({
         keys={megastructureThumbKeys(type, culture)}
         lazy
       />
-      <span className="megastructure-add-caption">{stage.label}</span>
+      {numbered && (
+        <span className="megastructure-add-count muted">
+          {stage.index} of {stage.count}
+        </span>
+      )}
+      <span className="megastructure-add-caption">{numbered ? stage.short : stage.label}</span>
       {!hasModel(type) && <span className="megastructure-add-mark muted">{NO_MODEL}</span>}
     </li>
   );
 }
 
 /**
- * The stages of the selected megastructure as tiles, one row per upgrade chain with a label that
- * tells the rows apart. A tile selects its stage; arrows move the selection, Up and Down to the
+ * The stages of the selected megastructure as tiles, each with its place in its row, one row per
+ * upgrade chain with a label that tells the rows apart. A tile selects its stage; arrows move the selection, Up and Down to the
  * same column of the row above or below, and Enter adds it.
  */
 export function MegastructureStages({
@@ -252,9 +265,10 @@ export function MegastructureStages({
           <Tile
             key={stage.key}
             stage={stage}
+            chain={chain}
             id={tileId(stage.key)}
             selected={stage.key === current}
-            type={types.get(stage.key)}
+            type={types.get(stage.variant)}
             culture={culture}
             onSelect={onSelect}
             onConfirm={onConfirm}
@@ -290,19 +304,34 @@ function Produced({ row }: { row: ResourceRow }) {
   );
 }
 
+/** A titled list of lines of game text; nothing for no lines. */
+function Lines({ title, lines }: { title: string; lines: string[] }) {
+  if (lines.length === 0) return null;
+  return (
+    <div className="megastructure-add-lines">
+      <span className="muted">{title}</span>
+      <ul>
+        {lines.map((line) => (
+          <li key={line}>
+            <GameText text={line} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
- * The selected stage: its picture, name, row and stage, why the save would refuse it here, what
- * it produces and the game's description.
+ * The selected stage: its picture, full name and stage, why the save would refuse it here, the
+ * game's description, what it produces each month, what it gives its owner and what adding it
+ * also writes. A part with nothing to say is left out.
  */
 export function MegastructurePreviewPane({
   preview,
-  row,
   type,
   culture,
 }: {
   preview: MegastructurePreview;
-  /** The label of its row, when its megastructure has several. */
-  row: string | null;
   type: MegastructureView | undefined;
   culture: string | null;
 }) {
@@ -310,11 +339,14 @@ export function MegastructurePreviewPane({
     <aside className="megastructure-add-preview" aria-label="Selected megastructure">
       <Thumb className="megastructure-add-picture" keys={megastructureThumbKeys(type, culture)} />
       <h2>{preview.label}</h2>
-      {(row !== null || preview.stage !== null) && (
-        <div className="muted">{[row, preview.stage].filter(Boolean).join(" · ")}</div>
-      )}
+      {preview.stage !== null && <div className="muted">{preview.stage}</div>}
       {preview.refused !== null && <p className="megastructure-add-refusal">{preview.refused}</p>}
       {!preview.model && <p className="muted">{NO_MODEL_NOTE}</p>}
+      {preview.description !== null && (
+        <p className="megastructure-add-description">
+          <GameText text={preview.description} />
+        </p>
+      )}
       {preview.produces.length > 0 && (
         <div className="megastructure-add-produces">
           <span className="muted">Produces each month</span>
@@ -325,9 +357,8 @@ export function MegastructurePreviewPane({
           </ul>
         </div>
       )}
-      {preview.description !== null && (
-        <p className="megastructure-add-description">{preview.description}</p>
-      )}
+      <Lines title="Empire effects" lines={preview.effects} />
+      <Lines title="Adding it also writes" lines={preview.writes} />
     </aside>
   );
 }

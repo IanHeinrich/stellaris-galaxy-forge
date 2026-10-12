@@ -102,7 +102,7 @@ export function BodyMenu({
       {offers.addMegastructure && planet !== undefined && (
         <AddMegastructureItem
           system={target.system}
-          spot={{ kind: "body", body: target.id, star }}
+          spot={{ kind: "body", body: target.id, star, class: planet.class }}
           label={ADD_MEGASTRUCTURE_LABEL}
           refusal={
             details?.megastructures.some((m) => m.planet === target.id)

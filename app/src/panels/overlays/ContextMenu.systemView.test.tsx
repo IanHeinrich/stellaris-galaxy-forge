@@ -448,10 +448,16 @@ describe("adding a megastructure in the system view", () => {
 
     expect(buttons(menuOn(body(2)))).toContain(ADD_MEGASTRUCTURE_LABEL);
     menuItem(<BodyMenu target={body(2)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
-    expect(prompt()).toEqual({ system: 0, spot: { kind: "body", body: 2, star: false } });
+    expect(prompt()).toEqual({
+      system: 0,
+      spot: { kind: "body", body: 2, star: false, class: "pc_continental" },
+    });
 
     menuItem(<BodyMenu target={body(1)} frame={{}} />, ADD_MEGASTRUCTURE_LABEL).props.onClick();
-    expect(prompt()).toEqual({ system: 0, spot: { kind: "body", body: 1, star: true } });
+    expect(prompt()).toEqual({
+      system: 0,
+      spot: { kind: "body", body: 1, star: true, class: "pc_g_star" },
+    });
   });
 
   it("stays disabled, with the reason under it, on a body that has one and without game data", () => {
