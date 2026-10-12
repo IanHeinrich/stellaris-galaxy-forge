@@ -81,7 +81,8 @@ into a ship, so it isn't listed.
 Click a stage to see it in the details panel beside the tiles. From the
 top, the panel shows:
 
-1. The stage's picture from the game's construction menu, or its model when the game gives no picture.
+1. The stage's picture from the game's construction menu, or its model
+   when the game gives no picture.
 2. The stage's name, and a line such as "Stage 3 of 4: Maturity".
 3. The game's description, with its colours and icons.
 4. Produces each month.
