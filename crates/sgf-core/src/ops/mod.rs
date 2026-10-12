@@ -30,7 +30,7 @@ pub use crate::projections::geometry::{
 };
 pub use edit::Subject;
 pub(crate) use edit::{BufEdit, Edit, blank_slot, replace_lengths};
-pub use error::{OpError, ParseAt, StarEdit};
+pub use error::{MegastructureEdit, OpError, ParseAt, StarEdit};
 pub use op::{
     BodyName, ClassChange, ConstructionDeposit, ConstructionModifier, DetailsReach, EmpireFlag,
     LaneLength, LanePair, MapColorPair, MegastructureConstruction, MegastructureDismantle,

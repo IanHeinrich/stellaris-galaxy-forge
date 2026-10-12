@@ -7,6 +7,7 @@
  * intent is shown, and the op that makes it so.
  */
 import type { Bounds } from "../../generated/Bounds";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { Op } from "../../generated/Op";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
 import type { SystemDetails } from "../../generated/SystemDetails";
@@ -48,7 +49,8 @@ export type GeometryIntent =
   | { kind: "setBeltKind"; system: number; index: number; beltKind: string }
   | { kind: "removeBelt"; system: number; index: number }
   | { kind: "innerRadius"; system: number; radius: number }
-  | { kind: "moveWormhole"; system: number; wormhole: number; radius: number; angle: number };
+  | { kind: "moveWormhole"; system: number; wormhole: number; radius: number; angle: number }
+  | { kind: "moveMegastructure"; system: number; megastructure: number; at: MegastructurePlace };
 
 /** Why a body may not move, host or be given another parent; `GEOMETRY_REASONS` has the words. */
 export type BodyRefusal =
@@ -101,6 +103,8 @@ export interface SceneEditing {
   innerFloor: number;
   /** The wormholes that may be dragged, by id. */
   wormholes: ReadonlySet<number>;
+  /** Megastructures may be dragged, each as its type and row allow. */
+  megastructures: boolean;
 }
 
 /** What an adapter reads of a system. */
@@ -146,6 +150,7 @@ export const GEOMETRY_REASONS = {
   lockedWormhole: "Only a natural wormhole can be moved",
   wormholeElsewhere: "That wormhole is not in this system",
   wormholeAtCentre: "A wormhole can't stand at the system's centre",
+  megastructureElsewhere: "That megastructure is not in this system",
 } as const;
 
 /** The inner radius may not go below `least`. */
@@ -166,6 +171,14 @@ export const DRAG_HINTS = {
   movable: "drag to move · Shift+arrows nudge",
   /** Under the name of a wormhole that can move. */
   movableWormhole: "drag to move",
+  /** A megastructure standing at a point of its own. */
+  megastructure: "drag to move · Shift snaps to 15° · Esc cancels",
+  /** A megastructure tied to a body, before it is over one that takes it. */
+  toBody: "drop it on a highlighted planet or star · Esc cancels",
+  /** Under the name of a megastructure at a point of its own. */
+  movableMegastructure: "drag to move",
+  /** Under the name of a megastructure tied to a body. */
+  movableToBody: "drag onto another planet or star to move",
 } as const;
 
 /** Whether a `natural_wormholes` entry is a natural wormhole, the only kind that may be moved. */
@@ -189,6 +202,11 @@ export function wormholeFieldIntent(
   const to =
     field === "angle" ? { ...place, angle: wrapDegrees(typed) } : { ...place, radius: typed };
   return { kind: "moveWormhole", system, wormhole: wormhole.id, ...to };
+}
+
+/** What the status bar says while a megastructure is held over `body`, which takes it. */
+export function toStructureHint(body: string): string {
+  return `release to move it to ${body}`;
 }
 
 /** What the status bar says while a body is held over `host`, which it would orbit. */

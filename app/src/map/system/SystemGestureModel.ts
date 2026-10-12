@@ -6,7 +6,7 @@ import { doubles, pastThreshold, type Tap } from "../interaction/press";
 import { BodyDrag, type Drag, type DragPointer, type DragStep } from "./bodyDrag";
 import type { SystemContext } from "./context";
 import type { StructureKind } from "./context";
-import { HandleDrag, WormholeDrag } from "./drags";
+import { HandleDrag, MegastructureDrag, WormholeDrag } from "./drags";
 import type { SceneTarget } from "./picking";
 
 /** One pointer event in the system scene, with the body, wormhole, handle or arrow under it. */
@@ -102,8 +102,9 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
       return WormholeDrag.start(frame, target.id, from);
     case "handle":
       return HandleDrag.start(frame, target.ref, from);
-    case "exit":
     case "megastructure":
+      return MegastructureDrag.start(frame, target.id, from);
+    case "exit":
     case "starbase":
       return null;
   }
@@ -111,7 +112,7 @@ function dragOf(target: SceneTarget, frame: SystemContext, from: Pt): Drag | nul
 
 /**
  * The system scene's pointer gestures: pans, hover, body and wormhole clicks, the hyperlane arrows' clicks, and
- * drags of a body, a wormhole or a handle, previewed as they move and sent on release.
+ * drags of a body, a wormhole, a megastructure or a handle, previewed as they move and sent on release.
  */
 export class SystemGestureModel {
   private state: State = IDLE;

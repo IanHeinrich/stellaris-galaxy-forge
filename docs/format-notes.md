@@ -683,6 +683,13 @@ for planets or deposits.
   gets `megastructure=<id>`. The planet's `megastructure=` can name an
   id the table no longer holds (a 4.5.2 save), so the tie is read from
   the row's `planet`.
+- When the editor moves a row within its system, a row at a point of
+  its own gets new x and y only, as a moved relay keeps in game. A row
+  tied to a body gets the new body's `planet` and coordinate, and the
+  old body's `megastructure` key, the flags a structure leaves and an
+  Arc Furnace's hiding model go to the new body, each flag with its
+  date. A `megastructure` key on the new body that names a row the table
+  no longer holds takes the moved row's id.
 - A row's `bypass=<id>` and that bypass's `owner={ type=6 id=<row> }`
   agree in all 299 bypass rows of a 4.5.1 save. Natural wormholes and the
   Shroud tunnel have `owner={ type=7 … }`.

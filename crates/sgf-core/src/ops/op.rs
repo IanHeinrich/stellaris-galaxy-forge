@@ -750,8 +750,8 @@ pub enum Op {
         radius: Option<f64>,
     },
     /// Save entities written back whole, each over whatever stands for it now: what
-    /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`] and
-    /// [`Op::DeleteRingWorld`] invert to. Each text must be one
+    /// [`Op::RemoveColony`], [`Op::DeleteBody`], [`Op::DeleteMegastructure`],
+    /// [`Op::MoveMegastructure`] and [`Op::DeleteRingWorld`] invert to. Each text must be one
     /// statement keyed by its id, the entity or its tombstone. Only an inverse: the session
     /// refuses it from [`crate::session::Session::apply`], and undo reaches it through the
     /// bytes. The inverse carries the texts displaced. Save documents only.
@@ -895,6 +895,27 @@ pub enum Op {
         #[ts(optional)]
         construction: Option<MegastructureConstruction>,
     },
+    /// A save `megastructures` row moved within its system, the file's own or one
+    /// [`Op::AddMegastructure`] added. A row standing at a point of its own, such as a gateway,
+    /// a Hyper Relay or the Shroud Seal, goes to [`MegastructurePlace::Free`]: only its
+    /// `coordinate.x` and `.y` are written, and its bypass and every link stay. A row tied to a
+    /// body goes to [`MegastructurePlace::Body`], another body of the system: its `planet`
+    /// names that body, and its coordinate becomes the body's point. The old body loses the
+    /// row's `megastructure` key, and unless another row names it, the planet flags
+    /// `has_megastructure`, `has_arc_furnace` and `ruined_orbital_ring_planet` and an Arc
+    /// Furnace's `entity_name="invisible_turret_entity"`. The new body gets the key, in place of
+    /// one naming a row the table no longer holds, each of those flags with its date unless it
+    /// has that flag already, and the furnace's model in place of any of its own. A row with no
+    /// system, a ring world's row, a bypass other than a gateway or a relay, a row at a point
+    /// sent to a body or a row on a body sent to a point, a row on the body it made, which has
+    /// the planet flag `megastructure`, a body outside the system, a body another row names, a
+    /// point that is not finite and the place it stands at already are refused. The inverse is
+    /// the [`Op::RestoreEntities`] that writes back every entity it rewrote. Stellaris 4.x save
+    /// documents only.
+    MoveMegastructure {
+        megastructure: u32,
+        at: MegastructurePlace,
+    },
     /// Each save system's `coordinate.visual_height`, how far above or below the galactic
     /// plane the map draws its star; `None` takes the key out. A system without one, as
     /// 3.x saves write them, gets it last in its `coordinate` block. A height that would be
@@ -1007,6 +1028,7 @@ impl Op {
             | Self::MoveBodyToSystem { .. }
             | Self::AddMegastructure { .. }
             | Self::RemoveMegastructure { .. }
+            | Self::MoveMegastructure { .. }
             | Self::DeleteMegastructure { .. }
             | Self::DeleteRingWorld { .. } => OpReach::of(SAVE).details(Rebuild).whole_entries(),
             // A save's initializers, spawns, fallen empire zones and wormholes are the game's

@@ -222,6 +222,10 @@ pub(super) fn examples() -> Vec<Example> {
             megastructure: ADDED_MEGASTRUCTURE,
             construction: None,
         }),
+        Example::save_4_5(Op::MoveMegastructure {
+            megastructure: 4,
+            at: MegastructurePlace::Body { body: 933 },
+        }),
         Example::save(Op::SetSystemHeights {
             heights: vec![SystemHeight {
                 system: 0,

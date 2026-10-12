@@ -48,6 +48,8 @@ describe("the system scene's handles layer", () => {
       host: null,
       handle: { kind: "innerRadius" },
       wormhole: null,
+      megastructure: null,
+      targets: [],
     };
     layer.rebuild(saved(drag));
     layer.reveal(null);

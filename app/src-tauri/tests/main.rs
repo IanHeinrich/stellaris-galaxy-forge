@@ -17,6 +17,7 @@ mod entity;
 mod gamedata;
 mod handlers;
 mod listing;
+mod move_megastructure;
 mod move_planet;
 mod nebula;
 mod paint;

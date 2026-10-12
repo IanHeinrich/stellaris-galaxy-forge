@@ -1,7 +1,7 @@
 ---
 title: Megastructures
-description: Add or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, or delete a whole ring world.
-aliases: [megastructure, add megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, delete ring world, shattered ring]
+description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, or delete a whole ring world.
+aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, delete ring world, shattered ring]
 ---
 # Megastructures <Badge type="tip" text="Save" />
 
@@ -138,6 +138,48 @@ structures:
 - Crisis and event structures, such as the Galactic Crucible, the
   Behemoth egg and the Shroud Seal.
 - Ruins that have no repair.
+
+## Move within a system
+
+In a Stellaris 4.x save, you can move a megastructure to another place
+in its system. Hold the pointer over a megastructure in the system view
+and its tooltip says how it moves, or why it stays where it is.
+
+A Hyper Relay, a Gateway or the Shroud Seal stands at a point of its
+own. Drag it to where it should stand, anywhere in its system. It moves
+in whole units and degrees, and <kbd>Shift</kbd> snaps the angle to 15°
+steps. Its links to other relays or gateways stay as they are.
+
+A megastructure built on or around a body, such as a Science Nexus, an
+Arc Furnace or a ruined Orbital Ring, moves to another planet, moon or
+star of the same system. Drag it, and the bodies it can move to are
+ringed. Drop it on one of them.
+
+An Arc Furnace hides its new planet, and its old planet shows again. The
+modifiers and deposits its construction added stay where they are, so an
+Arc Furnace's mining bonus stays on the planets of its system.
+
+While you drag, a body that can't take the megastructure is ringed in
+red when the pointer is over it, and the status bar says why:
+
+- It already has a megastructure.
+- The megastructure is built only around a star, such as a Dyson
+  Sphere, and the body is a planet or a moon. In a system with one star,
+  such a megastructure has nowhere to go.
+
+Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to move it back.
+
+These stay where they are:
+
+- L-Gates.
+- Ring world sections.
+- Deep Space Citadels and the Nomads' waystations, which stand with a
+  starbase.
+- Megastructures that are built as a whole with more planets or
+  sections, such as an Alderson Disk.
+- A megastructure that made its planet, such as a Cosmogenesis World.
+- A megastructure at the system's centre that names no body, as some
+  ruined Dyson Spheres do.
 
 ## Delete a megastructure
 

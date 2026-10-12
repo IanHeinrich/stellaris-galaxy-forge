@@ -65,4 +65,4 @@ left_out?: number, } | { "type": "RemoveMegastructure", megastructure: number,
  * [`Op::AddMegastructure`]. Without it, the construction of the add that wrote the
  * row this session, earlier in the same batch included, is taken back.
  */
-construction?: MegastructureConstruction, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };
+construction?: MegastructureConstruction, } | { "type": "MoveMegastructure", megastructure: number, at: MegastructurePlace, } | { "type": "SetSystemHeights", heights: Array<SystemHeight>, } | { "type": "Batch", description: string, ops: Array<Op>, };

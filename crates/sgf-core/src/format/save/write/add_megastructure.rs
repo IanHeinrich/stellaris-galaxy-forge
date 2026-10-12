@@ -311,7 +311,7 @@ fn counts(built: &MegastructureConstruction) -> String {
 }
 
 /// Whether the planet `node` holds has the planet flag `flag`.
-fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
+pub(crate) fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
     node.find(keys::FLAGS, src)
         .is_some_and(|flags| flags.find(flag, src).is_some())
 }
@@ -434,6 +434,12 @@ fn tie(edit: &mut Edit, id: u32, flags: &[(&str, String)]) -> Result<(), OpError
     insert_key(edit, &[], &place::planet::MEGASTRUCTURE, |_| {
         format!("{}={id}", keys::MEGASTRUCTURE)
     })?;
+    add_flags(edit, flags)
+}
+
+/// Give the planet `edit` holds the planet flags `flags`, each with its date, last in its
+/// `flags` block, which it gains when it has none.
+pub(crate) fn add_flags(edit: &mut Edit, flags: &[(&str, String)]) -> Result<(), OpError> {
     if flags.is_empty() {
         return Ok(());
     }

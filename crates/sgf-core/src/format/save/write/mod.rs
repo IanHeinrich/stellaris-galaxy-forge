@@ -34,6 +34,7 @@ pub(crate) mod lanes;
 pub(crate) mod lgate;
 pub(crate) mod map_colors;
 pub(crate) mod megastructure_links;
+pub(crate) mod move_megastructure;
 pub(crate) mod move_planet;
 pub(crate) mod move_system;
 pub(crate) mod name_pool;

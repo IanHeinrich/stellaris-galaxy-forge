@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
+import { MEGASTRUCTURE_REFUSALS } from "../../lib/details/megastructureMoves";
 import { DRAG_HINTS } from "../../lib/details/orbitIntent";
+import { polar } from "../../lib/details/orbits";
+import type { Pt } from "../../lib/geometry/pt";
+import { megastructureSummary, megastructureTypeView } from "../../test/builders";
 import { sceneRecorder as recorder } from "../../test/mapIntent";
 import { systemContext, type SystemContext } from "./context";
-import { lastStep, named, on, ORBITS, orbitFrame, start, without } from "./dragFixture";
+import {
+  BESIDE,
+  lastStep,
+  LONE,
+  named,
+  on,
+  ORBITS,
+  orbitFrame,
+  PLANET,
+  pointOf,
+  STAR,
+  start,
+  without,
+} from "./dragFixture";
 import { grip, over } from "./fixture";
 import { SystemGestureModel } from "./SystemGestureModel";
 
@@ -87,5 +104,114 @@ describe("a wormhole dragged in the system scene", () => {
     model.handle(on("up", [-60, 30]), intent);
     expect(named(intent.calls, "commit")).toEqual([]);
     expect(named(intent.calls, "preview")).toEqual([]);
+  });
+});
+
+describe("a megastructure dragged in the system scene", () => {
+  const GATEWAY = 40;
+  const NEXUS = 41;
+  const SPHERE = 42;
+  const RING = 43;
+  const structure = (id: number) => ({ kind: "megastructure" as const, id });
+  const types = new Map(
+    [
+      megastructureTypeView("gateway_final", {
+        bypass_type: "gateway",
+        placement: { place: "free", outside_gravity_well: true },
+      }),
+      megastructureTypeView("think_tank_3"),
+      megastructureTypeView("dyson_sphere_5", { placement: { place: "body", star_only: true } }),
+      megastructureTypeView("orbital_ring_ruined"),
+    ].map((t) => [t.key, t]),
+  );
+
+  function structureFrame(): SystemContext {
+    const frame = orbitFrame();
+    const megastructures = [
+      megastructureSummary({ id: GATEWAY, kind: "gateway_final", at: [0, 250] }),
+      megastructureSummary({ id: NEXUS, kind: "think_tank_3", planet: LONE, at: null }),
+      megastructureSummary({ id: SPHERE, kind: "dyson_sphere_5", planet: STAR }),
+      megastructureSummary({ id: RING, kind: "orbital_ring_ruined", planet: PLANET, at: null }),
+    ];
+    return systemContext({
+      ...frame,
+      megastructureTypes: types,
+      details: { ...frame.details!, megastructures },
+    });
+  }
+
+  function press(id: number, from: Pt) {
+    const model = new SystemGestureModel();
+    const intent = recorder(structureFrame());
+    model.handle(on("down", from, { target: structure(id), draggable: true }), intent);
+    return { model, intent };
+  }
+
+  it("moves a gateway freely in whole units and degrees, wherever it is put", () => {
+    const { model, intent } = press(GATEWAY, { x: 0, y: 250 });
+    model.handle(on("move", [0, 300]), intent);
+    const step = lastStep(intent);
+    expect(step?.intent).toMatchObject({ megastructure: GATEWAY, at: { place: "free" } });
+    expect(step?.readout.text).toBe("r 250 → 300 · 90°");
+    expect(step?.hint).toBe(DRAG_HINTS.megastructure);
+    model.handle(on("move", [0, 211.3]), intent);
+    expect(lastStep(intent)?.readout.text).toBe("r 250 → 211 · 90°");
+    model.handle(on("up", [0, 211.3]), intent);
+    const to = polar(0, 0, 211, 90);
+    expect(named(intent.calls, "commit")).toEqual([
+      [
+        "commit",
+        {
+          kind: "moveMegastructure",
+          system: ORBITS,
+          megastructure: GATEWAY,
+          at: { place: "free", x: to.x, y: to.y },
+        },
+      ],
+    ]);
+  });
+
+  it("rings the bodies a structure tied to a body may land on, and moves it onto one", () => {
+    const frame = structureFrame();
+    const { model, intent } = press(NEXUS, pointOf(frame, LONE));
+    model.handle(on("move", pointOf(frame, BESIDE)), intent);
+    const step = lastStep(intent);
+    const others = frame.bodies.map((b) => b.placement.id).filter((id) => id !== LONE);
+    expect(step?.marks.targets).toEqual(others.filter((id) => id !== PLANET && id !== STAR));
+    expect(step?.marks.host).toBe(BESIDE);
+    expect(step?.changed).toBe(true);
+    model.handle(on("up", pointOf(frame, BESIDE)), intent);
+    expect(named(intent.calls, "commit")).toEqual([
+      [
+        "commit",
+        {
+          kind: "moveMegastructure",
+          system: ORBITS,
+          megastructure: NEXUS,
+          at: { place: "body", body: BESIDE },
+        },
+      ],
+    ]);
+  });
+
+  it("says why a body that has a megastructure refuses it, and sends nothing", () => {
+    const frame = structureFrame();
+    const { model, intent } = press(NEXUS, pointOf(frame, LONE));
+    model.handle(on("move", pointOf(frame, PLANET)), intent);
+    const why = MEGASTRUCTURE_REFUSALS.taken(frame.bodyById.get(PLANET)!.name);
+    expect(lastStep(intent)?.readout).toEqual({ text: why, tone: "warn" });
+    expect(lastStep(intent)?.marks).toMatchObject({ tone: "refused", other: PLANET });
+    model.handle(on("up", pointOf(frame, PLANET)), intent);
+    expect(named(intent.calls, "commit")).toEqual([]);
+    expect(named(intent.calls, "refuse")).toEqual([["refuse", why]]);
+  });
+
+  it("refuses a planet for a type built only around a star, which has no other star here", () => {
+    const frame = structureFrame();
+    const { model, intent } = press(SPHERE, pointOf(frame, STAR));
+    model.handle(on("move", pointOf(frame, BESIDE)), intent);
+    expect(lastStep(intent)?.marks.targets).toEqual([]);
+    const sphere = frame.structures.find((s) => s.id === SPHERE)!.name;
+    expect(lastStep(intent)?.refused).toBe(MEGASTRUCTURE_REFUSALS.starOnly(sphere));
   });
 });

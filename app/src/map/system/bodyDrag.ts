@@ -71,6 +71,10 @@ export interface DragMarks {
   readonly handle: HandleRef | null;
   /** The wormhole dragged, whose save point is drawn faint. */
   readonly wormhole: number | null;
+  /** The megastructure dragged. */
+  readonly megastructure: number | null;
+  /** The bodies a dragged megastructure may be dropped on, each ringed faintly. */
+  readonly targets: readonly number[];
 }
 
 /** A drag that marks nothing yet, for each drag to add its own marks to. */
@@ -82,6 +86,8 @@ export const NO_MARKS: DragMarks = Object.freeze({
   host: null,
   handle: null,
   wormhole: null,
+  megastructure: null,
+  targets: [],
 });
 
 /** The text at the pointer while something is dragged. */

@@ -1,6 +1,8 @@
 import { beltLabel } from "../../lib/details/labels";
-import { DRAG_HINTS } from "../../lib/details/orbitIntent";
-import { near, polarAbout, wrapDegrees } from "../../lib/details/orbits";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
+import { targetRefusal, type MegastructureMove } from "../../lib/details/megastructureMoves";
+import { DRAG_HINTS, toStructureHint, type GeometryIntent } from "../../lib/details/orbitIntent";
+import { near, polar, polarAbout, wrapDegrees } from "../../lib/details/orbits";
 import type { Pt } from "../../lib/geometry/pt";
 import {
   change,
@@ -17,7 +19,8 @@ import {
   type DragStep,
   type HandleRef,
 } from "./bodyDrag";
-import type { SceneWormhole, SystemContext } from "./context";
+import type { SceneBody, SceneWormhole, SystemContext } from "./context";
+import { drawnDisc } from "./geometry";
 
 /**
  * A natural wormhole dragged freely about the centre, in whole units and degrees, or Shift's steps.
@@ -114,5 +117,145 @@ export class HandleDrag implements Drag {
       hint: DRAG_HINTS.belt,
       changed: !near(radius, this.radius),
     };
+  }
+}
+
+/** How far past its drawn disc, in screen pixels, a body takes a dragged megastructure. */
+const STRUCTURE_CAPTURE_PAST_PX = 10;
+/** The least reach, in screen pixels, at which a body takes a dragged megastructure. */
+const STRUCTURE_CAPTURE_MIN_PX = 18;
+
+/** What a megastructure's drag reads of the scene as it starts. */
+export type MegastructureFrame = Pick<SystemContext, "id" | "details" | "structures" | "bodies">;
+
+type Moving = Exclude<MegastructureMove, { place: "fixed" }>;
+
+/**
+ * A megastructure dragged: one at a point of its own freely about the centre, in whole units and
+ * degrees or Shift's steps; one tied to a body onto
+ * another body of the system, the bodies its type may stand on ringed while it is held.
+ */
+export class MegastructureDrag implements Drag {
+  private constructor(
+    private readonly system: number,
+    private readonly id: number,
+    private readonly name: string,
+    private readonly how: Moving,
+    /** Where the save puts it. */
+    private readonly at: Pt,
+    /** From the pointer to its point, as it was grabbed. */
+    private readonly grab: Pt,
+    private readonly bodies: readonly SceneBody[],
+    /** Why each body that will not take it refuses, by id. */
+    private readonly refusals: ReadonlyMap<number, string>,
+    /** The bodies that will take it. */
+    private readonly targets: readonly number[],
+  ) {}
+
+  /** The drag of megastructure `id`, pressed at `from`, or null when it may not move. */
+  static start(frame: MegastructureFrame, id: number, from: Pt): MegastructureDrag | null {
+    const shown = frame.structures.find((s) => s.kind === "megastructure" && s.id === id);
+    const rows = frame.details?.megastructures ?? [];
+    const row = rows.find((r) => r.id === id);
+    const how = shown?.move;
+    if (frame.id === null || !shown || !row || !how || how.place === "fixed") return null;
+    const at = row.at ? { x: row.at[0], y: row.at[1] } : { x: shown.x, y: shown.y };
+    const refusals = new Map<number, string>();
+    const targets: number[] = [];
+    if (how.place === "body") {
+      for (const body of frame.bodies) {
+        const { id: bodyId, star } = body.placement;
+        if (bodyId === how.on) continue;
+        const target = { id: bodyId, star, name: body.name };
+        const why = targetRefusal(how, id, shown.name, target, rows);
+        if (why === null) targets.push(bodyId);
+        else refusals.set(bodyId, why);
+      }
+    }
+    const grab = { x: at.x - from.x, y: at.y - from.y };
+    return new MegastructureDrag(
+      frame.id,
+      id,
+      shown.name,
+      how,
+      at,
+      grab,
+      frame.bodies,
+      refusals,
+      targets,
+    );
+  }
+
+  move(pointer: DragPointer): DragStep {
+    const how = this.how;
+    return how.place === "free" ? this.toPoint(pointer) : this.toBody(pointer, how.on);
+  }
+
+  private intent(at: MegastructurePlace): GeometryIntent {
+    return { kind: "moveMegastructure", system: this.system, megastructure: this.id, at };
+  }
+
+  private toPoint(pointer: DragPointer): DragStep {
+    const held = { x: pointer.wx + this.grab.x, y: pointer.wy + this.grab.y };
+    const radius = Math.max(1, Math.round(Math.hypot(held.x, held.y)));
+    const angle = snapAngle(polarAbout(held, ORIGIN).angle, pointer.shift);
+    const was = polarAbout(this.at, ORIGIN);
+    const same = near(radius, was.radius) && near(wrapDegrees(angle - was.angle + 180), 180);
+    const { x, y } = polar(0, 0, radius, angle);
+    return {
+      intent: this.intent({ place: "free", x, y }),
+      marks: { ...NO_MARKS, megastructure: this.id },
+      readout: { text: `r ${change(was.radius, radius)} · ${degrees(angle)}` },
+      hint: DRAG_HINTS.megastructure,
+      changed: !same,
+    };
+  }
+
+  private toBody(pointer: DragPointer, on: number): DragStep {
+    const marks = { ...NO_MARKS, megastructure: this.id, targets: this.targets };
+    const stay = this.intent({ place: "body", body: on });
+    const over = this.over(pointer);
+    if (over === null || over.placement.id === on) {
+      const readout = { text: this.name };
+      return { intent: stay, marks, readout, hint: DRAG_HINTS.toBody, changed: false };
+    }
+    const id = over.placement.id;
+    const why = this.refusals.get(id);
+    if (why !== undefined) {
+      return {
+        intent: stay,
+        marks: { ...marks, tone: "refused", other: id },
+        readout: { text: why, tone: "warn" },
+        hint: why,
+        refused: why,
+        changed: false,
+      };
+    }
+    return {
+      intent: this.intent({ place: "body", body: id }),
+      marks: { ...marks, host: id },
+      readout: { text: `${this.name} · to ${over.name}` },
+      hint: toStructureHint(over.name),
+      changed: true,
+    };
+  }
+
+  /** The body the pointer is within reach of, nearest first, or null. */
+  private over(pointer: DragPointer): SceneBody | null {
+    let best: SceneBody | null = null;
+    let bestPx = Infinity;
+    for (const body of this.bodies) {
+      const { x, y, disc } = body.placement;
+      const px = Math.hypot(x - pointer.wx, y - pointer.wy) * pointer.scale;
+      const reach = Math.max(
+        STRUCTURE_CAPTURE_MIN_PX,
+        drawnDisc(disc, pointer.scale, body.look) * pointer.scale + STRUCTURE_CAPTURE_PAST_PX,
+      );
+      if (px <= reach && px < bestPx) {
+        best = body;
+        bestPx = px;
+      }
+    }
+    return best;
   }
 }

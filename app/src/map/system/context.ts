@@ -1,5 +1,6 @@
 import type { BeltKindView } from "../../generated/BeltKindView";
 import type { BeltLook } from "../../generated/BeltLook";
+import type { MegastructurePlace } from "../../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../../generated/MegastructureSummary";
 import type { MegastructureView } from "../../generated/MegastructureView";
 import type { PlanetClassView } from "../../generated/PlanetClassView";
@@ -19,6 +20,7 @@ import {
   wormholePlateName,
 } from "../../lib/details/labels";
 import { bodyMarks, NO_MARKS, type BodyMarks } from "../../lib/details/layout";
+import { megastructureMove, type MegastructureMove } from "../../lib/details/megastructureMoves";
 import {
   inspectedBody,
   isNaturalWormhole,
@@ -256,6 +258,8 @@ export interface SceneStructure {
   readonly on: number | null;
   /** What it produces each month, per resource, as the Details layer shows it under its plate. */
   readonly resources: readonly ResourceRow[];
+  /** How a drag moves it, where the source may be edited; null for a starbase or a source that may not. */
+  readonly move: MegastructureMove | null;
 }
 
 /** What the scene draws in place of the source while a drag or an edit it sent is shown. */
@@ -725,13 +729,18 @@ function megastructure(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
   row: MegastructureSummary,
+  movable: boolean,
+  moved: MegastructurePlace | undefined,
 ): SceneStructure | null {
   const type = src.megastructureTypes.get(row.kind);
   const look = megastructureLook(type);
   if (look.kind === "none") return null;
-  const body = row.planet === null ? undefined : bodyById.get(row.planet);
+  const planet = moved ? (moved.place === "body" ? moved.body : null) : row.planet;
+  const body = planet === null ? undefined : bodyById.get(planet);
+  const at: readonly [number, number] | null =
+    moved?.place === "free" ? [moved.x, moved.y] : row.at;
   const offset = type?.entity_offset ?? [0, 0];
-  const placed = placeStructure(look, body, row.at, offset, type?.scales_with_planet === true);
+  const placed = placeStructure(look, body, at, offset, type?.scales_with_planet === true);
   if (placed === null) return null;
   // Turned from where the save puts it, so a drag does not bake it again at every step.
   const yaw = megastructureYaw(type, row.at);
@@ -746,6 +755,7 @@ function megastructure(
     // One drawn off its body, as a Strategic Coordination Center beside its star, has its own plate.
     on: offset[0] === 0 && offset[1] === 0 ? (body?.placement.id ?? null) : null,
     resources: type ? producedOf(type, src.resourceIcons) : NOTHING,
+    move: movable ? megastructureMove(row, type) : null,
   };
 }
 
@@ -774,6 +784,7 @@ function starbase(
     level: label,
     on: body?.placement.id ?? null,
     resources: NOTHING,
+    move: null,
   };
 }
 
@@ -781,12 +792,16 @@ function starbase(
 function sceneStructures(
   src: SystemSources,
   bodyById: ReadonlyMap<number, SceneBody>,
+  editing: SceneEditing,
+  moved: LayoutOverride["megastructures"],
 ): SceneStructure[] {
   const { details } = src;
   if (!src.sceneLayers.megastructures || details === null) return NOTHING;
   const stations = details.starbase ? [details.starbase, ...details.other_starbases] : [];
   return [
-    ...details.megastructures.map((row) => megastructure(src, bodyById, row)),
+    ...details.megastructures.map((row) =>
+      megastructure(src, bodyById, row, editing.megastructures, moved?.get(row.id)),
+    ),
     ...stations.map((station) => starbase(src, bodyById, station)),
   ].filter((s): s is SceneStructure => s !== null);
 }
@@ -865,8 +880,10 @@ export function systemContext(
         src.countries,
         src.resourceIcons,
         src.gameDataReady,
+        editing,
+        preview?.override.megastructures,
       ],
-      () => sceneStructures(src, bodyById),
+      () => sceneStructures(src, bodyById, editing, preview?.override.megastructures),
     ),
     viewRadius: Math.max(
       layout.fitRadius,
