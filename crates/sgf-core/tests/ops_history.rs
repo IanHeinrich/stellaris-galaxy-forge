@@ -16,7 +16,7 @@ use sgf_core::views::DocumentKind;
 use crate::common;
 use common::diff::{round_trip, round_trip_step};
 use common::examples::{self, one_of_each};
-use common::{NEBULA_0_CENTRE, current, open};
+use common::{NEBULA_0_CENTRE, current, holds, open};
 
 #[test]
 fn every_op_undoes_to_the_original_and_redoes_to_the_edit() {
@@ -173,12 +173,44 @@ const BYTES_DIFFER: [(&str, &str); 17] = [
 /// so the details read back near, not equal.
 const DETAILS_READ_BACK_NEAR: [&str; 3] = ["MoveBody", "SetBodyParent", "MoveBodyToSystem"];
 
+/// Ops whose inverse's inverse, applied after the inverse put the bytes back, writes other
+/// bytes than the op did. A save's nebula keeps the clouds the op took the first time, and
+/// a scenario system's name is written after its spawn weight.
+const REWRITES_ANOTHER_WAY: [(&str, DocumentKind); 3] = [
+    ("MoveNebula", DocumentKind::Save),
+    ("RemoveNebula", DocumentKind::Save),
+    ("SetSpawnScript", DocumentKind::Scenario),
+];
+
+/// `op` applied to `session`, then its inverse, then the inverse's own inverse: whether that
+/// writes the op's bytes again, and whether the galaxy reads back as the op left it but for
+/// the ids. The session has no details built, which every apply would reread.
+fn applied_again(mut session: Session, op: Op, label: &str) -> (bool, bool) {
+    let result = session
+        .apply_inverse(op)
+        .unwrap_or_else(|e| panic!("{label}: {e}"));
+    let edited = current(&session);
+    let galaxy = without_ids(settled(&session));
+    let restored = session
+        .apply_inverse(result.inverse)
+        .unwrap_or_else(|e| panic!("{label}: the inverse: {e}"));
+    session
+        .apply_inverse(restored.inverse)
+        .unwrap_or_else(|e| panic!("{label}: the inverse's inverse: {e}"));
+    (
+        holds(&session, &edited),
+        without_ids(settled(&session)) == galaxy,
+    )
+}
+
 /// The inverse an op returns is itself an op: applied, it puts back the bytes and `meta`
-/// the op changed, and the galaxy and the details read back as they were.
+/// the op changed, and the galaxy and the details read back as they were. The inverse it
+/// returns in turn writes the edit again.
 #[test]
 fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
     let mut failed = Vec::new();
     let mut differed = Vec::new();
+    let mut rewritten = Vec::new();
     for example in one_of_each() {
         let name = example.name();
         let mut cases = vec![];
@@ -190,6 +222,7 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
         }
         for (session, op) in cases {
             let label = format!("{name} on a {:?}", session.kind());
+            let (same_bytes, same_galaxy) = applied_again(session.clone(), op.clone(), &label);
             let mut session = common::warm(session);
             let bytes = current(&session);
             let meta = session.doc().meta().to_vec();
@@ -204,30 +237,43 @@ fn every_ops_inverse_applied_as_an_op_puts_the_document_back() {
             if session.doc().meta() != meta {
                 failed.push(format!("{label}: meta"));
             }
-            if current(&session) == bytes {
+            if holds(&session, &bytes) {
                 if settled(&session) != galaxy {
                     failed.push(format!("{label}: galaxy"));
                 }
                 if details_of(&mut session) != details {
                     failed.push(format!("{label}: details"));
                 }
-                continue;
-            }
-            let Some((_, why)) = BYTES_DIFFER.iter().find(|(listed, _)| *listed == name) else {
+            } else if let Some((_, why)) = BYTES_DIFFER.iter().find(|(listed, _)| *listed == name) {
+                differed.push(name);
+                if without_ids(settled(&session)) != without_ids(galaxy) {
+                    failed.push(format!("{label}: galaxy, beyond what differs ({why})"));
+                }
+                if !DETAILS_READ_BACK_NEAR.contains(&name)
+                    && details_without_ids(details_of(&mut session)) != details_without_ids(details)
+                {
+                    failed.push(format!("{label}: details, beyond what differs ({why})"));
+                }
+            } else {
                 failed.push(format!("{label}: bytes"));
-                continue;
-            };
-            differed.push(name);
-            if without_ids(settled(&session)) != without_ids(galaxy) {
-                failed.push(format!("{label}: galaxy, beyond what differs ({why})"));
             }
-            if !DETAILS_READ_BACK_NEAR.contains(&name)
-                && details_without_ids(details_of(&mut session)) != details_without_ids(details)
-            {
-                failed.push(format!("{label}: details, beyond what differs ({why})"));
+            let case = (name, session.kind());
+            if !same_bytes {
+                rewritten.push(case);
+                if !REWRITES_ANOTHER_WAY.contains(&case) {
+                    failed.push(format!("{label}: the inverse's inverse"));
+                } else if !same_galaxy {
+                    failed.push(format!("{label}: the inverse's inverse, beyond its bytes"));
+                }
             }
         }
     }
+    failed.extend(
+        REWRITES_ANOTHER_WAY
+            .iter()
+            .filter(|listed| !rewritten.contains(listed))
+            .map(|(name, kind)| format!("{name} on a {kind:?}: listed, but writes the edit again")),
+    );
     failed.extend(
         BYTES_DIFFER
             .iter()

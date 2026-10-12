@@ -11,7 +11,8 @@ use similar::{Algorithm, TextDiff};
 
 use crate::common;
 use common::diff::{round_trip, unified_diff};
-use common::{SAMPLE_4_5, current, entity_text, open, open_4_5, open_edited_sample};
+use common::edit::{insert_after, open_4_5_edited};
+use common::{current, entity_text, holds, open, open_4_5};
 
 pub(crate) fn delete(planet: u32) -> Op {
     Op::DeleteBody { body: planet }
@@ -334,11 +335,18 @@ fn the_inverse_writes_back_every_entity() {
         let mut session = (case.session)();
         let before = current(&session);
         let result = session.apply(case.op.clone()).expect(case.name);
+        let edited = current(&session);
         let sited = matches!(result.inverse, Op::Batch { .. });
-        session.apply_inverse(result.inverse).expect(case.name);
+        let restored = session.apply_inverse(result.inverse).expect(case.name);
         if !sited {
-            assert_eq!(current(&session), before, "{}", case.name);
+            assert!(holds(&session, &before), "{}", case.name);
         }
+        session.apply_inverse(restored.inverse).expect(case.name);
+        assert!(
+            holds(&session, &edited),
+            "{}: the inverse's inverse",
+            case.name
+        );
     }
 }
 
@@ -375,18 +383,6 @@ fn a_saved_edit_reopens_on_the_planet_page_and_in_the_details() {
     }
 }
 
-#[test]
-fn the_inverse_of_the_inverse_deletes_again() {
-    for case in cases() {
-        let mut session = (case.session)();
-        let result = session.apply(case.op.clone()).expect(case.name);
-        let edited = current(&session);
-        let restored = session.apply_inverse(result.inverse).expect(case.name);
-        session.apply_inverse(restored.inverse).expect(case.name);
-        assert_eq!(current(&session), edited, "{}", case.name);
-    }
-}
-
 /// Planet 449 of system 409 on the 4.5 sample holds colony 16, and its moon 450 colony 17:
 /// the system's only colonies.
 #[test]
@@ -405,19 +401,14 @@ fn the_last_colonies_of_a_system_take_its_list() {
 /// The 4.5 sample with uncolonised planet 446 of system 409 controlled by country 11, which
 /// lists it first in its `controlled_planets`.
 fn controlled() -> Session {
-    open_edited_sample(SAMPLE_4_5, |text, _| {
-        let mut insert_after = |anchors: &[&str], insert: &str| {
-            let mut at = 0;
-            for anchor in anchors {
-                at += text[at..].find(anchor).expect(anchor) + anchor.len();
-            }
-            text.insert_str(at, insert);
-        };
+    open_4_5_edited(|text| {
         insert_after(
+            text,
             &["\nplanets=\n{\n", "\n\t\t446=\n\t\t{\n"],
             "\t\t\tcontroller=11\n",
         );
         insert_after(
+            text,
             &[
                 "\ncountry=\n{\n",
                 "\n\t11=\n\t{\n",
