@@ -241,54 +241,58 @@ its orbital.
 
 ## Add a ring world
 
-In a Stellaris 4.x save, you add one from the same dialog as a
-megastructure, with each quarter at the stage you pick. You need the
-game data loaded.
+In a Stellaris 4.x save, you can add a whole ring world round a star,
+with each quadrant at the stage you pick. You need the game data loaded.
+
+Clearing the system for a ring world deletes its planets and colonies.
+You choose whether to clear it in step 6.
 
 1. Open the system in the [system view](system-view.md).
 2. Right-click the star and select Add megastructure.
 3. Pick Ring World. It is offered only on a star.
 4. Click one of its two tiles:
    - Site adds the construction site, as for any other megastructure.
-   - Ring adds the whole structure.
+   - Ring adds the whole ring world.
 5. For Ring, pick a stage for each quadrant, A to D: Finished, Frame,
    Ruined or Damaged. The buttons after Set all give every quadrant the
    same stage. The details panel sums up your picks, such as "A and B
    finished, C ruined, D damaged."
-6. Under Planets, pick what happens to the system's planets.
+6. Under Planets, pick what happens to the system's planets:
+   - Leave them where they are keeps every planet, moon and asteroid
+     belt. The dialog opens with this picked.
+   - Clear the system, as the game does, deletes every planet, moon
+     and asteroid belt first, as the game does when it builds the frame.
+     The stars stay. The line above the Add button says what goes, such
+     as "Clearing deletes 6 planets, 2 moons and 1 belt, and the colony
+     on Lachium I."
 7. Click Add Ring World.
 
-Clearing the system deletes planets and colonies. Under Planets, Leave
-them where they are keeps every planet, moon and asteroid belt, and is
-picked when the dialog opens. Clear the system, as the game does,
-deletes every planet, moon and asteroid belt first, as the game does
-when the frame is built. The stars stay. With Clear picked, the line
-above the Add button says what goes, such as "Clearing deletes 6
-planets, 2 moons and 1 belt, and the colony on Lachium I." Clear is off
-when a starbase orbits one of the planets it deletes, and the dialog
-names that planet.
+Clear is off when a starbase orbits one of the planets it would delete,
+and the dialog names that planet.
 
-A finished quadrant is three sections, a tech, a seam and a habitable
-one, as the game builds them. They have no colony, so colonise them in the game. A
-frame quadrant is the frame the game builds before its sections, a
-ruined one is a ruined section, and a damaged one is damaged sections,
-as the game's initializers make them.
+A finished quadrant is three sections, as the game builds them: a tech
+section, a seam and a habitable section. The sections have no colony,
+so colonise them in the game. A frame quadrant is the frame the game
+builds before the sections. A ruined quadrant is a ruined section, and a
+damaged quadrant is damaged sections, as the game's initializers make
+them.
 
-It goes to the empire that owns the system, and its sections are drawn
-in that empire's style. In a system no one owns, it has no owner.
+The ring world goes to the empire that owns the system, and its sections
+are drawn in that empire's style. In a system no one owns, it has no
+owner.
 
 Ring is greyed out, and the details panel says why, in a system that:
 
 - has more than one star, or none
-- already has one, or its site
+- already has a ring world or a ring world site
 - has another megastructure, except a Hyper Relay, a Gateway or an
   L-Gate
 
-A mod's version that Galaxy Forge can't build from the game files is
+A mod's ring world that Galaxy Forge can't build from the game files is
 greyed out too, with the reason.
 
-Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to take it out again, with the
-planets and belts it cleared.
+Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo the add. The planets and belts
+it cleared come back.
 
 ## Delete a megastructure
 
