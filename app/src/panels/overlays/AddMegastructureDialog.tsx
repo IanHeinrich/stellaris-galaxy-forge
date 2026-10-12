@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   HABITAT_ORBITAL_OWNER_NOTE,
   HABITAT_OWNER_NOTE,
@@ -19,9 +19,17 @@ import {
   writtenAsHabitat,
 } from "../../lib/megastructurePicks";
 import {
+  CLEARING_LOADING,
+  RING_WRITTEN,
+  clearRefusal,
+  clearingUnread,
+  clearingWarning,
+} from "../../lib/ringWorldAdd";
+import {
   megastructureDescriptionKeys,
   megastructurePreview,
   ownerCulture,
+  type MegastructurePreview,
 } from "../../lib/megastructurePreview";
 import { templateName } from "../../lib/names";
 import { useSystemNames } from "../../store/browserRows";
@@ -40,9 +48,15 @@ import {
   MegastructurePreviewPane,
   MegastructureStages,
 } from "./MegastructureBrowser";
+import { RingWorldPicks } from "./RingWorldPicks";
 import "./overlays.css";
 
 const NO_KEYS: readonly string[] = [];
+
+/** The preview with no stage line for a whole ring world, whose picks the grid shows. */
+function ringPreview(preview: MegastructurePreview, ring: boolean): MegastructurePreview {
+  return ring ? { ...preview, stage: null } : preview;
+}
 
 /** The Add megastructure dialog, while the system view's menu has asked for it. */
 export function AddMegastructureDialog() {
@@ -58,7 +72,12 @@ export function AddMegastructureDialog() {
 function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const cancel = useMegastructureAddStore((s) => s.cancel);
   const add = useMegastructureAddStore((s) => s.add);
+  const addRing = useMegastructureAddStore((s) => s.addRing);
   const last = useMegastructureAddStore((s) => s.last);
+  const ringClear = useMegastructureAddStore((s) => s.ringClear);
+  const clearing = useMegastructureAddStore((s) => s.clearing);
+  const clearingError = useMegastructureAddStore((s) => s.clearingError);
+  const loadClearing = useMegastructureAddStore((s) => s.loadClearing);
   const { system, spot } = prompt;
   const types = useGameDataStore((s) => s.megastructureTypes);
   const names = useGameDataStore((s) => s.names);
@@ -72,16 +91,17 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const typeKeys = useMemo(() => [...types.keys()], [types]);
   useNamed(typeKeys);
   const rows = details.get(system)?.megastructures;
+  const planets = details.get(system)?.planets;
   const entries = useMemo(
     () =>
       megastructureEntries(
         types,
         names,
         spot,
-        (type) => megastructureRefusal(type, spot, rows ?? [], types),
+        (type) => megastructureRefusal(type, spot, rows ?? [], types, planets ?? []),
         { globalFlags },
       ),
-    [types, names, spot, rows, globalFlags],
+    [types, names, spot, rows, planets, globalFlags],
   );
   const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -97,10 +117,25 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
   const ownerCountry = owner === null ? undefined : countries.get(owner);
   const where = whereText(spot, type, spot.kind === "body" ? bodyName(spot.body)?.text : undefined);
   const orbitHosted = type?.habitat_orbital === true && !hostHasMegastructure(spot, rows ?? []);
-  const addable = found !== null && found.stage.refused === null;
+  const ring = found?.stage.ring === true;
+  const nameOf = (body: number) => bodyName(body)?.text ?? `#${body}`;
+  const clearBlocked =
+    clearingError !== null
+      ? clearingUnread(clearingError)
+      : clearing === null
+        ? CLEARING_LOADING
+        : clearRefusal(clearing, nameOf);
+  const clears = ring && ringClear && clearBlocked === null;
+  const addable = found !== null && found.stage.refused === null && !(ring && ringClear && !clears);
+
+  useEffect(() => {
+    if (ring) void loadClearing();
+  }, [ring, loadClearing]);
 
   const confirm = () => {
-    if (addable) void add(found.stage.variant, found.stage.key);
+    if (!addable) return;
+    if (found.stage.ring) void addRing(found.stage.key);
+    else void add(found.stage.variant, found.stage.key);
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -164,25 +199,33 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               {found === null ? (
                 <div className="muted">No megastructure matches.</div>
               ) : (
-                <MegastructureStages
-                  entry={found.entry}
-                  types={types}
-                  culture={culture}
-                  current={found.stage.key}
-                  onSelect={setPicked}
-                  onConfirm={confirm}
-                />
+                <div className="megastructure-add-middle">
+                  <MegastructureStages
+                    entry={found.entry}
+                    types={types}
+                    culture={culture}
+                    current={found.stage.key}
+                    onSelect={setPicked}
+                    onConfirm={confirm}
+                  />
+                  {ring && found.stage.refused === null && (
+                    <RingWorldPicks clearBlocked={clearBlocked} />
+                  )}
+                </div>
               )}
               {found !== null && (
                 <MegastructurePreviewPane
-                  preview={megastructurePreview(
-                    found.stage,
-                    found.chain,
-                    found.entry,
-                    type,
-                    names,
-                    icons,
-                    text,
+                  preview={ringPreview(
+                    megastructurePreview(
+                      found.stage,
+                      found.chain,
+                      found.entry,
+                      type,
+                      names,
+                      icons,
+                      text,
+                    ),
+                    ring,
                   )}
                   type={type}
                   culture={culture}
@@ -190,12 +233,20 @@ function AddMegastructureForm({ prompt }: { prompt: MegastructureAddPrompt }) {
               )}
             </div>
           )}
-          <div className="muted">
-            {type?.habitat ? writtenAsHabitat(owner !== null) : WRITTEN_FINISHED}
-            {type?.habitat && type.habitat_orbital
-              ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
-              : ""}
-          </div>
+          {clears && clearing !== null ? (
+            <div className="megastructure-add-refusal">{clearingWarning(clearing, nameOf)}</div>
+          ) : (
+            <div className="muted">
+              {ring
+                ? RING_WRITTEN
+                : type?.habitat
+                  ? writtenAsHabitat(owner !== null)
+                  : WRITTEN_FINISHED}
+              {type?.habitat && type.habitat_orbital
+                ? ` ${habitatOrbitalNote(owner !== null, !orbitHosted)}`
+                : ""}
+            </div>
+          )}
         </div>
         <div className="open-dialog-foot">
           <div className="setup-actions">

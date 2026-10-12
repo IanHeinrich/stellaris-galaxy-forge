@@ -17,6 +17,7 @@ import { megastructureSummary, megastructureTypeView, systemDetails } from "../t
 import { openFixtureSave, sessionError } from "./editorFixture";
 import { useFileSessionStore } from "./fileSessionStore";
 import { editResult } from "./fixture";
+import { useGalaxyStore } from "./galaxyStore";
 import { useGameDataStore } from "./gameDataStore";
 import { useInspectorStore } from "./inspectorStore";
 import { useMegastructureAddStore } from "./megastructureAdd";
@@ -199,5 +200,84 @@ describe("adding on a body that has a megastructure", () => {
     expect(megastructureRefusal(complex, spot, rows, types)).toBeNull();
     expect(await adds().add("habitat_central_complex")).toBe(true);
     expect(mockedIpc.addHabitat.mock.calls).toEqual([[SYSTEM, 12, "habitat_central_complex"]]);
+  });
+});
+
+describe("adding a whole ring world from the system view", () => {
+  const star = { kind: "body", body: 1, star: true } as const;
+  const clearing = {
+    system: SYSTEM,
+    bodies: [5, 4],
+    moons: 1,
+    colonies: [],
+    belts: 0,
+    starbase_bodies: [],
+  };
+
+  beforeEach(() => {
+    mockedIpc.addRingWorld.mockResolvedValue({
+      edit: editResult({ details_stale: [SYSTEM] }),
+      planets: [16777300, 16777301],
+      megastructures: [40],
+    });
+    mockedIpc.getRingWorldClearing.mockResolvedValue(clearing);
+  });
+
+  it("sends the picked stages, the system's owner and the clear flag in one add, and closes the dialog", async () => {
+    const systems = new Map(useGalaxyStore.getState().systems);
+    systems.set(SYSTEM, { ...systems.get(SYSTEM)!, owner: 3 });
+    useGalaxyStore.setState({ systems });
+    adds().open(SYSTEM, star);
+    adds().setRingStages("ruined");
+    adds().setRingStage(0, "finished");
+    adds().setRingStage(3, "damaged");
+    adds().setRingClear(true);
+
+    expect(await adds().addRing("ring_world_2_intermediate")).toBe(true);
+    expect(mockedIpc.addRingWorld.mock.calls).toEqual([
+      [SYSTEM, "ring_world_2_intermediate", ["finished", "ruined", "ruined", "damaged"], 3, true],
+    ]);
+    expect(mockedIpc.addMegastructure).not.toHaveBeenCalled();
+    expect(adds().prompt).toBeNull();
+    expect(adds().last).toBe("ring_world_2_intermediate");
+  });
+
+  it("opens with every quadrant finished and the planets left, and leaves them when not told", async () => {
+    adds().open(SYSTEM, star);
+    adds().setRingStages("frame");
+    adds().setRingClear(true);
+    adds().cancel();
+    adds().open(SYSTEM, star);
+
+    expect(adds().ringStages).toEqual(["finished", "finished", "finished", "finished"]);
+    expect(adds().ringClear).toBe(false);
+    await adds().addRing("ring_world_2_intermediate");
+    expect(mockedIpc.addRingWorld.mock.calls[0].slice(2)).toEqual([
+      ["finished", "finished", "finished", "finished"],
+      null,
+      false,
+    ]);
+  });
+
+  it("reads what clearing takes once per opening, and says why when it can't", async () => {
+    adds().open(SYSTEM, star);
+    await adds().loadClearing();
+    await adds().loadClearing();
+    expect(mockedIpc.getRingWorldClearing.mock.calls).toEqual([[SYSTEM]]);
+    expect(adds().clearing).toEqual(clearing);
+
+    mockedIpc.getRingWorldClearing.mockRejectedValue({ kind: "op", message: "no such system" });
+    adds().open(SYSTEM, star);
+    expect(adds().clearing).toBeNull();
+    await adds().loadClearing();
+    expect(adds().clearingError).toBe("no such system");
+  });
+
+  it("remembers nothing when the core refuses the ring", async () => {
+    mockedIpc.addRingWorld.mockRejectedValue({ kind: "op", message: "a refusal" });
+    adds().open(SYSTEM, star);
+
+    expect(await adds().addRing("ring_world_2_intermediate")).toBe(false);
+    expect(adds().last).toBeNull();
   });
 });

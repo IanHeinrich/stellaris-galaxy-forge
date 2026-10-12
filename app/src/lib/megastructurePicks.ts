@@ -6,7 +6,9 @@ import { RELAY_RADIUS_FACTOR } from "../generated/constants";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { MegastructureSummary } from "../generated/MegastructureSummary";
 import type { MegastructureView } from "../generated/MegastructureView";
+import type { PlanetSummary } from "../generated/PlanetSummary";
 import { megastructureLabel } from "./details/labels";
+import { isRingRow, isRingSegment } from "./details/ringWorldRemoval";
 import {
   chainVariants,
   swappedTypes,
@@ -82,7 +84,6 @@ export type MegastructureSpot =
 export const CHANGES_BODY = "Changes the planet's class, which Galaxy Forge can't add yet.";
 export const WHOLE_STRUCTURE =
   "Builds more planets or sections with it, which Galaxy Forge can't add yet.";
-export const RING_WORLD = "Ring worlds are added whole, which Galaxy Forge can't do yet.";
 
 /** Why the dialog lists a type it cannot add, greyed out; null for one it adds or never lists. */
 function greyedOut(type: MegastructureView): string | null {
@@ -90,7 +91,48 @@ function greyedOut(type: MegastructureView): string | null {
   if (placement.place !== "unsupported") return null;
   if (placement.why.kind === "changes_body") return CHANGES_BODY;
   if (placement.why.kind === "whole_structure") return WHOLE_STRUCTURE;
-  if (placement.why.kind === "ring_world") return RING_WORLD;
+  return null;
+}
+
+/** Whether a type is a stage of a ring world past its site, which the dialog adds as the whole ring. */
+export function isRingWorld(type: MegastructureView): boolean {
+  return type.placement.place === "unsupported" && type.placement.why.kind === "ring_world";
+}
+
+/** What the dialog calls a ring world, its tile that adds the whole ring, and the list's summary of it. */
+export const RING_WORLD_LABEL = "Ring World";
+export const RING_STAGE = "Ring";
+export const RING_WORLD_SUMMARY = "Site or whole ring";
+
+/** Why a ring world whose chain the game data lays out no ring for is greyed out. */
+export function ringLayoutRefusal(reason: string): string {
+  return `Galaxy Forge can't build this ring world from the game data: ${reason}.`;
+}
+
+export const RING_WORLD_NO_STAR = "The system has no star for a ring world to stand round.";
+export const RING_WORLD_THERE = "The system already has a ring world or a ring world site.";
+export const RING_WORLD_ROWS =
+  "The system already has a megastructure. A ring world goes only in a system with none, other than a gateway, relay or L-Gate.";
+
+/**
+ * Why the save would refuse a whole ring world in a system of `planets` and `rows`, as the core
+ * refuses it: a system with other than one star, one that has a ring world or its site already,
+ * and one with a megastructure that stands for no bypass. Null when it fits.
+ */
+export function ringWorldRefusal(
+  planets: readonly PlanetSummary[],
+  rows: readonly MegastructureSummary[],
+  types: ReadonlyMap<string, MegastructureView>,
+): string | null {
+  const stars = planets.filter((p) => p.role === "primary" || p.role === "star").length;
+  if (stars === 0) return RING_WORLD_NO_STAR;
+  if (stars > 1) return `The system has ${stars} stars, and a ring world stands round one.`;
+  if (planets.some((p) => isRingSegment(p.class)) || rows.some((row) => isRingRow(row.kind))) {
+    return RING_WORLD_THERE;
+  }
+  if (rows.some((row) => (types.get(row.kind)?.bypass_type ?? null) === null)) {
+    return RING_WORLD_ROWS;
+  }
   return null;
 }
 
@@ -137,13 +179,16 @@ export interface MegastructureStage {
    * star's Dyson Swarm, else `key`.
    */
   variant: string;
+  /** The tile that adds a ring world whole, with each quadrant at its own stage. */
+  ring?: boolean;
 }
 
 /**
- * What a row of a megastructure holds: its build chain, the ruined and restored versions, or a
- * variant's chain, such as one star class's or one an event builds.
+ * What a row of a megastructure holds: its build chain, the ruined and restored versions, a
+ * variant's chain, such as one star class's or one an event builds, or a ring world's site and
+ * whole ring.
  */
-export type MegastructureRowKind = "build" | "ruins" | "variant";
+export type MegastructureRowKind = "build" | "ruins" | "variant" | "ring";
 
 /** One chain of a megastructure, as a row of tiles. */
 export interface MegastructureChain {
@@ -558,8 +603,10 @@ const NO_FLAGS: ReadonlySet<string> = new Set();
  * first, then its other chains, then its ruined and restored versions. The base game's come
  * first, then each mod's under its name, each section by name, and a mod's unnamed types last.
  * A type whose placement can never go at `spot` is left out, and so is one the editor does not
- * add, unless it only changes its planet, builds a whole structure or is a ring world: those
- * are listed greyed out with the reason. A row of a megastructure whose types are all made from
+ * add, unless it only changes its planet or builds a whole structure: those are listed greyed
+ * out with the reason. A ring world's stages past its site are one Ring tile after the site,
+ * which adds the ring whole, greyed out with the reason when the game data lays out no ring for
+ * it or `refusalOf` refuses it. A row of a megastructure whose types are all made from
  * script and have no localised name, such as the Gateway family's `blokkat_dummy_mega`, is left
  * out. `refusalOf` says why the save would refuse a type that does fit.
  *
@@ -598,7 +645,14 @@ export function megastructureEntries(
     order.get(a.key)! - order.get(b.key)!;
   const families = new Map<
     string,
-    { label: string; section: string | null; unnamed: boolean; byClass: boolean; rows: Row[] }
+    {
+      label: string;
+      section: string | null;
+      unnamed: boolean;
+      byClass: boolean;
+      rows: Row[];
+      ring: string | null;
+    }
   >();
   for (const group of linked(fitting)) {
     const built = groupRows(group, byStage, order);
@@ -609,6 +663,26 @@ export function megastructureEntries(
       row.keys.forEach((key, i) => variants.set(key, made[i]));
     }
     const byClass = swapsByStarClass(built[0].keys, types);
+    const ring = shown.flatMap((row) => row.keys).find((k) => isRingWorld(types.get(k)!)) ?? null;
+    if (ring !== null) {
+      const top = fitting.get(ring)!;
+      const section = top.base_game ? null : top.source;
+      const rows = shown
+        .map((row) => ({ ...row, keys: row.keys.filter((k) => !isRingWorld(types.get(k)!)) }))
+        .filter((row) => row.keys.length > 0);
+      const key = `${section ?? ""}/${RING_WORLD_LABEL}`;
+      const family = families.get(key);
+      if (!family) {
+        const label = RING_WORLD_LABEL;
+        families.set(key, { label, section, unnamed: false, byClass: false, rows, ring });
+        continue;
+      }
+      family.rows.push(...rows);
+      family.rows.sort((a, b) => Number(a.kind !== "build") - Number(b.kind !== "build"));
+      const laidOut = (k: string | null) => k !== null && types.get(k)!.ring_world_refused === null;
+      if (!laidOut(family.ring) && laidOut(ring)) family.ring = ring;
+      continue;
+    }
     const [mainRow, ...otherRows] = shown;
     const rows = [mainRow, ...otherRows.filter((row) => !isInternal(row, types, named))];
     const main = rows[0].keys;
@@ -621,7 +695,7 @@ export function megastructureEntries(
     const key = `${section ?? ""}/${unnamed ? `?${stem(finished)}` : label}`;
     const family = families.get(key);
     if (!family) {
-      families.set(key, { label, section, unnamed, byClass, rows });
+      families.set(key, { label, section, unnamed, byClass, rows, ring: null });
       continue;
     }
     family.byClass ||= byClass;
@@ -631,7 +705,7 @@ export function megastructureEntries(
   }
   const entries: MegastructureEntry[] = [];
   for (const [key, family] of families) {
-    const { label, section, unnamed, byClass, rows } = family;
+    const { label, section, unnamed, byClass, rows, ring } = family;
     labelRows(rows, label, nameOf, named);
     const titles = stageTitles(rows, nameOf);
     const chains = rows.map((row): MegastructureChain => {
@@ -662,6 +736,16 @@ export function megastructureEntries(
         finished: row.keys[Math.max(working, 1) - 1],
       };
     });
+    if (ring !== null) {
+      const type = types.get(ring)!;
+      const refused =
+        type.ring_world_refused === null
+          ? refusalOf(type)
+          : ringLayoutRefusal(type.ring_world_refused);
+      const withRing = ringChains(chains, ring, refused);
+      entries.push({ key, label, section, unnamed, summary: RING_WORLD_SUMMARY, chains: withRing });
+      continue;
+    }
     entries.push({ key, label, section, unnamed, summary: summaryOf(rows, byClass), chains });
   }
   return entries.sort(
@@ -671,6 +755,39 @@ export function megastructureEntries(
       (a.section ?? "").localeCompare(b.section ?? "") ||
       a.label.localeCompare(b.label),
   );
+}
+
+/**
+ * A ring world's rows with the Ring tile, which adds the ring whole, after its site in the first
+ * row; the dialog opens the megastructure on the Ring tile.
+ */
+function ringChains(
+  chains: readonly MegastructureChain[],
+  ring: string,
+  refused: string | null,
+): MegastructureChain[] {
+  const [first, ...rest] = chains;
+  const site = first?.kind === "build" ? first.stages : [];
+  const count = site.length + 1;
+  const stage: MegastructureStage = {
+    key: ring,
+    label: RING_WORLD_LABEL,
+    short: RING_STAGE,
+    index: count,
+    count,
+    refused,
+    variant: ring,
+    ring: true,
+  };
+  const row: MegastructureChain = {
+    label: null,
+    kind: "ring",
+    first: site[0]?.key ?? ring,
+    stages: [...site.map((s) => ({ ...s, count })), stage],
+    working: count,
+    finished: ring,
+  };
+  return [row, ...(first?.kind === "build" ? rest : chains)];
 }
 
 export const BASE_GAME = "Base game";
@@ -806,14 +923,17 @@ const BYPASS_NAMES: Readonly<Record<string, string>> = {
 /**
  * Why the save would refuse a row of `type` at `spot` of a system whose rows are `rows`: a second
  * gateway or relay in the system, or a body that has a megastructure already. A habitat is no
- * row, and is refused only round a body that orbits a planet. Null when it fits.
+ * row, and is refused only round a body that orbits a planet. A whole ring world is refused as
+ * `ringWorldRefusal` says of the system's `planets`. Null when it fits.
  */
 export function megastructureRefusal(
   type: MegastructureView,
   spot: MegastructureSpot,
   rows: readonly MegastructureSummary[],
   types: ReadonlyMap<string, MegastructureView>,
+  planets: readonly PlanetSummary[] = [],
 ): string | null {
+  if (isRingWorld(type)) return ringWorldRefusal(planets, rows, types);
   if (type.habitat && spot.kind === "body") {
     return spot.orbitsPlanet === true ? HABITAT_ROUND_SATELLITE : null;
   }

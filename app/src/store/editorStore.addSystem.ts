@@ -27,6 +27,7 @@ type AddSystemActions = Pick<
   | "addBodyAt"
   | "addMegastructure"
   | "addHabitat"
+  | "addRingWorld"
   | "rerollSystem"
   | "renameAddedSystem"
 >;
@@ -153,6 +154,16 @@ export function addSystemActions(
         return added.edit;
       });
       return result === null ? null : planet;
+    },
+
+    async addRingWorld(system, kind, stages, owner, clear) {
+      let added: { planets: number[]; megastructures: number[] } | null = null;
+      const result = await runEdit(async () => {
+        const { edit, ...answer } = await ipc.addRingWorld(system, kind, [...stages], owner, clear);
+        added = answer;
+        return edit;
+      });
+      return result === null ? null : added;
     },
 
     rerollSystem(id, starClass) {

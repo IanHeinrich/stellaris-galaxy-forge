@@ -7,6 +7,7 @@ import type { HistoryView } from "../generated/HistoryView";
 import type { MegastructurePlace } from "../generated/MegastructurePlace";
 import type { OrbitPlacement } from "../generated/OrbitPlacement";
 import type { PrepareOptions } from "../generated/PrepareOptions";
+import type { RingStage } from "../generated/RingStage";
 import type { RowChoice } from "../generated/RowChoice";
 import type { Pair } from "../lib/geometry/pairs";
 import type { Pt } from "../lib/geometry/pt";
@@ -230,6 +231,19 @@ export interface EditorState {
    * core refused the add.
    */
   addHabitat(system: number, body: number, kind: string): Promise<number | null>;
+  /**
+   * Adds the ring world of type `kind`'s chain whole round the star of system `system` in one
+   * edit, each quadrant at its stage in `stages`, owned by `owner`; with `clear`, every body that
+   * is not a star and every belt go first. Answers the new planets and rows, or null when the
+   * core refused the add.
+   */
+  addRingWorld(
+    system: number,
+    kind: string,
+    stages: readonly RingStage[],
+    owner: number | null,
+    clear: boolean,
+  ): Promise<{ planets: number[]; megastructures: number[] } | null>;
   /**
    * Rolls a system added this session again in place: around `starClass`, a random class for
    * null. Left out, a system of a Special menu layout is built from that layout again, and any

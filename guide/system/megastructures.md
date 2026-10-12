@@ -1,7 +1,7 @@
 ---
 title: Megastructures
-description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or delete a whole ring world.
-aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex]
+description: Add, move or delete a megastructure in a save, such as a Hyper Relay, a Science Nexus or a ruined Orbital Ring, add a habitat, or add or delete a whole ring world.
+aliases: [megastructure, add megastructure, move megastructure, drag megastructure, delete megastructure, remove megastructure, dyson sphere, dyson swarm, science nexus, hyper relay, relay, gateway, arc furnace, orbital ring, ruined orbital ring, ruined megastructure, megastructure owner, cosmogenesis world, ring world, ringworld, add ring world, delete ring world, shattered ring, add habitat, delete habitat, habitat central complex]
 ---
 # Megastructures <Badge type="tip" text="Save" />
 
@@ -114,8 +114,6 @@ dialog says why.
 Some types are in the list greyed out. Select one to read the reason in
 the preview. Galaxy Forge can't add these yet:
 
-- Ring worlds. A ring world goes around a star, so it is greyed out on
-  a star and is not in the list on a planet or in empty space.
 - Megastructures that change their planet's class or size, such as an
   Automated Strip Mine.
 - Megastructures that are built as a whole with more planets or
@@ -240,6 +238,60 @@ planet or star it orbited loses the mark the game keeps for its
 habitat, and the system loses its own mark once no habitat is left in
 it. Deleting a habitat you added as the restored complex also deletes
 its orbital.
+
+## Add a ring world
+
+In a Stellaris 4.x save, you can add a whole ring world round a star,
+with each quadrant at the stage you pick. You need the game data loaded.
+
+Clearing the system for a ring world deletes its planets and colonies.
+You choose whether to clear it in step 6.
+
+1. Open the system in the [system view](system-view.md).
+2. Right-click the star and select Add megastructure.
+3. Pick Ring World. It is offered only on a star.
+4. Click one of its two tiles:
+   - Site adds the construction site, as for any other megastructure.
+   - Ring adds the whole ring world.
+5. For Ring, pick a stage for each quadrant, A to D: Finished, Frame,
+   Ruined or Damaged. The buttons after Set all give every quadrant the
+   same stage.
+6. Under Planets, pick what happens to the system's planets:
+   - Keep leaves every planet, moon and asteroid belt where it is. The
+     dialog opens with this picked.
+   - Clear system deletes every planet, moon and asteroid belt first,
+     as the game does when it builds the frame.
+     The stars stay. The line above the Add button says what goes, such
+     as "Clearing deletes 6 planets, 2 moons and 1 belt, and the colony
+     on Lachium I."
+7. Click Add Ring World.
+
+Clear system is off when a starbase orbits one of the planets it would delete,
+and the dialog names that planet.
+
+A finished quadrant is three sections, as the game builds them: a tech
+section, a seam and a habitable section. The sections have no colony,
+so colonise them in the game. A frame quadrant is the frame the game
+builds before the sections. A ruined quadrant is a ruined section, and a
+damaged quadrant is damaged sections, as the game's initializers make
+them.
+
+The ring world goes to the empire that owns the system, and its sections
+are drawn in that empire's style. In a system no one owns, it has no
+owner.
+
+Ring is greyed out, and the details panel says why, in a system that:
+
+- has more than one star, or none
+- already has a ring world or a ring world site
+- has another megastructure, except a Hyper Relay, a Gateway or an
+  L-Gate
+
+A mod's ring world that Galaxy Forge can't build from the game files is
+greyed out too, with the reason.
+
+Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo the add. The planets and belts
+it cleared come back.
 
 ## Delete a megastructure
 
