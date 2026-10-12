@@ -39,6 +39,7 @@ mod megastructure_layouts;
 mod megastructure_offers;
 mod megastructure_views;
 mod megastructures;
+mod mod_names;
 mod model_sprites;
 mod naming;
 mod picks;
