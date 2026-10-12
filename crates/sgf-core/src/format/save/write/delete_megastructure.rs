@@ -19,7 +19,9 @@ use crate::format::save::write::teardown::Teardown;
 use crate::format::save::{entity_at, planet_statement, planet_system};
 use crate::keys;
 use crate::ops::rules::named;
-use crate::ops::{Edit, MegastructureDismantle, OpError, Plan, Planned, SavedTable, Subject};
+use crate::ops::{
+    Edit, MegastructureDismantle, MegastructureEdit, OpError, Plan, Planned, SavedTable, Subject,
+};
 use crate::overlay::Anchor;
 use crate::projections::read;
 use crate::session::Session;
@@ -49,6 +51,7 @@ pub(crate) fn plan_delete(
     })?;
     let refuse = |reason: String| OpError::MegastructureKept {
         megastructure: id,
+        edit: MegastructureEdit::Delete,
         reason,
     };
     if ring_world::is_ring_row(&tied.kind) {
@@ -158,6 +161,7 @@ fn log_death(
         .map(|section| Anchor::Original(section.stmt))
         .ok_or_else(|| OpError::MegastructureKept {
             megastructure: tied.id,
+            edit: MegastructureEdit::Delete,
             reason: "the save has no dead_mega_structure table to log it in".to_owned(),
         })?;
     saved.keep(doc, SavedTable::DeadMegastructures, 0, anchor)?;

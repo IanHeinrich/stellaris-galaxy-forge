@@ -25,9 +25,9 @@ use crate::format::Format;
 use crate::format::save::write::{
     add_body, add_habitat, add_megastructure, add_system, anomaly, belts, bodies, bulk,
     delete_megastructure, delete_ring_world, deposits, dig_site, empire_name, flag, lanes, lgate,
-    map_colors, move_planet, move_system, nebula, planet_class, planet_entity, planet_modifier,
-    planet_ring, planet_size, remove_planet, remove_system, rename_planet, rename_system,
-    replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
+    map_colors, move_megastructure, move_planet, move_system, nebula, planet_class, planet_entity,
+    planet_modifier, planet_ring, planet_size, remove_planet, remove_system, rename_planet,
+    rename_system, replace_system, restore, star_class, system_height, wormhole, wormhole_pair,
 };
 use crate::keys;
 use crate::ops::{Op, OpError, ParseAt, Plan, Planned, Subject};
@@ -332,6 +332,9 @@ impl Format for Save {
                 megastructure,
                 construction,
             } => add_megastructure::plan_remove(plan, s, *megastructure, construction.as_ref()),
+            Op::MoveMegastructure { megastructure, at } => {
+                move_megastructure::plan_move(plan, s, *megastructure, *at)
+            }
             Op::Batch { .. } => Err(OpError::NestedBatch),
             _ => Err(OpError::Unsupported {
                 op: op.name(),

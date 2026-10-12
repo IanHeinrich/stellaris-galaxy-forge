@@ -172,6 +172,11 @@ pub struct MegastructureSummary {
     /// The graphical culture its model is drawn in: the row's `graphical_culture`, else its
     /// owner's; `None` when neither names one.
     pub culture: Option<String>,
+    /// Its planet has the planet flag `megastructure`: the structure made the planet, as a
+    /// cosmogenesis world's did, and stays on it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[ts(optional, as = "Option<bool>")]
+    pub made_body: bool,
     /// What only a scenario's initializer says of it. `None` in a save.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -498,10 +503,28 @@ pub(super) fn megastructures(
             planet: mega.planet,
             at: mega.at,
             culture,
+            made_body: match mega.planet {
+                Some(planet) => made_by_megastructure(doc, planet)?,
+                None => false,
+            },
             spawn: None,
         });
     }
     Ok(())
+}
+
+/// Whether planet `id` has the planet flag `megastructure`, which a body a megastructure made
+/// has.
+fn made_by_megastructure(doc: &Document, id: u32) -> Result<bool, ProjectionError> {
+    let Some(anchor) = planet_statement(doc, id)? else {
+        return Ok(false);
+    };
+    Ok(
+        current_entity(doc, keys::PLANETS, u64::from(id), anchor)?.is_some_and(|(node, src)| {
+            node.find(keys::FLAGS, src)
+                .is_some_and(|flags| flags.find(keys::MEGASTRUCTURE, src).is_some())
+        }),
+    )
 }
 
 /// Every site of `archaeological_sites.sites` the save now holds on a planet, the ones an op

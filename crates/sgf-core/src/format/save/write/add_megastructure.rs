@@ -13,6 +13,7 @@ use crate::NULL_ID;
 use crate::archive;
 use crate::cst::Node;
 use crate::document::Document;
+use crate::emit::coord;
 use crate::emit::megastructure::{BypassRow, MegastructureRow, bypass_row, megastructure_row};
 use crate::entity::facts::megastructure;
 use crate::entity::views::EntityKind;
@@ -80,7 +81,7 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
             }
             ((x, y), None)
         }
-        MegastructurePlace::Body { body } => {
+        MegastructurePlace::Body { body } | MegastructurePlace::Beside { body, .. } => {
             let (node, src) = planet_entity(&s.doc, body)?;
             if planet_system(&node, src, body)? != system {
                 return Err(OpError::NotABody { body, system });
@@ -103,8 +104,14 @@ pub(crate) fn plan_add(plan: &mut Plan, s: &Session, new: &NewRow<'_>) -> Result
                     "it is built only around a star, and planet {body} is not one"
                 )));
             }
-            let at = read::coordinate(&node, src)
-                .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
+            let at = match new.at {
+                MegastructurePlace::Beside { x, y, .. } if !(x.is_finite() && y.is_finite()) => {
+                    return Err(OpError::NotFinite);
+                }
+                MegastructurePlace::Beside { x, y, .. } => (x, y),
+                _ => read::coordinate(&node, src)
+                    .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?,
+            };
             (at, Some(body))
         }
     };
@@ -243,15 +250,21 @@ pub(crate) fn plan_remove(
         }
         None => (false, false, false),
     };
+    let found = row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
+    let (x, y) = read::coordinate(&found.node, found.src)
+        .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
     let at = match tied.planet {
-        Some(body) => MegastructurePlace::Body { body },
-        None => {
-            let found =
-                row(&s.doc, MEGASTRUCTURES, id)?.ok_or(OpError::MegastructureNotAdded(id))?;
-            let (x, y) = read::coordinate(&found.node, found.src)
-                .map_err(|reason| OpError::parse(ParseAt::Record, 0, reason))?;
-            MegastructurePlace::Free { x, y }
+        Some(body) => {
+            let (node, src) = planet_entity(&s.doc, body)?;
+            let home = read::coordinate(&node, src)
+                .map_err(|reason| OpError::parse(ParseAt::Body(body), 0, reason))?;
+            if same_point(home, (x, y)) {
+                MegastructurePlace::Body { body }
+            } else {
+                MegastructurePlace::Beside { body, x, y }
+            }
         }
+        None => MegastructurePlace::Free { x, y },
     };
 
     let built = built.cloned().or_else(|| construction::of_session(s, id));
@@ -292,6 +305,11 @@ pub(crate) fn plan_remove(
     })
 }
 
+/// Whether `a` and `b` are written as the same point.
+pub(crate) fn same_point(a: (f64, f64), b: (f64, f64)) -> bool {
+    (coord(a.0), coord(a.1)) == (coord(b.0), coord(b.1))
+}
+
 /// "12 modifiers, 12 deposits and a counter", or nothing for an empty construction.
 fn counts(built: &MegastructureConstruction) -> String {
     let mut parts = Vec::new();
@@ -312,13 +330,13 @@ fn counts(built: &MegastructureConstruction) -> String {
 }
 
 /// Whether the planet `node` holds has the planet flag `flag`.
-fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
+pub(crate) fn planet_flag(node: &Node, src: &[u8], flag: &str) -> bool {
     node.find(keys::FLAGS, src)
         .is_some_and(|flags| flags.find(flag, src).is_some())
 }
 
 /// Whether body `body` of `system`, whose entry is `node`, is a star.
-fn is_star_body(
+pub(crate) fn is_star_body(
     s: &Session,
     system: u32,
     body: u32,

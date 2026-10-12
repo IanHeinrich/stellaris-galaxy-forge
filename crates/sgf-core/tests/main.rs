@@ -64,6 +64,7 @@ mod ops_lane_lengths;
 mod ops_lanes;
 mod ops_lgate;
 mod ops_map_colors;
+mod ops_move_megastructure;
 mod ops_move_planet;
 mod ops_move_planet_stations;
 mod ops_move_planet_targets;

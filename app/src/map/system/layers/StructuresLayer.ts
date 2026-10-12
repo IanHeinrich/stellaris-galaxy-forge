@@ -88,13 +88,25 @@ export class StructuresLayer implements SystemLayer {
       this.move();
       return;
     }
-    for (const child of this.container.removeChildren()) child.destroy({ children: true });
+    const previous = this.container.removeChildren();
+    const shown = new Map<string, Sprite>(
+      this.drawn.flatMap((d) =>
+        d.model.visible ? [[`${d.structure.kind}:${d.structure.id}`, d.model] as const] : [],
+      ),
+    );
     this.drawn = ctx.structures.map((structure) => {
       const holder = new Container();
       holder.label = `${structure.kind}:${structure.id}`;
       holder.position.set(structure.x, structure.y);
       const model = new Sprite(Texture.EMPTY);
       model.label = "model";
+      const last = shown.get(holder.label);
+      if (last) {
+        model.texture = last.texture;
+        model.anchor.copyFrom(last.anchor);
+        model.scale.copyFrom(last.scale);
+      }
+      model.visible = last !== undefined;
       const icon = new Sprite(Texture.EMPTY);
       icon.label = "icon";
       icon.anchor.set(0.5);
@@ -108,6 +120,7 @@ export class StructuresLayer implements SystemLayer {
       this.container.addChild(holder);
       return { structure, holder, model, icon, halo };
     });
+    for (const child of previous) child.destroy({ children: true });
     requestTextures(
       ctx.structures.flatMap((s) =>
         s.modelKey === null ? s.iconKeys : [s.modelKey, ...s.iconKeys],
@@ -139,7 +152,9 @@ export class StructuresLayer implements SystemLayer {
       const key = structure.modelKey;
       const texture = key === null ? null : getTexture(key);
       const placement = key === null ? undefined : getModelPlacement(key);
-      model.visible = Boolean(texture && placement);
+      // The last bake stays up while a new one for a turned or changed model is made.
+      const baking = texture === undefined && model.visible;
+      if (!baking) model.visible = Boolean(texture && placement);
       if (texture && placement) {
         const { width, height } = modelSize(placement, structure.scale);
         model.texture = texture;

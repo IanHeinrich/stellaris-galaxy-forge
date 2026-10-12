@@ -454,7 +454,8 @@ export class HighlightLayer implements SystemLayer {
 
   /**
    * What a drag marks: a faint disc where the body stood, the ring it lands on, the body it shares
-   * that ring with or stands on, a host or a refusing body ringed, and the handle held or hovered.
+   * that ring with or stands on, a host or a refusing body ringed, each body a dragged megastructure
+   * may be dropped on ringed faintly, and the handle held or hovered.
    */
   private drawDrag(cam: Camera, drag: DragMarks | null): void {
     const g = this.dragMarks.clear();
@@ -484,6 +485,9 @@ export class HighlightLayer implements SystemLayer {
         dashedCircle(g, ring.cx, ring.cy, ring.radius, ringDashes(ring.radius, cam.scale));
         g.stroke({ color: ACCENT_COLOR, alpha: OWN_RING_ALPHA, width });
       }
+    }
+    for (const target of drag?.targets ?? []) {
+      if (target !== drag?.host) around(target, ACCENT_COLOR, SOFT_ALPHA);
     }
     if (drag?.tone === "shared") around(drag.other, ACCENT_COLOR, SOFT_ALPHA);
     if (drag?.tone === "overlap") around(drag.other, CAUTION_COLOR, 1);
